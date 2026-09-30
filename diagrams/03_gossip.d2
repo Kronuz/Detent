@@ -1,0 +1,23 @@
+# Cross-replica propagation only -- what each box contains is
+# 02_distributor_internals.d2. Every peer is addressed by an explicit
+# configured host:port list, not inferred from the multicast sender
+# (every replica on one host shares a source IP but a different port).
+direction: right
+
+a: Distributor A {
+  shape: rectangle
+}
+
+bus: UDP multicast\n(cluster::Bus) {
+  shape: queue
+}
+
+b: Distributor B {
+  shape: rectangle
+}
+
+a -> bus: "\"I have\nversion N\""
+bus -> b: "\"I have\nversion N\""
+b -> a: "pull GET /v1/snapshot\n(explicit peer list)" {
+  style.stroke-dash: 4
+}

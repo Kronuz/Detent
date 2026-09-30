@@ -1,0 +1,58 @@
+# Detent's own targets and the direct (first-hop) dependencies each one
+# pulls in. Extracted from `cmake --graphviz` (ground truth). Third-party
+# transitive internals (what http/cluster themselves need) are in
+# 09_thirdparty_deps.d2 -- this diagram only answers "what does each
+# Detent component link, and why".
+direction: down
+
+detent: "detent\n(core lib)" {
+  tooltip: RCU client, JSON schema, hashing, overrides, file source
+}
+detent_http: "detent_http" {
+  tooltip: HTTP polling client -- plain POSIX sockets, no reactor
+}
+detentd_lib: "detentd_lib" {
+  tooltip: HTTP distributor daemon logic
+}
+detent_agent_lib: "detent_agent_lib" {
+  tooltip: Unix-socket agent server logic
+}
+detentd_exe: "detentd (exe)"
+detent_agent_exe: "detent-agent (exe)"
+
+kronuz: Kronuz cpp-libraries used directly by detent {
+  char_classify: char-classify {tooltip: "ASCII classification tables used by the JSON tokenizer"}
+  strict_stox: strict-stox {tooltip: "Strict numeric string parsing (no silent truncation) for knob values"}
+  atomic_shared_ptr: atomic-shared-ptr {tooltip: "Lock-free RCU snapshot swap -- the whole read-path fast path depends on this"}
+  cpp_btree: cpp-btree {tooltip: "Ordered map for the knob table, better cache behavior than std::map"}
+  epoch: epoch {tooltip: "Epoch-based reclamation backing the RCU snapshot lifetime"}
+  random: random {tooltip: "Deterministic rollout-hash bucketing PRNG"}
+  sha256: sha256 {tooltip: "Rollout hashing per the JustKnobs spec (stable bucket assignment)"}
+  compressors: compressors {tooltip: "zstd/gzip codecs -- lets detent_http negotiate Accept-Encoding on its own, no HTTP-framework weight"}
+}
+
+thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
+  http: "http" {tooltip: "HTTP server framework used by detentd to serve /knobs"}
+  cluster: "cluster" {tooltip: "UDP multicast + peer gossip, used by detentd for replica sync"}
+}
+
+detent -> kronuz.char_classify
+detent -> kronuz.strict_stox
+detent -> kronuz.atomic_shared_ptr
+detent -> kronuz.cpp_btree
+detent -> kronuz.epoch
+detent -> kronuz.random
+detent -> kronuz.sha256
+
+detent_http -> detent: "reuses Client + snapshot model"
+detent_http -> kronuz.compressors: "Accept-Encoding: zstd, gzip on its own GETs"
+
+detentd_lib -> detent
+detentd_lib -> detent_http: "polls upstream/peers over HTTP"
+detentd_lib -> thirdparty.http: "serves GET/PUT /knobs"
+detentd_lib -> thirdparty.cluster: "gossips version numbers to peers"
+detentd_exe -> detentd_lib
+
+detent_agent_lib -> detent: "one warm in-process snapshot per agent"
+detent_agent_exe -> detent_agent_lib
+detent_agent_exe -> detent_http: "only used for --source-http mode" {style.stroke-dash: 4}

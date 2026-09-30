@@ -1,0 +1,100 @@
+########################################################################
+# detent: the core client library (zero networking dependencies)
+########################################################################
+add_library(detent
+  detent/hashing.cc
+  detent/json_schema.cc
+  detent/json_patch.cc
+  detent/overrides.cc
+  detent/client.cc
+  detent/global.cc
+  detent/testing.cc
+  detent/test_hook.cc)
+
+target_include_directories(detent PUBLIC
+  "${CMAKE_SOURCE_DIR}/include")
+# SYSTEM: rapidjson's own headers use std::iterator (deprecated since
+# C++17) -- this is their code, not ours, so their deprecation warnings
+# shouldn't show up as if they were.
+target_include_directories(detent SYSTEM PUBLIC
+  "${rapidjson_SOURCE_DIR}/include")
+
+target_link_libraries(detent PUBLIC
+  char_classify::char_classify
+  strict_stox::strict_stox
+  sha256::sha256
+  atomic-shared-ptr::atomic-shared-ptr
+  cpp_btree::headers
+  random::random)
+
+target_compile_features(detent PUBLIC cxx_std_20)
+
+add_library(detent::detent ALIAS detent)
+
+########################################################################
+# detent_http: optional client-side HTTP polling source (POSIX sockets
+# only, no Asio) -- plugs into InitOptions::source_poll. Kept as a SEPARATE
+# target from detent itself so a consumer who only wants the file source
+# never pulls socket/networking code in at all (AGENTS.md's "keep them
+# small": don't grow a dependency into a library that currently has none).
+# compressors is the one deliberate exception: it lets this client actually
+# request the zstd/gzip encodings detentd already serves (see
+# http_client.cc's Accept-Encoding) instead of always polling uncompressed
+# JSON -- still no Asio/http-framework/cluster weight, just one codec lib.
+########################################################################
+add_library(detent_http
+  detent_http/http_client.cc
+  detent_http/http_source.cc)
+
+target_include_directories(detent_http PUBLIC
+  "${CMAKE_SOURCE_DIR}/include")
+
+target_link_libraries(detent_http PUBLIC detent::detent compressors::compressors)
+target_compile_features(detent_http PUBLIC cxx_std_20)
+
+add_library(detent_http::detent_http ALIAS detent_http)
+
+########################################################################
+# detentd: the distribution-layer daemon (Section 10's "any publisher that
+# emits valid snapshots" extension seam, made concrete). Pulls the Kronuz
+# service stack: reactor (event-driven TCP, thread-per-core) + http
+# (the HTTP/1.1 framework, radix routing, conditional-GET/ETag) + cluster
+# (UDP multicast bus, for cross-replica gossip). detentd.hh stays private
+# (colocated with detentd.cc, not under include/) -- nothing outside this
+# directory ever includes it, unlike detent/detent_http's public headers.
+########################################################################
+if(DETENT_BUILD_DISTRIBUTOR)
+  add_library(detentd_lib detentd/detentd.cc detentd/raft_delegate.cc)
+
+  target_include_directories(detentd_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detentd")
+
+  target_link_libraries(detentd_lib PUBLIC
+    detent::detent
+    detent_http::detent_http
+    http::http
+    cluster::cluster
+    generation_cache::generation_cache)
+
+  target_compile_features(detentd_lib PUBLIC cxx_std_20)
+
+  add_executable(detentd detentd/main.cc)
+  target_link_libraries(detentd PRIVATE detentd_lib)
+endif()
+
+########################################################################
+# detent_agent: the host-local daemon + its own CLI in one binary (see
+# README's "detent-agent" section). Shares one warm detent::Client across
+# every local reader via a shared-memory snapshot (ShmWriter/ShmReader),
+# instead of each local process running its own updater thread against
+# detentd or going through a socket round trip. Private headers, same
+# reasoning as detentd.hh above.
+########################################################################
+add_library(detent_agent_lib detent_agent/agent.cc detent_agent/shm_writer.cc detent_agent/shm_reader.cc)
+
+target_include_directories(detent_agent_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detent_agent")
+
+target_link_libraries(detent_agent_lib PUBLIC detent::detent)
+target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
+
+add_executable(detent-agent detent_agent/main.cc)
+target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http)

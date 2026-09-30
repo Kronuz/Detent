@@ -1,0 +1,35 @@
+# The host-local agent: one warm Client publishing a pre-parsed, ready-to-
+# evaluate binary snapshot into a seqlock-guarded, memory-mapped file --
+# every local reader mmaps it directly instead of round-tripping to the
+# daemon (a fresh short-lived process per `detent-agent get` invocation).
+# Simpler than a per-key TTL cache (the pattern this is modeled on) needs to
+# be, because detent::Client already keeps one whole versioned snapshot
+# fresh by itself -- the agent's only job is to share that, and to do so as
+# cheaply as a reader can possibly ask for it: no socket, no request/
+# response round trip, no JSON parsing on the read path at all.
+direction: down
+
+detentd: detentd\n(remote) {
+  shape: rectangle
+}
+
+agent: detent-agent\n(one Client, one poller,\none ShmWriter) {
+  shape: rectangle
+}
+
+shm: shared memory file\n(seqlock-guarded,\npre-parsed binary snapshot) {
+  shape: cylinder
+}
+
+reader_a: shell script /\n`detent-agent get` {
+  shape: rectangle
+}
+
+reader_b: another local\nprocess (any language) {
+  shape: rectangle
+}
+
+detentd -> agent: "GET /v1/snapshot\n(one poller for\nthe whole host)"
+agent -> shm: "ShmWriter::publish()\non every accepted update\n(memcpy under a seqlock,\nwait-free for the writer)"
+shm -> reader_a: "mmap PROT_READ +\nbinary search\n(no daemon round-trip)"
+shm -> reader_b: "mmap PROT_READ +\nbinary search\n(no daemon round-trip)"

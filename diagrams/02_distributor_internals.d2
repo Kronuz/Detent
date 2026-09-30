@@ -1,0 +1,25 @@
+# What's inside one distributor: the two HTTP endpoints, the in-memory
+# state they share, and the disk-backed persistence that survives a
+# restart. No gossip here -- see 03_gossip.d2.
+direction: down
+
+put: PUT /v1/snapshot\n(validate + version-gate) {
+  shape: rectangle
+}
+
+state: In-memory\ncurrent snapshot {
+  shape: cylinder
+}
+
+get: GET /v1/snapshot\n(conditional, ETag,\nalways instant) {
+  shape: rectangle
+}
+
+disk: Persisted\nsnapshot file {
+  shape: page
+}
+
+put -> state: "on accept"
+state -> get: "read under\nshared lock"
+state -> disk: "atomic write\n+ rename"
+disk -> state: "reloaded at\nstartup"

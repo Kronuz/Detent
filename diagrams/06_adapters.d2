@@ -1,0 +1,27 @@
+# How the process-wide adapter and the test harness relate to Client.
+# Small on purpose: this is a one-fact diagram (thread-local override
+# takes precedence), not a pipeline.
+direction: down
+
+app: Application code {
+  shape: rectangle
+}
+
+global: detent::global\n(process-wide adapter) {
+  shape: rectangle
+}
+
+testing: detent::testing\n(TestKnobs / TestGuard) {
+  shape: rectangle
+}
+
+client: One Client\ninstance {
+  shape: rectangle
+}
+
+app -> global: "global::eval() /\nglobal::get()"
+global -> client: "the ONE\nprocess-wide instance"
+testing -> client: "in-memory Client\n(no file, no source)"
+testing -> global: "thread-local override,\nchecked FIRST" {
+  style.stroke-dash: 4
+}

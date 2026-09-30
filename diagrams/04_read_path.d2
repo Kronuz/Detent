@@ -1,0 +1,44 @@
+# Section 6: the read path. One flow, top to bottom -- no branching
+# except the two entry points (eval/get) which converge immediately.
+direction: down
+
+app: "client.eval() / client.get()" {
+  shape: rectangle
+}
+
+validate: validate_name() {
+  shape: rectangle
+}
+
+override: CLI override lookup\n(one null-check,\nunset = free) {
+  shape: rectangle
+}
+
+overrides_store: OverrideTable\n(immutable post-init) {
+  shape: cylinder
+}
+
+load: SnapshotRef::load()\n(one atomic acquire) {
+  shape: rectangle
+}
+
+snap_store: SnapshotRef {
+  shape: cylinder
+}
+
+lookup: btree::map lookup {
+  shape: rectangle
+}
+
+precedence: type-check + precedence\n(group > rollout > default) {
+  shape: rectangle
+}
+
+hashing: stable_bucket()\n(SHA-256) {
+  shape: rectangle
+}
+
+app -> validate -> override -> load -> lookup -> precedence
+override -> overrides_store: "read"
+load -> snap_store: "read"
+precedence -> hashing: "only if\nrollout_pct set"

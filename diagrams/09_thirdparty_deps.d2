@@ -1,0 +1,46 @@
+# What the two heavier third-party libraries (http, cluster) themselves
+# pull in transitively. Split out from 08_detent_deps.d2 so neither
+# diagram gets overloaded. Extracted from `cmake --graphviz` (ground
+# truth); leaf system libraries (ZLIB/lz4/zstd) are the actual compression
+# codecs `http` can negotiate via Content-Encoding.
+direction: right
+
+http: http (framework) {
+  tooltip: Used by detentd only, to serve GET/PUT /knobs over HTTP/1.1
+}
+cluster: cluster {
+  tooltip: Used by detentd only, for UDP multicast peer gossip
+}
+
+http_parser: http-parser {tooltip: "HTTP/1.1 request line + header tokenizer"}
+radix_router: radix-router {tooltip: "Route table for /knobs, /health, etc."}
+compressors: compressors {tooltip: "gzip/lz4/zstd response encoding"}
+reactor: reactor {tooltip: "epoll/kqueue event loop + Asio, shared by http and cluster"}
+
+enum_reflection: enum-reflection {tooltip: "Compile-time enum<->string, used by http-parser for methods/headers"}
+hashes: hashes {tooltip: "Perfect-hash header lookups"}
+constexpr_phf: constexpr-phf {tooltip: "Compile-time perfect hash function generator"}
+static_string: static-string {tooltip: "Fixed-capacity string type for header keys/values"}
+char_classify: char-classify {tooltip: "Same ASCII classification tables detent's JSON tokenizer uses"}
+
+zlib: ZLIB (system) {tooltip: "gzip codec"}
+lz4: lz4 {tooltip: "lz4 codec"}
+zstd: zstd {tooltip: "zstd codec"}
+
+http -> http_parser
+http -> radix_router
+http -> compressors
+http -> reactor
+
+cluster -> reactor: "peer connections + multicast socket handling"
+
+http_parser -> enum_reflection
+http_parser -> hashes
+
+enum_reflection -> constexpr_phf
+hashes -> static_string
+hashes -> char_classify
+
+compressors -> zlib
+compressors -> lz4
+compressors -> zstd

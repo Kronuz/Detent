@@ -1,0 +1,34 @@
+# Section 7: the update path. A loop, not a one-shot pipeline -- laid out
+# as a cycle so that's visible at a glance.
+direction: down
+
+source: SourcePoll\n(file mtime-poll OR\nHttpConnection poll) {
+  shape: rectangle
+}
+
+parse: parse_source_snapshot()\n(strict RapidJSON) {
+  shape: rectangle
+}
+
+gate: version >\naccepted? {
+  shape: diamond
+}
+
+merge: merge_over_defaults()\n(whole-definition replace) {
+  shape: rectangle
+}
+
+publish: SnapshotRef::store()\n(release, one swap) {
+  shape: rectangle
+}
+
+backoff: full-jitter backoff\n(random lib) {
+  shape: rectangle
+}
+
+source -> parse -> gate
+gate -> merge: "yes"
+gate -> backoff: "no (stale/invalid)"
+merge -> publish
+publish -> source: "next poll"
+backoff -> source: "retry"

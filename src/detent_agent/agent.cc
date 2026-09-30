@@ -1,0 +1,41 @@
+#include "agent.hh"
+
+#include <chrono>
+#include <thread>
+
+namespace detent_agent {
+
+using namespace std::chrono_literals;
+
+Agent::Agent(Options options) : options_(std::move(options)) {
+	shm_writer_ = std::make_unique<ShmWriter>(options_.shm_path);
+
+	// Wire on_update *before* constructing Client: the background updater
+	// thread can fire it the moment it accepts its first real update, which
+	// can happen arbitrarily soon after construction returns.
+	auto opts = options_.client_options;
+	opts.on_update = [this](const detent::Snapshot& snap) { shm_writer_->publish(snap); };
+	client_ = std::make_unique<detent::Client>(std::move(opts));
+
+	// Seed the shm with the baked-defaults snapshot immediately: on_update
+	// only fires on a subsequent *accepted source update*, so without this
+	// a fresh agent (or one whose source is slow/unreachable) would leave
+	// the shm file either absent or stale until the first real update
+	// landed, even though the Client itself already has a perfectly valid
+	// version-0 snapshot to serve right now.
+	shm_writer_->publish(*client_->current_snapshot());
+}
+
+Agent::~Agent() { stop(); }
+
+void Agent::serve() {
+	serving_.store(true);
+	while (!stop_requested_.load()) {
+		std::this_thread::sleep_for(200ms); // just keeps the process (and Client's thread) alive
+	}
+	serving_.store(false);
+}
+
+void Agent::stop() { stop_requested_.store(true); }
+
+} // namespace detent_agent

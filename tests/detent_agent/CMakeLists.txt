@@ -1,0 +1,9 @@
+add_executable(test_agent_basic test_agent_basic.cc)
+target_link_libraries(test_agent_basic PRIVATE detent_agent_lib)
+add_test(NAME test_agent_basic COMMAND test_agent_basic)
+set_tests_properties(test_agent_basic PROPERTIES TIMEOUT 30)
+
+add_executable(test_shm_concurrency_stress test_shm_concurrency_stress.cc)
+target_link_libraries(test_shm_concurrency_stress PRIVATE detent_agent_lib)
+add_test(NAME test_shm_concurrency_stress COMMAND test_shm_concurrency_stress)
+set_tests_properties(test_shm_concurrency_stress PROPERTIES TIMEOUT 60)
