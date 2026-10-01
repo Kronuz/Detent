@@ -56,3 +56,27 @@ limit. A shared bounded reader now checks each chunk before appending and
 reports read errors. Distributor startup rejects unreadable or oversized
 existing state files. The file-source regression covers exact and exceeded
 limits; distributor persistence tests cover normal reload behavior.
+
+## Group rollout extension
+
+Group overrides now accept either a forced boolean or an object containing
+only an integer `rollout_pct` from 0 to 100. Group percentages use the same
+knob/user hash as the global rollout, preserving nested cohorts. Missing
+hashes use the knob default, and unknown groups retain global evaluation.
+The JSON schema rejects malformed group definitions rather than ignoring
+fields. Snapshot and PATCH serialization preserve the new definitions.
+
+Shared-memory layout version 2 distinguishes forced values from percentages.
+Upgrade readers and restart agents together. C++ `BoolDef::overrides` values
+are now `GroupOverride` variants of `bool` and `GroupRollout`; code inspecting
+values directly must use the variant API. Language binding read APIs retain
+their existing hash and switch parameters.
+
+Validation for this extension: the full C++ build succeeds and all 13 tests
+that do not require sockets pass. The core and shared-memory readers agree
+across 1,000 host IDs in each of seven groups, including 0% and 100% bounds.
+Quick Start JSON parses, and its group reads and missing-knob fallback pass
+through a real local agent using the file source. Nine HTTP/cluster tests
+could not pass in the current sandbox: socket operations are prohibited
+(`bind: Operation not permitted` or connection failures). HTTP end-to-end
+validation must be rerun in an environment that permits sockets.

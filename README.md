@@ -9,7 +9,7 @@ diff-since-last-version polling, cached compression, and optional Raft-based
 replication for `detentd`.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature
-flags, and gradual rollouts. The [usage guide](docs/USAGE.md) covers network
+flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network
 distribution, configuration, and library examples.
 
 ## What this is
@@ -684,3 +684,21 @@ surface is one Raft cluster per distributor deployment.
 System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 
 The shell reader is `detent get NAME`. Agent lifecycle commands are `detent-agent start`, `stop`, `restart`, `status`, and `help`. `restart` runs a user agent in the background; managed services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
+
+### Rollouts by group
+
+Boolean overrides may be `true` or `false`, or an object containing only
+`rollout_pct` (an integer from 0 to 100):
+
+```json
+"overrides": {"employees": true, "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}}
+```
+
+A matching group rollout replaces the knob-wide rollout percentage and uses
+the same hash bucket. Without a hash, it returns the knob's default. Unknown
+groups use the knob-wide rollout. Boolean overrides still force their value.
+The behavior is shared by C++ clients, language bindings, and `detent get`.
+PATCH replaces a complete knob definition, including all its groups.
+
+The shared-memory layout is now version 2. Stop and restart existing agents
+when upgrading; older readers cannot interpret group rollout records.

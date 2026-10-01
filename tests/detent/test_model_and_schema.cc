@@ -78,7 +78,7 @@ void test_source_parse_and_merge() {
 	const auto* killswitch = std::get_if<BoolDef>(&merged.knobs.find("checkout:killswitch_new_path")->second);
 	assert(killswitch != nullptr);
 	assert(killswitch->rollout_pct.has_value() && *killswitch->rollout_pct == 10);
-	assert(killswitch->overrides.find("employees")->second == true);
+	assert(std::get<bool>(killswitch->overrides.find("employees")->second) == true);
 
 	std::puts("source parse + merge OK");
 }

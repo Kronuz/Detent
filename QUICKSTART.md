@@ -1,7 +1,6 @@
 # Quick start
 
-Try three everyday uses against a running distributor: change a numeric
-setting, toggle a feature, and ramp a rollout. Run the examples in order
+Change settings and roll out features against a running distributor. Run the examples in order
 from the repository root.
 
 ## Build and start the distributor
@@ -106,6 +105,50 @@ curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
 
 At 100%, every read with `--hash` returns `true`. Reads without a hash use the
 knob's default, which remains `false` in this example.
+
+## 4. Use different rollout percentages for different groups
+
+Force employees on, exclude a group, and ramp beta users separately from
+production users:
+
+```sh
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d '{
+  "schema_version":1,"version":9,"knobs":{
+    "payments:new_processor":{
+      "type":"bool","default":false,"rollout_pct":10,
+      "overrides":{
+        "employees":true,"excluded":false,
+        "beta":{"rollout_pct":50},
+        "production":{"rollout_pct":5}
+      }
+    }
+  }
+}'
+sleep 1
+detent get payments:new_processor --hash user-1 --switch beta
+# true
+detent get payments:new_processor --hash user-1 --switch production
+# false
+detent get payments:new_processor --hash user-1 --switch employees
+# true
+detent get payments:new_processor --hash user-1 --switch excluded
+# false
+```
+
+Your application supplies the group with `--switch`. A matching boolean forces
+its value; a matching rollout compares the same user bucket against that
+group's percentage. An unknown group uses the knob-wide rollout. Without
+`--hash`, group rollouts use the knob's default. When publishing a changed
+percentage, include the complete knob definition to preserve its other groups.
+
+## 5. Supply a fallback for a missing knob
+
+```sh
+detent get checkout:unpublished_feature --default false
+# false
+```
+
+This fallback applies only to this read; it does not publish or change a knob.
 
 ## Stop
 

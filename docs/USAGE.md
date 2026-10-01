@@ -68,7 +68,10 @@ startup parse and then serves reads from the published in-memory snapshot.
 
 ### Gradual rollouts and per-group overrides
 
-Bool knobs can combine a rollout percentage with named overrides:
+Bool knobs can combine a rollout percentage with named overrides. Overrides
+accept a boolean or `{"rollout_pct": 50}` for a group-specific rollout. The
+group percentage uses the same hash bucket; without a hash it uses the knob
+default. Unknown groups fall through to the knob-wide rollout:
 
 ```json
 {

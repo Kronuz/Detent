@@ -168,6 +168,16 @@ void test_stickiness_across_independent_clients() {
 } // namespace
 
 int main() {
+	Snapshot fallback_snapshot;
+	BoolDef fallback;
+	fallback.default_value = true;
+	fallback.rollout_pct = 100;
+	fallback.overrides["none"] = GroupRollout{0};
+	fallback_snapshot.knobs["a:b"] = fallback;
+	Client fallback_client(std::move(fallback_snapshot));
+	assert(fallback_client.eval("a:b", std::nullopt, "none").value());
+	assert(!fallback_client.eval("a:b", "host", "none").value());
+	assert(fallback_client.eval("a:b", "host", "unknown").value());
 	test_bool_default_no_override_no_rollout();
 	test_group_match_and_precedence();
 	test_rollout_boundaries();

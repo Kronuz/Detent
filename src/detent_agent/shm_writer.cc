@@ -91,7 +91,12 @@ std::vector<std::uint8_t> serialize_for_shm(const detent::Snapshot& snapshot) {
 					shm::OverrideRecord orec{};
 					orec.name_offset = record_bytes + append(blob, gkey.data(), gkey.size());
 					orec.name_len = static_cast<std::uint32_t>(gkey.size());
-					orec.value = gval ? 1 : 0;
+					if (const auto* forced = std::get_if<bool>(&gval)) {
+						orec.value = *forced ? 1 : 0;
+					} else {
+						orec.is_rollout = 1;
+						orec.value = std::get<detent::GroupRollout>(gval).rollout_pct;
+					}
 					std::memcpy(blob.data() + orecs_start + idx * sizeof(shm::OverrideRecord), &orec, sizeof(orec));
 					++idx;
 				}

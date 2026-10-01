@@ -39,7 +39,7 @@ constexpr std::string_view kDefaults = R"({
 	"knobs": {
 		"checkout:killswitch_new_path": { "type": "bool", "default": false },
 		"search:max_results": { "type": "int", "default": 25 },
-		"payments:new_processor": { "type": "bool", "default": false, "rollout_pct": 10, "overrides": { "internal_employees": true } }
+		"payments:new_processor": { "type": "bool", "default": false, "rollout_pct": 10, "overrides": { "internal_employees": true, "beta": {"rollout_pct":50}, "production": {"rollout_pct":5}, "excluded": false, "all": {"rollout_pct":100}, "none": {"rollout_pct":0} } }
 	}
 })";
 
@@ -109,6 +109,22 @@ int main() {
 	assert(group_override.has_value() && group_override.value() == true); // group wins even though user-2 fails the rollout gate
 	auto unknown_group = reader->eval("payments:new_processor", "user-1", "no-such-group");
 	assert(unknown_group.has_value() && unknown_group.value() == false); // falls through to the rollout gate
+
+	detent::InitOptions comparison_options;
+	comparison_options.defaults_path = defaults_path;
+	detent::Client comparison(std::move(comparison_options));
+	for (auto group : {"beta", "production", "excluded", "all", "none", "unknown", "internal_employees"}) {
+		for (int user = 0; user < 1000; ++user) {
+			auto hash = "host-" + std::to_string(user);
+			auto expected = comparison.eval("payments:new_processor", hash, group).value();
+			assert(reader->eval("payments:new_processor", hash, group).value() == expected);
+		}
+		assert(reader->eval("payments:new_processor", std::nullopt, group).value() ==
+		       comparison.eval("payments:new_processor", std::nullopt, group).value());
+	}
+	assert(!reader->eval("payments:new_processor", "user-1", "production").value());
+	assert(reader->eval("payments:new_processor", "user-1", "beta").value());
+	assert(!reader->eval("payments:new_processor", std::nullopt, "all").value());
 
 	// get() ignores switch_val (int model has no group overrides, Section 8).
 	auto get_with_switch = reader->get("search:max_results", "anything");

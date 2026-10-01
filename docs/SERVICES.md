@@ -107,3 +107,7 @@ References: [systemd directory management](https://github.com/systemd/systemd/bl
 [launchd process supervision](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html),
 [FreeBSD rc.d](https://docs.freebsd.org/en/articles/rc-scripting/),
 [FreeBSD daemon](https://man.freebsd.org/cgi/man.cgi?apropos=0&manpath=FreeBSD+14.2-RELEASE&query=daemon&sektion=8).
+
+When upgrading to group rollout support (shared-memory layout version 2),
+restart the agent through its service manager and upgrade the readers too.
+Older readers reject the new layout.

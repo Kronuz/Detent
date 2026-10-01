@@ -88,14 +88,21 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 					if (!is_valid_group_key(gkey)) {
 						return UpdateError{UpdateRejectReason::Schema, "bad group key on knob " + name};
 					}
-					if (!oit->value.IsBool()) {
-						return UpdateError{UpdateRejectReason::Schema, "override not boolean: " + name};
+					GroupOverride value;
+					if (oit->value.IsBool()) {
+						value = oit->value.GetBool();
+					} else if (oit->value.IsObject() && oit->value.MemberCount() == 1 &&
+					           oit->value.HasMember("rollout_pct") && oit->value["rollout_pct"].IsUint() &&
+					           oit->value["rollout_pct"].GetUint() <= 100) {
+						value = GroupRollout{static_cast<std::uint8_t>(oit->value["rollout_pct"].GetUint())};
+					} else {
+						return UpdateError{UpdateRejectReason::Schema, "override must be boolean or {rollout_pct: 0..100}: " + name};
 					}
 					// Strict rejection (Section 4): a duplicate override key
 					// within one knob's `overrides` object must reject the
 					// whole input, not silently keep whichever the JSON
 					// parser or this insertion order happened to see last.
-					if (!def.overrides.insert({gkey, oit->value.GetBool()}).second) {
+					if (!def.overrides.insert({gkey, value}).second) {
 						return UpdateError{UpdateRejectReason::Schema, "duplicate override key '" + gkey + "' on knob " + name};
 					}
 				}
@@ -156,7 +163,13 @@ rapidjson::Value write_knob_def(const KnobDef& def, rapidjson::Document::Allocat
 		rapidjson::Value overrides(rapidjson::kObjectType);
 		for (const auto& [gkey, gval] : b->overrides) {
 			rapidjson::Value key(gkey.data(), static_cast<rapidjson::SizeType>(gkey.size()), alloc);
-			overrides.AddMember(key, gval, alloc);
+			if (const auto* forced = std::get_if<bool>(&gval)) {
+				overrides.AddMember(key, *forced, alloc);
+			} else {
+				rapidjson::Value group(rapidjson::kObjectType);
+				group.AddMember("rollout_pct", static_cast<unsigned>(std::get<GroupRollout>(gval).rollout_pct), alloc);
+				overrides.AddMember(key, group, alloc);
+			}
 		}
 		entry.AddMember("overrides", overrides, alloc);
 		if (b->rollout_pct) {

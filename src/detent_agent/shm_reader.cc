@@ -106,14 +106,14 @@ const shm::KnobRecord* find_knob(const std::uint8_t* payload, std::uint32_t payl
 	return nullptr;
 }
 
-std::optional<bool> find_override(const shm::KnobRecord& rec, const std::uint8_t* payload, std::uint32_t payload_len, std::string_view switch_val) {
+const shm::OverrideRecord* find_override(const shm::KnobRecord& rec, const std::uint8_t* payload, std::uint32_t payload_len, std::string_view switch_val) {
 	std::uint64_t span_end = static_cast<std::uint64_t>(rec.overrides_offset) + static_cast<std::uint64_t>(rec.override_count) * sizeof(shm::OverrideRecord);
-	if (rec.overrides_offset % alignof(shm::OverrideRecord) != 0 || rec.overrides_offset > payload_len || span_end > payload_len) return std::nullopt; // doesn't fit: treat as no overrides, not a crash
+	if (rec.overrides_offset % alignof(shm::OverrideRecord) != 0 || rec.overrides_offset > payload_len || span_end > payload_len) return nullptr; // doesn't fit: treat as no overrides, not a crash
 	const auto* overrides = reinterpret_cast<const shm::OverrideRecord*>(payload + rec.overrides_offset);
 	for (std::uint32_t i = 0; i < rec.override_count; ++i) {
-		if (field_name(overrides[i], payload, payload_len) == switch_val) return overrides[i].value != 0;
+		if (field_name(overrides[i], payload, payload_len) == switch_val) return &overrides[i];
 	}
-	return std::nullopt;
+	return nullptr;
 }
 
 } // namespace
@@ -220,7 +220,9 @@ detent::Result<bool, detent::KnobError> ShmReader::eval(
 		if (switch_val) {
 			auto matched = find_override(*rec, payload, payload_len, *switch_val);
 			if (matched) {
-				result = *matched;
+				result = matched->is_rollout
+				    ? (hash_val ? detent::stable_bucket(name, *hash_val) < matched->value : rec->default_value != 0)
+				    : matched->value != 0;
 			} else if (rec->has_rollout_pct && hash_val) {
 				result = detent::stable_bucket(name, *hash_val) < rec->rollout_pct;
 			} else {

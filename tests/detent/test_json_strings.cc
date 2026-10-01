@@ -17,6 +17,18 @@ int main() {
     assert(std::get<detent::BoolDef>(parsed.value().knobs.at("a:b")).overrides.contains(group));
     auto again = source(detent::serialize_snapshot(parsed.value()));
     assert(again && again.value().knobs == parsed.value().knobs);
+    auto groups = source(R"({"schema_version":1,"version":2,"knobs":{"a:b":{"type":"bool","default":false,"overrides":{"beta":{"rollout_pct":50},"employees":true}}}})");
+    assert(groups);
+    auto roundtrip = source(detent::serialize_snapshot(groups.value()));
+    assert(roundtrip && roundtrip.value().knobs == groups.value().knobs);
+    auto delta = detent::diff_snapshots(parsed.value(), groups.value());
+    auto delta_roundtrip = patch(detent::serialize_patch(delta));
+    assert(delta_roundtrip && delta_roundtrip.value().knobs == delta.knobs);
+    for (auto value : {"{}", "{\"rollout_pct\":101}", "{\"rollout_pct\":-1}", "{\"rollout_pct\":null}", "{\"rollout_pct\":1.5}", "{\"rollout_pct\":50,\"extra\":true}", "{\"rollout_pct\":50,\"rollout_pct\":60}"}) {
+        auto bytes = std::string(R"({"schema_version":1,"version":1,"knobs":{"a:b":{"type":"bool","default":false,"overrides":{"beta":)") + value + "}}}}";
+        assert(!source(bytes));
+        assert(!patch(bytes));
+    }
     auto invalid = std::string(R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":false,"overrides":{")") + char(0xff) + R"(":true}}}})";
     assert(!detent::parse_defaults(invalid));
 }

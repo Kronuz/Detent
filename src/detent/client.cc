@@ -177,7 +177,9 @@ Result<bool, KnobError> Client::eval(
 		auto git = def->overrides.find(*switch_val);
 		if (git != def->overrides.end()) {
 			metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-			return git->second;
+			if (const auto* forced = std::get_if<bool>(&git->second)) return *forced;
+			return hash_val ? stable_bucket(name, *hash_val) < std::get<GroupRollout>(git->second).rollout_pct
+			                : def->default_value;
 		}
 	}
 	if (def->rollout_pct && hash_val) {

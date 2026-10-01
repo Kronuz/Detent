@@ -70,7 +70,7 @@
 namespace detent_agent::shm {
 
 inline constexpr std::uint32_t kMagic = 0x444e5431; // "1TND" little-endian; a sanity marker, not a format negotiation
-inline constexpr std::uint32_t kLayoutVersion = 1;
+inline constexpr std::uint32_t kLayoutVersion = 2;
 // 4 MiB of payload comfortably covers realistic knob counts (the project's
 // own default max_knobs is 100,000, but a single detent-agent deployment
 // serving a handful of services is realistically dozens to low thousands);
@@ -116,13 +116,14 @@ static_assert(std::is_trivially_copyable_v<KnobRecord>);
 static_assert(std::is_standard_layout_v<KnobRecord>);
 static_assert(sizeof(KnobRecord) == 32);
 
-// One per-group bool override. Int knobs never have overrides (Section 8:
+// One per-group boolean or percentage override. Int knobs never have overrides (Section 8:
 // "the specified integer model has no group overrides"), so this type is
 // bool-only by construction, not by a runtime type tag.
 struct OverrideRecord {
 	std::uint32_t name_offset = 0;
 	std::uint32_t name_len = 0;
-	std::uint8_t value = 0; // 0/1
+	std::uint8_t value = 0; // boolean value or rollout percentage
+	std::uint8_t is_rollout = 0;
 };
 static_assert(std::is_trivially_copyable_v<OverrideRecord>);
 static_assert(std::is_standard_layout_v<OverrideRecord>);

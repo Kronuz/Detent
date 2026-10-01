@@ -16,9 +16,15 @@ namespace detent {
 
 using KnobName = std::string;
 
+struct GroupRollout {
+	std::uint8_t rollout_pct = 0;
+	[[nodiscard]] bool operator==(const GroupRollout&) const = default;
+};
+using GroupOverride = std::variant<bool, GroupRollout>;
+
 struct BoolDef {
 	bool default_value = false;
-	btree::map<std::string, bool, std::less<>> overrides;   // group key -> value
+	btree::map<std::string, GroupOverride, std::less<>> overrides;   // group key -> forced value or percentage
 	std::optional<std::uint8_t> rollout_pct;   // inclusive 0..100
 
 	[[nodiscard]] bool operator==(const BoolDef&) const = default;
