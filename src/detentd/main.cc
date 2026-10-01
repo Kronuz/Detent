@@ -50,7 +50,7 @@ const char* kUsage =
 	"leader's address instead), and a write isn't reported accepted until a\n"
 	"quorum of the cluster has it.\n"
 	"\n"
-	"With no arguments: port 52617, snapshot.json in the user state directory.\n"
+	"With no arguments: port 8317, snapshot.json in the user state directory.\n"
 	"--system selects system config and /var/lib/detent (BSD/macOS: /var/db/detent).\n"
 	"Config: detentd.json in the same platform directories as agent.json.\n"
 	"Fields: port, persist_path, reactors, workers. Paths are config-relative.\n"

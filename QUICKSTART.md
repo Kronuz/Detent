@@ -19,7 +19,7 @@ Leave `detentd` running and open another terminal in the repository root:
 export PATH="$PWD/build/src:$PATH"
 ```
 
-The distributor listens on port `52617`. These examples assume a fresh
+The distributor listens on port `8317`. These examples assume a fresh
 snapshot; if it already has data, use versions greater than its current
 version. If an agent is already running with another source, run
 `detent-agent stop` before the first read.
@@ -29,7 +29,7 @@ version. If an agent is already running with another source, run
 Publish a result limit and read it:
 
 ```sh
-curl --fail-with-body -sS -X PUT localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PUT localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":1,"knobs":{"search:max_results":{"type":"int","default":25}}}'
 detent get search:max_results
 # 25
@@ -41,7 +41,7 @@ distributor. No agent configuration is needed.
 Change the limit without restarting the agent or your application:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":2,"knobs":{"search:max_results":{"type":"int","default":100}}}'
 sleep 1
 detent get search:max_results
@@ -58,13 +58,13 @@ wait for propagation before reading.
 Enable a new checkout path, then disable it if needed:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":3,"knobs":{"checkout:new_path":{"type":"bool","default":true}}}'
 sleep 1
 detent get checkout:new_path
 # true
 
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":4,"knobs":{"checkout:new_path":{"type":"bool","default":false}}}'
 sleep 1
 detent get checkout:new_path
@@ -76,7 +76,7 @@ detent get checkout:new_path
 Start with 10% of users:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":5,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":10}}}'
 sleep 1
 detent get payments:new_processor --hash user-1
@@ -90,17 +90,17 @@ across reads and restarts. Increasing the percentage keeps previously included
 users enabled; small populations need not split exactly 10/90.
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":6,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":50}}}'
 # Check your application before advancing.
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":7,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":100}}}'
 sleep 1
 detent get payments:new_processor --hash user-1
 # true
 
 # Roll back everyone, removing the rollout gate.
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot \
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":8,"knobs":{"payments:new_processor":{"type":"bool","default":false}}}'
 ```
 

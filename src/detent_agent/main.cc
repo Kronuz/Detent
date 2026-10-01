@@ -472,7 +472,7 @@ const char* kUsage =
 	"  DETENT_RUNTIME_DIR       shm/pid/log directory\n"
 	"                           (default $XDG_RUNTIME_DIR/detent, else $TMPDIR/detent-<uid>)\n"
 	"  DETENT_DEFAULTS_PATH     optional baked defaults file\n"
-	"  DETENT_SOURCE_ADDRESS    host:port (default 127.0.0.1:52617 without defaults)\n"
+	"  DETENT_SOURCE_ADDRESS    host:port (default 127.0.0.1:8317 without defaults)\n"
 	"  DETENT_SOURCE_HTTP       legacy alias for DETENT_SOURCE_ADDRESS\n"
 	"  DETENT_SOURCE_PATH       local snapshot file path\n"
 	"  DETENT_POLL_INTERVAL_MS\n";

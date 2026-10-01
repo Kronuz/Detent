@@ -21,7 +21,7 @@ through the shared agent are therefore visible to local users. Keep secrets
 out of knobs. Only the service account can modify the runtime files.
 
 Use `agent.json` and `detentd.json` in the configuration directory. Neither
-file is required when using the built-in port `52617` and paths. Templates
+file is required when using the built-in port `8317` and paths. Templates
 pass explicit config files, so create them before starting services:
 
 ```json
@@ -31,7 +31,7 @@ pass explicit config files, so create them before starting services:
 For another distributor, the agent configuration is:
 
 ```json
-{"source_address": "distributor.example:52617"}
+{"source_address": "distributor.example:8317"}
 ```
 
 A distributor has no baked-defaults file. Its snapshot is created by the

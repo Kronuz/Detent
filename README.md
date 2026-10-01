@@ -118,7 +118,7 @@ HTTP source:
 #include "detent_http/http_source.hh"
 
 opts.source_poll =
-    detent_http::make_http_poll_source("distributor-host", 52617);
+    detent_http::make_http_poll_source("distributor-host", 8317);
 opts.poll_interval = std::chrono::milliseconds{1000};
 ```
 
@@ -138,8 +138,8 @@ opts.source_poll = detent_http::make_http_poll_source({
 ### 5. Run and publish to a distributor
 
 ```sh
-detentd 52617 /var/lib/detent/snapshot.json &
-curl -X PUT localhost:52617/v1/snapshot \
+detentd 8317 /var/lib/detent/snapshot.json &
+curl -X PUT localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":1,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
 ```
 
@@ -399,11 +399,11 @@ Most of the difference comes from RapidJSON and ordinary C++ runtime support.
 Single node:
 
 ```sh
-./build/src/detentd 52617 /var/lib/detent/snapshot.json
-curl -X PUT localhost:52617/v1/snapshot \
+./build/src/detentd 8317 /var/lib/detent/snapshot.json
+curl -X PUT localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":1,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
-curl localhost:52617/v1/snapshot
-curl localhost:52617/v1/health
+curl localhost:8317/v1/snapshot
+curl localhost:8317/v1/health
 ```
 
 Three same-host replicas, using the exact `--cluster` syntax from
@@ -422,13 +422,13 @@ only the changed knobs need to be present. A `null` knob value deletes that
 knob from the live snapshot.
 
 ```sh
-curl -X PUT localhost:52617/v1/snapshot -d '{"schema_version":1,"version":1,"knobs":{
+curl -X PUT localhost:8317/v1/snapshot -d '{"schema_version":1,"version":1,"knobs":{
   "checkout:killswitch_new_path":{"type":"bool","default":false},
   "search:max_results":{"type":"int","default":25},
   "payments:new_processor":{"type":"bool","default":false,"rollout_pct":10}
 }}'
 
-curl -X PATCH localhost:52617/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{
+curl -X PATCH localhost:8317/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{
   "checkout:killswitch_new_path":{"type":"bool","default":true}
 }}'
 ```
@@ -464,7 +464,7 @@ gets zstd whenever the server has it available (it always does).
 ./build/src/detentd
 ```
 
-The distributor defaults to port `52617` and persists accepted snapshots in
+The distributor defaults to port `8317` and persists accepted snapshots in
 `$XDG_STATE_HOME/detent/snapshot.json` (otherwise
 `~/.local/state/detent/snapshot.json` on Linux/FreeBSD or
 `~/Library/Application Support/Detent/state/snapshot.json` on macOS).
@@ -475,13 +475,13 @@ Optional `detentd.json` lives in the same platform config directory as
 `agent.json`. It accepts `port`, `persist_path`, `reactors`, and `workers`.
 Relative paths are resolved against the config file. `--config PATH` selects
 another file. CLI arguments override `DETENTD_*` environment variables,
-which override config. Both `detentd --port 52617 --persist-path PATH` and
-legacy `detentd 52617 PATH` work. See [the usage guide](docs/USAGE.md#scenario-2-one-distributor-live-updates)
+which override config. Both `detentd --port 8317 --persist-path PATH` and
+legacy `detentd 8317 PATH` work. See [the usage guide](docs/USAGE.md#scenario-2-one-distributor-live-updates)
 for HTTP publishing and configuration.
 
 ### Running detent-agent
 
-With a local distributor on `127.0.0.1:52617` and a published snapshot:
+With a local distributor on `127.0.0.1:8317` and a published snapshot:
 
 ```sh
 ./build/src/detent get search:max_results
@@ -495,7 +495,7 @@ config directory (`~/.config/detent` on Linux/FreeBSD,
 `~/Library/Application Support/Detent` on macOS):
 
 ```json
-{"source_address": "127.0.0.1:52617", "poll_interval_ms": 200}
+{"source_address": "127.0.0.1:8317", "poll_interval_ms": 200}
 ```
 
 `--config PATH` selects another config file. `--source-address HOST:PORT` and

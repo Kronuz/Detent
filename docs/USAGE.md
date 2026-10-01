@@ -123,7 +123,7 @@ Start one distributor:
 ./build/src/detentd &
 ```
 
-No arguments are needed: `detentd` listens on port `52617`. It creates its
+No arguments are needed: `detentd` listens on port `8317`. It creates its
 state directory automatically and writes `snapshot.json` on the first
 accepted publish. With no saved snapshot, `GET /v1/snapshot` returns `404`.
 
@@ -141,7 +141,7 @@ system config directory as `agent.json` (see [agent configuration](#persistent-a
 
 ```json
 {
-  "port": 52617,
+  "port": 8317,
   "persist_path": "state/snapshot.json",
   "reactors": 4,
   "workers": 8
@@ -157,9 +157,9 @@ system config. Flags override `DETENTD_PORT`, `DETENTD_PERSIST_PATH`,
 Explicit starts are still supported:
 
 ```sh
-./build/src/detentd --port 52617 --persist-path ./state/snapshot.json
+./build/src/detentd --port 8317 --persist-path ./state/snapshot.json
 # Legacy positional syntax:
-./build/src/detentd 52617 ./state/snapshot.json
+./build/src/detentd 8317 ./state/snapshot.json
 ```
 
 `detentd` runs in the foreground; the `&` above backgrounds it through the
@@ -168,7 +168,7 @@ shell. Cluster membership and Raft timing still use explicit CLI flags.
 Publish the first snapshot:
 
 ```sh
-curl -s -X PUT localhost:52617/v1/snapshot -d '{
+curl -s -X PUT localhost:8317/v1/snapshot -d '{
   "schema_version": 1,
   "version": 1,
   "knobs": {
@@ -187,7 +187,7 @@ Response:
 Read it back directly:
 
 ```sh
-curl -s localhost:52617/v1/snapshot
+curl -s localhost:8317/v1/snapshot
 ```
 
 Point a client at it:
@@ -201,7 +201,7 @@ using namespace std::chrono_literals;
 detent::InitOptions client_opts;
 client_opts.defaults_path = "defaults.json";
 client_opts.source_poll =
-    detent_http::make_http_poll_source("127.0.0.1", 52617, "/v1/snapshot", 2s);
+    detent_http::make_http_poll_source("127.0.0.1", 8317, "/v1/snapshot", 2s);
 client_opts.poll_interval = 200ms;
 detent::Client client(std::move(client_opts));
 ```
@@ -212,15 +212,15 @@ detent::Client client(std::move(client_opts));
 Inspect the conditional GET behavior:
 
 ```sh
-curl -sv localhost:52617/v1/snapshot 2>&1 | grep -i '< HTTP\|etag'
-etag=$(curl -sD - -o /dev/null localhost:52617/v1/snapshot | awk '/^ETag:/ {print $2}' | tr -d '\r')
-curl -sv localhost:52617/v1/snapshot -H "If-None-Match: $etag" 2>&1 | grep -i '< HTTP\|etag'
+curl -sv localhost:8317/v1/snapshot 2>&1 | grep -i '< HTTP\|etag'
+etag=$(curl -sD - -o /dev/null localhost:8317/v1/snapshot | awk '/^ETag:/ {print $2}' | tr -d '\r')
+curl -sv localhost:8317/v1/snapshot -H "If-None-Match: $etag" 2>&1 | grep -i '< HTTP\|etag'
 ```
 
 Health endpoint:
 
 ```sh
-curl -s localhost:52617/v1/health
+curl -s localhost:8317/v1/health
 ```
 
 The JSON includes:
@@ -235,7 +235,7 @@ The JSON includes:
 Update one knob with a higher version:
 
 ```sh
-curl -s -X PUT localhost:52617/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":false},"search:max_results":{"type":"int","default":500}}}'
+curl -s -X PUT localhost:8317/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":false},"search:max_results":{"type":"int","default":500}}}'
 ```
 
 Every polling client converges to version 2 within one `poll_interval`.
@@ -251,7 +251,7 @@ With the distributor above running, stop any defaults-only agent from Scenario 1
 Publish a 10% rollout at version 3. PATCH preserves the other knobs:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot -d '{
+curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d '{
   "schema_version": 1,
   "version": 3,
   "knobs": {
@@ -283,7 +283,7 @@ Ramp to 50%, then 100%, using a higher version for each publish:
 for step in 4:50 5:100; do
   version=${step%:*}
   percentage=${step#*:}
-  curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot -d "{
+  curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d "{
     \"schema_version\": 1, \"version\": $version,
     \"knobs\": {\"payments:new_processor\": {
       \"type\": \"bool\", \"default\": false, \"rollout_pct\": $percentage,
@@ -314,13 +314,13 @@ existing distributor, choose versions greater than its current version.
 Update just the changed knob:
 
 ```sh
-curl -s -X PATCH localhost:52617/v1/snapshot -d '{"schema_version":1,"version":6,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
+curl -s -X PATCH localhost:8317/v1/snapshot -d '{"schema_version":1,"version":6,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
 ```
 
 Pollers can ask for the cached diff from their last accepted version:
 
 ```sh
-curl -s -D - localhost:52617/v1/snapshot -H "X-Detent-Base-Version: 5"
+curl -s -D - localhost:8317/v1/snapshot -H "X-Detent-Base-Version: 5"
 ```
 
 When the base version matches, `detentd` replies with:
@@ -342,7 +342,7 @@ update. Bodies smaller than 256 bytes stay uncompressed.
 Use this when local shell scripts or non-C++ programs need fast reads without
 each one polling `detentd`.
 
-With Scenario 2's distributor running on `127.0.0.1:52617` and a snapshot
+With Scenario 2's distributor running on `127.0.0.1:8317` and a snapshot
 published, read a knob directly:
 
 ```sh
@@ -356,7 +356,7 @@ published, read a knob directly:
 
 `get` auto-starts the local agent. No configuration file, defaults file, or
 environment variables are required for the local distributor. The agent
-connects to `127.0.0.1:52617` and waits up to two seconds for its first snapshot.
+connects to `127.0.0.1:8317` and waits up to two seconds for its first snapshot.
 If the source is unavailable, the daemon stays running and keeps trying;
 `get` reports that no snapshot has arrived. `--default VALUE` supplies a
 fallback for that read.
@@ -377,7 +377,7 @@ selects a file explicitly. Config files contain JSON:
 
 ```json
 {
-  "source_address": "127.0.0.1:52617",
+  "source_address": "127.0.0.1:8317",
   "poll_interval_ms": 200
 }
 ```
