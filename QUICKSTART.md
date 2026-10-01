@@ -101,11 +101,12 @@ Evaluation order is:
 The rollout bucket is stable for the same `(knob_name, hash_val)` pair across
 processes and restarts.
 
-From the shell, `detent-agent get` exposes the same `--hash` and `--switch`
-parameters:
+Save the rollout JSON above as `defaults.json` before these shell reads.
+`detent-agent get` starts the local daemon automatically and exposes the same
+`--hash` and `--switch` parameters:
 
 ```sh
-./build/src/detent-agent get payments:new_processor
+./build/src/detent-agent get payments:new_processor --defaults defaults.json
 ./build/src/detent-agent get payments:new_processor --hash user-42
 ./build/src/detent-agent get payments:new_processor --hash user-2 --switch internal_employees
 ```
@@ -119,13 +120,55 @@ Use this when several processes need live updates without a restart.
 Start one distributor:
 
 ```sh
-./build/src/detentd 8080 /tmp/detent-snapshot.json &
+./build/src/detentd &
 ```
+
+No arguments are needed: `detentd` listens on port `52617`. It creates its
+state directory automatically and writes `snapshot.json` on the first
+accepted publish. With no saved snapshot, `GET /v1/snapshot` returns `404`.
+
+| Platform | Default state directory |
+| --- | --- |
+| Linux / FreeBSD | `$XDG_STATE_HOME/detent`, otherwise `~/.local/state/detent` |
+| macOS | `~/Library/Application Support/Detent/state` |
+
+An absolute `XDG_STATE_HOME` overrides the native state location on macOS too.
+Snapshot storage is durable state, separate from the agent's temporary runtime
+files. No defaults file is required by the distributor.
+
+For persistent distributor settings, put `detentd.json` in the same user or
+system config directory as `agent.json` (see [agent configuration](#persistent-agent-configuration)):
+
+```json
+{
+  "port": 52617,
+  "persist_path": "state/snapshot.json",
+  "reactors": 4,
+  "workers": 8
+}
+```
+
+All fields are optional. A relative `persist_path` is resolved against the
+config file's directory; omitting it uses the platform state directory above.
+`--config PATH` selects a file explicitly. User config takes precedence over
+system config. Flags override `DETENTD_PORT`, `DETENTD_PERSIST_PATH`,
+`DETENTD_REACTORS`, and `DETENTD_WORKERS`, which override config values.
+
+Explicit starts are still supported:
+
+```sh
+./build/src/detentd --port 52617 --persist-path ./state/snapshot.json
+# Legacy positional syntax:
+./build/src/detentd 52617 ./state/snapshot.json
+```
+
+`detentd` runs in the foreground; the `&` above backgrounds it through the
+shell. Cluster membership and Raft timing still use explicit CLI flags.
 
 Publish the first snapshot:
 
 ```sh
-curl -s -X PUT localhost:8080/v1/snapshot -d '{
+curl -s -X PUT localhost:52617/v1/snapshot -d '{
   "schema_version": 1,
   "version": 1,
   "knobs": {
@@ -144,7 +187,7 @@ Response:
 Read it back directly:
 
 ```sh
-curl -s localhost:8080/v1/snapshot
+curl -s localhost:52617/v1/snapshot
 ```
 
 Point a client at it:
@@ -158,7 +201,7 @@ using namespace std::chrono_literals;
 detent::InitOptions client_opts;
 client_opts.defaults_path = "defaults.json";
 client_opts.source_poll =
-    detent_http::make_http_poll_source("127.0.0.1", 8080, "/v1/snapshot", 2s);
+    detent_http::make_http_poll_source("127.0.0.1", 52617, "/v1/snapshot", 2s);
 client_opts.poll_interval = 200ms;
 detent::Client client(std::move(client_opts));
 ```
@@ -169,15 +212,15 @@ detent::Client client(std::move(client_opts));
 Inspect the conditional GET behavior:
 
 ```sh
-curl -sv localhost:8080/v1/snapshot 2>&1 | grep -i '< HTTP\|etag'
-etag=$(curl -sD - -o /dev/null localhost:8080/v1/snapshot | awk '/^ETag:/ {print $2}' | tr -d '\r')
-curl -sv localhost:8080/v1/snapshot -H "If-None-Match: $etag" 2>&1 | grep -i '< HTTP\|etag'
+curl -sv localhost:52617/v1/snapshot 2>&1 | grep -i '< HTTP\|etag'
+etag=$(curl -sD - -o /dev/null localhost:52617/v1/snapshot | awk '/^ETag:/ {print $2}' | tr -d '\r')
+curl -sv localhost:52617/v1/snapshot -H "If-None-Match: $etag" 2>&1 | grep -i '< HTTP\|etag'
 ```
 
 Health endpoint:
 
 ```sh
-curl -s localhost:8080/v1/health
+curl -s localhost:52617/v1/health
 ```
 
 The JSON includes:
@@ -192,7 +235,7 @@ The JSON includes:
 Update one knob with a higher version:
 
 ```sh
-curl -s -X PUT localhost:8080/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":false},"search:max_results":{"type":"int","default":500}}}'
+curl -s -X PUT localhost:52617/v1/snapshot -d '{"schema_version":1,"version":2,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":false},"search:max_results":{"type":"int","default":500}}}'
 ```
 
 Every polling client converges to version 2 within one `poll_interval`.
@@ -202,13 +245,13 @@ Every polling client converges to version 2 within one `poll_interval`.
 Update just the changed knob:
 
 ```sh
-curl -s -X PATCH localhost:8080/v1/snapshot -d '{"schema_version":1,"version":3,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
+curl -s -X PATCH localhost:52617/v1/snapshot -d '{"schema_version":1,"version":3,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
 ```
 
 Pollers can ask for the cached diff from their last accepted version:
 
 ```sh
-curl -s -D - localhost:8080/v1/snapshot -H "X-Detent-Base-Version: 2"
+curl -s -D - localhost:52617/v1/snapshot -H "X-Detent-Base-Version: 2"
 ```
 
 When the base version matches, `detentd` replies with:
@@ -236,37 +279,84 @@ update. Bodies smaller than 256 bytes stay uncompressed.
 Use this when local shell scripts or non-C++ programs need fast reads without
 each one polling `detentd`.
 
-Start `detent-agent` against the distributor from Scenario 2:
+With Scenario 2's distributor running on `127.0.0.1:52617` and a snapshot
+published, read a knob directly:
 
 ```sh
-export DETENT_RUNTIME_DIR=/tmp/detent-run
-export DETENT_DEFAULTS_PATH=/tmp/detent-defaults.json
-export DETENT_SOURCE_HTTP=127.0.0.1:8080
-mkdir -p "$DETENT_RUNTIME_DIR"
-
-# Write the same baked-defaults JSON shape as Scenario 1 to
-# /tmp/detent-defaults.json before starting the agent.
-
-./build/src/detent-agent start --daemonize
-./build/src/detent-agent status
-```
-
-Read knobs:
-
-```sh
+# Stop any defaults-only agent left over from Scenario 1.
+./build/src/detent-agent stop
 ./build/src/detent-agent get search:max_results
-./build/src/detent-agent get payments:new_processor --hash user-42
-./build/src/detent-agent get checkout:new_flow --switch beta_testers
-```
-
-Stop it:
-
-```sh
+# 500 (or the latest published value)
+./build/src/detent-agent status
 ./build/src/detent-agent stop
 ```
 
-If the daemon is not running, `get` auto-starts it with the same flag and
-environment-variable resolution as `start`.
+`get` auto-starts the local agent. No configuration file, defaults file, or
+environment variables are required for the local distributor. The agent
+connects to `127.0.0.1:52617` and waits up to two seconds for its first snapshot.
+If the source is unavailable, the daemon stays running and keeps trying;
+`get` reports that no snapshot has arrived. `--default VALUE` supplies a
+fallback for that read.
+
+### Persistent agent configuration
+
+For a different distributor, write `agent.json` in the user config directory:
+
+| Platform | User config directory | System fallback |
+| --- | --- | --- |
+| Linux | `$XDG_CONFIG_HOME/detent`, otherwise `~/.config/detent` | `/etc/detent` |
+| FreeBSD | `$XDG_CONFIG_HOME/detent`, otherwise `~/.config/detent` | `/usr/local/etc/detent` |
+| macOS | `~/Library/Application Support/Detent` | `/Library/Application Support/Detent` |
+
+An absolute `XDG_CONFIG_HOME` overrides the native user location on macOS too.
+The first existing `agent.json` wins (user before system); `--config PATH`
+selects a file explicitly. Config files contain JSON:
+
+```json
+{
+  "source_address": "127.0.0.1:52617",
+  "poll_interval_ms": 200
+}
+```
+
+Then use plain `detent-agent get NAME` from any directory. `source_address`
+is a `host:port` address; the transport is HTTP and the endpoint is
+`/v1/snapshot`. `source_path` selects a local live snapshot file instead.
+These source settings are mutually exclusive.
+
+### Optional local defaults and runtime files
+
+A live snapshot already contains knob types and values. `defaults.json` is
+optional and supplies local fallback knobs before the first source update
+or when a live snapshot omits a knob. Place it beside `agent.json`, or set
+`"defaults_path": "defaults.json"` in the config. Relative paths in config
+are resolved against the config directory. An explicitly configured defaults
+file must exist and contain valid defaults JSON; an absent conventional file
+is simply skipped. The agent does not create an empty defaults file.
+
+For local-only reads, use `--defaults PATH` or place `defaults.json` in the
+standard config directory. With defaults present and no source configured,
+the agent serves local defaults without attempting a network connection.
+To combine defaults with live updates, configure `source_address` as well.
+
+Runtime files (`agent.pid`, `agent.log`, `snapshot.shm`) go in
+`$XDG_RUNTIME_DIR/detent` when an absolute XDG runtime directory is set.
+Otherwise the agent uses a private `detent-<uid>` directory under the system
+temporary directory (`TMPDIR` when set, normally `/tmp` on Linux/FreeBSD and
+a per-user temporary directory on macOS). It creates the runtime directory
+with mode `0700`. `runtime_dir` in config or `--runtime-dir PATH` overrides it.
+
+Flags override environment variables, which override config. The optional
+variables are `DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_PATH`,
+`DETENT_DEFAULTS_PATH`, `DETENT_POLL_INTERVAL_MS`, and `DETENT_RUNTIME_DIR`.
+`--source-http`, `DETENT_SOURCE_HTTP`, and config's `source_http` remain aliases
+for the address setting. A source flag replaces the configured source as a
+whole. Startup settings configure a new daemon; stop the running daemon to
+apply changed settings. Keep the same runtime directory for `get`, `status`,
+and `stop`.
+
+Startup errors are reported to the caller. Daemon output is saved in
+`agent.log` in the runtime directory.
 
 Implementation summary:
 

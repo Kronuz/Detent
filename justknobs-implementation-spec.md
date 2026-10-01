@@ -299,7 +299,7 @@ Version `0` is reserved for the baked-default startup snapshot. Source versions 
 
 ### Startup contract
 
-The defaults file MUST be packaged and versioned with application code. Missing, unreadable, or invalid defaults are a startup-fatal configuration error. The client publishes the merged defaults as version 0 before starting any source watcher, so application reads are available immediately after `init()`.
+The defaults file is optional. When supplied, it SHOULD be packaged and versioned with application code; an explicitly configured file that is missing, unreadable, or invalid is a startup-fatal configuration error. The client publishes defaults as version 0 before starting any source watcher. With no defaults file, version 0 contains no knobs, and reads report missing knobs until a source snapshot arrives.
 
 Safe defaults in `just_knobs.json`, rather than call-site fallbacks, follow the public post-incident guidance. The exact schema above is filled for this clone. [S1, S6]
 
@@ -387,7 +387,7 @@ A thread-local in-memory implementation is publicly described for tests. The gua
 
 ```
 struct InitOptions {
-  defaults_path: PathBuf,            // required
+  defaults_path: PathBuf,            // optional; empty starts with no knobs
   source: Box<dyn KnobSource>,       // file source by default
   source_id: String,
   refresh_alert_after: Duration,     // default 5 minutes

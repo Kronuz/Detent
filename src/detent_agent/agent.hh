@@ -23,6 +23,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 
 namespace detent_agent {
 
@@ -52,6 +53,7 @@ public:
 
 private:
 	Options options_;
+	std::mutex publish_mutex_;
 	std::unique_ptr<ShmWriter> shm_writer_;
 	std::unique_ptr<detent::Client> client_;
 	std::atomic<bool> stop_requested_{false};

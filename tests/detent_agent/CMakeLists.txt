@@ -7,3 +7,16 @@ add_executable(test_shm_concurrency_stress test_shm_concurrency_stress.cc)
 target_link_libraries(test_shm_concurrency_stress PRIVATE detent_agent_lib)
 add_test(NAME test_shm_concurrency_stress COMMAND test_shm_concurrency_stress)
 set_tests_properties(test_shm_concurrency_stress PROPERTIES TIMEOUT 60)
+
+add_test(NAME test_agent_cli COMMAND ${CMAKE_COMMAND}
+  -DAGENT=$<TARGET_FILE:detent-agent> -P ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_cli.cmake)
+set_tests_properties(test_agent_cli PROPERTIES TIMEOUT 60)
+
+if(DETENT_BUILD_DISTRIBUTOR)
+  find_program(DETENT_TEST_CURL curl)
+  if(DETENT_TEST_CURL)
+    add_test(NAME test_agent_http COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_http.sh
+      $<TARGET_FILE:detent-agent> $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/agent-http ${DETENT_TEST_CURL})
+    set_tests_properties(test_agent_http PROPERTIES TIMEOUT 30)
+  endif()
+endif()

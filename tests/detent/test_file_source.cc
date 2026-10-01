@@ -121,6 +121,20 @@ int main() {
 	assert(swapped_same_mtime);
 	assert(c.health().accepted_version == 3);
 
+	InitOptions source_only;
+	source_only.source_path = source_path;
+	source_only.poll_interval = 20ms;
+	Client without_defaults(std::move(source_only));
+	assert(wait_until([&] { return without_defaults.health().accepted_version == 3; }, 2000ms));
+	assert(without_defaults.get("search:max_results").value() == 999);
+	assert(!without_defaults.eval("checkout:killswitch_new_path"));
+	write_file(source_path, R"({"schema_version":1,"version":4,"knobs":{}})");
+	assert(wait_until([&] { return without_defaults.health().accepted_version == 4; }, 2000ms));
+	assert(!without_defaults.get("search:max_results"));
+	Client empty(InitOptions{});
+	assert(empty.health().initialized);
+	assert(!empty.get("search:max_results"));
+
 	std::filesystem::remove(defaults_path);
 	std::filesystem::remove(source_path);
 

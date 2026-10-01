@@ -54,6 +54,10 @@ target_compile_features(detent_http PUBLIC cxx_std_20)
 
 add_library(detent_http::detent_http ALIAS detent_http)
 
+# Shared CLI-only configuration and platform paths; no networking.
+add_library(detent_cli detent_cli/config.cc)
+target_link_libraries(detent_cli PUBLIC detent::detent)
+
 ########################################################################
 # detentd: the distribution-layer daemon (Section 10's "any publisher that
 # emits valid snapshots" extension seam, made concrete). Pulls the Kronuz
@@ -78,7 +82,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
   add_executable(detentd detentd/main.cc)
-  target_link_libraries(detentd PRIVATE detentd_lib)
+  target_link_libraries(detentd PRIVATE detentd_lib detent_cli)
 endif()
 
 ########################################################################
@@ -96,5 +100,5 @@ target_include_directories(detent_agent_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(detent_agent_lib PUBLIC detent::detent)
 target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
-add_executable(detent-agent detent_agent/main.cc)
-target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http)
+add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc)
+target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli)

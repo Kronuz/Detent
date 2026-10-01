@@ -6,30 +6,27 @@
 //
 // Usage:
 //   detent-agent start [--daemonize] [--defaults PATH] [--source-path PATH]
-//                       [--source-http HOST:PORT] [--poll-interval-ms N]
+//                       [--source-address HOST:PORT] [--poll-interval-ms N]
 //   detent-agent status
 //   detent-agent stop
 //   detent-agent get <name> [--hash VAL] [--switch VAL] [--default VAL]
 //
-// Configuration for `start` (and for `get`'s auto-start-on-cold-call) comes
-// from flags, falling back to environment variables so a `get` invocation
-// doesn't need to repeat the daemon's whole configuration on every call:
-//   DETENT_RUNTIME_DIR   shm/pid/log directory
-//                        (default $XDG_RUNTIME_DIR/detent, else ~/.detent/run)
-//   DETENT_DEFAULTS_PATH required to (auto-)start the daemon
-//   DETENT_SOURCE_HTTP   host:port  (mutually exclusive with the next)
-//   DETENT_SOURCE_PATH   local snapshot file path
-//   DETENT_POLL_INTERVAL_MS
+// Configuration: flags override environment variables, then agent.json.
+// Baked defaults are optional; source-only agents start with an empty snapshot.
 #include "agent.hh"
+#include "config.hh"
 #include "detent_http/http_source.hh"
 #include "shm_reader.hh"
 
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <cerrno>
+#include <charconv>
+#include <limits>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -45,11 +42,12 @@ namespace {
 
 using namespace std::chrono_literals;
 
+detent_agent::Config g_config;
+std::optional<std::string> g_runtime_dir;
+
 std::filesystem::path runtime_dir() {
-	if (const char* v = std::getenv("DETENT_RUNTIME_DIR"); v && *v) return v;
-	if (const char* v = std::getenv("XDG_RUNTIME_DIR"); v && *v) return std::filesystem::path(v) / "detent";
-	if (const char* home = std::getenv("HOME"); home && *home) return std::filesystem::path(home) / ".detent" / "run";
-	return std::filesystem::temp_directory_path() / "detent-run";
+	if (g_runtime_dir) return *g_runtime_dir;
+	return detent_agent::default_runtime_dir();
 }
 
 std::filesystem::path shm_path() { return runtime_dir() / "snapshot.shm"; }
@@ -67,64 +65,56 @@ bool has_flag(const std::vector<std::string>& args, const std::string& flag) {
 	return false;
 }
 
-// Builds InitOptions from CLI flags, falling back to the DETENT_* env vars.
+std::optional<std::string> setting(const std::vector<std::string>& args, const std::string& flag, const char* env) {
+	if (auto value = arg_value(args, flag)) return value;
+	if (const char* value = std::getenv(env); value && *value) return value;
+	if (auto it = g_config.find(flag); it != g_config.end()) return it->second;
+	return std::nullopt;
+}
+
+int positive_int(const std::string& value, int maximum, const std::string& field) {
+	int number = 0;
+	auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), number);
+	if (error != std::errc{} || end != value.data() + value.size() || number <= 0 || number > maximum) {
+		throw std::runtime_error(field + " must be an integer between 1 and " + std::to_string(maximum));
+	}
+	return number;
+}
+
 detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 	detent::InitOptions opts;
+	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH")) opts.defaults_path = *defaults;
 
-	auto defaults = arg_value(args, "--defaults");
-	const char* env_defaults = std::getenv("DETENT_DEFAULTS_PATH");
-	if (defaults) {
-		opts.defaults_path = *defaults;
-	} else if (env_defaults && *env_defaults) {
-		opts.defaults_path = env_defaults;
-	} else {
-		throw std::runtime_error("detent-agent: no defaults path (--defaults or DETENT_DEFAULTS_PATH)");
-	}
-
+	// Source selection overrides the whole lower-priority source, so an HTTP
+	// flag can replace a file source from config without an artificial conflict.
 	auto source_path = arg_value(args, "--source-path");
-	auto source_http = arg_value(args, "--source-http");
-	const char* env_source_path = std::getenv("DETENT_SOURCE_PATH");
-	const char* env_source_http = std::getenv("DETENT_SOURCE_HTTP");
-	if (!source_path && env_source_path && *env_source_path) source_path = env_source_path;
-	if (!source_http && env_source_http && *env_source_http) source_http = env_source_http;
-
-	if (source_path && source_http) {
-		throw std::runtime_error("detent-agent: --source-path and --source-http are mutually exclusive");
+	auto source_http = arg_value(args, "--source-address");
+	if (!source_http) source_http = arg_value(args, "--source-http");
+	if (!source_path && !source_http) {
+		if (const char* v = std::getenv("DETENT_SOURCE_PATH"); v && *v) source_path = v;
+		if (const char* v = std::getenv("DETENT_SOURCE_ADDRESS"); v && *v) source_http = v;
+		else if (const char* v = std::getenv("DETENT_SOURCE_HTTP"); v && *v) source_http = v;
+		if (!source_path && !source_http) {
+			if (auto it = g_config.find("--source-path"); it != g_config.end()) source_path = it->second;
+			if (auto it = g_config.find("--source-address"); it != g_config.end()) source_http = it->second;
+		}
 	}
+	if (!source_path && !source_http && opts.defaults_path.empty()) source_http = "127.0.0.1:" + std::to_string(detent_cli::kDefaultPort);
+	if (source_path && source_http) throw std::runtime_error("--source-path and --source-address are mutually exclusive");
 	if (source_path) {
 		opts.source_path = *source_path;
 	} else if (source_http) {
 		auto colon = source_http->rfind(':');
-		if (colon == std::string::npos) throw std::runtime_error("detent-agent: --source-http needs host:port");
+		if (colon == std::string::npos || colon == 0) throw std::runtime_error("--source-address needs host:port");
 		auto host = source_http->substr(0, colon);
-		auto port = static_cast<std::uint16_t>(std::atoi(source_http->c_str() + colon + 1));
+		auto port = static_cast<std::uint16_t>(positive_int(source_http->substr(colon + 1), 65535, "source_address port"));
 		opts.source_poll = detent_http::make_http_poll_source(host, port);
 		opts.source_id = "http";
 	}
-
-	auto poll_ms = arg_value(args, "--poll-interval-ms");
-	const char* env_poll_ms = std::getenv("DETENT_POLL_INTERVAL_MS");
-	if (poll_ms) {
-		opts.poll_interval = std::chrono::milliseconds{std::atoi(poll_ms->c_str())};
-	} else if (env_poll_ms && *env_poll_ms) {
-		opts.poll_interval = std::chrono::milliseconds{std::atoi(env_poll_ms)};
+	if (auto poll_ms = setting(args, "--poll-interval-ms", "DETENT_POLL_INTERVAL_MS")) {
+		opts.poll_interval = std::chrono::milliseconds{positive_int(*poll_ms, std::numeric_limits<int>::max(), "poll_interval_ms")};
 	}
-
 	return opts;
-}
-
-// Returns the running daemon's pid if the pidfile names a live process,
-// std::nullopt otherwise (no pidfile, unreadable, or stale). Used for
-// `status`, where the worst case of a stale/reused pid is a wrong status
-// line, not signaling an unrelated process.
-std::optional<pid_t> live_pid() {
-	std::ifstream in(pid_path());
-	if (!in) return std::nullopt;
-	pid_t pid = 0;
-	in >> pid;
-	if (pid <= 0) return std::nullopt;
-	if (::kill(pid, 0) != 0) return std::nullopt; // no such process
-	return pid;
 }
 
 // Ties "is the daemon actually alive" to the same `flock` the daemon itself
@@ -160,9 +150,15 @@ std::optional<pid_t> locked_pid() {
 // Returns the held fd (keep it open for the process lifetime -- closing
 // releases the lock) or -1 if another instance already holds it.
 int acquire_pidfile() {
-	std::filesystem::create_directories(runtime_dir());
+	auto dir = runtime_dir();
+	std::filesystem::create_directories(dir);
+	struct stat st{};
+	if (::lstat(dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != ::geteuid()) {
+		throw std::runtime_error("runtime directory must be owned by the current user and not be a symlink: " + dir.string());
+	}
+	if (::chmod(dir.c_str(), 0700) != 0) throw std::runtime_error("cannot make runtime directory private: " + dir.string());
 	int fd = ::open(pid_path().c_str(), O_CREAT | O_RDWR, 0600);
-	if (fd < 0) return -1;
+	if (fd < 0) throw std::runtime_error("cannot open pidfile: " + std::string(std::strerror(errno)));
 	if (::flock(fd, LOCK_EX | LOCK_NB) != 0) {
 		::close(fd);
 		return -1; // already running (idempotent start)
@@ -184,26 +180,29 @@ void install_signal_handlers() {
 	::signal(SIGTERM, handle_signal);
 }
 
-int run_foreground(detent_agent::Options options) {
+int run_foreground(detent_agent::Options options, int ready_fd = -1) {
 	detent_agent::Agent agent(std::move(options));
 	g_agent = &agent;
 	install_signal_handlers();
+	if (ready_fd >= 0) {
+		::close(ready_fd); // EOF tells the parent initialization succeeded.
+	}
 	agent.serve(); // blocks until stop()
 	return 0;
 }
 
-int cmd_start(const std::vector<std::string>& args) {
+int cmd_start(const std::vector<std::string>& args, bool quiet = false) {
 	auto options = detent_agent::Options{shm_path(), build_client_options(args)};
 
-	if (auto pid = live_pid()) {
-		std::printf("detent-agent: already running (pid %d)\n", *pid);
+	if (auto pid = locked_pid()) {
+		if (!quiet) std::printf("detent-agent: already running (pid %d)\n", *pid);
 		return 0; // idempotent
 	}
 
 	if (!has_flag(args, "--daemonize")) {
 		int pidfd = acquire_pidfile();
 		if (pidfd < 0) {
-			std::printf("detent-agent: already running\n");
+			if (!quiet) std::printf("detent-agent: already running\n");
 			return 0;
 		}
 		return run_foreground(std::move(options));
@@ -211,40 +210,66 @@ int cmd_start(const std::vector<std::string>& args) {
 
 	// Single fork + setsid: enough to detach from the launching shell/session
 	// and reparent to init on exit, without a controlling terminal to
-	// reacquire. The parent returns immediately (idempotent backgrounding).
+	// reacquire. The parent waits for initialization and receives startup errors.
+	int ready[2];
+	if (::pipe(ready) != 0) throw std::runtime_error("cannot create startup pipe");
 	pid_t pid = fork();
 	if (pid < 0) {
+		::close(ready[0]);
+		::close(ready[1]);
 		std::perror("detent-agent: fork");
 		return 1;
 	}
 	if (pid > 0) {
-		return 0; // parent: return control to the caller right away
+		::close(ready[1]);
+		std::string error;
+		char buffer[512];
+		ssize_t count;
+		while ((count = ::read(ready[0], buffer, sizeof(buffer))) != 0) {
+			if (count < 0) {
+				if (errno == EINTR) continue;
+				::close(ready[0]);
+				throw std::runtime_error("cannot read startup result");
+			}
+			error.append(buffer, static_cast<std::size_t>(count));
+		}
+		::close(ready[0]);
+		if (!error.empty()) throw std::runtime_error(error);
+		return 0;
 	}
 
-	::setsid();
-	int pidfd = acquire_pidfile();
-	if (pidfd < 0) {
-		_exit(0); // another instance won the race; not an error
-	}
+	::close(ready[0]);
+	try {
+		::setsid();
+		int pidfd = acquire_pidfile();
+		if (pidfd < 0) {
+			_exit(0); // another instance won the race; not an error
+		}
 
-	auto log_path = runtime_dir() / "agent.log";
-	int log_fd = ::open(log_path.c_str(), O_CREAT | O_WRONLY | O_APPEND, 0600);
-	if (log_fd >= 0) {
-		::dup2(log_fd, STDOUT_FILENO);
-		::dup2(log_fd, STDERR_FILENO);
-		if (log_fd > 2) ::close(log_fd);
-	}
-	int devnull = ::open("/dev/null", O_RDONLY);
-	if (devnull >= 0) {
-		::dup2(devnull, STDIN_FILENO);
-		if (devnull > 2) ::close(devnull);
-	}
+		auto log_path = runtime_dir() / "agent.log";
+		int log_fd = ::open(log_path.c_str(), O_CREAT | O_WRONLY | O_APPEND, 0600);
+		if (log_fd >= 0) {
+			::dup2(log_fd, STDOUT_FILENO);
+			::dup2(log_fd, STDERR_FILENO);
+			if (log_fd > 2) ::close(log_fd);
+		}
+		int devnull = ::open("/dev/null", O_RDONLY);
+		if (devnull >= 0) {
+			::dup2(devnull, STDIN_FILENO);
+			if (devnull > 2) ::close(devnull);
+		}
 
-	_exit(run_foreground(std::move(options)));
+		_exit(run_foreground(std::move(options), ready[1]));
+	} catch (const std::exception& e) {
+		std::fprintf(stderr, "detent-agent: %s\n", e.what());
+		[[maybe_unused]] auto written = ::write(ready[1], e.what(), std::strlen(e.what()));
+		::close(ready[1]);
+		_exit(1);
+	}
 }
 
 int cmd_status() {
-	auto pid = live_pid();
+	auto pid = locked_pid();
 	if (!pid) {
 		std::printf("not running\n");
 		return 1;
@@ -315,40 +340,23 @@ int cmd_get(const std::vector<std::string>& args) {
 	auto default_val = arg_value(args, "--default");
 
 	auto reader = detent_agent::ShmReader::open(shm_path());
-	if (!reader) {
-		// Cold call: no daemon has ever published yet. Auto-start it (config
-		// comes from env vars only here -- see file header) and retry
-		// briefly while it comes up and does its first publish.
+	if (!reader || !locked_pid()) {
 		try {
-			auto options = detent_agent::Options{shm_path(), build_client_options({})};
-			(void)options; // validated only; the child re-derives it from env
+			auto start_args = args;
+			start_args.emplace_back("--daemonize");
+			if (cmd_start(start_args, true) != 0) throw std::runtime_error("daemon startup failed");
 		} catch (const std::exception& e) {
 			if (default_val) {
 				std::printf("%s\n", default_val->c_str());
 				return 0;
 			}
-			std::fprintf(stderr, "detent-agent: no daemon running and cannot auto-start: %s\n", e.what());
+			std::fprintf(stderr, "detent-agent: cannot auto-start: %s\n", e.what());
 			return 1;
 		}
-
-		pid_t pid = fork();
-		if (pid == 0) {
-			::setsid();
-			int pidfd = acquire_pidfile();
-			if (pidfd < 0) _exit(0);
-			int devnull = ::open("/dev/null", O_RDWR);
-			if (devnull >= 0) {
-				::dup2(devnull, STDIN_FILENO);
-				::dup2(devnull, STDOUT_FILENO);
-				::dup2(devnull, STDERR_FILENO);
-				if (devnull > 2) ::close(devnull);
-			}
-			_exit(run_foreground(detent_agent::Options{shm_path(), build_client_options({})}));
-		}
-		for (int i = 0; i < 20; ++i) { // up to ~2s for the daemon to come up and publish
-			std::this_thread::sleep_for(100ms);
+		for (int i = 0; i < 20; ++i) {
 			reader = detent_agent::ShmReader::open(shm_path());
-			if (reader) break;
+			if (reader && locked_pid()) break;
+			std::this_thread::sleep_for(100ms);
 		}
 	}
 
@@ -359,6 +367,23 @@ int cmd_get(const std::vector<std::string>& args) {
 		}
 		std::fprintf(stderr, "detent-agent: no daemon publish found\n");
 		return 1;
+	}
+
+	if (reader->status().accepted_version == 0 && reader->status().knob_count == 0) {
+		for (int i = 0; i < 20; ++i) {
+			if (!locked_pid()) break;
+			auto status = reader->status();
+			if (status.accepted_version > 0 || status.knob_count > 0) break;
+			std::this_thread::sleep_for(100ms);
+		}
+		if (reader->status().accepted_version == 0 && reader->status().knob_count == 0) {
+			if (default_val) {
+				std::printf("%s\n", default_val->c_str());
+				return 0;
+			}
+			std::fprintf(stderr, "detent-agent: no snapshot received from source within 2s; check that the configured distributor is running and has a published snapshot\n");
+			return 1;
+		}
 	}
 
 	detent::KnobError error{detent::ErrorCategory::Uninitialized, "", ""};
@@ -380,24 +405,36 @@ const char* kUsage =
 	"\n"
 	"usage:\n"
 	"  detent-agent start [--daemonize] [--defaults PATH] [--source-path PATH]\n"
-	"                      [--source-http HOST:PORT] [--poll-interval-ms N]\n"
+	"                      [--source-address HOST:PORT] [--poll-interval-ms N]\n"
 	"  detent-agent status\n"
 	"  detent-agent stop\n"
 	"  detent-agent get <name> [--hash VAL] [--switch VAL] [--default VAL]\n"
+	"                      [--defaults PATH] [--source-path PATH | --source-address HOST:PORT]\n"
 	"  detent-agent --help | -h\n"
 	"\n"
 	"`start` runs the daemon in the foreground unless --daemonize forks it into\n"
 	"the background. `get` reads directly from the shared-memory snapshot the\n"
 	"daemon publishes -- no socket, no daemon involvement per call. If no\n"
-	"daemon has ever published yet, `get` auto-starts one using the same config\n"
+	"daemon is running, `get` auto-starts one using the same config\n"
 	"resolution as `start` (flags here, then the environment variables below),\n"
 	"then retries briefly while it comes up.\n"
 	"\n"
-	"environment variables (fallback when a flag above is omitted):\n"
+	"Configuration: --config PATH, else $XDG_CONFIG_HOME/detent/agent.json\n"
+	"(Linux/FreeBSD: ~/.config/detent; macOS: ~/Library/Application Support/Detent).\n"
+	"System fallback: /etc/detent (FreeBSD: /usr/local/etc/detent; macOS: /Library/Application Support/Detent).\n"
+	"JSON fields:\n"
+	"source_address, source_path, defaults_path, runtime_dir, poll_interval_ms.\n"
+	"Paths in config are relative to the config file. Defaults are optional;\n"
+	"defaults.json beside agent.json is discovered automatically if present.\n"
+	"--source-http is a legacy alias for --source-address (HTTP transport).\n"
+	"Flags override environment variables, which override config settings.\n"
+	"--runtime-dir PATH selects the runtime directory for any command.\n"
+	"environment variables (optional):\n"
 	"  DETENT_RUNTIME_DIR       shm/pid/log directory\n"
-	"                           (default $XDG_RUNTIME_DIR/detent, else ~/.detent/run)\n"
-	"  DETENT_DEFAULTS_PATH     required to (auto-)start the daemon\n"
-	"  DETENT_SOURCE_HTTP       host:port  (mutually exclusive with the next)\n"
+	"                           (default $XDG_RUNTIME_DIR/detent, else $TMPDIR/detent-<uid>)\n"
+	"  DETENT_DEFAULTS_PATH     optional baked defaults file\n"
+	"  DETENT_SOURCE_ADDRESS    host:port (default 127.0.0.1:52617 without defaults)\n"
+	"  DETENT_SOURCE_HTTP       legacy alias for DETENT_SOURCE_ADDRESS\n"
 	"  DETENT_SOURCE_PATH       local snapshot file path\n"
 	"  DETENT_POLL_INTERVAL_MS\n";
 
@@ -417,6 +454,8 @@ int main(int argc, char** argv) {
 	}
 
 	try {
+		g_config = detent_agent::load_config(args);
+		g_runtime_dir = setting(args, "--runtime-dir", "DETENT_RUNTIME_DIR");
 		if (command == "start") return cmd_start(args);
 		if (command == "status") return cmd_status();
 		if (command == "stop") return cmd_stop();

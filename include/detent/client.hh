@@ -55,7 +55,7 @@ struct HealthSnapshot {
 };
 
 struct InitOptions {
-	std::filesystem::path defaults_path;                  // required
+	std::filesystem::path defaults_path;                  // optional; empty starts with no knobs
 	std::vector<std::string> cli_overrides;                // "name=value" pairs
 	std::optional<std::filesystem::path> source_path;      // file source, if any
 

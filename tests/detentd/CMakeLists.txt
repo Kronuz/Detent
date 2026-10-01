@@ -20,3 +20,10 @@ add_executable(test_load_fanout test_load_fanout.cc)
 target_link_libraries(test_load_fanout PRIVATE detentd_lib)
 add_test(NAME test_load_fanout COMMAND test_load_fanout)
 set_tests_properties(test_load_fanout PROPERTIES TIMEOUT 60)
+
+find_program(DETENT_TEST_CURL curl)
+if(DETENT_TEST_CURL)
+  add_test(NAME test_distributor_cli COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_cli_defaults.sh
+    $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/distributor-cli ${DETENT_TEST_CURL})
+  set_tests_properties(test_distributor_cli PROPERTIES TIMEOUT 30)
+endif()

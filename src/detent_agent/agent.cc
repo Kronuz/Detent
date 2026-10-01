@@ -13,11 +13,15 @@ Agent::Agent(Options options) : options_(std::move(options)) {
 	// Wire on_update *before* constructing Client: the background updater
 	// thread can fire it the moment it accepts its first real update, which
 	// can happen arbitrarily soon after construction returns.
+	std::lock_guard seed_lock(publish_mutex_);
 	auto opts = options_.client_options;
-	opts.on_update = [this](const detent::Snapshot& snap) { shm_writer_->publish(snap); };
+	opts.on_update = [this](const detent::Snapshot& snap) {
+		std::lock_guard update_lock(publish_mutex_);
+		shm_writer_->publish(snap);
+	};
 	client_ = std::make_unique<detent::Client>(std::move(opts));
 
-	// Seed the shm with the baked-defaults snapshot immediately: on_update
+	// Seed the shm with defaults (or an empty snapshot) immediately: on_update
 	// only fires on a subsequent *accepted source update*, so without this
 	// a fresh agent (or one whose source is slow/unreachable) would leave
 	// the shm file either absent or stale until the first real update

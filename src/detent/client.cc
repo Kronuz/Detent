@@ -73,19 +73,20 @@ Client::Client(InitOptions options)
 	, source_id_(options.source_id)
 	, refresh_alert_after_(options.refresh_alert_after)
 	, on_update_(options.on_update) {
-	// 1. Baked defaults: startup-fatal on any failure (Section 9).
-	std::string text;
-	try {
-		text = read_whole_file(options.defaults_path, kDefaultMaxBytes);
-	} catch (const std::exception& e) {
-		throw std::runtime_error(std::string("detent: defaults file: ") + e.what());
+	// 1. Optional baked defaults. An explicitly configured file must be valid.
+	if (!options.defaults_path.empty()) {
+		std::string text;
+		try {
+			text = read_whole_file(options.defaults_path, kDefaultMaxBytes);
+		} catch (const std::exception& e) {
+			throw std::runtime_error(std::string("detent: defaults file: ") + e.what());
+		}
+		auto parsed = parse_defaults(text, "defaults", max_knobs_);
+		if (!parsed) {
+			throw std::runtime_error("detent: invalid defaults file: " + parsed.error().detail);
+		}
+		defaults_ = std::move(parsed).value();
 	}
-
-	auto parsed = parse_defaults(text, "defaults", max_knobs_);
-	if (!parsed) {
-		throw std::runtime_error("detent: invalid defaults file: " + parsed.error().detail);
-	}
-	defaults_ = std::move(parsed).value();
 
 	// 2. CLI overrides: startup-fatal, names offending entry explicitly.
 	auto overrides = parse_cli_overrides(options.cli_overrides);
