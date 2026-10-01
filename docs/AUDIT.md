@@ -37,3 +37,13 @@ The public C++ options (also used by bindings) accepted zero and negative
 poll intervals, allowing a background source to loop without waiting.
 Construction now rejects them before starting an updater. The file-source
 regression checks both values with a configured polling source.
+
+## Fixed: unsafe shared-memory file mapping
+
+A reader mapped the full snapshot capacity without checking file size.
+An empty or truncated runtime file could produce SIGBUS on access. Readers
+now require a regular file large enough for the complete mapping and reject
+symlinks. Missing files remain an ordinary startup condition; other open
+errors are reported. Override offsets must also satisfy record alignment
+before dereferencing. Regressions cover empty, short, symlink, and missing
+files, alongside the normal agent publish/read test.

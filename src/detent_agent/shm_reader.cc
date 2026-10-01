@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cerrno>
 #include <cstring>
 #include <stdexcept>
 #include <thread>
@@ -107,7 +108,7 @@ const shm::KnobRecord* find_knob(const std::uint8_t* payload, std::uint32_t payl
 
 std::optional<bool> find_override(const shm::KnobRecord& rec, const std::uint8_t* payload, std::uint32_t payload_len, std::string_view switch_val) {
 	std::uint64_t span_end = static_cast<std::uint64_t>(rec.overrides_offset) + static_cast<std::uint64_t>(rec.override_count) * sizeof(shm::OverrideRecord);
-	if (rec.overrides_offset > payload_len || span_end > payload_len) return std::nullopt; // doesn't fit: treat as no overrides, not a crash
+	if (rec.overrides_offset % alignof(shm::OverrideRecord) != 0 || rec.overrides_offset > payload_len || span_end > payload_len) return std::nullopt; // doesn't fit: treat as no overrides, not a crash
 	const auto* overrides = reinterpret_cast<const shm::OverrideRecord*>(payload + rec.overrides_offset);
 	for (std::uint32_t i = 0; i < rec.override_count; ++i) {
 		if (field_name(overrides[i], payload, payload_len) == switch_val) return overrides[i].value != 0;
@@ -118,12 +119,19 @@ std::optional<bool> find_override(const shm::KnobRecord& rec, const std::uint8_t
 } // namespace
 
 std::optional<ShmReader> ShmReader::open(const std::filesystem::path& path) {
-	if (!std::filesystem::exists(path)) return std::nullopt;
-
-	int fd = ::open(path.c_str(), O_RDONLY);
-	if (fd < 0) return std::nullopt; // races with the daemon's own creation are treated the same as "not yet"
+	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0) {
+		if (errno == ENOENT) return std::nullopt;
+		throw std::runtime_error("detent-agent: cannot open shm file: " + path.string());
+	}
 
 	auto mapping_size = sizeof(shm::Header) + shm::kPayloadCapacity;
+	struct stat info {};
+	if (::fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) ||
+	    info.st_size < static_cast<off_t>(mapping_size)) {
+		::close(fd);
+		throw std::runtime_error("detent-agent: shm file is truncated or not a regular file: " + path.string());
+	}
 	void* mapping = ::mmap(nullptr, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
 	::close(fd); // the mapping stays valid after close(); matches ShmWriter's own fd lifetime assumption
 	if (mapping == MAP_FAILED) {

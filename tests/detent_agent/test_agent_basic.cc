@@ -46,6 +46,24 @@ constexpr std::string_view kDefaults = R"({
 } // namespace
 
 int main() {
+	auto truncated = temp_path("_truncated.shm");
+	for (auto contents : {"", "short"}) {
+		{ std::ofstream out(truncated, std::ios::binary); out << contents; }
+		bool rejected = false;
+		try { auto reader = detent_agent::ShmReader::open(truncated); }
+		catch (const std::runtime_error&) { rejected = true; }
+		assert(rejected);
+	}
+	auto link = temp_path("_link.shm");
+	std::filesystem::create_symlink(truncated, link);
+	bool rejected_link = false;
+	try { auto reader = detent_agent::ShmReader::open(link); }
+	catch (const std::runtime_error&) { rejected_link = true; }
+	assert(rejected_link);
+	std::filesystem::remove(link);
+	std::filesystem::remove(truncated);
+	assert(!detent_agent::ShmReader::open(truncated));
+
 	auto defaults_path = temp_path("_defaults.json");
 	{
 		std::ofstream out(defaults_path, std::ios::binary);
