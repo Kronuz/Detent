@@ -8,7 +8,7 @@ namespace detent_agent {
 using namespace std::chrono_literals;
 
 Agent::Agent(Options options) : options_(std::move(options)) {
-	shm_writer_ = std::make_unique<ShmWriter>(options_.shm_path);
+	shm_writer_ = std::make_unique<ShmWriter>(options_.shm_path, options_.system ? 0644 : 0600);
 
 	// Wire on_update *before* constructing Client: the background updater
 	// thread can fire it the moment it accepts its first real update, which

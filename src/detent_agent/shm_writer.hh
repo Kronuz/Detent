@@ -24,7 +24,7 @@ public:
 	// Throws std::runtime_error on any filesystem/mmap failure -- a daemon
 	// that can't stand up its own publish channel should fail startup, not
 	// limp along silently unable to serve any local reader.
-	explicit ShmWriter(const std::filesystem::path& path);
+	explicit ShmWriter(const std::filesystem::path& path, unsigned mode = 0600);
 	~ShmWriter();
 
 	ShmWriter(const ShmWriter&) = delete;

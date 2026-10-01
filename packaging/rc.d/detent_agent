@@ -1,0 +1,20 @@
+#!/bin/sh
+# PROVIDE: detent_agent
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+. /etc/rc.subr
+name="detent_agent"
+rcvar="detent_agent_enable"
+load_rc_config "$name"
+: ${detent_agent_enable:="NO"}
+pidfile="/var/run/detent/agent-supervisor.pid"
+start_precmd="detent_directories"
+detent_directories() {
+    install -d -o detent -g detent -m 0755 /var/run/detent
+    install -d -o detent -g detent -m 0700 /var/db/detent
+    install -d -o detent -g detent -m 0750 /var/log/detent
+}
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/detent-agent"
+command_args="-r -P ${pidfile} -u detent -o /var/log/detent/agent.log ${procname} start --system --config /usr/local/etc/detent/agent.json"
+run_rc_command "$1"

@@ -44,10 +44,11 @@ using namespace std::chrono_literals;
 
 detent_agent::Config g_config;
 std::optional<std::string> g_runtime_dir;
+bool g_system = false;
 
 std::filesystem::path runtime_dir() {
 	if (g_runtime_dir) return *g_runtime_dir;
-	return detent_agent::default_runtime_dir();
+	return detent_agent::default_runtime_dir(g_system);
 }
 
 std::filesystem::path shm_path() { return runtime_dir() / "snapshot.shm"; }
@@ -125,7 +126,7 @@ detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 // pidfile is absent, or if it exists but nothing holds its lock (stale from
 // a previous, uncleanly-stopped run) -- either way, not running.
 std::optional<pid_t> locked_pid() {
-	int fd = ::open(pid_path().c_str(), O_RDWR);
+	int fd = ::open(pid_path().c_str(), O_RDONLY);
 	if (fd < 0) return std::nullopt; // no pidfile at all
 	if (::flock(fd, LOCK_EX | LOCK_NB) == 0) {
 		// We just acquired the lock ourselves -- nobody was holding it, so
@@ -156,8 +157,8 @@ int acquire_pidfile() {
 	if (::lstat(dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != ::geteuid()) {
 		throw std::runtime_error("runtime directory must be owned by the current user and not be a symlink: " + dir.string());
 	}
-	if (::chmod(dir.c_str(), 0700) != 0) throw std::runtime_error("cannot make runtime directory private: " + dir.string());
-	int fd = ::open(pid_path().c_str(), O_CREAT | O_RDWR, 0600);
+	if (::chmod(dir.c_str(), g_system ? 0755 : 0700) != 0) throw std::runtime_error("cannot make runtime directory private: " + dir.string());
+	int fd = ::open(pid_path().c_str(), O_CREAT | O_RDWR, g_system ? 0644 : 0600);
 	if (fd < 0) throw std::runtime_error("cannot open pidfile: " + std::string(std::strerror(errno)));
 	if (::flock(fd, LOCK_EX | LOCK_NB) != 0) {
 		::close(fd);
@@ -192,7 +193,8 @@ int run_foreground(detent_agent::Options options, int ready_fd = -1) {
 }
 
 int cmd_start(const std::vector<std::string>& args, bool quiet = false) {
-	auto options = detent_agent::Options{shm_path(), build_client_options(args)};
+	if (g_system && has_flag(args, "--daemonize")) throw std::runtime_error("system services must run in the foreground");
+	auto options = detent_agent::Options{shm_path(), build_client_options(args), g_system};
 
 	if (auto pid = locked_pid()) {
 		if (!quiet) std::printf("detent-agent: already running (pid %d)\n", *pid);
@@ -286,6 +288,7 @@ int cmd_status() {
 }
 
 int cmd_stop() {
+	if (g_system) throw std::runtime_error("stop the system agent through its service manager");
 	auto pid = locked_pid();
 	if (!pid) {
 		std::printf("not running\n");
@@ -341,6 +344,10 @@ int cmd_get(const std::vector<std::string>& args) {
 
 	auto reader = detent_agent::ShmReader::open(shm_path());
 	if (!reader || !locked_pid()) {
+		if (g_system) {
+			if (default_val) { std::printf("%s\n", default_val->c_str()); return 0; }
+			throw std::runtime_error("system agent is not running; start it through its service manager");
+		}
 		try {
 			auto start_args = args;
 			start_args.emplace_back("--daemonize");
@@ -429,6 +436,8 @@ const char* kUsage =
 	"--source-http is a legacy alias for --source-address (HTTP transport).\n"
 	"Flags override environment variables, which override config settings.\n"
 	"--runtime-dir PATH selects the runtime directory for any command.\n"
+	"--system uses system config and /run/detent (BSD/macOS: /var/run/detent).\n"
+	"System agents run in the foreground; get does not start unmanaged services.\n"
 	"environment variables (optional):\n"
 	"  DETENT_RUNTIME_DIR       shm/pid/log directory\n"
 	"                           (default $XDG_RUNTIME_DIR/detent, else $TMPDIR/detent-<uid>)\n"
@@ -454,6 +463,7 @@ int main(int argc, char** argv) {
 	}
 
 	try {
+		g_system = has_flag(args, "--system");
 		g_config = detent_agent::load_config(args);
 		g_runtime_dir = setting(args, "--runtime-dir", "DETENT_RUNTIME_DIR");
 		if (command == "start") return cmd_start(args);

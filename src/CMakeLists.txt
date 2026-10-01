@@ -102,3 +102,11 @@ target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
 add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc)
 target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli)
+
+include(GNUInstallDirs)
+install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(DETENT_BUILD_DISTRIBUTOR)
+  install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/packaging/ DESTINATION ${CMAKE_INSTALL_DATADIR}/detent USE_SOURCE_PERMISSIONS)
+install(FILES ${CMAKE_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/detent)

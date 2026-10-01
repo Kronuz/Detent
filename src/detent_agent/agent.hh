@@ -30,6 +30,7 @@ namespace detent_agent {
 struct Options {
 	std::filesystem::path shm_path;
 	detent::InitOptions client_options; // however the agent's one Client is configured
+	bool system = false;
 };
 
 class Agent {

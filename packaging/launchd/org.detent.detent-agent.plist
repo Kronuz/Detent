@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>GroupName</key>
+	<string>_detent</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>org.detent.detent-agent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/detent-agent</string>
+		<string>start</string>
+		<string>--system</string>
+		<string>--config</string>
+		<string>/Library/Application Support/Detent/agent.json</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/log/detent/detent-agent.log</string>
+	<key>StandardOutPath</key>
+	<string>/var/log/detent/detent-agent.log</string>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+	<key>UserName</key>
+	<string>_detent</string>
+</dict>
+</plist>

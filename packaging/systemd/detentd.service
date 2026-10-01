@@ -1,0 +1,28 @@
+[Unit]
+Description=Detent configuration distributor
+After=network.target
+
+[Service]
+Type=simple
+User=detent
+Group=detent
+ExecStart=/usr/local/bin/detentd --system --config /etc/detent/detentd.json
+StateDirectory=detent
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

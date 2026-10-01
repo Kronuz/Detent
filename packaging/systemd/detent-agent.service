@@ -1,0 +1,28 @@
+[Unit]
+Description=Detent host-local configuration agent
+After=network.target
+
+[Service]
+Type=simple
+User=detent
+Group=detent
+ExecStart=/usr/local/bin/detent-agent start --system --config /etc/detent/agent.json
+RuntimeDirectory=detent
+RuntimeDirectoryMode=0755
+UMask=0022
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

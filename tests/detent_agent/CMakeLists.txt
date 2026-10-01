@@ -20,3 +20,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
     set_tests_properties(test_agent_http PROPERTIES TIMEOUT 30)
   endif()
 endif()
+
+add_test(NAME test_system_agent COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_system_agent.sh
+  $<TARGET_FILE:detent-agent> ${CMAKE_CURRENT_BINARY_DIR}/system-agent)
+set_tests_properties(test_system_agent PROPERTIES TIMEOUT 15)

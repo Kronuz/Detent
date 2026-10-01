@@ -3,6 +3,7 @@
 #include "detent/json_schema_internal.hh"
 #include <rapidjson/document.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <unistd.h>
 #include <filesystem>
@@ -25,7 +26,14 @@ std::filesystem::path user_config_dir() {
 	throw std::runtime_error("cannot locate user config directory: HOME is unset");
 }
 
-std::filesystem::path default_runtime_dir() {
+std::filesystem::path default_runtime_dir(bool system) {
+	if (system) {
+#ifdef __linux__
+		return "/run/detent";
+#else
+		return "/var/run/detent";
+#endif
+	}
 	if (const char* xdg = std::getenv("XDG_RUNTIME_DIR"); xdg && *xdg && std::filesystem::path(xdg).is_absolute()) {
 		return std::filesystem::path(xdg) / "detent";
 	}
@@ -34,7 +42,14 @@ std::filesystem::path default_runtime_dir() {
 	return std::filesystem::temp_directory_path() / ("detent-" + std::to_string(::geteuid()));
 }
 
-std::filesystem::path default_state_dir() {
+std::filesystem::path default_state_dir(bool system) {
+	if (system) {
+#ifdef __linux__
+		return "/var/lib/detent";
+#else
+		return "/var/db/detent";
+#endif
+	}
 	if (const char* xdg = std::getenv("XDG_STATE_HOME"); xdg && *xdg && std::filesystem::path(xdg).is_absolute()) {
 		return std::filesystem::path(xdg) / "detent";
 	}
@@ -69,6 +84,7 @@ std::filesystem::path config_path(const std::vector<std::string>& args, const st
 		explicit_path = true;
 		return args[i + 1];
 	}
+	if (std::find(args.begin(), args.end(), "--system") != args.end()) return system_config_dir() / filename;
 	auto user_path = user_config_dir() / filename;
 	if (std::filesystem::exists(user_path)) return user_path;
 	return system_config_dir() / filename;

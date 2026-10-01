@@ -681,3 +681,5 @@ surface is one Raft cluster per distributor deployment.
 | Multi-region replication | **Not implemented** | Design exists in `CLUSTERING.md`; code path does not |
 | Soak/long-run stability | **Not done** | No multi-hour or multi-day validation documented |
 
+
+System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.

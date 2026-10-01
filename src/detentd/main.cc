@@ -51,6 +51,7 @@ const char* kUsage =
 	"quorum of the cluster has it.\n"
 	"\n"
 	"With no arguments: port 52617, snapshot.json in the user state directory.\n"
+	"--system selects system config and /var/lib/detent (BSD/macOS: /var/db/detent).\n"
 	"Config: detentd.json in the same platform directories as agent.json.\n"
 	"Fields: port, persist_path, reactors, workers. Paths are config-relative.\n"
 	"Flags/positional arguments override DETENTD_PORT, DETENTD_PERSIST_PATH,\n"
@@ -105,6 +106,7 @@ int run(const std::vector<std::string>& args) {
 	}
 	detentd::Options options;
 	cluster::RaftConfig raft_timing;
+	bool system = false;
 	std::size_t i = 0;
 	if (!args.empty() && !args[0].starts_with("--")) {
 		if (args.size() < 2 || args[1].starts_with("--")) throw std::runtime_error("positional syntax requires both port and persist_path");
@@ -118,7 +120,9 @@ int run(const std::vector<std::string>& args) {
 	};
 	while (i < args.size()) {
 		auto arg = args[i++];
-		if (arg == "--config") {
+		if (arg == "--system") {
+			system = true;
+		} else if (arg == "--config") {
 			(void)next(arg); // already loaded above
 		} else if (arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--workers") {
 			settings[arg] = next(arg);
@@ -148,7 +152,7 @@ int run(const std::vector<std::string>& args) {
 	if (settings.contains("--persist-path")) {
 		options.persist_path = settings.at("--persist-path");
 	} else {
-		auto dir = detent_cli::default_state_dir();
+		auto dir = detent_cli::default_state_dir(system);
 		if (std::filesystem::create_directories(dir)) {
 			std::filesystem::permissions(dir, std::filesystem::perms::owner_all);
 		}

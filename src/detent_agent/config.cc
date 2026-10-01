@@ -1,5 +1,6 @@
 #include "config.hh"
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace detent_agent {
@@ -20,7 +21,9 @@ Config load_config(const std::vector<std::string>& args) {
 	}
 	if (!settings.contains("--defaults")) {
 		auto directories = file.path.empty()
-			? std::vector<std::filesystem::path>{user_config_dir(), detent_cli::system_config_dir()}
+			? (std::find(args.begin(), args.end(), "--system") != args.end()
+				? std::vector<std::filesystem::path>{detent_cli::system_config_dir()}
+				: std::vector<std::filesystem::path>{user_config_dir(), detent_cli::system_config_dir()})
 			: std::vector<std::filesystem::path>{file.path.parent_path()};
 		for (const auto& dir : directories) {
 			auto defaults = dir / "defaults.json";

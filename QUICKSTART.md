@@ -494,3 +494,5 @@ kill %1 %2 %3
 - [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md): the
   source specification.
 - `src/detentd/CLUSTERING.md`: the authoritative clustering design.
+
+System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.

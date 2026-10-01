@@ -16,8 +16,8 @@ struct ConfigFile { Config values; std::filesystem::path path; };
 
 std::filesystem::path user_config_dir();
 std::filesystem::path system_config_dir();
-std::filesystem::path default_runtime_dir();
-std::filesystem::path default_state_dir();
+std::filesystem::path default_runtime_dir(bool system = false);
+std::filesystem::path default_state_dir(bool system = false);
 ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema);
 
 } // namespace detent_cli

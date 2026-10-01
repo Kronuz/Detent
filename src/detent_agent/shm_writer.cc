@@ -112,12 +112,13 @@ std::vector<std::uint8_t> serialize_for_shm(const detent::Snapshot& snapshot) {
 	return payload;
 }
 
-ShmWriter::ShmWriter(const std::filesystem::path& path) {
+ShmWriter::ShmWriter(const std::filesystem::path& path, unsigned mode) {
 	mapping_size_ = sizeof(shm::Header) + shm::kPayloadCapacity;
-	fd_ = ::open(path.c_str(), O_RDWR | O_CREAT, 0600);
+	fd_ = ::open(path.c_str(), O_RDWR | O_CREAT, mode);
 	if (fd_ < 0) {
 		throw std::runtime_error("detent-agent: shm open() failed: " + path.string());
 	}
+	if (::fchmod(fd_, mode) != 0) { ::close(fd_); throw std::runtime_error("cannot set snapshot permissions"); }
 	if (::ftruncate(fd_, static_cast<off_t>(mapping_size_)) != 0) {
 		::close(fd_);
 		throw std::runtime_error("detent-agent: shm ftruncate() failed: " + path.string());
