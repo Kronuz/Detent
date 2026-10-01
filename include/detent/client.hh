@@ -97,7 +97,7 @@ struct InitOptions {
 	using SourcePoll = std::function<std::optional<SourcePayload>(std::uint64_t after_version)>;
 	std::optional<SourcePoll> source_poll;
 	std::string source_id = "file";
-	std::chrono::milliseconds poll_interval{200};           // base poll cadence (file or generic source)
+	std::chrono::milliseconds poll_interval{200};           // positive base poll cadence (file or generic source)
 	std::chrono::milliseconds refresh_alert_after{std::chrono::minutes{5}};
 	std::size_t max_knobs = 100'000;
 

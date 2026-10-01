@@ -73,6 +73,9 @@ Client::Client(InitOptions options)
 	, source_id_(options.source_id)
 	, refresh_alert_after_(options.refresh_alert_after)
 	, on_update_(options.on_update) {
+	if (options.poll_interval <= std::chrono::milliseconds::zero()) {
+		throw std::invalid_argument("detent: poll_interval must be positive");
+	}
 	// 1. Optional baked defaults. An explicitly configured file must be valid.
 	if (!options.defaults_path.empty()) {
 		std::string text;

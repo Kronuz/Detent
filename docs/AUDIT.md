@@ -30,3 +30,10 @@ Parsers now use explicit JSON string lengths for field names, type names,
 knob names, and group keys, validate UTF-8, and reject raw NUL bytes in JSON
 text. Serializers preserve complete opaque group keys, including escaped
 NULs. Schema, patch, and JSON-string regression tests pass.
+
+## Fixed: invalid client poll intervals
+
+The public C++ options (also used by bindings) accepted zero and negative
+poll intervals, allowing a background source to loop without waiting.
+Construction now rejects them before starting an updater. The file-source
+regression checks both values with a configured polling source.

@@ -54,6 +54,16 @@ constexpr std::string_view kDefaults = R"({
 } // namespace
 
 int main() {
+	for (auto interval : {0ms, -1ms}) {
+		InitOptions invalid;
+		invalid.poll_interval = interval;
+		invalid.source_poll = [](std::uint64_t) { return std::optional<InitOptions::SourcePayload>{}; };
+		bool rejected = false;
+		try { Client client(std::move(invalid)); }
+		catch (const std::invalid_argument&) { rejected = true; }
+		assert(rejected);
+	}
+
 	auto defaults_path = temp_path("_defaults.json");
 	auto source_path = temp_path("_source.json");
 	write_file(defaults_path, kDefaults);
