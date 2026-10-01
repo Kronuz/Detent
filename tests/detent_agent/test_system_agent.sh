@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 agent=$1
+reader="$(dirname "$agent")/detent"
 root=$2
 mkdir -p "$root"
 server_pid=
@@ -16,7 +17,7 @@ printf '{"defaults_path":"defaults.json","runtime_dir":"run"}\n' > "$root/agent.
 "$agent" start --system --config "$root/agent.json" > "$root/output.log" 2>&1 &
 server_pid=$!
 i=0
-until test "$("$agent" get test:value --system --config "$root/agent.json" 2>/dev/null || true)" = 17; do
+until test "$("$reader" get test:value --system --config "$root/agent.json" 2>/dev/null || true)" = 17; do
     i=$((i+1)); test "$i" -lt 30; sleep 0.1
 done
 "$agent" status --system --config "$root/agent.json"
@@ -24,5 +25,5 @@ test -r "$root/run/snapshot.shm"
 kill "$server_pid"
 wait "$server_pid"
 server_pid=
-if "$agent" get test:value --system --config "$root/agent.json"; then exit 1; fi
-test "$("$agent" get test:value --system --config "$root/agent.json" --default 19)" = 19
+if "$reader" get test:value --system --config "$root/agent.json"; then exit 1; fi
+test "$("$reader" get test:value --system --config "$root/agent.json" --default 19)" = 19

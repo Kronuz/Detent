@@ -102,13 +102,13 @@ The rollout bucket is stable for the same `(knob_name, hash_val)` pair across
 processes and restarts.
 
 Save the rollout JSON above as `defaults.json` before these shell reads.
-`detent-agent get` starts the local daemon automatically and exposes the same
+`detent get` starts the local daemon automatically and exposes the same
 `--hash` and `--switch` parameters:
 
 ```sh
-./build/src/detent-agent get payments:new_processor --defaults defaults.json
-./build/src/detent-agent get payments:new_processor --hash user-42
-./build/src/detent-agent get payments:new_processor --hash user-2 --switch internal_employees
+./build/src/detent get payments:new_processor --defaults defaults.json
+./build/src/detent get payments:new_processor --hash user-42
+./build/src/detent get payments:new_processor --hash user-2 --switch internal_employees
 ```
 
 ---
@@ -285,7 +285,7 @@ published, read a knob directly:
 ```sh
 # Stop any defaults-only agent left over from Scenario 1.
 ./build/src/detent-agent stop
-./build/src/detent-agent get search:max_results
+./build/src/detent get search:max_results
 # 500 (or the latest published value)
 ./build/src/detent-agent status
 ./build/src/detent-agent stop
@@ -319,7 +319,7 @@ selects a file explicitly. Config files contain JSON:
 }
 ```
 
-Then use plain `detent-agent get NAME` from any directory. `source_address`
+Then use plain `detent get NAME` from any directory. `source_address`
 is a `host:port` address; the transport is HTTP and the endpoint is
 `/v1/snapshot`. `source_path` selects a local live snapshot file instead.
 These source settings are mutually exclusive.
@@ -496,3 +496,5 @@ kill %1 %2 %3
 - `src/detentd/CLUSTERING.md`: the authoritative clustering design.
 
 System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
+
+The shell reader is `detent get NAME`. Agent lifecycle commands are `detent-agent start`, `stop`, `restart`, `status`, and `help`. `restart` runs a user agent in the background; managed services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.

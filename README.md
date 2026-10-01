@@ -348,7 +348,7 @@ detent
 - `detent_agent_lib` contains the shared-memory agent logic so tests can link
   it directly.
 - `detentd` is the network-facing distributor.
-- `detent-agent` is the host-local daemon plus CLI.
+- `detent-agent` is the host-local daemon and lifecycle CLI.
 
 ### Why four libraries and not one
 
@@ -485,7 +485,7 @@ for a complete publishing example.
 With a local distributor on `127.0.0.1:52617` and a published snapshot:
 
 ```sh
-./build/src/detent-agent get search:max_results
+./build/src/detent get search:max_results
 ./build/src/detent-agent status
 ./build/src/detent-agent stop
 ```
@@ -683,3 +683,5 @@ surface is one Raft cluster per distributor deployment.
 
 
 System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
+
+The shell reader is `detent get NAME`. Agent lifecycle commands are `detent-agent start`, `stop`, `restart`, `status`, and `help`. `restart` runs a user agent in the background; managed services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.

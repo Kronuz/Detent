@@ -3,7 +3,7 @@
 // ShmReader: the CLI's only interaction with the shared-memory channel --
 // mmap the file ShmWriter publishes and evaluate directly against the
 // mapped bytes. No JSON parsing, no heap allocation on the read path, no
-// daemon round-trip: the entire cost of a `detent-agent get` is one mmap,
+// daemon round-trip: the entire cost of a `detent get` is one mmap,
 // a handful of atomic loads, a binary search over KnobRecord (the writer
 // serializes detent::Snapshot's already-sorted btree::map in order, so this
 // is a real binary search, not a scan), and (for a rollout knob)

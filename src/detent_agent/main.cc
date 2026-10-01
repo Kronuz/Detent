@@ -1,27 +1,20 @@
-// detent-agent: the host-local daemon and its own CLI in one binary --
-// `start` runs the daemon, `get` is the fast client (a fresh process each
-// call, reading directly from shared memory -- no socket, no daemon round
-// trip), `status`/`stop` manage the daemon's lifecycle via its pidfile and
-// signals.
-//
-// Usage:
-//   detent-agent start [--daemonize] [--defaults PATH] [--source-path PATH]
-//                       [--source-address HOST:PORT] [--poll-interval-ms N]
-//   detent-agent status
-//   detent-agent stop
-//   detent-agent get <name> [--hash VAL] [--switch VAL] [--default VAL]
+// Shared CLI entry point for detent-agent lifecycle and detent reads.
+// DETENT_READER excludes daemon and HTTP code from the reader binary.
 //
 // Configuration: flags override environment variables, then agent.json.
 // Baked defaults are optional; source-only agents start with an empty snapshot.
+#ifndef DETENT_READER
 #include "agent.hh"
-#include "config.hh"
 #include "detent_http/http_source.hh"
+#endif
+#include "config.hh"
 #include "shm_reader.hh"
 
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -45,6 +38,7 @@ using namespace std::chrono_literals;
 detent_agent::Config g_config;
 std::optional<std::string> g_runtime_dir;
 bool g_system = false;
+std::string g_executable;
 
 std::filesystem::path runtime_dir() {
 	if (g_runtime_dir) return *g_runtime_dir;
@@ -73,6 +67,7 @@ std::optional<std::string> setting(const std::vector<std::string>& args, const s
 	return std::nullopt;
 }
 
+#ifndef DETENT_READER
 int positive_int(const std::string& value, int maximum, const std::string& field) {
 	int number = 0;
 	auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), number);
@@ -118,6 +113,8 @@ detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 	return opts;
 }
 
+#endif
+
 // Ties "is the daemon actually alive" to the same `flock` the daemon itself
 // holds for its entire lifetime (acquire_pidfile(), below), instead of a
 // raw pid read + kill(pid, 0): a plain pid check has a TOCTOU window where
@@ -147,6 +144,7 @@ std::optional<pid_t> locked_pid() {
 	return pid > 0 ? std::optional<pid_t>(pid) : std::nullopt;
 }
 
+#ifndef DETENT_READER
 // Acquires an exclusive flock on the pidfile and writes our own pid into it.
 // Returns the held fd (keep it open for the process lifetime -- closing
 // releases the lock) or -1 if another instance already holds it.
@@ -197,14 +195,14 @@ int cmd_start(const std::vector<std::string>& args, bool quiet = false) {
 	auto options = detent_agent::Options{shm_path(), build_client_options(args), g_system};
 
 	if (auto pid = locked_pid()) {
-		if (!quiet) std::printf("detent-agent: already running (pid %d)\n", *pid);
+		if (!quiet && !has_flag(args, "--quiet")) std::printf("detent-agent: already running (pid %d)\n", *pid);
 		return 0; // idempotent
 	}
 
 	if (!has_flag(args, "--daemonize")) {
 		int pidfd = acquire_pidfile();
 		if (pidfd < 0) {
-			if (!quiet) std::printf("detent-agent: already running\n");
+			if (!quiet && !has_flag(args, "--quiet")) std::printf("detent-agent: already running\n");
 			return 0;
 		}
 		return run_foreground(std::move(options));
@@ -312,6 +310,9 @@ int cmd_stop() {
 	return 1;
 }
 
+#endif
+
+#ifdef DETENT_READER
 // Tries eval() first (bool), then get() (int) if eval() reports the knob is
 // actually an int -- the CLI doesn't know a knob's type up front the way
 // the old socket protocol's server-side dispatch did, since there's no
@@ -349,9 +350,30 @@ int cmd_get(const std::vector<std::string>& args) {
 			throw std::runtime_error("system agent is not running; start it through its service manager");
 		}
 		try {
-			auto start_args = args;
-			start_args.emplace_back("--daemonize");
-			if (cmd_start(start_args, true) != 0) throw std::runtime_error("daemon startup failed");
+			std::filesystem::path executable(g_executable);
+			auto daemon = executable.has_parent_path()
+				? (std::filesystem::absolute(executable).parent_path() / "detent-agent").string()
+				: std::string("detent-agent");
+			std::vector<std::string> start_args{daemon, "start", "--daemonize", "--quiet"};
+			for (std::size_t i = 1; i < args.size(); ++i) {
+				if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default") { ++i; continue; }
+				start_args.push_back(args[i]);
+			}
+			std::vector<char*> argv;
+			for (auto& arg : start_args) argv.push_back(arg.data());
+			argv.push_back(nullptr);
+			auto child = ::fork();
+			if (child < 0) throw std::runtime_error("cannot launch detent-agent");
+			if (child == 0) {
+				::execvp(daemon.c_str(), argv.data());
+				std::fprintf(stderr, "detent: cannot execute %s: %s\n", daemon.c_str(), std::strerror(errno));
+				_exit(127);
+			}
+			int status = 0;
+			while (::waitpid(child, &status, 0) < 0) {
+				if (errno != EINTR) throw std::runtime_error("cannot wait for detent-agent");
+			}
+			if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) throw std::runtime_error("detent-agent startup failed");
 		} catch (const std::exception& e) {
 			if (default_val) {
 				std::printf("%s\n", default_val->c_str());
@@ -407,6 +429,18 @@ int cmd_get(const std::vector<std::string>& args) {
 	return 1;
 }
 
+#endif
+
+#ifdef DETENT_READER
+const char* kUsage =
+	"usage: detent get NAME [--hash VAL] [--switch VAL] [--default VAL]\n"
+	"                  [--config PATH] [--defaults PATH] [--source-address HOST:PORT]\n"
+	"                  [--source-path PATH] [--runtime-dir PATH] [--system]\n"
+	"       detent help | --help\n"
+	"User reads auto-start detent-agent; system reads attach to the managed service.\n"
+	"Config: agent.json in the standard Detent config directory.\n"
+	"Flags override environment variables, which override config.\n";
+#else
 const char* kUsage =
 	"detent-agent: host-local daemon + CLI for a warm, shared detent::Client\n"
 	"\n"
@@ -415,16 +449,12 @@ const char* kUsage =
 	"                      [--source-address HOST:PORT] [--poll-interval-ms N]\n"
 	"  detent-agent status\n"
 	"  detent-agent stop\n"
-	"  detent-agent get <name> [--hash VAL] [--switch VAL] [--default VAL]\n"
-	"                      [--defaults PATH] [--source-path PATH | --source-address HOST:PORT]\n"
+	"  detent-agent restart [startup flags]\n"
 	"  detent-agent --help | -h\n"
 	"\n"
-	"`start` runs the daemon in the foreground unless --daemonize forks it into\n"
-	"the background. `get` reads directly from the shared-memory snapshot the\n"
-	"daemon publishes -- no socket, no daemon involvement per call. If no\n"
-	"daemon is running, `get` auto-starts one using the same config\n"
-	"resolution as `start` (flags here, then the environment variables below),\n"
-	"then retries briefly while it comes up.\n"
+	"start runs in the foreground unless --daemonize is supplied.\n"
+	"restart stops and starts a user agent in the background.\n"
+	"Use detent get NAME to read or auto-start a user agent.\n"
 	"\n"
 	"Configuration: --config PATH, else $XDG_CONFIG_HOME/detent/agent.json\n"
 	"(Linux/FreeBSD: ~/.config/detent; macOS: ~/Library/Application Support/Detent).\n"
@@ -447,6 +477,8 @@ const char* kUsage =
 	"  DETENT_SOURCE_PATH       local snapshot file path\n"
 	"  DETENT_POLL_INTERVAL_MS\n";
 
+#endif
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -454,6 +486,7 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "%s", kUsage);
 		return 2;
 	}
+	g_executable = argv[0];
 	std::string command = argv[1];
 	std::vector<std::string> args(argv + 2, argv + argc);
 
@@ -466,10 +499,19 @@ int main(int argc, char** argv) {
 		g_system = has_flag(args, "--system");
 		g_config = detent_agent::load_config(args);
 		g_runtime_dir = setting(args, "--runtime-dir", "DETENT_RUNTIME_DIR");
+
+#ifndef DETENT_READER
 		if (command == "start") return cmd_start(args);
 		if (command == "status") return cmd_status();
 		if (command == "stop") return cmd_stop();
+		if (command == "restart") {
+			if (cmd_stop() != 0) return 1;
+			args.emplace_back("--daemonize");
+			return cmd_start(args);
+		}
+#else
 		if (command == "get") return cmd_get(args);
+#endif
 	} catch (const std::exception& e) {
 		std::fprintf(stderr, "detent-agent: %s\n", e.what());
 		return 1;

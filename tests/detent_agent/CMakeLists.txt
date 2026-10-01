@@ -9,7 +9,7 @@ add_test(NAME test_shm_concurrency_stress COMMAND test_shm_concurrency_stress)
 set_tests_properties(test_shm_concurrency_stress PROPERTIES TIMEOUT 60)
 
 add_test(NAME test_agent_cli COMMAND ${CMAKE_COMMAND}
-  -DAGENT=$<TARGET_FILE:detent-agent> -P ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_cli.cmake)
+  -DAGENT=$<TARGET_FILE:detent-agent> -DREADER=$<TARGET_FILE:detent-reader> -P ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_cli.cmake)
 set_tests_properties(test_agent_cli PROPERTIES TIMEOUT 60)
 
 if(DETENT_BUILD_DISTRIBUTOR)

@@ -4,7 +4,11 @@ file(MAKE_DIRECTORY "${root}/config/detent")
 file(WRITE "${root}/defaults.json" "{\"schema_version\":1,\"knobs\":{\"search:max_results\":{\"type\":\"int\",\"default\":25}}}")
 set(env "${CMAKE_COMMAND}" -E env --unset=DETENT_DEFAULTS_PATH --unset=DETENT_SOURCE_ADDRESS --unset=DETENT_SOURCE_HTTP --unset=DETENT_SOURCE_PATH --unset=DETENT_POLL_INTERVAL_MS "DETENT_RUNTIME_DIR=${root}/run" "XDG_CONFIG_HOME=${root}/config")
 function(check expected_code expected_output)
-  execute_process(COMMAND ${env} "${AGENT}" ${ARGN} WORKING_DIRECTORY "${root}"
+  set(binary "${AGENT}")
+  if("${ARGV2}" STREQUAL "get")
+    set(binary "${READER}")
+  endif()
+  execute_process(COMMAND ${env} "${binary}" ${ARGN} WORKING_DIRECTORY "${root}"
     RESULT_VARIABLE code OUTPUT_VARIABLE output ERROR_VARIABLE error TIMEOUT 10)
   if(NOT code EQUAL expected_code OR NOT "${output}${error}" MATCHES "${expected_output}")
     execute_process(COMMAND ${env} "${AGENT}" stop)

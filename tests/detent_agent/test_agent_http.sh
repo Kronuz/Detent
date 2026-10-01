@@ -2,6 +2,7 @@
 # Real CLI + distributor: persistent address config, no baked defaults.
 set -eu
 agent=$1
+reader="$(dirname "$agent")/detent"
 distributor=$2
 root=$3
 curl=$4
@@ -30,11 +31,11 @@ done
 "$curl" -fs -X PUT "http://127.0.0.1:$port/v1/snapshot" -d '{"schema_version":1,"version":1,"knobs":{"search:max_results":{"type":"int","default":500}}}' > /dev/null
 # Run from a different directory to prove startup is independent of cwd.
 cd "$root"
-test "$("$agent" get search:max_results)" = 500
+test "$("$reader" get search:max_results)" = 500
 "$agent" status
 "$curl" -fs -X PUT "http://127.0.0.1:$port/v1/snapshot" -d '{"schema_version":1,"version":2,"knobs":{"search:max_results":{"type":"int","default":501}}}' > /dev/null
 attempt=0
-until test "$("$agent" get search:max_results)" = 501; do
+until test "$("$reader" get search:max_results)" = 501; do
     attempt=$((attempt + 1))
     test "$attempt" -lt 50
     sleep 0.1
@@ -42,11 +43,11 @@ done
 "$agent" stop
 # An address flag replaces a conflicting lower-priority file source.
 printf '{"source_path":"absent.json"}\n' > "$root/config/detent/agent.json"
-test "$("$agent" get search:max_results --source-address "127.0.0.1:$port")" = 501
+test "$("$reader" get search:max_results --source-address "127.0.0.1:$port")" = 501
 "$agent" stop
-test "$("$agent" get search:max_results --source-http "127.0.0.1:$port")" = 501
+test "$("$reader" get search:max_results --source-http "127.0.0.1:$port")" = 501
 "$agent" stop
 # Environment address overrides source_path in config, too.
 export DETENT_SOURCE_ADDRESS="127.0.0.1:$port"
-test "$("$agent" get search:max_results)" = 501
+test "$("$reader" get search:max_results)" = 501
 "$agent" stop

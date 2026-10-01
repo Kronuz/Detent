@@ -50,7 +50,7 @@ application-managed log file and rotation policy.
 sudo systemctl daemon-reload
 sudo systemctl enable --now detentd detent-agent
 journalctl -u detentd -u detent-agent
-/usr/local/bin/detent-agent get search:max_results --system
+/usr/local/bin/detent get search:max_results --system
 ```
 
 The units run as `detent`, restrict filesystem writes, and grant no extra
@@ -88,7 +88,7 @@ daemon supervisor to reopen output after rotation.
 
 ## Operations and deployment limits
 
-`detent-agent get NAME --system` and `status --system` attach to the managed
+`detent get NAME --system` and `status --system` attach to the managed
 agent. If it is absent, `get` reports that the service must be started through
 its manager. It never starts a private replacement in a user's home.
 `--default VALUE` still provides a per-call fallback. Stop and restart through
