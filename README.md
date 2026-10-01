@@ -8,8 +8,8 @@ adds a concrete publisher/distributor path, PATCH-based partial updates,
 diff-since-last-version polling, cached compression, and optional Raft-based
 replication for `detentd`.
 
-**New here?** [`QUICKSTART.md`](QUICKSTART.md) walks through publishing and
-ramping a local feature flag. The [usage guide](docs/USAGE.md) covers network
+**New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature
+flags, and gradual rollouts. The [usage guide](docs/USAGE.md) covers network
 distribution, configuration, and library examples.
 
 ## What this is
