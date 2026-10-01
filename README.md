@@ -8,10 +8,9 @@ adds a concrete publisher/distributor path, PATCH-based partial updates,
 diff-since-last-version polling, cached compression, and optional Raft-based
 replication for `detentd`.
 
-**New here?** [`QUICKSTART.md`](QUICKSTART.md) walks through four current
-deployment shapes: baked defaults only, one distributor with live updates,
-host-local non-C++ reads through `detent-agent`, and a three-node Raft
-cluster.
+**New here?** [`QUICKSTART.md`](QUICKSTART.md) walks through publishing and
+ramping a local feature flag. The [usage guide](docs/USAGE.md) covers network
+distribution, configuration, and library examples.
 
 ## What this is
 
@@ -477,8 +476,8 @@ Optional `detentd.json` lives in the same platform config directory as
 Relative paths are resolved against the config file. `--config PATH` selects
 another file. CLI arguments override `DETENTD_*` environment variables,
 which override config. Both `detentd --port 52617 --persist-path PATH` and
-legacy `detentd 52617 PATH` work. See [QUICKSTART](QUICKSTART.md#scenario-2-one-distributor-live-updates)
-for a complete publishing example.
+legacy `detentd 52617 PATH` work. See [the usage guide](docs/USAGE.md#scenario-2-one-distributor-live-updates)
+for HTTP publishing and configuration.
 
 ### Running detent-agent
 
@@ -511,7 +510,7 @@ fallback. With only defaults configured, the agent serves local-only reads.
 Runtime files use `$XDG_RUNTIME_DIR/detent`, falling back to a private
 `detent-<uid>` directory under the system temporary directory. `runtime_dir`,
 `--runtime-dir`, or `DETENT_RUNTIME_DIR` selects another directory. Stop the
-agent to apply changed startup settings. See [QUICKSTART](QUICKSTART.md#persistent-agent-configuration)
+agent to apply changed startup settings. See [the usage guide](docs/USAGE.md#persistent-agent-configuration)
 for system config locations and precedence.
 
 ### IPC design: shared memory, not a socket
