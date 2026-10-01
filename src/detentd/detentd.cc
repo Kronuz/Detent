@@ -1,6 +1,7 @@
 #include "detentd.hh"
 
 #include "detent/json_patch.hh"
+#include "detent/detail/file.hh"
 #include "raft_delegate.hh"
 
 #include <bus.h>
@@ -423,12 +424,8 @@ void Distributor::persist_locked(std::string_view bytes, std::uint64_t version) 
 
 void Distributor::load_persisted() {
 	if (options_.persist_path.empty()) return;
-	std::ifstream in(options_.persist_path, std::ios::binary);
-	if (!in) return; // nothing persisted yet; start with no snapshot
-
-	std::ostringstream ss;
-	ss << in.rdbuf();
-	auto bytes = ss.str();
+	if (!std::filesystem::exists(options_.persist_path)) return;
+	auto bytes = detent::detail::read_file(options_.persist_path, detent::kDefaultMaxBytes);
 	auto parsed = detent::parse_source_snapshot(bytes, "distributor", options_.max_knobs);
 	if (parsed) {
 		current_version_ = parsed.value().version;

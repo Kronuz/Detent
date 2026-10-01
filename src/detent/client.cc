@@ -1,4 +1,5 @@
 #include "detent/client.hh"
+#include "detent/detail/file.hh"
 #include "detent/hashing.hh"
 #include "detent/json_patch.hh"
 #include "detent/json_schema.hh"
@@ -10,7 +11,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
 
 namespace detent {
@@ -44,15 +44,6 @@ const char* category_name(ErrorCategory c) noexcept {
 	std::abort();
 }
 
-std::string read_whole_file(const std::filesystem::path& path, std::size_t max_bytes) {
-	std::ifstream in(path, std::ios::binary);
-	if (!in) throw std::runtime_error("cannot open file: " + path.string());
-	std::ostringstream ss;
-	ss << in.rdbuf();
-	auto text = ss.str();
-	if (text.size() > max_bytes) throw std::runtime_error("file exceeds size limit: " + path.string());
-	return text;
-}
 
 } // namespace
 
@@ -80,7 +71,7 @@ Client::Client(InitOptions options)
 	if (!options.defaults_path.empty()) {
 		std::string text;
 		try {
-			text = read_whole_file(options.defaults_path, kDefaultMaxBytes);
+			text = detail::read_file(options.defaults_path, kDefaultMaxBytes);
 		} catch (const std::exception& e) {
 			throw std::runtime_error(std::string("detent: defaults file: ") + e.what());
 		}
@@ -301,7 +292,7 @@ void Client::run_file_source(std::stop_token stop, std::filesystem::path path, s
 				last_size = size;
 				have_baseline = true;
 				try {
-					auto bytes = read_whole_file(path, kDefaultMaxBytes);
+					auto bytes = detail::read_file(path, kDefaultMaxBytes);
 					try_apply_source_bytes(bytes);
 				} catch (const std::exception&) {
 					metrics_.refresh_failures.fetch_add(1, std::memory_order_relaxed);

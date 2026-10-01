@@ -47,3 +47,12 @@ symlinks. Missing files remain an ordinary startup condition; other open
 errors are reported. Override offsets must also satisfy record alignment
 before dereferencing. Regressions cover empty, short, symlink, and missing
 files, alongside the normal agent publish/read test.
+
+## Fixed: snapshot file allocation limits
+
+Defaults and file-source reads enforced the 16 MiB limit only after loading
+the whole file, and distributor startup loaded persisted files without a
+limit. A shared bounded reader now checks each chunk before appending and
+reports read errors. Distributor startup rejects unreadable or oversized
+existing state files. The file-source regression covers exact and exceeded
+limits; distributor persistence tests cover normal reload behavior.

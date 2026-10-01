@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "detent/client.hh"
+#include "detent/detail/file.hh"
 
 using namespace detent;
 using namespace std::chrono_literals;
@@ -67,6 +68,12 @@ int main() {
 	auto defaults_path = temp_path("_defaults.json");
 	auto source_path = temp_path("_source.json");
 	write_file(defaults_path, kDefaults);
+	assert(detail::read_file(defaults_path, kDefaults.size()) == kDefaults);
+	bool oversized = false;
+	try { (void)detail::read_file(defaults_path, kDefaults.size() - 1); }
+	catch (const std::runtime_error&) { oversized = true; }
+	assert(oversized);
+	assert(detail::read_file(defaults_path, 16384) == kDefaults);
 
 	InitOptions opts;
 	opts.defaults_path = defaults_path;
