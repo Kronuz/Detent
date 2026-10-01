@@ -21,3 +21,12 @@ The shared-memory design currently uses a seqlock over non-atomic payload
 fields. Its formal C++ data-race limitation is documented in `shm_format.hh`.
 Stress-test success alone does not establish language-level race freedom.
 No performance claim in this review is based solely on code inspection.
+
+## Fixed: JSON string truncation and encoding validation
+
+An escaped NUL in a knob name (`a:b\u0000hidden`) was truncated to `a:b` and
+accepted. The new regression failed on the preceding implementation.
+Parsers now use explicit JSON string lengths for field names, type names,
+knob names, and group keys, validate UTF-8, and reject raw NUL bytes in JSON
+text. Serializers preserve complete opaque group keys, including escaped
+NULs. Schema, patch, and JSON-string regression tests pass.

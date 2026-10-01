@@ -109,7 +109,7 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 	if (bytes.size() > 64 * 1024) fail("file exceeds 64 KiB");
 	if (detent::internal::nesting_depth_exceeds(bytes, 16)) fail("JSON nesting exceeds limit");
 	rapidjson::Document doc;
-	doc.Parse<rapidjson::kParseIterativeFlag>(bytes.data(), bytes.size());
+	doc.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(), bytes.size());
 	if (doc.HasParseError() || !doc.IsObject()) fail("expected a JSON object");
 
 	Config settings;

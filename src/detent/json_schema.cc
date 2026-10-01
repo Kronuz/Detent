@@ -64,13 +64,13 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 	if (!v.HasMember("type") || !v["type"].IsString()) {
 		return UpdateError{UpdateRejectReason::Schema, "knob '" + name + "' missing/invalid 'type'"};
 	}
-	std::string type = v["type"].GetString();
+	std::string type(v["type"].GetString(), v["type"].GetStringLength());
 
 	if (type == "bool") {
 		BoolDef def;
 		bool have_default = false;
 		for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
-			std::string key = it->name.GetString();
+			std::string key(it->name.GetString(), it->name.GetStringLength());
 			if (key == "type") {
 				continue;
 			} else if (key == "default") {
@@ -84,7 +84,7 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 					return UpdateError{UpdateRejectReason::Schema, "overrides not object: " + name};
 				}
 				for (auto oit = it->value.MemberBegin(); oit != it->value.MemberEnd(); ++oit) {
-					std::string gkey = oit->name.GetString();
+					std::string gkey(oit->name.GetString(), oit->name.GetStringLength());
 					if (!is_valid_group_key(gkey)) {
 						return UpdateError{UpdateRejectReason::Schema, "bad group key on knob " + name};
 					}
@@ -127,7 +127,7 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 		IntDef def;
 		bool have_default = false;
 		for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
-			std::string key = it->name.GetString();
+			std::string key(it->name.GetString(), it->name.GetStringLength());
 			if (key == "type") {
 				continue;
 			} else if (key == "default") {
@@ -155,7 +155,7 @@ rapidjson::Value write_knob_def(const KnobDef& def, rapidjson::Document::Allocat
 		entry.AddMember("default", b->default_value, alloc);
 		rapidjson::Value overrides(rapidjson::kObjectType);
 		for (const auto& [gkey, gval] : b->overrides) {
-			rapidjson::Value key(gkey.c_str(), alloc);
+			rapidjson::Value key(gkey.data(), static_cast<rapidjson::SizeType>(gkey.size()), alloc);
 			overrides.AddMember(key, gval, alloc);
 		}
 		entry.AddMember("overrides", overrides, alloc);
@@ -217,6 +217,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 		return fail(UpdateRejectReason::Schema, "JSON nesting depth exceeds limit");
 	}
 
+	if (json_text.find('\0') != std::string_view::npos) return fail(UpdateRejectReason::Parse, "NUL byte in JSON text");
 	rapidjson::Document doc;
 	// Strict parsing: rapidjson's stock default flags already reject
 	// comments, trailing commas, and NaN/Inf; unlike Xapiand we never relax
@@ -225,7 +226,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	// rapidjson's default recursive descent -- defense-in-depth alongside
 	// the depth pre-scan above, in case some other caller of this function
 	// is ever added without going through it.
-	doc.Parse<rapidjson::kParseIterativeFlag>(json_text.data(), json_text.size());
+	doc.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(json_text.data(), json_text.size());
 	if (doc.HasParseError()) {
 		return fail(UpdateRejectReason::Parse, "invalid JSON");
 	}
@@ -240,7 +241,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	const rapidjson::Value* knobs_value = nullptr;
 
 	for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
-		std::string key = it->name.GetString();
+		std::string key(it->name.GetString(), it->name.GetStringLength());
 		// Strict rejection (Section 4): rapidjson's DOM keeps every member
 		// on a duplicate key, not just the last one; a naive "if/else if"
 		// walk (as this loop already does per-field below) would silently
@@ -269,7 +270,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 			if (!is_source) {
 				return fail(UpdateRejectReason::Schema, "unexpected 'published_at' in defaults file");
 			}
-			if (!it->value.IsString() || !is_iso8601_utc(it->value.GetString())) {
+			if (!it->value.IsString() || !is_iso8601_utc(std::string_view(it->value.GetString(), it->value.GetStringLength()))) {
 				return fail(UpdateRejectReason::Schema, "published_at is not a valid RFC 3339 UTC timestamp");
 			}
 			published_at = it->value.GetString();
@@ -296,7 +297,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	snap.source_id = std::move(source_id);
 
 	for (auto it = knobs_value->MemberBegin(); it != knobs_value->MemberEnd(); ++it) {
-		std::string name = it->name.GetString();
+		std::string name(it->name.GetString(), it->name.GetStringLength());
 		if (!is_valid_knob_name(name)) {
 			return fail(UpdateRejectReason::Schema, "invalid knob name: " + name);
 		}
@@ -352,7 +353,7 @@ std::string serialize_snapshot(const Snapshot& snapshot) {
 
 	rapidjson::Value knobs(rapidjson::kObjectType);
 	for (const auto& [name, def] : snapshot.knobs) {
-		rapidjson::Value key(name.c_str(), alloc);
+		rapidjson::Value key(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc);
 		knobs.AddMember(key, internal::write_knob_def(def, alloc), alloc);
 	}
 	doc.AddMember("knobs", knobs, alloc);

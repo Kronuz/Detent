@@ -33,8 +33,9 @@ Result<SnapshotPatch, UpdateError> parse_snapshot_patch(
 		return fail(UpdateRejectReason::Schema, "JSON nesting depth exceeds limit");
 	}
 
+	if (json_text.find('\0') != std::string_view::npos) return fail(UpdateRejectReason::Parse, "NUL byte in JSON text");
 	rapidjson::Document doc;
-	doc.Parse<rapidjson::kParseIterativeFlag>(json_text.data(), json_text.size());
+	doc.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(json_text.data(), json_text.size());
 	if (doc.HasParseError()) {
 		return fail(UpdateRejectReason::Parse, "invalid JSON");
 	}
@@ -48,7 +49,7 @@ Result<SnapshotPatch, UpdateError> parse_snapshot_patch(
 	const rapidjson::Value* knobs_value = nullptr;
 
 	for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
-		std::string key = it->name.GetString();
+		std::string key(it->name.GetString(), it->name.GetStringLength());
 		if ((key == "schema_version" && have_schema_version) ||
 		    (key == "version" && have_version) ||
 		    (key == "knobs" && knobs_value != nullptr)) {
@@ -92,7 +93,7 @@ Result<SnapshotPatch, UpdateError> parse_snapshot_patch(
 	patch.version = version;
 
 	for (auto it = knobs_value->MemberBegin(); it != knobs_value->MemberEnd(); ++it) {
-		std::string name = it->name.GetString();
+		std::string name(it->name.GetString(), it->name.GetStringLength());
 		if (!is_valid_knob_name(name)) {
 			return fail(UpdateRejectReason::Schema, "invalid knob name: " + name);
 		}
@@ -165,7 +166,7 @@ std::string serialize_patch(const SnapshotPatch& patch) {
 
 	rapidjson::Value knobs(rapidjson::kObjectType);
 	for (const auto& [name, def] : patch.knobs) {
-		rapidjson::Value key(name.c_str(), alloc);
+		rapidjson::Value key(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc);
 		if (def) {
 			knobs.AddMember(key, internal::write_knob_def(*def, alloc), alloc);
 		} else {

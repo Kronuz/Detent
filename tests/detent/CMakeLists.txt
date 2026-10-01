@@ -6,7 +6,8 @@ set(DETENT_TESTS
   test_file_source
   test_testing_guard
   test_concurrency_stress
-  test_json_patch)
+  test_json_patch
+  test_json_strings)
 
 foreach(test_name ${DETENT_TESTS})
   add_executable(${test_name} ${test_name}.cc)
