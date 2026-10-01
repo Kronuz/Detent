@@ -14,7 +14,7 @@ cmake -B build
 cmake --build build -j
 ```
 
-That produces `build/src/detentd`, `build/src/detent-agent`, the static
+That produces `build/src/detentd`, `build/src/detent-agent`, `build/src/detent`, the static
 libraries, the examples, the bindings targets, and the tests.
 
 ---
@@ -240,34 +240,97 @@ curl -s -X PUT localhost:52617/v1/snapshot -d '{"schema_version":1,"version":2,"
 
 Every polling client converges to version 2 within one `poll_interval`.
 
+### Ramp a feature from 10% to 100%
+
+With the distributor above running, stop any defaults-only agent from Scenario 1:
+
+```sh
+./build/src/detent-agent stop
+```
+
+Publish a 10% rollout at version 3. PATCH preserves the other knobs:
+
+```sh
+curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot -d '{
+  "schema_version": 1,
+  "version": 3,
+  "knobs": {
+    "payments:new_processor": {
+      "type": "bool",
+      "default": false,
+      "rollout_pct": 10,
+      "overrides": { "internal_employees": true }
+    }
+  }
+}'
+
+./build/src/detent get payments:new_processor --hash user-1 --default false
+# false
+./build/src/detent get payments:new_processor --hash user-42 --default false
+# true
+./build/src/detent get payments:new_processor --hash user-2 --switch internal_employees
+# true
+```
+
+Use a stable user or account ID as `--hash`. Repeated reads keep the same
+assignment; increasing the percentage keeps previously included users enabled.
+The percentage describes hash buckets, so a small population need not split
+exactly 10/90. An exact group override wins over the rollout gate.
+
+Ramp to 50%, then 100%, using a higher version for each publish:
+
+```sh
+for step in 4:50 5:100; do
+  version=${step%:*}
+  percentage=${step#*:}
+  curl --fail-with-body -sS -X PATCH localhost:52617/v1/snapshot -d "{
+    \"schema_version\": 1, \"version\": $version,
+    \"knobs\": {\"payments:new_processor\": {
+      \"type\": \"bool\", \"default\": false, \"rollout_pct\": $percentage,
+      \"overrides\": {\"internal_employees\": true}
+    }}
+  }"
+done
+```
+
+Allow at least one agent poll interval after each update (200 ms by default).
+At 100%, every read with `--hash` returns `true`; reads without a hash still
+use `default`, which remains `false`. To finish the rollout for all callers,
+publish `{"type":"bool","default":true}` as the complete knob definition
+at the next version. To roll back everyone, publish
+`{"type":"bool","default":false}` instead; omitting the rollout and
+overrides removes both. PATCH replaces each supplied knob definition as a whole.
+
+`--default false` is a fallback for that individual read when the knob cannot
+be read. It does not change the published knob or configure the daemon.
+`--defaults PATH` supplies an optional file of typed defaults to a newly
+started agent. Neither is required for this example.
+
+The commands above assume Scenario 2 started at version 1. If reusing an
+existing distributor, choose versions greater than its current version.
+
 ### Partial updates (PATCH), diffs, and compression
 
 Update just the changed knob:
 
 ```sh
-curl -s -X PATCH localhost:52617/v1/snapshot -d '{"schema_version":1,"version":3,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
+curl -s -X PATCH localhost:52617/v1/snapshot -d '{"schema_version":1,"version":6,"knobs":{"checkout:killswitch_new_path":{"type":"bool","default":true}}}'
 ```
 
 Pollers can ask for the cached diff from their last accepted version:
 
 ```sh
-curl -s -D - localhost:52617/v1/snapshot -H "X-Detent-Base-Version: 2"
+curl -s -D - localhost:52617/v1/snapshot -H "X-Detent-Base-Version: 5"
 ```
 
 When the base version matches, `detentd` replies with:
 
 - `Content-Type: application/merge-patch+json`
-- `X-Snapshot-Version: 3`
-- `X-Patch-Base-Version: 2`
+- `X-Snapshot-Version: 6`
+- `X-Patch-Base-Version: 5`
 
 If the base version is missing, stale, or unknown, `detentd` falls back to the
 full snapshot body.
-
-Measured example sizes from the current implementation:
-
-- Full body: 276 bytes
-- Cached diff: 138 bytes
-- Gzip-compressed full body: 173 bytes
 
 Compression is negotiated with `Accept-Encoding` and cached per accepted
 update. Bodies smaller than 256 bytes stay uncompressed.
