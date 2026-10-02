@@ -17,7 +17,7 @@ Leave `detentd` running and open another terminal in the repository root:
 export PATH="$PWD/build/src:$PATH"
 ```
 
-The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version. If an agent is already running with another source, run `detent-agent stop` before the first read.
+The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version. If an agent is already running with another source, inspect it with `detent-agent --status` and send SIGTERM to its PID before the first read.
 
 ## 1. Change a numeric setting
 
@@ -136,11 +136,7 @@ This fallback applies only to this read; it does not publish or change a knob.
 
 ## Stop
 
-```sh
-detent-agent stop
-```
-
-Press Ctrl-C in the distributor's terminal to stop `detentd`.
+Press Ctrl-C in the distributor's terminal to stop `detentd`. Use `detent-agent --status` to inspect the agent, and send SIGTERM to its reported PID when finished. System services use their service manager for shutdown.
 
 ## Next steps
 

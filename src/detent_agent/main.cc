@@ -8,6 +8,7 @@
 #include "../detent_cli/logging.hh"
 #include "detent_http/http_source.hh"
 #endif
+#include "../detent_cli/daemon.hh"
 #include "config.hh"
 #include "shm_reader.hh"
 
@@ -119,59 +120,9 @@ detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 
 #endif
 
-// Ties "is the daemon actually alive" to the same `flock` the daemon itself
-// holds for its entire lifetime (acquire_pidfile(), below), instead of a
-// raw pid read + kill(pid, 0): a plain pid check has a TOCTOU window where
-// the daemon exits and the OS recycles that pid for an unrelated process
-// between the check and a later signal. Returns std::nullopt if the
-// pidfile is absent, or if it exists but nothing holds its lock (stale from
-// a previous, uncleanly-stopped run) -- either way, not running.
-std::optional<pid_t> locked_pid() {
-	int fd = ::open(pid_path().c_str(), O_RDONLY);
-	if (fd < 0) return std::nullopt; // no pidfile at all
-	if (::flock(fd, LOCK_EX | LOCK_NB) == 0) {
-		// We just acquired the lock ourselves -- nobody was holding it, so
-		// no daemon is alive regardless of what pid the file happens to
-		// name.
-		::flock(fd, LOCK_UN);
-		::close(fd);
-		return std::nullopt;
-	}
-	// Lock is held by someone else: that's only ever the live daemon
-	// (acquire_pidfile() holds it for its entire process lifetime and
-	// nothing else in this codebase ever locks this file), so the pid this
-	// file currently names is trustworthy to read right now.
-	std::ifstream in(pid_path());
-	pid_t pid = 0;
-	if (in) in >> pid;
-	::close(fd);
-	return pid > 0 ? std::optional<pid_t>(pid) : std::nullopt;
-}
+std::optional<pid_t> locked_pid() { return detent_cli::locked_pid(pid_path()); }
 
 #ifndef DETENT_READER
-// Acquires an exclusive flock on the pidfile and writes our own pid into it.
-// Returns the held fd (keep it open for the process lifetime -- closing
-// releases the lock) or -1 if another instance already holds it.
-int acquire_pidfile() {
-	auto dir = runtime_dir();
-	std::filesystem::create_directories(dir);
-	struct stat st{};
-	if (::lstat(dir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != ::geteuid()) {
-		throw std::runtime_error("runtime directory must be owned by the current user and not be a symlink: " + dir.string());
-	}
-	if (::chmod(dir.c_str(), g_system ? 0755 : 0700) != 0) throw std::runtime_error("cannot make runtime directory private: " + dir.string());
-	int fd = ::open(pid_path().c_str(), O_CREAT | O_RDWR, g_system ? 0644 : 0600);
-	if (fd < 0) throw std::runtime_error("cannot open pidfile: " + std::string(std::strerror(errno)));
-	if (::flock(fd, LOCK_EX | LOCK_NB) != 0) {
-		::close(fd);
-		return -1; // already running (idempotent start)
-	}
-	if (::ftruncate(fd, 0) != 0) { /* best-effort */ }
-	auto pid_str = std::to_string(::getpid());
-	[[maybe_unused]] auto written = ::write(fd, pid_str.data(), pid_str.size());
-	return fd;
-}
-
 detent_agent::Agent* g_agent = nullptr;
 
 void handle_signal(int) {
@@ -183,7 +134,7 @@ void install_signal_handlers() {
 	::signal(SIGTERM, handle_signal);
 }
 
-int run_foreground(detent_agent::Options options, int ready_fd = -1) {
+int run_foreground(detent_agent::Options options, const detent_cli::Ready& ready) {
 	detent_logging::Session logging(g_logging_settings);
 	bool have_source = options.client_options.source_path || options.client_options.source_poll;
 	options.on_publish = [](const detent::Snapshot& snap, bool published) {
@@ -214,7 +165,7 @@ int run_foreground(detent_agent::Options options, int ready_fd = -1) {
 		g_agent = &agent;
 		install_signal_handlers();
 		L_INFO("detent-agent: started (pid {}), runtime {}", ::getpid(), runtime_dir().string());
-		if (ready_fd >= 0) ::close(ready_fd);
+		ready();
 		agent.serve();
 		L_NOTICE("detent-agent: shutting down");
 		g_agent = nullptr;
@@ -226,82 +177,18 @@ int run_foreground(detent_agent::Options options, int ready_fd = -1) {
 	}
 }
 
-int cmd_start(const std::vector<std::string>& args, bool quiet = false) {
-	if (g_system && has_flag(args, "--daemonize")) throw std::runtime_error("system services must run in the foreground");
+int run_agent(const std::vector<std::string>& args) {
+	const bool detach = has_flag(args, "--daemonize");
+	if (g_system && detach) throw std::runtime_error("system services must run in the foreground");
 	auto options = detent_agent::Options{shm_path(), build_client_options(args), g_system};
-
-	if (auto pid = locked_pid()) {
-		if (!quiet && !has_flag(args, "--quiet")) std::printf("detent-agent: already running (pid %d)\n", *pid);
-		return 0; // idempotent
-	}
-
-	if (!has_flag(args, "--daemonize")) {
-		int pidfd = acquire_pidfile();
-		if (pidfd < 0) {
-			if (!quiet && !has_flag(args, "--quiet")) std::printf("detent-agent: already running\n");
+	return detent_cli::run_daemon(detach, runtime_dir() / "agent.log", [&](const detent_cli::Ready& ready) {
+		detent_cli::ProcessLock lock(pid_path(), g_system);
+		if (!lock.acquired()) {
+			if (!has_flag(args, "--quiet")) std::printf("detent-agent: already running\n");
 			return 0;
 		}
-		return run_foreground(std::move(options));
-	}
-
-	// Single fork + setsid: enough to detach from the launching shell/session
-	// and reparent to init on exit, without a controlling terminal to
-	// reacquire. The parent waits for initialization and receives startup errors.
-	int ready[2];
-	if (::pipe(ready) != 0) throw std::runtime_error("cannot create startup pipe");
-	pid_t pid = fork();
-	if (pid < 0) {
-		::close(ready[0]);
-		::close(ready[1]);
-		std::perror("detent-agent: fork");
-		return 1;
-	}
-	if (pid > 0) {
-		::close(ready[1]);
-		std::string error;
-		char buffer[512];
-		ssize_t count;
-		while ((count = ::read(ready[0], buffer, sizeof(buffer))) != 0) {
-			if (count < 0) {
-				if (errno == EINTR) continue;
-				::close(ready[0]);
-				throw std::runtime_error("cannot read startup result");
-			}
-			error.append(buffer, static_cast<std::size_t>(count));
-		}
-		::close(ready[0]);
-		if (!error.empty()) throw std::runtime_error(error);
-		return 0;
-	}
-
-	::close(ready[0]);
-	try {
-		::setsid();
-		int pidfd = acquire_pidfile();
-		if (pidfd < 0) {
-			_exit(0); // another instance won the race; not an error
-		}
-
-		auto log_path = runtime_dir() / "agent.log";
-		int log_fd = ::open(log_path.c_str(), O_CREAT | O_WRONLY | O_APPEND, 0600);
-		if (log_fd >= 0) {
-			::dup2(log_fd, STDOUT_FILENO);
-			::dup2(log_fd, STDERR_FILENO);
-			if (log_fd > 2) ::close(log_fd);
-		}
-		int devnull = ::open("/dev/null", O_RDONLY);
-		if (devnull >= 0) {
-			::dup2(devnull, STDIN_FILENO);
-			if (devnull > 2) ::close(devnull);
-		}
-
-		_exit(run_foreground(std::move(options), ready[1]));
-	} catch (const std::exception& e) {
-		std::fprintf(stderr, "detent-agent: %s\n", e.what());
-		[[maybe_unused]] auto written = ::write(ready[1], e.what(), std::strlen(e.what()));
-		::close(ready[1]);
-		_exit(1);
-	}
+		return run_foreground(std::move(options), ready);
+	});
 }
 
 int cmd_status() {
@@ -319,31 +206,6 @@ int cmd_status() {
 		std::printf("OK version=%llu knob_count=%u\n", (unsigned long long)st.accepted_version, st.knob_count);
 	}
 	return 0;
-}
-
-int cmd_stop() {
-	if (g_system) throw std::runtime_error("stop the system agent through its service manager");
-	auto pid = locked_pid();
-	if (!pid) {
-		std::printf("not running\n");
-		return 0;
-	}
-	::kill(*pid, SIGTERM);
-	for (int i = 0; i < 50; ++i) { // up to ~5s for a graceful shutdown
-		std::this_thread::sleep_for(100ms);
-		// Re-derive liveness from the lock, not kill(pid, 0): if the pid we
-		// signaled has already exited and the OS handed that number to an
-		// unrelated process, kill(pid, 0) on the recycled pid would report
-		// "still alive" and this loop would spin for no reason -- locked_pid()
-		// instead asks "is anyone still holding the daemon's own lock",
-		// which is unaffected by pid reuse.
-		if (!locked_pid()) {
-			std::printf("stopped\n");
-			return 0;
-		}
-	}
-	std::printf("detent-agent: pid %d did not exit in time\n", *pid);
-	return 1;
 }
 
 #endif
@@ -390,7 +252,7 @@ int cmd_get(const std::vector<std::string>& args) {
 			auto daemon = executable.has_parent_path()
 				? (std::filesystem::absolute(executable).parent_path() / "detent-agent").string()
 				: std::string("detent-agent");
-			std::vector<std::string> start_args{daemon, "start", "--daemonize", "--quiet"};
+			std::vector<std::string> start_args{daemon, "--daemonize", "--quiet"};
 			for (std::size_t i = 1; i < args.size(); ++i) {
 				if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default") { ++i; continue; }
 				start_args.push_back(args[i]);
@@ -482,15 +344,13 @@ const char* kUsage =
 	"detent-agent: host-local daemon + CLI for a warm, shared detent::Client\n"
 	"\n"
 	"usage:\n"
-	"  detent-agent start [--daemonize] [--defaults PATH] [--source-path PATH]\n"
+	"  detent-agent [--daemonize] [--defaults PATH] [--source-path PATH]\n"
 	"                      [--source-address HOST:PORT] [--poll-interval-ms N]\n"
-	"  detent-agent status\n"
-	"  detent-agent stop\n"
-	"  detent-agent restart [startup flags]\n"
+	"  detent-agent --status\n"
 	"  detent-agent --help | -h\n"
 	"\n"
-	"start runs in the foreground unless --daemonize is supplied.\n"
-	"restart stops and starts a user agent in the background.\n"
+	"Runs in the foreground unless --daemonize is supplied.\n"
+	"Use signals or the service manager to stop/restart.\n"
 	"Use detent get NAME to read or auto-start a user agent.\n"
 	"\n"
 	"Configuration: --config PATH, else $XDG_CONFIG_HOME/detent/agent.json\n"
@@ -519,44 +379,44 @@ const char* kUsage =
 } // namespace
 
 int main(int argc, char** argv) {
-	if (argc < 2) {
-		std::fprintf(stderr, "%s", kUsage);
-		return 2;
-	}
 	g_executable = argv[0];
+#ifdef DETENT_READER
+	if (argc < 2) { std::fprintf(stderr, "%s", kUsage); return 2; }
 	std::string command = argv[1];
 	std::vector<std::string> args(argv + 2, argv + argc);
-
-	if (command == "--help" || command == "-h" || command == "help") {
-		std::fputs(kUsage, stdout);
-		return 0;
-	}
-
+	if (command == "--help" || command == "-h" || command == "help") { std::fputs(kUsage, stdout); return 0; }
+#else
+	std::vector<std::string> args(argv + 1, argv + argc);
+	if (has_flag(args, "--help") || has_flag(args, "-h")) { std::fputs(kUsage, stdout); return 0; }
+#endif
 	try {
 		g_system = has_flag(args, "--system");
 		g_config = detent_agent::load_config(args);
 #ifndef DETENT_READER
 		g_logging_settings = detent_logging::parse(args, g_config);
+		for (std::size_t i = 0; i < args.size(); ++i) {
+			const auto& arg = args[i];
+			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet") continue;
+			if (arg == "--defaults" || arg == "--source-path" || arg == "--source-address" || arg == "--source-http" || arg == "--poll-interval-ms" || arg == "--runtime-dir" || arg == "--config") {
+				if (++i == args.size() || args[i].starts_with('-')) throw std::runtime_error(arg + " requires a value");
+				continue;
+			}
+			throw std::runtime_error("unknown argument: " + arg);
+		}
 #endif
 		g_runtime_dir = setting(args, "--runtime-dir", "DETENT_RUNTIME_DIR");
-
 #ifndef DETENT_READER
-		if (command == "start") return cmd_start(args);
-		if (command == "status") return cmd_status();
-		if (command == "stop") return cmd_stop();
-		if (command == "restart") {
-			if (cmd_stop() != 0) return 1;
-			args.emplace_back("--daemonize");
-			return cmd_start(args);
+		if (has_flag(args, "--status")) {
+			if (has_flag(args, "--daemonize")) throw std::runtime_error("--status and --daemonize are mutually exclusive");
+			return cmd_status();
 		}
+		return run_agent(args);
 #else
 		if (command == "get") return cmd_get(args);
+		throw std::runtime_error("unknown command: " + command);
 #endif
 	} catch (const std::exception& e) {
-		std::fprintf(stderr, "detent-agent: %s\n", e.what());
+		std::fprintf(stderr, "detent: %s\n", e.what());
 		return 1;
 	}
-
-	std::fprintf(stderr, "detent-agent: unknown command '%s'\n", command.c_str());
-	return 2;
 }

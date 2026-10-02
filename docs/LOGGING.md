@@ -8,14 +8,14 @@ detentd
 
 # Accepted snapshots and agent publication details.
 detentd -v
-detent-agent start -v
+detent-agent -v
 
 # Include agent source metric samples, every 200 milliseconds.
-detent-agent start -vv
+detent-agent -vv
 
 # Quiet service logs, or explicit terminal color policy.
 detentd --log-level warning --color never
-detent-agent start --color always
+detent-agent --color always
 ```
 
 `--log-level` accepts `emergency`, `alert`, `critical`, `error`, `warning`, `notice`, `info`, and `debug`. The default is `info`. Each `-v` increases the selected level, capped at the library's verbose level; `--verbosity 0..2` supplies the same increment. `--color auto|always|never` controls color, and `--no-color` selects `never`. In automatic mode, `NO_COLOR` disables color. Explicit `always` overrides it. Command-line settings override configuration.

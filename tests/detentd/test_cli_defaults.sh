@@ -73,3 +73,23 @@ expect_error --workers 0
 expect_error --port
 expect_error --unknown
 expect_error --config "$root/missing.json"
+# Status is read-only and background startup reports readiness/errors.
+export XDG_RUNTIME_DIR="$root/session"
+mkdir -p "$XDG_RUNTIME_DIR"
+printf '{"port":%s,"reactors":1,"workers":1}\n' "$port" > "$root/config/detent/detentd.json"
+expect_error --status
+ test ! -e "$root/session/detent/detentd-$port.pid"
+"$distributor" --daemonize
+"$distributor" --status > "$root/status.txt"
+ grep 'current_version' "$root/status.txt" > /dev/null
+server_pid=$(cat "$root/session/detent/detentd-$port.pid")
+kill "$server_pid"
+attempt=0
+while "$distributor" --status > /dev/null 2>&1; do
+    attempt=$((attempt + 1)); test "$attempt" -lt 50; sleep 0.1
+done
+server_pid=
+expect_error --system --daemonize
+expect_error --status --daemonize
+# A startup failure in the detached child must reach the parent.
+expect_error --daemonize --persist-path "$root/config/detent/detentd.json/invalid"

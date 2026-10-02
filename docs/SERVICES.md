@@ -49,7 +49,7 @@ Create the `detent` service user and group. Install `packaging/rc.d/detentd` and
 
 ## Operations and deployment limits
 
-`detent get NAME --system` and `status --system` attach to the managed agent. If it is absent, `get` reports that the service must be started through its manager. It never starts a private replacement in a user's home. `--default VALUE` still provides a per-call fallback. Stop and restart through the service manager, not `detent-agent stop --system`.
+`detent get NAME --system` and `detent-agent --status --system` attach to the managed agent. If it is absent, `get` reports that the service must be started through its manager. It never starts a private replacement in a user's home. `--default VALUE` still provides a per-call fallback. Stop and restart through the service manager, not `service-manager stop`.
 
 The distributor HTTP API and cluster transport currently have no built-in authentication or TLS. Network exposure must be restricted by a firewall or an authenticated TLS proxy. Remote publishers must not receive unauthenticated write access. Read the audit report for remaining deployment limits.
 
@@ -62,3 +62,9 @@ When upgrading to group rollout support (shared-memory layout version 2), restar
 ## Log controls
 
 Both daemons emit timestamped, severity-marked logs to stderr. The default level is `info`; use `log_level`, numeric `verbosity`, and `color` in the service's JSON configuration, or `--log-level`, `-v`, and `--color` on the command line. Automatic color produces plain output when redirected. Use `color: "never"` when the service manager allocates a terminal. See [Daemon logging](LOGGING.md) for examples, lifecycle behavior, and measured footprint.
+
+## Foreground, background, and status
+
+Both `detent-agent` and `detentd` run directly in the foreground. They accept `--daemonize` for unmanaged user operation, `--runtime-dir PATH`, and read-only `--status`. Lifecycle subcommands are removed. Detached startup reports readiness or an error to the caller; logs remain in the selected runtime directory. Distributor PID and log filenames include the port, so distinct instances can share one runtime directory.
+
+`detent-agent --status` reports the locked PID and local snapshot version/count. `detentd --status` queries the configured local port's health endpoint and reports the PID when a local lock is available. Neither status operation starts a daemon. Send SIGTERM to stop an unmanaged process; service managers own supervised stop/restart. `--system --daemonize` and `--status --daemonize` fail for both binaries.

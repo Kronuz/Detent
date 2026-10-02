@@ -59,7 +59,7 @@ add_library(detent_logging detent_cli/logging.cc)
 target_link_libraries(detent_logging PUBLIC logger::logger)
 target_compile_definitions(detent_logging PUBLIC LOGGER_DEBUG=1)
 
-add_library(detent_cli detent_cli/config.cc)
+add_library(detent_cli detent_cli/config.cc detent_cli/daemon.cc)
 target_link_libraries(detent_cli PUBLIC detent::detent)
 
 ########################################################################

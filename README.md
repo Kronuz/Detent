@@ -296,7 +296,7 @@ detent
 - `detentd_lib` contains distributor logic so tests can link it directly.
 - `detent_agent_lib` contains the shared-memory agent logic so tests can link it directly.
 - `detentd` is the network-facing distributor.
-- `detent-agent` is the host-local daemon and lifecycle CLI.
+- `detent-agent` is the host-local daemon.
 
 ### Why four libraries and not one
 
@@ -403,8 +403,8 @@ With a local distributor on `127.0.0.1:8317` and a published snapshot:
 
 ```sh
 ./build/src/detent get search:max_results
-./build/src/detent-agent status
-./build/src/detent-agent stop
+./build/src/detent-agent --status
+kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
 `get` starts the agent automatically. Defaults and environment variables are optional. For persistent settings, put `agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
@@ -547,7 +547,7 @@ Within one Raft cluster, writes commit in a single replicated log and stale vers
 
 System-wide deployment: see [System services](docs/SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 
-The shell reader is `detent get NAME`. Agent lifecycle commands are `detent-agent start`, `stop`, `restart`, `status`, and `help`. `restart` runs a user agent in the background; managed services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
+The shell reader is `detent get NAME`. Both daemons run directly in the foreground, accept `--daemonize` for user background operation, and provide read-only `--status`. Send SIGTERM to stop an unmanaged daemon; supervised services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
 
 ### Rollouts by group
 

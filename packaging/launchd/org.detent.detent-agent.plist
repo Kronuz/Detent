@@ -11,7 +11,6 @@
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/local/bin/detent-agent</string>
-		<string>start</string>
 		<string>--system</string>
 		<string>--config</string>
 		<string>/Library/Application Support/Detent/agent.json</string>

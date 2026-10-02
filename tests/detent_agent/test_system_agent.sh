@@ -14,13 +14,13 @@ trap 'exit 1' HUP INT TERM
 unset DETENT_RUNTIME_DIR DETENT_DEFAULTS_PATH DETENT_SOURCE_ADDRESS DETENT_SOURCE_HTTP DETENT_SOURCE_PATH
 printf '{"schema_version":1,"knobs":{"test:value":{"type":"int","default":17}}}\n' > "$root/defaults.json"
 printf '{"defaults_path":"defaults.json","runtime_dir":"run"}\n' > "$root/agent.json"
-"$agent" start --system --config "$root/agent.json" > "$root/output.log" 2>&1 &
+"$agent" --system --config "$root/agent.json" > "$root/output.log" 2>&1 &
 server_pid=$!
 i=0
 until test "$("$reader" get test:value --system --config "$root/agent.json" 2>/dev/null || true)" = 17; do
     i=$((i+1)); test "$i" -lt 30; sleep 0.1
 done
-"$agent" status --system --config "$root/agent.json"
+"$agent" --status --system --config "$root/agent.json"
 test -r "$root/run/snapshot.shm"
 kill "$server_pid"
 wait "$server_pid"

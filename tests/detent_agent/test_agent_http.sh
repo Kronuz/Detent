@@ -13,8 +13,18 @@ port=$((20000 + $$ % 20000))
 printf '{"source_address":"127.0.0.1:%s","poll_interval_ms":10}\n' "$port" > "$root/config/detent/agent.json"
 "$distributor" "$port" "$root/snapshot.json" --reactors 1 --workers 1 > "$root/distributor.log" 2>&1 &
 server_pid=$!
+stop_agent() {
+    if test -f "$root/session/detent/agent.pid"; then
+        pid=$(cat "$root/session/detent/agent.pid")
+        kill "$pid" 2>/dev/null || true
+        attempt=0
+        while "$agent" --status > /dev/null 2>&1; do
+            attempt=$((attempt + 1)); test "$attempt" -lt 50; sleep 0.1
+        done
+    fi
+}
 cleanup() {
-    "$agent" stop > /dev/null 2>&1 || true
+    stop_agent || true
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
     rm -rf "$root"
@@ -32,7 +42,7 @@ done
 # Run from a different directory to prove startup is independent of cwd.
 cd "$root"
 test "$("$reader" get search:max_results)" = 500
-"$agent" status
+"$agent" --status
 "$curl" -fs -X PUT "http://127.0.0.1:$port/v1/snapshot" -d '{"schema_version":1,"version":2,"knobs":{"search:max_results":{"type":"int","default":501}}}' > /dev/null
 attempt=0
 until test "$("$reader" get search:max_results)" = 501; do
@@ -40,14 +50,14 @@ until test "$("$reader" get search:max_results)" = 501; do
     test "$attempt" -lt 50
     sleep 0.1
 done
-"$agent" stop
+stop_agent
 # An address flag replaces a conflicting lower-priority file source.
 printf '{"source_path":"absent.json"}\n' > "$root/config/detent/agent.json"
 test "$("$reader" get search:max_results --source-address "127.0.0.1:$port")" = 501
-"$agent" stop
+stop_agent
 test "$("$reader" get search:max_results --source-http "127.0.0.1:$port")" = 501
-"$agent" stop
+stop_agent
 # Environment address overrides source_path in config, too.
 export DETENT_SOURCE_ADDRESS="127.0.0.1:$port"
 test "$("$reader" get search:max_results)" = 501
-"$agent" stop
+stop_agent

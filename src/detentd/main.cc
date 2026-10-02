@@ -15,6 +15,9 @@
 #include "detentd.hh"
 #include "../detent_cli/logging.hh"
 #include "../detent_cli/config.hh"
+#include "../detent_cli/daemon.hh"
+#include "detent_http/http_client.hh"
+#include <unistd.h>
 
 #include <http_asio.h>
 
@@ -38,7 +41,7 @@ void handle_signal(int) { g_stop.store(true); }
 
 const char* kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
-	"usage: detentd [<port> <persist_path>] [--config PATH]\n"
+	"usage: detentd [--daemonize | --status] [--runtime-dir PATH] [<port> <persist_path>] [--config PATH]\n"
 	"                [--port N] [--persist-path PATH] [--reactors N] [--workers N]\n"
 	"                [--cluster <token> <multicast_port> <multicast_group>\n"
 	"                           <interface> <self_host:port> <peer_host:port> ...]\n"
@@ -55,7 +58,7 @@ const char* kUsage =
 	"With no arguments: port 8317, snapshot.json in the user state directory.\n"
 	"--system selects system config and /var/lib/detent (BSD/macOS: /var/db/detent).\n"
 	"Config: detentd.json in the same platform directories as agent.json.\n"
-	"Fields: port, persist_path, reactors, workers. Paths are config-relative.\n"
+	"Fields: port, persist_path, reactors, workers, runtime_dir, log_level, verbosity, color. Paths are config-relative.\n"
 	"Flags/positional arguments override DETENTD_PORT, DETENTD_PERSIST_PATH,\n"
 	"DETENTD_REACTORS, DETENTD_WORKERS, which override config.\n"
 	"Linux/FreeBSD state: $XDG_STATE_HOME/detent or ~/.local/state/detent.\n"
@@ -96,6 +99,7 @@ int run(const std::vector<std::string>& input_args) {
 		{"log_level", {"--log-level", String}},
 		{"verbosity", {"--verbosity", NonnegativeInt}},
 		{"color", {"--color", String}},
+		{"runtime_dir", {"--runtime-dir", Path}},
 		{"port", {"--port", PositiveInt}},
 		{"persist_path", {"--persist-path", Path}},
 		{"reactors", {"--reactors", PositiveInt}},
@@ -104,6 +108,7 @@ int run(const std::vector<std::string>& input_args) {
 	auto settings = std::move(file.values);
 	auto logging_settings = detent_logging::parse(args, settings);
 	for (const auto& [flag, env] : {
+		std::pair{"--runtime-dir", "DETENTD_RUNTIME_DIR"},
 		std::pair{"--port", "DETENTD_PORT"},
 		std::pair{"--persist-path", "DETENTD_PERSIST_PATH"},
 		std::pair{"--reactors", "DETENTD_REACTORS"},
@@ -113,7 +118,7 @@ int run(const std::vector<std::string>& input_args) {
 	}
 	detentd::Options options;
 	cluster::RaftConfig raft_timing;
-	bool system = false;
+	bool system = false, detach = false, status = false;
 	std::size_t i = 0;
 	if (!args.empty() && !args[0].starts_with("-")) {
 		if (args.size() < 2 || args[1].starts_with("--")) throw std::runtime_error("positional syntax requires both port and persist_path");
@@ -129,9 +134,13 @@ int run(const std::vector<std::string>& input_args) {
 		auto arg = args[i++];
 		if (arg == "--system") {
 			system = true;
+		} else if (arg == "--daemonize") {
+			detach = true;
+		} else if (arg == "--status") {
+			status = true;
 		} else if (arg == "--config") {
 			(void)next(arg); // already loaded above
-		} else if (arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--workers") {
+		} else if (arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--workers" || arg == "--runtime-dir") {
 			settings[arg] = next(arg);
 		} else if (arg == "--raft-timing") {
 			raft_timing.heartbeat_timeout = positive_seconds(next(arg));
@@ -160,13 +169,30 @@ int run(const std::vector<std::string>& input_args) {
 		options.persist_path = settings.at("--persist-path");
 	} else {
 		auto dir = detent_cli::default_state_dir(system);
-		if (std::filesystem::create_directories(dir)) {
-			std::filesystem::permissions(dir, std::filesystem::perms::owner_all);
-		}
 		options.persist_path = dir / "snapshot.json";
 	}
+	if (system && detach) throw std::runtime_error("system services must run in the foreground");
+	if (status && detach) throw std::runtime_error("--status and --daemonize are mutually exclusive");
+	auto runtime = settings.contains("--runtime-dir") ? std::filesystem::path(settings.at("--runtime-dir")) : detent_cli::default_runtime_dir(system);
+	auto pid_path = runtime / ("detentd-" + std::to_string(port) + ".pid");
+	if (status) {
+		try {
+			detent_http::HttpConnection connection("127.0.0.1", port, std::chrono::milliseconds(2000));
+			auto response = connection.get("/v1/health");
+			if (response.status != 200) throw std::runtime_error("health endpoint failed");
+			if (auto pid = detent_cli::locked_pid(pid_path)) std::printf("running (pid %d)\n", *pid);
+			std::printf("%s\n", response.body.c_str());
+			return 0;
+		} catch (const std::exception& e) {
+			std::printf("not reachable: %s\n", e.what());
+			return 1;
+		}
+	}
 	if (options.persist_path.empty()) throw std::runtime_error("persist_path must not be empty");
-	if (!options.persist_path.parent_path().empty()) std::filesystem::create_directories(options.persist_path.parent_path());
+	return detent_cli::run_daemon(detach, runtime / ("detentd-" + std::to_string(port) + ".log"), [&](const detent_cli::Ready& ready) {
+		detent_cli::ProcessLock process_lock(pid_path, system);
+		if (!process_lock.acquired()) { std::printf("detentd: already running\n"); return 0; }
+		if (!options.persist_path.parent_path().empty()) std::filesystem::create_directories(options.persist_path.parent_path());
 
 	detent_logging::Session logging(logging_settings);
 	options.on_accept = [](std::uint64_t version) { L_DEBUG("detentd: accepted snapshot version {}", version); };
@@ -191,6 +217,7 @@ int run(const std::vector<std::string>& input_args) {
 		std::signal(SIGPIPE, SIG_IGN);
 
 		service.start(port);
+		ready();
 		L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string());
 
 		while (!g_stop.load()) {
@@ -202,8 +229,9 @@ int run(const std::vector<std::string>& input_args) {
 		return 0;
 	} catch (const std::exception& e) {
 		L_ERR("detentd: {}", e.what());
-		return 1;
+		throw;
 	}
+	});
 }
 
 } // namespace

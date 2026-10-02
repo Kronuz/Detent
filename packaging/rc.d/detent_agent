@@ -16,5 +16,5 @@ detent_directories() {
 }
 command="/usr/sbin/daemon"
 procname="/usr/local/bin/detent-agent"
-command_args="-r -P ${pidfile} -u detent -o /var/log/detent/agent.log ${procname} start --system --config /usr/local/etc/detent/agent.json"
+command_args="-r -P ${pidfile} -u detent -o /var/log/detent/agent.log ${procname} --system --config /usr/local/etc/detent/agent.json"
 run_rc_command "$1"

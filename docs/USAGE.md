@@ -228,7 +228,7 @@ Every polling client converges to version 2 within one `poll_interval`.
 With the distributor above running, stop any defaults-only agent from Scenario 1:
 
 ```sh
-./build/src/detent-agent stop
+kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
 Publish a 10% rollout at version 3. PATCH preserves the other knobs:
@@ -313,11 +313,11 @@ With Scenario 2's distributor running on `127.0.0.1:8317` and a snapshot publish
 
 ```sh
 # Stop any defaults-only agent left over from Scenario 1.
-./build/src/detent-agent stop
+kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ./build/src/detent get search:max_results
 # 500 (or the latest published value)
-./build/src/detent-agent status
-./build/src/detent-agent stop
+./build/src/detent-agent --status
+kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
 `get` auto-starts the local agent. No configuration file, defaults file, or environment variables are required for the local distributor. The agent connects to `127.0.0.1:8317` and waits up to two seconds for its first snapshot. If the source is unavailable, the daemon stays running and keeps trying; `get` reports that no snapshot has arrived. `--default VALUE` supplies a fallback for that read.
@@ -466,7 +466,7 @@ Current automated cluster coverage in `tests/detentd/test_raft_cluster.cc` exerc
 ## Cleaning up
 
 ```sh
-./build/src/detent-agent stop
+kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 kill %1 %2 %3
 ```
 
@@ -478,4 +478,4 @@ kill %1 %2 %3
 
 System-wide deployment: see [System services](SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 
-The shell reader is `detent get NAME`. Agent lifecycle commands are `detent-agent start`, `stop`, `restart`, `status`, and `help`. `restart` runs a user agent in the background; managed services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
+The shell reader is `detent get NAME`. Both daemons run directly in the foreground, accept `--daemonize` for user background operation, and provide read-only `--status`. Send SIGTERM to stop an unmanaged daemon; supervised services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
