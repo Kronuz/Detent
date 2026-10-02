@@ -64,6 +64,32 @@ int main() {
 	std::filesystem::remove(truncated);
 	assert(!detent_agent::ShmReader::open(truncated));
 
+	// Valid JSON can exceed the separate shared-memory capacity. Startup
+	// must fail rather than report ready while publishing no defaults.
+	auto oversized_defaults = temp_path("_oversized.json");
+	auto oversized_shm = temp_path("_oversized.shm");
+	{
+		std::ofstream out(oversized_defaults);
+		out << R"({"schema_version":1,"knobs":{"test:large":{"type":"bool","default":false,"overrides":{)";
+		for (unsigned i = 0; i < 40'000; ++i) {
+			if (i) out << ',';
+			out << '"' << std::string(120, 'x') << i << R"(":true)";
+		}
+		out << "}}}}";
+	}
+	bool rejected_capacity = false;
+	try {
+		detent_agent::Options oversized;
+		oversized.shm_path = oversized_shm;
+		oversized.client_options.defaults_path = oversized_defaults;
+		detent_agent::Agent invalid(std::move(oversized));
+	} catch (const std::runtime_error& e) {
+		rejected_capacity = std::string(e.what()).find("shared-memory capacity") != std::string::npos;
+	}
+	std::filesystem::remove(oversized_defaults);
+	std::filesystem::remove(oversized_shm);
+	assert(rejected_capacity);
+
 	auto defaults_path = temp_path("_defaults.json");
 	{
 		std::ofstream out(defaults_path, std::ios::binary);

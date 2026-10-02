@@ -34,12 +34,12 @@ Agent background startup initializes logging after `fork()`. Background logs go 
 
 ## Measured footprint
 
-Release build on macOS x86_64, Apple Clang 17.0.0. Before binaries were saved before integration; both sets were copied and stripped with `strip -x`. The distributor used its default four reactors and eight workers with an empty state. The agent used one small defaults file and no source. RSS is the median of five `ps -o rss=` samples, 200 ms apart after one second of startup. Thread counts come from `ps -M`. These are idle resident-memory samples, not peak allocation, virtual address space, or throughput measurements; RSS varies between launches.
+Release build on macOS x86_64, Apple Clang 17.0.0. Before binaries were saved before integration; both sets were copied and stripped with `strip -x`. The distributor used its default four reactors and eight workers with an empty state. The agent used one small defaults file and no source. RSS is the median of five `ps -o rss=` samples, 200 ms apart after one second of startup. Thread counts come from `ps -M`. These are idle resident-memory samples, not peak allocation, virtual address space, or throughput measurements; RSS varies between launches. Across three after-integration launches, idle RSS ranged from 1,920 to 1,988 KiB for the distributor and 1,228 to 1,348 KiB for the agent; the table records the final launch.
 
 | Executable | Stripped bytes before | Stripped bytes after | Change | Idle RSS before / after | Threads before / after |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `detentd` | 865,328 | 939,776 | +74,448 | 1,684 / 1,972 KiB | 37 / 38 |
-| `detent-agent` | 387,240 | 475,568 | +88,328 | 984 / 1,228 KiB | 1 / 2 |
+| `detentd` | 865,328 | 939,776 | +74,448 | 1,684 / 1,988 KiB | 37 / 38 |
+| `detent-agent` | 387,240 | 475,568 | +88,328 | 984 / 1,348 KiB | 1 / 2 |
 | `detent` | 253,768 | 257,864 | +4,096 | Not sampled | No logging thread |
 
 The reader's size change comes from shared configuration code; symbol inspection finds no `Logging::` or `StderrLogger` symbols. The added thread is the logger scheduler. No CPU, latency, power, or cost improvement is claimed from this measurement.

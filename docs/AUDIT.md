@@ -33,3 +33,9 @@ Group overrides now accept either a forced boolean or an object containing only 
 Shared-memory layout version 2 distinguishes forced values from percentages. Upgrade readers and restart agents together. C++ `BoolDef::overrides` values are now `GroupOverride` variants of `bool` and `GroupRollout`; code inspecting values directly must use the variant API. Language binding read APIs retain their existing hash and switch parameters.
 
 Validation for this extension: the full C++ build succeeds and all 13 tests that do not require sockets pass. The core and shared-memory readers agree across 1,000 host IDs in each of seven groups, including 0% and 100% bounds. Quick Start JSON parses, and its group reads and missing-knob fallback pass through a real local agent using the file source. The earlier socket restrictions are now removed. All 23 native tests, including HTTP and cluster tests, pass, and the real-process Raft harness passes all seven scenarios with five chaos rounds.
+
+## Fixed: silent failure to publish initial defaults
+
+Valid defaults can fit the 16 MiB JSON input limit while exceeding the agent's 4 MiB shared-memory payload capacity. Startup previously ignored the failed initial publish and reported readiness with an empty or stale mapping. Construction now fails with an explicit capacity error; background startup forwards that failure to the invoking reader instead of reporting ready. Live updates that exceed capacity still preserve the last published snapshot and emit an error.
+
+A regression uses one valid boolean knob with 40,000 group overrides. It fails against the previous implementation and passes after the fix. All 23 native tests pass, including normal CLI auto-start, HTTP updates, shared-memory concurrency, and the capacity regression.

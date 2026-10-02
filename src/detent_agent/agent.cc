@@ -28,7 +28,9 @@ Agent::Agent(Options options) : options_(std::move(options)) {
 	// the shm file either absent or stale until the first real update
 	// landed, even though the Client itself already has a perfectly valid
 	// version-0 snapshot to serve right now.
-	(void)shm_writer_->publish(*client_->current_snapshot());
+	if (!shm_writer_->publish(*client_->current_snapshot())) {
+		throw std::runtime_error("initial snapshot exceeds shared-memory capacity");
+	}
 }
 
 Agent::~Agent() { stop(); }
