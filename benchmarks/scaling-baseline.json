@@ -1,0 +1,34 @@
+{
+  "architecture": "x86_64",
+  "compiler": "Apple Clang 17.0.0",
+  "build_type": "Release",
+  "corpus": "Synthetic: 100 namespaces, equal bool/int counts, two overrides per bool",
+  "results": [
+    {
+      "knobs": 100000,
+      "iterations": 5,
+      "json_bytes": 11123377,
+      "image_bytes": 9201397,
+      "single_knob_patch_bytes": 139,
+      "serialize_ms": 195.872,
+      "parse_ms": 296.13,
+      "single_knob_patch_ms": 148.624,
+      "image_ms": 19.778,
+      "fits_default_json_limits": true,
+      "fits_legacy_4mib_image": false
+    },
+    {
+      "knobs": 500000,
+      "iterations": 3,
+      "json_bytes": 56283377,
+      "image_bytes": 46381381,
+      "single_knob_patch_bytes": 139,
+      "serialize_ms": 992.572,
+      "parse_ms": 1708.244,
+      "single_knob_patch_ms": 780.557,
+      "image_ms": 108.445,
+      "fits_default_json_limits": false,
+      "fits_legacy_4mib_image": false
+    }
+  ]
+}

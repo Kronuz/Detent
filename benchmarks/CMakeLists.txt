@@ -19,3 +19,6 @@ if(DETENT_BUILD_DISTRIBUTOR)
   add_executable(detentd_fanout_bench detentd_fanout_bench.cc)
   target_link_libraries(detentd_fanout_bench PRIVATE detentd_lib detent_http::detent_http)
 endif()
+
+add_executable(detent_scale_bench detent_scale_bench.cc)
+target_link_libraries(detent_scale_bench PRIVATE detent_agent_lib)
