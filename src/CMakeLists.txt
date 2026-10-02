@@ -55,6 +55,10 @@ target_compile_features(detent_http PUBLIC cxx_std_20)
 add_library(detent_http::detent_http ALIAS detent_http)
 
 # Shared CLI-only configuration and platform paths; no networking.
+add_library(detent_logging detent_cli/logging.cc)
+target_link_libraries(detent_logging PUBLIC logger::logger)
+target_compile_definitions(detent_logging PUBLIC LOGGER_DEBUG=1)
+
 add_library(detent_cli detent_cli/config.cc)
 target_link_libraries(detent_cli PUBLIC detent::detent)
 
@@ -82,7 +86,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
   add_executable(detentd detentd/main.cc)
-  target_link_libraries(detentd PRIVATE detentd_lib detent_cli)
+  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging)
 endif()
 
 ########################################################################
@@ -101,7 +105,7 @@ target_link_libraries(detent_agent_lib PUBLIC detent::detent)
 target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
 add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc)
-target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli)
+target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli detent_logging)
 
 include(GNUInstallDirs)
 install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

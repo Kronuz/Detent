@@ -9,7 +9,7 @@ namespace detent_cli {
 
 inline constexpr int kDefaultPort = 8317;
 using Config = std::map<std::string, std::string>;
-enum class FieldKind { String, Path, PositiveInt };
+enum class FieldKind { String, Path, PositiveInt, NonnegativeInt };
 struct ConfigField { std::string flag; FieldKind kind; };
 using ConfigSchema = std::map<std::string, ConfigField>;
 struct ConfigFile { Config values; std::filesystem::path path; };

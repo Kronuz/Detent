@@ -63,6 +63,9 @@ namespace cluster { class Bus; }
 namespace detentd {
 
 struct Options {
+	// Optional daemon diagnostics, with no logger dependency in the library.
+	std::function<void(std::uint64_t)> on_accept;
+	std::function<void(detent::UpdateRejectReason)> on_reject;
 	// Where the current accepted snapshot is durably persisted (atomic
 	// write + rename), so a restart resumes at the last accepted version
 	// instead of regressing to "no snapshot" (Section 9's "keep

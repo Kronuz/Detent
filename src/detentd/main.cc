@@ -13,6 +13,7 @@
 //   detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
 //   detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
 #include "detentd.hh"
+#include "../detent_cli/logging.hh"
 #include "../detent_cli/config.hh"
 
 #include <http_asio.h>
@@ -36,6 +37,7 @@ std::atomic<bool> g_stop{false};
 void handle_signal(int) { g_stop.store(true); }
 
 const char* kUsage =
+	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
 	"usage: detentd [<port> <persist_path>] [--config PATH]\n"
 	"                [--port N] [--persist-path PATH] [--reactors N] [--workers N]\n"
 	"                [--cluster <token> <multicast_port> <multicast_group>\n"
@@ -87,15 +89,20 @@ double positive_seconds(const std::string& value) {
 	return seconds;
 }
 
-int run(const std::vector<std::string>& args) {
+int run(const std::vector<std::string>& input_args) {
+	auto args = input_args;
 	using enum detent_cli::FieldKind;
 	auto file = detent_cli::load_config(args, "detentd.json", {
+		{"log_level", {"--log-level", String}},
+		{"verbosity", {"--verbosity", NonnegativeInt}},
+		{"color", {"--color", String}},
 		{"port", {"--port", PositiveInt}},
 		{"persist_path", {"--persist-path", Path}},
 		{"reactors", {"--reactors", PositiveInt}},
 		{"workers", {"--workers", PositiveInt}},
 	});
 	auto settings = std::move(file.values);
+	auto logging_settings = detent_logging::parse(args, settings);
 	for (const auto& [flag, env] : {
 		std::pair{"--port", "DETENTD_PORT"},
 		std::pair{"--persist-path", "DETENTD_PERSIST_PATH"},
@@ -108,7 +115,7 @@ int run(const std::vector<std::string>& args) {
 	cluster::RaftConfig raft_timing;
 	bool system = false;
 	std::size_t i = 0;
-	if (!args.empty() && !args[0].starts_with("--")) {
+	if (!args.empty() && !args[0].starts_with("-")) {
 		if (args.size() < 2 || args[1].starts_with("--")) throw std::runtime_error("positional syntax requires both port and persist_path");
 		settings["--port"] = args[0];
 		settings["--persist-path"] = args[1];
@@ -161,31 +168,42 @@ int run(const std::vector<std::string>& args) {
 	if (options.persist_path.empty()) throw std::runtime_error("persist_path must not be empty");
 	if (!options.persist_path.parent_path().empty()) std::filesystem::create_directories(options.persist_path.parent_path());
 
-	detentd::Distributor app(options);
-	http::HttpAsioService service(app, reactors, workers, /*queue_limit=*/1024);
-	service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
+	detent_logging::Session logging(logging_settings);
+	options.on_accept = [](std::uint64_t version) { L_DEBUG("detentd: accepted snapshot version {}", version); };
+	options.on_reject = [](detent::UpdateRejectReason reason) {
+		static constexpr const char* names[] = {"I/O", "transport", "parse", "schema", "version", "oversize", "checksum"};
+		L_WARNING("detentd: rejected publish ({})", names[static_cast<unsigned>(reason)]);
+	};
+	try {
+		detentd::Distributor app(options);
+		http::HttpAsioService service(app, reactors, workers, /*queue_limit=*/1024);
+		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
 
-	std::signal(SIGINT, handle_signal);
-	std::signal(SIGTERM, handle_signal);
-	// Belt-and-suspenders alongside the MSG_NOSIGNAL/SO_NOSIGPIPE guards on
-	// detent_http's own send() calls (src/detent_http/http_client.cc): any
-	// write to a socket whose peer has already reset the connection -- ours
-	// or a future one in a dependency we don't control -- must not be able
-	// to take the whole distributor down via the default SIGPIPE
-	// disposition (process termination). EPIPE from write()'s return value
-	// is the correct, already-handled failure path.
-	std::signal(SIGPIPE, SIG_IGN);
+		std::signal(SIGINT, handle_signal);
+		std::signal(SIGTERM, handle_signal);
+		// Belt-and-suspenders alongside the MSG_NOSIGNAL/SO_NOSIGPIPE guards on
+		// detent_http's own send() calls (src/detent_http/http_client.cc): any
+		// write to a socket whose peer has already reset the connection -- ours
+		// or a future one in a dependency we don't control -- must not be able
+		// to take the whole distributor down via the default SIGPIPE
+		// disposition (process termination). EPIPE from write()'s return value
+		// is the correct, already-handled failure path.
+		std::signal(SIGPIPE, SIG_IGN);
 
-	service.start(port);
-	std::printf("detentd listening on :%u, persisting to %s\n", port, options.persist_path.c_str());
+		service.start(port);
+		L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string());
 
-	while (!g_stop.load()) {
-		std::this_thread::sleep_for(std::chrono::milliseconds{200});
+		while (!g_stop.load()) {
+			std::this_thread::sleep_for(std::chrono::milliseconds{200});
+		}
+
+		L_NOTICE("detentd: shutting down");
+		service.stop();
+		return 0;
+	} catch (const std::exception& e) {
+		L_ERR("detentd: {}", e.what());
+		return 1;
 	}
-
-	std::printf("shutting down...\n");
-	service.stop();
-	return 0;
 }
 
 } // namespace

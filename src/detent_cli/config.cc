@@ -120,8 +120,9 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		const auto& flag = field->second.flag;
 		if (settings.contains(flag)) fail("duplicate field: " + key);
 		std::string value;
-		if (field->second.kind == FieldKind::PositiveInt) {
-			if (!it->value.IsInt() || it->value.GetInt() <= 0) fail(key + " must be a positive integer");
+		if (field->second.kind == FieldKind::PositiveInt || field->second.kind == FieldKind::NonnegativeInt) {
+			const bool positive = field->second.kind == FieldKind::PositiveInt;
+			if (!it->value.IsInt() || it->value.GetInt() < (positive ? 1 : 0)) fail(key + (positive ? " must be a positive integer" : " must be a nonnegative integer"));
 			value = std::to_string(it->value.GetInt());
 		} else {
 			if (!it->value.IsString() || it->value.GetStringLength() == 0) fail(key + " must be a nonempty string");

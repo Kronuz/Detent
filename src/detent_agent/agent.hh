@@ -31,6 +31,8 @@ struct Options {
 	std::filesystem::path shm_path;
 	detent::InitOptions client_options; // however the agent's one Client is configured
 	bool system = false;
+	std::function<void(const detent::Snapshot&, bool)> on_publish;
+	std::function<void(const detent::HealthSnapshot&, std::uint64_t)> on_health;
 };
 
 class Agent {

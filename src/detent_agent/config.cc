@@ -8,6 +8,9 @@ namespace detent_agent {
 Config load_config(const std::vector<std::string>& args) {
 	using enum detent_cli::FieldKind;
 	auto file = detent_cli::load_config(args, "agent.json", {
+		{"log_level", {"--log-level", String}},
+		{"verbosity", {"--verbosity", NonnegativeInt}},
+		{"color", {"--color", String}},
 		{"defaults_path", {"--defaults", Path}},
 		{"source_path", {"--source-path", Path}},
 		{"source_address", {"--source-address", String}},

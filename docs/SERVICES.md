@@ -58,3 +58,7 @@ These templates are deployment artifacts, not an installer that modifies the hos
 References: [systemd directory management](https://github.com/systemd/systemd/blob/main/man/systemd.exec.xml), [launchd process supervision](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html), [FreeBSD rc.d](https://docs.freebsd.org/en/articles/rc-scripting/), [FreeBSD daemon](https://man.freebsd.org/cgi/man.cgi?apropos=0&manpath=FreeBSD+14.2-RELEASE&query=daemon&sektion=8).
 
 When upgrading to group rollout support (shared-memory layout version 2), restart the agent through its service manager and upgrade the readers too. Older readers reject the new layout.
+
+## Log controls
+
+Both daemons emit timestamped, severity-marked logs to stderr. The default level is `info`; use `log_level`, numeric `verbosity`, and `color` in the service's JSON configuration, or `--log-level`, `-v`, and `--color` on the command line. Automatic color produces plain output when redirected. Use `color: "never"` when the service manager allocates a terminal. See [Daemon logging](LOGGING.md) for examples, lifecycle behavior, and measured footprint.

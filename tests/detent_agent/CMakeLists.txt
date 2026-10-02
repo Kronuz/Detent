@@ -24,3 +24,7 @@ endif()
 add_test(NAME test_system_agent COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_system_agent.sh
   $<TARGET_FILE:detent-agent> ${CMAKE_CURRENT_BINARY_DIR}/system-agent)
 set_tests_properties(test_system_agent PROPERTIES TIMEOUT 15)
+
+add_executable(test_logging test_logging.cc)
+target_link_libraries(test_logging PRIVATE detent_logging)
+add_test(NAME test_logging COMMAND test_logging)

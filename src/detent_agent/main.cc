@@ -5,6 +5,7 @@
 // Baked defaults are optional; source-only agents start with an empty snapshot.
 #ifndef DETENT_READER
 #include "agent.hh"
+#include "../detent_cli/logging.hh"
 #include "detent_http/http_source.hh"
 #endif
 #include "config.hh"
@@ -36,6 +37,9 @@ namespace {
 using namespace std::chrono_literals;
 
 detent_agent::Config g_config;
+#ifndef DETENT_READER
+detent_logging::Settings g_logging_settings;
+#endif
 std::optional<std::string> g_runtime_dir;
 bool g_system = false;
 std::string g_executable;
@@ -180,14 +184,43 @@ void install_signal_handlers() {
 }
 
 int run_foreground(detent_agent::Options options, int ready_fd = -1) {
-	detent_agent::Agent agent(std::move(options));
-	g_agent = &agent;
-	install_signal_handlers();
-	if (ready_fd >= 0) {
-		::close(ready_fd); // EOF tells the parent initialization succeeded.
+	detent_logging::Session logging(g_logging_settings);
+	bool have_source = options.client_options.source_path || options.client_options.source_poll;
+	options.on_publish = [](const detent::Snapshot& snap, bool published) {
+		if (published) { L_DEBUG("detent-agent: published snapshot version {}, {} knobs", snap.version, snap.knobs.size()); }
+		else { L_ERR("detent-agent: snapshot version {} exceeds shared-memory capacity", snap.version); }
+	};
+	options.on_health = [have_source, connected = false, first = true, failures_seen = std::uint64_t{0}, version_seen = std::uint64_t{0}, warned = false](const detent::HealthSnapshot& health, std::uint64_t failures) mutable {
+		if (have_source && (first || health.source_connected != connected)) {
+			if (health.source_connected) { L_NOTICE("detent-agent: source connected"); }
+			else { L_WARNING("detent-agent: source unavailable; serving last published snapshot"); }
+		}
+		if (health.accepted_version != version_seen) warned = false;
+		if (failures > failures_seen) {
+			L(warned ? LOG_DEBUG : LOG_WARNING, "detent-agent: source refresh failed; total failures {}", failures);
+			warned = true;
+		}
+		failures_seen = failures;
+		version_seen = health.accepted_version;
+		L(MAX_LOG_PRIORITY, "detent-agent: health version {}, connected {}, staleness {:.1f}s", health.accepted_version, health.source_connected, health.staleness_seconds);
+		first = false;
+		connected = health.source_connected;
+	};
+	try {
+		detent_agent::Agent agent(std::move(options));
+		g_agent = &agent;
+		install_signal_handlers();
+		L_INFO("detent-agent: started (pid {}), runtime {}", ::getpid(), runtime_dir().string());
+		if (ready_fd >= 0) ::close(ready_fd);
+		agent.serve();
+		L_NOTICE("detent-agent: shutting down");
+		g_agent = nullptr;
+		return 0;
+	} catch (const std::exception& e) {
+		g_agent = nullptr;
+		L_ERR("detent-agent: {}", e.what());
+		throw;
 	}
-	agent.serve(); // blocks until stop()
-	return 0;
 }
 
 int cmd_start(const std::vector<std::string>& args, bool quiet = false) {
@@ -442,6 +475,7 @@ const char* kUsage =
 	"Flags override environment variables, which override config.\n";
 #else
 const char* kUsage =
+	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
 	"detent-agent: host-local daemon + CLI for a warm, shared detent::Client\n"
 	"\n"
 	"usage:\n"
@@ -498,6 +532,9 @@ int main(int argc, char** argv) {
 	try {
 		g_system = has_flag(args, "--system");
 		g_config = detent_agent::load_config(args);
+#ifndef DETENT_READER
+		g_logging_settings = detent_logging::parse(args, g_config);
+#endif
 		g_runtime_dir = setting(args, "--runtime-dir", "DETENT_RUNTIME_DIR");
 
 #ifndef DETENT_READER

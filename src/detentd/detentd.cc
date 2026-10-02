@@ -239,6 +239,7 @@ detent::Result<std::uint64_t, detent::UpdateError> Distributor::resolve_and_comm
 	}
 
 	puts_accepted_.fetch_add(1, std::memory_order_relaxed);
+	try { if (options_.on_accept) options_.on_accept(accepted_version); } catch (...) { /* Diagnostics must not change publish results. */ }
 	return accepted_version;
 }
 
@@ -455,6 +456,7 @@ void Distributor::route_put_snapshot(const http::Request& request, http::Respons
 	if (options_.cluster) response.set_header("X-Detent-Leader", leader_address());
 	if (!result) {
 		puts_rejected_.fetch_add(1, std::memory_order_relaxed);
+		try { if (options_.on_reject) options_.on_reject(result.error().reason); } catch (...) { /* Diagnostics are best effort. */ }
 		response.send(status_for(result.error().reason),
 		              "{\"error\":\"" + json_escape(result.error().detail) + "\"}\n", "application/json");
 		return;
@@ -469,6 +471,7 @@ void Distributor::route_patch_snapshot(const http::Request& request, http::Respo
 	if (options_.cluster) response.set_header("X-Detent-Leader", leader_address());
 	if (!result) {
 		puts_rejected_.fetch_add(1, std::memory_order_relaxed);
+		try { if (options_.on_reject) options_.on_reject(result.error().reason); } catch (...) { /* Diagnostics are best effort. */ }
 		response.send(status_for(result.error().reason),
 		              "{\"error\":\"" + json_escape(result.error().detail) + "\"}\n", "application/json");
 		return;

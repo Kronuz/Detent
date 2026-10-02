@@ -118,6 +118,11 @@ if(DETENT_BUILD_DISTRIBUTOR)
   FetchContent_MakeAvailable(http_lib cluster generation_cache)
 endif()
 
+FetchContent_Declare(detent_logger
+  GIT_REPOSITORY https://github.com/Kronuz/logger.git
+  GIT_TAG 9e2b7eba71edacbd63d2358ec225a0573f2de64e)
+FetchContent_MakeAvailable(detent_logger)
+
 add_subdirectory(src)
 
 if(DETENT_BUILD_EXAMPLES)

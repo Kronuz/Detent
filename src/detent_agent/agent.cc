@@ -17,7 +17,8 @@ Agent::Agent(Options options) : options_(std::move(options)) {
 	auto opts = options_.client_options;
 	opts.on_update = [this](const detent::Snapshot& snap) {
 		std::lock_guard update_lock(publish_mutex_);
-		shm_writer_->publish(snap);
+		auto published = shm_writer_->publish(snap);
+		try { if (options_.on_publish) options_.on_publish(snap, published); } catch (...) { /* Diagnostics are best effort. */ }
 	};
 	client_ = std::make_unique<detent::Client>(std::move(opts));
 
@@ -27,7 +28,7 @@ Agent::Agent(Options options) : options_(std::move(options)) {
 	// the shm file either absent or stale until the first real update
 	// landed, even though the Client itself already has a perfectly valid
 	// version-0 snapshot to serve right now.
-	shm_writer_->publish(*client_->current_snapshot());
+	(void)shm_writer_->publish(*client_->current_snapshot());
 }
 
 Agent::~Agent() { stop(); }
@@ -35,6 +36,7 @@ Agent::~Agent() { stop(); }
 void Agent::serve() {
 	serving_.store(true);
 	while (!stop_requested_.load()) {
+		try { if (options_.on_health) options_.on_health(client_->health(), client_->metrics().refresh_failures.load(std::memory_order_relaxed)); } catch (...) { /* Diagnostics must not stop the daemon. */ }
 		std::this_thread::sleep_for(200ms); // just keeps the process (and Client's thread) alive
 	}
 	serving_.store(false);

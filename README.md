@@ -560,3 +560,5 @@ Boolean overrides may be `true` or `false`, or an object containing only `rollou
 A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Boolean overrides still force their value. The behavior is shared by C++ clients, language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
 
 The shared-memory layout is now version 2. Stop and restart existing agents when upgrading; older readers cannot interpret group rollout records.
+
+Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal colors, service configuration, and measured footprint. The logger is linked only into daemon executables.
