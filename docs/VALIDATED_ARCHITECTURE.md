@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-02
 
-**Status:** Conditional architecture approval. Implementation paused.
+**Status:** Conditional architecture approval. Implementation authorized; see the [implementation record](IMPLEMENTATION.md) for current progress.
 
 **Review:** Lead Software Architect pass, frontier `gpt-6-astra`, reasoning effort `xhigh`.
 
@@ -240,7 +240,7 @@ Keep daemon operation aligned: foreground default, optional `--daemonize`, and r
 
 ## Implementation stages and acceptance gates
 
-Implementation remains paused for this review. The following is the concrete sequence when work resumes:
+Implementation was paused during this review and subsequently authorized by the owner. The following sequence governs the implementation:
 
 | Stage | Deliverable | Required gate |
 | --- | --- | --- |

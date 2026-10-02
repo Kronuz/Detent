@@ -564,3 +564,5 @@ The shared-memory layout is now version 2. Stop and restart existing agents when
 Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal colors, service configuration, and measured footprint. The logger is linked only into daemon executables.
 
 Large-state architecture and implementation gates: see the [Validated Architectural Blueprint](docs/VALIDATED_ARCHITECTURE.md) and [Scaling Detent](docs/SCALING.md), including the measured 100,000/500,000-knob baseline and the Xapiand compatibility plan. The blueprint is a source-reviewed, conditional architecture approval; consensus correctness, durability, and fleet capacity still require the specified validation gates.
+
+Current work and reproduced regression evidence are tracked in the [implementation record](docs/IMPLEMENTATION.md).
