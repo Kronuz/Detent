@@ -1,7 +1,6 @@
 # Quick start
 
-Change settings and roll out features against a running distributor. Run the examples in order
-from the repository root.
+Change settings and roll out features against a running distributor. Run the examples in order from the repository root.
 
 ## Build and start the distributor
 
@@ -18,10 +17,7 @@ Leave `detentd` running and open another terminal in the repository root:
 export PATH="$PWD/build/src:$PATH"
 ```
 
-The distributor listens on port `8317`. These examples assume a fresh
-snapshot; if it already has data, use versions greater than its current
-version. If an agent is already running with another source, run
-`detent-agent stop` before the first read.
+The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version. If an agent is already running with another source, run `detent-agent stop` before the first read.
 
 ## 1. Change a numeric setting
 
@@ -34,8 +30,7 @@ detent get search:max_results
 # 25
 ```
 
-The first `get` starts the local agent automatically and connects it to the
-distributor. No agent configuration is needed.
+The first `get` starts the local agent automatically and connects it to the distributor. No agent configuration is needed.
 
 Change the limit without restarting the agent or your application:
 
@@ -47,10 +42,7 @@ detent get search:max_results
 # 100
 ```
 
-Every publish needs a higher version. PATCH preserves unrelated knobs and
-replaces each supplied knob definition as a whole. The agent picks up
-updates on its next poll (200 ms by default); `sleep 1` lets the examples
-wait for propagation before reading.
+Every publish needs a higher version. PATCH preserves unrelated knobs and replaces each supplied knob definition as a whole. The agent picks up updates on its next poll (200 ms by default); `sleep 1` lets the examples wait for propagation before reading.
 
 ## 2. Toggle a feature
 
@@ -84,9 +76,7 @@ detent get payments:new_processor --hash user-42
 # true
 ```
 
-Use a stable user or account ID as `--hash`. The same ID keeps its assignment
-across reads and restarts. Increasing the percentage keeps previously included
-users enabled; small populations need not split exactly 10/90.
+Use a stable user or account ID as `--hash`. The same ID keeps its assignment across reads and restarts. Increasing the percentage keeps previously included users enabled; small populations need not split exactly 10/90.
 
 ```sh
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
@@ -103,13 +93,11 @@ curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":8,"knobs":{"payments:new_processor":{"type":"bool","default":false}}}'
 ```
 
-At 100%, every read with `--hash` returns `true`. Reads without a hash use the
-knob's default, which remains `false` in this example.
+At 100%, every read with `--hash` returns `true`. Reads without a hash use the knob's default, which remains `false` in this example.
 
 ## 4. Use different rollout percentages for different groups
 
-Force employees on, exclude a group, and ramp beta users separately from
-production users:
+Force employees on, exclude a group, and ramp beta users separately from production users:
 
 ```sh
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d '{
@@ -135,11 +123,7 @@ detent get payments:new_processor --hash user-1 --switch excluded
 # false
 ```
 
-Your application supplies the group with `--switch`. A matching boolean forces
-its value; a matching rollout compares the same user bucket against that
-group's percentage. An unknown group uses the knob-wide rollout. Without
-`--hash`, group rollouts use the knob's default. When publishing a changed
-percentage, include the complete knob definition to preserve its other groups.
+Your application supplies the group with `--switch`. A matching boolean forces its value; a matching rollout compares the same user bucket against that group's percentage. An unknown group uses the knob-wide rollout. Without `--hash`, group rollouts use the knob's default. When publishing a changed percentage, include the complete knob definition to preserve its other groups.
 
 ## 5. Supply a fallback for a missing knob
 
