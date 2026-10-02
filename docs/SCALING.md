@@ -2,11 +2,13 @@
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)  
 **Date:** 2026-10-02  
-**Status:** Implementation plan; capacity targets require measurement
+**Status:** Preliminary scaling plan; implementation is gated by the [Validated Architectural Blueprint](VALIDATED_ARCHITECTURE.md)
+
+The high-effort architecture review supersedes this document wherever their guidance differs. It conditionally approves the topology, rejects adoption of the current journal prototype, and requires consensus safety, recovery, and compatibility gates before implementation proceeds. The capacity targets below remain unvalidated assumptions.
 
 ## Abstract
 
-Separate the durable write authority from regional distribution and host-local evaluation. Extend the Kronuz libraries with a durable consensus module, a bounded binary transport, and reusable journal/snapshot primitives. Preserve Xapiand's existing `cluster::Raft` behavior and multicast wire format while adding the new capabilities through separate interfaces.
+Separate the durable write authority from regional distribution and host-local evaluation. Extend the Kronuz libraries with a durable consensus module, a bounded binary transport, and reusable journal/snapshot primitives. Preserve Xapiand's existing public interfaces and multicast wire format while adding strict durable capabilities through separate interfaces. Correct unsafe legacy consensus behavior in separately validated changes, including mixed-version compatibility checks.
 
 The planning workload is 500,000 knobs, 300 concurrent publishers, 1,000 transactions per second, and 50,000 agents. These are test targets, not demonstrated capacity. Namespace subscriptions and delta distribution are required: changing the encoding alone cannot remove fleet-wide delivery cost.
 
