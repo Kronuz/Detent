@@ -39,3 +39,7 @@ Validation for this extension: the full C++ build succeeds and all 13 tests that
 Valid defaults can fit the 16 MiB JSON input limit while exceeding the agent's 4 MiB shared-memory payload capacity. Startup previously ignored the failed initial publish and reported readiness with an empty or stale mapping. Construction now fails with an explicit capacity error; background startup forwards that failure to the invoking reader instead of reporting ready. Live updates that exceed capacity still preserve the last published snapshot and emit an error.
 
 A regression uses one valid boolean knob with 40,000 group overrides. It fails against the previous implementation and passes after the fix. All 23 native tests pass, including normal CLI auto-start, HTTP updates, shared-memory concurrency, and the capacity regression.
+
+## Fixed: logging traversed snapshots during idle polling
+
+The first logging integration called `Client::health()` every 200 ms. That API counts boolean and integer knobs by traversing the snapshot twice, even when debug logging is disabled. Agent logging now reads the existing atomic source-connected, snapshot-swap, and refresh-failure counters instead. Full health queries retain their existing behavior. This removes the snapshot traversal from routine logging; no measured CPU or throughput improvement is claimed.

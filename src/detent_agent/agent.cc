@@ -38,7 +38,7 @@ Agent::~Agent() { stop(); }
 void Agent::serve() {
 	serving_.store(true);
 	while (!stop_requested_.load()) {
-		try { if (options_.on_health) options_.on_health(client_->health(), client_->metrics().refresh_failures.load(std::memory_order_relaxed)); } catch (...) { /* Diagnostics must not stop the daemon. */ }
+		try { if (options_.on_metrics) options_.on_metrics(client_->metrics()); } catch (...) { /* Diagnostics must not stop the daemon. */ }
 		std::this_thread::sleep_for(200ms); // just keeps the process (and Client's thread) alive
 	}
 	serving_.store(false);

@@ -190,21 +190,24 @@ int run_foreground(detent_agent::Options options, int ready_fd = -1) {
 		if (published) { L_DEBUG("detent-agent: published snapshot version {}, {} knobs", snap.version, snap.knobs.size()); }
 		else { L_ERR("detent-agent: snapshot version {} exceeds shared-memory capacity", snap.version); }
 	};
-	options.on_health = [have_source, connected = false, first = true, failures_seen = std::uint64_t{0}, version_seen = std::uint64_t{0}, warned = false](const detent::HealthSnapshot& health, std::uint64_t failures) mutable {
-		if (have_source && (first || health.source_connected != connected)) {
-			if (health.source_connected) { L_NOTICE("detent-agent: source connected"); }
+	options.on_metrics = [have_source, connected = false, first = true, failures_seen = std::uint64_t{0}, swaps_seen = std::uint64_t{0}, warned = false](const detent::Metrics& metrics) mutable {
+		const bool source_connected = metrics.source_connected.load(std::memory_order_relaxed);
+		const auto failures = metrics.refresh_failures.load(std::memory_order_relaxed);
+		const auto swaps = metrics.snapshot_swaps.load(std::memory_order_relaxed);
+		if (have_source && (first || source_connected != connected)) {
+			if (source_connected) { L_NOTICE("detent-agent: source connected"); }
 			else { L_WARNING("detent-agent: source unavailable; serving last published snapshot"); }
 		}
-		if (health.accepted_version != version_seen) warned = false;
+		if (swaps != swaps_seen) warned = false;
 		if (failures > failures_seen) {
 			L(warned ? LOG_DEBUG : LOG_WARNING, "detent-agent: source refresh failed; total failures {}", failures);
 			warned = true;
 		}
 		failures_seen = failures;
-		version_seen = health.accepted_version;
-		L(MAX_LOG_PRIORITY, "detent-agent: health version {}, connected {}, staleness {:.1f}s", health.accepted_version, health.source_connected, health.staleness_seconds);
+		swaps_seen = swaps;
+		L(MAX_LOG_PRIORITY, "detent-agent: source connected {}, snapshot swaps {}, refresh failures {}", source_connected, swaps, failures);
 		first = false;
-		connected = health.source_connected;
+		connected = source_connected;
 	};
 	try {
 		detent_agent::Agent agent(std::move(options));

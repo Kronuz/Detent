@@ -1,0 +1,75 @@
+{
+  "environment": {
+    "os": "macOS",
+    "architecture": "x86_64",
+    "compiler": "Apple Clang 17.0.0",
+    "build_type": "Release",
+    "strip": "strip -x",
+    "rss_samples": 5,
+    "rss_interval_seconds": 0.2,
+    "startup_seconds": 1
+  },
+  "before": {
+    "detentd": {
+      "file_bytes": 1121240,
+      "rss_kib_samples": [
+        1684,
+        1684,
+        1684,
+        1684,
+        1684
+      ],
+      "rss_kib_median": 1684,
+      "threads": 37,
+      "stripped_bytes": 865328
+    },
+    "detent-agent": {
+      "file_bytes": 481088,
+      "rss_kib_samples": [
+        984,
+        984,
+        984,
+        984,
+        984
+      ],
+      "rss_kib_median": 984,
+      "threads": 1,
+      "stripped_bytes": 387240
+    },
+    "detent": {
+      "stripped_bytes": 253768
+    }
+  },
+  "after": {
+    "detentd": {
+      "file_bytes": 1219664,
+      "stripped_bytes": 939776,
+      "rss_kib_samples": [
+        2068,
+        2068,
+        2068,
+        2068,
+        2068
+      ],
+      "rss_kib_median": 2068,
+      "threads": 38
+    },
+    "detent-agent": {
+      "file_bytes": 593296,
+      "stripped_bytes": 475520,
+      "rss_kib_samples": [
+        1316,
+        1316,
+        1316,
+        1316,
+        1316
+      ],
+      "rss_kib_median": 1316,
+      "threads": 2
+    },
+    "detent": {
+      "file_bytes": 315032,
+      "stripped_bytes": 257864
+    }
+  }
+}
