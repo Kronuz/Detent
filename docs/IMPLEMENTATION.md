@@ -33,3 +33,13 @@ Xapiand qualification uses sibling source overrides and a fresh `.scratch/build`
 5. Representative overload, recovery, multi-host, and platform qualification.
 
 Each stage requires the blueprint's correctness, compatibility, resource-bound, and measurement gates. Production guarantees remain unqualified until their corresponding gates pass.
+
+## Stage 2: durable storage and strict consensus
+
+The additive sibling `cluster/journal/` module provides a separately buildable, application-independent opaque batch journal. A checksummed manifest identifies the durable frontier; complete framing and payload checks precede incremental replay. The POSIX backend confines filenames to an owned directory, holds a stable owner lock, and fences uncertain failures. Recovery completes a namespace barrier before exposing its selected frontier, including after process death during manifest publication. The rejected untracked prototype is retained only in sibling ignored scratch for comparison and is no longer an adoption candidate.
+
+The Architect reviewed scalability, edge cases, dependency/state boundaries, and security/scale, with GO for this append/recovery milestone after correcting 32-bit offset arithmetic and extending failure injection through recovery tail truncation. Native and ASan/UBSan tests pass 1,616 check invocations. All four root cluster CTests pass, and the standalone module builds without fetching reactor or Asio. The tests model before/after I/O effects and both namespace outcomes; actual filesystem/hardware power-failure qualification remains pending.
+
+The initial local measurement uses 64 groups of opaque 256-byte operations. Median durable batch latency is approximately 63 ms on this Intel Mac; groups containing 1, 32, and 256 operations deliver approximately 16, 509, and 4,074 opaque operations/second. This measures storage barriers rather than transaction or authority capacity. Full results, CPU seconds, executable sizes, reproduction commands, and limitations are in [the journal documentation](../../Kronuz/cluster/journal/README.md).
+
+Strict consensus integration, checkpoint publication, journal reclamation, and bounded authority history remain in progress. The journal does not add persistence to the legacy `cluster::Raft` API.
