@@ -4,6 +4,8 @@
 
 **Status:** Conditional architecture approval. Implementation authorized; see the [implementation record](IMPLEMENTATION.md) for current progress.
 
+This document records the October 2 source review. Its rejected durability prototype was archived after review; the additive journal, strict Core and owned checkpoint worker now have separate implementation and qualification records. Historical prototype findings below remain part of the review evidence, rather than descriptions of the current library.
+
 **Review:** Lead Software Architect pass, frontier `gpt-6-astra`, reasoning effort `xhigh`.
 
 **Validation scope:** Source inspection and primary-source research. No implementation files were executed, no tests or builds were run, and no implementation files were changed during this pass. “Validated” identifies the reviewed architectural direction; it does not certify consensus correctness, durability, or fleet capacity.
@@ -176,7 +178,7 @@ A committed application command may be replayed to reconstruct its result; a sec
 
 The current prototype is **NO-GO for adoption**:
 
-1. [Journal recovery](../../Kronuz/cluster/consensus/journal.h#L48) trusts an unchecksummed record length. Increasing a valid record's length beyond remaining bytes, while below `max_record`, causes truncation instead of corruption failure. An actually truncated acknowledged record is similarly indistinguishable from an incomplete unacknowledged append.
+1. The reviewed prototype's `consensus/journal.h:48` trusts an unchecksummed record length. Increasing a valid record's length beyond remaining bytes, while below `max_record`, causes truncation instead of corruption failure. An actually truncated acknowledged record is similarly indistinguishable from an incomplete unacknowledged append. That prototype is archived in sibling ignored scratch; the committed replacement is recorded in [Stage 2](IMPLEMENTATION.md#stage-2-durable-storage-and-strict-consensus).
 2. `recover()` returns every record in a vector, making recovery memory proportional to all retained history.
 3. `append()` synchronizes every record; there is no batch frontier or group-commit contract.
 4. Replacement rewrites the entire record set and relies on locking the replaced inode. Durable namespace ownership, stale temporary files, and post-rename failure behavior need explicit design and fault tests.
