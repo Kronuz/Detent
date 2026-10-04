@@ -251,7 +251,7 @@ All dependencies are fetched with CMake `FetchContent`.
 | [`cluster`](https://github.com/Kronuz/cluster) | `detentd`'s Raft transport over multicast |
 | standalone Asio | Pulled transitively by `http` and `cluster` |
 
-RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are rejected rather than partially applied.
+RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are rejected rather than partially applied. It is pinned to upstream commit `24b5e7a8b27f42fa16b96fc70aade9106cf7102f`; the older 1.1.0 release contains a `GenericStringRef` assignment operator that fails to compile with Clang 23.
 
 ## Layout
 

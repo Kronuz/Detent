@@ -45,7 +45,7 @@ include(FetchContent)
 # Xapiand's REST API leniency.
 FetchContent_Declare(rapidjson
   GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG        v1.1.0
+  GIT_TAG        24b5e7a8b27f42fa16b96fc70aade9106cf7102f
   SOURCE_SUBDIR  do-not-configure)
 
 FetchContent_Declare(char_classify
