@@ -566,3 +566,5 @@ Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal color
 Large-state architecture and implementation gates: see the [Validated Architectural Blueprint](docs/VALIDATED_ARCHITECTURE.md) and [Scaling Detent](docs/SCALING.md), including the measured 100,000/500,000-knob baseline and the Xapiand compatibility plan. The blueprint is a source-reviewed, conditional architecture approval; consensus correctness, durability, and fleet capacity still require the specified validation gates.
 
 Current work and reproduced regression evidence are tracked in the [implementation record](docs/IMPLEMENTATION.md).
+
+The HTTP polling source includes `<exception>` directly for its captured `std::exception_ptr` and `std::current_exception()`. This keeps builds independent of transitive standard-library includes, including Clang 23 with libc++.

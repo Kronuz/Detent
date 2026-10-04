@@ -1,6 +1,7 @@
 #include "detent_http/http_source.hh"
 #include "detent_http/http_client.hh"
 
+#include <exception>
 #include <memory>
 #include <optional>
 #include <stdexcept>
