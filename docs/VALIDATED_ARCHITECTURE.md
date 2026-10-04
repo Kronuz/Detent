@@ -286,7 +286,9 @@ These are design assumptions and later release decisions, not reasons to request
 
 ## Required review cadence
 
-Repeat this high-effort frontier Architect pass at every consequential architecture fork and after each implementation milestone. Each pass must cover **Scalability Check, Edge-Case Analysis, Dependency & State Audit, and Security & Scale Review**.
+The Architect plans a complete component or stage before implementation, including its contracts, compatibility constraints, resource bounds and acceptance gates. Implementation then proceeds autonomously through the necessary commits and tests. Review the completed component once, with correction rounds for concrete findings. Routine implementation choices and individual commits do not require Architect approval. Escalate during implementation only when evidence conflicts with the blueprint or a consequential architecture decision cannot be resolved within its contracts.
+
+Each planning and final review pass must cover **Scalability Check, Edge-Case Analysis, Dependency & State Audit, and Security & Scale Review**. At final review, request direction for the next complete component rather than another small implementation milestone.
 
 Record the exact reviewed revisions, evidence, unresolved findings, and an explicit **GO / CONDITIONAL GO / NO-GO** verdict. Consensus/storage changes need invariant and fault-test review; format/SDK changes need compatibility and lifetime review; fleet-facing changes need measured overload and recovery review.
 
