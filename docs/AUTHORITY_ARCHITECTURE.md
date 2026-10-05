@@ -158,3 +158,5 @@ build/benchmarks/detent_authority_durable_bench .scratch/authority-measure-singl
 build/benchmarks/detent_authority_durable_bench .scratch/authority-measure-100k 100000 64
 build/benchmarks/detent_authority_durable_bench .scratch/authority-measure-500k 500000 64
 ```
+
+The authority Node retains its storage backend through shared Worker ownership. `NodeOptions::scheduling.async_storage` enables the complete runtime IO profile; the host claims `node.worker().take_io_operation()` and drives original completion on the same owner executor. The synchronous profile remains the default while production transport integration is unfinished. The same Node and three-node application tests run in both profiles, covering checkpoint images, replay, partitions, snapshot installation and recovery. All 32 native Detent suites pass (43.78 seconds); four Node/cluster profile suites pass under ASan/UBSan (15.18 seconds). Sanitizer compilation reports warnings in the existing cpp-btree dependency. This qualifies the application adapter, not authenticated multi-process completion storage.

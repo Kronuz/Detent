@@ -12,6 +12,7 @@
 using namespace detent::authority;
 using namespace cluster::consensus;
 namespace {
+bool completion_storage = false;
 struct Cluster {
 	std::filesystem::path root;
 	std::array<std::unique_ptr<Node>, 3> nodes;
@@ -39,6 +40,7 @@ struct Cluster {
 	}
 	NodeOptions options(unsigned i) {
 		NodeOptions o;
+		o.scheduling.async_storage = completion_storage;
 		o.context = context;
 		o.configuration.cluster = context.cluster;
 		o.configuration.configuration[0] = 'v';
@@ -71,6 +73,9 @@ struct Cluster {
 		}
 		for (unsigned t = 0; !nodes[i]->worker().ready() && t < 1000; ++t) {
 			nodes[i]->service({clock, 1000 + i * 500});
+			if (auto job = nodes[i]->worker().take_io_operation()) {
+				kronuz::journal::drive_synchronously(*job);
+			}
 			nodes[i]->take_network_actions();
 		}
 		assert(nodes[i]->worker().ready());
@@ -124,6 +129,9 @@ struct Cluster {
 				}
 			}
 			nodes[i]->service({clock, 1000 + i * 500});
+			if (auto job = nodes[i]->worker().take_io_operation()) {
+				kronuz::journal::drive_synchronously(*job);
+			}
 			for (auto &action : nodes[i]->take_network_actions()) {
 				if (auto send = std::get_if<Send>(&action)) {
 					auto peer = static_cast<unsigned>(send->peer - 1);
@@ -187,7 +195,8 @@ struct Cluster {
 	}
 };
 } // namespace
-int main() {
+int main(int argc, char **argv) {
+	completion_storage = argc == 2 && std::string_view(argv[1]) == "--completion-storage";
 	Cluster group;
 	group.until([&] { return group.nodes[0]->worker().role() == Role::Leader; });
 	Command open;

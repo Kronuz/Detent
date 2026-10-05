@@ -13,11 +13,11 @@ Digest batch_identity(std::string_view bytes) {
 	hash.getHash(result.data());
 	return result;
 }
-std::unique_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal::IO> io) {
+std::shared_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal::IO> io) {
 	if (!io) {
 		throw std::invalid_argument("missing authority IO");
 	}
-	return io;
+	return std::shared_ptr<kronuz::journal::IO>(std::move(io));
 }
 NodeOptions checked(NodeOptions o) {
 	if (o.configuration.cluster != o.context.cluster || !o.waiters || o.waiters > 65536 ||
@@ -33,8 +33,8 @@ NodeOptions checked(NodeOptions o) {
 Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)
 	: io_(checked_io(std::move(io))), options_(checked(std::move(options))),
 	  state_(options_.context, options_.application),
-	  worker_(*io_, options_.configuration, options_.storage, options_.consensus, options_.timing, {},
-			  SnapshotLimits{0x44544101, options_.application.image_bytes}),
+	  worker_(io_, options_.configuration, options_.storage, options_.consensus, options_.timing,
+			  options_.scheduling, SnapshotLimits{0x44544101, options_.application.image_bytes}),
 	  channel_(worker_) {
 	completions_.reserve(options_.waiters);
 }

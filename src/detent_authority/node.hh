@@ -11,6 +11,7 @@ struct NodeOptions {
 	cluster::consensus::FixedConfiguration configuration;
 	cluster::consensus::Limits consensus;
 	cluster::consensus::Timing timing;
+	cluster::consensus::WorkerLimits scheduling;
 	kronuz::journal::AdmissionLimits storage{
 		{1024ull * 1024 * 1024, 65536}, {8ull * 1024 * 1024, 3}, {512ull * 1024 * 1024, 4}, 64, 3};
 	std::size_t waiters = 1024;
@@ -22,7 +23,7 @@ struct Completion {
 	std::optional<cluster::consensus::RejectReason> rejection;
 	bool read = false;
 };
-// All operations are confined to one owning disk/application executor.
+// All operations and original IO completions belong to one owner executor.
 // Production transport must marshal messages onto that executor.
 class Node {
   public:
@@ -63,7 +64,7 @@ class Node {
 		std::optional<cluster::consensus::Token> final_chunk;
 		std::optional<State> state;
 	};
-	std::unique_ptr<kronuz::journal::IO> io_;
+	std::shared_ptr<kronuz::journal::IO> io_;
 	NodeOptions options_;
 	State state_;
 	cluster::consensus::Worker worker_;

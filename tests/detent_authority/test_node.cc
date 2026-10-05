@@ -9,6 +9,7 @@
 using namespace detent::authority;
 using namespace cluster::consensus;
 namespace {
+bool completion_storage = false;
 Context context() {
 	Context c;
 	c.cluster[0] = 'c';
@@ -18,6 +19,7 @@ Context context() {
 }
 NodeOptions options() {
 	NodeOptions o;
+	o.scheduling.async_storage = completion_storage;
 	o.context = context();
 	o.configuration.cluster = o.context.cluster;
 	o.configuration.configuration[0] = 'v';
@@ -54,6 +56,9 @@ std::vector<Completion> pump(Node &node, unsigned limit = 200) {
 	static std::uint64_t clock = 0;
 	for (unsigned i = 0; i < limit; ++i) {
 		node.service({clock += 10, 100});
+		if (auto job = node.worker().take_io_operation()) {
+			kronuz::journal::drive_synchronously(*job);
+		}
 		auto actions = node.take_network_actions();
 		for (const auto &action : actions) {
 			assert(!std::holds_alternative<Fenced>(action) && !std::holds_alternative<Send>(action));
@@ -78,7 +83,8 @@ void submit(Node &node, std::uint64_t request, const Command &c) {
 	assert(false);
 }
 } // namespace
-int main() {
+int main(int argc, char **argv) {
+	completion_storage = argc == 2 && std::string_view(argv[1]) == "--completion-storage";
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
@@ -154,12 +160,18 @@ int main() {
 		node.recover();
 		for (unsigned i = 0; i < 1000 && !node.worker().ready(); ++i) {
 			node.service({i, 100});
+			if (auto job = node.worker().take_io_operation()) {
+				kronuz::journal::drive_synchronously(*job);
+			}
 			node.take_network_actions();
 		}
 		assert(node.worker().ready());
 		node.start();
 		for (unsigned i = 0; i < 1000 && !node.worker().fenced(); ++i) {
 			node.service({i, 100});
+			if (auto job = node.worker().take_io_operation()) {
+				kronuz::journal::drive_synchronously(*job);
+			}
 			node.take_network_actions();
 		}
 		assert(node.worker().fenced() && node.state().size() == 0);
