@@ -68,3 +68,7 @@ A clean cluster sanitizer build reproduced a pre-existing missing `.scratch/` pa
 ### Append submission after fencing
 
 The existing append operation checked in-flight/terminal state before submission but omitted the owner's fence. A raw owned append could therefore accept a new primitive after `fence_storage()`, even though its later completion fenced. The same missing guard existed before artifact integration. A real POSIX reproduction accepted the write and grew the file from 28 to 52 bytes. Cluster `da549c3` rejects new submission before IO, including between reaped steps, and preserves matching reaping for the original in-flight request. The reproduction now leaves 28 bytes; native and ASan/UBSan journal regressions pass.
+
+### Reclamation before completed inventory
+
+The artifact overlap guard introduced in cluster `86de3d8` called `mutation_ready()` from `Store::reclaim_step()`, inadvertently requiring completed inventory/admission for the existing pre-census cleanup path. Cluster `5981f04` checks the overlap gate independently, restoring orphan removal and invalidation of a partial census. A common-API POSIX reproduction removes one orphan with `8372e29`, fails with the affected code, and removes it after correction. Two new regressions fail before the correction; all 162,422 journal checks pass afterward natively (1.72 seconds) and under ASan/UBSan (2.48 seconds). The fresh census accounts exactly for surviving files. This is an introduced regression, not a pre-existing storage defect.
