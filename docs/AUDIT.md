@@ -64,3 +64,7 @@ The opt-in authority adds a separate durable single-voter store and credential-b
 ### Fresh-build filesystem fixtures
 
 A clean cluster sanitizer build reproduced a pre-existing missing `.scratch/` parent: the POSIX journal fixture failed before exercising storage. Cluster `8b74ded` creates that build-local parent during root and standalone test configuration. A fresh standalone configure/build/CTest run passes without manual directory setup.
+
+### Append submission after fencing
+
+The existing append operation checked in-flight/terminal state before submission but omitted the owner's fence. A raw owned append could therefore accept a new primitive after `fence_storage()`, even though its later completion fenced. The same missing guard existed before artifact integration. A real POSIX reproduction accepted the write and grew the file from 28 to 52 bytes. Cluster `da549c3` rejects new submission before IO, including between reaped steps, and preserves matching reaping for the original in-flight request. The reproduction now leaves 28 bytes; native and ASan/UBSan journal regressions pass.
