@@ -7,3 +7,5 @@ add_subdirectory(detent_agent)
 if(DETENT_BUILD_DISTRIBUTOR)
   add_subdirectory(detentd)
 endif()
+
+add_subdirectory(detent_authority)

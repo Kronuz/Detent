@@ -1,0 +1,17 @@
+add_library(detent_authority state.cc)
+target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(detent_authority PUBLIC detent::detent)
+add_library(detent::authority ALIAS detent_authority)
+
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  add_library(detent_authority_node node.cc)
+  target_link_libraries(detent_authority_node PUBLIC detent::authority cluster::cluster)
+  add_library(detent::authority_node ALIAS detent_authority_node)
+endif()
+
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  add_library(detent_authority_service service.cc)
+  target_link_libraries(detent_authority_service PUBLIC detent::authority_node http::http)
+  add_executable(detent-authority-admin admin.cc)
+  target_link_libraries(detent-authority-admin PRIVATE detent_authority_service)
+endif()

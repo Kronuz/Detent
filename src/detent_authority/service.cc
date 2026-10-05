@@ -1,0 +1,654 @@
+#include "service.hh"
+#include "detent/json_schema.hh"
+#include "detent/json_schema_internal.hh"
+#include "detent/validation.hh"
+#include <fcntl.h>
+#include <fstream>
+#include <journal/posix.h>
+#include <random>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+#include <sha256.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+namespace detent::authority {
+namespace {
+using Clock = std::chrono::steady_clock;
+void check(bool b, const char *message) {
+	if (!b) {
+		throw std::invalid_argument(message);
+	}
+}
+using Object = rapidjson::Value;
+void fields(const Object &v, std::initializer_list<std::string_view> allowed) {
+	check(v.IsObject(), "expected object");
+	std::set<std::string_view> seen;
+	for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
+		std::string_view key(it->name.GetString(), it->name.GetStringLength());
+		check(seen.insert(key).second && std::find(allowed.begin(), allowed.end(), key) != allowed.end(),
+			  "unknown or duplicate field");
+	}
+}
+const Object &field(const Object &v, const char *key) {
+	check(v.HasMember(key), "missing field");
+	return v[key];
+}
+std::string text(const Object &v, std::size_t cap = 200) {
+	check(v.IsString() && v.GetStringLength() <= cap, "invalid string");
+	auto value = std::string(v.GetString(), v.GetStringLength());
+	check(value.find('\0') == std::string::npos, "NUL in string");
+	return value;
+}
+std::uint64_t number(const Object &v) {
+	check(v.IsUint64(), "invalid unsigned integer");
+	return v.GetUint64();
+}
+std::optional<std::uint64_t> optional(const Object &v, const char *key) {
+	return v.HasMember(key) ? std::optional<std::uint64_t>{number(v[key])} : std::nullopt;
+}
+Identity identity(std::string_view hex) {
+	check(hex.size() == 32, "identity requires 32 hex characters");
+	Identity id{};
+	auto nibble = [](char c) {
+		if (c >= '0' && c <= '9') {
+			return c - '0';
+		}
+		if (c >= 'a' && c <= 'f') {
+			return c - 'a' + 10;
+		}
+		throw std::invalid_argument("invalid identity hex");
+	};
+	for (unsigned i = 0; i < 16; ++i) {
+		id[i] = static_cast<char>((nibble(hex[2 * i]) << 4) | nibble(hex[2 * i + 1]));
+	}
+	check(id != Identity{}, "zero identity");
+	return id;
+}
+std::string hex(Identity id) {
+	constexpr char digits[] = "0123456789abcdef";
+	std::string out;
+	for (unsigned char byte : id) {
+		out += digits[byte >> 4];
+		out += digits[byte & 15];
+	}
+	return out;
+}
+void unique_members(const rapidjson::Value &value) {
+	if (value.IsObject()) {
+		std::set<std::string_view> names;
+		for (auto it = value.MemberBegin(); it != value.MemberEnd(); ++it) {
+			check(names.insert({it->name.GetString(), it->name.GetStringLength()}).second,
+				  "duplicate JSON field");
+			unique_members(it->value);
+		}
+	} else if (value.IsArray())
+		for (const auto &item : value.GetArray())
+			unique_members(item);
+}
+rapidjson::Document document(std::string_view bytes, std::size_t cap) {
+	check(bytes.size() <= cap && bytes.find('\0') == std::string_view::npos &&
+			  !detent::internal::nesting_depth_exceeds(bytes, 64),
+		  "JSON bound");
+	rapidjson::Document d;
+	d.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
+																					bytes.size());
+	check(!d.HasParseError() && d.IsObject(), "invalid JSON object");
+	unique_members(d);
+	return d;
+}
+std::string result_json(Result r) {
+	constexpr const char *names[] = {
+		"invalid",			 "applied",		   "no_change",	   "conflict",
+		"unknown_session",	 "session_fenced", "out_of_order", "result_unavailable",
+		"identity_conflict", "capacity",	   "exhausted"};
+	return "{\"status\":\"" + std::string(names[static_cast<unsigned>(r.status)]) +
+		   "\",\"revision\":" + std::to_string(r.revision) +
+		   ",\"namespace_revision\":" + std::to_string(r.namespace_revision) +
+		   ",\"generation\":" + std::to_string(r.generation) + ",\"sequence\":" + std::to_string(r.sequence) +
+		   "}";
+}
+int result_status(Result r) {
+	switch (r.status) {
+	case Status::Applied:
+	case Status::NoChange:
+		return 200;
+	case Status::Capacity:
+		return 429;
+	default:
+		return 409;
+	}
+}
+class Sink final : public http::BodySink {
+	std::string &body_;
+	std::size_t cap_;
+
+  public:
+	Sink(std::string &body, std::size_t cap) : body_(body), cap_(cap) {}
+	void write(std::string_view bytes) override {
+		check(body_.size() <= cap_ && bytes.size() <= cap_ - body_.size(), "authority body bound");
+		body_.append(bytes);
+	}
+	void end() override {}
+};
+} // namespace
+ServiceOptions load_service_options(const std::filesystem::path &path) {
+	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	if (fd < 0) {
+		throw std::runtime_error("cannot open authority configuration");
+	}
+	struct Close {
+		int fd;
+		~Close() { ::close(fd); }
+	} close{fd};
+	struct stat status{};
+	check(::fstat(fd, &status) == 0 && S_ISREG(status.st_mode) &&
+			  (status.st_uid == geteuid() || status.st_uid == 0) && !(status.st_mode & 0007) &&
+			  !(status.st_mode & 0022) && status.st_size >= 0 && status.st_size <= 1024 * 1024,
+		  "authority configuration ownership or size");
+	std::string bytes(static_cast<std::size_t>(status.st_size), '\0');
+	std::size_t offset = 0;
+	while (offset < bytes.size()) {
+		auto n = ::read(fd, bytes.data() + offset, bytes.size() - offset);
+		if (n <= 0) {
+			throw std::runtime_error("short authority configuration");
+		}
+		offset += static_cast<std::size_t>(n);
+	}
+	auto d = document(bytes, 1024 * 1024);
+	fields(d, {"cluster", "group", "epoch", "directory", "credentials"});
+	ServiceOptions o;
+	o.node.context = {identity(text(field(d, "cluster"))), identity(text(field(d, "group"))),
+					  identity(text(field(d, "epoch")))};
+	o.node.configuration.cluster = o.node.context.cluster;
+	o.node.configuration.configuration = o.node.context.group;
+	o.node.configuration.local = 1;
+	o.node.configuration.voters = {1};
+	o.directory = text(field(d, "directory"), 4096);
+	if (o.directory.is_relative()) {
+		o.directory = path.parent_path() / o.directory;
+	}
+	auto &credentials = field(d, "credentials");
+	check(credentials.IsArray() && !credentials.Empty() && credentials.Size() <= o.node.application.producers,
+		  "credential count bound");
+	std::set<std::string> tokens, producers;
+	for (const auto &value : credentials.GetArray()) {
+		fields(value, {"token", "producer", "namespaces"});
+		Credential c{text(field(value, "token"), 128), text(field(value, "producer"), 128), {}};
+		check(c.token.size() >= 32 && !c.producer.empty() && tokens.insert(c.token).second &&
+				  producers.insert(c.producer).second,
+			  "invalid or duplicate credentials");
+		auto &spaces = field(value, "namespaces");
+		check(spaces.IsArray() && !spaces.Empty() && spaces.Size() <= o.node.application.namespaces,
+			  "namespace authorization bound");
+		for (const auto &name : spaces.GetArray()) {
+			auto s = text(name);
+			check(detent::is_valid_knob_name(s + ":x") && c.namespaces.insert(s).second,
+				  "invalid namespace authorization");
+		}
+		o.credentials.push_back(std::move(c));
+	}
+	return o;
+}
+struct Service::Admission {
+	Service *service;
+	const Credential *credential;
+	std::size_t bytes;
+	bool active = false;
+	~Admission() {
+		if (active) {
+			service->release(*this);
+		}
+	}
+};
+Service::Service(ServiceOptions options) : options_(std::move(options)) {
+	check(options_.requests && options_.requests <= 65536 &&
+			  options_.queued_bytes >= options_.node.application.request_bytes &&
+			  options_.timeout.count() > 0 && !options_.credentials.empty(),
+		  "invalid authority service limits");
+	std::promise<void> ready;
+	auto future = ready.get_future();
+	thread_ = std::thread([this, ready = std::move(ready)]() mutable { run(std::move(ready)); });
+	try {
+		future.get();
+	} catch (...) {
+		thread_.join();
+		throw;
+	}
+}
+Service::~Service() {
+	{
+		std::lock_guard lock(mutex_);
+		stopping_ = true;
+	}
+	condition_.notify_all();
+	if (thread_.joinable()) {
+		thread_.join();
+	}
+}
+void Service::release(const Admission &admission) {
+	std::lock_guard lock(mutex_);
+	--admitted_;
+	admitted_bytes_ -= admission.bytes;
+	auto found = producer_admission_.find(admission.credential->producer);
+	if (found != producer_admission_.end() && --found->second == 0) {
+		producer_admission_.erase(found);
+	}
+}
+std::shared_ptr<Service::Admission> Service::admit(const http::Request &request) {
+	auto header = request.header("Authorization");
+	check(header.starts_with("Bearer ") && header.size() <= 135, "unauthorized authority request");
+	auto token = header.substr(7);
+	SHA256 supplied;
+	supplied.add(token.data(), token.size());
+	Digest want{};
+	supplied.getHash(want.data());
+	const Credential *found = nullptr;
+	for (const auto &c : options_.credentials) {
+		SHA256 stored;
+		stored.add(c.token.data(), c.token.size());
+		Digest have{};
+		stored.getHash(have.data());
+		unsigned difference = 0;
+		for (unsigned i = 0; i < 32; ++i) {
+			difference |= want[i] ^ have[i];
+		}
+		if (!difference) {
+			found = &c;
+		}
+	}
+	check(found != nullptr, "unauthorized authority request");
+	auto bytes = options_.node.application.request_bytes;
+	auto admission = std::make_shared<Admission>(Admission{this, found, bytes});
+	std::lock_guard lock(mutex_);
+	auto per_producer = producer_admission_.find(found->producer);
+	check(!stopping_ && admitted_ < options_.requests &&
+			  (per_producer == producer_admission_.end() || per_producer->second < 16) &&
+			  bytes <= options_.queued_bytes - admitted_bytes_,
+		  "authority admission full");
+	++producer_admission_[found->producer];
+	++admitted_;
+	admitted_bytes_ += bytes;
+	admission->active = true;
+	return admission;
+}
+std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) {
+	if (request.path == "/v1/health" && request.method == "GET") {
+		return std::make_unique<Sink>(request.body, 0);
+	}
+	request.user_data = admit(request);
+	return std::make_unique<Sink>(request.body, options_.node.application.request_bytes);
+}
+Service::Reply Service::execute(const http::Request &request, std::shared_ptr<Admission> admission) {
+	check(request.method == "POST", "authority endpoints require POST");
+	auto d = document(request.body, options_.node.application.request_bytes);
+	auto request_fields = [&](const Object &value, std::initializer_list<std::string_view> allowed) {
+		check(identity(text(field(value, "cluster"))) == options_.node.context.cluster &&
+				  identity(text(field(value, "group"))) == options_.node.context.group &&
+				  identity(text(field(value, "epoch"))) == options_.node.context.epoch,
+			  "foreign request authority");
+		std::set<std::string_view> seen;
+		for (auto it = value.MemberBegin(); it != value.MemberEnd(); ++it) {
+			std::string_view key(it->name.GetString(), it->name.GetStringLength());
+			check(seen.insert(key).second &&
+					  (key == "cluster" || key == "group" || key == "epoch" ||
+					   std::find(allowed.begin(), allowed.end(), key) != allowed.end()),
+				  "unknown or duplicate request field");
+		}
+	};
+	auto task = std::make_shared<Task>();
+	task->admission = std::move(admission);
+	task->command.context = options_.node.context;
+	task->command.producer = task->admission->credential->producer;
+	task->deadline = Clock::now() + options_.timeout;
+	if (request.path == "/v2/open") {
+		request_fields(d, {"expected_generation", "nonce"});
+		task->kind = Task::Kind::Command;
+		task->command.kind = Kind::Open;
+		task->command.generation = number(field(d, "expected_generation"));
+		task->command.nonce = identity(text(field(d, "nonce")));
+	} else if (request.path == "/v2/close") {
+		request_fields(d, {"generation"});
+		task->kind = Task::Kind::Command;
+		task->command.kind = Kind::Close;
+		task->command.generation = number(field(d, "generation"));
+	} else if (request.path == "/v2/transactions") {
+		request_fields(d, {"generation", "sequence", "namespace", "expected_namespace", "operations"});
+		task->kind = Task::Kind::Command;
+		auto &c = task->command;
+		c.generation = number(field(d, "generation"));
+		c.sequence = number(field(d, "sequence"));
+		c.name_space = text(field(d, "namespace"));
+		c.expected_namespace = optional(d, "expected_namespace");
+		check(task->admission->credential->namespaces.contains(c.name_space), "unauthorized namespace");
+		auto &operations = field(d, "operations");
+		check(operations.IsArray() && operations.Size() <= options_.node.application.mutations,
+			  "operation count bound");
+		for (const auto &item : operations.GetArray()) {
+			fields(item, {"key", "value", "expected_revision", "absent_namespace_revision"});
+			Mutation op;
+			op.key = text(field(item, "key"));
+			op.expected = optional(item, "expected_revision");
+			op.absence_revision = optional(item, "absent_namespace_revision");
+			auto &value = field(item, "value");
+			if (!value.IsNull()) {
+				auto parsed = detent::internal::parse_knob_def(value, op.key);
+				check(parsed.has_value(), "invalid knob definition");
+				op.value = std::move(parsed).value();
+			}
+			c.mutations.push_back(std::move(op));
+		}
+	} else if (request.path == "/v2/read") {
+		request_fields(d, {"namespace", "keys"});
+		task->kind = Task::Kind::Read;
+		task->name_space = text(field(d, "namespace"));
+		check(task->admission->credential->namespaces.contains(task->name_space), "unauthorized namespace");
+		auto &keys = field(d, "keys");
+		check(keys.IsArray() && keys.Size() <= options_.node.application.mutations, "read key count bound");
+		std::set<std::string> unique;
+		for (const auto &value : keys.GetArray()) {
+			auto key = text(value);
+			check(detent::is_valid_knob_name(key) && key.substr(0, key.find(':')) == task->name_space &&
+					  unique.insert(key).second,
+				  "invalid read key");
+			task->keys.push_back(std::move(key));
+		}
+	} else if (request.path == "/v2/result") {
+		request_fields(d, {"generation", "sequence"});
+		task->kind = Task::Kind::Result;
+		task->generation = number(field(d, "generation"));
+		task->sequence = number(field(d, "sequence"));
+	} else {
+		return {404, "{\"error\":\"unknown_endpoint\"}"};
+	}
+	if (task->kind == Task::Kind::Command) {
+		(void)encode(task->command, options_.node.application);
+	}
+	auto future = task->promise.get_future();
+	{
+		std::lock_guard lock(mutex_);
+		if (stopping_) {
+			return {503, "{\"error\":\"stopping\"}"};
+		}
+		if (task->kind == Task::Kind::Command && !busy_producers_.insert(task->command.producer).second) {
+			return {429, "{\"error\":\"producer_busy\"}"};
+		}
+		try {
+			queue_.push_back(task);
+		} catch (...) {
+			if (task->kind == Task::Kind::Command) {
+				busy_producers_.erase(task->command.producer);
+			}
+			throw;
+		}
+	}
+	condition_.notify_one();
+	if (future.wait_until(task->deadline) != std::future_status::ready) {
+		return {503, "{\"error\":\"outcome_unknown\"}"};
+	}
+	return future.get();
+}
+void Service::handle(const http::Request &request, http::ResponseWriter &response) {
+	Reply reply;
+	try {
+		if (request.path == "/v1/health" && request.method == "GET") {
+			std::lock_guard lock(mutex_);
+			reply = {200, health_};
+		} else {
+			auto admission =
+				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
+			reply = execute(request, std::move(admission));
+		}
+	} catch (const std::invalid_argument &error) {
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		writer.String(error.what());
+		reply = {400, "{\"error\":\"invalid_request\",\"detail\":" +
+						  std::string(buffer.GetString(), buffer.GetSize()) + "}"};
+	} catch (const std::exception &) {
+		reply = {503, "{\"error\":\"outcome_unknown\"}"};
+	}
+	if (!reply.body.empty() && reply.body[0] == '{') {
+		reply.body = "{\"authority\":{\"cluster\":\"" + hex(options_.node.context.cluster) +
+					 "\",\"group\":\"" + hex(options_.node.context.group) + "\",\"epoch\":\"" +
+					 hex(options_.node.context.epoch) + "\"}," + reply.body.substr(1);
+	}
+	response.status(reply.status);
+	response.set_header("Content-Type", "application/json");
+	response.write(reply.body);
+	response.end();
+}
+void Service::run(std::promise<void> ready) {
+	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
+	std::uint64_t next = 0;
+	bool started = false;
+	auto complete = [&](const std::shared_ptr<Task> &task, Reply reply) {
+		task->promise.set_value(std::move(reply));
+		if (task->kind == Task::Kind::Command) {
+			std::lock_guard lock(mutex_);
+			busy_producers_.erase(task->command.producer);
+		}
+	};
+	try {
+		// Provision the parent directory explicitly; newly created final directory
+		// receives a durable parent namespace barrier before Journal creation.
+		if (std::filesystem::create_directory(options_.directory)) {
+			check(::chmod(options_.directory.c_str(), 0700) == 0, "authority directory permissions");
+			auto parent = options_.directory.parent_path();
+			if (parent.empty()) {
+				parent = ".";
+			}
+			int fd = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+			if (fd < 0) {
+				throw std::runtime_error("authority parent directory");
+			}
+			auto synced = ::fsync(fd);
+			::close(fd);
+			if (synced) {
+				throw std::runtime_error("authority directory durability");
+			}
+		}
+		Node node(std::make_unique<kronuz::journal::PosixIO>(options_.directory), options_.node);
+		if (std::filesystem::exists(options_.directory / "manifest")) {
+			node.recover();
+		} else {
+			Identity id{};
+			std::random_device random;
+			for (char &byte : id) {
+				byte = static_cast<char>(random());
+			}
+			if (id == Identity{}) {
+				id[0] = 1;
+			}
+			node.create(id);
+		}
+		auto origin = Clock::now();
+		while (!node.worker().ready()) {
+			node.service({0, 100});
+			node.take_network_actions();
+			if (node.worker().fenced()) {
+				throw std::runtime_error("authority storage initialization fenced");
+			}
+		}
+		node.start();
+		check(!node.worker().fenced(), "authority committed application/profile mismatch");
+		ready.set_value();
+		started = true;
+		for (;;) {
+			{
+				std::lock_guard lock(mutex_);
+				if (stopping_) {
+					break;
+				}
+			}
+			auto now = Clock::now();
+			auto tick = static_cast<std::uint64_t>(
+				std::chrono::duration_cast<std::chrono::milliseconds>(now - origin).count());
+			node.service({tick, 100});
+			for (auto &action : node.take_network_actions()) {
+				if (std::holds_alternative<cluster::consensus::Send>(action)) {
+					throw std::logic_error("single-voter authority cannot send");
+				}
+			}
+			for (auto &completion : node.take_completions()) {
+				auto found = pending.find(completion.request);
+				if (found == pending.end()) {
+					continue;
+				}
+				for (std::size_t i = 0; i < found->second.size(); ++i) {
+					auto &task = found->second[i];
+					Reply reply;
+					if (completion.rejection || node.worker().fenced()) {
+						reply = {503, "{\"error\":\"outcome_unknown\"}"};
+					} else if (task->kind == Task::Kind::Command) {
+						auto r = completion.results.at(i);
+						reply = {result_status(r), result_json(r)};
+					} else if (task->kind == Task::Kind::Result) {
+						auto r = node.state().lookup(task->admission->credential->producer, task->generation,
+													 task->sequence);
+						reply = {result_status(r), result_json(r)};
+					} else {
+						Snapshot snapshot;
+						snapshot.version = node.state().revision();
+						snapshot.source_id = "authority:" + hex(options_.node.context.epoch);
+						for (const auto &key : task->keys) {
+							if (auto record = node.state().find(key)) {
+								snapshot.knobs.emplace(key, *record->value);
+							}
+						}
+						auto body = serialize_snapshot(snapshot);
+						std::string revisions = "{";
+						bool first = true;
+						for (const auto &key : task->keys) {
+							if (auto record = node.state().find(key)) {
+								if (!first) {
+									revisions += ",";
+								}
+								first = false;
+								revisions += "\"" + key + "\":" + std::to_string(record->revision);
+							}
+						}
+						revisions += "}";
+						body = "{\"namespace_revision\":" +
+							   std::to_string(node.state().namespace_revision(task->name_space)) +
+							   ",\"key_revisions\":" + revisions + "," + body.substr(1);
+						reply = {200, std::move(body)};
+					}
+					complete(task, std::move(reply));
+				}
+				pending.erase(found);
+			}
+			for (auto it = pending.begin(); it != pending.end();) {
+				if (node.worker().fenced() ||
+					std::all_of(it->second.begin(), it->second.end(),
+								[&](auto &task) { return now >= task->deadline; })) {
+					node.forget(it->first);
+					for (auto &task : it->second) {
+						complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+					}
+					it = pending.erase(it);
+				} else {
+					++it;
+				}
+			}
+			if (node.worker().fenced()) {
+				throw std::runtime_error("authority worker fenced");
+			}
+			std::deque<std::shared_ptr<Task>> expired;
+			{
+				std::lock_guard lock(mutex_);
+				while (!queue_.empty() && now >= queue_.front()->deadline) {
+					expired.push_back(queue_.front());
+					queue_.pop_front();
+				}
+			}
+			for (auto &task : expired) {
+				complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+			}
+			std::vector<std::shared_ptr<Task>> selected;
+			std::vector<Command> commands;
+			{
+				std::lock_guard lock(mutex_);
+				if (!queue_.empty() &&
+					(queue_.front()->kind != Task::Kind::Command || queue_.size() >= 64 ||
+					 now >= queue_.front()->deadline - options_.timeout + std::chrono::milliseconds(5))) {
+					std::size_t bytes = 16;
+					while (!queue_.empty() && selected.size() < 64) {
+						auto task = queue_.front();
+						if (now >= task->deadline) {
+							break;
+						}
+						if (!selected.empty() && (task->kind != Task::Kind::Command ||
+												  selected.front()->kind != Task::Kind::Command)) {
+							break;
+						}
+						auto size = task->kind == Task::Kind::Command
+										? encode(task->command, options_.node.application).size() + 8
+										: 0;
+						if (size > options_.node.consensus.command_bytes - bytes) {
+							break;
+						}
+						bytes += size;
+						selected.push_back(task);
+						if (task->kind == Task::Kind::Command) {
+							commands.push_back(task->command);
+						}
+						queue_.pop_front();
+					}
+				}
+			}
+			if (!selected.empty()) {
+				check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
+				auto id = ++next;
+				auto result = commands.empty() ? node.read(id) : node.propose(id, commands);
+				if (result == cluster::consensus::SubmitResult::Accepted) {
+					pending.emplace(id, std::move(selected));
+				} else {
+					std::lock_guard lock(mutex_);
+					for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
+						queue_.push_front(*it);
+					}
+				}
+			}
+			{
+				std::lock_guard lock(mutex_);
+				health_ = "{\"mode\":\"durable_single_voter\",\"ready\":" +
+						  std::string(node.worker().ready() ? "true" : "false") +
+						  ",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
+						  ",\"committed\":" + std::to_string(node.worker().committed()) +
+						  ",\"applied\":" + std::to_string(node.worker().applied_index()) +
+						  ",\"revision\":" + std::to_string(node.state().revision()) +
+						  ",\"requests\":" + std::to_string(admitted_) +
+						  ",\"reserved_body_bytes\":" + std::to_string(admitted_bytes_) +
+						  ",\"checkpoint_busy\":" + (node.checkpoint_busy() ? "true" : "false") +
+						  ",\"fenced\":" + (node.worker().fenced() ? "true" : "false") + "}";
+			}
+			std::unique_lock lock(mutex_);
+			condition_.wait_for(lock, std::chrono::milliseconds(1), [&] { return stopping_; });
+		}
+	} catch (...) {
+		if (!started) {
+			ready.set_exception(std::current_exception());
+		} else {
+			std::lock_guard lock(mutex_);
+			stopping_ = true;
+			health_ = "{\"mode\":\"durable_single_voter\",\"fenced\":true}";
+		}
+	}
+	for (auto &[id, tasks] : pending) {
+		(void)id;
+		for (auto &task : tasks) {
+			complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+		}
+	}
+	std::deque<std::shared_ptr<Task>> remaining;
+	{
+		std::lock_guard lock(mutex_);
+		remaining.swap(queue_);
+	}
+	for (auto &task : remaining) {
+		complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+	}
+}
+} // namespace detent::authority

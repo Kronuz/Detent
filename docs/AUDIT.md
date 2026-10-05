@@ -43,3 +43,19 @@ A regression uses one valid boolean knob with 40,000 group overrides. It fails a
 ## Fixed: logging traversed snapshots during idle polling
 
 The first logging integration called `Client::health()` every 200 ms. That API counts boolean and integer knobs by traversing the snapshot twice, even when debug logging is disabled. Agent logging now reads the existing atomic source-connected, snapshot-swap, and refresh-failure counters instead. Full health queries retain their existing behavior. This removes the snapshot traversal from routine logging; no measured CPU or throughput improvement is claimed.
+
+## Fixed: RapidJSON compiler incompatibility
+
+Clang 23 rejects RapidJSON 1.1.0's `GenericStringRef` assignment operator because it assigns to const members, even when the only consumer code includes `document.h`. Detent now pins upstream `24b5e7a8b27f42fa16b96fc70aade9106cf7102f`. The minimal reproducer fails with 1.1.0 and passes with the pin; strict JSON regression tests retain their behavior. This qualification does not claim a reproduced Detent parser vulnerability.
+
+## Fixed: SHA-256 padding pointer arithmetic
+
+The authority sanitizer run found an out-of-bounds intermediate pointer in the shared SHA-256 dependency: `extra + paddedLength - BlockSize` first advances beyond the second block before subtracting. Sibling sha256 commit `8acc96b` changes this to `extra + (paddedLength - BlockSize)`. The original fails UBSan for the 56-byte published vector. The corrected library passes ASan/UBSan with published vectors and added padding-boundary cases, including streamed input and repeated reads. Digest bytes and public interfaces are unchanged; Xapiand can reconcile this as the same one-line correction. Local qualification selects the sibling source through FetchContent; the dependency commit has not been pushed.
+
+## Fixed: transitive exception declarations
+
+Clang 23 with libc++ exposes missing declarations for `std::exception_ptr` and `std::current_exception()` in the HTTP polling source. The source now directly includes `<exception>`; native and sanitizer daemon builds pass.
+
+## Durable authority scope
+
+The opt-in authority adds a separate durable single-voter store and credential-bound loopback API. The legacy deployment limits above still apply to the legacy HTTP/multicast distributor. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated sockets, binary public distribution and immutable agent views remain pending components.

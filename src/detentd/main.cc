@@ -13,6 +13,9 @@
 //   detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
 //   detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
 #include "detentd.hh"
+#ifdef DETENT_WITH_AUTHORITY
+#include "../detent_authority/service.hh"
+#endif
 #include "../detent_cli/logging.hh"
 #include "../detent_cli/config.hh"
 #include "../detent_cli/daemon.hh"
@@ -42,6 +45,7 @@ void handle_signal(int) { g_stop.store(true); }
 const char* kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
 	"usage: detentd [--daemonize | --status] [--runtime-dir PATH] [<port> <persist_path>] [--config PATH]\n"
+	"                [--authority PATH] (opt-in durable loopback single-voter mode)\n"
 	"                [--port N] [--persist-path PATH] [--reactors N] [--workers N]\n"
 	"                [--cluster <token> <multicast_port> <multicast_group>\n"
 	"                           <interface> <self_host:port> <peer_host:port> ...]\n"
@@ -102,6 +106,7 @@ int run(const std::vector<std::string>& input_args) {
 		{"runtime_dir", {"--runtime-dir", Path}},
 		{"port", {"--port", PositiveInt}},
 		{"persist_path", {"--persist-path", Path}},
+		{"authority", {"--authority", Path}},
 		{"reactors", {"--reactors", PositiveInt}},
 		{"workers", {"--workers", PositiveInt}},
 	});
@@ -140,7 +145,7 @@ int run(const std::vector<std::string>& input_args) {
 			status = true;
 		} else if (arg == "--config") {
 			(void)next(arg); // already loaded above
-		} else if (arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--workers" || arg == "--runtime-dir") {
+		} else if (arg == "--authority" || arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--workers" || arg == "--runtime-dir") {
 			settings[arg] = next(arg);
 		} else if (arg == "--raft-timing") {
 			raft_timing.heartbeat_timeout = positive_seconds(next(arg));
@@ -160,6 +165,7 @@ int run(const std::vector<std::string>& input_args) {
 			throw std::runtime_error("unknown argument: " + arg);
 		}
 	}
+	if (settings.contains("--authority") && (options.cluster || settings.contains("--persist-path"))) { throw std::runtime_error("authority mode uses its separate directory and cannot join legacy multicast"); }
 	if (options.cluster) options.cluster->raft_config = raft_timing;
 	auto port = static_cast<unsigned short>(settings.contains("--port")
 		? positive_int(settings.at("--port"), 65535, "port") : detent_cli::kDefaultPort);
@@ -201,8 +207,16 @@ int run(const std::vector<std::string>& input_args) {
 		L_WARNING("detentd: rejected publish ({})", names[static_cast<unsigned>(reason)]);
 	};
 	try {
-		detentd::Distributor app(options);
-		http::HttpAsioService service(app, reactors, workers, /*queue_limit=*/1024);
+		std::unique_ptr<http::HttpHandler> app;
+		if (settings.contains("--authority")) {
+#ifdef DETENT_WITH_AUTHORITY
+			app = std::make_unique<detent::authority::Service>(detent::authority::load_service_options(settings.at("--authority")));
+#else
+			throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
+#endif
+		 }
+		else { app = std::make_unique<detentd::Distributor>(options); }
+		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024);
 		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
 
 		std::signal(SIGINT, handle_signal);
@@ -216,9 +230,11 @@ int run(const std::vector<std::string>& input_args) {
 		// is the correct, already-handled failure path.
 		std::signal(SIGPIPE, SIG_IGN);
 
+		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = "127.0.0.1"; service.set_bind_options(bind); }
 		service.start(port);
 		ready();
-		L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string());
+		if (settings.contains("--authority")) { L_INFO("detentd: durable single-voter authority listening on 127.0.0.1:{}", port); }
+		else { L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string()); }
 
 		while (!g_stop.load()) {
 			std::this_thread::sleep_for(std::chrono::milliseconds{200});

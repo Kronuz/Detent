@@ -479,3 +479,7 @@ kill %1 %2 %3
 System-wide deployment: see [System services](SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 
 The shell reader is `detent get NAME`. Both daemons run directly in the foreground, accept `--daemonize` for user background operation, and provide read-only `--status`. Send SIGTERM to stop an unmanaged daemon; supervised services use their service manager. The reader launches a sibling `detent-agent` binary, or finds it on `PATH` when invoked by name.
+
+## Durable authority profile
+
+The opt-in `detentd --authority CONFIG` profile uses a separate durable store and loopback transaction API. It preserves foreground execution, `--daemonize` and read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration. Existing snapshot publishers and agents continue to use the legacy profile until the distribution component is integrated.

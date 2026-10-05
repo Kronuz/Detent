@@ -120,3 +120,11 @@ set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
 target_link_libraries(detent-reader PRIVATE detent_agent_lib detent_cli)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Authority application semantics remain independent of transport and consensus.
+add_subdirectory(detent_authority)
+
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  target_compile_definitions(detentd PRIVATE DETENT_WITH_AUTHORITY=1)
+  target_link_libraries(detentd PRIVATE detent_authority_service)
+endif()

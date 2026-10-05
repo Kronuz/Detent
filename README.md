@@ -568,3 +568,5 @@ Large-state architecture and implementation gates: see the [Validated Architectu
 Current work and reproduced regression evidence are tracked in the [implementation record](docs/IMPLEMENTATION.md).
 
 The HTTP polling source includes `<exception>` directly for its captured `std::exception_ptr` and `std::current_exception()`. This keeps builds independent of transitive standard-library includes, including Clang 23 with libc++.
+
+The opt-in durable authority profile uses bounded namespace transactions and producer retry sessions, with incremental immutable state and POSIX persistence. Build and API details, migration commands, qualification results and the single-voter limitations are in [AUTHORITY_ARCHITECTURE.md](docs/AUTHORITY_ARCHITECTURE.md). Authenticated multi-node transport and agent distribution remain subsequent components.
