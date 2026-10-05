@@ -59,3 +59,8 @@ Clang 23 with libc++ exposes missing declarations for `std::exception_ptr` and `
 ## Durable authority scope
 
 The opt-in authority adds a separate durable single-voter store and credential-bound loopback API. The legacy deployment limits above still apply to the legacy HTTP/multicast distributor. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated sockets, binary public distribution and immutable agent views remain pending components.
+
+
+### Fresh-build filesystem fixtures
+
+A clean cluster sanitizer build reproduced a pre-existing missing `.scratch/` parent: the POSIX journal fixture failed before exercising storage. Cluster `8b74ded` creates that build-local parent during root and standalone test configuration. A fresh standalone configure/build/CTest run passes without manual directory setup.

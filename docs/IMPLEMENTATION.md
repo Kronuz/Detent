@@ -169,3 +169,12 @@ The review reproduced and corrected nonempty receiver activation, overwritten ol
 ## Stage 4: authenticated authority and completion-based IO
 
 The [Validated Architectural Blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md) has Architect GO for autonomous implementation as one complete service component, followed by one consolidated review. It requires native completion backends where supported, shared resumable durability sequencing, owned asynchronous HTTP responses and real authenticated three-process replication. Current disk calls remain synchronous on the dedicated owner thread; this stage removes those waits from the reactor path without weakening file or directory barriers.
+
+
+Cluster `325637b` replaces synchronous append and manifest publication call stacks with shared explicit operation states. Suspended and synchronous drivers recover identical histories under the same injected faults, including short writes and both namespace outcomes. Owned backend/file/lock retention and stale-completion rejection are qualified. Native cluster suites pass eight tests, Detent passes 30, and journal/consensus/Worker sanitizer suites pass. Platform backend submission, asynchronous Store/Worker accounting and real authenticated sockets remain in progress; the production owner still performs synchronous IO.
+
+Cluster `385b481` adds the qualified macOS native-AIO completion backend and optional Asio owner driver. Held completion tests prove that timers and UDP traffic continue while persistence waits, including cancellation of request interest. A single reserved worker handles required full-flush and namespace fallback primitives; native and fallback counts remain separate. All ten cluster tests and all 30 Detent tests pass for that backend revision.
+
+Cluster `8372e29` gives Store and Worker opt-in completion-driven append ownership and accounting. One claimed job retains its payload, backend, stable lock and reservation through original IO reaping; final barriers precede readiness and Raft persistence completions. The synchronous append path uses the same job. Artifact operations, recovery, reclamation and production service activation remain pending, so this increment does not finish Stage 4.
+
+Append integration passes ten native cluster suites, all 30 Detent suites, 35 focused Worker completion checks and four ASan/UBSan journal/Worker/completion suites. The final teardown fixture destroys Worker and backend facades while an original primitive is outstanding, completes the retained job, then reopens valid typed initialization.
