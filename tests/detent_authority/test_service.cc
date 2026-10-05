@@ -16,6 +16,15 @@ struct Writer : http::ResponseWriter {
 	void end() override {}
 	void set_close() override {}
 };
+struct DeferredWriter : Writer {
+	std::shared_ptr<http::detail::DeferredExchange> exchange;
+	std::weak_ptr<void> admission;
+	std::unique_ptr<http::DeferredReply> defer(http::DeferredOptions options) override {
+		admission = options.request_retention;
+		exchange = std::make_shared<http::detail::DeferredExchange>(std::move(options), [] {});
+		return std::make_unique<http::DeferredReply>(exchange);
+	}
+};
 std::string authority =
 	"\"cluster\":\"63000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
 	"\"epoch\":\"65000000000000000000000000000000\",";
@@ -75,6 +84,17 @@ int main() {
 		auto applied = call(service, "/v2/transactions", transaction);
 		assert(applied.code == 200 && applied.body.find("\"revision\":1") != std::string::npos);
 		assert(call(service, "/v2/transactions", transaction).body == applied.body);
+#if defined(__APPLE__) || defined(__FreeBSD__)
+		http::Request probe;
+		probe.path = "/v1/health";
+		probe.method = "GET";
+		Writer health;
+		service.handle(probe, health);
+		assert(health.code == 200 && health.body.find("\"storage_async\":true") != std::string::npos);
+		assert(health.body.find("\"io_native_submitted\":") != std::string::npos &&
+			   health.body.find("\"io_native_submitted\":0") == std::string::npos);
+#endif
+
 		auto read = call(service, "/v2/read", "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]");
 		assert(read.code == 200 && read.body.find("\"default\":10") != std::string::npos &&
 			   read.body.find("\"key_revisions\":{\"ns:key\":1}") != std::string::npos);
@@ -107,6 +127,8 @@ int main() {
 		assert(rejected && excess.body.empty());
 		held.clear();
 	}
+	DeferredWriter delayed;
+	std::optional<http::Response> held_reply;
 	{
 		Service service(options(directory));
 		Writer retained;
@@ -119,6 +141,59 @@ int main() {
 		}
 		assert(retained.code == 200 && retained.body.find("\"revision\":1") != std::string::npos);
 		assert(call(service, "/v2/transactions", transaction).code == 200);
+		http::Request request;
+		request.method = "POST";
+		request.path = "/v2/read";
+		request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
+		auto sink = service.on_request_body(request);
+		sink->write("{" + authority + "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]}");
+		sink->end();
+		service.handle(request, delayed);
+		assert(delayed.exchange && delayed.code == 0 && delayed.body.empty());
+		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+		while (delayed.exchange->phase() == http::detail::DeferredExchange::Phase::Waiting &&
+			   std::chrono::steady_clock::now() < deadline) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
+		held_reply = delayed.exchange->take_response();
+		assert(held_reply && held_reply->status == 200 &&
+			   held_reply->body.find("\"default\":10") != std::string::npos);
+		request.user_data.reset();
+		sink.reset();
+		assert(!delayed.admission.expired());
+		std::string groups;
+		for (unsigned index = 0; index != 40; ++index) {
+			if (!groups.empty()) {
+				groups += ',';
+			}
+			groups += "\"region:group" + std::to_string(index) + "\":true";
+		}
+		auto wide = call(service, "/v2/transactions",
+						 "\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:"
+						 "wide\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" +
+							 groups + "}}}]");
+		assert(wide.code == 200);
+	}
+	assert(!delayed.admission.expired()); // socket IO still owns ingress after service retirement
+	held_reply.reset();
+	assert(delayed.exchange->settle(http::ReplySettlement::Written));
+	assert(delayed.admission.expired());
+	{
+		auto small = options(directory);
+		small.reply_bytes = 1024;
+		Service service(std::move(small));
+		Writer ordinary;
+		auto ready_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+		do {
+			ordinary = call(service, "/v2/read", "\"namespace\":\"ns\",\"keys\":[\"ns:key\"]");
+			if (ordinary.code != 503) {
+				break;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		} while (std::chrono::steady_clock::now() < ready_deadline);
+		assert(ordinary.code == 200);
+		auto oversized = call(service, "/v2/read", "\"namespace\":\"ns\",\"keys\":[\"ns:wide\"]");
+		assert(oversized.code == 413 && oversized.body.find("reply_bound") != std::string::npos);
 	}
 	std::filesystem::remove_all(directory);
 	std::cout << "authority ingress, quota and replay passed\n";

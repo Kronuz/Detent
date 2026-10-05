@@ -87,6 +87,22 @@ Keep producer namespace authorization separate from peer identity. Followers may
 Implement in dependency order and commit coherent changes autonomously. Return for one consolidated review of the usable authenticated authority service. Relay fanout, agent subscriptions and immutable local publication follow this component.
 
 
+## Current completion status
+
+| Gate | Status |
+|---|---|
+| Shared append/artifact/publication/read/reclamation states | Implemented and fault-qualified |
+| Owned Worker and Node completion integration | Implemented in both scheduling profiles |
+| macOS native IO and bounded fallback | Activated in the local authority service |
+| Owned HTTP responses and original-write settlement | Implemented and qualified over real TCP |
+| Incremental consensus bundle encoding and suffix capture | Pending |
+| Peer mTLS, publisher HTTPS, bounded codecs and multi-voter configuration | Pending |
+| Authenticated three-process failure and scale acceptance | Pending |
+| Linux native backend and target FreeBSD qualification | Pending |
+| Consolidated complete-stage Architect review | Follows those remaining gates |
+
+The evidence below records historical increments. Older references to synchronous production storage describe those revisions; the latest macOS single-voter service activates the full owned runtime profile. Stage 4 remains open because authenticated replicated availability and its acceptance gates are unfinished.
+
 ## Implementation evidence
 
 Cluster `325637b` uses explicit operation state machines, following the Architect's focused mechanism review. Synchronous append and future native submission share bounded writes and manifest publication states. Owned operations retain backend, file and lock lifetimes; token-matched completion and final settlement are separate. Suspended fault schedules compare recovered histories with the synchronous driver. Native cluster tests pass eight suites, Detent passes 30, and journal/consensus/Worker ASan/UBSan regressions pass. Store/Worker completion integration and authenticated transport remain in progress.
@@ -129,3 +145,11 @@ Qualification passes ten native cluster suites (68.85 seconds), 2,420 focused Wo
 The authority Node retains its storage backend through shared Worker ownership. `NodeOptions::scheduling.async_storage` enables the complete runtime IO profile; the host claims `node.worker().take_io_operation()` and drives original completion on the same owner executor. The synchronous profile remains the default while production transport integration is unfinished. The same Node and three-node application tests run in both profiles, covering checkpoint images, replay, partitions, snapshot installation and recovery. All 32 native Detent suites pass (43.78 seconds); four Node/cluster profile suites pass under ASan/UBSan (15.18 seconds). Sanitizer compilation reports warnings in the existing cpp-btree dependency. This qualifies the application adapter, not authenticated multi-process completion storage.
 
 The Architect selected an additive, move-only deferred HTTP reply capability for the next component. It transfers exclusive response submission without retaining a stack writer or request. Acceptance and transport settlement are separate: request and reply leases survive timeout or disconnect until the original write is reaped. One bounded buffered response, finite deadlines, lifetime-safe wakeups and exactly-once settlement preserve synchronous handlers. The transport must support half-close and keep-alive without admitting another handler before settlement. This is a mechanism decision; final Stage 4 review still follows the complete authenticated service.
+
+HTTP `29d62a7` corrects worker executor selection; `2a422ce` releases only actually acquired offload admission. Isolated baseline reproductions establish both pre-existing faults. HTTP `c3193b9` adds a source-compatible owned deferred reply capability, finite deadlines, bounded framing and exactly-once settlement after original socket IO. Five native suites pass (3.21 seconds), and five ASan/UBSan suites pass (3.85 seconds), including a partial write during runtime destruction. The scoped writer grows from 96 to 128 bytes; Response remains 88 bytes. No throughput, CPU, power or cost improvement is inferred from these object sizes.
+
+The runtime audit identifies a pending shared accept retaining a socket backed by another reactor that could be destroyed first. Reactor now closes acceptors on their owning loops and awaits accept-loop completion before stopping any reactor. Controls are registered before threads launch; late tracked waits are aborted outside the registry lock. The Architect reviewed this focused lifecycle mechanism. TCP/UDP/events suites pass natively and under ASan/UBSan, preserving both bind modes and blocked-worker shutdown.
+
+The local authority service now runs its Node on a single Asio owner loop and activates full completion storage on macOS. Dispatch retains the Node, job and backend through original reaping, including shutdown and failure. HTTP handlers enqueue and return with an owned reply; waiting for Raft does not occupy an HTTP worker. Shared admission/credential accounting survives Service retirement, and separate reply reservations remain charged through original write settlement. Reads encode bounded JSON with one definition DOM at a time. Health distinguishes native and fallback submissions. Recording/embedded writers retain a bounded synchronous compatibility path, and startup recovery remains synchronous before admission.
+
+All 32 native Detent suites pass (43.26 seconds); authority service and actual daemon ACK/kill/recovery/retry/read tests pass under ASan/UBSan (4.01 seconds). Tests also retain an accepted reply across Service destruction and verify actual encoded reply limits. Build configuration uses the local sibling HTTP/reactor/cluster revisions; none are published. Peer TLS, multi-voter service configuration, incremental consensus CPU work, other-platform native qualification and complete-stage scale acceptance remain unfinished.

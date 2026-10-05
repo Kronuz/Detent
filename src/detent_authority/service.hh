@@ -1,12 +1,13 @@
 #pragma once
 #include "node.hh"
 #include <chrono>
-#include <condition_variable>
 #include <deque>
 #include <filesystem>
+#include <functional>
 #include <future>
 #include <http_handler.h>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <thread>
 
@@ -20,6 +21,7 @@ struct ServiceOptions {
 	std::filesystem::path directory;
 	std::vector<Credential> credentials;
 	std::size_t requests = 1024, queued_bytes = 16 * 1024 * 1024;
+	std::size_t reply_bytes = 16 * 1024 * 1024;
 	std::chrono::milliseconds timeout{5000};
 };
 ServiceOptions load_service_options(const std::filesystem::path &path);
@@ -37,6 +39,9 @@ class Service final : public http::HttpHandler {
 		std::string body;
 	};
 	struct Admission;
+	struct Runtime;
+	struct Accounting;
+	struct ReplyAdmission;
 	struct Task {
 		enum class Kind { Command, Read, Result } kind;
 		std::shared_ptr<Admission> admission;
@@ -44,22 +49,20 @@ class Service final : public http::HttpHandler {
 		std::string name_space;
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
-		std::promise<Reply> promise;
+		std::function<void(Reply)> complete;
 		std::chrono::steady_clock::time_point deadline;
 	};
 	ServiceOptions options_;
+	std::shared_ptr<Accounting> accounting_;
 	std::mutex mutex_;
-	std::condition_variable condition_;
 	std::deque<std::shared_ptr<Task>> queue_;
 	std::set<std::string> busy_producers_;
-	std::map<std::string, std::size_t> producer_admission_;
-	std::size_t admitted_ = 0, admitted_bytes_ = 0;
 	bool stopping_ = false;
 	std::string health_ = "{}";
 	std::thread thread_;
 	std::shared_ptr<Admission> admit(const http::Request &request);
 	void run(std::promise<void> ready);
-	Reply execute(const http::Request &request, std::shared_ptr<Admission> admission);
-	void release(const Admission &admission);
+	std::optional<Reply> execute(const http::Request &request, std::shared_ptr<Admission> admission,
+								 std::function<void(Reply)> complete);
 };
 } // namespace detent::authority

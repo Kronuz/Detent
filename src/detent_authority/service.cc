@@ -2,7 +2,12 @@
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/validation.hh"
+#include <asio.hpp>
 #include <fcntl.h>
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <journal/asio_completion.h>
+#include <journal/bsd_completion.h>
+#endif
 #include <fstream>
 #include <journal/posix.h>
 #include <random>
@@ -120,6 +125,58 @@ int result_status(Result r) {
 		return 409;
 	}
 }
+// One owner-local JSON buffer. Check the actual encoded bound before every byte;
+// only one definition DOM is live at a time, and no historical State is retained.
+class BoundedReplyBuffer {
+  public:
+	using Ch = char;
+	explicit BoundedReplyBuffer(std::size_t limit) : limit_(limit) {}
+	void Put(char value) {
+		if (bytes.size() == limit_) {
+			throw std::length_error("authority reply bound");
+		}
+		bytes += value;
+	}
+	void Flush() {}
+	std::string bytes;
+
+  private:
+	std::size_t limit_;
+};
+std::string read_reply(const State &state, std::string_view name_space, const std::vector<std::string> &keys,
+					   std::size_t limit) {
+	BoundedReplyBuffer buffer(limit);
+	rapidjson::Writer<BoundedReplyBuffer> writer(buffer);
+	writer.StartObject();
+	writer.Key("namespace_revision");
+	writer.Uint64(state.namespace_revision(name_space));
+	writer.Key("key_revisions");
+	writer.StartObject();
+	for (const auto &key : keys) {
+		if (auto record = state.find(key)) {
+			writer.Key(key.data(), static_cast<rapidjson::SizeType>(key.size()));
+			writer.Uint64(record->revision);
+		}
+	}
+	writer.EndObject();
+	writer.Key("schema_version");
+	writer.Uint(1);
+	writer.Key("version");
+	writer.Uint64(state.revision());
+	writer.Key("knobs");
+	writer.StartObject();
+	for (const auto &key : keys) {
+		if (auto record = state.find(key)) {
+			writer.Key(key.data(), static_cast<rapidjson::SizeType>(key.size()));
+			rapidjson::Document scratch;
+			auto value = detent::internal::write_knob_def(*record->value, scratch.GetAllocator());
+			value.Accept(writer);
+		}
+	}
+	writer.EndObject();
+	writer.EndObject();
+	return std::move(buffer.bytes);
+}
 class Sink final : public http::BodySink {
 	std::string &body_;
 	std::size_t cap_;
@@ -191,22 +248,48 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	return o;
 }
+struct Service::Accounting {
+	std::mutex mutex;
+	std::vector<Credential> credentials;
+	std::map<std::string, std::size_t> producers;
+	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
+};
 struct Service::Admission {
-	Service *service;
+	std::shared_ptr<Accounting> accounting;
 	const Credential *credential;
 	std::size_t bytes;
 	bool active = false;
 	~Admission() {
+		if (!active) {
+			return;
+		}
+		std::lock_guard lock(accounting->mutex);
+		--accounting->requests;
+		accounting->body_bytes -= bytes;
+		auto found = accounting->producers.find(credential->producer);
+		if (found != accounting->producers.end() && --found->second == 0) {
+			accounting->producers.erase(found);
+		}
+	}
+};
+struct Service::ReplyAdmission {
+	std::shared_ptr<Accounting> accounting;
+	std::size_t bytes = 0;
+	bool active = false;
+	~ReplyAdmission() {
 		if (active) {
-			service->release(*this);
+			std::lock_guard lock(accounting->mutex);
+			accounting->reply_bytes -= bytes;
 		}
 	}
 };
 Service::Service(ServiceOptions options) : options_(std::move(options)) {
 	check(options_.requests && options_.requests <= 65536 &&
 			  options_.queued_bytes >= options_.node.application.request_bytes &&
-			  options_.timeout.count() > 0 && !options_.credentials.empty(),
+			  options_.timeout.count() > 0 && options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
+	accounting_ = std::make_shared<Accounting>();
+	accounting_->credentials = std::move(options_.credentials);
 	std::promise<void> ready;
 	auto future = ready.get_future();
 	thread_ = std::thread([this, ready = std::move(ready)]() mutable { run(std::move(ready)); });
@@ -222,18 +305,8 @@ Service::~Service() {
 		std::lock_guard lock(mutex_);
 		stopping_ = true;
 	}
-	condition_.notify_all();
 	if (thread_.joinable()) {
 		thread_.join();
-	}
-}
-void Service::release(const Admission &admission) {
-	std::lock_guard lock(mutex_);
-	--admitted_;
-	admitted_bytes_ -= admission.bytes;
-	auto found = producer_admission_.find(admission.credential->producer);
-	if (found != producer_admission_.end() && --found->second == 0) {
-		producer_admission_.erase(found);
 	}
 }
 std::shared_ptr<Service::Admission> Service::admit(const http::Request &request) {
@@ -245,7 +318,7 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	Digest want{};
 	supplied.getHash(want.data());
 	const Credential *found = nullptr;
-	for (const auto &c : options_.credentials) {
+	for (const auto &c : accounting_->credentials) {
 		SHA256 stored;
 		stored.add(c.token.data(), c.token.size());
 		Digest have{};
@@ -260,16 +333,17 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	}
 	check(found != nullptr, "unauthorized authority request");
 	auto bytes = options_.node.application.request_bytes;
-	auto admission = std::make_shared<Admission>(Admission{this, found, bytes});
+	auto admission = std::make_shared<Admission>(Admission{accounting_, found, bytes});
 	std::lock_guard lock(mutex_);
-	auto per_producer = producer_admission_.find(found->producer);
-	check(!stopping_ && admitted_ < options_.requests &&
-			  (per_producer == producer_admission_.end() || per_producer->second < 16) &&
-			  bytes <= options_.queued_bytes - admitted_bytes_,
+	std::lock_guard account_lock(accounting_->mutex);
+	auto per_producer = accounting_->producers.find(found->producer);
+	check(!stopping_ && accounting_->requests < options_.requests &&
+			  (per_producer == accounting_->producers.end() || per_producer->second < 16) &&
+			  bytes <= options_.queued_bytes - accounting_->body_bytes,
 		  "authority admission full");
-	++producer_admission_[found->producer];
-	++admitted_;
-	admitted_bytes_ += bytes;
+	++accounting_->producers[found->producer];
+	++accounting_->requests;
+	accounting_->body_bytes += bytes;
 	admission->active = true;
 	return admission;
 }
@@ -280,7 +354,9 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 	request.user_data = admit(request);
 	return std::make_unique<Sink>(request.body, options_.node.application.request_bytes);
 }
-Service::Reply Service::execute(const http::Request &request, std::shared_ptr<Admission> admission) {
+std::optional<Service::Reply> Service::execute(const http::Request &request,
+											   std::shared_ptr<Admission> admission,
+											   std::function<void(Reply)> complete) {
 	check(request.method == "POST", "authority endpoints require POST");
 	auto d = document(request.body, options_.node.application.request_bytes);
 	auto request_fields = [&](const Object &value, std::initializer_list<std::string_view> allowed) {
@@ -299,6 +375,7 @@ Service::Reply Service::execute(const http::Request &request, std::shared_ptr<Ad
 	};
 	auto task = std::make_shared<Task>();
 	task->admission = std::move(admission);
+	task->complete = std::move(complete);
 	task->command.context = options_.node.context;
 	task->command.producer = task->admission->credential->producer;
 	task->deadline = Clock::now() + options_.timeout;
@@ -360,19 +437,18 @@ Service::Reply Service::execute(const http::Request &request, std::shared_ptr<Ad
 		task->generation = number(field(d, "generation"));
 		task->sequence = number(field(d, "sequence"));
 	} else {
-		return {404, "{\"error\":\"unknown_endpoint\"}"};
+		return Reply{404, "{\"error\":\"unknown_endpoint\"}"};
 	}
 	if (task->kind == Task::Kind::Command) {
 		(void)encode(task->command, options_.node.application);
 	}
-	auto future = task->promise.get_future();
 	{
 		std::lock_guard lock(mutex_);
 		if (stopping_) {
-			return {503, "{\"error\":\"stopping\"}"};
+			return Reply{503, "{\"error\":\"stopping\"}"};
 		}
 		if (task->kind == Task::Kind::Command && !busy_producers_.insert(task->command.producer).second) {
-			return {429, "{\"error\":\"producer_busy\"}"};
+			return Reply{429, "{\"error\":\"producer_busy\"}"};
 		}
 		try {
 			queue_.push_back(task);
@@ -383,13 +459,21 @@ Service::Reply Service::execute(const http::Request &request, std::shared_ptr<Ad
 			throw;
 		}
 	}
-	condition_.notify_one();
-	if (future.wait_until(task->deadline) != std::future_status::ready) {
-		return {503, "{\"error\":\"outcome_unknown\"}"};
-	}
-	return future.get();
+	return std::nullopt;
 }
+
 void Service::handle(const http::Request &request, http::ResponseWriter &response) {
+	const auto context = options_.node.context;
+	auto envelope = [context](Reply reply) {
+		if (!reply.body.empty() && reply.body[0] == '{') {
+			reply.body = "{\"authority\":{\"cluster\":\"" + hex(context.cluster) + "\",\"group\":\"" +
+						 hex(context.group) + "\",\"epoch\":\"" + hex(context.epoch) + "\"}," +
+						 reply.body.substr(1);
+		}
+		return reply;
+	};
+	std::shared_ptr<http::DeferredReply> deferred;
+	std::function<void(Reply)> complete;
 	Reply reply;
 	try {
 		if (request.path == "/v1/health" && request.method == "GET") {
@@ -398,7 +482,64 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		} else {
 			auto admission =
 				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
-			reply = execute(request, std::move(admission));
+			http::DeferredOptions deferred_options;
+			deferred_options.deadline = Clock::now() + options_.timeout;
+			deferred_options.limits.body_bytes = options_.reply_bytes - 256;
+			deferred_options.request_retention = admission;
+			deferred = response.defer(std::move(deferred_options));
+			if (deferred) {
+				complete = [deferred, accounting = accounting_, limit = options_.reply_bytes,
+							envelope](Reply value) {
+					try {
+						value = envelope(std::move(value));
+						auto lease = std::make_shared<ReplyAdmission>();
+						lease->accounting = accounting;
+						// This endpoint emits only its fixed JSON content type and transport framing.
+						if (value.body.size() > limit - 256) {
+							deferred->abandon();
+							return;
+						}
+						lease->bytes = value.body.size() + 256;
+						{
+							std::lock_guard lock(accounting->mutex);
+							if (lease->bytes > limit - accounting->reply_bytes) {
+								deferred->abandon();
+								return;
+							}
+							accounting->reply_bytes += lease->bytes;
+							lease->active = true;
+						}
+						http::Response owned;
+						owned.status = value.status;
+						owned.body = std::move(value.body);
+						owned.content_type = "application/json";
+						if (deferred->complete(std::move(owned), lease) != http::ReplySubmit::Accepted) {
+							deferred->abandon();
+						}
+					} catch (...) {
+						deferred->abandon();
+					}
+				};
+				auto immediate = execute(request, std::move(admission), complete);
+				if (immediate) {
+					complete(std::move(*immediate));
+				}
+				return;
+			}
+			// Compatibility for synchronous recording/embedded writers. Production Asio
+			// transfers response authority and never blocks on a per-request future.
+			auto promise = std::make_shared<std::promise<Reply>>();
+			auto future = promise->get_future();
+			auto deadline = Clock::now() + options_.timeout;
+			auto immediate = execute(request, std::move(admission),
+									 [promise](Reply value) { promise->set_value(std::move(value)); });
+			if (immediate) {
+				reply = std::move(*immediate);
+			} else if (future.wait_until(deadline) == std::future_status::ready) {
+				reply = future.get();
+			} else {
+				reply = {503, "{\"error\":\"outcome_unknown\"}"};
+			}
 		}
 	} catch (const std::invalid_argument &error) {
 		rapidjson::StringBuffer buffer;
@@ -409,25 +550,103 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 	} catch (const std::exception &) {
 		reply = {503, "{\"error\":\"outcome_unknown\"}"};
 	}
-	if (!reply.body.empty() && reply.body[0] == '{') {
-		reply.body = "{\"authority\":{\"cluster\":\"" + hex(options_.node.context.cluster) +
-					 "\",\"group\":\"" + hex(options_.node.context.group) + "\",\"epoch\":\"" +
-					 hex(options_.node.context.epoch) + "\"}," + reply.body.substr(1);
+	if (deferred) {
+		if (complete) {
+			complete(std::move(reply));
+		} else {
+			deferred->abandon();
+		}
+		return;
 	}
+	reply = envelope(std::move(reply));
 	response.status(reply.status);
 	response.set_header("Content-Type", "application/json");
 	response.write(reply.body);
 	response.end();
 }
+
+struct Service::Runtime {
+	asio::io_context io{1};
+	bool active = false;
+	std::exception_ptr failure;
+#if defined(__APPLE__) || defined(__FreeBSD__)
+	std::shared_ptr<kronuz::journal::BsdCompletionQueue> queue =
+		std::make_shared<kronuz::journal::BsdCompletionQueue>();
+	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::BsdCompletionQueue>> driver =
+		std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::BsdCompletionQueue>>(
+			io.get_executor(), queue);
+#endif
+	void dispatch(const std::shared_ptr<Node> &owner) {
+		auto &node = *owner;
+#if defined(__APPLE__) || defined(__FreeBSD__)
+		if (auto operation = node.worker().take_io_operation()) {
+			if (active) {
+				throw std::logic_error("authority dispatched overlapping storage jobs");
+			}
+			active = true;
+			try {
+				asio::co_spawn(io, driver->run(operation),
+							   [this, owner, operation](std::exception_ptr error) {
+								   if (error) {
+									   failure = error;
+									   owner->worker().storage_operation_failed(
+										   operation, "authority completion driver failed");
+								   }
+								   active = false;
+							   });
+			} catch (...) {
+				active = false;
+				node.worker().storage_operation_failed(operation, "authority completion dispatch failed");
+				throw;
+			}
+		}
+#else
+		(void)node;
+#endif
+	}
+	asio::awaitable<void> run(Service &service, std::promise<void> ready);
+};
 void Service::run(std::promise<void> ready) {
+	try {
+		Runtime runtime;
+		asio::co_spawn(runtime.io, runtime.run(*this, std::move(ready)), [this](std::exception_ptr error) {
+			if (error) {
+				std::lock_guard lock(mutex_);
+				stopping_ = true;
+				health_ = "{\"mode\":\"durable_single_voter\",\"fenced\":true}";
+			}
+		});
+		runtime.io.run();
+	} catch (...) {
+		// A backend/runtime failure before admission must settle the constructor.
+		try {
+			ready.set_exception(std::current_exception());
+		} catch (const std::future_error &) {
+		}
+	}
+}
+asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void> ready) {
+	auto &options_ = service.options_;
+	auto &mutex_ = service.mutex_;
+	auto &stopping_ = service.stopping_;
+	auto &queue_ = service.queue_;
+	auto &busy_producers_ = service.busy_producers_;
+	auto &health_ = service.health_;
+	auto accounting_ = service.accounting_;
+	asio::steady_timer timer(io);
+	std::shared_ptr<Node> owned_node;
+
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
 	std::uint64_t next = 0;
 	bool started = false;
 	auto complete = [&](const std::shared_ptr<Task> &task, Reply reply) {
-		task->promise.set_value(std::move(reply));
+		auto callback = std::move(task->complete);
 		if (task->kind == Task::Kind::Command) {
 			std::lock_guard lock(mutex_);
 			busy_producers_.erase(task->command.producer);
+		}
+		if (callback) {
+			callback(std::move(reply));
 		}
 	};
 	try {
@@ -449,7 +668,16 @@ void Service::run(std::promise<void> ready) {
 				throw std::runtime_error("authority directory durability");
 			}
 		}
-		Node node(std::make_unique<kronuz::journal::PosixIO>(options_.directory), options_.node);
+		auto node_options = options_.node;
+#if defined(__APPLE__) || defined(__FreeBSD__)
+		node_options.scheduling.async_storage = true;
+#else
+		check(!node_options.scheduling.async_storage && !node_options.scheduling.async_appends,
+			  "native completion storage is unavailable on this platform");
+#endif
+		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
+											node_options);
+		auto &node = *owned_node;
 		if (std::filesystem::exists(options_.directory / "manifest")) {
 			node.recover();
 		} else {
@@ -466,10 +694,13 @@ void Service::run(std::promise<void> ready) {
 		auto origin = Clock::now();
 		while (!node.worker().ready()) {
 			node.service({0, 100});
+			dispatch(owned_node);
 			node.take_network_actions();
 			if (node.worker().fenced()) {
 				throw std::runtime_error("authority storage initialization fenced");
 			}
+			timer.expires_after(std::chrono::milliseconds(1));
+			co_await timer.async_wait(asio::use_awaitable);
 		}
 		node.start();
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
@@ -486,6 +717,10 @@ void Service::run(std::promise<void> ready) {
 			auto tick = static_cast<std::uint64_t>(
 				std::chrono::duration_cast<std::chrono::milliseconds>(now - origin).count());
 			node.service({tick, 100});
+			dispatch(owned_node);
+			if (failure) {
+				std::rethrow_exception(failure);
+			}
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<cluster::consensus::Send>(action)) {
 					throw std::logic_error("single-voter authority cannot send");
@@ -509,31 +744,12 @@ void Service::run(std::promise<void> ready) {
 													 task->sequence);
 						reply = {result_status(r), result_json(r)};
 					} else {
-						Snapshot snapshot;
-						snapshot.version = node.state().revision();
-						snapshot.source_id = "authority:" + hex(options_.node.context.epoch);
-						for (const auto &key : task->keys) {
-							if (auto record = node.state().find(key)) {
-								snapshot.knobs.emplace(key, *record->value);
-							}
+						try {
+							reply = {200, read_reply(node.state(), task->name_space, task->keys,
+													 options_.reply_bytes - 512)};
+						} catch (const std::length_error &) {
+							reply = {413, "{\"error\":\"reply_bound\"}"};
 						}
-						auto body = serialize_snapshot(snapshot);
-						std::string revisions = "{";
-						bool first = true;
-						for (const auto &key : task->keys) {
-							if (auto record = node.state().find(key)) {
-								if (!first) {
-									revisions += ",";
-								}
-								first = false;
-								revisions += "\"" + key + "\":" + std::to_string(record->revision);
-							}
-						}
-						revisions += "}";
-						body = "{\"namespace_revision\":" +
-							   std::to_string(node.state().namespace_revision(task->name_space)) +
-							   ",\"key_revisions\":" + revisions + "," + body.substr(1);
-						reply = {200, std::move(body)};
 					}
 					complete(task, std::move(reply));
 				}
@@ -613,19 +829,31 @@ void Service::run(std::promise<void> ready) {
 			}
 			{
 				std::lock_guard lock(mutex_);
+				std::lock_guard account_lock(accounting_->mutex);
+#if defined(__APPLE__) || defined(__FreeBSD__)
+				auto io_stats = queue->stats();
+				const std::string storage_health =
+					",\"storage_async\":true,\"io_native_submitted\":" +
+					std::to_string(io_stats.native_submitted) +
+					",\"io_fallback_submitted\":" + std::to_string(io_stats.fallback_submitted);
+#else
+				const std::string storage_health = ",\"storage_async\":false";
+#endif
 				health_ = "{\"mode\":\"durable_single_voter\",\"ready\":" +
 						  std::string(node.worker().ready() ? "true" : "false") +
 						  ",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 						  ",\"committed\":" + std::to_string(node.worker().committed()) +
 						  ",\"applied\":" + std::to_string(node.worker().applied_index()) +
 						  ",\"revision\":" + std::to_string(node.state().revision()) +
-						  ",\"requests\":" + std::to_string(admitted_) +
-						  ",\"reserved_body_bytes\":" + std::to_string(admitted_bytes_) +
+						  ",\"requests\":" + std::to_string(accounting_->requests) +
+						  ",\"reserved_body_bytes\":" + std::to_string(accounting_->body_bytes) +
+						  ",\"reserved_reply_bytes\":" + std::to_string(accounting_->reply_bytes) +
+						  storage_health +
 						  ",\"checkpoint_busy\":" + (node.checkpoint_busy() ? "true" : "false") +
 						  ",\"fenced\":" + (node.worker().fenced() ? "true" : "false") + "}";
 			}
-			std::unique_lock lock(mutex_);
-			condition_.wait_for(lock, std::chrono::milliseconds(1), [&] { return stopping_; });
+			timer.expires_after(std::chrono::milliseconds(1));
+			co_await timer.async_wait(asio::use_awaitable);
 		}
 	} catch (...) {
 		if (!started) {
@@ -636,6 +864,11 @@ void Service::run(std::promise<void> ready) {
 			health_ = "{\"mode\":\"durable_single_voter\",\"fenced\":true}";
 		}
 	}
+	while (active) {
+		timer.expires_after(std::chrono::milliseconds(1));
+		co_await timer.async_wait(asio::use_awaitable);
+	}
+
 	for (auto &[id, tasks] : pending) {
 		(void)id;
 		for (auto &task : tasks) {
