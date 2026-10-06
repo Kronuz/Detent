@@ -72,3 +72,11 @@ The existing append operation checked in-flight/terminal state before submission
 ### Reclamation before completed inventory
 
 The artifact overlap guard introduced in cluster `86de3d8` called `mutation_ready()` from `Store::reclaim_step()`, inadvertently requiring completed inventory/admission for the existing pre-census cleanup path. Cluster `5981f04` checks the overlap gate independently, restoring orphan removal and invalidation of a partial census. A common-API POSIX reproduction removes one orphan with `8372e29`, fails with the affected code, and removes it after correction. Two new regressions fail before the correction; all 162,422 journal checks pass afterward natively (1.72 seconds) and under ASan/UBSan (2.48 seconds). The fresh census accounts exactly for surviving files. This is an introduced regression, not a pre-existing storage defect.
+
+### TCP startup readiness
+
+A real HTTPS rerun exposed that TCP `start()` returned before bind/listen completed. Reactor `6f68823` waits for every selected listener and propagates startup exceptions after original accepts and sessions retire. Immediate connections pass in both bind modes, and an occupied identical endpoint now fails startup explicitly. Native and ASan/UBSan runtime suites pass; the real HTTPS fixture passes twenty consecutive repetitions. Constructor and Session APIs are preserved. Callers that previously expected asynchronous bind failure must handle startup exceptions.
+
+### Linux transport and fixture portability
+
+Linux GCC exposed an undeclared algorithm-header dependency in peer hello decoding. Detent `add5f65` includes the declarations used by `std::copy_n`; the affected targets compile and link. The TLS peer fixture inherited group-writable directories under the guest's umask, which PosixIO correctly rejected. Detent `34395fa` creates explicitly private stores without relaxing storage ownership checks. The daemon smoke fixture also required undeclared ripgrep; `4a0f3d8` uses portable extended grep. Both formerly failing fixtures and certificate setup pass on Linux in 5.02 seconds. These were portability gaps in the new transport and its fixtures, not io_uring storage failures.
