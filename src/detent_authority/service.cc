@@ -927,7 +927,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				if (!queue_.empty() &&
 					(queue_.front()->kind != Task::Kind::Command || queue_.size() >= 64 ||
 					 now >= queue_.front()->deadline - options_.timeout + std::chrono::milliseconds(5))) {
-					std::size_t bytes = 16;
+					std::size_t bytes = batch_framing_bytes(options_.node.application);
 					while (!queue_.empty() && selected.size() < 64) {
 						auto task = queue_.front();
 						if (now >= task->deadline) {

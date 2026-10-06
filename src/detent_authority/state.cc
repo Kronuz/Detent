@@ -555,6 +555,7 @@ std::string encode_batch(const std::vector<Command> &commands, Limits l, std::si
 	}
 	return std::move(w.bytes);
 }
+std::size_t batch_framing_bytes(Limits limits) { return 8 + semantic_profile(limits).size() + 8; }
 BatchDecoder::BatchDecoder(std::string_view bytes, Limits limits, std::size_t cap) : limits_(limits) {
 	require(bytes.size() <= cap, "transaction group bytes bound");
 	Reader reader{bytes};

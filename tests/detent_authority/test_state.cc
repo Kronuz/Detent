@@ -191,6 +191,11 @@ void incremental_batches() {
 	auto results = expected.apply_batch(1, commands, 2);
 	assert(results[3].status == Status::Conflict && results[5].status == Status::Capacity);
 	auto bytes = encode_batch(commands, limits);
+	std::size_t exact_size = batch_framing_bytes(limits);
+	for (const auto &command : commands) exact_size += 8 + encode(command, limits).size();
+	assert(bytes.size() == exact_size && batch_framing_bytes(limits) == 96);
+	assert(encode_batch(commands, limits, exact_size) == bytes);
+	assert(throws([&] { encode_batch(commands, limits, exact_size - 1); }));
 	BatchDecoder decoder(bytes, limits);
 	BatchApplication candidate(original, 1, 2, decoder.count());
 	while (!decoder.done()) {
