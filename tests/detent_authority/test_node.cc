@@ -83,7 +83,7 @@ void submit(Node &node, std::uint64_t request, const Command &c) {
 	assert(false);
 }
 void retained_application_range(const std::filesystem::path &directory, bool invalid_middle,
-								bool grouped = false) {
+								bool grouped = false, bool backlog = false) {
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() { std::filesystem::remove_all(directory); }
@@ -91,6 +91,10 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	std::filesystem::create_directories(directory);
 	assert(::chmod(directory.c_str(), 0700) == 0);
 	auto profile = options();
+	if (backlog) {
+		profile.consensus.log_entries = 64;
+		profile.consensus.rpc_entries = 4;
+	}
 	const std::uint64_t through = invalid_middle ? 5 : (grouped ? 3 : 32);
 	{
 		kronuz::journal::PosixIO io(directory);
@@ -115,8 +119,19 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 			}
 			entries.push_back({index, 1, EntryKind::Command, std::move(bytes)});
 		}
-		journal.append_batch(
-			encode_storage_batch({HardState{1, 1, through}, LogMutation{1, std::move(entries)}}));
+		if (backlog) {
+			journal.append_batch(encode_storage_batch({HardState{1, 1, 0}, {}}));
+			for (std::size_t offset = 0; offset < entries.size(); offset += profile.consensus.rpc_entries) {
+				auto end = std::min(entries.size(), offset + profile.consensus.rpc_entries);
+				std::vector<Entry> chunk(entries.begin() + offset, entries.begin() + end);
+				journal.append_batch(
+					encode_storage_batch({{}, LogMutation{chunk.front().index, std::move(chunk)}}));
+			}
+			journal.append_batch(encode_storage_batch({HardState{1, 1, through}, {}}));
+		} else {
+			journal.append_batch(
+				encode_storage_batch({HardState{1, 1, through}, LogMutation{1, std::move(entries)}}));
+		}
 	}
 	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
 	node.recover();
@@ -129,22 +144,26 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	node.start();
 	assert(node.state().applied_index() == 0);
 	unsigned unpublished_turns = 0;
+	bool early_capture = false;
 	for (unsigned turn = 0; turn < 128 && !node.worker().fenced(); ++turn) {
 		auto before = node.state().applied_index();
 		// read() calls drain(), but cannot advance the application slot.
 		(void)node.read(1000 + turn);
 		assert(node.state().applied_index() == before);
-		node.service({invalid_middle ? 0u : 1000u, 100});
+		node.service({invalid_middle || backlog ? 0u : 1000u, 100});
 		if (auto job = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
 		assert(node.state().applied_index() <= before + 1);
+		early_capture |= node.checkpoint_busy() && node.state().applied_index() < through;
 		if (grouped && before == 2 && node.state().applied_index() == 2) {
 			++unpublished_turns;
 			assert(node.state().revision() == 0 && !node.state().find("ns:key"));
 			assert(node.state().lookup("p", 1, 1).status == Status::SequenceGap);
 		}
 
-		// Deliberately retain network/role output throughout the old range.
+		// Retain host output for ownership tests; backlog must permit new ranges.
+		if (backlog)
+			node.take_network_actions();
 		if (node.state().applied_index() >= through)
 			break;
 	}
@@ -157,7 +176,14 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		if (grouped)
 			assert(unpublished_turns >= 3);
 		node.take_network_actions();
-		pump(node, 20);
+		if (backlog) {
+			assert(early_capture);
+			assert(node.checkpoint_policy().captured_boundary > 0 &&
+				   node.checkpoint_policy().captured_boundary < through);
+			pump(node, 300);
+			assert(node.worker().base_index() > 0 && node.checkpoint_policy().published_boundary > 0);
+		} else
+			pump(node, 20);
 		assert(node.worker().applied_index() >= through);
 	}
 }
@@ -170,6 +196,7 @@ int main(int argc, char **argv) {
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);
 	retained_application_range(path / "grouped-application", false, true);
+	retained_application_range(path / "backlogged-application", false, false, true);
 	std::uint64_t revision, checkpoint_index;
 	{
 		Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());

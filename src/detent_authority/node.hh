@@ -3,6 +3,7 @@
 #include <consensus/snapshot_channel.h>
 #include <consensus/worker.h>
 #include <map>
+#include <metrics.h>
 
 namespace detent::authority {
 struct NodeOptions {
@@ -42,6 +43,12 @@ class Node {
 	cluster::consensus::SnapshotChannel &channel() noexcept { return channel_; }
 	bool checkpoint();
 	bool checkpoint_busy() const noexcept { return capture_.has_value(); }
+	struct CheckpointPolicy {
+		bool due = false;
+		std::uint64_t due_since = 0, captured_boundary = 0, published_boundary = 0;
+		kronuz::metrics::Counter attempts, reservation_unavailable;
+	};
+	const CheckpointPolicy &checkpoint_policy() const noexcept { return checkpoint_policy_; }
 
   private:
 	struct Pending {
@@ -84,6 +91,10 @@ class Node {
 	std::optional<Candidate> candidate_;
 	std::optional<State> retired_;
 	std::uint64_t checkpoint_request_ = std::uint64_t{1} << 63;
+	CheckpointPolicy checkpoint_policy_;
+	std::optional<std::uint64_t> checkpoint_attempt_;
+	void refresh_checkpoint_due(cluster::consensus::Tick tick);
+	void service_checkpoint_due(cluster::consensus::Tick tick);
 	void drain();
 	void advance_application();
 	void discard_candidate();

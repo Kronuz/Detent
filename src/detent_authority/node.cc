@@ -275,6 +275,36 @@ void Node::discard_candidate() {
 		retired_.emplace(candidate_->decoder.discard());
 	candidate_.reset();
 }
+
+void Node::refresh_checkpoint_due(Tick tick) {
+	const auto base = worker_.base_index();
+	if (base > checkpoint_policy_.published_boundary) {
+		checkpoint_policy_.published_boundary = base;
+		checkpoint_policy_.due = false;
+		checkpoint_policy_.due_since = 0;
+		checkpoint_attempt_.reset();
+	}
+	const bool threshold =
+		worker_.committed() - base >= std::max<std::size_t>(1, options_.consensus.log_entries / 2) ||
+		worker_.retained_log_bytes() >= std::max<std::size_t>(1, options_.consensus.log_bytes / 2);
+	if (!checkpoint_policy_.due && threshold && state_.applied_index() > base) {
+		checkpoint_policy_.due = true;
+		checkpoint_policy_.due_since = tick.now;
+	}
+}
+void Node::service_checkpoint_due(Tick tick) {
+	if (!checkpoint_policy_.due || worker_.fenced() || capture_ || candidate_ || application_ ||
+		state_.applied_index() <= worker_.base_index() || worker_.applied_index() != state_.applied_index())
+		return;
+	if (checkpoint_attempt_ && (tick.now < *checkpoint_attempt_ || tick.now - *checkpoint_attempt_ < 100))
+		return;
+	checkpoint_attempt_ = tick.now;
+	checkpoint_policy_.attempts.add();
+	if (checkpoint())
+		checkpoint_policy_.captured_boundary = state_.applied_index();
+	else
+		checkpoint_policy_.reservation_unavailable.add();
+}
 void Node::service(Tick tick) {
 	state_.collect(128);
 	if (retired_) {
@@ -283,7 +313,12 @@ void Node::service(Tick tick) {
 			retired_.reset();
 		}
 	}
+	refresh_checkpoint_due(tick);
 	worker_.run_one(tick);
+	refresh_checkpoint_due(tick);
+	// Applied may deliver the next range. Capture the acknowledged root before
+	// drain() occupies its application slot with that new range.
+	service_checkpoint_due(tick);
 	drain();
 	advance_application();
 	channel_.run_one(tick);
@@ -371,10 +406,9 @@ void Node::service(Tick tick) {
 	if (worker_.fenced()) {
 		capture_.reset();
 		discard_candidate();
-	} else if (!capture_ && !candidate_ &&
-			   (worker_.committed() - worker_.base_index() >= options_.consensus.log_entries / 2 ||
-				worker_.retained_log_bytes() >= options_.consensus.log_bytes / 2)) {
-		checkpoint();
+	} else {
+		refresh_checkpoint_due(tick);
+		service_checkpoint_due(tick);
 	}
 }
 } // namespace detent::authority
