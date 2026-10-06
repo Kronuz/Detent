@@ -84,6 +84,8 @@ def main() -> None:
                 {"token": TOKEN, "producer": "writer", "namespaces": ["ns"]}
             ],
         }
+        if sys.platform.startswith("linux"):
+            configuration["storage_backend"] = "native"
         path = directory / f"node-{index}.json"
         path.write_text(json.dumps(configuration))
         path.chmod(0o600)
@@ -121,6 +123,9 @@ def main() -> None:
                     continue
                 try:
                     status, body = request(ports[index + 3], context, "/v1/health")
+                    if sys.platform.startswith("linux"):
+                        assert body.get("io_native_available") is True, body
+                        assert body.get("storage_async") is True, body
                     observed[index] = body
                     if (
                         status == 200

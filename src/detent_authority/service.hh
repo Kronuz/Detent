@@ -26,6 +26,8 @@ struct ServiceOptions {
 	std::optional<transport::TlsOptions> publisher_tls;
 	asio::ip::address publisher_bind = asio::ip::make_address(detent_http::kLoopbackHost);
 	std::string publisher_name = "localhost";
+	// Linux queue setup policy; namespace/open composites may still use bounded fallback.
+	std::string storage_backend = "auto";
 	std::size_t requests = 1024, queued_bytes = 16 * 1024 * 1024;
 	std::size_t reply_bytes = 16 * 1024 * 1024;
 	std::chrono::milliseconds timeout{5000};

@@ -26,13 +26,12 @@ Final-header qualification passes all three cluster CTests in native and Address
 
 Xapiand qualification uses sibling source overrides and a fresh `.scratch/build`. Its default build encountered a Lua 5.5/sol2 compatibility error. The supported `-DLUA=OFF` profile then exposed an existing declaration/definition mismatch in its scripting-unavailable stub. The isolated declaration fix is committed as Xapiand `877f46ab2`, and that profile builds the complete binary. Both two-node and three-node discovery, replication/remote, and distributed-search harnesses pass with the final corrected headers. Lua-disabled qualification does not establish default-build compatibility; these same-version local harnesses do not qualify mixed-version voting or multi-host behavior.
 
-## Remaining stages
+## Remaining acceptance and delivery
 
-1. Durable journal/checkpoint interfaces and deterministic strict consensus core.
-2. Bounded transactions, incremental state application, CAS, and producer sessions.
-3. Portable snapshot/delta schema and immutable dynamic local views.
-4. Resumable streams, namespace subscriptions, regional relays, and incremental publication.
-5. Representative overload, recovery, multi-host, and platform qualification.
+1. Finish the authenticated authority prerequisite: native platform storage, incremental consensus CPU work, latency/admission observability, and representative failure/overload coverage.
+2. Finish the original Stage 4 deliverable: portable snapshot/delta schemas and immutable dynamic local views.
+3. Deliver resumable streams, namespace subscriptions, regional relays, and incremental publication.
+4. Qualify sustained ingestion, fleet recovery, multi-host failure domains, and supported platforms.
 
 Each stage requires the blueprint's correctness, compatibility, resource-bound, and measurement gates. Production guarantees remain unqualified until their corresponding gates pass.
 
@@ -170,7 +169,7 @@ The review reproduced and corrected nonempty receiver activation, overwritten ol
 
 ## Stage 4: authenticated authority and completion-based IO
 
-The [Validated Architectural Blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md) has Architect GO for autonomous implementation as one complete service component, followed by one consolidated review. It requires native completion backends where supported, shared resumable durability sequencing, owned asynchronous HTTP responses and real authenticated three-process replication. The macOS single-voter service now drives runtime storage through owned completion operations on its Asio owner loop. Startup recovery remains synchronous before admission, and authenticated multi-node transport and complete-stage acceptance remain unfinished.
+The [Validated Architectural Blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md) has Architect GO for autonomous implementation as one complete service component, followed by one consolidated review. It requires native completion backends where supported, shared resumable durability sequencing, owned asynchronous HTTP responses and real authenticated three-process replication. The authenticated fixed-voter service now drives runtime storage through owned completion operations on its Asio owner loop on macOS and Linux. Initial three-process failover/restart and exact retry gates pass. Startup recovery remains synchronous before admission. FreeBSD native qualification, incremental consensus CPU work, latency/admission observability and representative failure/load acceptance remain open; those gates still prevent Stage 4 completion.
 
 
 Cluster `325637b` replaces synchronous append and manifest publication call stacks with shared explicit operation states. Suspended and synchronous drivers recover identical histories under the same injected faults, including short writes and both namespace outcomes. Owned backend/file/lock retention and stale-completion rejection are qualified. Native cluster suites pass eight tests, Detent passes 30, and journal/consensus/Worker sanitizer suites pass. Platform backend submission, asynchronous Store/Worker accounting and real authenticated sockets remain in progress; the production owner still performs synchronous IO.
@@ -214,3 +213,5 @@ The runtime audit identifies a pending shared accept retaining a socket backed b
 The local authority service now runs its Node on a single Asio owner loop and activates full completion storage on macOS. Dispatch retains the Node, job and backend through original reaping, including shutdown and failure. HTTP handlers enqueue and return with an owned reply; waiting for Raft does not occupy an HTTP worker. Shared admission/credential accounting survives Service retirement, and separate reply reservations remain charged through original write settlement. Reads encode bounded JSON with one definition DOM at a time. Health distinguishes native and fallback submissions. Recording/embedded writers retain a bounded synchronous compatibility path, and startup recovery remains synchronous before admission.
 
 All 32 native Detent suites pass (43.26 seconds); authority service and actual daemon ACK/kill/recovery/retry/read tests pass under ASan/UBSan (4.01 seconds). Tests also retain an accepted reply across Service destruction and verify actual encoded reply limits. Build configuration uses the local sibling HTTP/reactor/cluster revisions; none are published. Peer TLS, multi-voter service configuration, incremental consensus CPU work, other-platform native qualification and complete-stage scale acceptance remain unfinished.
+
+The Linux authority now integrates the owned io_uring completion queue with explicit setup policy and native/fallback health counters. [Linux completion storage](LINUX_COMPLETION.md) records its capability boundary and qualification in progress. Startup/recovery remain synchronous; complete-stage acceptance is still open.

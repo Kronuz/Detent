@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <future>
 #include <iostream>
+#include <journal/asio_completion.h>
+#include <journal/native_completion.h>
 #include <journal/posix.h>
 #include <openssl/pem.h>
 #include <sys/stat.h>
@@ -21,7 +23,8 @@ Fingerprint pin(const std::filesystem::path &path) {
 	return certificate_fingerprint(cert.get());
 }
 int main(int argc, char **argv) {
-	assert(argc == 2);
+	assert(argc == 2 || (argc == 3 && std::string_view(argv[2]) == "--completion-storage"));
+	const bool completion_storage = argc == 3;
 	std::filesystem::path certificates(argv[1]);
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("tls-peer-group-" + std::to_string(getpid()));
@@ -43,12 +46,19 @@ int main(int argc, char **argv) {
 	std::vector<std::shared_ptr<Peers>> peers;
 	std::vector<NodeOptions> configurations;
 	std::vector<PeerOptions> peer_options;
+	using Queue = kronuz::journal::NativeCompletionQueue;
+	using Driver = kronuz::journal::AsioCompletionDriver<Queue>;
+	std::vector<std::shared_ptr<Queue>> queues;
+	std::vector<std::shared_ptr<Driver>> drivers;
+	std::array<bool, 3> active{};
+	std::exception_ptr storage_error;
 	const std::vector<std::string> names{"one", "two", "three"};
 	std::map<NodeId, Fingerprint> pins;
 	for (unsigned i = 0; i != 3; ++i)
 		pins.emplace(i + 1, pin(certificates / (names[i] + ".pem")));
 	for (unsigned i = 0; i != 3; ++i) {
 		NodeOptions options;
+		options.scheduling.async_storage = completion_storage;
 		options.timing = {100, 500, 1000, 2000, 60000};
 		options.context.cluster[0] = 'c';
 		options.context.group[0] = 'g';
@@ -63,11 +73,22 @@ int main(int argc, char **argv) {
 		node->create(identity);
 		for (unsigned turn = 0; !node->worker().ready() && turn != 100; ++turn) {
 			node->service({0, 1100 + i * 300});
+			if (auto job = node->worker().take_io_operation())
+				kronuz::journal::drive_synchronously(*job);
 			node->take_network_actions();
 		}
 		assert(node->worker().ready());
 		node->service({0, 1100 + i * 300});
 		node->start();
+		if (completion_storage) {
+#ifdef __linux__
+			auto queue = std::make_shared<Queue>(kronuz::journal::LinuxCompletionPolicy::RequireNative);
+#else
+			auto queue = std::make_shared<Queue>();
+#endif
+			drivers.push_back(std::make_shared<Driver>(io.get_executor(), queue));
+			queues.push_back(std::move(queue));
+		}
 		configurations.push_back(options);
 		nodes.push_back(std::move(node));
 	}
@@ -100,6 +121,22 @@ int main(int argc, char **argv) {
 				assert(1100 + i * 300 <= configurations[i].timing.election_max);
 				peers[i]->admit();
 				nodes[i]->service({static_cast<std::uint64_t>(tick), 1100 + i * 300});
+				if (completion_storage) {
+					if (auto operation = nodes[i]->worker().take_io_operation()) {
+						assert(!active[i]);
+						active[i] = true;
+						asio::co_spawn(io, drivers[i]->run(operation),
+									   [&, i, owner = nodes[i], operation](std::exception_ptr error) {
+										   if (error) {
+											   storage_error = error;
+											   owner->worker().storage_operation_failed(
+												   operation, "native peer fixture IO failed");
+										   }
+										   active[i] = false;
+									   });
+					}
+				}
+				assert(!storage_error && !nodes[i]->worker().fenced());
 				for (auto &action : nodes[i]->take_network_actions())
 					if (auto send = std::get_if<Send>(&action))
 						peers[i]->send(std::move(*send));
@@ -190,11 +227,24 @@ int main(int argc, char **argv) {
 		for (auto &runtime : peers)
 			runtime->stop();
 		for (unsigned turn = 0; turn != 3000; ++turn) {
+			pump();
 			bool drained = true;
 			for (auto &runtime : peers)
 				drained = drained && runtime->drained();
-			if (drained)
+			for (unsigned i = 0; i != 3; ++i)
+				drained = drained && !active[i] && nodes[i]->channel().drained();
+			if (drained) {
+				if (completion_storage)
+					for (auto &queue : queues) {
+						assert(!queue->busy());
+						const auto stats = queue->stats();
+						assert(stats.native_completed > 0 &&
+							   stats.native_submitted == stats.native_completed);
+						std::cout << "native=" << stats.native_completed
+								  << " fallback=" << stats.fallback_completed << '\n';
+					}
 				co_return;
+			}
 			timer.expires_after(1ms);
 			co_await timer.async_wait(asio::use_awaitable);
 		}

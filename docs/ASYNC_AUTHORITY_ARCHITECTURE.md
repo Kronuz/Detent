@@ -99,10 +99,10 @@ Implement in dependency order and commit coherent changes autonomously. Return f
 | Bounded control codec, peer hello and owned TLS primitives | Implemented; isolated transport qualification in [AUTHORITY_TRANSPORT.md](AUTHORITY_TRANSPORT.md) |
 | Production peer lanes, publisher HTTPS and multi-voter configuration | Implemented; initial native and sanitizer process gates pass |
 | Authenticated three-process failure and scale acceptance | Leader kill/restart, lost-response retry and TLS snapshot catch-up pass; extended failure/load gates remain open |
-| Linux native backend and target FreeBSD qualification | Pending |
+| Linux native backend and target FreeBSD qualification | Linux queue and service integrated; native/sanitizer/load gates in progress, FreeBSD native gate pending |
 | Consolidated complete-stage Architect review | Follows those remaining gates |
 
-The evidence below records historical increments. Older references to synchronous production storage describe those revisions; the latest macOS single-voter service activates the full owned runtime profile. Stage 4 remains open because authenticated replicated availability and its acceptance gates are unfinished.
+The evidence below records historical increments. Older references to synchronous production storage describe those revisions; the latest fixed-voter service activates the full owned runtime profile on macOS and Linux. The authority component remains open because incremental consensus CPU work, platform qualification and representative failure/load acceptance are unfinished. The original [Stage 4 portable-schema/local-view deliverable](VALIDATED_ARCHITECTURE.md#implementation-stages-and-acceptance-gates) follows these authority prerequisites and is also unfinished.
 
 ## Implementation evidence
 
@@ -156,3 +156,5 @@ The runtime audit identifies a pending shared accept retaining a socket backed b
 The local authority service now runs its Node on a single Asio owner loop and activates full completion storage on macOS. Dispatch retains the Node, job and backend through original reaping, including shutdown and failure. HTTP handlers enqueue and return with an owned reply; waiting for Raft does not occupy an HTTP worker. Shared admission/credential accounting survives Service retirement, and separate reply reservations remain charged through original write settlement. Reads encode bounded JSON with one definition DOM at a time. Health distinguishes native and fallback submissions. Recording/embedded writers retain a bounded synchronous compatibility path, and startup recovery remains synchronous before admission.
 
 All 32 native Detent suites pass (43.26 seconds); authority service and actual daemon ACK/kill/recovery/retry/read tests pass under ASan/UBSan (4.01 seconds). Tests also retain an accepted reply across Service destruction and verify actual encoded reply limits. Build configuration uses the local sibling HTTP/reactor/cluster revisions; none are published. Peer TLS, multi-voter service configuration, incremental consensus CPU work, other-platform native qualification and complete-stage scale acceptance remain unfinished.
+
+The Linux authority now integrates the owned io_uring completion queue with explicit setup policy and native/fallback health counters. [Linux completion storage](LINUX_COMPLETION.md) records its capability boundary and qualification in progress. Startup/recovery remain synchronous; complete-stage acceptance is still open.

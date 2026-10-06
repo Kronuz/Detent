@@ -4,9 +4,9 @@
 #include "detent/validation.hh"
 #include <asio.hpp>
 #include <fcntl.h>
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 #include <journal/asio_completion.h>
-#include <journal/bsd_completion.h>
+#include <journal/native_completion.h>
 #endif
 #include <fstream>
 #include <journal/posix.h>
@@ -215,8 +215,15 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
-			   "publisher_tls", "publisher_bind", "publisher_name"});
+			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend"});
 	ServiceOptions o;
+	if (d.HasMember("storage_backend"))
+		o.storage_backend = text(field(d, "storage_backend"), 16);
+	check(o.storage_backend == "auto" || o.storage_backend == "native" || o.storage_backend == "fallback",
+		  "authority storage backend policy");
+#ifndef __linux__
+	check(o.storage_backend == "auto", "explicit storage backend policy currently requires Linux");
+#endif
 	o.node.context = {identity(text(field(d, "cluster"))), identity(text(field(d, "group"))),
 					  identity(text(field(d, "epoch")))};
 	o.node.configuration.cluster = o.node.context.cluster;
@@ -355,6 +362,12 @@ struct Service::ReplyAdmission {
 	}
 };
 Service::Service(ServiceOptions options) : options_(std::move(options)) {
+	check(options_.storage_backend == "auto" || options_.storage_backend == "native" ||
+			  options_.storage_backend == "fallback",
+		  "authority storage backend policy");
+#ifndef __linux__
+	check(options_.storage_backend == "auto", "explicit storage backend policy currently requires Linux");
+#endif
 	check(options_.requests && options_.requests <= 65536 &&
 			  options_.queued_bytes >= options_.node.application.request_bytes &&
 			  options_.timeout.count() > 0 && options_.reply_bytes >= 1024 && !options_.credentials.empty(),
@@ -640,16 +653,31 @@ struct Service::Runtime {
 	asio::io_context io{1};
 	bool active = false;
 	std::exception_ptr failure;
-#if defined(__APPLE__) || defined(__FreeBSD__)
-	std::shared_ptr<kronuz::journal::BsdCompletionQueue> queue =
-		std::make_shared<kronuz::journal::BsdCompletionQueue>();
-	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::BsdCompletionQueue>> driver =
-		std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::BsdCompletionQueue>>(
-			io.get_executor(), queue);
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
+	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue;
+	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>> driver;
+	explicit Runtime(const ServiceOptions &options) {
+#ifdef __linux__
+		using Policy = kronuz::journal::LinuxCompletionPolicy;
+		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>(
+			options.storage_backend == "native"		? Policy::RequireNative
+			: options.storage_backend == "fallback" ? Policy::Fallback
+													: Policy::Automatic);
+#else
+		(void)options;
+		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>();
+#endif
+		driver =
+			std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>>(
+				io.get_executor(), queue);
+	}
+
+#else
+	explicit Runtime(const ServiceOptions &) {}
 #endif
 	void dispatch(const std::shared_ptr<Node> &owner) {
 		auto &node = *owner;
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 		if (auto operation = node.worker().take_io_operation()) {
 			if (active) {
 				throw std::logic_error("authority dispatched overlapping storage jobs");
@@ -679,7 +707,7 @@ struct Service::Runtime {
 };
 void Service::run(std::promise<void> ready) {
 	try {
-		Runtime runtime;
+		Runtime runtime(options_);
 		asio::co_spawn(runtime.io, runtime.run(*this, std::move(ready)), [this](std::exception_ptr error) {
 			if (error) {
 				std::lock_guard lock(mutex_);
@@ -751,7 +779,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			}
 		}
 		auto node_options = options_.node;
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 		node_options.scheduling.async_storage = true;
 #else
 		check(!node_options.scheduling.async_storage && !node_options.scheduling.async_appends,
@@ -928,12 +956,38 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			{
 				std::lock_guard lock(mutex_);
 				std::lock_guard account_lock(accounting_->mutex);
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 				auto io_stats = queue->stats();
-				const std::string storage_health =
+				std::string storage_health =
 					",\"storage_async\":true,\"io_native_submitted\":" +
 					std::to_string(io_stats.native_submitted) +
 					",\"io_fallback_submitted\":" + std::to_string(io_stats.fallback_submitted);
+				storage_health +=
+					",\"io_native_completed\":" + std::to_string(io_stats.native_completed) +
+					",\"io_fallback_completed\":" + std::to_string(io_stats.fallback_completed) +
+					",\"io_read_bytes\":" + std::to_string(io_stats.file_read_bytes) +
+					",\"io_write_bytes\":" + std::to_string(io_stats.file_write_bytes) +
+					",\"io_notification_errors\":" + std::to_string(io_stats.notification_errors) +
+					",\"io_maximum_outstanding\":" + std::to_string(io_stats.maximum_outstanding);
+				auto primitive_counts = [](const auto &counts) {
+					std::string value = "[";
+					for (auto count : counts) {
+						if (value.size() > 1)
+							value += ',';
+						value += std::to_string(count);
+					}
+					return value + "]";
+				};
+				storage_health +=
+					",\"io_native_by_primitive\":" + primitive_counts(io_stats.native_by_primitive) +
+					",\"io_fallback_by_primitive\":" + primitive_counts(io_stats.fallback_by_primitive);
+
+#ifdef __linux__
+				storage_health +=
+					",\"io_native_available\":" + std::string(queue->native_available() ? "true" : "false") +
+					",\"io_setup_error\":" + std::to_string(queue->setup_error()) +
+					",\"io_ring_errors\":" + std::to_string(io_stats.ring_errors);
+#endif
 #else
 				const std::string storage_health = ",\"storage_async\":false";
 #endif

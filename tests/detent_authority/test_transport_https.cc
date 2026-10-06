@@ -110,12 +110,7 @@ int main(int argc, char **argv) {
 	capped.start(capped_endpoint.port());
 	asio::ssl::stream<asio::ip::tcp::socket> held(io, client_context);
 	detent::transport::configure_publisher_client(held.native_handle(), "localhost");
-	for (unsigned attempt = 0; attempt != 100; ++attempt) {
-		held.next_layer().connect(capped_endpoint, error);
-		if (!error)
-			break;
-		std::this_thread::sleep_for(1ms);
-	}
+	held.next_layer().connect(capped_endpoint, error);
 	assert(!error);
 	held.handshake(asio::ssl::stream_base::client);
 	bool full = false;
