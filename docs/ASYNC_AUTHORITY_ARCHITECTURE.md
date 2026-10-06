@@ -97,8 +97,8 @@ Implement in dependency order and commit coherent changes autonomously. Return f
 | Owned HTTP responses and original-write settlement | Implemented and qualified over real TCP |
 | Incremental consensus bundle encoding and suffix capture | Pending |
 | Bounded control codec, peer hello and owned TLS primitives | Implemented; isolated transport qualification in [AUTHORITY_TRANSPORT.md](AUTHORITY_TRANSPORT.md) |
-| Production peer lanes, publisher HTTPS and multi-voter configuration | Pending |
-| Authenticated three-process failure and scale acceptance | Pending |
+| Production peer lanes, publisher HTTPS and multi-voter configuration | Implemented; initial native and sanitizer process gates pass |
+| Authenticated three-process failure and scale acceptance | Leader kill/restart, lost-response retry and TLS snapshot catch-up pass; extended failure/load gates remain open |
 | Linux native backend and target FreeBSD qualification | Pending |
 | Consolidated complete-stage Architect review | Follows those remaining gates |
 

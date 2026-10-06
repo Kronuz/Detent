@@ -215,7 +215,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
-			   "publisher_tls"});
+			   "publisher_tls", "publisher_bind", "publisher_name"});
 	ServiceOptions o;
 	o.node.context = {identity(text(field(d, "cluster"))), identity(text(field(d, "group"))),
 					  identity(text(field(d, "epoch")))};
@@ -290,6 +290,13 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		if (d.HasMember("publisher_tls"))
 			o.publisher_tls = tls(field(d, "publisher_tls"));
 	}
+	if (d.HasMember("publisher_bind"))
+		o.publisher_bind = asio::ip::make_address(text(field(d, "publisher_bind"), 256));
+	check(!o.publisher_bind.is_multicast() && (o.publisher_bind.is_loopback() || o.publisher_tls),
+		  "non-loopback publishers require TLS");
+	if (d.HasMember("publisher_name"))
+		o.publisher_name = text(field(d, "publisher_name"), 253);
+	check(o.publisher_name.find_first_of(" \t\r\n") == std::string::npos, "publisher TLS name");
 	auto &credentials = field(d, "credentials");
 	check(credentials.IsArray() && !credentials.Empty() && credentials.Size() <= o.node.application.producers,
 		  "credential count bound");

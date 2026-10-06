@@ -3,6 +3,7 @@
 #include "transport/peers.hh"
 #include <chrono>
 #include <deque>
+#include <detent_http/address.hh>
 #include <filesystem>
 #include <functional>
 #include <future>
@@ -23,6 +24,8 @@ struct ServiceOptions {
 	std::vector<Credential> credentials;
 	std::optional<transport::PeerOptions> peers;
 	std::optional<transport::TlsOptions> publisher_tls;
+	asio::ip::address publisher_bind = asio::ip::make_address(detent_http::kLoopbackHost);
+	std::string publisher_name = "localhost";
 	std::size_t requests = 1024, queued_bytes = 16 * 1024 * 1024;
 	std::size_t reply_bytes = 16 * 1024 * 1024;
 	std::chrono::milliseconds timeout{5000};

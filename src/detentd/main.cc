@@ -15,12 +15,14 @@
 #include "detentd.hh"
 #ifdef DETENT_WITH_AUTHORITY
 #include "../detent_authority/service.hh"
+#include "../detent_authority/transport/https_client.hh"
 #include <http_asio_tls.h>
 #endif
 #include "../detent_cli/logging.hh"
 #include "../detent_cli/config.hh"
 #include "../detent_cli/daemon.hh"
 #include "detent_http/http_client.hh"
+#include "detent_http/address.hh"
 #include <unistd.h>
 
 #include <http_asio.h>
@@ -182,13 +184,38 @@ int run(const std::vector<std::string>& input_args) {
 	if (status && detach) throw std::runtime_error("--status and --daemonize are mutually exclusive");
 	auto runtime = settings.contains("--runtime-dir") ? std::filesystem::path(settings.at("--runtime-dir")) : detent_cli::default_runtime_dir(system);
 	auto pid_path = runtime / ("detentd-" + std::to_string(port) + ".pid");
+#ifdef DETENT_WITH_AUTHORITY
+	std::optional<detent::authority::ServiceOptions> authority_configuration;
+	if (settings.contains("--authority")) {
+		authority_configuration = detent::authority::load_service_options(settings.at("--authority"));
+	}
+#endif
 	if (status) {
 		try {
-			detent_http::HttpConnection connection("127.0.0.1", port, std::chrono::milliseconds(2000));
+			std::string body;
+#ifdef DETENT_WITH_AUTHORITY
+			if (authority_configuration && authority_configuration->publisher_tls) {
+				auto address = authority_configuration->publisher_bind;
+				if (address.is_unspecified()) address = address.is_v4()
+					? asio::ip::address(asio::ip::address_v4::loopback())
+					: asio::ip::address(asio::ip::address_v6::loopback());
+				body = detent::transport::https_health(
+					{"", "", authority_configuration->publisher_tls->certificate_authority},
+					{address, port}, authority_configuration->publisher_name);
+			} else
+#endif
+			{
+			std::string probe_host = detent_http::kLoopbackHost;
+#ifdef DETENT_WITH_AUTHORITY
+			if (authority_configuration) probe_host = authority_configuration->publisher_bind.to_string();
+#endif
+			detent_http::HttpConnection connection(probe_host, port, std::chrono::milliseconds(2000));
 			auto response = connection.get("/v1/health");
 			if (response.status != 200) throw std::runtime_error("health endpoint failed");
+			body = std::move(response.body);
+			}
 			if (auto pid = detent_cli::locked_pid(pid_path)) std::printf("running (pid %d)\n", *pid);
-			std::printf("%s\n", response.body.c_str());
+			std::printf("%s\n", body.c_str());
 			return 0;
 		} catch (const std::exception& e) {
 			std::printf("not reachable: %s\n", e.what());
@@ -211,10 +238,12 @@ int run(const std::vector<std::string>& input_args) {
 		std::unique_ptr<http::HttpHandler> app;
 		http::HttpAsioService::ConnectionFactory connection;
 		std::string authority_mode;
+		std::string authority_bind;
 		bool publisher_https = false;
 		if (settings.contains("--authority")) {
 #ifdef DETENT_WITH_AUTHORITY
-			auto authority_options = detent::authority::load_service_options(settings.at("--authority"));
+			auto authority_options = std::move(*authority_configuration);
+			authority_bind = authority_options.publisher_bind.to_string();
 			authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
 			if (authority_options.publisher_tls) {
 				publisher_https = true;
@@ -243,10 +272,10 @@ int run(const std::vector<std::string>& input_args) {
 		// is the correct, already-handled failure path.
 		std::signal(SIGPIPE, SIG_IGN);
 
-		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = "127.0.0.1"; service.set_bind_options(bind); }
+		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = authority_bind; service.set_bind_options(bind); }
 		service.start(port);
 		ready();
-		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on 127.0.0.1:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", port); }
+		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", authority_bind, port); }
 		else { L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string()); }
 
 		while (!g_stop.load()) {

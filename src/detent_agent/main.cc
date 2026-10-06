@@ -10,6 +10,7 @@
 #endif
 #include "../detent_cli/daemon.hh"
 #include "config.hh"
+#include "detent_http/address.hh"
 #include "shm_reader.hh"
 
 #include <fcntl.h>
@@ -100,7 +101,7 @@ detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 			if (auto it = g_config.find("--source-address"); it != g_config.end()) source_http = it->second;
 		}
 	}
-	if (!source_path && !source_http && opts.defaults_path.empty()) source_http = "127.0.0.1:" + std::to_string(detent_cli::kDefaultPort);
+	if (!source_path && !source_http && opts.defaults_path.empty()) source_http = std::string(detent_http::kLoopbackHost) + ":" + std::to_string(detent_cli::kDefaultPort);
 	if (source_path && source_http) throw std::runtime_error("--source-path and --source-address are mutually exclusive");
 	if (source_path) {
 		opts.source_path = *source_path;

@@ -78,6 +78,8 @@ def main() -> None:
             "directory": str(directory / f"state-{index}"),
             "peer_tls": tls,
             "publisher_tls": tls,
+            "publisher_bind": "0.0.0.0",
+            "publisher_name": "localhost",
             "credentials": [
                 {"token": TOKEN, "producer": "writer", "namespaces": ["ns"]}
             ],
@@ -147,6 +149,25 @@ def main() -> None:
         for index in range(3):
             start(index)
         successful("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
+        status = subprocess.run(
+            [
+                str(binary),
+                "--status",
+                "--authority",
+                str(directory / "node-0.json"),
+                "--port",
+                str(ports[3]),
+                "--runtime-dir",
+                str(directory / "runtime-0"),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        assert status.returncode == 0 and "durable_fixed_voters" in status.stdout, (
+            status.stdout + status.stderr
+        )
         transaction = {
             "generation": 1,
             "sequence": 1,
