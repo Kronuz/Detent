@@ -30,8 +30,8 @@ std::uint64_t disk_bytes(const std::filesystem::path &directory) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		check(argc >= 2 && argc <= 4,
-			  "usage: detent_authority_durable_bench NEW_DIRECTORY [knobs] [producers]");
+		check(argc >= 2 && argc <= 5,
+			  "usage: detent_authority_durable_bench NEW_DIRECTORY [knobs] [producers] [heavy]");
 		std::size_t count = 100000;
 		if (argc >= 3) {
 			std::string_view arg(argv[2]);
@@ -40,12 +40,14 @@ int main(int argc, char **argv) {
 				  "invalid count");
 		}
 		std::size_t producers = 64;
-		if (argc == 4) {
+		if (argc >= 4) {
 			std::string_view arg(argv[3]);
 			auto [end, error] = std::from_chars(arg.data(), arg.data() + arg.size(), producers);
 			check(error == std::errc{} && end == arg.data() + arg.size() && producers > 0 && producers <= 64,
 				  "invalid producers");
 		}
+		const bool heavy = argc == 5;
+		check(!heavy || std::string_view(argv[4]) == "heavy", "invalid definition workload");
 		std::filesystem::path directory(argv[1]);
 		check(std::filesystem::create_directory(directory), "benchmark directory must be new");
 		check(chmod(directory.c_str(), 0700) == 0, "directory permissions");
@@ -121,6 +123,28 @@ int main(int argc, char **argv) {
 			c.generation = 1;
 			c.name_space = "ns";
 		}
+		std::optional<detent::KnobDef> heavy_definition;
+		std::size_t heavy_command_bytes = 0, heavy_override_count = 0;
+		if (heavy) {
+			detent::BoolDef definition;
+			auto probe = commands.front();
+			probe.sequence = 1;
+			for (std::size_t overrides = 0; overrides <= options.application.overrides; ++overrides) {
+				probe.mutations.clear();
+				for (unsigned key = 0; key < 128; ++key)
+					probe.mutations.push_back({"ns:feature_" + std::to_string(key), definition, {}, {}});
+				try {
+					heavy_command_bytes = encode(probe, options.application).size();
+				} catch (const std::invalid_argument &) {
+					break;
+				}
+				heavy_definition = definition;
+				heavy_override_count = definition.overrides.size();
+				definition.overrides["group" + std::to_string(overrides) + std::string(40, 'x')] =
+					detent::GroupRollout{25};
+			}
+			check(heavy_definition.has_value(), "heavy definition cannot fit the profile");
+		}
 		auto start = Clock::now();
 		auto cpu = std::clock();
 		std::size_t key = 0;
@@ -137,6 +161,8 @@ int main(int argc, char **argv) {
 						flag.overrides["group1"] = detent::GroupRollout{5};
 						value = std::move(flag);
 					}
+					if (heavy_definition)
+						value = *heavy_definition;
 					c.mutations.push_back({"ns:feature_" + std::to_string(key), std::move(value), {}, {}});
 				}
 				if (c.mutations.empty())
@@ -203,7 +229,8 @@ int main(int argc, char **argv) {
 #ifndef __APPLE__
 		usage.ru_maxrss *= 1024;
 #endif
-		std::printf("{\"knobs\":%zu,\"producers\":%zu,\"grouped_transactions\":%zu,\"load_ms\":%.3f,\"load_"
+		std::printf("{\"heavy_command_bytes\":%zu,\"heavy_overrides_per_definition\":%zu,\"knobs\":%zu,"
+					"\"producers\":%zu,\"grouped_transactions\":%zu,\"load_ms\":%.3f,\"load_"
 					"cpu_ms\":%.3f,\"max_load_service_turn_ms\":%.3f,\"max_load_service_turn_cpu_ms\":%.3f,"
 					"\"durable_ack_ms_per_transaction\":%.6f,\"durable_cpu_ms_per_"
 					"transaction\":%.6f,\"max_update_service_turn_ms\":%.3f,\"checkpoint_capture_us\":%.3f,"
@@ -212,12 +239,13 @@ int main(int argc, char **argv) {
 					"%llu,\"bytes_after_updates\":%llu,\"encoded_update_bytes\":%llu,\"bytes_after_"
 					"checkpoint\":%llu,\"bytes_after_maintenance\":%llu,\"encoded_total_command_bytes\":%llu,"
 					"\"application_image_bytes\":%zu,\"peak_rss_bytes\":%ld}\n",
-					count, producers, producers * 100, load_ms, load_cpu_ms, load_turn_ms, load_turn_cpu_ms,
-					ack_ms / (producers * 100), ack_cpu_ms / (producers * 100), update_turn, capture_us,
-					admission_ms, checkpoint_ms, worst_turn_ms, (unsigned long long)before,
-					(unsigned long long)after, (unsigned long long)(logical_bytes - before_logical),
-					(unsigned long long)final_bytes, (unsigned long long)settled_bytes,
-					(unsigned long long)logical_bytes, image_bytes, usage.ru_maxrss);
+					heavy_command_bytes, heavy_override_count, count, producers, producers * 100, load_ms,
+					load_cpu_ms, load_turn_ms, load_turn_cpu_ms, ack_ms / (producers * 100),
+					ack_cpu_ms / (producers * 100), update_turn, capture_us, admission_ms, checkpoint_ms,
+					worst_turn_ms, (unsigned long long)before, (unsigned long long)after,
+					(unsigned long long)(logical_bytes - before_logical), (unsigned long long)final_bytes,
+					(unsigned long long)settled_bytes, (unsigned long long)logical_bytes, image_bytes,
+					usage.ru_maxrss);
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "%s\n", error.what());
 		return 1;

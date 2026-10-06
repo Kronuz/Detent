@@ -26,6 +26,9 @@ target_link_libraries(detent_scale_bench PRIVATE detent_agent_lib)
 add_executable(detent_authority_bench detent_authority_bench.cc)
 target_link_libraries(detent_authority_bench PRIVATE detent::authority)
 
+add_executable(detent_command_work_bench command_work_bench.cc)
+target_link_libraries(detent_command_work_bench PRIVATE detent::authority)
+
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_durable_bench detent_authority_durable_bench.cc)
   target_link_libraries(detent_authority_durable_bench PRIVATE detent::authority_node)
