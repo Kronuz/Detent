@@ -5,6 +5,7 @@
 #include <iostream>
 #include <journal/posix.h>
 #include <openssl/pem.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 using namespace detent::transport;
@@ -55,6 +56,7 @@ int main(int argc, char **argv) {
 		options.configuration = {options.context.cluster, options.context.group, i + 1, {1, 2, 3}};
 		auto path = directory / names[i];
 		std::filesystem::create_directory(path);
+		assert(::chmod(path.c_str(), 0700) == 0);
 		auto node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(path), options);
 		Identity identity{};
 		identity[0] = static_cast<char>(i + 1);
