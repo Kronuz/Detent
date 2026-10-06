@@ -50,6 +50,13 @@ class Node {
 		Digest identity{};
 		bool read = false;
 	};
+	struct Application {
+		cluster::consensus::Committed range;
+		std::size_t cursor = 0;
+		std::uint64_t through = 0;
+		std::optional<BatchDecoder> decoder;
+		std::optional<BatchApplication> candidate;
+	};
 	struct Capture {
 		cluster::consensus::CheckpointId id;
 		State state;
@@ -72,11 +79,13 @@ class Node {
 	std::map<std::uint64_t, Pending> pending_;
 	std::vector<Completion> completions_;
 	cluster::consensus::Actions network_;
+	std::optional<Application> application_;
 	std::optional<Capture> capture_;
 	std::optional<Candidate> candidate_;
 	std::optional<State> retired_;
 	std::uint64_t checkpoint_request_ = std::uint64_t{1} << 63;
 	void drain();
+	void advance_application();
 	void discard_candidate();
 };
 } // namespace detent::authority

@@ -62,14 +62,17 @@ int main(int argc, char **argv) {
 		storage[0] = 'b';
 		node.create(storage);
 		std::uint64_t tick = 0, request = 0, logical_bytes = 0;
-		double worst_turn_ms = 0;
+		double worst_turn_ms = 0, worst_turn_cpu_ms = 0;
 		auto pump = [&] {
 			auto start = Clock::now();
+			auto turn_cpu = std::clock();
 			node.service({tick += 10, 100});
 			for (const auto &action : node.take_network_actions())
 				check(!std::holds_alternative<Send>(action), "unexpected peer traffic");
 			check(!node.worker().fenced(), "worker fenced");
 			worst_turn_ms = std::max(worst_turn_ms, ms(start));
+			worst_turn_cpu_ms =
+				std::max(worst_turn_cpu_ms, 1000.0 * (std::clock() - turn_cpu) / CLOCKS_PER_SEC);
 		};
 		for (unsigned i = 0; i < 10000 && !node.worker().ready(); ++i)
 			pump();
@@ -144,10 +147,12 @@ int main(int argc, char **argv) {
 			submit(batch);
 		}
 		auto load_ms = ms(start);
+		auto load_turn_cpu_ms = worst_turn_cpu_ms;
+		auto load_turn_ms = worst_turn_ms;
 		auto load_cpu_ms = 1000.0 * (std::clock() - cpu) / CLOCKS_PER_SEC;
 		commands.resize(producers);
 		auto before = disk_bytes(directory), before_logical = logical_bytes;
-		worst_turn_ms = 0;
+		worst_turn_ms = worst_turn_cpu_ms = 0;
 		start = Clock::now();
 		cpu = std::clock();
 		for (int group = 0; group < 100; ++group) {
@@ -177,7 +182,7 @@ int main(int argc, char **argv) {
 		check(started, "checkpoint admission timeout");
 		auto admission_ms = ms(start);
 		auto boundary = node.state().applied_index();
-		worst_turn_ms = 0;
+		worst_turn_ms = worst_turn_cpu_ms = 0;
 		start = Clock::now();
 		for (unsigned i = 0; i < 100000 && (node.worker().base_index() != boundary || node.checkpoint_busy());
 			 ++i)
@@ -199,19 +204,20 @@ int main(int argc, char **argv) {
 		usage.ru_maxrss *= 1024;
 #endif
 		std::printf("{\"knobs\":%zu,\"producers\":%zu,\"grouped_transactions\":%zu,\"load_ms\":%.3f,\"load_"
-					"cpu_ms\":%.3f,\"durable_ack_ms_per_transaction\":%.6f,\"durable_cpu_ms_per_"
+					"cpu_ms\":%.3f,\"max_load_service_turn_ms\":%.3f,\"max_load_service_turn_cpu_ms\":%.3f,"
+					"\"durable_ack_ms_per_transaction\":%.6f,\"durable_cpu_ms_per_"
 					"transaction\":%.6f,\"max_update_service_turn_ms\":%.3f,\"checkpoint_capture_us\":%.3f,"
 					"\"checkpoint_admission_ms\":%.3f,"
 					"\"checkpoint_ms\":%.3f,\"max_checkpoint_service_turn_ms\":%.3f,\"bytes_before_updates\":"
 					"%llu,\"bytes_after_updates\":%llu,\"encoded_update_bytes\":%llu,\"bytes_after_"
 					"checkpoint\":%llu,\"bytes_after_maintenance\":%llu,\"encoded_total_command_bytes\":%llu,"
 					"\"application_image_bytes\":%zu,\"peak_rss_bytes\":%ld}\n",
-					count, producers, producers * 100, load_ms, load_cpu_ms, ack_ms / (producers * 100),
-					ack_cpu_ms / (producers * 100), update_turn, capture_us, admission_ms, checkpoint_ms,
-					worst_turn_ms, (unsigned long long)before, (unsigned long long)after,
-					(unsigned long long)(logical_bytes - before_logical), (unsigned long long)final_bytes,
-					(unsigned long long)settled_bytes, (unsigned long long)logical_bytes, image_bytes,
-					usage.ru_maxrss);
+					count, producers, producers * 100, load_ms, load_cpu_ms, load_turn_ms, load_turn_cpu_ms,
+					ack_ms / (producers * 100), ack_cpu_ms / (producers * 100), update_turn, capture_us,
+					admission_ms, checkpoint_ms, worst_turn_ms, (unsigned long long)before,
+					(unsigned long long)after, (unsigned long long)(logical_bytes - before_logical),
+					(unsigned long long)final_bytes, (unsigned long long)settled_bytes,
+					(unsigned long long)logical_bytes, image_bytes, usage.ru_maxrss);
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "%s\n", error.what());
 		return 1;

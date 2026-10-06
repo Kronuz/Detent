@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace detent::authority {
@@ -124,6 +125,7 @@ class State {
 	static State restore(std::string_view bytes, Context context, Limits limits = {});
 
   private:
+	friend class BatchApplication;
 	friend class ImageEncoder;
 	friend class ImageDecoder;
 	Context context_;
@@ -134,6 +136,49 @@ class State {
 	detail::PersistentMap<std::string, Record> records_;
 	detail::PersistentMap<std::string, Revision> namespaces_;
 	detail::PersistentMap<std::string, std::shared_ptr<const Producer>> producers_;
+};
+// Borrows immutable batch bytes until the last command is decoded. A decoding
+// failure poisons this cursor; the input owner must outlive it.
+struct BatchWork {
+	std::size_t bytes = 0, mutations = 0;
+};
+class BatchDecoder {
+  public:
+	BatchDecoder(std::string_view bytes, Limits limits = {}, std::size_t cap = 1024 * 1024);
+	std::size_t count() const noexcept { return count_; }
+	bool done() const noexcept { return !failed_ && decoded_ == count_; }
+	BatchWork next_work();
+	Command next();
+
+  private:
+	std::string_view remaining_;
+	Limits limits_;
+	std::size_t count_ = 0, decoded_ = 0;
+	bool failed_ = false;
+};
+struct BatchResult {
+	State state;
+	std::vector<Result> results;
+};
+// Preserves apply_batch semantics across yields. Only finish() exposes the
+// candidate, and semantic Result rejections still advance the command group.
+class BatchApplication {
+  public:
+	BatchApplication(const State &source, std::uint64_t index, std::uint64_t term, std::size_t count);
+	BatchApplication(const BatchApplication &) = delete;
+	BatchApplication &operator=(const BatchApplication &) = delete;
+	BatchApplication(BatchApplication &&other) noexcept;
+	BatchApplication &operator=(BatchApplication &&) = delete;
+	void advance(const Command &command);
+	bool done() const noexcept { return !failed_ && !consumed_ && results_.size() == count_; }
+	BatchResult finish();
+
+  private:
+	State candidate_;
+	std::uint64_t index_, term_, base_;
+	std::size_t count_;
+	std::vector<Result> results_;
+	bool failed_ = false, consumed_ = false;
 };
 // Decode into an unpublished root, retaining one bounded row and input chunk.
 class ImageDecoder {

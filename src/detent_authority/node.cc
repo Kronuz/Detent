@@ -131,41 +131,11 @@ void Node::drain() {
 				found->second.term = placed->term;
 			}
 		} else if (auto committed = std::get_if<Committed>(&action)) {
-			try {
-				State next = state_;
-				std::vector<Completion> ready;
-				for (const auto &entry : committed->entries) {
-					if (entry.index <= next.applied_index()) {
-						continue;
-					}
-					if (entry.kind == EntryKind::NoOp) {
-						next.advance(entry.index, entry.term);
-						continue;
-					}
-					auto results = next.apply_batch(
-						entry.index,
-						decode_batch(entry.payload, options_.application, options_.consensus.command_bytes),
-						entry.term);
-					for (const auto &[request, waiter] : pending_) {
-						if (!waiter.read && waiter.index == entry.index) {
-							if (waiter.term == entry.term &&
-								waiter.identity == batch_identity(entry.payload)) {
-								ready.push_back({request, entry.index, results, {}, false});
-							} else {
-								ready.push_back({request, entry.index, {}, RejectReason::NotLeader, false});
-							}
-						}
-					}
-				}
-				state_ = std::move(next);
-				for (auto &result : ready) {
-					pending_.erase(result.request);
-					completions_.push_back(std::move(result));
-				}
-				worker_.applied(Applied{committed->entries.back().index});
-			} catch (const std::exception &error) {
-				worker_.application_failed(committed->entries.back().index, error.what());
+			if (application_ || committed->entries.empty()) {
+				throw std::logic_error("authority overlapping or empty application range");
 			}
+			auto through = committed->entries.back().index;
+			application_.emplace(Application{std::move(*committed), 0, through});
 		} else if (auto role = std::get_if<RoleChanged>(&action)) {
 			for (auto it = pending_.begin(); it != pending_.end();) {
 				if (!it->second.read && (role->role != Role::Leader || it->second.term != role->term)) {
@@ -177,6 +147,9 @@ void Node::drain() {
 			}
 			network_.push_back(std::move(action));
 		} else if (auto read = std::get_if<ReadReady>(&action)) {
+			if (read->index > state_.applied_index()) {
+				throw std::logic_error("authority quorum read precedes application boundary");
+			}
 			if (pending_.erase(read->request)) {
 				completions_.push_back({read->request, read->index, {}, {}, true});
 			}
@@ -196,8 +169,80 @@ void Node::drain() {
 		}
 	}
 }
+void Node::advance_application() {
+	if (!application_ || worker_.fenced())
+		return;
+	const auto through = application_->through;
+	try {
+		auto &entry = application_->range.entries[application_->cursor];
+		if (entry.index > state_.applied_index()) {
+			if (entry.index != state_.applied_index() + 1) {
+				throw std::runtime_error("authority application range is not contiguous");
+			}
+			std::optional<State> next;
+			std::vector<Completion> ready;
+			if (entry.kind == EntryKind::NoOp) {
+				next.emplace(state_);
+				next->advance(entry.index, entry.term);
+			} else {
+				if (!application_->decoder) {
+					application_->decoder.emplace(entry.payload, options_.application,
+												  options_.consensus.command_bytes);
+					application_->candidate.emplace(state_, entry.index, entry.term,
+													application_->decoder->count());
+				}
+				std::size_t commands = 0, bytes = 0, mutations = 0;
+				while (!application_->decoder->done() && commands < 8) {
+					auto work = application_->decoder->next_work();
+					if (commands && (bytes >= 65536 || mutations >= 128 || work.bytes > 65536 - bytes ||
+									 work.mutations > 128 - mutations))
+						break;
+					// One oversized configured command may run on a fresh turn.
+					application_->candidate->advance(application_->decoder->next());
+					++commands;
+					bytes += work.bytes;
+					mutations += work.mutations;
+				}
+				if (!application_->decoder->done())
+					return;
+				auto outcome = application_->candidate->finish();
+				application_->decoder.reset();
+				application_->candidate.reset();
+				next.emplace(std::move(outcome.state));
+				auto &results = outcome.results;
+				std::optional<Digest> identity;
+				for (const auto &[request, waiter] : pending_) {
+					if (!waiter.read && waiter.index == entry.index) {
+						if (!identity)
+							identity = batch_identity(entry.payload);
+						if (waiter.term == entry.term && waiter.identity == *identity) {
+							ready.push_back({request, entry.index, results, {}, false});
+						} else {
+							ready.push_back({request, entry.index, {}, RejectReason::NotLeader, false});
+						}
+					}
+				}
+			}
+			state_ = std::move(*next);
+			for (auto &result : ready) {
+				pending_.erase(result.request);
+				completions_.push_back(std::move(result));
+			}
+		}
+		// Release payloads one entry at a time, preserving the original endpoint.
+		std::string{}.swap(entry.payload);
+		if (++application_->cursor == application_->range.entries.size()) {
+			application_.reset();
+			worker_.applied(Applied{through});
+		}
+	} catch (const std::exception &error) {
+		worker_.application_failed(through, error.what());
+		application_.reset();
+	}
+}
 bool Node::checkpoint() {
-	if (capture_ || !state_.applied_index() || worker_.applied_index() != state_.applied_index()) {
+	if (application_ || capture_ || !state_.applied_index() ||
+		worker_.applied_index() != state_.applied_index()) {
 		return false;
 	}
 	auto id = worker_.reserve_checkpoint(options_.application.image_bytes);
@@ -240,6 +285,7 @@ void Node::service(Tick tick) {
 	}
 	worker_.run_one(tick);
 	drain();
+	advance_application();
 	channel_.run_one(tick);
 	if (candidate_ && channel_.incoming_snapshot() != candidate_->id) {
 		discard_candidate();
@@ -294,7 +340,7 @@ void Node::service(Tick tick) {
 		}
 	}
 	if (auto activation = worker_.snapshot_activation()) {
-		if (!candidate_ || candidate_->id != activation->snapshot || !candidate_->state ||
+		if (application_ || !candidate_ || candidate_->id != activation->snapshot || !candidate_->state ||
 			candidate_->state->applied_index() != activation->descriptor.through ||
 			candidate_->state->applied_term() != activation->descriptor.term) {
 			worker_.snapshot_activation_failed(activation->snapshot, activation->token);

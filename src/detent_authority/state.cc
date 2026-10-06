@@ -70,11 +70,12 @@ struct Reader {
 		require(b <= 1, "invalid authority flag");
 		return b != 0;
 	}
-	std::string text(std::size_t cap) {
+	std::string_view text_view(std::size_t cap) {
 		auto n = number();
 		require(n <= cap, "authority string bound");
-		return std::string(raw(static_cast<std::size_t>(n)));
+		return raw(static_cast<std::size_t>(n));
 	}
+	std::string text(std::size_t cap) { return std::string(text_view(cap)); }
 	Identity identity() {
 		Identity id{};
 		auto s = raw(16);
@@ -284,9 +285,7 @@ std::string encode(const Command &c, Limits l) {
 	}
 	return std::move(w.bytes);
 }
-Command decode(std::string_view bytes, Limits l) {
-	require(bytes.size() <= l.request_bytes, "command byte bound");
-	Reader r{bytes};
+static Command command_prefix(Reader &r) {
 	require(r.raw(8) == "DTACMD01", "unsupported authority command");
 	Command c;
 	c.context = decode_context(r);
@@ -299,6 +298,12 @@ Command decode(std::string_view bytes, Limits l) {
 	c.nonce = r.identity();
 	c.name_space = r.text(199);
 	c.expected_namespace = r.optional();
+	return c;
+}
+Command decode(std::string_view bytes, Limits l) {
+	require(bytes.size() <= l.request_bytes, "command byte bound");
+	Reader r{bytes};
+	auto c = command_prefix(r);
 	auto count = r.number();
 	require(count <= l.mutations, "mutation count bound");
 	std::string previous;
@@ -550,21 +555,73 @@ std::string encode_batch(const std::vector<Command> &commands, Limits l, std::si
 	}
 	return std::move(w.bytes);
 }
-std::vector<Command> decode_batch(std::string_view bytes, Limits l, std::size_t cap) {
+BatchDecoder::BatchDecoder(std::string_view bytes, Limits limits, std::size_t cap) : limits_(limits) {
 	require(bytes.size() <= cap, "transaction group bytes bound");
-	Reader r{bytes};
-	require(r.raw(8) == "DTABAT02", "unsupported transaction group");
+	Reader reader{bytes};
+	require(reader.raw(8) == "DTABAT02", "unsupported transaction group");
 	Writer profile{{}, 1024};
-	write_limits(profile, l);
-	require(r.raw(profile.bytes.size()) == profile.bytes, "changed replicated semantic limits");
-	auto count = r.number();
+	write_limits(profile, limits);
+	require(reader.raw(profile.bytes.size()) == profile.bytes, "changed replicated semantic limits");
+	auto count = reader.number();
 	require(count && count <= 64, "transaction group count bound");
-	std::vector<Command> result;
-	for (std::uint64_t i = 0; i < count; ++i) {
-		result.push_back(decode(r.text(l.request_bytes), l));
-	}
-	r.end();
+	count_ = static_cast<std::size_t>(count);
+	remaining_ = reader.bytes;
+}
+BatchWork BatchDecoder::next_work() {
+	require(!failed_ && decoded_ < count_, "transaction group cursor unavailable");
+	failed_ = true;
+	Reader reader{remaining_};
+	auto bytes = reader.text_view(limits_.request_bytes);
+	Reader command{bytes};
+	(void)command_prefix(command);
+	auto mutations = command.number();
+	require(mutations <= limits_.mutations, "mutation count bound");
+	failed_ = false;
+	return {bytes.size() + 8, static_cast<std::size_t>(mutations)};
+}
+Command BatchDecoder::next() {
+	require(!failed_ && decoded_ < count_, "transaction group cursor unavailable");
+	failed_ = true;
+	Reader reader{remaining_};
+	auto result = decode(reader.text_view(limits_.request_bytes), limits_);
+	if (decoded_ + 1 == count_)
+		reader.end();
+	remaining_ = reader.bytes;
+	++decoded_;
+	failed_ = false;
 	return result;
+}
+std::vector<Command> decode_batch(std::string_view bytes, Limits limits, std::size_t cap) {
+	BatchDecoder decoder(bytes, limits, cap);
+	std::vector<Command> result;
+	result.reserve(decoder.count());
+	while (!decoder.done())
+		result.push_back(decoder.next());
+	return result;
+}
+BatchApplication::BatchApplication(const State &source, std::uint64_t index, std::uint64_t term,
+								   std::size_t count)
+	: candidate_(source), index_(index), term_(term), base_(source.applied_), count_(count) {
+	require(count && count <= 64 && index > base_ && index < maximum && term && term >= source.applied_term_,
+			"invalid application group");
+	results_.reserve(count);
+}
+BatchApplication::BatchApplication(BatchApplication &&other) noexcept
+	: candidate_(std::move(other.candidate_)), index_(other.index_), term_(other.term_), base_(other.base_),
+	  count_(other.count_), results_(std::move(other.results_)), failed_(other.failed_),
+	  consumed_(std::exchange(other.consumed_, true)) {}
+void BatchApplication::advance(const Command &command) {
+	require(!failed_ && !consumed_ && results_.size() < count_, "application group cursor unavailable");
+	failed_ = true;
+	candidate_.applied_ = base_;
+	results_.push_back(candidate_.apply(index_, command, term_));
+	failed_ = false;
+}
+BatchResult BatchApplication::finish() {
+	require(done() && candidate_.applied_ == index_ && candidate_.applied_term_ == term_,
+			"application group incomplete");
+	consumed_ = true;
+	return {std::move(candidate_), std::move(results_)};
 }
 
 Snapshot State::snapshot(std::string_view name_space) const {

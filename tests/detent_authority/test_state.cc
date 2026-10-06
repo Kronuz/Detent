@@ -176,6 +176,55 @@ void semantics() {
 	assert(*State::restore(state.checkpoint(), context(), limits).find("ns:a")->value == KnobDef{opaque});
 	assert(sizeof(Receipt) <= 128);
 }
+void incremental_batches() {
+	Limits limits;
+	limits.keys = 2;
+	State original(context(), limits);
+	const auto before = original.checkpoint();
+	std::vector<Command> commands{open(),
+								  transaction(1, {{"ns:a", IntDef{1}, 0, 0}}),
+								  transaction(1, {{"ns:a", IntDef{1}, 0, 0}}),
+								  transaction(2, {{"ns:a", IntDef{2}, 99, {}}}),
+								  transaction(3, {{"ns:b", IntDef{3}, 0, 1}}),
+								  transaction(4, {{"ns:c", IntDef{4}, 0, 2}})};
+	auto expected = original;
+	auto results = expected.apply_batch(1, commands, 2);
+	assert(results[3].status == Status::Conflict && results[5].status == Status::Capacity);
+	auto bytes = encode_batch(commands, limits);
+	BatchDecoder decoder(bytes, limits);
+	BatchApplication candidate(original, 1, 2, decoder.count());
+	while (!decoder.done()) {
+		auto work = decoder.next_work();
+		assert(work.bytes > 8 && work.mutations <= 1);
+		assert(throws([&] { candidate.finish(); }));
+		candidate.advance(decoder.next());
+		assert(original.checkpoint() == before);
+	}
+	BatchApplication moved(std::move(candidate));
+	assert(throws([&] { candidate.finish(); }));
+	auto outcome = moved.finish();
+	assert(outcome.results == results && outcome.state.checkpoint() == expected.checkpoint());
+	assert(throws([&] { moved.finish(); }));
+	for (const auto &invalid : {bytes.substr(0, bytes.size() - 1), bytes + "trailing"}) {
+		BatchDecoder broken(invalid, limits);
+		BatchApplication unpublished(original, 1, 2, broken.count());
+		assert(throws([&] {
+			while (!broken.done())
+				unpublished.advance(broken.next());
+		}));
+		assert(!broken.done() && !unpublished.done());
+		assert(throws([&] { broken.next(); }));
+		assert(original.checkpoint() == before);
+	}
+	BatchApplication poisoned(original, 1, 2, 2);
+	poisoned.advance(open());
+	auto bad = commands[1];
+	bad.mutations.push_back(bad.mutations.front());
+	assert(throws([&] { poisoned.advance(bad); }));
+	assert(throws([&] { poisoned.advance(commands[1]); }));
+	assert(throws([&] { poisoned.finish(); }));
+	assert(original.checkpoint() == before);
+}
 void streaming_images() {
 	State state(context());
 	std::uint64_t index = 1, sequence = 0;
@@ -299,6 +348,7 @@ void concurrent_cas() {
 } // namespace
 int main() {
 	trees();
+	incremental_batches();
 	streaming_images();
 	semantics();
 	std::cout << "authority state histories passed\n";

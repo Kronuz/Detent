@@ -1,0 +1,13 @@
+# Bounded authority application
+
+Node owns one existing bounded committed range and advances at most one entry per service turn. Command entries decode and apply into one unpublished candidate across turns. Each turn budgets eight commands, 128 mutations and 64 KiB of encoded command bytes; one indivisible configured command may exceed that quantum on a fresh turn. These are work limits, not a strict CPU-time guarantee.
+
+Later commands see earlier candidate changes, preserving the existing ordered batch semantics. Ordinary conflict and capacity results continue the batch. Exact command count, payload exhaustion and final index/term precede atomic publication of the state and receipts. Malformed later commands discard the candidate and fence through the original delivered range endpoint. Processed payloads retire individually, and the range receives one final Applied acknowledgement.
+
+Repeated admission and drain calls do not advance application work. Storage and network scheduling continue while the slot is occupied. Checkpoint capture and snapshot activation require an empty slot; strong reads require the state to have reached their application boundary. Pending waiter validation hashes a completed entry at most once.
+
+The [isolated 100k-knob comparison](../benchmarks/application-quanta-baseline.json) measured a maximum load service CPU turn of 73.234 ms before command quanta and 3.721 ms afterward. Total load CPU was 1198.843 versus 1189.425 ms. The synchronous disk fixture still had maximum wall turns of 73.437 versus 78.929 ms. These single samples demonstrate distributing work across turns; they do not establish production tails, native completion latency, or savings in total CPU or power.
+
+Reproduce with `detent_authority_durable_bench NEW_DIRECTORY 100000 64`, using a fresh directory and no concurrent builds or tests. Maximum configured command, candidate disposal and reclamation costs remain qualification work for the complete readiness component.
+
+Nine native checks passed in 78.35 seconds and nine ASan/UBSan checks in 83.01 seconds on macOS, including state equivalence, malformed final commands, multi-entry failure fencing, held network output, grouped-entry atomic visibility, service authentication and three-process pressure/failover with drained-credit assertions. Eight Linux checks passed in 46.07 seconds with native completion storage before the final single-hash optimization and stronger drained-credit assertions; those final Linux checks remain pending. These gates qualify this application increment, not the complete authority readiness or fleet stages.
