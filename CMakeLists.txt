@@ -13,7 +13,25 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# A C++20 language mode does not establish standard-library thread support.
+# libc++ 19 gates jthread behind an explicit experimental-library opt-in.
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
 find_package(Threads REQUIRED)
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
+unset(DETENT_HAS_JTHREAD CACHE) # Recheck when explicit library flags change.
+check_cxx_source_compiles("#include <thread>
+#include <stop_token>
+int main() {
+  std::jthread worker([](std::stop_token stop) { (void)stop.stop_requested(); });
+  worker.request_stop();
+}" DETENT_HAS_JTHREAD)
+cmake_pop_check_state()
+if(NOT DETENT_HAS_JTHREAD)
+  message(FATAL_ERROR "Detent requires C++20 std::jthread and stop tokens. Use a standard library with these features (libc++ 20+ or a supported libstdc++). For libc++ 19, explicitly configure -DCMAKE_CXX_FLAGS=-fexperimental-library; this opts into that library's experimental API/ABI.")
+endif()
 
 option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
