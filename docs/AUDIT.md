@@ -80,3 +80,11 @@ A real HTTPS rerun exposed that TCP `start()` returned before bind/listen comple
 ### Linux transport and fixture portability
 
 Linux GCC exposed an undeclared algorithm-header dependency in peer hello decoding. Detent `add5f65` includes the declarations used by `std::copy_n`; the affected targets compile and link. The TLS peer fixture inherited group-writable directories under the guest's umask, which PosixIO correctly rejected. Detent `34395fa` creates explicitly private stores without relaxing storage ownership checks. The daemon smoke fixture also required undeclared ripgrep; `4a0f3d8` uses portable extended grep. Both formerly failing fixtures and certificate setup pass on Linux in 5.02 seconds. These were portability gaps in the new transport and its fixtures, not io_uring storage failures.
+
+### Nested staging construction with Clang/libstdc++
+
+Cluster `a855e4f` gives the private Worker staging Chunk an explicit zero-initializing constructor. An isolated Clang 18/libstdc++ 13 reproduction fails optional emplacement with the previous default member initializers while GCC 13 succeeds; both compile after correction. Linux authority sanitizer compilation and the macOS Worker suite pass. Fields, layout, initialization values and public APIs remain unchanged.
+
+### Default build compatibility with the preceding HTTP API
+
+Authority integration introduced an unconditional reference to HTTP's new TLS connection-factory type and five-argument constructor, even when authority was disabled. Compiling the default main against HTTP `c3193b9` reproduces four errors before correction. The factory and constructor extension are now confined to the authority build; a complete default daemon builds against that preceding HTTP revision and serves help. An authority request in a build without that feature now fails before attempting status probes. This restores the previous default dependency API rather than requiring unpublished TLS additions for all builds.

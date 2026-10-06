@@ -189,6 +189,8 @@ int run(const std::vector<std::string>& input_args) {
 	if (settings.contains("--authority")) {
 		authority_configuration = detent::authority::load_service_options(settings.at("--authority"));
 	}
+#else
+	if (settings.contains("--authority")) throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
 #endif
 	if (status) {
 		try {
@@ -236,7 +238,10 @@ int run(const std::vector<std::string>& input_args) {
 	};
 	try {
 		std::unique_ptr<http::HttpHandler> app;
+
+#ifdef DETENT_WITH_AUTHORITY
 		http::HttpAsioService::ConnectionFactory connection;
+#endif
 		std::string authority_mode;
 		std::string authority_bind;
 		bool publisher_https = false;
@@ -258,7 +263,11 @@ int run(const std::vector<std::string>& input_args) {
 #endif
 		 }
 		else { app = std::make_unique<detentd::Distributor>(options); }
+#ifdef DETENT_WITH_AUTHORITY
 		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024, std::move(connection));
+#else
+		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024);
+#endif
 		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
 
 		std::signal(SIGINT, handle_signal);
