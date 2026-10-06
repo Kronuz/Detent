@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <consensus/types.h>
 #include <journal/codec.h>
