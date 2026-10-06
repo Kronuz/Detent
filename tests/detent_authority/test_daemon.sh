@@ -31,26 +31,26 @@ post() {
 }
 start
 for ((i=0;i<200;i++)); do
-    if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" > "$root/open.json" 2>/dev/null && rg -q '"status":"applied"' "$root/open.json"; then break; fi
+    if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" > "$root/open.json" 2>/dev/null && grep -Eq '"status":"applied"' "$root/open.json"; then break; fi
     sleep 0.05
 done
-rg -q '"generation":1' "$root/open.json"
+grep -Eq '"generation":1' "$root/open.json"
 transaction="{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}"
 post /v2/transactions "$transaction" > "$root/ack.json"
-rg -q '"status":"applied"' "$root/ack.json"
+grep -Eq '"status":"applied"' "$root/ack.json"
 "$binary" --status --port "$port" --runtime-dir "$root/runtime" > "$root/status.txt"
-rg -q 'authority|revision' "$root/status.txt"
+grep -Eq 'authority|revision' "$root/status.txt"
 kill -KILL "$pid"
 wait "$pid" 2>/dev/null || true
 pid=
 start
 for ((i=0;i<200;i++)); do
-    if post /v2/transactions "$transaction" > "$root/retry.json" 2>/dev/null && rg -q '"status":"applied"' "$root/retry.json"; then break; fi
+    if post /v2/transactions "$transaction" > "$root/retry.json" 2>/dev/null && grep -Eq '"status":"applied"' "$root/retry.json"; then break; fi
     sleep 0.05
 done
 cmp "$root/ack.json" "$root/retry.json"
 post /v2/read "{$identity,\"namespace\":\"ns\",\"keys\":[\"ns:feature\"]}" > "$root/read.json"
-rg -q '"default":42' "$root/read.json"
+grep -Eq '"default":42' "$root/read.json"
 foreign=${identity/65000000000000000000000000000000/66000000000000000000000000000000}
 code=$(curl -sS --max-time 10 -o "$root/foreign.json" -w '%{http_code}' -H "Authorization: Bearer $token" --data "{$foreign,\"generation\":1,\"sequence\":1}" "http://127.0.0.1:$port/v2/result")
 [[ "$code" == 400 ]]
