@@ -15,6 +15,7 @@ class ByteBudget {
 
   private:
 	friend class Frame;
+	friend class ByteCredit;
 	bool acquire(std::size_t size) {
 		if (size > limit_ - used_)
 			return false;
@@ -26,8 +27,35 @@ class ByteBudget {
   private:
 	std::size_t limit_, used_ = 0;
 };
+class ByteCredit {
+  public:
+	ByteCredit(std::shared_ptr<ByteBudget> budget, std::size_t size) : budget_(std::move(budget)) {
+		if (!budget_ || !budget_->acquire(size))
+			throw std::runtime_error("peer byte admission");
+		charge_ = size;
+	}
+	ByteCredit(ByteCredit &&other) noexcept
+		: budget_(std::move(other.budget_)), charge_(std::exchange(other.charge_, 0)) {}
+	ByteCredit(const ByteCredit &) = delete;
+	~ByteCredit() {
+		if (charge_)
+			budget_->release(charge_);
+	}
+
+  private:
+	friend class Frame;
+	std::shared_ptr<ByteBudget> budget_;
+	std::size_t charge_ = 0;
+};
 class Frame {
   public:
+	Frame(ByteCredit &&credit, std::string bytes) : budget_(credit.budget_), bytes_(std::move(bytes)) {
+		if (bytes_.size() > credit.charge_)
+			throw std::invalid_argument("frame credit mismatch");
+		budget_->release(credit.charge_ - bytes_.size());
+		charge_ = bytes_.size();
+		credit.charge_ = 0;
+	}
 	Frame(std::shared_ptr<ByteBudget> budget, std::size_t size) : budget_(std::move(budget)) {
 		if (!budget_ || !budget_->acquire(size))
 			throw std::runtime_error("peer byte admission");
@@ -78,7 +106,8 @@ template <class Socket> class BasicSession {
 			throw std::invalid_argument("invalid peer session bounds");
 	}
 	asio::awaitable<Hello> authenticate(bool server, Hello local,
-										std::map<cluster::consensus::NodeId, Fingerprint> voters) {
+										std::map<cluster::consensus::NodeId, Fingerprint> voters,
+										bool infer_lane = false) {
 		if (ready_ || closed_)
 			throw std::logic_error("peer authentication state");
 		OperationGuard guard(authenticating_);
@@ -91,14 +120,28 @@ template <class Socket> class BasicSession {
 		const auto deadline = std::chrono::steady_clock::now() + timeout_;
 		co_await timed(handshake(server), deadline);
 		auto node = authenticated_voter(stream_.native_handle(), voters);
-		auto outgoing = encode_hello(local);
-		co_await timed(write(asio::buffer(outgoing)), deadline);
 		std::array<char, hello_size> bytes{};
+		if (!server) {
+			auto outgoing = encode_hello(local);
+			co_await timed(write(asio::buffer(outgoing)), deadline);
+		}
 		co_await timed(read(asio::buffer(bytes)), deadline);
 		auto remote = decode_hello({bytes.data(), bytes.size()});
+		if (server && infer_lane)
+			local.lane = remote.lane;
 		validate_hello(remote, local, node, local.lane);
+		if (server) {
+			auto outgoing = encode_hello(local);
+			co_await timed(write(asio::buffer(outgoing)), deadline);
+		}
 		ready_ = true;
 		co_return remote;
+	}
+	void set_frame_bound(std::size_t bound) {
+		check_ready();
+		if (!bound || bound > maximum_frame_ || reading_ || writing_)
+			throw std::logic_error("peer frame policy");
+		maximum_frame_ = bound;
 	}
 	asio::awaitable<Frame> receive() {
 		check_ready();

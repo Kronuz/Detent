@@ -15,6 +15,7 @@
 #include "detentd.hh"
 #ifdef DETENT_WITH_AUTHORITY
 #include "../detent_authority/service.hh"
+#include <http_asio_tls.h>
 #endif
 #include "../detent_cli/logging.hh"
 #include "../detent_cli/config.hh"
@@ -45,7 +46,7 @@ void handle_signal(int) { g_stop.store(true); }
 const char* kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
 	"usage: detentd [--daemonize | --status] [--runtime-dir PATH] [<port> <persist_path>] [--config PATH]\n"
-	"                [--authority PATH] (opt-in durable loopback single-voter mode)\n"
+	"                [--authority PATH] (opt-in durable loopback authority mode)\n"
 	"                [--port N] [--persist-path PATH] [--reactors N] [--workers N]\n"
 	"                [--cluster <token> <multicast_port> <multicast_group>\n"
 	"                           <interface> <self_host:port> <peer_host:port> ...]\n"
@@ -208,15 +209,27 @@ int run(const std::vector<std::string>& input_args) {
 	};
 	try {
 		std::unique_ptr<http::HttpHandler> app;
+		http::HttpAsioService::ConnectionFactory connection;
+		std::string authority_mode;
+		bool publisher_https = false;
 		if (settings.contains("--authority")) {
 #ifdef DETENT_WITH_AUTHORITY
-			app = std::make_unique<detent::authority::Service>(detent::authority::load_service_options(settings.at("--authority")));
+			auto authority_options = detent::authority::load_service_options(settings.at("--authority"));
+			authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
+			if (authority_options.publisher_tls) {
+				publisher_https = true;
+				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+				detent::transport::configure_tls(*context, *authority_options.publisher_tls,
+					detent::transport::TlsRole::PublisherServer);
+				connection = http::tls_connection_factory(std::move(context));
+			}
+			app = std::make_unique<detent::authority::Service>(std::move(authority_options));
 #else
 			throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
 #endif
 		 }
 		else { app = std::make_unique<detentd::Distributor>(options); }
-		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024);
+		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024, std::move(connection));
 		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
 
 		std::signal(SIGINT, handle_signal);
@@ -233,7 +246,7 @@ int run(const std::vector<std::string>& input_args) {
 		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = "127.0.0.1"; service.set_bind_options(bind); }
 		service.start(port);
 		ready();
-		if (settings.contains("--authority")) { L_INFO("detentd: durable single-voter authority listening on 127.0.0.1:{}", port); }
+		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on 127.0.0.1:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", port); }
 		else { L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string()); }
 
 		while (!g_stop.load()) {

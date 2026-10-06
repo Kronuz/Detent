@@ -214,7 +214,8 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		offset += static_cast<std::size_t>(n);
 	}
 	auto d = document(bytes, 1024 * 1024);
-	fields(d, {"cluster", "group", "epoch", "directory", "credentials"});
+	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
+			   "publisher_tls"});
 	ServiceOptions o;
 	o.node.context = {identity(text(field(d, "cluster"))), identity(text(field(d, "group"))),
 					  identity(text(field(d, "epoch")))};
@@ -225,6 +226,69 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	o.directory = text(field(d, "directory"), 4096);
 	if (o.directory.is_relative()) {
 		o.directory = path.parent_path() / o.directory;
+	}
+	auto tls = [&](const Object &value) {
+		fields(value, {"certificate", "key", "ca"});
+		auto resolve = [&](const char *key) {
+			std::filesystem::path p(text(field(value, key), 4096));
+			return (p.is_relative() ? path.parent_path() / p : p).string();
+		};
+		return transport::TlsOptions{resolve("certificate"), resolve("key"), resolve("ca")};
+	};
+	check(d.HasMember("node") == d.HasMember("voters"), "node and voters must be configured together");
+	if (d.HasMember("voters")) {
+		o.node.configuration.local = number(field(d, "node"));
+		o.node.configuration.voters.clear();
+		transport::PeerOptions peers;
+		peers.tls = tls(field(d, "peer_tls"));
+		auto &voters = field(d, "voters");
+		check(voters.IsArray() && voters.Size() >= 3 && voters.Size() <= o.node.consensus.voters &&
+				  voters.Size() % 2,
+			  "fixed voter count");
+		std::set<asio::ip::tcp::endpoint> addresses;
+		for (const auto &voter : voters.GetArray()) {
+			fields(voter, {"id", "host", "port", "certificate_sha256"});
+			auto id = number(field(voter, "id")), port = number(field(voter, "port"));
+			check(id && port && port <= 65535, "voter ID or port");
+			auto address = asio::ip::make_address(text(field(voter, "host")));
+			asio::ip::tcp::endpoint endpoint(address, static_cast<unsigned short>(port));
+			check(!address.is_unspecified() && !address.is_multicast() && addresses.insert(endpoint).second,
+				  "voter address");
+			auto hex = text(field(voter, "certificate_sha256"));
+			check(hex.size() == 64, "certificate fingerprint length");
+			transport::Fingerprint fingerprint;
+			auto nibble = [](char c) -> unsigned {
+				if (c >= '0' && c <= '9')
+					return c - '0';
+				if (c >= 'a' && c <= 'f')
+					return c - 'a' + 10;
+				if (c >= 'A' && c <= 'F')
+					return c - 'A' + 10;
+				throw std::invalid_argument("certificate fingerprint hex");
+			};
+			for (unsigned i = 0; i != fingerprint.size(); ++i)
+				fingerprint[i] =
+					static_cast<unsigned char>((nibble(hex[2 * i]) << 4) | nibble(hex[2 * i + 1]));
+			check(peers.pins.emplace(id, fingerprint).second, "duplicate voter");
+			o.node.configuration.voters.push_back(id);
+			if (id == o.node.configuration.local)
+				peers.listen = endpoint;
+			else
+				peers.addresses.emplace(id, endpoint);
+		}
+		check(peers.listen.port(), "local voter missing");
+		o.peers = std::move(peers);
+		// Production elections must cover durable vote/term barriers as well as
+		// network latency. The Core defaults are intended for small fixtures.
+		o.node.timing.heartbeat = 100;
+		o.node.timing.rpc_timeout = 500;
+		o.node.timing.election_min = 1000;
+		o.node.timing.election_max = 2000;
+		o.publisher_tls = tls(field(d, "publisher_tls"));
+	} else {
+		check(!d.HasMember("peer_tls"), "peer TLS requires fixed voters");
+		if (d.HasMember("publisher_tls"))
+			o.publisher_tls = tls(field(d, "publisher_tls"));
 	}
 	auto &credentials = field(d, "credentials");
 	check(credentials.IsArray() && !credentials.Empty() && credentials.Size() <= o.node.application.producers,
@@ -313,13 +377,13 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	auto header = request.header("Authorization");
 	check(header.starts_with("Bearer ") && header.size() <= 135, "unauthorized authority request");
 	auto token = header.substr(7);
-	SHA256 supplied;
+	class SHA256 supplied;
 	supplied.add(token.data(), token.size());
 	Digest want{};
 	supplied.getHash(want.data());
 	const Credential *found = nullptr;
 	for (const auto &c : accounting_->credentials) {
-		SHA256 stored;
+		class SHA256 stored;
 		stored.add(c.token.data(), c.token.size());
 		Digest have{};
 		stored.getHash(have.data());
@@ -613,7 +677,9 @@ void Service::run(std::promise<void> ready) {
 			if (error) {
 				std::lock_guard lock(mutex_);
 				stopping_ = true;
-				health_ = "{\"mode\":\"durable_single_voter\",\"fenced\":true}";
+				health_ = std::string("{\"mode\":\"") +
+						  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
+						  "\",\"fenced\":true}";
 			}
 		});
 		runtime.io.run();
@@ -635,10 +701,19 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 	auto accounting_ = service.accounting_;
 	asio::steady_timer timer(io);
 	std::shared_ptr<Node> owned_node;
+	std::shared_ptr<transport::Peers> peers;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
 	std::uint64_t next = 0;
 	bool started = false;
+	std::uint64_t last_tick = 0;
+	auto election_delay = [&] {
+		std::uint32_t entropy = 0;
+		check(RAND_bytes(reinterpret_cast<unsigned char *>(&entropy), sizeof(entropy)) == 1,
+			  "election entropy");
+		const auto &timing = options_.node.timing;
+		return timing.election_min + entropy % (timing.election_max - timing.election_min + 1);
+	};
 	auto complete = [&](const std::shared_ptr<Task> &task, Reply reply) {
 		auto callback = std::move(task->complete);
 		if (task->kind == Task::Kind::Command) {
@@ -693,7 +768,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		}
 		auto origin = Clock::now();
 		while (!node.worker().ready()) {
-			node.service({0, 100});
+			node.service({0, election_delay()});
 			dispatch(owned_node);
 			node.take_network_actions();
 			if (node.worker().fenced()) {
@@ -702,7 +777,15 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			timer.expires_after(std::chrono::milliseconds(1));
 			co_await timer.async_wait(asio::use_awaitable);
 		}
+		// Seed the first deadline before Start. Later Tick samples affect future
+		// resets and cannot randomize a deadline that is already in force.
+		node.service({0, election_delay()});
 		node.start();
+		if (options_.peers) {
+			peers = std::make_shared<transport::Peers>(io.get_executor(), owned_node, node_options,
+													   *options_.peers);
+			peers->start();
+		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
 		ready.set_value();
 		started = true;
@@ -716,16 +799,24 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			auto now = Clock::now();
 			auto tick = static_cast<std::uint64_t>(
 				std::chrono::duration_cast<std::chrono::milliseconds>(now - origin).count());
-			node.service({tick, 100});
+			// Fresh independent entropy avoids repeated split votes after partitions.
+			last_tick = tick;
+			if (peers)
+				peers->admit();
+			node.service({tick, election_delay()});
 			dispatch(owned_node);
 			if (failure) {
 				std::rethrow_exception(failure);
 			}
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<cluster::consensus::Send>(action)) {
-					throw std::logic_error("single-voter authority cannot send");
+					if (!peers)
+						throw std::logic_error("single-voter authority cannot send");
+					peers->send(std::move(std::get<cluster::consensus::Send>(action)));
 				}
 			}
+			if (peers)
+				peers->pump();
 			for (auto &completion : node.take_completions()) {
 				auto found = pending.find(completion.request);
 				if (found == pending.end()) {
@@ -839,16 +930,20 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 #else
 				const std::string storage_health = ",\"storage_async\":false";
 #endif
-				health_ = "{\"mode\":\"durable_single_voter\",\"ready\":" +
-						  std::string(node.worker().ready() ? "true" : "false") +
+				health_ = std::string("{\"mode\":\"") +
+						  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
+						  "\",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
 						  ",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 						  ",\"committed\":" + std::to_string(node.worker().committed()) +
+						  ",\"term\":" + std::to_string(node.worker().term()) +
 						  ",\"applied\":" + std::to_string(node.worker().applied_index()) +
 						  ",\"revision\":" + std::to_string(node.state().revision()) +
 						  ",\"requests\":" + std::to_string(accounting_->requests) +
 						  ",\"reserved_body_bytes\":" + std::to_string(accounting_->body_bytes) +
 						  ",\"reserved_reply_bytes\":" + std::to_string(accounting_->reply_bytes) +
 						  storage_health +
+						  ",\"peer_admitted\":" + std::to_string(peers ? peers->stats().admitted : 0) +
+						  ",\"peer_dropped\":" + std::to_string(peers ? peers->stats().dropped : 0) +
 						  ",\"checkpoint_busy\":" + (node.checkpoint_busy() ? "true" : "false") +
 						  ",\"fenced\":" + (node.worker().fenced() ? "true" : "false") + "}";
 			}
@@ -861,10 +956,19 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		} else {
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
-			health_ = "{\"mode\":\"durable_single_voter\",\"fenced\":true}";
+			health_ = std::string("{\"mode\":\"") +
+					  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
+					  "\",\"fenced\":true}";
 		}
 	}
-	while (active) {
+	if (peers)
+		peers->stop();
+	while (active || (peers && (!peers->drained() || !owned_node->channel().drained()))) {
+		if (owned_node) {
+			owned_node->service({last_tick, options_.node.timing.election_min});
+			dispatch(owned_node);
+			owned_node->take_network_actions();
+		}
 		timer.expires_after(std::chrono::milliseconds(1));
 		co_await timer.async_wait(asio::use_awaitable);
 	}

@@ -1,5 +1,6 @@
 #pragma once
 #include "node.hh"
+#include "transport/peers.hh"
 #include <chrono>
 #include <deque>
 #include <filesystem>
@@ -20,6 +21,8 @@ struct ServiceOptions {
 	NodeOptions node;
 	std::filesystem::path directory;
 	std::vector<Credential> credentials;
+	std::optional<transport::PeerOptions> peers;
+	std::optional<transport::TlsOptions> publisher_tls;
 	std::size_t requests = 1024, queued_bytes = 16 * 1024 * 1024;
 	std::size_t reply_bytes = 16 * 1024 * 1024;
 	std::chrono::milliseconds timeout{5000};
