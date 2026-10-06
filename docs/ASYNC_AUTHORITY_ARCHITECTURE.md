@@ -96,7 +96,8 @@ Implement in dependency order and commit coherent changes autonomously. Return f
 | macOS native IO and bounded fallback | Activated in the local authority service |
 | Owned HTTP responses and original-write settlement | Implemented and qualified over real TCP |
 | Incremental consensus bundle encoding and suffix capture | Pending |
-| Peer mTLS, publisher HTTPS, bounded codecs and multi-voter configuration | Pending |
+| Bounded control codec, peer hello and owned TLS primitives | Implemented; isolated transport qualification in [AUTHORITY_TRANSPORT.md](AUTHORITY_TRANSPORT.md) |
+| Production peer lanes, publisher HTTPS and multi-voter configuration | Pending |
 | Authenticated three-process failure and scale acceptance | Pending |
 | Linux native backend and target FreeBSD qualification | Pending |
 | Consolidated complete-stage Architect review | Follows those remaining gates |
@@ -104,6 +105,8 @@ Implement in dependency order and commit coherent changes autonomously. Return f
 The evidence below records historical increments. Older references to synchronous production storage describe those revisions; the latest macOS single-voter service activates the full owned runtime profile. Stage 4 remains open because authenticated replicated availability and its acceptance gates are unfinished.
 
 ## Implementation evidence
+
+[Authority transport primitives](AUTHORITY_TRANSPORT.md) now provide bounded control messages, fixed peer hellos, quorum/application profile binding, pinned mutual TLS and owned cancellation-safe frame writes. Four suites plus certificate setup pass natively and under ASan/UBSan; the authentication and asynchronous stream tests also pass with OpenSSL 3 and 4. The compatible retained Worker admission change is qualified natively and under ASan/UBSan and supplied as a [committed library API](../../Kronuz/cluster/consensus/README.md). Production peer/HTTPS integration, real TCP acceptance and complete-stage review remain open. Permissions are restored; real TCP transport tests pass (2.76 seconds including certificate setup), and cluster `10de37c` lands retained admission compatibly.
 
 Cluster `325637b` uses explicit operation state machines, following the Architect's focused mechanism review. Synchronous append and future native submission share bounded writes and manifest publication states. Owned operations retain backend, file and lock lifetimes; token-matched completion and final settlement are separate. Suspended fault schedules compare recovered histories with the synchronous driver. Native cluster tests pass eight suites, Detent passes 30, and journal/consensus/Worker ASan/UBSan regressions pass. Store/Worker completion integration and authenticated transport remain in progress.
 

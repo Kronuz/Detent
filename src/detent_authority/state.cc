@@ -215,6 +215,12 @@ void write_limits(Writer &w, Limits l) {
 }
 } // namespace
 
+std::string semantic_profile(Limits limits) {
+	Writer writer{{}, 80};
+	write_limits(writer, limits);
+	return std::move(writer.bytes);
+}
+
 void validate(const Command &c, Limits l) {
 	require(c.context.cluster != Identity{} && c.context.group != Identity{} && c.context.epoch != Identity{},
 			"missing authority identity");

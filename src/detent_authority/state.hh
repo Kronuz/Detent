@@ -177,6 +177,8 @@ std::string encode(const Command &command, Limits limits = {});
 Command decode(std::string_view bytes, Limits limits = {});
 Digest digest(const Command &command, Limits limits = {});
 void validate(const Command &command, Limits limits = {});
+// Canonical application profile shared by batches, snapshots and peer admission.
+std::string semantic_profile(Limits limits = {});
 std::string encode_batch(const std::vector<Command> &commands, Limits limits = {},
 						 std::size_t maximum_bytes = 1024 * 1024);
 std::vector<Command> decode_batch(std::string_view bytes, Limits limits = {},

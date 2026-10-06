@@ -2,6 +2,8 @@
 
 **Status:** Implementation authorized; legacy safety prerequisites and isolated durable consensus/checkpoint worker validated locally. Portable snapshots and authority/fleet integration remain in progress.
 
+The latest service work adds [bounded authority transport primitives](AUTHORITY_TRANSPORT.md) and a [compatible retained-admission API in cluster](../../Kronuz/cluster/consensus/README.md), with native and sanitizer evidence recorded in those documents. The daemon remains single-voter until peer/HTTPS integration and real-process acceptance are complete. Permissions are restored, and cluster `10de37c` lands the library API compatibly. Real TCP transport tests pass. These limits do not establish Stage 4 completion.
+
 The [Validated Architectural Blueprint](VALIDATED_ARCHITECTURE.md) governs this work. The Architect plans each complete component or stage, implementation proceeds autonomously through its commits, and final review covers the completed component. Correction rounds address concrete findings; routine commits do not require approval. Source findings, reproduced failures, and qualification results are recorded separately; completion of the legacy corrections does not establish durable consensus or fleet capacity.
 
 ## Stage 1: legacy Raft safety
