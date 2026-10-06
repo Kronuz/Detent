@@ -370,7 +370,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 #endif
 	check(options_.requests && options_.requests <= 65536 &&
 			  options_.queued_bytes >= options_.node.application.request_bytes &&
-			  options_.timeout.count() > 0 && options_.reply_bytes >= 1024 && !options_.credentials.empty(),
+			  options_.timeout.count() > 0 && options_.timeout <= std::chrono::hours(24) &&
+			  options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
 	accounting_ = std::make_shared<Accounting>();
 	accounting_->credentials = std::move(options_.credentials);
@@ -440,7 +441,8 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 }
 std::optional<Service::Reply> Service::execute(const http::Request &request,
 											   std::shared_ptr<Admission> admission,
-											   std::function<void(Reply)> complete) {
+											   std::function<void(Reply)> complete,
+											   Clock::time_point deadline) {
 	check(request.method == "POST", "authority endpoints require POST");
 	auto d = document(request.body, options_.node.application.request_bytes);
 	auto request_fields = [&](const Object &value, std::initializer_list<std::string_view> allowed) {
@@ -462,7 +464,7 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 	task->complete = std::move(complete);
 	task->command.context = options_.node.context;
 	task->command.producer = task->admission->credential->producer;
-	task->deadline = Clock::now() + options_.timeout;
+	task->deadline = deadline;
 	if (request.path == "/v2/open") {
 		request_fields(d, {"expected_generation", "nonce"});
 		task->kind = Task::Kind::Command;
@@ -566,8 +568,10 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		} else {
 			auto admission =
 				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
+			const auto outcome_deadline = Clock::now() + options_.timeout;
 			http::DeferredOptions deferred_options;
-			deferred_options.deadline = Clock::now() + options_.timeout;
+			// Outcome completion needs a bounded window to write its timeout reply.
+			deferred_options.deadline = outcome_deadline + std::chrono::seconds(1);
 			deferred_options.limits.body_bytes = options_.reply_bytes - 256;
 			deferred_options.request_retention = admission;
 			deferred = response.defer(std::move(deferred_options));
@@ -604,7 +608,7 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 						deferred->abandon();
 					}
 				};
-				auto immediate = execute(request, std::move(admission), complete);
+				auto immediate = execute(request, std::move(admission), complete, outcome_deadline);
 				if (immediate) {
 					complete(std::move(*immediate));
 				}
@@ -614,9 +618,10 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 			// transfers response authority and never blocks on a per-request future.
 			auto promise = std::make_shared<std::promise<Reply>>();
 			auto future = promise->get_future();
-			auto deadline = Clock::now() + options_.timeout;
-			auto immediate = execute(request, std::move(admission),
-									 [promise](Reply value) { promise->set_value(std::move(value)); });
+			auto deadline = outcome_deadline;
+			auto immediate = execute(
+				request, std::move(admission),
+				[promise](Reply value) { promise->set_value(std::move(value)); }, deadline);
 			if (immediate) {
 				reply = std::move(*immediate);
 			} else if (future.wait_until(deadline) == std::future_status::ready) {

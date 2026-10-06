@@ -58,6 +58,17 @@ ServiceOptions options(const std::filesystem::path &directory) {
 int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
+	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
+		auto invalid = options(directory);
+		invalid.timeout = timeout;
+		bool rejected = false;
+		try {
+			Service service(std::move(invalid));
+		} catch (const std::invalid_argument &) {
+			rejected = true;
+		}
+		assert(rejected && !std::filesystem::exists(directory));
+	}
 	const std::string open = "\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"";
 	const std::string transaction =
 		"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key\",\"value\":{"

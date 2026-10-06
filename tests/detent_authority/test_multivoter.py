@@ -24,10 +24,14 @@ CONTEXT = {
 
 
 def request(
-    port: int, context: ssl.SSLContext, path: str, fields: dict[str, Any] | None = None
+    port: int,
+    context: ssl.SSLContext,
+    path: str,
+    fields: dict[str, Any] | None = None,
+    timeout: float = 2,
 ) -> tuple[int, dict[str, Any]]:
     connection = http.client.HTTPSConnection(
-        "localhost", port, timeout=2, context=context
+        "localhost", port, timeout=timeout, context=context
     )
     try:
         if fields is None:
@@ -243,8 +247,25 @@ def main() -> None:
             time.sleep(0.02)
         else:
             raise AssertionError("restarted voter did not recover and reconnect")
+        # Retain the elected leader but remove both quorum partners. A cached
+        # local value must not escape as a successful strong read.
+        survivor = leader()
+        for peer, child in children.items():
+            if peer != survivor:
+                child.kill()
+                child.wait(timeout=5)
+        began = time.monotonic()
+        code, failure = request(
+            ports[survivor + 3],
+            context,
+            "/v2/read",
+            {"namespace": "ns", "keys": ["ns:key"]},
+            timeout=8,
+        )
+        elapsed = time.monotonic() - began
+        assert code == 503 and elapsed < 7, (code, failure, elapsed)
         print(
-            "Three HTTPS daemons: durable receipt, retry, leader kill, strong read and restart passed"
+            "Three HTTPS daemons: durable receipt, lost reply, leader kill, restart and bounded no-quorum read passed"
         )
     except BaseException:
         for log in directory.glob("*.log"):

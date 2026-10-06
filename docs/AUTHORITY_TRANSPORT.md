@@ -51,3 +51,5 @@ Configuration files remain regular, owner/root-owned files without world access 
 Snapshot transfer and catch-up also pass under ASan/UBSan (8.02 seconds including certificate setup). The publisher TLS adapter now retains global connection credit through original session completion, including idle authenticated connections; its separate handshake credit retires after admission.
 
 The Linux authority now integrates the owned io_uring completion queue with explicit setup policy and native/fallback health counters. [Linux completion storage](LINUX_COMPLETION.md) records its capability boundary and qualification in progress. Startup/recovery remain synchronous; complete-stage acceptance is still open.
+
+Publisher task and deferred transport deadlines use the same captured outcome deadline. The transport retains one additional second for writing the bounded response after outcome timeout. This prevents the transport timer from discarding the authority's retryable 503 at the instant it becomes ready. Original writes still retire before reply and request credits are released; an admitted command whose outcome remains unknown must be retried with the same identity.

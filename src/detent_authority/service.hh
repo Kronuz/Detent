@@ -71,6 +71,7 @@ class Service final : public http::HttpHandler {
 	std::shared_ptr<Admission> admit(const http::Request &request);
 	void run(std::promise<void> ready);
 	std::optional<Reply> execute(const http::Request &request, std::shared_ptr<Admission> admission,
-								 std::function<void(Reply)> complete);
+								 std::function<void(Reply)> complete,
+								 std::chrono::steady_clock::time_point deadline);
 };
 } // namespace detent::authority
