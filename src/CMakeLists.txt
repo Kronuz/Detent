@@ -20,6 +20,7 @@ target_include_directories(detent SYSTEM PUBLIC
   "${rapidjson_SOURCE_DIR}/include")
 
 target_link_libraries(detent PUBLIC
+  Threads::Threads
   char_classify::char_classify
   strict_stox::strict_stox
   sha256::sha256
