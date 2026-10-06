@@ -329,6 +329,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 struct Service::Accounting {
 	std::mutex mutex;
 	std::vector<Credential> credentials;
+	std::vector<Digest> credential_hashes;
 	std::map<std::string, std::size_t> producers;
 	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
 };
@@ -375,6 +376,14 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		  "invalid authority service limits");
 	accounting_ = std::make_shared<Accounting>();
 	accounting_->credentials = std::move(options_.credentials);
+	accounting_->credential_hashes.reserve(accounting_->credentials.size());
+	for (const auto &credential : accounting_->credentials) {
+		class SHA256 hash;
+		hash.add(credential.token.data(), credential.token.size());
+		Digest digest{};
+		hash.getHash(digest.data());
+		accounting_->credential_hashes.push_back(digest);
+	}
 	std::promise<void> ready;
 	auto future = ready.get_future();
 	thread_ = std::thread([this, ready = std::move(ready)]() mutable { run(std::move(ready)); });
@@ -403,11 +412,9 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	Digest want{};
 	supplied.getHash(want.data());
 	const Credential *found = nullptr;
-	for (const auto &c : accounting_->credentials) {
-		class SHA256 stored;
-		stored.add(c.token.data(), c.token.size());
-		Digest have{};
-		stored.getHash(have.data());
+	for (std::size_t index = 0; index < accounting_->credentials.size(); ++index) {
+		const auto &c = accounting_->credentials[index];
+		const auto &have = accounting_->credential_hashes[index];
 		unsigned difference = 0;
 		for (unsigned i = 0; i < 32; ++i) {
 			difference |= want[i] ^ have[i];

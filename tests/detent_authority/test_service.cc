@@ -120,6 +120,20 @@ int main() {
 			rejected = true;
 		}
 		assert(rejected && unauthorized.body.empty());
+		for (const auto &token : {std::string("0123456789abcdef0123456789abcdee"),
+								  std::string("0123456789abcdef0123456789abcdeff"), std::string(129, 'a')}) {
+			http::Request invalid;
+			invalid.path = "/v2/open";
+			invalid.headers.emplace_back("Authorization", "Bearer " + token);
+			bool denied = false;
+			try {
+				service.on_request_body(invalid);
+			} catch (const http::RequestRejected &error) {
+				denied = true;
+			}
+			assert(denied && invalid.body.empty());
+		}
+
 		std::vector<http::Request> held(16);
 		for (auto &request : held) {
 			request.path = "/v2/open";

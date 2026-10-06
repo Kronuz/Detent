@@ -30,3 +30,6 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_durable_bench detent_authority_durable_bench.cc)
   target_link_libraries(detent_authority_durable_bench PRIVATE detent::authority_node)
 endif()
+
+add_executable(detent_credential_scan_bench credential_scan_bench.cc)
+target_link_libraries(detent_credential_scan_bench PRIVATE sha256)
