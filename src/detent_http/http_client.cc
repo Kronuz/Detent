@@ -177,12 +177,9 @@ ParsedHead parse_head(std::string_view head) {
 			} else if (iequals(name, "Connection") && iequals(value, "close")) {
 				out.has_close_header = true;
 			} else if (iequals(name, "Content-Type")) {
-				// Only the media type matters here, not e.g. a "; charset=..."
-				// parameter, so a prefix match is enough and avoids parsing
-				// full media-type parameter syntax for a value this code
-				// only ever compares against one literal.
-				static constexpr std::string_view kPatchMediaType = "application/merge-patch";
-				out.is_patch = value.substr(0, kPatchMediaType.size()) == kPatchMediaType;
+				// Parameters do not change the media type, but a suffix does.
+				auto media_type = trim(value.substr(0, value.find(';')));
+				out.is_patch = iequals(media_type, "application/merge-patch+json");
 			} else if (iequals(name, "Content-Encoding")) {
 				out.content_encoding = std::string(value);
 			}

@@ -80,7 +80,8 @@ class Server {
 	std::string response_;
 	std::jthread thread_;
 };
-void verify(const std::string &wire, bool valid, std::string_view body = {}, int status = 200) {
+void verify(const std::string &wire, bool valid, std::string_view body = {}, int status = 200,
+			bool patch = false) {
 	Server server(wire);
 	for (bool persistent : {false, true}) {
 		bool rejected = false;
@@ -97,12 +98,22 @@ void verify(const std::string &wire, bool valid, std::string_view body = {}, int
 		}
 		check(rejected != valid);
 		if (valid)
-			check(response.status == status && response.body == body);
+			check(response.status == status && response.body == body && response.is_patch == patch);
 	}
 }
 } // namespace
 int main() {
 	try {
+		for (auto type : {"application/merge-patch+json-seq", "application/merge-patch",
+						  "application/merge-patchjunk", "application/json"})
+			verify(std::string("HTTP/1.1 200 OK\r\nContent-Type: ") + type +
+					   "\r\nContent-Length: 3\r\n\r\nabc",
+				   true, "abc");
+		for (auto type : {"application/merge-patch+json", "Application/Merge-Patch+Json; charset=utf-8",
+						  "application/merge-patch+json \t; charset=utf-8"})
+			verify(std::string("HTTP/1.1 200 OK\r\nContent-Type: ") + type +
+					   "\r\nContent-Length: 3\r\n\r\nabc",
+				   true, "abc", 200, true);
 		for (auto field :
 			 {"Broken-Header", "Content-Length : 3", " Content-Length: 3", "\tFolded: value", ": empty-name",
 			  "Bad(Name): value", "X-Test: a\rb", "X-Test: a\nb", "X-Test: a\x01", "X-Test: a\x7f"})
