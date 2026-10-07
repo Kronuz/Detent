@@ -298,7 +298,7 @@ int main() {
 		auto charged_builder = candidate(42, 'q');
 		auto charged_account = charged_builder->bytes()->account();
 		std::weak_ptr<const d::OwnedBuffer> weak_buffer = charged_builder->bytes();
-		const auto charged_capacity = charged_builder->bytes()->storage_capacity();
+		const auto charged_page_capacity = charged_builder->bytes()->storage_capacity();
 		{
 			l::ImagePublisher publisher(charged_io, true, std::make_shared<int>(1));
 			publisher.begin(*charged_builder);
@@ -311,11 +311,14 @@ int main() {
 			held->submitted();
 		}
 		charged_builder.reset();
-		require(!weak_buffer.expired() && charged_account->used() == charged_capacity);
+		const auto charged_capacity = charged_account->used();
+		require(!weak_buffer.expired() && charged_capacity > charged_page_capacity);
 		require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
 		require(!weak_buffer.expired() && charged_account->used() == charged_capacity);
 		c::drive_synchronously(*held);
-		require(weak_buffer.expired() && charged_account->used() == 0);
+		require(weak_buffer.expired());
+		weak_buffer.reset();
+		require(charged_account->used() == 0);
 		held.reset();
 		for (auto fault : {std::size_t(4), std::size_t(12)}) {
 			auto failed_directory = root / ("settled-buffer-" + std::to_string(fault));
@@ -334,7 +337,9 @@ int main() {
 			require(publisher.state() ==
 					(fault == 12 ? l::PublicationState::Fenced : l::PublicationState::Rejected));
 			require(publisher.uncertain() == (fault == 12));
-			require(failed_buffer.expired() && failed_account->used() == 0);
+			require(failed_buffer.expired());
+			failed_buffer.reset();
+			require(failed_account->used() == 0);
 			publisher.close();
 			require(publisher.uncertain() == (fault == 12));
 		}

@@ -131,7 +131,7 @@ struct ImagePublisher::Impl {
 																 bytes, bytes->view(), descriptor.length);
 		else {
 			auto raw = encode_descriptor(descriptor);
-			auto buffer = std::make_shared<distribution::OwnedBuffer>(bytes->account(), raw.size());
+			auto buffer = distribution::make_owned_buffer(bytes->account(), raw.size());
 			buffer->resize(raw.size());
 			std::copy(raw.begin(), raw.end(), buffer->mutable_bytes().begin());
 			buffer->seal();

@@ -92,8 +92,8 @@ int main() {
 				charged.finish();
 				require(retained && retained->bytes() == one.bytes);
 			}
-			const auto plain_capacity = one.bytes.size() + d::PagedStorage::page_overhead();
-			require(account->used() == plain_capacity);
+			const auto plain_capacity = account->used();
+			require(plain_capacity > one.bytes.size() + d::PagedStorage::page_overhead());
 			const auto peak = account->peak();
 			retained.reset();
 			require(account->used() == 0);
@@ -126,8 +126,10 @@ int main() {
 			}
 		}
 		{
-			auto account =
-				std::make_shared<d::StorageLedger>(d::fragment_bytes + d::PagedStorage::page_overhead());
+			auto probe_account = std::make_shared<d::StorageLedger>(1024 * 1024);
+			auto probe = d::make_owned_buffer(probe_account, d::fragment_bytes);
+			auto account = std::make_shared<d::StorageLedger>(probe_account->used());
+			probe.reset();
 			std::optional<d::DecodedFragment> held;
 			{
 				d::FragmentDecoder decoder(d::UpdateKind::Snapshot, 1024 * 1024, false, account);

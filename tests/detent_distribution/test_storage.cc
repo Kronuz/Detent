@@ -40,6 +40,59 @@ template <class Exception, class F> void rejects(F action) {
 } // namespace
 int main() {
 	try {
+		{
+			auto account = std::make_shared<StorageLedger>(1024 * 1024);
+			StorageAllocator<int> allocator(account, allocate, release);
+			auto raw = allocator.allocate(2);
+			check(account->used() > 2 * sizeof(int));
+			const auto attempts = allocations;
+			rejects<std::bad_array_new_length>(
+				[&] { allocator.allocate(std::numeric_limits<std::size_t>::max()); });
+			check(allocations == attempts);
+			allocator.deallocate(raw, 2);
+			check(account->used() == 0);
+			auto value = std::allocate_shared<int>(allocator, 17);
+			std::weak_ptr<int> weak = value;
+			const auto control_capacity = account->used();
+			check(control_capacity > sizeof(int) && *value == 17);
+			value.reset();
+			check(weak.expired() && account->used() == control_capacity);
+			weak.reset();
+			check(account->used() == 0);
+			struct FailingConstructor {
+				FailingConstructor() { throw std::runtime_error("constructor failure"); }
+			};
+			rejects<std::runtime_error>([&] {
+				std::allocate_shared<FailingConstructor>(
+					StorageAllocator<FailingConstructor>(account, allocate, release));
+			});
+			check(account->used() == 0);
+			fail = true;
+			rejects<std::bad_alloc>([&] { std::allocate_shared<int>(allocator); });
+			fail = false;
+			check(account->used() == 0);
+			{
+				std::vector<int, StorageAllocator<int>> values(allocator);
+				for (int i = 0; i < 1000; ++i)
+					values.push_back(i);
+				check(account->used() > values.capacity() * sizeof(int));
+				check(account->peak() > account->used()); // replacement overlaps old capacity
+			}
+			check(account->used() == 0);
+			auto empty = make_owned_buffer(account, 0);
+			std::weak_ptr<OwnedBuffer> weak_buffer = empty;
+			check(empty->storage_capacity() == 0 && account->used() >= sizeof(OwnedBuffer));
+			empty.reset();
+			check(weak_buffer.expired() && account->used() > 0);
+			weak_buffer.reset();
+			check(account->used() == 0);
+			auto zero = std::make_shared<StorageLedger>(0);
+			const auto before = allocations;
+			rejects<StoragePressure>(
+				[&] { std::allocate_shared<int>(StorageAllocator<int>(zero, allocate, release)); });
+			check(allocations == before && zero->used() == 0);
+		}
+		allocations = frees = 0;
 		constexpr auto page = 64 + PagedStorage::page_overhead();
 		StorageLedger ledger(page * 2);
 		{

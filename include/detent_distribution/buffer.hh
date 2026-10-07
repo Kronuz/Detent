@@ -1,4 +1,5 @@
 #pragma once
+#include "allocator.hh"
 #include "storage.hh"
 #include <cstring>
 #include <memory>
@@ -63,4 +64,8 @@ class OwnedBuffer {
 	std::size_t capacity_ = 0, size_ = 0;
 	bool sealed_ = false;
 };
+inline std::shared_ptr<OwnedBuffer> make_owned_buffer(std::shared_ptr<StorageLedger> account,
+													  std::size_t capacity) {
+	return std::allocate_shared<OwnedBuffer>(StorageAllocator<OwnedBuffer>(account), account, capacity);
+}
 } // namespace detent::distribution

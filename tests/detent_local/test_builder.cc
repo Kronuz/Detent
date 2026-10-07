@@ -49,7 +49,7 @@ int main() {
 		require(rejected);
 		// The image must compete with retained rows in the same physical account.
 		const auto row_capacity = snapshot->storage_capacity();
-		const auto image_capacity = bytes->storage_capacity();
+		const auto image_capacity = snapshot->storage_account()->used() - row_capacity;
 		auto account = std::make_shared<d::StorageLedger>(row_capacity + image_capacity - 1);
 		d::Limits decode_limits;
 		decode_limits.storage_account = account;

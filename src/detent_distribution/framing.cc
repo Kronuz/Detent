@@ -80,7 +80,7 @@ struct FragmentDecoder::Impl {
 	DecodedFragment current;
 	std::shared_ptr<StorageLedger> account;
 	std::shared_ptr<OwnedBuffer> payload;
-	std::unique_ptr<OwnedBuffer> workspace;
+	std::shared_ptr<OwnedBuffer> workspace;
 	SHA256 hash;
 	std::optional<DecodedFragment> output;
 	Impl(UpdateKind expected, std::uint64_t maximum_bytes, bool allow,
@@ -126,7 +126,7 @@ struct FragmentDecoder::Impl {
 			total = current.total;
 			admitted = true;
 		}
-		payload = std::make_shared<OwnedBuffer>(account, encoded_size);
+		payload = make_owned_buffer(account, encoded_size);
 		hash.reset();
 		hash.add(header.data(), 64);
 	}
@@ -136,10 +136,10 @@ struct FragmentDecoder::Impl {
 		require(std::memcmp(digest, header.data() + 64, sizeof(digest)) == 0,
 				"distribution fragment checksum mismatch");
 		if (compressed) {
-			auto plain = std::make_shared<OwnedBuffer>(account, decoded_size);
+			auto plain = make_owned_buffer(account, decoded_size);
 			plain->resize(decoded_size);
 			if (!workspace) {
-				workspace = std::make_unique<OwnedBuffer>(account, ZSTD_estimateDCtxSize());
+				workspace = make_owned_buffer(account, ZSTD_estimateDCtxSize());
 				workspace->resize(ZSTD_estimateDCtxSize());
 			}
 			auto memory = workspace->mutable_bytes();

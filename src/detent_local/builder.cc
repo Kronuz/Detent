@@ -62,7 +62,7 @@ struct ImageBuilder::Impl {
 		header = {calculate_layout(source->namespaces().size(), source->records().size(), overrides, strings,
 								   limits.bytes),
 				  source->cursor(), source->profile()};
-		output = std::make_shared<distribution::OwnedBuffer>(source->storage_account(), header.layout.length);
+		output = distribution::make_owned_buffer(source->storage_account(), header.layout.length);
 		ns = record = 0;
 		phase = 1;
 		return true;
