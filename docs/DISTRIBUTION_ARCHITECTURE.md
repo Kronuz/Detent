@@ -217,3 +217,5 @@ Implementation proceeds autonomously within the accepted component. Final Archit
 2. Implement the supported schema and incremental codec with independent vectors, then connect validated input directly to the image builder.
 3. Add immutable descriptors, generation leases and pinned SDK views, followed by the agent's publication/cursor pipeline and explicit legacy adapter.
 4. Run the complete fault, interoperability, platform and pressure gates, record measurements with their limits, and obtain one consolidated Stage 4 review.
+
+The implemented local image layout, validation and generation lease boundary are documented in [Local image format](LOCAL_IMAGE_FORMAT.md). Publication and agent integration remain part of the same Stage 4 component.

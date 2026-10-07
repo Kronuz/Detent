@@ -10,3 +10,4 @@ endif()
 
 add_subdirectory(detent_authority)
 add_subdirectory(detent_distribution)
+add_subdirectory(detent_local)

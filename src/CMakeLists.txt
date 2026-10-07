@@ -32,6 +32,7 @@ target_compile_features(detent PUBLIC cxx_std_20)
 
 add_library(detent::detent ALIAS detent)
 add_subdirectory(detent_distribution)
+add_subdirectory(detent_local)
 
 ########################################################################
 # detent_http: optional client-side HTTP polling source (POSIX sockets
