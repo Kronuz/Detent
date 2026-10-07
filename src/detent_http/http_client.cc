@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <charconv>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
@@ -148,7 +149,15 @@ ParsedHead parse_head(std::string_view head) {
 			if (iequals(name, "ETag")) {
 				out.etag = std::string(value);
 			} else if (iequals(name, "Content-Length")) {
-				out.content_length = static_cast<std::size_t>(std::atoll(std::string(value).c_str()));
+				std::size_t length = 0;
+				auto parsed = std::from_chars(value.data(), value.data() + value.size(), length);
+				if (value.empty() || parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() ||
+					(out.content_length && *out.content_length != length)) {
+					throw std::runtime_error("detent_http: invalid or conflicting Content-Length");
+				}
+				out.content_length = length;
+			} else if (iequals(name, "Transfer-Encoding")) {
+				throw std::runtime_error("detent_http: unsupported Transfer-Encoding");
 			} else if (iequals(name, "Connection") && iequals(value, "close")) {
 				out.has_close_header = true;
 			} else if (iequals(name, "Content-Type")) {
@@ -217,11 +226,17 @@ HttpResponse parse_full_response(const std::string& raw) {
 		throw std::runtime_error("detent_http: truncated/malformed HTTP response (no header terminator)");
 	}
 	auto head = parse_head(std::string_view(raw).substr(0, header_end));
+	auto body = std::string_view(raw).substr(header_end + 4);
+	if ((head.status == 204 || head.status == 304) ? !body.empty()
+		: (head.content_length && body.size() != *head.content_length)) {
+		throw std::runtime_error("detent_http: response body length mismatch");
+	}
 	HttpResponse resp;
 	resp.status = head.status;
 	resp.etag = head.etag;
 	resp.is_patch = head.is_patch;
-	resp.body = decode_body(std::string_view(raw).substr(header_end + 4), head.content_encoding);
+	if (head.status != 204 && head.status != 304)
+		resp.body = decode_body(body, head.content_encoding);
 	return resp;
 }
 
@@ -265,7 +280,12 @@ HttpResponse HttpConnection::get(
 		// network blip). Reconnect once and retry before giving up.
 		disconnect();
 		ensure_connected();
-		return get_once(path, if_none_match, base_version);
+		try {
+			return get_once(path, if_none_match, base_version);
+		} catch (...) {
+			disconnect();
+			throw;
+		}
 	}
 }
 
@@ -308,17 +328,27 @@ HttpResponse HttpConnection::get_once(
 	resp.is_patch = head.is_patch;
 
 	std::size_t body_start = header_end + 4;
-	// A 304 is defined bodyless regardless of any Content-Length header (our
+	// A 204 or 304 is bodyless regardless of any Content-Length header (our
 	// own server never sends one for 304, but be defensive about others).
-	std::size_t want = (resp.status == 304) ? 0 : head.content_length.value_or(0);
+	const bool bodyless = resp.status == 204 || resp.status == 304;
+	if (!bodyless && !head.content_length) {
+		// A response without an explicit length is delimited by connection
+		// closure. Drain it and discard the connection before returning.
+		resp.body = buf.substr(body_start);
+		resp.body += read_all_to_eof(fd_);
+		disconnect();
+		resp.body = decode_body(resp.body, head.content_encoding);
+		return resp;
+	}
+	std::size_t want = bodyless ? 0 : *head.content_length;
 
 	resp.body = buf.substr(body_start);
 	if (resp.body.size() > want) {
-		resp.body.resize(want); // shouldn't happen (HTTP/1.1 keep-alive, one response per read loop), but be safe
+		throw std::runtime_error("detent_http: excess response body bytes");
 	}
 	resp.body.reserve(want);
 	while (resp.body.size() < want) {
-		auto n = ::recv(fd_, chunk, sizeof(chunk), 0);
+		auto n = ::recv(fd_, chunk, std::min(sizeof(chunk), want - resp.body.size()), 0);
 		if (n > 0) {
 			resp.body.append(chunk, static_cast<std::size_t>(n));
 		} else if (n == 0) {
@@ -332,7 +362,8 @@ HttpResponse HttpConnection::get_once(
 	if (head.has_close_header) {
 		disconnect(); // server is ending the connection; the next get() reconnects
 	}
-	resp.body = decode_body(resp.body, head.content_encoding);
+	if (!bodyless)
+		resp.body = decode_body(resp.body, head.content_encoding);
 	return resp;
 }
 

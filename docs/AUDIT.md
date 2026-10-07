@@ -94,3 +94,11 @@ Authority integration introduced an unconditional reference to HTTP's new TLS co
 The GET, PUT and PATCH helpers closed their socket before parsing the response, then closed that descriptor again when parsing threw. Another thread could reuse the descriptor between those calls, allowing the second close to destroy an unrelated resource. Request construction also happened before the exception cleanup block.
 
 A scoped socket owner now covers request construction, transfer and response parsing, closing exactly once during scope exit. The regression returns malformed responses over real TCP and forces descriptor reuse during exception allocation. It fails against the preceding source and passes after correction for all three helpers. The agent HTTP and distributor integration gates pass; the socket regression passes on macOS, Linux and FreeBSD and under macOS ASan/UBSan.
+
+### Validate HTTP response lengths before accepting state
+
+The client used `atoll` for `Content-Length`, accepted trailing junk and conflicting duplicate values, ignored `Transfer-Encoding`, and accepted truncated one-shot bodies. Persistent requests treated missing lengths as zero and silently truncated excess bytes already read. These paths could return incomplete state or leave a connection out of alignment with the next response.
+
+Length parsing now requires a complete unsigned decimal value, rejects conflicting duplicates, and verifies the received body against the declared length. Identical duplicate lengths remain accepted. Unsupported transfer coding is rejected explicitly. Responses without a declared length are read through connection closure and the connection is discarded. Bodyless 204/304 responses bypass decompression, including a 304 carrying representation metadata. Failure on the second persistent attempt also disconnects the socket.
+
+The real TCP fixture exercises malformed and overflowed lengths, duplicate lengths, truncated/excess bodies, chunked coding, close-delimited responses, and bodyless responses in both one-shot and persistent clients. It fails against the previous source at the first invalid length and passes on macOS, Linux and FreeBSD, and under macOS ASan/UBSan. These checks do not address aggregate HTTP body/decompression limits or asynchronous connection establishment, which remain audit work.
