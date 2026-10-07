@@ -134,3 +134,11 @@ Response parsing converted the status token with `atoi` and never checked the pr
 The real TCP fixture covers malformed lengths and signs, invalid status classes, missing separators, unsupported versions and control bytes in both one-shot and persistent clients. It fails against the preceding source and passes after correction natively and under macOS ASan/UBSan. Native agent HTTP and distributor integration gates also pass. This correction leaves header grammar, body/decompression quotas and asynchronous connection establishment as separate audit work.
 
 The expanded HTTP status and socket-ownership suites also pass on Linux and FreeBSD after restoring the existing qualification VM. No wire-body or status is accepted from the malformed fixtures.
+
+### Reject malformed HTTP header fields
+
+The response parser silently ignored lines without a colon and trimmed whitespace from field names. It therefore accepted malformed responses containing `Broken-Header` or `Content-Length : 3`, as well as folded fields and forbidden control bytes in unknown field values. Both client paths used that parser before returning state.
+
+Every header line now requires a nonempty token field name immediately followed by its colon. Field values reject forbidden control bytes before trimming; spaces and tabs remain valid value whitespace. Unknown fields still participate in structural validation. The parser explicitly rejects obsolete folded lines rather than silently dropping them.
+
+The real TCP regression fails against the preceding source at its first malformed field. Ten invalid-field cases then pass after correction in both one-shot and persistent clients, alongside a valid field name using the supported punctuation characters. Native agent HTTP, distributor integration and socket/framing gates pass (3.83 seconds); the two HTTP suites also pass on Linux (0.93 seconds), FreeBSD (0.95 seconds) and under macOS ASan/UBSan (1.77 seconds). Media-type/content-coding interpretation, aggregate body/decompression limits and asynchronous connection establishment remain separate audit work.

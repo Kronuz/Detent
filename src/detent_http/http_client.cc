@@ -113,6 +113,11 @@ bool iequals(std::string_view a, std::string_view b) {
 	                   [](char x, char y) { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); });
 }
 
+bool is_field_character(unsigned char byte) noexcept {
+	return (byte >= 'a' && byte <= 'z') || (byte >= 'A' && byte <= 'Z') ||
+		(byte >= '0' && byte <= '9') || std::string_view("!#$%&'*+-.^_`|~").find(byte) != std::string_view::npos;
+}
+
 struct ParsedHead {
 	int status = 0;
 	std::optional<std::string> etag;
@@ -147,8 +152,15 @@ ParsedHead parse_head(std::string_view head) {
 		auto len = (next == std::string_view::npos ? head.size() : next) - pos;
 		std::string_view line = head.substr(pos, len);
 		auto colon = line.find(':');
-		if (colon != std::string_view::npos) {
-			auto name = trim(line.substr(0, colon));
+		if (colon == std::string_view::npos || colon == 0 ||
+			!std::all_of(line.begin(), line.begin() + colon, is_field_character) ||
+			std::any_of(line.begin() + colon + 1, line.end(), [](unsigned char byte) {
+				return (byte < 32 && byte != '\t') || byte == 127;
+			})) {
+			throw std::runtime_error("detent_http: malformed response header field");
+		}
+		{
+			auto name = line.substr(0, colon);
 			auto value = trim(line.substr(colon + 1));
 			if (iequals(name, "ETag")) {
 				out.etag = std::string(value);
