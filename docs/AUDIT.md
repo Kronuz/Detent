@@ -108,3 +108,9 @@ The real TCP fixture exercises malformed and overflowed lengths, duplicate lengt
 A rejected image publication retained its candidate bytes and completed preparation job until the publisher was destroyed or another candidate began. With charged buffers this also held quota after the original operations had settled. A failure at the final selection directory barrier retained the same bytes while fenced.
 
 The failure path now releases settled jobs and candidate bytes. It records selection uncertainty independently before dropping the completed job, preserving the fence and uncertainty through close. It never releases an in-flight original: `advance()` still requires authentic settlement. The regression holds the publisher alive after both an image-write failure and a final selection-barrier failure, then verifies physical buffer release and zero retained charge. It fails against the preceding source and passes after correction on macOS, Linux and FreeBSD, and under macOS ASan/UBSan. Disk artifacts remain protected pending reconciliation and generation cleanup.
+
+### Allocate the directory owner before opening its descriptor
+
+Generation recovery evaluated `open()` before `make_shared<File>` allocated its owner. If that allocation threw, no object owned the successful directory descriptor, so it leaked. Recovery now constructs the empty scoped owner first and installs the descriptor afterward.
+
+The regression injects failure into the first owner allocation and compares open descriptor counts. It reproduces the leak against the preceding source and passes after correction on macOS, Linux and FreeBSD and under macOS ASan/UBSan. It also checks missing-selection cleanup; native view and publication suites remain passing.

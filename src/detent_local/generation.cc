@@ -100,8 +100,8 @@ std::string generation_name(const GenerationId &id) {
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected) {
-	auto dir =
-		std::make_shared<File>(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+	auto dir = std::make_shared<File>(-1);
+	dir->fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	struct stat directory_info{};
 	require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
 			!(directory_info.st_mode & 0022));
