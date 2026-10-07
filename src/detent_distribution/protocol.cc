@@ -31,12 +31,18 @@ bool charge(WorkBudget &budget, std::size_t bytes) {
 	budget.bytes -= bytes;
 	return true;
 }
-bool discard_overrides(BoolDef &definition, WorkBudget &budget) {
-	while (!definition.overrides.empty()) {
-		auto first = definition.overrides.begin();
-		if (!charge(budget, first->first.size() + sizeof(GroupOverride)))
+template <class Storage> bool retire(Storage &storage, WorkBudget &budget) {
+	while (auto capacity = storage.arena.front_capacity()) {
+		if (!budget.tokens)
 			return false;
-		definition.overrides.erase(first);
+		auto bytes = std::min(capacity - storage.retirement_credit, budget.bytes);
+		budget.bytes -= bytes;
+		storage.retirement_credit += bytes;
+		if (storage.retirement_credit != capacity)
+			return false;
+		--budget.tokens;
+		storage.retirement_credit = 0;
+		storage.arena.release_one();
 	}
 	return true;
 }
@@ -58,19 +64,22 @@ struct DefinitionDecoder {
 	std::uint64_t &seen_overrides;
 	std::uint64_t &declared_strings;
 	std::uint64_t &seen_strings;
-	BoolDef boolean;
-	std::string switch_key;
+	WireBoolDef boolean;
+	PagedStorage &arena;
+	StableRows<OverrideRow> &overrides;
+	std::uint64_t override_begin = 0;
+	std::string_view switch_key;
 	std::uint64_t remaining_overrides = 0, definition_arity = 0, override_tag = 0, definition_bytes = 0;
 	Phase phase = Phase::DefinitionTuple;
-	std::optional<KnobDef> value;
-	std::string text(m::Token &token) {
+	std::optional<WireDefinition> value;
+	std::string_view text(m::Token &token) {
 		require(token.kind == m::Kind::String && token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
 				"distribution string budget exceeded");
 		seen_strings += token.bytes.size();
-		return std::move(token.bytes);
+		return store_text(arena, token.bytes).value;
 	}
-	void finish(KnobDef definition) { value = std::move(definition); }
+	void finish(WireDefinition definition) { value = std::move(definition); }
 	void consume(m::Token token) {
 		require(!value, "definition already decoded");
 		switch (phase) {
@@ -95,6 +104,7 @@ struct DefinitionDecoder {
 			require(token.kind == m::Kind::Boolean, "boolean default required");
 			boolean = {};
 			boolean.default_value = token.number;
+			override_begin = overrides.size();
 			phase = Phase::Rollout;
 			break;
 		case Phase::Rollout:
@@ -124,7 +134,7 @@ struct DefinitionDecoder {
 		case Phase::Switch:
 			switch_key = text(token);
 			require(is_valid_group_key(switch_key) && valid_utf8(switch_key, false) &&
-						(boolean.overrides.empty() || boolean.overrides.rbegin()->first < switch_key),
+						(!boolean.overrides.count || overrides.back().first < switch_key),
 					"invalid or unordered override switch");
 			phase = Phase::OverrideTag;
 			break;
@@ -138,13 +148,13 @@ struct DefinitionDecoder {
 			require(definition_bytes <= limits.definition_bytes, "override definition byte limit exceeded");
 			if (!override_tag) {
 				require(token.kind == m::Kind::Boolean, "forced override boolean required");
-				boolean.overrides.emplace(std::move(switch_key), bool(token.number));
+				overrides.push_back({switch_key, bool(token.number)});
 			} else {
 				auto pct = number(token);
 				require(pct <= 100, "override rollout out of range");
-				boolean.overrides.emplace(std::move(switch_key),
-										  GroupRollout{static_cast<std::uint8_t>(pct)});
+				overrides.push_back({switch_key, GroupRollout{static_cast<std::uint8_t>(pct)}});
 			}
+			boolean.overrides = RowRange{override_begin, overrides.size() - override_begin};
 			++seen_overrides;
 			if (--remaining_overrides)
 				phase = Phase::OverrideTuple;
@@ -158,20 +168,15 @@ struct DefinitionDecoder {
 
 bool ValidatedSnapshot::discard(WorkBudget &budget) {
 	cursor_ = {};
-	while (!records_.empty()) {
-		auto &record = records_.back();
-		if (auto flag = std::get_if<BoolDef>(&record.definition); flag && !discard_overrides(*flag, budget))
-			return false;
-		if (!charge(budget, record.key.size() + sizeof(Record)))
-			return false;
-		records_.pop_back();
+	if (!storage_)
+		return true;
+	if (!storage_->retiring) {
+		storage_->retiring = true;
+		storage_->records.clear();
+		storage_->namespaces.clear();
+		storage_->overrides.clear();
 	}
-	while (!namespaces_.empty()) {
-		if (!charge(budget, namespaces_.back().name.size() + sizeof(NamespaceRevision)))
-			return false;
-		namespaces_.pop_back();
-	}
-	return true;
+	return retire(*storage_, budget);
 }
 
 struct SnapshotDecoder::Impl {
@@ -212,7 +217,7 @@ struct SnapshotDecoder::Impl {
 	ValidatedSnapshot snapshot;
 	Record record;
 	std::optional<DefinitionDecoder> definition;
-	std::string previous_key;
+	std::string_view previous_key;
 	std::uint64_t declared_namespaces = 0, declared_records = 0, declared_overrides = 0, declared_strings = 0;
 	std::uint64_t seen_overrides = 0, seen_strings = 0;
 	std::uint32_t previous_namespace = 0;
@@ -220,9 +225,10 @@ struct SnapshotDecoder::Impl {
 	bool failed = false, taken = false;
 	Impl(Cursor cursor, std::vector<std::string> names, Limits bounds)
 		: expected(cursor), scope(std::move(names)), limits(bounds),
-		  decoder(m::Limits{
-			  bounds.bytes, 200, 32,
-			  std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}) {
+		  decoder(
+			  m::Limits{bounds.bytes, 200, 32,
+						std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}),
+		  snapshot(bounds) {
 		require(expected.cluster != Identity{} && expected.group != Identity{} &&
 					expected.restore_epoch != Identity{} && expected.scope != ScopeIdentity{},
 				"unconfigured distribution identity");
@@ -233,21 +239,21 @@ struct SnapshotDecoder::Impl {
 					"invalid or unordered subscription scope");
 		}
 	}
-	std::string text(m::Token &token) {
+	std::string_view text(m::Token &token) {
 		require(token.kind == m::Kind::String, "distribution string required");
 		require(token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
 				"distribution string budget exceeded");
 		seen_strings += token.bytes.size();
-		return std::move(token.bytes);
+		return store_text(snapshot.storage_->arena, token.bytes).value;
 	}
-	void finish_record(KnobDef value) {
+	void finish_record(WireDefinition value) {
 		record.definition = std::move(value);
 		previous_namespace = record.namespace_index;
 		previous_key = record.key;
-		snapshot.records_.push_back(std::move(record));
+		snapshot.storage_->records.push_back(std::move(record));
 		record = {};
-		phase = snapshot.records_.size() == declared_records ? Phase::End : Phase::RecordTuple;
+		phase = snapshot.storage_->records.size() == declared_records ? Phase::End : Phase::RecordTuple;
 	}
 	void consume(m::Token token) {
 		switch (phase) {
@@ -339,17 +345,18 @@ struct SnapshotDecoder::Impl {
 			break;
 		case Phase::NamespaceName: {
 			auto name = text(token);
-			require(name == scope[snapshot.namespaces_.size()], "snapshot namespace order/scope mismatch");
-			snapshot.namespaces_.push_back({std::move(name), 0});
+			require(name == scope[snapshot.storage_->namespaces.size()],
+					"snapshot namespace order/scope mismatch");
+			snapshot.storage_->namespaces.push_back({std::move(name), 0});
 			phase = Phase::NamespaceRevision;
 			break;
 		}
 		case Phase::NamespaceRevision:
-			snapshot.namespaces_.back().revision = number(token);
-			require(snapshot.namespaces_.back().revision <= snapshot.cursor_.revision,
+			snapshot.storage_->namespaces.back().revision = number(token);
+			require(snapshot.storage_->namespaces.back().revision <= snapshot.cursor_.revision,
 					"namespace revision exceeds snapshot");
-			phase =
-				snapshot.namespaces_.size() == declared_namespaces ? Phase::Records : Phase::NamespaceTuple;
+			phase = snapshot.storage_->namespaces.size() == declared_namespaces ? Phase::Records
+																				: Phase::NamespaceTuple;
 			break;
 		case Phase::Records:
 			array(token, declared_records);
@@ -371,7 +378,7 @@ struct SnapshotDecoder::Impl {
 			require(is_valid_knob_name(record.key) &&
 						record.key.substr(0, record.key.find(':')) == scope[record.namespace_index],
 					"snapshot key namespace mismatch");
-			require(snapshot.records_.empty() || previous_namespace < record.namespace_index ||
+			require(snapshot.storage_->records.empty() || previous_namespace < record.namespace_index ||
 						(previous_namespace == record.namespace_index && previous_key < record.key),
 					"unordered or duplicate snapshot key");
 			phase = Phase::KeyRevision;
@@ -379,14 +386,20 @@ struct SnapshotDecoder::Impl {
 		case Phase::KeyRevision:
 			record.revision = number(token);
 			require(record.revision &&
-						record.revision <= snapshot.namespaces_[record.namespace_index].revision,
+						record.revision <= snapshot.storage_->namespaces[record.namespace_index].revision,
 					"invalid snapshot key revision");
 			phase = Phase::DefinitionTuple;
 			break;
 		case Phase::DefinitionTuple:
 			if (!definition)
-				definition.emplace(DefinitionDecoder{limits, declared_overrides, seen_overrides,
-													 declared_strings, seen_strings});
+				definition.emplace(DefinitionDecoder{limits,
+													 declared_overrides,
+													 seen_overrides,
+													 declared_strings,
+													 seen_strings,
+													 {},
+													 snapshot.storage_->arena,
+													 snapshot.storage_->overrides});
 			definition->consume(std::move(token));
 			if (definition->value) {
 				finish_record(std::move(*definition->value));
@@ -435,8 +448,7 @@ bool SnapshotDecoder::discard(WorkBudget &budget) {
 	if (!impl_)
 		return true;
 	impl_->failed = true;
-	if ((impl_->definition && !discard_overrides(impl_->definition->boolean, budget)) ||
-		!impl_->snapshot.discard(budget))
+	if (!impl_->snapshot.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
 		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string)))
@@ -448,37 +460,27 @@ bool SnapshotDecoder::discard(WorkBudget &budget) {
 }
 
 const Mutation &ValidatedDelta::mutation(std::uint64_t ordinal) const {
-	require(ordinal < mutations_.size(), "delta mutation ordinal out of range");
-	return mutations_[static_cast<std::size_t>(ordinal)];
+	require(storage_ && ordinal < storage_->mutations.size(), "delta mutation ordinal out of range");
+	return storage_->mutations[static_cast<std::size_t>(ordinal)];
 }
 const NamespaceRevision &ValidatedDelta::touched(std::uint64_t ordinal) const {
-	require(ordinal < touched_.size(), "delta namespace ordinal out of range");
-	return touched_[static_cast<std::size_t>(ordinal)];
+	require(storage_ && ordinal < storage_->touched.size(), "delta namespace ordinal out of range");
+	return storage_->touched[static_cast<std::size_t>(ordinal)];
 }
 bool ValidatedDelta::discard(WorkBudget &budget) {
 	base_ = {};
 	target_ = {};
-	while (!mutations_.empty()) {
-		auto &mutation = mutations_.back();
-		if (mutation.value) {
-			if (auto flag = std::get_if<BoolDef>(&*mutation.value); flag && !discard_overrides(*flag, budget))
-				return false;
-		}
-		if (!charge(budget, mutation.key.size() + sizeof(Mutation)))
-			return false;
-		mutations_.pop_back();
+	if (!storage_)
+		return true;
+	if (!storage_->retiring) {
+		storage_->retiring = true;
+		storage_->mutations.clear();
+		storage_->touched.clear();
+		storage_->transactions.clear();
+		storage_->overrides.clear();
+		storage_->indexes.clear();
 	}
-	while (!touched_.empty()) {
-		if (!charge(budget, touched_.back().name.size() + sizeof(NamespaceRevision)))
-			return false;
-		touched_.pop_back();
-	}
-	while (!transactions_.empty()) {
-		if (!charge(budget, sizeof(Transaction)))
-			return false;
-		transactions_.pop_back();
-	}
-	return true;
+	return retire(*storage_, budget);
 }
 
 struct DeltaDecoder::Impl {
@@ -550,8 +552,8 @@ struct DeltaDecoder::Impl {
 	std::optional<DefinitionDecoder> definition;
 	Mutation mutation;
 	Transaction transaction;
-	std::deque<std::uint32_t> touched_indexes;
-	std::string previous_key;
+	StableRows<std::uint32_t> &touched_indexes;
+	std::string_view previous_key;
 	std::uint32_t previous_namespace = 0;
 	std::uint64_t declared_transactions = 0, declared_mutations = 0, declared_overrides = 0,
 				  declared_strings = 0;
@@ -561,9 +563,10 @@ struct DeltaDecoder::Impl {
 	bool failed = false, taken = false;
 	Impl(Cursor base, std::vector<std::string> names, Limits bounds, UpdateKind kind)
 		: expected(base), scope(std::move(names)), limits(bounds),
-		  decoder(m::Limits{
-			  bounds.bytes, 200, 32,
-			  std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}) {
+		  decoder(
+			  m::Limits{bounds.bytes, 200, 32,
+						std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}),
+		  delta(bounds), touched_indexes(delta.storage_->indexes) {
 		require(kind == UpdateKind::Delta || kind == UpdateKind::Progress, "invalid delta decoder kind");
 		delta.kind_ = kind;
 		require(expected.cluster != Identity{} && expected.group != Identity{} &&
@@ -575,27 +578,38 @@ struct DeltaDecoder::Impl {
 						(!i || scope[i - 1] < scope[i]),
 					"invalid delta scope");
 	}
-	std::string text(m::Token &token) {
+	std::string_view text(m::Token &token) {
 		require(token.kind == m::Kind::String && token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
 				"delta string budget exceeded");
 		seen_strings += token.bytes.size();
-		return std::move(token.bytes);
+		return store_text(delta.storage_->arena, token.bytes).value;
+	}
+	bool contains_index(std::uint64_t index) const {
+		std::uint64_t low = 0, high = touched_indexes.size();
+		while (low < high) {
+			auto middle = low + (high - low) / 2;
+			if (touched_indexes[middle] < index)
+				low = middle + 1;
+			else
+				high = middle;
+		}
+		return low < touched_indexes.size() && touched_indexes[low] == index;
 	}
 	void finish_mutation() {
 		if (!transaction.mutations.count || previous_namespace != mutation.namespace_index)
 			++mutated_namespaces;
 		previous_namespace = mutation.namespace_index;
 		previous_key = mutation.key;
-		delta.mutations_.push_back(std::move(mutation));
+		delta.storage_->mutations.push_back(std::move(mutation));
 		++transaction.mutations.count;
 		mutation = {};
 		++seen_mutations;
 		if (transaction.mutations.count == mutation_count) {
 			require(mutated_namespaces == touched_count, "delta has untouched namespace watermark");
-			delta.transactions_.push_back(transaction);
-			phase =
-				delta.transactions_.size() == declared_transactions ? Phase::End : Phase::TransactionTuple;
+			delta.storage_->transactions.push_back(transaction);
+			phase = delta.storage_->transactions.size() == declared_transactions ? Phase::End
+																				 : Phase::TransactionTuple;
 		} else
 			phase = Phase::MutationTuple;
 	}
@@ -679,11 +693,13 @@ struct DeltaDecoder::Impl {
 			break;
 		case Phase::Revision: {
 			auto revision = number(token);
-			require(revision > (delta.transactions_.empty() ? expected.revision
-															: delta.transactions_.back().revision) &&
+			require(revision > (delta.storage_->transactions.empty()
+									? expected.revision
+									: delta.storage_->transactions.back().revision) &&
 						revision <= delta.target_.revision,
 					"unordered delta transaction revision");
-			transaction = {revision, {delta.touched_.size(), 0}, {delta.mutations_.size(), 0}};
+			transaction = {
+				revision, {delta.storage_->touched.size(), 0}, {delta.storage_->mutations.size(), 0}};
 			mutated_namespaces = 0;
 			phase = Phase::Touched;
 			break;
@@ -707,15 +723,16 @@ struct DeltaDecoder::Impl {
 			require(touched_indexes.empty() || touched_indexes.back() < index,
 					"unordered delta touched namespace");
 			touched_indexes.push_back(index);
-			require(delta.touched_.size() < declared_mutations, "aggregate touched row limit exceeded");
-			delta.touched_.push_back({std::move(name), 0});
+			require(delta.storage_->touched.size() < declared_mutations,
+					"aggregate touched row limit exceeded");
+			delta.storage_->touched.push_back({std::move(name), 0});
 			++transaction.touched.count;
 			phase = Phase::NamespaceRevision;
 			break;
 		}
 		case Phase::NamespaceRevision:
 			require(number(token) == transaction.revision, "delta touched revision mismatch");
-			delta.touched_.back().revision = transaction.revision;
+			delta.storage_->touched.back().revision = transaction.revision;
 			phase = touched_indexes.size() == touched_count ? Phase::Mutations : Phase::NamespaceTuple;
 			break;
 		case Phase::Mutations:
@@ -731,9 +748,7 @@ struct DeltaDecoder::Impl {
 			break;
 		case Phase::NamespaceIndex: {
 			auto index = number(token);
-			require(index < scope.size() && std::binary_search(touched_indexes.begin(), touched_indexes.end(),
-															   static_cast<std::uint32_t>(index)),
-					"delta mutation namespace not touched");
+			require(index < scope.size() && contains_index(index), "delta mutation namespace not touched");
 			mutation.namespace_index = static_cast<std::uint32_t>(index);
 			phase = Phase::Key;
 			break;
@@ -760,8 +775,14 @@ struct DeltaDecoder::Impl {
 			break;
 		case Phase::Definition:
 			if (!definition)
-				definition.emplace(DefinitionDecoder{limits, declared_overrides, seen_overrides,
-													 declared_strings, seen_strings});
+				definition.emplace(DefinitionDecoder{limits,
+													 declared_overrides,
+													 seen_overrides,
+													 declared_strings,
+													 seen_strings,
+													 {},
+													 delta.storage_->arena,
+													 delta.storage_->overrides});
 			definition->consume(std::move(token));
 			if (definition->value) {
 				mutation.value = std::move(*definition->value);
@@ -811,18 +832,12 @@ bool DeltaDecoder::discard(WorkBudget &budget) {
 	if (!impl_)
 		return true;
 	impl_->failed = true;
-	if ((impl_->definition && !discard_overrides(impl_->definition->boolean, budget)) ||
-		!impl_->delta.discard(budget))
+	if (!impl_->delta.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
 		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string)))
 			return false;
 		impl_->scope.pop_back();
-	}
-	while (!impl_->touched_indexes.empty()) {
-		if (!charge(budget, sizeof(std::uint32_t)))
-			return false;
-		impl_->touched_indexes.pop_back();
 	}
 	impl_.reset();
 	return true;

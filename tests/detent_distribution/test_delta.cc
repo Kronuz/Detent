@@ -1,5 +1,6 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
+#include "storage_failure_fixture.hh"
 #include <iostream>
 namespace d = detent::distribution;
 namespace m = d::messagepack;
@@ -84,6 +85,8 @@ d::ValidatedDelta decode(std::string_view bytes, bool progress = false, d::Curso
 int main() {
 	try {
 		auto bytes = fixture();
+		storage_failure::verify(
+			bytes, [](d::Limits limits) { return d::DeltaDecoder(cursor(), {"app"}, limits); }, require);
 		auto delta = decode(bytes);
 		require(delta.base() == cursor() && delta.target().revision == 45 &&
 				delta.transactions().size() == 1);
@@ -92,9 +95,10 @@ int main() {
 				transaction.mutations.count == 2);
 		require(!delta.mutation(transaction.mutations.start).value &&
 				delta.mutation(transaction.mutations.start).key == "app:count");
-		require(
-			delta.mutation(transaction.mutations.start + 1).value &&
-			!std::get<detent::BoolDef>(*delta.mutation(transaction.mutations.start + 1).value).default_value);
+		require(delta.mutation(transaction.mutations.start + 1).value &&
+				!std::get<detent::distribution::WireBoolDef>(
+					 *delta.mutation(transaction.mutations.start + 1).value)
+					 .default_value);
 		auto progress = decode(fixture(true), true);
 		require(progress.kind() == d::UpdateKind::Progress && progress.transactions().empty() &&
 				progress.target().revision == 45);

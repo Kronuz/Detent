@@ -1,5 +1,6 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_local/builder.hh"
+#include "storage_metrics.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -95,7 +96,8 @@ int main(int argc, char **argv) {
 			d::WorkBudget b{8192, 128};
 			decoder.feed(input, b);
 		}
-		auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+		auto source = std::make_shared<d::ValidatedSnapshot>(decoder.finish());
+		auto charged = charged_storage(*source);
 		auto decoded = Clock::now();
 		l::GenerationId generation;
 		generation.fill('a');
@@ -140,13 +142,30 @@ int main(int argc, char **argv) {
 		}
 
 		auto finished = Clock::now();
+		std::uint64_t retirement_turns = 0;
+		std::int64_t maximum_retirement_turn = 0;
+		auto retirement_start = Clock::now();
+		for (;;) {
+			d::WorkBudget budget;
+			auto before = Clock::now();
+			bool done = source->discard(budget);
+			maximum_retirement_turn = std::max(maximum_retirement_turn, micros(Clock::now() - before));
+			++retirement_turns;
+			if (done)
+				break;
+		}
+		auto retirement_us = micros(Clock::now() - retirement_start);
 		std::cout << "{\"records\":" << count << ",\"wire_bytes\":" << wire.size()
 				  << ",\"image_bytes\":" << bytes->size() << ",\"decode_us\":" << micros(decoded - start)
 				  << ",\"build_us\":" << micros(built - decoded)
 				  << ",\"validate_us\":" << micros(validated - built) << ",\"lookup_calls\":" << reads
 				  << ",\"lookup_us\":" << micros(finished - lookup_begin) << ",\"build_turns\":" << turns
 				  << ",\"max_build_turn_us\":" << maximum_turn << ",\"peak_rss_bytes\":" << rss()
-				  << ",\"oracle\":" << oracle << "}\n";
+				  << ",\"charged_decode_capacity\":" << charged << ",\"retirement_us\":" << retirement_us
+				  << ",\"retirement_turns\":" << retirement_turns
+				  << ",\"max_retirement_turn_us\":" << maximum_retirement_turn
+				  << ",\"retained_decode_capacity\":" << charged_storage(*source) << ",\"oracle\":" << oracle
+				  << "}\n";
 		return 0;
 	} catch (const std::exception &e) {
 		std::cerr << e.what() << '\n';

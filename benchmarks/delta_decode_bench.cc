@@ -1,5 +1,7 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
+#include "storage_metrics.hh"
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <sys/resource.h>
@@ -73,6 +75,25 @@ int main(int argc, char **argv) {
 	auto wall =
 		std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started)
 			.count();
+	auto charged = charged_storage(value);
+	std::size_t retirement_turns = 0;
+	std::int64_t maximum_retirement_turn = 0;
+	auto retirement_start = std::chrono::steady_clock::now();
+	for (;;) {
+		d::WorkBudget budget;
+		auto before = std::chrono::steady_clock::now();
+		bool done = value.discard(budget);
+		auto elapsed =
+			std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - before)
+				.count();
+		maximum_retirement_turn = std::max<std::int64_t>(maximum_retirement_turn, elapsed);
+		++retirement_turns;
+		if (done)
+			break;
+	}
+	auto retirement_us = std::chrono::duration_cast<std::chrono::microseconds>(
+							 std::chrono::steady_clock::now() - retirement_start)
+							 .count();
 	rusage usage{};
 	getrusage(RUSAGE_SELF, &usage);
 #ifdef __APPLE__
@@ -82,5 +103,8 @@ int main(int argc, char **argv) {
 #endif
 	std::cout << "{\"transactions\":" << count << ",\"wire_bytes\":" << bytes.size()
 			  << ",\"decode_wall_us\":" << wall << ",\"turns\":" << turns << ",\"max_rss_bytes\":" << rss
-			  << "}\n";
+			  << ",\"charged_decode_capacity\":" << charged << ",\"retirement_us\":" << retirement_us
+			  << ",\"retirement_turns\":" << retirement_turns
+			  << ",\"max_retirement_turn_us\":" << maximum_retirement_turn
+			  << ",\"retained_decode_capacity\":" << charged_storage(value) << "}\n";
 }

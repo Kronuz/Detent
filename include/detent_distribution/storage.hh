@@ -136,6 +136,7 @@ class PagedStorage {
 		ticket.reset();
 		return !first_;
 	}
+	std::size_t front_capacity() const noexcept { return first_ ? first_->ticket.bytes() : 0; }
 	static constexpr std::size_t page_overhead() noexcept;
 
   private:

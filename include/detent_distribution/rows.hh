@@ -66,7 +66,10 @@ template <class T> class StableRows {
 			->blocks[block % width]
 			->rows[index % block_rows];
 	}
+	T &operator[](std::uint64_t index) { return const_cast<T &>(std::as_const(*this)[index]); }
 	const T &back() const { return (*this)[size_ ? size_ - 1 : size_]; }
+	T &back() { return (*this)[size_ ? size_ - 1 : size_]; }
+	void clear() noexcept { size_ = 0; }
 	void pop_back() {
 		if (!size_)
 			throw std::out_of_range("empty distribution rows");

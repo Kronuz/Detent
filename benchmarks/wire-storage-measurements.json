@@ -1,0 +1,203 @@
+{
+  "platform": "Intel macOS, Release -O3, libc++",
+  "before_commit": "dc7f34f",
+  "scope": "Three fresh-process pairs per corpus using the same instrumented benchmark source. Snapshot includes wire, decoded source, complete image and 100000 prepared lookup keys. Delta includes wire and 100000 one-delete transactions. Retirement runs after all borrowing construction has finished. Before charged capacity is uninstrumented (reported zero), not zero memory. This accounts admitted row/text/index pages only, not aggregate pipeline heap, allocator metadata/caches, mapped bytes, disk usage, production churn or power.",
+  "snapshot": {
+    "before": [
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 381912,
+        "build_us": 291831,
+        "validate_us": 69227,
+        "lookup_calls": 100000,
+        "lookup_us": 120048,
+        "build_turns": 119383,
+        "max_build_turn_us": 507,
+        "peak_rss_bytes": 139538432,
+        "charged_decode_capacity": 0,
+        "retirement_us": 35580,
+        "retirement_turns": 6836,
+        "max_retirement_turn_us": 408,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      },
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 363901,
+        "build_us": 295631,
+        "validate_us": 70138,
+        "lookup_calls": 100000,
+        "lookup_us": 122443,
+        "build_turns": 119383,
+        "max_build_turn_us": 140,
+        "peak_rss_bytes": 139431936,
+        "charged_decode_capacity": 0,
+        "retirement_us": 35498,
+        "retirement_turns": 6836,
+        "max_retirement_turn_us": 460,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      },
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 362241,
+        "build_us": 287360,
+        "validate_us": 71724,
+        "lookup_calls": 100000,
+        "lookup_us": 111756,
+        "build_turns": 119383,
+        "max_build_turn_us": 134,
+        "peak_rss_bytes": 136265728,
+        "charged_decode_capacity": 0,
+        "retirement_us": 38673,
+        "retirement_turns": 6836,
+        "max_retirement_turn_us": 694,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      }
+    ],
+    "after": [
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 202370,
+        "build_us": 294566,
+        "validate_us": 84423,
+        "lookup_calls": 100000,
+        "lookup_us": 117797,
+        "build_turns": 119383,
+        "max_build_turn_us": 193,
+        "peak_rss_bytes": 135565312,
+        "charged_decode_capacity": 56139904,
+        "retirement_us": 31112,
+        "retirement_turns": 6854,
+        "max_retirement_turn_us": 1473,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      },
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 206335,
+        "build_us": 292095,
+        "validate_us": 83322,
+        "lookup_calls": 100000,
+        "lookup_us": 126400,
+        "build_turns": 119383,
+        "max_build_turn_us": 135,
+        "peak_rss_bytes": 139628544,
+        "charged_decode_capacity": 56139904,
+        "retirement_us": 35826,
+        "retirement_turns": 6854,
+        "max_retirement_turn_us": 2530,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      },
+      {
+        "records": 500000,
+        "wire_bytes": 14233697,
+        "image_bytes": 41000219,
+        "decode_us": 198818,
+        "build_us": 299499,
+        "validate_us": 78793,
+        "lookup_calls": 100000,
+        "lookup_us": 118032,
+        "build_turns": 119383,
+        "max_build_turn_us": 146,
+        "peak_rss_bytes": 137842688,
+        "charged_decode_capacity": 56139904,
+        "retirement_us": 15049,
+        "retirement_turns": 6854,
+        "max_retirement_turn_us": 484,
+        "retained_decode_capacity": 0,
+        "oracle": 24999700000
+      }
+    ]
+  },
+  "sparse_delta": {
+    "before": [
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 67687,
+        "turns": 9376,
+        "max_rss_bytes": 21491712,
+        "charged_decode_capacity": 0,
+        "retirement_us": 4346,
+        "retirement_turns": 2553,
+        "max_retirement_turn_us": 952,
+        "retained_decode_capacity": 0
+      },
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 63476,
+        "turns": 9376,
+        "max_rss_bytes": 21487616,
+        "charged_decode_capacity": 0,
+        "retirement_us": 4786,
+        "retirement_turns": 2553,
+        "max_retirement_turn_us": 761,
+        "retained_decode_capacity": 0
+      },
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 67686,
+        "turns": 9376,
+        "max_rss_bytes": 21479424,
+        "charged_decode_capacity": 0,
+        "retirement_us": 4960,
+        "retirement_turns": 2553,
+        "max_retirement_turn_us": 977,
+        "retained_decode_capacity": 0
+      }
+    ],
+    "after": [
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 43504,
+        "turns": 9376,
+        "max_rss_bytes": 21020672,
+        "charged_decode_capacity": 17117424,
+        "retirement_us": 3170,
+        "retirement_turns": 2090,
+        "max_retirement_turn_us": 299,
+        "retained_decode_capacity": 0
+      },
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 39812,
+        "turns": 9376,
+        "max_rss_bytes": 21909504,
+        "charged_decode_capacity": 17117424,
+        "retirement_us": 3482,
+        "retirement_turns": 2090,
+        "max_retirement_turn_us": 321,
+        "retained_decode_capacity": 0
+      },
+      {
+        "transactions": 100000,
+        "wire_bytes": 2937644,
+        "decode_wall_us": 51461,
+        "turns": 9376,
+        "max_rss_bytes": 21020672,
+        "charged_decode_capacity": 17117424,
+        "retirement_us": 3103,
+        "retirement_turns": 2090,
+        "max_retirement_turn_us": 311,
+        "retained_decode_capacity": 0
+      }
+    ]
+  }
+}

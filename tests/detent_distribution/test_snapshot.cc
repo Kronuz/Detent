@@ -1,5 +1,6 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
+#include "storage_failure_fixture.hh"
 #include <iostream>
 namespace d = detent::distribution;
 namespace m = d::messagepack;
@@ -81,14 +82,16 @@ d::ValidatedSnapshot decode(std::string_view bytes, d::Cursor expected = cursor(
 int main() {
 	try {
 		auto bytes = fixture();
+		storage_failure::verify(
+			bytes, [](d::Limits limits) { return d::SnapshotDecoder(cursor(), {"app"}, limits); }, require);
 		auto snapshot = decode(bytes);
 		require(snapshot.cursor() == cursor() && snapshot.records().size() == 2 &&
 				snapshot.namespaces().size() == 1);
 		require(std::get<detent::IntDef>(snapshot.records()[0].definition).default_value ==
 				std::numeric_limits<std::int64_t>::min());
-		auto &flag = std::get<detent::BoolDef>(snapshot.records()[1].definition);
+		auto &flag = std::get<detent::distribution::WireBoolDef>(snapshot.records()[1].definition);
 		require(flag.default_value && flag.rollout_pct == 25 &&
-				std::get<detent::GroupRollout>(flag.overrides.at("beta")).rollout_pct == 17);
+				std::get<detent::GroupRollout>(snapshot.overrides(flag).at("beta")).rollout_pct == 17);
 		for (std::size_t length = 0; length < bytes.size(); ++length) {
 			bool rejected = false;
 			try {

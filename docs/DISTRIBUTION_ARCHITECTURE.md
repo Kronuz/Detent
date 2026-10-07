@@ -219,3 +219,5 @@ Implementation proceeds autonomously within the accepted component. Final Archit
 4. Run the complete fault, interoperability, platform and pressure gates, record measurements with their limits, and obtain one consolidated Stage 4 review.
 
 The implemented local image layout, validation and generation lease boundary are documented in [Local image format](LOCAL_IMAGE_FORMAT.md). Publication and agent integration remain part of the same Stage 4 component.
+
+Decoded snapshots and deltas now use charged stable pages, flat wire definitions and global override rows. The [wire storage reference and paired measurements](LOCAL_IMAGE_FORMAT.md#decoded-wire-ownership-and-measurements) describe the unreleased C++ type changes and the remaining aggregate-admission and retirement gates. This is a row-storage subcomponent, not Stage 4 acceptance.

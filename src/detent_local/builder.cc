@@ -21,13 +21,14 @@ struct ImageBuilder::Impl {
 	SHA256 hash;
 	std::uint64_t ns = 0, record = 0, overrides = 0, strings = 0, string_cursor = 0, override_cursor = 0,
 				  hash_offset = 0, charge = 0;
-	using Iterator = decltype(BoolDef::overrides)::const_iterator;
+	using Iterator = distribution::OverrideRange::const_iterator;
 	std::optional<Iterator> group;
 	unsigned phase = 0;
 	bool failed = false;
-	const BoolDef *boolean() const {
-		return record < source->records().size() ? std::get_if<BoolDef>(&source->records()[record].definition)
-												 : nullptr;
+	const distribution::WireBoolDef *boolean() const {
+		return record < source->records().size()
+				   ? std::get_if<distribution::WireBoolDef>(&source->records()[record].definition)
+				   : nullptr;
 	}
 	void count_strings(std::size_t n) {
 		require(n <= limits.strings - strings);
@@ -44,11 +45,11 @@ struct ImageBuilder::Impl {
 			if (!group) {
 				count_strings(r.key.size());
 				if (b) {
-					require(b->overrides.size() <= limits.overrides);
-					group = b->overrides.begin();
+					require(b->overrides.count <= limits.overrides);
+					group = source->overrides(*b).begin();
 				}
 			}
-			if (b && *group != b->overrides.end()) {
+			if (b && *group != source->overrides(*b).end()) {
 				count_strings((**group).first.size());
 				++*group;
 				++overrides;
@@ -80,7 +81,7 @@ struct ImageBuilder::Impl {
 			return namespace_bytes + source->namespaces()[ns].name.size();
 		if (record < source->records().size()) {
 			auto b = boolean();
-			if (group && b && *group != b->overrides.end())
+			if (group && b && *group != source->overrides(*b).end())
 				return override_bytes + (**group).first.size();
 			return record_bytes + source->records()[record].key.size();
 		}
@@ -98,7 +99,7 @@ struct ImageBuilder::Impl {
 		if (record < source->records().size()) {
 			auto b = boolean();
 			if (group && b) {
-				if (*group != b->overrides.end()) {
+				if (*group != source->overrides(*b).end()) {
 					auto r = l.override_offset + override_cursor++ * override_bytes;
 					const auto &[name, value] = **group;
 					text(r, name);
@@ -110,7 +111,7 @@ struct ImageBuilder::Impl {
 					}
 					++*group;
 				}
-				if (*group == b->overrides.end()) {
+				if (*group == source->overrides(*b).end()) {
 					group.reset();
 					++record;
 				}
@@ -124,11 +125,11 @@ struct ImageBuilder::Impl {
 			number(r + 32, override_cursor, 8);
 			if (b) {
 				number(r + 24, b->default_value, 8);
-				number(r + 40, b->overrides.size(), 4);
+				number(r + 40, b->overrides.count, 4);
 				number(r + 45, b->rollout_pct.has_value(), 1);
 				number(r + 46, b->rollout_pct.value_or(0), 1);
-				if (!b->overrides.empty())
-					group = b->overrides.begin();
+				if (b->overrides.count)
+					group = source->overrides(*b).begin();
 				else
 					++record;
 			} else {
