@@ -36,3 +36,13 @@ endif()
 
 add_executable(detent_credential_scan_bench credential_scan_bench.cc)
 target_link_libraries(detent_credential_scan_bench PRIVATE sha256)
+
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  add_executable(detent_authority_read_response_bench read_response_bench.cc)
+  target_link_libraries(detent_authority_read_response_bench PRIVATE detent_authority_service)
+endif()
+
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  add_executable(detent_authority_terminal_retirement_bench terminal_retirement_bench.cc)
+  target_link_libraries(detent_authority_terminal_retirement_bench PRIVATE detent::authority_node)
+endif()

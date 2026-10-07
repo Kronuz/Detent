@@ -1,0 +1,137 @@
+{
+  "measurement": "fixed histogram microbenchmark",
+  "platform": "Intel Core i9-9980HK, macOS 15.8.1",
+  "compiler": "Apple clang 17.0.0, -O3 -DNDEBUG -std=gnu++20",
+  "command": "cluster_metrics_bench",
+  "source": "uncommitted bounded-metrics prototype, October 6 2026",
+  "scope": "One thread; uncontended atomics; deterministic values; warm repeats. Includes input generation. Two-clock mode includes two steady_clock samples. No concurrent builds or tests. Does not measure service serialization, cache contention, request latency or fleet power.",
+  "histogram_bytes": 144,
+  "driver_histograms_bytes": 3600,
+  "median_control_adjusted_cpu_ns_per_observation": {
+    "owner": 4.928,
+    "atomic": 15.854,
+    "owner_with_two_clocks": 80.683
+  },
+  "rows": [
+    {
+      "pair": 1,
+      "mode": "disabled",
+      "observations": 1000000,
+      "wall_seconds": 0.00195499,
+      "cpu_seconds": 0.001954,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 0
+    },
+    {
+      "pair": 1,
+      "mode": "owner",
+      "observations": 1000000,
+      "wall_seconds": 0.00751887,
+      "cpu_seconds": 0.007516,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 1,
+      "mode": "atomic",
+      "observations": 1000000,
+      "wall_seconds": 0.0199135,
+      "cpu_seconds": 0.019906,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 1,
+      "mode": "owner_with_two_clocks",
+      "observations": 1000000,
+      "wall_seconds": 0.0839732,
+      "cpu_seconds": 0.083967,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 2,
+      "mode": "disabled",
+      "observations": 1000000,
+      "wall_seconds": 0.00160515,
+      "cpu_seconds": 0.001603,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 0
+    },
+    {
+      "pair": 2,
+      "mode": "owner",
+      "observations": 1000000,
+      "wall_seconds": 0.00653166,
+      "cpu_seconds": 0.006531,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 2,
+      "mode": "atomic",
+      "observations": 1000000,
+      "wall_seconds": 0.0174583,
+      "cpu_seconds": 0.017457,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 2,
+      "mode": "owner_with_two_clocks",
+      "observations": 1000000,
+      "wall_seconds": 0.0822909,
+      "cpu_seconds": 0.082286,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 3,
+      "mode": "disabled",
+      "observations": 1000000,
+      "wall_seconds": 0.00158783,
+      "cpu_seconds": 0.001586,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 0
+    },
+    {
+      "pair": 3,
+      "mode": "owner",
+      "observations": 1000000,
+      "wall_seconds": 0.00628657,
+      "cpu_seconds": 0.006285,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 3,
+      "mode": "atomic",
+      "observations": 1000000,
+      "wall_seconds": 0.0173291,
+      "cpu_seconds": 0.017327,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    },
+    {
+      "pair": 3,
+      "mode": "owner_with_two_clocks",
+      "observations": 1000000,
+      "wall_seconds": 0.0822522,
+      "cpu_seconds": 0.082217,
+      "histogram_bytes": 144,
+      "checksum": 50048500894813,
+      "count": 1000000
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "platform": "macOS, x86_64, native Release build",
+  "scope": "Memory retirement only. Fresh processes build 500000 live integer definitions with one producer and a full default receipt window, and a separate strict Core with 65536 entries and 64 MiB of retained payload. Synchronous samples use current compatibility destructor fallbacks; resumable samples post each retirement turn to Asio and verify one unrelated callback between turns. No network or disk originals are included. CPU clocks measure retirement and final reset; setup is excluded. RSS is process peak in macOS bytes. No power or cost saving is inferred. Resumable CPU intervals cover the retirement callback including its post scheduling and final reset, but exclude Asio dispatch and the unrelated heartbeat callbacks. Updated 32-unit samples include phase timing clocks, whose overhead is included in the callback CPU intervals.",
+  "reproduce": [
+    "cmake --build build --target detent_authority_terminal_retirement_bench",
+    "build/benchmarks/detent_authority_terminal_retirement_bench --synchronous",
+    "build/benchmarks/detent_authority_terminal_retirement_bench"
+  ],
+  "pairs": [
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 246762777,
+        "total_retirement_cpu_ns": 246762777,
+        "final_reset_cpu_ns": 246762777,
+        "peak_rss_native": 247156736
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 981192,
+        "total_retirement_cpu_ns": 284595677,
+        "final_reset_cpu_ns": 4283,
+        "peak_rss_native": 246964224
+      },
+      "resumable_peak_phases": {
+        "diagnostic_peak_turn": 1143,
+        "state_cpu_ns": 6373,
+        "log_cpu_ns": 973727,
+        "tail_cpu_ns": 1092,
+        "wall_at_cpu_peak_ns": 981880
+      }
+    },
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 242180422,
+        "total_retirement_cpu_ns": 242180422,
+        "final_reset_cpu_ns": 242180422,
+        "peak_rss_native": 247336960
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 1055534,
+        "total_retirement_cpu_ns": 282034211,
+        "final_reset_cpu_ns": 4120,
+        "peak_rss_native": 247222272
+      },
+      "resumable_peak_phases": {
+        "diagnostic_peak_turn": 1197,
+        "state_cpu_ns": 6942,
+        "log_cpu_ns": 1047604,
+        "tail_cpu_ns": 988,
+        "wall_at_cpu_peak_ns": 1056280
+      }
+    },
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 233969131,
+        "total_retirement_cpu_ns": 233969131,
+        "final_reset_cpu_ns": 233969131,
+        "peak_rss_native": 247033856
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 971423,
+        "total_retirement_cpu_ns": 282550596,
+        "final_reset_cpu_ns": 4696,
+        "peak_rss_native": 247279616
+      },
+      "resumable_peak_phases": {
+        "diagnostic_peak_turn": 1029,
+        "state_cpu_ns": 7593,
+        "log_cpu_ns": 961542,
+        "tail_cpu_ns": 2288,
+        "wall_at_cpu_peak_ns": 972343
+      }
+    }
+  ],
+  "initial_256_unit_pairs": [
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 246762777,
+        "total_retirement_cpu_ns": 246762777,
+        "final_reset_cpu_ns": 246762777,
+        "peak_rss_native": 247156736
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 2317614,
+        "total_retirement_cpu_ns": 249632137,
+        "final_reset_cpu_ns": 3523,
+        "peak_rss_native": 247345152
+      }
+    },
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 242180422,
+        "total_retirement_cpu_ns": 242180422,
+        "final_reset_cpu_ns": 242180422,
+        "peak_rss_native": 247336960
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 1056327,
+        "total_retirement_cpu_ns": 253106783,
+        "final_reset_cpu_ns": 3098,
+        "peak_rss_native": 247414784
+      }
+    },
+    {
+      "synchronous": {
+        "mode": "synchronous",
+        "interleaved_posts": 0,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 0,
+        "max_turn_cpu_ns": 233969131,
+        "total_retirement_cpu_ns": 233969131,
+        "final_reset_cpu_ns": 233969131,
+        "peak_rss_native": 247033856
+      },
+      "resumable": {
+        "mode": "resumable",
+        "interleaved_posts": 31259,
+        "live_records": 500000,
+        "log_entries": 65536,
+        "log_payload_bytes": 67108864,
+        "retirement_turns": 31259,
+        "max_turn_cpu_ns": 1294779,
+        "total_retirement_cpu_ns": 258191191,
+        "final_reset_cpu_ns": 3396,
+        "peak_rss_native": 247336960
+      }
+    }
+  ],
+  "terminal_log_units": 32
+}

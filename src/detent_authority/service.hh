@@ -2,6 +2,7 @@
 #include "node.hh"
 #include "transport/peers.hh"
 #include <chrono>
+#include <connection_admission.h>
 #include <deque>
 #include <detent_http/address.hh>
 #include <filesystem>
@@ -37,23 +38,27 @@ class Service final : public http::HttpHandler {
   public:
 	explicit Service(ServiceOptions options);
 	~Service() override;
+	void observe_connections(std::shared_ptr<const reactor::ConnectionAdmission> observer);
 	void handle(const http::Request &request, http::ResponseWriter &response) override;
 	bool should_offload(const http::Request &request) const override { return request.path != "/v1/health"; }
 	std::unique_ptr<http::BodySink> on_request_body(http::Request &request) override;
 
   private:
+	struct ReplyAdmission;
 	struct Reply {
 		int status;
 		std::string body;
+		bool enveloped = false;
+		std::shared_ptr<ReplyAdmission> reservation;
 	};
 	struct Admission;
 	struct Runtime;
 	struct Accounting;
-	struct ReplyAdmission;
 	struct Task {
 		enum class Kind { Command, Read, Result } kind;
 		std::shared_ptr<Admission> admission;
 		Command command;
+		bool retiring = false, settled = false;
 		std::string name_space;
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
@@ -67,6 +72,8 @@ class Service final : public http::HttpHandler {
 	std::set<std::string> busy_producers_;
 	bool stopping_ = false;
 	std::string health_ = "{}";
+	std::shared_ptr<const reactor::ConnectionAdmission> connections_;
+	std::chrono::steady_clock::time_point health_stamp_{};
 	std::thread thread_;
 	std::shared_ptr<Admission> admit(const http::Request &request);
 	void run(std::promise<void> ready);

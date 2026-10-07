@@ -54,7 +54,12 @@ int main() {
 			}
 			assert(budget->used() == 8);
 		}
-		assert(budget->used() == 0);
+		assert(budget->used() == 0 && budget->high_water() == 8);
+		{
+			ByteCredit credit(budget, 16);
+			assert(budget->used() == 16 && budget->high_water() == 16);
+		}
+		assert(budget->used() == 0 && budget->high_water() == 16);
 	}
 	std::cout << "snapshot writes: owned bytes, session/token/offset correlation and credit passed\n";
 }

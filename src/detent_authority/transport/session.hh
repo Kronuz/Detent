@@ -1,5 +1,6 @@
 #pragma once
 #include "tls.hh"
+#include <algorithm>
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <chrono>
@@ -12,6 +13,7 @@ class ByteBudget {
   public:
 	explicit ByteBudget(std::size_t limit) : limit_(limit) {}
 	std::size_t used() const noexcept { return used_; }
+	std::size_t high_water() const noexcept { return high_water_; }
 
   private:
 	friend class Frame;
@@ -20,12 +22,13 @@ class ByteBudget {
 		if (size > limit_ - used_)
 			return false;
 		used_ += size;
+		high_water_ = std::max(high_water_, used_);
 		return true;
 	}
 	void release(std::size_t size) noexcept { used_ -= size; }
 
   private:
-	std::size_t limit_, used_ = 0;
+	std::size_t limit_, used_ = 0, high_water_ = 0;
 };
 class ByteCredit {
   public:

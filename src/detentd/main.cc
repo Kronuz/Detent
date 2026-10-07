@@ -240,7 +240,8 @@ int run(const std::vector<std::string>& input_args) {
 		std::unique_ptr<http::HttpHandler> app;
 
 #ifdef DETENT_WITH_AUTHORITY
-		http::HttpAsioService::ConnectionFactory connection;
+		http::HttpAsioService::TimedConnectionFactory connection;
+		std::chrono::milliseconds authority_network_timeout{0};
 #endif
 		std::string authority_mode;
 		std::string authority_bind;
@@ -248,6 +249,7 @@ int run(const std::vector<std::string>& input_args) {
 		if (settings.contains("--authority")) {
 #ifdef DETENT_WITH_AUTHORITY
 			auto authority_options = std::move(*authority_configuration);
+			authority_network_timeout = authority_options.timeout;
 			authority_bind = authority_options.publisher_bind.to_string();
 			authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
 			if (authority_options.publisher_tls) {
@@ -255,7 +257,7 @@ int run(const std::vector<std::string>& input_args) {
 				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 				detent::transport::configure_tls(*context, *authority_options.publisher_tls,
 					detent::transport::TlsRole::PublisherServer);
-				connection = http::tls_connection_factory(std::move(context));
+				connection = http::tls_connection_factory_timed(std::move(context));
 			}
 			app = std::make_unique<detent::authority::Service>(std::move(authority_options));
 #else
@@ -264,7 +266,11 @@ int run(const std::vector<std::string>& input_args) {
 		 }
 		else { app = std::make_unique<detentd::Distributor>(options); }
 #ifdef DETENT_WITH_AUTHORITY
-		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024, std::move(connection));
+		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024, std::move(connection), settings.contains("--authority") ? 1024 : 0);
+		service.set_request_timeout(authority_network_timeout);
+		if (settings.contains("--authority")) {
+			static_cast<detent::authority::Service&>(*app).observe_connections(service.connection_observer());
+		}
 #else
 		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024);
 #endif

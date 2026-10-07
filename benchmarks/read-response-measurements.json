@@ -1,0 +1,551 @@
+{
+  "platform": "macOS x86_64",
+  "working_tree_base": "b40234a",
+  "uncommitted_features": "resumable application/publisher/read codecs and bounded ownership retirement; Node first, unused allocation reused, frontend fairness among runnable jobs",
+  "scope": "Three serial fresh-store pairs, no concurrent builds/tests. Owner CPU histograms include setup writes, reads and ordinary reclamation; they are sampled before Service destruction and exclude final live State/Core teardown and other process threads. Read timings are synchronous caller wall time, including compatibility-writer copying. RSS covers the entire process. No power or cost saving is inferred.",
+  "workload": {
+    "keys": 128,
+    "overrides_per_key": 256,
+    "group_suffix_bytes": 46,
+    "reads_per_run": 5,
+    "normal_reply_bytes": 2029728,
+    "frontend_total_budget": {
+      "bytes": 8192,
+      "records": 16,
+      "updates": 8,
+      "retirements": 32
+    }
+  },
+  "pairs": [
+    {
+      "pair": 0,
+      "synchronous": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18098379
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 21625769
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18306226
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 16982482
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 16193721
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 34481,
+          "sum_ns": 503841344,
+          "maximum_ns": 15462499,
+          "buckets": [
+            0,
+            5953,
+            20942,
+            7149,
+            432,
+            0,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 34481,
+          "sum_ns": 570077694,
+          "maximum_ns": 15463207,
+          "buckets": [
+            0,
+            3481,
+            22182,
+            8154,
+            658,
+            1,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 42037248
+      },
+      "resumable": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 118138282
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 114408299
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 115030363
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 119746981
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 119309984
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 51650,
+          "sum_ns": 560400513,
+          "maximum_ns": 263097,
+          "buckets": [
+            0,
+            8765,
+            34607,
+            7823,
+            454,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 51650,
+          "sum_ns": 665059189,
+          "maximum_ns": 19074995,
+          "buckets": [
+            0,
+            2363,
+            39307,
+            9233,
+            743,
+            3,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 25976832
+      }
+    },
+    {
+      "pair": 1,
+      "synchronous": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18528700
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 19411864
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 23844747
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 15045884
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18296836
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 34311,
+          "sum_ns": 502151607,
+          "maximum_ns": 15675262,
+          "buckets": [
+            0,
+            5986,
+            20778,
+            7117,
+            424,
+            1,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 34311,
+          "sum_ns": 566860457,
+          "maximum_ns": 15681573,
+          "buckets": [
+            0,
+            3642,
+            21947,
+            8060,
+            653,
+            4,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 46559232
+      },
+      "resumable": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 117091704
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 113963675
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 122480083
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 118923523
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 115270210
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 51618,
+          "sum_ns": 571117407,
+          "maximum_ns": 277129,
+          "buckets": [
+            0,
+            7977,
+            34985,
+            8158,
+            497,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 51618,
+          "sum_ns": 677217511,
+          "maximum_ns": 20317961,
+          "buckets": [
+            0,
+            2002,
+            39374,
+            9442,
+            798,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 27238400
+      }
+    },
+    {
+      "pair": 2,
+      "synchronous": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 17360825
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18682671
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 18045888
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 19954610
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 16869261
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 34456,
+          "sum_ns": 502508961,
+          "maximum_ns": 14669814,
+          "buckets": [
+            0,
+            6164,
+            20953,
+            6890,
+            442,
+            2,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 34456,
+          "sum_ns": 569030225,
+          "maximum_ns": 14670466,
+          "buckets": [
+            0,
+            3713,
+            22150,
+            7878,
+            707,
+            3,
+            0,
+            5,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 44101632
+      },
+      "resumable": {
+        "read_trials": [
+          {
+            "trial": 0,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 120214273
+          },
+          {
+            "trial": 1,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 117959530
+          },
+          {
+            "trial": 2,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 115158479
+          },
+          {
+            "trial": 3,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 113119584
+          },
+          {
+            "trial": 4,
+            "reply_bytes": 2029728,
+            "read_wall_ns": 114259205
+          }
+        ],
+        "owner_turn_cpu_ns": {
+          "count": 51664,
+          "sum_ns": 559477863,
+          "maximum_ns": 262063,
+          "buckets": [
+            0,
+            8569,
+            34796,
+            7831,
+            467,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "owner_turn_ns": {
+          "count": 51664,
+          "sum_ns": 645243956,
+          "maximum_ns": 278133,
+          "buckets": [
+            0,
+            2716,
+            38953,
+            9225,
+            768,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "max_rss_bytes": 25882624
+      }
+    }
+  ],
+  "escaped": {
+    "read_trials": [
+      {
+        "trial": 0,
+        "reply_bytes": 9566368,
+        "read_wall_ns": 194849813
+      },
+      {
+        "trial": 1,
+        "reply_bytes": 9566368,
+        "read_wall_ns": 185994409
+      },
+      {
+        "trial": 2,
+        "reply_bytes": 9566368,
+        "read_wall_ns": 185420262
+      },
+      {
+        "trial": 3,
+        "reply_bytes": 9566368,
+        "read_wall_ns": 182932112
+      },
+      {
+        "trial": 4,
+        "reply_bytes": 9566368,
+        "read_wall_ns": 182249359
+      }
+    ],
+    "owner_turn_cpu_ns": {
+      "count": 51598,
+      "sum_ns": 894260986,
+      "maximum_ns": 264643,
+      "buckets": [
+        0,
+        1411,
+        28520,
+        21126,
+        540,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "owner_turn_ns": {
+      "count": 51598,
+      "sum_ns": 980827038,
+      "maximum_ns": 585851,
+      "buckets": [
+        0,
+        392,
+        27956,
+        22225,
+        1023,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "max_rss_bytes": 35094528,
+    "read_captures": 0,
+    "retired_state_values": 0,
+    "retired_publisher_tasks": 0
+  }
+}

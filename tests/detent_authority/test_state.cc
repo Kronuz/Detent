@@ -1,9 +1,14 @@
+#include "deferred_values.hh"
+#include "prepared.hh"
 #include "state.hh"
 #include <cassert>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <random>
+#include <sha256.h>
+#include <thread>
+#include <tuple>
 
 using namespace detent;
 using namespace detent::authority;
@@ -41,6 +46,455 @@ template <class F> bool throws(F &&f) {
 		return true;
 	}
 	return false;
+}
+void bounded_applications() {
+	State legacy(context()), bounded(context());
+	std::uint64_t index = 0;
+	auto apply = [&](const Command &command) {
+		auto before = bounded.checkpoint();
+		auto bytes = encode(command);
+		CommandDecoder decoder(bytes);
+		while (!decoder.done()) {
+			CommandWorkBudget b;
+			decoder.step(b);
+		}
+		CommandApplication application(bounded, ++index, 1, decoder.take());
+		unsigned turns = 0;
+		while (!application.done()) {
+			CommandWorkBudget budget;
+			application.step(budget);
+			assert(budget.bytes <= 8192 && budget.records <= 16 && budget.updates <= 8 &&
+				   budget.receipts <= 32);
+			assert(bounded.checkpoint() == before);
+			assert(++turns < 10000);
+		}
+		auto result = application.finish();
+		auto expected = legacy.apply(index, command);
+		assert(result.results.size() == 1 && result.results.front() == expected);
+		bounded = std::move(result.state);
+		assert(bounded.checkpoint() == legacy.checkpoint());
+		while (bounded.reclamation_pending()) {
+			CommandWorkBudget b;
+			bounded.collect(b);
+		}
+		return turns;
+	};
+	apply(open());
+	BoolDef large;
+	large.rollout_pct = 45;
+	for (unsigned i = 0; i < 256; ++i)
+		large.overrides.emplace("group" + std::to_string(i), GroupRollout{33});
+	auto first = transaction(1, {{"ns:a", large, {}, {}}});
+	apply(first);
+	assert(apply(transaction(2, {{"ns:a", large, {}, {}}})) > 16);
+	apply(first); // Retained duplicate returns its original result.
+	auto mismatch = first;
+	mismatch.mutations[0].expected = 1;
+	apply(mismatch);
+	apply(transaction(4, {{"ns:a", IntDef{9}, {}, {}}})); // Sequence gap.
+	apply(transaction(3, {{"ns:a", IntDef{9}, 99, {}}})); // Conflict consumes sequence.
+	for (unsigned i = 4; i <= 265; ++i)
+		apply(transaction(i, {{"ns:n", IntDef{i}, {}, {}}}));
+	apply(first); // Original receipt has been evicted.
+	auto close = open();
+	close.kind = Kind::Close;
+	close.generation = 1;
+	close.nonce = {};
+	assert(apply(close) > 8);								// Full receipt window must yield while copying.
+	apply(transaction(266, {{"ns:n", IntDef{1}, {}, {}}})); // Inactive session.
+	apply(open(1, 'b'));
+	apply(transaction(1, {{"ns:a", {}, {}, {}}, {"ns:n", IntDef{2}, {}, {}}}, 2));
+	auto unknown = transaction(1, {{"ns:z", large, {}, {}}});
+	unknown.producer = "unknown";
+	assert(apply(unknown) > 8); // Rejected definitions are disposed incrementally too.
+	// Abandon a candidate after it starts writing: the public source stays exact.
+	auto command = transaction(2, {{"ns:z", large, {}, {}}}, 2);
+	auto bytes = encode(command);
+	CommandDecoder decoder(bytes);
+	while (!decoder.done()) {
+		CommandWorkBudget b;
+		decoder.step(b);
+	}
+	auto before = bounded.checkpoint();
+	CommandApplication cancelled(bounded, index + 1, 1, decoder.take());
+	CommandWorkBudget one;
+	one.updates = 1;
+	cancelled.step(one);
+	unsigned turns = 0;
+	for (;;) {
+		CommandWorkBudget b;
+		b.receipts = 1;
+		bool drained = cancelled.discard(b);
+		assert(bounded.checkpoint() == before);
+		assert(++turns < 10000);
+		if (drained)
+			break;
+	}
+	assert(turns > 256);
+	CommandDecoder reusable(bytes);
+	while (!reusable.done()) {
+		CommandWorkBudget budget;
+		reusable.step(budget);
+	}
+	auto capability = reusable.take();
+	auto owner = std::move(capability);
+	assert(throws([&] { CommandApplication invalid(bounded, index + 1, 1, std::move(capability)); }));
+	assert(bounded.checkpoint() == before);
+	CommandApplication valid(bounded, index + 1, 1, std::move(owner));
+	while (!valid.done()) {
+		CommandWorkBudget budget;
+		valid.step(budget);
+	}
+	assert(valid.finish().results.front().status == Status::Applied);
+	auto foreign = command;
+	foreign.context.epoch[0] = 'f';
+	auto foreign_bytes = encode(foreign);
+	CommandDecoder foreign_decoder(foreign_bytes, {}, context());
+	CommandWorkBudget budget;
+	assert(throws([&] { foreign_decoder.step(budget); }));
+	// Context rejection happens before override rows are decoded.
+	budget = {};
+	budget.receipts = 1;
+	assert(foreign_decoder.discard(budget));
+}
+
+void deferred_values() {
+	struct Value {
+		std::deque<std::string> rows;
+		unsigned *destroyed = nullptr;
+		~Value() {
+			if (destroyed)
+				++*destroyed;
+		}
+	};
+	using Arena = detent::authority::detail::DeferredValues<Value>;
+	unsigned destroyed = 0;
+	auto arena = std::make_shared<Arena>();
+	auto value = arena->create(1024);
+	value->destroyed = &destroyed;
+	for (unsigned i = 0; i < 256; ++i)
+		value->rows.emplace_back(128, 'x');
+	std::weak_ptr<Value> observer = value;
+	auto alias = value;
+	value.reset();
+	assert(!observer.expired() && arena->count() == 0);
+	std::thread releaser([alias = std::move(alias)]() mutable { alias.reset(); });
+	releaser.join();
+	assert(observer.expired() && !observer.lock());
+	assert(arena->count() == 1 && arena->encoded_bytes() == 1024 && destroyed == 0);
+	for (unsigned i = 0; i < 256; ++i) {
+		assert(arena->collect_one([](Value &dead) {
+			dead.rows.pop_front();
+			return false;
+		}) == 0);
+		assert(arena->count() == 1 && arena->encoded_bytes() == 1024);
+	}
+	assert(arena->collect_one([](Value &dead) { return dead.rows.empty(); }) == 1);
+	assert(!arena->pending() && arena->count() == 0 && arena->encoded_bytes() == 0 && destroyed == 1);
+	observer.reset();
+	// Last-arena destruction must drain both its partially consumed owner
+	// list and newer incoming originals. No client can lock either value.
+	auto first = arena->create(17);
+	first->destroyed = &destroyed;
+	first->rows.emplace_back("partial");
+	first.reset();
+	assert(arena->collect_one([](Value &) { return false; }) == 0);
+	auto second = arena->create(23);
+	second->destroyed = &destroyed;
+	second.reset();
+	assert(arena->count() == 2 && arena->encoded_bytes() == 40);
+	arena.reset();
+	assert(destroyed == 3);
+}
+void prepared_proposals() {
+	auto encoded = [](const Command &command, Limits limits = {}) {
+		CommandEncoder encoder(command, limits);
+		while (!encoder.done()) {
+			CommandWorkBudget b;
+			encoder.step(b);
+		}
+		return encoder.take_encoded();
+	};
+	auto finish = [](ProposalBuilder &builder) {
+		builder.seal();
+		unsigned turns = 0;
+		while (!builder.done()) {
+			CommandWorkBudget b;
+			builder.step(b);
+			assert(b.bytes <= 8192 && b.records <= 16 && b.updates == 8 && b.receipts == 32);
+			assert(++turns < 10000);
+		}
+		return builder.take();
+	};
+	auto append = [](ProposalBuilder &builder, EncodedCommand &command) {
+		bool accepted = builder.append(command);
+		while (builder.command_pending()) {
+			CommandWorkBudget b;
+			builder.step(b);
+		}
+		return accepted;
+	};
+	std::vector<Command> commands{open(),
+								  transaction(1, {{"ns:z", BoolDef{}, {}, {}}, {"ns:a", IntDef{-99}, 0, 0}})};
+	auto expected = encode_batch(commands);
+	ProposalBuilder builder(context(), {}, expected.size());
+	for (const auto &c : commands) {
+		auto command = encoded(c);
+		assert(append(builder, command));
+		assert(throws([&] { builder.append(command); })); // Accepted append consumed its capability.
+	}
+	auto prepared = finish(builder);
+	assert(prepared.bytes() == expected && prepared.valid());
+	SHA256 independent;
+	independent.add(expected.data(), expected.size());
+	Digest hash{};
+	independent.getHash(hash.data());
+	assert(prepared.digest() == hash);
+	auto moved = std::move(prepared);
+	assert(!prepared.valid() && moved.valid());
+	assert(throws([&] { builder.take(); }));
+	ProposalBuilder short_batch(context(), {}, expected.size() - 1);
+	auto first = encoded(commands.front());
+	assert(append(short_batch, first));
+	auto carry = encoded(commands.back());
+	const auto size = carry.size();
+	for (unsigned retry = 0; retry < 4; ++retry) {
+		assert(!short_batch.append(carry));
+		assert(carry.size() == size && short_batch.count() == 1);
+	}
+	assert(finish(short_batch).bytes() == encode_batch({commands.front()}));
+	ProposalBuilder next(context(), {}, batch_framing_bytes() + 8 + size);
+	assert(append(next, carry));
+	assert(finish(next).bytes() == encode_batch({commands.back()}));
+	ProposalBuilder maximum(context());
+	for (unsigned i = 0; i < 64; ++i) {
+		auto command = encoded(commands.front());
+		assert(append(maximum, command));
+	}
+	auto sixty_fifth = encoded(commands.front());
+	assert(!maximum.append(sixty_fifth));
+	auto full = finish(maximum);
+	assert(decode_batch(full.bytes()).size() == 64);
+	ProposalBuilder mismatch(context());
+	auto foreign = commands.front();
+	foreign.context.epoch[0] = 'f';
+	auto foreign_encoded = encoded(foreign);
+	assert(throws([&] { mismatch.append(foreign_encoded); }));
+	assert(mismatch.count() == 0);
+	Limits other;
+	other.mutations = 127;
+	auto changed_profile = encoded(commands.front(), other);
+	assert(throws([&] { mismatch.append(changed_profile); }));
+	auto good = encoded(commands.front());
+	assert(append(mismatch, good));
+	mismatch.discard();
+	assert(!mismatch.done());
+}
+
+void command_encoding() {
+	auto encode_in_turns = [](const Command &command, Limits limits = {}) {
+		CommandEncoder encoder(command, limits);
+		unsigned turns = 0;
+		while (!encoder.done()) {
+			CommandWorkBudget budget;
+			encoder.step(budget);
+			assert(budget.bytes <= 8192 && budget.records <= 16 && budget.updates == 8 &&
+				   budget.receipts <= 32);
+			assert(++turns < 10000);
+		}
+		auto bytes = encoder.take();
+		assert(!encoder.done() && throws([&] { encoder.take(); }));
+		return bytes;
+	};
+	auto close = open();
+	close.kind = Kind::Close;
+	close.generation = 1;
+	close.nonce = {};
+	assert(encode_in_turns(open()) == encode(open()));
+	assert(encode_in_turns(close) == encode(close));
+	BoolDef definition;
+	definition.rollout_pct = 51;
+	definition.overrides.emplace(std::string("\0group", 6), true);
+	definition.overrides.emplace("unicode-\xc3\xa9", GroupRollout{42});
+	for (unsigned i = 0; i < 254; ++i)
+		definition.overrides.emplace("group" + std::to_string(i), GroupRollout{35});
+	auto command =
+		transaction(1, {{"ns:z", definition, {}, {}}, {"ns:b", IntDef{-99}, {}, {}}, {"ns:a", {}, 0, 0}});
+	auto canonical = encode(command);
+	assert(encode_in_turns(command) == canonical);
+	std::reverse(command.mutations.begin(), command.mutations.end());
+	assert(encode_in_turns(command) == canonical);
+	std::vector<Command> invalid;
+	auto add = [&](auto change) {
+		invalid.push_back(command);
+		change(invalid.back());
+	};
+	add([](auto &c) { c.context.epoch = {}; });
+	add([](auto &c) { c.kind = static_cast<Kind>(99); });
+	add([](auto &c) { c.producer = std::string(129, 'x'); });
+	add([](auto &c) { c.producer = "\xff"; });
+	add([](auto &c) { c.generation = 0; });
+	add([](auto &c) { c.sequence = 0; });
+	add([](auto &c) { c.name_space = "other"; });
+	add([](auto &c) { c.mutations.push_back(c.mutations.front()); });
+	add([](auto &c) { c.mutations.front().absence_revision = {}; });
+	add([](auto &c) { std::get<BoolDef>(*c.mutations.back().value).rollout_pct = 101; });
+	add([](auto &c) { std::get<BoolDef>(*c.mutations.back().value).overrides.emplace("extra", true); });
+	add([](auto &c) {
+		auto &d = std::get<BoolDef>(*c.mutations.back().value);
+		d.overrides.erase(d.overrides.begin());
+		d.overrides.emplace(std::string(129, 'x'), true);
+	});
+	add([](auto &c) {
+		auto &d = std::get<BoolDef>(*c.mutations.back().value);
+		d.overrides.begin()->second = GroupRollout{101};
+	});
+	for (const auto &bad : invalid) {
+		assert(throws([&] { encode(bad); }));
+		CommandEncoder encoder(bad);
+		assert(throws([&] {
+			while (!encoder.done()) {
+				CommandWorkBudget b;
+				encoder.step(b);
+			}
+		}));
+		assert(throws([&] {
+			CommandWorkBudget b;
+			encoder.step(b);
+		}));
+		unsigned turns = 0;
+		for (;;) {
+			CommandWorkBudget b;
+			b.receipts = 1;
+			if (encoder.discard(b))
+				break;
+			assert(++turns < 4096);
+		}
+	}
+	std::vector<Mutation> operations;
+	for (unsigned i = 0; i < 128; ++i)
+		operations.push_back({"ns:key" + std::to_string(i), IntDef{1}, {}, {}});
+	auto many = transaction(1, std::move(operations));
+	CommandEncoder abandoned(many);
+	CommandWorkBudget budget;
+	abandoned.step(budget);
+	unsigned turns = 0;
+	for (;;) {
+		CommandWorkBudget b;
+		b.receipts = 1;
+		if (abandoned.discard(b))
+			break;
+		assert(++turns < 4096);
+	}
+	assert(turns > 1);
+	assert(encode_in_turns(many) == encode(many));
+}
+
+void command_continuations() {
+	auto drive = [](CommandDecoder &decoder) {
+		std::size_t turns = 0;
+		while (!decoder.done()) {
+			CommandWorkBudget budget;
+			decoder.step(budget);
+			assert(budget.bytes <= 8192 && budget.records <= 16 && budget.updates == 8 &&
+				   budget.receipts == 32);
+			assert(++turns < 10000);
+		}
+		return turns;
+	};
+	BoolDef definition;
+	definition.rollout_pct = 17;
+	definition.overrides[std::string("\0group", 6)] = true;
+	definition.overrides["unicode-\xc3\xa9"] = GroupRollout{42};
+	for (unsigned i = 0; i < 254; ++i)
+		definition.overrides["g" + std::to_string(i)] = GroupRollout{25};
+	Limits limits;
+	auto command =
+		transaction(1, {{"ns:a", definition, 0, 0}, {"ns:b", IntDef{3}, {}, {}}, {"ns:c", {}, {}, {}}});
+	auto bytes = encode(command, limits);
+	CommandDecoder decoder(bytes, limits);
+	CommandWorkBudget insufficient{2047, 1, 8, 32};
+	decoder.step(insufficient);
+	assert(insufficient.bytes == 2047 && insufficient.records == 1 && !decoder.done());
+	assert(drive(decoder) > 16);
+	auto validated = decoder.take();
+	assert(!decoder.done() && throws([&] { decoder.take(); }));
+	assert(encode(validated.command(), limits) == bytes);
+	assert(validated.canonical_digest() == digest(command, limits));
+	assert(validated.limits() == limits);
+	std::size_t expected_bytes = 19;
+	for (const auto &[key, value] : definition.overrides)
+		expected_bytes += 8 + key.size() + 1 + (std::holds_alternative<bool>(value) ? 1 : 8);
+	assert(validated.definition_bytes(0) == expected_bytes);
+	assert(validated.definition_bytes(1) == 9 && validated.definition_bytes(2) == 0);
+	auto close = open();
+	close.kind = Kind::Close;
+	close.nonce = {};
+	close.generation = 1;
+	for (auto small : {open(), close, transaction(1, {{"ns:a", BoolDef{}, {}, {}}})}) {
+		auto canonical = encode(small);
+		// Independent old decoder is the oracle. Every accepted corruption
+		// must round-trip exactly, including scalar flags and framing.
+		for (std::size_t offset = 0; offset < canonical.size(); ++offset) {
+			auto corrupt = canonical;
+			corrupt[offset] ^= 0x80;
+			bool old_accepts = !throws([&] { decode(corrupt); });
+			CommandDecoder cursor(corrupt);
+			bool accepts = !throws([&] { drive(cursor); });
+			assert(accepts == old_accepts);
+			if (accepts) {
+				auto value = cursor.take();
+				assert(encode(value.command()) == corrupt);
+				assert(value.canonical_digest() == digest(decode(corrupt)));
+			} else {
+				assert(throws([&] { cursor.step(insufficient); }));
+				bool drained = false;
+				for (unsigned turn = 0; !drained; ++turn) {
+					CommandWorkBudget budget{2048, 1, 8, 32};
+					drained = cursor.discard(budget);
+					assert(turn < 1000);
+				}
+			}
+		}
+	}
+	for (auto malformed : {bytes + "trailing", bytes.substr(0, bytes.size() - 1)}) {
+		CommandDecoder cursor(malformed, limits);
+		assert(throws([&] { drive(cursor); }));
+		unsigned turns = 0;
+		for (;;) {
+			CommandWorkBudget budget{2048, 1, 8, 32};
+			if (cursor.discard(budget))
+				break;
+			assert(++turns < 1000);
+		}
+		assert(turns >= 256);
+	}
+	CommandDecoder pending(bytes, limits);
+	CommandWorkBudget first{8192, 2, 8, 32};
+	pending.step(first); // Header and mutation, before its first override.
+	auto moved = std::move(pending);
+	assert(!pending.done() && pending.discard(first));
+	assert(drive(moved) > 16);
+	assert(moved.take().canonical_digest() == digest(command, limits));
+	for (auto [mutations, overrides, padding] : {std::tuple{128u, 31u, 40u}, std::tuple{1u, 256u, 39u}}) {
+		BoolDef large;
+		for (unsigned i = 0; i < overrides; ++i)
+			large.overrides["group" + std::to_string(i) + std::string(padding, 'x')] = GroupRollout{25};
+		std::vector<Mutation> operations;
+		for (unsigned i = 0; i < mutations; ++i)
+			operations.push_back({"ns:feature_" + std::to_string(i), large, {}, {}});
+		auto maximum = transaction(1, std::move(operations));
+		auto canonical = encode(maximum);
+		CommandDecoder cursor(canonical);
+		assert(drive(cursor) > 16);
+		auto completed = cursor.take();
+		assert(completed.canonical_digest() == digest(maximum));
+		assert(encode(completed.command()) == canonical);
+		if (mutations == 128)
+			assert(canonical.size() > Limits{}.request_bytes * 98 / 100);
+		else
+			assert(completed.definition_bytes(0) > Limits{}.definition_bytes * 98 / 100);
+	}
 }
 void trees() {
 	detent::authority::detail::PersistentMap<int, int> tree;
@@ -192,7 +646,8 @@ void incremental_batches() {
 	assert(results[3].status == Status::Conflict && results[5].status == Status::Capacity);
 	auto bytes = encode_batch(commands, limits);
 	std::size_t exact_size = batch_framing_bytes(limits);
-	for (const auto &command : commands) exact_size += 8 + encode(command, limits).size();
+	for (const auto &command : commands)
+		exact_size += 8 + encode(command, limits).size();
 	assert(bytes.size() == exact_size && batch_framing_bytes(limits) == 96);
 	assert(encode_batch(commands, limits, exact_size) == bytes);
 	assert(throws([&] { encode_batch(commands, limits, exact_size - 1); }));
@@ -210,6 +665,27 @@ void incremental_batches() {
 	auto outcome = moved.finish();
 	assert(outcome.results == results && outcome.state.checkpoint() == expected.checkpoint());
 	assert(throws([&] { moved.finish(); }));
+	BatchDecoder slices(bytes, limits);
+	BatchApplication resumable(original, 1, 2, slices.count());
+	while (!resumable.done()) {
+		if (!resumable.command_pending()) {
+			CommandDecoder command(slices.next_bytes(), limits);
+			while (!command.done()) {
+				CommandWorkBudget budget;
+				command.step(budget);
+				assert(original.checkpoint() == before);
+			}
+			resumable.start(command.take());
+		}
+		CommandWorkBudget budget;
+		budget.updates = 1;
+		budget.receipts = 1;
+		resumable.step(budget);
+		assert(original.checkpoint() == before);
+	}
+	assert(slices.done());
+	auto resumed = resumable.finish();
+	assert(resumed.results == results && resumed.state.checkpoint() == expected.checkpoint());
 	for (const auto &invalid : {bytes.substr(0, bytes.size() - 1), bytes + "trailing"}) {
 		BatchDecoder broken(invalid, limits);
 		BatchApplication unpublished(original, 1, 2, broken.count());
@@ -353,6 +829,11 @@ void concurrent_cas() {
 } // namespace
 int main() {
 	trees();
+	deferred_values();
+	command_continuations();
+	command_encoding();
+	prepared_proposals();
+	bounded_applications();
 	incremental_batches();
 	streaming_images();
 	semantics();

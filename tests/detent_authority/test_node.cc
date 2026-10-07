@@ -1,4 +1,5 @@
 #include "node.hh"
+#include "prepared.hh"
 #include <cassert>
 #include <filesystem>
 #include <iostream>
@@ -188,31 +189,134 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	}
 }
 } // namespace
+void terminal_state_retirement(const std::filesystem::path &path) {
+	struct Cleanup {
+		std::filesystem::path path;
+		~Cleanup() { std::filesystem::remove_all(path); }
+	} cleanup{path};
+	std::filesystem::create_directories(path);
+	chmod(path.c_str(), 0700);
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+	Identity id{};
+	id[0] = 'T';
+	node.create(id);
+	pump(node);
+	node.start();
+	pump(node);
+	submit(node, 1, open());
+	pump(node);
+	auto command = transaction(1, 42);
+	command.mutations.clear();
+	for (unsigned key = 0; key < 128; ++key) {
+		detent::BoolDef value{false, {}};
+		for (unsigned group = 0; group < 31; ++group)
+			value.overrides.emplace("group" + std::to_string(group), true);
+		command.mutations.push_back({"ns:k" + std::to_string(key), std::move(value), {}, {}});
+	}
+	submit(node, 2, command);
+	auto results = pump(node, 5000);
+	assert(results.size() == 1 && results[0].results[0].status == Status::Applied &&
+		   node.state().size() == 128);
+	auto revision = node.state().revision();
+	node.close();
+	node.close();
+	assert(node.read(3) == SubmitResult::Busy && node.propose(3, {command}) == SubmitResult::Busy);
+	unsigned turns = 0;
+	while (!node.drained()) {
+		CommandWorkBudget budget;
+		budget.bytes = 2048;
+		budget.receipts = 1;
+		node.retirement_step(budget);
+		if (auto original = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*original);
+		assert(node.state().revision() == revision && ++turns < 50000);
+	}
+	assert(turns > 128 && node.state().size() == 0 && node.state().retained_nodes() == 0 &&
+		   node.state().retired_values() == 0 && node.worker().retired_log_entries() == 0);
+	CommandWorkBudget budget;
+	node.retirement_step(budget);
+	assert(node.drained());
+}
+
 int main(int argc, char **argv) {
 	completion_storage = argc == 2 && std::string_view(argv[1]) == "--completion-storage";
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
+	terminal_state_retirement(path / "terminal-state");
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);
 	retained_application_range(path / "grouped-application", false, true);
 	retained_application_range(path / "backlogged-application", false, false, true);
+	auto prepare = [](const Command &command) {
+		CommandEncoder encoder(command, options().application);
+		while (!encoder.done()) {
+			CommandWorkBudget b;
+			encoder.step(b);
+		}
+		auto encoded = encoder.take_encoded();
+		ProposalBuilder builder(command.context, options().application);
+		assert(builder.append(encoded));
+		while (builder.command_pending()) {
+			CommandWorkBudget b;
+			builder.step(b);
+		}
+		builder.seal();
+		while (!builder.done()) {
+			CommandWorkBudget b;
+			builder.step(b);
+		}
+		return builder.take();
+	};
+	auto submit_prepared = [](Node &node, std::uint64_t request, PreparedProposal &proposal) {
+		const auto bytes = proposal.bytes();
+		const auto digest = proposal.digest();
+		for (unsigned attempt = 0; attempt < 200; ++attempt) {
+			auto result = node.propose_prepared(request, proposal);
+			if (result == SubmitResult::Accepted)
+				return;
+			assert(result == SubmitResult::Busy || result == SubmitResult::Pressure);
+			assert(proposal.valid() && proposal.bytes() == bytes && proposal.digest() == digest);
+			pump(node, 1);
+		}
+		assert(false);
+	};
 	std::uint64_t revision, checkpoint_index;
 	{
-		Node node(std::make_unique<kronuz::journal::PosixIO>(path), options());
+		auto profile = options();
+		profile.waiters = 1;
+		Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
 		Identity id{};
 		id[0] = 's';
 		node.create(id);
 		for (unsigned retry = 0; retry < 8; ++retry)
 			assert(node.read(999) == SubmitResult::Busy);
+		auto prepared_open = prepare(open());
+		auto original_bytes = prepared_open.bytes();
+		auto original_digest = prepared_open.digest();
+		for (unsigned retry = 0; retry < 8; ++retry) {
+			assert(node.propose_prepared(1, prepared_open) == SubmitResult::Busy);
+			assert(prepared_open.valid() && prepared_open.bytes() == original_bytes &&
+				   prepared_open.digest() == original_digest);
+		}
 		pump(node);
 		node.start();
 		pump(node);
 		assert(node.worker().role() == Role::Leader);
-		submit(node, 1, open());
+		submit_prepared(node, 1, prepared_open);
+		assert(!prepared_open.valid());
+		auto prepared_change = prepare(transaction(1, 10));
+		original_bytes = prepared_change.bytes();
+		original_digest = prepared_change.digest();
+		for (unsigned retry = 0; retry < 8; ++retry) {
+			assert(node.propose_prepared(2, prepared_change) == SubmitResult::Pressure);
+			assert(prepared_change.valid() && prepared_change.bytes() == original_bytes &&
+				   prepared_change.digest() == original_digest);
+		}
 		auto opened = pump(node);
 		assert(opened.size() == 1 && opened[0].results[0].generation == 1);
-		submit(node, 2, transaction(1, 10));
+		submit_prepared(node, 2, prepared_change);
+		assert(!prepared_change.valid());
 		auto changed = pump(node);
 		assert(changed.size() == 1 && changed[0].results[0].status == Status::Applied);
 		revision = node.state().revision();

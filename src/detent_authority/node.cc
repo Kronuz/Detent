@@ -1,4 +1,5 @@
 #include "node.hh"
+#include "prepared.hh"
 #include <limits>
 #include <sha256.h>
 #include <stdexcept>
@@ -6,13 +7,6 @@
 namespace detent::authority {
 using namespace cluster::consensus;
 namespace {
-Digest batch_identity(std::string_view bytes) {
-	SHA256 hash;
-	hash.add(bytes.data(), bytes.size());
-	Digest result{};
-	hash.getHash(result.data());
-	return result;
-}
 std::shared_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal::IO> io) {
 	if (!io) {
 		throw std::invalid_argument("missing authority IO");
@@ -73,7 +67,62 @@ void Node::start() {
 	}
 	drain();
 }
+void Node::close() noexcept {
+	closing_ = true;
+	worker_.close();
+}
+bool Node::drained() const noexcept {
+	return closing_ && state_retired_ && worker_.drained() && !application_ && !capture_ && !candidate_ &&
+		   !retired_ && !state_.reclamation_pending() && pending_.empty() && completions_.empty() &&
+		   network_.empty() && channel_.drained();
+}
+void Node::retirement_step(CommandWorkBudget &budget) {
+	if (!closing_)
+		throw std::logic_error("authority retirement requires terminal close");
+	worker_.run_one({0, options_.timing.election_min});
+	channel_.run_one({0, options_.timing.election_min});
+	if (application_) {
+		application_->failed = true;
+		advance_application(budget);
+	}
+	if (retired_) {
+		retired_->collect(budget);
+		if (!retired_->reclamation_pending())
+			retired_.reset();
+	}
+	if (capture_ && (capture_->state.shares_reclamation_with(state_) || !retired_ ||
+					 capture_->state.shares_reclamation_with(*retired_))) {
+		// Keep an arena owner after dropping the encoder's independent root.
+		if (!capture_->state.shares_reclamation_with(state_) && !retired_) {
+			retired_.emplace(std::move(capture_->state));
+			retired_->retire();
+		} else {
+			capture_->state.retire();
+		}
+		capture_.reset();
+	}
+	if (candidate_ && !retired_)
+		discard_candidate();
+	if (!application_ && !capture_ && !candidate_ && !state_retired_) {
+		state_.retire();
+		state_retired_ = true;
+	}
+	state_.collect(budget);
+	cluster::consensus::detail::RetirementBudget payloads{8, options_.consensus.command_bytes};
+	cluster::consensus::detail::retire_actions(network_, payloads);
+	unsigned local = 8;
+	while (local && !completions_.empty()) {
+		completions_.pop_back();
+		--local;
+	}
+	while (local && !pending_.empty()) {
+		pending_.erase(pending_.begin());
+		--local;
+	}
+}
 SubmitResult Node::propose(std::uint64_t request, const std::vector<Command> &commands) {
+	if (closing_)
+		return SubmitResult::Busy;
 	if (!request || request >= (std::uint64_t{1} << 63) || pending_.contains(request)) {
 		throw std::invalid_argument("duplicate local authority waiter");
 	}
@@ -85,16 +134,68 @@ SubmitResult Node::propose(std::uint64_t request, const std::vector<Command> &co
 			throw std::invalid_argument("foreign authority request");
 		}
 	}
-	auto bytes = encode_batch(commands, options_.application, options_.consensus.command_bytes);
-	auto identity = batch_identity(bytes);
-	auto result = worker_.try_submit(Propose{request, std::move(bytes)});
-	if (result == SubmitResult::Accepted) {
-		pending_.emplace(request, Pending{0, worker_.term(), identity, false});
+	if (commands.empty() || commands.size() > 64)
+		throw std::invalid_argument("transaction group bound");
+	ProposalBuilder builder(options_.context, options_.application, options_.consensus.command_bytes);
+	for (const auto &command : commands) {
+		CommandEncoder encoder(command, options_.application);
+		while (!encoder.done()) {
+			CommandWorkBudget budget;
+			encoder.step(budget);
+		}
+		auto encoded = encoder.take_encoded();
+		if (!builder.append(encoded))
+			throw std::invalid_argument("authority encoding bound");
+		while (builder.command_pending()) {
+			CommandWorkBudget budget;
+			builder.step(budget);
+		}
+	}
+	builder.seal();
+	while (!builder.done()) {
+		CommandWorkBudget budget;
+		builder.step(budget);
+	}
+	auto prepared = builder.take();
+	return propose_prepared(request, prepared);
+}
+SubmitResult Node::propose_prepared(std::uint64_t request, PreparedProposal &proposal) {
+	if (closing_)
+		return SubmitResult::Busy;
+	if (!request || request >= (std::uint64_t{1} << 63) || pending_.contains(request))
+		throw std::invalid_argument("duplicate local authority waiter");
+	if (!proposal.valid_ || proposal.context_ != options_.context ||
+		proposal.limits_ != options_.application || proposal.bytes_.size() > options_.consensus.command_bytes)
+		throw std::invalid_argument("foreign prepared proposal capability");
+	if (pending_.size() + completions_.size() >= options_.waiters)
+		return SubmitResult::Pressure;
+	// Allocate waiter bookkeeping before Worker can irreversibly accept bytes.
+	auto [waiter, inserted] = pending_.emplace(request, Pending{0, worker_.term(), proposal.digest_, false});
+	(void)inserted;
+	Event event = Propose{request, std::move(proposal.bytes_)};
+	SubmitResult result;
+	try {
+		result = worker_.try_submit_retained(event);
+	} catch (...) {
+		proposal.bytes_ = std::move(std::get<Propose>(event).command);
+		pending_.erase(waiter);
+		throw;
+	}
+	if (result == SubmitResult::Busy || result == SubmitResult::Pressure) {
+		proposal.bytes_ = std::move(std::get<Propose>(event).command);
+		pending_.erase(waiter);
+	} else {
+		proposal.valid_ = false;
+		if (result != SubmitResult::Accepted)
+			pending_.erase(waiter);
 	}
 	drain();
 	return result;
 }
+
 SubmitResult Node::read(std::uint64_t request) {
+	if (closing_)
+		return SubmitResult::Busy;
 	if (!request || request >= (std::uint64_t{1} << 63) || pending_.contains(request)) {
 		throw std::invalid_argument("duplicate local authority waiter");
 	}
@@ -118,11 +219,15 @@ SubmitResult Node::read(std::uint64_t request) {
 }
 void Node::forget(std::uint64_t request) { pending_.erase(request); }
 std::vector<Completion> Node::take_completions() {
+	if (closing_)
+		return {};
 	auto result = std::move(completions_);
 	completions_.clear();
 	return result;
 }
 Actions Node::take_network_actions() {
+	if (closing_)
+		return {};
 	auto result = std::move(network_);
 	network_.clear();
 	return result;
@@ -177,9 +282,29 @@ void Node::drain() {
 		}
 	}
 }
-void Node::advance_application() {
-	if (!application_ || worker_.fenced())
+void Node::advance_application(CommandWorkBudget &budget) {
+	if (!application_)
 		return;
+	if (worker_.fenced())
+		application_->failed = true;
+	if (application_->failed) {
+		if (application_->command) {
+			if (!application_->command->discard(budget))
+				return;
+			application_->command.reset();
+		}
+		if (application_->candidate) {
+			if (!application_->candidate->discard(budget))
+				return;
+			application_->candidate.reset();
+		}
+		// Preserve borrowed payloads until both partial cursors have drained.
+		application_->decoder.reset();
+		std::string{}.swap(application_->range.entries[application_->cursor].payload);
+		if (++application_->cursor == application_->range.entries.size())
+			application_.reset();
+		return;
+	}
 	const auto through = application_->through;
 	try {
 		auto &entry = application_->range.entries[application_->cursor];
@@ -199,31 +324,55 @@ void Node::advance_application() {
 					application_->candidate.emplace(state_, entry.index, entry.term,
 													application_->decoder->count());
 				}
-				std::size_t commands = 0, bytes = 0, mutations = 0;
-				while (!application_->decoder->done() && commands < 8) {
-					auto work = application_->decoder->next_work();
-					if (commands && (bytes >= 65536 || mutations >= 128 || work.bytes > 65536 - bytes ||
-									 work.mutations > 128 - mutations))
-						break;
-					// One oversized configured command may run on a fresh turn.
-					application_->candidate->advance(application_->decoder->next());
-					++commands;
-					bytes += work.bytes;
-					mutations += work.mutations;
+				while (!application_->candidate->done()) {
+					if (application_->candidate->command_pending()) {
+						application_->candidate->step(budget);
+						if (application_->candidate->command_pending())
+							return;
+					} else {
+						if (!application_->command) {
+							if (!budget.records || budget.bytes < 128)
+								return;
+							--budget.records;
+							budget.bytes -= 128;
+							application_->command.emplace(application_->decoder->next_bytes(),
+														  options_.application, options_.context);
+						}
+						application_->command->step(budget);
+						if (!application_->command->done())
+							return;
+						application_->candidate->start(application_->command->take());
+						application_->command.reset();
+					}
 				}
 				if (!application_->decoder->done())
-					return;
+					throw std::logic_error("authority batch exhaustion mismatch");
+				const auto interested =
+					std::any_of(pending_.begin(), pending_.end(), [&](const auto &waiter) {
+						return !waiter.second.read && waiter.second.index == entry.index;
+					});
+				if (interested && !application_->identity) {
+					auto amount = std::min(budget.bytes, entry.payload.size() - application_->hashed);
+					if (amount) {
+						application_->hash.add(entry.payload.data() + application_->hashed, amount);
+						application_->hashed += amount;
+						budget.bytes -= amount;
+					}
+					if (application_->hashed != entry.payload.size() || budget.bytes < 128 || !budget.records)
+						return;
+					budget.bytes -= 128;
+					--budget.records;
+					application_->identity.emplace();
+					application_->hash.getHash(application_->identity->data());
+				}
 				auto outcome = application_->candidate->finish();
 				application_->decoder.reset();
 				application_->candidate.reset();
 				next.emplace(std::move(outcome.state));
 				auto &results = outcome.results;
-				std::optional<Digest> identity;
 				for (const auto &[request, waiter] : pending_) {
 					if (!waiter.read && waiter.index == entry.index) {
-						if (!identity)
-							identity = batch_identity(entry.payload);
-						if (waiter.term == entry.term && waiter.identity == *identity) {
+						if (waiter.term == entry.term && waiter.identity == *application_->identity) {
 							ready.push_back({request, entry.index, results, {}, false});
 						} else {
 							ready.push_back({request, entry.index, {}, RejectReason::NotLeader, false});
@@ -239,13 +388,16 @@ void Node::advance_application() {
 		}
 		// Release payloads one entry at a time, preserving the original endpoint.
 		std::string{}.swap(entry.payload);
+		application_->hash.reset();
+		application_->hashed = 0;
+		application_->identity.reset();
 		if (++application_->cursor == application_->range.entries.size()) {
 			application_.reset();
 			worker_.applied(Applied{through});
 		}
 	} catch (const std::exception &error) {
 		worker_.application_failed(through, error.what());
-		application_.reset();
+		application_->failed = true;
 	}
 }
 bool Node::checkpoint() {
@@ -314,13 +466,28 @@ void Node::service_checkpoint_due(Tick tick) {
 		checkpoint_policy_.reservation_unavailable.add();
 }
 void Node::service(Tick tick) {
-	state_.collect(128);
+	CommandWorkBudget budget;
+	service(tick, budget);
+}
+void Node::service(Tick tick, CommandWorkBudget &application_budget) {
+	if (closing_) {
+		retirement_step(application_budget);
+		return;
+	}
+	CommandWorkBudget reclamation_budget;
+	reclamation_budget.bytes = std::min<std::size_t>(4096, application_budget.bytes / 2);
+	reclamation_budget.receipts = std::min<std::size_t>(16, application_budget.receipts / 2);
+	const auto reserved_bytes = reclamation_budget.bytes;
+	const auto reserved_receipts = reclamation_budget.receipts;
+	state_.collect(reclamation_budget);
 	if (retired_) {
-		retired_->collect(128);
+		retired_->collect(reclamation_budget);
 		if (!retired_->reclamation_pending()) {
 			retired_.reset();
 		}
 	}
+	application_budget.bytes -= reserved_bytes - reclamation_budget.bytes;
+	application_budget.receipts -= reserved_receipts - reclamation_budget.receipts;
 	refresh_checkpoint_due(tick);
 	worker_.run_one(tick);
 	refresh_checkpoint_due(tick);
@@ -328,7 +495,7 @@ void Node::service(Tick tick) {
 	// drain() occupies its application slot with that new range.
 	service_checkpoint_due(tick);
 	drain();
-	advance_application();
+	advance_application(application_budget);
 	channel_.run_one(tick);
 	if (candidate_ && channel_.incoming_snapshot() != candidate_->id) {
 		discard_candidate();

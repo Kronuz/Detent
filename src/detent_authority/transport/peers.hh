@@ -2,8 +2,10 @@
 #include "codec.hh"
 #include "node.hh"
 #include "profile.hh"
+#include "rpc_observation.hh"
 #include "snapshot_write.hh"
 #include <deque>
+#include <metrics.h>
 
 namespace detent::transport {
 struct PeerOptions {
@@ -18,6 +20,13 @@ struct PeerOptions {
 struct PeerStats {
 	std::uint64_t admitted = 0, rejected = 0, dropped = 0, reconnects = 0;
 	std::uint64_t received = 0, accepted = 0, maximum_admission_wait_us = 0;
+	kronuz::metrics::DurationHistogram<> decoded_to_admitted;
+	AppendTimings append;
+};
+struct PeerOccupancy {
+	std::size_t incoming_bytes = 0, outgoing_bytes = 0;
+	std::size_t incoming_high_water = 0, outgoing_high_water = 0;
+	std::size_t connections = 0, handshakes = 0, queued_control = 0, retained_inputs = 0;
 };
 // All calls and completions run on the authority owner executor. start()/stop()
 // are admission boundaries; retain this object until drained() becomes true.
@@ -78,6 +87,20 @@ class Peers : public std::enable_shared_from_this<Peers> {
 	}
 	bool drained() const noexcept { return tasks_ == 0; }
 	const PeerStats &stats() const noexcept { return stats_; }
+	PeerOccupancy occupancy() const noexcept {
+		PeerOccupancy result;
+		result.incoming_bytes = incoming_->used();
+		result.outgoing_bytes = outgoing_->used();
+		result.incoming_high_water = incoming_->high_water();
+		result.outgoing_high_water = outgoing_->high_water();
+		result.connections = connections_.size();
+		for (const auto &connection : connections_) {
+			result.handshakes += !connection->ready && !connection->closing;
+			result.queued_control += connection->queue.size();
+			result.retained_inputs += connection->input.has_value();
+		}
+		return result;
+	}
 	asio::ip::tcp::endpoint local_endpoint() const { return acceptor_.local_endpoint(); }
 	void send(cluster::consensus::Send action) {
 		auto connection = find(action.peer, Lane::Control);
@@ -88,7 +111,11 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		try {
 			ByteCredit credit(outgoing_, control_frame_bound(configuration_.consensus));
 			auto bytes = encode(action.message, configuration_.consensus);
-			connection->queue.emplace_back(std::move(credit), std::move(bytes));
+			std::optional<cluster::consensus::AppendRequest> observation;
+			if (auto request = std::get_if<cluster::consensus::AppendRequest>(&action.message))
+				observation.emplace(cluster::consensus::AppendRequest{
+					request->term, request->rpc, 0, 0, 0, request->read_probe, {}});
+			connection->queue.push_back({Frame(std::move(credit), std::move(bytes)), std::move(observation)});
 			connection->wake.cancel();
 		} catch (const std::runtime_error &) {
 			++stats_.dropped;
@@ -108,6 +135,9 @@ class Peers : public std::enable_shared_from_this<Peers> {
 	void admit() {
 		if (stopping_ || connections_.empty())
 			return;
+		const auto now = std::chrono::steady_clock::now();
+		for (const auto &connection : connections_)
+			connection->append.expire(now, options_.deadline, stats_.append);
 		const auto count = connections_.size();
 		for (std::size_t offset = 0; offset != count; ++offset) {
 			const auto index = (admission_cursor_ + offset) % count;
@@ -123,6 +153,11 @@ class Peers : public std::enable_shared_from_this<Peers> {
 				close(connection);
 			else {
 				++stats_.accepted;
+				const auto waited_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+										   std::chrono::steady_clock::now() - connection->received_at)
+										   .count();
+				stats_.decoded_to_admitted.observe(
+					static_cast<std::uint64_t>(std::max<std::int64_t>(waited_ns, 0)));
 				const auto waited = std::chrono::duration_cast<std::chrono::microseconds>(
 										std::chrono::steady_clock::now() - connection->received_at)
 										.count();
@@ -138,13 +173,18 @@ class Peers : public std::enable_shared_from_this<Peers> {
 	}
 
   private:
+	struct ControlFrame {
+		Frame frame;
+		std::optional<cluster::consensus::AppendRequest> observation;
+	};
 	struct Connection {
 		std::shared_ptr<Session> session;
 		asio::steady_timer wake;
 		asio::steady_timer admission_wake;
 		std::optional<cluster::consensus::Event> input;
 		std::chrono::steady_clock::time_point received_at;
-		std::deque<Frame> queue;
+		std::deque<ControlFrame> queue;
+		AppendObservation append;
 		cluster::consensus::NodeId peer = 0;
 		Lane lane = Lane::Control;
 		std::optional<cluster::consensus::TrustedSession> trusted;
@@ -159,6 +199,7 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		}
 	};
 	void close(const std::shared_ptr<Connection> &connection) {
+		connection->append.abandon(std::chrono::steady_clock::now(), stats_.append);
 		connection->close();
 		if (connection->trusted && !connection->notified) {
 			connection->notified = true;
@@ -302,6 +343,11 @@ class Peers : public std::enable_shared_from_this<Peers> {
 					connection->input.emplace(cluster::consensus::Receive{
 						connection->peer, decode(frame.bytes(), configuration_.consensus)});
 					connection->received_at = std::chrono::steady_clock::now();
+					const auto &message = std::get<cluster::consensus::Receive>(*connection->input).message;
+					if (auto response = std::get_if<cluster::consensus::AppendResponse>(&message)) {
+						connection->append.expire(connection->received_at, options_.deadline, stats_.append);
+						connection->append.receive(*response, connection->received_at, stats_.append);
+					}
 					++stats_.received;
 					while (connection->input) {
 						if (stopping_ || connection->closing)
@@ -341,7 +387,18 @@ class Peers : public std::enable_shared_from_this<Peers> {
 				if (connection->lane == Lane::Control && !connection->queue.empty()) {
 					auto frame = std::move(connection->queue.front());
 					connection->queue.pop_front();
-					co_await connection->session->send(std::move(frame));
+					auto generation =
+						frame.observation
+							? connection->append.emit(*frame.observation, std::chrono::steady_clock::now(),
+													  stats_.append)
+							: 0;
+					try {
+						co_await connection->session->send(std::move(frame.frame));
+					} catch (...) {
+						connection->append.write_failed(generation, std::chrono::steady_clock::now(),
+														stats_.append);
+						throw;
+					}
 					continue;
 				}
 				if (connection->lane == Lane::Bulk)

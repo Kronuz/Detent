@@ -2,6 +2,8 @@
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/validation.hh"
+#include "prepared.hh"
+#include "read_reply.hh"
 #include <asio.hpp>
 #include <fcntl.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
@@ -10,17 +12,52 @@
 #endif
 #include <fstream>
 #include <journal/posix.h>
+#include <limits>
+#include <metrics.h>
 #include <random>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <sha256.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 namespace detent::authority {
 namespace {
 using Clock = std::chrono::steady_clock;
+std::uint64_t elapsed_ns(Clock::time_point start, Clock::time_point end = Clock::now()) {
+	auto value = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+	return value > 0 ? static_cast<std::uint64_t>(value) : 0;
+}
+std::optional<std::uint64_t> owner_cpu_ns() noexcept {
+#ifdef CLOCK_THREAD_CPUTIME_ID
+	timespec value{};
+	if (::clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) || value.tv_sec < 0 || value.tv_nsec < 0 ||
+		value.tv_nsec >= 1000000000)
+		return std::nullopt;
+	auto seconds = static_cast<std::uint64_t>(value.tv_sec);
+	auto nanoseconds = static_cast<std::uint64_t>(value.tv_nsec);
+	if (seconds > (std::numeric_limits<std::uint64_t>::max() - nanoseconds) / 1000000000)
+		return std::nullopt;
+	return seconds * 1000000000 + nanoseconds;
+#else
+	return std::nullopt;
+#endif
+}
+std::string duration_json(const kronuz::metrics::DurationSnapshot &sample) {
+	std::string result = "{\"count\":" + std::to_string(sample.count) +
+						 ",\"sum_ns\":" + std::to_string(sample.sum_ns) +
+						 ",\"maximum_ns\":" + std::to_string(sample.maximum_ns) + ",\"buckets\":[";
+	for (std::size_t i = 0; i < sample.buckets.size(); ++i) {
+		if (i) {
+			result += ',';
+		}
+		result += std::to_string(sample.buckets[i]);
+	}
+	return result + "]}";
+}
+
 void check(bool b, const char *message) {
 	if (!b) {
 		throw std::invalid_argument(message);
@@ -125,58 +162,6 @@ int result_status(Result r) {
 		return 409;
 	}
 }
-// One owner-local JSON buffer. Check the actual encoded bound before every byte;
-// only one definition DOM is live at a time, and no historical State is retained.
-class BoundedReplyBuffer {
-  public:
-	using Ch = char;
-	explicit BoundedReplyBuffer(std::size_t limit) : limit_(limit) {}
-	void Put(char value) {
-		if (bytes.size() == limit_) {
-			throw std::length_error("authority reply bound");
-		}
-		bytes += value;
-	}
-	void Flush() {}
-	std::string bytes;
-
-  private:
-	std::size_t limit_;
-};
-std::string read_reply(const State &state, std::string_view name_space, const std::vector<std::string> &keys,
-					   std::size_t limit) {
-	BoundedReplyBuffer buffer(limit);
-	rapidjson::Writer<BoundedReplyBuffer> writer(buffer);
-	writer.StartObject();
-	writer.Key("namespace_revision");
-	writer.Uint64(state.namespace_revision(name_space));
-	writer.Key("key_revisions");
-	writer.StartObject();
-	for (const auto &key : keys) {
-		if (auto record = state.find(key)) {
-			writer.Key(key.data(), static_cast<rapidjson::SizeType>(key.size()));
-			writer.Uint64(record->revision);
-		}
-	}
-	writer.EndObject();
-	writer.Key("schema_version");
-	writer.Uint(1);
-	writer.Key("version");
-	writer.Uint64(state.revision());
-	writer.Key("knobs");
-	writer.StartObject();
-	for (const auto &key : keys) {
-		if (auto record = state.find(key)) {
-			writer.Key(key.data(), static_cast<rapidjson::SizeType>(key.size()));
-			rapidjson::Document scratch;
-			auto value = detent::internal::write_knob_def(*record->value, scratch.GetAllocator());
-			value.Accept(writer);
-		}
-	}
-	writer.EndObject();
-	writer.EndObject();
-	return std::move(buffer.bytes);
-}
 class Sink final : public http::BodySink {
 	std::string &body_;
 	std::size_t cap_;
@@ -215,8 +200,23 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
-			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend"});
+			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits"});
 	ServiceOptions o;
+	if (d.HasMember("consensus_limits")) {
+		const auto &limits = field(d, "consensus_limits");
+		fields(limits, {"log_entries", "log_bytes"});
+		if (limits.HasMember("log_entries")) {
+			const auto count = number(field(limits, "log_entries"));
+			check(count >= 64 && count <= o.node.consensus.log_entries, "authority log entry limit");
+			o.node.consensus.log_entries = static_cast<std::size_t>(count);
+		}
+		if (limits.HasMember("log_bytes")) {
+			const auto bytes = number(field(limits, "log_bytes"));
+			check(bytes >= o.node.consensus.rpc_bytes && bytes <= o.node.consensus.log_bytes,
+				  "authority log byte limit");
+			o.node.consensus.log_bytes = static_cast<std::size_t>(bytes);
+		}
+	}
 	if (d.HasMember("storage_backend"))
 		o.storage_backend = text(field(d, "storage_backend"), 16);
 	check(o.storage_backend == "auto" || o.storage_backend == "native" || o.storage_backend == "fallback",
@@ -332,12 +332,14 @@ struct Service::Accounting {
 	std::vector<Digest> credential_hashes;
 	std::map<std::string, std::size_t> producers;
 	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
+	kronuz::metrics::AtomicDurationHistogram publisher_ready, reply_retired;
 };
 struct Service::Admission {
 	std::shared_ptr<Accounting> accounting;
 	const Credential *credential;
 	std::size_t bytes;
 	bool active = false;
+	Clock::time_point admitted = Clock::now();
 	~Admission() {
 		if (!active) {
 			return;
@@ -355,10 +357,12 @@ struct Service::ReplyAdmission {
 	std::shared_ptr<Accounting> accounting;
 	std::size_t bytes = 0;
 	bool active = false;
+	Clock::time_point ready = Clock::now();
 	~ReplyAdmission() {
 		if (active) {
 			std::lock_guard lock(accounting->mutex);
 			accounting->reply_bytes -= bytes;
+			accounting->reply_retired.observe(elapsed_ns(ready));
 		}
 	}
 };
@@ -403,9 +407,15 @@ Service::~Service() {
 		thread_.join();
 	}
 }
+void Service::observe_connections(std::shared_ptr<const reactor::ConnectionAdmission> observer) {
+	std::lock_guard lock(mutex_);
+	connections_ = std::move(observer);
+}
 std::shared_ptr<Service::Admission> Service::admit(const http::Request &request) {
 	auto header = request.header("Authorization");
-	check(header.starts_with("Bearer ") && header.size() <= 135, "unauthorized authority request");
+	if (!header.starts_with("Bearer ") || header.size() > 135) {
+		throw http::RequestRejected(401, "{\"error\":\"unauthorized\"}", http::RejectionContent::Json);
+	}
 	auto token = header.substr(7);
 	class SHA256 supplied;
 	supplied.add(token.data(), token.size());
@@ -423,16 +433,20 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 			found = &c;
 		}
 	}
-	check(found != nullptr, "unauthorized authority request");
+	if (!found) {
+		throw http::RequestRejected(401, "{\"error\":\"unauthorized\"}", http::RejectionContent::Json);
+	}
 	auto bytes = options_.node.application.request_bytes;
 	auto admission = std::make_shared<Admission>(Admission{accounting_, found, bytes});
 	std::lock_guard lock(mutex_);
 	std::lock_guard account_lock(accounting_->mutex);
 	auto per_producer = accounting_->producers.find(found->producer);
-	check(!stopping_ && accounting_->requests < options_.requests &&
-			  (per_producer == accounting_->producers.end() || per_producer->second < 16) &&
-			  bytes <= options_.queued_bytes - accounting_->body_bytes,
-		  "authority admission full");
+	if (stopping_ || accounting_->requests >= options_.requests ||
+		(per_producer != accounting_->producers.end() && per_producer->second >= 16) ||
+		accounting_->body_bytes > options_.queued_bytes ||
+		bytes > options_.queued_bytes - accounting_->body_bytes) {
+		throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
+	}
 	++accounting_->producers[found->producer];
 	++accounting_->requests;
 	accounting_->body_bytes += bytes;
@@ -558,7 +572,7 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 void Service::handle(const http::Request &request, http::ResponseWriter &response) {
 	const auto context = options_.node.context;
 	auto envelope = [context](Reply reply) {
-		if (!reply.body.empty() && reply.body[0] == '{') {
+		if (!reply.enveloped && !reply.body.empty() && reply.body[0] == '{') {
 			reply.body = "{\"authority\":{\"cluster\":\"" + hex(context.cluster) + "\",\"group\":\"" +
 						 hex(context.group) + "\",\"epoch\":\"" + hex(context.epoch) + "\"}," +
 						 reply.body.substr(1);
@@ -572,6 +586,15 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		if (request.path == "/v1/health" && request.method == "GET") {
 			std::lock_guard lock(mutex_);
 			reply = {200, health_};
+			if (!reply.body.empty() && reply.body.back() == '}') {
+				auto age = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - health_stamp_)
+							   .count();
+				reply.body.pop_back();
+				if (reply.body.size() > 1) {
+					reply.body += ',';
+				}
+				reply.body += "\"snapshot_age_ms\":" + std::to_string(std::max<std::int64_t>(age, 0)) + "}";
+			}
 		} else {
 			auto admission =
 				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
@@ -587,15 +610,21 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 							envelope](Reply value) {
 					try {
 						value = envelope(std::move(value));
-						auto lease = std::make_shared<ReplyAdmission>();
-						lease->accounting = accounting;
+						auto lease = std::move(value.reservation);
+						if (!lease) {
+							lease = std::make_shared<ReplyAdmission>();
+							lease->accounting = accounting;
+						}
 						// This endpoint emits only its fixed JSON content type and transport framing.
 						if (value.body.size() > limit - 256) {
 							deferred->abandon();
 							return;
 						}
-						lease->bytes = value.body.size() + 256;
-						{
+						if (lease->active) {
+							check(lease->bytes == value.body.size() + 256, "read reply reservation mismatch");
+							lease->ready = Clock::now();
+						} else {
+							lease->bytes = value.body.size() + 256;
 							std::lock_guard lock(accounting->mutex);
 							if (lease->bytes > limit - accounting->reply_bytes) {
 								deferred->abandon();
@@ -637,6 +666,8 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 				reply = {503, "{\"error\":\"outcome_unknown\"}"};
 			}
 		}
+	} catch (const http::RequestRejected &error) {
+		reply = {error.status(), error.what()};
 	} catch (const std::invalid_argument &error) {
 		rapidjson::StringBuffer buffer;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -665,6 +696,14 @@ struct Service::Runtime {
 	asio::io_context io{1};
 	bool active = false;
 	std::exception_ptr failure;
+	kronuz::metrics::DurationHistogram<> owner_turn, owner_cpu, wake_lateness, job_settlement,
+		fenced_job_observed;
+	kronuz::metrics::Counter cpu_clock_errors;
+	struct Flight {
+		std::shared_ptr<kronuz::journal::IOOperation> operation;
+		Clock::time_point admitted;
+	};
+	std::optional<Flight> storage_flight;
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue;
 	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>> driver;
@@ -681,7 +720,7 @@ struct Service::Runtime {
 #endif
 		driver =
 			std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>>(
-				io.get_executor(), queue);
+				io.get_executor(), queue, true);
 	}
 
 #else
@@ -689,16 +728,31 @@ struct Service::Runtime {
 #endif
 	void dispatch(const std::shared_ptr<Node> &owner) {
 		auto &node = *owner;
+		if (storage_flight && !active && storage_flight->operation->done() &&
+			(!node.worker().owns_io_operation(storage_flight->operation) || node.worker().fenced())) {
+			auto &histogram = node.worker().fenced() ? fenced_job_observed : job_settlement;
+			histogram.observe(elapsed_ns(storage_flight->admitted));
+			storage_flight.reset();
+		}
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 		if (auto operation = node.worker().take_io_operation()) {
 			if (active) {
 				throw std::logic_error("authority dispatched overlapping storage jobs");
 			}
+			if (storage_flight) {
+				throw std::logic_error("authority overlapped unsettled storage observations");
+			}
+			storage_flight.emplace(Flight{operation, Clock::now()});
 			active = true;
 			try {
 				asio::co_spawn(io, driver->run(operation),
 							   [this, owner, operation](std::exception_ptr error) {
 								   if (error) {
+									   // A dead driver cannot gracefully reap an original
+									   // still owned by its backend. Follow its fail-stop
+									   // policy rather than refunding or waiting forever.
+									   if (operation->in_flight())
+										   std::terminate();
 									   failure = error;
 									   owner->worker().storage_operation_failed(
 										   operation, "authority completion driver failed");
@@ -707,6 +761,8 @@ struct Service::Runtime {
 							   });
 			} catch (...) {
 				active = false;
+				if (operation->in_flight())
+					std::terminate();
 				node.worker().storage_operation_failed(operation, "authority completion dispatch failed");
 				throw;
 			}
@@ -724,6 +780,7 @@ void Service::run(std::promise<void> ready) {
 			if (error) {
 				std::lock_guard lock(mutex_);
 				stopping_ = true;
+				health_stamp_ = Clock::now();
 				health_ = std::string("{\"mode\":\"") +
 						  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
 						  "\",\"fenced\":true}";
@@ -761,8 +818,89 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		const auto &timing = options_.node.timing;
 		return timing.election_min + entropy % (timing.election_max - timing.election_min + 1);
 	};
+	using Tasks = std::vector<std::shared_ptr<Task>>;
+	using PendingTasks = std::map<std::uint64_t, Tasks>;
+	struct Preparation {
+		Tasks tasks;
+		std::shared_ptr<Task> current;
+		std::optional<CommandEncoder> encoder;
+		std::optional<EncodedCommand> encoded;
+		std::optional<ProposalBuilder> builder;
+		std::optional<PreparedProposal> proposal;
+		PendingTasks::node_type waiter;
+		std::uint64_t request = 0;
+		bool sealed = false, cancelling = false;
+		std::size_t cancelled = 0;
+		Preparation() { tasks.reserve(64); }
+	};
+	struct ReadyRead {
+		std::shared_ptr<Task> task;
+		std::uint64_t boundary = 0;
+	};
+	std::vector<ReadyRead> ready_reads(options_.requests);
+	std::size_t read_head = 0, read_tail = 0, read_count = 0;
+	struct ReadSlot {
+		std::shared_ptr<Task> task;
+		State capture;
+		std::optional<ReadReplyEncoder> encoder;
+		std::shared_ptr<ReplyAdmission> reservation;
+		bool retiring = false, quota_blocked = false;
+		ReadSlot(std::shared_ptr<Task> t, const State &state) : task(std::move(t)), capture(state) {}
+	};
+	std::optional<ReadSlot> reading;
+	std::vector<Completion> held_completions;
+	std::size_t completion_cursor = 0, completion_task = 0;
+	std::uint64_t expiry_request = 0;
+	std::size_t expiry_task = 0;
+	bool read_first = false;
+	std::optional<Preparation> preparing;
+	std::shared_ptr<Task> carry_task;
+	std::optional<EncodedCommand> carry;
+	std::vector<std::shared_ptr<Task>> retired_tasks(options_.requests);
+	std::size_t retired_head = 0, retired_tail = 0, retired_count = 0, retired_task_bytes = 0;
+	auto collect_tasks = [&](CommandWorkBudget &parent) {
+		CommandWorkBudget budget;
+		budget.bytes = parent.bytes / 2;
+		budget.receipts = parent.receipts / 2;
+		const auto reserved_bytes = budget.bytes, reserved_receipts = budget.receipts;
+		while (retired_count) {
+			auto &task = retired_tasks[retired_head];
+			if (!dispose_command(task->command, budget))
+				break;
+			while (!task->keys.empty() && budget.receipts) {
+				--budget.receipts;
+				task->keys.pop_back();
+			}
+			if (!task->keys.empty())
+				break;
+			if (!budget.receipts || budget.bytes < 256)
+				break;
+			--budget.receipts;
+			budget.bytes -= 256;
+			retired_task_bytes -= task->admission->bytes;
+			task.reset();
+			retired_head = (retired_head + 1) % retired_tasks.size();
+			--retired_count;
+		}
+		parent.bytes -= reserved_bytes - budget.bytes;
+		parent.receipts -= reserved_receipts - budget.receipts;
+	};
 	auto complete = [&](const std::shared_ptr<Task> &task, Reply reply) {
+		if (task->settled)
+			return;
+		if (!task->retiring && (!task->command.mutations.empty() || !task->keys.empty())) {
+			check(retired_count < retired_tasks.size(), "publisher retirement capacity exhausted");
+			task->retiring = true;
+			retired_tasks[retired_tail] = task;
+			retired_tail = (retired_tail + 1) % retired_tasks.size();
+			++retired_count;
+			retired_task_bytes += task->admission->bytes;
+		}
+		task->settled = true;
 		auto callback = std::move(task->complete);
+		if (callback) {
+			accounting_->publisher_ready.observe(elapsed_ns(task->admission->admitted));
+		}
 		if (task->kind == Task::Kind::Command) {
 			std::lock_guard lock(mutex_);
 			busy_producers_.erase(task->command.producer);
@@ -800,6 +938,171 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
 											node_options);
 		auto &node = *owned_node;
+		auto last_health = Clock::time_point{};
+		auto publish_health = [&] {
+			auto captured_at = Clock::now();
+			std::shared_ptr<const reactor::ConnectionAdmission> observer;
+			{
+				std::lock_guard lock(mutex_);
+				observer = service.connections_;
+			}
+			auto connections = observer ? observer->stats() : reactor::ConnectionStats{};
+			auto peer_occupancy = peers ? peers->occupancy() : transport::PeerOccupancy{};
+			std::size_t requests, body_bytes, reply_bytes;
+			{
+				std::lock_guard lock(accounting_->mutex);
+				requests = accounting_->requests;
+				body_bytes = accounting_->body_bytes;
+				reply_bytes = accounting_->reply_bytes;
+			}
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
+			auto io_stats = queue->stats();
+			auto driver_stats = driver->stats();
+			auto primitive_durations = [](const auto &values) {
+				std::string encoded = "[";
+				for (const auto &value : values) {
+					if (encoded.size() > 1) {
+						encoded += ',';
+					}
+					encoded += duration_json(value);
+				}
+				return encoded + "]";
+			};
+			std::string storage_health =
+				",\"storage_async\":true,\"io_native_submitted\":" +
+				std::to_string(io_stats.native_submitted) +
+				",\"io_fallback_submitted\":" + std::to_string(io_stats.fallback_submitted);
+			storage_health += ",\"io_native_completed\":" + std::to_string(io_stats.native_completed) +
+							  ",\"io_fallback_completed\":" + std::to_string(io_stats.fallback_completed) +
+							  ",\"io_read_bytes\":" + std::to_string(io_stats.file_read_bytes) +
+							  ",\"io_write_bytes\":" + std::to_string(io_stats.file_write_bytes) +
+							  ",\"io_notification_errors\":" + std::to_string(io_stats.notification_errors) +
+							  ",\"io_maximum_outstanding\":" + std::to_string(io_stats.maximum_outstanding);
+			auto primitive_counts = [](const auto &counts) {
+				std::string value = "[";
+				for (auto count : counts) {
+					if (value.size() > 1)
+						value += ',';
+					value += std::to_string(count);
+				}
+				return value + "]";
+			};
+			storage_health +=
+				",\"io_native_by_primitive\":" + primitive_counts(io_stats.native_by_primitive) +
+				",\"io_fallback_by_primitive\":" + primitive_counts(io_stats.fallback_by_primitive);
+			const auto &policy = node.checkpoint_policy();
+			const auto policy_age =
+				policy.due && last_tick >= policy.due_since ? last_tick - policy.due_since : 0;
+			storage_health +=
+				",\"checkpoint_due\":" + std::string(policy.due ? "true" : "false") +
+				",\"checkpoint_due_age_ms\":" + std::to_string(policy_age) +
+				",\"checkpoint_attempts\":" + std::to_string(policy.attempts.get()) +
+				",\"checkpoint_reservation_unavailable\":" +
+				std::to_string(policy.reservation_unavailable.get()) +
+				",\"checkpoint_captured_boundary\":" + std::to_string(policy.captured_boundary) +
+				",\"checkpoint_published_boundary\":" + std::to_string(policy.published_boundary);
+			const auto append = peers ? peers->stats().append : transport::AppendTimings{};
+			storage_health +=
+				",\"append_emit_attempts\":" + std::to_string(append.attempts.get()) +
+				",\"append_observations\":" + std::to_string(append.observations.get()) +
+				",\"append_duplicate_attempts\":" + std::to_string(append.duplicate_attempts.get()) +
+				",\"append_unmatched_responses\":" + std::to_string(append.unmatched.get()) +
+				",\"append_successful_responses\":" + std::to_string(append.successful.get()) +
+				",\"append_rejected_responses\":" + std::to_string(append.rejected.get()) +
+				",\"append_emit_to_response_ns\":" + duration_json(append.response.snapshot()) +
+				",\"append_emit_to_higher_term_response_ns\":" +
+				duration_json(append.higher_term_response.snapshot()) +
+				",\"append_observation_timeout_ns\":" + duration_json(append.timeout.snapshot()) +
+				",\"append_observation_superseded_ns\":" + duration_json(append.superseded.snapshot()) +
+				",\"append_write_failure_ns\":" + duration_json(append.write_failure.snapshot()) +
+				",\"append_disconnect_ns\":" + duration_json(append.disconnected.snapshot());
+			storage_health +=
+				",\"io_submitted_to_reaped_ns\":" + primitive_durations(driver_stats.submitted_to_reaped) +
+				",\"io_failed_submitted_to_reaped_ns\":" +
+				primitive_durations(driver_stats.failed_submitted_to_reaped) +
+				",\"io_original_drive_ns\":" + duration_json(driver_stats.original_drive);
+
+#ifdef __linux__
+			storage_health +=
+				",\"io_native_available\":" + std::string(queue->native_available() ? "true" : "false") +
+				",\"io_setup_error\":" + std::to_string(queue->setup_error()) +
+				",\"io_ring_errors\":" + std::to_string(io_stats.ring_errors);
+#endif
+#else
+			const std::string storage_health = ",\"storage_async\":false";
+#endif
+			std::string encoded =
+				std::string("{\"mode\":\"") +
+				(options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
+				"\",\"connections_active\":" + std::to_string(connections.active) +
+				",\"connections_high_water\":" + std::to_string(connections.high_water) +
+				",\"connections_accepted\":" + std::to_string(connections.accepted) +
+				",\"connections_rejected\":" + std::to_string(connections.rejected) +
+				",\"duration_bucket_upper_bounds_ns\":" +
+				[] {
+					std::string bounds = "[";
+					for (auto bound : kronuz::metrics::duration_bounds_ns) {
+						if (bounds.size() > 1)
+							bounds += ',';
+						bounds += std::to_string(bound);
+					}
+					return bounds + "]";
+				}() +
+				",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
+				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
+				",\"committed\":" + std::to_string(node.worker().committed()) +
+				",\"term\":" + std::to_string(node.worker().term()) +
+				",\"applied\":" + std::to_string(node.worker().applied_index()) +
+				",\"revision\":" + std::to_string(node.state().revision()) +
+				",\"requests\":" + std::to_string(requests) +
+				",\"reserved_body_bytes\":" + std::to_string(body_bytes) +
+				",\"reserved_reply_bytes\":" + std::to_string(reply_bytes) +
+				",\"retired_log_bytes\":" + std::to_string(node.worker().retired_log_bytes()) +
+				",\"retired_log_entries\":" + std::to_string(node.worker().retired_log_entries()) +
+				",\"retired_state_values\":" + std::to_string(node.state().retired_values()) +
+				",\"retired_state_value_bytes\":" + std::to_string(node.state().retired_value_bytes()) +
+				",\"read_quota_blocked\":" +
+				std::string(reading && reading->quota_blocked ? "true" : "false") +
+				",\"read_ready_tasks\":" + std::to_string(read_count) +
+				",\"read_captures\":" + std::to_string(reading ? 1 : 0) + ",\"read_capture_logical_bytes\":" +
+				std::to_string(reading ? reading->capture.logical_bytes() : 0) +
+				",\"read_buffer_reserved_bytes\":" +
+				std::to_string(reading && reading->reservation && reading->reservation->active
+								   ? reading->reservation->bytes
+								   : 0) +
+				",\"retired_publisher_tasks\":" + std::to_string(retired_count) +
+				",\"retired_publisher_bytes\":" + std::to_string(retired_task_bytes) +
+				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
+				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
+				",\"owner_cpu_clock_errors\":" + std::to_string(cpu_clock_errors.get()) +
+				",\"publisher_admitted_to_ready_ns\":" +
+				duration_json(accounting_->publisher_ready.snapshot()) +
+				",\"reply_ready_to_retired_ns\":" + duration_json(accounting_->reply_retired.snapshot()) +
+				",\"wake_lateness_ns\":" + duration_json(wake_lateness.snapshot()) +
+				",\"io_job_settlement_ns\":" + duration_json(job_settlement.snapshot()) +
+				",\"io_job_fence_observed_ns\":" + duration_json(fenced_job_observed.snapshot()) +
+				storage_health + ",\"peer_incoming_bytes\":" + std::to_string(peer_occupancy.incoming_bytes) +
+				",\"peer_outgoing_bytes\":" + std::to_string(peer_occupancy.outgoing_bytes) +
+				",\"peer_incoming_high_water\":" + std::to_string(peer_occupancy.incoming_high_water) +
+				",\"peer_outgoing_high_water\":" + std::to_string(peer_occupancy.outgoing_high_water) +
+				",\"peer_connections\":" + std::to_string(peer_occupancy.connections) +
+				",\"peer_handshakes\":" + std::to_string(peer_occupancy.handshakes) +
+				",\"peer_queued_control\":" + std::to_string(peer_occupancy.queued_control) +
+				",\"peer_retained_inputs\":" + std::to_string(peer_occupancy.retained_inputs) +
+				",\"peer_decoded_to_admitted_ns\":" +
+				duration_json(peers ? peers->stats().decoded_to_admitted.snapshot()
+									: kronuz::metrics::DurationSnapshot{}) +
+				",\"peer_admitted\":" + std::to_string(peers ? peers->stats().admitted : 0) +
+				",\"peer_dropped\":" + std::to_string(peers ? peers->stats().dropped : 0) +
+				",\"checkpoint_busy\":" + (node.checkpoint_busy() ? "true" : "false") +
+				",\"fenced\":" + (node.worker().fenced() ? "true" : "false") + "}";
+			{
+				std::lock_guard lock(mutex_);
+				health_ = std::move(encoded);
+				service.health_stamp_ = captured_at;
+			}
+			last_health = captured_at;
+		};
 		if (std::filesystem::exists(options_.directory / "manifest")) {
 			node.recover();
 		} else {
@@ -834,9 +1137,14 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			peers->start();
 		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
+		publish_health();
 		ready.set_value();
 		started = true;
+		auto scheduled_wakeup = Clock::now();
 		for (;;) {
+			auto owner_started = Clock::now();
+			auto cpu_started = owner_cpu_ns();
+			wake_lateness.observe(elapsed_ns(scheduled_wakeup, owner_started));
 			{
 				std::lock_guard lock(mutex_);
 				if (stopping_) {
@@ -850,7 +1158,18 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			last_tick = tick;
 			if (peers)
 				peers->admit();
-			node.service({tick, election_delay()});
+			CommandWorkBudget node_budget, publisher_budget;
+			node_budget.bytes = publisher_budget.bytes = 4096;
+			node_budget.records = publisher_budget.records = 8;
+			node_budget.updates = publisher_budget.updates = 4;
+			node_budget.receipts = publisher_budget.receipts = 16;
+			node.service({tick, election_delay()}, node_budget);
+			// Node always runs first. Reuse only its unspent allocation so idle
+			// application work does not turn frontend progress into extra wakes.
+			publisher_budget.bytes += node_budget.bytes;
+			publisher_budget.records += node_budget.records;
+			publisher_budget.updates += node_budget.updates;
+			publisher_budget.receipts += node_budget.receipts;
 			dispatch(owned_node);
 			if (failure) {
 				std::rethrow_exception(failure);
@@ -864,55 +1183,82 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			}
 			if (peers)
 				peers->pump();
-			for (auto &completion : node.take_completions()) {
+			if (completion_cursor == held_completions.size()) {
+				held_completions = node.take_completions();
+				completion_cursor = completion_task = 0;
+			}
+			for (unsigned callbacks = 0; completion_cursor < held_completions.size() && callbacks < 8;) {
+				auto &completion = held_completions[completion_cursor];
 				auto found = pending.find(completion.request);
 				if (found == pending.end()) {
+					++completion_cursor;
+					completion_task = 0;
+					++callbacks;
 					continue;
 				}
-				for (std::size_t i = 0; i < found->second.size(); ++i) {
-					auto &task = found->second[i];
-					Reply reply;
-					if (completion.rejection || node.worker().fenced()) {
-						reply = {503, "{\"error\":\"outcome_unknown\"}"};
-					} else if (task->kind == Task::Kind::Command) {
-						auto r = completion.results.at(i);
-						reply = {result_status(r), result_json(r)};
-					} else if (task->kind == Task::Kind::Result) {
-						auto r = node.state().lookup(task->admission->credential->producer, task->generation,
-													 task->sequence);
-						reply = {result_status(r), result_json(r)};
-					} else {
-						try {
-							reply = {200, read_reply(node.state(), task->name_space, task->keys,
-													 options_.reply_bytes - 512)};
-						} catch (const std::length_error &) {
-							reply = {413, "{\"error\":\"reply_bound\"}"};
-						}
-					}
-					complete(task, std::move(reply));
+				if (completion_task == found->second.size()) {
+					pending.erase(found);
+					++completion_cursor;
+					completion_task = 0;
+					continue;
 				}
-				pending.erase(found);
-			}
-			for (auto it = pending.begin(); it != pending.end();) {
-				if (node.worker().fenced() ||
-					std::all_of(it->second.begin(), it->second.end(),
-								[&](auto &task) { return now >= task->deadline; })) {
-					node.forget(it->first);
-					for (auto &task : it->second) {
-						complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
-					}
-					it = pending.erase(it);
+				const auto i = completion_task++;
+				auto &task = found->second[i];
+				++callbacks;
+				if (completion.rejection || node.worker().fenced())
+					complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+				else if (task->kind == Task::Kind::Command) {
+					auto r = completion.results.at(i);
+					complete(task, {result_status(r), result_json(r)});
+				} else if (task->kind == Task::Kind::Result) {
+					auto r = node.state().lookup(task->admission->credential->producer, task->generation,
+												 task->sequence);
+					complete(task, {result_status(r), result_json(r)});
 				} else {
-					++it;
+					check(read_count < ready_reads.size(), "read ready capacity exhausted");
+					ready_reads[read_tail] = {task, completion.index};
+					read_tail = (read_tail + 1) % ready_reads.size();
+					++read_count;
 				}
 			}
+
+			// Keep a stable request/task cursor; completion delivery may erase map
+			// nodes between turns. Expiration never cancels accepted Core or IO work.
+			for (unsigned checked = 0; checked < 8 && !pending.empty(); ++checked) {
+				auto it = pending.lower_bound(expiry_request);
+				if (it == pending.end()) {
+					expiry_request = 0;
+					expiry_task = 0;
+					break;
+				}
+				if (it->first != expiry_request) {
+					expiry_request = it->first;
+					expiry_task = 0;
+				}
+				auto &tasks = it->second;
+				if (expiry_task < tasks.size()) {
+					auto &task = tasks[expiry_task++];
+					if (!task->settled && (node.worker().fenced() || now >= task->deadline))
+						complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+				}
+				if (expiry_task == tasks.size()) {
+					const auto id = it->first;
+					if (std::all_of(tasks.begin(), tasks.end(), [](auto &task) { return task->settled; })) {
+						node.forget(id);
+						pending.erase(it);
+					}
+					expiry_request = id + 1;
+					expiry_task = 0;
+				}
+			}
+
 			if (node.worker().fenced()) {
 				throw std::runtime_error("authority worker fenced");
 			}
 			std::deque<std::shared_ptr<Task>> expired;
 			{
 				std::lock_guard lock(mutex_);
-				while (!queue_.empty() && now >= queue_.front()->deadline) {
+				while (!queue_.empty() && now >= queue_.front()->deadline && expired.size() < 8) {
 					expired.push_back(queue_.front());
 					queue_.pop_front();
 				}
@@ -920,108 +1266,273 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			for (auto &task : expired) {
 				complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
 			}
-			std::vector<std::shared_ptr<Task>> selected;
-			std::vector<Command> commands;
-			{
-				std::lock_guard lock(mutex_);
-				if (!queue_.empty() &&
-					(queue_.front()->kind != Task::Kind::Command || queue_.size() >= 64 ||
-					 now >= queue_.front()->deadline - options_.timeout + std::chrono::milliseconds(5))) {
-					std::size_t bytes = batch_framing_bytes(options_.node.application);
-					while (!queue_.empty() && selected.size() < 64) {
-						auto task = queue_.front();
-						if (now >= task->deadline) {
-							break;
+			CommandWorkBudget read_budget{0, 0, 0, 0};
+			if (reading || read_count) {
+				bool publisher_runnable = preparing.has_value() || carry_task || retired_count;
+				{
+					std::lock_guard lock(mutex_);
+					publisher_runnable = publisher_runnable || !queue_.empty();
+				}
+				read_first = !read_first;
+				if (!publisher_runnable || read_first) {
+					read_budget = publisher_budget;
+					publisher_budget = {0, 0, 0, 0};
+				}
+			}
+			if (!reading && read_count && read_budget.records) {
+				auto &ready_read = ready_reads[read_head];
+				if (now >= ready_read.task->deadline) {
+					complete(ready_read.task, {503, "{\"error\":\"outcome_unknown\"}"});
+				} else {
+					check(node.state().applied_index() >= ready_read.boundary, "read boundary not published");
+					reading.emplace(ready_read.task, node.state());
+				}
+				ready_read = {};
+				read_head = (read_head + 1) % ready_reads.size();
+				--read_count;
+			}
+			if (reading && read_budget.records) {
+				auto &r = *reading;
+				auto retire_read = [&] {
+					r.encoder.reset();
+					r.reservation.reset();
+					r.capture.retire();
+					r.retiring = true;
+				};
+				if (!r.retiring) {
+					try {
+						if (Clock::now() >= r.task->deadline) {
+							complete(r.task, {503, "{\"error\":\"outcome_unknown\"}"});
+							retire_read();
+						} else {
+							if (!r.encoder)
+								r.encoder.emplace(r.capture, r.task->name_space, r.task->keys,
+												  options_.node.context, options_.reply_bytes - 256);
+							r.quota_blocked = false;
+							if (!r.encoder->counted())
+								r.encoder->step(read_budget);
+							if (r.encoder->counted() && (!r.reservation || !r.reservation->active) &&
+								read_budget.records && read_budget.bytes >= 256) {
+								--read_budget.records;
+								read_budget.bytes -= 256;
+								if (!r.reservation) {
+									r.reservation = std::make_shared<ReplyAdmission>();
+									r.reservation->accounting = accounting_;
+									r.reservation->bytes = r.encoder->encoded_size() + 256;
+								}
+								auto &lease = r.reservation;
+								{
+									std::lock_guard lock(accounting_->mutex);
+									if (lease->bytes <= options_.reply_bytes - accounting_->reply_bytes) {
+										accounting_->reply_bytes += lease->bytes;
+										lease->active = true;
+									}
+								}
+								if (lease->active)
+									r.encoder->begin_encoding();
+								else
+									r.quota_blocked = true;
+							}
+							if (r.reservation && r.reservation->active)
+								r.encoder->step(read_budget);
+							if (r.encoder->done()) {
+								if (Clock::now() >= r.task->deadline)
+									complete(r.task, {503, "{\"error\":\"outcome_unknown\"}"});
+								else
+									complete(r.task,
+											 {200, r.encoder->take(), true, std::move(r.reservation)});
+								retire_read();
+							}
 						}
-						if (!selected.empty() && (task->kind != Task::Kind::Command ||
-												  selected.front()->kind != Task::Kind::Command)) {
-							break;
-						}
-						auto size = task->kind == Task::Kind::Command
-										? encode(task->command, options_.node.application).size() + 8
-										: 0;
-						if (size > options_.node.consensus.command_bytes - bytes) {
-							break;
-						}
-						bytes += size;
-						selected.push_back(task);
-						if (task->kind == Task::Kind::Command) {
-							commands.push_back(task->command);
-						}
+					} catch (const std::length_error &) {
+						complete(r.task, {413, "{\"error\":\"reply_bound\"}"});
+						retire_read();
+					} catch (const std::bad_alloc &) {
+						complete(r.task, {503, "{\"error\":\"outcome_unknown\"}"});
+						retire_read();
+					}
+				}
+				if (r.retiring) {
+					if (!r.capture.shares_reclamation_with(node.state()))
+						r.capture.collect(read_budget);
+					if (r.capture.shares_reclamation_with(node.state()) || !r.capture.reclamation_pending())
+						reading.reset();
+				}
+			}
+			// Publisher preparation owns task charges across encoding and admission.
+			// One encoded command that does not fit is carried to the next batch.
+			collect_tasks(publisher_budget);
+			if (carry_task && now >= carry_task->deadline) {
+				complete(carry_task, {503, "{\"error\":\"outcome_unknown\"}"});
+				carry_task.reset();
+				carry.reset();
+			}
+			if (!preparing && publisher_budget.records) {
+				std::shared_ptr<Task> first;
+				if (carry_task)
+					first = std::move(carry_task);
+				else {
+					std::lock_guard lock(mutex_);
+					if (!queue_.empty() &&
+						(queue_.front()->kind != Task::Kind::Command || queue_.size() >= 64 ||
+						 now >= queue_.front()->deadline - options_.timeout + std::chrono::milliseconds(5))) {
+						first = queue_.front();
 						queue_.pop_front();
 					}
 				}
-			}
-			if (!selected.empty()) {
-				check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
-				auto id = ++next;
-				auto result = commands.empty() ? node.read(id) : node.propose(id, commands);
-				if (result == cluster::consensus::SubmitResult::Accepted) {
-					pending.emplace(id, std::move(selected));
-				} else {
-					std::lock_guard lock(mutex_);
-					for (auto it = selected.rbegin(); it != selected.rend(); ++it) {
-						queue_.push_front(*it);
+				if (first) {
+					check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
+					if (first->kind != Task::Kind::Command) {
+						auto id = ++next;
+						// Reserve bookkeeping before accepting the read obligation.
+						pending.emplace(id, Tasks{first});
+						auto result = node.read(id);
+						if (result != cluster::consensus::SubmitResult::Accepted) {
+							pending.erase(id);
+							std::lock_guard lock(mutex_);
+							queue_.push_front(std::move(first));
+						}
+					} else {
+						preparing.emplace();
+						auto &p = *preparing;
+						p.request = ++next;
+						p.builder.emplace(options_.node.context, options_.node.application,
+										  options_.node.consensus.command_bytes);
+						p.current = std::move(first);
+						if (carry) {
+							p.encoded.emplace(std::move(*carry));
+							carry.reset();
+						}
 					}
 				}
 			}
-			{
-				std::lock_guard lock(mutex_);
-				std::lock_guard account_lock(accounting_->mutex);
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
-				auto io_stats = queue->stats();
-				std::string storage_health =
-					",\"storage_async\":true,\"io_native_submitted\":" +
-					std::to_string(io_stats.native_submitted) +
-					",\"io_fallback_submitted\":" + std::to_string(io_stats.fallback_submitted);
-				storage_health +=
-					",\"io_native_completed\":" + std::to_string(io_stats.native_completed) +
-					",\"io_fallback_completed\":" + std::to_string(io_stats.fallback_completed) +
-					",\"io_read_bytes\":" + std::to_string(io_stats.file_read_bytes) +
-					",\"io_write_bytes\":" + std::to_string(io_stats.file_write_bytes) +
-					",\"io_notification_errors\":" + std::to_string(io_stats.notification_errors) +
-					",\"io_maximum_outstanding\":" + std::to_string(io_stats.maximum_outstanding);
-				auto primitive_counts = [](const auto &counts) {
-					std::string value = "[";
-					for (auto count : counts) {
-						if (value.size() > 1)
-							value += ',';
-						value += std::to_string(count);
+			if (preparing) {
+				auto &p = *preparing;
+				if (!p.proposal && ((p.current && now >= p.current->deadline) ||
+									std::any_of(p.tasks.begin(), p.tasks.end(),
+												[&](const auto &task) { return now >= task->deadline; })))
+					p.cancelling = true;
+				if (p.proposal && !p.tasks.empty() && now >= p.tasks.front()->deadline)
+					p.cancelling = true;
+				if (p.cancelling) {
+					bool encoder_drained = !p.encoder || p.encoder->discard(publisher_budget);
+					if (encoder_drained) {
+						p.encoder.reset();
+						p.encoded.reset();
+						p.builder.reset();
+						p.proposal.reset();
+						p.waiter = {};
+						if (p.current && publisher_budget.records && publisher_budget.bytes >= 256) {
+							--publisher_budget.records;
+							publisher_budget.bytes -= 256;
+							complete(p.current, {503, "{\"error\":\"outcome_unknown\"}"});
+							p.current.reset();
+						}
+						while (!p.current && p.cancelled < p.tasks.size() && publisher_budget.records &&
+							   publisher_budget.bytes >= 256) {
+							--publisher_budget.records;
+							publisher_budget.bytes -= 256;
+							complete(p.tasks[p.cancelled++], {503, "{\"error\":\"outcome_unknown\"}"});
+						}
+						if (!p.current && p.cancelled == p.tasks.size())
+							preparing.reset();
 					}
-					return value + "]";
-				};
-				storage_health +=
-					",\"io_native_by_primitive\":" + primitive_counts(io_stats.native_by_primitive) +
-					",\"io_fallback_by_primitive\":" + primitive_counts(io_stats.fallback_by_primitive);
-
-#ifdef __linux__
-				storage_health +=
-					",\"io_native_available\":" + std::string(queue->native_available() ? "true" : "false") +
-					",\"io_setup_error\":" + std::to_string(queue->setup_error()) +
-					",\"io_ring_errors\":" + std::to_string(io_stats.ring_errors);
-#endif
-#else
-				const std::string storage_health = ",\"storage_async\":false";
-#endif
-				health_ = std::string("{\"mode\":\"") +
-						  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
-						  "\",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
-						  ",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
-						  ",\"committed\":" + std::to_string(node.worker().committed()) +
-						  ",\"term\":" + std::to_string(node.worker().term()) +
-						  ",\"applied\":" + std::to_string(node.worker().applied_index()) +
-						  ",\"revision\":" + std::to_string(node.state().revision()) +
-						  ",\"requests\":" + std::to_string(accounting_->requests) +
-						  ",\"reserved_body_bytes\":" + std::to_string(accounting_->body_bytes) +
-						  ",\"reserved_reply_bytes\":" + std::to_string(accounting_->reply_bytes) +
-						  storage_health +
-						  ",\"peer_admitted\":" + std::to_string(peers ? peers->stats().admitted : 0) +
-						  ",\"peer_dropped\":" + std::to_string(peers ? peers->stats().dropped : 0) +
-						  ",\"checkpoint_busy\":" + (node.checkpoint_busy() ? "true" : "false") +
-						  ",\"fenced\":" + (node.worker().fenced() ? "true" : "false") + "}";
+				} else {
+					while (!p.sealed && publisher_budget.bytes) {
+						if (p.builder->command_pending()) {
+							p.builder->step(publisher_budget);
+							if (p.builder->command_pending())
+								break;
+						}
+						if (p.current) {
+							if (!p.encoded) {
+								if (!p.encoder)
+									p.encoder.emplace(p.current->command, options_.node.application);
+								p.encoder->step(publisher_budget);
+								if (!p.encoder->done())
+									break;
+								p.encoded.emplace(p.encoder->take_encoded());
+								p.encoder.reset();
+							}
+							if (!p.builder->append(*p.encoded)) {
+								check(p.builder->count() != 0, "publisher command cannot fit an empty batch");
+								carry_task = std::move(p.current);
+								carry.emplace(std::move(*p.encoded));
+								p.encoded.reset();
+								p.builder->seal();
+								p.sealed = true;
+								break;
+							}
+							p.encoded.reset();
+							p.tasks.push_back(std::move(p.current));
+							continue;
+						}
+						if (p.builder->count() == 64) {
+							p.builder->seal();
+							p.sealed = true;
+							break;
+						}
+						{
+							std::lock_guard lock(mutex_);
+							if (!queue_.empty() && queue_.front()->kind == Task::Kind::Command &&
+								now < queue_.front()->deadline) {
+								p.current = queue_.front();
+								queue_.pop_front();
+							}
+						}
+						if (!p.current) {
+							p.builder->seal();
+							p.sealed = true;
+							break;
+						}
+					}
+					if (p.sealed && !p.proposal) {
+						p.builder->step(publisher_budget);
+						if (p.builder->done()) {
+							p.proposal.emplace(p.builder->take());
+							p.builder.reset();
+							PendingTasks reserved;
+							reserved.emplace(p.request, p.tasks);
+							p.waiter = reserved.extract(p.request);
+						}
+					}
+					if (p.proposal && Clock::now() >= p.tasks.front()->deadline)
+						p.cancelling = true;
+					if (p.proposal && !p.cancelling) {
+						auto id = p.request;
+						pending.insert(std::move(p.waiter));
+						auto result = node.propose_prepared(id, *p.proposal);
+						if (result == cluster::consensus::SubmitResult::Accepted)
+							preparing.reset();
+						else {
+							p.waiter = pending.extract(id);
+							if (result == cluster::consensus::SubmitResult::Fenced)
+								p.cancelling = true;
+						}
+					}
+				}
 			}
-			timer.expires_after(std::chrono::milliseconds(1));
-			co_await timer.async_wait(asio::use_awaitable);
+			if (Clock::now() - last_health >= std::chrono::milliseconds(250)) {
+				publish_health();
+			}
+			auto cpu_finished = owner_cpu_ns();
+			owner_turn.observe(elapsed_ns(owner_started));
+			if (cpu_started && cpu_finished && *cpu_finished >= *cpu_started) {
+				owner_cpu.observe(*cpu_finished - *cpu_started);
+			} else {
+				cpu_clock_errors.add();
+			}
+			if (node.application_work_pending() || retired_count || (read_count && !reading) ||
+				(reading && (reading->retiring || !reading->quota_blocked)) ||
+				completion_cursor < held_completions.size() ||
+				(preparing && (!preparing->proposal || preparing->cancelling))) {
+				scheduled_wakeup = Clock::now();
+				co_await asio::post(io, asio::use_awaitable);
+			} else {
+				scheduled_wakeup = Clock::now() + std::chrono::milliseconds(1);
+				timer.expires_at(scheduled_wakeup);
+				co_await timer.async_wait(asio::use_awaitable);
+			}
 		}
 	} catch (...) {
 		if (!started) {
@@ -1029,36 +1540,110 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		} else {
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
+			service.health_stamp_ = Clock::now();
 			health_ = std::string("{\"mode\":\"") +
 					  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
 					  "\",\"fenced\":true}";
 		}
 	}
+	if (owned_node)
+		owned_node->close();
 	if (peers)
 		peers->stop();
-	while (active || (peers && (!peers->drained() || !owned_node->channel().drained()))) {
-		if (owned_node) {
-			owned_node->service({last_tick, options_.node.timing.election_min});
-			dispatch(owned_node);
-			owned_node->take_network_actions();
+	if (reading) {
+		complete(reading->task, {503, "{\"error\":\"outcome_unknown\"}"});
+		reading->encoder.reset();
+		reading->reservation.reset();
+		reading->capture.retire();
+		while (!reading->capture.shares_reclamation_with(owned_node->state()) &&
+			   reading->capture.reclamation_pending()) {
+			CommandWorkBudget budget;
+			reading->capture.collect(budget);
+			co_await asio::post(io, asio::use_awaitable);
 		}
-		timer.expires_after(std::chrono::milliseconds(1));
-		co_await timer.async_wait(asio::use_awaitable);
+		reading.reset();
+	}
+	while (read_count) {
+		complete(ready_reads[read_head].task, {503, "{\"error\":\"outcome_unknown\"}"});
+		ready_reads[read_head] = {};
+		read_head = (read_head + 1) % ready_reads.size();
+		--read_count;
+		co_await asio::post(io, asio::use_awaitable);
+	}
+	if (preparing && preparing->encoder) {
+		for (;;) {
+			CommandWorkBudget budget;
+			if (preparing->encoder->discard(budget))
+				break;
+			co_await asio::post(io, asio::use_awaitable);
+		}
+	}
+	unsigned terminal_callbacks = 0;
+	if (preparing) {
+		if (preparing->current)
+			complete(preparing->current, {503, "{\"error\":\"outcome_unknown\"}"});
+		for (auto &task : preparing->tasks) {
+			complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+			if (++terminal_callbacks == 8) {
+				terminal_callbacks = 0;
+				co_await asio::post(io, asio::use_awaitable);
+			}
+		}
+		preparing.reset();
+	}
+	if (carry_task) {
+		complete(carry_task, {503, "{\"error\":\"outcome_unknown\"}"});
+		carry_task.reset();
+		carry.reset();
+	}
+	if (peers)
+		peers->stop();
+	while (active || (storage_flight && storage_flight->operation->done()) ||
+		   (owned_node && !owned_node->drained()) ||
+		   (peers && (!peers->drained() || !owned_node->channel().drained()))) {
+		if (owned_node) {
+			CommandWorkBudget budget;
+			owned_node->retirement_step(budget);
+			dispatch(owned_node);
+		}
+		if (owned_node && !owned_node->drained() && !active) {
+			co_await asio::post(io, asio::use_awaitable);
+		} else {
+			timer.expires_after(std::chrono::milliseconds(1));
+			co_await timer.async_wait(asio::use_awaitable);
+		}
 	}
 
-	for (auto &[id, tasks] : pending) {
-		(void)id;
-		for (auto &task : tasks) {
-			complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+	while (!pending.empty()) {
+		auto current = pending.begin();
+		auto &tasks = current->second;
+		while (!tasks.empty()) {
+			complete(tasks.back(), {503, "{\"error\":\"outcome_unknown\"}"});
+			tasks.pop_back();
+			if (++terminal_callbacks == 8) {
+				terminal_callbacks = 0;
+				co_await asio::post(io, asio::use_awaitable);
+			}
 		}
+		pending.erase(current);
 	}
 	std::deque<std::shared_ptr<Task>> remaining;
 	{
 		std::lock_guard lock(mutex_);
 		remaining.swap(queue_);
 	}
-	for (auto &task : remaining) {
-		complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+	while (!remaining.empty()) {
+		complete(remaining.front(), {503, "{\"error\":\"outcome_unknown\"}"});
+		remaining.pop_front();
+		if (++terminal_callbacks == 8) {
+			terminal_callbacks = 0;
+			co_await asio::post(io, asio::use_awaitable);
+		}
+	}
+	while (retired_count) {
+		CommandWorkBudget budget;
+		collect_tasks(budget);
+		co_await asio::post(io, asio::use_awaitable);
 	}
 }
 } // namespace detent::authority

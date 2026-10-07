@@ -1,0 +1,124 @@
+{
+  "scope": "Owned native macOS completion Worker, full async storage and original driver callbacks; two checkpoints, retained suffix then full prefix compaction; telemetry enabled",
+  "compiler": "AppleClang17, C++20, Release -O3",
+  "platform": "Intel macOS 15.8.1, i9-9980HK",
+  "samples": [
+    [
+      {
+        "suffix_commands": 64,
+        "two_checkpoint_seconds": 0.65323,
+        "owner_cpu_seconds": 0.0721145,
+        "first_freeze_to_retirement_seconds": 0.471791,
+        "max_callback_cpu_seconds": 0.000258674,
+        "max_callback_wall_seconds": 0.000299874,
+        "callbacks": 1341,
+        "peak_rss_bytes": 4161536,
+        "native_primitives": 48,
+        "fallback_primitives": 91
+      },
+      {
+        "suffix_commands": 4096,
+        "two_checkpoint_seconds": 1.01067,
+        "owner_cpu_seconds": 0.117374,
+        "first_freeze_to_retirement_seconds": 0.831097,
+        "max_callback_cpu_seconds": 0.000301012,
+        "max_callback_wall_seconds": 0.000314252,
+        "callbacks": 1865,
+        "peak_rss_bytes": 15773696,
+        "native_primitives": 112,
+        "fallback_primitives": 167
+      },
+      {
+        "suffix_commands": 65535,
+        "two_checkpoint_seconds": 6.5173,
+        "owner_cpu_seconds": 0.848429,
+        "first_freeze_to_retirement_seconds": 6.33464,
+        "max_callback_cpu_seconds": 0.000952502,
+        "max_callback_wall_seconds": 0.000964156,
+        "callbacks": 10029,
+        "peak_rss_bytes": 127172608,
+        "native_primitives": 1093,
+        "fallback_primitives": 1341
+      }
+    ],
+    [
+      {
+        "suffix_commands": 64,
+        "two_checkpoint_seconds": 0.653201,
+        "owner_cpu_seconds": 0.0720662,
+        "first_freeze_to_retirement_seconds": 0.47121,
+        "max_callback_cpu_seconds": 0.00037508,
+        "max_callback_wall_seconds": 0.000390468,
+        "callbacks": 1341,
+        "peak_rss_bytes": 4005888,
+        "native_primitives": 48,
+        "fallback_primitives": 91
+      },
+      {
+        "suffix_commands": 4096,
+        "two_checkpoint_seconds": 1.07926,
+        "owner_cpu_seconds": 0.12161,
+        "first_freeze_to_retirement_seconds": 0.901408,
+        "max_callback_cpu_seconds": 0.000238816,
+        "max_callback_wall_seconds": 0.000271308,
+        "callbacks": 2058,
+        "peak_rss_bytes": 16510976,
+        "native_primitives": 112,
+        "fallback_primitives": 167
+      },
+      {
+        "suffix_commands": 65535,
+        "two_checkpoint_seconds": 6.41387,
+        "owner_cpu_seconds": 0.84279,
+        "first_freeze_to_retirement_seconds": 6.23224,
+        "max_callback_cpu_seconds": 0.00142859,
+        "max_callback_wall_seconds": 0.00144302,
+        "callbacks": 9765,
+        "peak_rss_bytes": 127709184,
+        "native_primitives": 1093,
+        "fallback_primitives": 1341
+      }
+    ],
+    [
+      {
+        "suffix_commands": 64,
+        "two_checkpoint_seconds": 0.650394,
+        "owner_cpu_seconds": 0.0697364,
+        "first_freeze_to_retirement_seconds": 0.471171,
+        "max_callback_cpu_seconds": 0.000245864,
+        "max_callback_wall_seconds": 0.00028388,
+        "callbacks": 1337,
+        "peak_rss_bytes": 4059136,
+        "native_primitives": 48,
+        "fallback_primitives": 91
+      },
+      {
+        "suffix_commands": 4096,
+        "two_checkpoint_seconds": 1.05522,
+        "owner_cpu_seconds": 0.124478,
+        "first_freeze_to_retirement_seconds": 0.873224,
+        "max_callback_cpu_seconds": 0.000300592,
+        "max_callback_wall_seconds": 0.000313673,
+        "callbacks": 1980,
+        "peak_rss_bytes": 17072128,
+        "native_primitives": 112,
+        "fallback_primitives": 167
+      },
+      {
+        "suffix_commands": 65535,
+        "two_checkpoint_seconds": 6.53876,
+        "owner_cpu_seconds": 0.857153,
+        "first_freeze_to_retirement_seconds": 6.35443,
+        "max_callback_cpu_seconds": 0.001337,
+        "max_callback_wall_seconds": 0.00179762,
+        "callbacks": 10031,
+        "peak_rss_bytes": 126750720,
+        "native_primitives": 1093,
+        "fallback_primitives": 1341
+      }
+    ]
+  ],
+  "interval": "From first capture attachment through second publication and physical prefix retirement; seed IO/recovery excluded from timing but process peak RSS includes startup",
+  "callback_measurement": "Thread CPU and wall around every dispatched asio::io_context::poll_one callback; idle waiting excluded from callback maxima",
+  "limitations": "Three local samples; no production tails, application command decoding, native Linux/FreeBSD measurement, fleet capacity or power-loss durability claim. first_freeze_to_retirement_seconds includes second checkpoint preparation/publication and is not an individual freeze duration."
+}

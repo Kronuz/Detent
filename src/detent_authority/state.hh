@@ -8,9 +8,13 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace detent::authority {
+namespace detail {
+template <class Value> class DeferredValues;
+}
 using Revision = std::uint64_t;
 using Identity = std::array<char, 16>;
 struct Context {
@@ -65,6 +69,75 @@ struct Record {
 	std::shared_ptr<const KnobDef> value;
 };
 using Digest = std::array<unsigned char, 32>;
+// One budget is shared across all phases of an owning executor turn.
+struct CommandWorkBudget {
+	std::size_t bytes = 8192, records = 16, updates = 8, receipts = 32;
+};
+class CommandDecoder;
+class CommandApplication;
+class EncodedCommand;
+// Borrows an immutable command until completion or bounded discard. Mutation
+// references are ordered without copying definitions; overrides emit one row
+// at a time. The source owner must outlive the cursor.
+class CommandEncoder {
+  public:
+	CommandEncoder(const Command &command, Limits limits = {});
+	~CommandEncoder();
+	CommandEncoder(CommandEncoder &&) noexcept;
+	CommandEncoder &operator=(CommandEncoder &&) = delete;
+	void step(CommandWorkBudget &budget);
+	bool done() const noexcept;
+	std::string take();
+	EncodedCommand take_encoded();
+	bool discard(CommandWorkBudget &budget);
+
+  private:
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
+};
+// Only the canonical decoder can mint this capability. The digest and
+// definition sizes belong to the exact validated content and profile.
+class ValidatedCommand {
+  public:
+	ValidatedCommand(ValidatedCommand &&other) noexcept
+		: command_(std::move(other.command_)), digest_(other.digest_), limits_(other.limits_),
+		  sizes_(std::move(other.sizes_)), valid_(std::exchange(other.valid_, false)) {}
+	ValidatedCommand &operator=(ValidatedCommand &&) = delete;
+	ValidatedCommand(const ValidatedCommand &) = delete;
+	ValidatedCommand &operator=(const ValidatedCommand &) = delete;
+	const Command &command() const noexcept { return command_; }
+	const Digest &canonical_digest() const noexcept { return digest_; }
+	const Limits &limits() const noexcept { return limits_; }
+	std::size_t definition_bytes(std::size_t mutation) const { return sizes_.at(mutation); }
+
+  private:
+	friend class CommandDecoder;
+	friend class CommandApplication;
+	ValidatedCommand(Command command, Digest digest, Limits limits, std::vector<std::size_t> sizes)
+		: command_(std::move(command)), digest_(digest), limits_(limits), sizes_(std::move(sizes)) {}
+	Command command_;
+	Digest digest_;
+	Limits limits_;
+	std::vector<std::size_t> sizes_;
+	bool valid_ = true;
+};
+// Borrows immutable command bytes. Errors retain partial decoded ownership
+// until discard() drains it; the input owner must outlive this cursor.
+class CommandDecoder {
+  public:
+	CommandDecoder(std::string_view bytes, Limits limits = {}, std::optional<Context> context = {});
+	~CommandDecoder();
+	CommandDecoder(CommandDecoder &&) noexcept;
+	CommandDecoder &operator=(CommandDecoder &&) = delete;
+	void step(CommandWorkBudget &budget);
+	bool done() const noexcept;
+	ValidatedCommand take();
+	bool discard(CommandWorkBudget &budget);
+
+  private:
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
+};
 struct Receipt {
 	std::uint64_t sequence;
 	Digest digest;
@@ -103,16 +176,14 @@ class State {
 		namespaces_.retire_root();
 		producers_.retire_root();
 	}
-	std::size_t collect(std::size_t budget = 128) noexcept {
-		auto n = records_.collect(budget);
-		n += namespaces_.collect(budget);
-		n += producers_.collect(budget);
-		return n;
+	std::size_t collect(std::size_t budget = 128) noexcept;
+	std::size_t collect(CommandWorkBudget &budget) noexcept;
+	bool shares_reclamation_with(const State &other) const noexcept {
+		return definitions_ == other.definitions_ && producer_values_ == other.producer_values_;
 	}
-	bool reclamation_pending() const noexcept {
-		return records_.reclamation_pending() || namespaces_.reclamation_pending() ||
-			   producers_.reclamation_pending();
-	}
+	bool reclamation_pending() const noexcept;
+	std::uint64_t retired_values() const noexcept;
+	std::uint64_t retired_value_bytes() const noexcept;
 	std::size_t retained_nodes() const noexcept {
 		return records_.retained_nodes() + namespaces_.retained_nodes() + producers_.retained_nodes();
 	}
@@ -126,6 +197,7 @@ class State {
 
   private:
 	friend class BatchApplication;
+	friend class CommandApplication;
 	friend class ImageEncoder;
 	friend class ImageDecoder;
 	Context context_;
@@ -133,6 +205,9 @@ class State {
 	Revision revision_ = 0;
 	std::uint64_t applied_ = 0, applied_term_ = 0;
 	std::size_t bytes_ = 0;
+	std::shared_ptr<detail::DeferredValues<KnobDef>> definitions_;
+	std::shared_ptr<detail::DeferredValues<Producer>> producer_values_;
+	unsigned collection_cursor_ = 0;
 	detail::PersistentMap<std::string, Record> records_;
 	detail::PersistentMap<std::string, Revision> namespaces_;
 	detail::PersistentMap<std::string, std::shared_ptr<const Producer>> producers_;
@@ -149,6 +224,7 @@ class BatchDecoder {
 	bool done() const noexcept { return !failed_ && decoded_ == count_; }
 	BatchWork next_work();
 	Command next();
+	std::string_view next_bytes(); // Borrowed canonical-command candidate, not yet validated.
 
   private:
 	std::string_view remaining_;
@@ -160,6 +236,24 @@ struct BatchResult {
 	State state;
 	std::vector<Result> results;
 };
+// Owns one validated command and an unpublished candidate. Source roots and
+// command storage remain alive across every equality and receipt-copy yield.
+class CommandApplication {
+  public:
+	CommandApplication(const State &source, std::uint64_t index, std::uint64_t term,
+					   ValidatedCommand command);
+	~CommandApplication();
+	CommandApplication(CommandApplication &&) noexcept;
+	CommandApplication &operator=(CommandApplication &&) = delete;
+	void step(CommandWorkBudget &budget);
+	bool done() const noexcept;
+	BatchResult finish();
+	bool discard(CommandWorkBudget &budget);
+
+  private:
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
+};
 // Preserves apply_batch semantics across yields. Only finish() exposes the
 // candidate, and semantic Result rejections still advance the command group.
 class BatchApplication {
@@ -170,14 +264,19 @@ class BatchApplication {
 	BatchApplication(BatchApplication &&other) noexcept;
 	BatchApplication &operator=(BatchApplication &&) = delete;
 	void advance(const Command &command);
-	bool done() const noexcept { return !failed_ && !consumed_ && results_.size() == count_; }
+	void start(ValidatedCommand command);
+	void step(CommandWorkBudget &budget);
+	bool command_pending() const noexcept { return command_ != nullptr; }
+	bool done() const noexcept { return !failed_ && !consumed_ && !command_ && results_.size() == count_; }
 	BatchResult finish();
+	bool discard(CommandWorkBudget &budget);
 
   private:
 	State candidate_;
 	std::uint64_t index_, term_, base_;
 	std::size_t count_;
 	std::vector<Result> results_;
+	std::unique_ptr<CommandApplication> command_;
 	bool failed_ = false, consumed_ = false;
 };
 // Decode into an unpublished root, retaining one bounded row and input chunk.
@@ -225,6 +324,8 @@ void validate(const Command &command, Limits limits = {});
 // Canonical application profile shared by batches, snapshots and peer admission.
 std::string semantic_profile(Limits limits = {});
 std::size_t batch_framing_bytes(Limits limits = {});
+std::string batch_header(std::size_t count, Limits limits = {});
+bool dispose_command(Command &command, CommandWorkBudget &budget) noexcept;
 std::string encode_batch(const std::vector<Command> &commands, Limits limits = {},
 						 std::size_t maximum_bytes = 1024 * 1024);
 std::vector<Command> decode_batch(std::string_view bytes, Limits limits = {},

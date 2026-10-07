@@ -1,0 +1,86 @@
+{
+  "platform": "macOS x86_64",
+  "workload": {
+    "keys": 128,
+    "overrides_per_key": 256,
+    "group_key_suffix_bytes": 46,
+    "definition_profile_bytes": 16384,
+    "request_profile_bytes": 262144,
+    "read_trials": 5
+  },
+  "measurement_scope": "Fresh durable Service workload, including setup writes, five synchronous reads, and ordinary reclamation. Owner histogram is sampled before Service destruction and excludes final live State/Core teardown; individual read values are wall time, not CPU. This is the pre-resumable-Service baseline.",
+  "trials": [
+    {
+      "trial": 0,
+      "reply_bytes": 2029728,
+      "read_wall_ns": 19118423
+    },
+    {
+      "trial": 1,
+      "reply_bytes": 2029728,
+      "read_wall_ns": 18421736
+    },
+    {
+      "trial": 2,
+      "reply_bytes": 2029728,
+      "read_wall_ns": 24411405
+    },
+    {
+      "trial": 3,
+      "reply_bytes": 2029728,
+      "read_wall_ns": 17568399
+    },
+    {
+      "trial": 4,
+      "reply_bytes": 2029728,
+      "read_wall_ns": 17422122
+    }
+  ],
+  "owner_turn_cpu_ns": {
+    "count": 34547,
+    "sum_ns": 494745889,
+    "maximum_ns": 15625814,
+    "buckets": [
+      0,
+      6910,
+      20143,
+      7104,
+      385,
+      0,
+      0,
+      5,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "owner_turn_ns": {
+    "count": 34547,
+    "sum_ns": 558840939,
+    "maximum_ns": 15637949,
+    "buckets": [
+      0,
+      4280,
+      21517,
+      8116,
+      626,
+      3,
+      0,
+      5,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "max_rss_bytes": 44892160,
+  "working_tree_base": "0fd5f2d",
+  "uncommitted_features": "resumable publisher, managed value/task retirement; read serialization remains synchronous"
+}

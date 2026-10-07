@@ -1,4 +1,4 @@
-add_library(detent_authority state.cc)
+add_library(detent_authority state.cc prepared.cc read_reply.cc)
 target_include_directories(detent_authority PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(detent_authority PUBLIC detent::detent)
 add_library(detent::authority ALIAS detent_authority)

@@ -28,6 +28,12 @@ struct App : http::HttpHandler {
 		pending = writer.defer(std::move(options));
 		ready.notify_one();
 	}
+	std::unique_ptr<http::BodySink> on_request_body(http::Request &request) override {
+		if (request.path == "/reject") {
+			throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
+		}
+		return {};
+	}
 	std::unique_ptr<http::DeferredReply> take() {
 		std::unique_lock lock(mutex);
 		assert(ready.wait_for(lock, 2s, [&] { return bool(pending); }));
@@ -46,7 +52,7 @@ int main(int argc, char **argv) {
 	asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
 	auto endpoint = reservation.local_endpoint();
 	reservation.close();
-	http::HttpAsioService service(app, 1, 0, 16, http::tls_connection_factory(context, 100ms));
+	http::HttpAsioService service(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 4);
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	service.set_bind_options(bind);
@@ -102,6 +108,28 @@ int main(int argc, char **argv) {
 	}
 	assert(timed_out && std::chrono::steady_clock::now() - began < 500ms);
 	service.stop();
+	asio::ip::tcp::acceptor expired_accept(io, {asio::ip::address_v4::loopback(), 0});
+	asio::ip::tcp::socket expired_client(io);
+	expired_client.connect(expired_accept.local_endpoint());
+	auto expired_socket = expired_accept.accept();
+	reactor::Reactor expired_owner(0, 0);
+	http::AsioResponseOptions expired_options;
+	bool expired_retired = false;
+	std::exception_ptr expired_failure;
+	auto expired_factory = http::tls_connection_factory_timed(context, 100ms);
+	asio::co_spawn(io,
+				   expired_factory(std::move(expired_socket), &app, &expired_owner, &expired_options,
+								   reactor::SessionContext{std::chrono::steady_clock::now() - 200ms}),
+				   [&](std::exception_ptr failure) {
+					   expired_failure = failure;
+					   expired_retired = true;
+				   });
+	io.restart();
+	io.run();
+	assert(expired_retired && !expired_failure);
+	char unexpected_tls_byte = 0;
+	auto expired_bytes = expired_client.read_some(asio::buffer(&unexpected_tls_byte, 1), error);
+	assert(expired_bytes == 0 && error && "queue delay expires before TLS handshake allocation or output");
 	asio::ip::tcp::acceptor capped_reservation(io, {asio::ip::address_v4::loopback(), 0});
 	const auto capped_endpoint = capped_reservation.local_endpoint();
 	capped_reservation.close();
@@ -132,5 +160,57 @@ int main(int argc, char **argv) {
 	}
 	assert(refunded);
 	capped.stop();
+	asio::ip::tcp::acceptor timed_reservation(io, {asio::ip::address_v4::loopback(), 0});
+	const auto timed_endpoint = timed_reservation.local_endpoint();
+	timed_reservation.close();
+	http::HttpAsioService timed(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 1);
+	timed.set_request_timeout(40ms);
+	timed.set_bind_options(bind);
+	timed.start(timed_endpoint.port());
+	for (const auto &prefix : std::vector<std::string>{
+			 "", "GET /fast HTTP/1.1\r\nH",
+			 "POST /fast HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000\r\n\r\nx"}) {
+		asio::ssl::stream<asio::ip::tcp::socket> slow(io, client_context);
+		detent::transport::configure_publisher_client(slow.native_handle(), "localhost");
+		slow.next_layer().connect(timed_endpoint);
+		slow.handshake(asio::ssl::stream_base::client);
+		const auto started = std::chrono::steady_clock::now();
+		if (!prefix.empty()) {
+			asio::write(slow, asio::buffer(prefix));
+		}
+		char byte = 0;
+		auto size = slow.read_some(asio::buffer(&byte, 1), error);
+		assert(!size && error && std::chrono::steady_clock::now() - started < 500ms);
+		for (unsigned attempt = 0; attempt < 100 && timed.connection_stats().active; ++attempt) {
+			std::this_thread::sleep_for(1ms);
+		}
+		assert(timed.connection_stats().active == 0 &&
+			   "incomplete headers and bodies refund original transport leases");
+		assert(detent::transport::https_health(client_options, timed_endpoint, "localhost") == "healthy");
+		for (unsigned attempt = 0; attempt < 100 && timed.connection_stats().active; ++attempt) {
+			std::this_thread::sleep_for(1ms);
+		}
+	}
+	{
+		asio::ssl::stream<asio::ip::tcp::socket> rejected(io, client_context);
+		detent::transport::configure_publisher_client(rejected.native_handle(), "localhost");
+		rejected.next_layer().connect(timed_endpoint);
+		rejected.handshake(asio::ssl::stream_base::client);
+		asio::write(rejected,
+					asio::buffer(std::string(
+						"POST /reject HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000000\r\n\r\n")));
+		std::string rejected_wire;
+		for (;;) {
+			auto size = rejected.read_some(asio::buffer(bytes), error);
+			rejected_wire.append(bytes.data(), size);
+			if (error) {
+				break;
+			}
+		}
+		assert(rejected_wire.find("HTTP/1.1 503") == 0 &&
+			   rejected_wire.find("admission_full") != std::string::npos);
+	}
+	timed.stop();
+	assert(timed.connection_stats().active == 0);
 	std::cout << "HTTPS deferred reply preserves pipelined plaintext input\n";
 }
