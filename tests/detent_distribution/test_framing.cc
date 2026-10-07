@@ -13,7 +13,7 @@ std::string decode(std::string_view wire, bool compressed) {
 		d::WorkBudget budget{7, 1};
 		decoder.feed(input, budget);
 		if (auto fragment = decoder.take())
-			output += fragment->bytes;
+			output += fragment->bytes();
 	}
 	decoder.finish();
 	return output;
@@ -74,6 +74,94 @@ int main() {
 		pending.feed(more, budget);
 		require(more.size() == wire.size());
 		require(pending.take().has_value());
+		for (bool compressed : {false, true}) {
+			auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
+			std::optional<d::DecodedFragment> retained;
+			auto one = first;
+			one.final = true;
+			one.total = one.bytes.size();
+			auto encoded = d::encode_fragment(one, compressed);
+			{
+				d::FragmentDecoder charged(d::UpdateKind::Snapshot, 1024 * 1024, compressed, account);
+				auto data = std::span<const char>(encoded);
+				while (!data.empty()) {
+					d::WorkBudget b{17, 1};
+					charged.feed(data, b);
+				}
+				retained = charged.take();
+				charged.finish();
+				require(retained && retained->bytes() == one.bytes);
+			}
+			const auto plain_capacity = one.bytes.size() + d::PagedStorage::page_overhead();
+			require(account->used() == plain_capacity);
+			const auto peak = account->peak();
+			retained.reset();
+			require(account->used() == 0);
+			const auto encoded_capacity =
+				encoded.size() - d::frame_header_bytes + d::PagedStorage::page_overhead();
+			for (auto limit : {encoded_capacity - 1, peak - 1}) {
+				auto small = std::make_shared<d::StorageLedger>(limit);
+				{
+					d::FragmentDecoder pressured(d::UpdateKind::Snapshot, 1024 * 1024, compressed, small);
+					auto data = std::span<const char>(encoded);
+					bool pressure = false;
+					try {
+						while (!data.empty()) {
+							d::WorkBudget b;
+							pressured.feed(data, b);
+						}
+					} catch (const d::StoragePressure &) {
+						pressure = true;
+					}
+					require(pressure && small->used() <= limit);
+					bool fenced = false;
+					try {
+						pressured.take();
+					} catch (const std::invalid_argument &) {
+						fenced = true;
+					}
+					require(fenced);
+				}
+				require(small->used() == 0);
+			}
+		}
+		{
+			auto account =
+				std::make_shared<d::StorageLedger>(d::fragment_bytes + d::PagedStorage::page_overhead());
+			std::optional<d::DecodedFragment> held;
+			{
+				d::FragmentDecoder decoder(d::UpdateKind::Snapshot, 1024 * 1024, false, account);
+				auto initial_wire = d::encode_fragment(first);
+				auto data = std::span<const char>(initial_wire);
+				while (!data.empty()) {
+					d::WorkBudget b;
+					decoder.feed(data, b);
+				}
+				held = decoder.take();
+				auto final_wire = d::encode_fragment(second);
+				data = std::span<const char>(final_wire);
+				bool pressure = false;
+				try {
+					while (!data.empty()) {
+						d::WorkBudget b;
+						decoder.feed(data, b);
+					}
+				} catch (const d::StoragePressure &) {
+					pressure = true;
+				}
+				require(pressure && held && held->bytes() == first.bytes);
+			}
+			require(account->used() == account->limit());
+			held.reset();
+			require(account->used() == 0);
+		}
+		// Empty final fragments retain no payload capacity, including compressed.
+		for (bool compressed : {false, true}) {
+			d::Fragment empty;
+			empty.update.fill('e');
+			empty.final = true;
+			require(decode(d::encode_fragment(empty, compressed), compressed).empty());
+		}
 		std::cout << "bounded framing passed\n";
 		return 0;
 	} catch (const std::exception &error) {

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstring>
 #include <sha256.h>
+#define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
 namespace detent::distribution {
@@ -76,12 +77,17 @@ struct FragmentDecoder::Impl {
 	std::array<char, frame_header_bytes> header{};
 	std::size_t header_size = 0, encoded_size = 0, decoded_size = 0;
 	bool compressed = false;
-	Fragment current;
-	std::string payload;
+	DecodedFragment current;
+	std::shared_ptr<StorageLedger> account;
+	std::shared_ptr<OwnedBuffer> payload;
+	std::unique_ptr<OwnedBuffer> workspace;
 	SHA256 hash;
-	std::optional<Fragment> output;
-	Impl(UpdateKind expected, std::uint64_t maximum_bytes, bool allow)
-		: kind(expected), maximum(maximum_bytes), compression(allow) {
+	std::optional<DecodedFragment> output;
+	Impl(UpdateKind expected, std::uint64_t maximum_bytes, bool allow,
+		 std::shared_ptr<StorageLedger> storage_account)
+		: kind(expected), maximum(maximum_bytes), compression(allow),
+		  account(storage_account ? std::move(storage_account)
+								  : std::make_shared<StorageLedger>(1024 * 1024)) {
 		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress,
 				"unknown expected distribution kind");
 	}
@@ -120,8 +126,7 @@ struct FragmentDecoder::Impl {
 			total = current.total;
 			admitted = true;
 		}
-		payload.clear();
-		payload.reserve(encoded_size);
+		payload = std::make_shared<OwnedBuffer>(account, encoded_size);
 		hash.reset();
 		hash.add(header.data(), 64);
 	}
@@ -131,13 +136,26 @@ struct FragmentDecoder::Impl {
 		require(std::memcmp(digest, header.data() + 64, sizeof(digest)) == 0,
 				"distribution fragment checksum mismatch");
 		if (compressed) {
-			current.bytes.resize(decoded_size);
-			auto count =
-				ZSTD_decompress(current.bytes.data(), current.bytes.size(), payload.data(), payload.size());
+			auto plain = std::make_shared<OwnedBuffer>(account, decoded_size);
+			plain->resize(decoded_size);
+			if (!workspace) {
+				workspace = std::make_unique<OwnedBuffer>(account, ZSTD_estimateDCtxSize());
+				workspace->resize(ZSTD_estimateDCtxSize());
+			}
+			auto memory = workspace->mutable_bytes();
+			auto context = ZSTD_initStaticDCtx(memory.data(), memory.size());
+			require(context != nullptr, "distribution decompression workspace invalid");
+			auto count = ZSTD_decompressDCtx(context, plain->mutable_bytes().data(), plain->size(),
+											 payload->data(), payload->size());
 			require(!ZSTD_isError(count) && count == decoded_size,
 					"distribution fragment decompression mismatch");
-		} else
-			current.bytes = std::move(payload);
+			plain->seal();
+			current.body = std::move(plain);
+			payload.reset();
+		} else {
+			payload->seal();
+			current.body = std::move(payload);
+		}
 		next_offset += decoded_size;
 		final = current.final;
 		output = std::move(current);
@@ -145,8 +163,9 @@ struct FragmentDecoder::Impl {
 	}
 };
 FragmentDecoder::FragmentDecoder(UpdateKind expected_kind, std::uint64_t maximum_bytes,
-								 bool allow_compression)
-	: impl_(std::make_unique<Impl>(expected_kind, maximum_bytes, allow_compression)) {}
+								 bool allow_compression, std::shared_ptr<StorageLedger> storage_account)
+	: impl_(std::make_unique<Impl>(expected_kind, maximum_bytes, allow_compression,
+								   std::move(storage_account))) {}
 FragmentDecoder::~FragmentDecoder() = default;
 FragmentDecoder::FragmentDecoder(FragmentDecoder &&) noexcept = default;
 void FragmentDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
@@ -168,12 +187,12 @@ void FragmentDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
 				}
 			} else {
 				auto count =
-					std::min({input.size(), budget.bytes, impl_->encoded_size - impl_->payload.size()});
-				impl_->payload.append(input.data(), count);
+					std::min({input.size(), budget.bytes, impl_->encoded_size - impl_->payload->size()});
+				impl_->payload->append({input.data(), count});
 				impl_->hash.add(input.data(), count);
 				input = input.subspan(count);
 				budget.bytes -= count;
-				if (impl_->payload.size() == impl_->encoded_size) {
+				if (impl_->payload->size() == impl_->encoded_size) {
 					--budget.tokens;
 					impl_->complete();
 				}
@@ -184,7 +203,7 @@ void FragmentDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
 		throw;
 	}
 }
-std::optional<Fragment> FragmentDecoder::take() {
+std::optional<DecodedFragment> FragmentDecoder::take() {
 	require(impl_ && !impl_->failed, "distribution fragment decoder unavailable");
 	auto result = std::move(impl_->output);
 	impl_->output.reset();

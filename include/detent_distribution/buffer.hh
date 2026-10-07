@@ -1,5 +1,6 @@
 #pragma once
 #include "storage.hh"
+#include <cstring>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -22,6 +23,13 @@ class OwnedBuffer {
 		if (size != size_)
 			std::fill(data_ + size_, data_ + size, '\0');
 		size_ = size;
+	}
+	void append(std::string_view bytes) {
+		if (sealed_ || bytes.size() > capacity_ - size_)
+			throw std::logic_error("invalid owned buffer append");
+		if (!bytes.empty())
+			std::memmove(data_ + size_, bytes.data(), bytes.size());
+		size_ += bytes.size();
 	}
 	std::span<char> mutable_bytes() {
 		if (sealed_)
