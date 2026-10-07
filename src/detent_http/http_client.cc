@@ -20,6 +20,18 @@ namespace detent_http {
 
 namespace {
 
+class SocketOwner {
+  public:
+	explicit SocketOwner(int fd) noexcept : fd_(fd) {}
+	~SocketOwner() { ::close(fd_); }
+	SocketOwner(const SocketOwner &) = delete;
+	SocketOwner &operator=(const SocketOwner &) = delete;
+	int get() const noexcept { return fd_; }
+
+  private:
+	int fd_;
+};
+
 int connect_with_timeout(const std::string& host, std::uint16_t port, std::chrono::milliseconds timeout) {
 	addrinfo hints{};
 	hints.ai_family = AF_UNSPEC;
@@ -332,7 +344,7 @@ HttpResponse http_get(
 	const std::string& path,
 	std::chrono::milliseconds timeout,
 	const std::optional<std::string>& if_none_match) {
-	int fd = connect_with_timeout(host, port, timeout);
+	SocketOwner fd(connect_with_timeout(host, port, timeout));
 	std::string request = "GET " + path + " HTTP/1.1\r\n";
 	request += "Host: " + host + "\r\n";
 	request += "Connection: close\r\n";
@@ -342,15 +354,9 @@ HttpResponse http_get(
 	}
 	request += "\r\n";
 
-	try {
-		write_all(fd, request);
-		auto raw = read_all_to_eof(fd);
-		::close(fd);
-		return parse_full_response(raw);
-	} catch (...) {
-		::close(fd);
-		throw;
-	}
+	write_all(fd.get(), request);
+	auto raw = read_all_to_eof(fd.get());
+	return parse_full_response(raw);
 }
 
 HttpResponse http_put(
@@ -359,7 +365,7 @@ HttpResponse http_put(
 	const std::string& path,
 	std::string body,
 	std::chrono::milliseconds timeout) {
-	int fd = connect_with_timeout(host, port, timeout);
+	SocketOwner fd(connect_with_timeout(host, port, timeout));
 	std::string request = "PUT " + path + " HTTP/1.1\r\n";
 	request += "Host: " + host + "\r\n";
 	request += "Connection: close\r\n";
@@ -368,15 +374,9 @@ HttpResponse http_put(
 	request += "\r\n";
 	request += body;
 
-	try {
-		write_all(fd, request);
-		auto raw = read_all_to_eof(fd);
-		::close(fd);
-		return parse_full_response(raw);
-	} catch (...) {
-		::close(fd);
-		throw;
-	}
+	write_all(fd.get(), request);
+	auto raw = read_all_to_eof(fd.get());
+	return parse_full_response(raw);
 }
 
 HttpResponse http_patch(
@@ -385,7 +385,7 @@ HttpResponse http_patch(
 	const std::string& path,
 	std::string body,
 	std::chrono::milliseconds timeout) {
-	int fd = connect_with_timeout(host, port, timeout);
+	SocketOwner fd(connect_with_timeout(host, port, timeout));
 	std::string request = "PATCH " + path + " HTTP/1.1\r\n";
 	request += "Host: " + host + "\r\n";
 	request += "Connection: close\r\n";
@@ -394,15 +394,9 @@ HttpResponse http_patch(
 	request += "\r\n";
 	request += body;
 
-	try {
-		write_all(fd, request);
-		auto raw = read_all_to_eof(fd);
-		::close(fd);
-		return parse_full_response(raw);
-	} catch (...) {
-		::close(fd);
-		throw;
-	}
+	write_all(fd.get(), request);
+	auto raw = read_all_to_eof(fd.get());
+	return parse_full_response(raw);
 }
 
 } // namespace detent_http

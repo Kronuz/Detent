@@ -58,7 +58,7 @@ Clang 23 with libc++ exposes missing declarations for `std::exception_ptr` and `
 
 ## Durable authority scope
 
-The opt-in authority adds a separate durable single-voter store and credential-bound loopback API. The legacy deployment limits above still apply to the legacy HTTP/multicast distributor. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated sockets, binary public distribution and immutable agent views remain pending components.
+The opt-in authority adds a separate durable single-voter store and credential-bound loopback API. The legacy deployment limits above still apply to the legacy HTTP/multicast distributor. [Authority documentation](AUTHORITY_ARCHITECTURE.md) records transaction semantics, resource bounds, recovery tests and migration. Multi-node authenticated transport and source retirement have a [consolidated source review](AUTHORITY_COMPONENT_REVIEW.md), with the remaining production pressure and telemetry gates tracked in [readiness](AUTHORITY_READINESS.md). The binary codec and immutable image/publication modules are implemented and under component qualification; actual agent integration and fleet distribution remain pending.
 
 
 ### Fresh-build filesystem fixtures
@@ -88,3 +88,9 @@ Cluster `a855e4f` gives the private Worker staging Chunk an explicit zero-initia
 ### Default build compatibility with the preceding HTTP API
 
 Authority integration introduced an unconditional reference to HTTP's new TLS connection-factory type and five-argument constructor, even when authority was disabled. Compiling the default main against HTTP `c3193b9` reproduces four errors before correction. The factory and constructor extension are now confined to the authority build; a complete default daemon builds against that preceding HTTP revision and serves help. An authority request in a build without that feature now fails before attempting status probes. This restores the previous default dependency API rather than requiring unpublished TLS additions for all builds.
+
+## Fixed: HTTP one-shot socket double close
+
+The GET, PUT and PATCH helpers closed their socket before parsing the response, then closed that descriptor again when parsing threw. Another thread could reuse the descriptor between those calls, allowing the second close to destroy an unrelated resource. Request construction also happened before the exception cleanup block.
+
+A scoped socket owner now covers request construction, transfer and response parsing, closing exactly once during scope exit. The regression returns malformed responses over real TCP and forces descriptor reuse during exception allocation. It fails against the preceding source and passes after correction for all three helpers. The agent HTTP and distributor integration gates pass; the socket regression passes on macOS, Linux and FreeBSD and under macOS ASan/UBSan.
