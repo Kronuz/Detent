@@ -124,7 +124,8 @@ struct ParsedHead {
 	std::optional<std::size_t> content_length;
 	bool has_close_header = false;
 	bool is_patch = false; // Content-Type: application/merge-patch+json
-	std::string content_encoding; // "", "zstd", or "gzip" -- see decode_body()
+	bool invalid_content_encoding = false;
+	std::string content_encoding; // A single response coding; see decode_body().
 };
 
 // Parses the status line + headers from `head` (everything before the
@@ -147,6 +148,7 @@ ParsedHead parse_head(std::string_view head) {
 	out.status = (status_line[9] - '0') * 100 + (status_line[10] - '0') * 10 + (status_line[11] - '0');
 
 	std::size_t pos = line_end == std::string_view::npos ? head.size() : line_end + 2;
+	bool has_content_encoding = false;
 	while (pos < head.size()) {
 		auto next = head.find("\r\n", pos);
 		auto len = (next == std::string_view::npos ? head.size() : next) - pos;
@@ -181,6 +183,8 @@ ParsedHead parse_head(std::string_view head) {
 				auto media_type = trim(value.substr(0, value.find(';')));
 				out.is_patch = iequals(media_type, "application/merge-patch+json");
 			} else if (iequals(name, "Content-Encoding")) {
+				out.invalid_content_encoding = has_content_encoding || value.empty();
+				has_content_encoding = true;
 				out.content_encoding = std::string(value);
 			}
 		}
@@ -193,20 +197,22 @@ ParsedHead parse_head(std::string_view head) {
 // Both codings this client ever advertises (see kAcceptEncoding below) are
 // whole-body, one-shot formats -- no framing/streaming needed here, unlike
 // detentd's own encode() which streams into a growing response buffer.
-// content_encoding is whatever the server actually chose, which may be ""
-// (identity) even when we advertised support for more, or a coding neither
-// of us expected from some other proxy in between -- that last case is
-// passed through unchanged rather than guessed at.
-std::string decode_body(std::string_view body, std::string_view content_encoding) {
-	if (content_encoding == "zstd") {
+// Only a single supported coding is decoded. Unknown or chained codings must
+// not expose encoded bytes as though they were identity state.
+std::string decode_body(std::string_view body, std::string_view content_encoding, bool invalid_encoding) {
+	if (invalid_encoding)
+		throw std::runtime_error("detent_http: invalid or chained Content-Encoding");
+	if (iequals(content_encoding, "zstd")) {
 		return decompress_zstd(body);
 	}
-	if (content_encoding == "gzip") {
+	if (iequals(content_encoding, "gzip")) {
 		std::string decompressed;
 		DeflateDecompressData decompressor(body.data(), body.size(), /*gzip_=*/true);
 		for (auto it = decompressor.begin(); it; ++it) decompressed.append(*it);
 		return decompressed;
 	}
+	if (!content_encoding.empty() && !iequals(content_encoding, "identity"))
+		throw std::runtime_error("detent_http: unsupported Content-Encoding");
 	return std::string(body);
 }
 
@@ -249,7 +255,7 @@ HttpResponse parse_full_response(const std::string& raw) {
 	resp.etag = head.etag;
 	resp.is_patch = head.is_patch;
 	if (head.status != 204 && head.status != 304)
-		resp.body = decode_body(body, head.content_encoding);
+		resp.body = decode_body(body, head.content_encoding, head.invalid_content_encoding);
 	return resp;
 }
 
@@ -350,7 +356,7 @@ HttpResponse HttpConnection::get_once(
 		resp.body = buf.substr(body_start);
 		resp.body += read_all_to_eof(fd_);
 		disconnect();
-		resp.body = decode_body(resp.body, head.content_encoding);
+		resp.body = decode_body(resp.body, head.content_encoding, head.invalid_content_encoding);
 		return resp;
 	}
 	std::size_t want = bodyless ? 0 : *head.content_length;
@@ -376,7 +382,7 @@ HttpResponse HttpConnection::get_once(
 		disconnect(); // server is ending the connection; the next get() reconnects
 	}
 	if (!bodyless)
-		resp.body = decode_body(resp.body, head.content_encoding);
+		resp.body = decode_body(resp.body, head.content_encoding, head.invalid_content_encoding);
 	return resp;
 }
 

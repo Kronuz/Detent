@@ -148,3 +148,11 @@ The real TCP regression fails against the preceding source at its first malforme
 The HTTP client selected patch application using a prefix match on `application/merge-patch`. Unrelated media types such as `application/merge-patch+json-seq` therefore set the patch flag, while a valid case-varied `Application/Merge-Patch+Json` did not. That flag controls whether source bytes replace or merge into existing state.
 
 The parser now compares the complete media type case-insensitively after separating optional parameters. Only `application/merge-patch+json` selects patch application. The TCP fixture checks four unrelated types and three valid variants in both client paths; it fails against the preceding source and passes after correction. Six native HTTP/agent/distributor/diff gates pass (5.43 seconds), and the two HTTP suites pass on Linux (1.04 seconds), FreeBSD (1.11 seconds) and under macOS ASan/UBSan (2.09 seconds). Content-coding interpretation and response size limits remain separate audit work.
+
+### Reject unsupported HTTP content codings
+
+The client returned bodies unchanged when their Content-Encoding was unknown or chained, and repeated fields silently replaced earlier codings. Encoded response bytes could therefore be returned as if they were identity state. Case-varied supported codings also bypassed decoding.
+
+Body decoding now accepts a single identity, gzip or zstd coding case-insensitively and rejects unsupported, empty or repeated/chained encoding fields. Bodyless responses still ignore representation coding metadata and never attempt decompression. The TCP regression fails against the preceding source on an unsupported coding; the expanded cases cover chains, repeated fields, identity casing, actual uppercase GZIP decoding, and a 304 with unsupported representation metadata in both client paths.
+
+Six native HTTP/agent/distributor/diff gates pass (5.81 seconds). The two HTTP suites also pass on Linux (1.35 seconds), FreeBSD (1.34 seconds) and under macOS ASan/UBSan (2.32 seconds). Aggregate header/body/decompression limits and asynchronous connection establishment remain audit work; rejecting unsupported coding does not establish those bounds.

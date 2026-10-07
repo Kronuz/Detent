@@ -104,6 +104,24 @@ void verify(const std::string &wire, bool valid, std::string_view body = {}, int
 } // namespace
 int main() {
 	try {
+		for (auto coding : {"br", "gzip, identity", "identity, gzip", "zstd, gzip", ""})
+			verify(std::string("HTTP/1.1 200 OK\r\nContent-Encoding: ") + coding +
+					   "\r\nContent-Length: 3\r\n\r\nabc",
+				   false);
+		verify("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Encoding: identity\r\nContent-Length: "
+			   "3\r\n\r\nabc",
+			   false);
+		for (auto coding : {"identity", "IDENTITY"})
+			verify(std::string("HTTP/1.1 200 OK\r\nContent-Encoding: ") + coding +
+					   "\r\nContent-Length: 3\r\n\r\nabc",
+				   true, "abc");
+		verify("HTTP/1.1 304 Not Modified\r\nContent-Encoding: br\r\nContent-Length: 3\r\n\r\n", true, {},
+			   304);
+		constexpr char gzip[] =
+			"\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\xff\x4b\x4c\x4a\x06\x00\xc2\x41\x24\x35\x03\x00\x00\x00";
+		verify(std::string("HTTP/1.1 200 OK\r\nContent-Encoding: GZIP\r\nContent-Length: 23\r\n\r\n") +
+				   std::string(gzip, sizeof(gzip) - 1),
+			   true, "abc");
 		for (auto type : {"application/merge-patch+json-seq", "application/merge-patch",
 						  "application/merge-patchjunk", "application/json"})
 			verify(std::string("HTTP/1.1 200 OK\r\nContent-Type: ") + type +
