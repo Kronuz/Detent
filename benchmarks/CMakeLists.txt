@@ -48,6 +48,8 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
 endif()
 
 add_executable(detent_distribution_codec_bench distribution_codec_bench.cc)
+add_executable(detent_delta_decode_bench delta_decode_bench.cc)
+target_link_libraries(detent_delta_decode_bench PRIVATE detent::distribution)
 target_link_libraries(detent_distribution_codec_bench PRIVATE detent::detent compressors::compressors)
 option(DETENT_BENCHMARK_PROTOBUF "Enable installed Protobuf Lite for codec comparison only" OFF)
 if(DETENT_BENCHMARK_PROTOBUF)

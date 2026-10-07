@@ -85,10 +85,12 @@ struct Mutation {
 	std::string key;
 	std::optional<KnobDef> value; // absent means delete live definition.
 };
+struct RowRange {
+	std::uint64_t start = 0, count = 0;
+};
 struct Transaction {
 	std::uint64_t revision = 0;
-	std::deque<NamespaceRevision> touched;
-	std::deque<Mutation> mutations;
+	RowRange touched, mutations;
 };
 class DeltaDecoder;
 class ValidatedDelta {
@@ -98,6 +100,8 @@ class ValidatedDelta {
 	const Profile &profile() const noexcept { return profile_; }
 	UpdateKind kind() const noexcept { return kind_; }
 	const std::deque<Transaction> &transactions() const noexcept { return transactions_; }
+	const Mutation &mutation(std::uint64_t ordinal) const;
+	const NamespaceRevision &touched(std::uint64_t ordinal) const;
 	bool discard(WorkBudget &budget);
 
   private:
@@ -106,6 +110,8 @@ class ValidatedDelta {
 	Profile profile_;
 	UpdateKind kind_ = UpdateKind::Delta;
 	std::deque<Transaction> transactions_;
+	std::deque<Mutation> mutations_;
+	std::deque<NamespaceRevision> touched_;
 	friend class DeltaDecoder;
 };
 class DeltaDecoder {

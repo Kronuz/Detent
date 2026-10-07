@@ -447,27 +447,33 @@ bool SnapshotDecoder::discard(WorkBudget &budget) {
 	return true;
 }
 
+const Mutation &ValidatedDelta::mutation(std::uint64_t ordinal) const {
+	require(ordinal < mutations_.size(), "delta mutation ordinal out of range");
+	return mutations_[static_cast<std::size_t>(ordinal)];
+}
+const NamespaceRevision &ValidatedDelta::touched(std::uint64_t ordinal) const {
+	require(ordinal < touched_.size(), "delta namespace ordinal out of range");
+	return touched_[static_cast<std::size_t>(ordinal)];
+}
 bool ValidatedDelta::discard(WorkBudget &budget) {
 	base_ = {};
 	target_ = {};
+	while (!mutations_.empty()) {
+		auto &mutation = mutations_.back();
+		if (mutation.value) {
+			if (auto flag = std::get_if<BoolDef>(&*mutation.value); flag && !discard_overrides(*flag, budget))
+				return false;
+		}
+		if (!charge(budget, mutation.key.size() + sizeof(Mutation)))
+			return false;
+		mutations_.pop_back();
+	}
+	while (!touched_.empty()) {
+		if (!charge(budget, touched_.back().name.size() + sizeof(NamespaceRevision)))
+			return false;
+		touched_.pop_back();
+	}
 	while (!transactions_.empty()) {
-		auto &transaction = transactions_.back();
-		while (!transaction.mutations.empty()) {
-			auto &mutation = transaction.mutations.back();
-			if (mutation.value) {
-				if (auto flag = std::get_if<BoolDef>(&*mutation.value);
-					flag && !discard_overrides(*flag, budget))
-					return false;
-			}
-			if (!charge(budget, mutation.key.size() + sizeof(Mutation)))
-				return false;
-			transaction.mutations.pop_back();
-		}
-		while (!transaction.touched.empty()) {
-			if (!charge(budget, transaction.touched.back().name.size() + sizeof(NamespaceRevision)))
-				return false;
-			transaction.touched.pop_back();
-		}
 		if (!charge(budget, sizeof(Transaction)))
 			return false;
 		transactions_.pop_back();
@@ -543,6 +549,7 @@ struct DeltaDecoder::Impl {
 	CursorParser cursor;
 	std::optional<DefinitionDecoder> definition;
 	Mutation mutation;
+	Transaction transaction;
 	std::deque<std::uint32_t> touched_indexes;
 	std::string previous_key;
 	std::uint32_t previous_namespace = 0;
@@ -576,16 +583,17 @@ struct DeltaDecoder::Impl {
 		return std::move(token.bytes);
 	}
 	void finish_mutation() {
-		auto &transaction = delta.transactions_.back();
-		if (transaction.mutations.empty() || previous_namespace != mutation.namespace_index)
+		if (!transaction.mutations.count || previous_namespace != mutation.namespace_index)
 			++mutated_namespaces;
 		previous_namespace = mutation.namespace_index;
 		previous_key = mutation.key;
-		transaction.mutations.push_back(std::move(mutation));
+		delta.mutations_.push_back(std::move(mutation));
+		++transaction.mutations.count;
 		mutation = {};
 		++seen_mutations;
-		if (transaction.mutations.size() == mutation_count) {
+		if (transaction.mutations.count == mutation_count) {
 			require(mutated_namespaces == touched_count, "delta has untouched namespace watermark");
+			delta.transactions_.push_back(transaction);
 			phase =
 				delta.transactions_.size() == declared_transactions ? Phase::End : Phase::TransactionTuple;
 		} else
@@ -675,7 +683,7 @@ struct DeltaDecoder::Impl {
 															: delta.transactions_.back().revision) &&
 						revision <= delta.target_.revision,
 					"unordered delta transaction revision");
-			delta.transactions_.push_back({revision, {}, {}});
+			transaction = {revision, {delta.touched_.size(), 0}, {delta.mutations_.size(), 0}};
 			mutated_namespaces = 0;
 			phase = Phase::Touched;
 			break;
@@ -699,13 +707,15 @@ struct DeltaDecoder::Impl {
 			require(touched_indexes.empty() || touched_indexes.back() < index,
 					"unordered delta touched namespace");
 			touched_indexes.push_back(index);
-			delta.transactions_.back().touched.push_back({std::move(name), 0});
+			require(delta.touched_.size() < declared_mutations, "aggregate touched row limit exceeded");
+			delta.touched_.push_back({std::move(name), 0});
+			++transaction.touched.count;
 			phase = Phase::NamespaceRevision;
 			break;
 		}
 		case Phase::NamespaceRevision:
-			require(number(token) == delta.transactions_.back().revision, "delta touched revision mismatch");
-			delta.transactions_.back().touched.back().revision = delta.transactions_.back().revision;
+			require(number(token) == transaction.revision, "delta touched revision mismatch");
+			delta.touched_.back().revision = transaction.revision;
 			phase = touched_indexes.size() == touched_count ? Phase::Mutations : Phase::NamespaceTuple;
 			break;
 		case Phase::Mutations:
@@ -733,8 +743,7 @@ struct DeltaDecoder::Impl {
 			require(is_valid_knob_name(mutation.key) &&
 						mutation.key.substr(0, mutation.key.find(':')) == scope[mutation.namespace_index],
 					"invalid delta mutation key");
-			require(delta.transactions_.back().mutations.empty() ||
-						previous_namespace < mutation.namespace_index ||
+			require(!transaction.mutations.count || previous_namespace < mutation.namespace_index ||
 						(previous_namespace == mutation.namespace_index && previous_key < mutation.key),
 					"unordered or duplicate delta mutation");
 			phase = Phase::MutationTag;

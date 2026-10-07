@@ -88,11 +88,13 @@ int main() {
 		require(delta.base() == cursor() && delta.target().revision == 45 &&
 				delta.transactions().size() == 1);
 		auto &transaction = delta.transactions()[0];
-		require(transaction.revision == 44 && transaction.touched[0].revision == 44 &&
-				transaction.mutations.size() == 2);
-		require(!transaction.mutations[0].value && transaction.mutations[0].key == "app:count");
-		require(transaction.mutations[1].value &&
-				!std::get<detent::BoolDef>(*transaction.mutations[1].value).default_value);
+		require(transaction.revision == 44 && delta.touched(transaction.touched.start).revision == 44 &&
+				transaction.mutations.count == 2);
+		require(!delta.mutation(transaction.mutations.start).value &&
+				delta.mutation(transaction.mutations.start).key == "app:count");
+		require(
+			delta.mutation(transaction.mutations.start + 1).value &&
+			!std::get<detent::BoolDef>(*delta.mutation(transaction.mutations.start + 1).value).default_value);
 		auto progress = decode(fixture(true), true);
 		require(progress.kind() == d::UpdateKind::Progress && progress.transactions().empty() &&
 				progress.target().revision == 45);

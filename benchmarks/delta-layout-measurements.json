@@ -1,0 +1,11 @@
+{
+  "platform": "Intel macOS, libc++, Release",
+  "before_commit": "e311a44",
+  "scope": "Fresh processes; same valid one-delete transactions; RSS includes wire construction and decoder; decode wall excludes payload construction and final disposal. This is not daemon or fleet acceptance.",
+  "rows": [
+    {"transactions":10000,"wire_bytes":279608,"turns":938,"before_wall_us":44426,"after_wall_us":4453,"before_max_rss_bytes":85192704,"after_max_rss_bytes":2899968},
+    {"transactions":50000,"wire_bytes":1399608,"turns":4688,"before_wall_us":216632,"after_wall_us":27333,"before_max_rss_bytes":422064128,"after_max_rss_bytes":11145216},
+    {"transactions":100000,"wire_bytes":2937644,"turns":9376,"before_wall_us":442804,"after_wall_us":49968,"before_max_rss_bytes":843522048,"after_max_rss_bytes":21524480}
+  ],
+  "remaining": "Requested allocation/live capacity accounting, repeated tails, disposal callbacks, string/override amplification and full service qualification. No infrastructure cost or power claim."
+}
