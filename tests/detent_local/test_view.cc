@@ -90,6 +90,16 @@ int main() {
 				auto lease = std::make_shared<TrackedLease>(image(), runtime, destroyed, wrong_thread);
 				l::ViewLimits limits;
 				limits.retirement_domain = &domain;
+				{
+					auto occupied = account->admit(account->limit() - account->used());
+					bool pressure = false;
+					try {
+						l::ImageValidator rejected(lease, std::span<const char>(*lease->bytes), limits);
+					} catch (const detent::distribution::StoragePressure &) {
+						pressure = true;
+					}
+					check(pressure && domain.residents() == 0 && account->used() == account->limit());
+				}
 				l::ImageValidator validator(lease, std::span<const char>(*lease->bytes), limits);
 				while (!validator.done()) {
 					l::ValidationBudget budget;

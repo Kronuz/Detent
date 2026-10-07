@@ -36,6 +36,6 @@ class FragmentDecoder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	StorageOwner<Impl> impl_;
 };
 } // namespace detent::distribution

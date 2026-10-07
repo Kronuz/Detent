@@ -53,4 +53,31 @@ template <class T> class StorageAllocator {
 	PagedStorage::Release release_;
 	template <class> friend class StorageAllocator;
 };
+// Unique controls retain their account and upstream hooks through destruction.
+// T may be incomplete in an owning public header; destruction is defined where
+// its complete type is available.
+template <class T> struct StorageDelete {
+	std::shared_ptr<StorageLedger> account;
+	PagedStorage::Allocate allocate = std::malloc;
+	PagedStorage::Release release = std::free;
+	void operator()(T *object) const noexcept {
+		StorageAllocator<T> allocator(account, allocate, release);
+		std::destroy_at(object);
+		allocator.deallocate(object, 1);
+	}
+};
+template <class T> using StorageOwner = std::unique_ptr<T, StorageDelete<T>>;
+template <class T, class... Args>
+StorageOwner<T> make_storage_owner(std::shared_ptr<StorageLedger> account, PagedStorage::Allocate allocate,
+								   PagedStorage::Release release, Args &&...args) {
+	StorageAllocator<T> allocator(account, allocate, release);
+	auto object = allocator.allocate(1);
+	try {
+		std::construct_at(object, std::forward<Args>(args)...);
+	} catch (...) {
+		allocator.deallocate(object, 1);
+		throw;
+	}
+	return StorageOwner<T>(object, StorageDelete<T>{std::move(account), allocate, release});
+}
 } // namespace detent::distribution

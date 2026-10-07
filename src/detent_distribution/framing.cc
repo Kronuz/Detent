@@ -164,8 +164,12 @@ struct FragmentDecoder::Impl {
 };
 FragmentDecoder::FragmentDecoder(UpdateKind expected_kind, std::uint64_t maximum_bytes,
 								 bool allow_compression, std::shared_ptr<StorageLedger> storage_account)
-	: impl_(std::make_unique<Impl>(expected_kind, maximum_bytes, allow_compression,
-								   std::move(storage_account))) {}
+	: impl_([&] {
+		  if (!storage_account)
+			  storage_account = std::make_shared<StorageLedger>(1024 * 1024);
+		  return make_storage_owner<Impl>(storage_account, std::malloc, std::free, expected_kind,
+										  maximum_bytes, allow_compression, storage_account);
+	  }()) {}
 FragmentDecoder::~FragmentDecoder() = default;
 FragmentDecoder::FragmentDecoder(FragmentDecoder &&) noexcept = default;
 void FragmentDecoder::feed(std::span<const char> &input, WorkBudget &budget) {

@@ -186,7 +186,8 @@ struct ImageValidator::Impl {
 };
 ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes,
 							   ViewLimits limits, std::optional<distribution::Cursor> expected)
-	: impl_(std::make_unique<Impl>()) {
+	: impl_(distribution::make_storage_owner<Impl>(resources::domain(limits).storage_account(), std::malloc,
+												   std::free)) {
 	require(static_cast<bool>(lease));
 	auto header = decode_header(bytes, limits.bytes);
 	const auto &l = header.layout;

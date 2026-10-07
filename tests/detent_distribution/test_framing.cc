@@ -77,12 +77,14 @@ int main() {
 		for (bool compressed : {false, true}) {
 			auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
 			std::optional<d::DecodedFragment> retained;
+			std::size_t control_capacity;
 			auto one = first;
 			one.final = true;
 			one.total = one.bytes.size();
 			auto encoded = d::encode_fragment(one, compressed);
 			{
 				d::FragmentDecoder charged(d::UpdateKind::Snapshot, 1024 * 1024, compressed, account);
+				control_capacity = account->used();
 				auto data = std::span<const char>(encoded);
 				while (!data.empty()) {
 					d::WorkBudget b{17, 1};
@@ -99,7 +101,7 @@ int main() {
 			require(account->used() == 0);
 			const auto encoded_capacity =
 				encoded.size() - d::frame_header_bytes + d::PagedStorage::page_overhead();
-			for (auto limit : {encoded_capacity - 1, peak - 1}) {
+			for (auto limit : {control_capacity + encoded_capacity - 1, peak - 1}) {
 				auto small = std::make_shared<d::StorageLedger>(limit);
 				{
 					d::FragmentDecoder pressured(d::UpdateKind::Snapshot, 1024 * 1024, compressed, small);
@@ -128,7 +130,14 @@ int main() {
 		{
 			auto probe_account = std::make_shared<d::StorageLedger>(1024 * 1024);
 			auto probe = d::make_owned_buffer(probe_account, d::fragment_bytes);
-			auto account = std::make_shared<d::StorageLedger>(probe_account->used());
+			const auto payload_capacity = probe_account->used();
+			std::size_t control_capacity;
+			{
+				d::FragmentDecoder control(d::UpdateKind::Snapshot, 1024 * 1024, false, probe_account);
+				control_capacity = probe_account->used() - payload_capacity;
+				require(control_capacity != 0);
+			}
+			auto account = std::make_shared<d::StorageLedger>(payload_capacity + control_capacity);
 			probe.reset();
 			std::optional<d::DecodedFragment> held;
 			{
@@ -153,9 +162,19 @@ int main() {
 				}
 				require(pressure && held && held->bytes() == first.bytes);
 			}
-			require(account->used() == account->limit());
+			require(account->used() == payload_capacity);
 			held.reset();
 			require(account->used() == 0);
+		}
+		{
+			auto zero = std::make_shared<d::StorageLedger>(0);
+			bool rejected = false;
+			try {
+				d::FragmentDecoder decoder(d::UpdateKind::Snapshot, 1024, false, zero);
+			} catch (const d::StoragePressure &) {
+				rejected = true;
+			}
+			require(rejected && zero->used() == 0);
 		}
 		// Empty final fragments retain no payload capacity, including compressed.
 		for (bool compressed : {false, true}) {

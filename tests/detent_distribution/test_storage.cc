@@ -67,8 +67,19 @@ int main() {
 					StorageAllocator<FailingConstructor>(account, allocate, release));
 			});
 			check(account->used() == 0);
+			rejects<std::runtime_error>(
+				[&] { make_storage_owner<FailingConstructor>(account, allocate, release); });
+			check(account->used() == 0);
+			{
+				auto unique = make_storage_owner<int>(account, allocate, release, 42);
+				check(*unique == 42 && account->used() > sizeof(int));
+				auto moved = std::move(unique);
+				check(!unique && *moved == 42);
+			}
+			check(account->used() == 0);
 			fail = true;
 			rejects<std::bad_alloc>([&] { std::allocate_shared<int>(allocator); });
+			rejects<std::bad_alloc>([&] { make_storage_owner<int>(account, allocate, release); });
 			fail = false;
 			check(account->used() == 0);
 			{
@@ -90,6 +101,7 @@ int main() {
 			const auto before = allocations;
 			rejects<StoragePressure>(
 				[&] { std::allocate_shared<int>(StorageAllocator<int>(zero, allocate, release)); });
+			rejects<StoragePressure>([&] { make_storage_owner<int>(zero, allocate, release); });
 			check(allocations == before && zero->used() == 0);
 		}
 		allocations = frees = 0;
