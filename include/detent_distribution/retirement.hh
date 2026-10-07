@@ -14,7 +14,6 @@ void retain(RetirementNode *) noexcept;
 void release(RetirementNode *) noexcept;
 void admit_resident(RetirementState &);
 void undo_resident(RetirementState &) noexcept;
-void finish_admission(RetirementState &) noexcept;
 std::shared_ptr<StorageLedger> retirement_account(RetirementState &);
 void bind_retirement(RetirementNode &, RetirementState &, void (*)(RetirementNode *) noexcept) noexcept;
 // Qualification hook: install before exposing owners, never concurrently.
@@ -122,7 +121,6 @@ class RetirementDomain {
 			std::destroy_at(object);
 			allocation.deallocate(object, 1);
 		});
-		detail::finish_admission(*state);
 		return RetirementHandle<T>(owner);
 	}
 

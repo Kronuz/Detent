@@ -66,7 +66,7 @@ struct RetirementState {
 	std::shared_ptr<StorageLedger> account;
 	std::size_t limit;
 	std::atomic<std::uint64_t> admission{0};
-	std::atomic<std::size_t> admitting{0};
+	std::atomic<std::size_t> rolling_back{0};
 	std::atomic<bool> closing{false};
 	std::atomic<RetirementNode *> incoming{nullptr};
 	RetirementNode *waiting = nullptr, *waiting_tail = nullptr;
@@ -124,7 +124,7 @@ struct RetirementState {
 			admission.fetch_sub(1, std::memory_order_acq_rel);
 		}
 		return admission.load(std::memory_order_acquire) == closed &&
-			   admitting.load(std::memory_order_acquire) == 0 && !waiting && !runnable &&
+			   rolling_back.load(std::memory_order_acquire) == 0 && !waiting && !runnable &&
 			   !incoming.load(std::memory_order_acquire);
 	}
 };
@@ -181,7 +181,7 @@ struct RetirementRuntimeState {
 					continue;
 				if (!domain->step(work)) {
 					pending |= domain->waiting != nullptr ||
-							   domain->admitting.load(std::memory_order_acquire) != 0 ||
+							   domain->rolling_back.load(std::memory_order_acquire) != 0 ||
 							   (domain->closing.load(std::memory_order_acquire) &&
 								!(domain->admission.load(std::memory_order_acquire) & closed));
 					continue;
@@ -240,30 +240,26 @@ void release(RetirementNode *node) noexcept {
 	// The worker can now reclaim the node and domain. Touch neither again.
 }
 void admit_resident(RetirementState &state) {
-	state.admitting.fetch_add(1, std::memory_order_acq_rel);
 	auto admission = state.admission.load(std::memory_order_relaxed);
 	for (;;) {
 		if (admission & closed) {
-			finish_admission(state);
 			throw std::logic_error("retirement admission closed");
 		}
 		if (admission >= state.limit) {
-			finish_admission(state);
 			throw StoragePressure("retirement owner pressure");
 		}
 		if (state.admission.compare_exchange_weak(admission, admission + 1, std::memory_order_acq_rel))
 			return;
 	}
 }
-void finish_admission(RetirementState &state) noexcept {
-	// The pending admission keeps the periodic fallback active if this wake
-	// arrives before the final handoff. No runtime access follows the decrement.
-	state.runtime->wake.signal();
-	state.admitting.fetch_sub(1, std::memory_order_acq_rel);
-}
 void undo_resident(RetirementState &state) noexcept {
+	// The resident protects the runtime until rollback is registered. Keep the
+	// periodic fallback active across the wake and final handoff to drainage.
+	state.rolling_back.fetch_add(1, std::memory_order_acq_rel);
+	state.runtime->wake.signal();
 	state.admission.fetch_sub(1, std::memory_order_acq_rel);
-	finish_admission(state);
+	state.rolling_back.fetch_sub(1, std::memory_order_release);
+	// No runtime access follows the final rollback handoff.
 }
 std::shared_ptr<StorageLedger> retirement_account(RetirementState &state) { return state.account; }
 void bind_retirement(RetirementNode &node, RetirementState &state,

@@ -2,6 +2,7 @@
 #include <array>
 #include <chrono>
 #include <iostream>
+#include <optional>
 #include <thread>
 namespace d = detent::distribution;
 void require(bool value) {
@@ -159,6 +160,40 @@ int main() {
 				auto drain = domain.close();
 				drain.wait();
 			}
+			// Closing while an admitted constructor is blocked must retain the
+			// runtime through either successful construction or rollback.
+			for (bool fail : {false, true}) {
+				auto domain = runtime.domain(account);
+				Pause pause;
+				struct Constructing : d::RetirementNode {
+					Constructing(Pause &pause, bool fail) {
+						Pause::hook(&pause);
+						if (fail)
+							throw std::runtime_error("blocked constructor failure");
+					}
+				};
+				std::atomic<bool> completed{false};
+				std::jthread constructor([&] {
+					try {
+						auto owner = domain.make<Constructing>(pause, fail);
+					} catch (const std::runtime_error &) {
+						if (!fail)
+							std::terminate();
+					}
+					completed.store(true);
+				});
+				struct Unpause {
+					Pause &pause;
+					~Unpause() { pause.release.store(true); }
+				} unpause{pause};
+				eventually([&] { return pause.entered.load(); });
+				auto drain = domain.close();
+				require(domain.residents() == 1 && !drain.done());
+				pause.release.store(true);
+				drain.wait();
+				eventually([&] { return completed.load(); });
+				require(domain.residents() == 0);
+			}
 			for (unsigned i = 0; i < 100; ++i) {
 				auto domain = runtime.domain(account);
 				auto owner = domain.make<Owner>(runtime, destroyed, wrong_thread);
@@ -177,6 +212,24 @@ int main() {
 			}
 			require(stopped);
 		}
+		// A drained facade may remain as a closed admission capability after
+		// its application's runtime has been joined and destroyed.
+		std::optional<d::RetirementDomain> closed_domain;
+		{
+			d::RetirementRuntime runtime(baseline, 1);
+			closed_domain.emplace(runtime.domain(account));
+			closed_domain->close().wait();
+			runtime.shutdown();
+		}
+		struct Empty : d::RetirementNode {};
+		bool closed = false;
+		try {
+			closed_domain->make<Empty>();
+		} catch (const std::logic_error &) {
+			closed = true;
+		}
+		require(closed);
+		closed_domain.reset();
 		require(baseline->used() == 0 && account->used() == 0);
 		std::cout << "intrusive retirement, handoff races and bounded domains passed\n";
 	} catch (const std::exception &error) {

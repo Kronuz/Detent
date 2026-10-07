@@ -114,3 +114,9 @@ The failure path now releases settled jobs and candidate bytes. It records selec
 Generation recovery evaluated `open()` before `make_shared<File>` allocated its owner. If that allocation threw, no object owned the successful directory descriptor, so it leaked. Recovery now constructs the empty scoped owner first and installs the descriptor afterward.
 
 The regression injects failure into the first owner allocation and compares open descriptor counts. It reproduces the leak against the preceding source and passes after correction on macOS, Linux and FreeBSD and under macOS ASan/UBSan. It also checks missing-selection cleanup; native view and publication suites remain passing.
+
+### Reject closed retirement admission without accessing its runtime
+
+An already-drained domain could outlive its joined runtime, but attempting allocation through that closed domain still signalled the freed runtime while undoing admission. ASan reproduces the resulting heap-use-after-free. Admission now reserves a resident directly in the same atomic state that records closure. Closed and capacity-rejected attempts never touch the runtime; accepted construction keeps its resident until publication or rollback. Rollback retains a separate handoff until its final runtime access has completed.
+
+The regression retains a closed domain after runtime destruction and verifies safe rejection. Additional schedules close a domain while successful and failing constructors are blocked, retaining drainage until their genuine settlement. The focused suite passes on macOS, Linux and FreeBSD and under macOS ASan/UBSan and TSan. This fixes domain admission ownership; mapping and disk admission remain separate work.
