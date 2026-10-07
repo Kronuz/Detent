@@ -1,0 +1,50 @@
+{
+  "platform": "Intel macOS, Release -O3",
+  "corpus": "500000 app:keyNNNNNN definitions: one quarter integer, three quarters boolean with global 25-percent and beta 17-percent rollout",
+  "lookup_workload": "100000 prepared integer keys, deterministic permutation by stride 7919 over 125000 integer records; query preparation excluded from lookup timing",
+  "samples": [
+    {
+      "records": 500000,
+      "wire_bytes": 14233697,
+      "image_bytes": 41000219,
+      "decode_us": 394148,
+      "build_us": 302443,
+      "validate_us": 92936,
+      "lookup_calls": 100000,
+      "lookup_us": 144997,
+      "build_turns": 119383,
+      "max_build_turn_us": 122,
+      "peak_rss_bytes": 139603968,
+      "oracle": 24999700000
+    },
+    {
+      "records": 500000,
+      "wire_bytes": 14233697,
+      "image_bytes": 41000219,
+      "decode_us": 412987,
+      "build_us": 303809,
+      "validate_us": 83796,
+      "lookup_calls": 100000,
+      "lookup_us": 142942,
+      "build_turns": 119383,
+      "max_build_turn_us": 130,
+      "peak_rss_bytes": 139591680,
+      "oracle": 24999700000
+    },
+    {
+      "records": 500000,
+      "wire_bytes": 14233697,
+      "image_bytes": 41000219,
+      "decode_us": 386996,
+      "build_us": 296119,
+      "validate_us": 86384,
+      "lookup_calls": 100000,
+      "lookup_us": 142870,
+      "build_turns": 119383,
+      "max_build_turn_us": 571,
+      "peak_rss_bytes": 139595776,
+      "oracle": 24999700000
+    }
+  ],
+  "limits": "In-memory decode/build/validation and lookup only. Peak RSS includes retained wire, decoded definitions, complete image and prepared queries. No mmap, publication durability, GC, churn, queueing, tail percentile, cost or power claim. Maximum build-turn time is observed wall time, not a bound."
+}

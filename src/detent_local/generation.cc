@@ -98,14 +98,15 @@ std::string generation_name(const GenerationId &id) {
 	}
 	return name;
 }
-ReadView open_generation(const std::filesystem::path &directory, ViewLimits limits,
-						 std::optional<distribution::Cursor> expected) {
-	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
+									   std::optional<distribution::Cursor> expected) {
+	auto dir =
+		std::make_shared<File>(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat directory_info{};
-	require(dir.fd >= 0 && ::fstat(dir.fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
+	require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
 			!(directory_info.st_mode & 0022));
 	for (unsigned attempt = 0; attempt < 3; ++attempt) {
-		File selected(::openat(dir.fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+		File selected(::openat(dir->fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		trusted_file(selected.fd, directory_info.st_uid, descriptor_bytes);
 		std::array<char, descriptor_bytes> raw{};
 		std::size_t offset = 0;
@@ -120,7 +121,7 @@ ReadView open_generation(const std::filesystem::path &directory, ViewLimits limi
 		require(descriptor.length <= limits.bytes);
 		auto name = generation_name(descriptor.generation);
 		auto mapping = std::make_shared<Mapping>();
-		mapping->lease = ::openat(dir.fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+		mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		if (mapping->lease < 0 && errno == ENOENT)
 			continue;
 		require(mapping->lease >= 0);
@@ -134,7 +135,7 @@ ReadView open_generation(const std::filesystem::path &directory, ViewLimits limi
 		if (lease_info.st_nlink == 0)
 			continue;
 		trusted_file(mapping->lease, directory_info.st_uid, 0);
-		mapping->image = ::openat(dir.fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+		mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 		mapping->length = descriptor.length;
 		mapping->address = ::mmap(nullptr, mapping->length, PROT_READ, MAP_SHARED, mapping->image, 0);
@@ -156,9 +157,15 @@ ReadView open_generation(const std::filesystem::path &directory, ViewLimits limi
 			ValidationBudget budget;
 			validator.step(budget);
 		}
-		return validator.take();
+		return RecoveredGeneration(
+			validator.take(), descriptor, dir,
+			{std::uint64_t(directory_info.st_dev), std::uint64_t(directory_info.st_ino)});
 	}
 	throw std::runtime_error("local generation changed while acquiring its lease");
 }
 
+ReadView open_generation(const std::filesystem::path &directory, ViewLimits limits,
+						 std::optional<distribution::Cursor> expected) {
+	return recover_generation(directory, limits, expected).view();
+}
 } // namespace detent::local
