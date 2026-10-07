@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -10,8 +11,12 @@
 #include <utility>
 
 namespace detent::distribution {
+class StoragePressure final : public std::length_error {
+  public:
+	explicit StoragePressure(const char *message) : std::length_error(message) {}
+};
 
-// Single-owner admission ledger. A ticket follows an allocation, not the
+// Concurrent admission ledger. A ticket follows an allocation, not the
 // facade that initiated it. The ledger must outlive every outstanding ticket.
 class StorageLedger {
   public:
@@ -32,7 +37,7 @@ class StorageLedger {
 		std::size_t bytes() const noexcept { return bytes_; }
 		void reset() noexcept {
 			if (ledger_)
-				ledger_->used_ -= bytes_;
+				ledger_->used_.fetch_sub(bytes_, std::memory_order_relaxed);
 			ledger_ = nullptr;
 			bytes_ = 0;
 		}
@@ -52,21 +57,29 @@ class StorageLedger {
 	StorageLedger(const StorageLedger &) = delete;
 	StorageLedger &operator=(const StorageLedger &) = delete;
 	Ticket admit(std::size_t bytes) {
-		if (bytes > limit_ - used_)
-			throw std::length_error("distribution storage pressure");
-		used_ += bytes;
-		peak_ = std::max(peak_, used_);
+		auto used = used_.load(std::memory_order_relaxed);
+		for (;;) {
+			if (bytes > limit_ - used)
+				throw StoragePressure("distribution storage pressure");
+			if (used_.compare_exchange_weak(used, used + bytes, std::memory_order_relaxed))
+				break;
+		}
+		auto peak = peak_.load(std::memory_order_relaxed);
+		while (peak < used + bytes &&
+			   !peak_.compare_exchange_weak(peak, used + bytes, std::memory_order_relaxed)) {
+		}
 		return Ticket(*this, bytes);
 	}
-	std::size_t used() const noexcept { return used_; }
-	std::size_t peak() const noexcept { return peak_; }
+	std::size_t used() const noexcept { return used_.load(std::memory_order_relaxed); }
+	std::size_t peak() const noexcept { return peak_.load(std::memory_order_relaxed); }
 	std::size_t limit() const noexcept { return limit_; }
 
   private:
-	std::size_t limit_, used_ = 0, peak_ = 0;
+	const std::size_t limit_;
+	std::atomic<std::size_t> used_{0}, peak_{0};
 };
 
-// Stable monotonic storage with intrusive page metadata. All component-owned
+// Single-owner stable storage with intrusive page metadata. All component-owned
 // page capacity, padding, and headers are admitted before upstream allocation.
 // malloc overhead and process RSS are deliberately outside this capacity metric.
 // Disposal can release one page per scheduler turn, including after pressure.
@@ -75,8 +88,10 @@ class PagedStorage {
 	using Allocate = void *(*)(std::size_t);
 	using Release = void (*)(void *);
 	explicit PagedStorage(StorageLedger &ledger, std::size_t page_bytes = 65536,
-						  Allocate allocate = std::malloc, Release release = std::free)
-		: ledger_(&ledger), page_bytes_(page_bytes), allocate_(allocate), release_(release) {
+						  Allocate allocate = std::malloc, Release release = std::free,
+						  std::size_t capacity_limit = std::numeric_limits<std::size_t>::max())
+		: ledger_(&ledger), page_bytes_(page_bytes), allocate_(allocate), release_(release),
+		  limit_(capacity_limit) {
 		if (!page_bytes || !allocate || !release)
 			throw std::invalid_argument("invalid distribution storage configuration");
 	}
@@ -85,7 +100,8 @@ class PagedStorage {
 	PagedStorage(PagedStorage &&other) noexcept
 		: ledger_(other.ledger_), page_bytes_(other.page_bytes_), allocate_(other.allocate_),
 		  release_(other.release_), first_(std::exchange(other.first_, nullptr)),
-		  disposing_(other.disposing_) {}
+		  disposing_(other.disposing_), limit_(other.limit_), used_(std::exchange(other.used_, 0)),
+		  peak_(other.peak_) {}
 	PagedStorage &operator=(PagedStorage &&) = delete;
 	~PagedStorage() {
 		while (!release_one()) {
@@ -114,12 +130,16 @@ class PagedStorage {
 		const auto capacity = std::max(page_bytes_, bytes);
 		if (capacity > std::numeric_limits<std::size_t>::max() - sizeof(Page))
 			throw std::length_error("distribution storage page overflow");
+		if (sizeof(Page) + capacity > limit_ - used_)
+			throw StoragePressure("distribution arena pressure");
 		auto ticket = ledger_->admit(sizeof(Page) + capacity);
 		void *memory = allocate_(ticket.bytes());
 		if (!memory)
 			throw std::bad_alloc(); // ticket rolls admission back
 		auto page = new (memory) Page{first_, std::move(ticket), capacity, bytes};
 		first_ = page;
+		used_ += sizeof(Page) + capacity;
+		peak_ = std::max(peak_, used_);
 		return data(page);
 	}
 	// True means disposal is complete. Remaining references must not be used
@@ -133,10 +153,13 @@ class PagedStorage {
 		auto ticket = std::move(page->ticket);
 		page->~Page();
 		release_(page);
+		used_ -= ticket.bytes();
 		ticket.reset();
 		return !first_;
 	}
 	std::size_t front_capacity() const noexcept { return first_ ? first_->ticket.bytes() : 0; }
+	std::size_t used() const noexcept { return used_; }
+	std::size_t peak() const noexcept { return peak_; }
 	static constexpr std::size_t page_overhead() noexcept;
 
   private:
@@ -152,6 +175,7 @@ class PagedStorage {
 	Release release_;
 	Page *first_ = nullptr;
 	bool disposing_ = false;
+	std::size_t limit_, used_ = 0, peak_ = 0;
 };
 inline constexpr std::size_t PagedStorage::page_overhead() noexcept { return sizeof(Page); }
 

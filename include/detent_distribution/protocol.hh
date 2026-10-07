@@ -16,6 +16,7 @@ struct Limits {
 	std::size_t storage_page_bytes = 65536;
 	PagedStorage::Allocate storage_allocate = std::malloc;
 	PagedStorage::Release storage_release = std::free;
+	std::shared_ptr<StorageLedger> storage_account;
 };
 struct WorkBudget {
 	std::size_t bytes = 8192, tokens = 128;
@@ -33,10 +34,12 @@ struct Record {
 namespace detail {
 struct SnapshotStorage {
 	explicit SnapshotStorage(const Limits &limits)
-		: ledger(limits.storage_bytes),
-		  arena(ledger, limits.storage_page_bytes, limits.storage_allocate, limits.storage_release),
+		: account(limits.storage_account ? limits.storage_account
+										 : std::make_shared<StorageLedger>(limits.storage_bytes)),
+		  arena(*account, limits.storage_page_bytes, limits.storage_allocate, limits.storage_release,
+				limits.storage_bytes),
 		  namespaces(arena), records(arena), overrides(arena) {}
-	StorageLedger ledger;
+	std::shared_ptr<StorageLedger> account;
 	PagedStorage arena;
 	StableRows<NamespaceRevision> namespaces;
 	StableRows<Record> records;
@@ -67,8 +70,8 @@ class ValidatedSnapshot {
 			throw std::logic_error("moved distribution snapshot");
 		return storage_->records;
 	}
-	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->ledger.used() : 0; }
-	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->ledger.peak() : 0; }
+	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->arena.used() : 0; }
+	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
 	OverrideRange overrides(const WireBoolDef &definition) const {
 		if (!storage_ || definition.overrides.start > storage_->overrides.size() ||
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
@@ -115,10 +118,12 @@ struct Transaction {
 namespace detail {
 struct DeltaStorage {
 	explicit DeltaStorage(const Limits &limits)
-		: ledger(limits.storage_bytes),
-		  arena(ledger, limits.storage_page_bytes, limits.storage_allocate, limits.storage_release),
+		: account(limits.storage_account ? limits.storage_account
+										 : std::make_shared<StorageLedger>(limits.storage_bytes)),
+		  arena(*account, limits.storage_page_bytes, limits.storage_allocate, limits.storage_release,
+				limits.storage_bytes),
 		  transactions(arena), mutations(arena), touched(arena), overrides(arena), indexes(arena) {}
-	StorageLedger ledger;
+	std::shared_ptr<StorageLedger> account;
 	PagedStorage arena;
 	StableRows<Transaction> transactions;
 	StableRows<Mutation> mutations;
@@ -146,8 +151,8 @@ class ValidatedDelta {
 			throw std::logic_error("moved distribution delta");
 		return storage_->transactions;
 	}
-	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->ledger.used() : 0; }
-	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->ledger.peak() : 0; }
+	std::size_t storage_capacity() const noexcept { return storage_ ? storage_->arena.used() : 0; }
+	std::size_t peak_storage_capacity() const noexcept { return storage_ ? storage_->arena.peak() : 0; }
 	const Mutation &mutation(std::uint64_t ordinal) const;
 	const NamespaceRevision &touched(std::uint64_t ordinal) const;
 	OverrideRange overrides(const WireBoolDef &definition) const {

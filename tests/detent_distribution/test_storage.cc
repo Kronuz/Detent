@@ -4,6 +4,8 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 using namespace detent::distribution;
 namespace {
 void check(bool value) {
@@ -72,6 +74,24 @@ int main() {
 			check(ledger.used() == page);
 		}
 		check(ledger.used() == 0);
+		{
+			StorageLedger concurrent(64);
+			std::vector<std::jthread> workers;
+			for (unsigned i = 0; i < 8; ++i) {
+				workers.emplace_back([&] {
+					for (unsigned turn = 0; turn < 10000; ++turn) {
+						try {
+							auto ticket = concurrent.admit(16);
+							check(concurrent.used() <= 64);
+							std::this_thread::yield();
+						} catch (const std::length_error &) {
+						}
+					}
+				});
+			}
+			workers.clear();
+			check(concurrent.used() == 0 && concurrent.peak() <= concurrent.limit());
+		}
 		{
 			StorageLedger row_ledger(4 * 1024 * 1024);
 			PagedStorage arena(row_ledger, 4096, allocate, release);

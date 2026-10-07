@@ -107,7 +107,7 @@ template <class MakeDecoder, class Check> void verify(std::string_view wire, Mak
 		bool rejected = false;
 		try {
 			feed(decoder);
-		} catch (const std::length_error &) {
+		} catch (const d::StoragePressure &) {
 			rejected = true;
 		}
 		check(rejected && live_bytes <= quota);
@@ -118,5 +118,43 @@ template <class MakeDecoder, class Check> void verify(std::string_view wire, Mak
 		}
 		check(live_bytes == 0);
 	}
+	// Independent validated owners share one physical capacity budget.
+	// Neither decoder destruction nor a rejected candidate refunds the base.
+	limits.storage_bytes = peak;
+	limits.storage_account = std::make_shared<d::StorageLedger>(peak * 2 - 1);
+	{
+		auto first = [&] {
+			auto decoder = make(limits);
+			feed(decoder);
+			return decoder.finish();
+		}();
+		check(limits.storage_account->used() == peak);
+		auto second_decoder = make(limits);
+		bool pressured = false;
+		try {
+			feed(second_decoder);
+		} catch (const d::StoragePressure &) {
+			pressured = true;
+		}
+		check(pressured && limits.storage_account->used() == live_bytes);
+		for (;;) {
+			d::WorkBudget budget{64, 1};
+			if (second_decoder.discard(budget))
+				break;
+		}
+		check(limits.storage_account->used() == peak && first.storage_capacity() == peak);
+		for (;;) {
+			d::WorkBudget budget{64, 1};
+			if (first.discard(budget))
+				break;
+		}
+		check(limits.storage_account->used() == 0);
+		auto retry = make(limits);
+		feed(retry);
+		auto accepted = retry.finish();
+		check(accepted.storage_capacity() == peak && limits.storage_account->used() == peak);
+	}
+	check(live_bytes == 0 && limits.storage_account->used() == 0 &&
+		  limits.storage_account->peak() < peak * 2);
 }
 } // namespace storage_failure
