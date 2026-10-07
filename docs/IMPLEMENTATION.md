@@ -20,6 +20,8 @@ The [validated completion-allocation blueprint](COMPLETION_ALLOCATION_ARCHITECTU
 
 The allocation foundation now provides dependency-free owned PMR contexts in the sibling completion module and a separate Detent `LedgerMemoryResource`. The adapter admits the complete upstream request, including ownership headers and alignment slack, before allocation and refunds only after actual release. Its own shared control is admitted through the existing storage allocator. The generic resource and Detent adapter fixtures pass on macOS, Linux and FreeBSD, under macOS ASan/UBSan, and in separate fully instrumented ThreadSanitizer runs. These checks cover weak controls, cross-thread final release, over-alignment, overflow and failure rollback; image/POSIX/native integration and disk lifecycle acceptance remain open.
 
+Image jobs now provide context-first constructors and admitted shared factories, including nested name and state storage. Publication inherits the prepared context; allocation failures leave selection available for retry. The fixture observes three preparation and two publication allocations for 120-byte names and no unaccounted global allocation through successful construction or completion. Legacy string-transfer constructors remain available. Standalone completion and Detent publication suites pass on macOS, Linux and FreeBSD and under macOS ASan/UBSan. This qualifies the generic image extension; Detent publisher, POSIX/native controls and disk lifecycle integration remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
