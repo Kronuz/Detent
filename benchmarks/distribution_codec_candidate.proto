@@ -1,0 +1,7 @@
+syntax = "proto3";
+package detent_codec_trial;
+option optimize_for = LITE_RUNTIME;
+message Override { string name = 1; oneof value { bool forced = 2; uint32 rollout = 3; } }
+message Boolean { bool default_value = 1; optional uint32 rollout = 2; repeated Override overrides = 3; }
+message Knob { string name = 1; oneof value { sint64 integer = 2; Boolean boolean = 3; } }
+message Snapshot { uint64 revision = 1; repeated Knob knobs = 2; }
