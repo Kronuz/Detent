@@ -16,6 +16,8 @@ Authenticated authority and completion-driven IO were prerequisites added while 
 
 Stage 4 follows the [validated distribution blueprint](DISTRIBUTION_ARCHITECTURE.md). Narrow MessagePack snapshot, exact-base delta and progress validation, bounded raw/zstd framing, immutable image construction, pinned local views, generation leases, and original-completion publication/recovery are implemented as libraries. Row/text/index pages, decoder/storage/scope/builder/validator controls, image/descriptor bodies, receive payloads and decompression workspace share physical-capacity accounts. Reader roots and page-rounded mappings retire through a fixed cleanup runtime; completion controls, disk inventory and generation reclamation remain open. The [local-image reference](LOCAL_IMAGE_FORMAT.md) records qualification, measurements and unreleased C++ API changes. Generic completion changes retain journal compatibility; sibling corrections remain local until publication is authorized.
 
+The [validated completion-allocation blueprint](COMPLETION_ALLOCATION_ARCHITECTURE.md) extends physical admission through generic completion controls while preserving legacy interfaces and explicit native/runtime boundaries. It proceeds as part of the resource component, with one consolidated review after disk inventory and reclamation.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
