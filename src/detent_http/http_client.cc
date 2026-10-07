@@ -129,13 +129,17 @@ ParsedHead parse_head(std::string_view head) {
 	auto line_end = head.find("\r\n");
 	std::string_view status_line = line_end == std::string_view::npos ? head : head.substr(0, line_end);
 
-	auto first_space = status_line.find(' ');
-	if (first_space == std::string_view::npos) {
-		throw std::runtime_error("detent_http: malformed status line");
+	if (status_line.size() < 13 ||
+		(status_line.substr(0, 8) != "HTTP/1.1" && status_line.substr(0, 8) != "HTTP/1.0") ||
+		status_line[8] != ' ' || status_line[9] < '1' || status_line[9] > '5' ||
+		status_line[10] < '0' || status_line[10] > '9' ||
+		status_line[11] < '0' || status_line[11] > '9' || status_line[12] != ' ' ||
+		std::any_of(status_line.begin() + 13, status_line.end(), [](unsigned char byte) {
+			return (byte < 32 && byte != '\t') || byte == 127;
+		})) {
+		throw std::runtime_error("detent_http: malformed or unsupported status line");
 	}
-	auto second_space = status_line.find(' ', first_space + 1);
-	std::string_view code = status_line.substr(first_space + 1, second_space - first_space - 1);
-	out.status = std::atoi(std::string(code).c_str());
+	out.status = (status_line[9] - '0') * 100 + (status_line[10] - '0') * 10 + (status_line[11] - '0');
 
 	std::size_t pos = line_end == std::string_view::npos ? head.size() : line_end + 2;
 	while (pos < head.size()) {

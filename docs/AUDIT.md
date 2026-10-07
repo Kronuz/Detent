@@ -126,3 +126,11 @@ The regression retains a closed domain after runtime destruction and verifies sa
 Snapshot and delta decoder disposal required an entire scope entry to fit in one turn’s byte budget. A valid long namespace therefore prevented cleanup from ever completing when the scheduler repeatedly supplied smaller budgets. Disposal now accumulates byte credit across turns and consumes the row token only when that entry’s cleanup charge is complete. Zero byte or token budgets cannot remove an uncharged entry.
 
 Both regressions reproduce the stall against the preceding source by disposing a maximum-length namespace with one-byte turns. They pass after correction on macOS, Linux and FreeBSD and under macOS ASan/UBSan. The change preserves scope validation, wire formats and the existing page-retirement mechanism.
+
+### Reject malformed HTTP status lines
+
+Response parsing converted the status token with `atoi` and never checked the protocol version. A response such as `HTTP/1.1 200junk OK` or `garbage 200 OK` was therefore accepted as status 200. The parser now requires a supported HTTP/1.0 or HTTP/1.1 version, a three-digit status in the supported response classes, the field separators, and a reason phrase without forbidden control bytes. An empty reason phrase with its separator remains accepted.
+
+The real TCP fixture covers malformed lengths and signs, invalid status classes, missing separators, unsupported versions and control bytes in both one-shot and persistent clients. It fails against the preceding source and passes after correction natively and under macOS ASan/UBSan. Native agent HTTP and distributor integration gates also pass. This correction leaves header grammar, body/decompression quotas and asynchronous connection establishment as separate audit work.
+
+The expanded HTTP status and socket-ownership suites also pass on Linux and FreeBSD after restoring the existing qualification VM. No wire-body or status is accepted from the malformed fixtures.

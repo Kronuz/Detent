@@ -103,6 +103,11 @@ void verify(const std::string &wire, bool valid, std::string_view body = {}, int
 } // namespace
 int main() {
 	try {
+		for (auto status : {"HTTP/1.1 200junk OK", "HTTP/1.1 +200 OK", "HTTP/1.1 20 OK", "HTTP/1.1 2000 OK",
+							"HTTP/1.1 099 Invalid", "HTTP/1.1 600 Invalid", "HTTP/1.1 200",
+							"HTTP/1.1 200 OK\t\x01", "HTTP/2.0 200 OK", "garbage 200 OK"})
+			verify(std::string(status) + "\r\nContent-Length: 3\r\n\r\nabc", false);
+		verify("HTTP/1.1 200 \r\nContent-Length: 3\r\n\r\nabc", true, "abc");
 		for (auto length : {"-1", "+3", "3junk", "", "184467440737095516160"})
 			verify(std::string("HTTP/1.1 200 OK\r\nContent-Length: ") + length + "\r\n\r\nabc", false);
 		verify("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nContent-Length: 3\r\n\r\nabc", false);
