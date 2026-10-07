@@ -1,16 +1,31 @@
 # Durable authority and fleet distribution implementation
 
-**Status:** Implementation authorized; legacy safety prerequisites and isolated durable consensus/checkpoint worker validated locally. Portable snapshots and authority/fleet integration remain in progress.
+**Status:** Stages 0–3 have component acceptance. Stage 4 is in progress; Stages 5–6 remain ahead. The production agent still uses the legacy delivery/mapping path. New distribution and immutable-image library qualification does not establish fleet readiness.
 
-The consolidated resumable-read and terminal-lifecycle component has [Architect source GO](AUTHORITY_COMPONENT_REVIEW.md). All 46 native Detent tests pass after the reviewed corrections; current supported-platform and sanitizer evidence is recorded in [authority readiness](AUTHORITY_READINESS.md). Combined pressure/churn and whole-service telemetry gates remain open. Original Stage 4 now proceeds with portable distribution snapshots/deltas and immutable dynamic local views; these source and test results do not establish fleet production capacity.
+| Stage | Deliverable | Current state |
+| --- | --- | --- |
+| 0 | Architecture, contracts and failure assumptions | Blueprint accepted |
+| 1 | Legacy Raft safety corrections | Component accepted; compatibility retained |
+| 2 | Durable storage and strict consensus | Component accepted |
+| 3 | Bounded transaction API and authority runtime | Isolated component accepted |
+| 4 | Portable distribution and immutable local views | In progress; production integration and acceptance gates open |
+| 5 | Resumable delivery, subscriptions, relays and incremental publication | Pending |
+| 6 | Sustained system, fleet and failure qualification | Pending |
 
-Stage 4 follows the [validated distribution blueprint](DISTRIBUTION_ARCHITECTURE.md). The [codec comparison](DISTRIBUTION_CODEC.md), committed as `7be6f39`, selects narrow MessagePack after repeated semantic-oracle measurements; JSON retains a compressed-size advantage. Cluster `e02b665` extracts protocol-independent completion IO with compatible journal forwarding headers and adds opaque image jobs. Standalone synchronous/native job qualification passes on macOS, Linux and FreeBSD, with macOS ASan/UBSan and five authority integration tests. Schema validation, immutable mapped views, generation leases, agent integration and whole-component acceptance remain pending.
+Authenticated authority and completion-driven IO were prerequisites added while executing Stage 4. The consolidated resumable-read and terminal-lifecycle component has [Architect source GO](AUTHORITY_COMPONENT_REVIEW.md). Supported-platform and sanitizer evidence is recorded in [authority readiness](AUTHORITY_READINESS.md); combined pressure/churn and whole-service telemetry gates remain open. This prerequisite must not be confused with acceptance of the original Stage 4 distribution deliverable.
 
-The initial semantic snapshot and 96-byte fragment framing implementation now passes four distribution suites plus the authority state suite on macOS, Linux and FreeBSD, and under macOS ASan/UBSan. Tests cover one-byte parsing, full signed/unsigned integer boundaries, 34 independent canonical vectors, aggregate totals, configured identity, truncated snapshots, malformed definitions, raw/zstd corruption and fragment sequencing, output backpressure, and budgeted candidate disposal. The existing authority UTF-8 validator is shared without changing its algorithm. Delta/progress parsing, production export/encoding, mapped publication and agent integration remain open; these tests qualify this codec prefix rather than the whole Stage 4 component.
+Stage 4 follows the [validated distribution blueprint](DISTRIBUTION_ARCHITECTURE.md). Narrow MessagePack snapshot, exact-base delta and progress validation, bounded raw/zstd framing, immutable image construction, pinned local views, generation leases, and original-completion publication/recovery are implemented as libraries. Row/text/index pages, image/descriptor bodies, receive payloads and decompression workspace share physical-capacity accounts. The [local-image reference](LOCAL_IMAGE_FORMAT.md) records qualification, measurements and unreleased C++ API changes. Generic completion changes retain journal compatibility; sibling corrections remain local until publication is authorized.
 
-Exact-base delta and progress decoding now share definition validation with snapshots. Five distribution suites pass on all three supported platforms and under macOS ASan/UBSan. The new fixtures check delete/upsert boundaries, sparse transaction revisions, namespace watermarks, wrong-base and restore-epoch rejection, extreme target revisions, truncated input, duplicate keys and bounded disposal. These capabilities certify schema semantics; applying them to immutable local generations and integrating real authority delivery remain pending.
+The next steps within Stage 4 are:
 
-The [Validated Architectural Blueprint](VALIDATED_ARCHITECTURE.md) governs this work. The Architect plans each complete component or stage, implementation proceeds autonomously through its commits, and final review covers the completed component. Correction rounds address concrete findings; routine commits do not require approval. Source findings, reproduced failures, and qualification results are recorded separately; completion of the legacy corrections does not establish durable consensus or fleet capacity.
+1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
+2. Apply deltas against an exact pinned base and export authenticated authority state through the supported encoding and canonical scope identity.
+3. Integrate the actual agent and SDK, replacing the legacy fixed-size mapping and confirming cursors only after authentic publication results.
+4. Complete end-to-end crash, interoperability, pressure and scale gates, followed by the consolidated Architect review.
+
+Stages 5 and 6 then add fleet mechanics and qualify sustained ingestion, recovery and failure domains. No percentage or delivery date is inferred from the stage number: significant integration remains inside Stage 4.
+
+The [Validated Architectural Blueprint](VALIDATED_ARCHITECTURE.md) governs this work. The Architect plans each complete component or stage, implementation proceeds autonomously through its commits, and final review covers the completed component. Correction rounds address concrete findings; routine commits do not require approval. Source findings, reproduced failures and qualification results remain distinct from production capacity. The detailed milestone entries below record implementation history; their earlier pending lists describe the state at each milestone.
 
 ## Stage 1: legacy Raft safety
 
@@ -175,7 +190,7 @@ The [complete bounded authority component](AUTHORITY_ARCHITECTURE.md) has consol
 
 The review reproduced and corrected nonempty receiver activation, overwritten old-leader waiters, semantic-profile disagreement before checkpoints, and duplicate nested JSON members. Waiters now match both term and canonical batch digest; `DTABAT02` persists semantic limits. Separate commits correct the Clang-compatible RapidJSON pin, the HTTP exception include and SHA-256 padding arithmetic. Paired 100k/500k, hot-namespace, override-heavy and durable measurements are recorded with their scope in the component document.
 
-## Stage 4: authenticated authority and completion-based IO
+## Stage 4 prerequisite: authenticated authority and completion-based IO
 
 The [Validated Architectural Blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md) has Architect GO for autonomous implementation as one complete service component, followed by one consolidated review. It requires native completion backends where supported, shared resumable durability sequencing, owned asynchronous HTTP responses and real authenticated three-process replication. The authenticated fixed-voter service now drives runtime storage through owned completion operations on its Asio owner loop on macOS and Linux. Initial three-process failover/restart and exact retry gates pass. Startup recovery remains synchronous before admission. FreeBSD native qualification, incremental consensus CPU work, latency/admission observability and representative failure/load acceptance remain open; those gates still prevent Stage 4 completion.
 

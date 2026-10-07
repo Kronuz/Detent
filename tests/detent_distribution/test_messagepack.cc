@@ -72,6 +72,41 @@ int main(int argc, char **argv) {
 			auto tokens = decode(bytes);
 			require(tokens.size() == 1 && tokens[0].kind == m::Kind::Array && tokens[0].number == count);
 		}
+		for (std::size_t size : {0u, 1u, 32u, 199u, 200u, 201u}) {
+			std::string value(size, 'x'), wire;
+			if (size > 1)
+				value[size / 2] = '\0';
+			m::string(wire, value);
+			m::WireDecoder decoder;
+			auto input = std::span<const char>(wire);
+			std::optional<m::WireToken> token;
+			bool pressure = false;
+			try {
+				while (!input.empty()) {
+					std::size_t budget = 1;
+					if (auto next = decoder.next(input, budget))
+						token = std::move(next);
+				}
+				decoder.finish();
+			} catch (const std::length_error &) {
+				pressure = true;
+			}
+			require(pressure == (size == 201));
+			if (!pressure) {
+				require(token && std::string_view(token->bytes) == value);
+				auto copy = *token;
+				token.reset();
+				require(std::string_view(copy.bytes) == value);
+			} else {
+				bool fenced = false;
+				try {
+					decoder.finish();
+				} catch (const std::invalid_argument &) {
+					fenced = true;
+				}
+				require(fenced);
+			}
+		}
 		std::string binary;
 		m::string(binary, std::string(16, '\0'), true);
 		if (vectors)

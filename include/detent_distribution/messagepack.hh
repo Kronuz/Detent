@@ -3,6 +3,7 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <optional>
 #include <span>
@@ -13,10 +14,45 @@
 
 namespace detent::distribution::messagepack {
 enum class Kind { Array, Unsigned, Signed, String, Binary, Boolean, Nil };
-struct Token {
+// Fixed lexical scratch for schemas whose fields have a small sealed bound.
+// Unused bytes are never initialized or copied; only the populated prefix is read.
+template <std::size_t Capacity> class InlineBytes {
+  public:
+	InlineBytes() noexcept {}
+	InlineBytes(const InlineBytes &other) noexcept : size_(other.size_) {
+		if (size_)
+			std::memcpy(data_, other.data_, size_);
+	}
+	InlineBytes &operator=(const InlineBytes &other) noexcept {
+		if (this != &other) {
+			size_ = other.size_;
+			if (size_)
+				std::memcpy(data_, other.data_, size_);
+		}
+		return *this;
+	}
+	static constexpr std::size_t capacity() noexcept { return Capacity; }
+	void push_back(char byte) {
+		if (size_ == Capacity)
+			throw std::length_error("MessagePack inline scratch limit exceeded");
+		data_[size_++] = byte;
+	}
+	std::size_t size() const noexcept { return size_; }
+	bool empty() const noexcept { return !size_; }
+	const char *data() const noexcept { return data_; }
+	const char *begin() const noexcept { return data_; }
+	const char *end() const noexcept { return data_ + size_; }
+	operator std::string_view() const noexcept { return {data_, size_}; }
+
+  private:
+	static_assert(Capacity > 0);
+	char data_[Capacity];
+	std::size_t size_ = 0;
+};
+template <class Bytes> struct BasicToken {
 	Kind kind = Kind::Nil;
 	std::uint64_t number = 0;
-	std::string bytes;
+	Bytes bytes;
 	std::int64_t signed_value() const {
 		if (kind == Kind::Signed)
 			return std::bit_cast<std::int64_t>(number);
@@ -25,6 +61,7 @@ struct Token {
 		return static_cast<std::int64_t>(number);
 	}
 };
+using Token = BasicToken<std::string>;
 struct Limits {
 	std::uint64_t input_bytes = 256ull * 1024 * 1024;
 	std::uint32_t string_bytes = 16384, binary_bytes = 32, array_elements = 500000;
@@ -33,10 +70,10 @@ struct Limits {
 // Incremental lexical decoder. It emits array lengths, not recursive objects;
 // the schema owner validates tuple arity, nesting and aggregate record counts.
 // A caller's byte budget bounds work even inside a fragmented string/header.
-class Decoder {
+template <class Bytes> class BasicDecoder {
   public:
-	explicit Decoder(Limits limits = {}) : limits_(limits) {}
-	std::optional<Token> next(std::span<const char> &input, std::size_t &budget) {
+	explicit BasicDecoder(Limits limits = {}) : limits_(limits) {}
+	std::optional<BasicToken<Bytes>> next(std::span<const char> &input, std::size_t &budget) {
 		if (failed_)
 			throw std::logic_error("MessagePack decoder fenced");
 		try {
@@ -160,12 +197,16 @@ class Decoder {
 		const auto maximum = token_.kind == Kind::String ? limits_.string_bytes : limits_.binary_bytes;
 		if (value_ > maximum || value_ > limits_.input_bytes - total_)
 			throw std::length_error("MessagePack payload limit exceeded");
+		if constexpr (requires { Bytes::capacity(); }) {
+			if (value_ > Bytes::capacity())
+				throw std::length_error("MessagePack inline payload limit exceeded");
+		}
 		remaining_ = value_;
 		length_ = false;
 		payload_ = remaining_ != 0;
 		return !payload_;
 	}
-	Token emit() {
+	BasicToken<Bytes> emit() {
 		payload_ = false;
 		length_ = false;
 		needed_ = 0;
@@ -173,11 +214,16 @@ class Decoder {
 		return std::move(token_);
 	}
 	Limits limits_;
-	Token token_;
+	BasicToken<Bytes> token_;
 	std::uint64_t total_ = 0, value_ = 0, remaining_ = 0;
 	unsigned needed_ = 0, width_ = 0;
 	bool length_ = false, payload_ = false, failed_ = false;
 };
+
+using Decoder = BasicDecoder<std::string>;
+using WireBytes = InlineBytes<200>;
+using WireToken = BasicToken<WireBytes>;
+using WireDecoder = BasicDecoder<WireBytes>;
 
 inline void big_endian(std::string &out, std::uint64_t value, unsigned width) {
 	for (unsigned i = width; i; --i)
