@@ -1,0 +1,10 @@
+{
+  "platform": "Intel macOS, Release -O3, same static core and SHA-256 dependency",
+  "calls_per_process": 100000,
+  "name": "production:percentage_rollout",
+  "hash_bytes": 128,
+  "before": {"allocations": [100000, 100000, 100000], "elapsed_us": [93232, 92964, 98316]},
+  "after": {"allocations": [0, 0, 0], "elapsed_us": [95408, 89177, 89597]},
+  "oracle_sum_all_processes": 3600000,
+  "limits": "Single-thread operator-new counting; excludes setup. Timing is descriptive only, with no service latency, cost or power claim."
+}

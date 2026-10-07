@@ -2,20 +2,15 @@
 
 #include <sha256.h>
 
-#include <string>
-
 namespace detent {
 
 std::uint64_t stable_bucket(std::string_view knob_name, std::string_view hash_val) {
-	std::string input;
-	input.reserve(knob_name.size() + 1 + hash_val.size());
-	input.append(knob_name);
-	input.push_back('\0');
-	input.append(hash_val);
-
 	SHA256 sha;
 	unsigned char digest[SHA256::HashBytes];
-	sha.add(input.data(), input.size());
+	constexpr char separator = '\0';
+	sha.add(knob_name.data(), knob_name.size());
+	sha.add(&separator, 1);
+	sha.add(hash_val.data(), hash_val.size());
 	sha.getHash(digest);
 
 	std::uint64_t u64 = 0;

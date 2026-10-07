@@ -8,14 +8,15 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <string_view>
 
 #include "detent/hashing.hh"
 
 namespace {
 
 struct Vector {
-	const char* name;
-	const char* hash_val;
+	std::string_view name;
+	std::string_view hash_val;
 	std::uint64_t expected_bucket;
 };
 
@@ -27,21 +28,40 @@ constexpr Vector kVectors[] = {
 	{"search:max_results", "tenant-abc", 0},
 	{"a:b", "", 47},
 	{"a:b", "x", 7},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 21},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 39},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 98},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 30},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 56},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 80},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 37},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 19},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 49},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 89},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 96},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 49},
+	{"rollout:flag", "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh", 94},
+	{"a:b", std::string_view("\000", 1), 26},
+	{"a:b", std::string_view("\150\000\172", 3), 95},
+	{"a:b", std::string_view("\377\000\200", 3), 75},
+	{"a:b", std::string_view("", 0), 47},
 };
 
 } // namespace
 
 int main() {
-	for (const auto& v : kVectors) {
+	for (const auto &v : kVectors) {
 		auto bucket = detent::stable_bucket(v.name, v.hash_val);
 		assert(bucket == v.expected_bucket);
 		assert(bucket < 100);
 	}
 
+	assert(detent::stable_bucket(std::string_view{}, std::string_view{}) == 92);
+
 	// Independence: changing only the knob name changes the cohort for the
 	// same hash_val, for at least one of these vectors (Section 13).
 	assert(detent::stable_bucket("checkout:killswitch_new_path", "user-42") !=
-	       detent::stable_bucket("search:max_results", "user-42"));
+		   detent::stable_bucket("search:max_results", "user-42"));
 
 	// Stickiness: identical (name, hash_val) always yields the same bucket,
 	// across repeated calls in this process (a proxy for "across restarts and
