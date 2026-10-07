@@ -16,6 +16,8 @@ struct ViewLimits {
 	// Optional application-owned runtime domain. Its runner must outlive all
 	// admitted views; closing the domain leaves existing views usable.
 	distribution::RetirementDomain *retirement_domain = nullptr;
+	// Mapped virtual bytes are counted separately from managed heap capacity.
+	std::shared_ptr<distribution::StorageLedger> mapping_account;
 };
 class ImageValidator;
 class ReadView {

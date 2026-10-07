@@ -194,6 +194,39 @@ int main() {
 				eventually([&] { return completed.load(); });
 				require(domain.residents() == 0);
 			}
+			{
+				// A deferred cleanup retains its charge and registry slot while
+				// allowing another domain to finish its own retirement.
+				auto first = runtime.domain(account), second = runtime.domain(account);
+				std::atomic<bool> allow{false};
+				std::atomic<unsigned> attempts{0};
+				struct Retrying : d::RetirementNode {
+					std::atomic<bool> &allow;
+					std::atomic<unsigned> &attempts;
+					Retrying(std::atomic<bool> &ready, std::atomic<unsigned> &count)
+						: allow(ready), attempts(count) {}
+					bool retire_step() noexcept override {
+						attempts.fetch_add(1);
+						return allow.load();
+					}
+					bool retry_later() const noexcept override { return true; }
+				};
+				auto blocked = first.make<Retrying>(allow, attempts);
+				auto ordinary = second.make<Owner>(runtime, destroyed, wrong_thread);
+				auto blocked_drain = first.close(), ordinary_drain = second.close();
+				struct Permit {
+					std::atomic<bool> &allow;
+					~Permit() { allow.store(true); }
+				} permit{allow};
+				blocked.reset();
+				ordinary.reset();
+				ordinary_drain.wait();
+				eventually([&] { return attempts.load() != 0; });
+				require(!blocked_drain.done() && first.residents() == 1 && account->used() != 0);
+				allow.store(true);
+				blocked_drain.wait();
+				require(first.residents() == 0);
+			}
 			for (unsigned i = 0; i < 100; ++i) {
 				auto domain = runtime.domain(account);
 				auto owner = domain.make<Owner>(runtime, destroyed, wrong_thread);

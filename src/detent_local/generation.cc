@@ -1,14 +1,17 @@
 #include "detent_local/generation.hh"
+#include "resources.hh"
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
+#include <limits>
 #include <sha256.h>
 #include <stdexcept>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
 
 namespace detent::local {
 namespace {
@@ -26,19 +29,45 @@ struct File {
 	}
 	File(const File &) = delete;
 };
-struct Mapping {
+struct Mapping : distribution::RetirementNode {
+	std::shared_ptr<distribution::StorageLedger> account;
+	distribution::StorageLedger::Ticket ticket;
 	int lease = -1, image = -1;
 	void *address = MAP_FAILED;
 	std::size_t length = 0;
-	~Mapping() {
-		if (address != MAP_FAILED)
-			::munmap(address, length);
-		if (image >= 0)
-			::close(image);
-		if (lease >= 0)
-			::close(lease);
+	bool retry = false;
+	explicit Mapping(std::shared_ptr<distribution::StorageLedger> ledger) : account(std::move(ledger)) {}
+	bool retire_step() noexcept override {
+		retry = false;
+		if (address != MAP_FAILED) {
+			if (::munmap(address, length) != 0) {
+				retry = true;
+				return false; // Preserve the mapping and charge for reconciliation.
+			}
+			address = MAP_FAILED;
+			ticket.reset();
+			return false;
+		}
+		if (image >= 0) {
+			::close(std::exchange(image, -1));
+			return false;
+		}
+		if (lease >= 0) {
+			::close(std::exchange(lease, -1));
+			return false;
+		}
+		ticket.reset(); // Failed mmap reserved no actual mapped region.
+		return true;
 	}
+	bool retry_later() const noexcept override { return retry; }
 };
+std::size_t mapping_capacity(std::uint64_t length) {
+	const auto page = ::sysconf(_SC_PAGESIZE);
+	require(page > 0);
+	const auto bytes = static_cast<std::size_t>(page);
+	require(length <= std::numeric_limits<std::size_t>::max() - (bytes - 1));
+	return ((static_cast<std::size_t>(length) + bytes - 1) / bytes) * bytes;
+}
 void trusted_file(int fd, uid_t owner, std::uint64_t length) {
 	struct stat info{};
 	require(fd >= 0 && ::fstat(fd, &info) == 0 && S_ISREG(info.st_mode) && info.st_uid == owner &&
@@ -100,7 +129,8 @@ std::string generation_name(const GenerationId &id) {
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected) {
-	auto dir = std::make_shared<File>(-1);
+	auto &domain = resources::domain(limits);
+	auto dir = std::allocate_shared<File>(distribution::StorageAllocator<File>(domain.storage_account()), -1);
 	dir->fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	struct stat directory_info{};
 	require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
@@ -120,7 +150,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		auto descriptor = decode_descriptor(raw);
 		require(descriptor.length <= limits.bytes);
 		auto name = generation_name(descriptor.generation);
-		auto mapping = std::make_shared<Mapping>();
+		auto mapping = domain.make<Mapping>(resources::mapping_account(limits));
 		mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		if (mapping->lease < 0 && errno == ENOENT)
 			continue;
@@ -138,6 +168,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 		mapping->length = descriptor.length;
+		mapping->ticket = mapping->account->admit(mapping_capacity(descriptor.length));
 		mapping->address = ::mmap(nullptr, mapping->length, PROT_READ, MAP_SHARED, mapping->image, 0);
 		require(mapping->address != MAP_FAILED);
 		auto bytes = std::span(static_cast<const char *>(mapping->address), mapping->length);
@@ -152,7 +183,10 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
 		auto header = decode_header(bytes, limits.bytes);
 		require(header.cursor == descriptor.cursor && header.profile == descriptor.profile);
-		ImageValidator validator(mapping, bytes, limits, expected);
+		using Lease = distribution::RetirementHandle<Mapping>;
+		auto lease = std::allocate_shared<Lease>(
+			distribution::StorageAllocator<Lease>(domain.storage_account()), mapping);
+		ImageValidator validator(lease, bytes, limits, expected);
 		while (!validator.done()) {
 			ValidationBudget budget;
 			validator.step(budget);

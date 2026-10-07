@@ -2,6 +2,7 @@
 #include "detent/hashing.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
+#include "resources.hh"
 #include <algorithm>
 #include <bit>
 #include <stdexcept>
@@ -20,21 +21,33 @@ bool valid_lookup(std::string_view ns, std::string_view key) {
 KnobError error(ErrorCategory category, std::string_view key) {
 	return {category, std::string(key), "local image lookup failed"};
 }
-distribution::RetirementDomain &default_retirement() {
-	struct Resources {
-		std::shared_ptr<distribution::StorageLedger> baseline =
-			std::make_shared<distribution::StorageLedger>(1024 * 1024);
-		std::shared_ptr<distribution::StorageLedger> controls =
-			std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
-		distribution::RetirementRuntime runtime{baseline, 1};
-		distribution::RetirementDomain domain{runtime.domain(controls, 4096)};
-	};
-	// Standalone readers share one process-lifetime worker. Ordered application
-	// shutdown uses an explicit ViewLimits domain, not this default singleton.
-	static auto *resources = new Resources;
-	return resources->domain;
+} // namespace
+namespace resources {
+namespace {
+struct Defaults {
+	std::shared_ptr<distribution::StorageLedger> baseline =
+		std::make_shared<distribution::StorageLedger>(1024 * 1024);
+	std::shared_ptr<distribution::StorageLedger> controls =
+		std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
+	std::shared_ptr<distribution::StorageLedger> mappings =
+		std::make_shared<distribution::StorageLedger>(512 * 1024 * 1024);
+	distribution::RetirementRuntime runtime{baseline, 1};
+	distribution::RetirementDomain domain{runtime.domain(controls, 4096)};
+};
+Defaults &defaults() {
+	// Standalone readers share process-lifetime resources. Ordered teardown
+	// uses an application-owned domain, not this default singleton.
+	static auto *value = new Defaults;
+	return *value;
 }
 } // namespace
+distribution::RetirementDomain &domain(const ViewLimits &limits) {
+	return limits.retirement_domain ? *limits.retirement_domain : defaults().domain;
+}
+std::shared_ptr<distribution::StorageLedger> mapping_account(const ViewLimits &limits) {
+	return limits.mapping_account ? limits.mapping_account : defaults().mappings;
+}
+} // namespace resources
 struct ReadView::Root : distribution::RetirementNode {
 	std::shared_ptr<const void> lease;
 	std::span<const char> bytes;
@@ -182,7 +195,7 @@ ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<cons
 	if (expected)
 		require(header.cursor.same_identity(*expected) && header.cursor.revision >= expected->revision);
 	impl_->limits = limits;
-	auto &domain = limits.retirement_domain ? *limits.retirement_domain : default_retirement();
+	auto &domain = resources::domain(limits);
 	impl_->root = domain.make<ReadView::Root>(std::move(lease), bytes, header);
 }
 ImageValidator::~ImageValidator() = default;

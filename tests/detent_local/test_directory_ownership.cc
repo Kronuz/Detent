@@ -31,6 +31,11 @@ int main() {
 						 ("directory-owner-test-" + std::to_string(::getpid()));
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+		// Bootstrap the process-lifetime worker before counting descriptors.
+		try {
+			detent::local::recover_generation(directory);
+		} catch (const std::runtime_error &) {
+		}
 		const auto before = open_descriptors();
 		bool rejected = false;
 		fail_next_allocation = true;

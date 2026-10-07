@@ -71,6 +71,7 @@ struct RetirementState {
 	std::atomic<RetirementNode *> incoming{nullptr};
 	RetirementNode *waiting = nullptr, *waiting_tail = nullptr;
 	RetirementNode *runnable = nullptr, *runnable_tail = nullptr;
+	RetirementNode *retry = nullptr, *retry_tail = nullptr;
 	std::mutex drain_mutex;
 	std::condition_variable drain_signal;
 	std::atomic<bool> drained{false};
@@ -96,6 +97,8 @@ struct RetirementState {
 		return node;
 	}
 	bool step(bool &work) noexcept {
+		for (unsigned i = 0; i < 8 && retry; ++i)
+			push(pop(retry, retry_tail), runnable, runnable_tail);
 		if (auto head = incoming.exchange(nullptr, std::memory_order_acquire)) {
 			push(head, waiting, waiting_tail);
 			work = true;
@@ -114,17 +117,22 @@ struct RetirementState {
 		}
 		for (unsigned i = 0; i < 8 && runnable; ++i) {
 			auto node = pop(runnable, runnable_tail);
-			work = true;
 			if (!node->retire_step()) {
-				push(node, runnable, runnable_tail);
+				if (node->retry_later())
+					push(node, retry, retry_tail);
+				else {
+					work = true;
+					push(node, runnable, runnable_tail);
+				}
 				continue;
 			}
+			work = true;
 			auto destroy = node->destroy_;
 			destroy(node);
 			admission.fetch_sub(1, std::memory_order_acq_rel);
 		}
 		return admission.load(std::memory_order_acquire) == closed &&
-			   rolling_back.load(std::memory_order_acquire) == 0 && !waiting && !runnable &&
+			   rolling_back.load(std::memory_order_acquire) == 0 && !waiting && !runnable && !retry &&
 			   !incoming.load(std::memory_order_acquire);
 	}
 };
@@ -180,7 +188,7 @@ struct RetirementRuntimeState {
 				if (!domain)
 					continue;
 				if (!domain->step(work)) {
-					pending |= domain->waiting != nullptr ||
+					pending |= domain->waiting != nullptr || domain->retry != nullptr ||
 							   domain->rolling_back.load(std::memory_order_acquire) != 0 ||
 							   (domain->closing.load(std::memory_order_acquire) &&
 								!(domain->admission.load(std::memory_order_acquire) & closed));
@@ -346,6 +354,11 @@ RetirementDrain RetirementDomain::close() noexcept {
 }
 std::size_t RetirementDomain::residents() const noexcept {
 	return state_ ? state_->admission.load(std::memory_order_acquire) & ~detail::closed : 0;
+}
+std::shared_ptr<StorageLedger> RetirementDomain::storage_account() const {
+	if (!state_)
+		throw std::logic_error("moved retirement domain");
+	return state_->account;
 }
 bool RetirementDrain::done() const noexcept {
 	return !state_ || state_->drained.load(std::memory_order_acquire);

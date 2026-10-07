@@ -31,6 +31,8 @@ class RetirementNode {
 	// False means a bounded work unit completed with more cleanup remaining;
 	// accepted IO must retain its handle until settlement, before retirement.
 	virtual bool retire_step() noexcept { return true; }
+	// A failed cleanup can retain ownership and use the periodic retry queue.
+	virtual bool retry_later() const noexcept { return false; }
 
   private:
 	RetirementNode(const RetirementNode &) = delete;
@@ -98,6 +100,7 @@ class RetirementDomain {
 	~RetirementDomain();
 	RetirementDrain close() noexcept;
 	std::size_t residents() const noexcept;
+	std::shared_ptr<StorageLedger> storage_account() const;
 	template <class T, class... Args> RetirementHandle<T> make(Args &&...args) {
 		static_assert(std::is_base_of_v<RetirementNode, T>);
 		if (!state_)

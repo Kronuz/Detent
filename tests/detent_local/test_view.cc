@@ -189,6 +189,61 @@ int main() {
 		for (const auto &entry : std::filesystem::directory_iterator(directory))
 			std::filesystem::permissions(entry.path(), std::filesystem::perms::owner_read |
 														   std::filesystem::perms::owner_write);
+		{
+			namespace d = detent::distribution;
+			auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
+			auto controls = std::make_shared<d::StorageLedger>(65536);
+			d::RetirementRuntime runtime(baseline, 1);
+			{
+				auto domain = runtime.domain(controls);
+				l::ViewLimits limits;
+				limits.retirement_domain = &domain;
+				const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+				const auto capacity = ((good->size() + page - 1) / page) * page;
+				for (auto quota : {std::size_t(0), capacity - 1}) {
+					auto mappings = std::make_shared<d::StorageLedger>(quota);
+					limits.mapping_account = mappings;
+					bool pressure = false;
+					try {
+						l::open_generation(directory, limits);
+					} catch (const d::StoragePressure &) {
+						pressure = true;
+					}
+					check(pressure && mappings->used() == 0);
+				}
+				auto mappings = std::make_shared<d::StorageLedger>(capacity);
+				limits.mapping_account = mappings;
+				auto pinned = l::open_generation(directory, limits);
+				check(mappings->used() == capacity);
+				bool pressure = false;
+				try {
+					l::open_generation(directory, limits);
+				} catch (const d::StoragePressure &) {
+					pressure = true;
+				}
+				check(pressure && pinned.get("app", "count").value() == -17);
+				auto retained = pinned;
+				pinned = {};
+				check(mappings->used() == capacity);
+				retained = {};
+				auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+				while (mappings->used() != 0) {
+					check(std::chrono::steady_clock::now() < deadline);
+					std::this_thread::yield();
+				}
+				auto replacement = l::open_generation(directory, limits);
+				auto drain = domain.close();
+				check(mappings->used() == capacity && !drain.done());
+				auto late_copy = replacement;
+				replacement = {};
+				check(late_copy.get("app", "count").value() == -17);
+				late_copy = {};
+				drain.wait();
+				check(mappings->used() == 0 && domain.residents() == 0);
+			}
+			runtime.shutdown();
+			check(controls->used() == 0);
+		}
 		auto mapped = l::open_generation(directory);
 		check(mapped.get("app", "count").value() == -17);
 		int lease = ::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC);
