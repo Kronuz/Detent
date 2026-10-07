@@ -9,3 +9,4 @@ if(DETENT_BUILD_DISTRIBUTOR)
 endif()
 
 add_subdirectory(detent_authority)
+add_subdirectory(detent_distribution)

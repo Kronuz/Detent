@@ -1,0 +1,13 @@
+add_executable(test_distribution_messagepack test_messagepack.cc)
+target_include_directories(test_distribution_messagepack PRIVATE "${CMAKE_SOURCE_DIR}/include")
+target_compile_features(test_distribution_messagepack PRIVATE cxx_std_20)
+add_test(NAME test_distribution_messagepack COMMAND test_distribution_messagepack)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME test_distribution_messagepack_vectors
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_messagepack_vectors.py $<TARGET_FILE:test_distribution_messagepack>)
+add_executable(test_distribution_snapshot test_snapshot.cc)
+target_link_libraries(test_distribution_snapshot PRIVATE detent::distribution)
+add_test(NAME test_distribution_snapshot COMMAND test_distribution_snapshot)
+add_executable(test_distribution_framing test_framing.cc)
+target_link_libraries(test_distribution_framing PRIVATE detent::distribution)
+add_test(NAME test_distribution_framing COMMAND test_distribution_framing)
