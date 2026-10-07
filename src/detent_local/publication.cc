@@ -1,13 +1,38 @@
 #include "detent_local/publication.hh"
+#include "detent_distribution/memory_resource.hh"
 #include <limits>
 #include <sys/stat.h>
 namespace detent::local {
 namespace {
-class RecoveryOperation final : public completion::Operation {
+class GenerationName {
   public:
-	RecoveryOperation(std::shared_ptr<completion::IO> io, std::shared_ptr<void> owner,
-					  RecoveredGeneration recovered, completion::Token token)
-		: io_(std::move(io)), owner_(std::move(owner)), recovered_(std::move(recovered)), token_(token) {
+	GenerationName(const GenerationId &id, std::string_view suffix) {
+		size_ = generation_name(id, bytes_).size();
+		if (suffix.size() > bytes_.size() - size_)
+			throw std::length_error("generation name exceeds fixed capacity");
+		std::copy(suffix.begin(), suffix.end(), bytes_.begin() + size_);
+		size_ += suffix.size();
+	}
+	std::string_view view() const noexcept { return {bytes_.data(), size_}; }
+
+  private:
+	std::array<char, 64> bytes_;
+	std::size_t size_ = 0;
+};
+class RecoveryOperation final : public completion::Operation {
+	struct FileOwner {
+		std::shared_ptr<completion::IO> io;
+		std::shared_ptr<void> owner;
+		std::unique_ptr<completion::File> file;
+	};
+
+  public:
+	RecoveryOperation(completion::AllocationContext context, std::shared_ptr<completion::IO> io,
+					  std::shared_ptr<void> owner, RecoveredGeneration recovered, completion::Token token)
+		: file_(std::allocate_shared<FileOwner>(completion::OwnedAllocator<FileOwner>(context))),
+		  recovered_(std::move(recovered)), token_(token) {
+		file_->io = std::move(io);
+		file_->owner = std::move(owner);
 		prepare();
 	}
 	const completion::Request &request() const override { return request_; }
@@ -26,7 +51,7 @@ class RecoveryOperation final : public completion::Operation {
 			if (phase_ == 0) {
 				if (!result.file)
 					throw std::runtime_error("recovery descriptor not opened");
-				file_ = std::move(result.file);
+				file_->file = std::move(result.file);
 				phase_ = 1;
 			} else if (phase_ == 1) {
 				if (result.length != descriptor_bytes)
@@ -57,7 +82,7 @@ class RecoveryOperation final : public completion::Operation {
 	}
 	bool done() const noexcept override { return done_; }
 	bool in_flight() const noexcept override { return in_flight_; }
-	completion::IO &io() const noexcept override { return *io_; }
+	completion::IO &io() const noexcept override { return *file_->io; }
 	std::exception_ptr error() const noexcept { return failure_; }
 	const RecoveredGeneration &recovered() const noexcept { return recovered_; }
 
@@ -65,7 +90,8 @@ class RecoveryOperation final : public completion::Operation {
 	void prepare() {
 		request_ = {};
 		request_.token = token_;
-		request_.file = file_;
+		if (file_->file)
+			request_.file = std::shared_ptr<completion::File>(file_, file_->file.get());
 		if (phase_ == 0) {
 			request_.kind = completion::Kind::Open;
 			request_.source = "selected";
@@ -78,12 +104,10 @@ class RecoveryOperation final : public completion::Operation {
 		} else
 			request_.kind = completion::Kind::DirectorySync;
 	}
-	std::shared_ptr<completion::IO> io_;
-	std::shared_ptr<void> owner_;
 	RecoveredGeneration recovered_;
 	completion::Token token_;
 	completion::Request request_;
-	std::shared_ptr<completion::File> file_;
+	std::shared_ptr<FileOwner> file_;
 	std::array<char, descriptor_bytes> raw_{};
 	std::size_t offset_ = 0;
 	unsigned phase_ = 0;
@@ -92,12 +116,17 @@ class RecoveryOperation final : public completion::Operation {
 };
 } // namespace
 struct ImagePublisher::Impl {
+	explicit Impl(std::shared_ptr<distribution::StorageLedger> account)
+		: account(std::move(account)), context(distribution::make_storage_resource(this->account)) {}
 	struct Owner {
 		std::shared_ptr<completion::IO> io;
 		std::shared_ptr<void> admission;
 		std::unique_ptr<completion::OwnerLock> lock;
 	};
 	std::shared_ptr<Owner> owner;
+	std::shared_ptr<distribution::StorageLedger> account;
+	completion::AllocationContext context;
+	bool common_account = false;
 	ReadView recovered;
 	std::optional<distribution::Cursor> published;
 	std::shared_ptr<completion::Operation> job;
@@ -122,30 +151,37 @@ struct ImagePublisher::Impl {
 		return {descriptor.generation, ++operation_id, 0};
 	}
 	void prepare() {
-		auto name = generation_name(descriptor.generation);
-		if (phase == 0)
-			job = std::make_shared<completion::ImagePreparation>(owner->io, owner, token(), name + ".lease",
-																 bytes->account(), std::string_view{}, 0);
-		else if (phase == 1)
-			job = std::make_shared<completion::ImagePreparation>(owner->io, owner, token(), name + ".image",
-																 bytes, bytes->view(), descriptor.length);
-		else {
+		if (phase == 0) {
+			auto name = GenerationName(descriptor.generation, ".lease");
+			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(),
+													 bytes->account(), std::string_view{}, 0);
+		} else if (phase == 1) {
+			auto name = GenerationName(descriptor.generation, ".image");
+			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(), bytes,
+													 bytes->view(), descriptor.length);
+		} else {
+			auto name = GenerationName(descriptor.generation, ".descriptor");
 			auto raw = encode_descriptor(descriptor);
 			auto buffer = distribution::make_owned_buffer(bytes->account(), raw.size());
 			buffer->resize(raw.size());
 			std::copy(raw.begin(), raw.end(), buffer->mutable_bytes().begin());
 			buffer->seal();
-			job = std::make_shared<completion::ImagePreparation>(
-				owner->io, owner, token(), name + ".descriptor", buffer, buffer->view(), descriptor_bytes);
+			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(), buffer,
+													 buffer->view(), descriptor_bytes);
 		}
 	}
 };
 ImagePublisher::ImagePublisher(std::shared_ptr<completion::IO> io, bool create_owner,
-							   std::shared_ptr<void> admission, std::optional<RecoveredGeneration> recovered)
-	: impl_(std::make_unique<Impl>()) {
+							   std::shared_ptr<void> admission, std::optional<RecoveredGeneration> recovered,
+							   std::shared_ptr<distribution::StorageLedger> account) {
 	if (!io || !admission)
 		throw std::invalid_argument("local publication owner admission missing");
-	auto owner = std::make_shared<Impl::Owner>();
+	const bool common_account = static_cast<bool>(account);
+	if (!account)
+		account = std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
+	impl_ = distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account);
+	impl_->common_account = common_account;
+	auto owner = std::allocate_shared<Impl::Owner>(completion::OwnedAllocator<Impl::Owner>(impl_->context));
 	owner->io = std::move(io);
 	owner->admission = std::move(admission);
 	owner->lock = owner->io->acquire_owner(create_owner);
@@ -162,8 +198,9 @@ ImagePublisher::ImagePublisher(std::shared_ptr<completion::IO> io, bool create_o
 	}
 	if (recovered) {
 		impl_->descriptor = recovered->descriptor();
-		impl_->job = std::make_shared<RecoveryOperation>(impl_->owner->io, impl_->owner,
-														 std::move(*recovered), impl_->token());
+		impl_->job = std::allocate_shared<RecoveryOperation>(
+			completion::OwnedAllocator<RecoveryOperation>(impl_->context), impl_->context, impl_->owner->io,
+			impl_->owner, std::move(*recovered), impl_->token());
 		impl_->phase = 4;
 		impl_->state = PublicationState::Recovering;
 	} else if (impl_->owner->io->entry_footprint("selected"))
@@ -182,6 +219,8 @@ void ImagePublisher::begin(const ImageBuilder &builder, std::optional<distributi
 	if (p.published && (!p.published->same_identity(descriptor.cursor) ||
 						descriptor.cursor.revision <= p.published->revision))
 		throw std::invalid_argument("local publication requires forward scoped cursor");
+	if (p.common_account && builder.bytes()->account() != p.account)
+		throw std::invalid_argument("local publication requires the configured storage account");
 	p.descriptor = descriptor;
 	p.bytes = builder.bytes();
 	p.failure = {};
@@ -241,8 +280,8 @@ void ImagePublisher::advance() {
 			}
 			if (p.phase == 2) {
 				auto prepared = preparation->prepared();
-				auto publication = std::make_shared<completion::ImagePublication>(std::move(prepared),
-																				  "selected", p.token());
+				auto publication =
+					completion::make_image_publication(std::move(prepared), "selected", p.token());
 				p.job = std::move(publication);
 				p.phase = 3;
 			} else {

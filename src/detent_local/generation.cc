@@ -118,14 +118,22 @@ Descriptor decode_descriptor(std::span<const char> bytes) {
 	return d;
 }
 std::string generation_name(const GenerationId &id) {
+	std::array<char, 43> bytes;
+	return std::string(generation_name(id, bytes));
+}
+std::string_view generation_name(const GenerationId &id, std::span<char> destination) {
+	constexpr std::string_view prefix = "generation-";
 	constexpr char hex[] = "0123456789abcdef";
-	std::string name = "generation-";
-	name.reserve(43);
+	constexpr auto length = prefix.size() + std::tuple_size_v<GenerationId> * 2;
+	if (destination.size() < length)
+		throw std::length_error("generation name destination too small");
+	std::copy(prefix.begin(), prefix.end(), destination.begin());
+	auto offset = prefix.size();
 	for (unsigned char c : id) {
-		name += hex[c >> 4];
-		name += hex[c & 15];
+		destination[offset++] = hex[c >> 4];
+		destination[offset++] = hex[c & 15];
 	}
-	return name;
+	return {destination.data(), length};
 }
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected) {

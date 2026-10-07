@@ -17,6 +17,7 @@ inline constexpr std::size_t descriptor_bytes = 176;
 std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &descriptor);
 Descriptor decode_descriptor(std::span<const char> bytes);
 std::string generation_name(const GenerationId &generation);
+std::string_view generation_name(const GenerationId &generation, std::span<char> destination);
 struct DirectoryIdentity {
 	std::uint64_t device = 0, inode = 0;
 	bool operator==(const DirectoryIdentity &) const = default;

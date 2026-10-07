@@ -1,3 +1,4 @@
+#include "detent_distribution/memory_resource.hh"
 #include "detent_local/publication.hh"
 #include "snapshot_fixture.hh"
 #include <chrono>
@@ -43,6 +44,18 @@ std::size_t drive(l::ImagePublisher &publisher, std::optional<std::size_t> fail_
 int main() {
 	try {
 		auto base = candidate(42, 'a'), next = candidate(43, 'b');
+		std::array<char, 43> name_bytes;
+		require(l::generation_name(base->descriptor().generation, name_bytes) ==
+				l::generation_name(base->descriptor().generation));
+		bool short_name = false;
+		name_bytes.fill('x');
+		try {
+			(void)l::generation_name(base->descriptor().generation, std::span(name_bytes).first(42));
+		} catch (const std::length_error &) {
+			short_name = true;
+		}
+		require(short_name &&
+				std::all_of(name_bytes.begin(), name_bytes.end(), [](char value) { return value == 'x'; }));
 		auto root =
 			std::filesystem::current_path() / ".scratch" / ("publication-test-" + std::to_string(::getpid()));
 		for (std::size_t fault = 0; fault < 13; ++fault) {
@@ -349,6 +362,80 @@ int main() {
 			publisher.close();
 			require(publisher.uncertain() == (fault == 12));
 		}
+		// One configured account admits publisher, backend and source storage.
+		// Saturation rejects before Create; releasing competing admission permits
+		// retry without changing the expected base or selecting a generation.
+		auto common_directory = root / "common-account";
+		std::filesystem::create_directories(common_directory);
+		std::filesystem::permissions(common_directory, std::filesystem::perms::owner_all);
+		auto common_builder = candidate(42, 't');
+		auto common_account = common_builder->bytes()->account();
+		auto common_resource = d::make_storage_resource(common_account);
+		auto common_io = c::make_posix_io(c::AllocationContext(common_resource), common_directory);
+		{
+			l::ImagePublisher publisher(common_io, true, std::make_shared<int>(1), {}, common_account);
+			const auto baseline = common_account->used();
+			bool mismatch = false;
+			try {
+				publisher.begin(*base);
+			} catch (const std::invalid_argument &) {
+				mismatch = true;
+			}
+			require(mismatch && publisher.state() == l::PublicationState::Idle &&
+					common_account->used() == baseline);
+			auto competing = common_account->admit(common_account->limit() - baseline);
+			bool pressured = false;
+			try {
+				publisher.begin(*common_builder);
+			} catch (const d::StoragePressure &) {
+				pressured = true;
+			}
+			require(pressured && publisher.state() == l::PublicationState::Rejected &&
+					common_account->used() == common_account->limit());
+			require(!std::filesystem::exists(
+				common_directory / (l::generation_name(common_builder->descriptor().generation) + ".lease")));
+			competing.reset();
+			require(common_account->used() == baseline);
+			publisher.begin(*common_builder);
+			require(drive(publisher) == 13 && publisher.state() == l::PublicationState::Published);
+			require(common_account->used() == baseline);
+		}
+		common_io.reset();
+		common_resource.reset();
+		common_builder.reset();
+		require(common_account->used() == 0);
+		// An accepted original retains its admitted controls after all facades
+		// disappear. Weak outer controls are refunded only after their release.
+		auto detached_directory = root / "common-detached";
+		std::filesystem::create_directories(detached_directory);
+		std::filesystem::permissions(detached_directory, std::filesystem::perms::owner_all);
+		auto detached_builder = candidate(42, 'u');
+		auto detached_account = detached_builder->bytes()->account();
+		auto detached_resource = d::make_storage_resource(detached_account);
+		auto detached_io = c::make_posix_io(c::AllocationContext(detached_resource), detached_directory);
+		std::weak_ptr<c::Operation> detached_weak;
+		{
+			l::ImagePublisher publisher(detached_io, true, std::make_shared<int>(1), {}, detached_account);
+			publisher.begin(*detached_builder);
+			c::drive_synchronously(*publisher.operation());
+			publisher.advance();
+			held = publisher.operation();
+			held->submitted();
+			require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
+			held->submitted();
+			detached_weak = held;
+		}
+		detached_builder.reset();
+		detached_io.reset();
+		detached_resource.reset();
+		require(detached_account->used() > 0);
+		require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
+		c::drive_synchronously(*held);
+		require(detached_account->used() > 0);
+		held.reset();
+		require(detached_weak.expired() && detached_account->used() > 0);
+		detached_weak.reset();
+		require(detached_account->used() == 0);
 		std::filesystem::remove_all(root);
 		std::cout << "publication faults, uncertain selection and original leases passed\n";
 		return 0;

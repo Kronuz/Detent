@@ -24,6 +24,10 @@ Image jobs now provide context-first constructors and admitted shared factories,
 
 Generic POSIX backend factories now admit their shared controls and concrete file/cursor/lock storage before native handle acquisition. Native queue factories admit queue objects; Linux names and probing use fixed inline buffers. Four standalone suites and the journal compatibility suites pass on all three platforms, including required-native Linux boundary and submission-uncertainty schedules. The managed completion chain passes macOS ASan/UBSan and fully instrumented TSan; Detent publication compatibility passes natively and under ASan/UBSan. [Completion ownership and measured sizes](../../Kronuz/cluster/completion/README.md) distinguish admitted controls from thread stacks, libc buffers, kernel mappings and legacy owning scan results. Application publisher, managed inventory and disk reclamation integration remain open.
 
+The application publisher now admits its implementation, owner, preparation/publication jobs and independent recovery file holder. Its optional configured ledger enforces a matching builder account; managed backend/queue factories can use that same ledger. Standalone compatibility retains a separate 4 MiB control account. Saturation before Create, same-base retry, detached original retention and final weak-control release pass with all thirteen distribution/local suites, three-platform publication/view checks and ASan/UBSan. [Local control ownership](LOCAL_IMAGE_FORMAT.md#admitted-completion-and-publisher-controls) records the boundary. Managed disk inventory, logical disk admission and lease-protected durable reclamation are the remaining resource-component work.
+
+The complete native regression run after control integration passes all 61 Detent tests in 178.42 seconds. The production agent remains on the legacy distribution path; this compatibility result does not complete Stage 4.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
