@@ -1,3 +1,4 @@
+#include "detent_distribution/rows.hh"
 #include "detent_distribution/storage.hh"
 #include <cstring>
 #include <iostream>
@@ -11,8 +12,14 @@ void check(bool value) {
 }
 std::size_t allocations = 0, frees = 0;
 bool fail = false;
+std::size_t until_failure = std::numeric_limits<std::size_t>::max();
 void *allocate(std::size_t bytes) {
 	++allocations;
+	if (until_failure != std::numeric_limits<std::size_t>::max()) {
+		if (!until_failure)
+			return nullptr;
+		--until_failure;
+	}
 	return fail ? nullptr : std::malloc(bytes);
 }
 void release(void *pointer) {
@@ -65,6 +72,59 @@ int main() {
 			check(ledger.used() == page);
 		}
 		check(ledger.used() == 0);
+		{
+			StorageLedger row_ledger(4 * 1024 * 1024);
+			PagedStorage arena(row_ledger, 4096, allocate, release);
+			StableRows<std::uint64_t> rows(arena);
+			const std::string original("stable\0text", 11);
+			auto text = store_text(arena, original);
+			for (std::uint64_t i = 0; i < 70000; ++i)
+				rows.push_back(i * 17);
+			const auto *first = &rows[0];
+			check(text.value == original && rows[65536] == 65536 * 17 && rows.back() == 69999 * 17);
+			std::uint64_t ordinal = 0;
+			for (auto row : rows)
+				check(row == ordinal++ * 17);
+			check(ordinal == rows.size());
+			const auto retained = row_ledger.used();
+			rows.pop_back();
+			check(row_ledger.used() == retained && &rows[0] == first);
+			rows.push_back(42);
+			check(rows.back() == 42);
+			rejects<std::out_of_range>([&] { (void)rows[rows.size()]; });
+			StableRows<std::uint64_t> moved(std::move(rows));
+			check(rows.empty() && moved.size() == 70000 && &moved[0] == first);
+		}
+		// Fail at each metadata/block growth allocation. Admitted partial
+		// directory pages remain charged until the arena is actually retired.
+		for (std::size_t growth = 0; growth < 4; ++growth) {
+			StorageLedger row_ledger(1024 * 1024);
+			{
+				// Tiny quotas choose the exact failure boundary without needing
+				// unaccounted replacement metadata in the allocator callback.
+				std::size_t capacity = 0;
+				for (std::size_t i = 0; i < growth; ++i)
+					capacity += (i < 3 ? 256 * sizeof(void *) : 128 * sizeof(std::uint64_t)) +
+								PagedStorage::page_overhead();
+				StorageLedger tiny(capacity);
+				PagedStorage limited(tiny, 1, allocate, release);
+				StableRows<std::uint64_t> limited_rows(limited);
+				rejects<std::length_error>([&] { limited_rows.push_back(17); });
+				check(limited_rows.empty() && tiny.used() == capacity);
+				while (!limited.release_one()) {
+				}
+				check(tiny.used() == 0);
+				PagedStorage arena(row_ledger, 1, allocate, release);
+				StableRows<std::uint64_t> rows(arena);
+				until_failure = growth;
+				rejects<std::bad_alloc>([&] { rows.push_back(17); });
+				until_failure = std::numeric_limits<std::size_t>::max();
+				check(rows.empty() && row_ledger.used() == capacity);
+				rows.push_back(17);
+				check(rows.size() == 1 && rows[0] == 17);
+			}
+			check(row_ledger.used() == 0);
+		}
 		{
 			auto ticket = ledger.admit(7);
 			auto other = ledger.admit(9);
