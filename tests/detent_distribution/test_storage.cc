@@ -1,3 +1,4 @@
+#include "detent_distribution/buffer.hh"
 #include "detent_distribution/rows.hh"
 #include "detent_distribution/storage.hh"
 #include <cstring>
@@ -74,6 +75,28 @@ int main() {
 			check(ledger.used() == page);
 		}
 		check(ledger.used() == 0);
+		{
+			auto account = std::make_shared<StorageLedger>(1000 + PagedStorage::page_overhead());
+			auto buffer = std::make_shared<OwnedBuffer>(account, 1000);
+			check(account->used() == 1000 + PagedStorage::page_overhead() && buffer->empty());
+			buffer->resize(10);
+			check(buffer->view() == std::string(10, '\0'));
+			buffer->mutable_bytes()[0] = 'x';
+			buffer->resize(1000);
+			check(buffer->data()[0] == 'x' && buffer->data()[999] == '\0');
+			rejects<StoragePressure>([&] { OwnedBuffer denied(account, 1); });
+			rejects<std::logic_error>([&] { buffer->resize(999); });
+			buffer->seal();
+			rejects<std::logic_error>([&] { (void)buffer->mutable_bytes(); });
+			std::shared_ptr<const void> original_owner = buffer;
+			buffer.reset();
+			check(account->used() == 1000 + PagedStorage::page_overhead());
+			original_owner.reset();
+			check(account->used() == 0);
+			OwnedBuffer empty(account, 0);
+			empty.seal();
+			check(empty.view().empty() && account->used() == 0);
+		}
 		{
 			StorageLedger concurrent(64);
 			std::vector<std::jthread> workers;

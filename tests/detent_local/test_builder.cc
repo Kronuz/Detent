@@ -47,6 +47,34 @@ int main() {
 			rejected = true;
 		}
 		require(rejected);
+		// The image must compete with retained rows in the same physical account.
+		const auto row_capacity = snapshot->storage_capacity();
+		const auto image_capacity = bytes->storage_capacity();
+		auto account = std::make_shared<d::StorageLedger>(row_capacity + image_capacity - 1);
+		d::Limits decode_limits;
+		decode_limits.storage_account = account;
+		d::SnapshotDecoder decoder(cursor(), {"app"}, decode_limits);
+		auto wire = fixture();
+		auto input = std::span<const char>(wire);
+		while (!input.empty()) {
+			d::WorkBudget budget;
+			decoder.feed(input, budget);
+		}
+		auto charged = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+		require(account->used() == row_capacity);
+		rejected = false;
+		try {
+			detent::local::ImageBuilder pressure(charged, generation);
+			while (!pressure.done()) {
+				detent::local::ValidationBudget budget;
+				pressure.step(budget);
+			}
+		} catch (const d::StoragePressure &) {
+			rejected = true;
+		}
+		require(rejected && account->used() == row_capacity);
+		charged.reset();
+		require(account->used() == 0);
 		std::cout << "snapshot to sealed image to pinned view passed\n";
 		return 0;
 	} catch (const std::exception &e) {

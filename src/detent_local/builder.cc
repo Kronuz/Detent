@@ -16,7 +16,7 @@ struct ImageBuilder::Impl {
 	GenerationId generation;
 	ViewLimits limits;
 	Header header;
-	std::shared_ptr<std::string> output = std::make_shared<std::string>();
+	std::shared_ptr<distribution::OwnedBuffer> output;
 	Descriptor selected;
 	SHA256 hash;
 	std::uint64_t ns = 0, record = 0, overrides = 0, strings = 0, string_cursor = 0, override_cursor = 0,
@@ -62,18 +62,19 @@ struct ImageBuilder::Impl {
 		header = {calculate_layout(source->namespaces().size(), source->records().size(), overrides, strings,
 								   limits.bytes),
 				  source->cursor(), source->profile()};
-		output->reserve(header.layout.length);
+		output = std::make_shared<distribution::OwnedBuffer>(source->storage_account(), header.layout.length);
 		ns = record = 0;
 		phase = 1;
 		return true;
 	}
 	void number(std::uint64_t offset, std::uint64_t value, unsigned width) {
-		write_integer(std::span<char>(*output), offset, value, width);
+		write_integer(output->mutable_bytes(), offset, value, width);
 	}
 	void text(std::uint64_t row, std::string_view value) {
 		number(row, string_cursor, 8);
 		number(row + 8, value.size(), 4);
-		std::copy(value.begin(), value.end(), output->begin() + header.layout.string_offset + string_cursor);
+		std::copy(value.begin(), value.end(),
+				  output->mutable_bytes().begin() + header.layout.string_offset + string_cursor);
 		string_cursor += value.size();
 	}
 	std::uint64_t row_cost() const {
@@ -175,7 +176,7 @@ void ImageBuilder::step(ValidationBudget &budget) {
 				budget.bytes -= count;
 				if (p.output->size() == p.header.layout.length) {
 					auto h = encode_header(p.header);
-					std::copy(h.begin(), h.end(), p.output->begin());
+					std::copy(h.begin(), h.end(), p.output->mutable_bytes().begin());
 					p.phase = 2;
 				}
 			} else if (p.phase == 2) {
@@ -203,6 +204,7 @@ void ImageBuilder::step(ValidationBudget &budget) {
 					p.hash.getHash(digest);
 					p.selected = {p.generation, p.output->size(), {}, p.header.cursor, p.header.profile};
 					std::copy_n(reinterpret_cast<char *>(digest), 32, p.selected.checksum.begin());
+					p.output->seal();
 					p.phase = 4;
 				}
 			}
@@ -213,7 +215,7 @@ void ImageBuilder::step(ValidationBudget &budget) {
 	}
 }
 bool ImageBuilder::done() const noexcept { return impl_ && impl_->phase == 4 && !impl_->failed; }
-std::shared_ptr<const std::string> ImageBuilder::bytes() const {
+std::shared_ptr<const distribution::OwnedBuffer> ImageBuilder::bytes() const {
 	if (!done())
 		throw std::logic_error("local image not sealed");
 	return impl_->output;

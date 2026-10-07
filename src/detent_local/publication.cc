@@ -101,7 +101,7 @@ struct ImagePublisher::Impl {
 	ReadView recovered;
 	std::optional<distribution::Cursor> published;
 	std::shared_ptr<completion::Operation> job;
-	std::shared_ptr<const std::string> bytes;
+	std::shared_ptr<const distribution::OwnedBuffer> bytes;
 	Descriptor descriptor;
 	std::exception_ptr failure;
 	PublicationState state = PublicationState::Idle;
@@ -125,15 +125,18 @@ struct ImagePublisher::Impl {
 		auto name = generation_name(descriptor.generation);
 		if (phase == 0)
 			job = std::make_shared<completion::ImagePreparation>(owner->io, owner, token(), name + ".lease",
-																 std::make_shared<const std::string>(), 0);
+																 bytes->account(), std::string_view{}, 0);
 		else if (phase == 1)
 			job = std::make_shared<completion::ImagePreparation>(owner->io, owner, token(), name + ".image",
-																 bytes, descriptor.length);
+																 bytes, bytes->view(), descriptor.length);
 		else {
 			auto raw = encode_descriptor(descriptor);
+			auto buffer = std::make_shared<distribution::OwnedBuffer>(bytes->account(), raw.size());
+			buffer->resize(raw.size());
+			std::copy(raw.begin(), raw.end(), buffer->mutable_bytes().begin());
+			buffer->seal();
 			job = std::make_shared<completion::ImagePreparation>(
-				owner->io, owner, token(), name + ".descriptor",
-				std::make_shared<const std::string>(raw.data(), raw.size()), descriptor_bytes);
+				owner->io, owner, token(), name + ".descriptor", buffer, buffer->view(), descriptor_bytes);
 		}
 	}
 };

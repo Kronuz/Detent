@@ -289,6 +289,34 @@ int main() {
 			auto lock = io->acquire_owner(false);
 			require(static_cast<bool>(lock));
 		}
+		// An accepted image write retains the physical ticket after all initiating
+		// facades disappear, until the original sealing barrier settles.
+		auto charged_directory = root / "charged-original";
+		std::filesystem::create_directories(charged_directory);
+		std::filesystem::permissions(charged_directory, std::filesystem::perms::owner_all);
+		auto charged_io = std::make_shared<c::PosixIO>(charged_directory);
+		auto charged_builder = candidate(42, 'q');
+		auto charged_account = charged_builder->bytes()->account();
+		std::weak_ptr<const d::OwnedBuffer> weak_buffer = charged_builder->bytes();
+		const auto charged_capacity = charged_builder->bytes()->storage_capacity();
+		{
+			l::ImagePublisher publisher(charged_io, true, std::make_shared<int>(1));
+			publisher.begin(*charged_builder);
+			c::drive_synchronously(*publisher.operation()); // lease seal
+			publisher.advance();
+			held = publisher.operation();
+			held->submitted(); // image create
+			require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
+			require(held->request().kind == c::Kind::Write);
+			held->submitted();
+		}
+		charged_builder.reset();
+		require(!weak_buffer.expired() && charged_account->used() == charged_capacity);
+		require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
+		require(!weak_buffer.expired() && charged_account->used() == charged_capacity);
+		c::drive_synchronously(*held);
+		require(weak_buffer.expired() && charged_account->used() == 0);
+		held.reset();
 		std::filesystem::remove_all(root);
 		std::cout << "publication faults, uncertain selection and original leases passed\n";
 		return 0;

@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
 #include "generation.hh"
 namespace detent::local {
@@ -13,7 +14,7 @@ class ImageBuilder {
 	ImageBuilder(const ImageBuilder &) = delete;
 	void step(ValidationBudget &budget);
 	bool done() const noexcept;
-	std::shared_ptr<const std::string> bytes() const;
+	std::shared_ptr<const distribution::OwnedBuffer> bytes() const;
 	Descriptor descriptor() const;
 
   private:

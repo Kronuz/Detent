@@ -78,6 +78,11 @@ class ValidatedSnapshot {
 			throw std::out_of_range("distribution override range");
 		return {storage_->overrides, definition.overrides.start, definition.overrides.count};
 	}
+	std::shared_ptr<StorageLedger> storage_account() const {
+		if (!storage_)
+			throw std::logic_error("moved distribution storage");
+		return storage_->account;
+	}
 	bool discard(WorkBudget &budget);
 
   private:
@@ -160,6 +165,11 @@ class ValidatedDelta {
 			definition.overrides.count > storage_->overrides.size() - definition.overrides.start)
 			throw std::out_of_range("distribution override range");
 		return {storage_->overrides, definition.overrides.start, definition.overrides.count};
+	}
+	std::shared_ptr<StorageLedger> storage_account() const {
+		if (!storage_)
+			throw std::logic_error("moved distribution storage");
+		return storage_->account;
 	}
 	bool discard(WorkBudget &budget);
 
