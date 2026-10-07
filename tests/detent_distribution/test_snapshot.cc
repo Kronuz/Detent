@@ -149,6 +149,17 @@ int main() {
 			rejected = true;
 		}
 		require(rejected);
+		{
+			d::SnapshotDecoder pending(cursor(), {std::string(198, 'a')});
+			d::WorkBudget zero{0, 1};
+			require(!pending.discard(zero));
+			bool done = false;
+			for (unsigned i = 0; i < 1024 && !done; ++i) {
+				d::WorkBudget tiny{1, 1};
+				done = pending.discard(tiny);
+			}
+			require(done);
+		}
 		std::cout << "bounded snapshot decoding passed\n";
 		return 0;
 	} catch (const std::exception &error) {

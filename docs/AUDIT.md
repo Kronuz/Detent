@@ -120,3 +120,9 @@ The regression injects failure into the first owner allocation and compares open
 An already-drained domain could outlive its joined runtime, but attempting allocation through that closed domain still signalled the freed runtime while undoing admission. ASan reproduces the resulting heap-use-after-free. Admission now reserves a resident directly in the same atomic state that records closure. Closed and capacity-rejected attempts never touch the runtime; accepted construction keeps its resident until publication or rollback. Rollback retains a separate handoff until its final runtime access has completed.
 
 The regression retains a closed domain after runtime destruction and verifies safe rejection. Additional schedules close a domain while successful and failing constructors are blocked, retaining drainage until their genuine settlement. The focused suite passes on macOS, Linux and FreeBSD and under macOS ASan/UBSan and TSan. This fixes domain admission ownership; mapping and disk admission remain separate work.
+
+### Allow scope cleanup to progress with small byte budgets
+
+Snapshot and delta decoder disposal required an entire scope entry to fit in one turn’s byte budget. A valid long namespace therefore prevented cleanup from ever completing when the scheduler repeatedly supplied smaller budgets. Disposal now accumulates byte credit across turns and consumes the row token only when that entry’s cleanup charge is complete. Zero byte or token budgets cannot remove an uncharged entry.
+
+Both regressions reproduce the stall against the preceding source by disposing a maximum-length namespace with one-byte turns. They pass after correction on macOS, Linux and FreeBSD and under macOS ASan/UBSan. The change preserves scope validation, wire formats and the existing page-retirement mechanism.

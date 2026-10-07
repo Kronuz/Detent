@@ -143,6 +143,17 @@ int main() {
 				break;
 		}
 		require(turns >= 4 && delta.transactions().empty() && delta.base() == d::Cursor{});
+		{
+			d::DeltaDecoder pending(cursor(), {std::string(198, 'a')});
+			d::WorkBudget zero{0, 1};
+			require(!pending.discard(zero));
+			bool done = false;
+			for (unsigned i = 0; i < 1024 && !done; ++i) {
+				d::WorkBudget tiny{1, 1};
+				done = pending.discard(tiny);
+			}
+			require(done);
+		}
 		std::cout << "exact-base delta and progress decoding passed\n";
 		return 0;
 	} catch (const std::exception &error) {

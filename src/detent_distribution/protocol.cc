@@ -24,11 +24,16 @@ template <std::size_t N> void identity(const m::WireToken &token, std::array<cha
 	require(token.kind == m::Kind::Binary && token.bytes.size() == N, "distribution identity width mismatch");
 	std::copy(token.bytes.begin(), token.bytes.end(), output.begin());
 }
-bool charge(WorkBudget &budget, std::size_t bytes) {
-	if (!budget.tokens || budget.bytes < bytes)
+bool charge(WorkBudget &budget, std::size_t bytes, std::size_t &credit) {
+	if (!budget.tokens)
+		return false;
+	const auto amount = std::min(bytes - credit, budget.bytes);
+	budget.bytes -= amount;
+	credit += amount;
+	if (credit != bytes)
 		return false;
 	--budget.tokens;
-	budget.bytes -= bytes;
+	credit = 0;
 	return true;
 }
 template <class Storage> bool retire(Storage &storage, WorkBudget &budget) {
@@ -212,6 +217,7 @@ struct SnapshotDecoder::Impl {
 	};
 	Cursor expected;
 	std::vector<std::string> scope;
+	std::size_t scope_retirement_credit = 0;
 	Limits limits;
 	m::WireDecoder decoder;
 	ValidatedSnapshot snapshot;
@@ -451,7 +457,7 @@ bool SnapshotDecoder::discard(WorkBudget &budget) {
 	if (!impl_->snapshot.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
-		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string)))
+		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string), impl_->scope_retirement_credit))
 			return false;
 		impl_->scope.pop_back();
 	}
@@ -545,6 +551,7 @@ struct DeltaDecoder::Impl {
 	};
 	Cursor expected;
 	std::vector<std::string> scope;
+	std::size_t scope_retirement_credit = 0;
 	Limits limits;
 	m::WireDecoder decoder;
 	ValidatedDelta delta;
@@ -835,7 +842,7 @@ bool DeltaDecoder::discard(WorkBudget &budget) {
 	if (!impl_->delta.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
-		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string)))
+		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string), impl_->scope_retirement_credit))
 			return false;
 		impl_->scope.pop_back();
 	}
