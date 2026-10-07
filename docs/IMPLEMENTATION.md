@@ -18,6 +18,8 @@ Stage 4 follows the [validated distribution blueprint](DISTRIBUTION_ARCHITECTURE
 
 The [validated completion-allocation blueprint](COMPLETION_ALLOCATION_ARCHITECTURE.md) extends physical admission through generic completion controls while preserving legacy interfaces and explicit native/runtime boundaries. It proceeds as part of the resource component, with one consolidated review after disk inventory and reclamation.
 
+The allocation foundation now provides dependency-free owned PMR contexts in the sibling completion module and a separate Detent `LedgerMemoryResource`. The adapter admits the complete upstream request, including ownership headers and alignment slack, before allocation and refunds only after actual release. Its own shared control is admitted through the existing storage allocator. The generic resource and Detent adapter fixtures pass on macOS, Linux and FreeBSD, under macOS ASan/UBSan, and in separate fully instrumented ThreadSanitizer runs. These checks cover weak controls, cross-thread final release, over-alignment, overflow and failure rollback; image/POSIX/native integration and disk lifecycle acceptance remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
