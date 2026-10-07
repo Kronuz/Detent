@@ -4,7 +4,6 @@
 
 namespace detent::distribution {
 inline constexpr std::size_t frame_header_bytes = 96, fragment_bytes = 65536;
-enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3 };
 struct Fragment {
 	UpdateKind kind = UpdateKind::Snapshot;
 	Identity update{};

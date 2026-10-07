@@ -56,6 +56,8 @@ Within one Context and scope, revisions cannot roll backward. A trusted restore/
 
 V1 uses exact tuple shapes. The symbolic tags below are protocol constants with documented values and independent vectors; benchmark tuple shapes do not define the supported protocol.
 
+Update tags are snapshot `1`, delta `2`, and progress `3`. Definition tags are boolean `0` and integer `1`; override tags are forced boolean `0` and percentage `1`; mutation tags are upsert `0` and delete `1`. Semantic profile `1` preserves the existing SHA-256 percentage rollout and switch-override evaluation. Required capability bit `0` identifies support for these definition semantics; unsupported bits are rejected.
+
 | Object | V1 tuple |
 | --- | --- |
 | Snapshot | `[1, snapshot_tag, profile, target_cursor, counts, namespace_revisions, records]` |
@@ -80,6 +82,8 @@ Records and override keys are ordered and unique. Transactions have increasing r
 V1 exports subscriber configuration and revision metadata. Keep producer sessions, receipts, ballots and recovery-only state in authority-private formats; a private consensus/checkpoint image is not the agent wire schema.
 
 A delta applies only when its entire base Cursor matches the locally published base and its profile is compatible. A mismatch requests resynchronization without modifying the current root. Snapshot transfer pins revision `R`; subsequent changes begin strictly after `R`.
+
+The initial decoder requires forward target progress and at least one nonempty transaction for a delta. Transactions have increasing revisions strictly above base and at or below target; gaps and irrelevant trailing progress are allowed. Within each transaction, mutations are ordered uniquely by namespace index and key. Touched namespace names are ordered and unique, each watermark equals the transaction revision, and every touched namespace has a mutation. Deletes carry `nil`. The dedicated progress shape carries no mutations or namespace changes and advances only the global cursor.
 
 A progress message advances across transactions irrelevant to the selected scope. Applying several transactions into one candidate may expose their final target state, but every visible generation represents complete transactions. Preserve encoded transaction boundaries so the state and atomicity oracle can verify the projection.
 

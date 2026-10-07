@@ -9,6 +9,7 @@
 namespace detent::distribution {
 using Identity = std::array<char, 16>;
 using ScopeIdentity = std::array<char, 32>;
+enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3 };
 struct Cursor {
 	Identity cluster{}, group{}, restore_epoch{};
 	ScopeIdentity scope{};
@@ -72,6 +73,50 @@ class SnapshotDecoder {
 	// final framing and absence of trailing input.
 	void feed(std::span<const char> &input, WorkBudget &budget);
 	ValidatedSnapshot finish();
+	bool discard(WorkBudget &budget);
+
+  private:
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
+};
+
+struct Mutation {
+	std::uint32_t namespace_index = 0;
+	std::string key;
+	std::optional<KnobDef> value; // absent means delete live definition.
+};
+struct Transaction {
+	std::uint64_t revision = 0;
+	std::deque<NamespaceRevision> touched;
+	std::deque<Mutation> mutations;
+};
+class DeltaDecoder;
+class ValidatedDelta {
+  public:
+	const Cursor &base() const noexcept { return base_; }
+	const Cursor &target() const noexcept { return target_; }
+	const Profile &profile() const noexcept { return profile_; }
+	UpdateKind kind() const noexcept { return kind_; }
+	const std::deque<Transaction> &transactions() const noexcept { return transactions_; }
+	bool discard(WorkBudget &budget);
+
+  private:
+	ValidatedDelta() = default;
+	Cursor base_, target_;
+	Profile profile_;
+	UpdateKind kind_ = UpdateKind::Delta;
+	std::deque<Transaction> transactions_;
+	friend class DeltaDecoder;
+};
+class DeltaDecoder {
+  public:
+	DeltaDecoder(Cursor expected_base, std::vector<std::string> namespaces, Limits limits = {},
+				 UpdateKind kind = UpdateKind::Delta);
+	~DeltaDecoder();
+	DeltaDecoder(DeltaDecoder &&) noexcept;
+	DeltaDecoder(const DeltaDecoder &) = delete;
+	void feed(std::span<const char> &input, WorkBudget &budget);
+	ValidatedDelta finish();
 	bool discard(WorkBudget &budget);
 
   private:
