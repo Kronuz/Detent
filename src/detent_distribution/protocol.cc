@@ -12,6 +12,34 @@ void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
 }
+struct ScopeName : m::InlineBytes<198> {
+	explicit ScopeName(std::string_view name) {
+		for (auto byte : name)
+			push_back(byte);
+	}
+	bool operator<(const ScopeName &other) const noexcept {
+		return std::string_view(*this) < std::string_view(other);
+	}
+	bool operator<(std::string_view other) const noexcept { return std::string_view(*this) < other; }
+	bool operator==(std::string_view other) const noexcept { return std::string_view(*this) == other; }
+};
+using Scope = std::vector<ScopeName, StorageAllocator<ScopeName>>;
+Scope owned_scope(const std::vector<std::string> &names, const Limits &limits) {
+	require(names.size() <= limits.namespaces, "subscription namespace limit exceeded");
+	for (std::size_t i = 0; i < names.size(); ++i) {
+		const auto &name = names[i];
+		require(!name.empty() && name.size() <= 198 &&
+					std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+					(!i || names[i - 1] < name),
+				"invalid or unordered subscription scope");
+	}
+	Scope scope(
+		StorageAllocator<ScopeName>(limits.storage_account, limits.storage_allocate, limits.storage_release));
+	scope.reserve(names.size());
+	for (const auto &name : names)
+		scope.emplace_back(name);
+	return scope;
+}
 std::uint64_t number(const m::WireToken &token) {
 	require(token.kind == m::Kind::Unsigned || (token.kind == m::Kind::Signed && token.signed_value() >= 0),
 			"unsigned distribution integer required");
@@ -216,7 +244,7 @@ struct SnapshotDecoder::Impl {
 		End
 	};
 	Cursor expected;
-	std::vector<std::string> scope;
+	Scope scope;
 	std::size_t scope_retirement_credit = 0;
 	Limits limits;
 	m::WireDecoder decoder;
@@ -230,7 +258,7 @@ struct SnapshotDecoder::Impl {
 	Phase phase = Phase::Root;
 	bool failed = false, taken = false;
 	Impl(Cursor cursor, std::vector<std::string> names, Limits bounds)
-		: expected(cursor), scope(std::move(names)), limits(bounds),
+		: expected(cursor), scope(owned_scope(names, bounds)), limits(bounds),
 		  decoder(
 			  m::Limits{bounds.bytes, 200, 32,
 						std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}),
@@ -238,12 +266,6 @@ struct SnapshotDecoder::Impl {
 		require(expected.cluster != Identity{} && expected.group != Identity{} &&
 					expected.restore_epoch != Identity{} && expected.scope != ScopeIdentity{},
 				"unconfigured distribution identity");
-		require(scope.size() <= limits.namespaces, "subscription namespace limit exceeded");
-		for (std::size_t i = 0; i < scope.size(); ++i) {
-			require(!scope[i].empty() && scope[i].size() < 200 && is_valid_knob_name(scope[i] + ":x") &&
-						(!i || scope[i - 1] < scope[i]),
-					"invalid or unordered subscription scope");
-		}
 	}
 	std::string_view text(m::WireToken &token) {
 		require(token.kind == m::Kind::String, "distribution string required");
@@ -419,7 +441,11 @@ struct SnapshotDecoder::Impl {
 };
 
 SnapshotDecoder::SnapshotDecoder(Cursor expected, std::vector<std::string> namespaces, Limits limits)
-	: impl_(std::make_unique<Impl>(expected, std::move(namespaces), limits)) {}
+	: impl_([&] {
+		  limits = detail::admitted_limits(std::move(limits));
+		  return make_storage_owner<Impl>(limits.storage_account, limits.storage_allocate,
+										  limits.storage_release, expected, std::move(namespaces), limits);
+	  }()) {}
 SnapshotDecoder::~SnapshotDecoder() = default;
 SnapshotDecoder::SnapshotDecoder(SnapshotDecoder &&) noexcept = default;
 void SnapshotDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
@@ -457,7 +483,7 @@ bool SnapshotDecoder::discard(WorkBudget &budget) {
 	if (!impl_->snapshot.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
-		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string), impl_->scope_retirement_credit))
+		if (!charge(budget, sizeof(ScopeName), impl_->scope_retirement_credit))
 			return false;
 		impl_->scope.pop_back();
 	}
@@ -550,7 +576,7 @@ struct DeltaDecoder::Impl {
 		}
 	};
 	Cursor expected;
-	std::vector<std::string> scope;
+	Scope scope;
 	std::size_t scope_retirement_credit = 0;
 	Limits limits;
 	m::WireDecoder decoder;
@@ -569,7 +595,7 @@ struct DeltaDecoder::Impl {
 	Phase phase = Phase::Root;
 	bool failed = false, taken = false;
 	Impl(Cursor base, std::vector<std::string> names, Limits bounds, UpdateKind kind)
-		: expected(base), scope(std::move(names)), limits(bounds),
+		: expected(base), scope(owned_scope(names, bounds)), limits(bounds),
 		  decoder(
 			  m::Limits{bounds.bytes, 200, 32,
 						std::max({32u, bounds.records, bounds.namespaces, bounds.overrides_per_definition})}),
@@ -579,11 +605,6 @@ struct DeltaDecoder::Impl {
 		require(expected.cluster != Identity{} && expected.group != Identity{} &&
 					expected.restore_epoch != Identity{} && expected.scope != ScopeIdentity{},
 				"unconfigured delta identity");
-		require(scope.size() <= bounds.namespaces, "delta scope bound exceeded");
-		for (std::size_t i = 0; i < scope.size(); ++i)
-			require(!scope[i].empty() && scope[i].size() < 200 && is_valid_knob_name(scope[i] + ":x") &&
-						(!i || scope[i - 1] < scope[i]),
-					"invalid delta scope");
 	}
 	std::string_view text(m::WireToken &token) {
 		require(token.kind == m::Kind::String && token.bytes.size() <= limits.string_bytes - seen_strings &&
@@ -804,7 +825,12 @@ struct DeltaDecoder::Impl {
 };
 DeltaDecoder::DeltaDecoder(Cursor expected_base, std::vector<std::string> namespaces, Limits limits,
 						   UpdateKind kind)
-	: impl_(std::make_unique<Impl>(expected_base, std::move(namespaces), limits, kind)) {}
+	: impl_([&] {
+		  limits = detail::admitted_limits(std::move(limits));
+		  return make_storage_owner<Impl>(limits.storage_account, limits.storage_allocate,
+										  limits.storage_release, expected_base, std::move(namespaces),
+										  limits, kind);
+	  }()) {}
 DeltaDecoder::~DeltaDecoder() = default;
 DeltaDecoder::DeltaDecoder(DeltaDecoder &&) noexcept = default;
 void DeltaDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
@@ -842,7 +868,7 @@ bool DeltaDecoder::discard(WorkBudget &budget) {
 	if (!impl_->delta.discard(budget))
 		return false;
 	while (!impl_->scope.empty()) {
-		if (!charge(budget, impl_->scope.back().size() + sizeof(std::string), impl_->scope_retirement_credit))
+		if (!charge(budget, sizeof(ScopeName), impl_->scope_retirement_credit))
 			return false;
 		impl_->scope.pop_back();
 	}

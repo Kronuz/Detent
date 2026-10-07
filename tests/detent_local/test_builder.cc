@@ -48,20 +48,28 @@ int main() {
 		}
 		require(rejected);
 		// The image must compete with retained rows in the same physical account.
-		const auto row_capacity = snapshot->storage_capacity();
-		const auto image_capacity = snapshot->storage_account()->used() - row_capacity;
-		auto account = std::make_shared<d::StorageLedger>(row_capacity + image_capacity - 1);
+		auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
 		d::Limits decode_limits;
 		decode_limits.storage_account = account;
-		d::SnapshotDecoder decoder(cursor(), {"app"}, decode_limits);
-		auto wire = fixture();
-		auto input = std::span<const char>(wire);
-		while (!input.empty()) {
-			d::WorkBudget budget;
-			decoder.feed(input, budget);
+		auto charged = [&] {
+			d::SnapshotDecoder decoder(cursor(), {"app"}, decode_limits);
+			auto wire = fixture();
+			auto input = std::span<const char>(wire);
+			while (!input.empty()) {
+				d::WorkBudget budget;
+				decoder.feed(input, budget);
+			}
+			return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+		}();
+		const auto retained_capacity = account->used();
+		require(retained_capacity > charged->storage_capacity());
+		std::size_t image_capacity;
+		{
+			auto probe = d::make_owned_buffer(account, descriptor.length);
+			image_capacity = account->used() - retained_capacity;
 		}
-		auto charged = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
-		require(account->used() == row_capacity);
+		auto occupied = account->admit(account->limit() - retained_capacity - image_capacity + 1);
+		const auto before = account->used();
 		rejected = false;
 		try {
 			detent::local::ImageBuilder pressure(charged, generation);
@@ -72,7 +80,17 @@ int main() {
 		} catch (const d::StoragePressure &) {
 			rejected = true;
 		}
-		require(rejected && account->used() == row_capacity);
+		require(rejected && account->used() == before);
+		occupied.reset();
+		{
+			detent::local::ImageBuilder retry(charged, generation);
+			while (!retry.done()) {
+				detent::local::ValidationBudget budget;
+				retry.step(budget);
+			}
+			require(retry.bytes()->size() == descriptor.length);
+		}
+		require(account->used() == retained_capacity);
 		charged.reset();
 		require(account->used() == 0);
 		std::cout << "snapshot to sealed image to pinned view passed\n";

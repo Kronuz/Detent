@@ -147,7 +147,10 @@ struct ImageBuilder::Impl {
 };
 ImageBuilder::ImageBuilder(std::shared_ptr<const distribution::ValidatedSnapshot> source,
 						   GenerationId generation, ViewLimits limits)
-	: impl_(std::make_unique<Impl>()) {
+	: impl_([&] {
+		  require(static_cast<bool>(source));
+		  return distribution::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free);
+	  }()) {
 	require(source && source->namespaces().size() <= limits.namespaces &&
 			source->records().size() <= limits.records && generation != GenerationId{});
 	impl_->source = std::move(source);

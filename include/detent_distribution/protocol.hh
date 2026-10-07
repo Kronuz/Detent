@@ -1,4 +1,5 @@
 #pragma once
+#include "allocator.hh"
 #include "detent/cursor.hh"
 #include "detent_distribution/definition.hh"
 #include <array>
@@ -32,6 +33,11 @@ struct Record {
 	WireDefinition definition;
 };
 namespace detail {
+inline Limits admitted_limits(Limits limits) {
+	if (!limits.storage_account)
+		limits.storage_account = std::make_shared<StorageLedger>(limits.storage_bytes);
+	return limits;
+}
 struct SnapshotStorage {
 	explicit SnapshotStorage(const Limits &limits)
 		: account(limits.storage_account ? limits.storage_account
@@ -87,10 +93,14 @@ class ValidatedSnapshot {
 
   private:
 	explicit ValidatedSnapshot(const Limits &limits)
-		: storage_(std::make_unique<detail::SnapshotStorage>(limits)) {}
+		: storage_([&] {
+			  const auto bounds = detail::admitted_limits(limits);
+			  return make_storage_owner<detail::SnapshotStorage>(
+				  bounds.storage_account, bounds.storage_allocate, bounds.storage_release, bounds);
+		  }()) {}
 	Cursor cursor_;
 	Profile profile_;
-	std::unique_ptr<detail::SnapshotStorage> storage_;
+	StorageOwner<detail::SnapshotStorage> storage_;
 	friend class SnapshotDecoder;
 };
 class SnapshotDecoder {
@@ -108,7 +118,7 @@ class SnapshotDecoder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	StorageOwner<Impl> impl_;
 };
 
 struct Mutation {
@@ -175,11 +185,15 @@ class ValidatedDelta {
 
   private:
 	explicit ValidatedDelta(const Limits &limits)
-		: storage_(std::make_unique<detail::DeltaStorage>(limits)) {}
+		: storage_([&] {
+			  const auto bounds = detail::admitted_limits(limits);
+			  return make_storage_owner<detail::DeltaStorage>(bounds.storage_account, bounds.storage_allocate,
+															  bounds.storage_release, bounds);
+		  }()) {}
 	Cursor base_, target_;
 	Profile profile_;
 	UpdateKind kind_ = UpdateKind::Delta;
-	std::unique_ptr<detail::DeltaStorage> storage_;
+	StorageOwner<detail::DeltaStorage> storage_;
 	friend class DeltaDecoder;
 };
 class DeltaDecoder {
@@ -195,6 +209,6 @@ class DeltaDecoder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	StorageOwner<Impl> impl_;
 };
 } // namespace detent::distribution

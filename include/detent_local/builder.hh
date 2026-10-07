@@ -19,6 +19,6 @@ class ImageBuilder {
 
   private:
 	struct Impl;
-	std::unique_ptr<Impl> impl_;
+	distribution::StorageOwner<Impl> impl_;
 };
 } // namespace detent::local
