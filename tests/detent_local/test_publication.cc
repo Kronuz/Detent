@@ -421,7 +421,13 @@ int main() {
 			publisher.advance();
 			held = publisher.operation();
 			held->submitted();
-			require(held->complete(kronuz::journal::detail::execute_primitive(held->io(), held->request())));
+			auto created = kronuz::journal::detail::execute_primitive(held->io(), held->request());
+			require(!created.error && created.file);
+			auto saturated = detached_account->admit(detached_account->limit() - detached_account->used());
+			require(held->complete(std::move(created)) && !held->done() &&
+					held->request().kind == c::Kind::Write);
+			require(detached_account->used() == detached_account->limit());
+			saturated.reset();
 			held->submitted();
 			detached_weak = held;
 		}
