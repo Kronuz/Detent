@@ -203,6 +203,8 @@ int main(int argc, char **argv) {
 		Identity id{};
 		id[0] = 's';
 		node.create(id);
+		for (unsigned retry = 0; retry < 8; ++retry)
+			assert(node.read(999) == SubmitResult::Busy);
 		pump(node);
 		node.start();
 		pump(node);

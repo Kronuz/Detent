@@ -101,10 +101,18 @@ SubmitResult Node::read(std::uint64_t request) {
 	if (pending_.size() + completions_.size() >= options_.waiters) {
 		return SubmitResult::Pressure;
 	}
-	auto result = worker_.try_submit(Read{request});
-	if (result == SubmitResult::Accepted) {
-		pending_.emplace(request, Pending{.read = true});
+	// Allocate local completion ownership before consensus accepts the read.
+	// Once accepted, allocation failure must not lose its verified boundary.
+	auto waiter = pending_.emplace(request, Pending{.read = true}).first;
+	SubmitResult result;
+	try {
+		result = worker_.try_submit(Read{request});
+	} catch (...) {
+		pending_.erase(waiter);
+		throw;
 	}
+	if (result != SubmitResult::Accepted)
+		pending_.erase(waiter);
 	drain();
 	return result;
 }
