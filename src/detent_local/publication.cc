@@ -107,7 +107,7 @@ struct ImagePublisher::Impl {
 	PublicationState state = PublicationState::Idle;
 	unsigned phase = 0;
 	std::uint64_t operation_id = 0;
-	bool cancelled = false, closed = false;
+	bool cancelled = false, closed = false, selection_uncertain = false;
 	void stop_unsubmitted(PublicationState terminal) noexcept {
 		if (job && !job->in_flight() && !job->done() && job->request().token.step == 0 &&
 			(phase != 3 || !std::static_pointer_cast<completion::ImagePublication>(job)->uncertain())) {
@@ -186,6 +186,7 @@ void ImagePublisher::begin(const ImageBuilder &builder, std::optional<distributi
 	p.bytes = builder.bytes();
 	p.failure = {};
 	p.cancelled = false;
+	p.selection_uncertain = false;
 	p.phase = 0;
 	p.state = PublicationState::Preparing;
 	try {
@@ -193,6 +194,8 @@ void ImagePublisher::begin(const ImageBuilder &builder, std::optional<distributi
 	} catch (...) {
 		p.failure = std::current_exception();
 		p.state = PublicationState::Rejected;
+		p.job.reset();
+		p.bytes.reset();
 		throw;
 	}
 }
@@ -264,7 +267,12 @@ void ImagePublisher::advance() {
 		}
 	} catch (...) {
 		p.failure = std::current_exception();
-		p.state = uncertain() ? PublicationState::Fenced : PublicationState::Rejected;
+		p.selection_uncertain = uncertain();
+		p.state = p.selection_uncertain ? PublicationState::Fenced : PublicationState::Rejected;
+		// advance() requires authentic settlement: the body can now retire.
+		// Preserve uncertainty independently of the completed job's ownership.
+		p.job.reset();
+		p.bytes.reset();
 	}
 }
 void ImagePublisher::cancel() noexcept {
@@ -280,8 +288,9 @@ void ImagePublisher::close() noexcept {
 }
 PublicationState ImagePublisher::state() const noexcept { return impl_->state; }
 bool ImagePublisher::uncertain() const noexcept {
-	return impl_->phase == 3 && impl_->job &&
-		   std::static_pointer_cast<completion::ImagePublication>(impl_->job)->uncertain();
+	return impl_->selection_uncertain ||
+		   (impl_->phase == 3 && impl_->job &&
+			std::static_pointer_cast<completion::ImagePublication>(impl_->job)->uncertain());
 }
 std::optional<distribution::Cursor> ImagePublisher::published_cursor() const { return impl_->published; }
 std::exception_ptr ImagePublisher::error() const noexcept { return impl_->failure; }

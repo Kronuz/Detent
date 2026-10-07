@@ -317,6 +317,27 @@ int main() {
 		c::drive_synchronously(*held);
 		require(weak_buffer.expired() && charged_account->used() == 0);
 		held.reset();
+		for (auto fault : {std::size_t(4), std::size_t(12)}) {
+			auto failed_directory = root / ("settled-buffer-" + std::to_string(fault));
+			std::filesystem::create_directories(failed_directory);
+			std::filesystem::permissions(failed_directory, std::filesystem::perms::owner_all);
+			auto failed_io = std::make_shared<c::PosixIO>(failed_directory);
+			auto failed_builder = candidate(42, 'r');
+			auto failed_account = failed_builder->bytes()->account();
+			std::weak_ptr<const d::OwnedBuffer> failed_buffer = failed_builder->bytes();
+			l::ImagePublisher publisher(failed_io, true, std::make_shared<int>(1));
+			publisher.begin(*failed_builder);
+			failed_builder.reset();
+			require(!failed_buffer.expired());
+			drive(publisher, fault);
+			require(publisher.error() != nullptr);
+			require(publisher.state() ==
+					(fault == 12 ? l::PublicationState::Fenced : l::PublicationState::Rejected));
+			require(publisher.uncertain() == (fault == 12));
+			require(failed_buffer.expired() && failed_account->used() == 0);
+			publisher.close();
+			require(publisher.uncertain() == (fault == 12));
+		}
 		std::filesystem::remove_all(root);
 		std::cout << "publication faults, uncertain selection and original leases passed\n";
 		return 0;
