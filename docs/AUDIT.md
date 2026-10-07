@@ -2,13 +2,13 @@
 
 This review covers the owned C++ client, JSON schema and patch handling, agent lifecycle and shared-memory layout, HTTP polling, distributor persistence and HTTP routes, Raft adapter, Python and Rust bindings, and build/test wiring. Dependency implementations are inspected where their contracts affect owned code; this is not a full audit of every fetched dependency.
 
-Changes are recorded here with their triggering conditions and validation. Each audit fix is committed separately. Native tests run on macOS; Linux and FreeBSD service templates require platform integration testing.
+This is an ongoing audit: entries record their triggering conditions and qualification at the time of each correction. Each audit fix is committed separately. Current distribution/resource checks also run on Linux and FreeBSD; final service deployment and fleet qualification remain open. The current stage and acceptance boundaries are recorded in [implementation status](IMPLEMENTATION.md).
 
 ## Deployment limits
 
-HTTP and UDP cluster traffic have no built-in authentication or TLS. Use an access-controlled network and an authenticated TLS proxy for remote publishers. The cluster adapter relies on a volatile Raft implementation and restart silence; it is not a durable production Raft log. See `src/detentd/CLUSTERING.md`.
+The legacy HTTP/UDP cluster profile has no built-in authentication or TLS and uses volatile Raft state. It requires an access-controlled network and an authenticated TLS proxy for remote publishers. See [legacy clustering](../src/detentd/CLUSTERING.md). The additive authority profile provides authenticated transport and durable consensus; its [component review](AUTHORITY_COMPONENT_REVIEW.md) and [readiness gates](AUTHORITY_READINESS.md) describe its qualification and remaining production limits.
 
-The shared-memory design currently uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
+The production agent’s legacy shared-memory path uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. The new [immutable local views](LOCAL_IMAGE_FORMAT.md) remain under Stage 4 integration; their library qualification does not replace that production path. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
 
 ## Fixed: JSON string truncation and encoding validation
 
