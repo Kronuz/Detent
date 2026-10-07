@@ -2,12 +2,14 @@
 #include "detent_local/generation.hh"
 #include "detent_local/view.hh"
 #include <algorithm>
+#include <chrono>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <sha256.h>
 #include <stdexcept>
 #include <sys/file.h>
+#include <thread>
 #include <unistd.h>
 namespace l = detent::local;
 void check(bool value) {
@@ -69,6 +71,44 @@ l::ReadView validate(std::shared_ptr<std::string> bytes) {
 }
 int main() {
 	try {
+		{
+			auto baseline = std::make_shared<detent::distribution::StorageLedger>(1024 * 1024);
+			auto account = std::make_shared<detent::distribution::StorageLedger>(16384);
+			std::atomic<bool> destroyed{false}, wrong_thread{false};
+			detent::distribution::RetirementRuntime runtime(baseline, 1);
+			{
+				auto domain = runtime.domain(account, 1);
+				struct TrackedLease {
+					std::shared_ptr<std::string> bytes;
+					detent::distribution::RetirementRuntime &runtime;
+					std::atomic<bool> &destroyed, &wrong;
+					~TrackedLease() {
+						wrong.store(!runtime.on_worker());
+						destroyed.store(true);
+					}
+				};
+				auto lease = std::make_shared<TrackedLease>(image(), runtime, destroyed, wrong_thread);
+				l::ViewLimits limits;
+				limits.retirement_domain = &domain;
+				l::ImageValidator validator(lease, std::span<const char>(*lease->bytes), limits);
+				while (!validator.done()) {
+					l::ValidationBudget budget;
+					validator.step(budget);
+				}
+				auto view = validator.take();
+				lease.reset();
+				auto drain = domain.close();
+				check(!drain.done() && domain.residents() == 1);
+				auto retained = view;
+				view = {};
+				check(!destroyed && retained.get("app", "count").value() == -17);
+				std::jthread sdk_caller([held = std::move(retained)]() mutable { held = {}; });
+				drain.wait();
+				check(destroyed && !wrong_thread && domain.residents() == 0);
+			}
+			runtime.shutdown();
+			check(account->used() == 0);
+		}
 		auto bytes = image();
 		auto view = validate(bytes);
 		check(view.size() == 2 && view.cursor().revision == 9);
@@ -158,7 +198,11 @@ int main() {
 		mapped = {};
 		check(::flock(lease, LOCK_EX | LOCK_NB) != 0);
 		retained = {};
-		check(::flock(lease, LOCK_EX | LOCK_NB) == 0);
+		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		while (::flock(lease, LOCK_EX | LOCK_NB) != 0) {
+			check(std::chrono::steady_clock::now() < deadline);
+			std::this_thread::yield();
+		}
 		::close(lease);
 		{
 			std::fstream file(directory / (name + ".image"), std::ios::binary | std::ios::in | std::ios::out);

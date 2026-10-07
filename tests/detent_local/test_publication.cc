@@ -1,8 +1,10 @@
 #include "detent_local/publication.hh"
 #include "snapshot_fixture.hh"
+#include <chrono>
 #include <fcntl.h>
 #include <filesystem>
 #include <sys/file.h>
+#include <thread>
 #include <unistd.h>
 namespace l = detent::local;
 namespace c = l::completion;
@@ -164,7 +166,11 @@ int main() {
 			c::drive_synchronously(*held);
 			held.reset();
 			require(weak.expired());
-			require(::flock(fd, LOCK_EX | LOCK_NB) == 0);
+			auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+			while (::flock(fd, LOCK_EX | LOCK_NB) != 0) {
+				require(std::chrono::steady_clock::now() < deadline);
+				std::this_thread::yield();
+			}
 			::close(fd);
 		}
 		for (bool after_completion : {false, true}) {

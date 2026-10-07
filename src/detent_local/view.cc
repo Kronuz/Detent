@@ -20,11 +20,27 @@ bool valid_lookup(std::string_view ns, std::string_view key) {
 KnobError error(ErrorCategory category, std::string_view key) {
 	return {category, std::string(key), "local image lookup failed"};
 }
+distribution::RetirementDomain &default_retirement() {
+	struct Resources {
+		std::shared_ptr<distribution::StorageLedger> baseline =
+			std::make_shared<distribution::StorageLedger>(1024 * 1024);
+		std::shared_ptr<distribution::StorageLedger> controls =
+			std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
+		distribution::RetirementRuntime runtime{baseline, 1};
+		distribution::RetirementDomain domain{runtime.domain(controls, 4096)};
+	};
+	// Standalone readers share one process-lifetime worker. Ordered application
+	// shutdown uses an explicit ViewLimits domain, not this default singleton.
+	static auto *resources = new Resources;
+	return resources->domain;
+}
 } // namespace
-struct ReadView::Root {
+struct ReadView::Root : distribution::RetirementNode {
 	std::shared_ptr<const void> lease;
 	std::span<const char> bytes;
 	Header header;
+	Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
+		: lease(std::move(owner)), bytes(region), header(metadata) {}
 	std::uint64_t number(std::uint64_t offset, unsigned width) const {
 		return read_integer(bytes, offset, width);
 	}
@@ -69,7 +85,7 @@ struct ReadView::Root {
 	}
 };
 struct ImageValidator::Impl {
-	std::shared_ptr<ReadView::Root> root;
+	distribution::RetirementHandle<ReadView::Root> root;
 	ViewLimits limits;
 	std::uint64_t ns = 0, record = 0, override_index = 0, strings = 0, remaining_charge = 0;
 	std::uint64_t active_override = 0, active_count = 0;
@@ -166,7 +182,8 @@ ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<cons
 	if (expected)
 		require(header.cursor.same_identity(*expected) && header.cursor.revision >= expected->revision);
 	impl_->limits = limits;
-	impl_->root = std::make_shared<ReadView::Root>(ReadView::Root{std::move(lease), bytes, header});
+	auto &domain = limits.retirement_domain ? *limits.retirement_domain : default_retirement();
+	impl_->root = domain.make<ReadView::Root>(std::move(lease), bytes, header);
 }
 ImageValidator::~ImageValidator() = default;
 ImageValidator::ImageValidator(ImageValidator &&) noexcept = default;

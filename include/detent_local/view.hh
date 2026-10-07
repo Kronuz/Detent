@@ -1,6 +1,7 @@
 #pragma once
 #include "detent/errors.hh"
 #include "detent/result.hh"
+#include "detent_distribution/retirement.hh"
 #include "layout.hh"
 #include <memory>
 #include <optional>
@@ -12,6 +13,9 @@ struct ValidationBudget {
 struct ViewLimits {
 	std::uint64_t bytes = 256ull * 1024 * 1024, strings = 128ull * 1024 * 1024;
 	std::uint32_t namespaces = 4096, records = 500000, overrides = 256;
+	// Optional application-owned runtime domain. Its runner must outlive all
+	// admitted views; closing the domain leaves existing views usable.
+	distribution::RetirementDomain *retirement_domain = nullptr;
 };
 class ImageValidator;
 class ReadView {
@@ -27,8 +31,8 @@ class ReadView {
 
   private:
 	struct Root;
-	explicit ReadView(std::shared_ptr<const Root> root) : root_(std::move(root)) {}
-	std::shared_ptr<const Root> root_;
+	explicit ReadView(distribution::RetirementHandle<Root> root) : root_(std::move(root)) {}
+	distribution::RetirementHandle<Root> root_;
 	friend class ImageValidator;
 };
 // The supplied lease retains the immutable byte region through all views.
