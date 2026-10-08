@@ -36,7 +36,11 @@ Retain a finite in-memory cache of actually applied changes with transaction and
 
 Maintain an exact coverage frontier. Eviction gaps, capture failure, restart and snapshot activation invalidate affected coverage; unavailable bases receive snapshots. Progress is allowed only when complete coverage proves that no scoped change occurred. Cache pressure must not fail a committed transaction: stop recording the optional suffix, mark the gap and continue authoritative application.
 
-Charge cache pages, export pins and retirement together. A slow response cannot keep history alive after its admission charge disappears.
+Charge physically allocated delivery controls, cache payloads/indexes, frame buffers, compression workspace and their retained/retired storage together. Cache history owns changed keys and definitions in admitted flat pages or canonical bytes; a charge for reference rows cannot authorize retaining historical authority definitions. A slow response keeps those page charges until their actual final free.
+
+Authority persistent nodes and definitions remain in their existing allocation domain. `state_bytes` limits logical encoded content, and deferred counters are diagnostics rather than aggregate heap admission. Retain at most one distribution capture through its entire retirement lifecycle, alongside the existing bounded authority read/checkpoint/candidate slots. The public projection retains whole record/namespace roots and the originating definition retirement arena, including across replacement snapshots. Transport receives only independently owned encoded buffers.
+
+After emission or cancellation, drop encoder/cursor roots, retire the projection roots and collect their nodes and deferred definitions under owner budgets. Keep the originating arenas and capture slot until that reclamation drains. Waiting requests hold admitted request metadata and quorum boundaries, never additional roots. Do not represent estimated retained authority bytes as physical ledger charges. Whole-authority and process-wide physical heap accounting remain outside this component. This accounting clarification was reviewed by the Lead Software Architect on October 8, 2026.
 
 ## Owned transport output and reception
 

@@ -779,6 +779,23 @@ std::shared_ptr<Producer> copy_producer(detail::DeferredValues<Producer> &arena,
 	return value;
 }
 } // namespace
+std::size_t detail::collect_definition(DeferredValues<KnobDef> &arena, CommandWorkBudget &budget) noexcept {
+	if (!budget.receipts || budget.bytes < 128)
+		return 0;
+	return arena.collect_one([&](KnobDef &value) {
+		if (auto flag = std::get_if<BoolDef>(&value); flag && !flag->overrides.empty()) {
+			if (budget.bytes < 512)
+				return false;
+			flag->overrides.erase(flag->overrides.begin());
+			budget.bytes -= 512;
+			--budget.receipts;
+			return false;
+		}
+		budget.bytes -= 128;
+		--budget.receipts;
+		return true;
+	});
+}
 bool State::reclamation_pending() const noexcept {
 	return records_.reclamation_pending() || namespaces_.reclamation_pending() ||
 		   producers_.reclamation_pending() || definitions_->pending() || producer_values_->pending();
@@ -814,19 +831,7 @@ std::size_t State::collect(CommandWorkBudget &budget) noexcept {
 			n = producers_.collect(1);
 			break;
 		case 3:
-			n = definitions_->collect_one([&](KnobDef &value) {
-				if (auto flag = std::get_if<BoolDef>(&value); flag && !flag->overrides.empty()) {
-					if (budget.bytes < 512)
-						return false;
-					flag->overrides.erase(flag->overrides.begin());
-					budget.bytes -= 512;
-					--budget.receipts;
-					return false;
-				}
-				budget.bytes -= 128;
-				--budget.receipts;
-				return true;
-			});
+			n = detail::collect_definition(*definitions_, budget);
 			break;
 		case 4:
 			n = producer_values_->collect_one([&](Producer &value) {

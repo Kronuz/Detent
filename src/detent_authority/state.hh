@@ -73,6 +73,9 @@ using Digest = std::array<unsigned char, 32>;
 struct CommandWorkBudget {
 	std::size_t bytes = 8192, records = 16, updates = 8, receipts = 32;
 };
+namespace detail {
+std::size_t collect_definition(DeferredValues<KnobDef> &arena, CommandWorkBudget &budget) noexcept;
+}
 class CommandDecoder;
 class CommandApplication;
 class EncodedCommand;
@@ -153,6 +156,8 @@ struct Producer {
 // runtime.
 class ImageEncoder;
 class ImageDecoder;
+class AuthorizedScope;
+class ExportCapture;
 class State {
   public:
 	explicit State(Context context, Limits limits = {});
@@ -190,12 +195,15 @@ class State {
 	std::size_t allocations() const noexcept {
 		return records_.allocations() + namespaces_.allocations() + producers_.allocations();
 	}
+	// Owner-executor capture of the authorized public projection.
+	std::shared_ptr<ExportCapture> capture(std::shared_ptr<const AuthorizedScope> scope) const;
 	Snapshot snapshot(std::string_view name_space = {}) const;
 	template <class F> void for_each(F &&f) const { records_.for_each(std::forward<F>(f)); }
 	std::string checkpoint() const;
 	static State restore(std::string_view bytes, Context context, Limits limits = {});
 
   private:
+	friend class ExportCapture;
 	friend class BatchApplication;
 	friend class CommandApplication;
 	friend class ImageEncoder;

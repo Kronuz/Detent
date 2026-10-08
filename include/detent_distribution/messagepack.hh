@@ -37,6 +37,14 @@ template <std::size_t Capacity> class InlineBytes {
 			throw std::length_error("MessagePack inline scratch limit exceeded");
 		data_[size_++] = byte;
 	}
+	void append(std::string_view bytes) {
+		if (bytes.size() > Capacity - size_)
+			throw std::length_error("MessagePack inline scratch limit exceeded");
+		if (!bytes.empty())
+			std::memcpy(data_ + size_, bytes.data(), bytes.size());
+		size_ += bytes.size();
+	}
+	void clear() noexcept { size_ = 0; }
 	std::size_t size() const noexcept { return size_; }
 	bool empty() const noexcept { return !size_; }
 	const char *data() const noexcept { return data_; }
@@ -225,11 +233,15 @@ using WireBytes = InlineBytes<200>;
 using WireToken = BasicToken<WireBytes>;
 using WireDecoder = BasicDecoder<WireBytes>;
 
-inline void big_endian(std::string &out, std::uint64_t value, unsigned width) {
+template <class Output>
+	requires requires(Output &out) { out.push_back(char{}); }
+inline void big_endian(Output &out, std::uint64_t value, unsigned width) {
 	for (unsigned i = width; i; --i)
 		out.push_back(static_cast<char>(value >> ((i - 1) * 8)));
 }
-inline void unsigned_integer(std::string &out, std::uint64_t value) {
+template <class Output>
+	requires requires(Output &out) { out.push_back(char{}); }
+inline void unsigned_integer(Output &out, std::uint64_t value) {
 	if (value <= 127) {
 		out.push_back(static_cast<char>(value));
 		return;
@@ -238,7 +250,9 @@ inline void unsigned_integer(std::string &out, std::uint64_t value) {
 	out.push_back(static_cast<char>(width == 1 ? 0xcc : width == 2 ? 0xcd : width == 4 ? 0xce : 0xcf));
 	big_endian(out, value, width);
 }
-inline void signed_integer(std::string &out, std::int64_t value) {
+template <class Output>
+	requires requires(Output &out) { out.push_back(char{}); }
+inline void signed_integer(Output &out, std::int64_t value) {
 	if (value >= 0) {
 		unsigned_integer(out, static_cast<std::uint64_t>(value));
 		return;
@@ -254,7 +268,9 @@ inline void signed_integer(std::string &out, std::int64_t value) {
 	out.push_back(static_cast<char>(width == 1 ? 0xd0 : width == 2 ? 0xd1 : width == 4 ? 0xd2 : 0xd3));
 	big_endian(out, std::bit_cast<std::uint64_t>(value), width);
 }
-inline void array(std::string &out, std::uint32_t size) {
+template <class Output>
+	requires requires(Output &out) { out.push_back(char{}); }
+inline void array(Output &out, std::uint32_t size) {
 	if (size <= 15)
 		out.push_back(static_cast<char>(0x90 | size));
 	else {
@@ -262,7 +278,9 @@ inline void array(std::string &out, std::uint32_t size) {
 		big_endian(out, size, size <= 65535 ? 2 : 4);
 	}
 }
-inline void string(std::string &out, std::string_view value, bool binary = false) {
+template <class Output>
+	requires requires(Output &out) { out.push_back(char{}); }
+inline void string(Output &out, std::string_view value, bool binary = false) {
 	if (value.size() > std::numeric_limits<std::uint32_t>::max())
 		throw std::length_error("MessagePack string too large");
 	if (!binary && value.size() <= 31)
@@ -278,5 +296,17 @@ inline void string(std::string &out, std::string_view value, bool binary = false
 		big_endian(out, value.size(), width);
 	}
 	out.append(value);
+}
+
+inline void big_endian(std::string &out, std::uint64_t value, unsigned width) {
+	big_endian<std::string>(out, value, width);
+}
+inline void unsigned_integer(std::string &out, std::uint64_t value) {
+	unsigned_integer<std::string>(out, value);
+}
+inline void signed_integer(std::string &out, std::int64_t value) { signed_integer<std::string>(out, value); }
+inline void array(std::string &out, std::uint32_t size) { array<std::string>(out, size); }
+inline void string(std::string &out, std::string_view value, bool binary = false) {
+	string<std::string>(out, value, binary);
 }
 } // namespace detent::distribution::messagepack

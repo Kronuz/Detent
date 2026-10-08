@@ -42,6 +42,9 @@ class OwnedBuffer {
 			throw std::logic_error("owned buffer incomplete");
 		sealed_ = true;
 	}
+	// Streaming chunks may end before backing capacity. Retain its full charge
+	// while exposing only initialized bytes through immutable ownership.
+	void seal_prefix() noexcept { sealed_ = true; }
 	std::size_t size() const noexcept { return size_; }
 	bool empty() const noexcept { return !size_; }
 	const char *data() const noexcept { return data_ ? data_ : ""; }
