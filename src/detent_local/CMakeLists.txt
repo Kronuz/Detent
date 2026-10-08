@@ -11,7 +11,7 @@ add_library(detent::local_builder ALIAS detent_local_builder)
 # Publication is enabled only with the reviewed standalone completion module.
 # Reader and codec consumers do not inherit this dependency.
 if(TARGET kronuz::completion)
-  add_library(detent_local_publication publication.cc storage_session.cc)
+  add_library(detent_local_publication publication.cc storage_session.cc inventory.cc)
   target_link_libraries(detent_local_publication PUBLIC detent::local_builder kronuz::completion)
   target_compile_features(detent_local_publication PUBLIC cxx_std_20)
   add_library(detent::local_publication ALIAS detent_local_publication)

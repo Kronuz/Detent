@@ -1,24 +1,11 @@
 #include "detent_local/publication.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/storage_session.hh"
+#include "names.hh"
 #include <limits>
 namespace detent::local {
 namespace {
-class GenerationName {
-  public:
-	GenerationName(const GenerationId &id, std::string_view suffix) {
-		size_ = generation_name(id, bytes_).size();
-		if (suffix.size() > bytes_.size() - size_)
-			throw std::length_error("generation name exceeds fixed capacity");
-		std::copy(suffix.begin(), suffix.end(), bytes_.begin() + size_);
-		size_ += suffix.size();
-	}
-	std::string_view view() const noexcept { return {bytes_.data(), size_}; }
-
-  private:
-	std::array<char, 64> bytes_;
-	std::size_t size_ = 0;
-};
+using detail::GenerationName;
 class RecoveryOperation final : public completion::Operation {
 	struct FileOwner {
 		std::shared_ptr<completion::IO> io;
