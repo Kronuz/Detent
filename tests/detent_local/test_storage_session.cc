@@ -1,6 +1,7 @@
 #include "detent_local/collector.hh"
 #include <chrono>
 #include <completion/image.h>
+#include <completion/native_completion.h>
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
@@ -224,6 +225,58 @@ int main() {
 			reader.join();
 			check(weak.expired() && !observed.wrong_thread && !observed.open_directory);
 			weak.reset();
+		}
+		eventually([&] { return account->used() == 0; });
+		{
+			auto domain = runtime.domain(account, 1);
+			Observation observed{runtime};
+			auto session = l::make_owned_storage_session(
+				domain, directory, std::shared_ptr<Admission>(new Admission{observed}), false);
+			observed.directory =
+				dynamic_cast<c::PosixIO *>(session->backend().get())->native_directory_handle();
+			auto queue = c::make_native_queue(session->allocation_context());
+			auto bytes = std::make_shared<const std::string>("retained native preparation");
+			auto preparation = c::make_image_preparation(session->allocation_context(), session->backend(),
+														 session, session->next_operation(), "held.image",
+														 bytes, 64, c::PreparationFilePolicy::CloseAfterSeal);
+			check(queue->submit(preparation));
+			session->close();
+			rejects([&] { session->next_operation(); });
+			auto drain = domain.close();
+			preparation.reset();
+			session.reset();
+			auto poll = [&] {
+				const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+				for (;;) {
+					auto completion = queue->poll();
+					if (completion)
+						return completion;
+					check(std::chrono::steady_clock::now() < deadline);
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+			};
+			auto held = poll();
+			check(!held->completion.error && held->completion.file && !observed.retired && !drain.done());
+			auto pressure = account->admit(account->limit() - account->used());
+			for (;;) {
+				preparation = std::static_pointer_cast<c::ImagePreparation>(held->operation);
+				check(preparation->complete(std::move(held->completion)));
+				check(!observed.retired && !drain.done());
+				if (preparation->done())
+					break;
+				check(queue->submit(preparation));
+				preparation.reset();
+				held.reset();
+				held = poll();
+			}
+			check(!preparation->error());
+			preparation.reset();
+			held.reset();
+			drain.wait();
+			check(observed.retired && !observed.wrong_thread && !observed.open_directory);
+			// Queue destruction joins its fallback worker on this shutdown caller.
+			queue.reset();
+			pressure.reset();
 		}
 		eventually([&] { return account->used() == 0; });
 		std::size_t failures = 0, successes = 0;

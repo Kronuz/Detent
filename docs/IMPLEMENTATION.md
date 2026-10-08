@@ -42,6 +42,10 @@ The publisher owner is now a retained `StorageSession`, with a fresh OS-entropy 
 
 The optional coroutine adapter now dispatches the same extension kinds as native queues, with separate extension timing arrays preserving the legacy twelve-element exposure. A reproduced [extension-integration gap](AUDIT.md#coroutine-dispatch-omitted-newly-added-primitives) fails at `NextInto` before correction. Seven standalone suites pass on all three platforms and under ASan/UBSan; focused TSan and legacy journal coroutine gates also pass. Explicit cursor closure and managed session teardown remain lifecycle work.
 
+The disk lifecycle foundation now supplies a quiescent streaming census, eleven preadmitted reusable collector controls, holder-backed owning sessions with worker-side native retirement, and a bounded retained-state record reader. Repeated real census and record reads complete under saturated heap admission. Session close rejects new work while an accepted native preparation can finish its barriers and explicit file close before retirement. Focused qualification passes on macOS, Linux and FreeBSD, ASan/UBSan and TSan. The [disk lifecycle supplement](DISK_LIFECYCLE_ARCHITECTURE.md) records the actual capacity boundaries and open integration work.
+
+The complete regression at Detent `15d12a9` and cluster `38cbadb` passes 68/68 tests natively (199.43 seconds) and under macOS ASan/UBSan (226.18 seconds). Subsequent native-original session shutdown coverage passes separately on all three platforms and under ASan/UBSan and TSan. Managed identity bootstrap, retained managed publication settlement, lease-protected batched reclamation and their complete-component review remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
