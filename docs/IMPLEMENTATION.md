@@ -40,6 +40,8 @@ The fixed-capacity logical `DiskLedger` foundation now enforces bytes, entries a
 
 The publisher owner is now a retained `StorageSession`, with a fresh OS-entropy completion incarnation and monotonic operation identities. A reproduced [cross-session barrier replay](AUDIT.md#cross-session-publication-completion-replay) fails before correction and is rejected afterward; publication gates pass on three platforms and under ASan/UBSan. The complete regression for this session milestone and cluster `510c093` passes 64/64 tests natively (188.14 seconds) and under macOS ASan/UBSan (215.01 seconds). Managed session drainage, worker-side final native teardown, census and publication/GC accounting integration remain open.
 
+The optional coroutine adapter now dispatches the same extension kinds as native queues, with separate extension timing arrays preserving the legacy twelve-element exposure. A reproduced [extension-integration gap](AUDIT.md#coroutine-dispatch-omitted-newly-added-primitives) fails at `NextInto` before correction. Seven standalone suites pass on all three platforms and under ASan/UBSan; focused TSan and legacy journal coroutine gates also pass. Explicit cursor closure and managed session teardown remain lifecycle work.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
