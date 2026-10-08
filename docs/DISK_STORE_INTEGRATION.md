@@ -103,3 +103,11 @@ Close revokes new work and requests termination at these publication/GC boundari
 | Compatibility | Journal/Xapiand, legacy publisher, dual SDK readers, three native platforms, full regression, ASan/UBSan and focused TSan. |
 
 The scalability check bounds permanent graphs by configured controls, slices and batches. Edge-case analysis requires real original settlement and preserved debt. The dependency/state audit keeps operations out of StoreCore and native ownership behind the validated alias holder. Security review binds deletion to validated ownership and held leases, preserves quarantine and separates actual durability from acknowledgement. These are design conclusions; implementation acceptance still requires the evidence above.
+
+## Qualified creation and sharing prerequisites
+
+Cluster `3636009` adds preadmitted exclusive creation and closed-control preparations. Eleven standalone suites pass on macOS, Linux, FreeBSD and macOS ASan/UBSan; focused creation/coroutine TSan and three-platform journal compatibility also pass. The module README records fixture capacity and object sizes, including the native queue increase from 896 to 912 bytes. Legacy journal bytes and wire formats remain unchanged; consumers rebuild against matching headers.
+
+The owning-session factory preserves its existing four-argument form and adds an explicit artifact-mode overload. Native tests on all three platforms verify newly created `0640` and `0644` artifacts while newly created owner locks remain `0600`. The fixture provisions its directory as `0700`, independent of the test runner's umask. macOS ASan/UBSan and focused fully instrumented TSan pass. Sharing policy still requires appropriate deployment directory traversal permissions.
+
+Architect clarification: introducing metadata during a legacy upgrade does not convert existing empty leases. On subsequent managed opens, an exactly empty selected lease remains readable after full recovery and safe held/named validation. Preserve that generation's artifacts and charges when it retires; it has no managed deletion proof. Every new managed publication requires the bound 128-byte record. Malformed or unsupported nonempty leases never enter this compatibility path.

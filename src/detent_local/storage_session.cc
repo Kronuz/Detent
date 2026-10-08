@@ -85,13 +85,19 @@ std::shared_ptr<StorageSession> make_owned_storage_session(detent::distribution:
 														   const std::filesystem::path &directory,
 														   std::shared_ptr<void> admission,
 														   bool create_owner) {
+	return make_owned_storage_session(domain, directory, std::move(admission), create_owner, 0600);
+}
+std::shared_ptr<StorageSession> make_owned_storage_session(detent::distribution::RetirementDomain &domain,
+														   const std::filesystem::path &directory,
+														   std::shared_ptr<void> admission, bool create_owner,
+														   unsigned artifact_mode) {
 	if (!admission)
 		throw std::invalid_argument("storage session owner admission missing");
 	auto owner = domain.make<NativeOwner>();
 	owner->admission = std::move(admission);
 	kronuz::io::completion::AllocationContext context(
 		detent::distribution::make_storage_resource(domain.storage_account()));
-	owner->backend = kronuz::io::completion::make_posix_io(context, directory);
+	owner->backend = kronuz::io::completion::make_posix_io(context, directory, artifact_mode);
 	auto holder = std::allocate_shared<BackendHolder>(
 		kronuz::io::completion::OwnedAllocator<BackendHolder>(context), owner);
 	auto alias = std::shared_ptr<kronuz::io::completion::IO>(holder, owner->backend.get());

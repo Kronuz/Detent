@@ -26,7 +26,7 @@ class StorageSession {
 		ManagedTag() = default;
 		friend std::shared_ptr<StorageSession>
 		make_owned_storage_session(detent::distribution::RetirementDomain &, const std::filesystem::path &,
-								   std::shared_ptr<void>, bool);
+								   std::shared_ptr<void>, bool, unsigned);
 	};
 	StorageSession(ManagedTag, kronuz::io::completion::AllocationContext context,
 				   std::shared_ptr<kronuz::io::completion::IO> io);
@@ -51,4 +51,9 @@ std::shared_ptr<StorageSession> make_owned_storage_session(detent::distribution:
 														   const std::filesystem::path &directory,
 														   std::shared_ptr<void> admission,
 														   bool create_owner);
+// Explicit sharing policy for SDK readers; the stable owner lock stays private.
+std::shared_ptr<StorageSession> make_owned_storage_session(detent::distribution::RetirementDomain &domain,
+														   const std::filesystem::path &directory,
+														   std::shared_ptr<void> admission, bool create_owner,
+														   unsigned artifact_mode);
 } // namespace detent::local

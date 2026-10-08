@@ -280,6 +280,39 @@ int main() {
 		}
 		eventually([&] { return account->used() == 0; });
 		std::size_t failures = 0, successes = 0;
+		for (unsigned mode : {0640u, 0644u}) {
+			const auto shared_directory = directory / (mode == 0640 ? "group" : "public");
+			std::filesystem::create_directory(shared_directory);
+			std::filesystem::permissions(shared_directory, std::filesystem::perms::owner_all);
+			{
+				auto domain = runtime.domain(account, 1);
+				auto session =
+					l::make_owned_storage_session(domain, shared_directory, std::make_shared<int>(1), true, mode);
+				auto bytes = std::make_shared<const std::string>("shared artifact");
+				const auto name = mode == 0640 ? "group.image" : "public.image";
+				auto preparation = c::make_image_preparation(
+					session->allocation_context(), session->backend(), session, session->next_operation(),
+					name, bytes, 64, session->backend()->make_closed_file());
+				drive(*preparation);
+				check(!preparation->error());
+				check(session->backend()->inspect_entry(name)->permissions == mode);
+				check(session->backend()->inspect_entry("owner.lock")->permissions == 0600);
+				auto drain = domain.close();
+				preparation.reset();
+				session.reset();
+				drain.wait();
+			}
+			eventually([&] { return account->used() == 0; });
+		}
+		{
+			auto domain = runtime.domain(account, 1);
+			rejects([&] {
+				l::make_owned_storage_session(domain, directory, std::make_shared<int>(1), false, 0666);
+			});
+			auto drain = domain.close();
+			drain.wait();
+		}
+		eventually([&] { return account->used() == 0; });
 		for (std::size_t available = 0; available <= bootstrap_capacity; ++available) {
 			{
 				auto domain = runtime.domain(account, 1);
