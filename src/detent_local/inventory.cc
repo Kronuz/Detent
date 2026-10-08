@@ -7,27 +7,64 @@ namespace c = inventory_completion;
 struct InventoryOperation::State {
 	std::shared_ptr<StorageSession> session;
 	std::unique_ptr<c::DirectoryCursor> cursor;
+	std::shared_ptr<CollectorControls> controls;
+	CollectorControls::Claim claim;
 	std::array<char, 256> name{};
 	std::size_t name_size = 0;
 	InventoryReport report;
 	std::uint64_t work_limit, trusted_owner;
 	InventoryStatus status = InventoryStatus::Scanning;
 	std::exception_ptr error;
-	bool submitted = false, cancelled = false, cursor_settled = false;
-	State(std::shared_ptr<StorageSession> owner, std::uint64_t work, std::uint64_t uid)
-		: session(std::move(owner)), work_limit(work), trusted_owner(uid) {}
+	bool submitted = false, cancelled = false, cursor_settled = false, cursor_open = false;
+	State(std::shared_ptr<StorageSession> owner, std::shared_ptr<CollectorControls> collector = {})
+		: session(std::move(owner)), controls(std::move(collector)), work_limit(0), trusted_owner(0) {}
+	c::DirectoryCursor *cursor_handle() const noexcept {
+		return controls ? &controls->cursor() : cursor.get();
+	}
 };
 InventoryOperation::InventoryOperation(std::shared_ptr<StorageSession> session, std::uint64_t work_limit,
 									   std::uint64_t trusted_owner) {
-	if (!session || !session->backend()->managed_capabilities().complete())
-		throw std::invalid_argument("inventory requires a complete managed backend");
-	// Reserve token space for every inspected entry, EOF and authentic close.
+	if (!session)
+		throw std::invalid_argument("inventory session missing");
+	const auto caps = session->backend()->managed_capabilities();
+	if (!caps.caller_scan || !caps.entry_inspection || !caps.cursor_close)
+		throw std::invalid_argument("inventory scan/inspection/close capabilities missing");
+	state_ = std::allocate_shared<State>(c::OwnedAllocator<State>(session->allocation_context()), session);
+	initialize_pass(work_limit, trusted_owner);
+}
+InventoryOperation::InventoryOperation(std::shared_ptr<CollectorControls> controls, std::uint64_t work_limit,
+									   std::uint64_t trusted_owner) {
+	if (!controls)
+		throw std::invalid_argument("inventory collector controls missing");
+	const auto &session = controls->session();
+	state_ = std::allocate_shared<State>(c::OwnedAllocator<State>(session->allocation_context()), session,
+										 controls);
+	initialize_pass(work_limit, trusted_owner);
+}
+void InventoryOperation::initialize_pass(std::uint64_t work_limit, std::uint64_t trusted_owner) {
 	if (work_limit > (std::numeric_limits<std::uint64_t>::max() - 3) / 2)
 		throw std::length_error("inventory work exceeds completion token space");
-	state_ = std::allocate_shared<State>(c::OwnedAllocator<State>(session->allocation_context()), session,
-										 work_limit, trusted_owner);
-	request_.token = session->next_operation();
-	next(c::Kind::Scan);
+	// Obtain a token before claiming controls; neither can leave partial IO.
+	const auto token = state_->session->next_operation();
+	CollectorControls::Claim claim;
+	if (state_->controls)
+		claim = state_->controls->claim(CollectorUse::Census);
+	state_->claim = claim;
+	state_->work_limit = work_limit;
+	state_->trusted_owner = trusted_owner;
+	state_->report = {};
+	state_->name_size = 0;
+	state_->error = {};
+	state_->cancelled = state_->cursor_settled = state_->cursor_open = false;
+	state_->status = InventoryStatus::Scanning;
+	request_ = {};
+	request_.token = token;
+	next(state_->controls ? c::Kind::ScanInto : c::Kind::Scan);
+}
+void InventoryOperation::restart(std::uint64_t work_limit, std::uint64_t trusted_owner) {
+	if (!state_->controls || !done() || in_flight())
+		throw std::logic_error("inventory reuse requires settled reusable controls");
+	initialize_pass(work_limit, trusted_owner);
 }
 InventoryOperation::~InventoryOperation() = default;
 const c::Request &InventoryOperation::request() const { return request_; }
@@ -49,8 +86,8 @@ void InventoryOperation::next(c::Kind kind) {
 	request_.token = token;
 	++request_.token.step;
 	request_.kind = kind;
-	if (kind == c::Kind::NextInto || kind == c::Kind::CloseCursor)
-		request_.cursor = std::shared_ptr<c::DirectoryCursor>(state_, state_->cursor.get());
+	if (kind == c::Kind::NextInto || kind == c::Kind::CloseCursor || kind == c::Kind::ScanInto)
+		request_.cursor = std::shared_ptr<c::DirectoryCursor>(state_, state_->cursor_handle());
 	if (kind == c::Kind::NextInto)
 		request_.destination_bytes = state_->name;
 	if (kind == c::Kind::InspectEntry)
@@ -62,7 +99,7 @@ void InventoryOperation::submitted() {
 	state_->submitted = true;
 }
 void InventoryOperation::finish_or_close() {
-	if (state_->cursor && !state_->cursor_settled) {
+	if (state_->cursor_open && !state_->cursor_settled) {
 		if (request_.kind != c::Kind::CloseCursor)
 			next(c::Kind::CloseCursor);
 		return;
@@ -71,6 +108,10 @@ void InventoryOperation::finish_or_close() {
 					 : state_->cancelled ? InventoryStatus::Cancelled
 										 : InventoryStatus::Ready;
 	request_.cursor.reset();
+	if (state_->controls && state_->claim.serial) {
+		state_->controls->release(state_->claim);
+		state_->claim = {};
+	}
 }
 void InventoryOperation::cancel() noexcept {
 	if (done())
@@ -128,13 +169,19 @@ bool InventoryOperation::complete(c::Result result) noexcept {
 	state_->submitted = false;
 	const auto kind = request_.kind;
 	// A returned resource belongs to this authentic original even on failure.
-	if (kind == c::Kind::Scan && result.cursor)
+	if (kind == c::Kind::Scan && result.cursor) {
 		state_->cursor = std::move(result.cursor);
+		state_->cursor_open = true;
+	}
+	// Into failure leaves its preadmitted destination closed by contract.
+	if (kind == c::Kind::ScanInto && !result.error)
+		state_->cursor_open = true;
 	if (result.error && !state_->error)
 		state_->error = result.error;
 	try {
 		if (kind == c::Kind::CloseCursor) {
 			state_->cursor_settled = true;
+			state_->cursor_open = false;
 			finish_or_close();
 			return true;
 		}
@@ -144,7 +191,8 @@ bool InventoryOperation::complete(c::Result result) noexcept {
 		}
 		switch (kind) {
 		case c::Kind::Scan:
-			if (!state_->cursor)
+		case c::Kind::ScanInto:
+			if (!state_->cursor_handle())
 				throw std::runtime_error("inventory scan returned no cursor");
 			next(c::Kind::NextInto);
 			break;
@@ -192,5 +240,14 @@ std::shared_ptr<InventoryOperation> make_inventory_operation(std::shared_ptr<Sto
 	return std::allocate_shared<InventoryOperation>(
 		c::OwnedAllocator<InventoryOperation>(session->allocation_context()), session, work_limit,
 		trusted_owner);
+}
+std::shared_ptr<InventoryOperation> make_inventory_operation(std::shared_ptr<CollectorControls> controls,
+															 std::uint64_t work_limit,
+															 std::uint64_t trusted_owner) {
+	if (!controls)
+		throw std::invalid_argument("inventory collector missing");
+	return std::allocate_shared<InventoryOperation>(
+		c::OwnedAllocator<InventoryOperation>(controls->session()->allocation_context()), controls,
+		work_limit, trusted_owner);
 }
 } // namespace detent::local
