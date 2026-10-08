@@ -28,6 +28,8 @@ The application publisher now admits its implementation, owner, preparation/publ
 
 The complete native regression run after control integration passes all 61 Detent tests in 178.42 seconds. The production agent remains on the legacy distribution path; this compatibility result does not complete Stage 4.
 
+The Architect's [validated disk lifecycle supplement](DISK_LIFECYCLE_ARCHITECTURE.md) completes the resource-component plan: durable ownership records, a streaming census, bounded active protection, retained publication settlement and batched lease-protected GC. Managed leases require upgrading readers to dual legacy/managed support before enabling managed publication. Image and selected descriptor bytes and generic journal behavior remain unchanged. The next review covers the complete implemented and qualified lifecycle, not its individual commits.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
