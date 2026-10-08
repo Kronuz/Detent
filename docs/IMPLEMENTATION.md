@@ -34,6 +34,8 @@ Caller-buffer scanning is implemented in cluster `5754b66`. Five standalone comp
 
 Pure managed-ownership codecs and dual legacy/managed SDK reader support are implemented and qualified on macOS, Linux and FreeBSD and under macOS ASan/UBSan. The [reader upgrade boundary](LOCAL_IMAGE_FORMAT.md#managed-ownership-records-and-reader-upgrade) is explicit: old SDK binaries cannot consume managed leases, so publication remains legacy until reader upgrade. Managed publication, census, admission and GC remain open.
 
+Cluster `510c093` supplies explicit managed capabilities, no-follow stable entry/held-file metadata, nonblocking leases and worker-side file close. Six standalone suites, journal compatibility and focused concurrency gates pass on all supported platforms and under the documented sanitizers. Detent all-target build and fifteen distribution/local suites pass (4.92 seconds); five reader/publication fixtures pass under ASan/UBSan (4.34 seconds). [The reusable completion reference](../../Kronuz/cluster/completion/README.md#managed-metadata-leases-and-handle-settlement) records semantics, required header rebuilds and the measured result/queue capacity increase. Application lifecycle implementation remains open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
