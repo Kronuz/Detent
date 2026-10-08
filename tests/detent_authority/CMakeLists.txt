@@ -106,3 +106,6 @@ add_test(NAME test_authority_change_recorder COMMAND test_authority_change_recor
 add_executable(test_authority_change_history test_change_history.cc)
 target_link_libraries(test_authority_change_history PRIVATE detent::authority_export)
 add_test(NAME test_authority_change_history COMMAND test_authority_change_history)
+add_executable(test_authority_delta_export test_delta_export.cc)
+target_link_libraries(test_authority_delta_export PRIVATE detent::authority_export)
+add_test(NAME test_authority_delta_export COMMAND test_authority_delta_export)

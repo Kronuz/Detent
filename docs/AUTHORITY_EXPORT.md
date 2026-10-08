@@ -1,6 +1,6 @@
 # Authorized authority export
 
-**Status:** Scope authorization, frozen projection, incremental snapshot encoding and bounded applied-change history are implemented as libraries. The `/v2/distribution` service endpoint, delta/progress export, transport streaming and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
+**Status:** Scope authorization, frozen projection, incremental snapshot/delta/progress encoding and bounded applied-change history are implemented as libraries. The `/v2/distribution` service endpoint, transport streaming and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
 
 ## Scope identity
 
@@ -34,10 +34,18 @@ The reusable MessagePack writers accept fixed inline scratch while preserving th
 
 Coverage requires a complete committed revision suffix. Publication independently checks revision continuity; missing capture, allocation refusal, encoding limits, eviction and context replacement force snapshot fallback for older bases. Optional cache pressure never rejects an otherwise valid committed transaction. Completed drafts also budget their sealed-body disposal when cancelled before staging.
 
+## Delta and progress encoding
+
+`DeltaExportEncoder` checks complete base/target identities and history coverage, then pins self-contained bodies from the requested revision suffix. Authorized namespace filtering precedes counting. The encoder emits a delta containing only selected transactions, or progress when the fully covered suffix changes none of the selected namespaces. Loss of coverage during capture refuses export before any chunk is exposed. After capture, cache eviction cannot invalidate pinned bodies.
+
+Counting precedes emission and enforces aggregate wire, mutation and string limits plus per-definition byte and override limits. The cache and scope must share a physical account. Lexical traversal reuses canonical cached bytes while adding the authorized namespace index to mutation tuples; definitions are not copied into a second object model. Output uses the same independently owned 65,536-byte chunk boundary as snapshot export. Cancellation drains pinned bodies, output and the admitted reference index with caller budgets; the encoder retains its scope owner until final disposal.
+
 ## Qualification and remaining work
 
 The eight focused authority/codec suites pass on macOS (1.41 seconds), Linux (1.11 seconds) and FreeBSD (1.45 seconds), under ASan/UBSan (6.68 seconds) and fully instrumented TSan (9.78 seconds). Coverage includes frozen export during writes, authorization isolation, canonical hashing, randomized lower-bound traversal, replacement-snapshot retirement, independent MessagePack vectors, multi-chunk output and retained-allocation refusal. Final empty-scope and schema-limit rejection checks also pass separately on all three platforms and under both sanitizers.
 
-The recorder and history suites pass natively (0.31 seconds), under ASan/UBSan (0.55 seconds) and fully instrumented TSan (0.97 seconds). Five native authority regressions, including both Node storage modes, pass in 10.95 seconds. Coverage includes canonical payload bytes, publication visibility, retry filtering, changed-only capture, pinned eviction accounting, missing-revision fallback, optional encoding pressure, and complete-draft cancellation with one-byte disposal budgets. These timings describe shared-host test runs, not performance benchmarks; Linux and FreeBSD qualification of the new history remains pending.
+The recorder and history suites pass natively (0.31 seconds), under ASan/UBSan (0.55 seconds) and fully instrumented TSan (0.97 seconds). Five native authority regressions, including both Node storage modes, pass in 10.95 seconds. Coverage includes canonical payload bytes, publication visibility, retry filtering, changed-only capture, pinned eviction accounting, missing-revision fallback, optional encoding pressure, and complete-draft cancellation with one-byte disposal budgets. These timings describe shared-host test runs, not performance benchmarks.
 
-These tests establish library behavior. Delta/progress export, owner-slot integration, authentic transport settlement and end-to-end authority/agent/SDK qualification remain required before Stage 4 acceptance. No delivery throughput or fleet-capacity claim follows from these fixtures.
+Five history/delta/Node suites pass on Linux (0.91 seconds) and FreeBSD (0.69 seconds). The final delta fixture passes natively (0.28 seconds), under ASan/UBSan (0.38 seconds) and TSan (0.76 seconds), on Linux (0.02 seconds) and FreeBSD (0.02 seconds). It checks an independent tuple oracle, the existing semantic decoder, one-byte work budgets, namespace isolation, scoped progress, pinned eviction, pre-emission limits and budgeted cancellation. A 64-transaction workload with 128 rollout overrides per definition crosses multiple output chunks and verifies decoded values. These timings describe shared-host test runs, not performance benchmarks.
+
+These tests establish library behavior. Owner-slot integration, authentic transport settlement and end-to-end authority/agent/SDK qualification remain required before Stage 4 acceptance. No delivery throughput or fleet-capacity claim follows from these fixtures.

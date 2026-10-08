@@ -11,6 +11,7 @@ struct HistoryOptions {
 struct CachedChange {
 	std::uint64_t revision = 0, overrides = 0, strings = 0;
 	std::uint32_t mutations = 0;
+	std::size_t maximum_definition_bytes = 0, maximum_overrides = 0;
 	std::size_t namespace_offset = 0, namespace_length = 0;
 	std::shared_ptr<const distribution::OwnedBuffer> body;
 	std::string_view name_space() const noexcept {
@@ -37,6 +38,7 @@ class ChangeHistory final : public AppliedChangeRecorder {
 	std::size_t payload_capacity() const noexcept;
 	std::uint64_t coverage_floor() const noexcept;
 	std::uint64_t through() const noexcept;
+	std::shared_ptr<distribution::StorageLedger> storage_account() const noexcept;
 
   private:
 	struct Impl;

@@ -14,6 +14,7 @@ class HistoryDraft final : public AppliedChangeDraft {
 	std::span<const unsigned char> changed_;
 	std::shared_ptr<d::StorageLedger> account_;
 	std::size_t maximum_, row_ = 0, offset_ = 0, extent_ = 0, charge_ = 0, disposal_charge_ = 0;
+	std::size_t definition_bytes_ = 0;
 	std::shared_ptr<d::OwnedBuffer> body_;
 	std::shared_ptr<CachedChange> entry_;
 	Scratch pending_;
@@ -47,10 +48,14 @@ class HistoryDraft final : public AppliedChangeDraft {
 				detail::write_wire_override(pending_, name, value);
 				++*group_;
 				if (!emitting_) {
+					definition_bytes_ += pending_.size();
 					++entry_->overrides;
 					entry_->strings += name.size();
 				}
 			} else {
+				if (!emitting_)
+					entry_->maximum_definition_bytes =
+						std::max(entry_->maximum_definition_bytes, definition_bytes_);
 				group_.reset();
 				boolean_ = nullptr;
 				++row_;
@@ -79,11 +84,21 @@ class HistoryDraft final : public AppliedChangeDraft {
 		const auto *record = candidate_->find(mutation.key);
 		if (!record || record->revision != entry_->revision)
 			throw std::logic_error("changed value revision mismatch");
+		const auto prefix = pending_.size();
 		detail::write_wire_definition_head(pending_, *record->value);
-		if ((boolean_ = std::get_if<BoolDef>(record->value.get())))
+		if (!emitting_)
+			definition_bytes_ = pending_.size() - prefix;
+		if ((boolean_ = std::get_if<BoolDef>(record->value.get()))) {
+			if (!emitting_)
+				entry_->maximum_overrides =
+					std::max<std::size_t>(entry_->maximum_overrides, boolean_->overrides.size());
 			group_ = boolean_->overrides.begin();
-		else
+		} else {
+			if (!emitting_)
+				entry_->maximum_definition_bytes =
+					std::max(entry_->maximum_definition_bytes, definition_bytes_);
 			++row_;
+		}
 	}
 
   public:
@@ -412,4 +427,5 @@ std::size_t ChangeHistory::size() const noexcept { return impl_->count; }
 std::size_t ChangeHistory::payload_capacity() const noexcept { return impl_->bytes; }
 std::uint64_t ChangeHistory::coverage_floor() const noexcept { return impl_->floor; }
 std::uint64_t ChangeHistory::through() const noexcept { return impl_->through; }
+std::shared_ptr<d::StorageLedger> ChangeHistory::storage_account() const noexcept { return impl_->account; }
 } // namespace detent::authority
