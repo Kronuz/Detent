@@ -32,6 +32,8 @@ The Architect's [validated disk lifecycle supplement](DISK_LIFECYCLE_ARCHITECTUR
 
 Caller-buffer scanning is implemented in cluster `5754b66`. Five standalone completion suites pass on macOS, Linux and FreeBSD, under macOS ASan/UBSan, and in a focused fully instrumented scan TSan run. Existing journal suites and macOS Detent publication remain compatible. A 255-byte name and EOF produce zero observed global allocations; accepted work retains scratch and cursor after facade retirement with further PMR allocation refused. The legacy scan API and twelve-element statistics arrays remain unchanged. This is primitive qualification; application inventory and reclamation remain open.
 
+Pure managed-ownership codecs and dual legacy/managed SDK reader support are implemented and qualified on macOS, Linux and FreeBSD and under macOS ASan/UBSan. The [reader upgrade boundary](LOCAL_IMAGE_FORMAT.md#managed-ownership-records-and-reader-upgrade) is explicit: old SDK binaries cannot consume managed leases, so publication remains legacy until reader upgrade. Managed publication, census, admission and GC remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.

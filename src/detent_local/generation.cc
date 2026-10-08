@@ -1,4 +1,5 @@
 #include "detent_local/generation.hh"
+#include "detent_local/ownership.hh"
 #include "resources.hh"
 #include <algorithm>
 #include <cerrno>
@@ -74,6 +75,16 @@ void trusted_file(int fd, uid_t owner, std::uint64_t length) {
 			info.st_nlink == 1 && !(info.st_mode & 0022) && info.st_size >= 0 &&
 			std::uint64_t(info.st_size) == length);
 }
+void read_record(int fd, std::span<char> bytes) {
+	std::size_t offset = 0;
+	while (offset < bytes.size()) {
+		auto count = ::pread(fd, bytes.data() + offset, bytes.size() - offset, offset);
+		if (count < 0 && errno == EINTR)
+			continue;
+		require(count > 0);
+		offset += static_cast<std::size_t>(count);
+	}
+}
 } // namespace
 std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &d) {
 	require(std::any_of(d.generation.begin(), d.generation.end(), [](char c) { return c != 0; }) &&
@@ -147,14 +158,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		File selected(::openat(dir->fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		trusted_file(selected.fd, directory_info.st_uid, descriptor_bytes);
 		std::array<char, descriptor_bytes> raw{};
-		std::size_t offset = 0;
-		while (offset < raw.size()) {
-			auto n = ::pread(selected.fd, raw.data() + offset, raw.size() - offset, offset);
-			if (n < 0 && errno == EINTR)
-				continue;
-			require(n > 0);
-			offset += n;
-		}
+		read_record(selected.fd, raw);
 		auto descriptor = decode_descriptor(raw);
 		require(descriptor.length <= limits.bytes);
 		auto name = generation_name(descriptor.generation);
@@ -172,7 +176,31 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		require(::fstat(mapping->lease, &lease_info) == 0);
 		if (lease_info.st_nlink == 0)
 			continue;
-		trusted_file(mapping->lease, directory_info.st_uid, 0);
+		require(lease_info.st_size == 0 || lease_info.st_size == generation_ownership_bytes);
+		trusted_file(mapping->lease, directory_info.st_uid, lease_info.st_size);
+		// A collector may have unlinked an anchor between open and locking.
+		// Match the held inode against the name before opening its image.
+		struct stat named_lease{};
+		if (::fstatat(dir->fd, (name + ".lease").c_str(), &named_lease, AT_SYMLINK_NOFOLLOW) != 0) {
+			if (errno == ENOENT)
+				continue;
+			require(false);
+		}
+		if (named_lease.st_dev != lease_info.st_dev || named_lease.st_ino != lease_info.st_ino)
+			continue;
+		if (lease_info.st_size == generation_ownership_bytes) {
+			std::array<char, generation_ownership_bytes> lease_record;
+			read_record(mapping->lease, lease_record);
+			auto ownership = decode_generation_ownership(lease_record);
+			File storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+			trusted_file(storage.fd, directory_info.st_uid, storage_identity_bytes);
+			std::array<char, storage_identity_bytes> storage_record;
+			read_record(storage.fd, storage_record);
+			require(ownership.storage == decode_storage_identity(storage_record) &&
+					ownership.generation == descriptor.generation &&
+					ownership.image_length == descriptor.length &&
+					ownership.image_checksum == descriptor.checksum);
+		}
 		mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 		mapping->length = descriptor.length;
