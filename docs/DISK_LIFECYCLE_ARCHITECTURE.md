@@ -4,6 +4,8 @@
 
 Use a streaming census, a bounded active-work registry, and completion-driven reclamation anchored by durable ownership records. Preserve generic journal formats and interfaces. Keep heap capacity, mapped virtual bytes, logical disk commitments and native/runtime resources separate.
 
+The [integrated DiskStore amendment](DISK_STORE_INTEGRATION.md) fixes the remaining concrete APIs, bootstrap admission, retained publication and reusable GC composition. It carries Architect design GO for one autonomous implementation component, followed by consolidated qualification and review.
+
 ## Ownership records and reader compatibility
 
 Keep `DTIMAGE1`, the 176-byte `DTSELECT` descriptor and generation filenames unchanged. Add Detent-only immutable `storage.meta` and a versioned record in each managed generation's existing `.lease` file. Encode integers explicitly in big-endian order.
