@@ -36,6 +36,8 @@ Pure managed-ownership codecs and dual legacy/managed SDK reader support are imp
 
 Cluster `510c093` supplies explicit managed capabilities, no-follow stable entry/held-file metadata, nonblocking leases and worker-side file close. Six standalone suites, journal compatibility and focused concurrency gates pass on all supported platforms and under the documented sanitizers. Detent all-target build and fifteen distribution/local suites pass (4.92 seconds); five reader/publication fixtures pass under ASan/UBSan (4.34 seconds). [The reusable completion reference](../../Kronuz/cluster/completion/README.md#managed-metadata-leases-and-handle-settlement) records semantics, required header rebuilds and the measured result/queue capacity increase. Application lifecycle implementation remains open.
 
+The fixed-capacity logical `DiskLedger` foundation now enforces bytes, entries and generation reservations independently of heap capacity, with explicit original settlement and retained over-quota debt. Its fixture passes on all three platforms and under ASan/UBSan, including every quota dimension one unit short and 100,000 allocation-free cycles. [Accounting semantics](LOCAL_IMAGE_FORMAT.md#logical-disk-accounting-foundation) retain the application proof boundary: session, census, managed publication and GC integration remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
