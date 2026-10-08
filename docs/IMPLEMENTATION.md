@@ -75,6 +75,8 @@ Final-header qualification passes all three cluster CTests in native and Address
 
 Xapiand qualification uses sibling source overrides and a fresh `.scratch/build`. Its default build encountered a Lua 5.5/sol2 compatibility error. The supported `-DLUA=OFF` profile then exposed an existing declaration/definition mismatch in its scripting-unavailable stub. The isolated declaration fix is committed as Xapiand `877f46ab2`, and that profile builds the complete binary. Both two-node and three-node discovery, replication/remote, and distributed-search harnesses pass with the final corrected headers. Lua-disabled qualification does not establish default-build compatibility; these same-version local harnesses do not qualify mixed-version voting or multi-host behavior.
 
+The completion module now supports explicit worker-side directory-cursor closure (`8d4c200`). Managed census must consume its authentic close result before becoming ready, including after cancellation or scan failure. Eight standalone suites pass on macOS, Linux and FreeBSD and under ASan/UBSan; the focused cursor fixture passes fully instrumented TSan. Journal and coroutine compatibility remain qualified. [Cursor settlement and footprint](../../Kronuz/cluster/completion/README.md#explicit-directory-cursor-settlement) records retained originals, descriptor reuse and additive object capacity. This supplies the primitive; application census, reserved collector capacity and session final native teardown remain implementation work.
+
 ## Remaining acceptance and delivery
 
 1. Finish the authenticated authority prerequisite: native platform storage, incremental consensus CPU work, latency/admission observability, and representative failure/overload coverage.
