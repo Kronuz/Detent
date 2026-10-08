@@ -3,7 +3,7 @@
 namespace detent::local {
 namespace c = kronuz::io::completion;
 CollectorControls::CollectorControls(std::shared_ptr<StorageSession> session) : session_(std::move(session)) {
-	if (!session_ || !session_->backend()->managed_capabilities().complete())
+	if (!session_ || session_->closed() || !session_->backend()->managed_capabilities().complete())
 		throw std::invalid_argument("collector requires a complete managed backend");
 	for (auto &lease : leases_) {
 		lease = session_->backend()->make_closed_file();
@@ -21,6 +21,8 @@ c::File &CollectorControls::lease(std::size_t slot) const {
 	return *leases_[slot];
 }
 CollectorControls::Claim CollectorControls::claim(CollectorUse use) {
+	if (session_->closed())
+		throw std::logic_error("collector session closed");
 	if (use != CollectorUse::Census && use != CollectorUse::Reclaim)
 		throw std::invalid_argument("unsupported collector use");
 	if (claimed_)
