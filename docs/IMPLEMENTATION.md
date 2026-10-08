@@ -30,6 +30,8 @@ The complete native regression run after control integration passes all 61 Deten
 
 The Architect's [validated disk lifecycle supplement](DISK_LIFECYCLE_ARCHITECTURE.md) completes the resource-component plan: durable ownership records, a streaming census, bounded active protection, retained publication settlement and batched lease-protected GC. Managed leases require upgrading readers to dual legacy/managed support before enabling managed publication. Image and selected descriptor bytes and generic journal behavior remain unchanged. The next review covers the complete implemented and qualified lifecycle, not its individual commits.
 
+Caller-buffer scanning is implemented in cluster `5754b66`. Five standalone completion suites pass on macOS, Linux and FreeBSD, under macOS ASan/UBSan, and in a focused fully instrumented scan TSan run. Existing journal suites and macOS Detent publication remain compatible. A 255-byte name and EOF produce zero observed global allocations; accepted work retains scratch and cursor after facade retirement with further PMR allocation refused. The legacy scan API and twelve-element statistics arrays remain unchanged. This is primitive qualification; application inventory and reclamation remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
