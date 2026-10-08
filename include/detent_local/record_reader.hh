@@ -7,7 +7,9 @@ enum class RecordReadStatus { Idle, Reading, Ready, Missing, Unsafe, Changed, Ca
 // The enclosing operation owns this machine in independent retained state,
 // aliases that state into request.file, and closes the file after settlement.
 // This machine neither acquires leases nor grants deletion authority.
-// Restart requires a fresh session operation and retirement of prior originals.
+// Restart requires unique session operation/step tokens and retirement of prior
+// originals. An enclosing operation may retain its namespace across records
+// while advancing its strictly increasing step sequence.
 class RecordReader {
   public:
 	static constexpr std::size_t capacity = descriptor_bytes;

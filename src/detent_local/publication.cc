@@ -1,4 +1,5 @@
 #include "detent_local/publication.hh"
+#include "detent_local/disk_store.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/storage_session.hh"
 #include "names.hh"
@@ -106,6 +107,7 @@ struct ImagePublisher::Impl {
 	explicit Impl(std::shared_ptr<distribution::StorageLedger> account)
 		: account(std::move(account)), context(distribution::make_storage_resource(this->account)) {}
 	std::shared_ptr<StorageSession> owner;
+	std::shared_ptr<DiskStore> store;
 	std::shared_ptr<distribution::StorageLedger> account;
 	completion::AllocationContext context;
 	bool common_account = false;
@@ -174,9 +176,27 @@ ImagePublisher::ImagePublisher(std::shared_ptr<completion::IO> io, bool create_o
 	} else if (impl_->owner->backend()->entry_footprint("selected"))
 		throw std::runtime_error("selected generation requires recovery");
 }
+ImagePublisher::ImagePublisher(std::shared_ptr<DiskStore> store) {
+	if (!store) throw std::invalid_argument("managed publisher store missing");
+	impl_ = distribution::make_storage_owner<Impl>(store->storage_account(), std::malloc, std::free,
+		store->storage_account());
+	impl_->store = std::move(store);
+	impl_->state = PublicationState::Recovering;
+	advance();
+}
 ImagePublisher::~ImagePublisher() = default;
 void ImagePublisher::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	auto &p = *impl_;
+	if (p.store) {
+		if (p.closed || p.state == PublicationState::Preparing)
+			throw std::logic_error("managed publisher unavailable");
+		p.store->begin(builder, expected_base);
+		p.descriptor = builder.descriptor();
+		p.failure = {};
+		p.cancelled = false;
+		p.state = PublicationState::Preparing;
+		return;
+	}
 	if (p.closed || (p.phase >= 3 && p.state == PublicationState::Cancelled) ||
 		p.state == PublicationState::Preparing || p.state == PublicationState::Recovering ||
 		p.state == PublicationState::Fenced)
@@ -207,12 +227,46 @@ void ImagePublisher::begin(const ImageBuilder &builder, std::optional<distributi
 	}
 }
 std::shared_ptr<completion::Operation> ImagePublisher::operation() const {
+	if (impl_->store) return impl_->store->operation();
 	return impl_->state == PublicationState::Preparing || impl_->state == PublicationState::Recovering
 			   ? impl_->job
 			   : nullptr;
 }
 void ImagePublisher::advance() {
 	auto &p = *impl_;
+	if (p.store) {
+		if (p.state == PublicationState::Preparing) {
+			switch (p.store->publication_status()) {
+			case DiskPublicationStatus::Published:
+				if (p.closed || p.cancelled) {
+					p.state = p.closed ? PublicationState::Closed : PublicationState::Cancelled;
+				} else {
+					p.published = p.descriptor.cursor;
+					p.state = PublicationState::Published;
+				}
+				break;
+			case DiskPublicationStatus::Rejected: p.state = PublicationState::Rejected; break;
+			case DiskPublicationStatus::Cancelled: p.state = PublicationState::Cancelled; break;
+			case DiskPublicationStatus::Fenced: p.state = PublicationState::Fenced; break;
+			default: break;
+			}
+			p.failure = p.store->publication_error();
+		}
+		p.store->advance();
+		if (p.store->status() == StoreStatus::Fenced) {
+			p.state = PublicationState::Fenced;
+			p.failure = p.store->error();
+		} else if (p.store->status() == StoreStatus::Closed) p.state = PublicationState::Closed;
+		else if (p.state == PublicationState::Recovering && p.store->status() == StoreStatus::Ready) {
+			if (p.cancelled) p.state = PublicationState::Cancelled;
+			else {
+				const auto selected = p.store->selection().descriptor;
+				p.published = selected ? std::optional(selected->cursor) : std::nullopt;
+				p.state = PublicationState::Idle;
+			}
+		}
+		return;
+	}
 	if ((p.state != PublicationState::Preparing && p.state != PublicationState::Recovering) || !p.job ||
 		!p.job->done() || p.job->in_flight())
 		throw std::logic_error("local publication original not settled");
@@ -284,9 +338,16 @@ void ImagePublisher::advance() {
 }
 void ImagePublisher::cancel() noexcept {
 	impl_->cancelled = true;
+	if (impl_->store) { impl_->store->cancel_publication(); return; }
 	impl_->stop_unsubmitted(PublicationState::Cancelled);
 }
 void ImagePublisher::close() noexcept {
+	if (impl_->store) {
+		impl_->closed = true;
+		impl_->store->close();
+		if (impl_->store->drained()) impl_->state = PublicationState::Closed;
+		return;
+	}
 	impl_->closed = true;
 	impl_->cancelled = true;
 	impl_->stop_unsubmitted(PublicationState::Closed);
@@ -295,6 +356,7 @@ void ImagePublisher::close() noexcept {
 }
 PublicationState ImagePublisher::state() const noexcept { return impl_->state; }
 bool ImagePublisher::uncertain() const noexcept {
+	if (impl_->store) return impl_->store->selection().knowledge == SelectionKnowledge::Uncertain;
 	return impl_->selection_uncertain ||
 		   (impl_->phase == 3 && impl_->job &&
 			std::static_pointer_cast<completion::ImagePublication>(impl_->job)->uncertain());

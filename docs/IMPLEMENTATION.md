@@ -46,14 +46,18 @@ The disk lifecycle foundation now supplies a quiescent streaming census, eleven 
 
 The complete regression at Detent `15d12a9` and cluster `38cbadb` passes 68/68 tests natively (199.43 seconds) and under macOS ASan/UBSan (226.18 seconds). Subsequent native-original session shutdown coverage passes separately on all three platforms and under ASan/UBSan and TSan. Managed identity bootstrap, retained managed publication settlement, lease-protected batched reclamation and their complete-component review remain open.
 
+The managed `DiskStore` now composes exact startup census, identity bootstrap/legacy upgrade, retained publication settlement and reusable eight-lease reclamation. Startup synchronizes verified root files before readiness; GC synchronizes held ownership proof before deletion and credits captured footprints only after both directory barriers and lease closure. The managed publisher adapter is implemented alongside the legacy constructor. [Integration and qualification evidence](DISK_STORE_INTEGRATION.md) records cancellation, fault, SIGKILL, admission and 100,000-file fixtures. The corrected component has Architect source GO and passes all 69 tests natively (288.57 seconds) and under ASan/UBSan (536.43 seconds), focused fully instrumented TSan, and Linux/FreeBSD qualification. Production activation remains pending.
+
 The next steps within Stage 4 are:
 
-1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.
+1. Integrate the accepted managed disk lifecycle into the production delivery pipeline.
 2. Apply deltas against an exact pinned base and export authenticated authority state through the supported encoding and canonical scope identity.
 3. Integrate the actual agent and SDK, replacing the legacy fixed-size mapping and confirming cursors only after authentic publication results.
 4. Complete end-to-end crash, interoperability, pressure and scale gates, followed by the consolidated Architect review.
 
 Stages 5 and 6 then add fleet mechanics and qualify sustained ingestion, recovery and failure domains. No percentage or delivery date is inferred from the stage number: significant integration remains inside Stage 4.
+
+The next complete component has [Architect design GO](DELIVERY_INTEGRATION_ARCHITECTURE.md): exact-base image construction, authorized authority export, bounded owned transport, and the actual agent/SDK paths. Implementation follows that component plan through qualification before its next consolidated review. Durable resume sessions and incremental publication remain Stage 5 work.
 
 The [Validated Architectural Blueprint](VALIDATED_ARCHITECTURE.md) governs this work. The Architect plans each complete component or stage, implementation proceeds autonomously through its commits, and final review covers the completed component. Correction rounds address concrete findings; routine commits do not require approval. Source findings, reproduced failures and qualification results remain distinct from production capacity. The detailed milestone entries below record implementation history; their earlier pending lists describe the state at each milestone.
 

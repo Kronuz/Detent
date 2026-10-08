@@ -4,11 +4,13 @@
 #include <completion/image.h>
 namespace detent::local {
 namespace completion = kronuz::io::completion;
+class DiskStore;
 enum class PublicationState { Idle, Recovering, Preparing, Published, Rejected, Cancelled, Closed, Fenced };
 // Single-owner build/IO worker. An accepted operation retains the backend,
 // owner lock and application admission lease through original settlement.
 class ImagePublisher {
   public:
+	explicit ImagePublisher(std::shared_ptr<DiskStore> store);
 	ImagePublisher(std::shared_ptr<completion::IO> io, bool create_owner, std::shared_ptr<void> admission,
 				   std::optional<RecoveredGeneration> recovered = {},
 				   std::shared_ptr<distribution::StorageLedger> account = {});
