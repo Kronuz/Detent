@@ -1,10 +1,12 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -132,28 +134,51 @@ template <class Key, class Value, class Compare = std::less<>> class PersistentM
 
   public:
 	class Cursor {
+		std::shared_ptr<Arena> arena_;
 		Ptr root_;
-		std::vector<Ptr> stack_;
-		void left(Ptr p) {
-			while (p) {
-				stack_.push_back(p);
-				p = p->left;
+		// A 64-bit-sized AVL tree has height below 128. Borrowed stack rows
+		// remain valid through the retained immutable root, without allocations.
+		std::array<const Node *, 128> stack_{};
+		std::size_t depth_ = 0;
+		void push(const Node *node) {
+			if (depth_ == stack_.size())
+				throw std::length_error("persistent map cursor depth");
+			stack_[depth_++] = node;
+		}
+		void left(const Node *node) {
+			while (node) {
+				push(node);
+				node = node->left.get();
 			}
 		}
 
 	  public:
-		explicit Cursor(Ptr root) : root_(std::move(root)) { left(root_); }
-		std::optional<std::pair<const Key *, const Value *>> next() {
-			if (stack_.empty()) {
-				return std::nullopt;
+		Cursor(Ptr root, std::shared_ptr<Arena> arena) : arena_(std::move(arena)), root_(std::move(root)) {
+			left(root_.get());
+		}
+		template <class K>
+		Cursor(Ptr root, std::shared_ptr<Arena> arena, const K &lower)
+			: arena_(std::move(arena)), root_(std::move(root)) {
+			auto node = root_.get();
+			while (node) {
+				if (Compare{}(node->key, lower))
+					node = node->right.get();
+				else {
+					push(node);
+					node = node->left.get();
+				}
 			}
-			auto p = stack_.back();
-			stack_.pop_back();
-			left(p->right);
-			return std::pair{&p->key, &p->value};
+		}
+		std::optional<std::pair<const Key *, const Value *>> next() {
+			if (!depth_)
+				return std::nullopt;
+			auto node = stack_[--depth_];
+			left(node->right.get());
+			return std::pair{&node->key, &node->value};
 		}
 	};
-	Cursor cursor() const { return Cursor(root_); }
+	Cursor cursor() const { return Cursor(root_, arena_); }
+	template <class K> Cursor cursor_from(const K &lower) const { return Cursor(root_, arena_, lower); }
 	void retire_root() noexcept { root_.reset(); }
 	std::size_t collect(std::size_t budget) noexcept { return arena_->collect(budget); }
 	bool reclamation_pending() const noexcept { return arena_->retired != nullptr; }

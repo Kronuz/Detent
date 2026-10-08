@@ -526,6 +526,18 @@ void trees() {
 				++cursor;
 			});
 			assert(cursor == expected.end());
+			for (auto lower : {-1, key, 5000}) {
+				auto range = tree.cursor_from(lower);
+				auto reference = expected.lower_bound(lower);
+				auto changed = tree.set(-2, turn);
+				changed.collect(128);
+				while (auto row = range.next()) {
+					assert(reference != expected.end());
+					assert(*row->first == reference->first && *row->second == reference->second);
+					++reference;
+				}
+				assert(reference == expected.end());
+			}
 		}
 		if (auto old = before.find(key)) {
 			auto value = *old;
