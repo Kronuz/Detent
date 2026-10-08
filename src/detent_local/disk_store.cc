@@ -1316,6 +1316,10 @@ void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::C
 		core.selection.descriptor ? std::optional(core.selection.descriptor->cursor) : std::nullopt;
 	if (core.selection.knowledge == SelectionKnowledge::Uncertain || expected_base != base)
 		throw std::invalid_argument("managed publication actual base mismatch");
+	if (const auto pinned = builder.base_descriptor();
+		pinned && (core.selection.descriptor != pinned ||
+				   builder.base_directory_identity() != core.session->directory_identity()))
+		throw std::invalid_argument("managed publication pinned generation mismatch");
 	if (base && (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
 		throw std::invalid_argument("managed publication requires a forward scoped cursor");
 	if (bytes->account() != core.account || bytes->size() != descriptor.length ||

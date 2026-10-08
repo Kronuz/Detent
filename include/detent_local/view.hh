@@ -7,6 +7,9 @@
 #include <optional>
 
 namespace detent::local {
+namespace detail {
+class PinnedImageSource;
+}
 struct ValidationBudget {
 	std::size_t bytes = 8192, rows = 16;
 };
@@ -36,6 +39,7 @@ class ReadView {
 	explicit ReadView(distribution::RetirementHandle<Root> root) : root_(std::move(root)) {}
 	distribution::RetirementHandle<Root> root_;
 	friend class ImageValidator;
+	friend class detail::PinnedImageSource;
 };
 // The supplied lease retains the immutable byte region through all views.
 // GenerationReader will supply a mapped image and its acquired kernel lease.

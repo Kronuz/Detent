@@ -2,6 +2,7 @@
 #include "detent/hashing.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
+#include "pinned_source.hh"
 #include "resources.hh"
 #include <algorithm>
 #include <bit>
@@ -15,8 +16,8 @@ void require(bool condition) {
 }
 bool valid_lookup(std::string_view ns, std::string_view key) {
 	return !ns.empty() && !key.empty() && ns.size() <= 198 && key.size() <= 198 &&
-		   ns.size() + key.size() + 1 <= 200 && std::all_of(ns.begin(), ns.end(), detail::is_name_char) &&
-		   std::all_of(key.begin(), key.end(), detail::is_name_char);
+		   ns.size() + key.size() + 1 <= 200 && std::all_of(ns.begin(), ns.end(), detent::detail::is_name_char) &&
+		   std::all_of(key.begin(), key.end(), detent::detail::is_name_char);
 }
 KnobError error(ErrorCategory category, std::string_view key) {
 	return {category, std::string(key), "local image lookup failed"};
@@ -97,6 +98,56 @@ struct ReadView::Root : distribution::RetirementNode {
 		return row;
 	}
 };
+detail::PinnedImageSource::PinnedImageSource(RecoveredGeneration generation)
+	: generation_(std::move(generation)) {
+	if (!generation_.view())
+		throw std::invalid_argument("pinned image source has no validated generation");
+}
+std::uint32_t detail::PinnedImageSource::namespace_count() const noexcept {
+	return generation_.view().root_->header.layout.namespaces;
+}
+std::uint32_t detail::PinnedImageSource::record_count() const noexcept {
+	return generation_.view().root_->header.layout.records;
+}
+std::uint64_t detail::PinnedImageSource::override_count() const noexcept {
+	return generation_.view().root_->header.layout.overrides;
+}
+detail::SourceNamespace detail::PinnedImageSource::name_space(std::uint32_t ordinal) const {
+	if (ordinal >= namespace_count())
+		throw std::out_of_range("pinned namespace ordinal");
+	const auto &root = *generation_.view().root_;
+	const auto row = root.header.layout.namespace_offset + std::uint64_t(ordinal) * namespace_bytes;
+	return {root.text(row), root.number(row + 16, 8)};
+}
+detail::SourceRecord detail::PinnedImageSource::record(std::uint32_t ordinal) const {
+	if (ordinal >= record_count())
+		throw std::out_of_range("pinned record ordinal");
+	const auto &root = *generation_.view().root_;
+	const auto row = root.header.layout.record_offset + std::uint64_t(ordinal) * record_bytes;
+	SourceRecord result{
+		static_cast<std::uint32_t>(root.number(row + 12, 4)), root.text(row), root.number(row + 16, 8), {}};
+	if (root.number(row + 44, 1))
+		result.definition = IntDef{std::bit_cast<std::int64_t>(root.number(row + 24, 8))};
+	else {
+		SourceBoolean boolean;
+		boolean.default_value = root.number(row + 24, 8) != 0;
+		if (root.number(row + 45, 1))
+			boolean.rollout_pct = static_cast<std::uint8_t>(root.number(row + 46, 1));
+		boolean.override_start = root.number(row + 32, 8);
+		boolean.override_count = root.number(row + 40, 4);
+		result.definition = boolean;
+	}
+	return result;
+}
+detail::SourceOverride detail::PinnedImageSource::override_value(std::uint64_t ordinal) const {
+	if (ordinal >= override_count())
+		throw std::out_of_range("pinned override ordinal");
+	const auto &root = *generation_.view().root_;
+	const auto row = root.header.layout.override_offset + ordinal * override_bytes;
+	const auto value = static_cast<std::uint8_t>(root.number(row + 13, 1));
+	return {root.text(row),
+			root.number(row + 12, 1) ? GroupOverride(GroupRollout{value}) : GroupOverride(bool(value))};
+}
 struct ImageValidator::Impl {
 	distribution::RetirementHandle<ReadView::Root> root;
 	ViewLimits limits;
@@ -130,7 +181,7 @@ struct ImageValidator::Impl {
 			auto r = l.namespace_offset + ns * namespace_bytes;
 			auto name = root->text(r);
 			require(!name.empty() && name.size() <= 198 &&
-					std::all_of(name.begin(), name.end(), detail::is_name_char));
+					std::all_of(name.begin(), name.end(), detent::detail::is_name_char));
 			require(ns == 0 || previous_ns < name);
 			require(root->number(r + 12, 4) == 0 && root->number(r + 16, 8) <= root->header.cursor.revision);
 			string_row(r, name);

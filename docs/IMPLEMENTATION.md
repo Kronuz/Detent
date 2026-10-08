@@ -48,6 +48,8 @@ The complete regression at Detent `15d12a9` and cluster `38cbadb` passes 68/68 t
 
 The managed `DiskStore` now composes exact startup census, identity bootstrap/legacy upgrade, retained publication settlement and reusable eight-lease reclamation. Startup synchronizes verified root files before readiness; GC synchronizes held ownership proof before deletion and credits captured footprints only after both directory barriers and lease closure. The managed publisher adapter is implemented alongside the legacy constructor. [Integration and qualification evidence](DISK_STORE_INTEGRATION.md) records cancellation, fault, SIGKILL, admission and 100,000-file fixtures. The corrected component has Architect source GO and passes all 69 tests natively (288.57 seconds) and under ASan/UBSan (536.43 seconds), focused fully instrumented TSan, and Linux/FreeBSD qualification. Production activation remains pending.
 
+Private pinned-source iteration is implemented and qualified on macOS, Linux and FreeBSD, with ASan/UBSan and TSan. Exact-base delta/progress construction now borrows that mapped source, uses charged stable mutation indexes and a resumable merge sort, collapses repeated keys, and merges the base once. Publication binds the full pinned descriptor and directory identity to the actual selection. Independent byte-equivalence, admission refusal and budgeted disposal tests pass on macOS, Linux and FreeBSD, with ASan/UBSan and TSan. The five native builder/publication regression suites pass in 85.87 seconds. This path is still a library component, and authenticated authority export and production agent/SDK integration remain open.
+
 The next steps within Stage 4 are:
 
 1. Integrate the accepted managed disk lifecycle into the production delivery pipeline.

@@ -47,6 +47,11 @@ class OverrideRange {
 		: rows_(&rows), start_(start), count_(count) {}
 	std::uint64_t size() const noexcept { return count_; }
 	bool empty() const noexcept { return !count_; }
+	const OverrideRow &operator[](std::uint64_t ordinal) const {
+		if (ordinal >= count_)
+			throw std::out_of_range("distribution override ordinal");
+		return (*rows_)[start_ + ordinal];
+	}
 	const_iterator begin() const { return {rows_, start_}; }
 	const_iterator end() const { return {rows_, start_ + count_}; }
 	const OverrideRow &back() const {
