@@ -141,3 +141,15 @@ Measure metadata calls, barriers, CPU, admitted capacity and reclaimed logical b
 5. Prove successful cancelled publication settles durable selection/descriptor credit without client acknowledgement. Pause GC at locking, each unlink and each barrier; verify exact-once credit, partial batches, reader-open races and process-death lease release.
 6. Kill/reopen real processes around identity bootstrap, lease sealing, selection and both GC barriers; compare recovered accounting with independent census and preserve unsupported/unprovable artifacts.
 7. Run standalone completion, journal compatibility, full Detent regression, native macOS/Linux/FreeBSD, ASan/UBSan and focused concurrency gates. Record final revisions and environmental limits, then review the whole finished resource/storage component.
+
+## Focused lifecycle clarification
+
+The Architect clarified the cursor and teardown boundaries during implementation, without an intermediate source approval. Add `DirectoryCursor::close()` with an unsupported default, append `CloseCursor`, and include `cursor_close` in managed capabilities. Census reaches readiness only after its authentic close completion. Failure and cancellation still settle accepted scan work, then close any acquired cursor on the worker; retain the original failure if cleanup also fails. POSIX consumes `DIR*` once, keeps its later destructor inert and never retries a failed `closedir`.
+
+Closed fixed controls and allocator references may retire on the completion owner, with charges retained through actual deallocation. This makes no hard latency promise for arbitrary allocator deallocation; the SDK last-reader retirement contract remains separate.
+
+Managed shutdown rejects work, drains whole active jobs and their recovery/cleanup obligations, closes files and cursors, then retires session native resources on the startup/shutdown worker or an already admitted retirement node. A last event-loop shared-pointer release must not incidentally close the stable lock or directory. Preserve the backend through lock destruction. Externally retained backends remain an explicit boundary: session release alone cannot certify complete backend closure. No generic session-release primitive is required.
+
+Foreign identity, malformed or unsupported unselected families, unsafe unselected metadata and legacy empty leases may be individually quarantined when storage identity, selected-root recovery and complete accounting remain trustworthy. Retain their full charges; independently proven families can still be reclaimed and new work can use remaining headroom. Fence the whole store for corrupt storage identity, bad selected recovery, unexplained census changes, overflow, incomplete inspection, uncertain mutations or an unexpected directory. Unexpected short reads during a quiescent record read are census failures, not static-format quarantine.
+
+Focused gates must check cleanup thread identity, cancellation across held close originals, inert post-close destruction and admission alongside quarantined families. The consolidated source review still follows complete lifecycle implementation and qualification.

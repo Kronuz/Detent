@@ -1,7 +1,7 @@
 #include "detent_local/publication.hh"
 #include "detent_distribution/memory_resource.hh"
+#include "detent_local/storage_session.hh"
 #include <limits>
-#include <sys/stat.h>
 namespace detent::local {
 namespace {
 class GenerationName {
@@ -118,12 +118,7 @@ class RecoveryOperation final : public completion::Operation {
 struct ImagePublisher::Impl {
 	explicit Impl(std::shared_ptr<distribution::StorageLedger> account)
 		: account(std::move(account)), context(distribution::make_storage_resource(this->account)) {}
-	struct Owner {
-		std::shared_ptr<completion::IO> io;
-		std::shared_ptr<void> admission;
-		std::unique_ptr<completion::OwnerLock> lock;
-	};
-	std::shared_ptr<Owner> owner;
+	std::shared_ptr<StorageSession> owner;
 	std::shared_ptr<distribution::StorageLedger> account;
 	completion::AllocationContext context;
 	bool common_account = false;
@@ -135,7 +130,6 @@ struct ImagePublisher::Impl {
 	std::exception_ptr failure;
 	PublicationState state = PublicationState::Idle;
 	unsigned phase = 0;
-	std::uint64_t operation_id = 0;
 	bool cancelled = false, closed = false, selection_uncertain = false;
 	void stop_unsubmitted(PublicationState terminal) noexcept {
 		if (job && !job->in_flight() && !job->done() && job->request().token.step == 0 &&
@@ -145,20 +139,16 @@ struct ImagePublisher::Impl {
 			bytes.reset();
 		}
 	}
-	completion::Token token() {
-		if (operation_id == std::numeric_limits<std::uint64_t>::max())
-			throw std::overflow_error("local publication token exhausted");
-		return {descriptor.generation, ++operation_id, 0};
-	}
+	completion::Token token() { return owner->next_operation(); }
 	void prepare() {
 		if (phase == 0) {
 			auto name = GenerationName(descriptor.generation, ".lease");
-			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(),
+			job = completion::make_image_preparation(context, owner->backend(), owner, token(), name.view(),
 													 bytes->account(), std::string_view{}, 0);
 		} else if (phase == 1) {
 			auto name = GenerationName(descriptor.generation, ".image");
-			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(), bytes,
-													 bytes->view(), descriptor.length);
+			job = completion::make_image_preparation(context, owner->backend(), owner, token(), name.view(),
+													 bytes, bytes->view(), descriptor.length);
 		} else {
 			auto name = GenerationName(descriptor.generation, ".descriptor");
 			auto raw = encode_descriptor(descriptor);
@@ -166,8 +156,8 @@ struct ImagePublisher::Impl {
 			buffer->resize(raw.size());
 			std::copy(raw.begin(), raw.end(), buffer->mutable_bytes().begin());
 			buffer->seal();
-			job = completion::make_image_preparation(context, owner->io, owner, token(), name.view(), buffer,
-													 buffer->view(), descriptor_bytes);
+			job = completion::make_image_preparation(context, owner->backend(), owner, token(), name.view(),
+													 buffer, buffer->view(), descriptor_bytes);
 		}
 	}
 };
@@ -181,29 +171,20 @@ ImagePublisher::ImagePublisher(std::shared_ptr<completion::IO> io, bool create_o
 		account = std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
 	impl_ = distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account);
 	impl_->common_account = common_account;
-	auto owner = std::allocate_shared<Impl::Owner>(completion::OwnedAllocator<Impl::Owner>(impl_->context));
-	owner->io = std::move(io);
-	owner->admission = std::move(admission);
-	owner->lock = owner->io->acquire_owner(create_owner);
-	if (!owner->lock)
-		throw std::runtime_error("local publication owner lock missing");
-	impl_->owner = std::move(owner);
+	impl_->owner = make_storage_session(impl_->context, std::move(io), std::move(admission), create_owner);
 	if (recovered) {
-		auto *posix = dynamic_cast<completion::PosixIO *>(impl_->owner->io.get());
-		struct stat info{};
-		if (!posix || ::fstat(posix->native_directory_handle(), &info) != 0 ||
-			recovered->directory_identity() !=
-				DirectoryIdentity{std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)})
+		if (impl_->owner->directory_identity() == DirectoryIdentity{} ||
+			recovered->directory_identity() != impl_->owner->directory_identity())
 			throw std::invalid_argument("recovered generation belongs to a different storage directory");
 	}
 	if (recovered) {
 		impl_->descriptor = recovered->descriptor();
 		impl_->job = std::allocate_shared<RecoveryOperation>(
-			completion::OwnedAllocator<RecoveryOperation>(impl_->context), impl_->context, impl_->owner->io,
-			impl_->owner, std::move(*recovered), impl_->token());
+			completion::OwnedAllocator<RecoveryOperation>(impl_->context), impl_->context,
+			impl_->owner->backend(), impl_->owner, std::move(*recovered), impl_->token());
 		impl_->phase = 4;
 		impl_->state = PublicationState::Recovering;
-	} else if (impl_->owner->io->entry_footprint("selected"))
+	} else if (impl_->owner->backend()->entry_footprint("selected"))
 		throw std::runtime_error("selected generation requires recovery");
 }
 ImagePublisher::~ImagePublisher() = default;

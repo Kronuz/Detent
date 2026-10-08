@@ -38,6 +38,8 @@ Cluster `510c093` supplies explicit managed capabilities, no-follow stable entry
 
 The fixed-capacity logical `DiskLedger` foundation now enforces bytes, entries and generation reservations independently of heap capacity, with explicit original settlement and retained over-quota debt. Its fixture passes on all three platforms and under ASan/UBSan, including every quota dimension one unit short and 100,000 allocation-free cycles. [Accounting semantics](LOCAL_IMAGE_FORMAT.md#logical-disk-accounting-foundation) retain the application proof boundary: session, census, managed publication and GC integration remain open.
 
+The publisher owner is now a retained `StorageSession`, with a fresh OS-entropy completion incarnation and monotonic operation identities. A reproduced [cross-session barrier replay](AUDIT.md#cross-session-publication-completion-replay) fails before correction and is rejected afterward; publication gates pass on three platforms and under ASan/UBSan. The complete regression for this session milestone and cluster `510c093` passes 64/64 tests natively (188.14 seconds) and under macOS ASan/UBSan (215.01 seconds). Managed session drainage, worker-side final native teardown, census and publication/GC accounting integration remain open.
+
 The next steps within Stage 4 are:
 
 1. Complete accounted control ownership, asynchronous retirement, mapped-byte admission, startup disk inventory and lease-protected generation cleanup.

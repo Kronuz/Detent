@@ -58,6 +58,45 @@ int main() {
 				std::all_of(name_bytes.begin(), name_bytes.end(), [](char value) { return value == 'x'; }));
 		auto root =
 			std::filesystem::current_path() / ".scratch" / ("publication-test-" + std::to_string(::getpid()));
+		c::Token old_barrier;
+		{
+			auto directory = root / "replay-old";
+			std::filesystem::create_directories(directory);
+			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+			l::ImagePublisher publisher(std::make_shared<c::PosixIO>(directory), true,
+										std::make_shared<int>(1));
+			publisher.begin(*base);
+			auto job = publisher.operation();
+			while (!job->done()) {
+				job->submitted();
+				auto result = kronuz::journal::detail::execute_primitive(job->io(), job->request());
+				require(!result.error);
+				if (job->request().kind == c::Kind::DirectorySync)
+					old_barrier = result.token;
+				require(job->complete(std::move(result)));
+			}
+		}
+		{
+			auto directory = root / "replay-new";
+			std::filesystem::create_directories(directory);
+			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+			l::ImagePublisher publisher(std::make_shared<c::PosixIO>(directory), true,
+										std::make_shared<int>(1));
+			publisher.begin(*base);
+			auto job = publisher.operation();
+			while (job->request().kind != c::Kind::DirectorySync) {
+				job->submitted();
+				require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+			}
+			job->submitted();
+			c::Result replay;
+			replay.token = old_barrier;
+			if (job->complete(std::move(replay)) || !job->in_flight())
+				throw std::runtime_error("cross-session directory-barrier completion was accepted");
+			require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+			publisher.advance();
+			require(drive(publisher) == 10 && publisher.state() == l::PublicationState::Published);
+		}
 		for (std::size_t fault = 0; fault < 13; ++fault) {
 			auto directory = root / std::to_string(fault);
 			std::filesystem::create_directories(directory);
