@@ -35,7 +35,7 @@ struct FakeIO final : c::IO {
 	std::uint64_t entries = 0, inspections = 0, closes = 0, length = 3;
 	bool missing = false, directory = false, close_error = false;
 	c::ManagedCapabilities managed_capabilities() const noexcept override {
-		return {true, true, true, true, true, true};
+		return {true, true, true, true, true, true, true};
 	}
 	std::unique_ptr<c::OwnerLock> acquire_owner(bool) override { return std::make_unique<Lock>(); }
 	std::unique_ptr<c::File> open_existing(std::string_view) override {
