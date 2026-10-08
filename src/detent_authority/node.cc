@@ -55,6 +55,7 @@ void Node::recover() {
 			decoder.step();
 		}
 		state_ = decoder.take();
+		if (recorder_) recorder_->reset(state_.context(),state_.revision());
 	});
 	auto boundary = worker_.base_boundary();
 	if (state_.applied_index() != boundary.index || state_.applied_term() != boundary.term) {
@@ -67,13 +68,19 @@ void Node::start() {
 	}
 	drain();
 }
+void Node::attach_change_recorder(std::shared_ptr<AppliedChangeRecorder> recorder) {
+ if (closing_ || application_ || recorder_) throw std::logic_error("authority change recorder unavailable");
+ if (!recorder) throw std::invalid_argument("missing authority change recorder");
+ recorder_=std::move(recorder); recorder_->reset(state_.context(),state_.revision());
+}
 void Node::close() noexcept {
+ if (!closing_ && recorder_) { recorder_->abandon_batch(); recorder_->reset(state_.context(),state_.revision()); }
 	closing_ = true;
 	worker_.close();
 }
 bool Node::drained() const noexcept {
 	return closing_ && state_retired_ && worker_.drained() && !application_ && !capture_ && !candidate_ &&
-		   !retired_ && !state_.reclamation_pending() && pending_.empty() && completions_.empty() &&
+		   !retired_ && !state_.reclamation_pending() && (!recorder_ || !recorder_->pending()) && pending_.empty() && completions_.empty() &&
 		   network_.empty() && channel_.drained();
 }
 void Node::retirement_step(CommandWorkBudget &budget) {
@@ -108,6 +115,7 @@ void Node::retirement_step(CommandWorkBudget &budget) {
 		state_retired_ = true;
 	}
 	state_.collect(budget);
+	if (recorder_) recorder_->collect(budget);
 	cluster::consensus::detail::RetirementBudget payloads{8, options_.consensus.command_bytes};
 	cluster::consensus::detail::retire_actions(network_, payloads);
 	unsigned local = 8;
@@ -288,6 +296,7 @@ void Node::advance_application(CommandWorkBudget &budget) {
 	if (worker_.fenced())
 		application_->failed = true;
 	if (application_->failed) {
+		if (recorder_) recorder_->abandon_batch();
 		if (application_->command) {
 			if (!application_->command->discard(budget))
 				return;
@@ -319,10 +328,11 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				next->advance(entry.index, entry.term);
 			} else {
 				if (!application_->decoder) {
+					if (recorder_) recorder_->begin_batch(state_.context(),entry.index,state_.revision());
 					application_->decoder.emplace(entry.payload, options_.application,
 												  options_.consensus.command_bytes);
 					application_->candidate.emplace(state_, entry.index, entry.term,
-													application_->decoder->count());
+													application_->decoder->count(),recorder_);
 				}
 				while (!application_->candidate->done()) {
 					if (application_->candidate->command_pending()) {
@@ -381,6 +391,7 @@ void Node::advance_application(CommandWorkBudget &budget) {
 				}
 			}
 			state_ = std::move(*next);
+			if (recorder_) recorder_->publish(state_.context(),entry.index,state_.revision());
 			for (auto &result : ready) {
 				pending_.erase(result.request);
 				completions_.push_back(std::move(result));
@@ -480,6 +491,7 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 	const auto reserved_bytes = reclamation_budget.bytes;
 	const auto reserved_receipts = reclamation_budget.receipts;
 	state_.collect(reclamation_budget);
+	if (recorder_) recorder_->collect(reclamation_budget);
 	if (retired_) {
 		retired_->collect(reclamation_budget);
 		if (!retired_->reclamation_pending()) {
@@ -561,6 +573,7 @@ void Node::service(Tick tick, CommandWorkBudget &application_budget) {
 			retired_.emplace(std::move(state_));
 			retired_->retire();
 			state_ = std::move(*candidate_->state);
+			if (recorder_) recorder_->reset(state_.context(),state_.revision());
 			worker_.snapshot_activated(activation->snapshot, activation->token);
 			candidate_.reset();
 		}

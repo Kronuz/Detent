@@ -1,6 +1,6 @@
 # Authorized authority export
 
-**Status:** Scope authorization, frozen projection and incremental snapshot encoding are implemented as libraries. The `/v2/distribution` service endpoint, applied-change history, transport streaming and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
+**Status:** Scope authorization, frozen projection, incremental snapshot encoding and bounded applied-change history are implemented as libraries. The `/v2/distribution` service endpoint, delta/progress export, transport streaming and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
 
 ## Scope identity
 
@@ -26,8 +26,18 @@ The encoder emits the existing version-1 MessagePack snapshot schema and profile
 
 The reusable MessagePack writers accept fixed inline scratch while preserving their existing concrete `std::string` overloads. `OwnedBuffer::seal_prefix()` adds immutable partial-chunk publication without changing the existing complete-buffer `seal()` contract. Authority projection remains independent of the codec; the separate `detent::authority_export` target adds snapshot encoding.
 
+## Applied-change history
+
+`AppliedChangeRecorder` is an optional authority hook. Changed transactions materialize their cache payload against the unpublished candidate with resumable work budgets. A batch exposes these payloads only after Node installs its authoritative state. Duplicate producer receipts and unchanged mutations create no additional history. Recovery, snapshot activation and abandoned batches invalidate or retire optional history without changing authoritative results.
+
+`ChangeHistory` stores self-contained canonical MessagePack bodies rather than authority roots or definitions. Fixed admitted indexes bound live transactions and retirement debt; the default limits are 4,096 transactions, 16 MiB of payload capacity and 256 KiB per transaction. Indexes, shared controls and actual buffer capacity use the common physical ledger. Eviction removes coverage immediately, while exported owners keep evicted bodies charged until their final release. Cleanup advances through the owner executor's receipt and byte budgets.
+
+Coverage requires a complete committed revision suffix. Publication independently checks revision continuity; missing capture, allocation refusal, encoding limits, eviction and context replacement force snapshot fallback for older bases. Optional cache pressure never rejects an otherwise valid committed transaction. Completed drafts also budget their sealed-body disposal when cancelled before staging.
+
 ## Qualification and remaining work
 
 The eight focused authority/codec suites pass on macOS (1.41 seconds), Linux (1.11 seconds) and FreeBSD (1.45 seconds), under ASan/UBSan (6.68 seconds) and fully instrumented TSan (9.78 seconds). Coverage includes frozen export during writes, authorization isolation, canonical hashing, randomized lower-bound traversal, replacement-snapshot retirement, independent MessagePack vectors, multi-chunk output and retained-allocation refusal. Final empty-scope and schema-limit rejection checks also pass separately on all three platforms and under both sanitizers.
 
-These tests establish library behavior. Applied-change coverage, owner-slot integration, authentic transport settlement and end-to-end authority/agent/SDK qualification remain required before Stage 4 acceptance. No delivery throughput or fleet-capacity claim follows from these fixtures.
+The recorder and history suites pass natively (0.31 seconds), under ASan/UBSan (0.55 seconds) and fully instrumented TSan (0.97 seconds). Five native authority regressions, including both Node storage modes, pass in 10.95 seconds. Coverage includes canonical payload bytes, publication visibility, retry filtering, changed-only capture, pinned eviction accounting, missing-revision fallback, optional encoding pressure, and complete-draft cancellation with one-byte disposal budgets. These timings describe shared-host test runs, not performance benchmarks; Linux and FreeBSD qualification of the new history remains pending.
+
+These tests establish library behavior. Delta/progress export, owner-slot integration, authentic transport settlement and end-to-end authority/agent/SDK qualification remain required before Stage 4 acceptance. No delivery throughput or fleet-capacity claim follows from these fixtures.

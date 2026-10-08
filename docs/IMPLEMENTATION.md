@@ -54,6 +54,8 @@ Canonical authorized scope and the owner-local public export projection are now 
 
 The next steps within Stage 4 are:
 
+The optional applied-change recorder now stages changed-only canonical bodies before authoritative publication. Bounded `ChangeHistory` retains a verified revision suffix with physically charged indexes and payloads; missing capture or pressure forces snapshot fallback without rejecting committed transactions. Recorder/history tests pass natively and under both sanitizers, and the five native authority regressions pass in 10.95 seconds. Delta/progress export and supported-platform history qualification remain open; [authority export](AUTHORITY_EXPORT.md) records the current evidence.
+
 1. Integrate the accepted managed disk lifecycle into the production delivery pipeline.
 2. Apply deltas against an exact pinned base and export authenticated authority state through the supported encoding and canonical scope identity.
 3. Integrate the actual agent and SDK, replacing the legacy fixed-size mapping and confirming cursors only after authentic publication results.

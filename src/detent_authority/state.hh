@@ -1,6 +1,7 @@
 #pragma once
 
 #include "detent/model.hh"
+#include "change_recorder.hh"
 #include "persistent_map.hh"
 #include <array>
 #include <deque>
@@ -249,7 +250,7 @@ struct BatchResult {
 class CommandApplication {
   public:
 	CommandApplication(const State &source, std::uint64_t index, std::uint64_t term,
-					   ValidatedCommand command);
+					   ValidatedCommand command, std::shared_ptr<AppliedChangeRecorder> recorder = {});
 	~CommandApplication();
 	CommandApplication(CommandApplication &&) noexcept;
 	CommandApplication &operator=(CommandApplication &&) = delete;
@@ -266,7 +267,8 @@ class CommandApplication {
 // candidate, and semantic Result rejections still advance the command group.
 class BatchApplication {
   public:
-	BatchApplication(const State &source, std::uint64_t index, std::uint64_t term, std::size_t count);
+	BatchApplication(const State &source, std::uint64_t index, std::uint64_t term, std::size_t count,
+					 std::shared_ptr<AppliedChangeRecorder> recorder = {});
 	BatchApplication(const BatchApplication &) = delete;
 	BatchApplication &operator=(const BatchApplication &) = delete;
 	BatchApplication(BatchApplication &&other) noexcept;
@@ -285,6 +287,7 @@ class BatchApplication {
 	std::size_t count_;
 	std::vector<Result> results_;
 	std::unique_ptr<CommandApplication> command_;
+	std::shared_ptr<AppliedChangeRecorder> recorder_;
 	bool failed_ = false, consumed_ = false;
 };
 // Decode into an unpublished root, retaining one bounded row and input chunk.

@@ -45,13 +45,15 @@ class Node {
 	void service(cluster::consensus::Tick tick, CommandWorkBudget &budget);
 	std::vector<Completion> take_completions();
 	cluster::consensus::Actions take_network_actions();
+	void attach_change_recorder(std::shared_ptr<AppliedChangeRecorder> recorder);
 	const State &state() const noexcept { return state_; }
 	cluster::consensus::Worker &worker() noexcept { return worker_; }
 	cluster::consensus::SnapshotChannel &channel() noexcept { return channel_; }
 	bool checkpoint();
 	bool checkpoint_busy() const noexcept { return capture_.has_value(); }
 	bool application_work_pending() const noexcept {
-		return application_.has_value() || retired_.has_value() || state_.reclamation_pending();
+		return application_.has_value() || retired_.has_value() || state_.reclamation_pending() ||
+			   (recorder_ && recorder_->pending());
 	}
 	struct CheckpointPolicy {
 		bool due = false;
@@ -96,6 +98,7 @@ class Node {
 	std::shared_ptr<kronuz::journal::IO> io_;
 	NodeOptions options_;
 	State state_;
+	std::shared_ptr<AppliedChangeRecorder> recorder_;
 	cluster::consensus::Worker worker_;
 	cluster::consensus::SnapshotChannel channel_;
 	std::map<std::uint64_t, Pending> pending_;

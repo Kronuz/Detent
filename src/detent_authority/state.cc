@@ -1152,12 +1152,16 @@ struct CommandApplication::Impl {
 		Add,
 		Update,
 		Namespace,
+		CaptureChange,
 		CopyProducer,
 		StoreProducer,
 		Cleanup,
 		Complete
 	};
 	State source, candidate;
+	std::shared_ptr<AppliedChangeRecorder> recorder;
+	std::shared_ptr<AppliedChangeDraft> draft;
+	bool history_started = false, history_failed = false;
 	ValidatedCommand validated;
 	std::uint64_t index, term;
 	Result result;
@@ -1249,8 +1253,10 @@ struct CommandApplication::Impl {
 	}
 };
 CommandApplication::CommandApplication(const State &s, std::uint64_t index, std::uint64_t term,
-									   ValidatedCommand c)
-	: impl_(std::make_unique<Impl>(s, index, term, std::move(c))) {}
+                                     ValidatedCommand command, std::shared_ptr<AppliedChangeRecorder> recorder)
+ : impl_(std::make_unique<Impl>(s,index,term,std::move(command))) {
+ impl_->recorder=std::move(recorder);
+}
 CommandApplication::~CommandApplication() = default;
 CommandApplication::CommandApplication(CommandApplication &&) noexcept = default;
 bool CommandApplication::done() const noexcept {
@@ -1463,6 +1469,40 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				d.candidate.revision_ = d.source.revision_ + 1;
 				d.candidate.namespaces_ = d.candidate.namespaces_.set(c.name_space, d.candidate.revision_);
 				d.result.revision = d.result.namespace_revision = d.candidate.revision_;
+				if (d.recorder)
+					d.phase = Phase::CaptureChange;
+				else
+					d.copy_producer();
+				break;
+			case Phase::CaptureChange:
+				if (!d.history_started) {
+					d.history_started = true;
+					try {
+						d.draft = d.recorder->capture(d.candidate, c, d.changes);
+						if (!d.draft)
+							d.recorder->gap(d.candidate.revision_);
+					} catch (...) {
+						d.history_failed = true;
+						d.recorder->gap(d.candidate.revision_);
+					}
+				}
+				if (d.draft) {
+					if (d.history_failed) {
+						if (!d.draft->discard(budget))
+							return;
+					} else {
+						try {
+							if (!d.draft->step(budget))
+								return;
+							d.recorder->stage(d.draft);
+						} catch (...) {
+							d.history_failed = true;
+							d.recorder->gap(d.candidate.revision_);
+							break;
+						}
+					}
+					d.draft.reset();
+				}
 				d.copy_producer();
 				break;
 			case Phase::CopyProducer:
@@ -1517,6 +1557,10 @@ bool CommandApplication::discard(CommandWorkBudget &budget) {
 	require(impl_ && !impl_->consumed, "command application unavailable");
 	auto &d = *impl_;
 	d.failed = true;
+	if (d.draft) {
+		if (!d.draft->discard(budget)) return false;
+		d.draft.reset();
+	}
 	if (!d.retired) {
 		d.candidate.retire();
 		d.source.retire();
@@ -1530,8 +1574,8 @@ bool CommandApplication::discard(CommandWorkBudget &budget) {
 }
 
 BatchApplication::BatchApplication(const State &source, std::uint64_t index, std::uint64_t term,
-								   std::size_t count)
-	: candidate_(source), index_(index), term_(term), base_(source.applied_), count_(count) {
+								   std::size_t count, std::shared_ptr<AppliedChangeRecorder> recorder)
+	: candidate_(source), index_(index), term_(term), base_(source.applied_), count_(count), recorder_(std::move(recorder)) {
 	require(count && count <= 64 && index > base_ && index < maximum && term && term >= source.applied_term_,
 			"invalid application group");
 	results_.reserve(count);
@@ -1539,13 +1583,15 @@ BatchApplication::BatchApplication(const State &source, std::uint64_t index, std
 BatchApplication::BatchApplication(BatchApplication &&other) noexcept
 	: candidate_(std::move(other.candidate_)), index_(other.index_), term_(other.term_), base_(other.base_),
 	  count_(other.count_), results_(std::move(other.results_)), command_(std::move(other.command_)),
-	  failed_(other.failed_), consumed_(std::exchange(other.consumed_, true)) {}
+	  recorder_(std::move(other.recorder_)), failed_(other.failed_), consumed_(std::exchange(other.consumed_, true)) {}
 void BatchApplication::advance(const Command &command) {
 	require(!failed_ && !consumed_ && !command_ && results_.size() < count_,
 			"application group cursor unavailable");
 	failed_ = true;
 	candidate_.applied_ = base_;
+	auto before = candidate_.revision();
 	results_.push_back(candidate_.apply(index_, command, term_));
+	if (recorder_ && candidate_.revision() != before) recorder_->gap(candidate_.revision());
 	failed_ = false;
 }
 void BatchApplication::start(ValidatedCommand command) {
@@ -1553,7 +1599,7 @@ void BatchApplication::start(ValidatedCommand command) {
 			"application group cursor unavailable");
 	failed_ = true;
 	candidate_.applied_ = base_;
-	command_ = std::make_unique<CommandApplication>(candidate_, index_, term_, std::move(command));
+	command_ = std::make_unique<CommandApplication>(candidate_, index_, term_, std::move(command), recorder_);
 	failed_ = false;
 }
 void BatchApplication::step(CommandWorkBudget &budget) {
