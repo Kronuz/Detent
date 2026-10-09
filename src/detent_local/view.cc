@@ -53,6 +53,7 @@ struct ReadView::Root : distribution::RetirementNode {
 	std::shared_ptr<const void> lease;
 	std::span<const char> bytes;
 	Header header;
+	std::uint32_t bools = 0, ints = 0;
 	Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
 		: lease(std::move(owner)), bytes(region), header(metadata) {}
 	std::uint64_t number(std::uint64_t offset, unsigned width) const {
@@ -228,6 +229,10 @@ struct ImageValidator::Impl {
 			active_count = count;
 			active_override = 0;
 			previous_group = {};
+			if (type == 0)
+				++root->bools;
+			else
+				++root->ints;
 			++record;
 			return;
 		}
@@ -286,14 +291,27 @@ const distribution::Cursor &ReadView::cursor() const {
 	return root_->header.cursor;
 }
 std::uint32_t ReadView::size() const noexcept { return root_ ? root_->header.layout.records : 0; }
+std::uint32_t ReadView::bool_count() const noexcept { return root_ ? root_->bools : 0; }
+std::uint32_t ReadView::int_count() const noexcept { return root_ ? root_->ints : 0; }
+bool ReadView::contains(std::string_view ns, std::string_view key) const {
+	return root_ && valid_lookup(ns, key) && root_->find(ns, key).has_value();
+}
 Result<std::int64_t, KnobError> ReadView::get(std::string_view ns, std::string_view key) const {
 	if (!root_)
 		return error(ErrorCategory::Uninitialized, key);
+	auto result = try_get(ns, key);
+	return result ? std::move(*result)
+				  : Result<std::int64_t, KnobError>(error(ErrorCategory::MissingKnob, key));
+}
+std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_view ns,
+																 std::string_view key) const {
 	if (!valid_lookup(ns, key))
 		return error(ErrorCategory::InvalidName, key);
+	if (!root_)
+		return {};
 	auto row = root_->find(ns, key);
 	if (!row)
-		return error(ErrorCategory::MissingKnob, key);
+		return {};
 	if (root_->number(*row + 44, 1) != 1)
 		return error(ErrorCategory::WrongType, key);
 	return std::bit_cast<std::int64_t>(root_->number(*row + 24, 8));
@@ -303,11 +321,19 @@ Result<bool, KnobError> ReadView::eval(std::string_view ns, std::string_view key
 									   std::optional<std::string_view> switch_value) const {
 	if (!root_)
 		return error(ErrorCategory::Uninitialized, key);
+	auto result = try_eval(ns, key, hash, switch_value);
+	return result ? std::move(*result) : Result<bool, KnobError>(error(ErrorCategory::MissingKnob, key));
+}
+std::optional<Result<bool, KnobError>>
+ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std::string_view> hash,
+				   std::optional<std::string_view> switch_value) const {
 	if (!valid_lookup(ns, key))
 		return error(ErrorCategory::InvalidName, key);
+	if (!root_)
+		return {};
 	auto row = root_->find(ns, key);
 	if (!row)
-		return error(ErrorCategory::MissingKnob, key);
+		return {};
 	if (root_->number(*row + 44, 1) != 0)
 		return error(ErrorCategory::WrongType, key);
 	auto fallback = root_->number(*row + 24, 8) != 0;

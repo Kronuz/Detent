@@ -29,6 +29,15 @@ class ReadView {
 	explicit operator bool() const noexcept { return static_cast<bool>(root_); }
 	const distribution::Cursor &cursor() const;
 	std::uint32_t size() const noexcept;
+	std::uint32_t bool_count() const noexcept;
+	std::uint32_t int_count() const noexcept;
+	bool contains(std::string_view name_space, std::string_view key) const;
+	// Absence is represented without constructing an allocating KnobError.
+	std::optional<Result<bool, KnobError>> try_eval(std::string_view name_space, std::string_view key,
+													std::optional<std::string_view> hash = {},
+													std::optional<std::string_view> switch_value = {}) const;
+	std::optional<Result<std::int64_t, KnobError>> try_get(std::string_view name_space,
+														   std::string_view key) const;
 	Result<bool, KnobError> eval(std::string_view name_space, std::string_view key,
 								 std::optional<std::string_view> hash = {},
 								 std::optional<std::string_view> switch_value = {}) const;

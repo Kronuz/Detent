@@ -7,6 +7,7 @@ add_library(detent
   detent/json_patch.cc
   detent/overrides.cc
   detent/client.cc
+  detent/read_view.cc
   detent/global.cc
   detent/testing.cc
   detent/test_hook.cc)

@@ -1,4 +1,5 @@
 #include "detent/client.hh"
+#include "detent/detail/evaluation.hh"
 #include "detent/detail/file.hh"
 #include "detent/hashing.hh"
 #include "detent/json_patch.hh"
@@ -21,6 +22,16 @@ std::int64_t steady_ms_now() {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(
 	           std::chrono::steady_clock::now().time_since_epoch())
 	    .count();
+}
+
+template <class T> Result<T, KnobError> count_local_read(Result<T, KnobError> result, Metrics &metrics) {
+	if (result)
+		metrics.reads_ok.fetch_add(1, std::memory_order_relaxed);
+	else if (result.error().category == ErrorCategory::MissingKnob)
+		metrics.reads_missing.fetch_add(1, std::memory_order_relaxed);
+	else if (result.error().category == ErrorCategory::WrongType)
+		metrics.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
+	return result;
 }
 
 const char* category_name(ErrorCategory c) noexcept {
@@ -96,9 +107,12 @@ Client::Client(InitOptions options)
 	if (options.source_path && options.source_poll) {
 		throw std::runtime_error("detent: source_path and source_poll are mutually exclusive");
 	}
+	if (options.read_source && (options.source_path || options.source_poll || options.on_update))
+		throw std::invalid_argument("detent: local read source conflicts with a legacy source or on_update");
 
 	// 3. Publish v0 before starting any source watcher (Section 4 startup contract).
-	current_.store(std::make_shared<const Snapshot>(defaults_));
+	current_.store(options.read_source ? std::make_shared<const Snapshot>(std::move(defaults_))
+									   : std::make_shared<const Snapshot>(defaults_));
 	accepted_version_.store(0);
 	last_success_steady_ms_.store(steady_ms_now());
 
@@ -106,7 +120,11 @@ Client::Client(InitOptions options)
 	// health starts false; the loop flips it once the target is actually
 	// reachable (Section 9: "Source unavailable at startup -> serve version-0
 	// defaults; log and increment refresh failure").
-	if (options.source_path) {
+	if (options.read_source) {
+		read_source_ = (*options.read_source)(current_.load(), override_table_);
+		if (!read_source_)
+			throw std::invalid_argument("detent: null local read source");
+	} else if (options.source_path) {
 		updater_thread_.emplace(
 			[this, path = *options.source_path, interval = options.poll_interval](std::stop_token st) {
 				run_file_source(st, path, interval);
@@ -141,6 +159,8 @@ Result<bool, KnobError> Client::eval(
 	std::string_view name,
 	std::optional<std::string_view> hash_val,
 	std::optional<std::string_view> switch_val) const {
+	if (read_source_)
+		return count_local_read(read_source_->read_view().eval(name, hash_val, switch_val), metrics_);
 	if (!is_valid_knob_name(name)) {
 		return KnobError{ErrorCategory::InvalidName, std::string(name), "malformed knob name"};
 	}
@@ -172,28 +192,15 @@ Result<bool, KnobError> Client::eval(
 		return KnobError{ErrorCategory::WrongType, std::string(name), "knob is int; eval() requires bool"};
 	}
 
-	// Section 8 precedence: group match, then rollout, then default.
-	if (switch_val) {
-		auto git = def->overrides.find(*switch_val);
-		if (git != def->overrides.end()) {
-			metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-			if (const auto* forced = std::get_if<bool>(&git->second)) return *forced;
-			return hash_val ? stable_bucket(name, *hash_val) < std::get<GroupRollout>(git->second).rollout_pct
-			                : def->default_value;
-		}
-	}
-	if (def->rollout_pct && hash_val) {
-		auto bucket = stable_bucket(name, *hash_val);
-		metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-		return bucket < *def->rollout_pct;
-	}
 	metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-	return def->default_value;
+	return detail::evaluate(*def, name, hash_val, switch_val);
 }
 
 Result<std::int64_t, KnobError> Client::get(
 	std::string_view name,
 	std::optional<std::string_view> /*switch_val, reserved and ignored in v1*/) const {
+	if (read_source_)
+		return count_local_read(read_source_->read_view().get(name), metrics_);
 	if (!is_valid_knob_name(name)) {
 		return KnobError{ErrorCategory::InvalidName, std::string(name), "malformed knob name"};
 	}
@@ -242,7 +249,24 @@ std::int64_t Client::get_or_panic(std::string_view name, std::optional<std::stri
 	return r.value();
 }
 
+ClientReadView Client::read_view() const noexcept {
+	return read_source_ ? read_source_->read_view() : ClientReadView(current_.load(), override_table_);
+}
+
 HealthSnapshot Client::health() const noexcept {
+	if (read_source_) {
+		auto status = read_source_->status();
+		HealthSnapshot health;
+		health.initialized = true;
+		health.source_connected = status.connected;
+		health.accepted_version = status.cursor ? status.cursor->revision : 0;
+		health.staleness_seconds =
+			std::chrono::duration<double>(std::chrono::steady_clock::now() - status.last_success).count();
+		health.bool_knobs = status.bool_knobs;
+		health.int_knobs = status.int_knobs;
+		health.cli_overrides = override_table_ ? override_table_->values.size() : 0;
+		return health;
+	}
 	auto snap = current_.load();
 	HealthSnapshot h;
 	h.initialized = true;

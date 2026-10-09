@@ -9,6 +9,7 @@
 #include "detent/errors.hh"
 #include "detent/model.hh"
 #include "detent/overrides.hh"
+#include "detent/read_view.hh"
 #include "detent/result.hh"
 #include "detent/snapshot_ref.hh"
 
@@ -18,12 +19,13 @@
 #include <filesystem>
 #include <functional>
 #include <limits>
-#include <utility>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <stop_token>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace detent {
@@ -112,6 +114,9 @@ struct InitOptions {
 	// read without any per-call work on this process at all.
 	using OnUpdate = std::function<void(const Snapshot&)>;
 	std::optional<OnUpdate> on_update;
+	// Construct once with this Client's immutable defaults and CLI overlays.
+	// Mutually exclusive with legacy file/poll sources and on_update.
+	std::optional<ReadSourceFactory> read_source;
 };
 
 class Client {
@@ -180,7 +185,12 @@ public:
 	// accepted updates, not for the baked-defaults snapshot set at
 	// construction). Ordinary read-path consumers should use eval()/get(),
 	// not this.
-	[[nodiscard]] std::shared_ptr<const Snapshot> current_snapshot() const { return current_.load(); }
+	[[nodiscard]] std::shared_ptr<const Snapshot> current_snapshot() const {
+		if (read_source_)
+			throw std::logic_error("local source has no eager snapshot; use read_view()");
+		return current_.load();
+	}
+	[[nodiscard]] ClientReadView read_view() const noexcept;
 
 	[[nodiscard]] HealthSnapshot health() const noexcept;
 
@@ -217,6 +227,7 @@ private:
 	Snapshot live_snapshot_;
 	SnapshotRef current_;           // RCU-published merged snapshot
 	std::shared_ptr<const OverrideTable> override_table_; // set once at init, then read-only
+	std::shared_ptr<ReadSource> read_source_;
 	std::size_t max_knobs_;
 	std::string source_id_;
 	std::chrono::milliseconds refresh_alert_after_;

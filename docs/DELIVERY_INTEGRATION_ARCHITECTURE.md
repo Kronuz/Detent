@@ -73,6 +73,12 @@ Keep live state separate from baked defaults and CLI overrides. A scoped SDK vie
 
 Preserve `Client` constructors and legacy methods. Introduce an additive local-client adapter and scoped `Client::read_view()` support without eager compatibility snapshot copies. Factor the small shared semantic layer, including types, validation, hashing and errors, where necessary to prevent a reverse dependency cycle. The reader target requires no networking, distribution codec, completion or consensus dependency.
 
+The scoped SDK boundary is implemented as `ClientReadView` and an optional `InitOptions::read_source` factory. Link `detent::local_client` and set the factory with `detent::local::make_local_read_source(ClientSourceOptions{.directory = directory})`. Each client binds its immutable defaults and CLI overrides once. Automatic refresh uses one configuration thread; hosts can set `auto_refresh = false` and call `LocalReadSource::refresh()` on their own worker. Destroy the source outside an event-loop turn because shutdown joins its configuration thread.
+
+`Client::read_view()` retains the currently published evaluator without filesystem work or a merged snapshot allocation. A scoped view remains usable after client destruction and across generation replacement. CLI overrides take precedence, followed by live definitions and then defaults for absent keys. Wrong live types and conversion failures do not fall back. Local `health()` reports the published cursor, counts and source connectivity; scoped evaluations do not update the parent client's read counters, and legacy source-update metric counters are not populated by this adapter. `current_snapshot()` remains available for legacy clients; local clients use `read_view()` and receive a `logic_error` if they request an eager snapshot. The new fields change the C++ object layout, so consumers must rebuild.
+
+Qualification covers native, Linux and FreeBSD scoped semantics, deletion/default fallback, qualified error names, failed refresh retention, automatic refresh, pinned lifetime and legacy compatibility. The local-client test observes zero ordinary allocations across 1,000 scoped acquisitions and successful live/default reads on its calling thread. ASan/UBSan and TSan run with instrumented implementation libraries. These checks qualify the SDK boundary, not the still-pending assembled managed-agent path or fleet capacity.
+
 ## Implementation and acceptance
 
 1. Implement pinned source iteration and exact-base construction.

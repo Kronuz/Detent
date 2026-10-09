@@ -2,6 +2,9 @@ add_library(detent_local_view layout.cc view.cc generation.cc ownership.cc reade
 target_include_directories(detent_local_view PUBLIC "${CMAKE_SOURCE_DIR}/include")
 target_compile_features(detent_local_view PUBLIC cxx_std_20)
 add_library(detent::local_view ALIAS detent_local_view)
+add_library(detent_local_client client_source.cc)
+target_link_libraries(detent_local_client PUBLIC detent::local_view)
+add_library(detent::local_client ALIAS detent_local_client)
 
 target_link_libraries(detent_local_view PUBLIC detent::detent detent::resources)
 add_library(detent_local_builder builder.cc)
