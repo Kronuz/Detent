@@ -66,6 +66,7 @@ ServiceOptions options(const std::filesystem::path &directory) {
 int main() {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("authority-service-" + std::to_string(getpid()));
+	std::filesystem::create_directories(directory.parent_path());
 	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
 		auto invalid = options(directory);
 		invalid.timeout = timeout;
