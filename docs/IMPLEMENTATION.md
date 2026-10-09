@@ -2,7 +2,7 @@
 
 **Status:** Stages 0–3 have component acceptance. Stage 4 is in progress; Stages 5–6 remain ahead. The production agent still uses the legacy delivery/mapping path. New distribution and immutable-image library qualification does not establish fleet readiness.
 
-The authenticated authority delivery endpoint now joins quorum-backed owner capture, changed-only history, incremental snapshot/delta/progress encoding and independently owned raw/zstd frames. Native, ASan/UBSan, TSan, Linux and FreeBSD gates cover real TLS delivery, restart fallback and retained original-write shutdown. [Authority export](AUTHORITY_EXPORT.md) records the protocol and evidence. Incremental HTTP decoding and coroutine TLS reception now pass native, sanitizer, Linux and FreeBSD gates, including delivery from the real authority. Managed agent publication, SDK integration and assembled capacity/failure qualification remain in this Stage 4 boundary.
+The authenticated authority delivery endpoint now joins quorum-backed owner capture, changed-only history, incremental snapshot/delta/progress encoding and independently owned raw/zstd frames. Native, ASan/UBSan, TSan, Linux and FreeBSD gates cover real TLS delivery, restart fallback and retained original-write shutdown. [Authority export](AUTHORITY_EXPORT.md) records the protocol and evidence. Incremental HTTP decoding and coroutine TLS reception now pass native, sanitizer, Linux and FreeBSD gates, including delivery from the real authority. The scoped SDK adapter now binds immutable defaults and overrides to worker-published generation views without eager snapshot copies. Unchanged polling checks trusted selection metadata without remapping; its warm-cache 100,000/500,000-record measurements and supported-platform/sanitizer evidence are recorded in the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md). Managed agent publication and assembled capacity/failure qualification remain in this Stage 4 boundary.
 
 | Stage | Deliverable | Current state |
 | --- | --- | --- |
@@ -58,10 +58,9 @@ The next steps within Stage 4 are:
 
 The optional applied-change recorder now stages changed-only canonical bodies before authoritative publication. Bounded `ChangeHistory` retains a verified revision suffix with physically charged indexes and payloads; missing capture or pressure forces snapshot fallback without rejecting committed transactions. Recorder/history tests pass natively and under both sanitizers, and the five native authority regressions pass in 10.95 seconds. Scoped delta/progress export now counts and emits pinned canonical history through owned chunks; history/export tests pass on macOS, Linux and FreeBSD and under both sanitizers. The service endpoint, owned transport and production agent/SDK integration remain open; [authority export](AUTHORITY_EXPORT.md) records the current evidence.
 
-1. Integrate the accepted managed disk lifecycle into the production delivery pipeline.
-2. Apply deltas against an exact pinned base and export authenticated authority state through the supported encoding and canonical scope identity.
-3. Integrate the actual agent and SDK, replacing the legacy fixed-size mapping and confirming cursors only after authentic publication results.
-4. Complete end-to-end crash, interoperability, pressure and scale gates, followed by the consolidated Architect review.
+1. Assemble the production managed agent coordinator from the qualified receiver, exact-base builder and disk lifecycle, including trusted identity transitions and actual-selection reconciliation.
+2. Connect the daemon and reader CLI to managed configuration and generation views while preserving named legacy compatibility.
+3. Complete end-to-end crash, interoperability, pressure and scale gates, followed by the consolidated Architect review.
 
 Stages 5 and 6 then add fleet mechanics and qualify sustained ingestion, recovery and failure domains. No percentage or delivery date is inferred from the stage number: significant integration remains inside Stage 4.
 
