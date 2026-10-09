@@ -14,7 +14,7 @@ inline ScopeIdentity canonical_scope_identity(std::string_view principal, std::u
 											  std::span<const std::string_view> names) {
 	if (principal.empty() || principal.size() > 128 || !policy_epoch || names.size() > 4096)
 		throw std::invalid_argument("invalid scope identity context");
-	SHA256 hash;
+	class SHA256 hash;
 	constexpr std::string_view domain = "detent-authorized-scope-v1";
 	hash.add(domain.data(), domain.size());
 	auto number = [&](std::uint64_t value) {

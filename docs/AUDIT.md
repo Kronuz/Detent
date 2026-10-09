@@ -10,6 +10,10 @@ The legacy HTTP/UDP cluster profile has no built-in authentication or TLS and us
 
 The production agent’s legacy shared-memory path uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. The new [immutable local views](LOCAL_IMAGE_FORMAT.md) remain under Stage 4 integration; their library qualification does not replace that production path. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
 
+## Fixed: scope header failed after OpenSSL headers
+
+Including the managed TLS client before `detent/scope.hh` exposed OpenSSL's global `SHA256` function, hiding the hash class name and failing compilation. The scope helper now explicitly selects the class, preserving its hash bytes and avoiding include-order dependence. The failure was reproduced while building managed configuration; that build, its real TLS/configuration test and the existing authority scope regression pass after the correction.
+
 ## Fixed: JSON string truncation and encoding validation
 
 An escaped NUL in a knob name (`a:b\u0000hidden`) was truncated to `a:b` and accepted. The new regression failed on the preceding implementation. Parsers now use explicit JSON string lengths for field names, type names, knob names, and group keys, validate UTF-8, and reject raw NUL bytes in JSON text. Serializers preserve complete opaque group keys, including escaped NULs. Schema, patch, and JSON-string regression tests pass.
