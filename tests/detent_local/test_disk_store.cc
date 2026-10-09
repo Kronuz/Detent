@@ -1091,6 +1091,40 @@ void reclaim_boundaries(d::RetirementRuntime &runtime, const std::shared_ptr<d::
 	}
 	std::cout << "GC cancellation/fault boundaries: " << cases - 1 << " (" << normal_steps << " originals)\n";
 }
+void publication_retirement(d::RetirementRuntime &runtime,
+							const std::shared_ptr<d::StorageLedger> &account,
+							const std::filesystem::path &directory) {
+	auto domain = runtime.domain(account, 1);
+	l::DiskStoreOptions options;
+	options.mode = l::StoreOpenMode::FreshEmpty;
+	options.limits = {1024 * 1024, 100, 10};
+	auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
+	check(!store->publication_ready());
+	drive(store);
+	check(store->publication_ready());
+	auto builder = build(account, 'r', 42);
+	std::weak_ptr<const d::OwnedBuffer> image = builder->bytes();
+	store->begin(*builder);
+	check(!store->publication_ready());
+	builder.reset();
+	auto original = store->operation();
+	while (!original->done()) {
+		original->submitted();
+		check(original->complete(kronuz::journal::detail::execute_primitive(original->io(), original->request())));
+	}
+	store->advance();
+	check(store->publication_ready());
+	check(store->publication_status() == l::DiskPublicationStatus::Published);
+	check(!image.expired()); // A retained authentic original still owns the image.
+	original.reset();
+	check(image.expired()); // The idle store must not retain the completed candidate.
+	check(store->publication_status() == l::DiskPublicationStatus::Published);
+	store->close();
+	check(!store->publication_ready());
+	drive(store);
+	store.reset();
+	domain.close().wait();
+}
 } // namespace
 int main(int argc, char **argv) {
 	try {
@@ -1104,6 +1138,13 @@ int main(int argc, char **argv) {
 		auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
 		d::RetirementRuntime runtime(baseline, 2);
+		if (argc == 2 && std::string_view(argv[1]) == "--retirement") {
+			publication_retirement(runtime, account, root);
+			check_released(account);
+			std::filesystem::remove_all(root);
+			runtime.shutdown();
+			return 0;
+		}
 		l::DiskStoreOptions options;
 		options.mode = l::StoreOpenMode::FreshEmpty;
 		options.limits = {64, 2, 0};

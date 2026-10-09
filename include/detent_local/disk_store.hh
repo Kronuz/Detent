@@ -42,6 +42,8 @@ class DiskStore {
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
 	void advance();
 	void request_collection() noexcept;
+	// True at a settled scheduling boundary, including paused collection.
+	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;

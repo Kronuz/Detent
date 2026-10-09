@@ -1258,6 +1258,8 @@ struct DiskStore::Impl {
 	std::shared_ptr<detail::StoreCore> core;
 	std::shared_ptr<StartupOperation> startup;
 	std::shared_ptr<PublicationOperation> publication;
+	DiskPublicationStatus terminal_publication_status = DiskPublicationStatus::Idle;
+	std::exception_ptr terminal_publication_error;
 	std::shared_ptr<ReclaimOperation> reclaim;
 };
 DiskStore::DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core)
@@ -1284,6 +1286,11 @@ std::shared_ptr<c::Operation> DiskStore::operation() const {
 	return nullptr;
 }
 void DiskStore::advance() {
+	if (impl_->publication && impl_->publication->done() && !impl_->publication->in_flight()) {
+		impl_->terminal_publication_status = impl_->publication->status();
+		impl_->terminal_publication_error = impl_->publication->error();
+		impl_->publication.reset();
+	}
 	if (!impl_->core->closing && impl_->core->status == StoreStatus::Ready &&
 		(!impl_->publication || impl_->publication->done())) {
 		if (impl_->reclaim->paused())
@@ -1304,11 +1311,14 @@ void DiskStore::advance() {
 	}
 }
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
+bool DiskStore::publication_ready() const noexcept {
+	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
+		(!impl_->publication || impl_->publication->done()) &&
+		(!impl_->reclaim || !impl_->reclaim->active_batch());
+}
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	auto &core = *impl_->core;
-	if (core.status != StoreStatus::Ready || core.closing ||
-		(impl_->publication && !impl_->publication->done()) ||
-		(impl_->reclaim && impl_->reclaim->active_batch()))
+	if (!publication_ready())
 		throw std::logic_error("managed store unavailable for publication");
 	const auto descriptor = builder.descriptor();
 	const auto bytes = builder.bytes();
@@ -1332,6 +1342,8 @@ void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::C
 	auto operation =
 		std::allocate_shared<PublicationOperation>(c::OwnedAllocator<PublicationOperation>(context), data);
 	operation->admit();
+	impl_->terminal_publication_status = DiskPublicationStatus::Idle;
+	impl_->terminal_publication_error = {};
 	impl_->publication = std::move(operation);
 }
 void DiskStore::cancel_publication() noexcept {
@@ -1339,10 +1351,10 @@ void DiskStore::cancel_publication() noexcept {
 		impl_->publication->cancel();
 }
 DiskPublicationStatus DiskStore::publication_status() const noexcept {
-	return impl_->publication ? impl_->publication->status() : DiskPublicationStatus::Idle;
+	return impl_->publication ? impl_->publication->status() : impl_->terminal_publication_status;
 }
 std::exception_ptr DiskStore::publication_error() const noexcept {
-	return impl_->publication ? impl_->publication->error() : nullptr;
+	return impl_->publication ? impl_->publication->error() : impl_->terminal_publication_error;
 }
 const std::shared_ptr<distribution::StorageLedger> &DiskStore::storage_account() const noexcept {
 	return impl_->core->account;
