@@ -2,6 +2,8 @@
 
 **Status:** Stages 0–3 have component acceptance. Stage 4 is in progress; Stages 5–6 remain ahead. The production agent still uses the legacy delivery/mapping path. New distribution and immutable-image library qualification does not establish fleet readiness.
 
+The authenticated authority delivery endpoint now joins quorum-backed owner capture, changed-only history, incremental snapshot/delta/progress encoding and independently owned raw/zstd frames. Native, ASan/UBSan, TSan, Linux and FreeBSD gates cover real TLS delivery, restart fallback and retained original-write shutdown. [Authority export](AUTHORITY_EXPORT.md) records the protocol and evidence. Incremental agent reception, managed publication, SDK refresh and assembled capacity/failure qualification are the remaining work in this Stage 4 boundary.
+
 | Stage | Deliverable | Current state |
 | --- | --- | --- |
 | 0 | Architecture, contracts and failure assumptions | Blueprint accepted |

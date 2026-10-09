@@ -1,11 +1,14 @@
 #include "service.hh"
+#include "delivery_export.hh"
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/validation.hh"
+#include "detent_distribution/memory_resource.hh"
 #include "prepared.hh"
 #include "read_reply.hh"
 #include <asio.hpp>
 #include <fcntl.h>
+#include <http_owned_stream.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 #include <journal/asio_completion.h>
 #include <journal/native_completion.h>
@@ -200,8 +203,17 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
-			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits"});
+			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits",
+			   "delivery_limits"});
 	ServiceOptions o;
+	if (d.HasMember("delivery_limits")) {
+		const auto &limits = field(d, "delivery_limits");
+		fields(limits, {"heap_bytes", "wire_bytes"});
+		if (limits.HasMember("heap_bytes"))
+			o.delivery_heap_bytes = number(field(limits, "heap_bytes"));
+		if (limits.HasMember("wire_bytes"))
+			o.delivery.bytes = number(field(limits, "wire_bytes"));
+	}
 	if (d.HasMember("consensus_limits")) {
 		const auto &limits = field(d, "consensus_limits");
 		fields(limits, {"log_entries", "log_bytes"});
@@ -309,8 +321,13 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		  "credential count bound");
 	std::set<std::string> tokens, producers;
 	for (const auto &value : credentials.GetArray()) {
-		fields(value, {"token", "producer", "namespaces"});
+		fields(value, {"token", "producer", "namespaces", "principal", "policy_epoch"});
 		Credential c{text(field(value, "token"), 128), text(field(value, "producer"), 128), {}};
+		if (value.HasMember("principal"))
+			c.principal = text(field(value, "principal"), 128);
+		if (value.HasMember("policy_epoch"))
+			c.policy_epoch = number(field(value, "policy_epoch"));
+		check(c.policy_epoch != 0, "authorization policy epoch must be nonzero");
 		check(c.token.size() >= 32 && !c.producer.empty() && tokens.insert(c.token).second &&
 				  producers.insert(c.producer).second,
 			  "invalid or duplicate credentials");
@@ -327,12 +344,21 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	return o;
 }
 struct Service::Accounting {
+	std::shared_ptr<distribution::StorageLedger> delivery_account;
+	std::shared_ptr<std::pmr::memory_resource> delivery_resource;
 	std::mutex mutex;
 	std::vector<Credential> credentials;
 	std::vector<Digest> credential_hashes;
 	std::map<std::string, std::size_t> producers;
 	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
 	kronuz::metrics::AtomicDurationHistogram publisher_ready, reply_retired;
+};
+struct Service::Delivery {
+	http::OwnedStreamCapability reply;
+	std::shared_ptr<const AuthorizedScope> scope;
+	std::optional<distribution::Cursor> base;
+	std::atomic<bool> writable{true}, settled{false};
+	bool compress = false, started = false, retiring = false;
 };
 struct Service::Admission {
 	std::shared_ptr<Accounting> accounting;
@@ -378,10 +404,20 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 			  options_.timeout.count() > 0 && options_.timeout <= std::chrono::hours(24) &&
 			  options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
+	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
+			  options_.delivery_heap_bytes <= 1024ull * 1024 * 1024 && options_.delivery.bytes &&
+			  options_.delivery.bytes <= 1024ull * 1024 * 1024 && options_.delivery.namespaces &&
+			  options_.delivery.namespaces <= 4096,
+		  "invalid authority delivery limits");
 	accounting_ = std::make_shared<Accounting>();
+	accounting_->delivery_account =
+		std::make_shared<distribution::StorageLedger>(options_.delivery_heap_bytes);
+	accounting_->delivery_resource = distribution::make_storage_resource(accounting_->delivery_account);
 	accounting_->credentials = std::move(options_.credentials);
 	accounting_->credential_hashes.reserve(accounting_->credentials.size());
 	for (const auto &credential : accounting_->credentials) {
+		check(credential.policy_epoch && credential.principal.size() <= 128,
+			  "invalid authorization identity");
 		class SHA256 hash;
 		hash.add(credential.token.data(), credential.token.size());
 		Digest digest{};
@@ -569,6 +605,106 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 	return std::nullopt;
 }
 
+void Service::distribute(const http::Request &request, http::ResponseWriter &response,
+						 std::shared_ptr<Admission> admission) {
+	check(request.method == "POST", "distribution requires POST");
+	auto body = document(request.body, options_.node.application.request_bytes);
+	fields(body, {"cluster", "group", "epoch", "scope", "namespaces", "base", "coding", "profile"});
+	const auto &context = options_.node.context;
+	check(identity(text(field(body, "cluster"))) == context.cluster &&
+			  identity(text(field(body, "group"))) == context.group &&
+			  identity(text(field(body, "epoch"))) == context.epoch,
+		  "foreign distribution authority");
+	check(number(field(body, "profile")) == 1, "unsupported distribution profile");
+	auto scope_id = [](std::string_view value) {
+		check(value.size() == 64, "invalid distribution scope identity");
+		distribution::ScopeIdentity result{};
+		auto digit = [](char c) -> unsigned {
+			if (c >= '0' && c <= '9')
+				return c - '0';
+			if (c >= 'a' && c <= 'f')
+				return c - 'a' + 10;
+			check(false, "scope identity requires lowercase hexadecimal");
+			return 0;
+		};
+		for (std::size_t i = 0; i < result.size(); ++i)
+			result[i] = static_cast<char>((digit(value[2 * i]) << 4) | digit(value[2 * i + 1]));
+		return result;
+	};
+	const auto &spaces = field(body, "namespaces");
+	check(spaces.IsArray() && spaces.Size() <= options_.delivery.namespaces, "distribution scope bound");
+	std::vector<std::string> names;
+	names.reserve(spaces.Size());
+	for (const auto &name : spaces.GetArray())
+		names.push_back(text(name, 198));
+	const auto &credential = *admission->credential;
+	auto account = accounting_->delivery_account;
+	auto delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
+	delivery->scope = AuthorizedScope::authorize(
+		credential.principal.empty() ? credential.producer : credential.principal, credential.policy_epoch,
+		names, credential.namespaces, account, options_.delivery.namespaces);
+	check(scope_id(text(field(body, "scope"), 64)) == delivery->scope->identity(),
+		  "distribution policy or scope mismatch");
+	const auto coding = text(field(body, "coding"), 4);
+	check(coding == "raw" || coding == "zstd", "unsupported distribution coding");
+	delivery->compress = coding == "zstd";
+	if (body.HasMember("base") && !field(body, "base").IsNull()) {
+		const auto &base = field(body, "base");
+		fields(base, {"cluster", "group", "epoch", "scope", "revision"});
+		delivery->base =
+			distribution::Cursor{identity(text(field(base, "cluster"))), identity(text(field(base, "group"))),
+								 identity(text(field(base, "epoch"))),
+								 scope_id(text(field(base, "scope"), 64)), number(field(base, "revision"))};
+	}
+	auto task = std::allocate_shared<Task>(distribution::StorageAllocator<Task>(account));
+	task->kind = Task::Kind::Distribution;
+	task->admission = std::move(admission);
+	task->delivery = delivery;
+	task->deadline = Clock::now() + options_.timeout;
+	http::StreamOptions stream;
+	stream.resource = accounting_->delivery_resource;
+	stream.reply.deadline = task->deadline + std::chrono::seconds(1);
+	stream.reply.request_retention = task->admission;
+	stream.chunk_bytes = distribution::OwnedFragmentEncoder::maximum_wire_bytes();
+	stream.maximum_bytes = (options_.delivery.bytes / distribution::fragment_bytes + 1) * stream.chunk_bytes;
+	std::weak_ptr<Delivery> weak = delivery;
+	stream.on_writable = [weak] {
+		if (auto held = weak.lock())
+			held->writable.store(true);
+	};
+	stream.reply.on_settled = [weak](http::ReplySettlement) {
+		if (auto held = weak.lock())
+			held->settled.store(true);
+	};
+	task->complete = [delivery, account](Reply value) {
+		if (!delivery->reply || delivery->started || delivery->settled.load())
+			return;
+		try {
+			http::Response metadata;
+			metadata.status = value.status;
+			metadata.content_type = "application/json";
+			auto bytes = distribution::make_owned_buffer(account, value.body.size());
+			bytes->append(value.body);
+			bytes->seal();
+			if (delivery->reply->start(metadata, bytes->size()) != http::StreamSubmit::Accepted ||
+				delivery->reply->publish({bytes, bytes->view()}) != http::StreamSubmit::Accepted ||
+				delivery->reply->finish() != http::StreamSubmit::Accepted)
+				delivery->reply->abandon();
+		} catch (...) {
+			delivery->reply->abandon();
+		}
+	};
+	std::lock_guard lock(mutex_);
+	check(!stopping_, "authority is stopping");
+	delivery->reply = response.stream(std::move(stream));
+	check(static_cast<bool>(delivery->reply), "owned distribution streaming unavailable");
+	try {
+		queue_.push_back(std::move(task));
+	} catch (...) {
+		delivery->reply->abandon();
+	}
+}
+
 void Service::handle(const http::Request &request, http::ResponseWriter &response) {
 	const auto context = options_.node.context;
 	auto envelope = [context](Reply reply) {
@@ -598,6 +734,10 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		} else {
 			auto admission =
 				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
+			if (request.path == "/v2/distribution") {
+				distribute(request, response, std::move(admission));
+				return;
+			}
 			const auto outcome_deadline = Clock::now() + options_.timeout;
 			http::DeferredOptions deferred_options;
 			// Outcome completion needs a bounded window to write its timeout reply.
@@ -848,6 +988,31 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		ReadSlot(std::shared_ptr<Task> t, const State &state) : task(std::move(t)), capture(state) {}
 	};
 	std::optional<ReadSlot> reading;
+	struct DeliverySlot {
+		std::shared_ptr<Task> task;
+		std::optional<DeliveryExport> exporter;
+		std::shared_ptr<const distribution::OwnedBuffer> pending;
+		std::size_t pending_disposal = 0;
+		bool retiring = false, source_drained = false;
+		bool discard_pending(distribution::WorkBudget &budget) noexcept {
+			if (!pending)
+				return true;
+			if (!budget.tokens)
+				return false;
+			if (!pending_disposal)
+				pending_disposal = pending->storage_capacity();
+			const auto n = std::min(pending_disposal, budget.bytes);
+			pending_disposal -= n;
+			budget.bytes -= n;
+			if (pending_disposal)
+				return false;
+			--budget.tokens;
+			pending.reset();
+			return true;
+		}
+	};
+	std::optional<DeliverySlot> delivering;
+	std::shared_ptr<ChangeHistory> history;
 	std::vector<Completion> held_completions;
 	std::size_t completion_cursor = 0, completion_task = 0;
 	std::uint64_t expiry_request = 0;
@@ -938,6 +1103,9 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		owned_node = std::make_shared<Node>(std::make_unique<kronuz::journal::PosixIO>(options_.directory),
 											node_options);
 		auto &node = *owned_node;
+		history = std::allocate_shared<ChangeHistory>(
+			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
+			accounting_->delivery_account);
 		auto last_health = Clock::time_point{};
 		auto publish_health = [&] {
 			auto captured_at = Clock::now();
@@ -1131,6 +1299,16 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		// resets and cannot randomize a deadline that is already in force.
 		node.service({0, election_delay()});
 		node.start();
+		// Storage readiness precedes incremental committed application replay.
+		// Finish that replay before admitting live requests or optional history.
+		while (node.state().applied_index() < node.worker().committed() || node.application_work_pending()) {
+			node.service({0, election_delay()});
+			dispatch(owned_node);
+			check(!node.worker().fenced(), "authority recovery application fenced");
+			timer.expires_after(std::chrono::milliseconds(1));
+			co_await timer.async_wait(asio::use_awaitable);
+		}
+		node.attach_change_recorder(history);
 		if (options_.peers) {
 			peers = std::make_shared<transport::Peers>(io.get_executor(), owned_node, node_options,
 													   *options_.peers);
@@ -1267,7 +1445,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
 			}
 			CommandWorkBudget read_budget{0, 0, 0, 0};
-			if (reading || read_count) {
+			if (reading || read_count || delivering) {
 				bool publisher_runnable = preparing.has_value() || carry_task || retired_count;
 				{
 					std::lock_guard lock(mutex_);
@@ -1281,15 +1459,109 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			}
 			if (!reading && read_count && read_budget.records) {
 				auto &ready_read = ready_reads[read_head];
+				bool consume = true;
 				if (now >= ready_read.task->deadline) {
 					complete(ready_read.task, {503, "{\"error\":\"outcome_unknown\"}"});
+				} else if (ready_read.task->kind == Task::Kind::Distribution) {
+					if (delivering) {
+						consume = false;
+						// Rotate bounded metadata, never capture another authority root.
+						if (read_tail != read_head) {
+							auto waiting = std::move(ready_read);
+							ready_read = {};
+							ready_reads[read_tail] = std::move(waiting);
+						}
+						read_tail = (read_tail + 1) % ready_reads.size();
+						read_head = (read_head + 1) % ready_reads.size();
+					} else {
+						check(node.state().applied_index() >= ready_read.boundary,
+							  "distribution boundary not published");
+						delivering.emplace();
+						delivering->task = ready_read.task;
+					}
 				} else {
 					check(node.state().applied_index() >= ready_read.boundary, "read boundary not published");
 					reading.emplace(ready_read.task, node.state());
 				}
-				ready_read = {};
-				read_head = (read_head + 1) % ready_reads.size();
-				--read_count;
+				if (consume) {
+					ready_read = {};
+					read_head = (read_head + 1) % ready_reads.size();
+					--read_count;
+				}
+			}
+			if (delivering) {
+				auto &slot = *delivering;
+				auto &delivery = *slot.task->delivery;
+				distribution::WorkBudget wire{read_budget.bytes / 2, read_budget.receipts / 2};
+				read_budget.bytes -= wire.bytes;
+				read_budget.receipts -= wire.tokens;
+				auto terminate = [&] {
+					if (delivery.started)
+						delivery.reply->abandon();
+					complete(slot.task, {503, "{\"error\":\"distribution_unavailable\"}"});
+					slot.retiring = true;
+				};
+				if (!slot.retiring) {
+					try {
+						if (delivery.settled.load() || now >= slot.task->deadline) {
+							terminate();
+						} else if (wire.bytes && wire.tokens) {
+							if (!slot.exporter) {
+								distribution::Identity update{};
+								check(RAND_bytes(reinterpret_cast<unsigned char *>(update.data()),
+												 update.size()) == 1,
+									  "distribution update entropy");
+								slot.exporter.emplace(node.state(), delivery.scope, history, delivery.base,
+													  update, delivery.compress, options_.delivery);
+							}
+							if (!slot.pending && delivery.writable.load())
+								slot.exporter->step(wire);
+							if (slot.exporter->counted() && !delivery.started) {
+								http::Response metadata;
+								metadata.status = 200;
+								metadata.content_type = "application/vnd.detent.distribution";
+								metadata.headers.emplace_back("X-Detent-Coding",
+															  delivery.compress ? "zstd" : "raw");
+								metadata.headers.emplace_back("X-Detent-Profile", "1");
+								metadata.headers.emplace_back(
+									"X-Detent-Kind",
+									std::to_string(static_cast<unsigned>(slot.exporter->kind())));
+								metadata.headers.emplace_back(
+									"X-Detent-Revision", std::to_string(slot.exporter->target().revision));
+								if (delivery.reply->start_chunked(metadata) != http::StreamSubmit::Accepted)
+									throw std::runtime_error("distribution stream closed");
+								delivery.started = true;
+							}
+							if (!slot.pending && slot.exporter->frame_ready())
+								slot.pending = slot.exporter->take_frame();
+							if (slot.pending && delivery.writable.exchange(false)) {
+								const auto result =
+									delivery.reply->publish({slot.pending, slot.pending->view()});
+								if (result == http::StreamSubmit::Accepted)
+									slot.pending.reset();
+								else if (result != http::StreamSubmit::Busy)
+									throw std::runtime_error("distribution stream refused frame");
+							}
+							if (slot.exporter->done() && !slot.pending) {
+								if (delivery.reply->finish() != http::StreamSubmit::Accepted)
+									throw std::runtime_error("distribution stream refused finish");
+								complete(slot.task, {200, {}});
+								slot.retiring = true;
+							}
+						}
+					} catch (const std::exception &) {
+						terminate();
+					}
+				}
+				if (slot.retiring) {
+					slot.discard_pending(wire);
+					const bool drained = !slot.exporter || slot.exporter->discard(wire, read_budget);
+					slot.source_drained = drained && !slot.pending;
+					if (drained && !slot.pending && delivery.settled.load())
+						delivering.reset();
+				}
+				read_budget.bytes += wire.bytes;
+				read_budget.receipts += wire.tokens;
 			}
 			if (reading && read_budget.records) {
 				auto &r = *reading;
@@ -1522,7 +1794,9 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			} else {
 				cpu_clock_errors.add();
 			}
-			if (node.application_work_pending() || retired_count || (read_count && !reading) ||
+			if (node.application_work_pending() || retired_count || (read_count && !reading && !delivering) ||
+				(delivering && ((!delivering->retiring && delivering->task->delivery->writable.load()) ||
+								(delivering->retiring && !delivering->source_drained))) ||
 				(reading && (reading->retiring || !reading->quota_blocked)) ||
 				completion_cursor < held_completions.size() ||
 				(preparing && (!preparing->proposal || preparing->cancelling))) {
@@ -1550,6 +1824,20 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		owned_node->close();
 	if (peers)
 		peers->stop();
+	if (delivering) {
+		delivering->task->delivery->reply->abandon();
+		complete(delivering->task, {503, "{\"error\":\"stopping\"}"});
+		for (;;) {
+			distribution::WorkBudget wire;
+			CommandWorkBudget roots;
+			delivering->discard_pending(wire);
+			const bool drained = !delivering->exporter || delivering->exporter->discard(wire, roots);
+			if (drained && !delivering->pending && delivering->task->delivery->settled.load())
+				break;
+			co_await asio::post(io, asio::use_awaitable);
+		}
+		delivering.reset();
+	}
 	if (reading) {
 		complete(reading->task, {503, "{\"error\":\"outcome_unknown\"}"});
 		reading->encoder.reset();
