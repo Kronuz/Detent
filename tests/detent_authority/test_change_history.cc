@@ -50,6 +50,16 @@ int main() {
 		auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto history = std::make_shared<a::ChangeHistory>(account, a::HistoryOptions{2, 4096, 1024});
 		history->reset(context, 0);
+		auto initial_handoff = history->handoff(context, 0);
+		check(initial_handoff.has_value());
+		const auto handoff_charge = account->used();
+		for (unsigned i = 0; i < 1000; ++i) {
+			const auto marker = history->handoff(context, 0);
+			check(marker && history->continuity(*marker, 0) == a::ChangeHistory::Continuity::Ready);
+		}
+		check(account->used() == handoff_charge);
+		check(!history->handoff(context, 1));
+		check(history->continuity(*initial_handoff, 1) == a::ChangeHistory::Continuity::TargetUnavailable);
 		std::uint64_t index = 1;
 		auto apply = [&](bool publish = true) {
 			const auto before = state.revision();
@@ -75,6 +85,9 @@ int main() {
 		command.mutations = {{"ns:a", detent::IntDef{1}, {}, {}}};
 		apply();
 		check(history->covers(context, 0, 1) && history->size() == 1);
+		check(history->continuity(*initial_handoff, 1) == a::ChangeHistory::Continuity::Ready);
+		auto revision_one_handoff = history->handoff(context, 1);
+		check(revision_one_handoff.has_value());
 		auto held = history->find(1);
 		check(held && held->name_space() == "ns" && held->mutations == 1);
 		std::string expected;
@@ -101,6 +114,8 @@ int main() {
 		apply();
 		drain(*history);
 		check(!history->covers(context, 0, 3) && history->covers(context, 1, 3));
+		check(history->continuity(*initial_handoff, 3) == a::ChangeHistory::Continuity::HistoryLost);
+		check(history->continuity(*revision_one_handoff, 3) == a::ChangeHistory::Continuity::Ready);
 		check(!history->find(1) && held->body->view() == expected);
 		const auto retained = account->used();
 		held.reset();
@@ -114,6 +129,7 @@ int main() {
 		history->publish(context, index, state.revision());
 		drain(*history);
 		check(history->coverage_floor() == 4 && !history->covers(context, 3, 4));
+		check(history->continuity(*revision_one_handoff, 4) == a::ChangeHistory::Continuity::HistoryLost);
 		// A missing capture must invalidate coverage even without an explicit gap.
 		history->begin_batch(context, ++index, 4);
 		history->publish(context, index, 5);
@@ -121,9 +137,27 @@ int main() {
 		auto replacement = context;
 		replacement.epoch.fill('x');
 		history->reset(replacement, 0);
+		check(history->continuity(*initial_handoff, 0) == a::ChangeHistory::Continuity::ContextChanged);
 		drain(*history);
 		check(!history->covers(context, 0, 0) && history->covers(replacement, 0, 0));
+		auto before_reset = history->handoff(replacement, 0);
+		check(before_reset.has_value());
+		history->reset(replacement, 0);
+		check(history->covers(replacement, 0, 0));
+		check(history->continuity(*before_reset, 0) == a::ChangeHistory::Continuity::HistoryLost);
+		check(history->continuity(*history->handoff(replacement, 0), 0) ==
+			  a::ChangeHistory::Continuity::Ready);
+		{
+			a::ChangeHistory other(account);
+			other.reset(replacement, 0);
+			check(other.continuity(*before_reset, 0) == a::ChangeHistory::Continuity::OwnerLost);
+		}
 		history.reset();
+		// Weak capabilities retain only their charged control block until release.
+		check(account->used() < handoff_charge);
+		initial_handoff.reset();
+		revision_one_handoff.reset();
+		before_reset.reset();
 		check(account->used() == 0);
 		// Optional encoding pressure cannot reject an authoritative transaction.
 		history = std::make_shared<a::ChangeHistory>(account, a::HistoryOptions{2, 4096, 1});

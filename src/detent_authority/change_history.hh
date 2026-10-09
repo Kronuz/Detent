@@ -2,6 +2,8 @@
 #include "change_recorder.hh"
 #include "detent_distribution/buffer.hh"
 #include "state.hh"
+#include <memory>
+#include <optional>
 namespace detent::authority {
 struct HistoryOptions {
 	std::size_t transactions = 4096, payload_capacity = 16 * 1024 * 1024, transaction_bytes = 256 * 1024;
@@ -19,7 +21,26 @@ struct CachedChange {
 	}
 };
 class ChangeHistory final : public AppliedChangeRecorder {
+  private:
+	struct Incarnation {};
+
   public:
+	// Owner-executor capability. It retains no state roots or history bodies.
+	class Handoff {
+		friend class ChangeHistory;
+		std::weak_ptr<const Incarnation> owner_;
+		Context context_{};
+		std::uint64_t revision_ = 0, generation_ = 0;
+		Handoff(std::weak_ptr<const Incarnation> owner, Context context, std::uint64_t revision,
+				std::uint64_t generation)
+			: owner_(std::move(owner)), context_(context), revision_(revision), generation_(generation) {}
+
+	  public:
+		std::uint64_t revision() const noexcept { return revision_; }
+	};
+	enum class Continuity { Ready, HistoryLost, ContextChanged, OwnerLost, TargetUnavailable };
+	std::optional<Handoff> handoff(const Context &, std::uint64_t revision) const noexcept;
+	Continuity continuity(const Handoff &, std::uint64_t target) const noexcept;
 	ChangeHistory(std::shared_ptr<distribution::StorageLedger> account, HistoryOptions options = {});
 	~ChangeHistory() override;
 	void begin_batch(const Context &, std::uint64_t index, std::uint64_t base_revision) noexcept override;

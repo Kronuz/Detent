@@ -1,6 +1,6 @@
 # Authorized authority export
 
-**Status:** Scope authorization, frozen projection, incremental snapshot/delta/progress encoding, bounded applied-change history and owned frame encoding are implemented. The authority exposes authenticated `/v2/distribution` through the sibling HTTP library's owned response streaming. Focused endpoint qualification passes on all three supported platforms and under sanitizers; managed agent and SDK integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
+**Status:** Scope authorization, frozen projection, incremental snapshot/delta/progress encoding, bounded applied-change history and owned frame encoding are implemented. The authority exposes authenticated `/v2/distribution` through the sibling HTTP library's owned response streaming. Managed agent and SDK integration have Stage 4 component acceptance at `58a27e3`. Stage 5A is implementing authenticated subscriptions and snapshot/history handoff; the existing one-response endpoint remains available. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) records assembled qualification and review.
 
 ## Scope identity
 
@@ -33,6 +33,16 @@ The reusable MessagePack writers accept fixed inline scratch while preserving th
 `ChangeHistory` stores self-contained canonical MessagePack bodies rather than authority roots or definitions. Fixed admitted indexes bound live transactions and retirement debt; the default limits are 4,096 transactions, 16 MiB of payload capacity and 256 KiB per transaction. Indexes, shared controls and actual buffer capacity use the common physical ledger. Eviction removes coverage immediately, while exported owners keep evicted bodies charged until their final release. Cleanup advances through the owner executor's receipt and byte budgets.
 
 Coverage requires a complete committed revision suffix. Publication independently checks revision continuity; missing capture, allocation refusal, encoding limits, eviction and context replacement force snapshot fallback for older bases. Optional cache pressure never rejects an otherwise valid committed transaction. Completed drafts also budget their sealed-body disposal when cancelled before staging.
+
+### Snapshot/history handoff
+
+`DeliveryExport` now establishes a `ChangeHistory::Handoff` on the authority owner immediately after freezing its target, before exposing any frame. The marker binds the history owner, authority context, frozen revision and reset generation. It retains neither authority roots nor cached payloads. Creating markers performs no allocation; surviving weak markers retain their owner's charged control block until their own release.
+
+`continuity()` distinguishes retained coverage, history loss, context replacement, a different or destroyed history owner, and a target outside the published revision range. Every reset invalidates existing markers, even when context and revision remain identical. The reset counter saturates by disabling handoffs rather than wrapping and accepting an ancient marker. Eviction and missing captures invalidate coverage without holding back authoritative writes.
+
+The marker is an internal owner-executor capability. It does not authorize a scope or permit a reader to change epoch. Subscription transport and durable-publication feedback still need integration; the legacy endpoint continues its existing snapshot fallback behavior.
+
+The two history/export fixtures pass natively (0.42 seconds), under ASan/UBSan (1.32 seconds) and fully instrumented TSan (2.60 seconds), on Linux (0.16 seconds) and FreeBSD (0.12 seconds). They cover pre-emission establishment, eviction, missing captures, same-context reset, epoch replacement, cross-owner rejection and allocation-free marker creation. An all-target native build and nine authority regression tests, including both Node storage modes, real TLS delivery and held-original shutdown, pass in 21.37 seconds. These timings are qualification evidence, not subscription throughput measurements.
 
 ## Delta and progress encoding
 

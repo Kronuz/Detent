@@ -5,6 +5,7 @@ struct DeliveryExport::Impl {
 	std::shared_ptr<const AuthorizedScope> scope;
 	std::shared_ptr<ChangeHistory> history;
 	std::shared_ptr<ExportCapture> capture;
+	std::optional<ChangeHistory::Handoff> handoff;
 	std::optional<d::Cursor> base;
 	d::Identity update;
 	d::Limits limits;
@@ -26,6 +27,11 @@ struct DeliveryExport::Impl {
 			throw std::invalid_argument("delivery export admission mismatch");
 		limits.storage_account = scope->storage_account();
 		capture = state.capture(scope);
+		if (history) {
+			const auto &cursor = capture->cursor();
+			handoff = history->handoff(Context{cursor.cluster, cursor.group, cursor.restore_epoch},
+									   cursor.revision);
+		}
 	}
 };
 DeliveryExport::DeliveryExport(const State &state, std::shared_ptr<const AuthorizedScope> scope,
@@ -137,6 +143,9 @@ d::UpdateKind DeliveryExport::kind() const {
 	return impl_->type;
 }
 const d::Cursor &DeliveryExport::target() const noexcept { return impl_->capture->cursor(); }
+std::optional<ChangeHistory::Handoff> DeliveryExport::history_handoff() const noexcept {
+	return impl_->handoff;
+}
 bool DeliveryExport::frame_ready() const noexcept {
 	return impl_->frames && impl_->frames->ready() && !impl_->retiring;
 }

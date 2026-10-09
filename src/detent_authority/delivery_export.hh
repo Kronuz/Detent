@@ -16,6 +16,8 @@ class DeliveryExport {
 	std::uint64_t encoded_length() const;
 	distribution::UpdateKind kind() const;
 	const distribution::Cursor &target() const noexcept;
+	// Established on the owner at snapshot capture, before any frame is exposed.
+	std::optional<ChangeHistory::Handoff> history_handoff() const noexcept;
 	bool frame_ready() const noexcept;
 	std::shared_ptr<const distribution::OwnedBuffer> take_frame();
 	bool done() const noexcept;

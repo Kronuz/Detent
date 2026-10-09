@@ -94,6 +94,9 @@ int main() {
 				a::DeliveryExport exporter(state, scope, history,
 										   scenario == 0 ? std::nullopt : std::optional{from}, update,
 										   compressed);
+				const auto handoff = exporter.history_handoff();
+				check(handoff && handoff->revision() == exporter.target().revision);
+				check(history->continuity(*handoff, state.revision()) == a::ChangeHistory::Continuity::Ready);
 				d::WorkBudget zero{0, 0};
 				exporter.step(zero);
 				check(!exporter.counted());
@@ -125,7 +128,10 @@ int main() {
 		// Revoke coverage after admission, before count: fallback is owner-local.
 		{
 			a::DeliveryExport exporter(state, scope, history, base, update, false);
+			const auto handoff = exporter.history_handoff();
+			check(handoff.has_value());
 			history->reset(context, state.revision());
+			check(history->continuity(*handoff, state.revision()) == a::ChangeHistory::Continuity::HistoryLost);
 			auto bytes = receive(exporter, false, 17);
 			check(exporter.kind() == d::UpdateKind::Snapshot);
 			dispose(exporter);

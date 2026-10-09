@@ -206,6 +206,8 @@ struct ChangeHistory::Impl {
 	using Entry = std::shared_ptr<const CachedChange>;
 	using Slots = std::vector<Entry, d::StorageAllocator<Entry>>;
 	std::shared_ptr<d::StorageLedger> account;
+	std::shared_ptr<const Incarnation> incarnation;
+	std::uint64_t generation = 0;
 	HistoryOptions options;
 	Slots live, retired;
 	std::array<Entry, 64> staged{};
@@ -215,7 +217,9 @@ struct ChangeHistory::Impl {
 				credit = 0;
 	bool batch = false, clearing = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, HistoryOptions bounds)
-		: account(std::move(ledger)), options(bounds), live(d::StorageAllocator<Entry>(account)),
+		: account(std::move(ledger)),
+		  incarnation(std::allocate_shared<Incarnation>(d::StorageAllocator<Incarnation>(account))),
+		  options(bounds), live(d::StorageAllocator<Entry>(account)),
 		  retired(d::StorageAllocator<Entry>(account)) {
 		if (options.transactions > 65536 || !options.transaction_bytes ||
 			options.transaction_bytes > 16 * 1024 * 1024)
@@ -359,6 +363,10 @@ void ChangeHistory::publish(const Context &context, std::uint64_t index, std::ui
 void ChangeHistory::abandon_batch() noexcept { impl_->abandon(); }
 void ChangeHistory::reset(const Context &context, std::uint64_t revision) noexcept {
 	auto &p = *impl_;
+	// Saturation permanently disables new handoffs rather than revalidating an
+	// ancient capability after wraparound. Reset remains allocation-free.
+	if (p.generation != UINT64_MAX)
+		++p.generation;
 	p.abandon();
 	p.context = context;
 	p.floor = p.through = revision;
@@ -405,6 +413,26 @@ void ChangeHistory::collect(CommandWorkBudget &budget) noexcept {
 bool ChangeHistory::covers(const Context &context, std::uint64_t base, std::uint64_t target) const noexcept {
 	const auto &p = *impl_;
 	return context == p.context && p.floor <= base && base <= target && target <= p.through;
+}
+std::optional<ChangeHistory::Handoff> ChangeHistory::handoff(const Context &context,
+															 std::uint64_t revision) const noexcept {
+	const auto &p = *impl_;
+	if (p.generation == UINT64_MAX || !covers(context, revision, revision))
+		return std::nullopt;
+	return Handoff(p.incarnation, context, revision, p.generation);
+}
+ChangeHistory::Continuity ChangeHistory::continuity(const Handoff &handoff,
+													std::uint64_t target) const noexcept {
+	const auto &p = *impl_;
+	if (handoff.owner_.lock() != p.incarnation)
+		return Continuity::OwnerLost;
+	if (handoff.context_ != p.context)
+		return Continuity::ContextChanged;
+	if (p.generation == UINT64_MAX || handoff.generation_ != p.generation || handoff.revision_ < p.floor)
+		return Continuity::HistoryLost;
+	if (target < handoff.revision_ || target > p.through)
+		return Continuity::TargetUnavailable;
+	return Continuity::Ready;
 }
 std::shared_ptr<const CachedChange> ChangeHistory::find(std::uint64_t revision) const noexcept {
 	const auto &p = *impl_;
