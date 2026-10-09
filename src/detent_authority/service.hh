@@ -21,6 +21,7 @@ struct Credential {
 	std::set<std::string> namespaces;
 	std::string principal;
 	std::uint64_t policy_epoch = 1;
+	bool publish = true;
 };
 struct ServiceOptions {
 	NodeOptions node;

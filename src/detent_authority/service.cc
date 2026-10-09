@@ -321,12 +321,16 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		  "credential count bound");
 	std::set<std::string> tokens, producers;
 	for (const auto &value : credentials.GetArray()) {
-		fields(value, {"token", "producer", "namespaces", "principal", "policy_epoch"});
+		fields(value, {"token", "producer", "namespaces", "principal", "policy_epoch", "publish"});
 		Credential c{text(field(value, "token"), 128), text(field(value, "producer"), 128), {}};
 		if (value.HasMember("principal"))
 			c.principal = text(field(value, "principal"), 128);
 		if (value.HasMember("policy_epoch"))
 			c.policy_epoch = number(field(value, "policy_epoch"));
+		if (value.HasMember("publish")) {
+			check(field(value, "publish").IsBool(), "credential publish must be boolean");
+			c.publish = field(value, "publish").GetBool();
+		}
 		check(c.policy_epoch != 0, "authorization policy epoch must be nonzero");
 		check(c.token.size() >= 32 && !c.producer.empty() && tokens.insert(c.token).second &&
 				  producers.insert(c.producer).second,
@@ -471,6 +475,10 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	}
 	if (!found) {
 		throw http::RequestRejected(401, "{\"error\":\"unauthorized\"}", http::RejectionContent::Json);
+	}
+	if (!found->publish && (request.path == "/v2/open" || request.path == "/v2/close" ||
+						   request.path == "/v2/transactions")) {
+		throw http::RequestRejected(403, "{\"error\":\"publish_forbidden\"}", http::RejectionContent::Json);
 	}
 	auto bytes = options_.node.application.request_bytes;
 	auto admission = std::make_shared<Admission>(Admission{accounting_, found, bytes});

@@ -1,6 +1,7 @@
 #include "service.hh"
 #include <cassert>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sys/stat.h>
@@ -79,6 +80,53 @@ int main() {
 		assert(rejected && !std::filesystem::exists(directory));
 	}
 	const std::string open = "\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"";
+	{
+		auto config = directory.parent_path() / (directory.filename().string() + ".json");
+		for (const auto *flag : {"true", "false", "\"false\"", "0", "null"}) {
+			{
+				std::ofstream file(config);
+				file << "{" << authority << "\"directory\":\"read-only-state\",\"credentials\":[{"
+					 << "\"token\":\"0123456789abcdef0123456789abcdef\",\"producer\":\"agent\","
+					 << "\"namespaces\":[\"ns\"],\"publish\":" << flag << "}]}";
+			}
+			assert(::chmod(config.c_str(), 0600) == 0);
+			bool accepted = false;
+			try {
+				auto loaded = load_service_options(config);
+				assert(loaded.credentials.front().publish == (std::string_view(flag) == "true"));
+				accepted = true;
+			} catch (const std::invalid_argument &) {
+			}
+			assert(accepted == (std::string_view(flag) == "true" || std::string_view(flag) == "false"));
+		}
+		std::filesystem::remove(config);
+	}
+	{
+		auto read_only = options(directory.string() + "-read-only");
+		read_only.credentials.front().publish = false;
+		Service service(std::move(read_only));
+		for (const auto *path : {"/v2/open", "/v2/close", "/v2/transactions"}) {
+			http::Request request;
+			request.method = "POST";
+			request.path = path;
+			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
+			bool rejected = false;
+			try {
+				service.on_request_body(request);
+			} catch (const http::RequestRejected &error) {
+				rejected = error.status() == 403;
+			}
+			assert(rejected);
+		}
+		for (const auto *path : {"/v2/read", "/v2/distribution"}) {
+			http::Request request;
+			request.method = "POST";
+			request.path = path;
+			request.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
+			assert(service.on_request_body(request));
+		}
+	}
+	std::filesystem::remove_all(directory.string() + "-read-only");
 	const std::string transaction =
 		"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key\",\"value\":{"
 		"\"type\":\"int\",\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
