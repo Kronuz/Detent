@@ -1,6 +1,6 @@
 # Authorized authority export
 
-**Status:** Scope authorization, frozen projection, incremental snapshot/delta/progress encoding and bounded applied-change history are implemented as libraries. The `/v2/distribution` service endpoint, transport streaming and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
+**Status:** Scope authorization, frozen projection, incremental snapshot/delta/progress encoding, bounded applied-change history and owned frame encoding are implemented as libraries. The sibling HTTP library provides owned response streaming. The `/v2/distribution` service endpoint and production agent integration remain pending. The [delivery blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) governs the assembled component and its final review.
 
 ## Scope identity
 
@@ -39,6 +39,14 @@ Coverage requires a complete committed revision suffix. Publication independentl
 `DeltaExportEncoder` checks complete base/target identities and history coverage, then pins self-contained bodies from the requested revision suffix. Authorized namespace filtering precedes counting. The encoder emits a delta containing only selected transactions, or progress when the fully covered suffix changes none of the selected namespaces. Loss of coverage during capture refuses export before any chunk is exposed. After capture, cache eviction cannot invalidate pinned bodies.
 
 Counting precedes emission and enforces aggregate wire, mutation and string limits plus per-definition byte and override limits. The cache and scope must share a physical account. Lexical traversal reuses canonical cached bytes while adding the authorized namespace index to mutation tuples; definitions are not copied into a second object model. Output uses the same independently owned 65,536-byte chunk boundary as snapshot export. Cancellation drains pinned bodies, output and the admitted reference index with caller budgets; the encoder retains its scope owner until final disposal.
+
+## Owned frame encoding
+
+`OwnedFragmentEncoder` wraps independently owned export chunks in the existing 96-byte framing header. Raw frames match the original encoder byte for byte. Compressed frames use a preadmitted, aligned static zstd workspace and interoperable per-fragment compression. SHA-256 covers the canonical header and actual payload. Only initialized payload bytes are sealed for transport; unused output capacity remains charged.
+
+Construction admits controls, output capacity and compression workspace through the common ledger. Input must be sealed and share that ledger. Taking a frame transfers immutable ownership; a held network frame remains charged across encoder cancellation. Disposal advances through byte and token budgets. Compression itself is one bounded operation over at most 65,536 input bytes after accumulating work credit, rather than an interruptible codec operation.
+
+The sender and existing framing suites pass natively (0.32 seconds), under ASan/UBSan (0.92 seconds) and fully instrumented TSan (2.43 seconds), on Linux (0.12 seconds) and FreeBSD (0.09 seconds). Coverage includes all update kinds, raw byte equivalence, zstd round trips, empty final frames, invalid input, one-byte work budgets, cancellation and allocation-refusal rollback. These shared-host timings are qualification evidence, not throughput measurements.
 
 ## Qualification and remaining work
 

@@ -3,7 +3,7 @@ target_include_directories(detent_resources PUBLIC "${CMAKE_SOURCE_DIR}/include"
 target_compile_features(detent_resources PUBLIC cxx_std_20)
 target_link_libraries(detent_resources PUBLIC Threads::Threads)
 add_library(detent::resources ALIAS detent_resources)
-add_library(detent_distribution protocol.cc framing.cc)
+add_library(detent_distribution protocol.cc framing.cc frame_encoder.cc)
 target_link_libraries(detent_distribution PUBLIC detent::detent PRIVATE compressors::compressors)
 target_link_libraries(detent_distribution PUBLIC detent::resources)
 add_library(detent::distribution ALIAS detent_distribution)

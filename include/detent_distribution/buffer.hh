@@ -45,7 +45,16 @@ class OwnedBuffer {
 	// Streaming chunks may end before backing capacity. Retain its full charge
 	// while exposing only initialized bytes through immutable ownership.
 	void seal_prefix() noexcept { sealed_ = true; }
+	// Native codecs may initialize a bounded maximum destination and produce
+	// a shorter payload. Publish that initialized prefix without reallocating.
+	void seal_initialized_prefix(std::size_t size) {
+		if (sealed_ || size > size_)
+			throw std::logic_error("invalid initialized buffer prefix");
+		size_ = size;
+		sealed_ = true;
+	}
 	std::size_t size() const noexcept { return size_; }
+	bool sealed() const noexcept { return sealed_; }
 	bool empty() const noexcept { return !size_; }
 	const char *data() const noexcept { return data_ ? data_ : ""; }
 	const char *begin() const noexcept { return data(); }

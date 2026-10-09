@@ -13,6 +13,24 @@ struct Fragment {
 	std::string bytes;
 };
 std::string encode_fragment(const Fragment &fragment, bool compress = false);
+// Reusable owner-local sender. Output and static codec workspace are physically
+// admitted before accepting input; only sealed owned frames cross to transport.
+class OwnedFragmentEncoder {
+  public:
+	OwnedFragmentEncoder(UpdateKind, Identity update, std::uint64_t total, bool compress,
+						 std::shared_ptr<StorageLedger>);
+	~OwnedFragmentEncoder();
+	void begin(std::shared_ptr<const OwnedBuffer> body, bool final);
+	void step(WorkBudget &);
+	bool ready() const noexcept;
+	std::shared_ptr<const OwnedBuffer> take();
+	bool discard(WorkBudget &) noexcept;
+	static std::size_t maximum_wire_bytes() noexcept;
+
+  private:
+	struct Impl;
+	StorageOwner<Impl> impl_;
+};
 // Received bytes retain their physical admission independently of the decoder.
 struct DecodedFragment {
 	UpdateKind kind = UpdateKind::Snapshot;
