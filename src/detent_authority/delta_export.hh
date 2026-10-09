@@ -1,6 +1,7 @@
 #pragma once
 #include "change_history.hh"
 #include "detent_distribution/protocol.hh"
+#include "export_reset.hh"
 #include "export_scope.hh"
 namespace detent::authority {
 // Owner-local encoder. History refusal throws before any chunk is exposed;
@@ -9,7 +10,8 @@ class DeltaExportEncoder {
   public:
 	DeltaExportEncoder(std::shared_ptr<ChangeHistory> history, std::shared_ptr<const AuthorizedScope> scope,
 					   const Context &context, distribution::Cursor base, distribution::Cursor target,
-					   distribution::Limits limits = {});
+					   distribution::Limits limits = {},
+					   std::optional<ChangeHistory::Handoff> handoff = std::nullopt);
 	~DeltaExportEncoder();
 	void step(distribution::WorkBudget &);
 	bool counted() const noexcept;

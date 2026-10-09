@@ -10,6 +10,14 @@ The legacy HTTP/UDP cluster profile has no built-in authentication or TLS and us
 
 The production agent’s legacy shared-memory path uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. The new [immutable local views](LOCAL_IMAGE_FORMAT.md) remain under Stage 4 integration; their library qualification does not replace that production path. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
 
+## Fixed: delta gathering crossed history incarnations
+
+A delta encoder admitted against one history incarnation could gather its first transaction, then continue from repopulated history after a same-context reset. The old coverage check saw a complete revision range again and did not detect that the encoder mixed incarnations. The regression uses `ns:a` at revisions 1–3 with values 11–13, resets history to revision 0 with unchanged context, then repopulates values 101–103. It fails against the preceding encoder at `0c5e336` and rejects the update before any chunk escapes after the correction. This proves the library condition; it does not establish that the production authority performs a rollback without an epoch change.
+
+Delta gathering now binds one owner/reset-generation handoff, checks it on every gather turn and after the final transaction, and distinguishes typed history loss from representation limits and storage pressure. Complete gathered immutable inputs remain usable across subsequent eviction. Existing constructor calls remain source-compatible through an optional parameter; consumers of the internal authority-export C++ interface must rebuild.
+
+The two delta/delivery export fixtures pass under ASan/UBSan (1.13 seconds) and fully instrumented TSan (2.90 seconds), on Linux (0.18 seconds) and FreeBSD (0.15 seconds). The old-encoder reproduction is retained locally in `.scratch/history-reset-before/result.log`.
+
 ## Fixed: reader argument errors launched the agent
 
 `detent get ns:missing --bogus` forwarded the unknown option to a child daemon, printing both an argument error and a misleading startup failure. Adding `--default -4` suppressed the failure and returned success with `-4`. Reader argument validation now precedes configuration and startup, rejects unknown options, missing values and extra positional arguments, and preserves negative defaults. The CLI regression verifies exit 1, empty stdout, no startup diagnostic and no runtime artifacts for invalid invocations; normal startup, stopped-agent restart and configuration discovery also pass.

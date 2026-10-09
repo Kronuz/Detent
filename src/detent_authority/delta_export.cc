@@ -11,8 +11,8 @@ struct DeltaExportEncoder::Impl {
 	};
 	using Entries = std::vector<Entry, d::StorageAllocator<Entry>>;
 	std::shared_ptr<ChangeHistory> history;
+	std::optional<ChangeHistory::Handoff> handoff;
 	std::shared_ptr<const AuthorizedScope> scope;
-	Context context;
 	d::Cursor base, target;
 	d::Limits limits;
 	Entries entries;
@@ -27,21 +27,26 @@ struct DeltaExportEncoder::Impl {
 	unsigned phase = 0;
 	bool emitting = false, ready = false, finished = false, failed = false;
 	Impl(std::shared_ptr<ChangeHistory> source, std::shared_ptr<const AuthorizedScope> names,
-		 const Context &ctx, d::Cursor from, d::Cursor to, d::Limits bounds)
-		: history(std::move(source)), scope(std::move(names)), context(ctx), base(from), target(to),
+		 const Context &ctx, d::Cursor from, d::Cursor to, d::Limits bounds,
+		 std::optional<ChangeHistory::Handoff> marker)
+		: history(std::move(source)), scope(std::move(names)), base(from), target(to),
 		  limits(bounds), entries(d::StorageAllocator<Entry>(scope->storage_account())),
 		  revision(base.revision) {
 		if (!base.same_identity(target) || base.scope != scope->identity() || base.cluster != ctx.cluster ||
 			base.group != ctx.group || base.restore_epoch != ctx.epoch || target.revision <= base.revision ||
 			scope->size() > limits.namespaces || history->storage_account() != scope->storage_account() ||
-			(limits.storage_account && limits.storage_account != scope->storage_account()) ||
-			!history->covers(ctx, base.revision, target.revision))
-			throw std::invalid_argument("delta export identity or coverage mismatch");
+			(limits.storage_account && limits.storage_account != scope->storage_account()))
+			throw std::invalid_argument("delta export identity or admission mismatch");
+		handoff = marker ? std::move(marker) : history->handoff(ctx, base.revision);
+		if (handoff && handoff->revision() != base.revision)
+			throw std::invalid_argument("delta export handoff base mismatch");
+		if (!handoff || history->continuity(*handoff, target.revision) != ChangeHistory::Continuity::Ready)
+			throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
 		entries.reserve(std::min<std::uint64_t>(history->size(), target.revision - base.revision));
 	}
 	void count(std::size_t n) {
 		if (n > limits.bytes - length)
-			throw std::length_error("delta export wire limit");
+			throw DeltaRepresentationLimit("delta export wire limit");
 		length += n;
 	}
 	void cursor(const d::Cursor &value) {
@@ -70,16 +75,16 @@ struct DeltaExportEncoder::Impl {
 		}
 	}
 	void gather() {
+		if (history->continuity(*handoff, target.revision) != ChangeHistory::Continuity::Ready)
+			throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
 		if (revision == target.revision) {
-			if (!history->covers(context, base.revision, target.revision))
-				throw std::runtime_error("delta export history changed during capture");
 			history.reset();
 			phase = 1;
 			return;
 		}
 		auto change = history->find(++revision);
 		if (!change)
-			throw std::runtime_error("delta export coverage lost");
+			throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
 		std::uint64_t low = 0, high = scope->size();
 		while (low < high) {
 			const auto mid = low + (high - low) / 2;
@@ -94,7 +99,7 @@ struct DeltaExportEncoder::Impl {
 			change->strings > limits.string_bytes - strings ||
 			change->maximum_definition_bytes > limits.definition_bytes ||
 			change->maximum_overrides > limits.overrides_per_definition)
-			throw std::length_error("delta export aggregate limit");
+			throw DeltaRepresentationLimit("delta export aggregate limit");
 		mutations += change->mutations;
 		overrides += change->overrides;
 		strings += change->strings;
@@ -181,12 +186,13 @@ struct DeltaExportEncoder::Impl {
 };
 DeltaExportEncoder::DeltaExportEncoder(std::shared_ptr<ChangeHistory> history,
 									   std::shared_ptr<const AuthorizedScope> scope, const Context &context,
-									   d::Cursor base, d::Cursor target, d::Limits limits)
+									   d::Cursor base, d::Cursor target, d::Limits limits,
+									   std::optional<ChangeHistory::Handoff> handoff)
 	: impl_([&] {
 		  if (!history || !scope)
 			  throw std::invalid_argument("missing delta export owner");
 		  return d::make_storage_owner<Impl>(scope->storage_account(), std::malloc, std::free, history, scope,
-											 context, base, target, limits);
+											 context, base, target, limits, std::move(handoff));
 	  }()) {}
 DeltaExportEncoder::~DeltaExportEncoder() = default;
 void DeltaExportEncoder::step(d::WorkBudget &budget) {

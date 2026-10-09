@@ -137,6 +137,56 @@ int main() {
 			a::DeltaExportEncoder encoder(history, scope, context, from, to);
 			check(emit(encoder) == oracle(from, to, true) && encoder.kind() == d::UpdateKind::Progress);
 		}
+		{
+			auto replacement = std::make_shared<a::ChangeHistory>(account);
+			auto populate = [&](std::int64_t value) {
+				a::State branch(context);
+				a::Command write;
+				write.context = context;
+				write.producer = "writer";
+				write.kind = a::Kind::Open;
+				write.nonce.fill('n');
+				check(branch.apply(1, write).generation == 1);
+				write.kind = a::Kind::Transaction;
+				write.nonce = {};
+				write.generation = 1;
+				write.name_space = "ns";
+				for (unsigned revision = 1; revision <= 3; ++revision) {
+					write.sequence = revision;
+					write.mutations = {{"ns:a", detent::IntDef{value + revision}, {}, {}}};
+					replacement->begin_batch(context, revision + 1, branch.revision());
+					check(branch.apply(revision + 1, write).status == a::Status::Applied);
+					auto draft = replacement->capture(branch, write, changed);
+					for (;;) {
+						a::CommandWorkBudget work;
+						if (draft->step(work))
+							break;
+					}
+					replacement->stage(draft);
+					replacement->publish(context, revision + 1, branch.revision());
+				}
+			};
+			replacement->reset(context, 0);
+			populate(10);
+			a::DeltaExportEncoder encoder(replacement, scope, context, base, target);
+			d::WorkBudget first{512, 1};
+			encoder.step(first);
+			check(!encoder.counted());
+			replacement->reset(context, 0);
+			while (replacement->pending()) {
+				a::CommandWorkBudget work;
+				replacement->collect(work);
+			}
+			populate(100);
+			check(replacement->covers(context, 0, 3));
+			bool rejected = false;
+			try {
+				emit(encoder);
+			} catch (const a::SnapshotRequired &error) {
+				rejected = error.reason() == a::SnapshotRequired::Reason::HistoryLost;
+			}
+			check(rejected && !encoder.counted() && !encoder.chunk_ready());
+		}
 		for (unsigned limit = 0; limit < 4; ++limit) {
 			d::Limits bounds;
 			if (limit == 0)
