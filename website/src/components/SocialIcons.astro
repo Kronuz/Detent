@@ -1,0 +1,65 @@
+---
+// Override of Starlight's SocialIcons: the default social links (GitHub), followed by a
+// revision pill and the live docs-build badge, so every page shows which Detent commit it
+// documents. Detent has no release tags yet; the pill links to the commit instead.
+import Default from '@astrojs/starlight/components/SocialIcons.astro';
+import { REPO_URL } from '../consts';
+
+const revision = import.meta.env.PUBLIC_DETENT_REVISION;
+const repo = REPO_URL;
+---
+
+<Default {...Astro.props} />
+
+<a
+	class="kz-version-badge"
+	href={revision === 'dev' ? repo : `${repo}/commit/${revision}`}
+	rel="noopener noreferrer"
+	target="_blank"
+	title={`Detent main @ ${revision}`}
+>main @ {revision}</a>
+
+<a
+	class="kz-ci-badge"
+	href={`${repo}/actions/workflows/pages.yml?query=branch%3Amain`}
+	rel="noopener noreferrer"
+	target="_blank"
+	title="Docs build status"
+>
+	<img src={`${repo}/actions/workflows/pages.yml/badge.svg?branch=main`} alt="Docs build status" />
+</a>
+
+<style>
+	.kz-version-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.2rem 0.55rem;
+		border-radius: 999px;
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+		line-height: 1;
+		white-space: nowrap;
+		color: var(--sl-color-text-accent);
+		background: var(--sl-color-gray-6);
+		border: 1px solid var(--sl-color-gray-5);
+		text-decoration: none;
+	}
+	.kz-version-badge:hover {
+		color: var(--sl-color-white);
+		border-color: var(--sl-color-text-accent);
+	}
+	.kz-ci-badge {
+		display: inline-flex;
+		align-items: center;
+	}
+	.kz-ci-badge img {
+		display: block;
+		height: 20px;
+	}
+	/* The header gets tight on phones; keep the version, drop the wider CI image. */
+	@media (max-width: 50rem) {
+		.kz-ci-badge {
+			display: none;
+		}
+	}
+</style>

@@ -1,0 +1,22 @@
+{
+  "name": "detent-docs",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "TZ=UTC astro dev",
+    "build": "TZ=UTC astro build",
+    "preview": "TZ=UTC astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.0.6",
+    "js-yaml": "^4.1.0",
+    "rehype-external-links": "^3.0.0",
+    "sharp": "^0.34.3"
+  }
+}

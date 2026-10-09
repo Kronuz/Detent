@@ -1,0 +1,81 @@
+---
+title: Runtime Knobs for Every Process
+description: Detent is a fast, simple and safe runtime-configuration system for feature flags, kill switches and live settings.
+template: splash
+---
+
+<div class="kz-home">
+
+<div class="kz-intro">Runtime Knobs for Every Process</div>
+
+<div class="kz-lede">Detent is a <em>fast</em>, <em>simple</em> and <em>safe</em> runtime-configuration system for feature flags, kill switches and live settings.</div>
+
+<div class="kz-features">
+	<div class="kz-feature">
+		<h2>🎛️ Simple</h2>
+		<p>Two knob types, <em>bool</em> and <em>int</em>, named <code>namespace:knob</code>. Publish <em>JSON</em> with <code>curl</code>, read with one call.</p>
+		<a href="/Detent/quickstart/">Quick-start →</a>
+	</div>
+	<div class="kz-feature">
+		<h2>⚡ Fast</h2>
+		<p>A read is one <em>atomic load</em>, one lookup and one evaluation: no network, no disk, no lock, no allocation.</p>
+		<a href="/Detent/benchmarks/">Benchmarks →</a>
+	</div>
+	<div class="kz-feature">
+		<h2>🛟 Safe</h2>
+		<p>Updates are validated off the read path and swapped in <em>atomically</em>. Outages keep the <em>last known good</em> snapshot.</p>
+		<a href="/Detent/reference/errors/">Failure semantics →</a>
+	</div>
+</div>
+
+<div class="kz-quickstart">
+<div class="kz-qs-inner">
+<div class="kz-qs-left"><h3>Flip a switch <em>in seconds</em>.</h3></div>
+<div class="kz-qs-right">
+
+<div class="kz-os" data-os="linux">
+<div class="kz-os-panel" data-os="linux">
+
+```sh title="Quick-start Instructions"
+cmake -B build && cmake --build build -j
+build/src/detentd &
+curl -X PUT localhost:8317/v1/snapshot -d '{
+  "schema_version": 1, "version": 1, "knobs": {
+    "checkout:new_path": {"type": "bool", "default": true}}}'
+build/src/detent get checkout:new_path
+# => true
+```
+
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div class="kz-features">
+	<div class="kz-feature">
+		<h2>🎯 Gradual</h2>
+		<p>Ramp features by <em>percentage</em> with a stable SHA-256 bucket, and give <em>groups</em> their own forced value or rollout.</p>
+		<a href="/Detent/rollouts/">Rollouts →</a>
+	</div>
+	<div class="kz-feature">
+		<h2>🐚 Everywhere</h2>
+		<p>Link the <em>C++</em> client, use the <em>Python</em> or <em>Rust</em> bindings, or read from any shell through a host-local <em>shared-memory</em> agent.</p>
+		<a href="/Detent/guides/shell-and-agent/">Host-local reads →</a>
+	</div>
+	<div class="kz-feature">
+		<h2>⚖️ Replicated</h2>
+		<p>Run the distributor as a <em>Raft</em> cluster, or opt into the <em>durable authority</em> with authenticated, transactional publishing.</p>
+		<a href="/Detent/guides/clustering/">Clustering →</a>
+	</div>
+</div>
+
+<div class="kz-home-footer">
+<div class="kz-home-footer-inner">
+<p class="kz-home-footer-left"><a href="/Detent/copyright/">Copyright © {new Date().getFullYear()} Germán Méndez Bravo</a><br /><a href="https://Kronuz.github.io">Website by Kronuz</a></p>
+<p class="kz-home-footer-right">Proudly hosted by <a href="https://github.com"><img src="/Detent/footer-logo.png" width="100" height="30" alt="GitHub • Social coding" /></a></p>
+</div>
+</div>
+
+</div>

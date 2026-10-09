@@ -1,0 +1,58 @@
+name: Deploy Docs to Pages
+
+# Build the Astro/Starlight documentation site (website/) and deploy it to GitHub
+# Pages. Requires the repository's Pages source to be "GitHub Actions".
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One Pages deploy at a time; don't cancel an in-flight production deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: website
+      - name: Install D2 (build-time diagram renderer)
+        # ```d2 fences render to SVG at build time by shelling out to the d2 CLI
+        # (see website/src/lib/renderD2.mjs); without it those pages build empty.
+        run: |
+          curl -fsSL https://d2lang.com/install.sh | sh -s --
+          d2 --version
+      - name: Build site
+        run: npm run build
+        working-directory: website
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
