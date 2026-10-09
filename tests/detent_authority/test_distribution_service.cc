@@ -1,6 +1,9 @@
 #include "detent/scope.hh"
 #include "detent_distribution/framing.hh"
 #include "service.hh"
+#ifdef DETENT_TEST_MANAGED_DELIVERY
+#include "detent_delivery/client.hh"
+#endif
 #include "transport/tls.hh"
 #include <filesystem>
 #include <http_asio_tls.h>
@@ -218,6 +221,39 @@ int main(int argc, char **argv) {
 			check(request(endpoint, cert, "/v2/distribution",
 						  "{" + common + "\"coding\":\"raw\",\"profile\":1}", token)
 					  .status == 400);
+#ifdef DETENT_TEST_MANAGED_DELIVERY
+			auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+			detent::transport::configure_tls(*client_tls, {"", "", (cert / "ca.pem").string()},
+											 detent::transport::TlsRole::PublisherClient);
+			for (bool compressed : {false, true}) {
+				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+				{
+					detent::delivery::ClientOptions receive_options;
+					receive_options.endpoint = endpoint;
+					receive_options.hostname = "localhost";
+					receive_options.token = token;
+					receive_options.tls_context = client_tls;
+					receive_options.configured = cursor;
+					receive_options.namespaces = {"ns"};
+					receive_options.compression = compressed;
+					receive_options.limits.storage_account = account;
+					asio::io_context client_io;
+					auto pending = asio::co_spawn(
+						client_io, detent::delivery::receive(std::move(receive_options)), asio::use_future);
+					client_io.run();
+					auto received = pending.get();
+					check(received.snapshot && received.target.revision == 2 &&
+						  received.snapshot->records().size() == 1 &&
+						  received.snapshot->records()[0].key == "ns:a");
+					for (;;) {
+						d::WorkBudget work;
+						if (received.snapshot->discard(work))
+							break;
+					}
+				}
+				check(account->used() == 0);
+			}
+#endif
 			server.stop();
 		}
 		std::filesystem::remove_all(directory);

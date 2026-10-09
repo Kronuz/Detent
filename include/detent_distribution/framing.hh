@@ -38,6 +38,7 @@ struct DecodedFragment {
 	std::uint64_t offset = 0, total = 0;
 	bool final = false;
 	std::shared_ptr<const OwnedBuffer> body;
+	bool compressed = false;
 	std::string_view bytes() const noexcept { return body ? body->view() : std::string_view{}; }
 };
 class FragmentDecoder {
@@ -51,6 +52,7 @@ class FragmentDecoder {
 	void feed(std::span<const char> &input, WorkBudget &budget);
 	std::optional<DecodedFragment> take();
 	void finish();
+	bool discard(WorkBudget &) noexcept;
 
   private:
 	struct Impl;

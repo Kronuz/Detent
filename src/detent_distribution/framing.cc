@@ -76,6 +76,7 @@ struct FragmentDecoder::Impl {
 	Identity update{};
 	std::array<char, frame_header_bytes> header{};
 	std::size_t header_size = 0, encoded_size = 0, decoded_size = 0;
+	std::size_t disposal = 0;
 	bool compressed = false;
 	DecodedFragment current;
 	std::shared_ptr<StorageLedger> account;
@@ -100,6 +101,7 @@ struct FragmentDecoder::Impl {
 		compressed = flags & 1;
 		require(!compressed || compression, "unnegotiated fragment compression");
 		current = {};
+		current.compressed = compressed;
 		current.kind = static_cast<UpdateKind>(static_cast<unsigned char>(header[9]));
 		current.final = flags & 2;
 		std::copy_n(header.data() + 24, 16, current.update.begin());
@@ -219,5 +221,21 @@ void FragmentDecoder::finish() {
 		impl_->failed = true;
 		throw std::invalid_argument("incomplete distribution framing");
 	}
+}
+bool FragmentDecoder::discard(WorkBudget &budget) noexcept {
+	auto &p = *impl_;
+	p.failed = true;
+	auto release = [&](auto &owner) {
+		if (!owner) return true;
+		if (!budget.tokens) return false;
+		if (!p.disposal) p.disposal = owner->storage_capacity();
+		const auto n = std::min(p.disposal, budget.bytes);
+		p.disposal -= n; budget.bytes -= n;
+		if (p.disposal) return false;
+		--budget.tokens; owner.reset(); return true;
+	};
+	if (p.output && !release(p.output->body)) return false;
+	p.output.reset();
+	return release(p.current.body) && release(p.payload) && release(p.workspace);
 }
 } // namespace detent::distribution

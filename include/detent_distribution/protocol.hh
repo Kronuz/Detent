@@ -22,6 +22,12 @@ struct Limits {
 struct WorkBudget {
 	std::size_t bytes = 8192, tokens = 128;
 };
+// Borrowed only during decoder construction. The decoder copies canonical
+// names into admitted fixed-width storage; no caller string ownership escapes.
+struct NamespaceSelection {
+	explicit NamespaceSelection(std::span<const std::string_view> value) : names(value) {}
+	std::span<const std::string_view> names;
+};
 struct NamespaceRevision {
 	std::string_view name;
 	std::uint64_t revision = 0;
@@ -106,6 +112,7 @@ class ValidatedSnapshot {
 class SnapshotDecoder {
   public:
 	SnapshotDecoder(Cursor expected, std::vector<std::string> namespaces, Limits limits = {});
+	SnapshotDecoder(Cursor expected, NamespaceSelection namespaces, Limits limits = {});
 	~SnapshotDecoder();
 	SnapshotDecoder(SnapshotDecoder &&) noexcept;
 	SnapshotDecoder(const SnapshotDecoder &) = delete;
@@ -199,6 +206,8 @@ class ValidatedDelta {
 class DeltaDecoder {
   public:
 	DeltaDecoder(Cursor expected_base, std::vector<std::string> namespaces, Limits limits = {},
+				 UpdateKind kind = UpdateKind::Delta);
+	DeltaDecoder(Cursor expected_base, NamespaceSelection namespaces, Limits limits = {},
 				 UpdateKind kind = UpdateKind::Delta);
 	~DeltaDecoder();
 	DeltaDecoder(DeltaDecoder &&) noexcept;

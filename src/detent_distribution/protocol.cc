@@ -24,7 +24,7 @@ struct ScopeName : m::InlineBytes<198> {
 	bool operator==(std::string_view other) const noexcept { return std::string_view(*this) == other; }
 };
 using Scope = std::vector<ScopeName, StorageAllocator<ScopeName>>;
-Scope owned_scope(const std::vector<std::string> &names, const Limits &limits) {
+template <class Names> Scope owned_scope(const Names &names, const Limits &limits) {
 	require(names.size() <= limits.namespaces, "subscription namespace limit exceeded");
 	for (std::size_t i = 0; i < names.size(); ++i) {
 		const auto &name = names[i];
@@ -257,7 +257,7 @@ struct SnapshotDecoder::Impl {
 	std::uint32_t previous_namespace = 0;
 	Phase phase = Phase::Root;
 	bool failed = false, taken = false;
-	Impl(Cursor cursor, std::vector<std::string> names, Limits bounds)
+	template <class Names> Impl(Cursor cursor, const Names &names, Limits bounds)
 		: expected(cursor), scope(owned_scope(names, bounds)), limits(bounds),
 		  decoder(
 			  m::Limits{bounds.bytes, 200, 32,
@@ -447,6 +447,12 @@ SnapshotDecoder::SnapshotDecoder(Cursor expected, std::vector<std::string> names
 										  limits.storage_release, expected, std::move(namespaces), limits);
 	  }()) {}
 SnapshotDecoder::~SnapshotDecoder() = default;
+SnapshotDecoder::SnapshotDecoder(Cursor expected, NamespaceSelection namespaces, Limits limits)
+	: impl_([&] {
+		  limits = detail::admitted_limits(std::move(limits));
+		  return make_storage_owner<Impl>(limits.storage_account, limits.storage_allocate,
+										  limits.storage_release, expected, namespaces.names, limits);
+	  }()) {}
 SnapshotDecoder::SnapshotDecoder(SnapshotDecoder &&) noexcept = default;
 void SnapshotDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
 	require(impl_ && !impl_->failed && !impl_->taken, "snapshot decoder unavailable");
@@ -594,7 +600,7 @@ struct DeltaDecoder::Impl {
 				  mutation_count = 0, mutated_namespaces = 0;
 	Phase phase = Phase::Root;
 	bool failed = false, taken = false;
-	Impl(Cursor base, std::vector<std::string> names, Limits bounds, UpdateKind kind)
+	template <class Names> Impl(Cursor base, const Names &names, Limits bounds, UpdateKind kind)
 		: expected(base), scope(owned_scope(names, bounds)), limits(bounds),
 		  decoder(
 			  m::Limits{bounds.bytes, 200, 32,
@@ -832,6 +838,12 @@ DeltaDecoder::DeltaDecoder(Cursor expected_base, std::vector<std::string> namesp
 										  limits, kind);
 	  }()) {}
 DeltaDecoder::~DeltaDecoder() = default;
+DeltaDecoder::DeltaDecoder(Cursor expected_base, NamespaceSelection namespaces, Limits limits, UpdateKind kind)
+	: impl_([&] {
+		  limits = detail::admitted_limits(std::move(limits));
+		  return make_storage_owner<Impl>(limits.storage_account, limits.storage_allocate,
+									  limits.storage_release, expected_base, namespaces.names, limits, kind);
+	  }()) {}
 DeltaDecoder::DeltaDecoder(DeltaDecoder &&) noexcept = default;
 void DeltaDecoder::feed(std::span<const char> &input, WorkBudget &budget) {
 	require(impl_ && !impl_->failed && !impl_->taken, "delta decoder unavailable");

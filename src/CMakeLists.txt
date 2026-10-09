@@ -32,6 +32,13 @@ target_compile_features(detent PUBLIC cxx_std_20)
 
 add_library(detent::detent ALIAS detent)
 add_subdirectory(detent_distribution)
+if(DETENT_BUILD_MANAGED_AGENT)
+  if(NOT TARGET http_parser::http_parser)
+    FetchContent_Declare(http_parser GIT_REPOSITORY https://github.com/Kronuz/http-parser.git GIT_TAG main)
+    FetchContent_MakeAvailable(http_parser)
+  endif()
+  add_subdirectory(detent_delivery)
+endif()
 add_subdirectory(detent_local)
 
 ########################################################################
