@@ -38,11 +38,9 @@ the `varint` shim and `CMakeLists.txt` gains the `varint` dependency.
 **Still open:** pin every `FetchContent_Declare` to a tested commit instead of
 `main`/`master`.
 
-### 1.2 No license file
+### 1.2 No license file (resolved 2026-10-09)
 
-The repository is now public on GitHub with no `LICENSE`. The website's
-Copyright page says no license is granted yet. Choose and add one (Xapiand and
-the Kronuz libraries use MIT).
+The repository now includes `LICENSE` with the MIT License, chosen by German. The website's Copyright page links to it, and the missing-license roadmap entry is removed.
 
 ## 2. Discrepancies in existing repository docs
 

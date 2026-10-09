@@ -52,7 +52,6 @@ targets, not demonstrated capacity.
 4. **Packages**: Homebrew bottles (the tap builds from source today),
    Debian/RPM, FreeBSD ports, container images, a Python wheel and a Rust
    crate.
-5. **A license file.**
 
 ## Knob Model
 
