@@ -9,6 +9,16 @@ GenerationReader::GenerationReader(std::filesystem::path directory, ViewLimits l
 bool GenerationReader::refresh() {
 	// Serialize refreshes so an older recovery cannot overwrite a newer install.
 	std::lock_guard refresh_lock(refresh_mutex_);
+	// Selected images are immutable and the installed root retains its lease.
+	// An unchanged trusted selection needs no second mapping or image scan.
+	auto selection = read_generation_selection(directory_);
+	{
+		std::lock_guard install_lock(installed_mutex_);
+		if (directory_identity_ && *directory_identity_ != selection.directory_identity)
+			throw std::invalid_argument("local generation directory was replaced");
+		if (descriptor_ && *descriptor_ == selection.descriptor)
+			return false;
+	}
 	auto recovered = recover_generation(directory_, limits_);
 	const auto &next = recovered.descriptor();
 	if (identity_ && !identity_->same_identity(next.cursor))

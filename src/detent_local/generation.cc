@@ -146,6 +146,17 @@ std::string_view generation_name(const GenerationId &id, std::span<char> destina
 	}
 	return {destination.data(), length};
 }
+GenerationSelection read_generation_selection(const std::filesystem::path &directory) {
+	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+	struct stat info{};
+	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) &&
+			!(info.st_mode & 0022));
+	File selected(::openat(dir.fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+	trusted_file(selected.fd, info.st_uid, descriptor_bytes);
+	std::array<char, descriptor_bytes> raw{};
+	read_record(selected.fd, raw);
+	return {decode_descriptor(raw), {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+}
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected) {
 	auto &domain = resources::domain(limits);

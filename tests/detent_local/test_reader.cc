@@ -36,9 +36,15 @@ int main() {
 		write(directory / (name + ".image"), {image->data(), image->size()});
 		write(directory / (name + ".lease"), {});
 		write(directory / "selected", l::encode_descriptor(descriptor));
-		l::GenerationReader reader(directory, {}, cursor());
+		l::ViewLimits limits;
+		const auto page = static_cast<std::size_t>(::sysconf(_SC_PAGESIZE));
+		const auto capacity = (image->size() + page - 1) / page * page;
+		limits.mapping_account = std::make_shared<d::StorageLedger>(capacity);
+		l::GenerationReader reader(directory, limits, cursor());
 		require(!reader.read_view());
 		require(reader.refresh());
+		require(limits.mapping_account->used() == capacity);
+		// The existing mapping exhausts admission: polling must not remap it.
 		require(!reader.refresh());
 		auto pinned = reader.read_view();
 		require(pinned.cursor() == cursor());
@@ -62,6 +68,35 @@ int main() {
 			require(!reader.refresh());
 		reads.request_stop();
 		reads.join();
+		// Equal metadata in a replacement directory cannot reuse the old root.
+		auto moved = directory;
+		moved += "-original";
+		std::filesystem::rename(directory, moved);
+		std::filesystem::create_directory(directory);
+		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+		write(directory / "selected", l::encode_descriptor(descriptor));
+		bool replaced_rejected = false;
+		try {
+			reader.refresh();
+		} catch (const std::exception &) {
+			replaced_rejected = true;
+		}
+		require(replaced_rejected && reader.read_view().cursor() == cursor());
+		std::filesystem::remove_all(directory);
+		std::filesystem::rename(moved, directory);
+		// Metadata permissions are rechecked even for an unchanged selection.
+		std::filesystem::permissions(directory / "selected", std::filesystem::perms::others_write,
+									 std::filesystem::perm_options::add);
+		bool unsafe_rejected = false;
+		try {
+			reader.refresh();
+		} catch (const std::exception &) {
+			unsafe_rejected = true;
+		}
+		require(unsafe_rejected);
+		std::filesystem::permissions(directory / "selected", std::filesystem::perms::others_write,
+									 std::filesystem::perm_options::remove);
+		require(!reader.refresh());
 		write(directory / "selected", {});
 		bool rejected = false;
 		try {

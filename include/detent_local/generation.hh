@@ -22,6 +22,12 @@ struct DirectoryIdentity {
 	std::uint64_t device = 0, inode = 0;
 	bool operator==(const DirectoryIdentity &) const = default;
 };
+// Metadata only: this is not evidence of image validation or a publication base.
+struct GenerationSelection {
+	Descriptor descriptor;
+	DirectoryIdentity directory_identity;
+};
+GenerationSelection read_generation_selection(const std::filesystem::path &directory);
 class RecoveredGeneration {
   public:
 	const ReadView &view() const noexcept { return view_; }

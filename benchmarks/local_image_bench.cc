@@ -1,11 +1,15 @@
 #include "detent_distribution/messagepack.hh"
 #include "detent_local/builder.hh"
+#include "detent_local/reader.hh"
 #include "storage_metrics.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
+#include <ctime>
+#include <fstream>
 #include <iostream>
 #include <sys/resource.h>
+#include <unistd.h>
 #include <vector>
 namespace d = detent::distribution;
 namespace l = detent::local;
@@ -25,9 +29,14 @@ std::uint64_t rss() {
 }
 int main(int argc, char **argv) {
 	try {
-		auto requested = argc == 2 ? std::stoull(argv[1]) : 500000;
-		if (argc > 2 || requested > 500000)
-			throw std::invalid_argument("expected one record count");
+		auto requested = argc >= 2 ? std::stoull(argv[1]) : 500000;
+		std::uint64_t refreshes = 0;
+		if (argc == 4 && std::string_view(argv[2]) == "--refresh")
+			refreshes = std::stoull(argv[3]);
+		else if (argc > 2)
+			throw std::invalid_argument("expected record count [--refresh repetitions]");
+		if (requested > 500000 || refreshes > 1000000)
+			throw std::invalid_argument("benchmark count exceeds limit");
 		std::uint32_t count = requested;
 		if (!count || count > 500000)
 			throw std::invalid_argument("record count must be 1..500000");
@@ -142,6 +151,39 @@ int main(int argc, char **argv) {
 		}
 
 		auto finished = Clock::now();
+		std::int64_t refresh_us = 0, refresh_cpu_us = 0;
+		if (refreshes) {
+			auto directory = std::filesystem::current_path() / ".scratch" /
+							 ("local-image-refresh-" + std::to_string(::getpid()));
+			std::filesystem::create_directories(directory);
+			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+			auto write = [&](const auto &path, std::span<const char> contents) {
+				std::ofstream output(path, std::ios::binary | std::ios::trunc);
+				output.write(contents.data(), contents.size());
+				output.close();
+				if (!output)
+					throw std::runtime_error("benchmark fixture write failed");
+				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
+													   std::filesystem::perms::owner_write);
+			};
+			auto name = l::generation_name(generation);
+			write(directory / (name + ".image"), *bytes);
+			write(directory / (name + ".lease"), {});
+			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			{
+				l::GenerationReader reader(directory);
+				if (!reader.refresh())
+					throw std::runtime_error("initial refresh failed");
+				auto before = Clock::now();
+				auto cpu = std::clock();
+				for (std::uint64_t i = 0; i < refreshes; ++i)
+					if (reader.refresh())
+						throw std::runtime_error("unchanged refresh oracle failed");
+				refresh_cpu_us = (std::clock() - cpu) * 1000000.0 / CLOCKS_PER_SEC;
+				refresh_us = micros(Clock::now() - before);
+			}
+			std::filesystem::remove_all(directory);
+		}
 		std::uint64_t retirement_turns = 0;
 		std::int64_t maximum_retirement_turn = 0;
 		auto retirement_start = Clock::now();
@@ -165,7 +207,8 @@ int main(int argc, char **argv) {
 				  << ",\"retirement_turns\":" << retirement_turns
 				  << ",\"max_retirement_turn_us\":" << maximum_retirement_turn
 				  << ",\"retained_decode_capacity\":" << charged_storage(*source) << ",\"oracle\":" << oracle
-				  << "}\n";
+				  << ",\"refresh_calls\":" << refreshes << ",\"refresh_us\":" << refresh_us
+				  << ",\"refresh_cpu_us\":" << refresh_cpu_us << "}\n";
 		return 0;
 	} catch (const std::exception &e) {
 		std::cerr << e.what() << '\n';
