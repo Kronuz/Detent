@@ -2,44 +2,47 @@
 title: "Quick-start"
 ---
 
-This guide takes you through building Detent, starting a distributor, and
+This guide takes you through installing Detent, starting a distributor, and
 publishing and reading your first knobs. **DON'T PANIC**, it takes just a few
 minutes.
 
 ---
 
-## Building and Running
+## Installing and Running
 
-Detent builds with CMake and fetches its dependencies on the first configure:
+### Using Homebrew under macOS
+
+```sh
+# Install with Homebrew:
+brew install Kronuz/tap/detent
+
+# Run the distributor in the foreground with verbose output:
+detentd -v
+```
+
+### Building from Source
 
 ```sh
 git clone https://github.com/Kronuz/Detent.git
 cd Detent
-cmake -B build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-export PATH="$PWD/build/src:$PATH"
+sudo cmake --install build
+
+# Run the distributor in the foreground with verbose output:
+detentd -v
 ```
 
-Start the distributor in the foreground:
-
-```sh
-detentd
-```
-
-It listens on port `8317` and keeps its snapshot in your user state directory.
-Leave it running and open a second terminal in the repository root:
-
-```sh
-export PATH="$PWD/build/src:$PATH"
-```
+`detentd` listens on port `8317` and keeps its snapshot in your user state
+directory. Leave it running and open a second terminal; or start it in the
+background with `detentd --daemonize` instead.
 
 You can check the [Installation](/Detent/installation/) section for compiler
 requirements, build options and platform notes.
 
 :::hint[Turn up the logs]{.tip}
-Run `detentd -v` to see every accepted publish as it happens, and `detent-agent
--vv` to also see the agent's source metrics. See
-[Logging](/Detent/operations/logging/) for more.
+`-v` shows every accepted publish as it happens, and `detent-agent -vv` also
+shows the agent's source metrics. See [Logging](/Detent/operations/logging/).
 :::
 
 ---

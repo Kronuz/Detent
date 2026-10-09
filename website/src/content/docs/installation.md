@@ -2,7 +2,20 @@
 title: "Installation"
 ---
 
-Detent is built from source with CMake. There are no binary packages yet.
+The quickest way to install Detent on macOS is Homebrew. Everywhere else, build
+it from source with CMake.
+
+---
+
+## Homebrew
+
+```sh
+brew install Kronuz/tap/detent
+```
+
+That installs `detentd`, `detent-agent` and `detent`, plus the launchd service
+templates under `$(brew --prefix)/share/detent/`. To track `main` instead of the
+pinned revision, use `brew install --HEAD Kronuz/tap/detent`.
 
 ---
 
@@ -51,24 +64,16 @@ Authority builds add `build/src/detent_authority/detent-authority-admin`, the
 import/export tool. You also get the static libraries, examples in `build/examples/`, benchmarks in
 `build/benchmarks/`, and the test suite.
 
-:::hint[Unpublished dependency revisions]{.warning}
-Some of Detent's sibling libraries (`cluster`, `http`, `reactor`, `sha256` and
-`cpp-btree`) currently carry local changes that Detent relies on and that
-haven't been pushed to their public repositories yet. Until they are, a clean
-clone that fetches those libraries from GitHub may fail to configure or build.
-Point CMake at local checkouts with `FETCHCONTENT_SOURCE_DIR_<NAME>`, for
-example:
+:::hint[Building against local library checkouts]{.tip}
+To develop Detent and one of its sibling libraries together, point CMake at a
+local checkout instead of the fetched copy:
 
 ```sh
-cmake -B build \
-  -DFETCHCONTENT_SOURCE_DIR_CLUSTER=$PWD/../Kronuz/cluster \
-  -DFETCHCONTENT_SOURCE_DIR_HTTP_LIB=$PWD/../Kronuz/http \
-  -DFETCHCONTENT_SOURCE_DIR_REACTOR=$PWD/../Kronuz/reactor \
-  -DFETCHCONTENT_SOURCE_DIR_SHA256=$PWD/../Kronuz/sha256 \
-  -DFETCHCONTENT_SOURCE_DIR_CPP_BTREE=$PWD/../Kronuz/cpp-btree
+cmake -B build -DFETCHCONTENT_SOURCE_DIR_CLUSTER=$PWD/../cluster
 ```
 
-The [Roadmap](/Detent/roadmap/#build-and-release) tracks publishing them.
+The variable name is the dependency's `FetchContent` name in upper case, such as
+`CLUSTER`, `HTTP_LIB`, `REACTOR` or `SHA256`.
 :::
 
 ### Build Options

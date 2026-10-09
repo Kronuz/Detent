@@ -37,13 +37,10 @@ template: splash
 <div class="kz-os-panel" data-os="linux">
 
 ```sh title="Quick-start Instructions"
-cmake -B build && cmake --build build -j
-build/src/detentd &
-curl -X PUT localhost:8317/v1/snapshot -d '{
-  "schema_version": 1, "version": 1, "knobs": {
-    "checkout:new_path": {"type": "bool", "default": true}}}'
-build/src/detent get checkout:new_path
-# => true
+brew install Kronuz/tap/detent && detentd --daemonize
+curl -X PUT localhost:8317/v1/snapshot -d '{"schema_version":1,
+  "version":1,"knobs":{"app:on":{"type":"bool","default":true}}}'
+detent get app:on  # => true
 ```
 
 </div>

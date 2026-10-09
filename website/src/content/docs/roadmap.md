@@ -45,16 +45,14 @@ targets, not demonstrated capacity.
 
 ## Build and Release
 
-1. **Publish the sibling library revisions.** Detent currently depends on
-   unpushed changes in `cluster`, `http`, `reactor`, `sha256` and `cpp-btree`,
-   so a clean clone can't build from public sources yet.
-2. **Pin dependency revisions** instead of following `main`.
-3. **Tagged releases** with a changelog, and a version reported by the binaries.
-4. **Continuous integration** on Linux, macOS and FreeBSD, including the
+1. **Pin dependency revisions** instead of following `main`.
+2. **Tagged releases** with a changelog, and a version reported by the binaries.
+3. **Continuous integration** on Linux, macOS and FreeBSD, including the
    sanitizer runs.
-5. **Packages**: Homebrew, Debian/RPM, FreeBSD ports, container images, a
-   Python wheel and a Rust crate.
-6. **A license file.**
+4. **Packages**: Homebrew bottles (the tap builds from source today),
+   Debian/RPM, FreeBSD ports, container images, a Python wheel and a Rust
+   crate.
+5. **A license file.**
 
 ## Knob Model
 

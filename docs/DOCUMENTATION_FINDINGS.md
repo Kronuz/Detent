@@ -13,28 +13,30 @@ Items are ordered by priority within each section.
 
 ## 1. Blockers
 
-### 1.1 A clean clone cannot build from public sources
+### 1.1 A clean clone cannot build from public sources (resolved 2026-10-09)
 
-Reproduced on 2026-10-09 by cloning this repository into a scratch directory
-and running `cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build`
-with no `FETCHCONTENT_SOURCE_DIR_*` overrides:
+A fresh clone failed to configure (`detent::local_publication` missing) and to
+compile (`completion/api.h` not found), because the build depended on
+unpushed sibling work. Resolved by publishing it:
 
-1. Configure fails: `Target "detent_delivery_coordinator" links to:
-   detent::local_publication but the target was not found`
-   (`src/CMakeLists.txt:46`).
-2. Build fails: `include/detent_local/storage_session.hh:5:10: fatal error:
-   'completion/api.h' file not found`.
+1. `http`, `reactor`, `sha256` and `cpp-btree` fast-forwarded to their local
+   heads.
+2. `cluster` had diverged: GitHub held three Sep 30 commits (the
+   `is_alive()` contract docs, `LivenessTracker`, and a `length.h` shim over
+   `Kronuz/varint`) that the local branch never pulled. Public `varint` still
+   had the overflow bug that local `5f583e5` fixed, so the fix was first ported
+   to `varint` (`c16d214`, with regression tests that abort on the old
+   decoder), then GitHub main was merged in (`55b3ac3`, all 15 cluster tests
+   pass). No history was rewritten, so cited cluster SHAs stay valid.
+3. A fresh `git clone https://github.com/Kronuz/Detent.git` then configures,
+   builds and passes all 74 tests with no `FETCHCONTENT_SOURCE_DIR_*` overrides.
 
-The local `build/` works only because `CMakeCache.txt` points
-`FETCHCONTENT_SOURCE_DIR_{CLUSTER,HTTP_LIB,REACTOR,SHA256,CPP_BTREE}` at sibling
-checkouts. Those siblings are ahead of their upstreams by: `cluster` 69
-commits, `http` 8, `reactor` 5, `sha256` 2, `cpp-btree` 1 (all clean working
-trees). `RAPIDJSON` also points at `.scratch/rapidjson-modern`.
+**Local checkout note:** `~/code/Kronuz/cluster` is now one merge commit behind
+`origin/main` (a fast-forward `git pull` picks it up); its `length.h` becomes
+the `varint` shim and `CMakeLists.txt` gains the `varint` dependency.
 
-**Needed:** publish those revisions (or vendor/pin them), then pin every
-`FetchContent_Declare` to a tested commit instead of `main`/`master`. The
-website's Installation page carries a warning and the override recipe until
-this is fixed.
+**Still open:** pin every `FetchContent_Declare` to a tested commit instead of
+`main`/`master`.
 
 ### 1.2 No license file
 
