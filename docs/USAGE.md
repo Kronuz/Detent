@@ -63,6 +63,30 @@ checkout:killswitch_new_path = false
 
 With no `source_path` and no `source_poll`, the client does one synchronous startup parse and then serves reads from the published in-memory snapshot.
 
+### Scoped reads and managed generation sources
+
+`Client::read_view()` pins one immutable evaluation view. Use it when several reads must observe the same local generation; it remains valid across refreshes and after client destruction. Existing file/default clients support this API too.
+
+The managed reader library can consume an already provisioned immutable-generation directory. Link `detent::local_client` and configure its worker refresh:
+
+```cpp
+#include "detent/client.hh"
+#include "detent_local/client_source.hh"
+
+detent::InitOptions options;
+// Optional: options.defaults_path = "defaults.json";
+options.read_source = detent::local::make_local_read_source(
+    detent::local::ClientSourceOptions{.directory = generation_directory});
+detent::Client client(std::move(options));
+auto view = client.read_view();
+auto maximum = view.get("search:max_results");
+auto enabled = view.eval("checkout:new_path", "host-42", "beta");
+```
+
+The source performs filesystem work on one configuration thread; successful scoped acquisition and lookup need no merged snapshot allocation. CLI overrides win over live definitions, and missing live keys fall back to baked defaults. Type and conversion errors do not fall back. Failed refresh preserves the prior view, and `client.health()` reports source connectivity. Local-source clients use `read_view()` instead of `current_snapshot()`, which rejects eager conversion with `logic_error`. Scoped reads do not increment their parent client's metrics. Destroy automatically refreshing sources outside an event-loop turn because destruction joins their worker.
+
+This API qualifies the managed SDK boundary; the production agent still publishes the legacy shared-memory layout while managed daemon integration is in progress. See the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) for current implementation and acceptance gates.
+
 ### Gradual rollouts and per-group overrides
 
 Bool knobs can combine a rollout percentage with named overrides. Overrides accept a boolean or `{"rollout_pct": 50}` for a group-specific rollout. The group percentage uses the same hash bucket; without a hash it uses the knob default. Unknown groups fall through to the knob-wide rollout:
