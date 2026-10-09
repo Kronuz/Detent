@@ -55,6 +55,7 @@ locally; it doesn't send a request to the agent.
 | Read failed, `--default` given | The default | `0` |
 | Read failed | `ERR <Category>: <name> (<detail>)` | `1` |
 | Agent couldn't start | An error on stderr | `1` |
+| Unknown option, missing option value or extra positional argument | One argument error on stderr, without starting an agent or using `--default` | `1` |
 
 ```sh
 detent get payments:new_processor --hash user-42 --switch beta

@@ -10,6 +10,12 @@ The legacy HTTP/UDP cluster profile has no built-in authentication or TLS and us
 
 The production agent’s legacy shared-memory path uses a seqlock over non-atomic payload fields. Its formal C++ data-race limitation is documented in `shm_format.hh`. The new [immutable local views](LOCAL_IMAGE_FORMAT.md) remain under Stage 4 integration; their library qualification does not replace that production path. Stress-test success alone does not establish language-level race freedom. No performance claim in this review is based solely on code inspection.
 
+## Fixed: reader argument errors launched the agent
+
+`detent get ns:missing --bogus` forwarded the unknown option to a child daemon, printing both an argument error and a misleading startup failure. Adding `--default -4` suppressed the failure and returned success with `-4`. Reader argument validation now precedes configuration and startup, rejects unknown options, missing values and extra positional arguments, and preserves negative defaults. The CLI regression verifies exit 1, empty stdout, no startup diagnostic and no runtime artifacts for invalid invocations; normal startup, stopped-agent restart and configuration discovery also pass.
+
+The CLI fixture passes natively (7.06 seconds), under ASan/UBSan (10.46 seconds), on Linux (6.25 seconds) and FreeBSD (6.13 seconds). The real managed authority/agent/reader process fixture and certificate setup pass natively (4.86 seconds), and all 66 website pages build.
+
 ## Fixed: scope header failed after OpenSSL headers
 
 Including the managed TLS client before `detent/scope.hh` exposed OpenSSL's global `SHA256` function, hiding the hash class name and failing compilation. The scope helper now explicitly selects the class, preserving its hash bytes and avoiding include-order dependence. The failure was reproduced while building managed configuration; that build, its real TLS/configuration test and the existing authority scope regression pass after the correction.

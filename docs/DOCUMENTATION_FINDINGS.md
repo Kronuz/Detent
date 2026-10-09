@@ -72,10 +72,7 @@ The repository now includes `LICENSE` with the MIT License, chosen by German. Th
 
 ## 3. Behavior worth fixing
 
-1. **Confusing error for an unknown `detent get` flag.** `detent get NAME
-   --bogus` prints `unknown argument` and then `detent-agent: cannot
-   auto-start: detent-agent startup failed`, which suggests an agent problem.
-   Report only the argument error.
+1. **Confusing error for an unknown `detent get` flag (resolved 2026-10-09).** The reader validates options before reading configuration or starting an agent. Unknown options, missing values and extra positional arguments produce one argument error and exit 1, including when `--default` is supplied. Negative integer defaults remain accepted. The CLI regression checks that invalid invocations create no runtime artifacts.
 2. **Legacy agent capacity vs. client limits.** The client accepts up to
    100,000 knobs and 16 MiB, but the legacy shared-memory mapping is a fixed
    4 MiB, so large snapshots are accepted by the agent's client and then fail to

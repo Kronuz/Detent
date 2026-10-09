@@ -42,6 +42,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -263,10 +264,37 @@ int cmd_status() {
 #endif
 
 #ifdef DETENT_READER
-// Tries eval() first (bool), then get() (int) if eval() reports the knob is
-// actually an int -- the CLI doesn't know a knob's type up front the way
-// the old socket protocol's server-side dispatch did, since there's no
-// server in the loop to ask anymore.
+void validate_get_args(const std::vector<std::string> &args) {
+	if (args.empty() || args.front().starts_with('-'))
+		throw std::runtime_error("get requires a knob name");
+	constexpr std::string_view values[]{"--hash",
+										"--switch",
+										"--default",
+										"--config",
+										"--defaults",
+										"--source-path",
+										"--source-address",
+										"--source-http",
+										"--poll-interval-ms",
+										"--runtime-dir",
+										"--managed",
+										"--generation-dir",
+										"--generation-cluster",
+										"--generation-group",
+										"--generation-epoch",
+										"--generation-scope"};
+	for (std::size_t i = 1; i < args.size(); ++i) {
+		const auto &arg = args[i];
+		if (arg == "--system")
+			continue;
+		if (std::find(std::begin(values), std::end(values), arg) == std::end(values))
+			throw std::runtime_error("unknown argument: " + arg);
+		if (++i == args.size() || args[i].starts_with("--"))
+			throw std::runtime_error(arg + " requires a value");
+	}
+}
+
+// Detects the knob's type through bool evaluation before trying an int read.
 template <class Reader>
 std::optional<std::string>
 try_read(const Reader &reader, const std::string &name, const std::optional<std::string> &hash_val,
@@ -377,10 +405,6 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 }
 
 int cmd_get(const std::vector<std::string>& args) {
-	if (args.empty()) {
-		std::fprintf(stderr, "usage: detent-agent get <name> [--hash VAL] [--switch VAL] [--default VAL]\n");
-		return 2;
-	}
 	if (g_generation_dir)
 		return cmd_managed_get(args);
 	std::string name = args[0];
@@ -520,6 +544,15 @@ int main(int argc, char** argv) {
 	if (has_flag(args, "--help") || has_flag(args, "-h")) { std::fputs(kUsage, stdout); return 0; }
 #endif
 	try {
+#ifdef DETENT_READER
+		if (command != "get")
+			throw std::runtime_error("unknown command: " + command);
+		if (args.empty()) {
+			std::fputs(kUsage, stderr);
+			return 2;
+		}
+		validate_get_args(args);
+#endif
 		g_system = has_flag(args, "--system");
 		g_config = detent_agent::load_config(args);
 #ifndef DETENT_READER
