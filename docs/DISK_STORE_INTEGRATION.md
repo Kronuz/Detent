@@ -24,6 +24,10 @@ Use explicit `StoreOpenMode::{FreshEmpty, ExistingManaged, UpgradeLegacy}` and `
 
 Startup begins with uncertain selection. Only the authentic final recovery directory barrier or sealed metadata preparation establishes Known or Absent. Failed or interrupted recovery preserves uncertainty, even when a selected filename exists. Cancellation and close suppress publisher acknowledgement while retained work can still establish and settle a durable selection.
 
+`begin_reset(builder, TrustedIdentityReset)` is a separate trusted host entry point for authority, scope or restore-epoch transitions. Its request binds the complete actual selected descriptor to a configured target identity and profile. It requires known selection, an available publication boundary, snapshot-origin input and a different identity; it cannot authorize same-identity rollback. Candidate bytes cannot mint the trusted request. Ordinary `begin()` retains its forward-cursor rule. Both paths share the same admission, preflight, generation preparations, selection replacement and final barrier, preserving `storage.meta` and its UUID.
+
+`directory_identity()` retains the opened directory's device/inode evidence even after close. The reset fixture checks stale selected evidence, target/profile disagreement, rejection of same-identity revisions, successful identity cutover, unchanged storage UUID, cancellation after accepted selection replacement and restart recovery. After the final barrier, `Published` describes actual durable selection; a cancelled coordinator must independently suppress acknowledgement and reconcile that selection. The fixture passes natively, under ASan/UBSan and fully instrumented TSan, on Linux and FreeBSD. Runtime controller configuration and managed agent coordination remain integration work.
+
 Add a managed `ImagePublisher(std::shared_ptr<DiskStore>)` constructor while retaining the existing constructor as the legacy profile. Its cursor reports acknowledgement separately from actual durable selection.
 
 ## Admission and startup

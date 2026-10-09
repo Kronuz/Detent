@@ -1,6 +1,7 @@
 #pragma once
 #include "builder.hh"
 #include "disk_ledger.hh"
+#include "identity_reset.hh"
 #include "storage_session.hh"
 
 namespace detent::local {
@@ -39,12 +40,14 @@ class DiskStore {
 	StoreStatus status() const noexcept;
 	DiskStats stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
+	DirectoryIdentity directory_identity() const noexcept;
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
 	void advance();
 	void request_collection() noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
+	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;
 	std::exception_ptr publication_error() const noexcept;
@@ -54,6 +57,7 @@ class DiskStore {
 	std::exception_ptr error() const noexcept;
 
   private:
+	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 	friend std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &,

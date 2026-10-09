@@ -26,6 +26,7 @@ struct StoreCore {
 	std::shared_ptr<StorageSession> session;
 	std::shared_ptr<CollectorControls> controls;
 	StorageIdentity identity{};
+	DirectoryIdentity directory_identity{};
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
 	std::optional<Descriptor> verified;
 	std::uint64_t owner = 0;
@@ -1275,6 +1276,7 @@ DiskStats DiskStore::stats() const noexcept {
 	return stats;
 }
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
+DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
 std::exception_ptr DiskStore::error() const noexcept { return impl_->core->failure; }
 std::shared_ptr<c::Operation> DiskStore::operation() const {
 	if (impl_->startup && !impl_->startup->done())
@@ -1317,6 +1319,13 @@ bool DiskStore::publication_ready() const noexcept {
 		(!impl_->reclaim || !impl_->reclaim->active_batch());
 }
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
+	begin_impl(builder, expected_base, nullptr);
+}
+void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset) {
+	begin_impl(builder, reset.expected_selected.cursor, &reset);
+}
+void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base,
+						   const TrustedIdentityReset *reset) {
 	auto &core = *impl_->core;
 	if (!publication_ready())
 		throw std::logic_error("managed store unavailable for publication");
@@ -1330,7 +1339,14 @@ void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::C
 		pinned && (core.selection.descriptor != pinned ||
 				   builder.base_directory_identity() != core.session->directory_identity()))
 		throw std::invalid_argument("managed publication pinned generation mismatch");
-	if (base && (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
+	if (reset) {
+		if (core.selection.knowledge != SelectionKnowledge::Known ||
+			core.selection.descriptor != reset->expected_selected || builder.base_descriptor() ||
+			!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
+			reset->expected_selected.cursor.same_identity(descriptor.cursor))
+			throw std::invalid_argument("managed publication trusted identity reset mismatch");
+	} else if (base &&
+			   (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
 		throw std::invalid_argument("managed publication requires a forward scoped cursor");
 	if (bytes->account() != core.account || bytes->size() != descriptor.length ||
 		descriptor.length > core.options.recovery_limits.bytes)
@@ -1401,6 +1417,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	if (!posix || ::fstat(posix->native_directory_handle(), &info) != 0)
 		throw std::system_error(errno, std::generic_category(), "managed store directory inspection");
 	core->owner = info.st_uid;
+	core->directory_identity = core->session->directory_identity();
 	core->controls = make_collector_controls(core->session);
 	const auto &context = core->session->allocation_context();
 	auto data = std::allocate_shared<StartupData>(c::OwnedAllocator<StartupData>(context), core);
