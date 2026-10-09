@@ -11,7 +11,7 @@ pidfile="/var/run/detent/agent-supervisor.pid"
 start_precmd="detent_directories"
 detent_directories() {
     install -d -o detent -g detent -m 0755 /var/run/detent
-    install -d -o detent -g detent -m 0700 /var/db/detent
+    install -d -o detent -g detent -m 0755 /var/db/detent-agent
     install -d -o detent -g detent -m 0750 /var/log/detent
 }
 command="/usr/sbin/daemon"

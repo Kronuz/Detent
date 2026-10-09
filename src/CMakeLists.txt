@@ -41,6 +41,11 @@ if(DETENT_BUILD_MANAGED_AGENT)
   add_subdirectory(detent_delivery)
 endif()
 add_subdirectory(detent_local)
+if(DETENT_BUILD_MANAGED_AGENT)
+  add_library(detent_delivery_coordinator detent_delivery/coordinator.cc)
+  target_link_libraries(detent_delivery_coordinator PUBLIC detent::delivery_transport detent::local_publication)
+  add_library(detent::delivery_coordinator ALIAS detent_delivery_coordinator)
+endif()
 
 ########################################################################
 # detent_http: optional client-side HTTP polling source (POSIX sockets
@@ -117,6 +122,14 @@ target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
 add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc)
 target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli detent_logging)
+if(DETENT_BUILD_MANAGED_AGENT)
+  add_library(detent_managed_agent detent_agent/managed_config.cc detent_agent/managed_host.cc)
+  target_link_libraries(detent_managed_agent PUBLIC detent::delivery_coordinator PRIVATE logger::logger)
+  target_link_libraries(detent-agent PRIVATE detent_managed_agent)
+  target_compile_definitions(detent-agent PRIVATE DETENT_WITH_MANAGED_AGENT=1)
+else()
+  target_link_libraries(detent-agent PRIVATE detent::local_view)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -130,6 +143,7 @@ add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc)
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
 target_link_libraries(detent-reader PRIVATE detent_agent_lib detent_cli)
+target_link_libraries(detent-reader PRIVATE detent::local_client)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Authority application semantics remain independent of transport and consensus.

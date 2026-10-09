@@ -73,6 +73,16 @@ std::filesystem::path system_config_dir() {
 #endif
 }
 
+std::filesystem::path default_agent_state_dir(bool system) {
+	if (!system)
+		return default_state_dir(false) / "agent";
+#ifdef __linux__
+	return "/var/lib/detent-agent";
+#else
+	return "/var/db/detent-agent";
+#endif
+}
+
 namespace {
 
 std::filesystem::path config_path(const std::vector<std::string>& args, const std::string& filename, bool& explicit_path) {

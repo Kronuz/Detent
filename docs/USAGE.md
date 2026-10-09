@@ -85,7 +85,7 @@ auto enabled = view.eval("checkout:new_path", "host-42", "beta");
 
 The source performs filesystem work on one configuration thread; successful scoped acquisition and lookup need no merged snapshot allocation. CLI overrides win over live definitions, and missing live keys fall back to baked defaults. Type and conversion errors do not fall back. Failed refresh preserves the prior view, and `client.health()` reports source connectivity. Local-source clients use `read_view()` instead of `current_snapshot()`, which rejects eager conversion with `logic_error`. Scoped reads do not increment their parent client's metrics. Destroy automatically refreshing sources outside an event-loop turn because destruction joins their worker.
 
-This API qualifies the managed SDK boundary; the production agent still publishes the legacy shared-memory layout while managed daemon integration is in progress. See the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) for current implementation and acceptance gates.
+The opt-in managed agent publishes immutable generations for this SDK source. Its configuration and startup modes are described below; the complete managed-agent/SDK component has Architect acceptance and platform/sanitizer qualification. See the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) for current implementation and acceptance gates.
 
 ### Gradual rollouts and per-group overrides
 
@@ -507,3 +507,43 @@ The shell reader is `detent get NAME`. Both daemons run directly in the foregrou
 ## Durable authority profile
 
 The opt-in `detentd --authority CONFIG` profile uses a separate durable store and loopback transaction API. It preserves foreground execution, `--daemonize` and read-only `--status`. See [the authority guide](AUTHORITY_ARCHITECTURE.md) for build sources, credentials, session retries, namespace CAS and explicit migration. Existing snapshot publishers and agents continue to use the legacy profile until the distribution component is integrated.
+
+### Managed authority delivery
+
+The managed profile connects the agent to the authenticated authority endpoint and publishes durable immutable generations. Legacy `source_address` delivery remains available. Select the managed profile with `detent-agent --managed managed.json --generation-dir ./agent-state`; readers use the public generation directory and never open its credential configuration.
+
+Provision `managed.json` as a regular, single-link file owned by root or the service account, with mode `0600` or controlled group-readable `0640`. Its required fields are:
+
+```json
+{
+  "cluster": "63636363636363636363636363636363",
+  "group": "67676767676767676767676767676767",
+  "epoch": "65656565656565656565656565656565",
+  "principal": "agent-reader",
+  "namespaces": ["payments"],
+  "token": "replace-with-the-authority-reader-token",
+  "ca": "ca.pem"
+}
+```
+
+Use the identities and reader credential configured on your authority. The scope identity is derived from the principal, policy epoch (default `1`), and sorted unique namespaces. Optional `address`, `port`, and TLS `hostname` default to `127.0.0.1`, `8317`, and `localhost`; the address must be an IP literal. Relative CA paths resolve against the credential file. Certificate verification is required.
+
+Initialize an empty directory explicitly once. Missing directory components are provisioned on the configuration worker with child/parent namespace barriers; existing permissions are preserved:
+
+```sh
+./build/src/detent-agent --managed managed.json --generation-dir ./agent-state --initialize-managed
+```
+
+Later starts omit `--initialize-managed` and require an existing managed store. `--upgrade-managed` explicitly adopts a compatible legacy generation directory. Neither mode silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
+
+A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). The SDK source accepts the corresponding expected cursor identity. Distribute this public identity separately from the private token.
+
+`detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults, while invalid live types remain errors. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
+
+Optional bounds default to 256 MiB managed heap, 512 MiB mapped virtual space, 1 GiB named disk space, 4,096 disk entries, and 1,024 generations. Configure them with `heap_bytes`, `mapping_bytes`, `disk_bytes`, `disk_entries`, and `disk_generations`. These accounts exclude immutable configuration/startup parsing, Asio/TLS internals, thread stacks, and operating-system memory. `poll_interval_ms` defaults to 200 and `timeout_ms` to 60,000; `compression` defaults to true. Unknown or duplicate fields are rejected. `artifact_mode` accepts decimal `384`, `416`, or `420` (octal `0600`, `0640`, or `0644`); user mode defaults to `0600`, system mode to `0644`.
+
+Changing authority identity requires an explicit `reset_from` object containing the old `cluster`, `group`, `epoch`, and `scope`. The selected old identity must match it. A trusted reset publishes a new snapshot while preserving the local storage UUID; an unconfigured transition fails startup. This is an administrative trust decision, not an automatic fallback.
+
+Fresh macOS provisioning requires all traversed writable namespace edges to be on one filesystem, so the store's final owner-file `F_FULLFSYNC` covers them, including interrupted initialization retries. Read-only system ancestors are skipped only after filesystem inspection. An unsupported cross-filesystem path fails initialization; start from the intended volume and use a relative generation path. A preexisting final symlink is rejected, including one spelled with a trailing slash. Existing trusted ancestor links, such as macOS `/var`, remain supported.
+
+The coordinator reports one `worker_pending` slot. Accepted recovery work owns its immutable directory and limits and survives close or loss of the caller's facade until the actual worker returns. Infrastructure failure that prevents original I/O or worker drainage follows an explicit fail-stop policy; it never reports successful settlement. Normal delivery failures preserve the durable selection and can retry.

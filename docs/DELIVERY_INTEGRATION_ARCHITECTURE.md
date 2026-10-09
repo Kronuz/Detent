@@ -1,6 +1,6 @@
 # Validated Architectural Blueprint: authenticated authority-to-local-view delivery
 
-**Status:** Lead Software Architect design GO (frontier model, max effort), October 8, 2026. Implement the complete component autonomously, qualify it, then obtain one consolidated source review. The corrected [DiskStore component](DISK_STORE_INTEGRATION.md) has source GO; its final native, sanitizer and supported-platform qualification has passed. This component completes the production integration within Stage 4. Durable resumable sessions, relays and incremental page publication remain Stage 5 work.
+**Status:** Stage 4 source GO and component acceptance from the Lead Software Architect (frontier model, max effort), October 9, 2026. The complete managed-agent/SDK integration passes consolidated source review and supported-platform/sanitizer qualification. Durable resumable subscriptions and snapshot/history handoff are the next Stage 5A component; relays and incremental local publication follow separately.
 
 ```text
 Authorized scope → Frozen authority revision → Bounded encoded frames
@@ -81,7 +81,7 @@ The scoped SDK boundary is implemented as `ClientReadView` and an optional `Init
 
 `Client::read_view()` retains the currently published evaluator without filesystem work or a merged snapshot allocation. A scoped view remains usable after client destruction and across generation replacement. CLI overrides take precedence, followed by live definitions and then defaults for absent keys. Wrong live types and conversion failures do not fall back. Local `health()` reports the published cursor, counts and source connectivity; scoped evaluations do not update the parent client's read counters, and legacy source-update metric counters are not populated by this adapter. `current_snapshot()` remains available for legacy clients; local clients use `read_view()` and receive a `logic_error` if they request an eager snapshot. The new fields change the C++ object layout, so consumers must rebuild.
 
-Qualification covers native, Linux and FreeBSD scoped semantics, deletion/default fallback, qualified error names, failed refresh retention, automatic refresh, pinned lifetime and legacy compatibility. The local-client test observes zero ordinary allocations across 1,000 scoped acquisitions and successful live/default reads on its calling thread. ASan/UBSan and TSan run with instrumented implementation libraries. These checks qualify the SDK boundary, not the still-pending assembled managed-agent path or fleet capacity.
+Qualification covers native, Linux and FreeBSD scoped semantics, deletion/default fallback, qualified error names, failed refresh retention, automatic refresh, pinned lifetime and legacy compatibility. The local-client test observes zero ordinary allocations across 1,000 scoped acquisitions and successful live/default reads on its calling thread. ASan/UBSan and TSan run with instrumented implementation libraries. These SDK checks establish that boundary; assembled managed-agent qualification is recorded below. Fleet capacity remains separate.
 
 ## Implementation and acceptance
 
@@ -106,3 +106,38 @@ Qualification covers native, Linux and FreeBSD scoped semantics, deletion/defaul
 The scalability check bounds retained candidates, frames and history and merges each base once. Edge-case analysis requires complete cursor/descriptor binding and trusted reset authority. The dependency/state audit separates authority roots, encoded transport ownership and SDK reader targets. Security review binds export to canonical authorized scope and requires authentic IO settlement before retention release.
 
 These gates can establish Stage 4 behavior and measured limits. They do not establish Stage 5 resume guarantees or fleet throughput.
+
+### Assembled managed-agent qualification
+
+The opt-in daemon now joins incremental TLS reception, exact-base construction, completion-driven durable publication, and scoped SDK reads. Configuration and semantic startup recovery run on a single configuration worker. The owner executor serializes network and disk coroutines; disk completion runs one authentic original at a time. Close wakes long polling delays and retains worker/results through settlement. Host preparation admits coordinator controls before opening the managed store.
+
+The real-process fixture covers authority snapshot delivery, unrelated global progress, deletion/default fallback, authorized namespace isolation, public reader identity rejection, SIGKILL/restart, stopped-agent reads, invalid credentials preserving the selected descriptor, and a configured epoch reset preserving the local storage UUID. These real-process checks pass on native macOS, Linux, FreeBSD, ASan/UBSan and TSan. The fixture additionally verifies restart after the trusted reset and a nonzero service exit after a post-readiness directory-replacement failure. The coordinator test checks preservation of a fenced storage outcome through drainage. Cancelled selection, pinned-reader disk pressure and accepted-worker lifetime now pass assembled gates; the completed consolidated Architect review grants component acceptance.
+
+`test_delivery_coordinator <tls-fixture> <record-count>` generates the same mixed integer/boolean/rollout corpus as the local-image benchmark, sends bounded raw frames over TLS, publishes with the native completion backend, recovers the selected generation, and drains. Counts up to 500,000 are accepted. Managed heap, page-rounded mappings and peak named disk reservations are separate accounts; the test's producer fixture, Asio/TLS allocations, thread stacks and operating-system memory are outside them.
+
+| Synthetic records | Managed heap peak (bytes) | Mapping peak (bytes) | Disk peak (bytes) | Wall time (ms) |
+| --- | --- | --- | --- | --- |
+| 100,000 | 19,505,252 | 8,204,288 | 8,200,587 | 1,212 |
+| 500,000 | 97,164,708 | 41,000,960 | 41,000,587 | 5,123 |
+
+These are single Intel macOS runs, not a fleet throughput or tail-latency bound. In the 500,000-record run a one-millisecond owner timer completed 4,458 waits; maximum observed lateness was 3,177 microseconds. Wall time includes fixture generation, recovery and drainage. No real knob corpus or power/cost conversion is available.
+
+The consolidated Architect review identified two terminal-outcome defects during implementation: post-readiness failure could exit successfully, and cleanup could overwrite a storage fence with `Closed`. The host now propagates a terminal fence after drainage; the coordinator retains a terminal latch independent of its cleanup phase. Historical transient delivery failures do not make normal SIGTERM shutdown fail. The resumed review found the directory-provisioning and exceptional-worker-wait conditions described below; both are corrected and the final review grants source GO.
+
+| Qualification | Tests | Result |
+| --- | --- | --- |
+| Native macOS | Coordinator, private configuration, real processes, SDK and legacy agent regression selection | 7 passed, 15.52 seconds |
+| ASan/UBSan | Instrumented coordinator, configuration, real processes and SDK | 5 passed, 9.55 seconds |
+| TSan | Instrumented coordinator, configuration, real processes and SDK | 5 passed, 44.03 seconds |
+| Linux | Coordinator, configuration and real processes | 4 passed, 6.01 seconds |
+| FreeBSD | Coordinator, configuration and real processes | 4 passed, 3.03 seconds |
+
+Fixture certificate generation is included in these counts and times. Capacity modes are separate from these test selections; CTest now registers 100,000- and 500,000-record coordinator cases with a bounded 120-second timeout.
+
+The Architect's completed review adds two source conditions before final acceptance: durable root provisioning and retention through exceptional worker waits. Fresh provisioning now walks directory descriptors, synchronizes child/parent namespace edges (including writable existing edges for failed-attempt retries), preserves existing modes, and retains/revalidates the final inode through store construction. On macOS one writable filesystem must cover all traversed edges; the store's owner-file full flush precedes readiness. The helper explicitly rejects unsupported cross-filesystem provisioning. These source barriers are not a power-loss experiment.
+
+Recovery results now own immutable directory/limit inputs. An accepted-worker latch remains set until authentic readiness; an owner scheduling failure cannot release that obligation. Infrastructure exceptions in either child or the join follow the existing fail-stop policy if drainage cannot be established. The private fault seam is confined to a source-only testing header. Native tests hold recovery across close and facade loss, and execute a forced post-acceptance wait failure in a separate process expecting `SIGABRT`. Directory tests sweep required barrier failures and retry, preserve existing modes, and reject final symlinks or name replacement. The combined nine-test native selection passed in 13.96 seconds before the final conservative macOS filesystem check; the final ten-test platform/sanitizer selections pass.
+
+Final component acceptance covers the two lifecycle amendments and all assembled paths. The latest ten-test selections passed on Linux (9.10 seconds), FreeBSD (9.75 seconds), ASan/UBSan (18.21 seconds) and TSan (72.14 seconds), including 100,000/500,000-record publication, cancellation after actual selection, pinned-reader disk pressure, held recovery across close/facade loss, isolated post-acceptance wait failure, private configuration, actual authenticated processes, and directory barrier failures/retries. The final native amendment selection passed four tests in 5.33 seconds. The earlier complete native suite passed 94 tests in 316.26 seconds; changes since that sweep are covered by the component selections. Isolated managed-agent and managed-disabled reader builds pass. The Release agent is 2,058,072 bytes and reader 500,128 bytes; the isolated reader links libc++ and libSystem only. These are executable file sizes, not RSS.
+
+Immutable configuration/startup parsing allocations, framework/TLS controls, thread stacks and operating-system resources are outside the managed-payload heap account. Successful storage barriers are a durability assumption; SIGKILL/restart and injected failure schedules are not power-loss experiments. Stage 4 acceptance establishes this component's contracts and measured synthetic limits, without claiming sustained mutation throughput or fleet SLOs.
