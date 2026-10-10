@@ -25,6 +25,7 @@ struct Subscriptions::Impl {
 		std::optional<Session> session;
 		std::uint64_t incarnation = 0;
 		std::size_t retirement_remaining = 0;
+		std::shared_ptr<const AuthorizedScope> retiring_scope;
 		bool retiring = false;
 	};
 	using Slots = std::vector<Slot, d::StorageAllocator<Slot>>;
@@ -278,17 +279,24 @@ void Subscriptions::collect(d::WorkBudget &budget, Clock::time_point now) noexce
 			continue;
 		if (!slot.retiring) {
 			slot.retiring = true;
-			slot.retirement_remaining = slot.session->metadata.scope->storage_capacity();
+			auto scope = std::move(slot.session->metadata.scope);
+			if (scope.use_count() == 1) {
+				slot.retirement_remaining = scope->storage_capacity();
+				slot.retiring_scope = std::move(scope);
+			}
 		}
 		const auto bytes = std::min(slot.retirement_remaining, budget.bytes);
 		slot.retirement_remaining -= bytes;
 		budget.bytes -= bytes;
-		if (slot.retirement_remaining)
-			continue;
+		if (slot.retirement_remaining) {
+			p.cursor = ordinal;
+			return;
+		}
 		auto found = p.principals.find(slot.session->metadata.principal.identity);
 		if (!--found->second)
 			p.principals.erase(found);
 		p.index.erase(slot.session->id);
+		slot.retiring_scope.reset();
 		slot.session.reset();
 		slot.retiring = false;
 		if (slot.incarnation != UINT64_MAX)

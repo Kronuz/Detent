@@ -194,3 +194,9 @@ The corrected driver shares native-kind validation and records new-kind timings 
 The managed profile had explicit file closure but retained cursor cleanup only through wrapper destruction. That could execute `closedir` on the completion owner and could not report an authentic close outcome before inventory readiness. The appended `CloseCursor` primitive closes on the disk worker, consumes the POSIX handle once and leaves subsequent wrapper destruction inert. Managed capabilities now require cursor closure.
 
 Eight standalone suites pass on macOS, Linux and FreeBSD and under ASan/UBSan. The focused fully instrumented TSan fixture checks worker identity, held originals across cancellation and facade retirement, stale results, close errors and reused native descriptors surviving later wrapper destruction. Journal compatibility and the coroutine extension sequence also pass. These gates qualify cursor settlement; complete inventory and session teardown remain separate application obligations.
+
+## Keep subscription retirement proportional to owned scope storage
+
+The session collector advanced its slot cursor after every partial scope-retirement slice. With 1,024 slots, a sole-owned large scope could require a complete slot scan between slices. It also charged the full scope for each shared reference, although dropping that reference does not destroy the scope graph.
+
+The collector keeps its cursor at unpaid retirement work. It drops shared references on the authority owner and retains sole-owned scope storage until its remaining byte credit is paid. The regression closes a 1,000-name scope in a 1,024-slot table using one token and 8,192 bytes per turn; completion takes at most the scope capacity divided by the byte budget. The subscription and assembled native fixtures pass. HTTP request retirement uses the same ownership rule as part of the subscription integration.

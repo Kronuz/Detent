@@ -90,7 +90,7 @@ int main() {
 			const auto retained = account->used();
 			d::WorkBudget no_bytes{0, 2};
 			table.collect(no_bytes, now);
-			check(table.size() == 1 && account->used() == retained);
+			check(table.drained() && account->used() < retained);
 			drain(table, now);
 			check(table.drained());
 			check(table.open(id('a'), reader, scope, current, current, true, false, history, now) ==
@@ -198,6 +198,32 @@ int main() {
 			table.close_all();
 			table.release(*final.token);
 			drain(table, now);
+		}
+		{
+			auto retirement_account = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
+			a::ChangeHistory empty_history(retirement_account);
+			std::vector<std::string> names;
+			std::set<std::string> grants;
+			for (unsigned i = 0; i < 1000; ++i) {
+				auto digits = std::to_string(i);
+				names.push_back("ns" + std::string(4 - digits.size(), '0') + digits + std::string(190, 'x'));
+				grants.insert(names.back());
+			}
+			auto large_scope = a::AuthorizedScope::authorize("reader", 1, names, grants, retirement_account);
+			auto target = current;
+			target.scope = large_scope->identity();
+			const auto bytes = large_scope->storage_capacity();
+			a::Subscriptions table(retirement_account, {1024, 1024, 100ms, 200ms});
+			check(table.open(id('z'), reader, large_scope, target, {}, false, false, empty_history, now) ==
+				  a::SubscriptionResult::Accepted);
+			check(table.close(id('z'), reader) == a::SubscriptionResult::Accepted);
+			large_scope.reset();
+			std::size_t turns = 0;
+			while (!table.drained()) {
+				d::WorkBudget work{8192, 1};
+				table.collect(work, now);
+				check(++turns <= (bytes + 8191) / 8192);
+			}
 		}
 		std::cout << "subscription publication windows, retained handoff, admission and drainage passed\n";
 	} catch (const std::exception &error) {
