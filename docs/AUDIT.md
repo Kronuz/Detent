@@ -206,3 +206,9 @@ The collector keeps its cursor at unpaid retirement work. It drops shared refere
 Startup replay waited one millisecond after every bounded application turn, even when the recovered state's reclamation queue had immediate work. A native process sample showed the constructor waiting for readiness while the owner repeatedly slept between cleanup slices. The recovery loop now posts the next turn when state reclamation is pending; the existing timer remains when it is not. Each turn keeps its byte and receipt limits.
 
 On the same Intel macOS host, the real recovered-authority 100,000-knob fixture fell from 88.66 to 6.54 seconds. The 500,000-knob fixture passes in 26.16 seconds; its baseline run was stopped before completion, so no paired improvement is claimed for that size. Measured constructor times after the change are 2.022 and 11.719 seconds. Both fixtures recover a production journal checkpoint, transfer a snapshot, publish exact feedback and complete 100 idle polls without additional quorum reads, exports or captures. These are end-to-end fixture times, not CPU, power or cost savings.
+
+## Keep process tests from starting an unmanaged agent
+
+The managed process fixture invoked `detent get` in user mode after deliberately stopping its agent. Those reads could auto-start another agent while the fixture changed credentials or authority identity. The test then had an untracked process using its storage, which invalidated later lifecycle checks.
+
+Fixture reads now use `--system` with their explicit configuration, so only the agent started and tracked by the harness owns the managed store. The subscription process fixture passes on macOS, Linux and FreeBSD and under ASan/UBSan; the full native regression also runs the legacy polling fixture. Runtime auto-start behavior is unchanged.

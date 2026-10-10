@@ -51,7 +51,7 @@ first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.ar
 agent_pid=$!
 wait_value() {
     for ((attempt=0;attempt<200;attempt++)); do
-        if [[ $("$reader" get ns:feature --config "$root/agent.json" 2>/dev/null) == "$1" ]]; then return; fi
+        if [[ $("$reader" get ns:feature --system --config "$root/agent.json" 2>/dev/null) == "$1" ]]; then return; fi
         if ! kill -0 "$agent_pid" 2>/dev/null; then cat "$root/agent.log"; return 1; fi
         sleep 0.02
     done
@@ -68,11 +68,11 @@ for ((attempt=0;attempt<200;attempt++)); do
     sleep 0.02
 done
 "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$progress_revision "
-[[ $("$reader" get other:hidden --config "$root/agent.json" --default absent) == absent ]]
+[[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
 wait_value 7
 kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
-[[ $("$reader" get ns:feature --config "$root/agent.json") == 7 ]]
+[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
 if "$agent" --status --config "$root/agent.json" > "$root/stopped.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/stopped.txt"
 "$agent" --config "$root/agent.json" > "$root/agent-restart.log" 2>&1 &
@@ -94,7 +94,7 @@ for ((attempt=0;attempt<200;attempt++)); do
     sleep 0.02
 done
 grep -q 'managed delivery failures' "$root/agent-unauthorized.log"
-[[ $("$reader" get ns:feature --config "$root/agent.json") == 7 ]]
+[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
 cp "$root/managed-good.json" "$root/managed.json"
@@ -120,7 +120,7 @@ agent_pid=$!
 wait_value 84
 cmp "$root/storage-before" "$root/generations/storage.meta"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
-[[ $("$reader" get ns:feature --config "$root/agent.json") == 84 ]]
+[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 84 ]]
 "$agent" --config "$root/agent.json" > "$root/agent-reset-restart.log" 2>&1 &
 agent_pid=$!
 for ((attempt=0;attempt<200;attempt++)); do
