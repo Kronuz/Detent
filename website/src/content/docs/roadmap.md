@@ -34,7 +34,7 @@ these docs are collected here.
 | 2 | Durable storage and strict consensus | Accepted |
 | 3 | Bounded transaction API and authority runtime | Accepted |
 | 4 | Portable distribution and immutable local views | Accepted, including managed agent and SDK |
-| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A in progress |
+| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A component accepted; 5B relay implementation underway; 5C incremental publication follows |
 | 6 | Sustained system, fleet and failure qualification | Pending |
 
 The planning workload for stages 5 and 6 is 500,000 knobs, 300 concurrent
@@ -77,8 +77,7 @@ targets, not demonstrated capacity.
 
 ## Distribution
 
-1. Resumable, push-style subscriptions with snapshot/history handoff (Stage 5A,
-   in progress).
+1. Resumable subscriptions with snapshot/history handoff and durable publication feedback have Stage 5A component acceptance. Native, sanitizer and focused supported-platform checks establish component behavior; sustained fleet capacity remains a Stage 6 qualification target.
 2. Regional relays for fan-out.
 3. Incremental, page-level local publication.
 4. Multi-region replication for the classic distributor.

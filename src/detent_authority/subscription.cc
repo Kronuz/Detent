@@ -1,4 +1,5 @@
 #include "subscription.hh"
+#include "detent_distribution/publication_window.hh"
 #include <algorithm>
 #include <limits>
 #include <map>
@@ -6,20 +7,13 @@
 namespace detent::authority {
 namespace d = distribution;
 struct Subscriptions::Impl {
-	struct Offer {
-		std::uint64_t window;
-		d::Cursor target;
-		std::optional<ChangeHistory::Handoff> marker;
-	};
 	struct Session {
 		SubscriptionMetadata metadata;
 		d::Identity id{};
-		std::uint64_t incarnation = 0, serial = 0, accepted = 0;
-		std::optional<d::Cursor> base;
-		std::optional<ChangeHistory::Handoff> marker;
-		std::optional<Offer> offered;
+		std::uint64_t incarnation = 0, serial = 0;
+		d::PublicationWindow<ChangeHistory::Handoff> window;
 		Clock::time_point idle, maximum;
-		bool snapshot = false, request = false, transfer = false, closing = false;
+		bool request = false, closing = false;
 	};
 	struct Slot {
 		std::optional<Session> session;
@@ -45,10 +39,12 @@ struct Subscriptions::Impl {
 	bool closed = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, SubscriptionLimits bounds)
 		: account(std::move(ledger)), limits(bounds), slots(d::StorageAllocator<Slot>(account)),
-		  free(d::StorageAllocator<std::size_t>(account)), index(d::StorageAllocator<IndexValue>(account)),
+		  free(d::StorageAllocator<std::size_t>(account)),
+		  index(d::StorageAllocator<IndexValue>(account)),
 		  principals(d::StorageAllocator<PrincipalValue>(account)) {
 		if (!limits.sessions || limits.sessions > 65536 || !limits.per_principal ||
-			limits.per_principal > limits.sessions || limits.idle_lifetime <= Clock::duration::zero() ||
+			limits.per_principal > limits.sessions ||
+			limits.idle_lifetime <= Clock::duration::zero() ||
 			limits.maximum_lifetime < limits.idle_lifetime ||
 			limits.maximum_lifetime > std::chrono::hours(24))
 			throw std::invalid_argument("invalid subscription limits");
@@ -67,8 +63,8 @@ struct Subscriptions::Impl {
 	}
 	Session *find(SubscriptionRequestToken token) noexcept {
 		auto *session = find(token.session);
-		return session && session->incarnation == token.incarnation && session->serial == token.request &&
-					   session->request
+		return session && session->incarnation == token.incarnation &&
+					   session->serial == token.request && session->request
 				   ? session
 				   : nullptr;
 	}
@@ -82,17 +78,19 @@ Subscriptions::Subscriptions(std::shared_ptr<d::StorageLedger> account, Subscrip
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, limits)) {}
 Subscriptions::~Subscriptions() = default;
 SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal principal,
-									   std::shared_ptr<const AuthorizedScope> scope, d::Cursor current,
-									   std::optional<d::Cursor> base, bool force_snapshot, bool compression,
+									   std::shared_ptr<const AuthorizedScope> scope,
+									   d::Cursor current, std::optional<d::Cursor> base,
+									   bool force_snapshot, bool compression,
 									   ChangeHistory &history, Clock::time_point now,
 									   std::optional<d::ScopeIdentity> grants) {
 	auto &p = *impl_;
 	if (p.closed)
 		return SubscriptionResult::Expired;
-	if (id == d::Identity{} || principal.identity == d::ScopeIdentity{} || !principal.policy_epoch ||
-		!scope || scope->storage_account() != p.account || history.storage_account() != p.account ||
-		current.scope != scope->identity() || current.cluster == d::Identity{} ||
-		current.group == d::Identity{} || current.restore_epoch == d::Identity{})
+	if (id == d::Identity{} || principal.identity == d::ScopeIdentity{} ||
+		!principal.policy_epoch || !scope || scope->storage_account() != p.account ||
+		history.storage_account() != p.account || current.scope != scope->identity() ||
+		current.cluster == d::Identity{} || current.group == d::Identity{} ||
+		current.restore_epoch == d::Identity{})
 		throw std::invalid_argument("invalid subscription binding");
 	if (base && !base->same_identity(current))
 		return SubscriptionResult::IdentityChanged;
@@ -107,7 +105,8 @@ SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal pri
 	if (base && !force_snapshot) {
 		Context context{current.cluster, current.group, current.restore_epoch};
 		marker = history.handoff(context, base->revision);
-		if (marker && history.continuity(*marker, current.revision) != ChangeHistory::Continuity::Ready)
+		if (marker &&
+			history.continuity(*marker, current.revision) != ChangeHistory::Continuity::Ready)
 			marker.reset();
 	}
 	const auto slot = p.free.back();
@@ -134,9 +133,7 @@ SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal pri
 	session.incarnation = ++entry.incarnation;
 	session.metadata.incarnation = session.incarnation;
 	session.metadata.creator_grants = std::move(grants);
-	session.base = base;
-	session.marker = std::move(marker);
-	session.snapshot = !session.marker;
+	session.window = d::PublicationWindow<ChangeHistory::Handoff>{base, marker, !marker};
 	session.idle = now + p.limits.idle_lifetime;
 	session.maximum = now + p.limits.maximum_lifetime;
 	entry.session.emplace(std::move(session));
@@ -144,7 +141,8 @@ SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal pri
 	p.free.pop_back();
 	return SubscriptionResult::Accepted;
 }
-const SubscriptionMetadata *Subscriptions::metadata(d::Identity id, Clock::time_point now) noexcept {
+const SubscriptionMetadata *Subscriptions::metadata(d::Identity id,
+													Clock::time_point now) noexcept {
 	auto *session = impl_->find(id);
 	return !session || impl_->expire(*session, now) ? nullptr : &session->metadata;
 }
@@ -161,12 +159,10 @@ SubscriptionAdmission Subscriptions::next(d::Identity id, SubscriptionPrincipal 
 		return {SubscriptionResult::IdentityChanged, {}};
 	if (s->request)
 		return {SubscriptionResult::Busy, {}};
-	if (s->transfer && (!s->offered || after != s->offered->window || !published))
+	const auto feedback = s->window.feedback(after, published);
+	if (feedback == d::PublicationFeedbackResult::Busy)
 		return {SubscriptionResult::Busy, {}};
-	bool valid = s->offered ? after == s->offered->window && published && *published == s->offered->target
-							: after == s->accepted &&
-								  (!published || (s->accepted && s->base && *published == *s->base));
-	if (!valid)
+	if (feedback == d::PublicationFeedbackResult::OutOfSync)
 		return {SubscriptionResult::OutOfSync, {}};
 	if (s->serial == UINT64_MAX) {
 		s->closing = true;
@@ -179,7 +175,8 @@ SubscriptionAdmission Subscriptions::next(d::Identity id, SubscriptionPrincipal 
 }
 SubscriptionResult Subscriptions::authorize(d::Identity id, std::uint64_t incarnation,
 											SubscriptionPrincipal principal, d::ScopeIdentity scope,
-											d::ScopeIdentity grants, Clock::time_point now) noexcept {
+											d::ScopeIdentity grants,
+											Clock::time_point now) noexcept {
 	auto *s = impl_->find(id);
 	if (!s || s->incarnation != incarnation || impl_->expire(*s, now))
 		return SubscriptionResult::Expired;
@@ -201,42 +198,37 @@ SubscriptionResult Subscriptions::poll(SubscriptionRequestToken token, d::Cursor
 		s->closing = true;
 		return SubscriptionResult::IdentityChanged;
 	}
-	if (s->transfer)
+	if (!s->window.accept_settled())
 		return SubscriptionResult::AwaitSettlement;
-	if (s->offered) {
-		s->accepted = s->offered->window;
-		s->base = s->offered->target;
-		s->marker = std::move(s->offered->marker);
-		s->offered.reset();
-		s->snapshot = false;
-	}
-	if (s->base && current.revision < s->base->revision) {
+	if (s->window.base() && current.revision < s->window.base()->revision) {
 		s->closing = true;
 		return SubscriptionResult::OutOfSync;
 	}
-	if (s->snapshot)
+	if (s->window.snapshot())
 		return SubscriptionResult::SnapshotReady;
-	if (!s->base) {
+	if (!s->window.base()) {
 		s->closing = true;
 		return SubscriptionResult::OutOfSync;
 	}
-	if (!s->marker || history.continuity(*s->marker, current.revision) != ChangeHistory::Continuity::Ready) {
+	if (!s->window.marker() || history.continuity(*s->window.marker(), current.revision) !=
+								   ChangeHistory::Continuity::Ready) {
 		s->closing = true;
 		return SubscriptionResult::SnapshotRequired;
 	}
-	return current.revision == s->base->revision ? SubscriptionResult::Parked
-												 : SubscriptionResult::ResumeReady;
+	return current.revision == s->window.base()->revision ? SubscriptionResult::Parked
+														  : SubscriptionResult::ResumeReady;
 }
 std::optional<d::Cursor> Subscriptions::base(SubscriptionRequestToken token) const noexcept {
 	auto *s = impl_->find(token.session);
 	return s && s->incarnation == token.incarnation && s->serial == token.request && s->request
-			   ? s->base
+			   ? s->window.base()
 			   : std::nullopt;
 }
-std::optional<ChangeHistory::Handoff> Subscriptions::handoff(SubscriptionRequestToken token) const noexcept {
+std::optional<ChangeHistory::Handoff>
+Subscriptions::handoff(SubscriptionRequestToken token) const noexcept {
 	auto *s = impl_->find(token.session);
 	return s && s->incarnation == token.incarnation && s->serial == token.request && s->request
-			   ? s->marker
+			   ? s->window.marker()
 			   : std::nullopt;
 }
 SubscriptionOfferToken Subscriptions::offer(SubscriptionRequestToken token, d::Cursor target,
@@ -244,22 +236,17 @@ SubscriptionOfferToken Subscriptions::offer(SubscriptionRequestToken token, d::C
 											Clock::time_point now) {
 	auto &p = *impl_;
 	auto *s = p.find(token);
-	if (!s || p.expire(*s, now) || s->transfer || s->offered || s->accepted == UINT64_MAX ||
-		!target.same_identity(s->metadata.identity) || (marker && marker->revision() != target.revision) ||
-		(s->base && target.revision < s->base->revision) ||
-		(!s->snapshot && (!s->base || target.revision <= s->base->revision)))
+	if (!s || p.expire(*s, now) || !target.same_identity(s->metadata.identity) ||
+		(marker && marker->revision() != target.revision))
 		throw std::logic_error("subscription offer state mismatch");
-	s->offered.emplace(Impl::Offer{s->accepted + 1, target, std::move(marker)});
-	s->transfer = true;
+	const auto window = s->window.offer(target, std::move(marker));
 	s->request = false;
-	return {s->id, s->incarnation, s->offered->window};
+	return {s->id, s->incarnation, window};
 }
 void Subscriptions::settle(SubscriptionOfferToken token, bool written) noexcept {
 	auto *s = impl_->find(token.session);
-	if (!s || s->incarnation != token.incarnation || !s->transfer || !s->offered ||
-		s->offered->window != token.window)
+	if (!s || s->incarnation != token.incarnation || !s->window.settle(token.window))
 		return;
-	s->transfer = false;
 	if (!written)
 		s->closing = true;
 }
@@ -295,7 +282,8 @@ void Subscriptions::collect(d::WorkBudget &budget, Clock::time_point now) noexce
 		auto &slot = p.slots[p.cursor];
 		const auto ordinal = p.cursor;
 		p.cursor = (p.cursor + 1) % p.slots.size();
-		if (!slot.session || !p.expire(*slot.session, now) || slot.session->request || slot.session->transfer)
+		if (!slot.session || !p.expire(*slot.session, now) || slot.session->request ||
+			slot.session->window.transferring())
 			continue;
 		if (!slot.retiring) {
 			slot.retiring = true;
