@@ -5,6 +5,7 @@
 #include "detent/scope.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
+#include "detent_distribution_http/reply_pump.hh"
 #include "prepared.hh"
 #include "read_reply.hh"
 #include <asio.hpp>
@@ -414,16 +415,12 @@ struct Service::Accounting {
 	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
 	kronuz::metrics::AtomicDurationHistogram publisher_ready, reply_retired;
 };
-struct Service::Delivery {
-	http::OwnedStreamCapability reply;
+struct Service::Delivery : distribution_http::OwnedReplyPump {
 	std::shared_ptr<const AuthorizedScope> scope;
 	std::optional<distribution::Cursor> base;
-	std::atomic<bool> writable{true}, settled{false};
-	std::atomic<bool> written{false};
 	ExportSelection selection = ExportSelection::Automatic;
 	std::optional<ChangeHistory::Handoff> handoff;
-	std::shared_ptr<const distribution::OwnedBuffer> control;
-	bool compress = false, started = false, retiring = false;
+	bool compress = false, retiring = false;
 };
 struct Service::Admission {
 	std::shared_ptr<Accounting> accounting;
@@ -559,8 +556,8 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	if (!found) {
 		throw http::RequestRejected(401, "{\"error\":\"unauthorized\"}", http::RejectionContent::Json);
 	}
-	if (!found->publish && (request.path == "/v2/open" || request.path == "/v2/close" ||
-						   request.path == "/v2/transactions")) {
+	if (!found->publish &&
+		(request.path == "/v2/open" || request.path == "/v2/close" || request.path == "/v2/transactions")) {
 		throw http::RequestRejected(403, "{\"error\":\"publish_forbidden\"}", http::RejectionContent::Json);
 	}
 	std::optional<SubscriptionRequestKind> subscription_kind;
@@ -799,42 +796,9 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 	stream.reply.request_retention = task->admission;
 	stream.chunk_bytes = distribution::OwnedFragmentEncoder::maximum_wire_bytes();
 	stream.maximum_bytes = (options_.delivery.bytes / distribution::fragment_bytes + 1) * stream.chunk_bytes;
-	std::weak_ptr<Delivery> weak = delivery;
-	stream.on_writable = [weak] {
-		if (auto held = weak.lock())
-			held->writable.store(true);
-	};
-	stream.reply.on_settled = [weak](http::ReplySettlement result) {
-		if (auto held = weak.lock()) {
-			held->written.store(result == http::ReplySettlement::Written);
-			held->settled.store(true);
-		}
-	};
+	distribution_http::OwnedReplyPump::callbacks(stream, delivery);
 	task->complete = [delivery, account](Reply value) {
-		if (!delivery->reply || delivery->started || delivery->settled.load())
-			return;
-		try {
-			http::Response metadata;
-			metadata.status = value.status;
-			metadata.content_type = "application/json";
-			auto bytes = distribution::make_owned_buffer(account, value.body.size());
-			bytes->append(value.body);
-			bytes->seal();
-			if (!bytes->empty()) {
-				delivery->control = std::move(bytes);
-				if (delivery->reply->start(metadata, delivery->control->size()) !=
-					http::StreamSubmit::Accepted)
-					delivery->reply->abandon();
-				return;
-			}
-			if (delivery->reply->start(metadata, bytes->size()) != http::StreamSubmit::Accepted ||
-				(!bytes->empty() &&
-				 delivery->reply->publish({bytes, bytes->view()}) != http::StreamSubmit::Accepted) ||
-				delivery->reply->finish() != http::StreamSubmit::Accepted)
-				delivery->reply->abandon();
-		} catch (...) {
-			delivery->reply->abandon();
-		}
+		delivery->send_control(value.status, value.body, account);
 	};
 	delivery->reply = response.stream(std::move(stream));
 	check(static_cast<bool>(delivery->reply), "owned distribution streaming unavailable");
@@ -1899,16 +1863,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				if (!task.settled && !task.exporting && (now >= task.deadline || delivery.settled.load()))
 					complete(held, {503, "{\"error\":\"outcome_unknown\"}"});
 				if (task.settled) {
-					if (delivery.control && !delivery.settled.load() && delivery.writable.exchange(false)) {
-						const auto result =
-							delivery.reply->publish({delivery.control, delivery.control->view()});
-						if (result == http::StreamSubmit::Accepted) {
-							delivery.control.reset();
-							if (delivery.reply->finish() != http::StreamSubmit::Accepted)
-								delivery.reply->abandon();
-						} else if (result != http::StreamSubmit::Busy)
-							delivery.reply->abandon();
-					}
+					delivery.pump_control();
 					if (task.quorum_pending || task.exporting || task.authorization_queued ||
 						!delivery.settled.load())
 						continue;
@@ -2114,16 +2069,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 					control_head = (control_head + 1) % legacy_deliveries.size();
 					--control_count;
 					auto &delivery = *task->delivery;
-					if (delivery.control && !delivery.settled.load() && delivery.writable.exchange(false)) {
-						const auto result =
-							delivery.reply->publish({delivery.control, delivery.control->view()});
-						if (result == http::StreamSubmit::Accepted) {
-							delivery.control.reset();
-							if (delivery.reply->finish() != http::StreamSubmit::Accepted)
-								delivery.reply->abandon();
-						} else if (result != http::StreamSubmit::Busy)
-							delivery.reply->abandon();
-					}
+					delivery.pump_control();
 					if (delivery.settled.load() && !task->exporting) {
 						begin_delivery_retirement(*task);
 						const auto bytes = std::min(task->retirement_remaining, cleanup.bytes);
@@ -2227,40 +2173,26 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 							if (!slot.pending && delivery.writable.load())
 								slot.exporter->step(wire);
 							if (slot.exporter->counted() && !delivery.started) {
-								http::Response metadata;
-								metadata.status = 200;
+								std::optional<distribution_http::SessionHeaders> session;
 								if (slot.task->subscription_request) {
 									slot.task->subscription_offer = subscriptions->offer(
 										*slot.task->subscription_request, slot.exporter->target(),
 										slot.exporter->history_handoff(), now);
-									metadata.headers.emplace_back("X-Detent-Session-Version", "1");
-									metadata.headers.emplace_back("X-Detent-Session",
-																  hex(slot.task->session));
-									metadata.headers.emplace_back(
-										"X-Detent-Window",
-										std::to_string(slot.task->subscription_offer->window));
+									session = {slot.task->session, slot.task->subscription_offer->window};
 								}
-								metadata.content_type = "application/vnd.detent.distribution";
-								metadata.headers.emplace_back("X-Detent-Coding",
-															  delivery.compress ? "zstd" : "raw");
-								metadata.headers.emplace_back("X-Detent-Profile", "1");
-								metadata.headers.emplace_back(
-									"X-Detent-Kind",
-									std::to_string(static_cast<unsigned>(slot.exporter->kind())));
-								metadata.headers.emplace_back(
-									"X-Detent-Revision", std::to_string(slot.exporter->target().revision));
+								auto metadata = distribution_http::update_headers(slot.exporter->kind(),
+																				  slot.exporter->target(),
+																				  delivery.compress, session);
 								if (delivery.reply->start_chunked(metadata) != http::StreamSubmit::Accepted)
 									throw std::runtime_error("distribution stream closed");
 								delivery.started = true;
 							}
 							if (!slot.pending && slot.exporter->frame_ready())
 								slot.pending = slot.exporter->take_frame();
-							if (slot.pending && delivery.writable.exchange(false)) {
-								const auto result =
-									delivery.reply->publish({slot.pending, slot.pending->view()});
-								if (result == http::StreamSubmit::Accepted)
-									slot.pending.reset();
-								else if (result != http::StreamSubmit::Busy)
+							if (slot.pending) {
+								const auto result = delivery.publish(slot.pending);
+								if (result != http::StreamSubmit::Accepted &&
+									result != http::StreamSubmit::Busy)
 									throw std::runtime_error("distribution stream refused frame");
 							}
 							if (slot.exporter->done() && !slot.pending) {

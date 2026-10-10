@@ -15,7 +15,7 @@ endif()
 
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_library(detent_authority_service service.cc)
-  target_link_libraries(detent_authority_service PUBLIC detent::authority_node detent::authority_export http::http)
+  target_link_libraries(detent_authority_service PUBLIC detent::authority_node detent::authority_export detent::distribution_http)
   add_executable(detent-authority-admin admin.cc)
   target_link_libraries(detent-authority-admin PRIVATE detent_authority_service)
 endif()
