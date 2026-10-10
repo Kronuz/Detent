@@ -23,10 +23,24 @@ AuthorizedScope::authorize(std::string_view principal, std::uint64_t policy_epoc
 	}
 	std::sort(canonical.begin(), canonical.end());
 	canonical.erase(std::unique(canonical.begin(), canonical.end()), canonical.end());
+	return authorize_canonical(principal, policy_epoch, canonical, canonical, std::move(account),
+							   maximum_names);
+}
+std::shared_ptr<const AuthorizedScope> AuthorizedScope::authorize_canonical(
+	std::string_view principal, std::uint64_t policy_epoch, std::span<const std::string_view> requested,
+	std::span<const std::string_view> allowed, std::shared_ptr<distribution::StorageLedger> account,
+	std::size_t maximum_names) {
+	if (!account || maximum_names > 4096 || requested.size() > maximum_names || allowed.size() > 4096 ||
+		std::adjacent_find(allowed.begin(), allowed.end(), std::greater_equal<>()) != allowed.end())
+		throw std::invalid_argument("invalid canonical scope admission");
+	const auto identity = distribution::canonical_scope_identity(principal, policy_epoch, requested);
+	for (auto name : requested)
+		if (!std::binary_search(allowed.begin(), allowed.end(), name))
+			throw std::invalid_argument("unauthorized requested namespace");
 	auto result = std::allocate_shared<AuthorizedScope>(
 		distribution::StorageAllocator<AuthorizedScope>(account), FactoryTag{}, account);
-	result->identity_ = distribution::canonical_scope_identity(principal, policy_epoch, canonical);
-	for (auto name : canonical)
+	result->identity_ = identity;
+	for (auto name : requested)
 		result->names_.push_back(distribution::store_text(result->arena_, name).value);
 	return result;
 }

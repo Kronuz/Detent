@@ -113,21 +113,6 @@ Identity identity(std::string_view hex) {
 	check(id != Identity{}, "zero identity");
 	return id;
 }
-distribution::ScopeIdentity scope_id(std::string_view value) {
-	check(value.size() == 64, "invalid distribution scope identity");
-	distribution::ScopeIdentity result{};
-	auto digit = [](char c) -> unsigned {
-		if (c >= '0' && c <= '9')
-			return c - '0';
-		if (c >= 'a' && c <= 'f')
-			return c - 'a' + 10;
-		check(false, "scope identity requires lowercase hexadecimal");
-		return 0;
-	};
-	for (std::size_t i = 0; i < result.size(); ++i)
-		result[i] = static_cast<char>((digit(value[2 * i]) << 4) | digit(value[2 * i + 1]));
-	return result;
-}
 std::string hex(Identity id) {
 	constexpr char digits[] = "0123456789abcdef";
 	std::string out;
@@ -561,12 +546,21 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 		throw http::RequestRejected(403, "{\"error\":\"publish_forbidden\"}", http::RejectionContent::Json);
 	}
 	std::optional<SubscriptionRequestKind> subscription_kind;
-	if (request.path == "/v2/distribution/session/open")
-		subscription_kind = SubscriptionRequestKind::Open;
-	else if (request.path == "/v2/distribution/session/next")
-		subscription_kind = SubscriptionRequestKind::Next;
-	else if (request.path == "/v2/distribution/session/close")
-		subscription_kind = SubscriptionRequestKind::Close;
+	if (auto kind = distribution_http::classify_session_route(request.path)) {
+		switch (*kind) {
+		case distribution_http::RequestKind::Open:
+			subscription_kind = SubscriptionRequestKind::Open;
+			break;
+		case distribution_http::RequestKind::Next:
+			subscription_kind = SubscriptionRequestKind::Next;
+			break;
+		case distribution_http::RequestKind::Close:
+			subscription_kind = SubscriptionRequestKind::Close;
+			break;
+		default:
+			throw std::logic_error("invalid subscription route classification");
+		}
+	}
 	if (subscription_kind) {
 		std::lock_guard lock(mutex_);
 		if (stopping_)
@@ -742,48 +736,21 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 }
 
 std::shared_ptr<Service::Delivery>
-Service::distribution_request(const http::Request &request, const Admission &admission, bool session_open) {
-	check(request.method == "POST", "distribution requires POST");
-	const auto bytes =
-		admission.subscription ? admission.subscription->body().view() : std::string_view(request.body);
-	auto body = document(bytes, admission.bytes);
-	if (session_open)
-		fields(body, {"version", "cluster", "group", "epoch", "scope", "namespaces", "base", "coding",
-					  "profile", "force_snapshot"});
-	else
-		fields(body, {"cluster", "group", "epoch", "scope", "namespaces", "base", "coding", "profile"});
+Service::distribution_request(const distribution_http::SessionRequest &request, const Admission &admission) {
 	const auto &context = options_.node.context;
-	check(identity(text(field(body, "cluster"))) == context.cluster &&
-			  identity(text(field(body, "group"))) == context.group &&
-			  identity(text(field(body, "epoch"))) == context.epoch,
+	check(request.identity.cluster == context.cluster && request.identity.group == context.group &&
+			  request.identity.restore_epoch == context.epoch,
 		  "foreign distribution authority");
-	check(number(field(body, "profile")) == 1, "unsupported distribution profile");
-
-	const auto &spaces = field(body, "namespaces");
-	check(spaces.IsArray() && spaces.Size() <= options_.delivery.namespaces, "distribution scope bound");
-	std::vector<std::string> names;
-	names.reserve(spaces.Size());
-	for (const auto &name : spaces.GetArray())
-		names.push_back(text(name, 198));
 	const auto &credential = *admission.credential;
 	auto account = accounting_->delivery_account;
 	auto delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
-	delivery->scope = AuthorizedScope::authorize(
+	delivery->scope = AuthorizedScope::authorize_canonical(
 		credential.principal.empty() ? credential.producer : credential.principal, credential.policy_epoch,
-		names, credential.namespaces, account, options_.delivery.namespaces);
-	check(scope_id(text(field(body, "scope"), 64)) == delivery->scope->identity(),
-		  "distribution policy or scope mismatch");
-	const auto coding = text(field(body, "coding"), 4);
-	check(coding == "raw" || coding == "zstd", "unsupported distribution coding");
-	delivery->compress = coding == "zstd";
-	if (body.HasMember("base") && !field(body, "base").IsNull()) {
-		const auto &base = field(body, "base");
-		fields(base, {"cluster", "group", "epoch", "scope", "revision"});
-		delivery->base =
-			distribution::Cursor{identity(text(field(base, "cluster"))), identity(text(field(base, "group"))),
-								 identity(text(field(base, "epoch"))),
-								 scope_id(text(field(base, "scope"), 64)), number(field(base, "revision"))};
-	}
+		request.namespaces, (*accounting_->credential_grants)[admission.credential_index].names, account,
+		options_.delivery.namespaces);
+	check(request.identity.scope == delivery->scope->identity(), "distribution policy or scope mismatch");
+	delivery->compress = request.compressed;
+	delivery->base = request.base;
 	return delivery;
 }
 
@@ -806,7 +773,12 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 
 void Service::distribute(const http::Request &request, http::ResponseWriter &response,
 						 std::shared_ptr<Admission> admission) {
-	auto delivery = distribution_request(request, *admission, false);
+	check(request.method == "POST", "distribution requires POST");
+	auto parsed = distribution_http::parse_session_request_on_worker(
+		accounting_->delivery_account, distribution_http::RequestKind::Distribution, request.body,
+		{std::min<std::size_t>(admission->bytes, 1024 * 1024), options_.delivery.namespaces,
+		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
+	auto delivery = distribution_request(parsed->request(), *admission);
 	auto task =
 		std::allocate_shared<Task>(distribution::StorageAllocator<Task>(accounting_->delivery_account));
 	task->kind = Task::Kind::Distribution;
@@ -831,8 +803,13 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 		input.append(request.body);
 		input.seal_prefix();
 	}
-	auto body = document(input.view(), admission->bytes);
-	check(number(field(body, "version")) == 1, "unsupported subscription version");
+	const auto kind = distribution_http::classify_session_route(request.path);
+	check(kind.has_value(), "unknown subscription route");
+	auto parsed = distribution_http::parse_session_request_on_worker(
+		accounting_->delivery_account, *kind, input.view(),
+		{admission->bytes, options_.delivery.namespaces,
+		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
+	const auto &command = parsed->request();
 	auto account = accounting_->delivery_account;
 	auto task = std::allocate_shared<Task>(distribution::StorageAllocator<Task>(account));
 	task->admission = std::move(admission);
@@ -841,40 +818,23 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 						   credential.principal.empty() ? credential.producer : credential.principal, 1, {}),
 					   credential.policy_epoch};
 	task->deadline = Clock::now() + options_.timeout;
-	if (request.path == "/v2/distribution/session/open") {
+	if (command.kind == distribution_http::RequestKind::Open) {
 		task->kind = Task::Kind::SessionOpen;
-		task->delivery = distribution_request(request, *task->admission, true);
-		if (body.HasMember("force_snapshot")) {
-			check(field(body, "force_snapshot").IsBool(), "invalid snapshot selection");
-			task->force_snapshot = field(body, "force_snapshot").GetBool();
-		}
+		task->delivery = distribution_request(command, *task->admission);
+		task->force_snapshot = command.force_snapshot;
 		check(RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) == 1,
 			  "subscription identity entropy");
 	} else {
 		task->delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
-		task->session = identity(text(field(body, "session"), 32));
-		if (request.path == "/v2/distribution/session/close") {
-			fields(body, {"version", "session"});
+		task->session = command.session;
+		if (command.kind == distribution_http::RequestKind::Close)
 			task->kind = Task::Kind::SessionClose;
-		} else {
-			fields(body, {"version", "session", "after", "published", "wait_ms"});
+		else {
 			task->kind = Task::Kind::SessionNext;
-			task->sequence = number(field(body, "after"));
-			const auto wait = body.HasMember("wait_ms")
-								  ? number(field(body, "wait_ms"))
-								  : static_cast<std::uint64_t>(options_.subscription_wait.count());
-			check(wait <= static_cast<std::uint64_t>(options_.subscription_wait.count()),
-				  "subscription wait bound");
-			task->deadline += std::chrono::milliseconds(wait);
-			task->poll_deadline = Clock::now() + std::chrono::milliseconds(wait);
-			if (body.HasMember("published")) {
-				const auto &cursor = field(body, "published");
-				fields(cursor, {"cluster", "group", "epoch", "scope", "revision"});
-				task->published = distribution::Cursor{
-					identity(text(field(cursor, "cluster"))), identity(text(field(cursor, "group"))),
-					identity(text(field(cursor, "epoch"))), scope_id(text(field(cursor, "scope"), 64)),
-					number(field(cursor, "revision"))};
-			}
+			task->sequence = command.after;
+			task->deadline += std::chrono::milliseconds(command.wait_ms);
+			task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
+			task->published = command.published;
 		}
 	}
 	auto delivery = task->delivery;

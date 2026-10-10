@@ -1,4 +1,5 @@
 #include "export_scope.hh"
+#include <array>
 #include <iostream>
 #include <vector>
 namespace a = detent::authority;
@@ -35,6 +36,25 @@ int main() {
 		requested = {"a", "b"};
 		auto same = a::AuthorizedScope::authorize("principal", 1, requested, allowed, account);
 		check(scope->identity() == same->identity());
+		{
+			std::array<std::string_view, 2> canonical{"a", "b"};
+			std::array<std::string_view, 3> grants{"a", "ab", "b"};
+			auto canonical_scope =
+				a::AuthorizedScope::authorize_canonical("principal", 1, canonical, grants, account);
+			check(canonical_scope->identity() == scope->identity());
+			std::array<std::string_view, 2> reordered{"b", "a"};
+			std::array<std::string_view, 2> duplicate{"a", "a"};
+			std::array<std::string_view, 1> narrow{"a"};
+			rejects(
+				[&] { a::AuthorizedScope::authorize_canonical("principal", 1, reordered, grants, account); });
+			rejects(
+				[&] { a::AuthorizedScope::authorize_canonical("principal", 1, duplicate, grants, account); });
+			rejects([&] {
+				a::AuthorizedScope::authorize_canonical("principal", 1, canonical, reordered, account);
+			});
+			rejects(
+				[&] { a::AuthorizedScope::authorize_canonical("principal", 1, canonical, narrow, account); });
+		}
 		auto principal = a::AuthorizedScope::authorize("other", 1, requested, allowed, account);
 		auto epoch = a::AuthorizedScope::authorize("principal", 2, requested, allowed, account);
 		check(scope->identity() != principal->identity() && scope->identity() != epoch->identity());

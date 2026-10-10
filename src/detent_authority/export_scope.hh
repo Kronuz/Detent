@@ -28,6 +28,11 @@ class AuthorizedScope {
 			  const std::set<std::string> &allowed, std::shared_ptr<distribution::StorageLedger> account,
 			  std::size_t maximum_names = 4096);
 
+	static std::shared_ptr<const AuthorizedScope> authorize_canonical(
+		std::string_view principal, std::uint64_t policy_epoch, std::span<const std::string_view> requested,
+		std::span<const std::string_view> allowed, std::shared_ptr<distribution::StorageLedger> account,
+		std::size_t maximum_names = 4096);
+
   private:
 	std::shared_ptr<distribution::StorageLedger> account_;
 	distribution::PagedStorage arena_;

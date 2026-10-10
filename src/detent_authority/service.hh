@@ -1,5 +1,6 @@
 #pragma once
 #include "detent_distribution/protocol.hh"
+#include "detent_distribution_http/session_request.hh"
 #include "node.hh"
 #include "subscription.hh"
 #include "subscription_admission.hh"
@@ -107,7 +108,8 @@ class Service final : public http::HttpHandler {
 	void run(std::promise<void> ready);
 	void distribute(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
 	void subscription(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
-	std::shared_ptr<Delivery> distribution_request(const http::Request &, const Admission &, bool);
+	std::shared_ptr<Delivery> distribution_request(const distribution_http::SessionRequest &,
+												   const Admission &);
 	void stream_task(http::ResponseWriter &, const std::shared_ptr<Task> &);
 	std::optional<Reply> execute(const http::Request &request, std::shared_ptr<Admission> admission,
 								 std::function<void(Reply)> complete,
