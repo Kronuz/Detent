@@ -11,7 +11,7 @@ The authenticated authority delivery endpoint now joins quorum-backed owner capt
 | 2 | Durable storage and strict consensus | Component accepted |
 | 3 | Bounded transaction API and authority runtime | Isolated component accepted |
 | 4 | Portable distribution and immutable local views | Component accepted, including managed agent and SDK integration |
-| 5 | Resumable delivery, subscriptions, relays and incremental publication | Stage 5A in progress: handoff capability, bounded session state and strict export selection qualified; HTTP sessions and agent publication feedback implemented; large-state idle, publisher pressure and 21 sanitizer checks pass; final review and full regression pending. Relays and incremental pages follow |
+| 5 | Resumable delivery, subscriptions, relays and incremental publication | Stage 5A in progress: handoff capability, bounded session state and strict export selection qualified; HTTP sessions and agent publication feedback implemented; large-state idle, publisher pressure and 21 sanitizer checks pass; 110 native tests and focused platform/sanitizer gates pass; final review and Linux shared-host pressure attribution pending. Relays and incremental pages follow |
 | 6 | Sustained system, fleet and failure qualification | Pending |
 
 Stage 5A follows the [validated subscription blueprint](SUBSCRIPTIONS_ARCHITECTURE.md), with one consolidated review after session state, separate admission, owner scheduling and agent publication feedback are integrated and qualified.

@@ -360,6 +360,10 @@ int main(int argc, char **argv) {
 							   "{" + identity + "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
 								   ",\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key0\",\"value\":{"
 								   "\"type\":\"int\",\"default\":0}}]}");
+						if (transaction.code != 200 ||
+							transaction.body.find("\"status\":\"no_change\"") == std::string::npos)
+							std::cerr << "publisher sequence=" << sequence << " status=" << transaction.code
+									  << " body=" << transaction.body << std::endl;
 						check(transaction.code == 200 &&
 							  transaction.body.find("\"status\":\"no_change\"") != std::string::npos);
 						++committed;
