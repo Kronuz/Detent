@@ -1313,8 +1313,12 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			node.service({0, election_delay()});
 			dispatch(owned_node);
 			check(!node.worker().fenced(), "authority recovery application fenced");
-			timer.expires_after(std::chrono::milliseconds(1));
-			co_await timer.async_wait(asio::use_awaitable);
+			if (node.state().reclamation_pending()) {
+				co_await asio::post(io, asio::use_awaitable);
+			} else {
+				timer.expires_after(std::chrono::milliseconds(1));
+				co_await timer.async_wait(asio::use_awaitable);
+			}
 		}
 		node.attach_change_recorder(history);
 		if (options_.peers) {
