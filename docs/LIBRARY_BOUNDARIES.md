@@ -12,13 +12,19 @@ At the same time, Detent keeps several pieces that are generic but private: a Ra
 
 The recommendation:
 
-1. Split `cluster` into `completion`, `journal` and `consensus` repositories, and return `cluster` to the bus and legacy Raft that Xapiand uses.
+1. Split `cluster` into `completion`, `journal` and `consensus` repositories, leaving `cluster` with the bus and the legacy Raft. Then measure the legacy Raft against `consensus`, and retire it unless the numbers show it earns its place.
 2. Move Detent's authority peer transport into `consensus`.
 3. Extract a small `metrics` library and a single `ledger` primitive.
 4. Give `Kronuz/http` the client half and share one TLS layer.
 5. Extract the persistent map and the bounded MessagePack codec.
 
 Everything knob-specific stays in Detent. The splits are mechanical: each target already compiles as its own CMake target with no reverse dependencies.
+
+## Ground rules
+
+1. **Detent is greenfield.** Nothing in it, or in the libraries it pulls in, is kept for backward compatibility with itself. Design for the best end state, not the smallest diff.
+2. **Xapiand compatibility is the only constraint, and it is flexible.** Shared libraries must stay usable by Xapiand, but when a library change calls for it, refactor Xapiand in the same series instead of bending the library around it.
+3. **Nothing is kept just because Xapiand uses it.** Every component earns its place with a concrete reason (a capability, a measured advantage), whoever consumes it.
 
 ## Background
 
@@ -136,6 +142,32 @@ Detent keeps both dependencies. `src/detentd/` (`detentd.cc`, `raft_delegate.*`,
 
 Nothing in `consensus`, `journal` or `completion` includes `bus.h`, `raft.h` or `length.h`. The only tie is the namespace: the durable code lives in `cluster::consensus` while journal already uses `kronuz::journal`. The split renames it to `kronuz::consensus` (about 90 references in Detent).
 
+### Legacy Raft: measure, then keep or retire
+
+After the split there are two Raft implementations: `cluster::Raft` (volatile terms and votes, UDP multicast through `cluster::Bus`, membership from configured peers and observed liveness) and `consensus` (persisted terms, votes and log, a pure deterministic `Core`, fixed 3 or 5 voters, authenticated point-to-point transport). Keeping both is justified only if the legacy one delivers something `consensus` doesn't. Measure before deciding.
+
+Run both on 3 and 5 nodes, on loopback and on a real network:
+
+| Measurement | Why it matters |
+| --- | --- |
+| Time to first leader from a cold start | Cluster bootstrap |
+| Failover time after the leader is killed | Availability |
+| Restart-to-rejoin time | The legacy Raft sits out `3 × election_max` (90 s at defaults) after a restart |
+| Commit latency, p50 and p99, at Xapiand's real write rate and at 10× | Write path |
+| CPU per committed entry, idle CPU, RSS | Cost; convert to cores and dollars at fleet scale |
+| Network bytes per committed entry, idle traffic | Heartbeat and replication overhead |
+| Binary size and compile time added | Footprint |
+| Behavior under partition, duplicate and reordered messages, and kill/restart | Safety: volatile votes are a known weakness of the legacy Raft |
+
+Run `consensus` twice: once with durable `journal` storage, and once with the cheapest storage mode it supports. That separates the algorithm's cost from the cost of durability, which the legacy Raft never pays.
+
+Two functional gaps decide the outcome as much as the numbers:
+
+1. **Discovery and dynamic membership.** Xapiand forms clusters from multicast discovery, while `consensus` has fixed voters and no membership changes. Retiring the legacy Raft means either adding membership changes to `consensus` or running Xapiand with configured voters. `cluster::Bus` can stay as the discovery layer either way: retiring the Raft does not retire the bus.
+2. **Transport.** `consensus` has no multicast transport. The peer transport moved in step 3 (TLS over TCP) would be what Xapiand uses.
+
+**Decision rule.** Keep `cluster::Raft` only if the legacy Raft is meaningfully cheaper at Xapiand's real workload (enough that a deployment would notice in cores, latency or bytes), or if it provides a capability `consensus` can't reasonably add. Otherwise retire it: move Xapiand to `consensus` (with `cluster::Bus` for discovery if that's still useful), refactor Xapiand accordingly, and delete `raft.h`. Detent's classic `--cluster` mode then either moves to `consensus` or is retired in favor of the authority. Record the measurements and the decision in this document.
+
 ### What stays in Detent
 
 The knob model and evaluation, the JSON schema and patches, the authority `State` and command codec, `node.cc` (it binds `consensus` to Detent's `State`), the distribution schema (cursor, profile, rows), the local image format, the agent, and the delivery coordinator's domain logic. These are Detent's reason to exist.
@@ -159,15 +191,16 @@ Each step lands and qualifies independently, in this order, so every intermediat
 7. **`persistent-map` and `msgpack`.** Move the files with their tests; Detent includes them as dependencies.
 8. **Pin revisions.** Every `FetchContent_Declare` in Detent, `cluster` and the new libraries uses a tested commit instead of `main`. This is already open in `docs/DOCUMENTATION_FINDINGS.md`.
 9. **Rewrite the library READMEs.** Each one says what the library is, shows a minimal example, and states its guarantees and limits. Qualification evidence moves to Detent's `docs/` (or a `CHANGELOG`), and no library README names Detent.
+10. **Legacy Raft decision.** Run the comparison in [Legacy Raft: measure, then keep or retire](#legacy-raft-measure-then-keep-or-retire) once step 2 has landed, and act on the result. This can run in parallel with steps 3 through 9.
 
 ### Acceptance gates for every step
 
 1. The new or changed library's own suite passes natively on macOS, Linux and FreeBSD, and under the sanitizers that qualified the original code.
 2. Detent's full suite passes, **74 tests** today, from a clean clone with no `FETCHCONTENT_SOURCE_DIR_*` overrides.
-3. Xapiand builds against the new `cluster`, and its cluster harness passes with unchanged wire bytes.
-4. On-disk formats (journal, checkpoint, local image, descriptor) and wire formats are byte-identical before and after. Each move is a relocation, not a redesign.
+3. Xapiand builds against the changed libraries and its cluster harness passes. Its wire format may change when a library change calls for it; in that case, refactor Xapiand in the same series.
+4. Relocation steps (1 through 3, 5 through 7) keep on-disk and wire formats byte-identical, so a move never hides a behavior change. Format changes are allowed, since Detent is greenfield, but they land as their own versioned commits.
 5. The Homebrew formula (`packaging/homebrew/detent.rb`) still builds and passes `brew test` at the new pinned revision.
 
 ## Next steps
 
-Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k lines out of `cluster`) at the lowest risk, because the stack already compiles as separate targets. Steps 3 through 7 can follow in any order once the new repositories exist. Report the before-and-after line counts per repository in this document when each step lands, and update the Roadmap and Dependencies pages in `website/` to match.
+Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k lines out of `cluster`) at the lowest risk, because the stack already compiles as separate targets. Steps 3 through 7 can follow in any order once the new repositories exist, and the legacy Raft comparison (step 10) can start as soon as step 2 lands. Report the before-and-after line counts per repository in this document when each step lands, and update the Roadmap and Dependencies pages in `website/` to match.
