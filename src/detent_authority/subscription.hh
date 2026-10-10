@@ -1,52 +1,16 @@
 #pragma once
 #include "delivery_export.hh"
+#include "detent_distribution/session_table.hh"
 #include <chrono>
 
 namespace detent::authority {
-struct SubscriptionPrincipal {
-	distribution::ScopeIdentity identity{};
-	std::uint64_t policy_epoch = 0;
-	bool operator==(const SubscriptionPrincipal &) const = default;
-};
-struct SubscriptionLimits {
-	std::size_t sessions = 1024, per_principal = 256;
-	std::chrono::milliseconds idle_lifetime{60000}, maximum_lifetime{600000};
-};
-enum class SubscriptionResult {
-	Accepted,
-	Parked,
-	AwaitSettlement,
-	SnapshotReady,
-	ResumeReady,
-	Busy,
-	Expired,
-	Forbidden,
-	IdentityChanged,
-	OutOfSync,
-	SnapshotRequired,
-	Full
-};
-struct SubscriptionRequestToken {
-	distribution::Identity session{};
-	std::uint64_t incarnation = 0, request = 0;
-	bool operator==(const SubscriptionRequestToken &) const = default;
-};
-struct SubscriptionOfferToken {
-	distribution::Identity session{};
-	std::uint64_t incarnation = 0, window = 0;
-};
-struct SubscriptionAdmission {
-	SubscriptionResult result;
-	std::optional<SubscriptionRequestToken> token;
-};
-struct SubscriptionMetadata {
-	SubscriptionPrincipal principal;
-	std::shared_ptr<const AuthorizedScope> scope;
-	distribution::Cursor identity;
-	bool compression = false;
-	std::uint64_t incarnation = 0;
-	std::optional<distribution::ScopeIdentity> creator_grants, last_authorized_grants;
-};
+using distribution::SubscriptionAdmission;
+using distribution::SubscriptionLimits;
+using distribution::SubscriptionOfferToken;
+using distribution::SubscriptionPrincipal;
+using distribution::SubscriptionRequestToken;
+using distribution::SubscriptionResult;
+using SubscriptionMetadata = distribution::SessionMetadata<std::shared_ptr<const AuthorizedScope>>;
 // Owner-executor table. Release tokens only after accepted work and originals drain.
 class Subscriptions {
   public:
