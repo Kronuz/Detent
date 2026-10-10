@@ -1,9 +1,9 @@
-#include "subscription_admission.hh"
+#include "detent_distribution/subscription_admission.hh"
 #include <array>
 #include <map>
 #include <mutex>
 
-namespace detent::authority {
+namespace detent::distribution {
 namespace d = distribution;
 namespace {
 std::size_t ordinal(SubscriptionRequestKind kind) {
@@ -93,4 +93,4 @@ bool SubscriptionRequests::drained() const noexcept {
 std::size_t SubscriptionRequests::body_limit(SubscriptionRequestKind kind) const noexcept {
 	return impl_->body_limit(kind);
 }
-} // namespace detent::authority
+} // namespace detent::distribution
