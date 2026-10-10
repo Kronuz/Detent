@@ -2,6 +2,7 @@
 #include "delivery_export.hh"
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
+#include "detent/scope.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "prepared.hh"
@@ -111,6 +112,21 @@ Identity identity(std::string_view hex) {
 	check(id != Identity{}, "zero identity");
 	return id;
 }
+distribution::ScopeIdentity scope_id(std::string_view value) {
+	check(value.size() == 64, "invalid distribution scope identity");
+	distribution::ScopeIdentity result{};
+	auto digit = [](char c) -> unsigned {
+		if (c >= '0' && c <= '9')
+			return c - '0';
+		if (c >= 'a' && c <= 'f')
+			return c - 'a' + 10;
+		check(false, "scope identity requires lowercase hexadecimal");
+		return 0;
+	};
+	for (std::size_t i = 0; i < result.size(); ++i)
+		result[i] = static_cast<char>((digit(value[2 * i]) << 4) | digit(value[2 * i + 1]));
+	return result;
+}
 std::string hex(Identity id) {
 	constexpr char digits[] = "0123456789abcdef";
 	std::string out;
@@ -204,8 +220,40 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
 			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits",
-			   "delivery_limits"});
+			   "delivery_limits", "subscription_limits"});
 	ServiceOptions o;
+	if (d.HasMember("subscription_limits")) {
+		const auto &limits = field(d, "subscription_limits");
+		fields(limits,
+			   {"sessions", "per_principal", "idle_ms", "maximum_ms", "opens", "polls", "closes",
+				"per_principal_controls", "per_principal_polls", "open_bytes", "control_bytes", "wait_ms"});
+		auto count = [&](const char *key, std::size_t &target, std::size_t maximum) {
+			if (!limits.HasMember(key))
+				return;
+			const auto value = number(field(limits, key));
+			check(value && value <= maximum, "subscription limit bound");
+			target = static_cast<std::size_t>(value);
+		};
+		count("sessions", o.subscriptions.sessions, 65536);
+		count("per_principal", o.subscriptions.per_principal, 65536);
+		count("opens", o.subscription_requests.opens, 128);
+		count("polls", o.subscription_requests.polls, 512);
+		count("closes", o.subscription_requests.closes, 128);
+		count("per_principal_controls", o.subscription_requests.per_principal_controls, 65536);
+		count("per_principal_polls", o.subscription_requests.per_principal_polls, 65536);
+		count("open_bytes", o.subscription_requests.open_bytes, 1024 * 1024);
+		count("control_bytes", o.subscription_requests.control_bytes, 16384);
+		auto duration = [&](const char *key, std::chrono::milliseconds &target, std::uint64_t maximum) {
+			if (!limits.HasMember(key))
+				return;
+			const auto value = number(field(limits, key));
+			check(value <= maximum, "subscription duration bound");
+			target = std::chrono::milliseconds(value);
+		};
+		duration("idle_ms", o.subscriptions.idle_lifetime, 86400000);
+		duration("maximum_ms", o.subscriptions.maximum_lifetime, 86400000);
+		duration("wait_ms", o.subscription_wait, 60000);
+	}
 	if (d.HasMember("delivery_limits")) {
 		const auto &limits = field(d, "delivery_limits");
 		fields(limits, {"heap_bytes", "wire_bytes"});
@@ -348,11 +396,20 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	return o;
 }
 struct Service::Accounting {
+	struct GrantView {
+		distribution::ScopeIdentity digest;
+		std::vector<std::string_view, distribution::StorageAllocator<std::string_view>> names;
+		explicit GrantView(std::shared_ptr<distribution::StorageLedger> account)
+			: names(distribution::StorageAllocator<std::string_view>(std::move(account))) {}
+	};
+	using GrantViews = std::vector<GrantView, distribution::StorageAllocator<GrantView>>;
 	std::shared_ptr<distribution::StorageLedger> delivery_account;
 	std::shared_ptr<std::pmr::memory_resource> delivery_resource;
+	std::unique_ptr<SubscriptionRequests> subscription_requests;
 	std::mutex mutex;
 	std::vector<Credential> credentials;
 	std::vector<Digest> credential_hashes;
+	std::optional<GrantViews> credential_grants;
 	std::map<std::string, std::size_t> producers;
 	std::size_t requests = 0, body_bytes = 0, reply_bytes = 0;
 	kronuz::metrics::AtomicDurationHistogram publisher_ready, reply_retired;
@@ -362,12 +419,18 @@ struct Service::Delivery {
 	std::shared_ptr<const AuthorizedScope> scope;
 	std::optional<distribution::Cursor> base;
 	std::atomic<bool> writable{true}, settled{false};
+	std::atomic<bool> written{false};
+	ExportSelection selection = ExportSelection::Automatic;
+	std::optional<ChangeHistory::Handoff> handoff;
+	std::shared_ptr<const distribution::OwnedBuffer> control;
 	bool compress = false, started = false, retiring = false;
 };
 struct Service::Admission {
 	std::shared_ptr<Accounting> accounting;
 	const Credential *credential;
 	std::size_t bytes;
+	std::size_t credential_index = 0;
+	std::shared_ptr<SubscriptionRequests::Lease> subscription;
 	bool active = false;
 	Clock::time_point admitted = Clock::now();
 	~Admission() {
@@ -417,7 +480,17 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 	accounting_->delivery_account =
 		std::make_shared<distribution::StorageLedger>(options_.delivery_heap_bytes);
 	accounting_->delivery_resource = distribution::make_storage_resource(accounting_->delivery_account);
+	check(options_.subscription_wait.count() >= 0 && options_.subscription_wait <= std::chrono::minutes(1),
+		  "invalid subscription poll duration");
+	check(options_.subscription_requests.polls <= 512, "subscription polls must preserve listener headroom");
+	check(options_.subscription_requests.opens <= 128 && options_.subscription_requests.closes <= 128,
+		  "subscription controls must preserve listener headroom");
+	accounting_->subscription_requests =
+		std::make_unique<SubscriptionRequests>(accounting_->delivery_account, options_.subscription_requests);
 	accounting_->credentials = std::move(options_.credentials);
+	accounting_->credential_grants.emplace(
+		distribution::StorageAllocator<Accounting::GrantView>(accounting_->delivery_account));
+	accounting_->credential_grants->reserve(accounting_->credentials.size());
 	accounting_->credential_hashes.reserve(accounting_->credentials.size());
 	for (const auto &credential : accounting_->credentials) {
 		check(credential.policy_epoch && credential.principal.size() <= 128,
@@ -427,6 +500,14 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		Digest digest{};
 		hash.getHash(digest.data());
 		accounting_->credential_hashes.push_back(digest);
+		accounting_->credential_grants->emplace_back(accounting_->delivery_account);
+		auto &grants = accounting_->credential_grants->back();
+		check(credential.namespaces.size() <= 4096, "credential grant count bound");
+		grants.names.reserve(credential.namespaces.size());
+		for (const auto &name : credential.namespaces)
+			grants.names.push_back(name);
+		grants.digest =
+			distribution::canonical_scope_identity("detent-subscription-grants-v1", 1, grants.names);
 	}
 	std::promise<void> ready;
 	auto future = ready.get_future();
@@ -462,6 +543,7 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	Digest want{};
 	supplied.getHash(want.data());
 	const Credential *found = nullptr;
+	std::size_t found_index = 0;
 	for (std::size_t index = 0; index < accounting_->credentials.size(); ++index) {
 		const auto &c = accounting_->credentials[index];
 		const auto &have = accounting_->credential_hashes[index];
@@ -471,6 +553,7 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 		}
 		if (!difference) {
 			found = &c;
+			found_index = index;
 		}
 	}
 	if (!found) {
@@ -480,8 +563,37 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 						   request.path == "/v2/transactions")) {
 		throw http::RequestRejected(403, "{\"error\":\"publish_forbidden\"}", http::RejectionContent::Json);
 	}
+	std::optional<SubscriptionRequestKind> subscription_kind;
+	if (request.path == "/v2/distribution/session/open")
+		subscription_kind = SubscriptionRequestKind::Open;
+	else if (request.path == "/v2/distribution/session/next")
+		subscription_kind = SubscriptionRequestKind::Next;
+	else if (request.path == "/v2/distribution/session/close")
+		subscription_kind = SubscriptionRequestKind::Close;
+	if (subscription_kind) {
+		std::lock_guard lock(mutex_);
+		if (stopping_)
+			throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
+		const auto principal = distribution::canonical_scope_identity(
+			found->principal.empty() ? found->producer : found->principal, 1, {});
+		auto lease = accounting_->subscription_requests->admit(principal, *subscription_kind);
+		if (!lease)
+			throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
+		auto admission = std::allocate_shared<Admission>(
+			distribution::StorageAllocator<Admission>(accounting_->delivery_account));
+		admission->accounting = accounting_;
+		admission->credential = found;
+		admission->credential_index = found_index;
+		admission->bytes = accounting_->subscription_requests->body_limit(*subscription_kind);
+		admission->subscription = std::move(lease);
+		return admission;
+	}
 	auto bytes = options_.node.application.request_bytes;
-	auto admission = std::make_shared<Admission>(Admission{accounting_, found, bytes});
+	auto admission = std::make_shared<Admission>();
+	admission->accounting = accounting_;
+	admission->credential = found;
+	admission->credential_index = found_index;
+	admission->bytes = bytes;
 	std::lock_guard lock(mutex_);
 	std::lock_guard account_lock(accounting_->mutex);
 	auto per_producer = accounting_->producers.find(found->producer);
@@ -502,6 +614,25 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 		return std::make_unique<Sink>(request.body, 0);
 	}
 	request.user_data = admit(request);
+	auto admission = std::static_pointer_cast<Admission>(request.user_data);
+	if (admission->subscription) {
+		class SubscriptionSink final : public http::BodySink {
+			std::shared_ptr<SubscriptionRequests::Lease> lease_;
+			std::size_t limit_;
+
+		  public:
+			explicit SubscriptionSink(std::shared_ptr<SubscriptionRequests::Lease> lease, std::size_t limit)
+				: lease_(std::move(lease)), limit_(limit) {}
+			void write(std::string_view bytes) override {
+				if (bytes.size() > limit_ - lease_->body().size())
+					throw http::RequestRejected(413, "{\"error\":\"body_bound\"}",
+												http::RejectionContent::Json);
+				lease_->body().append(bytes);
+			}
+			void end() override { lease_->body().seal_prefix(); }
+		};
+		return std::make_unique<SubscriptionSink>(admission->subscription, admission->bytes);
+	}
 	return std::make_unique<Sink>(request.body, options_.node.application.request_bytes);
 }
 std::optional<Service::Reply> Service::execute(const http::Request &request,
@@ -613,39 +744,31 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 	return std::nullopt;
 }
 
-void Service::distribute(const http::Request &request, http::ResponseWriter &response,
-						 std::shared_ptr<Admission> admission) {
+std::shared_ptr<Service::Delivery>
+Service::distribution_request(const http::Request &request, const Admission &admission, bool session_open) {
 	check(request.method == "POST", "distribution requires POST");
-	auto body = document(request.body, options_.node.application.request_bytes);
-	fields(body, {"cluster", "group", "epoch", "scope", "namespaces", "base", "coding", "profile"});
+	const auto bytes =
+		admission.subscription ? admission.subscription->body().view() : std::string_view(request.body);
+	auto body = document(bytes, admission.bytes);
+	if (session_open)
+		fields(body, {"version", "cluster", "group", "epoch", "scope", "namespaces", "base", "coding",
+					  "profile", "force_snapshot"});
+	else
+		fields(body, {"cluster", "group", "epoch", "scope", "namespaces", "base", "coding", "profile"});
 	const auto &context = options_.node.context;
 	check(identity(text(field(body, "cluster"))) == context.cluster &&
 			  identity(text(field(body, "group"))) == context.group &&
 			  identity(text(field(body, "epoch"))) == context.epoch,
 		  "foreign distribution authority");
 	check(number(field(body, "profile")) == 1, "unsupported distribution profile");
-	auto scope_id = [](std::string_view value) {
-		check(value.size() == 64, "invalid distribution scope identity");
-		distribution::ScopeIdentity result{};
-		auto digit = [](char c) -> unsigned {
-			if (c >= '0' && c <= '9')
-				return c - '0';
-			if (c >= 'a' && c <= 'f')
-				return c - 'a' + 10;
-			check(false, "scope identity requires lowercase hexadecimal");
-			return 0;
-		};
-		for (std::size_t i = 0; i < result.size(); ++i)
-			result[i] = static_cast<char>((digit(value[2 * i]) << 4) | digit(value[2 * i + 1]));
-		return result;
-	};
+
 	const auto &spaces = field(body, "namespaces");
 	check(spaces.IsArray() && spaces.Size() <= options_.delivery.namespaces, "distribution scope bound");
 	std::vector<std::string> names;
 	names.reserve(spaces.Size());
 	for (const auto &name : spaces.GetArray())
 		names.push_back(text(name, 198));
-	const auto &credential = *admission->credential;
+	const auto &credential = *admission.credential;
 	auto account = accounting_->delivery_account;
 	auto delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
 	delivery->scope = AuthorizedScope::authorize(
@@ -664,11 +787,12 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 								 identity(text(field(base, "epoch"))),
 								 scope_id(text(field(base, "scope"), 64)), number(field(base, "revision"))};
 	}
-	auto task = std::allocate_shared<Task>(distribution::StorageAllocator<Task>(account));
-	task->kind = Task::Kind::Distribution;
-	task->admission = std::move(admission);
-	task->delivery = delivery;
-	task->deadline = Clock::now() + options_.timeout;
+	return delivery;
+}
+
+void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<Task> &task) {
+	auto delivery = task->delivery;
+	auto account = accounting_->delivery_account;
 	http::StreamOptions stream;
 	stream.resource = accounting_->delivery_resource;
 	stream.reply.deadline = task->deadline + std::chrono::seconds(1);
@@ -680,9 +804,11 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 		if (auto held = weak.lock())
 			held->writable.store(true);
 	};
-	stream.reply.on_settled = [weak](http::ReplySettlement) {
-		if (auto held = weak.lock())
+	stream.reply.on_settled = [weak](http::ReplySettlement result) {
+		if (auto held = weak.lock()) {
+			held->written.store(result == http::ReplySettlement::Written);
 			held->settled.store(true);
+		}
 	};
 	task->complete = [delivery, account](Reply value) {
 		if (!delivery->reply || delivery->started || delivery->settled.load())
@@ -694,20 +820,108 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 			auto bytes = distribution::make_owned_buffer(account, value.body.size());
 			bytes->append(value.body);
 			bytes->seal();
+			if (!bytes->empty()) {
+				delivery->control = std::move(bytes);
+				if (delivery->reply->start(metadata, delivery->control->size()) !=
+					http::StreamSubmit::Accepted)
+					delivery->reply->abandon();
+				return;
+			}
 			if (delivery->reply->start(metadata, bytes->size()) != http::StreamSubmit::Accepted ||
-				delivery->reply->publish({bytes, bytes->view()}) != http::StreamSubmit::Accepted ||
+				(!bytes->empty() &&
+				 delivery->reply->publish({bytes, bytes->view()}) != http::StreamSubmit::Accepted) ||
 				delivery->reply->finish() != http::StreamSubmit::Accepted)
 				delivery->reply->abandon();
 		} catch (...) {
 			delivery->reply->abandon();
 		}
 	};
-	std::lock_guard lock(mutex_);
-	check(!stopping_, "authority is stopping");
 	delivery->reply = response.stream(std::move(stream));
 	check(static_cast<bool>(delivery->reply), "owned distribution streaming unavailable");
+}
+
+void Service::distribute(const http::Request &request, http::ResponseWriter &response,
+						 std::shared_ptr<Admission> admission) {
+	auto delivery = distribution_request(request, *admission, false);
+	auto task =
+		std::allocate_shared<Task>(distribution::StorageAllocator<Task>(accounting_->delivery_account));
+	task->kind = Task::Kind::Distribution;
+	task->admission = std::move(admission);
+	task->delivery = delivery;
+	task->deadline = Clock::now() + options_.timeout;
+	std::lock_guard lock(mutex_);
+	check(!stopping_, "authority is stopping");
+	stream_task(response, task);
 	try {
 		queue_.push_back(std::move(task));
+	} catch (...) {
+		delivery->reply->abandon();
+	}
+}
+
+void Service::subscription(const http::Request &request, http::ResponseWriter &response,
+						   std::shared_ptr<Admission> admission) {
+	check(request.method == "POST", "subscription requires POST");
+	auto &input = admission->subscription->body();
+	if (!input.sealed()) {
+		input.append(request.body);
+		input.seal_prefix();
+	}
+	auto body = document(input.view(), admission->bytes);
+	check(number(field(body, "version")) == 1, "unsupported subscription version");
+	auto account = accounting_->delivery_account;
+	auto task = std::allocate_shared<Task>(distribution::StorageAllocator<Task>(account));
+	task->admission = std::move(admission);
+	const auto &credential = *task->admission->credential;
+	task->principal = {distribution::canonical_scope_identity(
+						   credential.principal.empty() ? credential.producer : credential.principal, 1, {}),
+					   credential.policy_epoch};
+	task->deadline = Clock::now() + options_.timeout;
+	if (request.path == "/v2/distribution/session/open") {
+		task->kind = Task::Kind::SessionOpen;
+		task->delivery = distribution_request(request, *task->admission, true);
+		if (body.HasMember("force_snapshot")) {
+			check(field(body, "force_snapshot").IsBool(), "invalid snapshot selection");
+			task->force_snapshot = field(body, "force_snapshot").GetBool();
+		}
+		check(RAND_bytes(reinterpret_cast<unsigned char *>(task->session.data()), task->session.size()) == 1,
+			  "subscription identity entropy");
+	} else {
+		task->delivery = std::allocate_shared<Delivery>(distribution::StorageAllocator<Delivery>(account));
+		task->session = identity(text(field(body, "session"), 32));
+		if (request.path == "/v2/distribution/session/close") {
+			fields(body, {"version", "session"});
+			task->kind = Task::Kind::SessionClose;
+		} else {
+			fields(body, {"version", "session", "after", "published", "wait_ms"});
+			task->kind = Task::Kind::SessionNext;
+			task->sequence = number(field(body, "after"));
+			const auto wait = body.HasMember("wait_ms")
+								  ? number(field(body, "wait_ms"))
+								  : static_cast<std::uint64_t>(options_.subscription_wait.count());
+			check(wait <= static_cast<std::uint64_t>(options_.subscription_wait.count()),
+				  "subscription wait bound");
+			task->deadline += std::chrono::milliseconds(wait);
+			task->poll_deadline = Clock::now() + std::chrono::milliseconds(wait);
+			if (body.HasMember("published")) {
+				const auto &cursor = field(body, "published");
+				fields(cursor, {"cluster", "group", "epoch", "scope", "revision"});
+				task->published = distribution::Cursor{
+					identity(text(field(cursor, "cluster"))), identity(text(field(cursor, "group"))),
+					identity(text(field(cursor, "epoch"))), scope_id(text(field(cursor, "scope"), 64)),
+					number(field(cursor, "revision"))};
+			}
+		}
+	}
+	auto delivery = task->delivery;
+	std::lock_guard lock(mutex_);
+	check(!stopping_, "authority is stopping");
+	stream_task(response, task);
+	try {
+		if (task->kind == Task::Kind::SessionClose)
+			subscription_close_queue_.push_back(std::move(task));
+		else
+			subscription_queue_.push_back(std::move(task));
 	} catch (...) {
 		delivery->reply->abandon();
 	}
@@ -742,6 +956,10 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		} else {
 			auto admission =
 				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
+			if (admission->subscription) {
+				subscription(request, response, std::move(admission));
+				return;
+			}
 			if (request.path == "/v2/distribution") {
 				distribute(request, response, std::move(admission));
 				return;
@@ -986,7 +1204,13 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		std::uint64_t boundary = 0;
 	};
 	std::vector<ReadyRead> ready_reads(options_.requests);
-	std::size_t read_head = 0, read_tail = 0, read_count = 0;
+	std::size_t read_head = 0, read_tail = 0, read_count = 0, legacy_ready = 0;
+	bool subscription_export_turn = true;
+	std::size_t subscription_ready = 0;
+	std::vector<std::shared_ptr<Task>, distribution::StorageAllocator<std::shared_ptr<Task>>>
+		legacy_deliveries{
+			distribution::StorageAllocator<std::shared_ptr<Task>>(accounting_->delivery_account)};
+	std::size_t control_head = 0, control_tail = 0, control_count = 0;
 	struct ReadSlot {
 		std::shared_ptr<Task> task;
 		State capture;
@@ -1021,6 +1245,44 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 	};
 	std::optional<DeliverySlot> delivering;
 	std::shared_ptr<ChangeHistory> history;
+	std::optional<Subscriptions> subscriptions;
+	using SessionTasks =
+		std::vector<std::shared_ptr<Task>, distribution::StorageAllocator<std::shared_ptr<Task>>>;
+	SessionTasks session_tasks(
+		distribution::StorageAllocator<std::shared_ptr<Task>>(accounting_->delivery_account));
+	using SessionPendingEntry = std::pair<const std::uint64_t, std::shared_ptr<Task>>;
+	std::map<std::uint64_t, std::shared_ptr<Task>, std::less<>,
+			 distribution::StorageAllocator<SessionPendingEntry>>
+		session_pending(distribution::StorageAllocator<SessionPendingEntry>(accounting_->delivery_account));
+	std::size_t session_cursor = 0;
+	std::size_t close_cursor = 0;
+	struct TaskQueue {
+		SessionTasks ring;
+		std::size_t head = 0, tail = 0, count = 0;
+		TaskQueue(std::shared_ptr<distribution::StorageLedger> account, std::size_t capacity)
+			: ring(distribution::StorageAllocator<std::shared_ptr<Task>>(std::move(account))) {
+			ring.resize(capacity);
+		}
+		void push(std::shared_ptr<Task> task) {
+			check(count < ring.size(), "authorization queue capacity exhausted");
+			ring[tail] = std::move(task);
+			tail = (tail + 1) % ring.size();
+			++count;
+		}
+		std::shared_ptr<Task> pop() {
+			auto task = std::move(ring[head]);
+			head = (head + 1) % ring.size();
+			--count;
+			return task;
+		}
+	};
+	std::optional<TaskQueue> close_authorization, session_authorization, session_retirement;
+	kronuz::metrics::Counter subscription_reads, subscription_exports, subscription_idle;
+	using ActiveSessionEntry = std::pair<const distribution::Identity, std::weak_ptr<Task>>;
+	std::map<distribution::Identity, std::weak_ptr<Task>, std::less<>,
+			 distribution::StorageAllocator<ActiveSessionEntry>>
+		active_session_requests(
+			distribution::StorageAllocator<ActiveSessionEntry>(accounting_->delivery_account));
 	std::vector<Completion> held_completions;
 	std::size_t completion_cursor = 0, completion_task = 0;
 	std::uint64_t expiry_request = 0;
@@ -1058,9 +1320,31 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		parent.bytes -= reserved_bytes - budget.bytes;
 		parent.receipts -= reserved_receipts - budget.receipts;
 	};
+	auto begin_delivery_retirement = [](Task &task) {
+		if (task.retiring)
+			return;
+		task.retiring = true;
+		task.retirement_remaining =
+			task.admission->subscription ? task.admission->subscription->body().storage_capacity() : 0;
+		auto scope = std::move(task.delivery->scope);
+		if (scope && scope.use_count() == 1) {
+			task.retirement_remaining += scope->storage_capacity();
+			task.retiring_scope = std::move(scope);
+		}
+	};
 	auto complete = [&](const std::shared_ptr<Task> &task, Reply reply) {
 		if (task->settled)
 			return;
+		if (task->export_ready) {
+			task->export_ready = false;
+			--subscription_ready;
+		}
+		if (task->kind == Task::Kind::Distribution && task->delivery) {
+			check(control_count < legacy_deliveries.size(), "legacy control retirement capacity exhausted");
+			legacy_deliveries[control_tail] = task;
+			control_tail = (control_tail + 1) % legacy_deliveries.size();
+			++control_count;
+		}
 		if (!task->retiring && (!task->command.mutations.empty() || !task->keys.empty())) {
 			check(retired_count < retired_tasks.size(), "publisher retirement capacity exhausted");
 			task->retiring = true;
@@ -1114,6 +1398,15 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		history = std::allocate_shared<ChangeHistory>(
 			distribution::StorageAllocator<ChangeHistory>(accounting_->delivery_account),
 			accounting_->delivery_account);
+		subscriptions.emplace(accounting_->delivery_account, options_.subscriptions);
+		legacy_deliveries.resize(options_.requests);
+		session_tasks.resize(options_.subscription_requests.opens + options_.subscription_requests.polls +
+							 options_.subscription_requests.closes);
+		session_retirement.emplace(accounting_->delivery_account, session_tasks.size());
+		close_authorization.emplace(accounting_->delivery_account, options_.subscription_requests.closes);
+		session_authorization.emplace(accounting_->delivery_account,
+									  options_.subscription_requests.opens +
+										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
 		auto publish_health = [&] {
 			auto captured_at = Clock::now();
@@ -1230,6 +1523,8 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				",\"term\":" + std::to_string(node.worker().term()) +
 				",\"applied\":" + std::to_string(node.worker().applied_index()) +
 				",\"revision\":" + std::to_string(node.state().revision()) +
+				",\"knobs\":" + std::to_string(node.state().size()) + ",\"delivery_captures\":" +
+				std::to_string(delivering && delivering->exporter && !delivering->source_drained ? 1 : 0) +
 				",\"requests\":" + std::to_string(requests) +
 				",\"reserved_body_bytes\":" + std::to_string(body_bytes) +
 				",\"reserved_reply_bytes\":" + std::to_string(reply_bytes) +
@@ -1248,6 +1543,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 								   : 0) +
 				",\"retired_publisher_tasks\":" + std::to_string(retired_count) +
 				",\"retired_publisher_bytes\":" + std::to_string(retired_task_bytes) +
+				",\"subscription_sessions\":" + std::to_string(subscriptions->size()) +
+				",\"subscription_quorum_reads\":" + std::to_string(subscription_reads.get()) +
+				",\"subscription_exports\":" + std::to_string(subscription_exports.get()) +
+				",\"subscription_idle_responses\":" + std::to_string(subscription_idle.get()) +
 				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
 				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
 				",\"owner_cpu_clock_errors\":" + std::to_string(cpu_clock_errors.get()) +
@@ -1379,6 +1678,26 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			}
 			for (unsigned callbacks = 0; completion_cursor < held_completions.size() && callbacks < 8;) {
 				auto &completion = held_completions[completion_cursor];
+				auto session = session_pending.find(completion.request);
+				if (session != session_pending.end()) {
+					auto task = session->second;
+					task->quorum_pending = false;
+					session_pending.erase(session);
+					if (completion.rejection || node.worker().fenced())
+						complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+					else {
+						task->quorum_ready = true;
+						task->generation = completion.index;
+						if (task->kind == Task::Kind::SessionNext && !task->settled) {
+							task->export_ready = true;
+							++subscription_ready;
+						}
+					}
+					++completion_cursor;
+					completion_task = 0;
+					++callbacks;
+					continue;
+				}
 				auto found = pending.find(completion.request);
 				if (found == pending.end()) {
 					++completion_cursor;
@@ -1409,6 +1728,8 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 					ready_reads[read_tail] = {task, completion.index};
 					read_tail = (read_tail + 1) % ready_reads.size();
 					++read_count;
+					if (task->kind == Task::Kind::Distribution)
+						++legacy_ready;
 				}
 			}
 
@@ -1456,6 +1777,376 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			for (auto &task : expired) {
 				complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
 			}
+			auto session_error = [&](const std::shared_ptr<Task> &task, SubscriptionResult result) {
+				int status = 409;
+				const char *error = "session_out_of_sync";
+				switch (result) {
+				case SubscriptionResult::Expired:
+					status = 410;
+					error = "session_expired";
+					break;
+				case SubscriptionResult::Forbidden:
+					status = 403;
+					error = "scope_forbidden";
+					break;
+				case SubscriptionResult::IdentityChanged:
+					error = "identity_changed";
+					break;
+				case SubscriptionResult::SnapshotRequired:
+					error = "snapshot_required";
+					break;
+				case SubscriptionResult::Busy:
+					error = "session_busy";
+					break;
+				case SubscriptionResult::Full:
+					status = 503;
+					error = "admission_full";
+					break;
+				default:
+					break;
+				}
+				complete(task, {status, "{\"error\":\"" + std::string(error) + "\"}"});
+			};
+			auto authorize = [&](TaskQueue &queue, distribution::WorkBudget work) {
+				while (queue.count && work.tokens && work.bytes) {
+					auto held = queue.pop();
+					auto &task = *held;
+					task.authorization_queued = false;
+					--work.tokens;
+					if (task.settled || now >= task.deadline || task.delivery->settled.load()) {
+						complete(held, {503, "{\"error\":\"authorization_timeout\"}"});
+						continue;
+					}
+					const auto *metadata = subscriptions->metadata(task.session, now);
+					if (!metadata || metadata->incarnation != task.authorization_incarnation) {
+						session_error(held, SubscriptionResult::Expired);
+						continue;
+					}
+					if (metadata->principal != task.principal || metadata->scope != task.delivery->scope) {
+						session_error(held, SubscriptionResult::IdentityChanged);
+						continue;
+					}
+					const auto &grants = (*accounting_->credential_grants)[task.admission->credential_index];
+					for (unsigned compared = 0; compared < 8 && work.tokens && !task.settled; ++compared) {
+						if (task.authorization_cursor == task.delivery->scope->size())
+							break;
+						if (task.grant_cursor == grants.names.size()) {
+							session_error(held, SubscriptionResult::Forbidden);
+							break;
+						}
+						const auto name = task.delivery->scope->name(task.authorization_cursor);
+						const auto grant = grants.names[task.grant_cursor];
+						const auto bytes = name.size() + grant.size() + 1;
+						if (bytes > work.bytes)
+							break;
+						work.bytes -= bytes;
+						--work.tokens;
+						const auto order = name.compare(grant);
+						if (order < 0) {
+							session_error(held, SubscriptionResult::Forbidden);
+							break;
+						}
+						if (!order)
+							++task.authorization_cursor;
+						++task.grant_cursor;
+					}
+					if (task.settled)
+						continue;
+					if (task.authorization_cursor == task.delivery->scope->size()) {
+						const auto result = subscriptions->authorize(
+							task.session, task.authorization_incarnation, task.principal,
+							task.delivery->scope->identity(), grants.digest, now);
+						if (result == SubscriptionResult::Accepted)
+							task.authorization_ready = true;
+						else
+							session_error(held, result);
+					} else {
+						task.authorization_queued = true;
+						queue.push(std::move(held));
+						if (work.bytes < 397)
+							break;
+					}
+				}
+			};
+			authorize(*close_authorization, {65536, 512});
+			authorize(*session_authorization, {8192, 64});
+			CommandWorkBudget session_cleanup{publisher_budget.bytes / 4, 0, 0,
+											  publisher_budget.receipts / 4};
+			const auto cleanup_bytes = session_cleanup.bytes, cleanup_receipts = session_cleanup.receipts;
+			for (unsigned checked = 0; checked < 16; ++checked) {
+				const bool close_lane = checked < 8;
+				const auto close_slots = options_.subscription_requests.closes;
+				const auto ordinal = close_lane ? close_cursor : close_slots + session_cursor;
+				if (close_lane)
+					close_cursor = (close_cursor + 1) % close_slots;
+				else
+					session_cursor = (session_cursor + 1) % (session_tasks.size() - close_slots);
+				auto &held = session_tasks[ordinal];
+				if (!held) {
+					std::lock_guard lock(mutex_);
+					auto &queue =
+						close_lane ? service.subscription_close_queue_ : service.subscription_queue_;
+					if (!queue.empty()) {
+						held = std::move(queue.front());
+						held->retirement_slot = ordinal;
+						queue.pop_front();
+					}
+				}
+				if (!held)
+					continue;
+				auto &task = *held;
+				auto &delivery = *task.delivery;
+				if (!task.settled && !task.exporting && (now >= task.deadline || delivery.settled.load()))
+					complete(held, {503, "{\"error\":\"outcome_unknown\"}"});
+				if (task.settled) {
+					if (delivery.control && !delivery.settled.load() && delivery.writable.exchange(false)) {
+						const auto result =
+							delivery.reply->publish({delivery.control, delivery.control->view()});
+						if (result == http::StreamSubmit::Accepted) {
+							delivery.control.reset();
+							if (delivery.reply->finish() != http::StreamSubmit::Accepted)
+								delivery.reply->abandon();
+						} else if (result != http::StreamSubmit::Busy)
+							delivery.reply->abandon();
+					}
+					if (task.quorum_pending || task.exporting || task.authorization_queued ||
+						!delivery.settled.load())
+						continue;
+					if (!task.retiring) {
+						begin_delivery_retirement(task);
+						if (task.subscription_request) {
+							subscriptions->release(*task.subscription_request);
+							auto active = active_session_requests.find(task.session);
+							if (active != active_session_requests.end() &&
+								active->second.lock().get() == &task)
+								active_session_requests.erase(active);
+						}
+						if (task.kind == Task::Kind::SessionOpen && task.session_initialized &&
+							!delivery.written.load())
+							subscriptions->close(task.session, task.principal);
+						session_retirement->push(held);
+					}
+					continue;
+				}
+				if (task.quorum_pending || task.exporting)
+					continue;
+				if (task.authorization_queued)
+					continue;
+				try {
+					if (task.kind != Task::Kind::SessionOpen && !task.session_initialized) {
+						const auto *metadata = subscriptions->metadata(task.session, now);
+						if (!metadata) {
+							if (task.kind == Task::Kind::SessionClose) {
+								const auto result = subscriptions->close(task.session, task.principal);
+								if (result == SubscriptionResult::Accepted)
+									complete(held, {204, {}});
+								else
+									session_error(held, result);
+							} else
+								session_error(held, SubscriptionResult::Expired);
+							continue;
+						}
+						if (metadata->principal != task.principal) {
+							session_error(held, metadata->principal.identity == task.principal.identity
+													? SubscriptionResult::IdentityChanged
+													: SubscriptionResult::Forbidden);
+							continue;
+						}
+						delivery.scope = metadata->scope;
+						delivery.compress = metadata->compression;
+						if (!task.authorization_incarnation)
+							task.authorization_incarnation = metadata->incarnation;
+						if (task.authorization_incarnation != metadata->incarnation) {
+							session_error(held, SubscriptionResult::Expired);
+							continue;
+						}
+						const auto grants =
+							(*accounting_->credential_grants)[task.admission->credential_index].digest;
+						if (metadata->creator_grants == grants || metadata->last_authorized_grants == grants)
+							task.authorization_ready = true;
+						if (!task.authorization_ready) {
+							task.authorization_queued = true;
+							(task.kind == Task::Kind::SessionClose ? *close_authorization
+																   : *session_authorization)
+								.push(held);
+							continue;
+						}
+						if (task.kind == Task::Kind::SessionClose) {
+							const auto result = subscriptions->close(task.session, task.principal,
+																	 task.authorization_incarnation);
+							if (result == SubscriptionResult::Accepted)
+								complete(held, {204, {}});
+							else
+								session_error(held, result);
+							continue;
+						}
+						auto active = active_session_requests.find(task.session);
+						if (active != active_session_requests.end()) {
+							if (auto previous = active->second.lock();
+								previous && previous->settled && previous->delivery->settled.load() &&
+								!previous->quorum_pending && !previous->exporting &&
+								previous->subscription_request)
+								subscriptions->release(*previous->subscription_request);
+						}
+						const bool inserted = active == active_session_requests.end();
+						if (inserted)
+							active =
+								active_session_requests.emplace(task.session, std::weak_ptr<Task>{}).first;
+						auto admitted =
+							subscriptions->next(task.session, task.principal, task.sequence, task.published,
+												now, task.authorization_incarnation);
+						if (!admitted.token) {
+							if (inserted)
+								active_session_requests.erase(active);
+							session_error(held, admitted.result);
+							continue;
+						}
+						active->second = held;
+						task.subscription_request = admitted.token;
+						task.session_initialized = true;
+					}
+					const auto &context = options_.node.context;
+					distribution::Cursor current{context.cluster, context.group, context.epoch,
+												 delivery.scope->identity(), node.state().revision()};
+					if (task.kind == Task::Kind::SessionOpen && task.quorum_ready) {
+						check(node.state().applied_index() >= task.generation,
+							  "subscription boundary not published");
+						const auto result = subscriptions->open(
+							task.session, task.principal, delivery.scope, current, delivery.base,
+							task.force_snapshot, delivery.compress, *history, now,
+							(*accounting_->credential_grants)[task.admission->credential_index].digest);
+						if (result != SubscriptionResult::Accepted) {
+							session_error(held, result);
+							continue;
+						}
+						task.session_initialized = true;
+						auto probe = subscriptions->next(task.session, task.principal, 0, {}, now);
+						check(probe.token.has_value(), "subscription negotiation state");
+						const auto mode = subscriptions->poll(*probe.token, current, *history, now);
+						subscriptions->release(*probe.token);
+						complete(
+							held,
+							{200, "{\"version\":1,\"session\":\"" + hex(task.session) +
+									  "\",\"window\":0,\"mode\":\"" +
+									  (mode == SubscriptionResult::SnapshotReady ? "snapshot" : "resume") +
+									  "\",\"wait_ms\":" + std::to_string(options_.subscription_wait.count()) +
+									  "}"});
+						continue;
+					}
+					if (task.kind == Task::Kind::SessionNext) {
+						const auto result =
+							subscriptions->poll(*task.subscription_request, current, *history, now);
+						if (result == SubscriptionResult::AwaitSettlement)
+							continue;
+						if (result == SubscriptionResult::Parked) {
+							if (task.export_ready) {
+								task.export_ready = false;
+								--subscription_ready;
+							}
+							if (now >= task.poll_deadline) {
+								subscription_idle.add();
+								complete(held, {204, {}});
+							}
+							continue;
+						}
+						if (result != SubscriptionResult::SnapshotReady &&
+							result != SubscriptionResult::ResumeReady) {
+							session_error(held, result);
+							continue;
+						}
+						if (task.quorum_ready && !delivering && (subscription_export_turn || !legacy_ready)) {
+							check(node.state().applied_index() >= task.generation,
+								  "subscription boundary not published");
+							delivery.selection = result == SubscriptionResult::SnapshotReady
+													 ? ExportSelection::SnapshotOnly
+													 : ExportSelection::ResumeOnly;
+							delivery.base = subscriptions->base(*task.subscription_request);
+							delivery.handoff = subscriptions->handoff(*task.subscription_request);
+							delivering.emplace();
+							delivering->task = held;
+							task.exporting = true;
+							subscription_export_turn = false;
+							task.export_ready = false;
+							--subscription_ready;
+						}
+					}
+					if (!task.quorum_ready && !task.exporting && session_pending.size() < 4 &&
+						pending.size() + session_pending.size() <
+							std::max<std::size_t>(1, options_.node.waiters / 2)) {
+						check(next < (std::uint64_t{1} << 63) - 1, "authority local request exhaustion");
+						const auto id = ++next;
+						session_pending.emplace(id, held);
+						task.quorum_pending = true;
+						if (node.read(id) == cluster::consensus::SubmitResult::Accepted) {
+							task.quorum_pending = true;
+							subscription_reads.add();
+						} else {
+							task.quorum_pending = false;
+							session_pending.erase(id);
+						}
+					}
+				} catch (const std::exception &) {
+					if (task.quorum_pending)
+						throw;
+					complete(held, {503, "{\"error\":\"distribution_unavailable\"}"});
+				}
+			}
+			{
+				while (session_retirement->count && session_cleanup.receipts) {
+					auto &task = session_retirement->ring[session_retirement->head];
+					const auto bytes = std::min(task->retirement_remaining, session_cleanup.bytes);
+					task->retirement_remaining -= bytes;
+					session_cleanup.bytes -= bytes;
+					if (task->retirement_remaining)
+						break;
+					--session_cleanup.receipts;
+					auto retired = session_retirement->pop();
+					session_tasks[retired->retirement_slot].reset();
+					retired.reset();
+				}
+				publisher_budget.bytes -= cleanup_bytes - session_cleanup.bytes;
+				publisher_budget.receipts -= cleanup_receipts - session_cleanup.receipts;
+				CommandWorkBudget cleanup{publisher_budget.bytes / 4, 0, 0, publisher_budget.receipts / 4};
+				const auto reserved_bytes = cleanup.bytes, reserved_receipts = cleanup.receipts;
+				const auto visits = std::min<std::size_t>(control_count, 8);
+				for (std::size_t i = 0; i < visits; ++i) {
+					auto task = std::move(legacy_deliveries[control_head]);
+					control_head = (control_head + 1) % legacy_deliveries.size();
+					--control_count;
+					auto &delivery = *task->delivery;
+					if (delivery.control && !delivery.settled.load() && delivery.writable.exchange(false)) {
+						const auto result =
+							delivery.reply->publish({delivery.control, delivery.control->view()});
+						if (result == http::StreamSubmit::Accepted) {
+							delivery.control.reset();
+							if (delivery.reply->finish() != http::StreamSubmit::Accepted)
+								delivery.reply->abandon();
+						} else if (result != http::StreamSubmit::Busy)
+							delivery.reply->abandon();
+					}
+					if (delivery.settled.load() && !task->exporting) {
+						begin_delivery_retirement(*task);
+						const auto bytes = std::min(task->retirement_remaining, cleanup.bytes);
+						task->retirement_remaining -= bytes;
+						cleanup.bytes -= bytes;
+						if (!task->retirement_remaining && cleanup.receipts) {
+							--cleanup.receipts;
+							task.reset();
+						}
+					}
+					if (task) {
+						legacy_deliveries[control_tail] = std::move(task);
+						control_tail = (control_tail + 1) % legacy_deliveries.size();
+						++control_count;
+					}
+				}
+				publisher_budget.bytes -= reserved_bytes - cleanup.bytes;
+				publisher_budget.receipts -= reserved_receipts - cleanup.receipts;
+				distribution::WorkBudget collection{publisher_budget.bytes / 4, 4};
+				const auto bytes = collection.bytes;
+				subscriptions->collect(collection, now);
+				publisher_budget.bytes -= bytes - collection.bytes;
+			}
 			CommandWorkBudget read_budget{0, 0, 0, 0};
 			if (reading || read_count || delivering) {
 				bool publisher_runnable = preparing.has_value() || carry_task || retired_count;
@@ -1475,7 +2166,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				if (now >= ready_read.task->deadline) {
 					complete(ready_read.task, {503, "{\"error\":\"outcome_unknown\"}"});
 				} else if (ready_read.task->kind == Task::Kind::Distribution) {
-					if (delivering) {
+					if (delivering || (subscription_export_turn && subscription_ready)) {
 						consume = false;
 						// Rotate bounded metadata, never capture another authority root.
 						if (read_tail != read_head) {
@@ -1490,12 +2181,16 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 							  "distribution boundary not published");
 						delivering.emplace();
 						delivering->task = ready_read.task;
+						delivering->task->exporting = true;
+						subscription_export_turn = true;
 					}
 				} else {
 					check(node.state().applied_index() >= ready_read.boundary, "read boundary not published");
 					reading.emplace(ready_read.task, node.state());
 				}
 				if (consume) {
+					if (ready_read.task->kind == Task::Kind::Distribution)
+						--legacy_ready;
 					ready_read = {};
 					read_head = (read_head + 1) % ready_reads.size();
 					--read_count;
@@ -1524,13 +2219,27 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 												 update.size()) == 1,
 									  "distribution update entropy");
 								slot.exporter.emplace(node.state(), delivery.scope, history, delivery.base,
-													  update, delivery.compress, options_.delivery);
+													  update, delivery.compress, options_.delivery,
+													  delivery.selection, delivery.handoff);
+								if (slot.task->subscription_request)
+									subscription_exports.add();
 							}
 							if (!slot.pending && delivery.writable.load())
 								slot.exporter->step(wire);
 							if (slot.exporter->counted() && !delivery.started) {
 								http::Response metadata;
 								metadata.status = 200;
+								if (slot.task->subscription_request) {
+									slot.task->subscription_offer = subscriptions->offer(
+										*slot.task->subscription_request, slot.exporter->target(),
+										slot.exporter->history_handoff(), now);
+									metadata.headers.emplace_back("X-Detent-Session-Version", "1");
+									metadata.headers.emplace_back("X-Detent-Session",
+																  hex(slot.task->session));
+									metadata.headers.emplace_back(
+										"X-Detent-Window",
+										std::to_string(slot.task->subscription_offer->window));
+								}
 								metadata.content_type = "application/vnd.detent.distribution";
 								metadata.headers.emplace_back("X-Detent-Coding",
 															  delivery.compress ? "zstd" : "raw");
@@ -1561,6 +2270,18 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 								slot.retiring = true;
 							}
 						}
+					} catch (const SnapshotRequired &reset) {
+						if (slot.task->subscription_request && !delivery.started) {
+							subscriptions->close(slot.task->session, slot.task->principal);
+							complete(slot.task,
+									 {409, std::string("{\"error\":\"snapshot_required\",\"reason\":\"") +
+											   (reset.reason() == SnapshotRequired::Reason::HistoryLost
+													? "history_lost"
+													: "representation_limit") +
+											   "\"}"});
+							slot.retiring = true;
+						} else
+							terminate();
 					} catch (const std::exception &) {
 						terminate();
 					}
@@ -1569,8 +2290,12 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 					slot.discard_pending(wire);
 					const bool drained = !slot.exporter || slot.exporter->discard(wire, read_budget);
 					slot.source_drained = drained && !slot.pending;
-					if (drained && !slot.pending && delivery.settled.load())
+					if (drained && !slot.pending && delivery.settled.load()) {
+						if (slot.task->subscription_offer)
+							subscriptions->settle(*slot.task->subscription_offer, delivery.written.load());
+						slot.task->exporting = false;
 						delivering.reset();
+					}
 				}
 				read_budget.bytes += wire.bytes;
 				read_budget.receipts += wire.tokens;
@@ -1832,6 +2557,18 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 					  "\",\"fenced\":true}";
 		}
 	}
+	accounting_->subscription_requests->close();
+	if (subscriptions)
+		subscriptions->close_all();
+	close_authorization.reset();
+	session_authorization.reset();
+	for (auto &task : session_tasks) {
+		if (!task)
+			continue;
+		complete(task, {503, "{\"error\":\"stopping\"}"});
+		task->authorization_queued = false;
+		task->delivery->reply->abandon();
+	}
 	if (owned_node)
 		owned_node->close();
 	if (peers)
@@ -1848,6 +2585,9 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				break;
 			co_await asio::post(io, asio::use_awaitable);
 		}
+		if (delivering->task->subscription_offer)
+			subscriptions->settle(*delivering->task->subscription_offer, false);
+		delivering->task->exporting = false;
 		delivering.reset();
 	}
 	if (reading) {
@@ -1927,6 +2667,56 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		}
 		pending.erase(current);
 	}
+	// Core and storage originals drain before session read reservations release.
+	session_pending.clear();
+	active_session_requests.clear();
+	if (session_retirement)
+		while (session_retirement->count)
+			session_retirement->pop();
+	for (auto &task : session_tasks) {
+		if (!task)
+			continue;
+		task->quorum_pending = false;
+		if (task->subscription_request)
+			subscriptions->release(*task->subscription_request);
+		while (!task->delivery->settled.load())
+			co_await asio::post(io, asio::use_awaitable);
+		begin_delivery_retirement(*task);
+		while (task->retirement_remaining) {
+			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
+			co_await asio::post(io, asio::use_awaitable);
+		}
+		task.reset();
+	}
+	if (subscriptions) {
+		while (!subscriptions->drained()) {
+			distribution::WorkBudget work;
+			subscriptions->collect(work, Clock::now());
+			co_await asio::post(io, asio::use_awaitable);
+		}
+	}
+	std::deque<std::shared_ptr<Task>> remaining_sessions;
+	std::deque<std::shared_ptr<Task>> remaining_closes;
+	{
+		std::lock_guard lock(mutex_);
+		remaining_sessions.swap(service.subscription_queue_);
+		remaining_closes.swap(service.subscription_close_queue_);
+	}
+	while (!remaining_sessions.empty() || !remaining_closes.empty()) {
+		auto &queue = remaining_closes.empty() ? remaining_sessions : remaining_closes;
+		auto &task = queue.front();
+		complete(task, {503, "{\"error\":\"stopping\"}"});
+		task->delivery->reply->abandon();
+		while (!task->delivery->settled.load())
+			co_await asio::post(io, asio::use_awaitable);
+		begin_delivery_retirement(*task);
+		while (task->retirement_remaining) {
+			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
+			co_await asio::post(io, asio::use_awaitable);
+		}
+		queue.pop_front();
+		co_await asio::post(io, asio::use_awaitable);
+	}
 	std::deque<std::shared_ptr<Task>> remaining;
 	{
 		std::lock_guard lock(mutex_);
@@ -1939,6 +2729,21 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			terminal_callbacks = 0;
 			co_await asio::post(io, asio::use_awaitable);
 		}
+	}
+	while (control_count) {
+		auto task = std::move(legacy_deliveries[control_head]);
+		control_head = (control_head + 1) % legacy_deliveries.size();
+		--control_count;
+		task->delivery->reply->abandon();
+		while (!task->delivery->settled.load())
+			co_await asio::post(io, asio::use_awaitable);
+		begin_delivery_retirement(*task);
+		while (task->retirement_remaining) {
+			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
+			co_await asio::post(io, asio::use_awaitable);
+		}
+		task.reset();
+		co_await asio::post(io, asio::use_awaitable);
 	}
 	while (retired_count) {
 		CommandWorkBudget budget;

@@ -43,6 +43,14 @@ int main() {
 			check(table.open(id('a'), reader, scope, current, {}, false, false, history, now) ==
 				  a::SubscriptionResult::Accepted);
 			check(table.metadata(id('a'), now)->principal == reader);
+			const auto incarnation = table.metadata(id('a'), now)->incarnation;
+			auto grants = principal("grants").identity;
+			check(table.authorize(id('a'), incarnation, principal("other"), scope->identity(), grants, now) ==
+				  a::SubscriptionResult::Forbidden);
+			check(!table.metadata(id('a'), now)->last_authorized_grants);
+			check(table.authorize(id('a'), incarnation, reader, scope->identity(), grants, now) ==
+				  a::SubscriptionResult::Accepted);
+			check(table.metadata(id('a'), now)->last_authorized_grants == grants);
 			check(table.open(id('b'), reader, scope, current, {}, false, false, history, now) ==
 				  a::SubscriptionResult::Full);
 			check(table.next(id('a'), principal("other"), 0, {}, now).result ==
@@ -97,6 +105,10 @@ int main() {
 				  a::SubscriptionResult::Accepted);
 			auto reopened = table.next(id('a'), reader, 0, {}, now);
 			check(reopened.token && reopened.token->incarnation != initial.token->incarnation);
+			check(table.authorize(id('a'), incarnation, reader, scope->identity(), grants, now) ==
+				  a::SubscriptionResult::Expired);
+			check(!table.metadata(id('a'), now)->last_authorized_grants);
+			check(table.close(id('a'), reader, incarnation) == a::SubscriptionResult::Expired);
 			table.release(*reset.token);
 			check(table.poll(*reopened.token, current, history, now) == a::SubscriptionResult::SnapshotReady);
 			auto held = table.offer(*reopened.token, current, history.handoff(context, 0), now);
@@ -182,8 +194,8 @@ int main() {
 				auto target = current;
 				target.revision = revision;
 				auto next = table.next(id('a'), reader, revision - 1, published, now);
-				check(next.token && table.poll(*next.token, target, history, now) ==
-										   a::SubscriptionResult::ResumeReady);
+				check(next.token &&
+					  table.poll(*next.token, target, history, now) == a::SubscriptionResult::ResumeReady);
 				check(table.base(*next.token)->revision == revision - 1);
 				check(table.handoff(*next.token)->revision() == revision - 1);
 				auto offer = table.offer(*next.token, target, history.handoff(context, revision), now);
@@ -192,8 +204,8 @@ int main() {
 				published = target;
 			}
 			auto final = table.next(id('a'), reader, 3, published, now);
-			check(final.token && table.poll(*final.token, *published, history, now) ==
-									 a::SubscriptionResult::Parked);
+			check(final.token &&
+				  table.poll(*final.token, *published, history, now) == a::SubscriptionResult::Parked);
 			check(table.base(*final.token) == published);
 			table.close_all();
 			table.release(*final.token);

@@ -107,6 +107,29 @@ The authority's private configuration. See
 
 ---
 
+## Authority Subscription Limits
+
+The private authority configuration accepts an optional `subscription_limits` object. Unknown fields are rejected. Session controls use separate admission from publishers.
+
+| Field | Default | Maximum |
+| --- | --- | --- |
+| `sessions` | 1,024 | 65,536 |
+| `per_principal` | 256 | 65,536 |
+| `idle_ms` | 60,000 | 86,400,000 |
+| `maximum_ms` | 600,000 | 86,400,000 |
+| `opens` | 16 | 128 |
+| `polls` | 256 | 512 |
+| `closes` | 16 | 128 |
+| `per_principal_controls` | 8 | 65,536 |
+| `per_principal_polls` | 256 | 65,536 |
+| `open_bytes` | 262,144 | 1,048,576 |
+| `control_bytes` | 4,096 | 16,384 |
+| `wait_ms` | 30,000 | 60,000 |
+
+Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime must cover idle lifetime. Actual storage admission also depends on the delivery ledger; raising logical limits does not reserve unlimited memory.
+
+---
+
 ## Environment Variables
 
 | Variable | Used by | Meaning |

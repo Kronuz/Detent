@@ -1,6 +1,8 @@
 #pragma once
 #include "detent_distribution/protocol.hh"
 #include "node.hh"
+#include "subscription.hh"
+#include "subscription_admission.hh"
 #include "transport/peers.hh"
 #include <chrono>
 #include <connection_admission.h>
@@ -37,6 +39,9 @@ struct ServiceOptions {
 	std::size_t reply_bytes = 16 * 1024 * 1024;
 	std::size_t delivery_heap_bytes = 128 * 1024 * 1024;
 	distribution::Limits delivery;
+	SubscriptionLimits subscriptions;
+	SubscriptionRequestLimits subscription_requests;
+	std::chrono::milliseconds subscription_wait{30000};
 	std::chrono::milliseconds timeout{5000};
 };
 ServiceOptions load_service_options(const std::filesystem::path &path);
@@ -62,21 +67,36 @@ class Service final : public http::HttpHandler {
 	struct Accounting;
 	struct Delivery;
 	struct Task {
-		enum class Kind { Command, Read, Result, Distribution } kind;
+		enum class Kind { Command, Read, Result, Distribution, SessionOpen, SessionNext, SessionClose } kind;
 		std::shared_ptr<Delivery> delivery;
+		std::shared_ptr<const AuthorizedScope> retiring_scope;
 		std::shared_ptr<Admission> admission;
 		Command command;
 		bool retiring = false, settled = false;
+		bool quorum_pending = false, quorum_ready = false, exporting = false, session_initialized = false;
+		bool force_snapshot = false, export_ready = false;
+		bool authorization_queued = false, authorization_ready = false;
+		distribution::Identity session{};
+		SubscriptionPrincipal principal;
+		std::optional<SubscriptionRequestToken> subscription_request;
+		std::optional<SubscriptionOfferToken> subscription_offer;
+		std::optional<distribution::Cursor> published;
+		std::size_t authorization_cursor = 0, retirement_remaining = 0, retirement_slot = 0;
+		std::size_t grant_cursor = 0;
+		std::uint64_t authorization_incarnation = 0;
 		std::string name_space;
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
 		std::function<void(Reply)> complete;
 		std::chrono::steady_clock::time_point deadline;
+		std::chrono::steady_clock::time_point poll_deadline;
 	};
 	ServiceOptions options_;
 	std::shared_ptr<Accounting> accounting_;
 	std::mutex mutex_;
 	std::deque<std::shared_ptr<Task>> queue_;
+	std::deque<std::shared_ptr<Task>> subscription_queue_;
+	std::deque<std::shared_ptr<Task>> subscription_close_queue_;
 	std::set<std::string> busy_producers_;
 	bool stopping_ = false;
 	std::string health_ = "{}";
@@ -86,6 +106,9 @@ class Service final : public http::HttpHandler {
 	std::shared_ptr<Admission> admit(const http::Request &request);
 	void run(std::promise<void> ready);
 	void distribute(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
+	void subscription(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
+	std::shared_ptr<Delivery> distribution_request(const http::Request &, const Admission &, bool);
+	void stream_task(http::ResponseWriter &, const std::shared_ptr<Task> &);
 	std::optional<Reply> execute(const http::Request &request, std::shared_ptr<Admission> admission,
 								 std::function<void(Reply)> complete,
 								 std::chrono::steady_clock::time_point deadline);

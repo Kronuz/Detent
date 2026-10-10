@@ -84,7 +84,8 @@ Subscriptions::~Subscriptions() = default;
 SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal principal,
 									   std::shared_ptr<const AuthorizedScope> scope, d::Cursor current,
 									   std::optional<d::Cursor> base, bool force_snapshot, bool compression,
-									   ChangeHistory &history, Clock::time_point now) {
+									   ChangeHistory &history, Clock::time_point now,
+									   std::optional<d::ScopeIdentity> grants) {
 	auto &p = *impl_;
 	if (p.closed)
 		return SubscriptionResult::Expired;
@@ -131,6 +132,8 @@ SubscriptionResult Subscriptions::open(d::Identity id, SubscriptionPrincipal pri
 	session.metadata.identity.revision = 0;
 	session.id = id;
 	session.incarnation = ++entry.incarnation;
+	session.metadata.incarnation = session.incarnation;
+	session.metadata.creator_grants = std::move(grants);
 	session.base = base;
 	session.marker = std::move(marker);
 	session.snapshot = !session.marker;
@@ -147,10 +150,10 @@ const SubscriptionMetadata *Subscriptions::metadata(d::Identity id, Clock::time_
 }
 SubscriptionAdmission Subscriptions::next(d::Identity id, SubscriptionPrincipal principal,
 										  std::uint64_t after, std::optional<d::Cursor> published,
-										  Clock::time_point now) {
+										  Clock::time_point now, std::uint64_t incarnation) {
 	auto &p = *impl_;
 	auto *s = p.find(id);
-	if (!s || p.expire(*s, now))
+	if (!s || (incarnation && s->incarnation != incarnation) || p.expire(*s, now))
 		return {SubscriptionResult::Expired, {}};
 	if (principal.identity != s->metadata.principal.identity)
 		return {SubscriptionResult::Forbidden, {}};
@@ -173,6 +176,20 @@ SubscriptionAdmission Subscriptions::next(d::Identity id, SubscriptionPrincipal 
 	++s->serial;
 	s->idle = std::min(now + p.limits.idle_lifetime, s->maximum);
 	return {SubscriptionResult::Accepted, SubscriptionRequestToken{id, s->incarnation, s->serial}};
+}
+SubscriptionResult Subscriptions::authorize(d::Identity id, std::uint64_t incarnation,
+											SubscriptionPrincipal principal, d::ScopeIdentity scope,
+											d::ScopeIdentity grants, Clock::time_point now) noexcept {
+	auto *s = impl_->find(id);
+	if (!s || s->incarnation != incarnation || impl_->expire(*s, now))
+		return SubscriptionResult::Expired;
+	if (s->metadata.principal.identity != principal.identity)
+		return SubscriptionResult::Forbidden;
+	if (s->metadata.principal.policy_epoch != principal.policy_epoch ||
+		s->metadata.scope->identity() != scope)
+		return SubscriptionResult::IdentityChanged;
+	s->metadata.last_authorized_grants = grants;
+	return SubscriptionResult::Accepted;
 }
 SubscriptionResult Subscriptions::poll(SubscriptionRequestToken token, d::Cursor current,
 									   ChangeHistory &history, Clock::time_point now) noexcept {
@@ -251,10 +268,13 @@ void Subscriptions::release(SubscriptionRequestToken token) noexcept {
 		s->request = false;
 	}
 }
-SubscriptionResult Subscriptions::close(d::Identity id, SubscriptionPrincipal principal) noexcept {
+SubscriptionResult Subscriptions::close(d::Identity id, SubscriptionPrincipal principal,
+										std::uint64_t incarnation) noexcept {
 	auto *s = impl_->find(id);
 	if (!s)
 		return SubscriptionResult::Accepted;
+	if (incarnation && s->incarnation != incarnation)
+		return SubscriptionResult::Expired;
 	if (s->metadata.principal.identity != principal.identity)
 		return SubscriptionResult::Forbidden;
 	if (s->metadata.principal.policy_epoch != principal.policy_epoch)

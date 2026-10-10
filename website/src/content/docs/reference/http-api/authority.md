@@ -178,6 +178,22 @@ snapshot.
 
 ---
 
+## Subscription Sessions
+
+All three endpoints require a bearer credential. They bind the effective principal, policy epoch, canonical namespace scope and authority identity. Rotated credentials must still authorize every stored namespace; a session ID grants no access by itself.
+
+| Endpoint | Version 1 request | Response |
+| --- | --- | --- |
+| `POST /v2/distribution/session/open` | Distribution request above plus `version:1`, optional `force_snapshot` | JSON with `version`, opaque `session`, `window:0`, `mode` (`snapshot` or `resume`) and `wait_ms` |
+| `POST /v2/distribution/session/next` | `version`, `session`, `after`, optional exact `published` cursor and `wait_ms` | One framed update or bodyless 204 |
+| `POST /v2/distribution/session/close` | `version`, `session` | Idempotent bodyless 204 |
+
+Update responses additionally carry `X-Detent-Session-Version: 1`, `X-Detent-Session` and `X-Detent-Window`. The client validates those bindings before accepting frames. A 204 advances no cursor and asserts no linearizable freshness. Next requires exact publication feedback for the previous offered window; duplicate feedback is idempotent.
+
+A 409 control identifies `snapshot_required`, `identity_changed`, `session_out_of_sync` or `session_busy`; 410 identifies `session_expired`. Snapshot resets include `reason` (`history_lost` or `representation_limit`) and require a new Open with `force_snapshot:true`. Admission pressure returns a bounded 503. Separate request lanes preserve Close capacity when polls are full. The existing distribution endpoint retains automatic snapshot fallback.
+
+---
+
 ## Limits
 
 | Limit | Value |
@@ -194,3 +210,5 @@ snapshot.
 | Request slots | 1,024 |
 | Aggregate body reservation | 16 MiB |
 | Producers grouped into one Raft entry | 64, within 5 ms |
+
+Subscription health adds `knobs` (the applied authority state size), `delivery_captures` (active export captures), `subscription_sessions`, `subscription_quorum_reads`, `subscription_exports` and `subscription_idle_responses`. Parked polls do not capture the authority state or submit new quorum reads until an applied revision makes an update available. A `204` response carries no publication cursor or freshness guarantee.
