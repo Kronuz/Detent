@@ -15,7 +15,7 @@ target_link_libraries(test_local_client_source PRIVATE detent::local_client dete
 add_test(NAME test_local_client_source COMMAND test_local_client_source)
 add_executable(test_local_pinned_source test_pinned_source.cc)
 target_include_directories(test_local_pinned_source PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
-target_link_libraries(test_local_pinned_source PRIVATE detent::local_builder)
+target_link_libraries(test_local_pinned_source PRIVATE detent::local_builder detent::local_export)
 add_test(NAME test_local_pinned_source COMMAND test_local_pinned_source)
 add_executable(test_local_disk_ledger test_disk_ledger.cc)
 target_link_libraries(test_local_disk_ledger PRIVATE detent::local_view)

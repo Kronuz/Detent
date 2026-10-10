@@ -1,5 +1,6 @@
 #include "pinned_source.hh"
 #include "snapshot_fixture.hh"
+#include "snapshot_source.hh"
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -33,6 +34,17 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+		{
+			d::SnapshotEncoder encoder(d::make_snapshot_source(snapshot));
+			std::string encoded;
+			while (!encoder.done()) {
+				d::WorkBudget budget;
+				encoder.step(budget);
+				if (encoder.chunk_ready())
+					encoded.append(encoder.take_chunk()->view());
+			}
+			require(encoded == fixture() && encoder.encoded_length() == encoded.size());
+		}
 		l::GenerationId generation;
 		generation.fill('p');
 		l::ImageBuilder builder(snapshot, generation);
@@ -58,6 +70,26 @@ int main() {
 		require(source->namespace_count() == 1 && source->record_count() == 2 &&
 				source->override_count() == 1);
 		const auto resident = heap->used(), mapped = mappings->used();
+		{
+			d::SnapshotEncoder encoder(l::detail::make_snapshot_source(*source, heap));
+			std::string encoded;
+			std::size_t turns = 0;
+			while (!encoder.done()) {
+				d::WorkBudget budget{1, 1};
+				encoder.step(budget);
+				if (encoder.chunk_ready()) {
+					const auto bytes = encoder.take_chunk();
+					require(bytes->sealed() && bytes->account() == heap);
+					encoded.append(bytes->view());
+				}
+				require(++turns < 100000);
+			}
+			require(encoder.encoded_length() == encoded.size() && encoded == fixture());
+			const auto decoded = decode(encoded);
+			require(decoded.cursor() == builder.descriptor().cursor && decoded.records().size() == 2);
+			encoder.discard();
+		}
+		require(heap->used() == resident && mappings->used() == mapped);
 		{
 			auto pressure = heap->admit(heap->limit() - resident);
 			require(source->name_space(0).name == "app" && source->name_space(0).revision == 42);

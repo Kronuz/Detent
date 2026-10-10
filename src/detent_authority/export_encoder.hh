@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/buffer.hh"
 #include "detent_distribution/protocol.hh"
+#include "detent_distribution/snapshot_encoder.hh"
 #include "export_capture.hh"
 namespace detent::authority {
 // Owner-executor count/emission over one frozen public projection. Only sealed
@@ -21,7 +22,6 @@ class SnapshotExportEncoder {
 	void discard() noexcept;
 
   private:
-	struct Impl;
-	distribution::StorageOwner<Impl> impl_;
+	distribution::SnapshotEncoder encoder_;
 };
 } // namespace detent::authority
