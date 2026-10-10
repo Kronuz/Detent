@@ -1,4 +1,5 @@
 #include "delivery_export.hh"
+#include "detent_distribution/frame_pump.hh"
 namespace detent::authority {
 namespace d = distribution;
 struct DeliveryExport::Impl {
@@ -11,11 +12,11 @@ struct DeliveryExport::Impl {
 	std::optional<d::Cursor> base;
 	d::Identity update;
 	d::Limits limits;
-	bool compress, fallback = false, failed = false, retiring = false, finished = false, encoding = false;
+	bool compress, fallback = false, failed = false, retiring = false, finished = false;
 	std::optional<DeltaExportEncoder> delta;
 	std::optional<SnapshotExportEncoder> snapshot;
-	std::optional<d::OwnedFragmentEncoder> frames;
-	std::uint64_t total = 0, emitted = 0;
+	std::optional<d::FramePump> frames;
+	std::uint64_t total = 0;
 	std::size_t snapshot_disposal = d::fragment_bytes;
 	d::UpdateKind type = d::UpdateKind::Snapshot;
 	Impl(const State &state, std::shared_ptr<const AuthorizedScope> authorized,
@@ -141,7 +142,7 @@ void DeliveryExport::step(d::WorkBudget &budget) {
 		}
 		// The frame encoder owns its input until take_frame(). Never offer a
 		// second input while the first is being encoded or awaiting transfer.
-		if (!p.encoding && p.emitted < p.total) {
+		if (p.frames->wants_input()) {
 			bool ready = p.delta ? p.delta->chunk_ready() : p.snapshot->chunk_ready();
 			if (!ready) {
 				if (p.delta)
@@ -152,10 +153,7 @@ void DeliveryExport::step(d::WorkBudget &budget) {
 			}
 			if (ready) {
 				auto input = p.delta ? p.delta->take_chunk() : p.snapshot->take_chunk();
-				const auto next = p.emitted + input->size();
-				p.frames->begin(std::move(input), next == p.total);
-				p.emitted = next;
-				p.encoding = true;
+				p.frames->begin(std::move(input));
 			}
 		}
 		p.frames->step(budget);
@@ -187,8 +185,7 @@ std::shared_ptr<const d::OwnedBuffer> DeliveryExport::take_frame() {
 		throw std::logic_error("delivery frame not ready");
 	auto &p = *impl_;
 	auto result = p.frames->take();
-	p.encoding = false;
-	p.finished = p.emitted == p.total;
+	p.finished = p.frames->done();
 	return result;
 }
 bool DeliveryExport::done() const noexcept { return impl_->finished; }

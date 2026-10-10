@@ -1,4 +1,5 @@
 #include "detent_distribution/framing.hh"
+#include "detent_distribution/frame_pump.hh"
 #include <iostream>
 #include <source_location>
 namespace d = detent::distribution;
@@ -13,7 +14,7 @@ std::shared_ptr<const d::OwnedBuffer> body(std::shared_ptr<d::StorageLedger> acc
 	output->seal();
 	return output;
 }
-void drain(d::OwnedFragmentEncoder &encoder) {
+template <class Encoder> void drain(Encoder &encoder) {
 	unsigned turns = 0;
 	while (true) {
 		d::WorkBudget budget{1, 1};
@@ -22,7 +23,7 @@ void drain(d::OwnedFragmentEncoder &encoder) {
 		check(++turns < 2000000);
 	}
 }
-std::shared_ptr<const d::OwnedBuffer> encode(d::OwnedFragmentEncoder &encoder) {
+template <class Encoder> std::shared_ptr<const d::OwnedBuffer> encode(Encoder &encoder) {
 	unsigned turns = 0;
 	while (!encoder.ready()) {
 		d::WorkBudget budget{1, 1};
@@ -52,6 +53,38 @@ int main() {
 		identity.fill('u');
 		const std::string text(65536, 'x');
 		for (bool compressed : {false, true}) {
+			{
+				d::FramePump pump(d::UpdateKind::Snapshot, identity, 65539, compressed, account);
+				pump.begin(body(account, text));
+				check(!pump.wants_input() && !pump.done());
+				bool refused = false;
+				try {
+					pump.begin(body(account, "end"));
+				} catch (const std::logic_error &) {
+					refused = true;
+				}
+				check(refused);
+				auto first = encode(pump);
+				check(pump.wants_input() && !pump.done());
+				pump.begin(body(account, "end"));
+				auto last = encode(pump);
+				check(pump.done() && !pump.wants_input());
+				std::string wire(first->view());
+				wire.append(last->view());
+				drain(pump);
+				check(decode(wire, d::UpdateKind::Snapshot, compressed) == text + "end");
+				check(first->sealed() && last->sealed());
+			}
+			check(account->used() == 0);
+			{
+				d::FramePump pump(d::UpdateKind::Snapshot, identity, 0, compressed, account);
+				check(!pump.done() && pump.wants_input());
+				pump.begin(body(account, ""));
+				const auto packet = encode(pump);
+				check(pump.done() && decode(packet->view(), d::UpdateKind::Snapshot, compressed).empty());
+				drain(pump);
+			}
+			check(account->used() == 0);
 			for (auto kind : {d::UpdateKind::Snapshot, d::UpdateKind::Delta, d::UpdateKind::Progress}) {
 				d::OwnedFragmentEncoder encoder(kind, identity, 65539, compressed, account);
 				encoder.begin(body(account, text), false);
