@@ -2,10 +2,12 @@
 #include "detent_delivery/coordinator.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
+#include "detent_relay/bundle.hh"
 #include <asio/experimental/awaitable_operators.hpp>
 #include <charconv>
 #include <filesystem>
 #include <iostream>
+#include <source_location>
 #include <thread>
 #include <unistd.h>
 
@@ -14,9 +16,9 @@ namespace l = detent::local;
 namespace t = detent::delivery;
 namespace m = d::messagepack;
 using namespace std::chrono_literals;
-void check(bool value) {
+void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("coordinator invariant");
+		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
 }
 class RecordingSink final : public t::PublicationSink {
   public:
@@ -214,8 +216,12 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 			timer.expires_after(1ms);
 			co_await timer.async_wait(asio::use_awaitable);
 		}
-		if (!feedback_received->load())
+		if (!feedback_received->load()) {
+			const auto error = coordinator->status().error;
 			coordinator->close();
+			if (error)
+				std::rethrow_exception(error);
+		}
 		check(feedback_received->load());
 	}
 	// Close wakes the parked candidate after the source observes durable feedback.
@@ -280,6 +286,8 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
+		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
+		const bool relay_pressure = relay && std::string_view(argv[2]).ends_with("pressure");
 		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
 		const bool cancel_selected = argc == 3 && (std::string_view(argv[2]) == "--cancel-selected" ||
 												   std::string_view(argv[2]) == "--sink-cancel-selected");
@@ -287,8 +295,9 @@ int main(int argc, char **argv) {
 		const bool cancel_open = argc == 3 && std::string_view(argv[2]) == "--subscription-cancel-open";
 		const bool reset_retry = argc == 3 && std::string_view(argv[2]) == "--subscription-reset";
 		const bool subscription = argc == 3 && std::string_view(argv[2]).starts_with("--subscription");
-		const auto requested = subscription
-								   ? (std::string_view(argv[2]) == "--subscription-500000" ? 500000u : 0u)
+		const auto requested = subscription ? (std::string_view(argv[2]).ends_with("-500000")	? 500000u
+											   : std::string_view(argv[2]).ends_with("-100000") ? 100000u
+																								: 0u)
 							   : argc == 3 && !cancel_selected && !pressure && !sink ? std::stoul(argv[2])
 																					 : 0;
 		std::atomic<bool> feedback_received{false};
@@ -300,8 +309,9 @@ int main(int argc, char **argv) {
 						 ("delivery-coordinator-" + std::to_string(::getpid()));
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-		auto account = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
-		d::RetirementRuntime runtime(account, 2);
+		auto root = std::make_shared<d::StorageLedger>(384 * 1024 * 1024);
+		auto account = std::make_shared<d::StorageLedger>(root, 256 * 1024 * 1024);
+		d::RetirementRuntime runtime(account, 3);
 		auto domain = runtime.domain(account, 64);
 		l::DiskStoreOptions disk_options;
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
@@ -348,6 +358,22 @@ int main(int argc, char **argv) {
 		if (sink) {
 			recording = std::allocate_shared<RecordingSink>(d::StorageAllocator<RecordingSink>(account));
 			options.publication_sink = recording;
+		}
+		auto cache_account = std::make_shared<d::StorageLedger>(root, 64 * 1024 * 1024);
+		std::optional<d::RetirementDomain> cache_domain;
+		std::shared_ptr<detent::relay::Bundle> relay_bundle;
+		d::StorageLedger::Ticket cache_pressure;
+		if (relay) {
+			cache_domain.emplace(runtime.domain(cache_account, 64));
+			detent::relay::BundleOptions bundle_options;
+			bundle_options.configured = cursor();
+			bundle_options.namespaces = count ? 1 : 0;
+			bundle_options.incarnation.fill('r');
+			relay_bundle = detent::relay::make_bundle(bundle_options, *cache_domain);
+			check(!relay_bundle->status().ready);
+			options.publication_sink = relay_bundle;
+			if (relay_pressure)
+				cache_pressure = cache_account->admit(cache_account->limit() - cache_account->used());
 		}
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
 		{
@@ -419,10 +445,67 @@ int main(int argc, char **argv) {
 							std::promise<bool> recovered;
 							auto ready = recovered.get_future();
 							asio::post(io, [&] {
-								const auto status = coordinator->status();
-								recovered.set_value(status.recoverable == cursor() &&
-													status.selected.descriptor &&
-													status.selected.descriptor->cursor == cursor());
+								try {
+									const auto status = coordinator->status();
+									bool valid = status.recoverable == cursor() &&
+												 status.selected.descriptor &&
+												 status.selected.descriptor->cursor == cursor();
+									if (relay_bundle) {
+										valid = valid && relay_bundle->status().ready;
+										if (relay_pressure) {
+											valid = valid && relay_bundle->status().refusals > 0 &&
+													relay_bundle->status().gaps > 0;
+											cache_pressure.reset();
+											unsigned turns = 0;
+											for (;;) {
+												d::WorkBudget budget;
+												if (relay_bundle->snapshot_step(budget))
+													break;
+												if (++turns == 1000) {
+													valid = false;
+													break;
+												}
+											}
+										}
+										auto offer = relay_bundle->offer({}, true);
+										valid = valid && offer.decision == d::CacheDecision::Update &&
+												offer.update && offer.update->target() == cursor();
+										if (valid) {
+											for (bool compressed : {false, true}) {
+												d::FragmentDecoder fragments(d::UpdateKind::Snapshot,
+																			 offer.update->logical_bytes(),
+																			 compressed);
+												std::string payload;
+												for (std::size_t ordinal = 0;
+													 ordinal < offer.update->fragments(); ++ordinal) {
+													auto frame = offer.update->frame(ordinal, compressed);
+													auto bytes =
+														std::span(frame->view().data(), frame->size());
+													while (!bytes.empty()) {
+														d::WorkBudget budget;
+														fragments.feed(bytes, budget);
+														if (auto piece = fragments.take())
+															payload.append(piece->bytes());
+													}
+												}
+												fragments.finish();
+												d::SnapshotDecoder decoder(
+													cursor(), count ? std::vector<std::string>{"app"}
+																	: std::vector<std::string>{});
+												auto bytes =
+													std::span<const char>(payload.data(), payload.size());
+												while (!bytes.empty()) {
+													d::WorkBudget budget;
+													decoder.feed(bytes, budget);
+												}
+												valid = valid && decoder.finish().records().size() == count;
+											}
+										}
+									}
+									recovered.set_value(valid);
+								} catch (...) {
+									recovered.set_exception(std::current_exception());
+								}
 							});
 							check(ready.get());
 							feedback_received.store(true);
@@ -485,6 +568,8 @@ int main(int argc, char **argv) {
 		if (pressure)
 			final_cursor.revision = 3;
 		check(coordinator->drained());
+		if (relay_bundle)
+			check(relay_bundle->status().fenced && !relay_bundle->status().ready);
 		if (recording) {
 			check(recording->fenced && recording->stages > 0 && recording->commits > 0);
 			check(recording->last_selected == store->selection().descriptor);
@@ -549,6 +634,13 @@ int main(int argc, char **argv) {
 		const auto disk_peak = store->stats().peak.bytes;
 		worker.join();
 		coordinator.reset();
+		options.publication_sink.reset();
+		relay_bundle.reset();
+		if (cache_domain) {
+			cache_domain->close().wait();
+			cache_domain.reset();
+		}
+		check(cache_account->used() == 0);
 		driver.reset();
 		queue.reset();
 		store.reset();
@@ -566,8 +658,9 @@ int main(int argc, char **argv) {
 		}
 		check(mapping->used() == 0);
 		std::cout << "{\"records\":" << count << ",\"managed_heap_peak\":" << account->peak()
-				  << ",\"mapped_peak\":" << mapping->peak() << ",\"disk_peak\":" << disk_peak
-				  << ",\"timer_turns\":" << timing.turns
+				  << ",\"cache_heap_peak\":" << cache_account->peak()
+				  << ",\"combined_heap_peak\":" << root->peak() << ",\"mapped_peak\":" << mapping->peak()
+				  << ",\"disk_peak\":" << disk_peak << ",\"timer_turns\":" << timing.turns
 				  << ",\"maximum_timer_lateness_us\":" << timing.maximum_lateness_us << ",\"wall_ms\":"
 				  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
 																		   started)

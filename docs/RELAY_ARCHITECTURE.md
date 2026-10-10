@@ -106,3 +106,18 @@ The recording attachment verifies released input borrows before selection, full 
 Recovered generations now retain their directory inode anchor through an admitted retirement handle and small aliasing control. Final release from a pinned source or copied generation queues directory FD closure on the cleanup worker, matching mapping/image/lease retirement. The public generation API is unchanged. Recovery consumes one additional retirement resident; custom domains sized exactly for a mapping and view must permit three residents instead of two. Reader-only linkage remains unchanged.
 
 Eight native reader/pinned-source/coordinator checks pass in 2.55 seconds; the corresponding ASan/UBSan set passes in 3.29 seconds and TSan in 16.54 seconds. The pinned-source fixture explicitly checks all three residents while live and zero after drain, including retained copies, saturation and generation lease release.
+
+### Durable bundle qualification
+
+The optional `detent::relay` core connects a configured `Bundle` to the coordinator's publication sink. A staged object becomes deliverable only when its candidate descriptor, directory identity and target match the actual recovered generation. Fresh upstream authentication gates readiness. Cancellation releases input borrows before coordinator disposal; fencing immediately revokes offers. A refused cache allocation leaves publication capacity available and produces a continuity gap. A pinned current-head image can then rebuild the forced snapshot incrementally.
+
+The TLS coordinator fixture independently decodes both raw and zstd cache frames after upstream durable feedback. Native cases cover empty state, a saturated 64 MiB cache child, 100,000 knobs and 500,000 knobs. All five checks, including certificate setup, pass in 14.64 seconds. Empty-state and cache-pressure cases also pass under ASan/UBSan (1.51 seconds) and TSan (5.98 seconds). The resource hierarchy reserves a 256 MiB publication child and 64 MiB cache child beneath a 384 MiB root; runtime/control allocations in this fixture belong to the publication child.
+
+| Knobs | Publication heap peak | Cache heap peak | Combined heap peak | Mapped peak | Disk peak | Fixture wall time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100,000 | 19,505,868 B | 6,563,904 B | 25,336,908 B | 8,204,288 B | 8,200,587 B | 2.423 s |
+| 500,000 | 97,165,324 B | 29,598,720 B | 126,031,180 B | 41,000,960 B | 41,000,587 B | 10.853 s |
+
+These Intel macOS measurements include receive, validation, dual encoding, complete-image publication, independent fixture decoding and shutdown. They measure admitted capacities, not process RSS or TLS/framework allocations. Child peaks occur independently; their sum need not equal the simultaneous root peak. The maximum observed 1 ms timer lateness is 583 µs at 100,000 knobs and 4,144 µs at 500,000 knobs. Timing ends before the fixture's synchronous independent decoding. Logs are retained in `.scratch/relay-coordinator/footprint-tests.log` and the native CTest log.
+
+This qualifies durable bundle integration, not Stage 5B as a whole. Downstream HTTP hosting, authenticated exact-bundle routing, shared-session settlement, restart/failure tests, 500 same-bundle subscribers and native Linux/FreeBSD qualification remain required before the consolidated Architect review.
