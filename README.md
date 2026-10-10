@@ -20,7 +20,7 @@ Detent is a C++ runtime-configuration client for namespaced boolean and integer 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(detent
-  GIT_REPOSITORY <this-repo-url>
+  GIT_REPOSITORY https://github.com/Kronuz/Detent.git
   GIT_TAG        main)
 FetchContent_MakeAvailable(detent)
 
@@ -29,7 +29,7 @@ target_link_libraries(my_app PRIVATE detent::detent)
 target_link_libraries(my_app PRIVATE detent_http::detent_http)
 ```
 
-This repository has no public remote configured yet. Use `SOURCE_DIR` or `add_subdirectory()` until it does.
+For reproducible builds, replace `main` with the commit you have qualified. A local checkout can also be included with `add_subdirectory()`.
 
 ### 2. Write your baked defaults (`just_knobs.json`)
 
@@ -257,52 +257,45 @@ RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are r
 
 ```text
 include/
-  detent/
-  detent_http/
+  detent/              Core client and evaluation API
+  detent_http/         Classic HTTP polling source
+  detent_distribution/ Binary protocol and admitted storage
+  detent_local/        Immutable views and durable generations
+  detent_delivery/     TLS client and publication coordinator
+  detent_transport/    TLS configuration
 
 src/
-  detent/
-  detent_http/
-  detentd/
-  detent_agent/
+  detent/              Core implementation
+  detent_http/         Classic HTTP polling
+  detentd/             Distributor host and classic Raft adapter
+  detent_agent/        Agent host, shared memory and managed configuration
+  detent_authority/    Durable authority, transactions and distribution
+  detent_distribution/ Protocol implementation
+  detent_local/        Image building and persistence
+  detent_delivery/     Session transport and coordinator
+  detent_cli/          Shared configuration, logging and daemon lifecycle
 
-tests/
-  detent/        8 suites
-  detentd/       4 suites
-  detent_agent/  2 suites
-
+tests/                 Matching component suites and e2e process harness
 examples/
 benchmarks/
 diagrams/
 bindings/
 ```
 
-## What each `src/` subdirectory actually builds
+## What the source modules build
 
-There are six build artifacts but only two runnable daemons:
+The core client has no networking dependency. Classic HTTP polling, binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
-```text
-detent
-  ^
-  +-- detent_http
-  |
-  +-- detentd_lib ---> detentd
-  |
-  `-- detent_agent_lib ---> detent-agent
-```
-
-- `detent` is the shared core.
-- `detent_http` is the client-side HTTP poller.
-- `detentd_lib` contains distributor logic so tests can link it directly.
-- `detent_agent_lib` contains the shared-memory agent logic so tests can link it directly.
-- `detentd` is the network-facing distributor.
-- `detent-agent` is the host-local daemon.
-
-### Why four libraries and not one
-
-- `detent` stays free of networking dependencies.
-- `detent_http` is reused by both `detentd` and `detent-agent`.
-- `detentd_lib` and `detent_agent_lib` let tests exercise the daemon logic in-process instead of through subprocesses.
+| Module | Main target | Purpose |
+| --- | --- | --- |
+| Core client | `detent::detent` | Local lookup, evaluation, defaults and file updates |
+| Classic HTTP source | `detent_http::detent_http` | Optional JSON polling source |
+| Binary protocol | `detent::distribution` | Framing, decoding and bounded storage |
+| Immutable local view | `detent::local_view` | Read mapped durable generations |
+| Local publication | `detent::local_publication` | Reconcile and publish durable generations |
+| Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
+| Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |
+| Distributor and agent hosts | `detentd_lib`, `detent_agent_lib` | Reuse daemon logic in embedded tests |
 
 ## Binaries and their dependencies
 
@@ -311,10 +304,11 @@ detent
 | `detent_demo` | `examples/demo.cc` | `detent` | Baked-defaults-only example |
 | `detent_publish` | `examples/publish_snapshot.cc` | `detent` | Atomic file publisher |
 | `detentd` | `src/detentd/main.cc` | `detentd_lib` -> `detent`, `detent_http`, `http::http`, `cluster::cluster` | HTTP distributor with optional Raft clustering |
-| `detent-agent` | `src/detent_agent/main.cc` | `detent_agent_lib` -> `detent`; CLI also links `detent_http` | Host-local daemon and CLI |
-| `test_*` (8, `tests/detent/`) | `tests/detent/*.cc` | `detent` | Core correctness suite |
-| `test_distributor_*`, `test_load_fanout`, `test_raft_cluster` (4, `tests/detentd/`) | `tests/detentd/*.cc` | `detentd_lib` | Distributor correctness, end-to-end polling, load measurement, and real Raft cluster coverage |
-| `test_agent_basic`, `test_shm_concurrency_stress` (2, `tests/detent_agent/`) | `tests/detent_agent/*.cc` | `detent_agent_lib` | Shared-memory agent correctness and stress |
+| `detent-agent` | `src/detent_agent/main.cc` | Agent, CLI and optional managed delivery libraries | Host-local daemon |
+| `detent` | `src/detent_agent/main.cc` | CLI and local reader libraries | Host-local `get` reader |
+| `test_*` (`tests/detent/`) | `tests/detent/*.cc` | `detent` | Core correctness suite |
+| Distributor tests (`tests/detentd/`) | `tests/detentd/*.cc` | `detentd_lib` | Distributor correctness, end-to-end polling, load measurement, and real Raft cluster coverage |
+| Agent tests (`tests/detent_agent/`) | `tests/detent_agent/*.cc` | `detent_agent_lib` | Shared-memory agent correctness and stress |
 
 ## Build
 
@@ -358,9 +352,10 @@ curl localhost:8317/v1/health
 Three same-host replicas, using the exact `--cluster` syntax from `src/detentd/main.cc`:
 
 ```sh
-./build/src/detentd 8081 /tmp/jk-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083
-./build/src/detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
-./build/src/detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
+mkdir -p .scratch
+./build/src/detentd 8081 .scratch/cluster-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083
+./build/src/detentd 8082 .scratch/cluster-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
+./build/src/detentd 8083 .scratch/cluster-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
 ```
 
 ### Partial updates (PATCH) and diff-since-last-version polling
@@ -434,7 +429,7 @@ Measured throughput on the same development machine:
 | `detent_read_bench 4 2000000` | 6.71M ops/sec (149.1 ns/op) |
 | `detent_agent_shm_bench 4 2000000` | 36.2M ops/sec (27.6 ns/op) |
 
-The shared-memory read path is about 5.4x faster in that benchmark because it avoids JSON parsing, avoids a daemon round trip, and reads a pre-parsed binary layout.
+The shared-memory benchmark reports about 5.4 times the throughput in this run. Both benchmarks read local, already parsed data; neither parses JSON or contacts a daemon for each lookup. These results do not establish which implementation difference causes the ratio.
 
 Two implementation constraints remain relevant:
 
@@ -485,18 +480,13 @@ client.health();
 
 ## Testing
 
-The repository currently has 15 C++ test binaries:
+CTest registers component and process tests for the enabled build profiles. Use `ctest --test-dir build -N` to list the exact set for your configuration.
 
-- **Core library (`tests/detent/`, 8 suites):** schema/model validation, rollout hash golden vectors, eval semantics, CLI overrides, file-source behavior, thread-local test guard behavior, concurrency stress, and `SnapshotPatch` parse/apply/diff/serialize coverage.
-- **Distributor (`tests/detentd/`, 5 suites):**
-  - `test_distributor_basic`: PUT/GET/304/rejection semantics and persistence.
-  - `test_distributor_client_integration`: real `detentd` -> `detent_http::make_http_poll_source` -> `detent::Client`, including cached diff delivery proven by `diffs_served()`.
-  - `test_multi_node_poll_source`: the multi-node `make_http_poll_source` overload -- starts against one of two real distributors and fails over to the other once the first stops answering.
-  - `test_load_fanout`: one distributor with many polling watchers.
-  - `test_raft_cluster`: a real 3-node cluster covering leader election, follower-forwarded writes, PATCH replication, leader failover, restart-safety/rejoin, dead-follower liveness, and correlation-id uniqueness across a node's own restart.
-- **Host-local agent (`tests/detent_agent/`, 2 suites):** shared-memory reader/writer correctness and a dedicated concurrency stress test.
-
-These 15 all run in-process (one binary constructs every `Distributor` directly) with a single fast, hardcoded Raft timing, and only ever stop a node via a clean destructor call. `tests/e2e/` complements them with a separate harness that spawns real `detentd` subprocesses, drives them over real HTTP, and kills them with real signals -- see `tests/e2e/README.md` for what it checks and why it exists; run it after any change to `src/detentd/` or the vendored Raft wiring.
+1. Core tests cover schema validation, rollout vectors, evaluation, overrides, file updates and concurrency.
+2. Distributor and HTTP tests cover persistence, polling, partial updates, failover, fan-out and classic Raft replication.
+3. Authority tests cover transactions, durable storage, authenticated consensus, restart and failure recovery, bounded distribution, subscription admission and large-state idling.
+4. Protocol, local-view and delivery tests cover binary validation, mapped generations, original IO settlement, publication reconciliation and exact source feedback.
+5. Process fixtures start real daemons, exercise HTTP and local readers, and stop or kill tracked processes. `tests/e2e/README.md` describes the separate classic distributor harness.
 
 ## Benchmarks
 
@@ -573,4 +563,4 @@ Current work and reproduced regression evidence are tracked in the [implementati
 
 The HTTP polling source includes `<exception>` directly for its captured `std::exception_ptr` and `std::current_exception()`. This keeps builds independent of transitive standard-library includes, including Clang 23 with libc++.
 
-The opt-in durable authority profile uses bounded namespace transactions and producer retry sessions, with incremental immutable state and POSIX persistence. The macOS authority owner uses native completion-based storage and owned deferred HTTP replies; startup recovery remains synchronous. Build and API details, migration commands, qualification results and the single-voter limitations are in [AUTHORITY_ARCHITECTURE.md](docs/AUTHORITY_ARCHITECTURE.md). [Authority transport primitives](docs/AUTHORITY_TRANSPORT.md) provide bounded binary codecs and owned TLS operations; authenticated multi-node service integration and agent distribution remain unfinished.
+The durable authority profile provides bounded namespace transactions, producer retry sessions, authenticated multi-voter consensus and completion-based persistence. Managed agents recover immutable local generations and can use polling or publication-aware subscriptions. Startup recovery precedes live admission. See [the authority architecture](docs/AUTHORITY_ARCHITECTURE.md), [managed delivery](docs/DELIVERY_INTEGRATION_ARCHITECTURE.md) and [implementation status](docs/IMPLEMENTATION.md) for APIs, qualification and the remaining relay, incremental publication and fleet work.

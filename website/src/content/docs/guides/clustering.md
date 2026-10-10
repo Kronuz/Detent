@@ -13,11 +13,12 @@ Run three distributors as a Raft cluster and any one of them can fail.
 On one host, for a demo, give each node its own port and state file:
 
 ```sh
-detentd 8081 /tmp/jk-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
+mkdir -p .scratch
+detentd 8081 .scratch/cluster-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
   127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083 &
-detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
+detentd 8082 .scratch/cluster-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
   127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083 &
-detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
+detentd 8083 .scratch/cluster-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 \
   127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082 &
 ```
 

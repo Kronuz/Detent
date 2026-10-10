@@ -1,8 +1,5 @@
-# Detent's own targets and the direct (first-hop) dependencies each one
-# pulls in. Extracted from `cmake --graphviz` (ground truth). Third-party
-# transitive internals (what http/cluster themselves need) are in
-# 09_thirdparty_deps.d2 -- this diagram only answers "what does each
-# Detent component link, and why".
+# Selected classic-profile targets and their direct dependencies.
+# Managed authority and generation targets are documented separately.
 direction: down
 
 detent: "detent\n(core lib)" {
@@ -15,7 +12,7 @@ detentd_lib: "detentd_lib" {
   tooltip: HTTP distributor daemon logic
 }
 detent_agent_lib: "detent_agent_lib" {
-  tooltip: Unix-socket agent server logic
+  tooltip: Shared-memory agent reader and writer logic
 }
 detentd_exe: "detentd (exe)"
 detent_agent_exe: "detent-agent (exe)"
@@ -25,22 +22,20 @@ kronuz: Kronuz cpp-libraries used directly by detent {
   strict_stox: strict-stox {tooltip: "Strict numeric string parsing (no silent truncation) for knob values"}
   atomic_shared_ptr: atomic-shared-ptr {tooltip: "Lock-free RCU snapshot swap -- the whole read-path fast path depends on this"}
   cpp_btree: cpp-btree {tooltip: "Ordered map for the knob table, better cache behavior than std::map"}
-  epoch: epoch {tooltip: "Epoch-based reclamation backing the RCU snapshot lifetime"}
-  random: random {tooltip: "Deterministic rollout-hash bucketing PRNG"}
+  random: random {tooltip: "Randomized source retry and backoff jitter"}
   sha256: sha256 {tooltip: "Rollout hashing per the JustKnobs spec (stable bucket assignment)"}
   compressors: compressors {tooltip: "zstd/gzip codecs -- lets detent_http negotiate Accept-Encoding on its own, no HTTP-framework weight"}
 }
 
 thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
-  http: "http" {tooltip: "HTTP server framework used by detentd to serve /knobs"}
-  cluster: "cluster" {tooltip: "UDP multicast + peer gossip, used by detentd for replica sync"}
+  http: "http" {tooltip: "HTTP server framework for /v1/snapshot and /v1/health"}
+  cluster: "cluster" {tooltip: "Raft replication over configured UDP peers"}
 }
 
 detent -> kronuz.char_classify
 detent -> kronuz.strict_stox
 detent -> kronuz.atomic_shared_ptr
 detent -> kronuz.cpp_btree
-detent -> kronuz.epoch
 detent -> kronuz.random
 detent -> kronuz.sha256
 
@@ -49,10 +44,10 @@ detent_http -> kronuz.compressors: "Accept-Encoding: zstd, gzip on its own GETs"
 
 detentd_lib -> detent
 detentd_lib -> detent_http: "polls upstream/peers over HTTP"
-detentd_lib -> thirdparty.http: "serves GET/PUT /knobs"
-detentd_lib -> thirdparty.cluster: "gossips version numbers to peers"
+detentd_lib -> thirdparty.http: "serves GET/PUT/PATCH /v1/snapshot"
+detentd_lib -> thirdparty.cluster: "replicates committed snapshots through Raft"
 detentd_exe -> detentd_lib
 
 detent_agent_lib -> detent: "one warm in-process snapshot per agent"
 detent_agent_exe -> detent_agent_lib
-detent_agent_exe -> detent_http: "only used for --source-http mode" {style.stroke-dash: 4}
+detent_agent_exe -> detent_http: "classic --source-address mode" {style.stroke-dash: 4}
