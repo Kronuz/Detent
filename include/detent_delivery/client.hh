@@ -4,6 +4,7 @@
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 #include <chrono>
+#include <variant>
 namespace detent::delivery {
 struct ClientOptions {
 	asio::ip::tcp::endpoint endpoint;
@@ -23,4 +24,63 @@ struct ClientOptions {
 // reception. Cancellation reaps original network work and budgeted candidate
 // disposal before returning. No complete response body is accumulated.
 asio::awaitable<ReceivedUpdate> receive(ClientOptions);
+struct PublicationFeedback {
+	std::uint64_t window;
+	distribution::Cursor cursor;
+};
+enum class SessionResetReason {
+	HistoryLost,
+	RepresentationLimit,
+	Expired,
+	IdentityChanged,
+	OutOfSync,
+	Busy,
+	AdmissionFull,
+	Forbidden,
+	Unauthorized,
+	InvalidRequest
+};
+class SessionResetError : public std::runtime_error {
+  public:
+	explicit SessionResetError(SessionResetReason reason);
+	SessionResetReason reason() const noexcept { return reason_; }
+
+  private:
+	SessionResetReason reason_;
+};
+struct SessionOffer {
+	std::uint64_t window;
+	ReceivedUpdate update;
+};
+struct SessionIdle {};
+struct SessionReset {
+	SessionResetReason reason;
+};
+using SessionEvent = std::variant<SessionOffer, SessionIdle, SessionReset>;
+// One owner executor operates a handle. Accepted work retains its admitted state.
+class SessionHandle {
+  public:
+	struct State;
+	SessionHandle() = default;
+	SessionHandle(SessionHandle &&) noexcept = default;
+	SessionHandle &operator=(SessionHandle &&) noexcept = default;
+	SessionHandle(const SessionHandle &) = delete;
+	SessionHandle &operator=(const SessionHandle &) = delete;
+	bool valid() const noexcept;
+	distribution::Identity identity() const noexcept;
+	std::chrono::milliseconds maximum_wait() const noexcept;
+
+  private:
+	std::shared_ptr<State> state_;
+	friend asio::awaitable<SessionHandle> open_session(ClientOptions, bool);
+	friend asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
+													  std::optional<PublicationFeedback>,
+													  std::chrono::milliseconds);
+	friend asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
+};
+asio::awaitable<SessionHandle> open_session(ClientOptions, bool force_snapshot = false);
+asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
+										   std::optional<PublicationFeedback> = {},
+										   std::chrono::milliseconds wait = std::chrono::seconds(30));
+asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
 } // namespace detent::delivery

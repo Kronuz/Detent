@@ -28,6 +28,8 @@ struct Decoded {
 struct ResponseDecoder::Impl {
 	d::Cursor target;
 	std::optional<d::Cursor> base;
+	std::optional<SessionResponseBinding> session;
+	std::shared_ptr<d::OwnedBuffer> control;
 	d::Limits limits;
 	d::LedgerMemoryResource resource;
 	std::vector<std::pmr::string, d::StorageAllocator<std::pmr::string>> names;
@@ -50,8 +52,8 @@ struct ResponseDecoder::Impl {
 	std::optional<d::DeltaDecoder> delta;
 	std::shared_ptr<Decoded> decoded;
 	Impl(d::Cursor configured, std::optional<d::Cursor> from, d::NamespaceSelection scope, bool coding,
-		 d::Limits bounds)
-		: target(configured), base(from), limits(std::move(bounds)), resource(limits.storage_account),
+		 d::Limits bounds, std::optional<SessionResponseBinding> binding)
+		: target(configured), base(from), session(std::move(binding)), limits(std::move(bounds)), resource(limits.storage_account),
 		  names(d::StorageAllocator<std::pmr::string>(limits.storage_account)),
 		  selected(d::StorageAllocator<std::string_view>(limits.storage_account)), headers(&resource),
 		  field(&resource), value(&resource), compression(coding) {
@@ -60,6 +62,9 @@ struct ResponseDecoder::Impl {
 					limits.bytes && limits.bytes <= 1024ull * 1024 * 1024 &&
 					scope.names.size() <= limits.namespaces,
 				"invalid delivery response admission");
+		if (session && session->purpose != SessionResponsePurpose::Open)
+			require(session->session != d::Identity{} &&
+				(session->purpose != SessionResponsePurpose::Next || session->window), "invalid session response binding");
 		maximum_wire = (limits.bytes / d::fragment_bytes + 1) * d::OwnedFragmentEncoder::maximum_wire_bytes();
 		// Permit bounded HTTP chunk overhead without accumulating the response.
 		maximum_wire = maximum_wire * 2 + 65536;
@@ -140,6 +145,37 @@ struct ResponseDecoder::Impl {
 		if (!field.empty())
 			commit_header();
 		require(!headers.contains("trailer"), "delivery HTTP trailers unsupported");
+		if (session) {
+			require(parser.http_major == 1 && parser.http_minor == 1, "session HTTP version rejected");
+			const bool update = parser.status_code == 200 && session->purpose == SessionResponsePurpose::Next;
+			if (!update) {
+				const auto status = parser.status_code;
+				require((status == 200 && session->purpose == SessionResponsePurpose::Open) ||
+					(status == 204 && session->purpose != SessionResponsePurpose::Open) || status == 400 ||
+					status == 401 || status == 403 || status == 409 || status == 410 || status == 429 || status == 503,
+					"session HTTP status rejected");
+				require(!headers.contains("transfer-encoding"), "session control requires fixed framing");
+				std::uint64_t length = 0;
+				if (headers.contains("content-length")) length = number(header("content-length"));
+				if (status == 204) require(!length, "session idle response has a body");
+				else require(length && length <= 4096 && header("content-type") == "application/json",
+					"session control body bound or type");
+				control = d::make_owned_buffer(limits.storage_account, static_cast<std::size_t>(length));
+				maximum_wire = 65536 + 4096;
+				headers_done = true;
+				return;
+			}
+			require(header("x-detent-session-version") == "1" &&
+				number(header("x-detent-window")) == session->window, "session response window mismatch");
+			std::array<char, 32> identity{};
+			for (std::size_t i = 0; i < session->session.size(); ++i) {
+				const auto byte = static_cast<unsigned char>(session->session[i]);
+				identity[2 * i] = "0123456789abcdef"[byte >> 4];
+				identity[2 * i + 1] = "0123456789abcdef"[byte & 15];
+			}
+			require(header("x-detent-session") == std::string_view(identity.data(), identity.size()),
+				"session response identity mismatch");
+		}
 		require(parser.status_code == 200 && parser.http_major == 1 && parser.http_minor == 1,
 				"delivery HTTP status or version rejected");
 		require(header("content-type") == "application/vnd.detent.distribution" &&
@@ -149,6 +185,8 @@ struct ResponseDecoder::Impl {
 		const auto type = number(header("x-detent-kind"));
 		require(type >= 1 && type <= 3, "unknown delivery update kind");
 		kind = static_cast<d::UpdateKind>(type);
+		if (session && kind == d::UpdateKind::Snapshot)
+			require(session->snapshot_allowed, "unexpected session snapshot");
 		target.revision = number(header("x-detent-revision"));
 		if (base && base->same_identity(target))
 			require(target.revision >= base->revision, "stale delivery response");
@@ -169,6 +207,19 @@ struct ResponseDecoder::Impl {
 		headers_done = true;
 	}
 	void advance(d::WorkBudget &budget) {
+		if (control) {
+			if (!budget.tokens || !budget.bytes) return;
+			const auto n = std::min(size - position, budget.bytes);
+			control->append({body.data() + position, n});
+			position += n;
+			budget.bytes -= n;
+			--budget.tokens;
+			if (position == size) {
+				position = size = 0;
+				if (http_done) { control->seal_prefix(); complete = true; }
+			}
+			return;
+		}
 		while (budget.bytes && budget.tokens && !complete) {
 			if (fragment) {
 				auto bytes = std::span<const char>(fragment->body->data() + fragment_position,
@@ -213,12 +264,13 @@ struct ResponseDecoder::Impl {
 	}
 };
 ResponseDecoder::ResponseDecoder(d::Cursor configured, std::optional<d::Cursor> base,
-								 d::NamespaceSelection names, bool compression, d::Limits limits)
+								 d::NamespaceSelection names, bool compression, d::Limits limits,
+								 std::optional<SessionResponseBinding> binding)
 	: impl_([&] {
 		  limits = d::detail::admitted_limits(std::move(limits));
 		  return d::make_storage_owner<Impl>(limits.storage_account, limits.storage_allocate,
 											 limits.storage_release, configured, base, names, compression,
-											 limits);
+											 limits, std::move(binding));
 	  }()) {}
 ResponseDecoder::~ResponseDecoder() = default;
 void ResponseDecoder::feed(std::span<const char> &input, d::WorkBudget &budget) {
@@ -261,7 +313,7 @@ bool ResponseDecoder::needs_input() const noexcept {
 }
 bool ResponseDecoder::done() const noexcept { return impl_->complete && !impl_->failed; }
 ReceivedUpdate ResponseDecoder::take() {
-	require(done() && !impl_->taken, "delivery update incomplete");
+	require(done() && !impl_->taken && !impl_->control, "delivery update incomplete");
 	auto &p = *impl_;
 	ReceivedUpdate result{p.kind, p.target, {}, {}};
 	if (p.decoded->snapshot)
@@ -271,6 +323,12 @@ ReceivedUpdate ResponseDecoder::take() {
 	p.decoded.reset();
 	p.taken = true;
 	return result;
+}
+bool ResponseDecoder::is_control() const noexcept { return static_cast<bool>(impl_->control); }
+ReceivedControl ResponseDecoder::take_control() {
+	require(done() && !impl_->taken && impl_->control, "session control incomplete");
+	impl_->taken = true;
+	return {impl_->parser.status_code, std::move(impl_->control)};
 }
 void ResponseDecoder::eof() {
 	if (!impl_->http_done || impl_->failed) {
@@ -329,6 +387,10 @@ bool ResponseDecoder::discard(d::WorkBudget &budget) noexcept {
 		--budget.tokens;
 		return true;
 	};
+	if (p.control) {
+		if (!pay(p.control->storage_capacity())) return false;
+		p.control.reset();
+	}
 	while (!p.headers.empty()) {
 		const auto first = p.headers.begin();
 		if (!pay(first->first.capacity() + first->second.capacity() + sizeof(*first) + 128))

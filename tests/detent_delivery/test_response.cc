@@ -215,6 +215,56 @@ int main() {
 			}
 			check(account->used() == 0);
 		}
+		d::Identity session;
+		session.fill('a');
+		std::string bound_headers = "X-Detent-Session-Version: 1\r\nX-Detent-Session: ";
+		for (unsigned i = 0; i < session.size(); ++i) bound_headers += "61";
+		bound_headers += "\r\nX-Detent-Window: 1\r\n";
+		for (unsigned fault = 0; fault < 5; ++fault) {
+			auto wire = response(d::UpdateKind::Snapshot);
+			const auto at = wire.find("\r\n\r\n");
+			wire.insert(at + 2, bound_headers);
+			if (fault == 1) replace(wire, "X-Detent-Window: 1", "X-Detent-Window: 2");
+			if (fault == 2) replace(wire, "X-Detent-Session-Version: 1", "X-Detent-Session-Version: 2");
+			if (fault == 3) replace(wire, "6161", "6261");
+			auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+			d::Limits limits;
+			limits.storage_account = account;
+			{
+				t::ResponseDecoder decoder(cursor(), {}, d::NamespaceSelection(names), false, limits,
+					t::SessionResponseBinding{t::SessionResponsePurpose::Next, session, 1, fault != 4});
+				bool rejected = false;
+				try { consume(decoder, wire, 1); }
+				catch (const std::invalid_argument &) { rejected = true; }
+				check(rejected == (fault != 0));
+				if (!fault) {
+					check(!decoder.is_control());
+					auto update = decoder.take();
+					check(update.snapshot && update.target == cursor());
+				}
+				drain(decoder);
+			}
+			check(account->used() == 0);
+		}
+		for (unsigned status : {200, 204, 409, 410, 503}) {
+			const std::string body = status == 204 ? "" : "{\"error\":\"snapshot_required\"}";
+			const auto wire = "HTTP/1.1 " + std::to_string(status) + " Response\r\nContent-Type: application/json\r\nContent-Length: " +
+				std::to_string(body.size()) + "\r\n\r\n" + body;
+			auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+			d::Limits limits;
+			limits.storage_account = account;
+			{
+				t::ResponseDecoder decoder(cursor(), {}, d::NamespaceSelection(names), false, limits,
+					t::SessionResponseBinding{status == 200 ? t::SessionResponsePurpose::Open : t::SessionResponsePurpose::Next,
+						session, 1, false});
+				consume(decoder, wire, 1);
+				check(decoder.is_control());
+				auto control = decoder.take_control();
+				check(control.status == status && control.body->view() == body);
+				drain(decoder);
+			}
+			check(account->used() == 0);
+		}
 		{
 			auto account = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
 			d::Limits limits;
