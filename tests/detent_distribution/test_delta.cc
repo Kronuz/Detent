@@ -97,14 +97,16 @@ d::ValidatedDelta decode(std::string_view bytes, bool progress = false, d::Curso
 int main() {
 	try {
 		auto bytes = fixture();
-		for (const auto &[expected, progress_only] : {
-			std::pair{fixture(), false}, std::pair{fixture(true), true},
-			std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupOverride(true)), false},
-			std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupRollout{17}), false}}) {
+		for (const auto &[expected, progress_only] :
+			 {std::pair{fixture(), false}, std::pair{fixture(true), true},
+			  std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupOverride(true)), false},
+			  std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupRollout{17}), false}}) {
 			auto input = std::make_shared<const d::ValidatedDelta>(decode(expected, progress_only));
 			const auto resident = input->storage_account()->used();
+			auto output = std::make_shared<d::StorageLedger>(1024 * 1024);
 			{
-				d::DeltaEncoder encoder(d::make_delta_source(input, 1));
+				d::DeltaEncoder encoder(d::make_delta_source(input, 1, output));
+				require(output->used() > 0 && input->storage_account()->used() == resident);
 				std::string encoded;
 				unsigned turns = 0;
 				while (!encoder.done()) {
@@ -123,7 +125,7 @@ int main() {
 					require(++turns < 200000);
 				}
 			}
-			require(input->storage_account()->used() == resident);
+			require(input->storage_account()->used() == resident && output->used() == 0);
 		}
 		storage_failure::verify(
 			bytes, [](d::Limits limits) { return d::DeltaDecoder(cursor(), {"app"}, limits); }, require);

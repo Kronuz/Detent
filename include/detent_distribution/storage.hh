@@ -1,11 +1,13 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <new>
 #include <stdexcept>
 #include <utility>
@@ -36,8 +38,8 @@ class StorageLedger {
 		~Ticket() { reset(); }
 		std::size_t bytes() const noexcept { return bytes_; }
 		void reset() noexcept {
-			if (ledger_)
-				ledger_->used_.fetch_sub(bytes_, std::memory_order_relaxed);
+			for (auto ledger = ledger_; ledger; ledger = ledger->parent_.get())
+				ledger->used_.fetch_sub(bytes_, std::memory_order_relaxed);
 			ledger_ = nullptr;
 			bytes_ = 0;
 		}
@@ -53,20 +55,42 @@ class StorageLedger {
 		friend class StorageLedger;
 	};
 
+	static constexpr std::size_t maximum_depth = 8;
 	explicit StorageLedger(std::size_t limit) : limit_(limit) {}
+	StorageLedger(std::shared_ptr<StorageLedger> parent, std::size_t limit)
+		: limit_(limit), parent_(std::move(parent)) {
+		if (!parent_ || limit > parent_->limit() || parent_->depth_ == maximum_depth)
+			throw std::invalid_argument("invalid distribution storage hierarchy");
+		depth_ = parent_->depth_ + 1;
+	}
 	StorageLedger(const StorageLedger &) = delete;
 	StorageLedger &operator=(const StorageLedger &) = delete;
 	Ticket admit(std::size_t bytes) {
-		auto used = used_.load(std::memory_order_relaxed);
-		for (;;) {
-			if (bytes > limit_ - used)
-				throw StoragePressure("distribution storage pressure");
-			if (used_.compare_exchange_weak(used, used + bytes, std::memory_order_relaxed))
-				break;
+		std::array<std::size_t, maximum_depth> observations;
+		std::size_t count = 0;
+		for (auto ledger = this; ledger; ledger = ledger->parent_.get()) {
+			auto used = ledger->used_.load(std::memory_order_relaxed);
+			for (;;) {
+				if (bytes > ledger->limit_ - used) {
+					auto rollback = this;
+					for (std::size_t i = 0; i < count; ++i) {
+						rollback->used_.fetch_sub(bytes, std::memory_order_relaxed);
+						rollback = rollback->parent_.get();
+					}
+					throw StoragePressure("distribution storage pressure");
+				}
+				if (ledger->used_.compare_exchange_weak(used, used + bytes, std::memory_order_relaxed))
+					break;
+			}
+			observations[count++] = used + bytes;
 		}
-		auto peak = peak_.load(std::memory_order_relaxed);
-		while (peak < used + bytes &&
-			   !peak_.compare_exchange_weak(peak, used + bytes, std::memory_order_relaxed)) {
+		auto ledger = this;
+		for (std::size_t i = 0; i < count; ++i) {
+			auto peak = ledger->peak_.load(std::memory_order_relaxed);
+			while (peak < observations[i] &&
+				   !ledger->peak_.compare_exchange_weak(peak, observations[i], std::memory_order_relaxed)) {
+			}
+			ledger = ledger->parent_.get();
 		}
 		return Ticket(*this, bytes);
 	}
@@ -76,6 +100,8 @@ class StorageLedger {
 
   private:
 	const std::size_t limit_;
+	const std::shared_ptr<StorageLedger> parent_;
+	std::size_t depth_ = 1;
 	std::atomic<std::size_t> used_{0}, peak_{0};
 };
 

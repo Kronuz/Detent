@@ -4,15 +4,14 @@ namespace detent::distribution {
 namespace {
 class ValidatedSnapshotSource final : public SnapshotSource {
   public:
-	explicit ValidatedSnapshotSource(std::shared_ptr<const ValidatedSnapshot> snapshot)
-		: snapshot_(std::move(snapshot)) {
+	ValidatedSnapshotSource(std::shared_ptr<const ValidatedSnapshot> snapshot,
+							std::shared_ptr<StorageLedger> account)
+		: snapshot_(std::move(snapshot)), account_(std::move(account)) {
 		if (snapshot_->profile() != Profile{})
 			throw std::invalid_argument("unsupported validated snapshot source");
 	}
 	const Cursor &cursor() const noexcept override { return snapshot_->cursor(); }
-	std::shared_ptr<StorageLedger> storage_account() const noexcept override {
-		return snapshot_->storage_account();
-	}
+	std::shared_ptr<StorageLedger> storage_account() const noexcept override { return account_; }
 	std::uint64_t namespace_count() const noexcept override { return snapshot_->namespaces().size(); }
 	NamespaceRevision name_space(std::uint64_t ordinal) const override {
 		if (ordinal >= namespace_count())
@@ -41,14 +40,18 @@ class ValidatedSnapshotSource final : public SnapshotSource {
 
   private:
 	std::shared_ptr<const ValidatedSnapshot> snapshot_;
+	std::shared_ptr<StorageLedger> account_;
 	OverrideRange overrides_;
 	std::uint64_t record_ = 0, override_ = 0;
 };
 } // namespace
-std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const ValidatedSnapshot> snapshot) {
+std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const ValidatedSnapshot> snapshot,
+													 std::shared_ptr<StorageLedger> output_account) {
 	if (!snapshot)
 		throw std::invalid_argument("validated snapshot source missing");
+	if (!output_account)
+		output_account = snapshot->storage_account();
 	return std::allocate_shared<ValidatedSnapshotSource>(
-		StorageAllocator<ValidatedSnapshotSource>(snapshot->storage_account()), snapshot);
+		StorageAllocator<ValidatedSnapshotSource>(output_account), snapshot, output_account);
 }
 } // namespace detent::distribution

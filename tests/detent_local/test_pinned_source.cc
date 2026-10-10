@@ -34,8 +34,11 @@ int main() {
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+		auto output = std::make_shared<d::StorageLedger>(1024 * 1024);
+		const auto input_capacity = snapshot->storage_account()->used();
 		{
-			d::SnapshotEncoder encoder(d::make_snapshot_source(snapshot));
+			d::SnapshotEncoder encoder(d::make_snapshot_source(snapshot, output));
+			require(output->used() > 0 && snapshot->storage_account()->used() == input_capacity);
 			std::string encoded;
 			while (!encoder.done()) {
 				d::WorkBudget budget;
@@ -45,6 +48,7 @@ int main() {
 			}
 			require(encoded == fixture() && encoder.encoded_length() == encoded.size());
 		}
+		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
 		l::GenerationId generation;
 		generation.fill('p');
 		l::ImageBuilder builder(snapshot, generation);

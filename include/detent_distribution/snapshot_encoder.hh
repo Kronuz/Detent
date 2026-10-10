@@ -20,7 +20,8 @@ class SnapshotSource {
 	virtual SnapshotRecordStep next_record() = 0;
 	virtual std::optional<OverrideRow> next_override() = 0;
 };
-std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const ValidatedSnapshot>);
+std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const ValidatedSnapshot>,
+													 std::shared_ptr<StorageLedger> output_account = {});
 // Count/emission share one immutable source. Only sealed, independently owned
 // chunks cross the transport boundary; callers keep source access owner-local.
 class SnapshotEncoder {

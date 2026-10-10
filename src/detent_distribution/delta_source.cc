@@ -8,8 +8,9 @@ namespace m = messagepack;
 namespace {
 class ValidatedDeltaSource final : public DeltaSource {
   public:
-	ValidatedDeltaSource(std::shared_ptr<const ValidatedDelta> delta, std::uint64_t namespaces)
-		: delta_(std::move(delta)), account_(delta_->storage_account()), base_(delta_->base()),
+	ValidatedDeltaSource(std::shared_ptr<const ValidatedDelta> delta, std::uint64_t namespaces,
+						 std::shared_ptr<StorageLedger> account)
+		: delta_(std::move(delta)), account_(std::move(account)), base_(delta_->base()),
 		  target_(delta_->target()) {
 		if (delta_->profile() != Profile{})
 			throw std::invalid_argument("unsupported validated delta source");
@@ -186,10 +187,13 @@ class ValidatedDeltaSource final : public DeltaSource {
 };
 } // namespace
 std::shared_ptr<DeltaSource> make_delta_source(std::shared_ptr<const ValidatedDelta> delta,
-											   std::uint64_t namespaces) {
+											   std::uint64_t namespaces,
+											   std::shared_ptr<StorageLedger> output_account) {
 	if (!delta)
 		throw std::invalid_argument("validated delta source missing");
-	return std::allocate_shared<ValidatedDeltaSource>(
-		StorageAllocator<ValidatedDeltaSource>(delta->storage_account()), delta, namespaces);
+	if (!output_account)
+		output_account = delta->storage_account();
+	return std::allocate_shared<ValidatedDeltaSource>(StorageAllocator<ValidatedDeltaSource>(output_account),
+													  delta, namespaces, output_account);
 }
 } // namespace detent::distribution

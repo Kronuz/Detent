@@ -104,6 +104,57 @@ int main() {
 			rejects<StoragePressure>([&] { make_storage_owner<int>(zero, allocate, release); });
 			check(allocations == before && zero->used() == 0);
 		}
+		{
+			auto root = std::make_shared<StorageLedger>(1000);
+			auto cache = std::make_shared<StorageLedger>(root, 400);
+			auto publication = std::make_shared<StorageLedger>(root, 600);
+			auto retained = cache->admit(400);
+			rejects<StoragePressure>([&] { cache->admit(1); });
+			auto publish = publication->admit(600);
+			check(root->used() == 1000);
+			auto moved = std::move(retained);
+			check(retained.bytes() == 0 && moved.bytes() == 400);
+			moved.reset();
+			check(cache->used() == 0 && root->used() == 600);
+			auto competing = std::make_shared<StorageLedger>(root, 1000);
+			rejects<StoragePressure>([&] { competing->admit(401); });
+			check(competing->used() == 0 && competing->peak() == 0 && root->used() == 600);
+			publish.reset();
+			check(root->used() == 0 && root->peak() == 1000);
+			rejects<std::invalid_argument>([&] { StorageLedger invalid(root, 1001); });
+			rejects<std::invalid_argument>([&] { StorageLedger invalid({}, 0); });
+			auto deepest = root;
+			for (std::size_t depth = 1; depth < StorageLedger::maximum_depth; ++depth)
+				deepest = std::make_shared<StorageLedger>(deepest, 1000);
+			rejects<std::invalid_argument>([&] { StorageLedger invalid(deepest, 1000); });
+			auto ticket = deepest->admit(37);
+			check(root->used() == 37);
+			ticket.reset();
+			check(root->used() == 0);
+			auto value = std::allocate_shared<int>(StorageAllocator<int>(cache), 7);
+			std::weak_ptr<int> weak = value;
+			const auto charged = cache->used();
+			value.reset();
+			check(weak.expired() && charged > 0 && root->used() == charged);
+			weak.reset();
+			check(root->used() == 0 && cache->used() == 0);
+			std::vector<std::jthread> workers;
+			for (unsigned i = 0; i < 8; ++i) {
+				workers.emplace_back([&, i] {
+					auto leaf = i % 2 ? cache : publication;
+					for (unsigned turn = 0; turn < 10000; ++turn) {
+						try {
+							auto claim = leaf->admit(100);
+							check(root->used() <= root->limit() && leaf->used() <= leaf->limit());
+							std::this_thread::yield();
+						} catch (const StoragePressure &) {
+						}
+					}
+				});
+			}
+			workers.clear();
+			check(root->used() == 0 && cache->used() == 0 && publication->used() == 0);
+		}
 		allocations = frees = 0;
 		constexpr auto page = 64 + PagedStorage::page_overhead();
 		StorageLedger ledger(page * 2);

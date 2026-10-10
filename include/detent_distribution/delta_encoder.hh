@@ -31,7 +31,8 @@ class DeltaSource {
 	virtual bool discard(WorkBudget &) noexcept = 0;
 };
 std::shared_ptr<DeltaSource> make_delta_source(std::shared_ptr<const ValidatedDelta>,
-											   std::uint64_t namespaces);
+											   std::uint64_t namespaces,
+											   std::shared_ptr<StorageLedger> output_account = {});
 class DeltaEncoder {
   public:
 	explicit DeltaEncoder(std::shared_ptr<DeltaSource>, Limits = {});
