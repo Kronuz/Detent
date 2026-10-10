@@ -30,7 +30,7 @@ struct Coordinator::Impl {
 	CoordinatorStatus diagnostic;
 	std::exception_ptr terminal_failure;
 	bool terminal_fenced = false;
-	bool fail_worker_wait = false;
+	bool fail_worker_wait = false, close_after_session_open = false;
 	d::RetirementHandle<RecoveryResult> base;
 	d::StorageOwner<l::ImageBuilder> builder;
 	asio::cancellation_signal network_cancel;
@@ -252,7 +252,20 @@ struct Coordinator::Impl {
 	asio::awaitable<void> candidate_loop();
 };
 
+namespace {
+asio::awaitable<void> release_session(ClientOptions options, SessionHandle &session) {
+	co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
+	options.timeout = std::min(options.timeout, std::chrono::milliseconds(1000));
+	try {
+		co_await close_session(std::move(options), session);
+	} catch (...) {
+	}
+}
+} // namespace
 asio::awaitable<void> Coordinator::Impl::candidate_loop() {
+	SessionHandle session;
+	std::optional<PublicationFeedback> feedback;
+	bool force_snapshot = false;
 	std::exception_ptr fatal;
 	try {
 		while (!closing && store->status() == l::StoreStatus::Starting)
@@ -270,6 +283,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			publication_started = false;
 			publication_retry = {};
 			std::optional<ReceivedUpdate> update;
+			std::optional<PublicationFeedback> offered;
+			bool reset_session = false, idle = false, offered_snapshot = false;
 			std::exception_ptr failure;
 			try {
 				auto request = options.source;
@@ -279,9 +294,56 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						? std::optional(actual.descriptor->cursor)
 						: std::nullopt;
 				diagnostic.phase = CoordinatorPhase::Receiving;
-				update.emplace(co_await asio::co_spawn(
-					co_await asio::this_coro::executor, receive(std::move(request)),
-					asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable)));
+				if (options.delivery_mode == DeliveryMode::Subscription) {
+					const auto executor = co_await asio::this_coro::executor;
+					if (!session.valid()) {
+						session = co_await asio::co_spawn(
+							executor, open_session(request, force_snapshot),
+							asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
+						feedback.reset();
+						if (std::exchange(close_after_session_open, false)) close();
+					}
+					if (cancelled())
+						throw asio::system_error(asio::error::operation_aborted);
+					const auto wait = std::min(
+						{session.maximum_wait(), std::chrono::milliseconds(30000), request.timeout / 2});
+					auto event = co_await asio::co_spawn(
+						executor, next_session(request, session, feedback, wait),
+						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
+					if (auto *offer = std::get_if<SessionOffer>(&event)) {
+						offered = PublicationFeedback{offer->window, offer->update.target};
+						offered_snapshot = offer->update.kind == d::UpdateKind::Snapshot;
+						update.emplace(std::move(offer->update));
+					} else if (std::holds_alternative<SessionIdle>(event)) {
+						idle = true;
+					} else {
+						const auto reason = std::get<SessionReset>(event).reason;
+						if (reason == SessionResetReason::Forbidden ||
+							reason == SessionResetReason::Unauthorized ||
+							reason == SessionResetReason::IdentityChanged ||
+							reason == SessionResetReason::InvalidRequest)
+							throw SessionResetError(reason);
+						reset_session = !session.valid();
+						force_snapshot = force_snapshot || reason == SessionResetReason::HistoryLost ||
+										 reason == SessionResetReason::RepresentationLimit;
+					}
+					if (!update && !cancelled()) {
+						if (reset_session) {
+							co_await release_session(options.source, session);
+							session = {};
+							feedback.reset();
+						}
+						if (!idle || wait == std::chrono::milliseconds::zero())
+							co_await pause(options.poll_interval);
+						continue;
+					}
+				} else {
+					update.emplace(co_await asio::co_spawn(
+						co_await asio::this_coro::executor, receive(std::move(request)),
+						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable)));
+				}
+				if (!update)
+					throw asio::system_error(asio::error::operation_aborted);
 				diagnostic.received = update->target;
 				diagnostic.validated = update->target;
 				if (!cancelled()) {
@@ -344,6 +406,25 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			} catch (...) {
 				std::terminate();
 			}
+			if (failure || cancelled()) {
+				if (session.identity() != d::Identity{})
+					co_await release_session(options.source, session);
+				session = {};
+				feedback.reset();
+			}
+			if (failure) {
+				try {
+					std::rethrow_exception(failure);
+				} catch (const SessionResetError &error) {
+					const auto reason = error.reason();
+					if (reason == SessionResetReason::Forbidden ||
+						reason == SessionResetReason::Unauthorized ||
+						reason == SessionResetReason::IdentityChanged ||
+						reason == SessionResetReason::InvalidRequest)
+						throw;
+				} catch (...) {
+				}
+			}
 			if (closing)
 				break;
 			diagnostic.phase = CoordinatorPhase::Reconciling;
@@ -356,12 +437,27 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			auto recovered = co_await recover(changed);
 			if (!closing)
 				bind_base(std::move(recovered));
-			if (!closing)
+			if (!closing && options.delivery_mode == DeliveryMode::Subscription && session.valid() &&
+				offered) {
+				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
+					base->generation->descriptor() == actual.descriptor && !failure && !cancelled()) {
+					feedback = offered;
+					if (offered_snapshot)
+						force_snapshot = false;
+				} else {
+					co_await release_session(options.source, session);
+					session = {};
+					feedback.reset();
+				}
+			}
+			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid()))
 				co_await pause(options.poll_interval);
 		}
 	} catch (...) {
 		fatal = std::current_exception();
 	}
+	if (session.identity() != d::Identity{})
+		co_await release_session(options.source, session);
 	if (fatal) {
 		if (diagnostic.worker_pending)
 			std::terminate();
@@ -387,6 +483,9 @@ Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStor
 Coordinator::~Coordinator() = default;
 void detail::CoordinatorAccess::fail_next_worker_wait(Coordinator &coordinator) {
 	coordinator.impl_->fail_worker_wait = true;
+}
+void detail::CoordinatorAccess::close_after_next_session_open(Coordinator &coordinator) {
+	coordinator.impl_->close_after_session_open = true;
 }
 void Coordinator::attach_store(std::shared_ptr<l::DiskStore> store) {
 	if (!store || impl_->store || impl_->running ||

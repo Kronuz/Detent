@@ -10,8 +10,10 @@ namespace detail {
 struct CoordinatorAccess;
 }
 using NativeDriver = kronuz::journal::AsioCompletionDriver<kronuz::io::completion::NativeQueue>;
+enum class DeliveryMode { Poll, Subscription };
 struct CoordinatorOptions {
 	ClientOptions source;
+	DeliveryMode delivery_mode = DeliveryMode::Poll;
 	std::filesystem::path directory;
 	local::ViewLimits view_limits;
 	// Trusted previous identity permitted by configuration, never by input bytes.

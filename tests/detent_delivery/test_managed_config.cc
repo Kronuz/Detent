@@ -63,6 +63,15 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		check(options.coordinator.delivery_mode == detent::delivery::DeliveryMode::Poll);
+		object.AddMember("delivery_mode", "subscription", object.GetAllocator());
+		write();
+		check(load().coordinator.delivery_mode == detent::delivery::DeliveryMode::Subscription);
+		object["delivery_mode"].SetString("unknown");
+		write();
+		rejected();
+		object.RemoveMember("delivery_mode");
+		write();
 		std::filesystem::permissions(configuration, std::filesystem::perms::others_read,
 									 std::filesystem::perm_options::add);
 		rejected();

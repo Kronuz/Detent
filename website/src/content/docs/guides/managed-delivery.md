@@ -158,3 +158,11 @@ naming the old `cluster`, `group`, `epoch` and `scope`. A trusted reset
 publishes a new snapshot while keeping the local storage identity; an
 unconfigured identity change fails startup. That's an administrative trust
 decision, never an automatic fallback.
+
+## Subscription Delivery
+
+Add `"delivery_mode":"subscription"` to the private managed credential configuration to use publication windows and long polling. The default remains `"poll"`. Subscriptions reuse the same TLS verification, framed updates and durable local generations.
+
+The agent opens from its recovered local cursor, receives one update and sends exact publication feedback only after local publication and recovery complete. An unchanged agent waits without repeatedly exporting authority state. Session expiry permits reopening from the actual durable cursor. Lost history requests an explicit new snapshot; changed identity or revoked authorization fences the agent until trusted configuration is corrected.
+
+`poll_interval_ms` controls retry backoff in subscription mode. The authority negotiates the maximum long-poll wait, and each network operation remains bounded by `timeout_ms`. Shutdown drains accepted network work before a bounded best-effort session close. Subscription transport is under Stage 5A qualification; relay fan-out and incremental local publication remain planned.

@@ -23,7 +23,7 @@ foreach(records IN ITEMS 100000 500000)
   add_test(NAME test_delivery_coordinator_${records} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture ${records})
   set_tests_properties(test_delivery_coordinator_${records} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
 endforeach()
-foreach(mode IN ITEMS cancel-selected reader-pressure)
+foreach(mode IN ITEMS cancel-selected reader-pressure subscription subscription-500000 subscription-reset subscription-cancel-open)
   add_test(NAME test_delivery_coordinator_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
   set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
 endforeach()
@@ -37,4 +37,8 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
     $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_managed_delivery_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
+  add_test(NAME test_managed_subscription_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
+    $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription)
+  set_tests_properties(test_managed_subscription_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
 endif()

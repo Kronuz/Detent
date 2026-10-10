@@ -1,3 +1,4 @@
+#include "../../src/detent_delivery/coordinator_internal.hh"
 #include "detent_delivery/coordinator.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
@@ -103,7 +104,7 @@ struct Timing {
 	std::int64_t maximum_lateness_us = 0;
 };
 asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
-							  bool cancel_selected) {
+							  bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr) {
 	auto executor = co_await asio::this_coro::executor;
 	asio::steady_timer timer(executor);
 	const auto deadline = std::chrono::steady_clock::now() + 60s;
@@ -142,8 +143,18 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 			std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - expected)
 				.count());
 	}
-	// Let the candidate park in its twelve-hour polling delay, then ensure
-	// close wakes it instead of waiting for that delay to expire.
+	if (feedback_received) {
+		while (!feedback_received->load() && std::chrono::steady_clock::now() < deadline) {
+			timer.expires_after(1ms);
+			co_await timer.async_wait(asio::use_awaitable);
+		}
+		if (!feedback_received->load())
+			coordinator->close();
+		check(feedback_received->load());
+	}
+	// Close wakes the parked candidate after the source observes durable feedback.
+	if (feedback_received)
+		std::cerr << "session fixture closing after durable feedback\n";
 	timer.expires_after(5ms);
 	co_await timer.async_wait(asio::use_awaitable);
 	coordinator->close();
@@ -189,20 +200,32 @@ asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinat
 	coordinator->close();
 }
 asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
-							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options) {
+							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
+							   const std::atomic<bool> *feedback_received, bool cancel_open = false) {
 	using namespace asio::experimental::awaitable_operators;
+	if (cancel_open) {
+		co_await coordinator->run();
+		co_return;
+	}
 	if (pressure) {
 		co_await (coordinator->run() && observe_pressure(coordinator, options));
 		co_return;
 	}
-	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected));
+	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected, feedback_received));
 }
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
 		const bool cancel_selected = argc == 3 && std::string_view(argv[2]) == "--cancel-selected";
 		const bool pressure = argc == 3 && std::string_view(argv[2]) == "--reader-pressure";
-		const auto requested = argc == 3 && !cancel_selected && !pressure ? std::stoul(argv[2]) : 0;
+		const bool cancel_open = argc == 3 && std::string_view(argv[2]) == "--subscription-cancel-open";
+		const bool reset_retry = argc == 3 && std::string_view(argv[2]) == "--subscription-reset";
+		const bool subscription = argc == 3 && std::string_view(argv[2]).starts_with("--subscription");
+		const auto requested = subscription
+								   ? (std::string_view(argv[2]) == "--subscription-500000" ? 500000u : 0u)
+							   : argc == 3 && !cancel_selected && !pressure ? std::stoul(argv[2])
+																			: 0;
+		std::atomic<bool> feedback_received{false};
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
 		const auto started = std::chrono::steady_clock::now();
@@ -239,8 +262,9 @@ int main(int argc, char **argv) {
 															io.get_executor(), queue);
 		t::CoordinatorOptions options;
 		options.directory = directory;
+		options.delivery_mode = subscription ? t::DeliveryMode::Subscription : t::DeliveryMode::Poll;
 		options.poll_interval =
-			(cancel_selected || pressure)
+			(cancel_selected || pressure || reset_retry)
 				? 10ms
 				: std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::hours(12));
 		options.source.endpoint = acceptor.local_endpoint();
@@ -271,12 +295,21 @@ int main(int argc, char **argv) {
 		acceptor.non_blocking(true);
 		std::jthread server([&] {
 			try {
-				for (unsigned attempt = 0; attempt != (pressure			 ? 3u
+				for (unsigned attempt = 0; attempt != (cancel_open		 ? 2u
+													   : reset_retry	 ? 11u
+													   : subscription	 ? 4u
+													   : pressure		 ? 3u
 													   : cancel_selected ? 2u
 																		 : 1u);
 					 ++attempt) {
+					const auto phase =
+						cancel_open	  ? std::array<unsigned, 2>{0, 3}[attempt]
+						: reset_retry ? std::array<unsigned, 11>{0, 1, 4, 3, 0, 5, 3, 0, 1, 2, 3}[attempt]
+									  : attempt;
+					if (subscription)
+						std::cerr << "session fixture phase=" << phase << " attempt=" << attempt << '\n';
 					asio::ip::tcp::socket accepted(server_io);
-					const auto accept_deadline = std::chrono::steady_clock::now() + 15s;
+					const auto accept_deadline = std::chrono::steady_clock::now() + 60s;
 					for (;;) {
 						asio::error_code error;
 						acceptor.accept(accepted, error);
@@ -291,31 +324,88 @@ int main(int argc, char **argv) {
 					socket.handshake(asio::ssl::stream_base::server);
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
-					if (cancel_selected || pressure) {
+					if (cancel_selected || pressure || subscription) {
 						auto text = [&] {
 							return std::string(asio::buffers_begin(request.data()),
 											   asio::buffers_end(request.data()));
 						};
 						auto header = text();
+						if (cancel_open)
+							check(header.starts_with(phase == 0 ? "POST /v2/distribution/session/open "
+																: "POST /v2/distribution/session/close "));
 						const auto body_start = header.find("\r\n\r\n") + 4;
 						const auto length = std::stoul(header.substr(header.find("Content-Length: ") + 16));
 						if (request.size() < body_start + length)
 							asio::read(socket, request,
 									   asio::transfer_exactly(body_start + length - request.size()));
 						const auto body = text().substr(body_start);
-						check((body.find("\"base\":{") != std::string::npos) == (attempt != 0));
-						if (attempt)
-							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) != std::string::npos);
+						if (reset_retry && (attempt == 4 || attempt == 7))
+							check(body.find("\"force_snapshot\":true") != std::string::npos);
+						if (!subscription)
+							check((body.find("\"base\":{") != std::string::npos) == (attempt != 0));
+						if (subscription && phase == 2) {
+							check(body.find("\"after\":1") != std::string::npos &&
+								  body.find("\"published\":{") != std::string::npos &&
+								  body.find("\"revision\":1") != std::string::npos);
+							std::promise<bool> recovered;
+							auto ready = recovered.get_future();
+							asio::post(io, [&] {
+								const auto status = coordinator->status();
+								recovered.set_value(status.recoverable == cursor() &&
+													status.selected.descriptor &&
+													status.selected.descriptor->cursor == cursor());
+							});
+							check(ready.get());
+							feedback_received.store(true);
+						}
+						if (attempt && !subscription)
+							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) !=
+								  std::string::npos);
 					}
 					auto bytes = response(count, pressure ? attempt + 1 : 1);
+					if (subscription) {
+						if (phase == 0) {
+							const std::string body =
+								"{\"version\":1,\"session\":\"11111111111111111111111111111111\","
+								"\"window\":0,\"mode\":\"snapshot\",\"wait_ms\":30000}";
+							bytes = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+									std::to_string(body.size()) + "\r\n\r\n" + body;
+						} else if (phase == 1 || phase == 5) {
+							bytes.insert(bytes.find("\r\n") + 2,
+										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
+										 "11111111111111111111111111111111\r\n"
+										 "X-Detent-Window: 1\r\n");
+							if (phase == 5)
+								bytes.resize(bytes.find("\r\n\r\n") + 4 + 48);
+						} else if (phase == 4) {
+							const std::string body =
+								"{\"error\":\"snapshot_required\",\"reason\":\"history_lost\"}";
+							bytes = "HTTP/1.1 409 Conflict\r\nContent-Type: "
+									"application/json\r\nContent-Length: " +
+									std::to_string(body.size()) + "\r\n\r\n" + body;
+						} else if (phase == 2) {
+							// Hold an original long poll until owner cancellation closes the socket.
+							std::array<char, 1> input;
+							asio::error_code error;
+							socket.read_some(asio::buffer(input), error);
+							check(bool(error));
+							continue;
+						} else {
+							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+						}
+					}
 					asio::write(socket, asio::buffer(bytes));
 				}
 			} catch (...) {
 				server_failure = std::current_exception();
 			}
 		});
+		if (cancel_open)
+			t::detail::CoordinatorAccess::close_after_next_session_open(*coordinator);
 		Timing timing;
-		auto done = asio::co_spawn(io, exercise(coordinator, timing, cancel_selected, pressure, options),
+		auto done = asio::co_spawn(io,
+								   exercise(coordinator, timing, cancel_selected, pressure, options,
+											subscription ? &feedback_received : nullptr, cancel_open),
 								   asio::use_future);
 		io.run();
 		done.get();
@@ -325,9 +415,15 @@ int main(int argc, char **argv) {
 		auto final_cursor = cursor();
 		if (pressure)
 			final_cursor.revision = 3;
-		check(coordinator->drained() && store->selection().descriptor->cursor == final_cursor);
-		check(coordinator->status().received == final_cursor &&
-			  coordinator->status().validated == final_cursor);
+		check(coordinator->drained());
+		if (cancel_open) {
+			check(!store->selection().descriptor && !coordinator->status().received &&
+				  !coordinator->status().acknowledged);
+		} else {
+			check(store->selection().descriptor->cursor == final_cursor);
+			check(coordinator->status().received == final_cursor &&
+				  coordinator->status().validated == final_cursor);
+		}
 		// run() retains the facade before its coroutine starts. A close issued
 		// before first execution still drives startup cancellation to drainage.
 		auto early_directory = directory / "early-close";
@@ -381,14 +477,16 @@ int main(int argc, char **argv) {
 		queue.reset();
 		store.reset();
 		domain.close().wait();
-		auto recovered = l::recover_generation(directory);
-		check(recovered.descriptor().cursor == final_cursor);
-		check(recovered.view().size() == count);
-		if (count > 4) {
-			auto integer = recovered.view().try_get("app", "key000004");
-			check(integer && *integer && integer->value() == -4);
-			auto boolean = recovered.view().try_eval("app", "key000001", {}, "beta");
-			check(boolean && *boolean);
+		if (!cancel_open) {
+			auto recovered = l::recover_generation(directory);
+			check(recovered.descriptor().cursor == final_cursor);
+			check(recovered.view().size() == count);
+			if (count > 4) {
+				auto integer = recovered.view().try_get("app", "key000004");
+				check(integer && *integer && integer->value() == -4);
+				auto boolean = recovered.view().try_eval("app", "key000001", {}, "beta");
+				check(boolean && *boolean);
+			}
 		}
 		check(mapping->used() == 0);
 		std::cout << "{\"records\":" << count << ",\"managed_heap_peak\":" << account->peak()

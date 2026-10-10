@@ -128,6 +128,8 @@ The private authority configuration accepts an optional `subscription_limits` ob
 
 Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime must cover idle lifetime. Actual storage admission also depends on the delivery ledger; raising logical limits does not reserve unlimited memory.
 
+The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, `poll_interval_ms` sets retry backoff and the server negotiates long-poll duration.
+
 ---
 
 ## Environment Variables

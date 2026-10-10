@@ -5,6 +5,7 @@ agent=$2
 reader=$3
 interpreter=$4
 certificates=$5
+delivery_mode=${6:-poll}
 mkdir -p .scratch
 root=$(mktemp -d "$PWD/.scratch/managed-delivery.XXXXXX")
 authority_pid=
@@ -28,8 +29,8 @@ writer_token=managed-writer-test-000000000000000000000000
 reader_token=managed-reader-test-000000000000000000000000
 printf '{%s,"directory":"authority-data","publisher_tls":{"certificate":"%s/one.pem","key":"%s/one.key","ca":"%s/ca.pem"},"credentials":[{"token":"%s","producer":"writer","namespaces":["ns","other"]},{"token":"%s","producer":"agent","principal":"agent-reader","publish":false,"namespaces":["ns"]}]}\n' \
     "$identity" "$certificates" "$certificates" "$certificates" "$writer_token" "$reader_token" > "$root/authority.json"
-printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":%s,"ca":"%s/ca.pem","poll_interval_ms":10}\n' \
-    "$identity" "$reader_token" "$port" "$certificates" > "$root/managed.json"
+printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":%s,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s"}\n' \
+    "$identity" "$reader_token" "$port" "$certificates" "$delivery_mode" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
 scope=$("$interpreter" -c 'import hashlib; principal=b"agent-reader"; namespace=b"ns"; wire=b"detent-authorized-scope-v1"+len(principal).to_bytes(8,"big")+principal+(1).to_bytes(8,"big")+(1).to_bytes(8,"big")+len(namespace).to_bytes(8,"big")+namespace; print(hashlib.sha256(wire).hexdigest())')
 printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","defaults_path":"defaults.json","generation_cluster":"63000000000000000000000000000000","generation_group":"67000000000000000000000000000000","generation_epoch":"65000000000000000000000000000000","generation_scope":"%s"}\n' "$scope" > "$root/agent.json"
@@ -58,7 +59,7 @@ wait_value() {
     cat "$root/agent.log"; return 1
 }
 wait_value 42
-[[ $("$reader" get ns:feature --config "$root/agent.json" --system --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
+[[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
 [[ ! -e "$root/run/snapshot.shm" ]]
 cp "$root/generations/storage.meta" "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
@@ -90,12 +91,22 @@ cp "$root/managed.json" "$root/managed-good.json"
 "$agent" --config "$root/agent.json" > "$root/agent-unauthorized.log" 2>&1 &
 agent_pid=$!
 for ((attempt=0;attempt<200;attempt++)); do
-    if grep -q 'managed delivery failures' "$root/agent-unauthorized.log"; then break; fi
+    if grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"; then break; fi
     sleep 0.02
 done
-grep -q 'managed delivery failures' "$root/agent-unauthorized.log"
+grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
+if [[ "$delivery_mode" == subscription ]]; then
+    for ((attempt=0;attempt<200;attempt++)); do
+        if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
+        sleep 0.02
+    done
+    if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
+    if wait "$agent_pid"; then exit 1; fi
+else
+    kill -TERM "$agent_pid"; wait "$agent_pid"
+fi
+agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
 cp "$root/managed-good.json" "$root/managed.json"
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["epoch"]="66000000000000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"

@@ -106,11 +106,19 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"disk_entries",
 					"disk_generations",
 					"poll_interval_ms",
+					"delivery_mode",
 					"timeout_ms",
 					"compression",
 					"reset_from"});
 	ManagedOptions result;
 	result.coordinator.directory = directory;
+	if (object.HasMember("delivery_mode")) {
+		const auto mode = text(object["delivery_mode"], 16);
+		require(mode == "poll" || mode == "subscription", "invalid managed delivery mode");
+		result.coordinator.delivery_mode = mode == "subscription"
+											   ? detent::delivery::DeliveryMode::Subscription
+											   : detent::delivery::DeliveryMode::Poll;
+	}
 	auto &source = result.coordinator.source;
 	source.configured.cluster = identity<16>(field(object, "cluster"));
 	source.configured.group = identity<16>(field(object, "group"));
