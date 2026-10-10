@@ -1,5 +1,6 @@
 #include "detent_distribution/snapshot_encoder.hh"
 #include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_encoder.hh"
 #include <algorithm>
 namespace detent::distribution {
 namespace d = detent::distribution;
@@ -48,35 +49,14 @@ struct SnapshotEncoder::Impl {
 		m::unsigned_integer(out, row.revision);
 	}
 	static void override_row(m::InlineBytes<512> &out, std::string_view name, const GroupOverride &value) {
-		m::array(out, 3);
-		m::string(out, name);
-		if (auto forced = std::get_if<bool>(&value)) {
-			m::unsigned_integer(out, 0);
-			out.push_back(*forced ? '\xc3' : '\xc2');
-		} else {
-			m::unsigned_integer(out, 1);
-			m::unsigned_integer(out, std::get<GroupRollout>(value).rollout_pct);
-		}
+		detail::wire::override_row(out, name, value);
 	}
 	static void record_row(m::InlineBytes<512> &out, const Record &row) {
 		m::array(out, 4);
 		m::unsigned_integer(out, row.namespace_index);
 		m::string(out, row.key);
 		m::unsigned_integer(out, row.revision);
-		if (auto flag = std::get_if<WireBoolDef>(&row.definition)) {
-			m::array(out, 4);
-			m::unsigned_integer(out, 0);
-			out.push_back(flag->default_value ? '\xc3' : '\xc2');
-			if (flag->rollout_pct)
-				m::unsigned_integer(out, *flag->rollout_pct);
-			else
-				out.push_back('\xc0');
-			m::array(out, flag->overrides.count);
-		} else {
-			m::array(out, 2);
-			m::unsigned_integer(out, 1);
-			m::signed_integer(out, std::get<IntDef>(row.definition).default_value);
-		}
+		detail::wire::definition(out, row.definition);
 	}
 	void count_one() {
 		m::InlineBytes<512> encoded;

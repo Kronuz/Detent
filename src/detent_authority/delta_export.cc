@@ -4,7 +4,8 @@
 namespace detent::authority {
 namespace d = distribution;
 namespace m = d::messagepack;
-struct DeltaExportEncoder::Impl {
+namespace {
+struct HistoryDeltaSource final : d::DeltaSource {
 	struct Entry {
 		std::shared_ptr<const CachedChange> change;
 		std::uint32_t ns;
@@ -13,73 +14,50 @@ struct DeltaExportEncoder::Impl {
 	std::shared_ptr<ChangeHistory> history;
 	std::optional<ChangeHistory::Handoff> handoff;
 	std::shared_ptr<const AuthorizedScope> scope;
-	d::Cursor base, target;
+	d::Cursor base_, target_;
 	d::Limits limits;
 	Entries entries;
-	std::shared_ptr<d::OwnedBuffer> output;
 	m::InlineBytes<512> scratch;
 	std::string_view pending;
 	std::optional<m::WireDecoder> decoder;
 	std::span<const char> input;
-	std::uint64_t revision, mutations = 0, overrides = 0, strings = 0, length = 0, emitted = 0;
+	std::uint64_t revision, mutations = 0, overrides = 0, strings = 0;
 	std::uint64_t children = 0;
-	std::size_t entry = 0, skipped = 0, token_start = 0, offset = 0, credit = 0, disposal = 0;
-	unsigned phase = 0;
-	bool emitting = false, ready = false, finished = false, failed = false;
-	Impl(std::shared_ptr<ChangeHistory> source, std::shared_ptr<const AuthorizedScope> names,
-		 const Context &ctx, d::Cursor from, d::Cursor to, d::Limits bounds,
-		 std::optional<ChangeHistory::Handoff> marker)
-		: history(std::move(source)), scope(std::move(names)), base(from), target(to),
-		  limits(bounds), entries(d::StorageAllocator<Entry>(scope->storage_account())),
-		  revision(base.revision) {
-		if (!base.same_identity(target) || base.scope != scope->identity() || base.cluster != ctx.cluster ||
-			base.group != ctx.group || base.restore_epoch != ctx.epoch || target.revision <= base.revision ||
-			scope->size() > limits.namespaces || history->storage_account() != scope->storage_account() ||
+	std::size_t entry = 0, skipped = 0, token_start = 0, credit = 0, disposal = 0;
+	bool prepared_ = false, discarded_ = false;
+	HistoryDeltaSource(std::shared_ptr<ChangeHistory> source, std::shared_ptr<const AuthorizedScope> names,
+					   const Context &ctx, d::Cursor from, d::Cursor to, d::Limits bounds,
+					   std::optional<ChangeHistory::Handoff> marker)
+		: history(std::move(source)), scope(std::move(names)), base_(from), target_(to), limits(bounds),
+		  entries(d::StorageAllocator<Entry>(scope->storage_account())), revision(base_.revision) {
+		if (!base_.same_identity(target_) || base_.scope != scope->identity() ||
+			base_.cluster != ctx.cluster || base_.group != ctx.group || base_.restore_epoch != ctx.epoch ||
+			target_.revision <= base_.revision || scope->size() > limits.namespaces ||
+			history->storage_account() != scope->storage_account() ||
 			(limits.storage_account && limits.storage_account != scope->storage_account()))
 			throw std::invalid_argument("delta export identity or admission mismatch");
-		handoff = marker ? std::move(marker) : history->handoff(ctx, base.revision);
-		if (handoff && handoff->revision() != base.revision)
+		handoff = marker ? std::move(marker) : history->handoff(ctx, base_.revision);
+		if (handoff && handoff->revision() != base_.revision)
 			throw std::invalid_argument("delta export handoff base mismatch");
-		if (!handoff || history->continuity(*handoff, target.revision) != ChangeHistory::Continuity::Ready)
+		if (!handoff || history->continuity(*handoff, target_.revision) != ChangeHistory::Continuity::Ready)
 			throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
-		entries.reserve(std::min<std::uint64_t>(history->size(), target.revision - base.revision));
+		entries.reserve(std::min<std::uint64_t>(history->size(), target_.revision - base_.revision));
 	}
-	void count(std::size_t n) {
-		if (n > limits.bytes - length)
-			throw DeltaRepresentationLimit("delta export wire limit");
-		length += n;
+	const d::Cursor &base() const noexcept override { return base_; }
+	const d::Cursor &target() const noexcept override { return target_; }
+	std::shared_ptr<d::StorageLedger> storage_account() const noexcept override {
+		return scope->storage_account();
 	}
-	void cursor(const d::Cursor &value) {
-		m::array(scratch, 5);
-		for (const auto *id : {&value.cluster, &value.group, &value.restore_epoch})
-			m::string(scratch, {id->data(), id->size()}, true);
-		m::string(scratch, {value.scope.data(), value.scope.size()}, true);
-		m::unsigned_integer(scratch, value.revision);
-	}
-	void header() {
-		m::array(scratch, entries.empty() ? 5 : 7);
-		m::unsigned_integer(scratch, 1);
-		m::unsigned_integer(scratch, entries.empty() ? 3 : 2);
-		m::array(scratch, 2);
-		m::unsigned_integer(scratch, 1);
-		m::unsigned_integer(scratch, 1);
-		cursor(base);
-		cursor(target);
-		if (!entries.empty()) {
-			m::array(scratch, 4);
-			m::unsigned_integer(scratch, entries.size());
-			m::unsigned_integer(scratch, mutations);
-			m::unsigned_integer(scratch, overrides);
-			m::unsigned_integer(scratch, strings);
-			m::array(scratch, entries.size());
-		}
+	bool prepared() const noexcept override { return prepared_; }
+	d::DeltaCounts counts() const noexcept override {
+		return {scope->size(), entries.size(), mutations, overrides, strings};
 	}
 	void gather() {
-		if (history->continuity(*handoff, target.revision) != ChangeHistory::Continuity::Ready)
+		if (history->continuity(*handoff, target_.revision) != ChangeHistory::Continuity::Ready)
 			throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
-		if (revision == target.revision) {
+		if (revision == target_.revision) {
 			history.reset();
-			phase = 1;
+			prepared_ = true;
 			return;
 		}
 		auto change = history->find(++revision);
@@ -153,178 +131,114 @@ struct DeltaExportEncoder::Impl {
 			++entry;
 		}
 	}
-	void action(d::WorkBudget &budget) {
-		if (phase == 0) {
+	void prepare(d::WorkBudget &budget) override {
+		if (discarded_)
+			throw std::logic_error("history delta source discarded");
+		while (!prepared_ && budget.tokens && budget.bytes) {
+			if (!credit)
+				credit = 512;
+			const auto n = std::min(credit, budget.bytes);
+			credit -= n;
+			budget.bytes -= n;
+			if (credit)
+				return;
+			--budget.tokens;
 			gather();
-			return;
 		}
-		if (phase == 1) {
-			header();
-			pending = scratch;
-			phase = 2;
-			return;
+	}
+	void reset_fragments() noexcept override {
+		pending = {};
+		scratch.clear();
+		decoder.reset();
+		input = {};
+		entry = skipped = token_start = credit = 0;
+		children = 0;
+	}
+	d::DeltaFragmentStep next_fragment(d::WorkBudget &budget) override {
+		if (!prepared_ || discarded_)
+			throw std::logic_error("history delta source not ready");
+		pending = {};
+		scratch.clear();
+		if (!budget.tokens || !budget.bytes)
+			return {};
+		if (!decoder) {
+			if (!credit)
+				credit = 512;
+			const auto n = std::min(credit, budget.bytes);
+			credit -= n;
+			budget.bytes -= n;
+			if (credit)
+				return {};
 		}
-		if (entry == entries.size()) {
-			if (!emitting) {
-				emitting = true;
-				phase = 1;
-				entry = 0;
-				output = d::make_owned_buffer(scope->storage_account(), 65536);
-			} else {
-				if (emitted != length)
-					throw std::logic_error("delta count/emission mismatch");
-				finished = true;
-			}
-			return;
-		}
+		--budget.tokens;
+		if (entry == entries.size())
+			return {{}, true};
 		if (!decoder) {
 			transaction_header();
 			pending = scratch;
 		} else
 			token(budget);
+		return {pending, false};
+	}
+	bool discard(d::WorkBudget &budget) noexcept override {
+		discarded_ = true;
+		reset_fragments();
+		while (!entries.empty()) {
+			if (!budget.tokens)
+				return false;
+			if (!disposal)
+				disposal = entries.back().change->body->storage_capacity();
+			const auto n = std::min(disposal, budget.bytes);
+			disposal -= n;
+			budget.bytes -= n;
+			if (disposal)
+				return false;
+			--budget.tokens;
+			entries.pop_back();
+		}
+		if (entries.capacity()) {
+			if (!budget.tokens)
+				return false;
+			if (!disposal)
+				disposal = entries.capacity() * sizeof(Entry);
+			const auto n = std::min(disposal, budget.bytes);
+			disposal -= n;
+			budget.bytes -= n;
+			if (disposal)
+				return false;
+			--budget.tokens;
+			Entries empty(entries.get_allocator());
+			entries.swap(empty);
+		}
+		history.reset();
+		return true;
 	}
 };
+std::shared_ptr<d::DeltaSource> source(std::shared_ptr<ChangeHistory> history,
+									   std::shared_ptr<const AuthorizedScope> scope, const Context &context,
+									   d::Cursor base, d::Cursor target, d::Limits limits,
+									   std::optional<ChangeHistory::Handoff> handoff) {
+	if (!history || !scope)
+		throw std::invalid_argument("missing delta export owner");
+	return std::allocate_shared<HistoryDeltaSource>(
+		d::StorageAllocator<HistoryDeltaSource>(scope->storage_account()), history, scope, context, base,
+		target, limits, std::move(handoff));
+}
+} // namespace
 DeltaExportEncoder::DeltaExportEncoder(std::shared_ptr<ChangeHistory> history,
 									   std::shared_ptr<const AuthorizedScope> scope, const Context &context,
 									   d::Cursor base, d::Cursor target, d::Limits limits,
 									   std::optional<ChangeHistory::Handoff> handoff)
-	: impl_([&] {
-		  if (!history || !scope)
-			  throw std::invalid_argument("missing delta export owner");
-		  return d::make_storage_owner<Impl>(scope->storage_account(), std::malloc, std::free, history, scope,
-											 context, base, target, limits, std::move(handoff));
-	  }()) {}
+	: encoder_(
+		  source(std::move(history), std::move(scope), context, base, target, limits, std::move(handoff)),
+		  limits) {}
 DeltaExportEncoder::~DeltaExportEncoder() = default;
-void DeltaExportEncoder::step(d::WorkBudget &budget) {
-	auto &p = *impl_;
-	if (p.failed)
-		throw std::logic_error("inactive delta export");
-	try {
-		while (!p.ready && !p.finished) {
-			if (!p.pending.empty()) {
-				if (!p.emitting) {
-					p.count(p.pending.size());
-					p.pending = {};
-					p.scratch.clear();
-				} else {
-					if (!p.output) {
-						if (!budget.tokens || !budget.bytes)
-							return;
-						--budget.tokens;
-						p.output = d::make_owned_buffer(p.scope->storage_account(), 65536);
-					}
-					const auto n =
-						std::min({p.pending.size() - p.offset, budget.bytes, 65536 - p.output->size()});
-					if (!n)
-						return;
-					p.output->append(p.pending.substr(p.offset, n));
-					p.offset += n;
-					p.emitted += n;
-					budget.bytes -= n;
-					if (p.offset == p.pending.size()) {
-						p.pending = {};
-						p.scratch.clear();
-						p.offset = 0;
-					}
-					if (p.output->size() == 65536) {
-						p.output->seal();
-						p.ready = true;
-						return;
-					}
-				}
-				continue;
-			}
-			if (!budget.tokens || !budget.bytes)
-				return;
-			if (!p.decoder) {
-				if (!p.credit)
-					p.credit = 512;
-				const auto n = std::min(p.credit, budget.bytes);
-				p.credit -= n;
-				budget.bytes -= n;
-				if (p.credit)
-					return;
-			}
-			--budget.tokens;
-			p.action(budget);
-		}
-		if (p.finished && p.output && !p.output->empty() && !p.ready) {
-			p.output->seal_prefix();
-			p.ready = true;
-		}
-	} catch (...) {
-		p.failed = true;
-		throw;
-	}
-}
-bool DeltaExportEncoder::counted() const noexcept { return impl_ && impl_->emitting && !impl_->failed; }
-std::uint64_t DeltaExportEncoder::encoded_length() const {
-	if (!counted())
-		throw std::logic_error("delta export count incomplete");
-	return impl_->length;
-}
-d::UpdateKind DeltaExportEncoder::kind() const {
-	if (!counted())
-		throw std::logic_error("delta export count incomplete");
-	return impl_->entries.empty() ? d::UpdateKind::Progress : d::UpdateKind::Delta;
-}
-bool DeltaExportEncoder::done() const noexcept {
-	return impl_ && impl_->finished && !impl_->ready && !impl_->failed;
-}
-bool DeltaExportEncoder::chunk_ready() const noexcept { return impl_ && impl_->ready && !impl_->failed; }
-std::shared_ptr<const d::OwnedBuffer> DeltaExportEncoder::take_chunk() {
-	if (!chunk_ready())
-		throw std::logic_error("delta export chunk unavailable");
-	impl_->ready = false;
-	return std::exchange(impl_->output, {});
-}
-bool DeltaExportEncoder::discard(d::WorkBudget &budget) noexcept {
-	auto &p = *impl_;
-	p.failed = true;
-	p.pending = {};
-	p.decoder.reset();
-	p.input = {};
-	while (!p.entries.empty()) {
-		if (!budget.tokens)
-			return false;
-		if (!p.disposal)
-			p.disposal = p.entries.back().change->body->storage_capacity();
-		auto n = std::min(p.disposal, budget.bytes);
-		p.disposal -= n;
-		budget.bytes -= n;
-		if (p.disposal)
-			return false;
-		--budget.tokens;
-		p.entries.pop_back();
-	}
-	if (p.output) {
-		if (!budget.tokens)
-			return false;
-		if (!p.disposal)
-			p.disposal = p.output->storage_capacity();
-		auto n = std::min(p.disposal, budget.bytes);
-		p.disposal -= n;
-		budget.bytes -= n;
-		if (p.disposal)
-			return false;
-		--budget.tokens;
-		p.output.reset();
-	}
-	if (p.entries.capacity()) {
-		if (!budget.tokens)
-			return false;
-		if (!p.disposal)
-			p.disposal = p.entries.capacity() * sizeof(Impl::Entry);
-		auto n = std::min(p.disposal, budget.bytes);
-		p.disposal -= n;
-		budget.bytes -= n;
-		if (p.disposal)
-			return false;
-		--budget.tokens;
-		Impl::Entries empty(p.entries.get_allocator());
-		p.entries.swap(empty);
-	}
-	p.history.reset();
-	return true;
-}
+void DeltaExportEncoder::step(d::WorkBudget &budget) { encoder_.step(budget); }
+bool DeltaExportEncoder::counted() const noexcept { return encoder_.counted(); }
+std::uint64_t DeltaExportEncoder::encoded_length() const { return encoder_.encoded_length(); }
+d::UpdateKind DeltaExportEncoder::kind() const { return encoder_.kind(); }
+bool DeltaExportEncoder::done() const noexcept { return encoder_.done(); }
+bool DeltaExportEncoder::chunk_ready() const noexcept { return encoder_.chunk_ready(); }
+std::shared_ptr<const d::OwnedBuffer> DeltaExportEncoder::take_chunk() { return encoder_.take_chunk(); }
+bool DeltaExportEncoder::discard(d::WorkBudget &budget) noexcept { return encoder_.discard(budget); }
 } // namespace detent::authority

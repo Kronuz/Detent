@@ -1,3 +1,4 @@
+#include "detent_distribution/delta_encoder.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
 #include "storage_failure_fixture.hh"
@@ -26,7 +27,7 @@ void put_cursor(std::string &out, d::Cursor value) {
 }
 std::string fixture(bool progress = false, std::uint64_t base = 42, std::uint64_t target = 45,
 					std::uint64_t transaction = 44, std::uint64_t strings = 20, bool duplicate = false,
-					bool bad_delete = false) {
+					bool bad_delete = false, std::optional<detent::GroupOverride> group = {}) {
 	std::string out;
 	auto a = [&](std::uint32_t value) { m::array(out, value); };
 	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
@@ -47,7 +48,7 @@ std::string fixture(bool progress = false, std::uint64_t base = 42, std::uint64_
 	a(4);
 	n(1);
 	n(2);
-	n(0);
+	n(group ? 1 : 0);
 	n(strings);
 	a(1);
 	a(3);
@@ -70,7 +71,18 @@ std::string fixture(bool progress = false, std::uint64_t base = 42, std::uint64_
 	n(0);
 	out.push_back('\xc2');
 	out.push_back('\xc0');
-	a(0);
+	a(group ? 1 : 0);
+	if (group) {
+		a(3);
+		s("beta");
+		if (const auto *forced = std::get_if<bool>(&*group)) {
+			n(0);
+			out.push_back(*forced ? '\xc3' : '\xc2');
+		} else {
+			n(1);
+			n(std::get<detent::GroupRollout>(*group).rollout_pct);
+		}
+	}
 	return out;
 }
 d::ValidatedDelta decode(std::string_view bytes, bool progress = false, d::Cursor expected = cursor()) {
@@ -85,6 +97,34 @@ d::ValidatedDelta decode(std::string_view bytes, bool progress = false, d::Curso
 int main() {
 	try {
 		auto bytes = fixture();
+		for (const auto &[expected, progress_only] : {
+			std::pair{fixture(), false}, std::pair{fixture(true), true},
+			std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupOverride(true)), false},
+			std::pair{fixture(false, 42, 45, 44, 24, false, false, detent::GroupRollout{17}), false}}) {
+			auto input = std::make_shared<const d::ValidatedDelta>(decode(expected, progress_only));
+			const auto resident = input->storage_account()->used();
+			{
+				d::DeltaEncoder encoder(d::make_delta_source(input, 1));
+				std::string encoded;
+				unsigned turns = 0;
+				while (!encoder.done()) {
+					d::WorkBudget budget{1, 1};
+					encoder.step(budget);
+					if (encoder.chunk_ready())
+						encoded.append(encoder.take_chunk()->view());
+					require(++turns < 100000);
+				}
+				require(encoded == expected && encoder.encoded_length() == encoded.size());
+				require(encoder.kind() == (progress_only ? d::UpdateKind::Progress : d::UpdateKind::Delta));
+				for (;;) {
+					d::WorkBudget budget{1, 1};
+					if (encoder.discard(budget))
+						break;
+					require(++turns < 200000);
+				}
+			}
+			require(input->storage_account()->used() == resident);
+		}
 		storage_failure::verify(
 			bytes, [](d::Limits limits) { return d::DeltaDecoder(cursor(), {"app"}, limits); }, require);
 		auto delta = decode(bytes);

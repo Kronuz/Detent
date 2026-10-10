@@ -1,5 +1,6 @@
 #pragma once
 #include "change_history.hh"
+#include "detent_distribution/delta_encoder.hh"
 #include "detent_distribution/protocol.hh"
 #include "export_reset.hh"
 #include "export_scope.hh"
@@ -23,7 +24,6 @@ class DeltaExportEncoder {
 	bool discard(distribution::WorkBudget &) noexcept;
 
   private:
-	struct Impl;
-	distribution::StorageOwner<Impl> impl_;
+	distribution::DeltaEncoder encoder_;
 };
 } // namespace detent::authority

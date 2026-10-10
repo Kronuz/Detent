@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_distribution/delta_encoder.hh"
 #include <stdexcept>
 
 namespace detent::authority {
@@ -14,8 +15,5 @@ class SnapshotRequired final : public std::invalid_argument {
   private:
 	Reason reason_;
 };
-class DeltaRepresentationLimit final : public std::length_error {
-  public:
-	using std::length_error::length_error;
-};
+using DeltaRepresentationLimit = distribution::DeltaRepresentationLimit;
 } // namespace detent::authority
