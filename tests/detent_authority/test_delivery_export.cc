@@ -125,13 +125,98 @@ int main() {
 				dispose(exporter);
 			}
 		}
+		for (auto selection : {a::ExportSelection::SnapshotOnly, a::ExportSelection::ResumeOnly}) {
+			a::DeliveryExport exporter(state, scope, history, base, update, false, {}, selection,
+									   history->handoff(context, 0));
+			auto bytes = receive(exporter, false, 1);
+			check(!bytes.empty() &&
+				  exporter.kind() == (selection == a::ExportSelection::SnapshotOnly ? d::UpdateKind::Snapshot
+																					: d::UpdateKind::Delta));
+			dispose(exporter);
+		}
+		{
+			d::Limits bounds;
+			bounds.records = 1;
+			a::DeliveryExport exporter(state, scope, history, base, update, false, bounds,
+									   a::ExportSelection::ResumeOnly, history->handoff(context, 0));
+			bool rejected = false;
+			try {
+				receive(exporter, false, 1);
+			} catch (const a::SnapshotRequired &error) {
+				rejected = error.reason() == a::SnapshotRequired::Reason::RepresentationLimit;
+			}
+			check(rejected && !exporter.counted() && !exporter.frame_ready());
+			dispose(exporter);
+		}
+		{
+			a::DeliveryExport exporter(state, scope, history, base, update, false, {},
+									   a::ExportSelection::ResumeOnly, history->handoff(context, 0));
+			auto refusal = account->admit(account->limit() - account->used());
+			bool pressured = false;
+			try {
+				d::WorkBudget work;
+				exporter.step(work);
+			} catch (const d::StoragePressure &) {
+				pressured = true;
+			}
+			check(pressured && !exporter.counted());
+			refusal.reset();
+			dispose(exporter);
+		}
+		// A slow snapshot stays frozen while committed writes extend its handoff.
+		{
+			a::DeliveryExport exporter(state, scope, history, {}, update, false);
+			const auto handoff = exporter.history_handoff();
+			check(handoff && handoff->revision() == 3);
+			d::WorkBudget tiny{1, 1};
+			exporter.step(tiny);
+			check(!exporter.counted());
+			command.sequence = 4;
+			command.name_space = "ns";
+			command.mutations = {{"ns:a", detent::IntDef{44}, {}, {}}};
+			history->begin_batch(context, 5, state.revision());
+			check(state.apply(5, command).status == a::Status::Applied);
+			auto draft = history->capture(state, command, changed);
+			for (;;) {
+				a::CommandWorkBudget work;
+				if (draft->step(work))
+					break;
+			}
+			history->stage(draft);
+			history->publish(context, 5, state.revision());
+			check(state.revision() == 4 && exporter.target().revision == 3);
+			check(history->continuity(*handoff, 4) == a::ChangeHistory::Continuity::Ready);
+			auto bytes = receive(exporter, false, 1);
+			d::SnapshotDecoder decoder(exporter.target(), {"ns"});
+			auto input = std::span<const char>(bytes.data(), bytes.size());
+			while (!input.empty()) {
+				d::WorkBudget work;
+				decoder.feed(input, work);
+			}
+			auto snapshot = decoder.finish();
+			check(snapshot.cursor().revision == 3 && snapshot.records().size() == 1);
+			check(snapshot.records()[0].key == "ns:a" && snapshot.records()[0].revision == 3 &&
+				  std::get<detent::IntDef>(snapshot.records()[0].definition).default_value == 3);
+			dispose(exporter);
+		}
 		// Revoke coverage after admission, before count: fallback is owner-local.
 		{
+			a::DeliveryExport strict(state, scope, history, base, update, false, {},
+									 a::ExportSelection::ResumeOnly, history->handoff(context, 0));
 			a::DeliveryExport exporter(state, scope, history, base, update, false);
 			const auto handoff = exporter.history_handoff();
 			check(handoff.has_value());
 			history->reset(context, state.revision());
-			check(history->continuity(*handoff, state.revision()) == a::ChangeHistory::Continuity::HistoryLost);
+			check(history->continuity(*handoff, state.revision()) ==
+				  a::ChangeHistory::Continuity::HistoryLost);
+			bool reset = false;
+			try {
+				receive(strict, false, 1);
+			} catch (const a::SnapshotRequired &error) {
+				reset = error.reason() == a::SnapshotRequired::Reason::HistoryLost;
+			}
+			check(reset && !strict.counted() && !strict.frame_ready());
+			dispose(strict);
 			auto bytes = receive(exporter, false, 17);
 			check(exporter.kind() == d::UpdateKind::Snapshot);
 			dispose(exporter);
@@ -141,7 +226,7 @@ int main() {
 			command.sequence++;
 			command.name_space = "ns";
 			command.mutations = {{"ns:key" + std::to_string(row), detent::IntDef{row}, {}, {}}};
-			check(state.apply(row + 5, command).status == a::Status::Applied);
+			check(state.apply(row + 6, command).status == a::Status::Applied);
 		}
 		{
 			a::DeliveryExport exporter(state, scope, history, {}, update, true);

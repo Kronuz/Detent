@@ -6,6 +6,8 @@ struct DeliveryExport::Impl {
 	std::shared_ptr<ChangeHistory> history;
 	std::shared_ptr<ExportCapture> capture;
 	std::optional<ChangeHistory::Handoff> handoff;
+	std::optional<ChangeHistory::Handoff> base_handoff;
+	const ExportSelection selection;
 	std::optional<d::Cursor> base;
 	d::Identity update;
 	d::Limits limits;
@@ -18,15 +20,18 @@ struct DeliveryExport::Impl {
 	d::UpdateKind type = d::UpdateKind::Snapshot;
 	Impl(const State &state, std::shared_ptr<const AuthorizedScope> authorized,
 		 std::shared_ptr<ChangeHistory> changes, std::optional<d::Cursor> from, d::Identity id, bool coding,
-		 d::Limits bounds)
-		: scope(std::move(authorized)), history(std::move(changes)), base(from), update(id),
-		  limits(std::move(bounds)), compress(coding) {
+		 d::Limits bounds, ExportSelection policy, std::optional<ChangeHistory::Handoff> marker)
+		: scope(std::move(authorized)), history(std::move(changes)), base_handoff(std::move(marker)),
+		  selection(policy), base(from), update(id), limits(std::move(bounds)), compress(coding) {
 		if (!scope || update == d::Identity{} ||
 			(limits.storage_account && limits.storage_account != scope->storage_account()) ||
 			(history && history->storage_account() != scope->storage_account()))
 			throw std::invalid_argument("delivery export admission mismatch");
 		limits.storage_account = scope->storage_account();
 		capture = state.capture(scope);
+		if (selection == ExportSelection::ResumeOnly && (!base || !base->same_identity(capture->cursor()) ||
+														 base->revision >= capture->cursor().revision))
+			throw std::invalid_argument("resume export requires an earlier exact-identity base");
 		if (history) {
 			const auto &cursor = capture->cursor();
 			handoff = history->handoff(Context{cursor.cluster, cursor.group, cursor.restore_epoch},
@@ -36,12 +41,14 @@ struct DeliveryExport::Impl {
 };
 DeliveryExport::DeliveryExport(const State &state, std::shared_ptr<const AuthorizedScope> scope,
 							   std::shared_ptr<ChangeHistory> history, std::optional<d::Cursor> base,
-							   d::Identity update, bool compress, d::Limits limits)
+							   d::Identity update, bool compress, d::Limits limits, ExportSelection selection,
+							   std::optional<ChangeHistory::Handoff> base_handoff)
 	: impl_([&] {
 		  if (!scope)
 			  throw std::invalid_argument("delivery scope missing");
 		  return d::make_storage_owner<Impl>(scope->storage_account(), std::malloc, std::free, state, scope,
-											 std::move(history), base, update, compress, std::move(limits));
+											 std::move(history), base, update, compress, std::move(limits),
+											 selection, std::move(base_handoff));
 	  }()) {}
 DeliveryExport::~DeliveryExport() = default;
 void DeliveryExport::step(d::WorkBudget &budget) {
@@ -55,17 +62,29 @@ void DeliveryExport::step(d::WorkBudget &budget) {
 			--budget.tokens;
 			const auto &target = p.capture->cursor();
 			Context context{target.cluster, target.group, target.restore_epoch};
-			if (p.history && p.base && p.base->same_identity(target) && p.base->revision < target.revision &&
+			if (p.selection != ExportSelection::SnapshotOnly && p.history && p.base &&
+				p.base->same_identity(target) && p.base->revision < target.revision &&
 				p.history->covers(context, p.base->revision, target.revision)) {
 				try {
-					p.delta.emplace(p.history, p.scope, context, *p.base, target, p.limits);
+					p.delta.emplace(p.history, p.scope, context, *p.base, target, p.limits, p.base_handoff);
+				} catch (const SnapshotRequired &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
+					p.fallback = true;
 				} catch (const std::invalid_argument &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
 					p.fallback = true;
 				} catch (const std::length_error &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
 					p.fallback = true;
 				}
-			} else
+			} else {
+				if (p.selection == ExportSelection::ResumeOnly)
+					throw SnapshotRequired(SnapshotRequired::Reason::HistoryLost);
 				p.fallback = true;
+			}
 			p.history.reset();
 		}
 		if (p.fallback) {
@@ -84,10 +103,24 @@ void DeliveryExport::step(d::WorkBudget &budget) {
 			if (p.delta) {
 				try {
 					p.delta->step(budget);
+				} catch (const SnapshotRequired &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
+					p.fallback = true;
+					return;
+				} catch (const DeltaRepresentationLimit &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw SnapshotRequired(SnapshotRequired::Reason::RepresentationLimit);
+					p.fallback = true;
+					return;
 				} catch (const std::invalid_argument &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
 					p.fallback = true;
 					return;
 				} catch (const std::length_error &) {
+					if (p.selection == ExportSelection::ResumeOnly)
+						throw;
 					p.fallback = true;
 					return;
 				}

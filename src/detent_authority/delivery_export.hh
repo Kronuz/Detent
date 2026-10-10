@@ -3,13 +3,15 @@
 #include "detent_distribution/framing.hh"
 #include "export_encoder.hh"
 namespace detent::authority {
+enum class ExportSelection { Automatic, SnapshotOnly, ResumeOnly };
 // One authority-owner slot, retained through capture retirement. Transport may
 // receive only take_frame() results, never this session or its projection.
 class DeliveryExport {
   public:
 	DeliveryExport(const State &, std::shared_ptr<const AuthorizedScope>, std::shared_ptr<ChangeHistory>,
 				   std::optional<distribution::Cursor> base, distribution::Identity update, bool compress,
-				   distribution::Limits = {});
+				   distribution::Limits = {}, ExportSelection = ExportSelection::Automatic,
+				   std::optional<ChangeHistory::Handoff> base_handoff = std::nullopt);
 	~DeliveryExport();
 	void step(distribution::WorkBudget &);
 	bool counted() const noexcept;

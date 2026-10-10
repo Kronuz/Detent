@@ -124,3 +124,8 @@ add_test(NAME test_authority_delta_export COMMAND test_authority_delta_export)
 add_executable(test_authority_delivery_export test_delivery_export.cc)
 target_link_libraries(test_authority_delivery_export PRIVATE detent::authority_export)
 add_test(NAME test_authority_delivery_export COMMAND test_authority_delivery_export)
+
+add_executable(test_authority_subscription test_subscription.cc)
+target_link_libraries(test_authority_subscription PRIVATE detent::authority_export)
+add_test(NAME test_authority_subscription COMMAND test_authority_subscription)
+set_tests_properties(test_authority_subscription PROPERTIES TIMEOUT 30)

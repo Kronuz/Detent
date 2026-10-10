@@ -22,6 +22,7 @@ class AuthorizedScope {
 	std::uint64_t size() const noexcept { return names_.size(); }
 	std::string_view name(std::uint64_t ordinal) const { return names_[ordinal]; }
 	std::shared_ptr<distribution::StorageLedger> storage_account() const noexcept { return account_; }
+	std::size_t storage_capacity() const noexcept { return arena_.used(); }
 	static std::shared_ptr<const AuthorizedScope>
 	authorize(std::string_view principal, std::uint64_t policy_epoch, std::span<const std::string> requested,
 			  const std::set<std::string> &allowed, std::shared_ptr<distribution::StorageLedger> account,

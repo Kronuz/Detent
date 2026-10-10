@@ -28,6 +28,7 @@ gates, measurements and audit findings in more depth than this site.
 | [DISTRIBUTION_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/DISTRIBUTION_ARCHITECTURE.md) | Portable distribution and immutable local publication |
 | [DISTRIBUTION_CODEC.md](https://github.com/Kronuz/Detent/blob/main/docs/DISTRIBUTION_CODEC.md) | The codec comparison behind the MessagePack choice |
 | [DELIVERY_INTEGRATION_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/DELIVERY_INTEGRATION_ARCHITECTURE.md) | Authenticated authority-to-local-view delivery |
+| [SUBSCRIPTIONS_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/SUBSCRIPTIONS_ARCHITECTURE.md) | Stage 5A sessions, snapshot/history handoff and durable publication feedback; implementation in progress |
 | [LOCAL_IMAGE_FORMAT.md](https://github.com/Kronuz/Detent/blob/main/docs/LOCAL_IMAGE_FORMAT.md) | The generation image and descriptor formats |
 | [DISK_LIFECYCLE_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/DISK_LIFECYCLE_ARCHITECTURE.md) | Durable ownership, census and lease-protected GC |
 | [COMPLETION_ALLOCATION_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/COMPLETION_ALLOCATION_ARCHITECTURE.md) | Physical admission through completion controls |
