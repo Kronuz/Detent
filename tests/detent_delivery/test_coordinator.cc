@@ -153,8 +153,6 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 		check(feedback_received->load());
 	}
 	// Close wakes the parked candidate after the source observes durable feedback.
-	if (feedback_received)
-		std::cerr << "session fixture closing after durable feedback\n";
 	timer.expires_after(5ms);
 	co_await timer.async_wait(asio::use_awaitable);
 	coordinator->close();
@@ -306,8 +304,6 @@ int main(int argc, char **argv) {
 						cancel_open	  ? std::array<unsigned, 2>{0, 3}[attempt]
 						: reset_retry ? std::array<unsigned, 11>{0, 1, 4, 3, 0, 5, 3, 0, 1, 2, 3}[attempt]
 									  : attempt;
-					if (subscription)
-						std::cerr << "session fixture phase=" << phase << " attempt=" << attempt << '\n';
 					asio::ip::tcp::socket accepted(server_io);
 					const auto accept_deadline = std::chrono::steady_clock::now() + 60s;
 					for (;;) {

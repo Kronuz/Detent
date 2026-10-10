@@ -212,3 +212,9 @@ On the same Intel macOS host, the real recovered-authority 100,000-knob fixture 
 The managed process fixture invoked `detent get` in user mode after deliberately stopping its agent. Those reads could auto-start another agent while the fixture changed credentials or authority identity. The test then had an untracked process using its storage, which invalidated later lifecycle checks.
 
 Fixture reads now use `--system` with their explicit configuration, so only the agent started and tracked by the harness owns the managed store. The subscription process fixture passes on macOS, Linux and FreeBSD and under ASan/UBSan; the full native regression also runs the legacy polling fixture. Runtime auto-start behavior is unchanged.
+
+## Remove concurrent subscription fixture diagnostics
+
+The assembled ThreadSanitizer run passes 19 of 21 checks and identifies two races in global `std::cerr`: the scripted TLS server and the coordinator observer print progress concurrently. Both reports point to fixture output, with no production-state race reported. The progress prints are removed; assertions, protocol exchanges and ownership checks remain unchanged.
+
+The affected subscription and forced-snapshot retry cases, including their certificate prerequisite, pass the corrected TSan rerun in 5.96 seconds. Combined with the original run, all 21 assembled cases have passing TSan evidence. The original full run takes 297.82 seconds and includes the 500,000-record authority and real managed-process cases. This is a targeted correction and rerun, not a second complete run.
