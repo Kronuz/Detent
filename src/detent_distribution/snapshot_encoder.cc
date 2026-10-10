@@ -15,7 +15,7 @@ struct SnapshotEncoder::Impl {
 	bool group = false, records_done = false;
 	std::uint64_t overrides_remaining = 0;
 	std::uint64_t namespaces = 0, records = 0, overrides = 0, strings = 0, emitted = 0, wire_length = 0;
-	std::size_t offset = 0, charge = 0, definition_bytes = 0;
+	std::size_t offset = 0, charge = 0, definition_bytes = 0, disposal = 0;
 	unsigned phase = 0;
 	bool ready = false, finished = false, failed = false;
 	Impl(std::shared_ptr<SnapshotSource> projection, d::Limits bounds)
@@ -294,4 +294,29 @@ void SnapshotEncoder::discard() noexcept {
 	impl_->output.reset();
 	impl_->source.reset();
 }
+bool SnapshotEncoder::discard(WorkBudget &budget) noexcept {
+	if (!impl_)
+		return true;
+	auto &p = *impl_;
+	p.failed = true;
+	p.current.reset();
+	if (p.source && !p.source->discard(budget))
+		return false;
+	if (p.output) {
+		if (!budget.tokens)
+			return false;
+		if (!p.disposal)
+			p.disposal = p.output->storage_capacity();
+		const auto amount = std::min(p.disposal, budget.bytes);
+		p.disposal -= amount;
+		budget.bytes -= amount;
+		if (p.disposal)
+			return false;
+		--budget.tokens;
+		p.output.reset();
+	}
+	p.source.reset();
+	return true;
+}
+
 } // namespace detent::distribution

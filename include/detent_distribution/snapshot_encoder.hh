@@ -1,6 +1,7 @@
 #pragma once
 #include "buffer.hh"
 #include "protocol.hh"
+#include "retirement.hh"
 
 namespace detent::distribution {
 struct SnapshotRecordStep {
@@ -19,8 +20,13 @@ class SnapshotSource {
 	virtual void reset_records() noexcept = 0;
 	virtual SnapshotRecordStep next_record() = 0;
 	virtual std::optional<OverrideRow> next_override() = 0;
+	virtual bool discard(WorkBudget &) noexcept { return true; }
 };
+// Shared inputs are borrowed: retain their storage until staging ends.
 std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const ValidatedSnapshot>,
+													 std::shared_ptr<StorageLedger> output_account = {});
+// Moved input retires on the supplied domain after its final source release.
+std::shared_ptr<SnapshotSource> make_snapshot_source(ValidatedSnapshot &&, RetirementDomain &,
 													 std::shared_ptr<StorageLedger> output_account = {});
 // Count/emission share one immutable source. Only sealed, independently owned
 // chunks cross the transport boundary; callers keep source access owner-local.
@@ -37,6 +43,7 @@ class SnapshotEncoder {
 	bool chunk_ready() const noexcept;
 	std::shared_ptr<const OwnedBuffer> take_chunk();
 	void discard() noexcept;
+	bool discard(WorkBudget &) noexcept;
 
   private:
 	struct Impl;

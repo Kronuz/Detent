@@ -1,10 +1,11 @@
 #include "detent_distribution/snapshot_encoder.hh"
+#include "source_input.hh"
 
 namespace detent::distribution {
 namespace {
 class ValidatedSnapshotSource final : public SnapshotSource {
   public:
-	ValidatedSnapshotSource(std::shared_ptr<const ValidatedSnapshot> snapshot,
+	ValidatedSnapshotSource(detail::SourceInput<ValidatedSnapshot> snapshot,
 							std::shared_ptr<StorageLedger> account)
 		: snapshot_(std::move(snapshot)), account_(std::move(account)) {
 		if (snapshot_->profile() != Profile{})
@@ -38,8 +39,14 @@ class ValidatedSnapshotSource final : public SnapshotSource {
 		return overrides_[override_++];
 	}
 
+	bool discard(WorkBudget &) noexcept override {
+		overrides_ = {};
+		snapshot_.reset();
+		return true;
+	}
+
   private:
-	std::shared_ptr<const ValidatedSnapshot> snapshot_;
+	detail::SourceInput<ValidatedSnapshot> snapshot_;
 	std::shared_ptr<StorageLedger> account_;
 	OverrideRange overrides_;
 	std::uint64_t record_ = 0, override_ = 0;
@@ -52,6 +59,16 @@ std::shared_ptr<SnapshotSource> make_snapshot_source(std::shared_ptr<const Valid
 	if (!output_account)
 		output_account = snapshot->storage_account();
 	return std::allocate_shared<ValidatedSnapshotSource>(
-		StorageAllocator<ValidatedSnapshotSource>(output_account), snapshot, output_account);
+		StorageAllocator<ValidatedSnapshotSource>(output_account),
+		detail::SourceInput<ValidatedSnapshot>(std::move(snapshot)), output_account);
+}
+std::shared_ptr<SnapshotSource> make_snapshot_source(ValidatedSnapshot &&snapshot,
+													 RetirementDomain &input_domain,
+													 std::shared_ptr<StorageLedger> output_account) {
+	if (!output_account)
+		output_account = snapshot.storage_account();
+	auto input = detail::own_input(std::move(snapshot), input_domain);
+	return std::allocate_shared<ValidatedSnapshotSource>(
+		StorageAllocator<ValidatedSnapshotSource>(output_account), std::move(input), output_account);
 }
 } // namespace detent::distribution

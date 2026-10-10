@@ -1,6 +1,7 @@
 #pragma once
 #include "buffer.hh"
 #include "protocol.hh"
+#include "retirement.hh"
 
 namespace detent::distribution {
 class DeltaRepresentationLimit final : public std::length_error {
@@ -30,8 +31,13 @@ class DeltaSource {
 	virtual DeltaFragmentStep next_fragment(WorkBudget &) = 0;
 	virtual bool discard(WorkBudget &) noexcept = 0;
 };
+// Shared inputs are borrowed: retain their storage until staging ends.
 std::shared_ptr<DeltaSource> make_delta_source(std::shared_ptr<const ValidatedDelta>,
 											   std::uint64_t namespaces,
+											   std::shared_ptr<StorageLedger> output_account = {});
+// Moved input retires on the supplied domain after its final source release.
+std::shared_ptr<DeltaSource> make_delta_source(ValidatedDelta &&, std::uint64_t namespaces,
+											   RetirementDomain &,
 											   std::shared_ptr<StorageLedger> output_account = {});
 class DeltaEncoder {
   public:

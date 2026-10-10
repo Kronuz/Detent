@@ -1,5 +1,6 @@
 #include "detent_distribution/delta_encoder.hh"
 #include "detent_distribution/wire_encoder.hh"
+#include "source_input.hh"
 #include <algorithm>
 #include <limits>
 
@@ -8,7 +9,7 @@ namespace m = messagepack;
 namespace {
 class ValidatedDeltaSource final : public DeltaSource {
   public:
-	ValidatedDeltaSource(std::shared_ptr<const ValidatedDelta> delta, std::uint64_t namespaces,
+	ValidatedDeltaSource(detail::SourceInput<ValidatedDelta> delta, std::uint64_t namespaces,
 						 std::shared_ptr<StorageLedger> account)
 		: delta_(std::move(delta)), account_(std::move(account)), base_(delta_->base()),
 		  target_(delta_->target()) {
@@ -88,21 +89,9 @@ class ValidatedDeltaSource final : public DeltaSource {
 		}
 		return {scratch_, false};
 	}
-	bool discard(WorkBudget &budget) noexcept override {
+	bool discard(WorkBudget &) noexcept override {
 		discarded_ = true;
 		reset_fragments();
-		if (delta_ && delta_.use_count() == 1) {
-			if (!budget.tokens)
-				return false;
-			if (!disposal_)
-				disposal_ = delta_->storage_capacity();
-			const auto n = std::min(disposal_, budget.bytes);
-			disposal_ -= n;
-			budget.bytes -= n;
-			if (disposal_)
-				return false;
-			--budget.tokens;
-		}
 		delta_.reset();
 		return true;
 	}
@@ -174,14 +163,14 @@ class ValidatedDeltaSource final : public DeltaSource {
 			row_ = phase_ = 0;
 		}
 	}
-	std::shared_ptr<const ValidatedDelta> delta_;
+	detail::SourceInput<ValidatedDelta> delta_;
 	std::shared_ptr<StorageLedger> account_;
 	Cursor base_, target_;
 	DeltaCounts counts_;
 	OverrideRange overrides_;
 	m::InlineBytes<512> scratch_;
 	std::uint64_t transaction_ = 0, row_ = 0, override_ = 0, definition_bytes_ = 0;
-	std::size_t credit_ = 0, disposal_ = 0;
+	std::size_t credit_ = 0;
 	unsigned phase_ = 0;
 	bool prepared_ = false, discarded_ = false;
 };
@@ -194,6 +183,16 @@ std::shared_ptr<DeltaSource> make_delta_source(std::shared_ptr<const ValidatedDe
 	if (!output_account)
 		output_account = delta->storage_account();
 	return std::allocate_shared<ValidatedDeltaSource>(StorageAllocator<ValidatedDeltaSource>(output_account),
-													  delta, namespaces, output_account);
+													  detail::SourceInput<ValidatedDelta>(std::move(delta)),
+													  namespaces, output_account);
+}
+std::shared_ptr<DeltaSource> make_delta_source(ValidatedDelta &&delta, std::uint64_t namespaces,
+											   RetirementDomain &input_domain,
+											   std::shared_ptr<StorageLedger> output_account) {
+	if (!output_account)
+		output_account = delta.storage_account();
+	auto input = detail::own_input(std::move(delta), input_domain);
+	return std::allocate_shared<ValidatedDeltaSource>(StorageAllocator<ValidatedDeltaSource>(output_account),
+													  std::move(input), namespaces, output_account);
 }
 } // namespace detent::distribution
