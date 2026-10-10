@@ -38,7 +38,8 @@ enum class SessionResetReason {
 	AdmissionFull,
 	Forbidden,
 	Unauthorized,
-	InvalidRequest
+	InvalidRequest,
+	SourceBehind
 };
 class SessionResetError : public std::runtime_error {
   public:

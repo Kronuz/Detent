@@ -372,6 +372,8 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 		if (error == "session_busy")
 			return SessionResetReason::Busy;
 	}
+	if (control.status == 503 && error == "source_behind")
+		return SessionResetReason::SourceBehind;
 	if (control.status == 503 || control.status == 429)
 		return SessionResetReason::AdmissionFull;
 	if (control.status == 400)
@@ -503,7 +505,8 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 		if (control.status == 204)
 			co_return SessionIdle{};
 		auto reason = reset_reason(control, state->resource);
-		if (reason != SessionResetReason::Busy && reason != SessionResetReason::AdmissionFull)
+		if (reason != SessionResetReason::Busy && reason != SessionResetReason::AdmissionFull &&
+			reason != SessionResetReason::SourceBehind)
 			state->alive = false;
 		co_return SessionReset{reason};
 	} catch (...) {

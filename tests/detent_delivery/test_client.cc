@@ -104,7 +104,7 @@ struct SessionServer {
 	SessionServer(std::shared_ptr<asio::ssl::context> context, bool compressed) {
 		worker = std::thread([&, context = std::move(context), compressed] {
 			try {
-				for (unsigned step = 0; step < 5; ++step) {
+				for (unsigned step = 0; step < 6; ++step) {
 					asio::ssl::stream<asio::ip::tcp::socket> socket(acceptor.accept(), *context);
 					socket.handshake(asio::ssl::stream_base::server);
 					asio::streambuf input;
@@ -143,11 +143,14 @@ struct SessionServer {
 						check(body.find("\"after\":1") != std::string::npos &&
 							  body.find("\"published\":{") != std::string::npos);
 						wire = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
-					} else if (step == 3) {
+					} else if (step == 3 || step == 4) {
 						check(body.find("\"after\":1") != std::string::npos &&
 							  body.find("\"published\":{") != std::string::npos);
-						const std::string control = "{\"error\":\"session_expired\"}";
-						wire = "HTTP/1.1 410 Gone\r\nContent-Type: application/json\r\nContent-Length: " +
+						const std::string control = step == 3 ? "{\"error\":\"source_behind\"}"
+																: "{\"error\":\"session_expired\"}";
+						wire = std::string(step == 3 ? "HTTP/1.1 503 Service Unavailable\r\n"
+														 : "HTTP/1.1 410 Gone\r\n") +
+							   "Content-Type: application/json\r\nContent-Length: " +
 							   std::to_string(control.size()) + "\r\n\r\n" + control;
 					} else {
 						check(headers.starts_with("POST /v2/distribution/session/close "));
@@ -198,6 +201,8 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 	}
 	event = co_await t::next_session(options, session, feedback, 0ms);
 	check(std::holds_alternative<t::SessionIdle>(event) && session.valid());
+	event = co_await t::next_session(options, session, {}, 0ms);
+	check(std::get<t::SessionReset>(event).reason == t::SessionResetReason::SourceBehind && session.valid());
 	event = co_await t::next_session(options, session, {}, 0ms);
 	check(std::get<t::SessionReset>(event).reason == t::SessionResetReason::Expired && !session.valid());
 	co_await t::close_session(options, session);

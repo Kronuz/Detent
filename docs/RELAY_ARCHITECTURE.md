@@ -66,3 +66,7 @@ Deliver an optional transport-free relay library and service target with `detent
 | Review | One consolidated scalability, edge-case, dependency/state and security/scale review |
 
 Stage 5C adds immutable page/segment publication with an explicit format/migration boundary and measurements of reduced rewrite work. Stage 6 qualifies sustained changed-update ingestion, bootstrap/reconnect storms, multi-host failure domains, audit/rollback and pinned dependency reproduction. Stage 5B retains complete-image costs and makes no fleet-capacity claim.
+
+## Implementation evidence
+
+The client recognizes HTTP 503 `source_behind` as `SessionResetReason::SourceBehind`, preserving a live session and its accepted publication cursor. Open reports the same typed reason for retry without requesting a backward snapshot. The scripted real TLS lifecycle verifies a lag response followed by another Next carrying the same accepted window and cursor, then a true expiry that invalidates the handle. Raw and compressed delivery variants pass natively (1.13 seconds including certificate preparation) and under TSan (1.49 seconds). Relay hosting and shared-cache implementation remain ahead.
