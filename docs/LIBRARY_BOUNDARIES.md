@@ -123,6 +123,19 @@ Two smaller candidates stay in Detent until a second consumer shows up:
 1. **Daemon plumbing.** It duplicates what Xapiand does at startup. Extract it when Xapiand adopts it, not before.
 2. **Framing.** The bounded raw/zstd frame format belongs to Detent's distribution protocol. Its generic part (bounded decompression) belongs in `compressors`.
 
+### Who depends on what after the split
+
+```text
+Detent ──> consensus ──> journal ──> completion        durable authority (--authority)
+   └─────> cluster ──> reactor, varint                 classic clustering (--cluster)
+
+consensus does not depend on cluster; Xapiand depends only on cluster
+```
+
+Detent keeps both dependencies. `src/detentd/` (`detentd.cc`, `raft_delegate.*`, `main.cc`) uses `cluster::Bus` and `cluster::Raft` for classic `--cluster` mode, and `src/detent_authority/` uses consensus and journal. If the authority later replaces classic clustering, Detent drops `cluster` entirely. That retirement is a separate product decision, not part of this plan.
+
+Nothing in `consensus`, `journal` or `completion` includes `bus.h`, `raft.h` or `length.h`. The only tie is the namespace: the durable code lives in `cluster::consensus` while journal already uses `kronuz::journal`. The split renames it to `kronuz::consensus` (about 90 references in Detent).
+
 ### What stays in Detent
 
 The knob model and evaluation, the JSON schema and patches, the authority `State` and command codec, `node.cc` (it binds `consensus` to Detent's `State`), the distribution schema (cursor, profile, rows), the local image format, the agent, and the delivery coordinator's domain logic. These are Detent's reason to exist.
@@ -138,7 +151,7 @@ The knob model and evaluation, the JSON schema and patches, the authority `State
 Each step lands and qualifies independently, in this order, so every intermediate state builds from public sources.
 
 1. **`metrics`.** Move `completion/metrics.h` to `Kronuz/metrics`. `completion` and Detent link `metrics::metrics`, and `reactor` and `http` can adopt it for their admission observers. Delete `cluster/metrics.h`.
-2. **`completion`, `journal`, `consensus`.** Create each repository with `git filter-repo --subdirectory-filter` so history is preserved. Do not rewrite `cluster` history: Detent's docs cite `cluster` commit IDs, and those must keep resolving. Remove the moved directories from `cluster` in one ordinary commit that points to the new homes. In the same step, add the missing `cluster::journal` link to the consensus target, delete the `journal/` forwarding headers, and drop the unconditional `add_subdirectory` calls from `cluster`.
+2. **`completion`, `journal`, `consensus`.** Create each repository with `git filter-repo --subdirectory-filter` so history is preserved. Do not rewrite `cluster` history: Detent's docs cite `cluster` commit IDs, and those must keep resolving. Remove the moved directories from `cluster` in one ordinary commit that points to the new homes. In the same step, rename the `cluster::consensus` namespace to `kronuz::consensus`, add the missing `cluster::journal` link to the consensus target, delete the `journal/` forwarding headers, and drop the unconditional `add_subdirectory` calls from `cluster`.
 3. **Consensus transport.** Move `src/detent_authority/transport/` (except `https_client.hh`) into `consensus/transport/` as an optional target that needs `reactor` and OpenSSL. Rename `detent::transport` to `kronuz::consensus::transport`. The `DTHL0001` and `DTC1` wire tags stay byte-identical; rename them only with a versioned format change.
 4. **Remove legacy APIs.** Drop the "legacy" halves of `completion/image.h` and similar dual paths, since Detent is the only consumer.
 5. **`ledger`.** Extract the shared core: a capacity, a move-only permit, explicit settlement, pressure, and the retirement runtime. Keep `journal::Admission`, `DiskLedger` and `StorageLedger` as thin domain wrappers over it. Behavior and tests must not change.
