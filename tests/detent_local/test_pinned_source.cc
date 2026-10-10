@@ -64,13 +64,13 @@ int main() {
 		auto heap = std::make_shared<d::StorageLedger>(1024 * 1024);
 		auto mappings = std::make_shared<d::StorageLedger>(1024 * 1024);
 		d::RetirementRuntime runtime(baseline, 1);
-		auto domain = runtime.domain(heap, 2);
+		auto domain = runtime.domain(heap, 3);
 		l::ViewLimits limits;
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mappings;
 		std::optional<l::detail::PinnedImageSource> source;
 		source.emplace(l::recover_generation(directory, limits));
-		require(source->descriptor() == builder.descriptor());
+		require(source->descriptor() == builder.descriptor() && domain.residents() == 3);
 		require(source->namespace_count() == 1 && source->record_count() == 2 &&
 				source->override_count() == 1);
 		const auto resident = heap->used(), mapped = mappings->used();
@@ -124,7 +124,7 @@ int main() {
 			require(::flock(lease, LOCK_EX | LOCK_NB) < 0 && (errno == EWOULDBLOCK || errno == EAGAIN));
 		}
 		domain.close().wait();
-		require(mappings->used() == 0 && ::flock(lease, LOCK_EX | LOCK_NB) == 0);
+		require(domain.residents() == 0 && mappings->used() == 0 && ::flock(lease, LOCK_EX | LOCK_NB) == 0);
 		require(::close(lease) == 0);
 		runtime.shutdown();
 		std::filesystem::remove_all(directory);

@@ -30,6 +30,10 @@ struct File {
 	}
 	File(const File &) = delete;
 };
+struct Directory : distribution::RetirementNode {
+	File file{-1};
+};
+
 struct Mapping : distribution::RetirementNode {
 	std::shared_ptr<distribution::StorageLedger> account;
 	distribution::StorageLedger::Ticket ticket;
@@ -149,8 +153,7 @@ std::string_view generation_name(const GenerationId &id, std::span<char> destina
 GenerationSelection read_generation_selection(const std::filesystem::path &directory) {
 	File dir(::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat info{};
-	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) &&
-			!(info.st_mode & 0022));
+	require(dir.fd >= 0 && ::fstat(dir.fd, &info) == 0 && S_ISDIR(info.st_mode) && !(info.st_mode & 0022));
 	File selected(::openat(dir.fd, "selected", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 	trusted_file(selected.fd, info.st_uid, descriptor_bytes);
 	std::array<char, descriptor_bytes> raw{};
@@ -160,7 +163,11 @@ GenerationSelection read_generation_selection(const std::filesystem::path &direc
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits,
 									   std::optional<distribution::Cursor> expected) {
 	auto &domain = resources::domain(limits);
-	auto dir = std::allocate_shared<File>(distribution::StorageAllocator<File>(domain.storage_account()), -1);
+	auto directory_owner = domain.make<Directory>();
+	using DirectoryLease = distribution::RetirementHandle<Directory>;
+	auto directory_lease = std::allocate_shared<DirectoryLease>(
+		distribution::StorageAllocator<DirectoryLease>(domain.storage_account()), directory_owner);
+	std::shared_ptr<File> dir(directory_lease, &directory_owner->file);
 	dir->fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	struct stat directory_info{};
 	require(dir->fd >= 0 && ::fstat(dir->fd, &directory_info) == 0 && S_ISDIR(directory_info.st_mode) &&
