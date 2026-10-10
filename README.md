@@ -259,7 +259,9 @@ RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are r
 include/
   detent/              Core client and evaluation API
   detent_http/         Classic HTTP polling source
-  detent_distribution/ Binary protocol and admitted storage
+  detent_distribution/ Binary protocol, storage and shared sessions
+  detent_distribution_http/ Optional server grammar and owned replies
+  detent_relay/        Durable cache and session adapters
   detent_local/        Immutable views and durable generations
   detent_delivery/     TLS client and publication coordinator
   detent_transport/    TLS configuration
@@ -270,7 +272,9 @@ src/
   detentd/             Distributor host and classic Raft adapter
   detent_agent/        Agent host, shared memory and managed configuration
   detent_authority/    Durable authority, transactions and distribution
-  detent_distribution/ Protocol implementation
+  detent_distribution/ Protocol and session implementation
+  detent_distribution_http/ Shared server parsing and reply pumping
+  detent_relay/        Durable relay core
   detent_local/        Image building and persistence
   detent_delivery/     Session transport and coordinator
   detent_cli/          Shared configuration, logging and daemon lifecycle
@@ -290,8 +294,11 @@ The core client has no networking dependency. Classic HTTP polling, binary distr
 | --- | --- | --- |
 | Core client | `detent::detent` | Local lookup, evaluation, defaults and file updates |
 | Classic HTTP source | `detent_http::detent_http` | Optional JSON polling source |
-| Binary protocol | `detent::distribution` | Framing, decoding and bounded storage |
+| Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
+| Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
+| Relay core | `detent::relay` | Durable bundle caches and authorized session adapters; HTTP host remains under implementation |
 | Immutable local view | `detent::local_view` | Read mapped durable generations |
+| Pinned local export | `detent::local_export` | Encode public definitions from a recovered immutable image |
 | Local publication | `detent::local_publication` | Reconcile and publish durable generations |
 | Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
 | Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |

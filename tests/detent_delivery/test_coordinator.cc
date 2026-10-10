@@ -3,6 +3,7 @@
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
 #include "detent_relay/bundle.hh"
+#include "detent_relay/sessions.hh"
 #include <asio/experimental/awaitable_operators.hpp>
 #include <charconv>
 #include <filesystem>
@@ -283,10 +284,85 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 	}
 	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected, feedback_received));
 }
+void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
+							d::RetirementHandle<d::EncodedUpdate> expected,
+							std::shared_ptr<d::StorageLedger> control_account,
+							std::shared_ptr<d::StorageLedger> cache_account) {
+	namespace r = detent::relay;
+	r::SessionAuthorization authorization;
+	authorization.principal.identity.fill('p');
+	authorization.principal.policy_epoch = 1;
+	authorization.grants.fill('g');
+	authorization.bundles[0] = 1;
+	const std::array bindings{r::SessionBinding{bundle, authorization.principal, cursor()}};
+	r::Sessions sessions(control_account, bindings, {500, 500});
+	auto now = r::Sessions::Clock::now();
+	auto id = [](unsigned number) {
+		d::Identity identity;
+		identity.fill('w');
+		identity[14] = static_cast<char>(number >> 8);
+		identity[15] = static_cast<char>(number);
+		return identity;
+	};
+	auto forbidden = authorization;
+	forbidden.bundles[0] = 0;
+	check(sessions.open(id(500), forbidden, 0, {}, false, false, now) == d::SubscriptionResult::Forbidden);
+	auto ahead = cursor();
+	++ahead.revision;
+	check(sessions.open(id(500), authorization, 0, ahead, false, false, now) ==
+		  d::SubscriptionResult::SourceBehind);
+	const auto cache_before = cache_account->used();
+	const auto staged_before = bundle->status().staged;
+	std::vector<r::PreparedOffer, d::StorageAllocator<r::PreparedOffer>> held{
+		d::StorageAllocator<r::PreparedOffer>(control_account)};
+	held.reserve(500);
+	for (unsigned i = 0; i < 500; ++i) {
+		check(sessions.open(id(i), authorization, 0, {}, true, bool(i % 2), now) ==
+			  d::SubscriptionResult::Accepted);
+		check(sessions.metadata(id(i), now)->compression == bool(i % 2));
+		auto request = sessions.next(id(i), authorization, 0, {}, now);
+		check(request.token.has_value());
+		auto prepared = sessions.prepare(*request.token, now);
+		check(prepared.result == d::SubscriptionResult::SnapshotReady && prepared.token &&
+			  prepared.update.get() == expected.get());
+		held.push_back(std::move(prepared));
+	}
+	check(sessions.size() == 500 && cache_account->used() <= cache_before &&
+		  bundle->status().staged == staged_before);
+	check(sessions.open(id(500), authorization, 0, {}, true, false, now) == d::SubscriptionResult::Full);
+	check(sessions.next(id(1), forbidden, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
+	auto other = authorization;
+	other.principal.identity.fill('x');
+	check(sessions.next(id(1), other, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
+	other = authorization;
+	++other.principal.policy_epoch;
+	check(sessions.next(id(1), other, 1, cursor(), now).result == d::SubscriptionResult::IdentityChanged);
+	auto early = sessions.next(id(0), authorization, 1, cursor(), now);
+	check(early.token.has_value());
+	check(sessions.prepare(*early.token, now).result == d::SubscriptionResult::AwaitSettlement);
+	auto original_frame = expected->frame(0, false);
+	bundle->fence();
+	check(sessions.prepare(*early.token, now).result == d::SubscriptionResult::Forbidden);
+	check(sessions.next(id(1), authorization, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
+	check(!original_frame->empty() && held.back().update->frame(0, false).get() == original_frame.get());
+	sessions.release(*early.token);
+	check(sessions.close(id(1), authorization, now) == d::SubscriptionResult::Accepted);
+	sessions.close_all();
+	d::WorkBudget budget{8192, 500};
+	sessions.collect(budget, now);
+	check(sessions.size() == 500);
+	for (auto &offered : held)
+		sessions.settle(*offered.token, true);
+	budget = {8192, 500};
+	sessions.collect(budget, now);
+	check(sessions.drained());
+	std::cout << "500 relay offers share one encoded object; fencing retains offered frames\n";
+}
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
+		const bool relay_sessions = relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
 		const bool relay_pressure = relay && std::string_view(argv[2]).ends_with("pressure");
 		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
 		const bool cancel_selected = argc == 3 && (std::string_view(argv[2]) == "--cancel-selected" ||
@@ -360,6 +436,7 @@ int main(int argc, char **argv) {
 			options.publication_sink = recording;
 		}
 		auto cache_account = std::make_shared<d::StorageLedger>(root, 64 * 1024 * 1024);
+		auto control_account = std::make_shared<d::StorageLedger>(root, 16 * 1024 * 1024);
 		std::optional<d::RetirementDomain> cache_domain;
 		std::shared_ptr<detent::relay::Bundle> relay_bundle;
 		d::StorageLedger::Ticket cache_pressure;
@@ -502,6 +579,12 @@ int main(int argc, char **argv) {
 											}
 										}
 									}
+									if (valid && relay_sessions) {
+										auto offer = relay_bundle->offer({}, true);
+										qualify_relay_sessions(relay_bundle, std::move(offer.update),
+															   control_account, cache_account);
+									}
+
 									recovered.set_value(valid);
 								} catch (...) {
 									recovered.set_exception(std::current_exception());
@@ -659,6 +742,7 @@ int main(int argc, char **argv) {
 		check(mapping->used() == 0);
 		std::cout << "{\"records\":" << count << ",\"managed_heap_peak\":" << account->peak()
 				  << ",\"cache_heap_peak\":" << cache_account->peak()
+				  << ",\"control_heap_peak\":" << control_account->peak()
 				  << ",\"combined_heap_peak\":" << root->peak() << ",\"mapped_peak\":" << mapping->peak()
 				  << ",\"disk_peak\":" << disk_peak << ",\"timer_turns\":" << timing.turns
 				  << ",\"maximum_timer_lateness_us\":" << timing.maximum_lateness_us << ",\"wall_ms\":"
