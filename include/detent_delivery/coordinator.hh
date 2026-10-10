@@ -1,6 +1,7 @@
 #pragma once
 #include "client.hh"
 #include "detent_local/disk_store.hh"
+#include "publication_sink.hh"
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
 #include <completion/native_completion.h>
@@ -19,6 +20,7 @@ struct CoordinatorOptions {
 	// Trusted previous identity permitted by configuration, never by input bytes.
 	std::optional<distribution::Cursor> reset_from;
 	std::chrono::milliseconds poll_interval{200};
+	std::shared_ptr<PublicationSink> publication_sink;
 };
 enum class CoordinatorPhase {
 	Starting,

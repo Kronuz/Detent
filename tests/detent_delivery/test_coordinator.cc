@@ -18,6 +18,72 @@ void check(bool value) {
 	if (!value)
 		throw std::runtime_error("coordinator invariant");
 }
+class RecordingSink final : public t::PublicationSink {
+  public:
+	void authenticated() noexcept override { ++authentications; }
+	void begin_stage(const t::ReceivedUpdate &update) override {
+		check(!borrowed_snapshot && !borrowed_delta);
+		borrowed_snapshot = update.snapshot;
+		borrowed_delta = update.delta;
+		snapshot_weak = update.snapshot;
+		delta_weak = update.delta;
+		steps = 4;
+		++stages;
+	}
+	bool stage_step(d::WorkBudget &budget) override {
+		check(borrowed_snapshot || borrowed_delta);
+		if (!budget.bytes || !budget.tokens)
+			return false;
+		--budget.bytes;
+		--budget.tokens;
+		if (--steps)
+			return false;
+		borrowed_snapshot.reset();
+		borrowed_delta.reset();
+		return true;
+	}
+	void bind_candidate(const l::Descriptor &descriptor, l::DirectoryIdentity directory) noexcept override {
+		candidate = descriptor;
+		identity = directory;
+	}
+	bool release_stage(d::WorkBudget &) noexcept override {
+		borrowed_snapshot.reset();
+		borrowed_delta.reset();
+		return true;
+	}
+	void selected(const l::RecoveredGeneration &generation) override {
+		check(snapshot_weak.expired() && delta_weak.expired());
+		if (candidate && *candidate == generation.descriptor()) {
+			check(identity == generation.directory_identity());
+			++commits;
+		}
+		snapshot_weak.reset();
+		delta_weak.reset();
+		candidate.reset();
+		last_selected = generation.descriptor();
+	}
+	void fence() noexcept override {
+		fenced = true;
+		borrowed_snapshot.reset();
+		borrowed_delta.reset();
+		snapshot_weak.reset();
+		delta_weak.reset();
+		candidate.reset();
+	}
+	unsigned authentications = 0, stages = 0, commits = 0;
+	bool fenced = false;
+	std::optional<l::Descriptor> last_selected;
+
+  private:
+	std::shared_ptr<const d::ValidatedSnapshot> borrowed_snapshot;
+	std::shared_ptr<const d::ValidatedDelta> borrowed_delta;
+	std::weak_ptr<const d::ValidatedSnapshot> snapshot_weak;
+	std::weak_ptr<const d::ValidatedDelta> delta_weak;
+	std::optional<l::Descriptor> candidate;
+	l::DirectoryIdentity identity;
+	unsigned steps = 0;
+};
+
 d::Cursor cursor() {
 	d::Cursor value;
 	value.cluster.fill('c');
@@ -214,15 +280,17 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
-		const bool cancel_selected = argc == 3 && std::string_view(argv[2]) == "--cancel-selected";
+		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
+		const bool cancel_selected = argc == 3 && (std::string_view(argv[2]) == "--cancel-selected" ||
+												   std::string_view(argv[2]) == "--sink-cancel-selected");
 		const bool pressure = argc == 3 && std::string_view(argv[2]) == "--reader-pressure";
 		const bool cancel_open = argc == 3 && std::string_view(argv[2]) == "--subscription-cancel-open";
 		const bool reset_retry = argc == 3 && std::string_view(argv[2]) == "--subscription-reset";
 		const bool subscription = argc == 3 && std::string_view(argv[2]).starts_with("--subscription");
 		const auto requested = subscription
 								   ? (std::string_view(argv[2]) == "--subscription-500000" ? 500000u : 0u)
-							   : argc == 3 && !cancel_selected && !pressure ? std::stoul(argv[2])
-																			: 0;
+							   : argc == 3 && !cancel_selected && !pressure && !sink ? std::stoul(argv[2])
+																					 : 0;
 		std::atomic<bool> feedback_received{false};
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
@@ -276,6 +344,11 @@ int main(int argc, char **argv) {
 		auto mapping = std::make_shared<d::StorageLedger>(512ull * 1024 * 1024);
 		options.view_limits.mapping_account = mapping;
 		options.view_limits.retirement_domain = &domain;
+		std::shared_ptr<RecordingSink> recording;
+		if (sink) {
+			recording = std::allocate_shared<RecordingSink>(d::StorageAllocator<RecordingSink>(account));
+			options.publication_sink = recording;
+		}
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
 		{
 			auto quota = std::make_shared<d::StorageLedger>(65536);
@@ -412,6 +485,11 @@ int main(int argc, char **argv) {
 		if (pressure)
 			final_cursor.revision = 3;
 		check(coordinator->drained());
+		if (recording) {
+			check(recording->fenced && recording->stages > 0 && recording->commits > 0);
+			check(recording->last_selected == store->selection().descriptor);
+			check(recording->authentications == (subscription ? 1u : 0u));
+		}
 		if (cancel_open) {
 			check(!store->selection().descriptor && !coordinator->status().received &&
 				  !coordinator->status().acknowledged);
@@ -429,6 +507,7 @@ int main(int argc, char **argv) {
 			l::make_disk_store(domain, early_directory, std::make_shared<int>(1), disk_options);
 		auto early_options = options;
 		early_options.directory = early_directory;
+		early_options.publication_sink.reset();
 		auto early = t::make_coordinator(early_options, early_store, driver, domain, worker);
 		auto original = early->run();
 		early->close();
@@ -457,6 +536,7 @@ int main(int argc, char **argv) {
 		check(failed_store->status() == l::StoreStatus::Fenced);
 		auto failed_options = options;
 		failed_options.directory = failed_directory;
+		failed_options.publication_sink.reset();
 		auto failed = t::make_coordinator(failed_options, failed_store, driver, domain, worker);
 		io.restart();
 		auto failed_done = asio::co_spawn(io, failed->run(), asio::use_future);

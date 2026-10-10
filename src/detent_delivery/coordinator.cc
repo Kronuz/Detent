@@ -8,6 +8,10 @@ namespace detent::delivery {
 namespace d = distribution;
 namespace l = local;
 namespace {
+bool fatal_source_reset(SessionResetReason reason) noexcept {
+	return reason == SessionResetReason::Forbidden || reason == SessionResetReason::Unauthorized ||
+		   reason == SessionResetReason::IdentityChanged || reason == SessionResetReason::InvalidRequest;
+}
 // The directory-bearing recovery result is destroyed on the cleanup worker.
 // Builders may borrow it only while its retirement handle remains retained.
 struct RecoveryResult : d::RetirementNode {
@@ -46,6 +50,8 @@ struct Coordinator::Impl {
 	void fence(std::exception_ptr failure) noexcept {
 		if (!terminal_fenced) {
 			terminal_fenced = true;
+			if (options.publication_sink)
+				options.publication_sink->fence();
 			terminal_failure = failure;
 			++diagnostic.failures;
 		}
@@ -145,6 +151,8 @@ struct Coordinator::Impl {
 			diagnostic.recoverable.reset();
 		}
 		base = std::move(recovered);
+		if (options.publication_sink && base->generation)
+			options.publication_sink->selected(*base->generation);
 	}
 	void offer_publication() {
 		if (diagnostic.phase != CoordinatorPhase::WaitingPublication || cancelled() ||
@@ -187,6 +195,10 @@ struct Coordinator::Impl {
 			} catch (const std::bad_alloc &) {
 				store->request_collection();
 				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
+			} catch (const SessionResetError &error) {
+				failure = std::current_exception();
+				if (options.publication_sink && fatal_source_reset(error.reason()))
+					options.publication_sink->fence();
 			} catch (...) {
 				failure = std::current_exception();
 			}
@@ -221,6 +233,8 @@ struct Coordinator::Impl {
 	}
 	void close() noexcept {
 		closing = true;
+		if (options.publication_sink)
+			options.publication_sink->fence();
 		++cancellation;
 		network_cancel.emit(asio::cancellation_type::terminal);
 		notify_candidate();
@@ -230,6 +244,14 @@ struct Coordinator::Impl {
 	}
 	asio::awaitable<void> discard(std::optional<ReceivedUpdate> &update) {
 		diagnostic.phase = CoordinatorPhase::Discarding;
+		if (options.publication_sink) {
+			for (;;) {
+				d::WorkBudget budget;
+				if (options.publication_sink->release_stage(budget))
+					break;
+				co_await yield();
+			}
+		}
 		if (builder) {
 			for (;;) {
 				l::ValidationBudget budget;
@@ -301,7 +323,10 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							executor, open_session(request, force_snapshot),
 							asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
 						feedback.reset();
-						if (std::exchange(close_after_session_open, false)) close();
+						if (options.publication_sink && !cancelled())
+							options.publication_sink->authenticated();
+						if (std::exchange(close_after_session_open, false))
+							close();
 					}
 					if (cancelled())
 						throw asio::system_error(asio::error::operation_aborted);
@@ -347,6 +372,17 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				diagnostic.received = update->target;
 				diagnostic.validated = update->target;
 				if (!cancelled()) {
+					if (options.publication_sink) {
+						options.publication_sink->begin_stage(*update);
+						while (!cancelled()) {
+							d::WorkBudget budget;
+							if (options.publication_sink->stage_step(budget))
+								break;
+							co_await yield();
+						}
+					}
+					if (cancelled())
+						throw asio::system_error(asio::error::operation_aborted);
 					diagnostic.phase = CoordinatorPhase::Building;
 					auto account = store->storage_account();
 					if (update->snapshot)
@@ -368,11 +404,16 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 					}
 					if (!cancelled()) {
 						const auto candidate = builder->descriptor();
+						if (options.publication_sink)
+							options.publication_sink->bind_candidate(candidate, store->directory_identity());
 						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor) {
 							if (candidate.length != actual.descriptor->length ||
 								candidate.checksum != actual.descriptor->checksum ||
 								candidate.profile != actual.descriptor->profile)
 								throw std::invalid_argument("same-cursor managed state conflict");
+							if (options.publication_sink)
+								options.publication_sink->bind_candidate(*actual.descriptor,
+																		 store->directory_identity());
 							diagnostic.acknowledged = candidate.cursor;
 						} else {
 							diagnostic.phase = CoordinatorPhase::WaitingPublication;
@@ -394,6 +435,10 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						}
 					}
 				}
+			} catch (const SessionResetError &error) {
+				failure = std::current_exception();
+				if (options.publication_sink && fatal_source_reset(error.reason()))
+					options.publication_sink->fence();
 			} catch (...) {
 				failure = std::current_exception();
 			}
@@ -464,6 +509,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 		fence(fatal);
 	}
 	close();
+	if (options.publication_sink)
+		options.publication_sink->fence();
 	base.reset();
 }
 
