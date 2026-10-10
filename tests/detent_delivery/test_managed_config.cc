@@ -64,9 +64,11 @@ int main(int argc, char **argv) {
 			check(failed);
 		};
 		check(options.coordinator.delivery_mode == detent::delivery::DeliveryMode::Poll);
+		check(options.principal == "reader" && options.policy_epoch == 1 && !options.delivery_mode_explicit);
 		object.AddMember("delivery_mode", "subscription", object.GetAllocator());
 		write();
 		check(load().coordinator.delivery_mode == detent::delivery::DeliveryMode::Subscription);
+		check(load().delivery_mode_explicit);
 		object["delivery_mode"].SetString("unknown");
 		write();
 		rejected();

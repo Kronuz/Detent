@@ -1,4 +1,4 @@
-#include "managed_config.hh"
+#include "detent_delivery/configuration.hh"
 #include "detent/identity.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace detent_agent {
+namespace detent::delivery {
 namespace {
 using Value = rapidjson::Value;
 void require(bool value, const char *message) {
@@ -58,9 +58,7 @@ template <std::size_t N> std::array<char, N> identity(const Value &value) {
 }
 
 } // namespace
-ManagedOptions load_managed_options(const std::filesystem::path &configuration,
-									const std::filesystem::path &directory, detent::local::StoreOpenMode mode,
-									bool system) {
+std::string read_private_configuration(const std::filesystem::path &configuration) {
 	File file{::open(configuration.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK)};
 	struct stat info{};
 	require(file.descriptor >= 0 && ::fstat(file.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
@@ -82,6 +80,13 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 		remaining = ::read(file.descriptor, &extra, 1);
 	} while (remaining < 0 && errno == EINTR);
 	require(remaining == 0, "managed configuration changed while reading");
+	return bytes;
+}
+
+ManagedOptions load_managed_options(const std::filesystem::path &configuration,
+									const std::filesystem::path &directory, detent::local::StoreOpenMode mode,
+									bool system) {
+	auto bytes = read_private_configuration(configuration);
 	require(bytes.find('\0') == std::string::npos && !detent::internal::nesting_depth_exceeds(bytes, 16),
 			"managed configuration JSON bound");
 	rapidjson::Document object;
@@ -113,6 +118,7 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	ManagedOptions result;
 	result.coordinator.directory = directory;
 	if (object.HasMember("delivery_mode")) {
+		result.delivery_mode_explicit = true;
 		const auto mode = text(object["delivery_mode"], 16);
 		require(mode == "poll" || mode == "subscription", "invalid managed delivery mode");
 		result.coordinator.delivery_mode = mode == "subscription"
@@ -123,8 +129,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	source.configured.cluster = identity<16>(field(object, "cluster"));
 	source.configured.group = identity<16>(field(object, "group"));
 	source.configured.restore_epoch = identity<16>(field(object, "epoch"));
-	auto principal = text(field(object, "principal"), 128);
-	auto policy = number(object, "policy_epoch", 1, 1, UINT64_MAX);
+	result.principal = text(field(object, "principal"), 128);
+	result.policy_epoch = number(object, "policy_epoch", 1, 1, UINT64_MAX);
 	const auto &names = field(object, "namespaces");
 	require(names.IsArray() && names.Size() <= 4096, "managed namespace count");
 	for (const auto &name : names.GetArray())
@@ -135,7 +141,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	std::vector<std::string_view> canonical;
 	for (const auto &name : source.namespaces)
 		canonical.push_back(name);
-	source.configured.scope = detent::distribution::canonical_scope_identity(principal, policy, canonical);
+	source.configured.scope =
+		detent::distribution::canonical_scope_identity(result.principal, result.policy_epoch, canonical);
 	source.token = text(field(object, "token"), 128);
 	require(source.token.size() >= 32 && std::all_of(source.token.begin(), source.token.end(),
 													 [](unsigned char c) { return c >= 32 && c != 127; }),
@@ -182,4 +189,4 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	}
 	return result;
 }
-} // namespace detent_agent
+} // namespace detent::delivery
