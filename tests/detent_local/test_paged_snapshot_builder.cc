@@ -31,6 +31,14 @@ void build(l::detail::PagedSnapshotBuilder &builder, std::size_t bytes = 1) {
 		require(budget.bytes <= bytes && budget.rows <= 16 && ++turns < 5000000);
 	}
 }
+void discard(l::detail::PagedSnapshotBuilder &builder) {
+	for (unsigned turns = 0;; ++turns) {
+		require(turns < 5000000);
+		l::ValidationBudget budget{1, 1};
+		if (builder.discard(budget))
+			return;
+	}
+}
 struct Lease {
 	l::detail::PagedImage image;
 	std::vector<l::detail::SegmentInput, d::StorageAllocator<l::detail::SegmentInput>> segments;
@@ -273,11 +281,7 @@ int main() {
 		l::ValidationBudget first{0, 1};
 		require(!builder.discard(first));
 		rejects<std::logic_error>([&] { builder.step(first); });
-		for (;;) {
-			l::ValidationBudget budget{0, 1};
-			if (builder.discard(budget))
-				break;
-		}
+		discard(builder);
 	}
 	require(account->used() == baseline);
 	{
@@ -303,11 +307,7 @@ int main() {
 			l::detail::PagedSnapshotBuilder builder(input, storage, generation);
 			rejects<d::StoragePressure>([&] { build(builder); });
 			rejects<std::logic_error>([&] { builder.take(); });
-			for (;;) {
-				l::ValidationBudget budget{0, 1};
-				if (builder.discard(budget))
-					break;
-			}
+			discard(builder);
 		}
 		require(ledger->used() == occupied);
 		pressure.reset();
@@ -334,11 +334,7 @@ int main() {
 		limits.prefix_bytes = 0;
 		l::detail::PagedSnapshotBuilder builder(source, storage, generation, limits);
 		rejects<std::invalid_argument>([&] { build(builder); });
-		for (;;) {
-			l::ValidationBudget budget{0, 1};
-			if (builder.discard(budget))
-				break;
-		}
+		discard(builder);
 	}
 	require(account->used() == baseline);
 	{

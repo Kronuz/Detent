@@ -1,5 +1,6 @@
 #include "paged_snapshot_builder.hh"
 #include "detent_local/paged_definition.hh"
+#include "paged_leaf_body.hh"
 #include "paged_page_builder.hh"
 #include "paged_segment_builder.hh"
 #include "paged_trie_cursor.hh"
@@ -25,6 +26,15 @@ std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> destin
 		return p::encode_definition_key(destination, source.records()[ordinal].key);
 	return p::encode_namespace_key(destination, source.namespaces()[ordinal - source.records().size()].name);
 }
+p::Override snapshot_override(const void *owner, std::uint64_t ordinal, std::uint32_t index) {
+	const auto &source = *static_cast<const d::ValidatedSnapshot *>(owner);
+	const auto &wire = std::get<d::WireBoolDef>(source.records()[ordinal].definition);
+	const auto &row = source.overrides(wire)[index];
+	const auto *rollout = std::get_if<GroupRollout>(&row.second);
+	return {row.first, rollout != nullptr,
+			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+}
+
 } // namespace
 struct PagedImage::Impl {
 	p::Root root;
@@ -91,10 +101,7 @@ bool PagedImageOwner::retire_step() noexcept {
 struct PagedSnapshotBuilder::Impl {
 	enum class Phase {
 		Cursor,
-		Count,
-		Zero,
-		Header,
-		Overrides,
+		Body,
 		Page,
 		Pack,
 		ReleasePage,
@@ -115,12 +122,12 @@ struct PagedSnapshotBuilder::Impl {
 	std::optional<TrieCursor> cursor;
 	std::optional<PageBuilder> page;
 	std::optional<SegmentBuilder> segment;
-	std::shared_ptr<d::OwnedBuffer> body;
+	std::shared_ptr<const d::OwnedBuffer> body;
+	std::optional<LeafBody> leaf_body;
 	TrieEvent event{};
-	p::Definition definition;
 	p::Reference reference;
 	std::uint64_t physical_bytes = 0;
-	std::size_t body_size = 0, group = 0, offset = 0, charge = 0;
+	std::size_t charge = 0;
 	Phase phase = Phase::Cursor, after_pack = Phase::Page;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<const d::ValidatedSnapshot> input, StorageIdentity identity, GenerationId id,
@@ -155,21 +162,16 @@ struct PagedSnapshotBuilder::Impl {
 		--budget.rows;
 		return true;
 	}
-	const d::OverrideRow &override_row(std::size_t ordinal) const {
-		const auto &wire = std::get<d::WireBoolDef>(source->records()[event.ordinal].definition);
-		return source->overrides(wire)[ordinal];
-	}
 	void leaf() {
-		definition = {};
-		group = offset = 0;
 		if (event.kind == p::PageKind::Namespace) {
 			require(event.ordinal >= source->records().size());
-			body_size = 8;
+			leaf_body.emplace(account,
+							  source->namespaces()[event.ordinal - source->records().size()].revision);
 		} else {
 			require(event.kind == p::PageKind::Definition && event.ordinal < source->records().size());
 			const auto &record = source->records()[event.ordinal];
+			p::Definition definition;
 			definition.revision = record.revision;
-			body_size = p::definition_header_bytes;
 			if (const auto *boolean = std::get_if<d::WireBoolDef>(&record.definition)) {
 				require(boolean->overrides.count <= 256);
 				definition.boolean = true;
@@ -178,9 +180,12 @@ struct PagedSnapshotBuilder::Impl {
 				definition.overrides = boolean->overrides.count;
 			} else
 				definition.default_int = std::get<IntDef>(record.definition).default_value;
+			leaf_body.emplace(account, definition, source.get(), event.ordinal, snapshot_override,
+							  p::page_bytes - p::page_header_bytes - event.prefix.size());
 		}
-		phase = Phase::Count;
+		phase = Phase::Body;
 	}
+
 	void make_page() {
 		page.emplace(account, event.kind, event.keys, event.prefix, event.children,
 					 body ? std::span<const char>(body->data(), body->size()) : std::span<const char>{},
@@ -225,68 +230,14 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 				else
 					state.leaf();
 				break;
-			case Impl::Phase::Count:
-				if (state.group < state.definition.overrides) {
-					const auto &row = state.override_row(state.group);
-					if (!state.admit(row.first.size() + 4, budget))
-						return;
-					require(row.first.size() <= 128 &&
-							state.body_size <= p::page_bytes - p::page_header_bytes -
-												   state.event.prefix.size() - 4 - row.first.size());
-					state.body_size += row.first.size() + 4;
-					++state.group;
-					break;
-				}
-				state.body = d::make_owned_buffer(state.account, state.body_size);
-				state.phase = Impl::Phase::Zero;
-				break;
-			case Impl::Phase::Zero: {
-				const auto count = std::min(state.body_size - state.body->size(), budget.bytes);
-				state.body->resize(state.body->size() + count);
-				budget.bytes -= count;
-				if (state.body->size() != state.body_size)
+			case Impl::Phase::Body:
+				state.leaf_body->step(budget);
+				if (!state.leaf_body->done())
 					return;
-				state.phase = Impl::Phase::Header;
-				break;
-			}
-			case Impl::Phase::Header:
-				if (!state.admit(state.event.kind == p::PageKind::Namespace ? 8 : p::definition_header_bytes,
-								 budget))
-					return;
-				if (state.event.kind == p::PageKind::Namespace) {
-					write_integer(
-						state.body->mutable_bytes(), 0,
-						state.source->namespaces()[state.event.ordinal - state.source->records().size()]
-							.revision,
-						8);
-					state.offset = 8;
-				} else {
-					p::encode_definition_header(state.body->mutable_bytes().first(p::definition_header_bytes),
-												state.definition);
-					state.offset = p::definition_header_bytes;
-				}
-				state.group = 0;
-				state.phase = Impl::Phase::Overrides;
-				break;
-			case Impl::Phase::Overrides:
-				if (state.group < state.definition.overrides) {
-					const auto &row = state.override_row(state.group);
-					const auto size = row.first.size() + 4;
-					if (!state.admit(size, budget))
-						return;
-					const auto *rollout = std::get_if<GroupRollout>(&row.second);
-					p::encode_override(state.body->mutable_bytes().subspan(state.offset, size),
-									   {row.first, rollout != nullptr,
-										rollout ? rollout->rollout_pct
-												: static_cast<std::uint8_t>(std::get<bool>(row.second))});
-					state.offset += size;
-					++state.group;
-					break;
-				}
-				require(state.offset == state.body_size);
-				state.body->seal();
+				state.body = state.leaf_body->bytes();
 				state.make_page();
 				break;
+
 			case Impl::Phase::Page:
 				state.page->step(budget);
 				if (!state.page->done())
@@ -315,10 +266,13 @@ void PagedSnapshotBuilder::step(ValidationBudget &budget) {
 				state.phase = Impl::Phase::ReleasePage;
 				break;
 			case Impl::Phase::ReleasePage:
-				if (!state.page->discard(budget))
+				if (state.page && !state.page->discard(budget))
 					return;
 				state.page.reset();
 				state.body.reset();
+				if (state.leaf_body && !state.leaf_body->discard(budget))
+					return;
+				state.leaf_body.reset();
 				state.phase = Impl::Phase::Commit;
 				break;
 			case Impl::Phase::Commit:
@@ -403,6 +357,10 @@ bool PagedSnapshotBuilder::discard(ValidationBudget &budget) {
 	if (impl_->segment && !impl_->segment->discard(budget))
 		return false;
 	impl_->segment.reset();
+	impl_->body.reset();
+	if (impl_->leaf_body && !impl_->leaf_body->discard(budget))
+		return false;
+	impl_->leaf_body.reset();
 	if (!impl_->output.discard(budget))
 		return false;
 	if (!budget.rows)
