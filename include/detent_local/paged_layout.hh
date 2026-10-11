@@ -38,6 +38,11 @@ struct Root {
 Digest empty_commitment();
 std::size_t encode_namespace_key(std::span<char>, std::string_view name);
 std::size_t encode_definition_key(std::span<char>, std::string_view qualified_name);
+struct Key {
+	PageKind kind;
+	std::string_view name_space, local_name;
+};
+Key decode_key(std::string_view);
 Digest physical_commitment(std::span<const char>);
 // Commits semantics and ordered child hashes, excluding segment placement.
 Digest logical_commitment(PageKind, std::string_view prefix, std::span<const Child>,

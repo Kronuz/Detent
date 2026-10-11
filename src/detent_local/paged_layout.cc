@@ -93,6 +93,23 @@ std::size_t encode_definition_key(std::span<char> out, std::string_view name) {
 	out[size - 1] = 0;
 	return size;
 }
+Key decode_key(std::string_view bytes) {
+	require(bytes.size() >= 3 && bytes.size() <= 202 && bytes.back() == 0);
+	const auto separator = bytes.find('\0', 1);
+	require(separator != std::string_view::npos && separator > 1);
+	const auto name_space = bytes.substr(1, separator - 1);
+	require(name_space.size() <= 198 &&
+			std::all_of(name_space.begin(), name_space.end(), detent::detail::is_name_char));
+	if (bytes.front() == 'W') {
+		require(separator == bytes.size() - 1);
+		return {PageKind::Namespace, name_space, {}};
+	}
+	require(bytes.front() == 'K' && separator + 2 < bytes.size());
+	const auto local = bytes.substr(separator + 1, bytes.size() - separator - 2);
+	require(name_space.size() + local.size() + 1 <= 200 &&
+			std::all_of(local.begin(), local.end(), detent::detail::is_name_char));
+	return {PageKind::Definition, name_space, local};
+}
 Digest physical_commitment(std::span<const char> bytes) {
 	SHA256 hash;
 	hash.add(bytes.data(), bytes.size());

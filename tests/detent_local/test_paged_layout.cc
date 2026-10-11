@@ -60,8 +60,16 @@ int main() {
 	std::array<char, 202> key{};
 	auto length = p::encode_definition_key(key, "ns:knob");
 	require(std::string_view(key.data(), length) == std::string_view("Kns\0knob\0", 9));
+	auto parsed_key = p::decode_key({key.data(), length});
+	require(parsed_key.kind == p::PageKind::Definition && parsed_key.name_space == "ns" &&
+			parsed_key.local_name == "knob");
 	length = p::encode_namespace_key(key, "ns");
 	require(std::string_view(key.data(), length) == std::string_view("Wns\0", 4));
+	require(p::decode_key({key.data(), length}).kind == p::PageKind::Namespace);
+	for (auto malformed : {std::string_view("Kns\0\0", 5), std::string_view("Kns\0knob", 8),
+						   std::string_view("Kns\0k\0x\0", 9), std::string_view("Wns\0x\0", 6),
+						   std::string_view("Qns\0", 4), std::string_view("Kns\0k:x\0", 8)})
+		rejects([&] { p::decode_key(malformed); });
 	rejects([&] { p::encode_definition_key(std::span<char>(key).first(2), "ns:knob"); });
 	rejects([&] { p::encode_definition_key(key, "ns:knob:extra"); });
 	rejects([&] { p::encode_namespace_key(key, std::string_view("ns\0extra", 8)); });
