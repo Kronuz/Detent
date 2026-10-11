@@ -296,6 +296,7 @@ The core client has no networking dependency. Classic HTTP polling, binary distr
 | Classic HTTP source | `detent_http::detent_http` | Optional JSON polling source |
 | Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
 | Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
+| Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies; daemon host remains under implementation |
 | Relay core | `detent::relay` | Durable bundle caches and authorized session adapters; HTTP host remains under implementation |
 | Immutable local view | `detent::local_view` | Read mapped durable generations |
 | Pinned local export | `detent::local_export` | Encode public definitions from a recovered immutable image |

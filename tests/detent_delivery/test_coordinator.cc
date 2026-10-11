@@ -21,6 +21,9 @@ void check(bool value, std::source_location location = std::source_location::cur
 	if (!value)
 		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
 }
+#ifdef DETENT_TEST_RELAY_HTTP
+#include "relay_service_fixture.hh"
+#endif
 class RecordingSink final : public t::PublicationSink {
   public:
 	void authenticated() noexcept override { ++authentications; }
@@ -362,7 +365,11 @@ int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
-		const bool relay_sessions = relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
+		const bool relay_sessions =
+			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
+#ifdef DETENT_TEST_RELAY_HTTP
+		const bool relay_http = relay && std::string_view(argv[2]).find("http") != std::string_view::npos;
+#endif
 		const bool relay_pressure = relay && std::string_view(argv[2]).ends_with("pressure");
 		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
 		const bool cancel_selected = argc == 3 && (std::string_view(argv[2]) == "--cancel-selected" ||
@@ -579,6 +586,13 @@ int main(int argc, char **argv) {
 											}
 										}
 									}
+#ifdef DETENT_TEST_RELAY_HTTP
+									if (valid && relay_http) {
+										auto offer = relay_bundle->offer({}, true);
+										relay_service_fixture::qualify(relay_bundle, std::move(offer.update),
+																	   control_account, count != 0);
+									}
+#endif
 									if (valid && relay_sessions) {
 										auto offer = relay_bundle->offer({}, true);
 										qualify_relay_sessions(relay_bundle, std::move(offer.update),
