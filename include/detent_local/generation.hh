@@ -7,6 +7,7 @@ namespace detent::local {
 namespace detail {
 class LeasedPagedRoot;
 class PagedPlanBuilder;
+class PagedCursor;
 } // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
@@ -50,6 +51,7 @@ class RecoveredGeneration {
 	DirectoryIdentity directory_identity_;
 	distribution::RetirementHandle<detail::LeasedPagedRoot> paged_;
 	friend class detail::PagedPlanBuilder;
+	friend class detail::PagedCursor;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
 };

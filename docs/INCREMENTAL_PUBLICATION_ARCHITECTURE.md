@@ -172,3 +172,7 @@ Native and ASan/UBSan progress/reuse checks pass (2/2 in 0.81 and 1.44 seconds).
 ### Shared mutation ordering
 
 The private `DeltaIndex` extracts the v1 merge's stable sort and last-transaction duplicate collapse into admitted row storage. It contains mutation references and revisions only; sparse consumers can use it without materializing or scanning the old record set. The v1 image builder uses this same implementation, preserving its independent expected-snapshot comparisons. Byte-limited sorting yields when its grant is exhausted. Direct checks reverse input key order and verify final mutation ordinals and revisions across repeated transactions; native and ASan/UBSan checks pass in 0.32 and 0.45 seconds.
+
+### Lexical mapped traversal
+
+The private protocol-free `PagedCursor` walks only the requested namespace or definition subtree, using a fixed admitted path stack and reconstructed-key scratch. Each step spends explicit byte/row grants; a paid byte grant survives until a later row grant arrives. Leaf text remains borrowed until consumption, and rewind supports the encoder's count/emission passes. Actual recovered leases retain mappings without filesystem work, rehashing or predecessor-ordinal scans. Native and ASan/UBSan fixtures pass in 0.67 and 1.46 seconds, comparing every key across small and 20,000-record multi-segment images, then repeating traversal after recovered handles and files are removed. Profile-1 export integration remains pending.
