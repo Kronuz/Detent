@@ -3,6 +3,7 @@
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
 #include "pinned_source.hh"
+#include "read_root.hh"
 #include "resources.hh"
 #include <algorithm>
 #include <bit>
@@ -16,7 +17,8 @@ void require(bool condition) {
 }
 bool valid_lookup(std::string_view ns, std::string_view key) {
 	return !ns.empty() && !key.empty() && ns.size() <= 198 && key.size() <= 198 &&
-		   ns.size() + key.size() + 1 <= 200 && std::all_of(ns.begin(), ns.end(), detent::detail::is_name_char) &&
+		   ns.size() + key.size() + 1 <= 200 &&
+		   std::all_of(ns.begin(), ns.end(), detent::detail::is_name_char) &&
 		   std::all_of(key.begin(), key.end(), detent::detail::is_name_char);
 }
 KnobError error(ErrorCategory category, std::string_view key) {
@@ -49,56 +51,50 @@ std::shared_ptr<distribution::StorageLedger> mapping_account(const ViewLimits &l
 	return limits.mapping_account ? limits.mapping_account : defaults().mappings;
 }
 } // namespace resources
-struct ReadView::Root : distribution::RetirementNode {
-	std::shared_ptr<const void> lease;
-	std::span<const char> bytes;
-	Header header;
-	std::uint32_t bools = 0, ints = 0;
-	Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
-		: lease(std::move(owner)), bytes(region), header(metadata) {}
-	std::uint64_t number(std::uint64_t offset, unsigned width) const {
-		return read_integer(bytes, offset, width);
+ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
+	: lease(std::move(owner)), bytes(region), header(metadata) {}
+std::uint64_t ReadView::Root::number(std::uint64_t offset, unsigned width) const {
+	return read_integer(bytes, offset, width);
+}
+std::string_view ReadView::Root::text(std::uint64_t row) const {
+	auto offset = number(row, 8), size = number(row + 8, 4);
+	require(offset <= header.layout.strings && size <= header.layout.strings - offset);
+	return {bytes.data() + header.layout.string_offset + offset, static_cast<std::size_t>(size)};
+}
+std::optional<std::uint64_t> ReadView::Root::find(std::string_view ns, std::string_view key) const {
+	const auto &l = header.layout;
+	std::uint32_t low = 0, high = l.namespaces;
+	while (low < high) {
+		auto middle = low + (high - low) / 2;
+		if (text(l.namespace_offset + middle * namespace_bytes) < ns)
+			low = middle + 1;
+		else
+			high = middle;
 	}
-	std::string_view text(std::uint64_t row) const {
-		auto offset = number(row, 8), size = number(row + 8, 4);
-		require(offset <= header.layout.strings && size <= header.layout.strings - offset);
-		return {bytes.data() + header.layout.string_offset + offset, static_cast<std::size_t>(size)};
-	}
-	std::optional<std::uint64_t> find(std::string_view ns, std::string_view key) const {
-		const auto &l = header.layout;
-		std::uint32_t low = 0, high = l.namespaces;
-		while (low < high) {
-			auto middle = low + (high - low) / 2;
-			if (text(l.namespace_offset + middle * namespace_bytes) < ns)
-				low = middle + 1;
-			else
-				high = middle;
-		}
-		if (low == l.namespaces || text(l.namespace_offset + low * namespace_bytes) != ns)
-			return {};
-		auto ns_index = low;
-		low = 0;
-		high = l.records;
-		while (low < high) {
-			auto middle = low + (high - low) / 2;
-			auto row = l.record_offset + middle * record_bytes;
-			auto index = number(row + 12, 4);
-			auto name = text(row);
-			auto local = name.substr(name.find(':') + 1);
-			if (index < ns_index || (index == ns_index && local < key))
-				low = middle + 1;
-			else
-				high = middle;
-		}
-		if (low == l.records)
-			return {};
-		auto row = l.record_offset + low * record_bytes;
+	if (low == l.namespaces || text(l.namespace_offset + low * namespace_bytes) != ns)
+		return {};
+	auto ns_index = low;
+	low = 0;
+	high = l.records;
+	while (low < high) {
+		auto middle = low + (high - low) / 2;
+		auto row = l.record_offset + middle * record_bytes;
+		auto index = number(row + 12, 4);
 		auto name = text(row);
-		if (number(row + 12, 4) != ns_index || name.substr(name.find(':') + 1) != key)
-			return {};
-		return row;
+		auto local = name.substr(name.find(':') + 1);
+		if (index < ns_index || (index == ns_index && local < key))
+			low = middle + 1;
+		else
+			high = middle;
 	}
-};
+	if (low == l.records)
+		return {};
+	auto row = l.record_offset + low * record_bytes;
+	auto name = text(row);
+	if (number(row + 12, 4) != ns_index || name.substr(name.find(':') + 1) != key)
+		return {};
+	return row;
+}
 detail::PinnedImageSource::PinnedImageSource(RecoveredGeneration generation)
 	: generation_(std::move(generation)) {
 	if (!generation_.view())
