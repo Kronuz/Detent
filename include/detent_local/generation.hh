@@ -8,6 +8,7 @@ namespace detail {
 class LeasedPagedRoot;
 class PagedPlanBuilder;
 class PagedCursor;
+class PagedSnapshotSource;
 } // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
@@ -52,6 +53,7 @@ class RecoveredGeneration {
 	distribution::RetirementHandle<detail::LeasedPagedRoot> paged_;
 	friend class detail::PagedPlanBuilder;
 	friend class detail::PagedCursor;
+	friend class detail::PagedSnapshotSource;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
 };

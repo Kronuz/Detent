@@ -17,7 +17,7 @@ struct SnapshotEncoder::Impl {
 	std::uint64_t namespaces = 0, records = 0, overrides = 0, strings = 0, emitted = 0, wire_length = 0;
 	std::size_t offset = 0, charge = 0, definition_bytes = 0, disposal = 0;
 	unsigned phase = 0;
-	bool ready = false, finished = false, failed = false;
+	bool ready = false, finished = false, failed = false, prepared = false;
 	Impl(std::shared_ptr<SnapshotSource> projection, d::Limits bounds)
 		: source(std::move(projection)), limits(std::move(bounds)),
 		  output(d::make_owned_buffer(source->storage_account(), chunk_bytes)) {
@@ -209,6 +209,11 @@ void SnapshotEncoder::step(d::WorkBudget &budget) {
 		throw std::logic_error("inactive snapshot export encoder");
 	auto &p = *impl_;
 	try {
+		if (!p.prepared) {
+			if (!p.source->prepare(budget))
+				return;
+			p.prepared = true;
+		}
 		if (p.finished && !p.ready && p.pending.empty())
 			return;
 		if (!p.output) {

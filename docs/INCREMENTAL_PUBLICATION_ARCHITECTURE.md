@@ -176,3 +176,9 @@ The private `DeltaIndex` extracts the v1 merge's stable sort and last-transactio
 ### Lexical mapped traversal
 
 The private protocol-free `PagedCursor` walks only the requested namespace or definition subtree, using a fixed admitted path stack and reconstructed-key scratch. Each step spends explicit byte/row grants; a paid byte grant survives until a later row grant arrives. Leaf text remains borrowed until consumption, and rewind supports the encoder's count/emission passes. Actual recovered leases retain mappings without filesystem work, rehashing or predecessor-ordinal scans. Native and ASan/UBSan fixtures pass in 0.67 and 1.46 seconds, comparing every key across small and 20,000-record multi-segment images, then repeating traversal after recovered handles and files are removed. Profile-1 export integration remains pending.
+
+### Profile-1 export integration
+
+The recovered-generation adapter now selects a paged source with bounded namespace preparation and lexical definition traversal. `SnapshotSource::prepare` defaults to immediate readiness for existing sources; the shared encoder waits for preparation before counting. This additive virtual method requires matching C++ headers and libraries. Definition header decoding is factored from full validation, so the already verified source reads fixed framing and streams individual overrides without rescanning each full body. No sibling API changes are needed.
+
+Exact profile-1 byte comparisons pass natively and under ASan/UBSan, including repeated export after file removal, empty roots/namespaces, namespace-index ordering, UTF-8 switch keys and 20,000 records. Linux and FreeBSD pass the six related source/recovery/cursor/progress/merge checks. The full native and minimal reader-only profiles build. Warm sparse difference validation and durable publication remain open.

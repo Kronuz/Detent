@@ -98,8 +98,8 @@ Override read_override(std::span<const char> bytes, std::size_t &offset) {
 	offset += 4 + length;
 	return result;
 }
-Definition validate_definition(std::span<const char> bytes, std::uint64_t namespace_revision,
-							   std::uint32_t maximum_overrides) {
+Definition decode_definition_header(std::span<const char> bytes, std::uint64_t namespace_revision,
+									std::uint32_t maximum_overrides) {
 	require(bytes.size() >= definition_header_bytes && bytes.size() <= page_bytes);
 	Definition result;
 	result.revision = read_integer(bytes, 0, 8);
@@ -119,6 +119,11 @@ Definition validate_definition(std::span<const char> bytes, std::uint64_t namesp
 	require(rollout == 255 || rollout <= 100);
 	if (rollout != 255)
 		result.rollout = rollout;
+	return result;
+}
+Definition validate_definition(std::span<const char> bytes, std::uint64_t namespace_revision,
+							   std::uint32_t maximum_overrides) {
+	const auto result = decode_definition_header(bytes, namespace_revision, maximum_overrides);
 	std::size_t offset = definition_header_bytes;
 	std::string_view previous;
 	for (std::uint32_t i = 0; i < result.overrides; ++i) {

@@ -17,6 +17,8 @@ class SnapshotSource {
 	virtual std::shared_ptr<StorageLedger> storage_account() const noexcept = 0;
 	virtual std::uint64_t namespace_count() const noexcept = 0;
 	virtual NamespaceRevision name_space(std::uint64_t) const = 0;
+	// Optional bounded preparation completes before counting namespaces.
+	virtual bool prepare(WorkBudget &) { return true; }
 	virtual void reset_records() noexcept = 0;
 	virtual SnapshotRecordStep next_record() = 0;
 	virtual std::optional<OverrideRow> next_override() = 0;
