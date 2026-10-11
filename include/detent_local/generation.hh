@@ -8,6 +8,7 @@ namespace detail {
 class LeasedPagedRoot;
 class PagedPlanBuilder;
 class PagedCursor;
+class WarmGraphValidator;
 class PagedSnapshotSource;
 } // namespace detail
 using GenerationId = std::array<char, 16>;
@@ -53,6 +54,7 @@ class RecoveredGeneration {
 	distribution::RetirementHandle<detail::LeasedPagedRoot> paged_;
 	friend class detail::PagedPlanBuilder;
 	friend class detail::PagedCursor;
+	friend class detail::WarmGraphValidator;
 	friend class detail::PagedSnapshotSource;
 	friend class GenerationReader;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,

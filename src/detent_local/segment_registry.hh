@@ -35,5 +35,6 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	std::uint64_t physical_bytes_ = 0;
 	bool sealed_ = false;
 	friend class GraphValidator;
+	friend class WarmGraphValidator;
 };
 } // namespace detent::local::detail

@@ -79,7 +79,7 @@ targets, not demonstrated capacity.
 
 1. Resumable subscriptions with snapshot/history handoff and durable publication feedback have Stage 5A component acceptance. Native, sanitizer and focused supported-platform checks establish component behavior; sustained fleet capacity remains a Stage 6 qualification target.
 2. Regional relays for fan-out have Stage 5B component acceptance; sustained fleet qualification remains in Stage 6.
-3. Incremental, page-level local publication is in Stage 5C implementation. Private page/segment construction, bounded dependency discovery, cold graph validation, leased paged recovery, contextual reuse, progress plans, warm progress recovery, paged reads and profile-1 export are implemented; warm sparse validation, durable publication, reclamation and complete-component qualification remain pending.
+3. Incremental, page-level local publication is in Stage 5C implementation. Private page/segment construction, bounded dependency discovery, cold graph validation, leased paged recovery, contextual reuse, progress plans, warm progress recovery, paged reads and profile-1 export are implemented; sparse changed-leaf collection, assembly and warm graph validation are also implemented privately; publication-plan admission, changed-head recovery integration, durable publication, reclamation and complete-component qualification remain pending.
 4. Multi-region replication for the classic distributor.
 5. Classic `/v1/snapshot` serving from the authority, or a migration path for
    unmanaged agents.

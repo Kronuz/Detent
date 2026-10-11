@@ -1,7 +1,9 @@
-#include "paged_large_fixture.hh"
 #include "detent_local/paged_definition.hh"
+#include "paged_disk_fixture.hh"
+#include "paged_large_fixture.hh"
 #include "paged_overlay_assembler.hh"
 #include "paged_overlay_fixture.hh"
+#include "paged_warm_validator.hh"
 #include <algorithm>
 #include <cstring>
 namespace l = detent::local;
@@ -35,6 +37,17 @@ int main() {
 		for (std::size_t i = 0; i < segments.size(); ++i)
 			live.push_back(graph.segment_reachability(i));
 	}
+	const auto directory =
+		std::filesystem::current_path() / ".scratch" / ("warm-assembly-" + std::to_string(::getpid()));
+	struct Cleanup {
+		std::filesystem::path directory;
+		~Cleanup() {
+			std::error_code error;
+			std::filesystem::remove_all(directory, error);
+		}
+	} cleanup{directory};
+	install(directory, *image, storage);
+	auto recovered = l::recover_generation(directory);
 	l::detail::TrieOverlay overlay(account, image, segments, image->root());
 	std::array<char, 202> key{};
 	std::array<char, 8> watermark{};
@@ -85,6 +98,29 @@ int main() {
 				graph.step(work);
 			}
 			require(graph.counts().ints == 20000);
+		}
+		{
+			std::vector<l::detail::SegmentInput> added{
+				{result->segments()[0].ownership,
+				 {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}}};
+			l::detail::WarmGraphValidator warm(account, recovered, result, added, result->root());
+			for (unsigned turn = 0; !warm.done(); ++turn) {
+				require(turn < 2000000);
+				l::ValidationBudget work{1, 1};
+				warm.step(work);
+			}
+			require(warm.counts().ints == 20000 && warm.counts().strings == 220003 &&
+					warm.counts().maximum_overrides == 0);
+			require(warm.hashed_segment_bytes() == result->segments()[0].bytes->size());
+			for (std::size_t i = 0; i < segments.size(); ++i)
+				require(warm.removed(i).pages == overlay.removed()[i].pages &&
+						warm.removed(i).bytes == overlay.removed()[i].bytes);
+			for (unsigned turn = 0;; ++turn) {
+				require(turn < 2000000);
+				l::ValidationBudget work{1, 1};
+				if (warm.discard(work))
+					break;
+			}
 		}
 		auto expected = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
 		l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
