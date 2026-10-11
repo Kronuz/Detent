@@ -134,3 +134,8 @@ add_executable(test_local_paged_leaf_body test_paged_leaf_body.cc)
 target_include_directories(test_local_paged_leaf_body PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_leaf_body PRIVATE detent::local_builder)
 add_test(NAME test_local_paged_leaf_body COMMAND test_local_paged_leaf_body)
+
+add_executable(test_local_paged_delta_leaves test_paged_delta_leaves.cc)
+target_include_directories(test_local_paged_delta_leaves PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_delta_leaves PRIVATE detent::local_builder)
+add_test(NAME test_local_paged_delta_leaves COMMAND test_local_paged_delta_leaves)
