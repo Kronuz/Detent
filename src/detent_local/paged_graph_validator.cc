@@ -2,6 +2,7 @@
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
 #include "read_root.hh"
+#include "segment_registry.hh"
 #include <algorithm>
 #include <cstring>
 #include <optional>
@@ -28,7 +29,7 @@ struct GraphValidator::Impl {
 	enum class NodePhase { Mark, Check, Prefix, Leaf, Children, Finish };
 	struct SegmentState {
 		std::size_t bitmap = 0;
-		std::uint64_t cells = 0;
+		std::uint64_t cells = 0, extents = 0;
 	};
 	struct Namespace {
 		std::array<char, 198> name{};
@@ -61,6 +62,8 @@ struct GraphValidator::Impl {
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0;
 	std::uint32_t bools = 0, ints = 0;
 	std::uint64_t overrides = 0;
+	SegmentRegistry *recorded_registry = nullptr;
+	std::size_t recorded_segments = 0;
 	Phase phase = Phase::Directory;
 	bool failed = false, started = false, definitions = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
@@ -104,6 +107,7 @@ struct GraphValidator::Impl {
 		++pages;
 		extent_bytes += reference.length;
 		++states[frame.segment].cells;
+		states[frame.segment].extents += reference.length;
 	}
 	void leaf(Frame &frame) {
 		const auto parsed = p::decode_key({key.data(), key_size});
@@ -320,6 +324,38 @@ p::Root GraphValidator::root() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
 	return impl_->expected;
+}
+SegmentReachability GraphValidator::segment_reachability(std::size_t index) const {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	if (index >= impl_->states.size())
+		throw std::out_of_range("paged segment reachability index");
+	const auto &state = impl_->states[index];
+	return {state.cells, state.extents};
+}
+bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBudget &budget) {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	auto &state = *impl_;
+	const auto inputs = registry.inputs();
+	require(registry.storage_ == state.storage && inputs.data() == state.segments.data() &&
+			inputs.size() == state.segments.size());
+	if (registry.validated_root_) {
+		require(p::encode_root(*registry.validated_root_) == p::encode_root(state.expected));
+		return true;
+	}
+	require(!state.recorded_registry || state.recorded_registry == &registry);
+	state.recorded_registry = &registry;
+	while (state.recorded_segments < state.states.size()) {
+		if (!state.admit(sizeof(SegmentReachability), budget))
+			return false;
+		registry.reachable_[state.recorded_segments] = segment_reachability(state.recorded_segments);
+		++state.recorded_segments;
+	}
+	if (!state.admit(p::root_bytes, budget))
+		return false;
+	registry.validated_root_ = state.expected;
+	return true;
 }
 ReadView GraphValidator::take(distribution::RetirementDomain &domain) {
 	if (!done())

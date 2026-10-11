@@ -156,6 +156,24 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 			l::ValidationBudget budget{quantum, 16};
 			validator.step(budget);
 		}
+		std::uint64_t reachable_pages = 0, reachable_bytes = 0;
+		for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
+			const auto reachable = validator.segment_reachability(i);
+			require(reachable.pages && reachable.bytes <= registry->inputs()[i].bytes.size());
+			reachable_pages += reachable.pages;
+			reachable_bytes += reachable.bytes;
+		}
+		require(reachable_pages == image.root().pages && reachable_bytes == image.root().bytes);
+		rejects<std::out_of_range>([&] { validator.segment_reachability(registry->inputs().size()); });
+		rejects<std::logic_error>([&] { registry->validated_root(); });
+		for (;;) {
+			l::ValidationBudget proof{1, 1};
+			if (validator.record_reachability(*registry, proof))
+				break;
+		}
+		require(registry->validated_root().logical == image.root().logical);
+		for (std::size_t i = 0; i < registry->inputs().size(); ++i)
+			require(registry->reachability(i).pages == validator.segment_reachability(i).pages);
 		auto view = validator.take(domain);
 		require(view.cursor() == image.root().cursor && view.size() == image.root().records);
 		require(view.get("app", image.root().records == 2 ? "count" : "k000000").value() ==
