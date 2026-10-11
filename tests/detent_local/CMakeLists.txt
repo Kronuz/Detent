@@ -104,3 +104,8 @@ add_executable(test_local_paged_reuse test_paged_reuse.cc)
 target_include_directories(test_local_paged_reuse PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_reuse PRIVATE detent::local_builder)
 add_test(NAME test_local_paged_reuse COMMAND test_local_paged_reuse)
+
+add_executable(test_local_paged_plan test_paged_plan.cc)
+target_include_directories(test_local_paged_plan PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_plan PRIVATE detent::local_builder)
+add_test(NAME test_local_paged_plan COMMAND test_local_paged_plan)

@@ -1,7 +1,10 @@
 #pragma once
+#include "detent_distribution/protocol.hh"
 #include "leased_paged_root.hh"
 namespace detent::local::detail {
 class ReuseNavigator;
+class PagedPlan;
+class PagedPlanState;
 class ContextualReuse {
   public:
 	ContextualReuse(ContextualReuse &&) noexcept = default;
@@ -46,7 +49,20 @@ class ReuseNavigator {
 };
 class PagedPlanBuilder {
   public:
+	PagedPlanBuilder(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
+					 GenerationId, distribution::RetirementDomain &);
+	~PagedPlanBuilder();
+	PagedPlanBuilder(PagedPlanBuilder &&) noexcept;
+	PagedPlanBuilder(const PagedPlanBuilder &) = delete;
+	void step(ValidationBudget &);
+	bool done() const noexcept;
+	PagedPlan take();
+	bool discard(ValidationBudget &);
 	static ReuseNavigator reuse(const RecoveredGeneration &, std::shared_ptr<distribution::StorageLedger>,
 								std::string_view typed_key, std::size_t frontier_depth = SIZE_MAX);
+
+  private:
+	distribution::RetirementHandle<PagedPlanState> plan_;
+	bool failed_ = false;
 };
 } // namespace detent::local::detail
