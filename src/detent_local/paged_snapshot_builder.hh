@@ -28,7 +28,7 @@ class PagedSnapshotBuilder {
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 };
-// Construction output; publication binds the exact base and directory separately.
+// Newly built segments only; publication retains any reused dependencies separately.
 class PagedImage {
   public:
 	~PagedImage();
@@ -45,6 +45,7 @@ class PagedImage {
 	PagedImage(std::shared_ptr<distribution::StorageLedger>, std::size_t capacity);
 	distribution::StorageOwner<Impl> impl_;
 	friend class PagedSnapshotBuilder;
+	friend class OverlayAssembler;
 };
 // Construction buffers leave owner executors through the cleanup runtime.
 class PagedImageOwner final : public distribution::RetirementNode {

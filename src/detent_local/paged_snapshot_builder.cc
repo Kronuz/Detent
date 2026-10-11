@@ -1,5 +1,6 @@
 #include "paged_snapshot_builder.hh"
 #include "detent_local/paged_definition.hh"
+#include "paged_image_state.hh"
 #include "paged_leaf_body.hh"
 #include "paged_page_builder.hh"
 #include "paged_segment_builder.hh"
@@ -36,17 +37,6 @@ p::Override snapshot_override(const void *owner, std::uint64_t ordinal, std::uin
 }
 
 } // namespace
-struct PagedImage::Impl {
-	p::Root root;
-	Descriptor descriptor;
-	std::shared_ptr<const d::OwnedBuffer> bytes;
-	std::vector<BuiltSegment, d::StorageAllocator<BuiltSegment>> segments;
-	bool sealed = false, discarding = false;
-	Impl(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
-		: segments(d::StorageAllocator<BuiltSegment>(std::move(account))) {
-		segments.reserve(capacity);
-	}
-};
 PagedImage::PagedImage(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, capacity)) {}
 PagedImage::~PagedImage() = default;

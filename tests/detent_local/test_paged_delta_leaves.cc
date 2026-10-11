@@ -1,6 +1,7 @@
 #include "applied_delta_fixture.hh"
 #include "paged_delta_leaves.hh"
 #include "paged_disk_fixture.hh"
+#include "paged_overlay_assembler.hh"
 #include "paged_overlay_fixture.hh"
 #include <algorithm>
 #include <cstring>
@@ -23,15 +24,25 @@ int main() {
 		l::ValidationBudget work;
 		builder.step(work);
 	}
-	auto image = builder.take();
-	install(directory, image, storage);
+	auto image = std::make_shared<l::detail::PagedImage>(builder.take());
+	install(directory, *image, storage);
 	auto recovered = l::recover_generation(directory);
 	std::vector<l::detail::SegmentInput> segments;
-	for (const auto &segment : image.segments())
+	for (const auto &segment : image->segments())
 		segments.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 	std::sort(segments.begin(), segments.end(), [](const auto &a, const auto &b) {
 		return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 	});
+	std::vector<l::detail::SegmentReachability> live;
+	{
+		l::detail::GraphValidator graph(source->storage_account(), image, segments, image->root(), storage);
+		while (!graph.done()) {
+			l::ValidationBudget work;
+			graph.step(work);
+		}
+		for (std::size_t i = 0; i < segments.size(); ++i)
+			live.push_back(graph.segment_reachability(i));
+	}
 	for (bool progress : {false, true})
 		for (unsigned transactions : {1u, 2u, 17u}) {
 			auto update = delta(progress, transactions);
@@ -39,7 +50,7 @@ int main() {
 			const auto baseline = account->used();
 			{
 				l::detail::DeltaLeaves leaves(recovered, update);
-				l::detail::TrieOverlay overlay(account, source, segments, image.root());
+				l::detail::TrieOverlay overlay(account, source, segments, image->root());
 				unsigned emitted = 0, turns = 0;
 				l::ValidationBudget none{0, 0};
 				leaves.step(none);
@@ -78,6 +89,46 @@ int main() {
 				const auto [logical, keys] = fingerprint(overlay.root(), segments);
 				require(logical == wanted.root().logical &&
 						keys == wanted.root().records + wanted.root().namespaces);
+				l::GenerationId next{};
+				next.fill('n');
+				l::detail::OverlayAssembler assembly(account, overlay, segments, live, image->root(), storage,
+													 next, update->target());
+				for (unsigned turn = 0; !assembly.done(); ++turn) {
+					require(turn < 2000000);
+					l::ValidationBudget work{1, 1};
+					assembly.step(work);
+				}
+				auto assembled = std::make_shared<l::detail::PagedImage>(assembly.take());
+				require(assembled->root().logical == wanted.root().logical &&
+						assembled->root().records == wanted.root().records);
+				require(assembled->descriptor().cursor == update->target() &&
+						assembled->descriptor().generation == next);
+				require(progress ? assembled->segments().empty() : assembled->segments().size() == 1);
+				std::vector<l::detail::SegmentInput> merged;
+				for (std::size_t i = 0; i < segments.size(); ++i)
+					if (live[i].pages != overlay.removed()[i].pages)
+						merged.push_back(segments[i]);
+				for (const auto &segment : assembled->segments())
+					merged.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
+				std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
+					return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
+				});
+				{
+					l::detail::GraphValidator graph(account, assembled, merged, assembled->root(), storage);
+					for (unsigned turn = 0; !graph.done(); ++turn) {
+						require(turn < 2000000);
+						l::ValidationBudget work{1, 1};
+						graph.step(work);
+					}
+					require(graph.root().logical == wanted.root().logical &&
+							graph.counts().ints == (transactions == 1 && !progress ? 0 : 1));
+				}
+				for (unsigned turn = 0;; ++turn) {
+					require(turn < 2000000);
+					l::ValidationBudget work{1, 1};
+					if (assembly.discard(work))
+						break;
+				}
 				for (unsigned turn = 0;; ++turn) {
 					require(turn < 2000000);
 					l::ValidationBudget work{1, 1};

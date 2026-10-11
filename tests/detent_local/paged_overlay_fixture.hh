@@ -3,6 +3,7 @@
 #include "paged_trie_overlay.hh"
 #include <vector>
 namespace p = detent::local::paged;
+namespace l = detent::local;
 inline std::pair<p::Digest, std::uint64_t> fingerprint(l::detail::OverlayReference ref,
 													   std::span<const l::detail::SegmentInput> segments) {
 	if (!ref)
