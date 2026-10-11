@@ -21,7 +21,7 @@ SDK views + publication sink + profile-1 export
 
 ## Format and logical identity
 
-Add pure local codecs for immutable data/index pages, bounded segment packs and a small root manifest. Initial qualification uses approximately 64 KiB pages in segments of at most 1 MiB. Definitions exceeding a page use checked overflow references; there is no file per knob.
+Add pure local codecs for immutable data/index pages, bounded segment packs and a small root manifest. Nodes have a 64 KiB ceiling and pack into segments of at most 1 MiB; there is no file per knob. Current supported definitions fit one leaf. Overflow framing remains reserved until a future semantic format explicitly supports larger definitions.
 
 References bind segment identity, extent and checksum. Before allocating or mapping, bound depth, ranges, counts, aggregate extents and arithmetic. A canonical logical commitment covers definitions, key revisions and namespace watermarks independently of physical packing or update history. Physical checksums bind exact artifacts. Same-cursor equality cannot depend on page placement or compaction history.
 
@@ -39,7 +39,7 @@ Accept existing validated snapshots/deltas and an exact recovered base. Normaliz
 
 Gathering, sorting, hashing, zeroing and disposal obey work budgets. Progress without scoped state changes replaces root metadata only. Full snapshots and explicit migration may traverse the complete state.
 
-The private page builder streams initialization, prefix/body copying and logical/physical hashing under the existing `ValidationBudget`. Output cannot escape before sealing; failure leaves it unpublished and worker disposal releases its admitted capacity. Native and ASan/UBSan tests use one-byte budgets, maximal fan-out, duplicate labels and one-unit-short admission. The maximal branch fixture occupies 25,168 encoded bytes and admits 25,928 bytes including its controls and allocation headers; this is managed capacity, not process RSS. Segment packing and trie construction remain separate integration work.
+The private page builder streams initialization, prefix/body copying and logical/physical hashing under the existing `ValidationBudget`. Output cannot escape before sealing; failure leaves it unpublished and worker disposal releases its admitted capacity. Native and ASan/UBSan tests use one-byte budgets, maximal fan-out, duplicate labels and one-unit-short admission. The maximal branch fixture occupies 25,168 encoded bytes and admits 25,928 bytes including its controls and allocation headers; this is managed capacity, not process RSS. Segment packing is implemented separately; trie construction and publication-plan integration remain pending.
 
 ## Durable selection
 
@@ -52,6 +52,8 @@ The checked 128-byte `DTSGOWN1` segment ownership record binds storage identity,
 ## Recovery and readers
 
 Give the private ReadView root a format-specific implementation, preserving public lookup/evaluation behavior and dependencies. Cold recovery validates the complete reachable graph. Warm recovery validates new pages and reuses previously validated immutable subtree capabilities bound to exact storage, directory and file identities plus checksums. Neither a descriptor nor a cursor alone authorizes reuse.
+
+The private cold graph validator streams full-segment checksums before traversing referenced pages. It checks storage identities, distinct sorted segment identities, physical byte quotas, reconstructed typed keys, namespace watermarks, definition revisions and aggregate subtree/root counts. A temporary bitmap marks each eight-byte extent block and rejects repeated or overlapping physical cells. Its capacity is one byte per 64 segment bytes, approximately 4 MiB at the default 256 MiB physical ceiling, plus per-segment rounding. The traversal stack and key scratch have fixed bounds; namespace scratch is admitted to the declared namespace ceiling. Native and ASan/UBSan fixtures cover one-byte work steps, empty scopes, contextual corruption, padding-aware quotas and allocation failure during traversal. Recovery still must bind opened immutable files and leases to this result; no public reader installation bypasses that pending integration.
 
 Private borrowed definition accessors read scalar fields lazily and share override/evaluation logic across v1 rows and canonical paged bodies. The existing release benchmark compares 100,000 integer lookups over 100,000- and 500,000-record synthetic corpora in three alternating runs: baseline/lazy medians are 72.696/62.537 ms and 118.111/117.202 ms respectively. Sample ranges overlap; these measurements do not establish a stable speedup. The [measurement record](../benchmarks/borrowed-definition-measurements.json) records the baseline and method. Native and sanitizer tests cover signed defaults, zero/full rollouts, embedded NUL/UTF-8 override keys and 256-entry override sets; complete paged reader installation remains to be integrated.
 
@@ -85,7 +87,7 @@ Reachable page extents and physical segment lengths have separate accounting. Ma
 
 ## Concrete integration seams
 
-The private segment builder packs sealed pages into admitted 1 MiB buffers, streams copies and full-segment hashes under byte budgets, and writes zero alignment padding. Sealing exposes only the initialized prefix and its distinct segment ownership record. Native and ASan/UBSan fixtures cover one-byte copying, page-owner disposal during copying, aligned references, full-pack admission boundaries, distinct publication ordinals and exact one-unit-short allocation rollback. This remains construction machinery: recovery, graph validation, dependency publication and v2 reader activation are still pending.
+The private segment builder packs sealed pages into admitted 1 MiB buffers, streams copies and full-segment hashes under byte budgets, and writes zero alignment padding. Sealing exposes only the initialized prefix and its distinct segment ownership record. Native and ASan/UBSan fixtures cover one-byte copying, page-owner disposal during copying, aligned references, full-pack admission boundaries, distinct publication ordinals and exact one-unit-short allocation rollback. Recovery, dependency publication and v2 reader activation are still pending.
 
 The private page validator streams physical and logical hashes under byte budgets and checks ordered child framing under row budgets. It retains immutable input ownership and becomes terminal after corruption. Its result proves page framing and commitments; graph traversal must still prove reconstructed keys, namespace revisions, aggregate counts and extent uniqueness. Native and ASan/UBSan fixtures exercise one-byte steps, 256-child branches, 33,816-byte definition bodies, resealed physical corruption with invalid logical commitments and one-unit-short control admission.
 
