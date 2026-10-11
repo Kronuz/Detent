@@ -116,3 +116,13 @@ The private page validator streams physical and logical hashes under byte budget
 4. Reject malformed extents, overflow, cycles, excessive depth, overlapping ranges, invalid counts and checksum/identity conflicts. Qualify explicit migration and unsupported-format rejection.
 5. Run paired 100k/500k workloads with one, ten and 1,000 changed keys, progress-only updates and full snapshots. Record CPU, written bytes, syncs, validation counts, owner lateness, reader latency, mappings, descriptors and disk amplification. Single-key warm work follows affected pages and paths; progress-only work follows root metadata.
 6. Qualify authority → relay → agent → separate readers, restart/migration, Linux/FreeBSD, ASan/UBSan, assembled TSan, reader/agent/relay build profiles, legacy regression and relevant sibling builds.
+
+### Snapshot construction measurements
+
+The private snapshot builder consumes sealed distribution rows through canonical trie events and packs pages into immutable segments. Its move-only construction output retains no source snapshot or predecessor root. This output is not a durable publication plan; recovery, contextual reuse and exact-base publication remain activation gates.
+
+A single sequential paired run on Intel macOS uses the same synthetic corpus for both builders: 25% integer knobs and 75% boolean knobs with one override. At 100k records, v1 produces 8,200,219 bytes and paged construction produces 23,355,996 bytes across 23 segments. At 500k records, these are 41,000,219 and 116,777,749 bytes across 112 segments. Paged physical totals include the root and segment payloads, excluding ownership records and descriptors.
+
+At 500k records, v1 construction and validation take 347 ms and 96 ms; paged construction and cold graph validation take 2,804 ms and 3,030 ms. Paged charged peak capacity is 175,856,263 bytes, including the retained decoded source; process peak RSS is 218,849,280 bytes. These exploratory timings do not establish a read-speed improvement. Sparse mutation and progress savings remain unmeasured, and the complete-component gates must account for this full-state overhead.
+
+Reproduce with `detent_local_image_bench 100000` and `detent_paged_snapshot_bench 100000`, then repeat at `500000`. Both use `benchmarks/local_corpus.hh`; raw results are in `benchmarks/paged-snapshot-measurements.json`. This measures in-memory construction, validation and lookup, without filesystem IO, mapping counts or fleet traffic.
