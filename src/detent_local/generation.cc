@@ -172,7 +172,6 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 									   std::optional<distribution::Cursor> expected,
 									   const RecoveredGeneration *prior) {
 	auto &domain = resources::domain(limits);
-	const auto mapping_account = resources::mapping_account(limits);
 	auto directory_owner = domain.make<Directory>();
 	using DirectoryLease = distribution::RetirementHandle<Directory>;
 	auto directory_lease = std::allocate_shared<DirectoryLease>(
@@ -190,6 +189,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		auto descriptor = decode_descriptor(raw);
 		require(descriptor.length <= limits.bytes);
 		auto name = generation_name(descriptor.generation);
+		const auto mapping_account = resources::mapping_account(limits);
 		auto mapping = domain.make<Mapping>(mapping_account);
 		mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		if (mapping->lease < 0 && errno == ENOENT)
