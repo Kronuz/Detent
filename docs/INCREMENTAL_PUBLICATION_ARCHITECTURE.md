@@ -85,6 +85,8 @@ Reachable page extents and physical segment lengths have separate accounting. Ma
 
 ## Concrete integration seams
 
+The private segment builder packs sealed pages into admitted 1 MiB buffers, streams copies and full-segment hashes under byte budgets, and writes zero alignment padding. Sealing exposes only the initialized prefix and its distinct segment ownership record. Native and ASan/UBSan fixtures cover one-byte copying, page-owner disposal during copying, aligned references, full-pack admission boundaries, distinct publication ordinals and exact one-unit-short allocation rollback. This remains construction machinery: recovery, graph validation, dependency publication and v2 reader activation are still pending.
+
 1. Retain the 176-byte selected descriptor and use the generation `.image` for the 320-byte root. Prepare segment dependencies serially with `CloseAfterSeal`; preserve the existing final selected replacement and directory barrier. A Detent-owned composite retains the complete sealed plan through authentic settlement; one `PreparedImage` proves one artifact, not a dependency graph.
 2. Keep root leases separate from segment mappings. A sorted admitted registry holds at most 4,096 segment identities, saved file identities/full lengths, mapping handles and live-cell/extent totals. Close segment descriptors after mapping and verification on the worker. Registry and mapping owners never retain ancestor read roots.
 3. Share the registry for progress. Copy registry metadata under worker budgets for actual changes, making that cost explicit: `O(S + M*K)` metadata for `S` segments, `M` changed keys and bounded key length `K`. Record registry rows/bytes copied and total CPU; introduce COW registry blocks only if measurements justify them.
