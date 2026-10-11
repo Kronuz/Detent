@@ -8,11 +8,12 @@
 #include <pthread.h>
 #include <system_error>
 #include <unistd.h>
+#include <vector>
 
 namespace detent::distribution::detail {
 namespace {
 constexpr std::uint64_t closed = std::uint64_t{1} << 63;
-constexpr std::size_t registry_capacity = 32;
+constexpr std::size_t registry_capacity = 512;
 struct Descriptor {
 	int fd = -1;
 	~Descriptor() {
@@ -144,12 +145,14 @@ struct RetirementRuntimeState {
 	};
 	Wake wake;
 	mutable std::mutex registry_mutex;
-	std::array<Slot, registry_capacity> slots{};
+	std::vector<Slot, StorageAllocator<Slot>> slots;
 	std::size_t limit, stack_bytes;
 	pthread_t worker{};
 	bool stopping = false;
 	std::atomic<bool> joined{false};
-	RetirementRuntimeState(std::size_t domains, std::size_t stack) : limit(domains), stack_bytes(stack) {
+	RetirementRuntimeState(std::shared_ptr<StorageLedger> account, std::size_t domains, std::size_t stack)
+		: slots(StorageAllocator<Slot>(std::move(account))), limit(domains), stack_bytes(stack) {
+		slots.resize(domains);
 		pthread_attr_t attr;
 		system_check(::pthread_attr_init(&attr), "retirement thread attributes");
 		auto error = ::pthread_attr_setstacksize(&attr, stack);
@@ -168,8 +171,8 @@ struct RetirementRuntimeState {
 		return !joined.load(std::memory_order_acquire) && ::pthread_equal(worker, ::pthread_self());
 	}
 	void run() noexcept {
+		std::array<std::shared_ptr<RetirementState>, registry_capacity> pass;
 		for (;;) {
-			std::array<std::shared_ptr<RetirementState>, registry_capacity> pass;
 			bool pending = false;
 			{
 				std::lock_guard lock(registry_mutex);
@@ -205,6 +208,8 @@ struct RetirementRuntimeState {
 				}
 				domain->drain_signal.notify_all();
 			}
+			for (std::size_t i = 0; i < limit; ++i)
+				pass[i].reset();
 			if (!work)
 				wake.tick(pending);
 		}
@@ -293,7 +298,8 @@ RetirementRuntime::RetirementRuntime(std::shared_ptr<StorageLedger> account, std
 	if (!domains || domains > detail::registry_capacity)
 		throw std::invalid_argument("invalid retirement registry limit");
 	auto memory = storage_.allocate(sizeof(detail::RetirementRuntimeState));
-	state_ = std::construct_at(static_cast<detail::RetirementRuntimeState *>(memory), domains, stack_bytes);
+	state_ = std::construct_at(static_cast<detail::RetirementRuntimeState *>(memory), baseline_account_,
+							   domains, stack_bytes);
 }
 RetirementRuntime::~RetirementRuntime() {
 	if (state_) {
@@ -341,6 +347,10 @@ std::size_t RetirementRuntime::occupied_domains() const noexcept {
 	return count;
 }
 std::size_t RetirementRuntime::configured_stack_bytes() const noexcept { return state_->stack_bytes; }
+std::size_t RetirementRuntime::fixed_heap_capacity() const noexcept {
+	return storage_.used() + state_->slots.capacity() * sizeof(detail::RetirementRuntimeState::Slot) +
+		StorageAllocator<detail::RetirementRuntimeState::Slot>::allocation_overhead();
+}
 RetirementDomain::~RetirementDomain() { (void)close(); }
 RetirementDrain RetirementDomain::close() noexcept {
 	if (state_) {

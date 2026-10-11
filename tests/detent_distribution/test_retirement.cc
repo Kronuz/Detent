@@ -4,6 +4,7 @@
 #include <iostream>
 #include <optional>
 #include <thread>
+#include <vector>
 namespace d = detent::distribution;
 void require(bool value) {
 	if (!value)
@@ -264,6 +265,50 @@ int main() {
 		require(closed);
 		closed_domain.reset();
 		require(baseline->used() == 0 && account->used() == 0);
+		{
+			d::RetirementRuntime runtime(baseline, 512);
+			std::vector<d::RetirementDomain> domains;
+			std::vector<d::RetirementHandle<Owner>> owners;
+			domains.reserve(512);
+			owners.reserve(512);
+			for (unsigned index = 0; index < 512; ++index) {
+				domains.push_back(runtime.domain(account, 1));
+				owners.push_back(domains.back().make<Owner>(runtime, destroyed, wrong_thread));
+			}
+			require(runtime.occupied_domains() == 512);
+			bool full = false;
+			try {
+				runtime.domain(account, 1);
+			} catch (const d::StoragePressure &) {
+				full = true;
+			}
+			require(full);
+			for (auto &domain : domains)
+				domain.close();
+			require(runtime.occupied_domains() == 512);
+			std::array<std::thread, 8> releases;
+			for (unsigned index = 0; index < releases.size(); ++index)
+				releases[index] = std::thread([&, index] {
+					for (std::size_t slot = index; slot < owners.size(); slot += releases.size())
+						owners[slot].reset();
+				});
+			for (auto &release : releases)
+				release.join();
+			for (auto &domain : domains)
+				domain.close().wait();
+			require(runtime.occupied_domains() == 0 && !wrong_thread.load());
+		}
+		require(baseline->used() == 0 && account->used() == 0);
+		{
+			auto tiny = std::make_shared<d::StorageLedger>(512);
+			bool refused = false;
+			try {
+				d::RetirementRuntime runtime(tiny, 512);
+			} catch (const d::StoragePressure &) {
+				refused = true;
+			}
+			require(refused && tiny->used() == 0);
+		}
 		std::cout << "intrusive retirement, handoff races and bounded domains passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';

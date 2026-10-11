@@ -147,7 +147,7 @@ class RetirementRuntime {
 	void shutdown();
 	bool on_worker() const noexcept;
 	std::size_t occupied_domains() const noexcept;
-	std::size_t fixed_heap_capacity() const noexcept { return storage_.used(); }
+	std::size_t fixed_heap_capacity() const noexcept;
 	std::size_t configured_stack_bytes() const noexcept;
 
   private:

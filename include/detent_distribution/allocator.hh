@@ -15,6 +15,7 @@ template <class T> class StorageAllocator {
 
   public:
 	using value_type = T;
+	static constexpr std::size_t allocation_overhead() noexcept { return sizeof(Header); }
 	explicit StorageAllocator(std::shared_ptr<StorageLedger> account,
 							  PagedStorage::Allocate allocate = std::malloc,
 							  PagedStorage::Release release = std::free)
