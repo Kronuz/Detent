@@ -1,16 +1,12 @@
 #pragma once
 #include "detent_delivery/configuration.hh"
-#include "sessions.hh"
+#include "registry.hh"
 
 namespace detent::relay {
 struct ConfiguredBundle {
 	delivery::ManagedOptions source;
 	std::size_t cache_bytes = 64 * 1024 * 1024;
 	std::size_t retained_edges = 64;
-};
-struct ConfiguredCredential {
-	std::array<unsigned char, 32> token_hash{};
-	SessionAuthorization authorization;
 };
 struct HostOptions {
 	asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), 8318};
