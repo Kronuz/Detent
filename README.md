@@ -302,6 +302,7 @@ The core client has no networking dependency. Classic HTTP polling, binary distr
 | Local publication | `detent::local_publication` | Reconcile and publish durable generations |
 | Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
 | Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |
+| Private source configuration | `detent::delivery_config` | Validate source credentials, scope, TLS and publication limits |
 | Distributor and agent hosts | `detentd_lib`, `detent_agent_lib` | Reuse daemon logic in embedded tests |
 
 ## Binaries and their dependencies
