@@ -22,6 +22,7 @@ p::Digest finish(SHA256 &hash) {
 struct PageBuilder::Impl {
 	enum class Phase { Zero, Frame, Prefix, Children, Body, Header, Physical, Seal, Done };
 	p::PageHeader header;
+	p::Limits limits;
 	std::string_view prefix;
 	std::span<const p::Child> children;
 	std::span<const char> body;
@@ -34,8 +35,9 @@ struct PageBuilder::Impl {
 	int previous = -1;
 	bool failed = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> account, p::PageKind kind, std::uint64_t keys,
-		 std::string_view key_prefix, std::span<const p::Child> entries, std::span<const char> value)
-		: prefix(key_prefix), children(entries), body(value) {
+		 std::string_view key_prefix, std::span<const p::Child> entries, std::span<const char> value,
+		 p::Limits bounds)
+		: limits(bounds), prefix(key_prefix), children(entries), body(value) {
 		require(prefix.size() <= 512 && children.size() <= 256 && body.size() <= p::page_bytes &&
 				kind != p::PageKind::Overflow);
 		const auto length =
@@ -49,7 +51,7 @@ struct PageBuilder::Impl {
 				  keys,
 				  {}};
 		header.logical.fill(1);
-		p::encode_page_header(header);
+		p::encode_page_header(header, limits);
 		std::copy(domain.begin(), domain.end(), frame.begin());
 		write_integer(frame, domain.size(), static_cast<std::uint32_t>(kind), 4);
 		write_integer(frame, domain.size() + 4, prefix.size(), 4);
@@ -75,9 +77,9 @@ struct PageBuilder::Impl {
 };
 PageBuilder::PageBuilder(std::shared_ptr<distribution::StorageLedger> account, p::PageKind kind,
 						 std::uint64_t keys, std::string_view prefix, std::span<const p::Child> children,
-						 std::span<const char> body)
+						 std::span<const char> body, p::Limits limits)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, kind, keys,
-												   prefix, children, body)) {}
+												   prefix, children, body, limits)) {}
 PageBuilder::~PageBuilder() = default;
 PageBuilder::PageBuilder(PageBuilder &&) noexcept = default;
 void PageBuilder::step(ValidationBudget &budget) {
@@ -161,7 +163,7 @@ void PageBuilder::step(ValidationBudget &budget) {
 				budget.bytes -= count;
 				if (state.charge)
 					return;
-				const auto encoded = p::encode_page_header(state.header);
+				const auto encoded = p::encode_page_header(state.header, state.limits);
 				std::copy(encoded.begin(), encoded.end(), state.output->mutable_bytes().begin());
 				state.next(Impl::Phase::Physical);
 				break;

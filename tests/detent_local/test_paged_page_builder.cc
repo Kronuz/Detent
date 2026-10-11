@@ -89,6 +89,20 @@ int main() {
 		check(bad.discard(disposal));
 	}
 	check(!account->used());
+	p::Limits small;
+	small.prefix_bytes = 3;
+	rejects<std::invalid_argument>([&] {
+		l::detail::PageBuilder bad(account, p::PageKind::Namespace, 1, std::string_view("Wns\0", 4), {},
+								   watermark, small);
+	});
+	check(!account->used());
+	small.prefix_bytes = 4;
+	small.bytes = p::page_header_bytes + 4 + watermark.size() - 1;
+	rejects<std::invalid_argument>([&] {
+		l::detail::PageBuilder bad(account, p::PageKind::Namespace, 1, std::string_view("Wns\0", 4), {},
+								   watermark, small);
+	});
+	check(!account->used());
 	rejects<std::invalid_argument>(
 		[&] { l::detail::PageBuilder bad(account, p::PageKind::Overflow, 0, {}, {}, watermark); });
 	check(!account->used());

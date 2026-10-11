@@ -8,7 +8,8 @@ namespace detent::local::detail {
 class PageBuilder {
   public:
 	PageBuilder(std::shared_ptr<distribution::StorageLedger>, paged::PageKind, std::uint64_t keys,
-				std::string_view prefix, std::span<const paged::Child>, std::span<const char> body);
+				std::string_view prefix, std::span<const paged::Child>, std::span<const char> body,
+				paged::Limits = {});
 	~PageBuilder();
 	PageBuilder(PageBuilder &&) noexcept;
 	PageBuilder(const PageBuilder &) = delete;
