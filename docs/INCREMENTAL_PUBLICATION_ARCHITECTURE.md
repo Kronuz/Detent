@@ -39,6 +39,8 @@ Accept existing validated snapshots/deltas and an exact recovered base. Normaliz
 
 Gathering, sorting, hashing, zeroing and disposal obey work budgets. Progress without scoped state changes replaces root metadata only. Full snapshots and explicit migration may traverse the complete state.
 
+The private page builder streams initialization, prefix/body copying and logical/physical hashing under the existing `ValidationBudget`. Output cannot escape before sealing; failure leaves it unpublished and worker disposal releases its admitted capacity. Native and ASan/UBSan tests use one-byte budgets, maximal fan-out, duplicate labels and one-unit-short admission. The maximal branch fixture occupies 25,168 encoded bytes and admits 25,928 bytes including its controls and allocation headers; this is managed capacity, not process RSS. Segment packing and trie construction remain separate integration work.
+
 ## Durable selection
 
 Add a plan overload to DiskStore publication while retaining ImageBuilder callers. Compose existing managed preparation/publication operations and CompletionPort; add neither a second IO engine nor a journal rewrite.
