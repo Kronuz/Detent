@@ -35,6 +35,9 @@ class ReuseNavigator {
 	ReuseNavigator(std::shared_ptr<distribution::StorageLedger>,
 				   distribution::RetirementHandle<LeasedPagedRoot>, std::string_view typed_key,
 				   std::size_t frontier_depth);
+	ReuseNavigator(std::shared_ptr<distribution::StorageLedger>,
+				   distribution::RetirementHandle<LeasedPagedRoot>, paged::Reference,
+				   std::string_view entering_prefix);
 	~ReuseNavigator();
 	ReuseNavigator(ReuseNavigator &&) noexcept;
 	ReuseNavigator(const ReuseNavigator &) = delete;
@@ -60,6 +63,8 @@ class PagedPlanBuilder {
 	bool discard(ValidationBudget &);
 	static ReuseNavigator reuse(const RecoveredGeneration &, std::shared_ptr<distribution::StorageLedger>,
 								std::string_view typed_key, std::size_t frontier_depth = SIZE_MAX);
+	static ReuseNavigator reuse_at(const RecoveredGeneration &, std::shared_ptr<distribution::StorageLedger>,
+								   paged::Reference, std::string_view entering_prefix);
 
   private:
 	distribution::RetirementHandle<PagedPlanState> plan_;

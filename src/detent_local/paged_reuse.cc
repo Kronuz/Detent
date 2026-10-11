@@ -52,6 +52,7 @@ struct ReuseNavigator::Impl {
 	std::size_t key_size = 0, cursor = 0, level = 0, wanted = 0, charge = 0, segment = SIZE_MAX;
 	std::uint32_t prefix = 0;
 	std::optional<ContextualReuse> result;
+	std::optional<p::Reference> exact;
 	Phase phase = Phase::Node;
 	bool failed = false, consumed = false;
 	Impl(d::RetirementHandle<LeasedPagedRoot> value, std::string_view target, std::size_t depth)
@@ -61,6 +62,17 @@ struct ReuseNavigator::Impl {
 		p::decode_key(target);
 		std::copy(target.begin(), target.end(), key.begin());
 		key_size = target.size();
+		reference = base->root().tree;
+		if (!base->root().pages)
+			phase = Phase::Done;
+	}
+	Impl(d::RetirementHandle<LeasedPagedRoot> value, p::Reference expected, std::string_view entering)
+		: base(std::move(value)), wanted(SIZE_MAX), exact(expected) {
+		if (!base || entering.size() > key.size())
+			throw std::invalid_argument("invalid reuse context");
+		p::encode_reference(expected);
+		std::copy(entering.begin(), entering.end(), key.begin());
+		key_size = entering.size();
 		reference = base->root().tree;
 		if (!base->root().pages)
 			phase = Phase::Done;
@@ -84,6 +96,11 @@ ReuseNavigator::ReuseNavigator(std::shared_ptr<d::StorageLedger> account,
 							   std::size_t depth)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(root), key, depth)) {}
 ReuseNavigator::~ReuseNavigator() = default;
+ReuseNavigator::ReuseNavigator(std::shared_ptr<d::StorageLedger> account,
+							   d::RetirementHandle<LeasedPagedRoot> root, p::Reference expected,
+							   std::string_view entering)
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(root), expected,
+										entering)) {}
 ReuseNavigator::ReuseNavigator(ReuseNavigator &&) noexcept = default;
 void ReuseNavigator::step(ValidationBudget &budget) {
 	if (!impl_ || impl_->failed || impl_->consumed)
@@ -105,6 +122,14 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 				if (!s.admit(p::page_header_bytes + prefix, budget))
 					return;
 				s.header = p::decode_page_header(s.bytes);
+				if (s.exact && s.cursor == s.key_size) {
+					if (s.reference == *s.exact)
+						s.result.emplace(ContextualReuse(s.base, s.reference, s.header,
+														 {s.key.data(), s.key_size},
+														 *registry.mapping(s.segment)));
+					s.phase = Impl::Phase::Done;
+					continue;
+				}
 				if (prefix > s.key_size - s.cursor ||
 					std::memcmp(s.bytes.data() + p::page_header_bytes, s.key.data() + s.cursor, prefix)) {
 					s.phase = Impl::Phase::Done;
@@ -113,7 +138,7 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 				const auto entering = s.cursor;
 				s.cursor += prefix;
 				if (s.level == s.wanted || s.header.kind != p::PageKind::Branch) {
-					if (s.header.kind == p::PageKind::Branch || s.cursor == s.key_size)
+					if (!s.exact && (s.header.kind == p::PageKind::Branch || s.cursor == s.key_size))
 						s.result.emplace(ContextualReuse(s.base, s.reference, s.header,
 														 {s.key.data(), entering},
 														 *registry.mapping(s.segment)));
@@ -182,5 +207,13 @@ ReuseNavigator PagedPlanBuilder::reuse(const RecoveredGeneration &base,
 		throw std::invalid_argument("reuse requires an actually recovered paged root");
 	base.paged_->root();
 	return ReuseNavigator(std::move(account), base.paged_, key, depth);
+}
+ReuseNavigator PagedPlanBuilder::reuse_at(const RecoveredGeneration &base,
+										  std::shared_ptr<d::StorageLedger> account, p::Reference reference,
+										  std::string_view entering) {
+	if (!base.paged_)
+		throw std::invalid_argument("reuse requires an actually recovered paged root");
+	base.paged_->root();
+	return ReuseNavigator(std::move(account), base.paged_, reference, entering);
 }
 } // namespace detent::local::detail

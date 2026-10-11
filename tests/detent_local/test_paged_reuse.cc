@@ -60,6 +60,27 @@ int main() {
 	require(proof && proof->header().kind == p::PageKind::Definition && proof->header().keys == 1);
 	require(proof->ownership().storage == storage && proof->file_identity().inode != 0);
 	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, storage));
+	{
+		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(),
+														   proof->entering_prefix());
+		auto checked = finish(exact);
+		require(checked && checked->matches(proof->reference(), proof->entering_prefix(), descriptor,
+											identity, storage));
+		auto wrong = proof->reference();
+		wrong.physical[0] ^= 1;
+		auto rejected =
+			l::detail::PagedPlanBuilder::reuse_at(*recovered, account, wrong, proof->entering_prefix());
+		require(!finish(rejected));
+		auto misplaced = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(), "");
+		require(!finish(misplaced));
+		auto truncated = l::detail::PagedPlanBuilder::reuse_at(
+			*recovered, account, proof->reference(),
+			proof->entering_prefix().substr(0, proof->entering_prefix().size() - 1));
+		require(!finish(truncated));
+		auto extended =
+			l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(), target);
+		require(!finish(extended));
+	}
 	auto bad_ref = proof->reference();
 	++bad_ref.offset;
 	require(!proof->matches(bad_ref, proof->entering_prefix(), descriptor, identity, storage));
@@ -79,12 +100,18 @@ int main() {
 		require(frontier && frontier->reference() == image.root().tree &&
 				frontier->entering_prefix().empty());
 		require(frontier->header().keys == image.root().records + image.root().namespaces);
+		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, frontier->reference(), "");
+		auto checked = finish(exact);
+		require(checked && checked->reference() == frontier->reference());
 	}
 	{
 		auto branch = l::detail::PagedPlanBuilder::reuse(*recovered, account, target, 1);
 		auto frontier = finish(branch);
 		require(frontier && frontier->header().kind == p::PageKind::Branch &&
 				frontier->entering_prefix() == "K");
+		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, frontier->reference(), "K");
+		auto checked = finish(exact);
+		require(checked && checked->reference() == frontier->reference());
 	}
 	{
 		auto length = p::encode_namespace_key(key, "app");
