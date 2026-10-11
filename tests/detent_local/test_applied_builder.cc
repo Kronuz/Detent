@@ -1,3 +1,4 @@
+#include "delta_index.hh"
 #include "pinned_source.hh"
 #include "snapshot_fixture.hh"
 #include <filesystem>
@@ -155,6 +156,31 @@ int main() {
 		for (bool progress : {false, true})
 			for (unsigned tx : {1u, 2u, 17u}) {
 				auto input = delta(progress, tx);
+				{
+					d::PagedStorage arena(*input->storage_account());
+					l::detail::DeltaIndex index(arena, *input);
+					for (const auto &transaction : input->transactions()) {
+						for (auto offset = transaction.mutations.count; offset; --offset)
+							index.append(transaction.mutations.start + offset - 1, transaction.revision);
+					}
+					index.seal();
+					l::ValidationBudget none{0, 1};
+					index.step(none);
+					require(!index.done());
+					unsigned turns = 0;
+					while (!index.done()) {
+						l::ValidationBudget b{1, 1};
+						index.step(b);
+						require(++turns < 1000000 && b.bytes <= 1 && b.rows <= 1);
+					}
+					require(index.size() == (progress ? 0 : 2));
+					if (!progress) {
+						require(input->mutation(index[0].ordinal).key == "app:count");
+						require(input->mutation(index[1].ordinal).key == "app:flag");
+						require(index[0].ordinal == 2 * (tx - 1) && index[1].ordinal == 2 * (tx - 1) + 1);
+						require(index[0].revision == 42 + tx && index[1].revision == 42 + tx);
+					}
+				}
 				auto next = id;
 				next.fill('b');
 				l::ImageBuilder builder(input, l::recover_generation(directory), next);

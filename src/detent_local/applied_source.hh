@@ -1,4 +1,5 @@
 #pragma once
+#include "delta_index.hh"
 #include "detent_distribution/protocol.hh"
 #include "pinned_source.hh"
 
@@ -6,9 +7,6 @@ namespace detent::local::detail {
 // Worker-owned borrowed merge. Text and definitions remain in the pinned image
 // or validated delta; only the ordered row references consume scratch pages.
 class AppliedImageSource {
-	struct Index {
-		std::uint64_t ordinal = 0, revision = 0;
-	};
 	struct RecordRef {
 		std::uint64_t ordinal = 0, revision = 0;
 		bool changed = false;
@@ -18,7 +16,7 @@ class AppliedImageSource {
 	AppliedImageSource(RecoveredGeneration base, std::shared_ptr<const distribution::ValidatedDelta> delta,
 					   ViewLimits limits)
 		: base_(std::move(base)), delta_(std::move(delta)), arena_(*account(delta_)), namespaces_(arena_),
-		  index_(arena_), scratch_(arena_), records_(arena_), limits_(limits) {
+		  index_(arena_, *delta_), records_(arena_), limits_(limits) {
 		if (base_.descriptor().cursor != delta_->base() || base_.descriptor().profile != delta_->profile())
 			throw std::invalid_argument("distribution update does not match pinned base");
 		if (base_.namespace_count() > limits_.namespaces)
@@ -26,6 +24,15 @@ class AppliedImageSource {
 	}
 	void step(ValidationBudget &budget) {
 		while (phase_ < 5 && budget.rows) {
+			if (phase_ == 2) {
+				index_.step(budget);
+				if (index_.done()) {
+					phase_ = 4;
+					position_ = base_position_ = 0;
+				} else
+					return;
+				continue;
+			}
 			if (!charge_)
 				charge_ = 256;
 			auto bytes = std::min<std::size_t>(charge_, budget.bytes);
@@ -43,10 +50,6 @@ class AppliedImageSource {
 				}
 			} else if (phase_ == 1)
 				collect();
-			else if (phase_ == 2)
-				sort_one();
-			else if (phase_ == 3)
-				collapse_one();
 			else
 				merge_one();
 		}
@@ -106,15 +109,10 @@ class AppliedImageSource {
 		return delta->storage_account();
 	}
 	std::size_t charge_ = 0, disposal_charge_ = 0;
-	int compare(const Index &a, const Index &b) const {
-		const auto &x = delta_->mutation(a.ordinal), &y = delta_->mutation(b.ordinal);
-		if (x.namespace_index != y.namespace_index)
-			return x.namespace_index < y.namespace_index ? -1 : 1;
-		return x.key.compare(y.key);
-	}
 	void collect() {
 		if (transaction_ == delta_->transactions().size()) {
 			phase_ = 2;
+			index_.seal();
 			position_ = 0;
 			return;
 		}
@@ -143,73 +141,23 @@ class AppliedImageSource {
 			if (m.key.size() <= name.size() || m.key.substr(0, name.size()) != name ||
 				m.key[name.size()] != ':')
 				throw std::invalid_argument("delta key outside pinned scope");
-			index_.push_back({ordinal, tx.revision});
-			scratch_.push_back({});
+			index_.append(ordinal, tx.revision);
 		} else {
 			++transaction_;
 			position_ = touched_ = 0;
 		}
 	}
-	void sort_one() {
-		const auto n = index_.size();
-		if (width_ >= n) {
-			phase_ = 3;
-			position_ = collapsed_ = 0;
-			return;
-		}
-		auto &input = alternate_ ? scratch_ : index_;
-		auto &output = alternate_ ? index_ : scratch_;
-		if (run_ >= n) {
-			alternate_ = !alternate_;
-			width_ *= 2;
-			run_ = 0;
-			initialized_ = false;
-			return;
-		}
-		if (!initialized_) {
-			left_ = run_;
-			middle_ = std::min(run_ + width_, n);
-			right_ = middle_;
-			end_ = std::min(middle_ + width_, n);
-			position_ = run_;
-			initialized_ = true;
-		}
-		if (position_ == end_) {
-			run_ = end_;
-			initialized_ = false;
-			return;
-		}
-		// Stable passes preserve transaction order for repeated keys.
-		if (left_ < middle_ && (right_ == end_ || compare(input[left_], input[right_]) <= 0))
-			output[position_++] = input[left_++];
-		else
-			output[position_++] = input[right_++];
-	}
-	void collapse_one() {
-		auto &sorted = alternate_ ? scratch_ : index_;
-		if (position_ == sorted.size()) {
-			phase_ = 4;
-			position_ = base_position_ = 0;
-			return;
-		}
-		auto value = sorted[position_++];
-		if (collapsed_ && compare(sorted[collapsed_ - 1], value) == 0)
-			sorted[collapsed_ - 1] = value;
-		else
-			sorted[collapsed_++] = value;
-	}
 	void merge_one() {
-		auto &sorted = alternate_ ? scratch_ : index_;
-		if (base_position_ == base_.record_count() && position_ == collapsed_) {
+		if (base_position_ == base_.record_count() && position_ == index_.size()) {
 			phase_ = 5;
 			return;
 		}
 		int order = 1;
 		if (base_position_ < base_.record_count()) {
 			order = -1;
-			if (position_ < collapsed_) {
+			if (position_ < index_.size()) {
 				const auto b = base_.record(base_position_);
-				const auto &m = delta_->mutation(sorted[position_].ordinal);
+				const auto &m = delta_->mutation(index_[position_].ordinal);
 				order = b.namespace_index == m.namespace_index
 							? b.key.compare(m.key)
 							: (b.namespace_index < m.namespace_index ? -1 : 1);
@@ -219,7 +167,7 @@ class AppliedImageSource {
 			admit_record();
 			records_.push_back({base_position_++, 0, false});
 		} else {
-			const auto m = sorted[position_++];
+			const auto m = index_[position_++];
 			if (order == 0)
 				++base_position_;
 			if (delta_->mutation(m.ordinal).value) {
@@ -236,12 +184,10 @@ class AppliedImageSource {
 	std::shared_ptr<const distribution::ValidatedDelta> delta_;
 	distribution::PagedStorage arena_;
 	distribution::StableRows<SourceNamespace> namespaces_;
-	distribution::StableRows<Index> index_, scratch_;
+	DeltaIndex index_;
 	distribution::StableRows<RecordRef> records_;
 	ViewLimits limits_;
 	unsigned phase_ = 0;
-	std::uint64_t position_ = 0, transaction_ = 0, touched_ = 0, width_ = 1, run_ = 0, left_ = 0, middle_ = 0,
-				  right_ = 0, end_ = 0, collapsed_ = 0, base_position_ = 0;
-	bool alternate_ = false, initialized_ = false;
+	std::uint64_t position_ = 0, transaction_ = 0, touched_ = 0, base_position_ = 0;
 };
 } // namespace detent::local::detail
