@@ -192,3 +192,9 @@ The SDK reader uses this path for paged progress while retaining its existing v1
 ### Sparse validation bounds
 
 Cold validation now retains a 257-bucket override-count histogram with the sealed registry. Its 1,028 bytes cover the current zero-to-256 override limit and include zero-override integer/boolean definitions. Transfer consumes byte/row budgets and remains unavailable until the exact graph proof is sealed. Sparse construction can subtract removed definitions and add replacements, then derive the actual maximum without scanning unchanged leaves. Progress roots share this immutable metadata with their registry. Native and ASan/UBSan graph/snapshot/progress fixtures pass (3/3 in 1.15 and 1.74 seconds), verifying definition, override and maximum-bound conservation under one-byte transfer.
+
+### Changed-path structural overlay
+
+The private worker-owned `TrieOverlay` accepts checked immutable graph inputs and produces structural recipes, without granting publication authority. It copies touched ancestors and leaf bodies into admitted scratch, borrows untouched references, splits compressed prefixes on insertion and rebases surviving children when deletion collapses a unary branch. Old page removal totals accumulate per segment. Traversal, child copies, branch growth/shifts, body copies and disposal use explicit byte/row grants; a missing-key deletion preserves the tree.
+
+Independent full-snapshot rebuilds verify the canonical logical commitment and key counts after every prefix of mixed update histories. Native and ASan/UBSan fixtures pass in 0.34 and 0.41 seconds, covering branch growth, replacements, prefix splits/collapse, missing deletion, empty-root insertion/removal, maximum-length keys, pressure refusal, partial cancellation and physical charge conservation. Actual-base contextual validation, sparse payload assembly and durable IO integration remain required before these recipes can become publication plans.
