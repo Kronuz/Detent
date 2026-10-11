@@ -31,29 +31,33 @@ int main() {
 						 ("directory-owner-test-" + std::to_string(::getpid()));
 		std::filesystem::create_directories(directory);
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
-		// Bootstrap the process-lifetime worker before counting descriptors.
-		try {
-			detent::local::recover_generation(directory);
-		} catch (const std::runtime_error &) {
-		}
+		auto account = std::make_shared<detent::distribution::StorageLedger>(1024 * 1024);
+		detent::distribution::RetirementRuntime runtime(account, 1);
+		auto domain = runtime.domain(account, 64);
+		detent::local::ViewLimits limits;
+		limits.retirement_domain = &domain;
 		const auto before = open_descriptors();
 		bool rejected = false;
 		fail_next_allocation = true;
 		try {
-			detent::local::recover_generation(directory);
+			detent::local::recover_generation(directory, limits);
 		} catch (const std::bad_alloc &) {
 			rejected = true;
 		}
 		if (!rejected || fail_next_allocation)
-			throw std::runtime_error("directory owner allocation failure was not injected");
+			throw std::runtime_error("directory recovery allocation failure was not injected");
+		domain.close().wait();
 		if (open_descriptors() != before)
-			throw std::runtime_error("directory descriptor leaked after owner allocation failure");
+			throw std::runtime_error("directory descriptor remained after failed recovery retirement");
+		auto missing = runtime.domain(account, 64);
+		limits.retirement_domain = &missing;
 		rejected = false;
 		try {
-			detent::local::recover_generation(directory);
+			detent::local::recover_generation(directory, limits);
 		} catch (const std::runtime_error &) {
 			rejected = true;
 		}
+		missing.close().wait();
 		if (!rejected || open_descriptors() != before)
 			throw std::runtime_error("directory descriptor leaked after missing selection");
 		std::filesystem::remove_all(directory);
