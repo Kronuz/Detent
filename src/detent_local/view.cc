@@ -95,6 +95,13 @@ std::optional<std::uint64_t> ReadView::Root::find(std::string_view ns, std::stri
 		return {};
 	return row;
 }
+std::optional<detail::BorrowedDefinition> ReadView::Root::definition(std::string_view ns,
+																	 std::string_view key) const {
+	const auto row = find(ns, key);
+	if (!row)
+		return {};
+	return detail::BorrowedDefinition{bytes.subspan(*row, record_bytes), bytes, &header.layout};
+}
 detail::PinnedImageSource::PinnedImageSource(RecoveredGeneration generation)
 	: generation_(std::move(generation)) {
 	if (!generation_.view())
@@ -290,7 +297,7 @@ std::uint32_t ReadView::size() const noexcept { return root_ ? root_->header.lay
 std::uint32_t ReadView::bool_count() const noexcept { return root_ ? root_->bools : 0; }
 std::uint32_t ReadView::int_count() const noexcept { return root_ ? root_->ints : 0; }
 bool ReadView::contains(std::string_view ns, std::string_view key) const {
-	return root_ && valid_lookup(ns, key) && root_->find(ns, key).has_value();
+	return root_ && valid_lookup(ns, key) && root_->definition(ns, key).has_value();
 }
 Result<std::int64_t, KnobError> ReadView::get(std::string_view ns, std::string_view key) const {
 	if (!root_)
@@ -305,12 +312,12 @@ std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_vie
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	auto row = root_->find(ns, key);
-	if (!row)
+	auto definition = root_->definition(ns, key);
+	if (!definition)
 		return {};
-	if (root_->number(*row + 44, 1) != 1)
+	if (definition->boolean())
 		return error(ErrorCategory::WrongType, key);
-	return std::bit_cast<std::int64_t>(root_->number(*row + 24, 8));
+	return definition->default_int();
 }
 Result<bool, KnobError> ReadView::eval(std::string_view ns, std::string_view key,
 									   std::optional<std::string_view> hash,
@@ -327,33 +334,33 @@ ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std:
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	auto row = root_->find(ns, key);
-	if (!row)
+	auto definition = root_->definition(ns, key);
+	if (!definition)
 		return {};
-	if (root_->number(*row + 44, 1) != 0)
+	if (!definition->boolean())
 		return error(ErrorCategory::WrongType, key);
-	auto fallback = root_->number(*row + 24, 8) != 0;
+	const auto fallback = definition->default_bool();
 	auto ramp = [&](std::uint64_t pct) {
-		return hash ? stable_bucket(root_->text(*row), *hash) < pct : fallback;
+		if (!hash)
+			return fallback;
+		auto name = definition->qualified_key();
+		std::array<char, 200> qualified;
+		if (name.empty()) {
+			std::copy(ns.begin(), ns.end(), qualified.begin());
+			qualified[ns.size()] = ':';
+			std::copy(key.begin(), key.end(), qualified.begin() + ns.size() + 1);
+			name = {qualified.data(), ns.size() + key.size() + 1};
+		}
+		return stable_bucket(name, *hash) < pct;
 	};
 	if (switch_value) {
-		auto begin = root_->number(*row + 32, 8), count = root_->number(*row + 40, 4);
-		std::uint64_t low = 0, high = count;
-		while (low < high) {
-			auto mid = low + (high - low) / 2;
-			if (root_->text(root_->header.layout.override_offset + (begin + mid) * override_bytes) <
-				*switch_value)
-				low = mid + 1;
-			else
-				high = mid;
-		}
-		if (low < count) {
-			auto r = root_->header.layout.override_offset + (begin + low) * override_bytes;
-			if (root_->text(r) == *switch_value)
-				return root_->number(r + 12, 1) ? ramp(root_->number(r + 13, 1))
-												: root_->number(r + 13, 1) != 0;
+		if (const auto override = definition->override_for(*switch_value)) {
+			if (const auto *rollout = std::get_if<GroupRollout>(&*override))
+				return ramp(rollout->rollout_pct);
+			return std::get<bool>(*override);
 		}
 	}
-	return root_->number(*row + 45, 1) ? ramp(root_->number(*row + 46, 1)) : fallback;
+	const auto rollout = definition->rollout();
+	return rollout ? ramp(*rollout) : fallback;
 }
 } // namespace detent::local

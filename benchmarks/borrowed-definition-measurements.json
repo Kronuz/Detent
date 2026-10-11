@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-11",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+  "compiler_mode": "Release -O3",
+  "benchmark": "detent_local_image_bench",
+  "baseline_view_revision": "58400e4",
+  "baseline_method": "Compile baseline view.cc with the recorded Release command and replace that object in a copied local-view archive; other linked objects and benchmark remain identical.",
+  "method": "Three alternating baseline/lazy-accessor runs per corpus; benchmark performs 100000 integer lookups over mixed 25% integer and 75% boolean records.",
+  "limits": "Synthetic local corpora; lookup wall time; samples vary and do not establish a stable speedup, fleet capacity, CPU energy or application latency.",
+  "results": [
+    {
+      "records": 100000,
+      "lookup_calls": 100000,
+      "before": {
+        "lookup_us_samples": [
+          80202,
+          72696,
+          71896
+        ],
+        "median_lookup_us": 72696
+      },
+      "lazy": {
+        "lookup_us_samples": [
+          62472,
+          78166,
+          62537
+        ],
+        "median_lookup_us": 62537
+      }
+    },
+    {
+      "records": 500000,
+      "lookup_calls": 100000,
+      "before": {
+        "lookup_us_samples": [
+          111931,
+          140451,
+          118111
+        ],
+        "median_lookup_us": 118111
+      },
+      "lazy": {
+        "lookup_us_samples": [
+          117202,
+          131169,
+          112691
+        ],
+        "median_lookup_us": 117202
+      }
+    }
+  ]
+}

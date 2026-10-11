@@ -53,6 +53,8 @@ The checked 128-byte `DTSGOWN1` segment ownership record binds storage identity,
 
 Give the private ReadView root a format-specific implementation, preserving public lookup/evaluation behavior and dependencies. Cold recovery validates the complete reachable graph. Warm recovery validates new pages and reuses previously validated immutable subtree capabilities bound to exact storage, directory and file identities plus checksums. Neither a descriptor nor a cursor alone authorizes reuse.
 
+Private borrowed definition accessors read scalar fields lazily and share override/evaluation logic across v1 rows and canonical paged bodies. The existing release benchmark compares 100,000 integer lookups over 100,000- and 500,000-record synthetic corpora in three alternating runs: baseline/lazy medians are 72.696/62.537 ms and 118.111/117.202 ms respectively. Sample ranges overlap; these measurements do not establish a stable speedup. The [measurement record](../benchmarks/borrowed-definition-measurements.json) records the baseline and method. Native and sanitizer tests cover signed defaults, zero/full rollouts, embedded NUL/UTF-8 override keys and 256-entry override sets; complete paged reader installation remains to be integrated.
+
 Resolve required mappings and references before installing a root; hot lookup performs no filesystem work. Root leases remain separate from shared segment mappings. Reusing bytes cannot retain every obsolete ancestor generation indefinitely.
 
 ## Reclamation and compaction
