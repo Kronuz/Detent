@@ -53,6 +53,15 @@ std::shared_ptr<distribution::StorageLedger> mapping_account(const ViewLimits &l
 } // namespace resources
 ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
 	: lease(std::move(owner)), bytes(region), header(metadata) {}
+ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state,
+					 std::uint32_t boolean_count, std::uint32_t integer_count, std::uint64_t overrides)
+	: lease(std::move(owner)), bools(boolean_count), ints(integer_count), paged(state) {
+	header.cursor = state.root.cursor;
+	header.profile = state.root.profile;
+	header.layout.records = state.root.records;
+	header.layout.namespaces = state.root.namespaces;
+	header.layout.overrides = overrides;
+}
 std::uint64_t ReadView::Root::number(std::uint64_t offset, unsigned width) const {
 	return read_integer(bytes, offset, width);
 }
@@ -97,6 +106,8 @@ std::optional<std::uint64_t> ReadView::Root::find(std::string_view ns, std::stri
 }
 std::optional<detail::BorrowedDefinition> ReadView::Root::definition(std::string_view ns,
 																	 std::string_view key) const {
+	if (paged)
+		return paged->definition(ns, key);
 	const auto row = find(ns, key);
 	if (!row)
 		return {};

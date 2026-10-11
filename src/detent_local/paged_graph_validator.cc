@@ -1,5 +1,6 @@
 #include "paged_graph_validator.hh"
 #include "detent_local/paged_definition.hh"
+#include "read_root.hh"
 #include <algorithm>
 #include <cstring>
 #include <optional>
@@ -57,6 +58,8 @@ struct GraphValidator::Impl {
 	SHA256 segment_hash;
 	std::size_t index = 0, offset = 0, bitmap_size = 0, depth = 0, key_size = 0, charge = 0;
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0;
+	std::uint32_t bools = 0, ints = 0;
+	std::uint64_t overrides = 0;
 	Phase phase = Phase::Directory;
 	bool failed = false, started = false, definitions = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
@@ -127,7 +130,9 @@ struct GraphValidator::Impl {
 				namespaces.begin(), namespaces.end(), parsed.name_space,
 				[](const Namespace &value, std::string_view name) { return value.text() > name; });
 			require(found != namespaces.end() && found->text() == parsed.name_space);
-			p::validate_definition(body, found->revision);
+			const auto definition = p::validate_definition(body, found->revision);
+			definition.boolean ? ++bools : ++ints;
+			overrides += definition.overrides;
 			++records;
 		}
 		frame.keys = 1;
@@ -320,6 +325,15 @@ p::Root GraphValidator::root() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
 	return impl_->expected;
+}
+ReadView GraphValidator::take(distribution::RetirementDomain &domain) {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	auto &state = *impl_;
+	auto root = domain.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
+											state.bools, state.ints, state.overrides);
+	impl_.reset();
+	return ReadView(std::move(root));
 }
 bool GraphValidator::discard(ValidationBudget &budget) {
 	if (!impl_)

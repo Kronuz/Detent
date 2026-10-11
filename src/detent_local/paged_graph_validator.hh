@@ -18,6 +18,7 @@ class GraphValidator {
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	paged::Root root() const;
+	ReadView take(distribution::RetirementDomain &);
 	bool discard(ValidationBudget &);
 
   private:
