@@ -39,6 +39,12 @@ std::span<const SegmentInput> SegmentRegistry::inputs() const {
 		throw std::logic_error("unsealed segment registry");
 	return inputs_;
 }
+const distribution::RetirementHandle<SegmentMapping> &SegmentRegistry::mapping(std::size_t index) const {
+	inputs();
+	if (index >= mappings_.size())
+		throw std::out_of_range("segment mapping index");
+	return mappings_[index];
+}
 SegmentReachability SegmentRegistry::reachability(std::size_t index) const {
 	validated_root();
 	if (index >= reachable_.size())

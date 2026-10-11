@@ -62,6 +62,29 @@ int main() {
 			  l::encode_storage_identity(identity) == storage);
 		check(l::decode_generation_ownership(lease) == ownership &&
 			  l::encode_generation_ownership(ownership) == lease);
+		auto paged = ownership;
+		paged.layout_version = 2;
+		paged.image_length = 320;
+		const auto paged_vector = unhex<128>(
+			"44544c454153453100000001000000800102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+			"00000000000001400000000200000001000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+			"a95a4ee14558e1008536d5c8a68ced2e11d7762e9b2ba45acdb1476f505c2225");
+		check(l::encode_generation_ownership(paged) == paged_vector &&
+			  l::decode_generation_ownership(paged_vector) == paged);
+		for (auto version : {0u, 3u, 0xffffffffu}) {
+			auto broken = paged_vector;
+			l::write_integer(broken, 56, version, 4);
+			reseal(broken);
+			rejected([&] { l::decode_generation_ownership(broken); });
+			auto invalid = paged;
+			invalid.layout_version = version;
+			rejected([&] { l::encode_generation_ownership(invalid); });
+		}
+		for (auto length : {192u, 319u, 321u}) {
+			auto invalid = paged;
+			invalid.image_length = length;
+			rejected([&] { l::encode_generation_ownership(invalid); });
+		}
 		const auto segment_bytes =
 			unhex<128>("445453474f574e3100000001000000800102030405060708090a0b0c0d0e0f10"
 					   "1112131415161718191a1b1c1d1e1f2000000000000010000000000200000000"

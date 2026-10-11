@@ -4,6 +4,10 @@
 #include <filesystem>
 
 namespace detent::local {
+namespace detail {
+class LeasedPagedRoot;
+class PagedPlanBuilder;
+} // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
 	GenerationId generation{};
@@ -36,13 +40,16 @@ class RecoveredGeneration {
 
   private:
 	RecoveredGeneration(ReadView view, Descriptor descriptor, std::shared_ptr<const void> directory,
-						DirectoryIdentity identity)
+						DirectoryIdentity identity,
+						distribution::RetirementHandle<detail::LeasedPagedRoot> paged = {})
 		: view_(std::move(view)), descriptor_(std::move(descriptor)), directory_(std::move(directory)),
-		  directory_identity_(identity) {}
+		  directory_identity_(identity), paged_(std::move(paged)) {}
 	ReadView view_;
 	Descriptor descriptor_;
 	std::shared_ptr<const void> directory_;
 	DirectoryIdentity directory_identity_;
+	distribution::RetirementHandle<detail::LeasedPagedRoot> paged_;
+	friend class detail::PagedPlanBuilder;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
 };

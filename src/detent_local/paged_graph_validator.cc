@@ -50,6 +50,8 @@ struct GraphValidator::Impl {
 	std::span<const SegmentInput> segments;
 	p::Root expected;
 	p::Limits limits;
+	PagedSemanticLimits semantic_limits;
+	std::uint64_t strings = 0;
 	StorageIdentity storage;
 	std::vector<SegmentState, distribution::StorageAllocator<SegmentState>> states;
 	std::vector<Namespace, distribution::StorageAllocator<Namespace>> namespaces;
@@ -67,9 +69,11 @@ struct GraphValidator::Impl {
 	Phase phase = Phase::Directory;
 	bool failed = false, started = false, definitions = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
-		 std::span<const SegmentInput> source, p::Root root, StorageIdentity identity, p::Limits bounds)
+		 std::span<const SegmentInput> source, p::Root root, StorageIdentity identity, p::Limits bounds,
+		 PagedSemanticLimits semantics)
 		: account(std::move(ledger)), owner(std::move(lifetime)), segments(source), expected(root),
-		  limits(bounds), storage(identity), states(distribution::StorageAllocator<SegmentState>(account)),
+		  limits(bounds), semantic_limits(semantics), storage(identity),
+		  states(distribution::StorageAllocator<SegmentState>(account)),
 		  namespaces(distribution::StorageAllocator<Namespace>(account)) {
 		require(owner && segments.size() == expected.segments && segments.size() <= limits.segments);
 		p::encode_root(expected, limits);
@@ -115,6 +119,8 @@ struct GraphValidator::Impl {
 		const auto body = frame.bytes.last(frame.header.body);
 		if (parsed.kind == p::PageKind::Namespace) {
 			require(!definitions && namespaces.size() < expected.namespaces);
+			require(parsed.name_space.size() <= semantic_limits.strings - strings);
+			strings += parsed.name_space.size();
 			Namespace value;
 			value.length = parsed.name_space.size();
 			std::copy(parsed.name_space.begin(), parsed.name_space.end(), value.name.begin());
@@ -130,6 +136,12 @@ struct GraphValidator::Impl {
 				[](const Namespace &value, std::string_view name) { return value.text() > name; });
 			require(found != namespaces.end() && found->text() == parsed.name_space);
 			const auto definition = p::validate_definition(body, found->revision);
+			require(definition.overrides <= semantic_limits.overrides);
+			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + body.size() -
+							  p::definition_header_bytes -
+							  std::uint64_t(definition.overrides) * p::override_header_bytes;
+			require(text <= semantic_limits.strings - strings);
+			strings += text;
 			definition.boolean ? ++bools : ++ints;
 			overrides += definition.overrides;
 			++records;
@@ -140,9 +152,10 @@ struct GraphValidator::Impl {
 };
 GraphValidator::GraphValidator(std::shared_ptr<distribution::StorageLedger> account,
 							   std::shared_ptr<const void> owner, std::span<const SegmentInput> segments,
-							   p::Root root, StorageIdentity storage, p::Limits limits)
+							   p::Root root, StorageIdentity storage, p::Limits limits,
+							   PagedSemanticLimits semantics)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(owner),
-												   segments, root, storage, limits)) {}
+												   segments, root, storage, limits, semantics)) {}
 GraphValidator::~GraphValidator() = default;
 GraphValidator::GraphValidator(GraphValidator &&) noexcept = default;
 void GraphValidator::step(ValidationBudget &budget) {
@@ -325,6 +338,11 @@ p::Root GraphValidator::root() const {
 		throw std::logic_error("graph validation incomplete");
 	return impl_->expected;
 }
+PagedStateCounts GraphValidator::counts() const {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings};
+}
 SegmentReachability GraphValidator::segment_reachability(std::size_t index) const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
@@ -362,7 +380,7 @@ ReadView GraphValidator::take(distribution::RetirementDomain &domain) {
 		throw std::logic_error("graph validation incomplete");
 	auto &state = *impl_;
 	auto root = domain.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
-											state.bools, state.ints, state.overrides);
+											state.bools, state.ints, state.overrides, state.strings);
 	impl_.reset();
 	return ReadView(std::move(root));
 }

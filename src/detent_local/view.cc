@@ -31,11 +31,11 @@ struct Defaults {
 	std::shared_ptr<distribution::StorageLedger> baseline =
 		std::make_shared<distribution::StorageLedger>(1024 * 1024);
 	std::shared_ptr<distribution::StorageLedger> controls =
-		std::make_shared<distribution::StorageLedger>(4 * 1024 * 1024);
+		std::make_shared<distribution::StorageLedger>(8 * 1024 * 1024);
 	std::shared_ptr<distribution::StorageLedger> mappings =
 		std::make_shared<distribution::StorageLedger>(512 * 1024 * 1024);
 	distribution::RetirementRuntime runtime{baseline, 1};
-	distribution::RetirementDomain domain{runtime.domain(controls, 4096)};
+	distribution::RetirementDomain domain{runtime.domain(controls, 16384)};
 };
 Defaults &defaults() {
 	// Standalone readers share process-lifetime resources. Ordered teardown
@@ -54,13 +54,15 @@ std::shared_ptr<distribution::StorageLedger> mapping_account(const ViewLimits &l
 ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
 	: lease(std::move(owner)), bytes(region), header(metadata) {}
 ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state,
-					 std::uint32_t boolean_count, std::uint32_t integer_count, std::uint64_t overrides)
+					 std::uint32_t boolean_count, std::uint32_t integer_count, std::uint64_t overrides,
+					 std::uint64_t strings)
 	: lease(std::move(owner)), bools(boolean_count), ints(integer_count), paged(state) {
 	header.cursor = state.root.cursor;
 	header.profile = state.root.profile;
 	header.layout.records = state.root.records;
 	header.layout.namespaces = state.root.namespaces;
 	header.layout.overrides = overrides;
+	header.layout.strings = strings;
 }
 std::uint64_t ReadView::Root::number(std::uint64_t offset, unsigned width) const {
 	return read_integer(bytes, offset, width);

@@ -3,7 +3,7 @@
 #include "paged_layout.hh"
 
 namespace detent::local::paged {
-inline constexpr std::size_t definition_header_bytes = 24;
+inline constexpr std::size_t definition_header_bytes = 24, override_header_bytes = 4;
 struct Definition {
 	std::uint64_t revision = 0;
 	bool boolean = false, default_bool = false;

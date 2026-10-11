@@ -17,6 +17,7 @@ struct GenerationOwnership {
 	StorageIdentity storage{}, generation{};
 	std::uint64_t image_length = 0;
 	std::array<char, 32> image_checksum{};
+	std::uint32_t layout_version = 1;
 	bool operator==(const GenerationOwnership &) const = default;
 };
 // Pure, fixed-layout codecs: no completion, journal or networking dependency.

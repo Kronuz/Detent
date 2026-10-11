@@ -1,6 +1,9 @@
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
+#include "leased_paged_root.hh"
+#include "paged_dependency_discovery.hh"
 #include "resources.hh"
+#include "segment_names.hh"
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
@@ -206,10 +209,12 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		}
 		if (named_lease.st_dev != lease_info.st_dev || named_lease.st_ino != lease_info.st_ino)
 			continue;
+		std::optional<GenerationOwnership> generation_ownership;
 		if (lease_info.st_size == generation_ownership_bytes) {
 			std::array<char, generation_ownership_bytes> lease_record;
 			read_record(mapping->lease, lease_record);
 			auto ownership = decode_generation_ownership(lease_record);
+			generation_ownership = ownership;
 			File storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 			trusted_file(storage.fd, directory_info.st_uid, storage_identity_bytes);
 			std::array<char, storage_identity_bytes> storage_record;
@@ -235,6 +240,98 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		unsigned char digest[32];
 		hash.getHash(digest);
 		require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
+		if (generation_ownership && generation_ownership->layout_version == 2) {
+			paged::Limits bounds;
+			bounds.bytes = std::min(bounds.bytes, limits.bytes - descriptor.length);
+			bounds.records = limits.records;
+			bounds.namespaces = limits.namespaces;
+			const auto root = paged::decode_root(bytes, bounds);
+			require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
+					(!expected ||
+					 (expected->same_identity(root.cursor) && root.cursor.revision >= expected->revision)));
+			const auto storage = generation_ownership->storage;
+			auto account = domain.storage_account();
+			detail::DependencyDiscovery discovery(account, domain, root, storage, bounds);
+			while (!discovery.done()) {
+				ValidationBudget budget;
+				discovery.step(budget);
+				if (auto missing = discovery.missing()) {
+					const detail::SegmentNames names(*missing);
+					File record(::openat(dir->fd, names.ownership.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+					trusted_file(record.fd, directory_info.st_uid, segment_ownership_bytes);
+					std::array<char, segment_ownership_bytes> record_bytes;
+					read_record(record.fd, record_bytes);
+					const auto ownership = decode_segment_ownership(record_bytes);
+					require(ownership.storage == storage && ownership.segment == *missing);
+					File payload(::openat(dir->fd, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+					auto segment = domain.make<detail::SegmentMapping>(
+						resources::mapping_account(limits), payload.fd, directory_info.st_uid, ownership);
+					discovery.supply(std::move(segment));
+				}
+			}
+			auto registry = discovery.take();
+			using RootLease = distribution::RetirementHandle<Mapping>;
+			auto root_lease =
+				std::allocate_shared<RootLease>(distribution::StorageAllocator<RootLease>(account), mapping);
+			const DirectoryIdentity identity{std::uint64_t(directory_info.st_dev),
+											 std::uint64_t(directory_info.st_ino)};
+			auto capability = domain.make<detail::LeasedPagedRoot>(dir, root_lease, registry, descriptor,
+																   identity, storage, root);
+			using Capability = distribution::RetirementHandle<detail::LeasedPagedRoot>;
+			auto owner = std::allocate_shared<Capability>(distribution::StorageAllocator<Capability>(account),
+														  capability);
+			detail::GraphValidator validator(account, owner, registry->inputs(), root, storage, bounds,
+											 detail::PagedSemanticLimits{limits.strings, limits.overrides});
+			while (!validator.done()) {
+				ValidationBudget budget;
+				validator.step(budget);
+			}
+			for (;;) {
+				ValidationBudget budget;
+				if (validator.record_reachability(*registry, budget))
+					break;
+			}
+			for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
+				const auto &segment = registry->mapping(i);
+				const detail::SegmentNames names(segment->ownership().segment);
+				File record(::openat(dir->fd, names.ownership.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+				trusted_file(record.fd, directory_info.st_uid, segment_ownership_bytes);
+				std::array<char, segment_ownership_bytes> record_bytes;
+				read_record(record.fd, record_bytes);
+				require(decode_segment_ownership(record_bytes) == segment->ownership());
+				struct stat named{};
+				require(::fstatat(dir->fd, names.payload.data(), &named, AT_SYMLINK_NOFOLLOW) == 0 &&
+						S_ISREG(named.st_mode) && named.st_uid == directory_info.st_uid &&
+						named.st_nlink == 1 && !(named.st_mode & 0022) && named.st_size >= 0 &&
+						std::uint64_t(named.st_size) == segment->ownership().length &&
+						detail::SegmentFileIdentity{std::uint64_t(named.st_dev),
+													std::uint64_t(named.st_ino)} == segment->identity());
+			}
+			trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
+			trusted_file(mapping->lease, directory_info.st_uid, generation_ownership_bytes);
+			struct stat held_image{}, named_image{}, named_anchor{};
+			require(::fstat(mapping->image, &held_image) == 0 &&
+					::fstatat(dir->fd, (name + ".image").c_str(), &named_image, AT_SYMLINK_NOFOLLOW) == 0 &&
+					held_image.st_dev == named_image.st_dev && held_image.st_ino == named_image.st_ino &&
+					::fstatat(dir->fd, (name + ".lease").c_str(), &named_anchor, AT_SYMLINK_NOFOLLOW) == 0 &&
+					lease_info.st_dev == named_anchor.st_dev && lease_info.st_ino == named_anchor.st_ino);
+			std::array<char, generation_ownership_bytes> final_anchor;
+			read_record(mapping->lease, final_anchor);
+			require(decode_generation_ownership(final_anchor) == *generation_ownership);
+			File final_storage(::openat(dir->fd, "storage.meta", O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+			trusted_file(final_storage.fd, directory_info.st_uid, storage_identity_bytes);
+			std::array<char, storage_identity_bytes> final_identity;
+			read_record(final_storage.fd, final_identity);
+			require(decode_storage_identity(final_identity) == storage);
+			capability->seal(validator.counts());
+			for (;;) {
+				ValidationBudget budget;
+				if (discovery.discard(budget))
+					break;
+			}
+			return RecoveredGeneration(validator.take(domain), descriptor, dir, identity,
+									   std::move(capability));
+		}
 		auto header = decode_header(bytes, limits.bytes);
 		require(header.cursor == descriptor.cursor && header.profile == descriptor.profile);
 		using Lease = distribution::RetirementHandle<Mapping>;

@@ -11,6 +11,7 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	void append(distribution::RetirementHandle<SegmentMapping>);
 	void seal();
 	std::span<const SegmentInput> inputs() const;
+	const distribution::RetirementHandle<SegmentMapping> &mapping(std::size_t index) const;
 	SegmentReachability reachability(std::size_t index) const;
 	const paged::Root &validated_root() const;
 	std::uint64_t physical_bytes() const noexcept { return physical_bytes_; }

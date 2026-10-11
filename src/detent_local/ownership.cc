@@ -53,10 +53,10 @@ StorageIdentity decode_storage_identity(std::span<const char> bytes) {
 }
 std::array<char, generation_ownership_bytes>
 encode_generation_ownership(const GenerationOwnership &ownership) {
-	// Layout v1 has a 192-byte header and u64 offsets. Admission quotas are
-	// deliberately absent: an older owned generation may exceed today's quota.
+	// Admission quotas are absent; older owned generations can exceed them.
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
-			ownership.image_length >= header_bytes);
+			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
+			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
 	std::array<char, generation_ownership_bytes> bytes{};
 	constexpr std::string_view magic = "DTLEASE1";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
@@ -65,7 +65,7 @@ encode_generation_ownership(const GenerationOwnership &ownership) {
 	std::copy(ownership.storage.begin(), ownership.storage.end(), bytes.begin() + 16);
 	std::copy(ownership.generation.begin(), ownership.generation.end(), bytes.begin() + 32);
 	write_integer(bytes, 48, ownership.image_length, 8);
-	write_integer(bytes, 56, 1, 4);
+	write_integer(bytes, 56, ownership.layout_version, 4);
 	write_integer(bytes, 60, 1, 4);
 	std::copy(ownership.image_checksum.begin(), ownership.image_checksum.end(), bytes.begin() + 64);
 	seal(bytes, 96);
@@ -73,14 +73,16 @@ encode_generation_ownership(const GenerationOwnership &ownership) {
 }
 GenerationOwnership decode_generation_ownership(std::span<const char> bytes) {
 	validate(bytes, "DTLEASE1", generation_ownership_bytes);
-	require(read_integer(bytes, 56, 4) == 1 && read_integer(bytes, 60, 4) == 1);
+	require(read_integer(bytes, 60, 4) == 1);
 	GenerationOwnership ownership;
 	std::copy_n(bytes.begin() + 16, 16, ownership.storage.begin());
 	std::copy_n(bytes.begin() + 32, 16, ownership.generation.begin());
 	ownership.image_length = read_integer(bytes, 48, 8);
+	ownership.layout_version = read_integer(bytes, 56, 4);
 	std::copy_n(bytes.begin() + 64, 32, ownership.image_checksum.begin());
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
-			ownership.image_length >= header_bytes);
+			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
+			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
 	return ownership;
 }
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {
