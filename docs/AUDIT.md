@@ -218,3 +218,9 @@ Fixture reads now use `--system` with their explicit configuration, so only the 
 The assembled ThreadSanitizer run passes 19 of 21 checks and identifies two races in global `std::cerr`: the scripted TLS server and the coordinator observer print progress concurrently. Both reports point to fixture output, with no production-state race reported. The progress prints are removed; assertions, protocol exchanges and ownership checks remain unchanged.
 
 The affected subscription and forced-snapshot retry cases, including their certificate prerequisite, pass the corrected TSan rerun in 5.96 seconds. Combined with the original run, all 21 assembled cases have passing TSan evidence. The original full run takes 297.82 seconds and includes the 500,000-record authority and real managed-process cases. This is a targeted correction and rerun, not a second complete run.
+
+## Preserve stable relay principal identity across policy epochs
+
+Relay credential loading hashed the principal with its configured policy epoch, while authority and bundle bindings use a stable principal hash plus a separate policy epoch. Matching epoch-2 configurations passed parsing but failed immutable registry construction at startup. Credential loading now uses the stable principal identity; cursor scope and authorization still bind the actual policy epoch.
+
+The regression loads matching epoch-2 source and credentials, builds the registry and authenticates/resolves the exact scope. The real two-bundle authority → relay → agents → reader fixture now uses epoch 2, including empty scope, recovery and grant revocation. These checks pass natively with certificate preparation in 8.04 seconds; the process fixture is part of the pending relay-host component. Logs are retained in `.scratch/relay-policy-epoch-tests.log`.

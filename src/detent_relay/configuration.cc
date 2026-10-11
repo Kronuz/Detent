@@ -115,7 +115,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 		require(tokens.insert(credential.token_hash).second, "duplicate relay credential token");
 		const auto principal = text(field(value, "principal"), 128);
 		const auto policy = number(value, "policy_epoch", 1, 1, UINT64_MAX);
-		credential.authorization.principal = {distribution::canonical_scope_identity(principal, policy, {}),
+		credential.authorization.principal = {distribution::canonical_scope_identity(principal, 1, {}),
 											  policy};
 		const auto &grants = field(value, "bundles");
 		require(grants.IsArray() && !grants.Empty() && grants.Size() <= result.bundles.size(),

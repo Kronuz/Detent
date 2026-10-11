@@ -1,5 +1,6 @@
 #include "detent/scope.hh"
 #include "detent_relay/configuration.hh"
+#include "detent_relay/registry.hh"
 #include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
@@ -85,6 +86,24 @@ int main(int argc, char **argv) {
 		host["credentials"][0]["principal"].SetString("reader");
 		host["credentials"][0].AddMember("policy_epoch", 2, host.GetAllocator());
 		rejected();
+		source.AddMember("policy_epoch", 2, source.GetAllocator());
+		write(directory / "source.json", source);
+		{
+			auto rotated = load();
+			const auto &configured = rotated.bundles[0].source;
+			const std::array<std::string_view, 1> names{"app"};
+			const detent::relay::RegistryBundle binding{
+				configured.coordinator.source.configured,
+				{detent::distribution::canonical_scope_identity("reader", 1, {}), 2}, names};
+			auto account = std::make_shared<detent::distribution::StorageLedger>(1024 * 1024);
+			detent::relay::Registry registry(account, {&binding, 1}, rotated.credentials);
+			const auto *authorization = registry.authenticate(
+				"Bearer downstream-token-0123456789abcdef0123456789");
+			check(authorization && authorization->principal.policy_epoch == 2);
+			check(registry.resolve(*authorization, binding.identity, names) == 0);
+		}
+		source.RemoveMember("policy_epoch");
+		write(directory / "source.json", source);
 		host["credentials"][0].RemoveMember("policy_epoch");
 		host["credentials"][0]["bundles"][0].SetUint(1);
 		rejected();
