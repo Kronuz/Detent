@@ -34,7 +34,7 @@ these docs are collected here.
 | 2 | Durable storage and strict consensus | Accepted |
 | 3 | Bounded transaction API and authority runtime | Accepted |
 | 4 | Portable distribution and immutable local views | Accepted, including managed agent and SDK |
-| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A component accepted; 5B relay implementation underway; 5C incremental publication follows |
+| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A and 5B components accepted; 5C incremental publication in implementation |
 | 6 | Sustained system, fleet and failure qualification | Pending |
 
 The planning workload for stages 5 and 6 is 500,000 knobs, 300 concurrent

@@ -59,6 +59,10 @@ int main(int argc, char **argv) {
 		auto options = load();
 		check(options.endpoint.address().is_loopback() && options.endpoint.port() == 8318);
 		check(options.bundles.size() == 1 && options.credentials.size() == 1);
+		check(options.hostname == "localhost" && options.certificate_authority == (tls / "ca.pem").string());
+		check(options.bundles[0].source.disk.artifact_mode == 0600);
+		check(detent::relay::load_host_options(configuration, true).bundles[0].source.disk.artifact_mode ==
+			  0600);
 		check(options.bundles[0].source.coordinator.delivery_mode ==
 			  detent::delivery::DeliveryMode::Subscription);
 		check(!options.bundles[0].source.delivery_mode_explicit);
@@ -78,6 +82,9 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		host.AddMember("hostname", "bad\rhost", host.GetAllocator());
+		rejected();
+		host.RemoveMember("hostname");
 		host.AddMember("heap_bytes", 1024, host.GetAllocator());
 		rejected();
 		host.RemoveMember("heap_bytes");

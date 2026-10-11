@@ -1,6 +1,6 @@
 # System services
 
-Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivileged service account. The service manager owns process startup, restarts, and logging. Both binaries run in the foreground when supervised. The application-specific `--system` option selects system locations and prevents shell readers from spawning or stopping unmanaged system agents. Explicit `--config PATH` and path settings override these locations.
+Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivileged service account. The service manager owns process startup, restarts, and logging. Daemons run in the foreground when supervised. The application-specific `--system` option selects system locations and prevents shell readers from spawning or stopping unmanaged system agents. Explicit `--config PATH` and path settings override these locations.
 
 | Platform | Configuration | Agent runtime | Distributor state | Logs |
 | --- | --- | --- | --- | --- |
@@ -78,3 +78,9 @@ The authority profile uses `detentd --authority CONFIG` in the foreground under 
 Managed agent generations are persistent state, separate from distributor authority data and runtime PID files. System defaults are `/var/lib/detent-agent` on Linux and `/var/db/detent-agent` on macOS and FreeBSD. The systemd template provisions `StateDirectory=detent-agent` with mode `0755`; the FreeBSD template provisions the matching directory. Provision the macOS directory with the service-account owner and mode `0755` before loading its job.
 
 Keep the managed credential file private (`0600` or controlled `0640`), and distribute public `agent.json` configuration separately. System artifacts default to `0644` so application accounts can read and lease generations; private deployment can select `0640` and a shared group. Directory traversal permission must match the intended readers. Authority storage remains private. Journald, launchd, or the configured rc logging owns supervised logs; runtime PID paths remain temporary.
+
+## Durable relay service
+
+Build `detent-relay` with `DETENT_BUILD_RELAY=ON` and install the matching systemd, launchd or rc.d template. It follows foreground supervision, `--system`, `--config`, `--status`, logging and unmanaged `--daemonize` conventions. The default private configuration is `relay.json`; TLS listens on loopback port `8318` unless configured otherwise. Configure all upstream bundle credentials and exact downstream grants before startup; see [the relay guide](RELAY.md).
+
+Relay durable roots require service ownership and mode `0700`, and their artifacts remain `0600` even in system mode. Agents consume the relay through authenticated TLS; application readers access their own agent generations. Readiness requires durable recovery and fresh authentication for every configured bundle. The daemon drains listener originals and shared disk completions before retiring stores and workers. Hosting is under Stage 5B qualification; system-service templates do not establish sustained fleet acceptance.

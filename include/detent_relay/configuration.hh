@@ -11,6 +11,7 @@ struct ConfiguredBundle {
 struct HostOptions {
 	asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), 8318};
 	std::shared_ptr<asio::ssl::context> tls_context;
+	std::string certificate_authority, hostname = "localhost";
 	std::vector<ConfiguredBundle> bundles;
 	std::vector<ConfiguredCredential> credentials;
 	std::size_t control_bytes = 64 * 1024 * 1024;

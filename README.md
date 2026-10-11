@@ -296,8 +296,9 @@ The core client has no networking dependency. Classic HTTP polling, binary distr
 | Classic HTTP source | `detent_http::detent_http` | Optional JSON polling source |
 | Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
 | Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
-| Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies; daemon host remains under implementation |
-| Relay core | `detent::relay` | Durable bundle caches and authorized session adapters; HTTP host remains under implementation |
+| Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies |
+| Relay host | `detent_relay_host`, `detent-relay` | Optional finite-bundle TLS daemon; [qualification and configuration](docs/RELAY.md) |
+| Relay core | `detent::relay` | Durable bundle caches and authorized session adapters |
 | Immutable local view | `detent::local_view` | Read mapped durable generations |
 | Pinned local export | `detent::local_export` | Encode public definitions from a recovered immutable image |
 | Local publication | `detent::local_publication` | Reconcile and publish durable generations |
@@ -313,6 +314,7 @@ The core client has no networking dependency. Classic HTTP polling, binary distr
 | `detent_demo` | `examples/demo.cc` | `detent` | Baked-defaults-only example |
 | `detent_publish` | `examples/publish_snapshot.cc` | `detent` | Atomic file publisher |
 | `detentd` | `src/detentd/main.cc` | `detentd_lib` -> `detent`, `detent_http`, `http::http`, `cluster::cluster` | HTTP distributor with optional Raft clustering |
+| `detent-relay` | `src/detent_relay/main.cc` | Relay host, private configuration and bounded TLS distribution | Optional durable fan-out daemon; Stage 5B qualification |
 | `detent-agent` | `src/detent_agent/main.cc` | Agent, CLI and optional managed delivery libraries | Host-local daemon |
 | `detent` | `src/detent_agent/main.cc` | CLI and local reader libraries | Host-local `get` reader |
 | `test_*` (`tests/detent/`) | `tests/detent/*.cc` | `detent` | Core correctness suite |

@@ -36,6 +36,7 @@ endif()
 option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
 option(DETENT_BUILD_DISTRIBUTOR "Build the detent distributor server (pulls Asio + the Kronuz http/reactor/cluster stack)" ON)
+option(DETENT_BUILD_RELAY "Build the optional durable relay daemon" OFF)
 option(DETENT_BUILD_MANAGED_AGENT "Build managed binary authority delivery support" ON)
 option(DETENT_BUILD_AUTHORITY "Build the opt-in durable authority against reviewed cluster sources" OFF)
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
@@ -119,6 +120,10 @@ add_library(cpp_btree::headers ALIAS cpp_btree_headers)
 ########################################################################
 # detent core library
 ########################################################################
+if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
+  FetchContent_Declare(http_lib GIT_REPOSITORY https://github.com/Kronuz/http.git GIT_TAG main)
+  FetchContent_MakeAvailable(http_lib)
+endif()
 if(DETENT_BUILD_DISTRIBUTOR)
   # http::http and cluster::cluster each pull their own full dependency chain
   # (Asio, reactor, http-parser, radix-router) via their own CMakeLists,
@@ -137,7 +142,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
     GIT_TAG        main)
 
   FetchContent_MakeAvailable(http_lib cluster generation_cache)
-elseif(DETENT_BUILD_MANAGED_AGENT)
+elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   # Managed publication needs the standalone completion module, without
   # importing the cluster bus, consensus or HTTP server targets.
   FetchContent_Declare(cluster

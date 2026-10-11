@@ -20,6 +20,13 @@ target_link_libraries(test_delivery_coordinator PRIVATE detent::delivery_coordin
 if(TARGET detent::relay_http)
   target_link_libraries(test_delivery_coordinator PRIVATE detent::relay_http)
   target_compile_definitions(test_delivery_coordinator PRIVATE DETENT_TEST_RELAY_HTTP=1)
+  target_link_libraries(test_delivery_coordinator PRIVATE http::http)
+  foreach(records IN ITEMS 100000 500000)
+    add_test(NAME test_relay_network_${records} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --subscription-relay-network-${records})
+    set_tests_properties(test_relay_network_${records} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 300 LABELS relay-network)
+  endforeach()
+  add_test(NAME test_relay_network_failure_drainage COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --subscription-relay-network-failures-100000)
+  set_tests_properties(test_relay_network_failure_drainage PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120 LABELS relay-network)
   foreach(mode IN ITEMS subscription-relay-http subscription-relay-http-100000 subscription-relay-http-500000)
     add_test(NAME test_delivery_coordinator_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
     set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
@@ -36,7 +43,7 @@ foreach(mode IN ITEMS cancel-selected reader-pressure subscription subscription-
   set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
 endforeach()
 add_executable(test_managed_config test_managed_config.cc)
-target_link_libraries(test_managed_config PRIVATE detent_managed_agent)
+target_link_libraries(test_managed_config PRIVATE detent::delivery_config)
 add_test(NAME test_managed_config COMMAND test_managed_config ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
 set_tests_properties(test_managed_config PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 30)
 add_executable(test_relay_config test_relay_config.cc)
@@ -47,7 +54,7 @@ add_executable(test_relay_registry test_relay_registry.cc)
 target_link_libraries(test_relay_registry PRIVATE detent::relay)
 add_test(NAME test_relay_registry COMMAND test_relay_registry)
 set_tests_properties(test_relay_registry PROPERTIES TIMEOUT 30)
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME test_managed_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
     $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
@@ -57,6 +64,16 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
     $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription)
   set_tests_properties(test_managed_subscription_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
+  if(DETENT_BUILD_RELAY)
+    add_test(NAME test_relay_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
+      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay>)
+    set_tests_properties(test_relay_delivery_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
+    add_test(NAME test_relay_isolated_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
+      $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}
+      ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture subscription $<TARGET_FILE:detent-relay> isolated)
+    set_tests_properties(test_relay_isolated_process PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 120)
+  endif()
 endif()
 if(TARGET detent::distribution_http)
   add_executable(test_distribution_reply_pump test_reply_pump.cc)

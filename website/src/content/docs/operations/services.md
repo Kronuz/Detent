@@ -135,3 +135,7 @@ systemd template provisions `StateDirectory=detent-agent` (`/var/lib/detent-agen
 mode `0755`). On macOS and FreeBSD, provision `/var/db/detent-agent` owned by
 the service account. Keep `managed.json` private (`0600`) and distribute the
 public `agent.json` separately.
+
+## Durable relay
+
+The optional [durable relay](/Detent/guides/durable-relay/) has matching systemd, launchd and rc.d templates. It uses `relay.json`, private durable roots and authenticated TLS on loopback port `8318` by default. Run it in the foreground under the service manager. Hosting remains under Stage 5B qualification.

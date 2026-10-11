@@ -83,6 +83,7 @@ struct ServiceRuntime::Impl {
 	std::array<d::StorageOwner<Lane>, 3> lanes;
 	mutable std::mutex mutex;
 	std::atomic<bool> closing{false};
+	std::shared_ptr<const d::OwnedBuffer> health;
 	bool closed_sessions = false;
 	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
 	Impl(ServiceAccounts storage, std::shared_ptr<const Registry> authorization,
@@ -340,12 +341,37 @@ bool ServiceRuntime::drained() const noexcept {
 		   std::all_of(impl_->lanes.begin(), impl_->lanes.end(),
 					   [](const auto &lane) { return lane->admission.drained(); });
 }
+void ServiceRuntime::health(std::shared_ptr<const d::OwnedBuffer> value) {
+	std::lock_guard lock(impl_->mutex);
+	impl_->health = std::move(value);
+}
 Service::Service(std::shared_ptr<ServiceRuntime> runtime) : runtime_(std::move(runtime)) {
 	if (!runtime_)
 		throw std::invalid_argument("relay service runtime");
 }
 Service::~Service() { runtime_->close(); }
 std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) {
+	if (request.path == "/v1/health" && request.method == "GET") {
+		if (!request.header("Transfer-Encoding").empty() ||
+			(!request.header("Content-Length").empty() && request.header("Content-Length") != "0"))
+			reject(400, "{\"error\":\"health_body_forbidden\"}");
+		class Empty final : public http::BodySink {
+			std::shared_ptr<d::StorageLedger> account_;
+			d::StorageLedger::Ticket ticket_;
+
+		  public:
+			Empty(std::shared_ptr<d::StorageLedger> account, d::StorageLedger::Ticket ticket)
+				: account_(std::move(account)), ticket_(std::move(ticket)) {}
+			void write(std::string_view bytes) override {
+				if (!bytes.empty())
+					reject(400, "{\"error\":\"health_body_forbidden\"}");
+			}
+			void end() override {}
+		};
+		auto account = runtime_->impl_->accounts.metadata;
+		auto ticket = account->admit(sizeof(Empty));
+		return std::make_unique<Empty>(std::move(account), std::move(ticket));
+	}
 	auto admission = runtime_->impl_->admit(request);
 	request.user_data = admission;
 	class Sink final : public http::BodySink {
@@ -372,6 +398,18 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 }
 void Service::handle(const http::Request &request, http::ResponseWriter &response) {
 	auto &p = *runtime_->impl_;
+	if (request.path == "/v1/health" && request.method == "GET") {
+		std::shared_ptr<const d::OwnedBuffer> health;
+		{
+			std::lock_guard lock(p.mutex);
+			health = p.health;
+		}
+		response.status(health ? 200 : 503);
+		response.content_type("application/json");
+		response.write(health ? health->view() : std::string_view("{\"ready\":false}"));
+		response.end();
+		return;
+	}
 	auto admission = request.user_data
 						 ? std::static_pointer_cast<ServiceRuntime::Impl::Admission>(request.user_data)
 						 : p.admit(request);

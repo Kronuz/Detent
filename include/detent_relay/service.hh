@@ -26,6 +26,7 @@ class ServiceRuntime {
 	void close() noexcept;
 	bool step(Sessions::Clock::time_point);
 	ServiceStatus status() const noexcept;
+	void health(std::shared_ptr<const distribution::OwnedBuffer>);
 	bool drained() const noexcept;
 
   private:
@@ -40,6 +41,7 @@ class Service final : public http::HttpHandler {
 	~Service() override;
 	std::unique_ptr<http::BodySink> on_request_body(http::Request &) override;
 	void handle(const http::Request &, http::ResponseWriter &) override;
+	bool should_offload(const http::Request &request) const override { return request.path != "/v1/health"; }
 	void on_error(std::exception_ptr, const http::Request &, http::ResponseWriter &) override;
 
   private:

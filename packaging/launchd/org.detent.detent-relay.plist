@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>org.detent.detent-relay</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/detent-relay</string>
+		<string>--system</string>
+		<string>--config</string>
+		<string>/Library/Application Support/Detent/relay.json</string>
+		<string>--runtime-dir</string>
+		<string>/var/run/detent/relay</string>
+	</array>
+	<key>UserName</key>
+	<string>_detent</string>
+	<key>GroupName</key>
+	<string>_detent</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+	<key>StandardOutPath</key>
+	<string>/var/log/detent/relay.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/detent/relay.log</string>
+</dict>
+</plist>

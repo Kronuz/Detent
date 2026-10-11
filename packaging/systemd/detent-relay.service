@@ -1,0 +1,31 @@
+[Unit]
+Description=Detent durable distribution relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=detent
+Group=detent
+ExecStart=/usr/local/bin/detent-relay --system --config /etc/detent/relay.json --runtime-dir /run/detent/relay
+RuntimeDirectory=detent/relay
+RuntimeDirectoryMode=0755
+StateDirectory=detent-relay
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+#!/bin/sh
+# PROVIDE: detent_relay
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+. /etc/rc.subr
+name="detent_relay"
+rcvar="detent_relay_enable"
+load_rc_config "$name"
+: ${detent_relay_enable:="NO"}
+pidfile="/var/run/detent/relay/supervisor.pid"
+start_precmd="detent_relay_directories"
+detent_relay_directories() {
+    install -d -o detent -g detent -m 0755 /var/run/detent/relay
+    install -d -o detent -g detent -m 0700 /var/db/detent-relay
+    install -d -o detent -g detent -m 0750 /var/log/detent
+}
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/detent-relay"
+command_args="-r -P ${pidfile} -u detent -o /var/log/detent/relay.log ${procname} --system --config /usr/local/etc/detent/relay.json --runtime-dir /var/run/detent/relay"
+run_rc_command "$1"

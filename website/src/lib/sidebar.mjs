@@ -33,6 +33,7 @@ export const sidebar = [
 				'guides/clustering',
 				'guides/durable-authority',
 				'guides/managed-delivery',
+				'guides/durable-relay',
 			),
 		],
 		{ collapsed: false },

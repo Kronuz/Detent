@@ -22,6 +22,7 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
 }
 #ifdef DETENT_TEST_RELAY_HTTP
+#include "relay_network_fixture.hh"
 #include "relay_service_fixture.hh"
 #endif
 class RecordingSink final : public t::PublicationSink {
@@ -176,10 +177,11 @@ struct Timing {
 	std::int64_t maximum_lateness_us = 0;
 };
 asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
-							  bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr) {
+							  bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr,
+							  std::chrono::milliseconds timeout = 60s) {
 	auto executor = co_await asio::this_coro::executor;
 	asio::steady_timer timer(executor);
-	const auto deadline = std::chrono::steady_clock::now() + 60s;
+	const auto deadline = std::chrono::steady_clock::now() + timeout;
 	if (cancel_selected) {
 		while (coordinator->status().selected.knowledge != l::SelectionKnowledge::Known &&
 			   std::chrono::steady_clock::now() < deadline)
@@ -216,7 +218,8 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 				.count());
 	}
 	if (feedback_received) {
-		while (!feedback_received->load() && std::chrono::steady_clock::now() < deadline) {
+		while (!feedback_received->load() && !coordinator->drained() &&
+			   std::chrono::steady_clock::now() < deadline) {
 			timer.expires_after(1ms);
 			co_await timer.async_wait(asio::use_awaitable);
 		}
@@ -285,7 +288,8 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 		co_await (coordinator->run() && observe_pressure(coordinator, options));
 		co_return;
 	}
-	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected, feedback_received));
+	co_await (coordinator->run() &&
+			  observe(coordinator, timing, cancel_selected, feedback_received, options.source.timeout));
 }
 void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 							d::RetirementHandle<d::EncodedUpdate> expected,
@@ -369,6 +373,10 @@ int main(int argc, char **argv) {
 			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
 #ifdef DETENT_TEST_RELAY_HTTP
 		const bool relay_http = relay && std::string_view(argv[2]).find("http") != std::string_view::npos;
+		const bool relay_network =
+			relay && std::string_view(argv[2]).find("network") != std::string_view::npos;
+		const bool network_failures =
+			relay_network && std::string_view(argv[2]).find("failures") != std::string_view::npos;
 #endif
 		const bool relay_pressure = relay && std::string_view(argv[2]).ends_with("pressure");
 		const bool sink = argc == 3 && std::string_view(argv[2]).find("sink") != std::string_view::npos;
@@ -432,6 +440,10 @@ int main(int argc, char **argv) {
 		options.source.tls_context = client_tls;
 		options.source.configured = cursor();
 		options.source.compression = false;
+#ifdef DETENT_TEST_RELAY_HTTP
+		if (relay_network)
+			options.source.timeout = std::chrono::seconds(240);
+#endif
 		if (count)
 			options.source.namespaces = {"app"};
 		auto mapping = std::make_shared<d::StorageLedger>(512ull * 1024 * 1024);
@@ -443,7 +455,13 @@ int main(int argc, char **argv) {
 			options.publication_sink = recording;
 		}
 		auto cache_account = std::make_shared<d::StorageLedger>(root, 64 * 1024 * 1024);
-		auto control_account = std::make_shared<d::StorageLedger>(root, 16 * 1024 * 1024);
+		auto control_account = std::make_shared<d::StorageLedger>(root,
+#ifdef DETENT_TEST_RELAY_HTTP
+																  (relay_network ? 64 : 16) * 1024 * 1024
+#else
+																  16 * 1024 * 1024
+#endif
+		);
 		std::optional<d::RetirementDomain> cache_domain;
 		std::shared_ptr<detent::relay::Bundle> relay_bundle;
 		d::StorageLedger::Ticket cache_pressure;
@@ -587,6 +605,23 @@ int main(int argc, char **argv) {
 										}
 									}
 #ifdef DETENT_TEST_RELAY_HTTP
+									if (valid && relay_network) {
+										auto offer = relay_bundle->offer({}, true);
+										asio::co_spawn(
+											io,
+											relay_network_fixture::qualify(
+												relay_bundle, std::move(offer.update), control_account,
+												server_tls, client_tls, worker, count,
+												network_failures ? relay_network_fixture::FailurePoint::Suite
+																 : relay_network_fixture::FailurePoint::None),
+											[&recovered](std::exception_ptr error) {
+												if (error)
+													recovered.set_exception(error);
+												else
+													recovered.set_value(true);
+											});
+										return;
+									}
 									if (valid && relay_http) {
 										auto offer = relay_bundle->offer({}, true);
 										relay_service_fixture::qualify(relay_bundle, std::move(offer.update),
@@ -647,6 +682,7 @@ int main(int argc, char **argv) {
 				}
 			} catch (...) {
 				server_failure = std::current_exception();
+				asio::post(io, [&] { coordinator->close(); });
 			}
 		});
 		if (cancel_open)
@@ -657,10 +693,17 @@ int main(int argc, char **argv) {
 											subscription ? &feedback_received : nullptr, cancel_open),
 								   asio::use_future);
 		io.run();
-		done.get();
+		std::exception_ptr run_failure;
+		try {
+			done.get();
+		} catch (...) {
+			run_failure = std::current_exception();
+		}
 		server.join();
 		if (server_failure)
 			std::rethrow_exception(server_failure);
+		if (run_failure)
+			std::rethrow_exception(run_failure);
 		auto final_cursor = cursor();
 		if (pressure)
 			final_cursor.revision = 3;
@@ -737,11 +780,13 @@ int main(int argc, char **argv) {
 			cache_domain->close().wait();
 			cache_domain.reset();
 		}
-		check(cache_account->used() == 0);
+
 		driver.reset();
 		queue.reset();
 		store.reset();
 		domain.close().wait();
+		runtime.shutdown();
+		check(cache_account->used() == 0);
 		if (!cancel_open) {
 			auto recovered = l::recover_generation(directory);
 			check(recovered.descriptor().cursor == final_cursor);

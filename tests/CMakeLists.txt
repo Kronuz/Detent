@@ -10,7 +10,7 @@ endif()
 
 add_subdirectory(detent_authority)
 add_subdirectory(detent_distribution)
-if(DETENT_BUILD_MANAGED_AGENT)
+if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   add_subdirectory(detent_delivery)
 endif()
 add_subdirectory(detent_local)

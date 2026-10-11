@@ -54,13 +54,17 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 	object.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
 																						 bytes.size());
 	require(!object.HasParseError(), "invalid relay configuration JSON");
-	fields(object, {"address", "port", "certificate", "private_key", "ca", "bundles", "credentials",
-					"control_bytes", "baseline_bytes", "heap_bytes"});
+	fields(object, {"address", "port", "hostname", "certificate", "private_key", "ca", "bundles",
+					"credentials", "control_bytes", "baseline_bytes", "heap_bytes"});
 	HostOptions result;
 	const auto base = std::filesystem::absolute(configuration).parent_path();
 	if (object.HasMember("address"))
 		result.endpoint.address(asio::ip::make_address(text(object["address"], 253)));
 	result.endpoint.port(number(object, "port", 8318, 1, 65535));
+	if (object.HasMember("hostname"))
+		result.hostname = text(object["hostname"], 253);
+	require(result.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay TLS hostname");
+	result.certificate_authority = path(field(object, "ca"), base).string();
 	result.control_bytes =
 		number(object, "control_bytes", result.control_bytes, 16 * 1024 * 1024, 1ull << 30);
 	result.baseline_bytes = number(object, "baseline_bytes", result.baseline_bytes, 1024 * 1024, 1ull << 30);
@@ -87,6 +91,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 					bundle.source.coordinator.delivery_mode == delivery::DeliveryMode::Subscription,
 				"relay sources require subscription delivery");
 		bundle.source.coordinator.delivery_mode = delivery::DeliveryMode::Subscription;
+		bundle.source.disk.artifact_mode = 0600;
 		bundle.cache_bytes = number(value, "cache_bytes", bundle.cache_bytes, 1024 * 1024, 1ull << 30);
 		bundle.retained_edges = number(value, "retained_edges", bundle.retained_edges, 1, 256);
 		for (const auto &prior : result.bundles)
