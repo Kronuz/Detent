@@ -46,4 +46,17 @@ class PagedImage {
 	distribution::StorageOwner<Impl> impl_;
 	friend class PagedSnapshotBuilder;
 };
+// Construction buffers leave owner executors through the cleanup runtime.
+class PagedImageOwner final : public distribution::RetirementNode {
+  public:
+	explicit PagedImageOwner(PagedImage &&);
+	const PagedImage &image() const noexcept { return image_; }
+
+  protected:
+	bool retire_step() noexcept override;
+
+  private:
+	PagedImage image_;
+	std::size_t capacity_remaining_ = 0;
+};
 } // namespace detent::local::detail

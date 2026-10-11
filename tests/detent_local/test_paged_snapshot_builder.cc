@@ -131,6 +131,35 @@ int main() {
 	}
 	require(account->used() == baseline);
 	{
+		auto controls = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
+		d::RetirementRuntime runtime{controls, 1};
+		auto domain = runtime.domain(account, 1);
+		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+		build(builder, 8192);
+		auto image = builder.take();
+		auto owner = domain.make<l::detail::PagedImageOwner>(std::move(image));
+		require(owner->image().root().records == 2);
+		rejects<d::StoragePressure>([&] {
+			l::detail::PagedSnapshotBuilder second(source, storage, generation);
+			build(second, 8192);
+			auto pending = second.take();
+			try {
+				auto rejected = domain.make<l::detail::PagedImageOwner>(std::move(pending));
+			} catch (...) {
+				require(pending.root().records == 2);
+				throw;
+			}
+		});
+		auto pinned = owner;
+		owner.reset();
+		auto drain = domain.close();
+		require(!drain.done() && pinned->image().root().records == 2);
+		pinned.reset();
+		drain.wait();
+	}
+	require(account->used() == baseline);
+
+	{
 		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
 		l::ValidationBudget work{8192, 1};
 		builder.step(work);

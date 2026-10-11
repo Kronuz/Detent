@@ -126,3 +126,9 @@ A single sequential paired run on Intel macOS uses the same synthetic corpus for
 At 500k records, v1 construction and validation take 347 ms and 96 ms; paged construction and cold graph validation take 2,804 ms and 3,030 ms. Paged charged peak capacity is 175,856,263 bytes, including the retained decoded source; process peak RSS is 218,849,280 bytes. These exploratory timings do not establish a read-speed improvement. Sparse mutation and progress savings remain unmeasured, and the complete-component gates must account for this full-state overhead.
 
 Reproduce with `detent_local_image_bench 100000` and `detent_paged_snapshot_bench 100000`, then repeat at `500000`. Both use `benchmarks/local_corpus.hh`; raw results are in `benchmarks/paged-snapshot-measurements.json`. This measures in-memory construction, validation and lookup, without filesystem IO, mapping counts or fleet traffic.
+
+### Construction-output retirement
+
+`PagedImage` remains move-only worker-side construction output. Before transferring it to an owner executor, consume it into a `PagedImageOwner` admitted by the existing retirement domain. Its final handle release queues cleanup without destroying segment buffers on the caller. The cleanup worker accounts retained backing capacity in 8 KiB steps, then releases at most 16 segment rows per pass. Charges remain retained until actual buffer destruction; an initialized short prefix does not refund its unused allocation.
+
+Retirement admission precedes consumption, so a saturated domain leaves construction output available for explicit worker-side disposal. Copied handles pin the immutable image across domain closure. This construction owner does not establish durable segment ownership, reuse authority or mapping retirement; those remain separate production integration boundaries.

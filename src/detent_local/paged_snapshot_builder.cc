@@ -74,6 +74,20 @@ bool PagedImage::discard(ValidationBudget &budget) {
 	impl_.reset();
 	return true;
 }
+PagedImageOwner::PagedImageOwner(PagedImage &&image) : image_(std::move(image)) {
+	capacity_remaining_ = image_.bytes()->storage_capacity();
+	for (const auto &segment : image_.segments())
+		capacity_remaining_ += segment.bytes->storage_capacity();
+}
+bool PagedImageOwner::retire_step() noexcept {
+	// Account backing capacity before releasing buffers in bounded row batches.
+	if (capacity_remaining_) {
+		capacity_remaining_ -= std::min<std::size_t>(capacity_remaining_, 8192);
+		return false;
+	}
+	ValidationBudget budget{0, 16};
+	return image_.discard(budget);
+}
 struct PagedSnapshotBuilder::Impl {
 	enum class Phase {
 		Cursor,
