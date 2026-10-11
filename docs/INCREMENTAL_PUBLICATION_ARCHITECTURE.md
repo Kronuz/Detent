@@ -43,6 +43,8 @@ Add a plan overload to DiskStore publication while retaining ImageBuilder caller
 
 Reserve peak coexistence of new segments, ownership records and root selection before creation. Durable ownership precedes large payload writes. Synchronize every dependency before root selection and its directory barrier. Cancellation after possible selection requires authentic reconciliation before visibility or upstream feedback.
 
+The checked 128-byte `DTSGOWN1` segment ownership record binds storage identity, segment identity, complete segment length and checksum, with its own integrity checksum. It identifies paged format 2 and rejects generation lease records, unsupported fields and extents outside 80 bytes to 1 MiB. Format bounds are independent of runtime quotas, so census can retain complete over-quota debt. Independent byte vectors and corruption checks qualify the codec; publication and reclamation still need to enforce its durable lifecycle and reachability rules.
+
 ## Recovery and readers
 
 Give the private ReadView root a format-specific implementation, preserving public lookup/evaluation behavior and dependencies. Cold recovery validates the complete reachable graph. Warm recovery validates new pages and reuses previously validated immutable subtree capabilities bound to exact storage, directory and file identities plus checksums. Neither a descriptor nor a cursor alone authorizes reuse.

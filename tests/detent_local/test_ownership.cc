@@ -62,6 +62,39 @@ int main() {
 			  l::encode_storage_identity(identity) == storage);
 		check(l::decode_generation_ownership(lease) == ownership &&
 			  l::encode_generation_ownership(ownership) == lease);
+		const auto segment_bytes =
+			unhex<128>("445453474f574e3100000001000000800102030405060708090a0b0c0d0e0f10"
+					   "1112131415161718191a1b1c1d1e1f2000000000000010000000000200000000"
+					   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+					   "e1d52b12ea9819ad7cf59c397985892dabab6c74782d86284130d005f59e2d93");
+		l::SegmentOwnership segment{ownership.storage, ownership.generation, 4096, ownership.image_checksum};
+		check(l::decode_segment_ownership(segment_bytes) == segment &&
+			  l::encode_segment_ownership(segment) == segment_bytes);
+		rejected([&] { l::decode_generation_ownership(segment_bytes); });
+		rejected([&] { l::decode_segment_ownership(lease); });
+		for (std::size_t at = 0; at < segment_bytes.size(); ++at) {
+			auto broken = segment_bytes;
+			broken[at] ^= 1;
+			rejected([&] { l::decode_segment_ownership(broken); });
+		}
+		for (std::size_t length = 0; length < segment_bytes.size(); ++length)
+			rejected([&] { l::decode_segment_ownership(std::span(segment_bytes).first(length)); });
+		for (auto offset : {0u, 8u, 12u, 56u, 60u}) {
+			auto broken = segment_bytes;
+			broken[offset] ^= 1;
+			reseal(broken);
+			rejected([&] { l::decode_segment_ownership(broken); });
+		}
+		for (auto length : {0u, 79u, 1048577u}) {
+			auto broken = segment_bytes;
+			l::write_integer(broken, 48, length, 8);
+			reseal(broken);
+			rejected([&] { l::decode_segment_ownership(broken); });
+			segment.length = length;
+			rejected([&] { l::encode_segment_ownership(segment); });
+		}
+		segment.length = 1048576;
+		check(l::decode_segment_ownership(l::encode_segment_ownership(segment)) == segment);
 		for (std::size_t at = 0; at < storage.size(); ++at) {
 			auto broken = storage;
 			broken[at] ^= 1;

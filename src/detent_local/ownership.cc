@@ -1,5 +1,6 @@
 #include "detent_local/ownership.hh"
 #include "detent_local/layout.hh"
+#include "detent_local/paged_layout.hh"
 #include <algorithm>
 #include <cstring>
 #include <sha256.h>
@@ -80,6 +81,34 @@ GenerationOwnership decode_generation_ownership(std::span<const char> bytes) {
 	std::copy_n(bytes.begin() + 64, 32, ownership.image_checksum.begin());
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
 			ownership.image_length >= header_bytes);
+	return ownership;
+}
+std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {
+	require(nonzero(ownership.storage) && nonzero(ownership.segment) &&
+			ownership.length >= paged::page_header_bytes && ownership.length <= paged::segment_bytes);
+	std::array<char, segment_ownership_bytes> bytes{};
+	constexpr std::string_view magic = "DTSGOWN1";
+	std::copy(magic.begin(), magic.end(), bytes.begin());
+	write_integer(bytes, 8, 1, 4);
+	write_integer(bytes, 12, bytes.size(), 4);
+	std::copy(ownership.storage.begin(), ownership.storage.end(), bytes.begin() + 16);
+	std::copy(ownership.segment.begin(), ownership.segment.end(), bytes.begin() + 32);
+	write_integer(bytes, 48, ownership.length, 8);
+	write_integer(bytes, 56, 2, 4);
+	std::copy(ownership.checksum.begin(), ownership.checksum.end(), bytes.begin() + 64);
+	seal(bytes, 96);
+	return bytes;
+}
+SegmentOwnership decode_segment_ownership(std::span<const char> bytes) {
+	validate(bytes, "DTSGOWN1", segment_ownership_bytes);
+	require(read_integer(bytes, 56, 4) == 2 && !read_integer(bytes, 60, 4));
+	SegmentOwnership ownership;
+	std::copy_n(bytes.begin() + 16, 16, ownership.storage.begin());
+	std::copy_n(bytes.begin() + 32, 16, ownership.segment.begin());
+	ownership.length = read_integer(bytes, 48, 8);
+	std::copy_n(bytes.begin() + 64, 32, ownership.checksum.begin());
+	require(nonzero(ownership.storage) && nonzero(ownership.segment) &&
+			ownership.length >= paged::page_header_bytes && ownership.length <= paged::segment_bytes);
 	return ownership;
 }
 } // namespace detent::local
