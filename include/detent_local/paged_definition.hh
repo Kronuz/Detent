@@ -16,6 +16,8 @@ struct Override {
 	bool percentage = false;
 	std::uint8_t value = 0;
 };
+void encode_definition_header(std::span<char>, const Definition &, std::uint32_t maximum_overrides = 256);
+void encode_override(std::span<char>, const Override &);
 std::size_t definition_size(const KnobDef &, std::uint32_t maximum_overrides = 256);
 void encode_definition(std::span<char>, const KnobDef &, std::uint64_t revision,
 					   std::uint32_t maximum_overrides = 256);

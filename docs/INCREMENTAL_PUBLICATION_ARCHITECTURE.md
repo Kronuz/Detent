@@ -31,6 +31,8 @@ The initial codec implementation checks versioned root/page framing, aligned seg
 
 Definition payloads use a 24-byte header containing revision, type, default, optional rollout and override count. Each override carries a two-byte key length, one-byte type, one-byte value and its exact UTF-8 key bytes; embedded NUL is valid. Validation rejects noncanonical ordering, invalid percentages, nonzero reserved fields, trailing bytes and revisions exceeding the namespace watermark. Codecs use caller-owned storage. At the current limit of 256 overrides with 128-byte keys, the largest body is 33,816 bytes and fits a 64 KiB leaf including its header and key suffix. Overflow pages remain reserved and unsupported by the semantic format; enabling larger definitions requires explicit format/capability review rather than silently changing logical commitments.
 
+The encoder exposes separate checked header and override writers for borrowed validated rows. Production builders can emit canonical bytes without constructing a legacy snapshot or owning override map; the `KnobDef` fixture/convenience overload delegates to the same writers.
+
 ## Builder and publication plan
 
 Accept existing validated snapshots/deltas and an exact recovered base. Normalize repeated mutations with established transaction-order rules; replace affected leaves and index paths while retaining unchanged immutable subtrees. A move-only sealed plan owns new segment bytes, root descriptor, logical commitment, exact base descriptor/directory binding and validated reuse capabilities.

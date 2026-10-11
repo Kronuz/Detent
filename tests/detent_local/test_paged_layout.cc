@@ -28,6 +28,13 @@ int main() {
 	p::encode_definition(payload, definition, 42);
 	auto decoded = p::validate_definition(payload, 42);
 	require(decoded.boolean && decoded.default_bool && decoded.rollout == 17 && decoded.overrides == 2);
+	std::vector<char> streamed(payload.size());
+	p::encode_definition_header(std::span<char>(streamed).first(p::definition_header_bytes), decoded);
+	p::encode_override(std::span<char>(streamed).subspan(24, 7), {std::string_view("a\0b", 3), false, 0});
+	p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", true, 100});
+	require(streamed == payload);
+	rejects([&] { p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", false, 2}); });
+	rejects([&] { p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", true, 101}); });
 	std::size_t at = p::definition_header_bytes;
 	require(p::read_override(payload, at).key == std::string_view("a\0b", 3));
 	const auto override = p::read_override(payload, at);

@@ -34,30 +34,55 @@ std::size_t definition_size(const KnobDef &definition, std::uint32_t maximum_ove
 	}
 	return size;
 }
+void encode_definition_header(std::span<char> bytes, const Definition &definition,
+							  std::uint32_t maximum_overrides) {
+	require(bytes.size() == definition_header_bytes && definition.revision &&
+			definition.overrides <= maximum_overrides &&
+			(!definition.rollout || *definition.rollout <= 100) &&
+			(definition.boolean || (!definition.overrides && !definition.rollout)));
+	std::fill(bytes.begin(), bytes.end(), 0);
+	write_integer(bytes, 0, definition.revision, 8);
+	if (!definition.boolean) {
+		bytes[8] = 2;
+		write_integer(bytes, 16, std::bit_cast<std::uint64_t>(definition.default_int), 8);
+		return;
+	}
+	bytes[8] = 1;
+	bytes[9] = definition.default_bool;
+	bytes[10] = static_cast<char>(definition.rollout ? *definition.rollout : 255);
+	write_integer(bytes, 12, definition.overrides, 4);
+}
+void encode_override(std::span<char> bytes, const Override &value) {
+	require(is_valid_group_key(value.key) && valid_utf8(value.key, false) &&
+			bytes.size() == 4 + value.key.size() && value.value <= (value.percentage ? 100 : 1));
+	write_integer(bytes, 0, value.key.size(), 2);
+	bytes[2] = value.percentage;
+	bytes[3] = static_cast<char>(value.value);
+	std::copy(value.key.begin(), value.key.end(), bytes.begin() + 4);
+}
 void encode_definition(std::span<char> bytes, const KnobDef &definition, std::uint64_t revision,
 					   std::uint32_t maximum_overrides) {
-	require(revision && bytes.size() == definition_size(definition, maximum_overrides));
-	std::fill(bytes.begin(), bytes.end(), 0);
-	write_integer(bytes, 0, revision, 8);
+	require(bytes.size() == definition_size(definition, maximum_overrides));
+	Definition header;
+	header.revision = revision;
 	if (const auto *value = std::get_if<IntDef>(&definition)) {
-		bytes[8] = 2;
-		write_integer(bytes, 16, std::bit_cast<std::uint64_t>(value->default_value), 8);
+		header.default_int = value->default_value;
+		encode_definition_header(bytes, header, maximum_overrides);
 		return;
 	}
 	const auto &value = std::get<BoolDef>(definition);
-	bytes[8] = 1;
-	bytes[9] = value.default_value;
-	bytes[10] = static_cast<char>(value.rollout_pct ? *value.rollout_pct : 255);
-	write_integer(bytes, 12, value.overrides.size(), 4);
+	header.boolean = true;
+	header.default_bool = value.default_value;
+	header.rollout = value.rollout_pct;
+	header.overrides = value.overrides.size();
+	encode_definition_header(bytes.first(definition_header_bytes), header, maximum_overrides);
 	std::size_t offset = definition_header_bytes;
 	for (const auto &[key, override] : value.overrides) {
-		write_integer(bytes, offset, key.size(), 2);
-		if (const auto *rollout = std::get_if<GroupRollout>(&override)) {
-			bytes[offset + 2] = 1;
-			bytes[offset + 3] = rollout->rollout_pct;
-		} else
-			bytes[offset + 3] = std::get<bool>(override);
-		std::copy(key.begin(), key.end(), bytes.begin() + offset + 4);
+		const auto *rollout = std::get_if<GroupRollout>(&override);
+		encode_override(
+			bytes.subspan(offset, 4 + key.size()),
+			{key, rollout != nullptr,
+			 rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(override))});
 		offset += 4 + key.size();
 	}
 }
