@@ -128,7 +128,7 @@ The private authority configuration accepts an optional `subscription_limits` ob
 
 Counts and byte bounds must be positive. `wait_ms` may be zero. Maximum lifetime must cover idle lifetime. Actual storage admission also depends on the delivery ledger; raising logical limits does not reserve unlimited memory.
 
-The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, `poll_interval_ms` sets retry backoff and the server negotiates long-poll duration.
+The private managed agent configuration accepts `delivery_mode` as `"poll"` (default) or `"subscription"`. In subscription mode, the server negotiates long-poll duration. Failed exchanges use exponential reconnect backoff with equal jitter, starting at `poll_interval_ms` and capped by `reconnect_maximum_ms` (default 30,000, or the poll interval when larger). The cap must cover the poll interval and cannot exceed 86,400,000 ms. Each coordinator seeds its schedule independently; authenticated idle responses and durable publication reset backoff. Successful long polls and disk completion waits are unchanged.
 
 ---
 

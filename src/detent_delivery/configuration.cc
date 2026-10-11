@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <fcntl.h>
+#include <openssl/rand.h>
 #include <rapidjson/document.h>
 #include <set>
 #include <sys/stat.h>
@@ -111,6 +112,7 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"disk_entries",
 					"disk_generations",
 					"poll_interval_ms",
+					"reconnect_maximum_ms",
 					"delivery_mode",
 					"timeout_ms",
 					"compression",
@@ -159,8 +161,15 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	detent::transport::configure_tls(*source.tls_context, {"", "", ca.string()},
 									 detent::transport::TlsRole::PublisherClient);
 	source.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 60000, 1, 86400000));
-	result.coordinator.poll_interval =
-		std::chrono::milliseconds(number(object, "poll_interval_ms", 200, 1, 86400000));
+	result.coordinator.poll_interval = std::chrono::milliseconds(
+		number(object, "poll_interval_ms", 200, 1, 86400000));
+	result.coordinator.reconnect_maximum = std::chrono::milliseconds(
+		number(object, "reconnect_maximum_ms",
+			   std::max<std::int64_t>(30000, result.coordinator.poll_interval.count()),
+			   result.coordinator.poll_interval.count(), 86400000));
+	require(RAND_bytes(reinterpret_cast<unsigned char *>(&result.coordinator.reconnect_seed),
+					   sizeof(result.coordinator.reconnect_seed)) == 1,
+			"managed reconnect entropy unavailable");
 	if (object.HasMember("compression")) {
 		require(object["compression"].IsBool(), "managed compression requires a boolean");
 		source.compression = object["compression"].GetBool();

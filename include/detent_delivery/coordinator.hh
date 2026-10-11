@@ -22,6 +22,8 @@ struct CoordinatorOptions {
 	std::chrono::milliseconds poll_interval{200};
 	std::shared_ptr<PublicationSink> publication_sink;
 	std::optional<CompletionPort> completion_port;
+	std::chrono::milliseconds reconnect_maximum{0};
+	std::uint64_t reconnect_seed = 0;
 };
 enum class CoordinatorPhase {
 	Starting,

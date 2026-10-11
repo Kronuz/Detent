@@ -1,5 +1,6 @@
 #include "detent_delivery/coordinator.hh"
 #include "coordinator_internal.hh"
+#include "detent_delivery/reconnect_backoff.hh"
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <openssl/rand.h>
@@ -294,6 +295,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 	SessionHandle session;
 	std::optional<PublicationFeedback> feedback;
 	bool force_snapshot = false;
+	ReconnectBackoff reconnect(options.poll_interval, options.reconnect_maximum, options.reconnect_seed);
 	std::exception_ptr fatal;
 	try {
 		while (!closing && store->status() == l::StoreStatus::Starting)
@@ -347,6 +349,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						update.emplace(std::move(offer->update));
 					} else if (std::holds_alternative<SessionIdle>(event)) {
 						idle = true;
+						reconnect.reset();
 					} else {
 						const auto reason = std::get<SessionReset>(event).reason;
 						if (reason == SessionResetReason::Forbidden ||
@@ -365,7 +368,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							feedback.reset();
 						}
 						if (!idle || wait == std::chrono::milliseconds::zero())
-							co_await pause(options.poll_interval);
+							co_await pause(idle ? options.poll_interval : reconnect.next());
 						continue;
 					}
 				} else {
@@ -493,6 +496,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
 					base->generation->descriptor() == actual.descriptor && !failure && !cancelled()) {
 					feedback = offered;
+					reconnect.reset();
 					if (offered_snapshot)
 						force_snapshot = false;
 				} else {
@@ -502,7 +506,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				}
 			}
 			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid()))
-				co_await pause(options.poll_interval);
+				co_await pause(options.delivery_mode == DeliveryMode::Poll ? options.poll_interval
+																		   : reconnect.next());
 		}
 	} catch (...) {
 		fatal = std::current_exception();
@@ -525,6 +530,10 @@ Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStor
 						 asio::thread_pool &worker) {
 	if (!driver || options.directory.empty() || options.poll_interval <= std::chrono::milliseconds::zero() ||
 		options.poll_interval > std::chrono::hours(24) ||
+		options.reconnect_maximum < std::chrono::milliseconds::zero() ||
+		options.reconnect_maximum > std::chrono::hours(24) ||
+		(options.reconnect_maximum != std::chrono::milliseconds::zero() &&
+		 options.reconnect_maximum < options.poll_interval) ||
 		(store && store->storage_account() != domain.storage_account()))
 		throw std::invalid_argument("invalid managed coordinator configuration");
 	options.source.base.reset();
