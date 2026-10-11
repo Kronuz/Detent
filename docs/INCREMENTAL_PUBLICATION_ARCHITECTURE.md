@@ -71,6 +71,10 @@ Charge changed-page buffers, indexes, validation capabilities, mapping controls 
 
 Ordinary sparse publication avoids both full-image rewriting and a full warm semantic scan. Record new/reused pages, written bytes, validation work, mappings, named disk debt, compaction work and pinned debt. Total measurements include background reclamation.
 
+The Architect's format review confirms that 64 KiB is a node ceiling, not an allocation per leaf. Sparse work follows affected paths and node bytes, bounded by key length. Rebase and rehash relative prefixes during splits and unary collapse; a reused validation capability also binds its reconstructed key context. Profile-1 export uses an admitted lexical cursor or verified subtree rank counts, preserving reconstructed-key scratch across encoder steps rather than repeatedly scanning preceding records.
+
+Reachable page extents and physical segment lengths have separate accounting. Mapping and disk ceilings charge each distinct segment's complete file length, including alignment gaps, unused cells and tail slack. Verify these totals against opened immutable segments before admission; removing a cell from a protected segment refunds no physical bytes.
+
 ## Complete-component acceptance
 
 1. Compare v1/v2 complete key sets, revisions, rollout behavior, repeated mutations, deletion/reinsertion, progress, empty scopes and default fallback. Logical commitments agree across snapshot builds, different update histories and compaction.
