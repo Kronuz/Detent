@@ -83,6 +83,17 @@ The Architect's format review confirms that 64 KiB is a node ceiling, not an all
 
 Reachable page extents and physical segment lengths have separate accounting. Mapping and disk ceilings charge each distinct segment's complete file length, including alignment gaps, unused cells and tail slack. Verify these totals against opened immutable segments before admission; removing a cell from a protected segment refunds no physical bytes.
 
+## Concrete integration seams
+
+1. Retain the 176-byte selected descriptor and use the generation `.image` for the 320-byte root. Prepare segment dependencies serially with `CloseAfterSeal`; preserve the existing final selected replacement and directory barrier. A Detent-owned composite retains the complete sealed plan through authentic settlement; one `PreparedImage` proves one artifact, not a dependency graph.
+2. Keep root leases separate from segment mappings. A sorted admitted registry holds at most 4,096 segment identities, saved file identities/full lengths, mapping handles and live-cell/extent totals. Close segment descriptors after mapping and verification on the worker. Registry and mapping owners never retain ancestor read roots.
+3. Share the registry for progress. Copy registry metadata under worker budgets for actual changes, making that cost explicit: `O(S + M*K)` metadata for `S` segments, `M` changed keys and bounded key length `K`. Record registry rows/bytes copied and total CPU; introduce COW registry blocks only if measurements justify them.
+4. Derive contextual reuse capabilities by bounded navigation of a sealed prior root. Retain temporary changed-path evidence instead of a permanent proof object for every page. Bind each reused reference to its reconstructed prefix and exact storage/directory/file identity; deduplicate replaced old paths before adjusting live-cell totals.
+5. Within one root, reject repeated physical cells, overlapping extents, cycles and conflicting identities/checksums for a segment. Sharing occurs across roots; intra-root DAG deduplication is unsupported. Validate complete cold graphs and preserve unprovable dependencies during reclamation.
+6. Add a budgeted paged builder and move-only sealed plan alongside `ImageBuilder`; keep existing constructors and publication calls working. Reuse mutation collection/order/collapse, then replace affected paths directly rather than scanning unchanged records through the flat merge path. Emit final changed nodes postorder into bounded packs.
+7. Give reader refresh, coordinator candidate comparison and relay bundle selection one verified semantic-equivalence check for equal complete cursors/profiles. Keep exact descriptors and directory identity for publication/feedback binding. Maintenance refreshes the physical head without clearing valid wire history or creating a new window edge.
+8. Dispatch generation ownership and root reclamation by actual layout version. Preserve v1 lease bytes; support v2 root ownership only together with matching recovery and collector logic. Keep unsupported formats rejected and v1 writers active until the complete v2 path qualifies.
+
 ## Complete-component acceptance
 
 1. Compare v1/v2 complete key sets, revisions, rollout behavior, repeated mutations, deletion/reinsertion, progress, empty scopes and default fallback. Logical commitments agree across snapshot builds, different update histories and compaction.
