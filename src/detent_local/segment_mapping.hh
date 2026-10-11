@@ -14,6 +14,7 @@ class SegmentMapping final : public distribution::RetirementNode {
 	SegmentMapping(std::shared_ptr<distribution::StorageLedger>, int fd, uid_t owner, SegmentOwnership);
 	std::span<const char> bytes() const noexcept { return {address_, ownership_.length}; }
 	const SegmentOwnership &ownership() const noexcept { return ownership_; }
+	const std::shared_ptr<distribution::StorageLedger> &storage_account() const noexcept { return account_; }
 	SegmentFileIdentity identity() const noexcept { return identity_; }
 
   protected:

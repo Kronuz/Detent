@@ -11,6 +11,7 @@ struct SegmentInput {
 struct PagedStateCounts {
 	std::uint32_t bools = 0, ints = 0;
 	std::uint64_t overrides = 0, strings = 0;
+	std::uint32_t maximum_overrides = 0;
 };
 struct PagedSemanticLimits {
 	std::uint64_t strings = 128ull * 1024 * 1024;

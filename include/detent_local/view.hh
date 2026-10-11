@@ -10,6 +10,7 @@ namespace detent::local {
 namespace detail {
 class PinnedImageSource;
 class GraphValidator;
+class PagedProgressView;
 } // namespace detail
 struct ValidationBudget {
 	std::size_t bytes = 8192, rows = 16;
@@ -51,6 +52,7 @@ class ReadView {
 	friend class ImageValidator;
 	friend class detail::PinnedImageSource;
 	friend class detail::GraphValidator;
+	friend class detail::PagedProgressView;
 };
 // The supplied lease retains the immutable byte region through all views.
 // GenerationReader will supply a mapped image and its acquired kernel lease.

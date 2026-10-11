@@ -14,6 +14,9 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	const distribution::RetirementHandle<SegmentMapping> &mapping(std::size_t index) const;
 	SegmentReachability reachability(std::size_t index) const;
 	const paged::Root &validated_root() const;
+	bool uses_account(const std::shared_ptr<distribution::StorageLedger> &account) const noexcept {
+		return account && inputs_.get_allocator() == distribution::StorageAllocator<SegmentInput>(account);
+	}
 	std::uint64_t physical_bytes() const noexcept { return physical_bytes_; }
 
   protected:

@@ -19,7 +19,7 @@ bool GenerationReader::refresh() {
 		if (descriptor_ && *descriptor_ == selection.descriptor)
 			return false;
 	}
-	auto recovered = recover_generation(directory_, limits_);
+	auto recovered = recover_generation(directory_, limits_, {}, recovered_ ? &*recovered_ : nullptr);
 	const auto &next = recovered.descriptor();
 	if (identity_ && !identity_->same_identity(next.cursor))
 		throw std::invalid_argument("local generation has an unexpected authority identity");
@@ -44,6 +44,10 @@ bool GenerationReader::refresh() {
 		descriptor_ = next;
 		directory_identity_ = recovered.directory_identity();
 	}
+	if (recovered.paged_)
+		recovered_.emplace(std::move(recovered));
+	else
+		recovered_.reset();
 	// Root retirement never occurs while holding the SDK acquisition lock.
 	return true;
 }

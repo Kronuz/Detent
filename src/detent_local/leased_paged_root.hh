@@ -1,5 +1,6 @@
 #pragma once
 #include "detent_local/generation.hh"
+#include "paged_state_equivalence.hh"
 #include "segment_registry.hh"
 namespace detent::local::detail {
 // Recovery alone seals this capability after checking actual named dependencies.
@@ -63,6 +64,16 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 		counts_ = counts;
 		sealed_ = true;
 	}
+	void seal_progress(const LeasedPagedRoot &base) {
+		const auto old = base.root();
+		if (sealed_ || !directory_ || !lease_ || registry_.get() != base.registry_.get() ||
+			identity_ != base.identity_ || storage_ != base.storage_ || !reuses_paged_state(old, root_) ||
+			descriptor_.cursor != root_.cursor || descriptor_.profile != root_.profile)
+			throw std::invalid_argument("invalid leased paged progress root");
+		counts_ = base.counts();
+		sealed_ = true;
+	}
+
 	std::shared_ptr<const void> directory_, lease_;
 	distribution::RetirementHandle<SegmentRegistry> registry_;
 	Descriptor descriptor_;
@@ -73,5 +84,8 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	bool sealed_ = false;
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
 																 std::optional<distribution::Cursor>);
+	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
+																 std::optional<distribution::Cursor>,
+																 const RecoveredGeneration *);
 };
 } // namespace detent::local::detail

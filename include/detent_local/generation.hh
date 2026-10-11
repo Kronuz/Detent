@@ -54,11 +54,18 @@ class RecoveredGeneration {
 	friend class detail::PagedPlanBuilder;
 	friend class detail::PagedCursor;
 	friend class detail::PagedSnapshotSource;
+	friend class GenerationReader;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
+	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
+												  std::optional<distribution::Cursor>,
+												  const RecoveredGeneration *);
 };
 RecoveredGeneration recover_generation(const std::filesystem::path &directory, ViewLimits limits = {},
 									   std::optional<distribution::Cursor> expected = {});
+// A recovered prior root permits checked progress reuse; other heads recover cold.
+RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
+									   std::optional<distribution::Cursor>, const RecoveredGeneration *prior);
 // Called on startup or a refresh worker; never on the hot lookup path.
 // The directory must be trusted and owned by the publishing service account.
 // All ReadViews retain a shared kernel lease until their mapped bytes retire.

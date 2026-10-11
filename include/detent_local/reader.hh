@@ -24,5 +24,6 @@ class GenerationReader {
 	ReadView installed_;
 	std::optional<Descriptor> descriptor_;
 	std::optional<DirectoryIdentity> directory_identity_;
+	std::optional<RecoveredGeneration> recovered_;
 };
 } // namespace detent::local

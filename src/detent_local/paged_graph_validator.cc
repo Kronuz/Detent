@@ -62,7 +62,7 @@ struct GraphValidator::Impl {
 	SHA256 segment_hash;
 	std::size_t index = 0, offset = 0, bitmap_size = 0, depth = 0, key_size = 0, charge = 0;
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0;
-	std::uint32_t bools = 0, ints = 0;
+	std::uint32_t bools = 0, ints = 0, maximum_overrides = 0;
 	std::uint64_t overrides = 0;
 	SegmentRegistry *recorded_registry = nullptr;
 	std::size_t recorded_segments = 0;
@@ -144,6 +144,7 @@ struct GraphValidator::Impl {
 			strings += text;
 			definition.boolean ? ++bools : ++ints;
 			overrides += definition.overrides;
+			maximum_overrides = std::max(maximum_overrides, definition.overrides);
 			++records;
 		}
 		frame.keys = 1;
@@ -341,7 +342,7 @@ p::Root GraphValidator::root() const {
 PagedStateCounts GraphValidator::counts() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
-	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings};
+	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings, impl_->maximum_overrides};
 }
 SegmentReachability GraphValidator::segment_reachability(std::size_t index) const {
 	if (!done())
