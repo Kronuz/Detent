@@ -1,5 +1,5 @@
 #include "detent_local/paged_layout.hh"
-#include "segment_mapping.hh"
+#include "segment_registry.hh"
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
@@ -75,6 +75,21 @@ int main() {
 		auto invalid = domain.make<local::detail::SegmentMapping>(account, fd, ::getuid(), ownership);
 	});
 	pressure.reset();
+	local::paged::Limits registry_limits;
+	registry_limits.segments = 1;
+	auto registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, registry_limits);
+	rejects<std::logic_error>([&] { registry->inputs(); });
+	registry->append(mapping);
+	require(registry->physical_bytes() == ownership.length);
+	rejects<std::invalid_argument>([&] { registry->append(mapping); });
+	registry->seal();
+	require(registry->inputs().size() == 1 && registry->inputs()[0].bytes[0] == 'x');
+	rejects<std::logic_error>([&] { registry->append(mapping); });
+	auto too_small = registry_limits;
+	too_small.bytes = ownership.length - 1;
+	auto short_registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, too_small);
+	rejects<std::invalid_argument>([&] { short_registry->append(mapping); });
+	short_registry.reset();
 	auto pinned = mapping;
 	mapping.reset();
 	require(::close(fd) == 0);
@@ -83,6 +98,8 @@ int main() {
 	auto drain = domain.close();
 	require(!drain.done());
 	pinned.reset();
+	require(registry->inputs()[0].bytes[0] == 'x');
+	registry.reset();
 	drain.wait();
 	// Closed domain bookkeeping remains admitted until its own destruction.
 	require(account->used() == baseline);
