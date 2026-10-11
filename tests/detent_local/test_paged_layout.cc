@@ -1,3 +1,4 @@
+#include "detent_local/paged_definition.hh"
 #include "detent_local/paged_layout.hh"
 #include <iostream>
 #include <stdexcept>
@@ -17,6 +18,45 @@ template <class F> static void rejects(F operation) {
 	throw std::runtime_error("accepted corrupt paged framing");
 }
 int main() {
+	detent::BoolDef boolean;
+	boolean.default_value = true;
+	boolean.rollout_pct = 17;
+	boolean.overrides.emplace(std::string("a\0b", 3), false);
+	boolean.overrides.emplace("z", detent::GroupRollout{100});
+	detent::KnobDef definition = boolean;
+	std::vector<char> payload(p::definition_size(definition));
+	p::encode_definition(payload, definition, 42);
+	auto decoded = p::validate_definition(payload, 42);
+	require(decoded.boolean && decoded.default_bool && decoded.rollout == 17 && decoded.overrides == 2);
+	std::size_t at = p::definition_header_bytes;
+	require(p::read_override(payload, at).key == std::string_view("a\0b", 3));
+	const auto override = p::read_override(payload, at);
+	require(override.percentage && override.value == 100 && at == payload.size());
+	rejects([&] { p::validate_definition(payload, 41); });
+	for (auto position : {8u, 9u, 10u, 11u, 12u, 16u, 24u, 26u, 27u}) {
+		auto corrupt = payload;
+		corrupt[position] = static_cast<char>(254);
+		rejects([&] { p::validate_definition(corrupt, 42); });
+	}
+	payload.push_back(0);
+	rejects([&] { p::validate_definition(payload, 42); });
+	definition = detent::IntDef{INT64_MIN};
+	payload.resize(p::definition_size(definition));
+	p::encode_definition(payload, definition, 1);
+	require(p::validate_definition(payload, 1).default_int == INT64_MIN);
+	boolean.overrides.clear();
+	for (unsigned i = 0; i < 256; ++i) {
+		std::string name(128, 'a');
+		name[0] = 'A' + i / 26;
+		name[1] = 'a' + i % 26;
+		boolean.overrides.emplace(std::move(name), detent::GroupRollout{100});
+	}
+	definition = boolean;
+	payload.resize(p::definition_size(definition));
+	p::encode_definition(payload, definition, 1);
+	require(payload.size() < p::page_bytes - p::page_header_bytes - 512 &&
+			p::validate_definition(payload, 1).overrides == 256);
+	rejects([&] { p::validate_definition(payload, 1, 255); });
 	std::array<char, 202> key{};
 	auto length = p::encode_definition_key(key, "ns:knob");
 	require(std::string_view(key.data(), length) == std::string_view("Kns\0knob\0", 9));
