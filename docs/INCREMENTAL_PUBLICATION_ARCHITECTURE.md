@@ -25,6 +25,10 @@ Add pure local codecs for immutable data/index pages, bounded segment packs and 
 
 References bind segment identity, extent and checksum. Before allocating or mapping, bound depth, ranges, counts, aggregate extents and arithmetic. A canonical logical commitment covers definitions, key revisions and namespace watermarks independently of physical packing or update history. Physical checksums bind exact artifacts. Same-cursor equality cannot depend on page placement or compaction history.
 
+The index uses a canonical compressed byte-radix trie. Watermark keys encode `W || namespace || NUL`; definition keys encode `K || namespace || NUL || local-name || NUL`. Names exclude NUL, and terminating both fields makes keys prefix-free. Branches have two to 256 children, ordered by unsigned byte labels; deletion collapses unary branches. A leaf suffix may be empty when its parent edge consumes the final terminator. Definition bodies length-frame opaque override keys, which may contain NUL.
+
+The initial codec implementation checks versioned root/page framing, aligned segment extents, quotas, reserved fields, physical SHA-256 and logical page commitments. Branch commitments include the prefix and ordered child labels/logical hashes; they exclude segment identifiers, offsets and physical hashes. Native and ASan/UBSan tests reject corrupt framing and content, duplicate or unordered child labels, and undersized key buffers. These checks do not yet establish graph validity, budgeted construction, durable publication, reader integration or reclamation; v1 remains the operational format while those parts are implemented.
+
 ## Builder and publication plan
 
 Accept existing validated snapshots/deltas and an exact recovered base. Normalize repeated mutations with established transaction-order rules; replace affected leaves and index paths while retaining unchanged immutable subtrees. A move-only sealed plan owns new segment bytes, root descriptor, logical commitment, exact base descriptor/directory binding and validated reuse capabilities.
