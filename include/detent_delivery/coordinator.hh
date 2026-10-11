@@ -1,5 +1,6 @@
 #pragma once
 #include "client.hh"
+#include "completion_scheduler.hh"
 #include "detent_local/disk_store.hh"
 #include "publication_sink.hh"
 #include <asio/thread_pool.hpp>
@@ -10,7 +11,6 @@ namespace detent::delivery {
 namespace detail {
 struct CoordinatorAccess;
 }
-using NativeDriver = kronuz::journal::AsioCompletionDriver<kronuz::io::completion::NativeQueue>;
 enum class DeliveryMode { Poll, Subscription };
 struct CoordinatorOptions {
 	ClientOptions source;
@@ -21,6 +21,7 @@ struct CoordinatorOptions {
 	std::optional<distribution::Cursor> reset_from;
 	std::chrono::milliseconds poll_interval{200};
 	std::shared_ptr<PublicationSink> publication_sink;
+	std::optional<CompletionPort> completion_port;
 };
 enum class CoordinatorPhase {
 	Starting,

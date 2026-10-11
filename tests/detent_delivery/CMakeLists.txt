@@ -74,3 +74,8 @@ if(TARGET detent::distribution_http)
   add_test(NAME test_distribution_session_request COMMAND test_distribution_session_request)
   set_tests_properties(test_distribution_session_request PROPERTIES TIMEOUT 30)
 endif()
+
+add_executable(test_completion_scheduler test_completion_scheduler.cc)
+target_link_libraries(test_completion_scheduler PRIVATE detent::delivery_coordinator)
+add_test(NAME test_completion_scheduler COMMAND test_completion_scheduler)
+set_tests_properties(test_completion_scheduler PROPERTIES TIMEOUT 30)

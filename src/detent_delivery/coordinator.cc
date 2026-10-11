@@ -45,7 +45,10 @@ struct Coordinator::Impl {
 	Impl(CoordinatorOptions config, std::shared_ptr<l::DiskStore> disk,
 		 std::shared_ptr<NativeDriver> completion, d::RetirementDomain &retirement, asio::thread_pool &pool)
 		: options(std::move(config)), store(std::move(disk)), driver(std::move(completion)),
-		  domain(retirement), worker(pool), base(domain.make<RecoveryResult>(options)) {}
+		  domain(retirement), worker(pool), base(domain.make<RecoveryResult>(options)) {
+		if (options.completion_port && !options.completion_port->uses(driver))
+			throw std::invalid_argument("coordinator completion port driver mismatch");
+	}
 	bool cancelled() const noexcept { return closing || candidate_cancellation != cancellation; }
 	void fence(std::exception_ptr failure) noexcept {
 		if (!terminal_fenced) {
@@ -209,7 +212,10 @@ struct Coordinator::Impl {
 			notify_candidate();
 			if (auto operation = store->operation()) {
 				try {
-					co_await driver->run_one(operation);
+					if (options.completion_port)
+						co_await options.completion_port->run_one(operation);
+					else
+						co_await driver->run_one(operation);
 				} catch (...) {
 					// A failed original driver cannot manufacture settlement.
 					// Follow the native authority driver's fail-stop policy.
