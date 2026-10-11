@@ -7,8 +7,7 @@ inline void put_cursor(std::string &out, d::Cursor c) {
 	m::string(out, {c.scope.data(), c.scope.size()}, true);
 	m::unsigned_integer(out, c.revision);
 }
-inline std::shared_ptr<const d::ValidatedDelta> delta(bool progress, unsigned transactions = 2,
-													  std::string_view scope = "app") {
+inline std::string delta_wire(bool progress, unsigned transactions = 2, std::string_view scope = "app") {
 	std::string out;
 	auto a = [&](unsigned n) { m::array(out, n); };
 	auto n = [&](std::uint64_t v) { m::unsigned_integer(out, v); };
@@ -60,14 +59,25 @@ inline std::shared_ptr<const d::ValidatedDelta> delta(bool progress, unsigned tr
 			a(0);
 		}
 	}
-	d::DeltaDecoder decoder(cursor(), {std::string(scope)}, {},
+	return out;
+}
+inline d::ValidatedDelta parse_delta(bool progress, unsigned transactions = 2, std::string_view scope = "app",
+									 std::shared_ptr<d::StorageLedger> account = {}) {
+	const auto out = delta_wire(progress, transactions, scope);
+	d::Limits limits;
+	limits.storage_account = std::move(account);
+	d::DeltaDecoder decoder(cursor(), {std::string(scope)}, limits,
 							progress ? d::UpdateKind::Progress : d::UpdateKind::Delta);
 	auto input = std::span<const char>(out.data(), out.size());
 	while (!input.empty()) {
 		d::WorkBudget budget{1, 1};
 		decoder.feed(input, budget);
 	}
-	return std::make_shared<const d::ValidatedDelta>(decoder.finish());
+	return decoder.finish();
+}
+inline std::shared_ptr<const d::ValidatedDelta> delta(bool progress, unsigned transactions = 2,
+													  std::string_view scope = "app") {
+	return std::make_shared<const d::ValidatedDelta>(parse_delta(progress, transactions, scope));
 }
 // Independent snapshot oracle: spell the expected final tuple stream directly.
 inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsigned tx) {

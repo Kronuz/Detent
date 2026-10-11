@@ -144,3 +144,8 @@ add_executable(test_local_paged_overlay_assembler test_paged_overlay_assembler.c
 target_include_directories(test_local_paged_overlay_assembler PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_overlay_assembler PRIVATE detent::local_builder)
 add_test(NAME test_local_paged_overlay_assembler COMMAND test_local_paged_overlay_assembler)
+
+add_executable(test_local_paged_delta_plan test_paged_delta_plan.cc)
+target_include_directories(test_local_paged_delta_plan PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_delta_plan PRIVATE detent::local_builder)
+add_test(NAME test_local_paged_delta_plan COMMAND test_local_paged_delta_plan)

@@ -7,7 +7,8 @@ namespace p = paged;
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
 							   const d::ValidatedDelta &source)
-	: base_(std::move(base)) {
+	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
+	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!base_ || source.kind() != d::UpdateKind::Progress || source.transactions().size() != 0 ||
 		source.base() != base_->descriptor().cursor || !source.target().same_identity(source.base()) ||
 		source.target().revision <= source.base().revision ||
@@ -21,6 +22,19 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	counts_ = base_->counts();
 	registry_ = base_->registry();
 	bytes_ = d::make_owned_buffer(account, p::root_bytes);
+}
+PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
+							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
+							   const d::ValidatedDelta &source, Forward)
+	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
+	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
+	if (!base_ || source.kind() != d::UpdateKind::Delta || source.base() != base_->descriptor().cursor ||
+		!source.target().same_identity(source.base()) || source.target().revision <= source.base().revision ||
+		source.profile() != base_->descriptor().profile || generation == base_->descriptor().generation)
+		throw std::invalid_argument("invalid exact-base paged delta");
+	registry_ = base_->registry();
+	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile()};
+	encode_descriptor(descriptor_);
 }
 const Descriptor &PagedPlanState::descriptor() const {
 	if (!sealed_)
@@ -53,9 +67,36 @@ PagedStateCounts PagedPlanState::counts() const {
 }
 std::shared_ptr<const d::OwnedBuffer> PagedPlanState::bytes() const {
 	descriptor();
-	return bytes_;
+	return image_ ? image_->bytes() : bytes_;
+}
+std::span<const BuiltSegment> PagedPlanState::segments() const {
+	descriptor();
+	return image_ ? image_->segments() : std::span<const BuiltSegment>{};
+}
+SegmentReachability PagedPlanState::base_reachability(std::size_t index) const {
+	descriptor();
+	return image_ ? base_live_.at(index) : registry_->reachability(index);
+}
+SegmentReachability PagedPlanState::new_reachability(std::size_t index) const {
+	descriptor();
+	return new_live_.at(index);
+}
+std::span<const std::uint32_t, 257> PagedPlanState::override_histogram() const {
+	descriptor();
+	return image_ ? std::span<const std::uint32_t, 257>(histogram_) : registry_->override_histogram();
 }
 bool PagedPlanState::retire_step() noexcept {
+	if (image_) {
+		if (image_capacity_) {
+			image_capacity_ -= std::min<std::size_t>(image_capacity_, 8192);
+			return false;
+		}
+		ValidationBudget budget{0, 16};
+		if (!image_->discard(budget))
+			return false;
+		image_.reset();
+		return false;
+	}
 	if (bytes_) {
 		bytes_.reset();
 		return false;

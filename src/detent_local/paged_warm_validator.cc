@@ -580,6 +580,10 @@ std::uint64_t WarmGraphValidator::hashed_segment_bytes() const {
 	root();
 	return impl_->hashed_bytes;
 }
+std::span<const std::int64_t, 257> WarmGraphValidator::override_histogram() const {
+	root();
+	return impl_->histogram;
+}
 bool WarmGraphValidator::record_reachability(SegmentRegistry &registry, ValidationBudget &budget) {
 	root();
 	auto &s = *impl_;
