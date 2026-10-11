@@ -14,6 +14,7 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	const distribution::RetirementHandle<SegmentMapping> &mapping(std::size_t index) const;
 	SegmentReachability reachability(std::size_t index) const;
 	const paged::Root &validated_root() const;
+	std::span<const std::uint32_t, 257> override_histogram() const;
 	bool uses_account(const std::shared_ptr<distribution::StorageLedger> &account) const noexcept {
 		return account && inputs_.get_allocator() == distribution::StorageAllocator<SegmentInput>(account);
 	}
@@ -28,6 +29,7 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	std::vector<SegmentInput, distribution::StorageAllocator<SegmentInput>> inputs_;
 	std::vector<SegmentReachability, distribution::StorageAllocator<SegmentReachability>> reachable_;
 	std::optional<paged::Root> validated_root_;
+	std::array<std::uint32_t, 257> override_histogram_{};
 	StorageIdentity storage_;
 	paged::Limits limits_;
 	std::uint64_t physical_bytes_ = 0;

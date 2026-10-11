@@ -127,12 +127,26 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 		require(reachable_pages == image.root().pages && reachable_bytes == image.root().bytes);
 		rejects<std::out_of_range>([&] { validator.segment_reachability(registry->inputs().size()); });
 		rejects<std::logic_error>([&] { registry->validated_root(); });
+		rejects<std::logic_error>([&] { registry->override_histogram(); });
 		for (;;) {
 			l::ValidationBudget proof{1, 1};
 			if (validator.record_reachability(*registry, proof))
 				break;
 		}
 		require(registry->validated_root().logical == image.root().logical);
+		std::uint64_t definitions = 0, overrides = 0;
+		std::uint32_t maximum = 0;
+		const auto histogram = registry->override_histogram();
+		for (std::uint32_t i = 0; i < histogram.size(); ++i) {
+			definitions += histogram[i];
+			overrides += std::uint64_t(i) * histogram[i];
+			if (histogram[i])
+				maximum = i;
+		}
+		require(definitions == image.root().records && overrides == validator.counts().overrides &&
+				maximum == validator.counts().maximum_overrides);
+		require(histogram[0] == (image.root().records == 2 ? 1 : image.root().records));
+		require(histogram[1] == (image.root().records == 2 ? 1 : 0));
 		for (std::size_t i = 0; i < registry->inputs().size(); ++i)
 			require(registry->reachability(i).pages == validator.segment_reachability(i).pages);
 		auto view = validator.take(domain);

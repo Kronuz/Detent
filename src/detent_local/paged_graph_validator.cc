@@ -64,8 +64,9 @@ struct GraphValidator::Impl {
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0;
 	std::uint32_t bools = 0, ints = 0, maximum_overrides = 0;
 	std::uint64_t overrides = 0;
+	std::array<std::uint32_t, 257> override_histogram{};
 	SegmentRegistry *recorded_registry = nullptr;
-	std::size_t recorded_segments = 0;
+	std::size_t recorded_segments = 0, recorded_histogram = 0;
 	Phase phase = Phase::Directory;
 	bool failed = false, started = false, definitions = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
@@ -145,6 +146,7 @@ struct GraphValidator::Impl {
 			definition.boolean ? ++bools : ++ints;
 			overrides += definition.overrides;
 			maximum_overrides = std::max(maximum_overrides, definition.overrides);
+			++override_histogram[definition.overrides];
 			++records;
 		}
 		frame.keys = 1;
@@ -370,6 +372,13 @@ bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBu
 			return false;
 		registry.reachable_[state.recorded_segments] = segment_reachability(state.recorded_segments);
 		++state.recorded_segments;
+	}
+	while (state.recorded_histogram < state.override_histogram.size()) {
+		if (!state.admit(sizeof(std::uint32_t), budget))
+			return false;
+		registry.override_histogram_[state.recorded_histogram] =
+			state.override_histogram[state.recorded_histogram];
+		++state.recorded_histogram;
 	}
 	if (!state.admit(p::root_bytes, budget))
 		return false;

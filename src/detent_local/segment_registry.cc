@@ -51,6 +51,10 @@ SegmentReachability SegmentRegistry::reachability(std::size_t index) const {
 		throw std::out_of_range("segment reachability index");
 	return reachable_[index];
 }
+std::span<const std::uint32_t, 257> SegmentRegistry::override_histogram() const {
+	validated_root();
+	return override_histogram_;
+}
 const paged::Root &SegmentRegistry::validated_root() const {
 	if (!validated_root_)
 		throw std::logic_error("segment graph is not validated");
