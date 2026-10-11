@@ -144,9 +144,12 @@ The managed agent accounts for its own memory, mappings and disk:
 | `disk_entries` | 4,096 entries |
 | `disk_generations` | 1,024 generations |
 | `poll_interval_ms` | 200 |
+| `reconnect_maximum_ms` | 30,000, or the poll interval when larger |
 | `timeout_ms` | 60,000 |
 | `compression` | `true` |
 | `artifact_mode` | `384` (`0600`) for users, `420` (`0644`) for system agents |
+
+Subscription reconnects use independently seeded exponential equal jitter. Authenticated idle responses and durable publication reset backoff; successful long polls and disk waits retain their existing timing. `reconnect_maximum_ms` must cover `poll_interval_ms` and cannot exceed 86,400,000.
 
 `artifact_mode` takes the decimal value `384`, `416` or `420` (octal `0600`,
 `0640` or `0644`). Unknown or duplicate fields are rejected.

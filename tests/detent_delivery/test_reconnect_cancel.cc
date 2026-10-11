@@ -37,6 +37,7 @@ int main() {
 		const auto root =
 			std::filesystem::current_path() / ".scratch" / ("reconnect-cancel-" + std::to_string(::getpid()));
 		std::filesystem::create_directories(root);
+		std::filesystem::permissions(root, std::filesystem::perms::owner_all);
 		auto account = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 64);
