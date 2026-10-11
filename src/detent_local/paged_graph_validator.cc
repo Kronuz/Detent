@@ -1,5 +1,6 @@
 #include "paged_graph_validator.hh"
 #include "detent_local/paged_definition.hh"
+#include "paged_navigation.hh"
 #include "read_root.hh"
 #include <algorithm>
 #include <cstring>
@@ -88,21 +89,15 @@ struct GraphValidator::Impl {
 	}
 	void push(const p::Reference &reference) {
 		require(depth < frames.size());
-		p::encode_reference(reference);
-		const auto found = std::lower_bound(segments.begin(), segments.end(), reference.segment,
-											[](const SegmentInput &input, const auto &identity) {
-												return std::memcmp(input.ownership.segment.data(),
-																   identity.data(), identity.size()) < 0;
-											});
-		require(found != segments.end() && found->ownership.segment == reference.segment);
-		require(reference.offset <= found->bytes.size() &&
-				reference.length <= found->bytes.size() - reference.offset);
+		const auto segment = find_segment(segments, reference.segment);
+		require(segment < segments.size());
+		const auto bytes = checked_page_bytes(segments[segment], reference);
 		require(pages < expected.pages && reference.length <= expected.bytes - extent_bytes);
 		auto &frame = frames[depth++];
 		frame = {};
 		frame.reference = reference;
-		frame.segment = found - segments.begin();
-		frame.bytes = found->bytes.subspan(reference.offset, reference.length);
+		frame.segment = segment;
+		frame.bytes = bytes;
 		frame.restore = key_size;
 		frame.bit = reference.offset / 8;
 		frame.end = (std::size_t(reference.offset) + reference.length + 7) / 8;
