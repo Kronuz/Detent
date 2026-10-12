@@ -49,7 +49,10 @@ struct PagedCursor::Impl {
 };
 PagedCursor::PagedCursor(std::shared_ptr<d::StorageLedger> account, const RecoveredGeneration &base,
 						 p::PageKind kind)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, base.paged_, kind)) {}
+	: PagedCursor(std::move(account), base.paged_, kind) {}
+PagedCursor::PagedCursor(std::shared_ptr<d::StorageLedger> account, d::RetirementHandle<LeasedPagedRoot> base,
+						 p::PageKind kind)
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(base), kind)) {}
 PagedCursor::~PagedCursor() = default;
 PagedCursor::PagedCursor(PagedCursor &&) noexcept = default;
 void PagedCursor::step(ValidationBudget &budget) {

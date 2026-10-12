@@ -11,6 +11,8 @@ struct PagedLeaf {
 class PagedCursor {
   public:
 	PagedCursor(std::shared_ptr<distribution::StorageLedger>, const RecoveredGeneration &, paged::PageKind);
+	PagedCursor(std::shared_ptr<distribution::StorageLedger>, distribution::RetirementHandle<LeasedPagedRoot>,
+				paged::PageKind);
 	~PagedCursor();
 	PagedCursor(PagedCursor &&) noexcept;
 	PagedCursor(const PagedCursor &) = delete;

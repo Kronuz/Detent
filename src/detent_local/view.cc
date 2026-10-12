@@ -258,8 +258,13 @@ struct ImageValidator::Impl {
 };
 ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes,
 							   ViewLimits limits, std::optional<distribution::Cursor> expected)
-	: impl_(distribution::make_storage_owner<Impl>(resources::domain(limits).storage_account(), std::malloc,
-												   std::free)) {
+	: ImageValidator(std::move(lease), bytes, limits, expected, resources::domain(limits).factory(),
+					 resources::domain(limits).storage_account()) {}
+ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<const char> bytes,
+							   ViewLimits limits, std::optional<distribution::Cursor> expected,
+							   distribution::RetirementFactory factory,
+							   std::shared_ptr<distribution::StorageLedger> account)
+	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free)) {
 	require(static_cast<bool>(lease));
 	auto header = decode_header(bytes, limits.bytes);
 	const auto &l = header.layout;
@@ -268,8 +273,8 @@ ImageValidator::ImageValidator(std::shared_ptr<const void> lease, std::span<cons
 	if (expected)
 		require(header.cursor.same_identity(*expected) && header.cursor.revision >= expected->revision);
 	impl_->limits = limits;
-	auto &domain = resources::domain(limits);
-	impl_->root = domain.make<ReadView::Root>(std::move(lease), bytes, header);
+	impl_->limits.retirement_domain = nullptr;
+	impl_->root = factory.make<ReadView::Root>(std::move(lease), bytes, header);
 }
 ImageValidator::~ImageValidator() = default;
 ImageValidator::ImageValidator(ImageValidator &&) noexcept = default;

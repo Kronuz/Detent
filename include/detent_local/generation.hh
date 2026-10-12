@@ -13,6 +13,7 @@ class PagedDeltaPlanBuilder;
 class PagedCursor;
 class WarmGraphValidator;
 class PagedSnapshotSource;
+class RecoveryEngine;
 } // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
@@ -62,6 +63,7 @@ class RecoveredGeneration {
 	friend class detail::PagedCursor;
 	friend class detail::WarmGraphValidator;
 	friend class detail::PagedSnapshotSource;
+	friend class detail::RecoveryEngine;
 	friend class GenerationReader;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);

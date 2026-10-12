@@ -82,6 +82,7 @@ class LeasedPagedRoot final : public distribution::RetirementNode {
 	paged::Root root_;
 	PagedStateCounts counts_;
 	bool sealed_ = false;
+	friend class RecoveryEngine;
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,
 																 std::optional<distribution::Cursor>);
 	friend RecoveredGeneration detent::local::recover_generation(const std::filesystem::path &, ViewLimits,

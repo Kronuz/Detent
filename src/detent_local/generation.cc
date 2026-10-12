@@ -1,8 +1,10 @@
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
+#include "generation_mapping.hh"
 #include "leased_paged_root.hh"
 #include "paged_dependency_discovery.hh"
 #include "paged_progress_view.hh"
+#include "recovery_context.hh"
 #include "resources.hh"
 #include "segment_names.hh"
 #include <algorithm>
@@ -38,38 +40,8 @@ struct Directory : distribution::RetirementNode {
 	File file{-1};
 };
 
-struct Mapping : distribution::RetirementNode {
-	std::shared_ptr<distribution::StorageLedger> account;
-	distribution::StorageLedger::Ticket ticket;
-	int lease = -1, image = -1;
-	void *address = MAP_FAILED;
-	std::size_t length = 0;
-	bool retry = false;
-	explicit Mapping(std::shared_ptr<distribution::StorageLedger> ledger) : account(std::move(ledger)) {}
-	bool retire_step() noexcept override {
-		retry = false;
-		if (address != MAP_FAILED) {
-			if (::munmap(address, length) != 0) {
-				retry = true;
-				return false; // Preserve the mapping and charge for reconciliation.
-			}
-			address = MAP_FAILED;
-			ticket.reset();
-			return false;
-		}
-		if (image >= 0) {
-			::close(std::exchange(image, -1));
-			return false;
-		}
-		if (lease >= 0) {
-			::close(std::exchange(lease, -1));
-			return false;
-		}
-		ticket.reset(); // Failed mmap reserved no actual mapped region.
-		return true;
-	}
-	bool retry_later() const noexcept override { return retry; }
-};
+using Mapping = detail::GenerationMapping;
+
 std::size_t mapping_capacity(std::uint64_t length) {
 	const auto page = ::sysconf(_SC_PAGESIZE);
 	require(page > 0);
@@ -172,10 +144,29 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 									   std::optional<distribution::Cursor> expected,
 									   const RecoveredGeneration *prior) {
 	auto &domain = resources::domain(limits);
-	auto directory_owner = domain.make<Directory>();
+	detail::RecoveryContext context{domain.factory(),
+									domain.storage_account(),
+									resources::mapping_account(limits),
+									limits,
+									prior ? prior->paged_
+										  : distribution::RetirementHandle<detail::LeasedPagedRoot>{},
+									{}};
+	return detail::RecoveryEngine::recover(directory, std::move(context), expected);
+}
+RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path &directory,
+													RecoveryContext context,
+													std::optional<distribution::Cursor> expected) {
+	auto limits = context.limits;
+	limits.retirement_domain = nullptr;
+	limits.mapping_account = context.mappings;
+	if (!context.heap || !context.mappings)
+		throw std::invalid_argument("recovery context requires exact ledgers");
+	auto factory = context.factory;
+	const auto &prior = context.prior;
+	auto directory_owner = factory.make<Directory>();
 	using DirectoryLease = distribution::RetirementHandle<Directory>;
 	auto directory_lease = std::allocate_shared<DirectoryLease>(
-		distribution::StorageAllocator<DirectoryLease>(domain.storage_account()), directory_owner);
+		distribution::StorageAllocator<DirectoryLease>(context.heap), directory_owner);
 	std::shared_ptr<File> dir(directory_lease, &directory_owner->file);
 	dir->fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	struct stat directory_info{};
@@ -189,8 +180,11 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		auto descriptor = decode_descriptor(raw);
 		require(descriptor.length <= limits.bytes);
 		auto name = generation_name(descriptor.generation);
-		const auto mapping_account = resources::mapping_account(limits);
-		auto mapping = domain.make<Mapping>(mapping_account);
+		const auto mapping_account = context.mappings;
+		auto mapping =
+			context.admission ? context.admission->take_root() : factory.make<Mapping>(mapping_account);
+		if (context.admission)
+			require(mapping->account == mapping_account && mapping->length == descriptor.length);
 		mapping->lease = ::openat(dir->fd, (name + ".lease").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		if (mapping->lease < 0 && errno == ENOENT)
 			continue;
@@ -234,7 +228,8 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 		mapping->image = ::openat(dir->fd, (name + ".image").c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		trusted_file(mapping->image, directory_info.st_uid, descriptor.length);
 		mapping->length = descriptor.length;
-		mapping->ticket = mapping->account->admit(mapping_capacity(descriptor.length));
+		if (!context.admission)
+			mapping->ticket = mapping->account->admit(mapping_capacity(descriptor.length));
 		mapping->address = ::mmap(nullptr, mapping->length, PROT_READ, MAP_SHARED, mapping->image, 0);
 		require(mapping->address != MAP_FAILED);
 		auto bytes = std::span(static_cast<const char *>(mapping->address), mapping->length);
@@ -257,30 +252,33 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 					(!expected ||
 					 (expected->same_identity(root.cursor) && root.cursor.revision >= expected->revision)));
 			const auto storage = generation_ownership->storage;
-			auto account = domain.storage_account();
+			auto account = context.heap;
 			const DirectoryIdentity identity{std::uint64_t(directory_info.st_dev),
 											 std::uint64_t(directory_info.st_ino)};
-			bool warm = prior && prior->paged_ && prior->directory_identity() == identity &&
-						prior->paged_->storage_identity() == storage &&
-						detail::reuses_paged_state(prior->paged_->root(), root) &&
-						prior->paged_->registry()->uses_account(account);
+			if (context.admission)
+				context.admission->bind(descriptor, identity, storage);
+			bool warm =
+				prior && prior->directory_identity() == identity && prior->storage_identity() == storage &&
+				detail::reuses_paged_state(prior->root(), root) && prior->registry()->uses_account(account);
 			if (warm) {
-				const auto registry = prior->paged_->registry();
+				const auto registry = prior->registry();
 				for (std::size_t i = 0; i < registry->inputs().size(); ++i)
 					if (registry->mapping(i)->storage_account() != mapping_account) {
 						warm = false;
 						break;
 					}
 			}
+			if (context.admission)
+				require(context.admission->warm() == warm);
 			std::optional<detail::DependencyDiscovery> discovery;
 			distribution::RetirementHandle<detail::SegmentRegistry> registry;
 			if (warm) {
-				registry = prior->paged_->registry();
-				const auto counts = prior->paged_->counts();
+				registry = prior->registry();
+				const auto counts = prior->counts();
 				require(counts.strings <= limits.strings && counts.maximum_overrides <= limits.overrides &&
 						registry->physical_bytes() <= bounds.bytes);
 			} else {
-				discovery.emplace(account, domain, root, storage, bounds);
+				discovery.emplace(account, factory, root, storage, bounds);
 				while (!discovery->done()) {
 					ValidationBudget budget;
 					discovery->step(budget);
@@ -295,8 +293,13 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 						require(ownership.storage == storage && ownership.segment == *missing);
 						File payload(
 							::openat(dir->fd, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-						auto segment = domain.make<detail::SegmentMapping>(mapping_account, payload.fd,
-																		   directory_info.st_uid, ownership);
+						auto segment =
+							context.admission
+								? context.admission->take_segment(ownership)
+								: factory.make<detail::SegmentMapping>(mapping_account, payload.fd,
+																	   directory_info.st_uid, ownership);
+						if (context.admission)
+							segment->install(payload.fd, directory_info.st_uid);
 						discovery->supply(std::move(segment));
 					}
 				}
@@ -307,8 +310,8 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 			auto root_lease =
 				std::allocate_shared<RootLease>(distribution::StorageAllocator<RootLease>(account), mapping);
 
-			auto capability = domain.make<detail::LeasedPagedRoot>(dir, root_lease, registry, descriptor,
-																   identity, storage, root);
+			auto capability = factory.make<detail::LeasedPagedRoot>(dir, root_lease, registry, descriptor,
+																	identity, storage, root);
 			using Capability = distribution::RetirementHandle<detail::LeasedPagedRoot>;
 			std::optional<detail::GraphValidator> validator;
 			if (!warm) {
@@ -359,7 +362,7 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 			read_record(final_storage.fd, final_identity);
 			require(decode_storage_identity(final_identity) == storage);
 			if (warm)
-				capability->seal_progress(*prior->paged_);
+				capability->seal_progress(*prior);
 			else
 				capability->seal(validator->counts());
 			if (discovery)
@@ -368,15 +371,15 @@ RecoveredGeneration recover_generation(const std::filesystem::path &directory, V
 					if (discovery->discard(budget))
 						break;
 				}
-			auto view = warm ? detail::PagedProgressView::take(domain, capability) : validator->take(domain);
+			auto view = detail::PagedProgressView::take(factory, account, capability);
 			return RecoveredGeneration(std::move(view), descriptor, dir, identity, std::move(capability));
 		}
 		auto header = decode_header(bytes, limits.bytes);
 		require(header.cursor == descriptor.cursor && header.profile == descriptor.profile);
 		using Lease = distribution::RetirementHandle<Mapping>;
-		auto lease = std::allocate_shared<Lease>(
-			distribution::StorageAllocator<Lease>(domain.storage_account()), mapping);
-		ImageValidator validator(lease, bytes, limits, expected);
+		auto lease =
+			std::allocate_shared<Lease>(distribution::StorageAllocator<Lease>(context.heap), mapping);
+		ImageValidator validator(lease, bytes, limits, expected, factory, context.heap);
 		while (!validator.done()) {
 			ValidationBudget budget;
 			validator.step(budget);

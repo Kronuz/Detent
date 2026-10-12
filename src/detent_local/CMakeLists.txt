@@ -1,4 +1,4 @@
-add_library(detent_local_view owned_segment_inputs.cc paged_dependency_walk.cc paged_warm_validator.cc paged_contextual_reuse.cc paged_progress_view.cc paged_cursor.cc segment_mapping.cc segment_registry.cc paged_dependency_discovery.cc layout.cc paged_layout.cc paged_definition.cc paged_page_validator.cc paged_graph_validator.cc paged_read_state.cc borrowed_definition.cc view.cc generation.cc ownership.cc reader.cc)
+add_library(detent_local_view mapped_recovery_admission.cc owned_segment_inputs.cc paged_dependency_walk.cc paged_warm_validator.cc paged_contextual_reuse.cc paged_progress_view.cc paged_cursor.cc segment_mapping.cc segment_registry.cc paged_dependency_discovery.cc layout.cc paged_layout.cc paged_definition.cc paged_page_validator.cc paged_graph_validator.cc paged_read_state.cc borrowed_definition.cc view.cc generation.cc ownership.cc reader.cc)
 target_include_directories(detent_local_view PUBLIC "${CMAKE_SOURCE_DIR}/include")
 target_compile_features(detent_local_view PUBLIC cxx_std_20)
 add_library(detent::local_view ALIAS detent_local_view)
@@ -18,7 +18,7 @@ add_library(detent::local_export ALIAS detent_local_export)
 # Publication is enabled only with the reviewed standalone completion module.
 # Reader and codec consumers do not inherit this dependency.
 if(TARGET kronuz::completion)
-  add_library(detent_local_publication paged_segment_collection.cc paged_segment_read.cc paged_named_root.cc paged_segment_marks.cc paged_certificate.cc paged_root_prefix.cc paged_dependency_check.cc paged_publication_artifacts.cc publication.cc storage_session.cc inventory.cc collector.cc record_reader.cc disk_store.cc directory.cc)
+  add_library(detent_local_publication mapped_recovery_plan.cc paged_segment_collection.cc paged_segment_read.cc paged_named_root.cc paged_segment_marks.cc paged_certificate.cc paged_root_prefix.cc paged_dependency_check.cc paged_publication_artifacts.cc publication.cc storage_session.cc inventory.cc collector.cc record_reader.cc disk_store.cc directory.cc)
   target_link_libraries(detent_local_publication PUBLIC detent::local_builder kronuz::completion)
   target_compile_features(detent_local_publication PUBLIC cxx_std_20)
   add_library(detent::local_publication ALIAS detent_local_publication)

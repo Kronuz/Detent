@@ -11,6 +11,7 @@ namespace detail {
 class PinnedImageSource;
 class GraphValidator;
 class PagedProgressView;
+class RecoveryEngine;
 } // namespace detail
 struct ValidationBudget {
 	std::size_t bytes = 8192, rows = 16;
@@ -69,6 +70,10 @@ class ImageValidator {
 	ReadView take();
 
   private:
+	ImageValidator(std::shared_ptr<const void>, std::span<const char>, ViewLimits,
+				   std::optional<distribution::Cursor>, distribution::RetirementFactory,
+				   std::shared_ptr<distribution::StorageLedger>);
+	friend class detail::RecoveryEngine;
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 };

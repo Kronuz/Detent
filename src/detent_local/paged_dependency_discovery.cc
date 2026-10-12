@@ -37,7 +37,7 @@ struct DependencyDiscovery::Impl {
 	std::uint64_t physical = 0;
 	Phase phase = Phase::Walk;
 	bool failed = false, discarding = false;
-	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementDomain &domain, p::Root expected,
+	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementFactory factory, p::Root expected,
 		 StorageIdentity identity, p::Limits bounds)
 		: account(std::move(ledger)), root(expected), storage(identity), limits(bounds) {
 		p::encode_root(root, limits);
@@ -45,7 +45,7 @@ struct DependencyDiscovery::Impl {
 		inputs = std::allocate_shared<Inputs>(d::StorageAllocator<Inputs>(account), account, root.segments);
 		auto registry_limits = limits;
 		registry_limits.segments = root.segments;
-		registry = domain.make<SegmentRegistry>(account, storage, registry_limits);
+		registry = factory.make<SegmentRegistry>(account, storage, registry_limits);
 		walk.emplace(account, inputs, &lookup, root, storage, limits);
 	}
 	bool admit(std::size_t amount, ValidationBudget &budget) {
@@ -81,8 +81,12 @@ struct DependencyDiscovery::Impl {
 DependencyDiscovery::DependencyDiscovery(std::shared_ptr<d::StorageLedger> account,
 										 d::RetirementDomain &domain, p::Root root, StorageIdentity identity,
 										 p::Limits limits)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, domain, root, identity,
-										limits)) {}
+	: DependencyDiscovery(std::move(account), domain.factory(), root, identity, limits) {}
+DependencyDiscovery::DependencyDiscovery(std::shared_ptr<d::StorageLedger> account,
+										 d::RetirementFactory factory, p::Root root, StorageIdentity identity,
+										 p::Limits limits)
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(factory), root,
+										identity, limits)) {}
 DependencyDiscovery::~DependencyDiscovery() = default;
 DependencyDiscovery::DependencyDiscovery(DependencyDiscovery &&) noexcept = default;
 void DependencyDiscovery::step(ValidationBudget &budget) {

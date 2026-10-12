@@ -75,6 +75,21 @@ int main() {
 		auto invalid = domain.make<local::detail::SegmentMapping>(account, fd, ::getuid(), ownership);
 	});
 	pressure.reset();
+	// A staged ticket remains usable when the mapping ledger is saturated.
+	auto staged_account = std::make_shared<distribution::StorageLedger>(::sysconf(_SC_PAGESIZE));
+	auto staged = domain.make<local::detail::SegmentMapping>(staged_account, ownership);
+	require(staged_account->used() == staged_account->limit());
+	rejects<std::logic_error>([&] { staged->bytes(); });
+	rejects<std::invalid_argument>([&] { staged->install(-1, ::getuid()); });
+	require(staged_account->used() == staged_account->limit());
+	staged->install(fd, ::getuid());
+	require(staged->bytes().size() == bytes.size() && staged->bytes()[0] == 'x');
+	rejects<std::logic_error>([&] { staged->install(fd, ::getuid()); });
+	auto insufficient = std::make_shared<distribution::StorageLedger>(staged_account->limit() - 1);
+	rejects<distribution::StoragePressure>(
+		[&] { auto invalid = domain.make<local::detail::SegmentMapping>(insufficient, ownership); });
+	require(insufficient->used() == 0);
+	staged.reset();
 	local::paged::Limits registry_limits;
 	registry_limits.segments = 1;
 	auto registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, registry_limits);
@@ -101,6 +116,7 @@ int main() {
 	require(registry->inputs()[0].bytes[0] == 'x');
 	registry.reset();
 	drain.wait();
+	require(staged_account->used() == 0);
 	// Closed domain bookkeeping remains admitted until its own destruction.
 	require(account->used() == baseline);
 	std::filesystem::remove(directory);

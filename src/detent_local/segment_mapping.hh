@@ -12,7 +12,13 @@ struct SegmentFileIdentity {
 class SegmentMapping final : public distribution::RetirementNode {
   public:
 	SegmentMapping(std::shared_ptr<distribution::StorageLedger>, int fd, uid_t owner, SegmentOwnership);
-	std::span<const char> bytes() const noexcept { return {address_, ownership_.length}; }
+	SegmentMapping(std::shared_ptr<distribution::StorageLedger>, SegmentOwnership);
+	void install(int fd, uid_t owner);
+	std::span<const char> bytes() const {
+		if (!mapped_)
+			throw std::logic_error("segment mapping is not installed");
+		return {address_, ownership_.length};
+	}
 	const SegmentOwnership &ownership() const noexcept { return ownership_; }
 	const std::shared_ptr<distribution::StorageLedger> &storage_account() const noexcept { return account_; }
 	SegmentFileIdentity identity() const noexcept { return identity_; }
@@ -28,5 +34,6 @@ class SegmentMapping final : public distribution::RetirementNode {
 	distribution::StorageLedger::Ticket ticket_;
 	char *address_ = nullptr;
 	bool mapped_ = false, retry_ = false;
+	void install_checked(int, SegmentFileIdentity);
 };
 } // namespace detent::local::detail

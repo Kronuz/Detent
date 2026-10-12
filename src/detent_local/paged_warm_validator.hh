@@ -9,6 +9,11 @@ class WarmGraphValidator {
 					   std::shared_ptr<const void> new_segments_owner,
 					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
 					   PagedSemanticLimits = {});
+	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>,
+					   distribution::RetirementHandle<LeasedPagedRoot>,
+					   std::shared_ptr<const void> new_segments_owner,
+					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
+					   PagedSemanticLimits = {});
 	~WarmGraphValidator();
 	WarmGraphValidator(WarmGraphValidator &&) noexcept;
 	WarmGraphValidator(const WarmGraphValidator &) = delete;

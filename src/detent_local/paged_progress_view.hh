@@ -6,5 +6,7 @@ namespace detent::local::detail {
 class PagedProgressView {
   public:
 	static ReadView take(distribution::RetirementDomain &, distribution::RetirementHandle<LeasedPagedRoot>);
+	static ReadView take(distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>,
+						 distribution::RetirementHandle<LeasedPagedRoot>);
 };
 } // namespace detent::local::detail

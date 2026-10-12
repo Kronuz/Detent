@@ -87,14 +87,14 @@ struct WarmGraphValidator::Impl {
 	Phase phase = Phase::Seed;
 	bool failed = false, discarding = false, definitions = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementHandle<LeasedPagedRoot> actual_base,
-		 const RecoveredGeneration &generation, std::shared_ptr<const void> lifetime,
-		 std::span<const SegmentInput> added, p::Root root, p::Limits bounds, PagedSemanticLimits semantic)
+		 std::shared_ptr<const void> lifetime, std::span<const SegmentInput> added, p::Root root,
+		 p::Limits bounds, PagedSemanticLimits semantic)
 		: account(std::move(ledger)), base(std::move(actual_base)), owner(std::move(lifetime)),
 		  added_segments(added), expected(root), limits(bounds), semantics(semantic),
 		  namespaces(d::StorageAllocator<Namespace>(account)),
 		  removed(d::StorageAllocator<SegmentReachability>(account)),
 		  states(d::StorageAllocator<NewState>(account)), arena(*account, 8192), frontiers(arena),
-		  namespace_cursor(std::in_place, account, generation, p::PageKind::Namespace) {
+		  namespace_cursor(std::in_place, account, base, p::PageKind::Namespace) {
 		require(base && owner);
 		const auto &prior = base->root();
 		base_segments = base->registry()->inputs();
@@ -204,7 +204,12 @@ WarmGraphValidator::WarmGraphValidator(std::shared_ptr<d::StorageLedger> account
 									   const RecoveredGeneration &base, std::shared_ptr<const void> owner,
 									   std::span<const SegmentInput> added, p::Root root, p::Limits limits,
 									   PagedSemanticLimits semantics)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, base.paged_, base,
+	: WarmGraphValidator(std::move(account), base.paged_, std::move(owner), added, root, limits, semantics) {}
+WarmGraphValidator::WarmGraphValidator(std::shared_ptr<d::StorageLedger> account,
+									   d::RetirementHandle<LeasedPagedRoot> base,
+									   std::shared_ptr<const void> owner, std::span<const SegmentInput> added,
+									   p::Root root, p::Limits limits, PagedSemanticLimits semantics)
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(base),
 										std::move(owner), added, root, limits, semantics)) {}
 WarmGraphValidator::~WarmGraphValidator() = default;
 WarmGraphValidator::WarmGraphValidator(WarmGraphValidator &&) noexcept = default;
