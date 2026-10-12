@@ -3,56 +3,14 @@
 #include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
+#include <chrono>
 #include <completion/native_completion.h>
 #include <source_location>
+#include <thread>
 namespace c = kronuz::io::completion;
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("paged disk invariant at line " + std::to_string(where.line()));
-}
-d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account) {
-	std::string wire;
-	auto a = [&](unsigned value) { m::array(wire, value); };
-	auto n = [&](unsigned value) { m::unsigned_integer(wire, value); };
-	a(7);
-	n(1);
-	n(2);
-	a(2);
-	n(1);
-	n(1);
-	put_cursor(wire, cursor());
-	auto target = cursor();
-	target.revision = 44;
-	put_cursor(wire, target);
-	a(4);
-	n(1);
-	n(1);
-	n(0);
-	n(12);
-	a(1);
-	a(3);
-	n(43);
-	a(1);
-	a(2);
-	m::string(wire, "app");
-	n(43);
-	a(1);
-	a(4);
-	n(0);
-	m::string(wire, "app:count");
-	n(0);
-	a(2);
-	n(1);
-	n(1);
-	d::Limits limits;
-	limits.storage_account = std::move(account);
-	d::DeltaDecoder decoder(cursor(), {"app"}, limits);
-	auto bytes = std::span<const char>(wire);
-	while (!bytes.empty()) {
-		d::WorkBudget budget{1, 1};
-		decoder.feed(bytes, budget);
-	}
-	return decoder.finish();
 }
 template <class Error, class Call> void rejects(Call call) {
 	try {
@@ -116,7 +74,7 @@ int main() {
 	}
 	auto image = construction.take();
 	for (bool progress : {false, true}) {
-		for (unsigned scenario = 0; scenario < 8; ++scenario) {
+		for (unsigned scenario = 0; scenario < 9; ++scenario) {
 			if (scenario == 6 && progress)
 				continue;
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
@@ -202,6 +160,31 @@ int main() {
 					check(plan->descriptor() == wanted && store->publication_ready());
 					check(store->selection().descriptor == image.descriptor());
 					check(store->stats().reserved == l::DiskUsage{});
+				}
+				if (scenario == 8) {
+					const auto mapped = mapping_account->used();
+					std::uint64_t needed = l::detail::rounded_mapping_bytes(wanted.length);
+					for (const auto &segment : plan->segments())
+						needed += l::detail::rounded_mapping_bytes(segment.ownership.length);
+					{
+						auto pressure =
+							mapping_account->admit(mapping_account->limit() - mapped - needed + 1);
+						rejects<d::StoragePressure>([&] { store->begin(std::move(*plan)); });
+						check(plan->descriptor() == wanted && store->publication_ready());
+						check(store->selection().descriptor == image.descriptor());
+						check(store->stats().reserved == l::DiskUsage{});
+						check(!std::filesystem::exists(root / (l::generation_name(next) + ".image")));
+						for (const auto &segment : plan->segments()) {
+							const l::detail::SegmentNames names(segment.ownership.segment);
+							check(!std::filesystem::exists(root / names.payload_name()));
+							check(!std::filesystem::exists(root / names.owner_name()));
+						}
+					}
+					const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+					while (mapping_account->used() != mapped) {
+						check(std::chrono::steady_clock::now() < deadline);
+						std::this_thread::yield();
+					}
 				}
 				store->begin(std::move(*plan));
 				rejects<std::logic_error>([&] { plan->root(); });

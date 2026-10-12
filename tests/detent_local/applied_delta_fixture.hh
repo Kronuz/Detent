@@ -127,3 +127,48 @@ inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsig
 	a(0);
 	return std::make_shared<const d::ValidatedSnapshot>(decode(out, target));
 }
+
+inline d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account) {
+	std::string wire;
+	auto a = [&](unsigned value) { m::array(wire, value); };
+	auto n = [&](unsigned value) { m::unsigned_integer(wire, value); };
+	a(7);
+	n(1);
+	n(2);
+	a(2);
+	n(1);
+	n(1);
+	put_cursor(wire, cursor());
+	auto target = cursor();
+	target.revision = 44;
+	put_cursor(wire, target);
+	a(4);
+	n(1);
+	n(1);
+	n(0);
+	n(12);
+	a(1);
+	a(3);
+	n(43);
+	a(1);
+	a(2);
+	m::string(wire, "app");
+	n(43);
+	a(1);
+	a(4);
+	n(0);
+	m::string(wire, "app:count");
+	n(0);
+	a(2);
+	n(1);
+	n(1);
+	d::Limits limits;
+	limits.storage_account = std::move(account);
+	d::DeltaDecoder decoder(cursor(), {"app"}, limits);
+	auto bytes = std::span<const char>(wire);
+	while (!bytes.empty()) {
+		d::WorkBudget budget{1, 1};
+		decoder.feed(bytes, budget);
+	}
+	return decoder.finish();
+}

@@ -34,9 +34,10 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 		store->advance();
 	}
 }
-int main() {
-	const auto directory = std::filesystem::current_path() / ".scratch" /
-						   ("paged-collection-publication-" + std::to_string(::getpid()));
+void run(bool shared) {
+	const auto directory =
+		std::filesystem::current_path() / ".scratch" /
+		("paged-collection-publication-" + std::to_string(::getpid()) + "-" + std::to_string(shared));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() {
@@ -75,7 +76,8 @@ int main() {
 		std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
 	auto base =
 		std::optional<l::RecoveredGeneration>(l::recover_generation(directory, options.recovery_limits));
-	l::detail::PagedDeltaPlanBuilder sparse(*base, parse_delta(false, 2, "app", account), next, domain);
+	l::detail::PagedDeltaPlanBuilder sparse(
+		*base, shared ? one_key_delta(account) : parse_delta(false, 2, "app", account), next, domain);
 	while (!sparse.done()) {
 		l::ValidationBudget budget;
 		sparse.step(budget);
@@ -87,7 +89,7 @@ int main() {
 		new_segments.push_back(segment.ownership.segment);
 	require(!new_segments.empty());
 	for (std::size_t i = 0; i < plan.registry()->inputs().size(); ++i)
-		require(plan.base_reachability(i).pages == 0);
+		require((plan.base_reachability(i).pages != 0) == shared);
 	auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 	drive(store);
 	store->request_collection();
@@ -131,6 +133,11 @@ int main() {
 		require(std::filesystem::exists(directory / protected_names.payload_name()));
 	}
 	require(!std::filesystem::exists(directory / names.payload_name()));
+	std::array<bool, 6> expected_flags{};
+	std::size_t flag = 0;
+	for (const auto hash : {"host-a", "host-b", "host-c"})
+		for (const auto scope : {"beta", "production"})
+			expected_flags[flag++] = base->view().eval("app", "flag", hash, scope).value();
 	base.reset();
 	const auto lease_path = directory / (l::generation_name(generation) + ".lease");
 	const int lease = ::open(lease_path.c_str(), O_RDWR | O_CLOEXEC);
@@ -147,8 +154,14 @@ int main() {
 	require(!store->collection_error() && store->stats().used == census(directory));
 	for (const auto &segment : image.segments()) {
 		const l::detail::SegmentNames old_names(segment.ownership.segment);
-		require(!std::filesystem::exists(directory / old_names.payload_name()));
+		require(std::filesystem::exists(directory / old_names.payload_name()) == shared);
 	}
+	require(!std::filesystem::exists(lease_path));
+	flag = 0;
+	if (shared)
+		for (const auto hash : {"host-a", "host-b", "host-c"})
+			for (const auto scope : {"beta", "production"})
+				require(target->view().eval("app", "flag", hash, scope).value() == expected_flags[flag++]);
 	target.reset();
 	store->close();
 	drive(store);
@@ -156,4 +169,9 @@ int main() {
 	store.reset();
 	domain.close().wait();
 	require(options.recovery_limits.mapping_account->used() == 0);
+}
+
+int main() {
+	run(false);
+	run(true);
 }
