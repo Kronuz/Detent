@@ -1,16 +1,22 @@
 #pragma once
 #include "state_cursor.hh"
+#include "state_equivalence_proof.hh"
 namespace detent::local::detail {
 // Complete borrowed-state comparison retains both actual recovered generations.
 class StateEquivalence {
   public:
 	StateEquivalence(RecoveredGeneration, RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
+	StateEquivalence(StateCursor, StateCursor);
+	StateEquivalenceProof take_proof();
 	void step(ValidationBudget &);
 	bool done() const noexcept { return done_; }
 	bool equal() const;
 
   private:
 	std::optional<StateCursor> left_, right_;
+	Descriptor source_, target_;
+	std::optional<DirectoryIdentity> source_directory_, target_directory_;
+	bool proof_taken_ = false;
 	enum class Phase { Namespaces, Records, Overrides } phase_ = Phase::Namespaces;
 	bool left_ready_ = false, right_ready_ = false, done_ = false, equal_ = true;
 	std::size_t text_index_ = 0, text_offset_ = 0;

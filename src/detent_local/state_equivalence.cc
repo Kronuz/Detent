@@ -1,7 +1,9 @@
 #include "state_equivalence.hh"
 namespace detent::local::detail {
 StateEquivalence::StateEquivalence(RecoveredGeneration left, RecoveredGeneration right,
-								   std::shared_ptr<distribution::StorageLedger> account) {
+								   std::shared_ptr<distribution::StorageLedger> account)
+	: source_(left.descriptor()), target_(right.descriptor()), source_directory_(left.directory_identity()),
+	  target_directory_(right.directory_identity()) {
 	if (!account)
 		throw std::invalid_argument("state equivalence requires a storage account");
 	if (left.descriptor().cursor != right.descriptor().cursor ||
@@ -16,6 +18,22 @@ StateEquivalence::StateEquivalence(RecoveredGeneration left, RecoveredGeneration
 		left_.emplace(std::move(left), account);
 		right_.emplace(std::move(right), std::move(account));
 	}
+}
+StateEquivalence::StateEquivalence(StateCursor left, StateCursor right)
+	: source_(left.descriptor()), target_(right.descriptor()), source_directory_(left.directory_identity()),
+	  target_directory_(right.directory_identity()) {
+	if (source_.cursor != target_.cursor || source_.profile != target_.profile)
+		mismatch();
+	else {
+		left_.emplace(std::move(left));
+		right_.emplace(std::move(right));
+	}
+}
+StateEquivalenceProof StateEquivalence::take_proof() {
+	if (!done_ || !equal_ || proof_taken_)
+		throw std::logic_error("state equivalence proof unavailable");
+	proof_taken_ = true;
+	return StateEquivalenceProof(source_, target_, source_directory_, target_directory_);
 }
 bool StateEquivalence::texts(std::span<const std::pair<std::string_view, std::string_view>> pairs,
 							 ValidationBudget &budget) {

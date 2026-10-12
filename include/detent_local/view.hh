@@ -9,6 +9,8 @@
 namespace detent::local {
 namespace detail {
 class PinnedImageSource;
+class FlatStateRows;
+class CandidateFlatValidator;
 class GraphValidator;
 class PagedProgressView;
 class RecoveryEngine;
@@ -53,6 +55,7 @@ class ReadView {
 	distribution::RetirementHandle<Root> root_;
 	friend class ImageValidator;
 	friend class detail::PinnedImageSource;
+	friend class detail::FlatStateRows;
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
 	friend class detail::MappedRecoveryAdmission;
@@ -76,6 +79,7 @@ class ImageValidator {
 				   std::optional<distribution::Cursor>, distribution::RetirementFactory,
 				   std::shared_ptr<distribution::StorageLedger>);
 	friend class detail::RecoveryEngine;
+	friend class detail::CandidateFlatValidator;
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 };

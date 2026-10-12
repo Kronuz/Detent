@@ -127,30 +127,32 @@ std::optional<detail::BorrowedDefinition> ReadView::Root::definition(std::string
 	return detail::BorrowedDefinition{bytes.subspan(*row, record_bytes), bytes, &header.layout};
 }
 detail::PinnedImageSource::PinnedImageSource(RecoveredGeneration generation)
-	: generation_(std::move(generation)) {
-	if (!generation_.view())
-		throw std::invalid_argument("pinned image source has no validated generation");
+	: generation_(std::move(generation)), rows_(generation_.view()) {}
+detail::FlatStateRows::FlatStateRows(ReadView view) : view_(std::move(view)) {
+	if (!view_ || view_.root_->paged)
+		throw std::invalid_argument("flat state rows require a validated flat view");
 }
-std::uint32_t detail::PinnedImageSource::namespace_count() const noexcept {
-	return generation_.view().root_->header.layout.namespaces;
+const Header &detail::FlatStateRows::header() const { return view_.root_->header; }
+std::uint32_t detail::FlatStateRows::namespace_count() const noexcept {
+	return view_.root_->header.layout.namespaces;
 }
-std::uint32_t detail::PinnedImageSource::record_count() const noexcept {
-	return generation_.view().root_->header.layout.records;
+std::uint32_t detail::FlatStateRows::record_count() const noexcept {
+	return view_.root_->header.layout.records;
 }
-std::uint64_t detail::PinnedImageSource::override_count() const noexcept {
-	return generation_.view().root_->header.layout.overrides;
+std::uint64_t detail::FlatStateRows::override_count() const noexcept {
+	return view_.root_->header.layout.overrides;
 }
-detail::SourceNamespace detail::PinnedImageSource::name_space(std::uint32_t ordinal) const {
+detail::SourceNamespace detail::FlatStateRows::name_space(std::uint32_t ordinal) const {
 	if (ordinal >= namespace_count())
 		throw std::out_of_range("pinned namespace ordinal");
-	const auto &root = *generation_.view().root_;
+	const auto &root = *view_.root_;
 	const auto row = root.header.layout.namespace_offset + std::uint64_t(ordinal) * namespace_bytes;
 	return {root.text(row), root.number(row + 16, 8)};
 }
-detail::SourceRecord detail::PinnedImageSource::record(std::uint32_t ordinal) const {
+detail::SourceRecord detail::FlatStateRows::record(std::uint32_t ordinal) const {
 	if (ordinal >= record_count())
 		throw std::out_of_range("pinned record ordinal");
-	const auto &root = *generation_.view().root_;
+	const auto &root = *view_.root_;
 	const auto row = root.header.layout.record_offset + std::uint64_t(ordinal) * record_bytes;
 	SourceRecord result{
 		static_cast<std::uint32_t>(root.number(row + 12, 4)), root.text(row), root.number(row + 16, 8), {}};
@@ -167,10 +169,10 @@ detail::SourceRecord detail::PinnedImageSource::record(std::uint32_t ordinal) co
 	}
 	return result;
 }
-detail::SourceOverride detail::PinnedImageSource::override_value(std::uint64_t ordinal) const {
+detail::SourceOverride detail::FlatStateRows::override_value(std::uint64_t ordinal) const {
 	if (ordinal >= override_count())
 		throw std::out_of_range("pinned override ordinal");
-	const auto &root = *generation_.view().root_;
+	const auto &root = *view_.root_;
 	const auto row = root.header.layout.override_offset + ordinal * override_bytes;
 	const auto value = static_cast<std::uint8_t>(root.number(row + 13, 1));
 	return {root.text(row),

@@ -1,7 +1,9 @@
 #include "detent_delivery/coordinator.hh"
+#include "candidate_flat_validator.hh"
 #include "coordinator_internal.hh"
 #include "detent_delivery/reconnect_backoff.hh"
 #include "managed_recovery.hh"
+#include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
@@ -24,6 +26,11 @@ struct RecoveryResult : d::RetirementNode {
 	const l::ViewLimits limits;
 	std::optional<l::RecoveredGeneration> generation;
 	l::GenerationId next_id{};
+	std::exception_ptr failure;
+	std::atomic<bool> ready{false};
+};
+struct CandidateComparisonResult : d::RetirementNode {
+	std::optional<l::detail::StateEquivalenceProof> proof;
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
@@ -167,6 +174,60 @@ struct Coordinator::Impl {
 		}
 		co_return result;
 	}
+	asio::awaitable<l::detail::StateEquivalenceProof> compare_candidate() {
+		if (!base->generation || !builder || !builder->done())
+			throw std::logic_error("same-cursor comparison lacks completed input");
+		auto input = l::detail::CandidateFlatInput::capture(*builder);
+		auto source = *base->generation;
+		const auto descriptor = source.descriptor();
+		const auto directory = source.directory_identity();
+		auto factory = domain.factory();
+		auto heap = domain.storage_account();
+		auto limits = options.view_limits;
+		limits.retirement_domain = nullptr;
+		auto result = factory.make<CandidateComparisonResult>();
+		asio::post(worker, [result, input = std::move(input), source = std::move(source), factory, heap,
+							limits]() mutable {
+			try {
+				l::detail::CandidateFlatValidator validator(std::move(input), factory, heap, limits);
+				while (!validator.done()) {
+					l::ValidationBudget budget;
+					validator.step(budget);
+				}
+				l::detail::StateEquivalence equality(l::detail::StateCursor(std::move(source), heap),
+													 l::detail::StateCursor(validator.take(), heap));
+				while (!equality.done()) {
+					l::ValidationBudget budget;
+					equality.step(budget);
+				}
+				if (!equality.equal())
+					throw std::invalid_argument("same-cursor managed state conflict");
+				result->proof.emplace(equality.take_proof());
+			} catch (...) {
+				result->failure = std::current_exception();
+			}
+			result->ready.store(true, std::memory_order_release);
+		});
+		diagnostic.worker_pending = true;
+		try {
+			while (!result->ready.load(std::memory_order_acquire))
+				co_await pause(std::chrono::milliseconds(1));
+		} catch (...) {
+			if (!result->ready.load(std::memory_order_acquire))
+				std::terminate();
+			diagnostic.worker_pending = false;
+			if (result->failure)
+				std::rethrow_exception(result->failure);
+			throw;
+		}
+		diagnostic.worker_pending = false;
+		if (result->failure)
+			std::rethrow_exception(result->failure);
+		if (store->selection().descriptor != descriptor || store->directory_identity() != directory)
+			throw std::invalid_argument("same-cursor comparison base changed");
+		co_return std::move(*result->proof);
+	}
+
 	void bind_base(d::RetirementHandle<RecoveryResult> recovered) {
 		const auto actual = store->selection();
 		if (actual.knowledge == l::SelectionKnowledge::Uncertain)
@@ -449,10 +510,9 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						if (options.publication_sink)
 							options.publication_sink->bind_candidate(candidate, store->directory_identity());
 						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor) {
-							if (candidate.length != actual.descriptor->length ||
-								candidate.checksum != actual.descriptor->checksum ||
-								candidate.profile != actual.descriptor->profile)
-								throw std::invalid_argument("same-cursor managed state conflict");
+							co_await compare_candidate();
+							if (cancelled())
+								throw asio::system_error(asio::error::operation_aborted);
 							if (options.publication_sink)
 								options.publication_sink->bind_candidate(*actual.descriptor,
 																		 store->directory_identity());

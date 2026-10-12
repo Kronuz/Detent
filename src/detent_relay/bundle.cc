@@ -1,5 +1,6 @@
 #include "detent_relay/bundle.hh"
 #include "snapshot_source.hh"
+#include "state_equivalence_proof.hh"
 #include <algorithm>
 #include <limits>
 
@@ -126,6 +127,18 @@ void Bundle::selected(const local::RecoveredGeneration &generation) {
 		token_.reset();
 	}
 	candidate_.reset();
+	head_ = generation;
+}
+void Bundle::selected_equivalent(const local::RecoveredGeneration &generation,
+								 const local::detail::StateEquivalenceProof &proof) {
+	if (diagnostic_.fenced || !head_ || stage_ || token_ || candidate_ || !proof.binds(*head_, generation) ||
+		head_->directory_identity() != generation.directory_identity())
+		throw std::invalid_argument("relay maintenance proof does not match settled physical head");
+	if (snapshot_base_ && *snapshot_base_ == head_->descriptor() &&
+		snapshot_directory_ == head_->directory_identity()) {
+		snapshot_base_ = generation.descriptor();
+		snapshot_directory_ = generation.directory_identity();
+	}
 	head_ = generation;
 }
 d::CacheOffer Bundle::offer(std::optional<d::Cursor> base, bool force_snapshot) const {

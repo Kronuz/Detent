@@ -103,3 +103,8 @@ add_executable(test_reconnect_cancel test_reconnect_cancel.cc)
 target_link_libraries(test_reconnect_cancel PRIVATE detent::delivery_coordinator)
 add_test(NAME test_reconnect_cancel COMMAND test_reconnect_cancel)
 set_tests_properties(test_reconnect_cancel PROPERTIES TIMEOUT 15)
+
+add_executable(test_relay_bundle_maintenance test_bundle_maintenance.cc)
+target_include_directories(test_relay_bundle_maintenance PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local" "${CMAKE_SOURCE_DIR}/tests/detent_local")
+target_link_libraries(test_relay_bundle_maintenance PRIVATE detent::relay detent::local_builder)
+add_test(NAME test_relay_bundle_maintenance COMMAND test_relay_bundle_maintenance)

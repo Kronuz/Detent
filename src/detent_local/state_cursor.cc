@@ -5,18 +5,27 @@ StateCursor::StateCursor(RecoveredGeneration generation, std::shared_ptr<distrib
 	: generation_(std::move(generation)) {
 	if (!account)
 		throw std::invalid_argument("state cursor requires a storage account");
-	if (generation_.paged_) {
-		namespaces_.emplace(account, generation_, paged::PageKind::Namespace);
-		records_.emplace(account, generation_, paged::PageKind::Definition);
+	descriptor_ = generation_->descriptor();
+	if (generation_->paged_) {
+		namespaces_.emplace(account, *generation_, paged::PageKind::Namespace);
+		records_.emplace(account, *generation_, paged::PageKind::Definition);
 	} else {
-		flat_.emplace(generation_);
+		flat_.emplace(generation_->view());
 	}
 }
+StateCursor::StateCursor(ValidatedFlatState state, std::shared_ptr<distribution::StorageLedger> account)
+	: descriptor_(state.descriptor()), flat_(state.rows()) {
+	if (!account)
+		throw std::invalid_argument("candidate state cursor requires a storage account");
+}
+std::optional<DirectoryIdentity> StateCursor::directory_identity() const {
+	return generation_ ? std::optional(generation_->directory_identity()) : std::nullopt;
+}
 std::uint32_t StateCursor::namespace_count() const {
-	return flat_ ? flat_->namespace_count() : generation_.paged_->root().namespaces;
+	return flat_ ? flat_->namespace_count() : generation_->paged_->root().namespaces;
 }
 std::uint32_t StateCursor::record_count() const {
-	return flat_ ? flat_->record_count() : generation_.paged_->root().records;
+	return flat_ ? flat_->record_count() : generation_->paged_->root().records;
 }
 bool StateCursor::pay(ValidationBudget &budget, std::size_t bytes) {
 	if (!budget.rows)
