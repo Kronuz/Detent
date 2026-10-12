@@ -6,6 +6,7 @@
 namespace detent::local {
 namespace detail {
 class LeasedPagedRoot;
+class PagedDependencyCertificate;
 struct StoreCore;
 class PagedPlanBuilder;
 class PagedDeltaPlanBuilder;
@@ -55,6 +56,7 @@ class RecoveredGeneration {
 	DirectoryIdentity directory_identity_;
 	distribution::RetirementHandle<detail::LeasedPagedRoot> paged_;
 	friend struct detail::StoreCore;
+	friend class detail::PagedDependencyCertificate;
 	friend class detail::PagedPlanBuilder;
 	friend class detail::PagedDeltaPlanBuilder;
 	friend class detail::PagedCursor;

@@ -5,7 +5,11 @@
 #include "detent_local/record_reader.hh"
 #include "leased_paged_root.hh"
 #include "names.hh"
+#include "paged_certificate.hh"
+#include "paged_dependency_check.hh"
 #include "paged_navigation.hh"
+#include "paged_publication_artifacts.hh"
+#include "paged_root_prefix.hh"
 #include "segment_names.hh"
 #include <completion/image.h>
 #include <sys/random.h>
@@ -20,11 +24,15 @@ struct BootstrapCommitment {
 	DiskUsage usage;
 };
 struct StoreCore {
-	StoreCore(std::shared_ptr<distribution::StorageLedger> account, DiskStoreOptions options)
-		: account(std::move(account)), options(options), ledger(options.limits) {}
+	StoreCore(std::shared_ptr<distribution::StorageLedger> account, DiskStoreOptions options,
+			  distribution::RetirementFactory allocator)
+		: account(std::move(account)), options(options), ledger(options.limits),
+		  factory(std::move(allocator)) {}
 	std::shared_ptr<distribution::StorageLedger> account;
 	DiskStoreOptions options;
 	DiskLedger ledger;
+	std::optional<distribution::RetirementFactory> factory;
+	distribution::RetirementHandle<PagedPublicationArtifacts> pending_paged_recovery;
 	std::shared_ptr<BootstrapCommitment> bootstrap;
 	std::shared_ptr<StorageSession> session;
 	std::shared_ptr<CollectorControls> controls;
@@ -33,9 +41,39 @@ struct StoreCore {
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
 	std::optional<Descriptor> verified;
 	distribution::RetirementHandle<LeasedPagedRoot> verified_paged;
+	static constexpr std::size_t certificate_capacity = 64;
+	std::array<distribution::RetirementHandle<PagedDependencyCertificate>, certificate_capacity> certificates;
+	std::size_t certificate_position = 0;
+	const PagedDependencyCertificate *certificate(const Descriptor &descriptor) const {
+		for (const auto &entry : certificates)
+			if (entry && entry->descriptor() == descriptor)
+				return entry.get();
+		return nullptr;
+	}
+	void cache_recovered(const RecoveredGeneration &generation) {
+		if (!generation.paged_ || certificate(generation.descriptor()))
+			return;
+		auto candidate = factory->make<PagedDependencyCertificate>(account, *factory);
+		candidate->capture(generation, verified ? certificate(*verified) : nullptr);
+		certificates[certificate_position] = std::move(candidate);
+		certificate_position = (certificate_position + 1) % certificates.size();
+	}
 	void retain_recovered(const RecoveredGeneration &generation) {
+		cache_recovered(generation);
 		verified = generation.descriptor();
 		verified_paged = generation.paged_;
+	}
+	void confirm_paged(const RecoveredGeneration &generation) {
+		const auto &plan = pending_paged_recovery->plan();
+		if (!generation.paged_ || generation.paged_->storage_identity() != identity ||
+			paged::encode_root(generation.paged_->root()) != paged::encode_root(plan.root()))
+			throw std::invalid_argument("paged recovered graph differs from publication plan");
+		const auto counts = generation.paged_->counts(), expected = plan.counts();
+		if (counts.bools != expected.bools || counts.ints != expected.ints ||
+			counts.overrides != expected.overrides || counts.strings != expected.strings ||
+			counts.maximum_overrides != expected.maximum_overrides)
+			throw std::invalid_argument("paged recovered counts differ from publication plan");
+		retain_recovered(generation);
 	}
 	std::uint64_t owner = 0;
 	StoreStatus status = StoreStatus::Starting;
@@ -454,13 +492,17 @@ class StartupOperation final : public c::Operation {
 namespace {
 struct PublicationData {
 	PublicationData(std::shared_ptr<detail::StoreCore> owner, const ImageBuilder &builder)
-		: core(std::move(owner)), session(core->session), image(builder.bytes()),
-		  descriptor(builder.descriptor()),
+		: PublicationData(std::move(owner), builder.descriptor(), builder.bytes(), 1, {}) {}
+	PublicationData(std::shared_ptr<detail::StoreCore> owner, Descriptor target,
+					std::shared_ptr<const distribution::OwnedBuffer> bytes, unsigned layout,
+					distribution::RetirementHandle<detail::PagedPublicationArtifacts> artifacts)
+		: core(std::move(owner)), session(core->session), image(std::move(bytes)), descriptor(target),
 		  names{detail::GenerationName(descriptor.generation, detail::GenerationFile::Lease),
 				detail::GenerationName(descriptor.generation, detail::GenerationFile::Image),
-				detail::GenerationName(descriptor.generation, detail::GenerationFile::Descriptor)} {
+				detail::GenerationName(descriptor.generation, detail::GenerationFile::Descriptor)},
+		  artifacts(std::move(artifacts)) {
 		ownership = encode_generation_ownership(
-			{core->identity, descriptor.generation, descriptor.length, descriptor.checksum});
+			{core->identity, descriptor.generation, descriptor.length, descriptor.checksum, layout});
 		record = encode_descriptor(descriptor);
 	}
 	std::shared_ptr<detail::StoreCore> core;
@@ -470,41 +512,75 @@ struct PublicationData {
 	std::array<detail::GenerationName, 3> names;
 	std::array<char, generation_ownership_bytes> ownership;
 	std::array<char, descriptor_bytes> record;
+	distribution::RetirementHandle<detail::PagedPublicationArtifacts> artifacts;
 	DiskLedger::Permit permit;
 	DiskPublicationStatus status = DiskPublicationStatus::Preparing;
 	std::exception_ptr failure;
+};
+
+class RetiredPreparations final : public distribution::RetirementNode {
+  public:
+	explicit RetiredPreparations(c::AllocationContext context)
+		: children(c::OwnedAllocator<std::shared_ptr<c::ImagePreparation>>(context)) {}
+	std::vector<std::shared_ptr<c::ImagePreparation>, c::OwnedAllocator<std::shared_ptr<c::ImagePreparation>>>
+		children;
+
+  protected:
+	bool retire_step() noexcept override {
+		for (unsigned i = 0; i < 16 && !children.empty(); ++i)
+			children.pop_back();
+		return children.empty();
+	}
 };
 class PublicationOperation final : public c::Operation {
   public:
 	explicit PublicationOperation(std::shared_ptr<PublicationData> data) : data_(std::move(data)) {
 		auto &core = *data_->core;
 		const auto &context = core.session->allocation_context();
-		// Construct the entire retained child graph before acquiring disk capacity.
-		for (std::size_t i = 0; i < children_.size(); ++i) {
+		if (data_->artifacts) {
+			paged_children_ = core.factory->make<RetiredPreparations>(context);
+			paged_children_->children.reserve(data_->artifacts->artifacts().size());
+			dependencies_ = std::allocate_shared<detail::PagedDependencyCheck>(
+				c::OwnedAllocator<detail::PagedDependencyCheck>(context), *core.factory, core.session,
+				data_->artifacts, core.owner);
+		}
+		for (std::size_t i = 0; i < child_count(); ++i) {
 			std::string_view bytes;
-			if (i == 0)
+			if (data_->artifacts)
+				bytes = data_->artifacts->artifacts()[i].bytes();
+			else if (i == 0)
 				bytes = {data_->ownership.data(), data_->ownership.size()};
 			else if (i == 1)
 				bytes = data_->image->view();
 			else
 				bytes = {data_->record.data(), data_->record.size()};
-			children_[i] =
-				c::make_image_preparation(context, core.session->backend(), data_,
-										  core.session->next_operation(), data_->names[i].view(), data_,
-										  bytes, bytes.size(), core.session->backend()->make_closed_file());
+			auto preparation = c::make_image_preparation(
+				context, core.session->backend(), data_, core.session->next_operation(), child_name(i), data_,
+				bytes, bytes.size(), core.session->backend()->make_closed_file());
+			if (paged_children_)
+				paged_children_->children.push_back(std::move(preparation));
+			else
+				children_[i] = std::move(preparation);
 		}
 		token_ = core.session->next_operation();
-		prepare(c::Kind::InspectEntry);
+		if (dependencies_ && !dependencies_->done())
+			phase_ = Phase::Dependencies;
+		else
+			prepare(c::Kind::InspectEntry);
 	}
 	const c::Request &request() const override {
-		return phase_ == Phase::Prepare ? children_[index_]->request() : request_;
+		if (phase_ == Phase::Dependencies)
+			return dependencies_->request();
+		return phase_ == Phase::Prepare ? child(index_)->request() : request_;
 	}
 	void submitted() override {
 		if (done() || submitted_)
 			throw std::logic_error("invalid managed publication submission");
+		if (phase_ == Phase::Dependencies)
+			dependencies_->submitted();
 		if (phase_ == Phase::Prepare)
-			children_[index_]->submitted();
-		if (phase_ != Phase::Preflight) {
+			child(index_)->submitted();
+		if (phase_ != Phase::Preflight && phase_ != Phase::Dependencies) {
 			data_->core->ledger.accepted(data_->permit);
 			started_ = true;
 			if (phase_ == Phase::Prepare)
@@ -521,23 +597,37 @@ class PublicationOperation final : public c::Operation {
 			return false;
 		submitted_ = false;
 		try {
-			if (phase_ != Phase::Preflight)
+			if (phase_ == Phase::Dependencies) {
+				dependencies_->complete(std::move(result));
+				if (!dependencies_->done())
+					return true;
+				if (dependencies_->error())
+					std::rethrow_exception(dependencies_->error());
+				if (cancelled_ || data_->core->closing)
+					cancel_healthy();
+				else {
+					phase_ = Phase::Preflight;
+					prepare(c::Kind::InspectEntry);
+				}
+				return true;
+			}
+			if (phase_ != Phase::Preflight && phase_ != Phase::Dependencies)
 				data_->core->ledger.completed(data_->permit);
 			if (phase_ == Phase::Prepare) {
-				children_[index_]->complete(std::move(result));
-				if (!children_[index_]->done())
+				child(index_)->complete(std::move(result));
+				if (!child(index_)->done())
 					return true;
-				if (children_[index_]->error())
-					std::rethrow_exception(children_[index_]->error());
-				if (index_ == 2)
-					prepared_ = children_[index_]->prepared();
+				if (child(index_)->error())
+					std::rethrow_exception(child(index_)->error());
+				if (index_ + 1 == child_count())
+					prepared_ = child(index_)->prepared();
 				++sealed_;
 				child_started_ = false;
 				if (cancelled_ || data_->core->closing) {
 					cancel_healthy();
 					return true;
 				}
-				if (++index_ < children_.size())
+				if (++index_ < child_count())
 					return true;
 				check_final_credit();
 				phase_ = Phase::Replace;
@@ -554,7 +644,7 @@ class PublicationOperation final : public c::Operation {
 					finish(DiskPublicationStatus::Rejected);
 				} else if (cancelled_ || data_->core->closing)
 					cancel_healthy();
-				else if (++index_ < children_.size())
+				else if (++index_ < child_count())
 					prepare(c::Kind::InspectEntry);
 				else {
 					index_ = 0;
@@ -566,9 +656,10 @@ class PublicationOperation final : public c::Operation {
 			} else if (phase_ == Phase::Barrier) {
 				// Durability lives here, independent of coordinator acknowledgement.
 				data_->core->selection = {SelectionKnowledge::Known, data_->descriptor};
-				data_->core->ledger.settle(data_->permit,
-										   DiskLedger::generation_peak(data_->descriptor.length),
+				data_->core->ledger.settle(data_->permit, peak(),
 										   old_selected_ ? DiskUsage{descriptor_bytes, 1, 0} : DiskUsage{});
+				if (data_->artifacts)
+					data_->core->pending_paged_recovery = data_->artifacts;
 				finish(DiskPublicationStatus::Published);
 			}
 		} catch (...) {
@@ -583,7 +674,7 @@ class PublicationOperation final : public c::Operation {
 	c::IO &io() const noexcept override { return *data_->session->backend(); }
 	void admit() {
 		old_selected_ = data_->core->selection.knowledge == SelectionKnowledge::Known;
-		data_->permit = data_->core->ledger.reserve(DiskLedger::generation_peak(data_->descriptor.length));
+		data_->permit = data_->core->ledger.reserve(peak());
 		data_->core->active_generation = data_->descriptor.generation;
 	}
 	void cancel() noexcept {
@@ -591,6 +682,13 @@ class PublicationOperation final : public c::Operation {
 		if (submitted_ || done() || phase_ == Phase::Barrier || child_started_)
 			return;
 		try {
+			if (phase_ == Phase::Dependencies) {
+				dependencies_->cancel();
+				if (!dependencies_->done())
+					return;
+				if (dependencies_->error())
+					std::rethrow_exception(dependencies_->error());
+			}
 			cancel_healthy();
 		} catch (...) {
 			data_->failure = std::current_exception();
@@ -602,7 +700,20 @@ class PublicationOperation final : public c::Operation {
 	std::exception_ptr error() const noexcept { return data_->failure; }
 
   private:
-	enum class Phase { Preflight, Prepare, Replace, Barrier, Done };
+	enum class Phase { Dependencies, Preflight, Prepare, Replace, Barrier, Done };
+	std::size_t child_count() const {
+		return data_->artifacts ? data_->artifacts->artifacts().size() : children_.size();
+	}
+	const std::shared_ptr<c::ImagePreparation> &child(std::size_t i) const {
+		return paged_children_ ? paged_children_->children.at(i) : children_.at(i);
+	}
+	std::string_view child_name(std::size_t i) const {
+		return data_->artifacts ? data_->artifacts->artifacts()[i].filename() : data_->names[i].view();
+	}
+	DiskUsage peak() const {
+		return data_->artifacts ? data_->artifacts->usage()
+								: DiskLedger::generation_peak(data_->descriptor.length);
+	}
 	void prepare(c::Kind kind) {
 		request_ = {};
 		request_.token = token_;
@@ -610,7 +721,7 @@ class PublicationOperation final : public c::Operation {
 		token_ = request_.token;
 		request_.kind = kind;
 		if (kind == c::Kind::InspectEntry)
-			request_.source = data_->names[index_].view();
+			request_.source = child_name(index_);
 		if (kind == c::Kind::Replace) {
 			request_.source = prepared_->name();
 			request_.destination = "selected";
@@ -623,21 +734,26 @@ class PublicationOperation final : public c::Operation {
 	}
 	void cancel_healthy() {
 		// No child can subsequently create a file. Preserve exactly the sealed prefix.
-		for (std::size_t i = sealed_; i < children_.size(); ++i)
-			children_[i]->cancel();
+		if (!paged_children_)
+			for (std::size_t i = sealed_; i < children_.size(); ++i)
+				children_[i]->cancel();
 		if (!started_)
 			data_->core->ledger.cancel_unstarted(data_->permit);
 		else {
 			DiskUsage observed;
-			if (sealed_ >= 1)
-				observed = {generation_ownership_bytes, 1, 1};
-			if (sealed_ >= 2) {
-				observed.bytes += data_->descriptor.length;
-				++observed.entries;
-			}
-			if (sealed_ >= 3) {
-				observed.bytes += descriptor_bytes;
-				++observed.entries;
+			if (data_->artifacts)
+				observed = data_->artifacts->prefix_usage(sealed_);
+			else {
+				if (sealed_ >= 1)
+					observed = {generation_ownership_bytes, 1, 1};
+				if (sealed_ >= 2) {
+					observed.bytes += data_->descriptor.length;
+					++observed.entries;
+				}
+				if (sealed_ >= 3) {
+					observed.bytes += descriptor_bytes;
+					++observed.entries;
+				}
 			}
 			data_->core->ledger.settle(data_->permit, observed);
 		}
@@ -651,6 +767,8 @@ class PublicationOperation final : public c::Operation {
 	}
 	std::shared_ptr<PublicationData> data_;
 	std::array<std::shared_ptr<c::ImagePreparation>, 3> children_;
+	distribution::RetirementHandle<RetiredPreparations> paged_children_;
+	std::shared_ptr<detail::PagedDependencyCheck> dependencies_;
 	std::optional<c::PreparedImage> prepared_;
 	c::Request request_;
 	c::Token token_;
@@ -678,7 +796,7 @@ struct ReclaimData {
 	RecordReader reader;
 	std::array<char, 256> scan_name{};
 	std::array<char, 64> name{};
-	std::array<char, header_bytes> image_prefix{};
+	std::array<char, paged::root_bytes> image_prefix{};
 	std::size_t prefix_length = 0, prefix_offset = 0;
 	std::size_t scan_size = 0, name_size = 0;
 	DiskUsage deleted;
@@ -842,8 +960,9 @@ class ReclaimOperation final : public c::Operation {
 				slot().entries[part] = result.inspection;
 				if (part == 1) {
 					if (result.inspection && result.inspection->footprint.logical_bytes) {
-						data_->prefix_length =
-							std::min<std::uint64_t>(header_bytes, result.inspection->footprint.logical_bytes);
+						data_->prefix_length = std::min<std::uint64_t>(
+							slot().proof.layout_version == 2 ? paged::root_bytes : header_bytes,
+							result.inspection->footprint.logical_bytes);
 						data_->prefix_offset = 0;
 						slot().valid = true;
 						reading_image_ = true;
@@ -1080,6 +1199,16 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
+		if (slot().proof.layout_version == 2) {
+			slot().image_scope = detail::validate_paged_root_prefix(bytes);
+			if (bytes.size() == paged::root_bytes) {
+				if (paged::physical_commitment(bytes) != slot().proof.image_checksum)
+					throw std::runtime_error("paged root checksum differs from ownership");
+				const auto root = paged::decode_root(bytes, detail::paged_format_limits());
+				slot().image_scope = std::pair(root.cursor, root.profile);
+			}
+			return;
+		}
 		constexpr std::string_view magic = "DTIMAGE1";
 		const auto prefix = std::min(bytes.size(), magic.size());
 		if (!std::equal(bytes.begin(), bytes.begin() + prefix, magic.begin()))
@@ -1340,7 +1469,7 @@ void DiskStore::advance() {
 		impl_->publication.reset();
 	}
 	if (!impl_->core->closing && impl_->core->status == StoreStatus::Ready &&
-		(!impl_->publication || impl_->publication->done())) {
+		!impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done())) {
 		if (impl_->reclaim->paused())
 			impl_->reclaim->resume();
 		else if (impl_->core->collect && impl_->reclaim->done()) {
@@ -1353,7 +1482,11 @@ void DiskStore::advance() {
 		impl_->reclaim.reset();
 		impl_->publication.reset();
 		impl_->startup.reset();
+		for (auto &certificate : impl_->core->certificates)
+			certificate.reset();
+		impl_->core->pending_paged_recovery.reset();
 		impl_->core->verified_paged.reset();
+		impl_->core->factory.reset();
 		impl_->core->controls.reset();
 		impl_->core->session.reset();
 		impl_->core->status = StoreStatus::Closed;
@@ -1362,11 +1495,59 @@ void DiskStore::advance() {
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
-		   (!impl_->publication || impl_->publication->done()) &&
+		   !impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done()) &&
 		   (!impl_->reclaim || !impl_->reclaim->active_batch());
 }
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	begin_impl(builder, expected_base, nullptr);
+}
+void DiskStore::begin(detail::PagedPlan &&plan) {
+	auto &core = *impl_->core;
+	if (!publication_ready())
+		throw std::logic_error("managed store unavailable for publication");
+	const auto descriptor = plan.descriptor();
+	if (core.selection.knowledge != SelectionKnowledge::Known ||
+		core.selection.descriptor != plan.base_descriptor() ||
+		plan.directory_identity() != core.directory_identity || plan.storage_identity() != core.identity ||
+		!descriptor.cursor.same_identity(plan.base_descriptor().cursor) ||
+		descriptor.cursor.revision <= plan.base_descriptor().cursor.revision ||
+		descriptor.profile != plan.base_descriptor().profile || plan.bytes()->account() != core.account ||
+		descriptor.length != paged::root_bytes || descriptor.length > core.options.recovery_limits.bytes ||
+		plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||
+		plan.root().records > core.options.recovery_limits.records ||
+		plan.root().namespaces > core.options.recovery_limits.namespaces ||
+		plan.counts().strings > core.options.recovery_limits.strings ||
+		plan.counts().maximum_overrides > core.options.recovery_limits.overrides)
+		throw std::invalid_argument("managed paged publication exact base or admission mismatch");
+	auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
+	artifacts->populate(plan);
+	const auto &context = core.session->allocation_context();
+	auto data = std::allocate_shared<PublicationData>(c::OwnedAllocator<PublicationData>(context),
+													  impl_->core, descriptor, plan.bytes(), 2, artifacts);
+	auto operation =
+		std::allocate_shared<PublicationOperation>(c::OwnedAllocator<PublicationOperation>(context), data);
+	operation->admit();
+	try {
+		artifacts->attach(std::move(plan));
+	} catch (...) {
+		operation->cancel();
+		throw;
+	}
+	impl_->publication.reset();
+	impl_->terminal_publication_status = DiskPublicationStatus::Idle;
+	impl_->terminal_publication_error = {};
+	impl_->publication = std::move(operation);
+}
+void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
+	auto &core = *impl_->core;
+	if (!core.pending_paged_recovery || core.closing || core.status != StoreStatus::Ready ||
+		core.selection.knowledge != SelectionKnowledge::Known ||
+		core.selection.descriptor != generation.descriptor() ||
+		generation.directory_identity() != core.directory_identity)
+		throw std::invalid_argument("paged publication recovery does not match selected state");
+	core.confirm_paged(generation);
+	core.pending_paged_recovery.reset();
+	advance();
 }
 void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset) {
 	begin_impl(builder, reset.expected_selected.cursor, &reset);
@@ -1449,7 +1630,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		throw DiskPressure("fresh root bootstrap exceeds disk quota");
 	auto account = domain.storage_account();
 	auto core = std::allocate_shared<detail::StoreCore>(
-		distribution::StorageAllocator<detail::StoreCore>(account), account, options);
+		distribution::StorageAllocator<detail::StoreCore>(account), account, options, domain.factory());
 	core->bootstrap = std::allocate_shared<detail::BootstrapCommitment>(
 		distribution::StorageAllocator<detail::BootstrapCommitment>(account));
 	core->bootstrap->caller = std::move(admission);

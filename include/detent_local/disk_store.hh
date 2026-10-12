@@ -23,7 +23,8 @@ struct DiskStoreOptions {
 };
 namespace detail {
 struct StoreCore;
-}
+class PagedPlan;
+} // namespace detail
 // Single-executor coordinator. The application retains and drives the store
 // through close/drain; accepted drivers retain the entire outer operation.
 class DiskStore {
@@ -47,6 +48,9 @@ class DiskStore {
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});
+	void begin(detail::PagedPlan &&);
+	// Settles the retained plan only after actual selected recovery succeeds.
+	void confirm_recovered(const RecoveredGeneration &);
 	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;

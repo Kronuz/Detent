@@ -12,6 +12,8 @@ SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> ac
 	if (!std::any_of(storage.begin(), storage.end(), [](char c) { return c != 0; }) ||
 		limits.segments > paged::Limits{}.segments || limits.bytes > paged::Limits{}.bytes)
 		throw std::invalid_argument("invalid segment registry admission");
+	identity_ =
+		std::allocate_shared<unsigned char>(distribution::StorageAllocator<unsigned char>(account), 0);
 	mappings_.reserve(limits.segments);
 	inputs_.reserve(limits.segments);
 	reachable_.reserve(limits.segments);

@@ -1,0 +1,117 @@
+#include "paged_publication_artifacts.hh"
+#include "names.hh"
+#include "segment_names.hh"
+namespace detent::local::detail {
+namespace d = distribution;
+PagedPublicationArtifacts::PagedPublicationArtifacts(std::shared_ptr<d::StorageLedger> account)
+	: artifacts_(Allocator(account)), reused_(d::StorageAllocator<ReusedDependency>(account)) {}
+void PagedPublicationArtifacts::append(std::string_view name, std::span<const char> record,
+									   std::shared_ptr<const d::OwnedBuffer> payload, bool generation) {
+	if (name.size() > PublicationArtifact{}.name.size() || record.size() > descriptor_bytes)
+		throw std::length_error("paged publication artifact exceeds fixed framing");
+	const auto length = payload ? payload->size() : record.size();
+	if (length > UINT64_MAX - usage_.bytes || usage_.entries == UINT64_MAX ||
+		(generation && usage_.generations == UINT64_MAX))
+		throw std::length_error("paged publication accounting overflow");
+	PublicationArtifact row;
+	std::copy(name.begin(), name.end(), row.name.begin());
+	row.name_size = name.size();
+	std::copy(record.begin(), record.end(), row.record.begin());
+	row.record_size = record.size();
+	row.payload = std::move(payload);
+	row.prefix = {usage_.bytes + length, usage_.entries + 1, usage_.generations + generation};
+	artifacts_.push_back(std::move(row));
+	usage_ = artifacts_.back().prefix;
+}
+void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
+	if (populated_ || failed_ || !artifacts_.empty())
+		throw std::logic_error("paged artifacts already populated or failed");
+	try {
+		if (artifacts_.get_allocator() != Allocator(plan.bytes()->account()))
+			throw std::invalid_argument("paged artifact account mismatch");
+		const auto segments = plan.segments();
+		if (segments.size() > paged::Limits{}.segments)
+			throw std::length_error("paged publication artifact count exceeded");
+		artifacts_.reserve(2 * segments.size() + 3);
+		const auto registry = plan.registry();
+		reused_.reserve(registry->inputs().size());
+		for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
+			if (plan.base_reachability(i).pages) {
+				const auto &mapping = registry->mapping(i);
+				reused_.push_back({mapping->ownership(), mapping->identity()});
+			}
+		}
+		for (std::size_t i = 0; i < segments.size(); ++i) {
+			const auto &segment = segments[i];
+			if (!plan.new_reachability(i).pages || segment.bytes->account() != plan.bytes()->account() ||
+				segment.bytes->size() != segment.ownership.length ||
+				segment.ownership.storage != plan.storage_identity())
+				throw std::invalid_argument("invalid new paged publication dependency");
+			const SegmentNames names(segment.ownership.segment);
+			append(names.owner_name(), encode_segment_ownership(segment.ownership), {});
+			append(names.payload_name(), {}, segment.bytes);
+		}
+		if (reused_.size() + segments.size() != plan.root().segments)
+			throw std::invalid_argument("paged publication dependency count mismatch");
+		const auto descriptor = plan.descriptor();
+		append(GenerationName(descriptor.generation, GenerationFile::Lease).view(),
+			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
+											descriptor.checksum, 2}),
+			   {}, true);
+		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
+		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),
+			   encode_descriptor(descriptor), {});
+		descriptor_ = descriptor;
+		base_descriptor_ = plan.base_descriptor();
+		directory_ = plan.directory_identity();
+		storage_ = plan.storage_identity();
+		populated_ = true;
+	} catch (...) {
+		failed_ = true;
+		throw;
+	}
+}
+void PagedPublicationArtifacts::attach(PagedPlan &&plan) {
+	if (!populated_ || plan_ || plan.descriptor() != descriptor_ ||
+		plan.base_descriptor() != base_descriptor_ || plan.directory_identity() != directory_ ||
+		plan.storage_identity() != storage_)
+		throw std::invalid_argument("paged artifact plan binding mismatch");
+	plan_.emplace(std::move(plan));
+}
+std::span<const PublicationArtifact> PagedPublicationArtifacts::artifacts() const {
+	if (!populated_)
+		throw std::logic_error("unpopulated paged publication artifacts");
+	return artifacts_;
+}
+std::span<const ReusedDependency> PagedPublicationArtifacts::reused() const {
+	artifacts();
+	return reused_;
+}
+const PagedPlan &PagedPublicationArtifacts::plan() const {
+	if (!plan_)
+		throw std::logic_error("unattached paged artifact plan");
+	return *plan_;
+}
+DiskUsage PagedPublicationArtifacts::usage() const {
+	artifacts();
+	return usage_;
+}
+DiskUsage PagedPublicationArtifacts::prefix_usage(std::size_t count) const {
+	artifacts();
+	if (count > artifacts_.size())
+		throw std::out_of_range("paged artifact prefix exceeded");
+	return count ? artifacts_[count - 1].prefix : DiskUsage{};
+}
+bool PagedPublicationArtifacts::retire_step() noexcept {
+	for (unsigned i = 0; i < 16 && !artifacts_.empty(); ++i)
+		artifacts_.pop_back();
+	if (!artifacts_.empty())
+		return false;
+	for (unsigned i = 0; i < 16 && !reused_.empty(); ++i)
+		reused_.pop_back();
+	if (!reused_.empty())
+		return false;
+	plan_.reset();
+	return true;
+}
+} // namespace detent::local::detail
