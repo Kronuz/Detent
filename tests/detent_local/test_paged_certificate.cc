@@ -2,6 +2,7 @@
 #include "paged_plan.hh"
 #include "paged_progress_fixture.hh"
 #include <chrono>
+#include <iostream>
 #include <thread>
 int main() {
 	const auto root =
@@ -36,8 +37,10 @@ int main() {
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mapping_account;
 		auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(root, limits));
+		const auto before_first = account->used();
 		auto first = domain.make<l::detail::PagedDependencyCertificate>(account, domain.factory());
 		first->capture(*base);
+		std::cout << "First certificate admitted bytes: " << account->used() - before_first << '\n';
 		require(first->descriptor() == image.descriptor() && first->storage_identity() == storage);
 		require(first->dependencies().size() == image.segments().size());
 		{
@@ -56,8 +59,11 @@ int main() {
 			write(root / "selected", l::encode_descriptor(plan.descriptor()));
 		}
 		auto newer = std::optional<l::RecoveredGeneration>(l::recover_generation(root, limits, {}, &*base));
+		const auto before_second = account->used();
 		auto second = domain.make<l::detail::PagedDependencyCertificate>(account, domain.factory());
 		second->capture(*newer, first.get());
+		std::cout << "Progress certificate admitted bytes: " << account->used() - before_second << '\n';
+		std::cout << "Registry object bytes: " << sizeof(l::detail::SegmentRegistry) << '\n';
 		require(first->dependencies().data() == second->dependencies().data());
 		require(first->descriptor() != second->descriptor());
 		first.reset();

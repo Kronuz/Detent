@@ -1,5 +1,7 @@
+#include "owned_segment_inputs.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_named_root.hh"
+#include "paged_segment_read.hh"
 #include <chrono>
 #include <completion/native_completion.h>
 #include <fcntl.h>
@@ -141,6 +143,76 @@ int main() {
 				require(fd >= 0 && ::flock(fd, LOCK_EX | LOCK_NB) != 0 &&
 						(errno == EWOULDBLOCK || errno == EAGAIN));
 				require(::close(fd) == 0);
+				if (variant == 1) {
+					l::detail::OwnedSegmentInputs inputs(domain.factory(), account, storage,
+														 reader.root().segments,
+														 16 * l::paged::segment_bytes);
+					const auto owner = inputs.owner();
+					l::detail::PagedDependencyWalk walk(account, owner, l::detail::OwnedSegmentInputs::lookup,
+														reader.root(), storage);
+					for (unsigned turns = 0; !walk.done(); ++turns) {
+						require(turns < 100000);
+						l::ValidationBudget budget;
+						walk.step(budget);
+						if (const auto id = walk.missing()) {
+							l::detail::PagedSegmentRead pack(domain.factory(), session, account, storage, *id,
+															 ::getuid());
+							for (unsigned steps = 0; !pack.done(); ++steps) {
+								require(steps < 100000);
+								if (pack.needs_work()) {
+									l::ValidationBudget work;
+									pack.step(work);
+								} else {
+									pack.submitted();
+									require(pack.complete(kronuz::journal::detail::execute_primitive(
+										pack.io(), pack.request())));
+								}
+							}
+							require(pack.ready() && !pack.error());
+							inputs.begin(pack.ownership(), pack.bytes());
+							while (inputs.busy()) {
+								l::ValidationBudget work{1, 1};
+								inputs.step(work);
+							}
+							pack.close();
+							while (!pack.done()) {
+								pack.submitted();
+								require(pack.complete(
+									kronuz::journal::detail::execute_primitive(pack.io(), pack.request())));
+							}
+						}
+					}
+					inputs.freeze();
+					l::detail::GraphValidator graph(account, owner, inputs.inputs(), reader.root(), storage);
+					while (!graph.done()) {
+						l::ValidationBudget budget;
+						graph.step(budget);
+					}
+					auto checked =
+						domain.make<l::detail::PagedDependencyCertificate>(account, domain.factory());
+					checked->begin_named(reader, graph);
+					l::ValidationBudget zero{0, 0};
+					checked->capture_step(zero);
+					require(!checked->sealed());
+					while (!checked->sealed()) {
+						l::ValidationBudget budget{1, 1};
+						checked->capture_step(budget);
+					}
+					require(checked->descriptor() == reader.descriptor() &&
+							checked->dependencies().size() == image.segments().size());
+					require(checked->dependencies()[0] == image.segments()[0].ownership &&
+							limits.mapping_account->used() == 0);
+					for (;;) {
+						l::ValidationBudget budget;
+						if (graph.discard(budget))
+							break;
+					}
+					for (;;) {
+						l::ValidationBudget budget;
+						if (walk.discard(budget))
+							break;
+					}
+				}
 			} else {
 				require(!reader.ready() && reader.error());
 				if (variant >= 4)
@@ -154,6 +226,53 @@ int main() {
 			const int fd = ::open(lease_path.c_str(), O_RDWR | O_CLOEXEC);
 			require(fd >= 0 && ::flock(fd, LOCK_EX | LOCK_NB) == 0);
 			require(::close(fd) == 0 && limits.mapping_account->used() == 0);
+		}
+		{
+			l::GenerationId legacy;
+			legacy.fill('v');
+			l::ImageBuilder builder(source, legacy);
+			while (!builder.done()) {
+				l::ValidationBudget budget;
+				builder.step(budget);
+			}
+			const auto descriptor = builder.descriptor();
+			const auto name = l::generation_name(legacy);
+			write(
+				directory / (name + ".lease"),
+				l::encode_generation_ownership({storage, legacy, descriptor.length, descriptor.checksum, 1}));
+			write(directory / (name + ".image"), {builder.bytes()->data(), builder.bytes()->size()});
+			l::detail::PagedNamedRoot reader(domain.factory(), session, storage, legacy, ::getuid(),
+											 certificate);
+			drive(reader);
+			require(reader.ready() && !reader.paged() && !reader.error() && !reader.certificate());
+			require(reader.descriptor() == descriptor);
+			bool refused = false;
+			try {
+				reader.root();
+			} catch (const std::logic_error &) {
+				refused = true;
+			}
+			require(refused);
+			reader.close();
+			drive(reader);
+			std::string enlarged(builder.bytes()->view());
+			enlarged.append(17, 'x');
+			write(directory / (name + ".image"), enlarged);
+			write(directory / (name + ".lease"),
+				  l::encode_generation_ownership(
+					  {storage, legacy, enlarged.size(), l::paged::physical_commitment(enlarged), 1}));
+			l::detail::PagedNamedRoot inconsistent(domain.factory(), session, storage, legacy, ::getuid());
+			drive(inconsistent);
+			require(!inconsistent.ready() && inconsistent.error());
+			write(directory / (name + ".image"), builder.bytes()->view());
+			write(directory / (name + ".lease"), std::span<const char>{});
+			l::detail::PagedNamedRoot unmanaged(domain.factory(), session, storage, legacy, ::getuid());
+			drive(unmanaged);
+			require(unmanaged.ready() && unmanaged.legacy_anchor() && !unmanaged.paged() &&
+					!unmanaged.certificate() && unmanaged.descriptor().length == descriptor.length &&
+					unmanaged.descriptor().cursor == descriptor.cursor);
+			unmanaged.close();
+			drive(unmanaged);
 		}
 		session->close();
 	}

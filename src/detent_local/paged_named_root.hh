@@ -16,8 +16,12 @@ class PagedNamedRoot final : public kronuz::io::completion::Operation {
 	bool in_flight() const noexcept override;
 	kronuz::io::completion::IO &io() const noexcept override;
 	bool ready() const noexcept;
+	bool paged() const;
+	bool legacy_anchor() const;
 	const paged::Root &root() const;
 	const Descriptor &descriptor() const;
+	DirectoryIdentity directory_identity() const;
+	StorageIdentity storage_identity() const;
 	distribution::RetirementHandle<PagedDependencyCertificate> certificate() const;
 	std::exception_ptr error() const noexcept;
 	void close() noexcept;

@@ -228,3 +228,8 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_paged_segment_read PRIVATE detent::local_publication)
   add_test(NAME test_local_paged_segment_read COMMAND test_local_paged_segment_read)
 endif()
+
+add_executable(test_local_owned_segment_inputs test_owned_segment_inputs.cc)
+target_include_directories(test_local_owned_segment_inputs PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_owned_segment_inputs PRIVATE detent::local_builder)
+add_test(NAME test_local_owned_segment_inputs COMMAND test_local_owned_segment_inputs)

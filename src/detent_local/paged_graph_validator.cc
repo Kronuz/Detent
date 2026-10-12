@@ -346,6 +346,12 @@ PagedStateCounts GraphValidator::counts() const {
 		throw std::logic_error("graph validation incomplete");
 	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings, impl_->maximum_overrides};
 }
+std::pair<std::shared_ptr<const void>, std::span<const SegmentInput>>
+GraphValidator::validated_inputs() const {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	return {impl_->owner, impl_->segments};
+}
 SegmentReachability GraphValidator::segment_reachability(std::size_t index) const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
