@@ -14,6 +14,11 @@
 
 namespace l = detent::local;
 namespace p = l::paged;
+void require_at(bool value, unsigned line) {
+	if (!value)
+		throw std::runtime_error("snapshot invariant at line " + std::to_string(line));
+}
+#define require(value) require_at((value), __LINE__)
 namespace {
 template <class Error, class F> void rejects(F call) {
 	try {
@@ -67,7 +72,8 @@ std::shared_ptr<const d::ValidatedSnapshot> charged(std::shared_ptr<d::StorageLe
 		d::StorageAllocator<const d::ValidatedSnapshot>(account), decoder.finish());
 }
 void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d::StorageLedger> account,
-						  l::StorageIdentity storage, std::size_t quantum, bool corrupt = false) {
+						  l::StorageIdentity storage, std::size_t quantum, bool corrupt = false,
+						  std::size_t rows = 16) {
 	auto directory =
 		std::filesystem::current_path() / ".scratch" / ("paged-discovery-" + std::to_string(::getpid()));
 	std::filesystem::create_directories(directory);
@@ -90,7 +96,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 	{
 		l::detail::DependencyDiscovery discovery(account, domain, image.root(), storage);
 		while (!discovery.done()) {
-			l::ValidationBudget budget{quantum, 16};
+			l::ValidationBudget budget{quantum, rows};
 			discovery.step(budget);
 			if (auto missing = discovery.missing()) {
 				const auto found =
@@ -191,6 +197,7 @@ int main() {
 		require(!builder.done() && image.segments().size() == 1 && image.root().records == 2);
 		logical = image.root().logical;
 		recover_dependencies(image, account, storage, 1);
+		recover_dependencies(image, account, storage, 8192, false, 1);
 		{
 			auto controls = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
 			d::RetirementRuntime runtime{controls, 1};
@@ -203,6 +210,13 @@ int main() {
 			require(!discovery.missing());
 			l::ValidationBudget work{1, 1};
 			discovery.step(work);
+			require(!discovery.done());
+			for (unsigned turn = 0; !discovery.done(); ++turn) {
+				require(turn < 32);
+				l::ValidationBudget budget{1, 1};
+				discovery.step(budget);
+				require(budget.bytes <= 1 && budget.rows <= 1);
+			}
 			require(discovery.done());
 			auto registry = discovery.take();
 			require(registry->inputs().empty() && registry->physical_bytes() == 0);
@@ -213,7 +227,9 @@ int main() {
 			l::ValidationBudget none{0, 0};
 			require(!discovery.discard(none));
 			l::ValidationBudget disposal{0, 1};
-			require(discovery.discard(disposal));
+			require(!discovery.discard(disposal));
+			l::ValidationBudget final_disposal{0, 1};
+			require(discovery.discard(final_disposal));
 			registry.reset();
 			domain.close().wait();
 		}

@@ -12,6 +12,7 @@ void require(bool value) {
 	if (!value)
 		throw std::invalid_argument("invalid paged dependency graph");
 }
+
 using Handle = d::RetirementHandle<SegmentMapping>;
 struct Inputs {
 	std::vector<Handle, d::StorageAllocator<Handle>> mappings;
@@ -136,6 +137,8 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				s.phase = Impl::Phase::Done;
 				continue;
 			}
+			if (!budget.rows)
+				return;
 			s.walk->step(budget);
 			if (s.walk->missing()) {
 				s.phase = Impl::Phase::Missing;
