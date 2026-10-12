@@ -36,6 +36,25 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile()};
 	encode_descriptor(descriptor_);
 }
+PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account, RecoveredGeneration base,
+							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage)
+	: construction_base_(std::move(base)), replacement_(std::move(replacement)),
+	  replacement_storage_(storage), base_live_(d::StorageAllocator<SegmentReachability>(account)),
+	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
+	if (!replacement_ || replacement_->image().bytes()->account() != account)
+		throw std::invalid_argument("maintenance image account mismatch");
+	root_ = replacement_->image().root();
+	descriptor_ = replacement_->image().descriptor();
+	const auto &prior = construction_base_->descriptor();
+	if (descriptor_.cursor != prior.cursor || descriptor_.profile != prior.profile ||
+		descriptor_.generation == prior.generation)
+		throw std::invalid_argument("maintenance target identity mismatch");
+	new_live_.reserve(replacement_->image().segments().size());
+}
+bool PagedPlanState::maintenance() const {
+	descriptor();
+	return bool(maintenance_proof_);
+}
 const Descriptor &PagedPlanState::descriptor() const {
 	if (!sealed_)
 		throw std::logic_error("unsealed paged publication plan");
@@ -47,15 +66,15 @@ const p::Root &PagedPlanState::root() const {
 }
 const Descriptor &PagedPlanState::base_descriptor() const {
 	descriptor();
-	return base_->descriptor();
+	return base_ ? base_->descriptor() : construction_base_->descriptor();
 }
 DirectoryIdentity PagedPlanState::directory_identity() const {
 	descriptor();
-	return base_->directory_identity();
+	return base_ ? base_->directory_identity() : construction_base_->directory_identity();
 }
 StorageIdentity PagedPlanState::storage_identity() const {
 	descriptor();
-	return base_->storage_identity();
+	return base_ ? base_->storage_identity() : replacement_storage_;
 }
 const d::RetirementHandle<SegmentRegistry> &PagedPlanState::registry() const {
 	descriptor();
@@ -67,15 +86,17 @@ PagedStateCounts PagedPlanState::counts() const {
 }
 std::shared_ptr<const d::OwnedBuffer> PagedPlanState::bytes() const {
 	descriptor();
-	return image_ ? image_->bytes() : bytes_;
+	return image_ ? image_->bytes() : replacement_ ? replacement_->image().bytes() : bytes_;
 }
 std::span<const BuiltSegment> PagedPlanState::segments() const {
 	descriptor();
-	return image_ ? image_->segments() : std::span<const BuiltSegment>{};
+	return image_		  ? image_->segments()
+		   : replacement_ ? replacement_->image().segments()
+						  : std::span<const BuiltSegment>{};
 }
 SegmentReachability PagedPlanState::base_reachability(std::size_t index) const {
 	descriptor();
-	return image_ ? base_live_.at(index) : registry_->reachability(index);
+	return image_ || replacement_ ? base_live_.at(index) : registry_->reachability(index);
 }
 SegmentReachability PagedPlanState::new_reachability(std::size_t index) const {
 	descriptor();
@@ -83,9 +104,18 @@ SegmentReachability PagedPlanState::new_reachability(std::size_t index) const {
 }
 std::span<const std::uint32_t, 257> PagedPlanState::override_histogram() const {
 	descriptor();
-	return image_ ? std::span<const std::uint32_t, 257>(histogram_) : registry_->override_histogram();
+	return image_ || replacement_ ? std::span<const std::uint32_t, 257>(histogram_)
+								  : registry_->override_histogram();
 }
 bool PagedPlanState::retire_step() noexcept {
+	if (replacement_) {
+		replacement_.reset();
+		return false;
+	}
+	if (construction_base_) {
+		construction_base_.reset();
+		return false;
+	}
 	if (image_) {
 		if (image_capacity_) {
 			image_capacity_ -= std::min<std::size_t>(image_capacity_, 8192);

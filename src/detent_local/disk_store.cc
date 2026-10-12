@@ -1493,7 +1493,8 @@ void DiskStore::begin(detail::PagedPlan &&plan) {
 			plan.directory_identity() != core.directory_identity ||
 			plan.storage_identity() != core.identity ||
 			!descriptor.cursor.same_identity(plan.base_descriptor().cursor) ||
-			descriptor.cursor.revision <= plan.base_descriptor().cursor.revision ||
+			(plan.maintenance() ? descriptor.cursor != plan.base_descriptor().cursor
+								: descriptor.cursor.revision <= plan.base_descriptor().cursor.revision) ||
 			descriptor.profile != plan.base_descriptor().profile || plan.bytes()->account() != core.account ||
 			descriptor.length != paged::root_bytes ||
 			descriptor.length > core.options.recovery_limits.bytes ||
@@ -1716,7 +1717,8 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
-	return {*core.legacy_recovery, std::move(paged), store.impl_->core};
+	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.identity,
+			core.directory_identity};
 }
 RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
 													 ManagedRecoveryContext context) {

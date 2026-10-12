@@ -2,6 +2,7 @@
 #include "detent_local/disk_store.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
+#include "paged_maintenance_plan.hh"
 #include <completion/native_completion.h>
 namespace c = kronuz::io::completion;
 void drive(const std::shared_ptr<l::DiskStore> &store) {
@@ -30,7 +31,8 @@ l::DiskUsage census(const std::filesystem::path &root) {
 	return usage;
 }
 std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::PagedImage &image,
-						 const l::StorageIdentity &storage, bool progress, std::size_t point, unsigned mode) {
+						 const l::StorageIdentity &storage, unsigned intent, std::size_t point,
+						 unsigned mode) {
 	install(root, image, storage);
 	write(root / "owner.lock", {});
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
@@ -47,7 +49,7 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 	l::GenerationId next;
 	next.fill('n');
 	std::optional<l::detail::PagedPlan> plan;
-	if (progress) {
+	if (intent == 1) {
 		auto delta = std::make_shared<const d::ValidatedDelta>(parse_delta(true, 2, "app", account));
 		l::detail::PagedPlanBuilder builder(*base, delta, next, domain);
 		while (!builder.done()) {
@@ -55,8 +57,16 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 			builder.step(budget);
 		}
 		plan.emplace(builder.take());
-	} else {
+	} else if (!intent) {
 		l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), next, domain);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		plan.emplace(builder.take());
+	} else {
+		l::detail::PagedMaintenanceBuilder builder(*base, domain.factory(), account, storage, next,
+												   options.recovery_limits);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -161,15 +171,14 @@ int main() {
 	}
 	auto image = builder.take();
 	unsigned cases = 0;
-	for (bool progress : {false, true}) {
-		const auto reference =
-			run(directory / std::to_string(cases++), image, storage, progress, SIZE_MAX, 0);
+	for (unsigned intent : {0u, 1u, 2u}) {
+		const auto reference = run(directory / std::to_string(cases++), image, storage, intent, SIZE_MAX, 0);
 		for (unsigned mode = 0; mode < 4; ++mode)
 			for (std::size_t point = 0; point < reference.size(); ++point)
-				run(directory / std::to_string(cases++), image, storage, progress, point, mode);
+				run(directory / std::to_string(cases++), image, storage, intent, point, mode);
 		for (std::size_t point = 0; point < reference.size(); ++point)
 			if (reference[point] == c::Kind::Read)
-				run(directory / std::to_string(cases++), image, storage, progress, point, 4);
+				run(directory / std::to_string(cases++), image, storage, intent, point, 4);
 	}
 	std::cout << cases << " paged publication original-boundary fault and cancellation cases passed\n";
 }

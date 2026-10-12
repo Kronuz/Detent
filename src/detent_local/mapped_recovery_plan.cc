@@ -23,7 +23,7 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 				}
 		std::size_t count = plan.segments().size();
 		if (!warm_)
-			for (std::size_t i = 0; i < plan.registry()->inputs().size(); ++i)
+			for (std::size_t i = 0; plan.registry() && i < plan.registry()->inputs().size(); ++i)
 				if (plan.base_reachability(i).pages)
 					++count;
 		if (count > paged::Limits{}.segments)
@@ -34,7 +34,7 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		root_->ticket = mappings_->admit(rounded_mapping_bytes(target_.length));
 		bytes_ = root_->ticket.bytes();
 		if (!warm_)
-			for (std::size_t i = 0; i < plan.registry()->inputs().size(); ++i)
+			for (std::size_t i = 0; plan.registry() && i < plan.registry()->inputs().size(); ++i)
 				if (plan.base_reachability(i).pages)
 					append(plan.registry()->inputs()[i].ownership);
 		for (const auto &segment : plan.segments())

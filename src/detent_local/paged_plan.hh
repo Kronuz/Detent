@@ -2,6 +2,7 @@
 #include "detent_distribution/buffer.hh"
 #include "paged_reuse.hh"
 #include "paged_snapshot_builder.hh"
+#include "state_equivalence_proof.hh"
 #include <sha256.h>
 #include <vector>
 namespace detent::local::detail {
@@ -14,6 +15,9 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
 				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
 				   const distribution::ValidatedDelta &, Forward);
+	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
+				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
+	bool maintenance() const;
 	const Descriptor &descriptor() const;
 	const paged::Root &root() const;
 	const Descriptor &base_descriptor() const;
@@ -32,6 +36,10 @@ class PagedPlanState final : public distribution::RetirementNode {
 
   private:
 	distribution::RetirementHandle<LeasedPagedRoot> base_;
+	std::optional<RecoveredGeneration> construction_base_;
+	distribution::RetirementHandle<PagedImageOwner> replacement_;
+	StorageIdentity replacement_storage_{};
+	std::optional<StateEquivalenceProof> maintenance_proof_;
 	distribution::RetirementHandle<SegmentRegistry> registry_;
 	paged::Root root_;
 	Descriptor descriptor_;
@@ -48,6 +56,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	bool sealed_ = false;
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
+	friend class PagedMaintenanceBuilder;
 };
 // Move-only exact-base publication authority; retirement never runs on its caller.
 class PagedPlan {
@@ -55,6 +64,7 @@ class PagedPlan {
 	PagedPlan(PagedPlan &&) noexcept = default;
 	PagedPlan(const PagedPlan &) = delete;
 	const Descriptor &descriptor() const { return checked_state().descriptor(); }
+	bool maintenance() const { return checked_state().maintenance(); }
 	const paged::Root &root() const { return checked_state().root(); }
 	const Descriptor &base_descriptor() const { return checked_state().base_descriptor(); }
 	DirectoryIdentity directory_identity() const { return checked_state().directory_identity(); }
@@ -86,5 +96,6 @@ class PagedPlan {
 	distribution::RetirementHandle<PagedPlanState> state_;
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
+	friend class PagedMaintenanceBuilder;
 };
 } // namespace detent::local::detail

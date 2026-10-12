@@ -34,8 +34,8 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			throw std::length_error("paged publication artifact count exceeded");
 		artifacts_.reserve(2 * segments.size() + 3);
 		const auto registry = plan.registry();
-		reused_.reserve(registry->inputs().size());
-		for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
+		reused_.reserve(registry ? registry->inputs().size() : 0);
+		for (std::size_t i = 0; registry && i < registry->inputs().size(); ++i) {
 			if (plan.base_reachability(i).pages) {
 				const auto &mapping = registry->mapping(i);
 				if (mapping->ownership().length > UINT64_MAX - physical_bytes_)

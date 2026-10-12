@@ -22,9 +22,14 @@ class StateEquivalenceProof {
 						  std::optional<DirectoryIdentity> target_directory)
 		: source_(source), target_(target), source_directory_(source_directory),
 		  target_directory_(target_directory) {}
+	bool binds_construction(const RecoveredGeneration &source, const Descriptor &target) const noexcept {
+		return valid_ && source.descriptor() == source_ && target == target_ && source_directory_ &&
+			   source.directory_identity() == *source_directory_ && !target_directory_;
+	}
 	Descriptor source_, target_;
 	std::optional<DirectoryIdentity> source_directory_, target_directory_;
 	bool valid_ = true;
 	friend class StateEquivalence;
+	friend class PagedMaintenanceBuilder;
 };
 } // namespace detent::local::detail
