@@ -100,6 +100,8 @@ bool PagedDependencyCheck::complete(c::Result result) noexcept {
 			data_->opened = false;
 		if (phase == State::Phase::Read) {
 			data_->reader.complete(std::move(result));
+			if (data_->reader.error())
+				std::rethrow_exception(data_->reader.error());
 			if (data_->cancelled) {
 				data_->reader.cancel();
 				data_->phase = State::Phase::Close;

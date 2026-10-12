@@ -81,15 +81,15 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 			const auto kind = request.kind;
 			trace.push_back(kind);
 			job->submitted();
-			if (fault && mode == 3) {
+			if (fault && (mode == 3 || mode == 4)) {
 				store->cancel_publication();
 				fired = true;
 			}
 			c::Result result;
 			result.token = request.token;
-			if (!fault || mode != 0 || kind == c::Kind::CloseFile)
+			if (!fault || (mode != 0 && mode != 4) || kind == c::Kind::CloseFile)
 				result = kronuz::journal::detail::execute_primitive(job->io(), request);
-			if (fault && mode < 2) {
+			if (fault && (mode < 2 || mode == 4)) {
 				require(!result.error);
 				// Failed reusable destinations are closed even if creation left named debt.
 				if (mode == 1 && (kind == c::Kind::CreateInto || kind == c::Kind::OpenInto))
@@ -105,7 +105,7 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 		require(fired);
 	const auto actual = census(root);
 	const auto stats = store->stats();
-	if (point != SIZE_MAX && mode < 2) {
+	if (point != SIZE_MAX && (mode < 2 || mode == 4)) {
 		require(store->status() == l::StoreStatus::Fenced);
 		require(store->publication_status() == l::DiskPublicationStatus::Fenced &&
 				!store->publication_ready());
@@ -162,6 +162,9 @@ int main() {
 		for (unsigned mode = 0; mode < 4; ++mode)
 			for (std::size_t point = 0; point < reference.size(); ++point)
 				run(directory / std::to_string(cases++), image, storage, progress, point, mode);
+		for (std::size_t point = 0; point < reference.size(); ++point)
+			if (reference[point] == c::Kind::Read)
+				run(directory / std::to_string(cases++), image, storage, progress, point, 4);
 	}
 	std::cout << cases << " paged publication original-boundary fault and cancellation cases passed\n";
 }
