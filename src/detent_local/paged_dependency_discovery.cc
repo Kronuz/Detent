@@ -1,5 +1,5 @@
 #include "paged_dependency_discovery.hh"
-#include "paged_navigation.hh"
+#include "paged_dependency_walk.hh"
 #include <algorithm>
 #include <cstring>
 #include <sha256.h>
@@ -23,25 +23,17 @@ struct Inputs {
 } // namespace
 struct DependencyDiscovery::Impl {
 	enum class Phase { Walk, Missing, Hash, Insert, Register, Done };
-	struct Frame {
-		p::Reference reference;
-		std::span<const char> bytes;
-		p::PageHeader header;
-		std::size_t context = 0, children = 0;
-		bool checked = false;
-	};
 	std::shared_ptr<d::StorageLedger> account;
 	std::shared_ptr<Inputs> inputs;
 	d::RetirementHandle<SegmentRegistry> registry;
 	p::Root root;
 	StorageIdentity storage;
 	p::Limits limits;
-	std::array<Frame, 203> frames{};
-	std::optional<PageValidator> page;
+	std::optional<PagedDependencyWalk> walk;
 	Handle pending;
 	SHA256 hash;
-	std::size_t depth = 0, offset = 0, position = 0, moving = 0, charge = 0;
-	std::uint64_t physical = 0, pages = 0, extents = 0;
+	std::size_t offset = 0, position = 0, moving = 0, charge = 0;
+	std::uint64_t physical = 0;
 	Phase phase = Phase::Walk;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementDomain &domain, p::Root expected,
@@ -53,8 +45,7 @@ struct DependencyDiscovery::Impl {
 		auto registry_limits = limits;
 		registry_limits.segments = root.segments;
 		registry = domain.make<SegmentRegistry>(account, storage, registry_limits);
-		if (root.pages)
-			push(root.tree, 0);
+		walk.emplace(account, inputs, &lookup, root, storage, limits);
 	}
 	bool admit(std::size_t amount, ValidationBudget &budget) {
 		if (!budget.rows)
@@ -69,12 +60,15 @@ struct DependencyDiscovery::Impl {
 		--budget.rows;
 		return true;
 	}
-	void push(p::Reference reference, std::size_t context) {
-		p::encode_reference(reference);
-		require(depth < frames.size() && pages < root.pages && reference.length <= root.bytes - extents);
-		frames[depth++] = {reference, {}, {}, context};
-		++pages;
-		extents += reference.length;
+	static std::optional<SegmentInput> lookup(const void *owner, const StorageIdentity &id) {
+		const auto &inputs = *static_cast<const Inputs *>(owner);
+		auto found = std::lower_bound(
+			inputs.mappings.begin(), inputs.mappings.end(), id, [](const Handle &mapping, const auto &key) {
+				return std::memcmp(mapping->ownership().segment.data(), key.data(), key.size()) < 0;
+			});
+		if (found == inputs.mappings.end() || (*found)->ownership().segment != id)
+			return {};
+		return SegmentInput{(*found)->ownership(), (*found)->bytes()};
 	}
 	auto find(const StorageIdentity &id) {
 		return std::lower_bound(
@@ -142,54 +136,16 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				s.phase = Impl::Phase::Done;
 				continue;
 			}
-			if (!s.depth) {
-				require(s.pages == s.root.pages && s.extents == s.root.bytes &&
-						s.inputs->mappings.size() == s.root.segments);
-				s.position = 0;
-				s.phase = Impl::Phase::Register;
-				continue;
+			s.walk->step(budget);
+			if (s.walk->missing()) {
+				s.phase = Impl::Phase::Missing;
+				return;
 			}
-			auto &frame = s.frames[s.depth - 1];
-			if (!frame.checked) {
-				if (!s.page) {
-					auto found = s.find(frame.reference.segment);
-					if (found == s.inputs->mappings.end() ||
-						(*found)->ownership().segment != frame.reference.segment) {
-						s.phase = Impl::Phase::Missing;
-						return;
-					}
-					if (!s.admit(p::reference_bytes, budget))
-						return;
-					SegmentInput input{(*found)->ownership(), (*found)->bytes()};
-					frame.bytes = checked_page_bytes(input, frame.reference);
-					s.page.emplace(s.account, s.inputs, frame.bytes, frame.reference, s.limits);
-				}
-				s.page->step(budget);
-				if (!s.page->done())
-					return;
-				frame.header = s.page->header();
-				if (!s.page->discard(budget))
-					return;
-				s.page.reset();
-				require(frame.header.prefix <= 202 - frame.context);
-				frame.context += frame.header.prefix;
-				frame.children = frame.header.children;
-				frame.checked = true;
-			}
-			if (frame.children) {
-				if (!s.admit(p::child_bytes + 1, budget))
-					return;
-				require(frame.context < 202);
-				auto child = p::decode_child(frame.bytes.subspan(p::page_header_bytes + frame.header.prefix +
-																	 (--frame.children) * p::child_bytes,
-																 p::child_bytes));
-				s.push(child.reference, frame.context + 1);
-			} else {
-				if (!budget.rows)
-					return;
-				--budget.rows;
-				--s.depth;
-			}
+			if (!s.walk->done())
+				return;
+			require(s.inputs->mappings.size() == s.root.segments);
+			s.position = 0;
+			s.phase = Impl::Phase::Register;
 		}
 	} catch (...) {
 		s.failed = true;
@@ -201,7 +157,7 @@ std::optional<StorageIdentity> DependencyDiscovery::missing() const {
 		throw std::logic_error("dependency discovery unavailable");
 	if (impl_->phase != Impl::Phase::Missing)
 		return {};
-	return impl_->frames[impl_->depth - 1].reference.segment;
+	return impl_->walk->missing();
 }
 void DependencyDiscovery::supply(Handle mapping) {
 	if (!impl_ || impl_->failed || impl_->discarding || impl_->phase != Impl::Phase::Missing)
@@ -230,10 +186,10 @@ bool DependencyDiscovery::discard(ValidationBudget &budget) {
 	if (!budget.rows)
 		return false;
 	impl_->discarding = true;
-	if (impl_->page) {
-		if (!impl_->page->discard(budget))
+	if (impl_->walk) {
+		if (!impl_->walk->discard(budget))
 			return false;
-		impl_->page.reset();
+		impl_->walk.reset();
 	}
 	while (!impl_->inputs->mappings.empty() && budget.rows) {
 		--budget.rows;

@@ -216,3 +216,8 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_paged_named_root PRIVATE detent::local_publication)
   add_test(NAME test_local_paged_named_root COMMAND test_local_paged_named_root)
 endif()
+
+add_executable(test_local_paged_dependency_walk test_paged_dependency_walk.cc)
+target_include_directories(test_local_paged_dependency_walk PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_dependency_walk PRIVATE detent::local_builder)
+add_test(NAME test_local_paged_dependency_walk COMMAND test_local_paged_dependency_walk)
