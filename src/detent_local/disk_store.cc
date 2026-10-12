@@ -1533,6 +1533,8 @@ void DiskStore::begin(detail::PagedPlan &&plan) {
 			throw std::invalid_argument("managed paged publication exact base or admission mismatch");
 		auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
 		artifacts->populate(plan);
+		if (artifacts->target_physical_bytes() > core.options.recovery_limits.bytes)
+			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
 			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), 2, artifacts);

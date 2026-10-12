@@ -38,6 +38,9 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		for (std::size_t i = 0; i < registry->inputs().size(); ++i) {
 			if (plan.base_reachability(i).pages) {
 				const auto &mapping = registry->mapping(i);
+				if (mapping->ownership().length > UINT64_MAX - physical_bytes_)
+					throw std::length_error("paged target physical size overflow");
+				physical_bytes_ += mapping->ownership().length;
 				reused_.push_back({mapping->ownership(), mapping->identity()});
 			}
 		}
@@ -48,6 +51,9 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 				segment.ownership.storage != plan.storage_identity())
 				throw std::invalid_argument("invalid new paged publication dependency");
 			const SegmentNames names(segment.ownership.segment);
+			if (segment.ownership.length > UINT64_MAX - physical_bytes_)
+				throw std::length_error("paged target physical size overflow");
+			physical_bytes_ += segment.ownership.length;
 			append(names.owner_name(), encode_segment_ownership(segment.ownership), {});
 			append(names.payload_name(), {}, segment.bytes);
 		}
@@ -95,6 +101,10 @@ const PagedPlan &PagedPublicationArtifacts::plan() const {
 DiskUsage PagedPublicationArtifacts::usage() const {
 	artifacts();
 	return usage_;
+}
+std::uint64_t PagedPublicationArtifacts::target_physical_bytes() const {
+	artifacts();
+	return physical_bytes_;
 }
 DiskUsage PagedPublicationArtifacts::prefix_usage(std::size_t count) const {
 	artifacts();

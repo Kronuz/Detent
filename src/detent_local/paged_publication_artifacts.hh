@@ -27,6 +27,7 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	std::span<const ReusedDependency> reused() const;
 	const PagedPlan &plan() const;
 	DiskUsage usage() const;
+	std::uint64_t target_physical_bytes() const;
 	DiskUsage prefix_usage(std::size_t) const;
 
   protected:
@@ -38,6 +39,7 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	std::vector<ReusedDependency, distribution::StorageAllocator<ReusedDependency>> reused_;
 	std::optional<PagedPlan> plan_;
 	DiskUsage usage_;
+	std::uint64_t physical_bytes_ = paged::root_bytes;
 	Descriptor descriptor_, base_descriptor_;
 	DirectoryIdentity directory_;
 	StorageIdentity storage_;

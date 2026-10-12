@@ -9,6 +9,50 @@ void check(bool value, std::source_location where = std::source_location::curren
 	if (!value)
 		throw std::runtime_error("paged disk invariant at line " + std::to_string(where.line()));
 }
+d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account) {
+	std::string wire;
+	auto a = [&](unsigned value) { m::array(wire, value); };
+	auto n = [&](unsigned value) { m::unsigned_integer(wire, value); };
+	a(7);
+	n(1);
+	n(2);
+	a(2);
+	n(1);
+	n(1);
+	put_cursor(wire, cursor());
+	auto target = cursor();
+	target.revision = 44;
+	put_cursor(wire, target);
+	a(4);
+	n(1);
+	n(1);
+	n(0);
+	n(12);
+	a(1);
+	a(3);
+	n(43);
+	a(1);
+	a(2);
+	m::string(wire, "app");
+	n(43);
+	a(1);
+	a(4);
+	n(0);
+	m::string(wire, "app:count");
+	n(0);
+	a(2);
+	n(1);
+	n(1);
+	d::Limits limits;
+	limits.storage_account = std::move(account);
+	d::DeltaDecoder decoder(cursor(), {"app"}, limits);
+	auto bytes = std::span<const char>(wire);
+	while (!bytes.empty()) {
+		d::WorkBudget budget{1, 1};
+		decoder.feed(bytes, budget);
+	}
+	return decoder.finish();
+}
 template <class Error, class Call> void rejects(Call call) {
 	try {
 		call();
@@ -67,7 +111,7 @@ int main() {
 	auto image = construction.take();
 	for (bool progress : {false, true}) {
 		for (unsigned scenario = 0; scenario < 8; ++scenario) {
-			if (scenario == 6)
+			if (scenario == 6 && progress)
 				continue;
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
 			install(root, image, storage);
@@ -96,8 +140,9 @@ int main() {
 				}
 				plan.emplace(builder.take());
 			} else {
-				l::detail::PagedDeltaPlanBuilder builder(*base, parse_delta(false, 2, "app", account), next,
-														 domain);
+				l::detail::PagedDeltaPlanBuilder builder(
+					*base, scenario == 6 ? one_key_delta(account) : parse_delta(false, 2, "app", account),
+					next, domain);
 				while (!builder.done()) {
 					l::ValidationBudget budget;
 					builder.step(budget);
@@ -112,11 +157,28 @@ int main() {
 			const auto peak = l::DiskLedger::paged_peak(lengths);
 			if (scenario == 3)
 				options.limits.bytes = census(root).bytes + peak.bytes - 1;
+			if (scenario == 6) {
+				std::uint64_t physical = l::paged::root_bytes;
+				const auto registry = plan->registry();
+				for (std::size_t i = 0; i < registry->inputs().size(); ++i)
+					if (plan->base_reachability(i).pages)
+						physical += registry->inputs()[i].ownership.length;
+				for (auto length : lengths)
+					physical += length;
+				if (physical <= plan->root().bytes + l::paged::root_bytes)
+					throw std::runtime_error(
+						"physical-limit fixture needs retained pack: " + std::to_string(physical) + "/" +
+						std::to_string(plan->root().bytes));
+				options.recovery_limits.bytes = physical - 1;
+			}
 			auto store = l::make_disk_store(domain, root, std::make_shared<int>(1), options);
 			drive(store);
 			check(store->status() == l::StoreStatus::Ready);
-			if (scenario == 3) {
-				rejects<l::DiskPressure>([&] { store->begin(std::move(*plan)); });
+			if (scenario == 3 || scenario == 6) {
+				if (scenario == 3)
+					rejects<l::DiskPressure>([&] { store->begin(std::move(*plan)); });
+				else
+					rejects<std::invalid_argument>([&] { store->begin(std::move(*plan)); });
 				check(plan->descriptor() == wanted && store->publication_ready());
 			} else {
 				if (scenario == 4 && progress) {
