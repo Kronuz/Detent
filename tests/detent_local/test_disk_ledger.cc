@@ -36,6 +36,29 @@ void operator delete(void *pointer) noexcept { std::free(pointer); }
 void operator delete(void *pointer, std::size_t) noexcept { std::free(pointer); }
 int main() {
 	try {
+		check(l::DiskLedger::paged_peak({}) == l::DiskUsage{624, 3, 1});
+		const std::array<std::uint64_t, 2> packs{1000, l::paged::segment_bytes};
+		const auto paged_peak = l::DiskLedger::paged_peak(packs);
+		check(paged_peak == l::DiskUsage{624 + 1000 + l::paged::segment_bytes + 256, 7, 1});
+		for (const auto invalid :
+			 {std::uint64_t{0}, std::uint64_t{l::paged::segment_bytes + 1}, UINT64_MAX}) {
+			const std::array lengths{invalid};
+			rejects([&] { l::DiskLedger::paged_peak(lengths); });
+		}
+		for (unsigned dimension = 0; dimension < 3; ++dimension) {
+			l::DiskLimits limits{paged_peak.bytes, paged_peak.entries, paged_peak.generations};
+			if (dimension == 0)
+				--limits.bytes;
+			if (dimension == 1)
+				--limits.entries;
+			if (dimension == 2)
+				--limits.generations;
+			l::DiskLedger ledger(limits);
+			ledger.initialize({});
+			const auto before = ledger.stats();
+			rejects([&] { ledger.reserve(paged_peak); });
+			same(before, ledger.stats());
+		}
 		const auto peak = l::DiskLedger::generation_peak(192);
 		check(peak == l::DiskUsage{496, 3, 1});
 		for (unsigned dimension = 0; dimension < 3; ++dimension) {

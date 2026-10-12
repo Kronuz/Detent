@@ -1,6 +1,7 @@
 #pragma once
 #include "generation.hh"
 #include "ownership.hh"
+#include "paged_layout.hh"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -49,6 +50,18 @@ class DiskLedger {
 			image_length > std::numeric_limits<std::uint64_t>::max() - overhead)
 			throw std::length_error("invalid managed generation extent");
 		return {image_length + overhead, 3, 1};
+	}
+	static DiskUsage paged_peak(std::span<const std::uint64_t> pack_lengths) {
+		DiskUsage peak{paged::root_bytes + generation_ownership_bytes + descriptor_bytes, 3, 1};
+		for (const auto length : pack_lengths) {
+			if (!length || length > paged::segment_bytes ||
+				length > std::numeric_limits<std::uint64_t>::max() - segment_ownership_bytes - peak.bytes ||
+				peak.entries > std::numeric_limits<std::uint64_t>::max() - 2)
+				throw std::length_error("invalid managed paged extent");
+			peak.bytes += length + segment_ownership_bytes;
+			peak.entries += 2;
+		}
+		return peak;
 	}
 	Permit reserve(DiskUsage peak) {
 		if (!stats_.initialized || stats_.fenced)
