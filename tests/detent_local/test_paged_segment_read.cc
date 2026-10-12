@@ -49,7 +49,7 @@ int main() {
 	const auto initial = account->used();
 	{
 		auto session = l::make_owned_storage_session(domain, directory, std::make_shared<int>(1), true);
-		for (unsigned variant = 0; variant < 9; ++variant) {
+		for (unsigned variant = 0; variant < 10; ++variant) {
 			auto expected = segment.ownership;
 			const std::string large(65536 + 17, 'x');
 			const auto payload = variant == 8 ? std::span<const char>(large) : original;
@@ -59,7 +59,7 @@ int main() {
 			}
 			write(owner_path, l::encode_segment_ownership(expected));
 			write(pack_path, payload);
-			if (variant == 1) {
+			if (variant == 1 || variant == 9) {
 				std::string corrupt(original.begin(), original.end());
 				corrupt.back() ^= 1;
 				write(pack_path, corrupt);
@@ -104,6 +104,10 @@ int main() {
 					fired = true;
 				} else {
 					result = kronuz::journal::detail::execute_primitive(reader.io(), request);
+					if (variant == 9 && request.kind == c::Kind::CloseFile && reader.error() && !fired) {
+						result.error = injected;
+						fired = true;
+					}
 					if (pack_read && !fired && variant == 4) {
 						auto ownership = segment.ownership;
 						ownership.checksum[0] ^= 1;
@@ -138,6 +142,16 @@ int main() {
 					require(fired);
 				if (variant == 6)
 					require(reader.error() == injected);
+			}
+			if (variant == 9) {
+				require(fired && reader.closure_error() == injected);
+				bool unproved = false;
+				try {
+					std::rethrow_exception(reader.error());
+				} catch (const l::detail::SegmentProofError &) {
+					unproved = true;
+				}
+				require(unproved);
 			}
 			reader.close();
 			drive(reader);

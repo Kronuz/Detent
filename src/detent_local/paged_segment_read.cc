@@ -40,7 +40,7 @@ struct PagedSegmentRead::State final : d::RetirementNode {
 	c::Token token;
 	std::size_t offset = 0;
 	Phase phase = Phase::OpenOwner;
-	std::exception_ptr failure;
+	std::exception_ptr failure, closure_failure;
 	bool submitted = false, owner_open = false, pack_open = false, closing = false;
 	State(std::shared_ptr<StorageSession> session, std::shared_ptr<d::StorageLedger> account,
 		  StorageIdentity storage, StorageIdentity segment, std::uint64_t uid)
@@ -101,6 +101,7 @@ bool PagedSegmentRead::needs_work() const noexcept {
 }
 c::IO &PagedSegmentRead::io() const noexcept { return *state_->session->backend(); }
 std::exception_ptr PagedSegmentRead::error() const noexcept { return state_->failure; }
+std::exception_ptr PagedSegmentRead::closure_error() const noexcept { return state_->closure_failure; }
 const c::Request &PagedSegmentRead::request() const {
 	if (needs_work())
 		throw std::logic_error("segment reader requires CPU work");
@@ -212,7 +213,7 @@ void PagedSegmentRead::step(ValidationBudget &budget) {
 				unsigned char digest[32];
 				state_->hash.getHash(digest);
 				if (std::memcmp(digest, state_->ownership.checksum.data(), 32))
-					throw std::runtime_error("segment payload checksum mismatch");
+					throw SegmentProofError("segment payload checksum mismatch");
 				state_->phase = Phase::Reheld;
 				prepare(c::Kind::InspectFile);
 			}
@@ -234,6 +235,9 @@ bool PagedSegmentRead::complete(c::Result result) noexcept {
 			state_->owner_open = true;
 		if (phase == Phase::OpenPack && !result.error)
 			state_->pack_open = true;
+		if ((phase == Phase::ClosePack || phase == Phase::CloseOwner) && result.error &&
+			!state_->closure_failure)
+			state_->closure_failure = result.error;
 		if (phase == Phase::ClosePack)
 			state_->pack_open = false;
 		if (phase == Phase::CloseOwner)
@@ -251,11 +255,17 @@ bool PagedSegmentRead::complete(c::Result result) noexcept {
 				return true;
 			}
 			if (state_->reader.status() != RecordReadStatus::Ready)
-				throw std::runtime_error("segment ownership unavailable");
-			const auto ownership = decode_segment_ownership(state_->reader.bytes());
+				throw SegmentProofError("segment ownership unavailable");
+			const auto ownership = [&] {
+				try {
+					return decode_segment_ownership(state_->reader.bytes());
+				} catch (const std::invalid_argument &error) {
+					throw SegmentProofError(error.what());
+				}
+			}();
 			if (phase == Phase::VerifyOwnership) {
 				if (ownership != state_->ownership)
-					throw std::runtime_error("segment ownership changed during read");
+					throw SegmentProofError("segment ownership changed during read");
 				state_->bytes->seal();
 				state_->phase = Phase::Ready;
 				request_ = {};
@@ -263,7 +273,7 @@ bool PagedSegmentRead::complete(c::Result result) noexcept {
 			}
 			if (ownership.storage != state_->storage || ownership.segment != state_->segment ||
 				!ownership.length || ownership.length > paged::segment_bytes)
-				throw std::invalid_argument("invalid named segment ownership");
+				throw SegmentProofError("invalid named segment ownership");
 			state_->ownership = ownership;
 			state_->phase = Phase::Allocate;
 			request_ = {};
@@ -285,13 +295,13 @@ bool PagedSegmentRead::complete(c::Result result) noexcept {
 			prepare(c::Kind::InspectEntry);
 		} else if (phase == Phase::Named) {
 			if (!result.inspection || !state_->safe(*result.inspection))
-				throw std::runtime_error("unsafe named segment payload");
+				throw SegmentProofError("unsafe named segment payload");
 			state_->initial = result.inspection;
 			state_->phase = Phase::Held;
 			prepare(c::Kind::InspectFile);
 		} else if (phase == Phase::Held || phase == Phase::Reheld || phase == Phase::Renamed) {
 			if (!result.inspection || !state_->same(*result.inspection))
-				throw std::runtime_error("named segment identity changed");
+				throw SegmentProofError("named segment identity changed");
 			if (phase == Phase::Held) {
 				state_->phase = Phase::Read;
 				prepare(c::Kind::Read);

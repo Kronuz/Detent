@@ -4,6 +4,10 @@
 #include "detent_local/storage_session.hh"
 #include "segment_mapping.hh"
 namespace detent::local::detail {
+class SegmentProofError final : public std::runtime_error {
+  public:
+	using std::runtime_error::runtime_error;
+};
 // Verifies a complete named pack; callers drive budgeted CPU work between IO originals.
 class PagedSegmentRead final : public kronuz::io::completion::Operation {
   public:
@@ -26,6 +30,7 @@ class PagedSegmentRead final : public kronuz::io::completion::Operation {
 	std::shared_ptr<kronuz::io::completion::File> owner_file() const;
 	std::shared_ptr<kronuz::io::completion::File> payload_file() const;
 	std::exception_ptr error() const noexcept;
+	std::exception_ptr closure_error() const noexcept;
 	void close() noexcept;
 
   private:
