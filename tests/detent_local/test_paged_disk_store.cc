@@ -3,7 +3,12 @@
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
 #include <completion/native_completion.h>
+#include <source_location>
 namespace c = kronuz::io::completion;
+void check(bool value, std::source_location where = std::source_location::current()) {
+	if (!value)
+		throw std::runtime_error("paged disk invariant at line " + std::to_string(where.line()));
+}
 template <class Error, class Call> void rejects(Call call) {
 	try {
 		call();
@@ -25,16 +30,16 @@ l::DiskUsage census(const std::filesystem::path &directory) {
 void drive(const std::shared_ptr<l::DiskStore> &store, bool cancel_create = false) {
 	unsigned turns = 0;
 	while (auto job = store->operation()) {
-		require(++turns < 100000);
+		check(++turns < 100000);
 		const auto kind = job->request().kind;
 		job->submitted();
 		if (kind == c::Kind::Replace)
-			require(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
+			check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
 		if (cancel_create && kind == c::Kind::CreateInto) {
 			store->cancel_publication();
 			cancel_create = false;
 		}
-		require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
 		store->advance();
 	}
 	store->advance();
@@ -61,7 +66,9 @@ int main() {
 	}
 	auto image = construction.take();
 	for (bool progress : {false, true}) {
-		for (unsigned scenario = 0; scenario < 6; ++scenario) {
+		for (unsigned scenario = 0; scenario < 8; ++scenario) {
+			if (scenario == 6)
+				continue;
 			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
 			install(root, image, storage);
 			write(root / "owner.lock", {});
@@ -107,10 +114,10 @@ int main() {
 				options.limits.bytes = census(root).bytes + peak.bytes - 1;
 			auto store = l::make_disk_store(domain, root, std::make_shared<int>(1), options);
 			drive(store);
-			require(store->status() == l::StoreStatus::Ready);
+			check(store->status() == l::StoreStatus::Ready);
 			if (scenario == 3) {
 				rejects<l::DiskPressure>([&] { store->begin(std::move(*plan)); });
-				require(plan->descriptor() == wanted && store->publication_ready());
+				check(plan->descriptor() == wanted && store->publication_ready());
 			} else {
 				if (scenario == 4 && progress) {
 					const auto &segment = image.segments().front();
@@ -119,49 +126,61 @@ int main() {
 					write(root / l::detail::SegmentNames(ownership.segment).owner_name(),
 						  l::encode_segment_ownership(ownership));
 				}
+				if (scenario == 7) {
+					{
+						auto pressure = account->admit(account->limit() - account->used());
+						rejects<d::StoragePressure>([&] { store->begin(std::move(*plan)); });
+					}
+					check(plan->descriptor() == wanted && store->publication_ready());
+					check(store->selection().descriptor == image.descriptor());
+					check(store->stats().reserved == l::DiskUsage{});
+				}
 				store->begin(std::move(*plan));
 				rejects<std::logic_error>([&] { plan->root(); });
 				if (scenario == 1)
 					store->cancel_publication();
 				drive(store, scenario == 2);
 				if (scenario == 1 || scenario == 2) {
-					require(store->publication_status() == l::DiskPublicationStatus::Cancelled);
-					require(store->selection().descriptor == image.descriptor());
+					check(store->publication_status() == l::DiskPublicationStatus::Cancelled);
+					check(store->selection().descriptor == image.descriptor());
 				} else if (scenario == 4 && progress) {
-					require(store->publication_status() == l::DiskPublicationStatus::Fenced);
+					check(store->publication_status() == l::DiskPublicationStatus::Fenced);
 				} else if (scenario == 5) {
-					require(store->publication_status() == l::DiskPublicationStatus::Rejected);
-					require(store->selection().descriptor == image.descriptor());
+					check(store->publication_status() == l::DiskPublicationStatus::Rejected);
+					check(store->selection().descriptor == image.descriptor());
 				} else {
-					require(store->publication_status() == l::DiskPublicationStatus::Published);
-					require(store->selection().descriptor == wanted && !store->publication_ready());
+					check(store->publication_status() == l::DiskPublicationStatus::Published);
+					check(store->selection().descriptor == wanted && !store->publication_ready());
 					rejects<std::invalid_argument>([&] { store->confirm_recovered(*base); });
 					auto recovered =
 						l::recover_generation(root, options.recovery_limits, wanted.cursor, &*base);
-					store->confirm_recovered(recovered);
-					require(store->publication_ready());
-					require(recovered.view().get("app", "count").value() == (progress ? INT64_MIN : 1));
+					{
+						auto pressure = account->admit(account->limit() - account->used());
+						store->confirm_recovered(recovered);
+					}
+					check(store->publication_ready());
+					check(recovered.view().get("app", "count").value() == (progress ? INT64_MIN : 1));
 					if (!progress) {
 						l::detail::PagedSnapshotBuilder oracle(expected(false, 2), storage, next);
 						while (!oracle.done()) {
 							l::ValidationBudget budget;
 							oracle.step(budget);
 						}
-						require(oracle.take().root().logical == logical);
+						check(oracle.take().root().logical == logical);
 					} else
-						require(logical == image.root().logical);
+						check(logical == image.root().logical);
 				}
 			}
 			if (store->status() == l::StoreStatus::Ready)
-				require(store->stats().used == census(root) && store->stats().reserved == l::DiskUsage{});
+				check(store->stats().used == census(root) && store->stats().reserved == l::DiskUsage{});
 			store->close();
 			drive(store);
-			require(store->drained());
+			check(store->drained());
 			store.reset();
 			plan.reset();
 			base.reset();
 			domain.close().wait();
-			require(account->used() == initial && mapping_account->used() == 0);
+			check(account->used() == initial && mapping_account->used() == 0);
 		}
 	}
 }

@@ -44,6 +44,10 @@ struct StoreCore {
 	static constexpr std::size_t certificate_capacity = 64;
 	std::array<distribution::RetirementHandle<PagedDependencyCertificate>, certificate_capacity> certificates;
 	std::size_t certificate_position = 0;
+	void drop_certificates() noexcept {
+		for (auto &entry : certificates)
+			entry.reset();
+	}
 	const PagedDependencyCertificate *certificate(const Descriptor &descriptor) const {
 		for (const auto &entry : certificates)
 			if (entry && entry->descriptor() == descriptor)
@@ -53,9 +57,15 @@ struct StoreCore {
 	void cache_recovered(const RecoveredGeneration &generation) {
 		if (!generation.paged_ || certificate(generation.descriptor()))
 			return;
-		auto candidate = factory->make<PagedDependencyCertificate>(account, *factory);
-		candidate->capture(generation, verified ? certificate(*verified) : nullptr);
-		certificates[certificate_position] = std::move(candidate);
+		try {
+			auto candidate = factory->make<PagedDependencyCertificate>(account, *factory);
+			candidate->capture(generation, verified ? certificate(*verified) : nullptr);
+			certificates[certificate_position] = std::move(candidate);
+		} catch (const distribution::StoragePressure &) {
+			certificates[certificate_position].reset();
+		} catch (const std::bad_alloc &) {
+			certificates[certificate_position].reset();
+		}
 		certificate_position = (certificate_position + 1) % certificates.size();
 	}
 	void retain_recovered(const RecoveredGeneration &generation) {
@@ -1482,8 +1492,7 @@ void DiskStore::advance() {
 		impl_->reclaim.reset();
 		impl_->publication.reset();
 		impl_->startup.reset();
-		for (auto &certificate : impl_->core->certificates)
-			certificate.reset();
+		impl_->core->drop_certificates();
 		impl_->core->pending_paged_recovery.reset();
 		impl_->core->verified_paged.reset();
 		impl_->core->factory.reset();
@@ -1503,40 +1512,50 @@ void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::C
 }
 void DiskStore::begin(detail::PagedPlan &&plan) {
 	auto &core = *impl_->core;
-	if (!publication_ready())
-		throw std::logic_error("managed store unavailable for publication");
-	const auto descriptor = plan.descriptor();
-	if (core.selection.knowledge != SelectionKnowledge::Known ||
-		core.selection.descriptor != plan.base_descriptor() ||
-		plan.directory_identity() != core.directory_identity || plan.storage_identity() != core.identity ||
-		!descriptor.cursor.same_identity(plan.base_descriptor().cursor) ||
-		descriptor.cursor.revision <= plan.base_descriptor().cursor.revision ||
-		descriptor.profile != plan.base_descriptor().profile || plan.bytes()->account() != core.account ||
-		descriptor.length != paged::root_bytes || descriptor.length > core.options.recovery_limits.bytes ||
-		plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||
-		plan.root().records > core.options.recovery_limits.records ||
-		plan.root().namespaces > core.options.recovery_limits.namespaces ||
-		plan.counts().strings > core.options.recovery_limits.strings ||
-		plan.counts().maximum_overrides > core.options.recovery_limits.overrides)
-		throw std::invalid_argument("managed paged publication exact base or admission mismatch");
-	auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
-	artifacts->populate(plan);
-	const auto &context = core.session->allocation_context();
-	auto data = std::allocate_shared<PublicationData>(c::OwnedAllocator<PublicationData>(context),
-													  impl_->core, descriptor, plan.bytes(), 2, artifacts);
-	auto operation =
-		std::allocate_shared<PublicationOperation>(c::OwnedAllocator<PublicationOperation>(context), data);
-	operation->admit();
 	try {
-		artifacts->attach(std::move(plan));
-	} catch (...) {
-		operation->cancel();
+		if (!publication_ready())
+			throw std::logic_error("managed store unavailable for publication");
+		const auto descriptor = plan.descriptor();
+		if (core.selection.knowledge != SelectionKnowledge::Known ||
+			core.selection.descriptor != plan.base_descriptor() ||
+			plan.directory_identity() != core.directory_identity ||
+			plan.storage_identity() != core.identity ||
+			!descriptor.cursor.same_identity(plan.base_descriptor().cursor) ||
+			descriptor.cursor.revision <= plan.base_descriptor().cursor.revision ||
+			descriptor.profile != plan.base_descriptor().profile || plan.bytes()->account() != core.account ||
+			descriptor.length != paged::root_bytes ||
+			descriptor.length > core.options.recovery_limits.bytes ||
+			plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||
+			plan.root().records > core.options.recovery_limits.records ||
+			plan.root().namespaces > core.options.recovery_limits.namespaces ||
+			plan.counts().strings > core.options.recovery_limits.strings ||
+			plan.counts().maximum_overrides > core.options.recovery_limits.overrides)
+			throw std::invalid_argument("managed paged publication exact base or admission mismatch");
+		auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
+		artifacts->populate(plan);
+		const auto &context = core.session->allocation_context();
+		auto data = std::allocate_shared<PublicationData>(
+			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), 2, artifacts);
+		auto operation = std::allocate_shared<PublicationOperation>(
+			c::OwnedAllocator<PublicationOperation>(context), data);
+		operation->admit();
+		try {
+			artifacts->attach(std::move(plan));
+		} catch (...) {
+			operation->cancel();
+			throw;
+		}
+		impl_->publication.reset();
+		impl_->terminal_publication_status = DiskPublicationStatus::Idle;
+		impl_->terminal_publication_error = {};
+		impl_->publication = std::move(operation);
+	} catch (const distribution::StoragePressure &) {
+		core.drop_certificates();
+		throw;
+	} catch (const std::bad_alloc &) {
+		core.drop_certificates();
 		throw;
 	}
-	impl_->publication.reset();
-	impl_->terminal_publication_status = DiskPublicationStatus::Idle;
-	impl_->terminal_publication_error = {};
-	impl_->publication = std::move(operation);
 }
 void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
 	auto &core = *impl_->core;
