@@ -1578,40 +1578,48 @@ void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityRe
 void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base,
 						   const TrustedIdentityReset *reset) {
 	auto &core = *impl_->core;
-	if (!publication_ready())
-		throw std::logic_error("managed store unavailable for publication");
-	const auto descriptor = builder.descriptor();
-	const auto bytes = builder.bytes();
-	const auto base =
-		core.selection.descriptor ? std::optional(core.selection.descriptor->cursor) : std::nullopt;
-	if (core.selection.knowledge == SelectionKnowledge::Uncertain || expected_base != base)
-		throw std::invalid_argument("managed publication actual base mismatch");
-	if (const auto pinned = builder.base_descriptor();
-		pinned && (core.selection.descriptor != pinned ||
-				   builder.base_directory_identity() != core.session->directory_identity()))
-		throw std::invalid_argument("managed publication pinned generation mismatch");
-	if (reset) {
-		if (core.selection.knowledge != SelectionKnowledge::Known ||
-			core.selection.descriptor != reset->expected_selected || builder.base_descriptor() ||
-			!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
-			reset->expected_selected.cursor.same_identity(descriptor.cursor))
-			throw std::invalid_argument("managed publication trusted identity reset mismatch");
-	} else if (base &&
-			   (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
-		throw std::invalid_argument("managed publication requires a forward scoped cursor");
-	if (bytes->account() != core.account || bytes->size() != descriptor.length ||
-		descriptor.length > core.options.recovery_limits.bytes)
-		throw std::invalid_argument("managed image account or extent mismatch");
-	impl_->publication.reset();
-	const auto &context = core.session->allocation_context();
-	auto data = std::allocate_shared<PublicationData>(c::OwnedAllocator<PublicationData>(context),
-													  impl_->core, builder);
-	auto operation =
-		std::allocate_shared<PublicationOperation>(c::OwnedAllocator<PublicationOperation>(context), data);
-	operation->admit();
-	impl_->terminal_publication_status = DiskPublicationStatus::Idle;
-	impl_->terminal_publication_error = {};
-	impl_->publication = std::move(operation);
+	try {
+		if (!publication_ready())
+			throw std::logic_error("managed store unavailable for publication");
+		const auto descriptor = builder.descriptor();
+		const auto bytes = builder.bytes();
+		const auto base =
+			core.selection.descriptor ? std::optional(core.selection.descriptor->cursor) : std::nullopt;
+		if (core.selection.knowledge == SelectionKnowledge::Uncertain || expected_base != base)
+			throw std::invalid_argument("managed publication actual base mismatch");
+		if (const auto pinned = builder.base_descriptor();
+			pinned && (core.selection.descriptor != pinned ||
+					   builder.base_directory_identity() != core.session->directory_identity()))
+			throw std::invalid_argument("managed publication pinned generation mismatch");
+		if (reset) {
+			if (core.selection.knowledge != SelectionKnowledge::Known ||
+				core.selection.descriptor != reset->expected_selected || builder.base_descriptor() ||
+				!descriptor.cursor.same_identity(reset->configured) || descriptor.profile != reset->profile ||
+				reset->expected_selected.cursor.same_identity(descriptor.cursor))
+				throw std::invalid_argument("managed publication trusted identity reset mismatch");
+		} else if (base &&
+				   (!base->same_identity(descriptor.cursor) || descriptor.cursor.revision <= base->revision))
+			throw std::invalid_argument("managed publication requires a forward scoped cursor");
+		if (bytes->account() != core.account || bytes->size() != descriptor.length ||
+			descriptor.length > core.options.recovery_limits.bytes)
+			throw std::invalid_argument("managed image account or extent mismatch");
+		impl_->publication.reset();
+		const auto &context = core.session->allocation_context();
+		auto data = std::allocate_shared<PublicationData>(c::OwnedAllocator<PublicationData>(context),
+														  impl_->core, builder);
+		auto operation = std::allocate_shared<PublicationOperation>(
+			c::OwnedAllocator<PublicationOperation>(context), data);
+		operation->admit();
+		impl_->terminal_publication_status = DiskPublicationStatus::Idle;
+		impl_->terminal_publication_error = {};
+		impl_->publication = std::move(operation);
+	} catch (const distribution::StoragePressure &) {
+		core.drop_certificates();
+		throw;
+	} catch (const std::bad_alloc &) {
+		core.drop_certificates();
+		throw;
+	}
 }
 void DiskStore::cancel_publication() noexcept {
 	if (impl_->publication)

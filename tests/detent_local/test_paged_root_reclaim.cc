@@ -151,6 +151,17 @@ int main() {
 				l::ValidationBudget budget;
 				builder.step(budget);
 			}
+			{
+				auto pressure = account->admit(account->limit() - account->used());
+				bool refused = false;
+				try {
+					store->begin(builder, reader->descriptor().cursor);
+				} catch (const d::StoragePressure &) {
+					refused = true;
+				}
+				check(refused && store->publication_ready());
+				check(store->stats().reserved == l::DiskUsage{});
+			}
 			store->begin(builder, reader->descriptor().cursor);
 			drive(store);
 		}
