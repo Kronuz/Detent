@@ -11,6 +11,7 @@ namespace detail {
 class PinnedImageSource;
 class FlatStateRows;
 class CandidateFlatValidator;
+class PagedCursor;
 class GraphValidator;
 class PagedProgressView;
 class RecoveryEngine;
@@ -56,6 +57,7 @@ class ReadView {
 	friend class ImageValidator;
 	friend class detail::PinnedImageSource;
 	friend class detail::FlatStateRows;
+	friend class detail::PagedCursor;
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
 	friend class detail::MappedRecoveryAdmission;

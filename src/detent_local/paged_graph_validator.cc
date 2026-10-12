@@ -395,12 +395,23 @@ bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBu
 	registry.validated_root_ = state.expected;
 	return true;
 }
+std::span<const std::uint32_t, 257> GraphValidator::override_histogram() const {
+	if (!done())
+		throw std::logic_error("graph validation incomplete");
+	return impl_->override_histogram;
+}
 ReadView GraphValidator::take(distribution::RetirementDomain &domain) {
+	return take(domain.factory(), domain.storage_account());
+}
+ReadView GraphValidator::take(distribution::RetirementFactory factory,
+							  std::shared_ptr<distribution::StorageLedger> heap) {
+	if (!heap || !factory.uses_account(heap))
+		throw std::invalid_argument("graph view requires exact resources");
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
 	auto &state = *impl_;
-	auto root = domain.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
-											state.bools, state.ints, state.overrides, state.strings);
+	auto root = factory.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
+											 state.bools, state.ints, state.overrides, state.strings);
 	impl_.reset();
 	return ReadView(std::move(root));
 }

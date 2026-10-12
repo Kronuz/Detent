@@ -1,5 +1,6 @@
 #include "paged_cursor.hh"
 #include "paged_navigation.hh"
+#include "read_root.hh"
 namespace detent::local::detail {
 namespace p = paged;
 namespace d = distribution;
@@ -12,6 +13,8 @@ struct PagedCursor::Impl {
 		bool entered = false;
 	};
 	d::RetirementHandle<LeasedPagedRoot> base;
+	ReadView view;
+	PagedReadState state;
 	std::array<Frame, 203> frames{};
 	std::array<char, 202> key{};
 	std::size_t depth = 0, charge = 0;
@@ -21,12 +24,19 @@ struct PagedCursor::Impl {
 		: base(std::move(input)), kind(selected) {
 		if (!base || (kind != p::PageKind::Definition && kind != p::PageKind::Namespace))
 			throw std::invalid_argument("invalid paged lexical cursor");
+		state = {base->root(), base->registry()->inputs()};
+		rewind();
+	}
+	Impl(ReadView input, PagedReadState checked, p::PageKind selected)
+		: view(std::move(input)), state(checked), kind(selected) {
+		if (!view || (kind != p::PageKind::Definition && kind != p::PageKind::Namespace))
+			throw std::invalid_argument("invalid validated paged cursor");
 		rewind();
 	}
 	void rewind() {
-		depth = base->root().pages ? 1 : 0;
+		depth = state.root.pages ? 1 : 0;
 		if (depth)
-			frames[0] = Frame{base->root().tree};
+			frames[0] = Frame{state.root.tree};
 		charge = 0;
 		charging = false;
 		ready = false;
@@ -53,6 +63,13 @@ PagedCursor::PagedCursor(std::shared_ptr<d::StorageLedger> account, const Recove
 PagedCursor::PagedCursor(std::shared_ptr<d::StorageLedger> account, d::RetirementHandle<LeasedPagedRoot> base,
 						 p::PageKind kind)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(base), kind)) {}
+PagedCursor::PagedCursor(std::shared_ptr<d::StorageLedger> account, ReadView view, p::PageKind kind)
+	: impl_([&] {
+		  if (!view || !view.root_->paged)
+			  throw std::invalid_argument("paged cursor requires a validated paged view");
+		  const auto state = *view.root_->paged;
+		  return d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(view), state, kind);
+	  }()) {}
 PagedCursor::~PagedCursor() = default;
 PagedCursor::PagedCursor(PagedCursor &&) noexcept = default;
 void PagedCursor::step(ValidationBudget &budget) {
@@ -64,7 +81,7 @@ void PagedCursor::step(ValidationBudget &budget) {
 			auto &frame = s.frames[s.depth - 1];
 			if (!frame.entered) {
 				if (!frame.bytes.data()) {
-					const auto segments = s.base->registry()->inputs();
+					const auto segments = s.state.segments;
 					const auto index = find_segment(segments, frame.reference.segment);
 					if (index == segments.size())
 						throw std::logic_error("missing checked cursor segment");

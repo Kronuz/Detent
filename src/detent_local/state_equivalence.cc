@@ -24,7 +24,10 @@ StateEquivalence::StateEquivalence(StateCursor left, StateCursor right)
 	  target_directory_(right.directory_identity()) {
 	if (source_.cursor != target_.cursor || source_.profile != target_.profile)
 		mismatch();
-	else {
+	else if (const auto a = left.logical_commitment(), b = right.logical_commitment(); a && b) {
+		done_ = true;
+		equal_ = *a == *b;
+	} else {
 		left_.emplace(std::move(left));
 		right_.emplace(std::move(right));
 	}

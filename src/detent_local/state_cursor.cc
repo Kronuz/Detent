@@ -18,14 +18,23 @@ StateCursor::StateCursor(ValidatedFlatState state, std::shared_ptr<distribution:
 	if (!account)
 		throw std::invalid_argument("candidate state cursor requires a storage account");
 }
+StateCursor::StateCursor(ValidatedPagedState state, std::shared_ptr<distribution::StorageLedger> account)
+	: descriptor_(state.descriptor()), candidate_root_(state.root()) {
+	if (!account)
+		throw std::invalid_argument("candidate paged cursor requires a storage account");
+	namespaces_.emplace(account, state.view(), paged::PageKind::Namespace);
+	records_.emplace(account, state.view(), paged::PageKind::Definition);
+}
 std::optional<DirectoryIdentity> StateCursor::directory_identity() const {
 	return generation_ ? std::optional(generation_->directory_identity()) : std::nullopt;
 }
 std::uint32_t StateCursor::namespace_count() const {
-	return flat_ ? flat_->namespace_count() : generation_->paged_->root().namespaces;
+	return flat_ ? flat_->namespace_count()
+				 : (candidate_root_ ? candidate_root_->namespaces : generation_->paged_->root().namespaces);
 }
 std::uint32_t StateCursor::record_count() const {
-	return flat_ ? flat_->record_count() : generation_->paged_->root().records;
+	return flat_ ? flat_->record_count()
+				 : (candidate_root_ ? candidate_root_->records : generation_->paged_->root().records);
 }
 bool StateCursor::pay(ValidationBudget &budget, std::size_t bytes) {
 	if (!budget.rows)
@@ -155,6 +164,11 @@ SourceOverride StateCursor::override_value() const {
 }
 std::optional<paged::Digest> StateCursor::logical_commitment(const RecoveredGeneration &generation) {
 	return generation.paged_ ? std::optional(generation.paged_->root().logical) : std::nullopt;
+}
+std::optional<paged::Digest> StateCursor::logical_commitment() const {
+	if (candidate_root_)
+		return candidate_root_->logical;
+	return generation_ ? logical_commitment(*generation_) : std::nullopt;
 }
 void StateCursor::reset() {
 	if (namespaces_) {

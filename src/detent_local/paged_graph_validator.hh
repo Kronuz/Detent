@@ -37,7 +37,9 @@ class GraphValidator {
 	std::pair<std::shared_ptr<const void>, std::span<const SegmentInput>> validated_inputs() const;
 	SegmentReachability segment_reachability(std::size_t index) const;
 	bool record_reachability(SegmentRegistry &, ValidationBudget &);
+	std::span<const std::uint32_t, 257> override_histogram() const;
 	ReadView take(distribution::RetirementDomain &);
+	ReadView take(distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>);
 	bool discard(ValidationBudget &);
 
   private:

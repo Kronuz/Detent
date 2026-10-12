@@ -1,23 +1,30 @@
 #include "candidate_flat_validator.hh"
+#include "candidate_paged_validator.hh"
 #include "detent_local/reader.hh"
 #include "paged_disk_fixture.hh"
 #include "state_equivalence.hh"
 #include <chrono>
+#include <source_location>
+#include <thread>
+void state_check(bool value, std::source_location location = std::source_location::current()) {
+	if (!value)
+		throw std::runtime_error("state equivalence invariant at " + std::to_string(location.line()));
+}
 void compare(const l::RecoveredGeneration &left, const l::RecoveredGeneration &right,
 			 const std::shared_ptr<d::StorageLedger> &heap, bool expected) {
 	l::detail::StateEquivalence proof(left, right, heap);
 	unsigned turns = 0;
 	while (!proof.done()) {
-		require(++turns < 100000);
+		state_check(++turns < 100000);
 		l::ValidationBudget budget{1, 1};
 		proof.step(budget);
 	}
-	require(proof.equal() == expected);
+	state_check(proof.equal() == expected);
 	if (expected) {
 		auto evidence = proof.take_proof();
-		require(evidence.binds(left, right));
+		state_check(evidence.binds(left, right));
 		auto moved = std::move(evidence);
-		require(!evidence.binds(left, right) && moved.binds(left, right));
+		state_check(!evidence.binds(left, right) && moved.binds(left, right));
 	}
 }
 void run(bool nul_key, unsigned namespace_count) {
@@ -127,7 +134,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		}
 		auto flat_directory = directory / "flat";
 		std::filesystem::create_directories(flat_directory);
-		require(::chmod(flat_directory.c_str(), 0700) == 0);
+		state_check(::chmod(flat_directory.c_str(), 0700) == 0);
 		const auto name = l::generation_name(flat_id);
 		write(flat_directory / (name + ".image"), *flat_builder.bytes());
 		write(flat_directory / (name + ".lease"), {});
@@ -141,6 +148,7 @@ void run(bool nul_key, unsigned namespace_count) {
 		auto paged_image = builder.take();
 		install(directory / "paged", paged_image, storage);
 		auto paged = l::recover_generation(directory / "paged", limits);
+		const auto mapping_baseline = mappings->used();
 		compare(flat, flat, heap, true);
 		compare(flat, paged, heap, true);
 		compare(paged, flat, heap, true);
@@ -153,16 +161,16 @@ void run(bool nul_key, unsigned namespace_count) {
 				validator.step(budget);
 			}
 			auto candidate = validator.take();
-			require(mappings->used() == before);
+			state_check(mappings->used() == before);
 			l::detail::StateEquivalence equality(l::detail::StateCursor(paged, heap),
 												 l::detail::StateCursor(std::move(candidate), heap));
 			while (!equality.done()) {
 				l::ValidationBudget budget{1, 1};
 				equality.step(budget);
 			}
-			require(equality.equal());
+			state_check(equality.equal());
 			auto evidence = equality.take_proof();
-			require(evidence.binds(paged, flat) && !evidence.binds(flat, paged));
+			state_check(evidence.binds(paged, flat) && !evidence.binds(flat, paged));
 		}
 		{
 			auto pressure = heap->admit(heap->limit() - heap->used());
@@ -178,7 +186,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				} catch (const d::StoragePressure &) {
 					refused = true;
 				}
-				require(refused && mappings->used() == before);
+				state_check(refused && mappings->used() == before);
 			}
 			l::GenerationId candidate_id{};
 			candidate_id.fill('c');
@@ -205,8 +213,8 @@ void run(bool nul_key, unsigned namespace_count) {
 				l::ValidationBudget budget{1, 1};
 				equality.step(budget);
 			}
-			require(equality.equal() && mappings->used() == before);
-			require(l::read_generation_selection(flat_directory).descriptor == flat.descriptor());
+			state_check(equality.equal() && mappings->used() == before);
+			state_check(l::read_generation_selection(flat_directory).descriptor == flat.descriptor());
 		}
 		if (namespace_count) {
 			for (unsigned change = 1; change <= 4; ++change) {
@@ -229,14 +237,14 @@ void run(bool nul_key, unsigned namespace_count) {
 					l::ValidationBudget budget{1, 1};
 					equality.step(budget);
 				}
-				require(!equality.equal());
+				state_check(!equality.equal());
 				bool refused = false;
 				try {
 					equality.take_proof();
 				} catch (const std::logic_error &) {
 					refused = true;
 				}
-				require(refused);
+				state_check(refused);
 			}
 		}
 		for (const auto *base : {&flat, &paged}) {
@@ -245,20 +253,75 @@ void run(bool nul_key, unsigned namespace_count) {
 			l::detail::PagedSnapshotBuilder borrowed(*base, heap, storage, replacement);
 			l::ValidationBudget zero{0, 0};
 			borrowed.step(zero);
-			require(!borrowed.done());
+			state_check(!borrowed.done());
 			unsigned turns = 0;
 			while (!borrowed.done()) {
-				require(++turns < 1000000);
+				state_check(++turns < 1000000);
 				l::ValidationBudget budget{1, 1};
 				borrowed.step(budget);
 			}
 			auto image = borrowed.take();
-			require(image.root().logical == paged_image.root().logical);
+			state_check(image.root().logical == paged_image.root().logical);
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
-			install(output, image, storage);
+			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
+														 limits);
+			while (!validator.done()) {
+				l::ValidationBudget budget{1, 1};
+				validator.step(budget);
+			}
+			state_check(validator.counts().bools == namespace_count &&
+						validator.counts().ints == namespace_count);
+			auto owner = validator.image();
+			l::detail::StateEquivalence equality(l::detail::StateCursor(*base, heap),
+												 l::detail::StateCursor(validator.take(), heap));
+			while (!equality.done()) {
+				l::ValidationBudget budget{1, 1};
+				equality.step(budget);
+			}
+			state_check(equality.equal());
+			auto evidence = equality.take_proof();
+			install(output, owner->image(), storage);
 			auto recovered = l::recover_generation(output, limits);
+			state_check(evidence.binds(*base, recovered));
 			compare(*base, recovered, heap, true);
 		}
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+		while (mappings->used() != mapping_baseline) {
+			state_check(std::chrono::steady_clock::now() < deadline);
+			std::this_thread::yield();
+		}
+		for (unsigned corruption = 0; corruption < (namespace_count ? 2u : 1u); ++corruption) {
+			l::GenerationId bad_id{};
+			bad_id.fill('z');
+			l::detail::PagedSnapshotBuilder builder(flat, heap, storage, bad_id);
+			while (!builder.done()) {
+				l::ValidationBudget budget{1, 1};
+				builder.step(budget);
+			}
+			auto image = builder.take();
+			if (!corruption)
+				const_cast<l::Descriptor &>(image.descriptor()).checksum[0] ^= 1;
+			else
+				const_cast<char *>(
+					image.segments()[0].bytes->data())[image.segments()[0].bytes->size() - 1] ^= 1;
+			const auto before = mappings->used();
+			bool refused = false;
+			try {
+				l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap,
+															 storage, limits);
+				while (!validator.done()) {
+					l::ValidationBudget budget{1, 1};
+					validator.step(budget);
+				}
+			} catch (const std::runtime_error &) {
+				refused = true;
+			} catch (const std::invalid_argument &) {
+				refused = true;
+			}
+			state_check(refused && mappings->used() == before);
+			state_check(l::read_generation_selection(flat_directory).descriptor == flat.descriptor());
+		}
+
 		auto changed_source = std::make_shared<const d::ValidatedSnapshot>(input(26));
 		l::detail::PagedSnapshotBuilder changed_builder(changed_source, storage, changed_id);
 		while (!changed_builder.done()) {
@@ -271,10 +334,10 @@ void run(bool nul_key, unsigned namespace_count) {
 		compare(flat, changed, heap, namespace_count == 0);
 		compare(paged, changed, heap, namespace_count == 0);
 		l::GenerationReader reader(flat_directory, limits);
-		require(reader.refresh());
+		state_check(reader.refresh());
 		auto pinned = reader.read_view();
 		install(flat_directory, paged_image, storage);
-		require(reader.refresh() && reader.descriptor() == paged.descriptor());
+		state_check(reader.refresh() && reader.descriptor() == paged.descriptor());
 		install(flat_directory, changed_image, storage);
 		bool rejected = false;
 		try {
@@ -282,15 +345,15 @@ void run(bool nul_key, unsigned namespace_count) {
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
-		require(rejected == (namespace_count != 0));
-		require(reader.descriptor() == (namespace_count ? paged.descriptor() : changed.descriptor()));
+		state_check(rejected == (namespace_count != 0));
+		state_check(reader.descriptor() == (namespace_count ? paged.descriptor() : changed.descriptor()));
 		if (namespace_count)
-			require(pinned.get("app", "count").value() == reader.read_view().get("app", "count").value());
+			state_check(pinned.get("app", "count").value() == reader.read_view().get("app", "count").value());
 		else
-			require(!pinned.contains("app", "count") && !reader.read_view().contains("app", "count"));
+			state_check(!pinned.contains("app", "count") && !reader.read_view().contains("app", "count"));
 	}
 	domain.close().wait();
-	require(mappings->used() == 0);
+	state_check(mappings->used() == 0);
 }
 
 int main() {
