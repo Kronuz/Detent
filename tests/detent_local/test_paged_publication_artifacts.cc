@@ -1,7 +1,9 @@
 #include "applied_delta_fixture.hh"
 #include "paged_delta_plan.hh"
+#include "paged_dependency_check.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_publication_artifacts.hh"
+#include <completion/native_completion.h>
 template <class Error, class Call> void rejects(Call call) {
 	try {
 		call();
@@ -86,6 +88,35 @@ int main() {
 					rejects<std::out_of_range>([&] { artifacts->prefix_usage(rows.size() + 1); });
 					artifacts->attach(std::move(*plan));
 					rejects<std::logic_error>([&] { plan->root(); });
+					if (progress) {
+						auto session =
+							l::make_owned_storage_session(domain, directory, std::make_shared<int>(1), true);
+						const auto injected = std::make_exception_ptr(
+							std::runtime_error("dependency read failed during cancellation"));
+						bool fired = false, closed = false;
+						{
+							l::detail::PagedDependencyCheck check(domain.factory(), session, artifacts,
+																  ::getuid());
+							while (!check.done()) {
+								const auto &request = check.request();
+								check.submitted();
+								kronuz::io::completion::Result result;
+								if (!fired && request.kind == kronuz::io::completion::Kind::Read) {
+									check.cancel();
+									result.token = request.token;
+									result.error = injected;
+									fired = true;
+								} else {
+									result = kronuz::journal::detail::execute_primitive(check.io(), request);
+									closed |=
+										fired && request.kind == kronuz::io::completion::Kind::CloseFile;
+								}
+								require(check.complete(std::move(result)));
+							}
+							require(fired && closed && check.error() == injected && !check.in_flight());
+						}
+						session->close();
+					}
 				}
 			}
 			domain.close().wait();
