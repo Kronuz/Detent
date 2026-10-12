@@ -128,6 +128,46 @@ int main() {
 		auto current = l::recover_generation(root, options.recovery_limits);
 		check(current.view().get("app", "count").value() == 1);
 	}
+	{
+		auto reader =
+			std::optional<l::RecoveredGeneration>(l::recover_generation(root, options.recovery_limits));
+		auto target = reader->descriptor().cursor;
+		++target.revision;
+		const auto wire = fixture(1, 24, 25, target.revision);
+		d::Limits decode_limits;
+		decode_limits.storage_account = account;
+		d::SnapshotDecoder decoder(target, {"app"}, decode_limits);
+		auto input = std::span<const char>(wire);
+		while (!input.empty()) {
+			d::WorkBudget budget{1, 1};
+			decoder.feed(input, budget);
+		}
+		auto snapshot = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
+		l::GenerationId legacy;
+		legacy.fill('v');
+		{
+			l::ImageBuilder builder(snapshot, legacy, options.recovery_limits);
+			while (!builder.done()) {
+				l::ValidationBudget budget;
+				builder.step(budget);
+			}
+			store->begin(builder, reader->descriptor().cursor);
+			drive(store);
+		}
+		check(store->publication_status() == l::DiskPublicationStatus::Published);
+		store->request_collection();
+		store->advance();
+		drive(store);
+		check(std::filesystem::exists(root / (l::generation_name(last) + ".lease")));
+		check(reader->view().get("app", "count").value() == 1);
+		reader.reset();
+		unpinned(root / (l::generation_name(last) + ".lease"));
+		store->request_collection();
+		store->advance();
+		drive(store);
+		check(!std::filesystem::exists(root / (l::generation_name(last) + ".lease")));
+		check(store->stats().used == census(root) && store->stats().used.generations == 1);
+	}
 	store->close();
 	drive(store);
 	check(store->drained());

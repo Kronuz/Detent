@@ -670,6 +670,8 @@ class PublicationOperation final : public c::Operation {
 										   old_selected_ ? DiskUsage{descriptor_bytes, 1, 0} : DiskUsage{});
 				if (data_->artifacts)
 					data_->core->pending_paged_recovery = data_->artifacts;
+				else
+					data_->core->verified_paged.reset();
 				finish(DiskPublicationStatus::Published);
 			}
 		} catch (...) {
