@@ -33,6 +33,7 @@ class GraphValidator {
 	bool done() const noexcept;
 	paged::Root root() const;
 	PagedStateCounts counts() const;
+	std::uint64_t hashed_segment_bytes() const noexcept;
 	std::pair<std::shared_ptr<const void>, std::span<const SegmentInput>> validated_inputs() const;
 	SegmentReachability segment_reachability(std::size_t index) const;
 	bool record_reachability(SegmentRegistry &, ValidationBudget &);

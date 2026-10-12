@@ -82,7 +82,8 @@ struct WarmGraphValidator::Impl {
 				histogram_index = 0, recorded_index = 0, recorded_histogram = 0;
 	std::uint64_t frontier = 0, new_pages = 0, new_bytes = 0, removed_pages = 0, removed_bytes = 0,
 				  new_namespaces = 0, removed_namespaces = 0, physical_bytes = 0, live_segments = 0,
-				  hashed_bytes = 0, histogram_records = 0, histogram_overrides = 0;
+				  hashed_bytes = 0, histogram_records = 0, histogram_overrides = 0, definition_checks = 0,
+				  old_headers = 0;
 	SegmentRegistry *recorded = nullptr;
 	Phase phase = Phase::Seed;
 	bool failed = false, discarding = false, definitions = false;
@@ -188,6 +189,7 @@ struct WarmGraphValidator::Impl {
 				definitions = true;
 			const auto definition = old ? p::decode_definition_header(body, ns.original)
 										: p::validate_definition(body, ns.revision);
+			old ? ++old_headers : ++definition_checks;
 			if (!old)
 				require(definition.overrides <= semantics.overrides);
 			definition.boolean ? ++target.bools : ++target.ints;
@@ -580,6 +582,12 @@ SegmentReachability WarmGraphValidator::removed(std::size_t index) const {
 SegmentReachability WarmGraphValidator::added(std::size_t index) const {
 	root();
 	return impl_->states.at(index).live;
+}
+std::uint64_t WarmGraphValidator::definitions_validated() const noexcept {
+	return impl_ ? impl_->definition_checks : 0;
+}
+std::uint64_t WarmGraphValidator::old_definition_headers() const noexcept {
+	return impl_ ? impl_->old_headers : 0;
 }
 std::uint64_t WarmGraphValidator::hashed_segment_bytes() const {
 	root();

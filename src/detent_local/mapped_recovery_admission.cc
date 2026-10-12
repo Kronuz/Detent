@@ -115,9 +115,34 @@ ReadView MappedRecoveryAdmission::take_view() {
 		throw std::logic_error("mapped admission view already consumed");
 	const auto root = capability_->root();
 	const auto counts = capability_->counts();
+	if (counts.bools != expected_counts_.bools || counts.ints != expected_counts_.ints ||
+		counts.overrides != expected_counts_.overrides || counts.strings != expected_counts_.strings ||
+		counts.maximum_overrides != expected_counts_.maximum_overrides)
+		throw std::invalid_argument("mapped recovery counts differ from admitted plan");
 	view_->install_paged(capability_hook_, {root, capability_->registry()->inputs()}, counts.bools,
 						 counts.ints, counts.overrides, counts.strings);
 	return ReadView(std::move(view_));
+}
+void MappedRecoveryAdmission::claim_attempt() {
+	warm();
+	auto expected = Attempt::Available;
+	if (!attempt_.compare_exchange_strong(expected, Attempt::Running, std::memory_order_acq_rel)) {
+		if (expected == Attempt::Failed)
+			std::rethrow_exception(failure_);
+		throw std::logic_error("mapped recovery attempt already claimed");
+	}
+}
+void MappedRecoveryAdmission::complete_attempt() {
+	auto expected = Attempt::Running;
+	if (!attempt_.compare_exchange_strong(expected, Attempt::Recovered, std::memory_order_release))
+		throw std::logic_error("mapped recovery attempt is not running");
+}
+void MappedRecoveryAdmission::fail_attempt(std::exception_ptr failure) noexcept {
+	failure_ = std::move(failure);
+	attempt_.store(Attempt::Failed, std::memory_order_release);
+}
+std::exception_ptr MappedRecoveryAdmission::failure() const noexcept {
+	return attempt_.load(std::memory_order_acquire) == Attempt::Failed ? failure_ : std::exception_ptr{};
 }
 bool MappedRecoveryAdmission::retire_step() noexcept {
 	view_.reset();

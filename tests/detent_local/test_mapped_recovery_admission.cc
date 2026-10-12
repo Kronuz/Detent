@@ -237,6 +237,35 @@ int main() {
 				admission.reset();
 				wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
 			}
+			if (!progress) {
+				const auto baseline = mappings->used();
+				std::uint64_t needed = l::detail::rounded_mapping_bytes(plan->descriptor().length);
+				for (const auto &segment : plan->segments())
+					needed += l::detail::rounded_mapping_bytes(segment.ownership.length);
+				auto pressure = mappings->admit(mappings->limit() - baseline - needed);
+				auto invalid = plan->root();
+				++invalid.bytes;
+				const auto bytes = l::paged::encode_root(invalid);
+				auto descriptor = plan->descriptor();
+				descriptor.checksum = l::paged::physical_commitment(bytes);
+				const auto name = l::generation_name(next);
+				write(directory / (name + ".image"), bytes);
+				write(directory / (name + ".lease"),
+					  l::encode_generation_ownership(
+						  {storage, next, descriptor.length, descriptor.checksum, 2}));
+				write(directory / "selected", l::encode_descriptor(descriptor));
+				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
+				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,
+												   core.verified_paged, {}};
+				context.metrics = metrics;
+				rejects<std::invalid_argument>(
+					[&] { l::detail::RecoveryEngine::recover(directory, context); });
+				require(metrics->warm && metrics->segment_mapping_installs == plan->segments().size());
+				require(recovered.view().get("app", "count").value() ==
+						std::numeric_limits<std::int64_t>::min());
+				wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
+				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));
+			}
 		}
 	}
 	l::detail::RecoveryContext context{domain.factory(), heap, mappings, {}, {}, {}};

@@ -593,9 +593,10 @@ class PublicationOperation final : public c::Operation {
 				data_->core->selection = {SelectionKnowledge::Known, data_->descriptor};
 				data_->core->ledger.settle(data_->permit, peak(),
 										   old_selected_ ? DiskUsage{descriptor_bytes, 1, 0} : DiskUsage{});
-				if (data_->artifacts)
+				if (data_->artifacts) {
 					data_->core->pending_paged_recovery = data_->artifacts;
-				else
+					data_->core->recovery_attempt = data_->artifacts->recovery_admission().get();
+				} else
 					data_->core->verified_paged.reset();
 				finish(DiskPublicationStatus::Published);
 			}
@@ -1547,6 +1548,7 @@ void DiskStore::confirm_recovered(const RecoveredGeneration &generation) {
 		throw std::invalid_argument("paged publication recovery does not match selected state");
 	core.confirm_paged(generation);
 	core.pending_paged_recovery.reset();
+	core.recovery_attempt = nullptr;
 	advance();
 }
 void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset) {
@@ -1714,10 +1716,30 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
-	return {*core.legacy_recovery, std::move(paged)};
+	return {*core.legacy_recovery, std::move(paged), store.impl_->core};
 }
 RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
 													 ManagedRecoveryContext context) {
 	return RecoveryEngine::recover_routed(directory, std::move(context.legacy), std::move(context.paged));
+}
+void detail::ManagedRecovery::settle_failure(DiskStore &store, const ManagedRecoveryContext &context,
+											 std::exception_ptr failure) {
+	if (context.owner.lock() != store.impl_->core || !failure)
+		throw std::invalid_argument("invalid managed recovery failure settlement");
+	if (!context.paged.admission)
+		return;
+	auto &core = *store.impl_->core;
+	if (core.recovery_attempt != context.paged.admission.get())
+		throw std::invalid_argument("managed recovery failure does not match pending attempt");
+	if (auto original = context.paged.admission->failure())
+		failure = original;
+	if (core.closing) {
+		if (!core.failure)
+			core.failure = failure;
+		core.ledger.fence();
+		return;
+	}
+	core.fence(failure);
+	store.close();
 }
 } // namespace detent::local

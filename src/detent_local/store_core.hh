@@ -21,6 +21,7 @@ struct StoreCore {
 	std::optional<distribution::RetirementFactory> factory;
 	std::optional<RecoveryContext> legacy_recovery;
 	distribution::RetirementHandle<PagedPublicationArtifacts> pending_paged_recovery;
+	const MappedRecoveryAdmission *recovery_attempt = nullptr;
 	std::shared_ptr<BootstrapCommitment> bootstrap;
 	std::shared_ptr<StorageSession> session;
 	std::shared_ptr<CollectorControls> controls;

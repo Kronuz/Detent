@@ -36,6 +36,7 @@ int main() {
 		auto domain = runtime.domain(account, 64);
 		detent::local::ViewLimits limits;
 		limits.retirement_domain = &domain;
+		limits.mapping_account = account;
 		const auto before = open_descriptors();
 		bool rejected = false;
 		fail_next_allocation = true;

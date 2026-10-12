@@ -61,7 +61,7 @@ struct GraphValidator::Impl {
 	std::optional<PageValidator> page;
 	SHA256 segment_hash;
 	std::size_t index = 0, offset = 0, bitmap_size = 0, depth = 0, key_size = 0, charge = 0;
-	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0;
+	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0, hashed_bytes = 0;
 	std::uint32_t bools = 0, ints = 0, maximum_overrides = 0;
 	std::uint64_t overrides = 0;
 	std::array<std::uint32_t, 257> override_histogram{};
@@ -207,6 +207,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 				const auto count = std::min(input.bytes.size() - state.offset, budget.bytes);
 				if (count)
 					state.segment_hash.add(input.bytes.data() + state.offset, count);
+				state.hashed_bytes += count;
 				state.offset += count;
 				budget.bytes -= count;
 				if (state.offset != input.bytes.size() || !budget.rows)
@@ -340,6 +341,9 @@ p::Root GraphValidator::root() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
 	return impl_->expected;
+}
+std::uint64_t GraphValidator::hashed_segment_bytes() const noexcept {
+	return impl_ ? impl_->hashed_bytes : 0;
 }
 PagedStateCounts GraphValidator::counts() const {
 	if (!done())

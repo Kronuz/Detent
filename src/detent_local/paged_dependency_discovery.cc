@@ -35,7 +35,7 @@ struct DependencyDiscovery::Impl {
 	Handle pending;
 	SHA256 hash;
 	std::size_t offset = 0, position = 0, moving = 0, charge = 0;
-	std::uint64_t physical = 0;
+	std::uint64_t physical = 0, hashed = 0;
 	Phase phase = Phase::Walk;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementFactory factory, p::Root expected,
@@ -120,6 +120,7 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				auto n = std::min(budget.bytes, bytes.size() - s.offset);
 				if (n) {
 					s.hash.add(bytes.data() + s.offset, n);
+					s.hashed += n;
 					s.offset += n;
 					budget.bytes -= n;
 				}
@@ -201,6 +202,7 @@ void DependencyDiscovery::supply(Handle mapping) {
 bool DependencyDiscovery::done() const noexcept {
 	return impl_ && !impl_->failed && !impl_->discarding && impl_->phase == Impl::Phase::Done;
 }
+std::uint64_t DependencyDiscovery::hashed_segment_bytes() const noexcept { return impl_ ? impl_->hashed : 0; }
 d::RetirementHandle<SegmentRegistry> DependencyDiscovery::take() {
 	if (!done() || !impl_->registry)
 		throw std::logic_error("dependency discovery incomplete");

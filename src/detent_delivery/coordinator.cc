@@ -116,6 +116,7 @@ struct Coordinator::Impl {
 		// One candidate coroutine admits at most one configuration-worker task.
 		// The task retains its result through authentic worker completion even
 		// when request interest has been cancelled on the owner executor.
+		const auto settlement = recovery;
 		asio::post(worker, [result, selected, recovery = std::move(recovery)]() mutable {
 			try {
 				if (selected) {
@@ -144,11 +145,19 @@ struct Coordinator::Impl {
 			if (!result->ready.load(std::memory_order_acquire))
 				std::terminate();
 			diagnostic.worker_pending = false;
+			if (result->failure) {
+				if (settlement)
+					l::detail::ManagedRecovery::settle_failure(*store, *settlement, result->failure);
+				std::rethrow_exception(result->failure);
+			}
 			throw;
 		}
 		diagnostic.worker_pending = false;
-		if (result->failure)
+		if (result->failure) {
+			if (settlement)
+				l::detail::ManagedRecovery::settle_failure(*store, *settlement, result->failure);
 			std::rethrow_exception(result->failure);
+		}
 		co_return result;
 	}
 	void bind_base(d::RetirementHandle<RecoveryResult> recovered) {

@@ -18,6 +18,7 @@ class DependencyDiscovery {
 	std::optional<StorageIdentity> missing() const;
 	void supply(distribution::RetirementHandle<SegmentMapping>);
 	bool done() const noexcept;
+	std::uint64_t hashed_segment_bytes() const noexcept;
 	distribution::RetirementHandle<SegmentRegistry> take();
 	bool discard(ValidationBudget &);
 

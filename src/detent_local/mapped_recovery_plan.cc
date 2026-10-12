@@ -10,6 +10,7 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		base_ = plan.base_descriptor();
 		directory_ = plan.directory_identity();
 		storage_ = plan.storage_identity();
+		expected_counts_ = plan.counts();
 		if (plan.bytes()->account() != heap_)
 			throw std::invalid_argument("mapped admission plan account mismatch");
 		warm_ = prior && prior->descriptor() == base_ && prior->directory_identity() == directory_ &&

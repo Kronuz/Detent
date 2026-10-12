@@ -2,6 +2,8 @@
 #include "generation_mapping.hh"
 #include "leased_paged_root.hh"
 #include "read_root.hh"
+#include <atomic>
+#include <exception>
 namespace detent::local::detail {
 class PagedPlan;
 // Owns staged controls and their real mapping tickets before publication IO.
@@ -28,6 +30,10 @@ class MappedRecoveryAdmission final : public distribution::RetirementNode {
 	distribution::RetirementHandle<LeasedPagedRoot> capability() const;
 	std::shared_ptr<const void> capability_owner() const;
 	ReadView take_view();
+	void claim_attempt();
+	void complete_attempt();
+	void fail_attempt(std::exception_ptr) noexcept;
+	std::exception_ptr failure() const noexcept;
 
   protected:
 	bool retire_step() noexcept override;
@@ -52,9 +58,13 @@ class MappedRecoveryAdmission final : public distribution::RetirementNode {
 	Descriptor target_, base_;
 	DirectoryIdentity directory_;
 	StorageIdentity storage_;
+	PagedStateCounts expected_counts_;
 	std::uint64_t bytes_ = 0;
 	bool populated_ = false, failed_ = false, warm_ = false;
 	bool directory_taken_ = false;
+	enum class Attempt { Available, Running, Recovered, Failed };
+	std::atomic<Attempt> attempt_{Attempt::Available};
+	std::exception_ptr failure_;
 	void append(SegmentOwnership);
 };
 } // namespace detent::local::detail
