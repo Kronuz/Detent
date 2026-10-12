@@ -24,6 +24,7 @@ struct DiskStoreOptions {
 namespace detail {
 struct StoreCore;
 class PagedPlan;
+class ManagedRecovery;
 } // namespace detail
 // Single-executor coordinator. The application retains and drives the store
 // through close/drain; accepted drivers retain the entire outer operation.
@@ -63,6 +64,7 @@ class DiskStore {
 	std::exception_ptr collection_error() const noexcept;
 
   private:
+	friend class detail::ManagedRecovery;
 	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;

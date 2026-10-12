@@ -4,6 +4,7 @@
 #include "detent_local/inventory.hh"
 #include "detent_local/record_reader.hh"
 #include "leased_paged_root.hh"
+#include "managed_recovery.hh"
 #include "names.hh"
 #include "paged_certificate.hh"
 #include "paged_dependency_check.hh"
@@ -11,6 +12,7 @@
 #include "paged_publication_artifacts.hh"
 #include "paged_root_prefix.hh"
 #include "paged_segment_collection.hh"
+#include "resources.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
 #include <completion/image.h>
@@ -1504,6 +1506,10 @@ void DiskStore::begin(detail::PagedPlan &&plan) {
 		artifacts->populate(plan);
 		if (artifacts->target_physical_bytes() > core.options.recovery_limits.bytes)
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
+		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
+			core.account, core.options.recovery_limits.mapping_account, *core.factory);
+		recovery->populate(plan, core.verified_paged);
+		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
 			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), 2, artifacts);
@@ -1637,8 +1643,20 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		(options.limits.bytes < storage_identity_bytes || options.limits.entries < 2))
 		throw DiskPressure("fresh root bootstrap exceeds disk quota");
 	auto account = domain.storage_account();
+	auto &legacy_domain = resources::domain(options.recovery_limits);
+	detail::RecoveryContext legacy{legacy_domain.factory(),
+								   legacy_domain.storage_account(),
+								   resources::mapping_account(options.recovery_limits),
+								   options.recovery_limits,
+								   {},
+								   {}};
+	legacy.limits.retirement_domain = nullptr;
+	legacy.limits.mapping_account = legacy.mappings;
+	options.recovery_limits.retirement_domain = nullptr;
+	options.recovery_limits.mapping_account = legacy.mappings;
 	auto core = std::allocate_shared<detail::StoreCore>(
 		distribution::StorageAllocator<detail::StoreCore>(account), account, options, domain.factory());
+	core->legacy_recovery.emplace(std::move(legacy));
 	core->bootstrap = std::allocate_shared<detail::BootstrapCommitment>(
 		distribution::StorageAllocator<detail::BootstrapCommitment>(account));
 	core->bootstrap->caller = std::move(admission);
@@ -1671,7 +1689,8 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		std::allocate_shared<ReclaimOperation>(c::OwnedAllocator<ReclaimOperation>(context), reclaim);
 	try {
 		if (core->session->backend()->inspect_entry("selected")) {
-			auto recovered = recover_generation(directory, options.recovery_limits);
+			auto recovered =
+				detail::ManagedRecovery::recover(directory, detail::ManagedRecovery::capture(*store));
 			if (recovered.directory_identity() != core->session->directory_identity())
 				throw std::runtime_error("recovered directory differs from stable session");
 			core->retain_recovered(recovered);
@@ -1682,5 +1701,23 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		store->impl_->startup->cancel();
 	}
 	return store;
+}
+detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore &store) {
+	const auto &core = *store.impl_->core;
+	if (!core.factory || !core.legacy_recovery || core.closing)
+		throw std::logic_error("managed recovery context unavailable");
+	RecoveryContext paged{*core.factory,
+						  core.account,
+						  core.options.recovery_limits.mapping_account,
+						  core.options.recovery_limits,
+						  core.verified_paged,
+						  core.pending_paged_recovery
+							  ? core.pending_paged_recovery->recovery_admission()
+							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
+	return {*core.legacy_recovery, std::move(paged)};
+}
+RecoveredGeneration detail::ManagedRecovery::recover(const std::filesystem::path &directory,
+													 ManagedRecoveryContext context) {
+	return RecoveryEngine::recover_routed(directory, std::move(context.legacy), std::move(context.paged));
 }
 } // namespace detent::local

@@ -6,6 +6,18 @@
 #include <unistd.h>
 #include <utility>
 namespace detent::local::detail {
+struct RecoveryFile {
+	int fd = -1;
+	explicit RecoveryFile(int value) : fd(value) {}
+	~RecoveryFile() {
+		if (fd >= 0)
+			::close(fd);
+	}
+	RecoveryFile(const RecoveryFile &) = delete;
+};
+struct GenerationDirectory final : distribution::RetirementNode {
+	RecoveryFile file{-1};
+};
 // Staged controls hold admission without exposing an unmapped byte span.
 class GenerationMapping final : public distribution::RetirementNode {
   public:

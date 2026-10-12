@@ -1,5 +1,6 @@
 #include "applied_delta_fixture.hh"
 #include "detent_local/disk_store.hh"
+#include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
 #include <completion/native_completion.h>
@@ -219,8 +220,8 @@ int main() {
 					check(store->publication_status() == l::DiskPublicationStatus::Published);
 					check(store->selection().descriptor == wanted && !store->publication_ready());
 					rejects<std::invalid_argument>([&] { store->confirm_recovered(*base); });
-					auto recovered =
-						l::recover_generation(root, options.recovery_limits, wanted.cursor, &*base);
+					auto recovered = l::detail::ManagedRecovery::recover(
+						root, l::detail::ManagedRecovery::capture(*store));
 					{
 						auto pressure = account->admit(account->limit() - account->used());
 						store->confirm_recovered(recovered);

@@ -6,6 +6,7 @@
 #include "store_core.hh"
 #include <chrono>
 #include <thread>
+struct Resident final : d::RetirementNode {};
 template <class Error, class F> void rejects(F action) {
 	try {
 		action();
@@ -72,9 +73,10 @@ int main() {
 			}
 			{
 				auto other_heap = std::make_shared<d::StorageLedger>(1024 * 1024);
-				auto mismatch =
-					domain.make<l::detail::MappedRecoveryAdmission>(other_heap, mappings, domain.factory());
-				rejects<std::invalid_argument>([&] { mismatch->populate(*plan, core.verified_paged); });
+				rejects<std::invalid_argument>([&] {
+					auto mismatch = domain.make<l::detail::MappedRecoveryAdmission>(other_heap, mappings,
+																					domain.factory());
+				});
 			}
 			{
 				auto other_mappings = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
@@ -97,6 +99,29 @@ int main() {
 			}
 			for (bool warm : {false, true}) {
 				const auto baseline = mappings->used();
+				std::size_t required_residents = 5 + plan->segments().size();
+				if (!warm || !progress)
+					++required_residents;
+				if (warm && !progress)
+					++required_residents;
+				if (!warm)
+					for (std::size_t i = 0; i < plan->registry()->inputs().size(); ++i)
+						if (plan->base_reachability(i).pages)
+							++required_residents;
+				for (std::size_t capacity = 1; capacity < required_residents; ++capacity) {
+					auto limited = runtime.domain(heap, capacity);
+					auto insufficient =
+						limited.make<l::detail::MappedRecoveryAdmission>(heap, mappings, limited.factory());
+					rejects<d::StoragePressure>([&] {
+						insufficient->populate(*plan,
+											   warm ? core.verified_paged
+													: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
+					});
+					require(plan->descriptor().generation == next);
+					insufficient.reset();
+					limited.close().wait();
+					require(mappings->used() == baseline);
+				}
 				std::uint64_t needed = l::detail::rounded_mapping_bytes(plan->descriptor().length);
 				for (const auto &segment : plan->segments())
 					needed += l::detail::rounded_mapping_bytes(segment.ownership.length);
@@ -139,13 +164,38 @@ int main() {
 				}
 			}
 			for (bool warm : {false, true}) {
-				if (warm && !progress)
-					continue;
 				const auto baseline = mappings->used();
 				auto admission =
 					domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, domain.factory());
 				admission->populate(*plan, warm ? core.verified_paged
 												: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
+				rejects<std::logic_error>([&] { admission->take_view(); });
+				rejects<std::logic_error>([&] { admission->capability()->root(); });
+				{
+					l::detail::RecoveryContext wrong_selection{
+						domain.factory(),
+						heap,
+						mappings,
+						limits,
+						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
+						admission};
+					rejects<std::invalid_argument>(
+						[&] { l::detail::RecoveryEngine::recover(directory, wrong_selection); });
+					if (warm) {
+						wrong_selection.prior.reset();
+						rejects<std::invalid_argument>([&] {
+							l::detail::RecoveryEngine::recover(directory / "missing", wrong_selection);
+						});
+					}
+				}
+				std::vector<d::RetirementHandle<Resident>> residents;
+				for (;;) {
+					try {
+						residents.push_back(domain.make<Resident>());
+					} catch (const d::StoragePressure &) {
+						break;
+					}
+				}
 				auto pressure = mappings->admit(mappings->limit() - mappings->used());
 				const auto name = l::generation_name(next);
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
@@ -166,9 +216,21 @@ int main() {
 						limits,
 						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						admission};
+					context.budget = {1, 1};
 					auto current = l::detail::RecoveryEngine::recover(directory, std::move(context));
 					require(current.descriptor() == plan->descriptor());
 					require(current.view().size() == plan->root().records);
+					require(current.view().contains("app", "count") &&
+							current.view().contains("app", "flag"));
+					require(!current.view().contains("app", "missing"));
+					require(current.view().get("app", "count").value() ==
+							(progress ? std::numeric_limits<std::int64_t>::min() : 1));
+					for (const auto hash : {"host-a", "host-b", "host-c"})
+						for (const auto switch_value : {"beta", "production"})
+							require(current.view().eval("app", "flag", hash, switch_value).value() ==
+									(progress
+										 ? recovered.view().eval("app", "flag", hash, switch_value).value()
+										 : true));
 					require(mappings->used() == mappings->limit());
 				}
 				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));

@@ -4,6 +4,7 @@
 #include "leased_paged_root.hh"
 #include "paged_certificate.hh"
 #include "paged_publication_artifacts.hh"
+#include "recovery_context.hh"
 namespace detent::local::detail {
 struct BootstrapCommitment {
 	std::shared_ptr<void> caller;
@@ -18,6 +19,7 @@ struct StoreCore {
 	DiskStoreOptions options;
 	DiskLedger ledger;
 	std::optional<distribution::RetirementFactory> factory;
+	std::optional<RecoveryContext> legacy_recovery;
 	distribution::RetirementHandle<PagedPublicationArtifacts> pending_paged_recovery;
 	std::shared_ptr<BootstrapCommitment> bootstrap;
 	std::shared_ptr<StorageSession> session;

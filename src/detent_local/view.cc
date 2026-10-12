@@ -56,7 +56,18 @@ ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> re
 ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state,
 					 std::uint32_t boolean_count, std::uint32_t integer_count, std::uint64_t overrides,
 					 std::uint64_t strings)
-	: lease(std::move(owner)), bools(boolean_count), ints(integer_count), paged(state) {
+	: Root() {
+	install_paged(std::move(owner), state, boolean_count, integer_count, overrides, strings);
+}
+void ReadView::Root::install_paged(std::shared_ptr<const void> owner, detail::PagedReadState state,
+								   std::uint32_t boolean_count, std::uint32_t integer_count,
+								   std::uint64_t overrides, std::uint64_t strings) {
+	if (lease || paged || !owner)
+		throw std::logic_error("paged read root installation unavailable");
+	lease = std::move(owner);
+	bools = boolean_count;
+	ints = integer_count;
+	paged = state;
 	header.cursor = state.root.cursor;
 	header.profile = state.root.profile;
 	header.layout.records = state.root.records;

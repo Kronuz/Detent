@@ -11,9 +11,12 @@ struct ReadView::Root : distribution::RetirementNode {
 	Header header;
 	std::uint32_t bools = 0, ints = 0;
 	std::optional<detail::PagedReadState> paged;
+	Root() : header{} {}
 	Root(std::shared_ptr<const void>, std::span<const char>, Header);
 	Root(std::shared_ptr<const void>, detail::PagedReadState, std::uint32_t bools, std::uint32_t ints,
 		 std::uint64_t overrides, std::uint64_t strings = 0);
+	void install_paged(std::shared_ptr<const void>, detail::PagedReadState, std::uint32_t bools,
+					   std::uint32_t ints, std::uint64_t overrides, std::uint64_t strings);
 	std::uint64_t number(std::uint64_t offset, unsigned width) const;
 	std::string_view text(std::uint64_t row) const;
 	std::optional<std::uint64_t> find(std::string_view name_space, std::string_view key) const;

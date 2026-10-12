@@ -16,6 +16,7 @@ void require(bool value) {
 using Handle = d::RetirementHandle<SegmentMapping>;
 struct Inputs {
 	std::vector<Handle, d::StorageAllocator<Handle>> mappings;
+	d::RetirementHandle<SegmentRegistry> prior;
 	Inputs(std::shared_ptr<d::StorageLedger> account, std::size_t capacity)
 		: mappings(d::StorageAllocator<Handle>(account)) {
 		mappings.reserve(capacity);
@@ -38,15 +39,22 @@ struct DependencyDiscovery::Impl {
 	Phase phase = Phase::Walk;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementFactory factory, p::Root expected,
-		 StorageIdentity identity, p::Limits bounds)
+		 StorageIdentity identity, p::Limits bounds, d::RetirementHandle<SegmentRegistry> prior,
+		 d::RetirementHandle<SegmentRegistry> admitted)
 		: account(std::move(ledger)), root(expected), storage(identity), limits(bounds) {
 		p::encode_root(root, limits);
 		require(root.segments <= p::Limits{}.segments);
 		inputs = std::allocate_shared<Inputs>(d::StorageAllocator<Inputs>(account), account, root.segments);
+		inputs->prior = std::move(prior);
+		if (inputs->prior)
+			inputs->prior->validated_root();
 		auto registry_limits = limits;
 		registry_limits.segments = root.segments;
-		registry = factory.make<SegmentRegistry>(account, storage, registry_limits);
-		walk.emplace(account, inputs, &lookup, root, storage, limits);
+		if (admitted && (!admitted->uses_account(account) || admitted->physical_bytes()))
+			throw std::invalid_argument("invalid staged discovery registry");
+		registry =
+			admitted ? std::move(admitted) : factory.make<SegmentRegistry>(account, storage, registry_limits);
+		walk.emplace(account, inputs, &lookup, root, storage, limits, inputs->prior ? &frontier : nullptr);
 	}
 	bool admit(std::size_t amount, ValidationBudget &budget) {
 		if (!budget.rows)
@@ -71,6 +79,15 @@ struct DependencyDiscovery::Impl {
 			return {};
 		return SegmentInput{(*found)->ownership(), (*found)->bytes()};
 	}
+	static bool frontier(const void *owner, const p::Reference &reference) {
+		const auto &inputs = *static_cast<const Inputs *>(owner);
+		const auto rows = inputs.prior->inputs();
+		const auto found = std::lower_bound(
+			rows.begin(), rows.end(), reference.segment, [](const SegmentInput &input, const auto &id) {
+				return std::memcmp(input.ownership.segment.data(), id.data(), id.size()) < 0;
+			});
+		return found != rows.end() && found->ownership.segment == reference.segment;
+	}
 	auto find(const StorageIdentity &id) {
 		return std::lower_bound(
 			inputs->mappings.begin(), inputs->mappings.end(), id, [](const Handle &mapping, const auto &key) {
@@ -84,9 +101,10 @@ DependencyDiscovery::DependencyDiscovery(std::shared_ptr<d::StorageLedger> accou
 	: DependencyDiscovery(std::move(account), domain.factory(), root, identity, limits) {}
 DependencyDiscovery::DependencyDiscovery(std::shared_ptr<d::StorageLedger> account,
 										 d::RetirementFactory factory, p::Root root, StorageIdentity identity,
-										 p::Limits limits)
+										 p::Limits limits, d::RetirementHandle<SegmentRegistry> prior,
+										 d::RetirementHandle<SegmentRegistry> admitted)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(factory), root,
-										identity, limits)) {}
+										identity, limits, std::move(prior), std::move(admitted))) {}
 DependencyDiscovery::~DependencyDiscovery() = default;
 DependencyDiscovery::DependencyDiscovery(DependencyDiscovery &&) noexcept = default;
 void DependencyDiscovery::step(ValidationBudget &budget) {
@@ -150,7 +168,8 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 			}
 			if (!s.walk->done())
 				return;
-			require(s.inputs->mappings.size() == s.root.segments);
+			require(s.inputs->prior ? s.inputs->mappings.size() <= s.root.segments
+									: s.inputs->mappings.size() == s.root.segments);
 			s.position = 0;
 			s.phase = Impl::Phase::Register;
 		}

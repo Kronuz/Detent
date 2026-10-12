@@ -22,6 +22,7 @@ struct PagedDependencyWalk::Impl {
 	std::shared_ptr<d::StorageLedger> account;
 	std::shared_ptr<const void> source;
 	Lookup lookup;
+	Frontier frontier;
 	p::Root root;
 	StorageIdentity storage;
 	p::Limits limits;
@@ -31,9 +32,9 @@ struct PagedDependencyWalk::Impl {
 	std::uint64_t pages = 0, extents = 0;
 	bool waiting = false, complete = false, failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> account, std::shared_ptr<const void> source, Lookup lookup,
-		 p::Root root, StorageIdentity storage, p::Limits limits)
+		 p::Root root, StorageIdentity storage, p::Limits limits, Frontier frontier)
 		: account(std::move(account)), source(std::move(source)), lookup(lookup), root(root),
-		  storage(storage), limits(limits) {
+		  storage(storage), limits(limits), frontier(frontier) {
 		require(this->source && lookup);
 		p::encode_root(root, limits);
 		if (root.pages)
@@ -62,9 +63,9 @@ struct PagedDependencyWalk::Impl {
 };
 PagedDependencyWalk::PagedDependencyWalk(std::shared_ptr<d::StorageLedger> account,
 										 std::shared_ptr<const void> source, Lookup lookup, p::Root root,
-										 StorageIdentity storage, p::Limits limits)
+										 StorageIdentity storage, p::Limits limits, Frontier frontier)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(source), lookup,
-										root, storage, limits)) {}
+										root, storage, limits, frontier)) {}
 PagedDependencyWalk::~PagedDependencyWalk() = default;
 PagedDependencyWalk::PagedDependencyWalk(PagedDependencyWalk &&) noexcept = default;
 void PagedDependencyWalk::step(ValidationBudget &budget) {
@@ -76,7 +77,8 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 			if (!s.depth) {
 				if (!s.admit(16, budget))
 					return;
-				require(s.pages == s.root.pages && s.extents == s.root.bytes);
+				if (!s.frontier)
+					require(s.pages == s.root.pages && s.extents == s.root.bytes);
 				s.complete = true;
 				return;
 			}
@@ -85,6 +87,10 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 				if (!s.page) {
 					if (!s.waiting && !s.admit(p::reference_bytes, budget))
 						return;
+					if (!s.waiting && s.frontier && s.frontier(s.source.get(), frame.reference)) {
+						frame.checked = true;
+						continue;
+					}
 					if (!budget.rows && s.waiting)
 						return;
 					auto input = s.lookup(s.source.get(), frame.reference.segment);

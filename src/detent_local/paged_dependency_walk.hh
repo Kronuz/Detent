@@ -6,8 +6,9 @@ namespace detent::local::detail {
 class PagedDependencyWalk {
   public:
 	using Lookup = std::optional<SegmentInput> (*)(const void *, const StorageIdentity &);
+	using Frontier = bool (*)(const void *, const paged::Reference &);
 	PagedDependencyWalk(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> source,
-						Lookup, paged::Root, StorageIdentity storage, paged::Limits = {});
+						Lookup, paged::Root, StorageIdentity storage, paged::Limits = {}, Frontier = nullptr);
 	~PagedDependencyWalk();
 	PagedDependencyWalk(PagedDependencyWalk &&) noexcept;
 	PagedDependencyWalk(const PagedDependencyWalk &) = delete;

@@ -1,6 +1,8 @@
 #include "detent_delivery/coordinator.hh"
 #include "coordinator_internal.hh"
 #include "detent_delivery/reconnect_backoff.hh"
+#include "managed_recovery.hh"
+#include <algorithm>
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <openssl/rand.h>
@@ -99,15 +101,26 @@ struct Coordinator::Impl {
 		auto result = base;
 		result->failure = {};
 		result->ready.store(false, std::memory_order_relaxed);
+		std::optional<l::detail::ManagedRecoveryContext> recovery;
+		if (selected) {
+			recovery.emplace(l::detail::ManagedRecovery::capture(*store));
+			for (auto *context : {&recovery->legacy, &recovery->paged}) {
+				auto &limits = context->limits;
+				limits.bytes = std::min(limits.bytes, result->limits.bytes);
+				limits.strings = std::min(limits.strings, result->limits.strings);
+				limits.namespaces = std::min(limits.namespaces, result->limits.namespaces);
+				limits.records = std::min(limits.records, result->limits.records);
+				limits.overrides = std::min(limits.overrides, result->limits.overrides);
+			}
+		}
 		// One candidate coroutine admits at most one configuration-worker task.
 		// The task retains its result through authentic worker completion even
 		// when request interest has been cancelled on the owner executor.
-		asio::post(worker, [result, selected] {
+		asio::post(worker, [result, selected, recovery = std::move(recovery)]() mutable {
 			try {
 				if (selected) {
 					auto candidate =
-						l::recover_generation(result->directory, result->limits, {},
-											  result->generation ? &*result->generation : nullptr);
+						l::detail::ManagedRecovery::recover(result->directory, std::move(*recovery));
 					result->generation.emplace(std::move(candidate));
 				}
 				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),

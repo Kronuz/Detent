@@ -8,7 +8,9 @@ class DependencyDiscovery {
 	DependencyDiscovery(std::shared_ptr<distribution::StorageLedger>, distribution::RetirementDomain &,
 						paged::Root, StorageIdentity, paged::Limits = {});
 	DependencyDiscovery(std::shared_ptr<distribution::StorageLedger>, distribution::RetirementFactory,
-						paged::Root, StorageIdentity, paged::Limits = {});
+						paged::Root, StorageIdentity, paged::Limits = {},
+						distribution::RetirementHandle<SegmentRegistry> prior = {},
+						distribution::RetirementHandle<SegmentRegistry> admitted = {});
 	~DependencyDiscovery();
 	DependencyDiscovery(DependencyDiscovery &&) noexcept;
 	DependencyDiscovery(const DependencyDiscovery &) = delete;

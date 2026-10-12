@@ -7,10 +7,16 @@ struct RecoveryContext {
 	ViewLimits limits;
 	distribution::RetirementHandle<LeasedPagedRoot> prior;
 	distribution::RetirementHandle<MappedRecoveryAdmission> admission;
+	ValidationBudget budget;
+	std::optional<GenerationSelection> selection;
+	std::optional<unsigned> layout_version;
 };
 class RecoveryEngine {
   public:
 	static RecoveredGeneration recover(const std::filesystem::path &, RecoveryContext,
 									   std::optional<distribution::Cursor> = {});
+	static RecoveredGeneration recover_routed(const std::filesystem::path &, RecoveryContext legacy,
+											  RecoveryContext paged,
+											  std::optional<distribution::Cursor> = {});
 };
 } // namespace detent::local::detail

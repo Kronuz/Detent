@@ -112,7 +112,21 @@ DiskUsage PagedPublicationArtifacts::prefix_usage(std::size_t count) const {
 		throw std::out_of_range("paged artifact prefix exceeded");
 	return count ? artifacts_[count - 1].prefix : DiskUsage{};
 }
+void PagedPublicationArtifacts::attach_recovery(d::RetirementHandle<MappedRecoveryAdmission> admission) {
+	artifacts();
+	if (!admission || recovery_ || plan_)
+		throw std::logic_error("paged recovery admission attachment unavailable");
+	admission->bind(descriptor_, directory_, storage_);
+	recovery_ = std::move(admission);
+}
+d::RetirementHandle<MappedRecoveryAdmission> PagedPublicationArtifacts::recovery_admission() const {
+	artifacts();
+	if (!recovery_)
+		throw std::logic_error("missing paged recovery admission");
+	return recovery_;
+}
 bool PagedPublicationArtifacts::retire_step() noexcept {
+	recovery_.reset();
 	for (unsigned i = 0; i < 16 && !artifacts_.empty(); ++i)
 		artifacts_.pop_back();
 	if (!artifacts_.empty())

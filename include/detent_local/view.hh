@@ -12,6 +12,7 @@ class PinnedImageSource;
 class GraphValidator;
 class PagedProgressView;
 class RecoveryEngine;
+class MappedRecoveryAdmission;
 } // namespace detail
 struct ValidationBudget {
 	std::size_t bytes = 8192, rows = 16;
@@ -54,6 +55,7 @@ class ReadView {
 	friend class detail::PinnedImageSource;
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
+	friend class detail::MappedRecoveryAdmission;
 };
 // The supplied lease retains the immutable byte region through all views.
 // GenerationReader will supply a mapped image and its acquired kernel lease.

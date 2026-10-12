@@ -1,5 +1,6 @@
 #pragma once
 #include "detent_local/disk_ledger.hh"
+#include "mapped_recovery_admission.hh"
 #include "paged_plan.hh"
 namespace detent::local::detail {
 struct PublicationArtifact {
@@ -23,6 +24,8 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	explicit PagedPublicationArtifacts(std::shared_ptr<distribution::StorageLedger>);
 	void populate(const PagedPlan &);
 	void attach(PagedPlan &&);
+	void attach_recovery(distribution::RetirementHandle<MappedRecoveryAdmission>);
+	distribution::RetirementHandle<MappedRecoveryAdmission> recovery_admission() const;
 	std::span<const PublicationArtifact> artifacts() const;
 	std::span<const ReusedDependency> reused() const;
 	const PagedPlan &plan() const;
@@ -38,6 +41,7 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	std::vector<PublicationArtifact, Allocator> artifacts_;
 	std::vector<ReusedDependency, distribution::StorageAllocator<ReusedDependency>> reused_;
 	std::optional<PagedPlan> plan_;
+	distribution::RetirementHandle<MappedRecoveryAdmission> recovery_;
 	DiskUsage usage_;
 	std::uint64_t physical_bytes_ = paged::root_bytes;
 	Descriptor descriptor_, base_descriptor_;

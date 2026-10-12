@@ -1,5 +1,6 @@
 #include "applied_delta_fixture.hh"
 #include "detent_local/disk_store.hh"
+#include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
 #include <chrono>
@@ -114,8 +115,8 @@ int main() {
 	store->begin(std::move(plan));
 	drive(store);
 	require(store->publication_status() == l::DiskPublicationStatus::Published);
-	auto target =
-		std::optional<l::RecoveredGeneration>(l::recover_generation(directory, options.recovery_limits));
+	auto target = std::optional<l::RecoveredGeneration>(
+		l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store)));
 	store->confirm_recovered(*target);
 	drive(store);
 	require(!store->collection_error() && !store->stats().fenced && store->stats().used == census(directory));

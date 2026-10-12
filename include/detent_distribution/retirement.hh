@@ -102,6 +102,9 @@ class RetirementFactory {
 	RetirementFactory(RetirementFactory &&) noexcept = default;
 	RetirementFactory &operator=(const RetirementFactory &) noexcept = default;
 	RetirementFactory &operator=(RetirementFactory &&) noexcept = default;
+	bool uses_account(const std::shared_ptr<StorageLedger> &account) const {
+		return state_ && account && detail::retirement_account(*state_) == account;
+	}
 	template <class T, class... Args> RetirementHandle<T> make(Args &&...args) const {
 		static_assert(std::is_base_of_v<RetirementNode, T>);
 		if (!state_)
