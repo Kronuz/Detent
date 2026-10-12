@@ -1,5 +1,6 @@
 #include "detent_local/inventory.hh"
 #include "names.hh"
+#include "segment_names.hh"
 #include <limits>
 
 namespace detent::local {
@@ -139,16 +140,20 @@ void InventoryOperation::observe(const c::EntryInspection &entry) {
 	add(report.inspected, 1);
 	const std::string_view name{state_->name.data(), state_->name_size};
 	const auto parsed = detail::parse_generation_name(name);
+	const auto segment = detail::parse_segment_name(name);
 	if (parsed) {
 		if (parsed->kind == detail::GenerationFile::Lease)
 			add(report.usage.generations, 1);
 		else
 			add(report.canonical_payloads, 1);
 	}
+	if (segment && segment->kind == detail::SegmentFile::Payload)
+		add(report.canonical_payloads, 1);
 	const bool directory = entry.footprint.kind == c::EntryKind::Directory;
 	const bool unsafe = entry.footprint.kind != c::EntryKind::Regular || entry.links != 1 ||
 						entry.owner != state_->trusted_owner || (entry.permissions & 0022);
-	const bool foreign = !parsed && name != "owner.lock" && name != "storage.meta" && name != "selected";
+	const bool foreign =
+		!parsed && !segment && name != "owner.lock" && name != "storage.meta" && name != "selected";
 	if (unsafe || foreign) {
 		add(report.quarantined, 1);
 		if (report.sample_count < report.samples.size()) {

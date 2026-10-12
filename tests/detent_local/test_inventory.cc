@@ -239,6 +239,25 @@ int main() {
 			check(job->report().usage == l::DiskUsage{21, 6, 1});
 			check(job->report().canonical_payloads == 1 && job->report().quarantined == 3);
 		}
+		for (const auto name :
+			 {"segment-0123456789abcdef0123456789abcdef.owner",
+			  "segment-0123456789abcdef0123456789abcdef.pack",
+			  "segment-00000000000000000000000000000000.pack",
+			  "segment-FEDCBA98765432100123456789abcdef.pack", "segment-0123456789abcdef0123456789abcde.pack",
+			  "segment-0123456789abcdef0123456789abcdef.pack.extra"}) {
+			std::ofstream(root / name) << "x";
+			std::filesystem::permissions(root / name, std::filesystem::perms::owner_read |
+														  std::filesystem::perms::owner_write);
+		}
+		{
+			auto backend = std::make_shared<c::PosixIO>(root);
+			auto owner = l::make_storage_session({}, backend, std::make_shared<int>(1), false);
+			auto job = l::make_inventory_operation(owner, 12, ::geteuid());
+			finish(*job);
+			check(job->status() == l::InventoryStatus::Ready);
+			check(job->report().usage == l::DiskUsage{27, 12, 1});
+			check(job->report().canonical_payloads == 3 && job->report().quarantined == 6);
+		}
 		{
 			auto backend = std::make_shared<c::PosixIO>(root);
 			auto owner = l::make_storage_session({}, backend, std::make_shared<int>(1), false);
