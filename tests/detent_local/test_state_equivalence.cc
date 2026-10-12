@@ -76,6 +76,30 @@ void run(bool nul_key) {
 		compare(flat, paged, heap, true);
 		compare(paged, flat, heap, true);
 		compare(paged, paged, heap, true);
+		{
+			auto pressure = heap->admit(heap->limit() - heap->used());
+			compare(paged, paged, heap, true);
+		}
+		for (const auto *base : {&flat, &paged}) {
+			l::GenerationId replacement{};
+			replacement.fill(base == &flat ? 'm' : 'b');
+			l::detail::PagedSnapshotBuilder borrowed(*base, heap, storage, replacement);
+			l::ValidationBudget zero{0, 0};
+			borrowed.step(zero);
+			require(!borrowed.done());
+			unsigned turns = 0;
+			while (!borrowed.done()) {
+				require(++turns < 1000000);
+				l::ValidationBudget budget{1, 1};
+				borrowed.step(budget);
+			}
+			auto image = borrowed.take();
+			require(image.root().logical == paged_image.root().logical);
+			const auto output = directory / (base == &flat ? "migration" : "replacement");
+			install(output, image, storage);
+			auto recovered = l::recover_generation(output, limits);
+			compare(*base, recovered, heap, true);
+		}
 		auto changed_source = std::make_shared<const d::ValidatedSnapshot>(input(26));
 		l::detail::PagedSnapshotBuilder changed_builder(changed_source, storage, changed_id);
 		while (!changed_builder.done()) {

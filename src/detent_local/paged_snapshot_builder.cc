@@ -1,4 +1,5 @@
 #include "paged_snapshot_builder.hh"
+#include "borrowed_snapshot_source.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_image_state.hh"
 #include "paged_leaf_body.hh"
@@ -34,6 +35,16 @@ p::Override snapshot_override(const void *owner, std::uint64_t ordinal, std::uin
 	const auto *rollout = std::get_if<GroupRollout>(&row.second);
 	return {row.first, rollout != nullptr,
 			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+}
+
+std::size_t borrowed_key(const void *owner, std::uint64_t ordinal, std::span<char> destination) {
+	return static_cast<const BorrowedSnapshotSource *>(owner)->key(ordinal, destination);
+}
+bool borrowed_ready(const void *owner, std::uint64_t ordinal, ValidationBudget &budget) {
+	return static_cast<const BorrowedSnapshotSource *>(owner)->prepare(ordinal, budget);
+}
+p::Override borrowed_override(const void *owner, std::uint64_t ordinal, std::uint32_t index) {
+	return static_cast<const BorrowedSnapshotSource *>(owner)->override_value(ordinal, index);
 }
 
 } // namespace
@@ -104,6 +115,7 @@ struct PagedSnapshotBuilder::Impl {
 		Done
 	};
 	std::shared_ptr<const d::ValidatedSnapshot> source;
+	std::shared_ptr<const BorrowedSnapshotSource> borrowed;
 	std::shared_ptr<d::StorageLedger> account;
 	StorageIdentity storage;
 	GenerationId generation;
@@ -139,6 +151,26 @@ struct PagedSnapshotBuilder::Impl {
 		root.namespaces = source->namespaces().size();
 		cursor.emplace(account, source, key, source->records().size() + source->namespaces().size(), limits);
 	}
+	Impl(std::shared_ptr<const BorrowedSnapshotSource> input, StorageIdentity identity, GenerationId id,
+		 p::Limits bounds)
+		: borrowed(std::move(input)), account(borrowed->storage_account()), storage(identity), generation(id),
+		  limits(bounds),
+		  output(account,
+				 std::min<std::uint64_t>(limits.segments,
+										 (std::uint64_t(borrowed->records()) + borrowed->namespaces()) * 2)) {
+		require(nonzero(storage) && nonzero(generation) && borrowed->records() <= limits.records &&
+				borrowed->namespaces() <= limits.namespaces);
+		const auto count = std::uint64_t(borrowed->records()) + borrowed->namespaces();
+		require(count <= limits.pages && count <= limits.bytes / p::page_header_bytes &&
+				(!count || limits.segments));
+		auto &root = output.impl_->root;
+		root.cursor = borrowed->descriptor().cursor;
+		root.profile = borrowed->descriptor().profile;
+		root.records = borrowed->records();
+		root.namespaces = borrowed->namespaces();
+		cursor.emplace(account, borrowed, borrowed_key, count, limits, borrowed_ready);
+	}
+
 	bool admit(std::size_t bytes, ValidationBudget &budget) {
 		if (!budget.rows)
 			return false;
@@ -153,6 +185,18 @@ struct PagedSnapshotBuilder::Impl {
 		return true;
 	}
 	void leaf() {
+		if (borrowed) {
+			if (event.kind == p::PageKind::Namespace)
+				leaf_body.emplace(account, borrowed->watermark(event.ordinal));
+			else {
+				require(event.kind == p::PageKind::Definition);
+				leaf_body.emplace(account, borrowed->definition(event.ordinal), borrowed.get(), event.ordinal,
+								  borrowed_override,
+								  p::page_bytes - p::page_header_bytes - event.prefix.size());
+			}
+			phase = Phase::Body;
+			return;
+		}
 		if (event.kind == p::PageKind::Namespace) {
 			require(event.ordinal >= source->records().size());
 			leaf_body.emplace(account,
@@ -190,6 +234,18 @@ PagedSnapshotBuilder::PagedSnapshotBuilder(std::shared_ptr<const d::ValidatedSna
 			  throw std::invalid_argument("missing validated paged snapshot");
 		  return d::make_storage_owner<Impl>(source->storage_account(), std::malloc, std::free, source,
 											 storage, generation, limits);
+	  }()) {}
+PagedSnapshotBuilder::PagedSnapshotBuilder(RecoveredGeneration generation,
+										   std::shared_ptr<d::StorageLedger> account, StorageIdentity storage,
+										   GenerationId id, p::Limits limits)
+	: impl_([&] {
+		  if (!account)
+			  throw std::invalid_argument("borrowed snapshot account missing");
+		  auto source = std::allocate_shared<BorrowedSnapshotSource>(
+			  d::StorageAllocator<BorrowedSnapshotSource>(account), std::move(generation), account);
+		  return d::make_storage_owner<Impl>(account, std::malloc, std::free,
+											 std::shared_ptr<const BorrowedSnapshotSource>(std::move(source)),
+											 storage, id, limits);
 	  }()) {}
 PagedSnapshotBuilder::~PagedSnapshotBuilder() = default;
 PagedSnapshotBuilder::PagedSnapshotBuilder(PagedSnapshotBuilder &&) noexcept = default;

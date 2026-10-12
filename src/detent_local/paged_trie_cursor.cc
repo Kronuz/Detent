@@ -25,6 +25,7 @@ struct TrieCursor::Impl {
 	std::shared_ptr<distribution::StorageLedger> account;
 	std::shared_ptr<const void> source;
 	TrieKeyReader reader;
+	TrieSourceReady prepare;
 	std::uint64_t count, ordinal = 0;
 	std::vector<Frame, distribution::StorageAllocator<Frame>> frames;
 	std::array<char, 202> previous{}, next{};
@@ -34,8 +35,8 @@ struct TrieCursor::Impl {
 	Phase phase = Phase::Initial;
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> owner,
-		 TrieKeyReader callback, std::uint64_t keys, p::Limits limits)
-		: account(std::move(ledger)), source(std::move(owner)), reader(callback), count(keys),
+		 TrieKeyReader callback, std::uint64_t keys, p::Limits limits, TrieSourceReady ready)
+		: account(std::move(ledger)), source(std::move(owner)), reader(callback), prepare(ready), count(keys),
 		  frames(distribution::StorageAllocator<Frame>(account)) {
 		require(source && reader && count <= std::uint64_t(limits.records) + limits.namespaces);
 		frames.reserve(std::min<std::uint64_t>(202, count ? count - 1 : 0));
@@ -76,9 +77,9 @@ struct TrieCursor::Impl {
 };
 TrieCursor::TrieCursor(std::shared_ptr<distribution::StorageLedger> account,
 					   std::shared_ptr<const void> source, TrieKeyReader reader, std::uint64_t count,
-					   p::Limits limits)
+					   p::Limits limits, TrieSourceReady ready)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account,
-												   std::move(source), reader, count, limits)) {}
+												   std::move(source), reader, count, limits, ready)) {}
 TrieCursor::~TrieCursor() = default;
 TrieCursor::TrieCursor(TrieCursor &&) noexcept = default;
 void TrieCursor::step(ValidationBudget &budget) {
@@ -93,6 +94,8 @@ void TrieCursor::step(ValidationBudget &budget) {
 					state.phase = Impl::Phase::Done;
 					return;
 				}
+				if (state.prepare && !state.prepare(state.source.get(), 0, budget))
+					return;
 				if (!state.admit(4 * state.previous.size(), budget))
 					return;
 				state.previous_size = state.read(0, state.previous);
@@ -102,6 +105,8 @@ void TrieCursor::step(ValidationBudget &budget) {
 				if (state.ordinal + 1 == state.count) {
 					state.common = -1;
 				} else {
+					if (state.prepare && !state.prepare(state.source.get(), state.ordinal + 1, budget))
+						return;
 					if (!state.admit(4 * state.next.size(), budget))
 						return;
 					state.next_size = state.read(state.ordinal + 1, state.next);

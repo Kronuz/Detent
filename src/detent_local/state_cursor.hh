@@ -11,6 +11,8 @@ struct StateRecord {
 class StateCursor {
   public:
 	StateCursor(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
+	std::uint32_t namespace_count() const;
+	std::uint32_t record_count() const;
 	bool next_namespace(ValidationBudget &);
 	bool next_record(ValidationBudget &);
 	bool next_override(ValidationBudget &);

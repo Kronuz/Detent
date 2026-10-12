@@ -7,7 +7,7 @@ target_link_libraries(detent_local_client PUBLIC detent::local_view)
 add_library(detent::local_client ALIAS detent_local_client)
 
 target_link_libraries(detent_local_view PUBLIC detent::detent detent::resources)
-add_library(detent_local_builder builder.cc paged_delta_plan.cc paged_overlay_assembler.cc paged_delta_leaves.cc paged_leaf_body.cc paged_trie_overlay.cc paged_plan.cc paged_reuse.cc paged_page_builder.cc paged_segment_builder.cc paged_trie_cursor.cc paged_snapshot_builder.cc)
+add_library(detent_local_builder borrowed_snapshot_source.cc builder.cc paged_delta_plan.cc paged_overlay_assembler.cc paged_delta_leaves.cc paged_leaf_body.cc paged_trie_overlay.cc paged_plan.cc paged_reuse.cc paged_page_builder.cc paged_segment_builder.cc paged_trie_cursor.cc paged_snapshot_builder.cc)
 target_link_libraries(detent_local_builder PUBLIC detent::local_view detent::distribution)
 target_compile_features(detent_local_builder PUBLIC cxx_std_20)
 add_library(detent::local_builder ALIAS detent_local_builder)

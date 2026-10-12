@@ -12,6 +12,12 @@ StateCursor::StateCursor(RecoveredGeneration generation, std::shared_ptr<distrib
 		flat_.emplace(generation_);
 	}
 }
+std::uint32_t StateCursor::namespace_count() const {
+	return flat_ ? flat_->namespace_count() : generation_.paged_->root().namespaces;
+}
+std::uint32_t StateCursor::record_count() const {
+	return flat_ ? flat_->record_count() : generation_.paged_->root().records;
+}
 bool StateCursor::pay(ValidationBudget &budget, std::size_t bytes) {
 	if (!budget.rows)
 		return false;
