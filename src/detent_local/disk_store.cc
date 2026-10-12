@@ -3,7 +3,10 @@
 #include "detent_local/collector.hh"
 #include "detent_local/inventory.hh"
 #include "detent_local/record_reader.hh"
+#include "leased_paged_root.hh"
 #include "names.hh"
+#include "paged_navigation.hh"
+#include "segment_names.hh"
 #include <completion/image.h>
 #include <sys/random.h>
 #include <sys/stat.h>
@@ -29,6 +32,11 @@ struct StoreCore {
 	DirectoryIdentity directory_identity{};
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
 	std::optional<Descriptor> verified;
+	distribution::RetirementHandle<LeasedPagedRoot> verified_paged;
+	void retain_recovered(const RecoveredGeneration &generation) {
+		verified = generation.descriptor();
+		verified_paged = generation.paged_;
+	}
 	std::uint64_t owner = 0;
 	StoreStatus status = StoreStatus::Starting;
 	std::exception_ptr failure;
@@ -72,6 +80,8 @@ struct StartupData {
 	std::size_t name_size = 0;
 	std::array<char, storage_identity_bytes> metadata{};
 	GenerationOwnership selected_ownership;
+	std::optional<SegmentOwnership> expected_segment;
+	std::uint64_t segment_owners_seen = 0, segment_packs_seen = 0;
 	c::EntryInspection observed;
 	std::optional<Descriptor> selected;
 	std::optional<StorageIdentity> stored_identity;
@@ -277,6 +287,7 @@ class StartupOperation final : public c::Operation {
 		auto &data = *data_;
 		auto &core = *data.core;
 		const auto name = data.observed_name();
+		data.expected_segment.reset();
 		if (name == "owner.lock") {
 			if (!safe(entry, core) || entry.footprint.logical_bytes != 0)
 				throw std::runtime_error("unsafe stable owner lock");
@@ -320,6 +331,34 @@ class StartupOperation final : public c::Operation {
 					throw std::runtime_error("unsafe selected legacy lease");
 			}
 		}
+		if (!read && core.verified_paged) {
+			if (const auto named = detail::parse_segment_name(name)) {
+				const auto registry = core.verified_paged->registry();
+				const auto index = detail::find_segment(registry->inputs(), named->segment);
+				if (index != registry->inputs().size()) {
+					const auto &mapping = registry->mapping(index);
+					const auto ownership = mapping->ownership();
+					if (!safe(entry, core))
+						throw std::runtime_error("unsafe selected segment dependency");
+					if (named->kind == detail::SegmentFile::Owner) {
+						++data.segment_owners_seen;
+						data.expected_segment = ownership;
+						record_length_ = segment_ownership_bytes;
+						read = true;
+					} else {
+						const auto identity = mapping->identity();
+						if (entry.footprint.logical_bytes != ownership.length ||
+							entry.device != identity.device || entry.inode != identity.inode)
+							throw std::runtime_error("selected segment differs from verified recovery");
+						++data.segment_packs_seen;
+						record_length_ = 0;
+						data.observed = entry;
+						prepare(Phase::Open, c::Kind::OpenInto);
+						return;
+					}
+				}
+			}
+		}
 		if (read) {
 			data.observed = entry;
 			if (!safe(entry, core) || entry.footprint.logical_bytes != record_length_)
@@ -335,7 +374,10 @@ class StartupOperation final : public c::Operation {
 			data_->stored_identity = decode_storage_identity(data_->reader.bytes());
 		else if (name == "selected")
 			data_->selected = decode_descriptor(data_->reader.bytes());
-		else {
+		else if (data_->expected_segment) {
+			if (decode_segment_ownership(data_->reader.bytes()) != *data_->expected_segment)
+				throw std::runtime_error("selected segment ownership changed after recovery");
+		} else {
 			data_->selected_ownership = decode_generation_ownership(data_->reader.bytes());
 			data_->selected_owned = true;
 		}
@@ -361,12 +403,16 @@ class StartupOperation final : public c::Operation {
 		if (data.selected != core.verified ||
 			(data.selected && (!data.selected_lease_seen || !data.selected_image_seen)))
 			throw std::runtime_error("selected recovery differs from retained census evidence");
+		if (core.verified_paged &&
+			(data.segment_owners_seen != core.verified_paged->registry()->inputs().size() ||
+			 data.segment_packs_seen != core.verified_paged->registry()->inputs().size()))
+			throw std::runtime_error("selected segment dependencies missing from census");
 		if (data.stored_identity) {
 			core.identity = *data.stored_identity;
 			if (data.selected && data.selected_owned &&
 				data.selected_ownership != GenerationOwnership{core.identity, data.selected->generation,
-															   data.selected->length,
-															   data.selected->checksum})
+															   data.selected->length, data.selected->checksum,
+															   core.verified_paged ? 2u : 1u})
 				throw std::runtime_error("selected generation ownership differs from storage identity");
 			core.bootstrap->usage = {};
 			prepare(Phase::Barrier, c::Kind::DirectorySync);
@@ -1307,6 +1353,7 @@ void DiskStore::advance() {
 		impl_->reclaim.reset();
 		impl_->publication.reset();
 		impl_->startup.reset();
+		impl_->core->verified_paged.reset();
 		impl_->core->controls.reset();
 		impl_->core->session.reset();
 		impl_->core->status = StoreStatus::Closed;
@@ -1315,8 +1362,8 @@ void DiskStore::advance() {
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
-		(!impl_->publication || impl_->publication->done()) &&
-		(!impl_->reclaim || !impl_->reclaim->active_batch());
+		   (!impl_->publication || impl_->publication->done()) &&
+		   (!impl_->reclaim || !impl_->reclaim->active_batch());
 }
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	begin_impl(builder, expected_base, nullptr);
@@ -1438,7 +1485,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 			auto recovered = recover_generation(directory, options.recovery_limits);
 			if (recovered.directory_identity() != core->session->directory_identity())
 				throw std::runtime_error("recovered directory differs from stable session");
-			core->verified = recovered.descriptor();
+			core->retain_recovered(recovered);
 		}
 	} catch (...) {
 		data->failure = std::current_exception();
