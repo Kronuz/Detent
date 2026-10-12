@@ -37,6 +37,8 @@ struct Coordinator::Impl {
 	CoordinatorStatus diagnostic;
 	std::exception_ptr terminal_failure;
 	bool terminal_fenced = false;
+	std::exception_ptr injected_worker_failure;
+	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
 	d::RetirementHandle<RecoveryResult> base;
 	d::StorageOwner<l::ImageBuilder> builder;
@@ -117,8 +119,11 @@ struct Coordinator::Impl {
 		// The task retains its result through authentic worker completion even
 		// when request interest has been cancelled on the owner executor.
 		const auto settlement = recovery;
-		asio::post(worker, [result, selected, recovery = std::move(recovery)]() mutable {
+		asio::post(worker, [result, selected, recovery = std::move(recovery),
+							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
+				if (injected)
+					std::rethrow_exception(injected);
 				if (selected) {
 					auto candidate =
 						l::detail::ManagedRecovery::recover(result->directory, std::move(*recovery));
@@ -140,6 +145,8 @@ struct Coordinator::Impl {
 			}
 			while (!result->ready.load(std::memory_order_acquire))
 				co_await pause(std::chrono::milliseconds(1));
+			if (std::exchange(fail_settled_worker_wait, false))
+				throw std::bad_alloc();
 		} catch (...) {
 			// Scheduler failure cannot manufacture authentic worker settlement.
 			if (!result->ready.load(std::memory_order_acquire))
@@ -569,6 +576,11 @@ Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStor
 										store, std::move(driver), domain, worker);
 }
 Coordinator::~Coordinator() = default;
+void detail::CoordinatorAccess::fail_worker_and_wait_after_ready(Coordinator &coordinator,
+																 std::exception_ptr failure) {
+	coordinator.impl_->injected_worker_failure = std::move(failure);
+	coordinator.impl_->fail_settled_worker_wait = true;
+}
 void detail::CoordinatorAccess::fail_next_worker_wait(Coordinator &coordinator) {
 	coordinator.impl_->fail_worker_wait = true;
 }

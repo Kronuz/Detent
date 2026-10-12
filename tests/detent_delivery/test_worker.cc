@@ -68,7 +68,7 @@ asio::awaitable<void> observe(std::weak_ptr<t::Coordinator> weak, Gate &gate) {
 		coordinator->close();
 	std::rethrow_exception(failure);
 }
-void exercise(bool injected) {
+void exercise(bool injected, bool settled = false) {
 	const auto root = directory(::getpid());
 	std::filesystem::create_directories(root);
 	std::filesystem::permissions(root, std::filesystem::perms::owner_all);
@@ -98,19 +98,30 @@ void exercise(bool injected) {
 	options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
 	options.source.tls_context->set_verify_mode(asio::ssl::verify_peer);
 	auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-	if (injected)
+	const auto original_failure = std::make_exception_ptr(std::runtime_error("original worker failure"));
+	if (settled) {
+		t::detail::CoordinatorAccess::fail_worker_and_wait_after_ready(*coordinator, original_failure);
+		gate.release();
+	} else if (injected)
 		t::detail::CoordinatorAccess::fail_next_worker_wait(*coordinator);
 	std::weak_ptr<t::Coordinator> weak = coordinator;
 	auto original = coordinator->run();
 	auto done = asio::co_spawn(io, std::move(original), asio::use_future);
 	std::future<void> observed;
-	if (!injected)
+	if (!injected && !settled)
 		observed = asio::co_spawn(io, observe(weak, gate), asio::use_future);
+	auto retained = settled ? coordinator : nullptr;
 	coordinator.reset();
 	io.run();
-	done.get();
-	if (!injected)
-		observed.get();
+	if (settled) {
+		done.get();
+		check(retained->status().error == original_failure && !retained->status().worker_pending);
+		retained.reset();
+	} else {
+		done.get();
+		if (!injected)
+			observed.get();
+	}
 	check(!injected && weak.expired() && store->drained());
 	worker.join();
 	driver.reset();
@@ -140,6 +151,7 @@ int main(int argc, char **argv) {
 		check(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
 		std::filesystem::remove_all(directory(child));
 		exercise(false);
+		exercise(false, true);
 		std::cout << "held accepted worker survives close/facade loss; owner wait failure fails stop\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
