@@ -229,6 +229,8 @@ struct Coordinator::Impl {
 					burst = 0;
 					co_await yield();
 				}
+			} else if (store->needs_work()) {
+				co_await yield();
 			} else {
 				burst = 0;
 				if (store->status() == l::StoreStatus::Fenced)

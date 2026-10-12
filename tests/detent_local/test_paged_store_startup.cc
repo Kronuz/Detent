@@ -4,7 +4,12 @@
 namespace c = kronuz::io::completion;
 unsigned drive(const std::shared_ptr<l::DiskStore> &store) {
 	unsigned syncs = 0, turns = 0;
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		require(++turns < 100000);
 		if (job->request().kind == c::Kind::Sync)
 			++syncs;

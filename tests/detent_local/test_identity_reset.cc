@@ -16,7 +16,12 @@ void check(bool value, std::source_location location = std::source_location::cur
 		throw std::runtime_error("trusted reset invariant at line " + std::to_string(location.line()));
 }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		job->submitted();
 		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
 		store->advance();
@@ -138,7 +143,12 @@ int main() {
 		auto cancelled = build(next, 'z', account);
 		store->begin_reset(*cancelled, {candidate->descriptor(), next, {}});
 		bool replaced = false;
-		while (auto job = store->operation()) {
+		while (store->operation() || store->needs_work()) {
+			auto job = store->operation();
+			if (!job) {
+				store->advance();
+				continue;
+			}
 			auto kind = job->request().kind;
 			job->submitted();
 			check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));

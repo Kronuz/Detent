@@ -44,6 +44,7 @@ class DiskStore {
 	DirectoryIdentity directory_identity() const noexcept;
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
 	void advance();
+	bool needs_work() const noexcept;
 	void request_collection() noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
@@ -59,6 +60,7 @@ class DiskStore {
 	void close() noexcept;
 	bool drained() const noexcept;
 	std::exception_ptr error() const noexcept;
+	std::exception_ptr collection_error() const noexcept;
 
   private:
 	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);

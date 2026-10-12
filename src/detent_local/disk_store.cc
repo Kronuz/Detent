@@ -10,6 +10,7 @@
 #include "paged_navigation.hh"
 #include "paged_publication_artifacts.hh"
 #include "paged_root_prefix.hh"
+#include "paged_segment_collection.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
 #include <completion/image.h>
@@ -19,6 +20,7 @@
 
 namespace detent::local {
 namespace c = kronuz::io::completion;
+
 namespace {
 bool safe(const c::EntryInspection &entry, const detail::StoreCore &core) noexcept {
 	return entry.footprint.kind == c::EntryKind::Regular && entry.links == 1 && entry.owner == core.owner &&
@@ -1370,6 +1372,9 @@ struct DiskStore::Impl {
 	DiskPublicationStatus terminal_publication_status = DiskPublicationStatus::Idle;
 	std::exception_ptr terminal_publication_error;
 	std::shared_ptr<ReclaimOperation> reclaim;
+	std::shared_ptr<detail::PagedSegmentCollection> segments;
+	bool segment_collection_pending = false;
+	std::exception_ptr terminal_collection_error;
 };
 DiskStore::DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core)
 	: impl_(distribution::make_storage_owner<Impl>(core->account, std::malloc, std::free, core)) {}
@@ -1386,6 +1391,10 @@ DiskStats DiskStore::stats() const noexcept {
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
 std::exception_ptr DiskStore::error() const noexcept { return impl_->core->failure; }
+std::exception_ptr DiskStore::collection_error() const noexcept {
+	return impl_->segments && impl_->segments->error() ? impl_->segments->error()
+													   : impl_->terminal_collection_error;
+}
 std::shared_ptr<c::Operation> DiskStore::operation() const {
 	if (impl_->startup && !impl_->startup->done())
 		return impl_->startup;
@@ -1393,9 +1402,15 @@ std::shared_ptr<c::Operation> DiskStore::operation() const {
 		return impl_->publication;
 	if (impl_->reclaim && !impl_->reclaim->done() && !impl_->reclaim->paused())
 		return impl_->reclaim;
+	if (impl_->segments && !impl_->segments->done() && !impl_->segments->paused() &&
+		!impl_->segments->needs_work())
+		return impl_->segments;
 	return nullptr;
 }
+bool DiskStore::needs_work() const noexcept { return impl_->segments && impl_->segments->needs_work(); }
 void DiskStore::advance() {
+	if (impl_->segments && impl_->segments->done() && impl_->segments->error())
+		impl_->terminal_collection_error = impl_->segments->error();
 	if (impl_->publication && impl_->publication->done() && !impl_->publication->in_flight()) {
 		impl_->terminal_publication_status = impl_->publication->status();
 		impl_->terminal_publication_error = impl_->publication->error();
@@ -1403,15 +1418,45 @@ void DiskStore::advance() {
 	}
 	if (!impl_->core->closing && impl_->core->status == StoreStatus::Ready &&
 		!impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done())) {
-		if (impl_->reclaim->paused())
+		if (impl_->segments && !impl_->segments->done()) {
+			if (impl_->segments->paused())
+				impl_->segments->resume();
+			if (impl_->segments->needs_work()) {
+				ValidationBudget budget;
+				impl_->segments->step(budget);
+			} else
+				impl_->segments->advance();
+		} else if (impl_->segment_collection_pending && impl_->reclaim->done()) {
+			impl_->segment_collection_pending = false;
+			try {
+				if (!impl_->segments) {
+					const auto &context = impl_->core->session->allocation_context();
+					impl_->segments = std::allocate_shared<detail::PagedSegmentCollection>(
+						c::OwnedAllocator<detail::PagedSegmentCollection>(context), *impl_->core->factory,
+						impl_->core);
+				}
+				impl_->segments->start();
+				impl_->terminal_collection_error = {};
+			} catch (const distribution::StoragePressure &) {
+				impl_->terminal_collection_error = std::current_exception();
+				impl_->core->drop_certificates();
+			} catch (const std::bad_alloc &) {
+				impl_->terminal_collection_error = std::current_exception();
+				impl_->core->drop_certificates();
+			}
+
+		} else if (impl_->reclaim->paused())
 			impl_->reclaim->resume();
 		else if (impl_->core->collect && impl_->reclaim->done()) {
 			impl_->reclaim->start();
+			impl_->segment_collection_pending = true;
 			impl_->core->collect = false;
 		}
 	}
 	if (impl_->startup && impl_->startup->done() && impl_->core->closing &&
-		(!impl_->publication || impl_->publication->done()) && (!impl_->reclaim || impl_->reclaim->done())) {
+		(!impl_->publication || impl_->publication->done()) && (!impl_->reclaim || impl_->reclaim->done()) &&
+		(!impl_->segments || impl_->segments->done())) {
+		impl_->segments.reset();
 		impl_->reclaim.reset();
 		impl_->publication.reset();
 		impl_->startup.reset();
@@ -1428,7 +1473,8 @@ void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
 		   !impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done()) &&
-		   (!impl_->reclaim || !impl_->reclaim->active_batch());
+		   (!impl_->reclaim || !impl_->reclaim->active_batch()) &&
+		   (!impl_->segments || impl_->segments->done() || impl_->segments->paused());
 }
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	begin_impl(builder, expected_base, nullptr);
@@ -1473,6 +1519,10 @@ void DiskStore::begin(detail::PagedPlan &&plan) {
 		impl_->publication.reset();
 		impl_->terminal_publication_status = DiskPublicationStatus::Idle;
 		impl_->terminal_publication_error = {};
+		if (impl_->segments && !impl_->segments->done()) {
+			impl_->segments->invalidate();
+			impl_->core->collect = true;
+		}
 		impl_->publication = std::move(operation);
 	} catch (const distribution::StoragePressure &) {
 		core.drop_certificates();
@@ -1533,6 +1583,10 @@ void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distributi
 		operation->admit();
 		impl_->terminal_publication_status = DiskPublicationStatus::Idle;
 		impl_->terminal_publication_error = {};
+		if (impl_->segments && !impl_->segments->done()) {
+			impl_->segments->invalidate();
+			impl_->core->collect = true;
+		}
 		impl_->publication = std::move(operation);
 	} catch (const distribution::StoragePressure &) {
 		core.drop_certificates();
@@ -1567,6 +1621,8 @@ void DiskStore::close() noexcept {
 		impl_->publication->cancel();
 	if (impl_->reclaim)
 		impl_->reclaim->cancel();
+	if (impl_->segments)
+		impl_->segments->close();
 	advance();
 }
 bool DiskStore::drained() const noexcept { return status() == StoreStatus::Closed; }

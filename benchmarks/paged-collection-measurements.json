@@ -1,0 +1,71 @@
+{
+  "description": "Single sequential synthetic POSIX collector run on Intel macOS 15.8.1, Release -O3 -DNDEBUG. Shared mixed corpus: 25% integers, 75% booleans with one override. A historical root forces cold owned-buffer validation while the actual selected mapping remains live; the next epoch uses verified metadata certificates. Not a fleet throughput or production latency measurement. Qualification builds ran concurrently; timings include host scheduling noise.",
+  "reproduce": [
+    "cmake --build build --target detent_paged_collection_bench",
+    "build/benchmarks/detent_paged_collection_bench 100000",
+    "build/benchmarks/detent_paged_collection_bench 500000"
+  ],
+  "accounting": "Managed heap samples include collector marks, complete owned packs, graph scratch and certificates. Live mapping bytes are page-rounded virtual mapping admission, not physical file lengths or RSS. Global heap peak is cumulative across setup and both epochs; sampled peaks are per epoch. No additional mappings are admitted by collection.",
+  "samples": [
+    {
+      "records": 100000,
+      "cache": "miss",
+      "segments": 23,
+      "pack_bytes": 23355676,
+      "live_mapping_bytes": 23371776,
+      "heap_before": 17233,
+      "heap_sampled_peak": 24495360,
+      "heap_global_peak": 24495360,
+      "originals": 3467,
+      "payload_reads": 2853,
+      "cpu_turns": 105225,
+      "max_turn_us": 322,
+      "wall_us": 849216
+    },
+    {
+      "records": 100000,
+      "cache": "hit",
+      "segments": 23,
+      "pack_bytes": 23355676,
+      "live_mapping_bytes": 23371776,
+      "heap_before": 19721,
+      "heap_sampled_peak": 679748,
+      "heap_global_peak": 24495360,
+      "originals": 200,
+      "payload_reads": 0,
+      "cpu_turns": 58,
+      "max_turn_us": 67,
+      "wall_us": 618
+    },
+    {
+      "records": 500000,
+      "cache": "miss",
+      "segments": 112,
+      "pack_bytes": 116777429,
+      "live_mapping_bytes": 116834304,
+      "heap_before": 53545,
+      "heap_sampled_peak": 119453762,
+      "heap_global_peak": 119453762,
+      "originals": 16834,
+      "payload_reads": 14262,
+      "cpu_turns": 526233,
+      "max_turn_us": 2420,
+      "wall_us": 4082392
+    },
+    {
+      "records": 500000,
+      "cache": "hit",
+      "segments": 112,
+      "pack_bytes": 116777429,
+      "live_mapping_bytes": 116834304,
+      "heap_before": 62441,
+      "heap_sampled_peak": 722468,
+      "heap_global_peak": 119453762,
+      "originals": 556,
+      "payload_reads": 0,
+      "cpu_turns": 284,
+      "max_turn_us": 104,
+      "wall_us": 1110
+    }
+  ]
+}

@@ -73,7 +73,12 @@ l::DiskUsage census(const std::filesystem::path &directory) {
 }
 void drive(const std::shared_ptr<l::DiskStore> &store, bool cancel_create = false) {
 	unsigned turns = 0;
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		check(++turns < 100000);
 		const auto kind = job->request().kind;
 		job->submitted();

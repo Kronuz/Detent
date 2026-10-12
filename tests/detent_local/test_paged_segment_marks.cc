@@ -36,8 +36,23 @@ int main() {
 	};
 	{
 		auto first = capture();
-		generation.fill('n');
-		auto second = capture();
+		auto slot = [](const l::StorageIdentity &id) {
+			std::uint64_t hash = 14695981039346656037ull;
+			for (unsigned char byte : id) {
+				hash ^= byte;
+				hash *= 1099511628211ull;
+			}
+			return hash & 3;
+		};
+		d::RetirementHandle<l::detail::PagedDependencyCertificate> second;
+		for (unsigned candidate = 0; candidate < 256; ++candidate) {
+			generation.fill('n');
+			generation.back() = static_cast<char>(candidate);
+			second = capture();
+			if (slot(second->dependencies()[0].segment) == slot(first->dependencies()[0].segment))
+				break;
+		}
+		require(second && slot(second->dependencies()[0].segment) == slot(first->dependencies()[0].segment));
 		require(first->dependencies().size() == 1 && second->dependencies().size() == 1);
 		require(first->dependencies()[0].segment != second->dependencies()[0].segment);
 		auto marks =

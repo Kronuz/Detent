@@ -6,7 +6,12 @@
 namespace c = kronuz::io::completion;
 void drive(const std::shared_ptr<l::DiskStore> &store) {
 	unsigned turns = 0;
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		require(++turns < 100000);
 		job->submitted();
 		require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));

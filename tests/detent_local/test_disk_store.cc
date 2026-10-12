@@ -37,7 +37,12 @@ void check_usage(const std::shared_ptr<d::StorageLedger> &account, std::size_t e
 }
 void check_released(const std::shared_ptr<d::StorageLedger> &account) { check_usage(account, 0); }
 void drive(const std::shared_ptr<l::DiskStore> &store) {
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		job->submitted();
 		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
 		store->advance();
@@ -209,7 +214,12 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 			auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 			unsigned syncs = 0;
 			bool fired = false;
-			while (auto job = store->operation()) {
+			while (store->operation() || store->needs_work()) {
+				auto job = store->operation();
+				if (!job) {
+					store->advance();
+					continue;
+				}
 				check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
 				const auto kind = job->request().kind;
 				job->submitted();
@@ -634,7 +644,12 @@ void startup_shutdown(d::RetirementRuntime &runtime, const std::shared_ptr<d::St
 			options.limits = {1024 * 1024, 100, 10};
 			auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 			std::size_t step = 0;
-			while (auto job = store->operation()) {
+			while (store->operation() || store->needs_work()) {
+				auto job = store->operation();
+				if (!job) {
+					store->advance();
+					continue;
+				}
 				if (step == boundary && !held) {
 					store->close();
 					if (job->done()) {
@@ -812,7 +827,12 @@ int crash_child(std::string_view profile, const std::filesystem::path &directory
 		store->request_collection();
 		store->advance();
 	}
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		const auto kind = job->request().kind;
 		job->submitted();
 		auto result = kronuz::journal::detail::execute_primitive(job->io(), job->request());
@@ -936,7 +956,12 @@ void batch_reclamation(d::RetirementRuntime &runtime, const std::shared_ptr<d::S
 	const auto cpu_start = std::clock();
 	store->request_collection();
 	store->advance();
-	while (auto job = store->operation()) {
+	while (store->operation() || store->needs_work()) {
+		auto job = store->operation();
+		if (!job) {
+			store->advance();
+			continue;
+		}
 		const auto &request = job->request();
 		const auto kind = request.kind;
 		auto *file = request.file.get();
@@ -1091,8 +1116,7 @@ void reclaim_boundaries(d::RetirementRuntime &runtime, const std::shared_ptr<d::
 	}
 	std::cout << "GC cancellation/fault boundaries: " << cases - 1 << " (" << normal_steps << " originals)\n";
 }
-void publication_retirement(d::RetirementRuntime &runtime,
-							const std::shared_ptr<d::StorageLedger> &account,
+void publication_retirement(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
 							const std::filesystem::path &directory) {
 	auto domain = runtime.domain(account, 1);
 	l::DiskStoreOptions options;
@@ -1110,7 +1134,8 @@ void publication_retirement(d::RetirementRuntime &runtime,
 	auto original = store->operation();
 	while (!original->done()) {
 		original->submitted();
-		check(original->complete(kronuz::journal::detail::execute_primitive(original->io(), original->request())));
+		check(original->complete(
+			kronuz::journal::detail::execute_primitive(original->io(), original->request())));
 	}
 	store->advance();
 	check(store->publication_ready());
