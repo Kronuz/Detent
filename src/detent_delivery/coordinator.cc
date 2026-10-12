@@ -105,8 +105,10 @@ struct Coordinator::Impl {
 		asio::post(worker, [result, selected] {
 			try {
 				if (selected) {
-					result->generation.reset();
-					result->generation.emplace(l::recover_generation(result->directory, result->limits));
+					auto candidate =
+						l::recover_generation(result->directory, result->limits, {},
+											  result->generation ? &*result->generation : nullptr);
+					result->generation.emplace(std::move(candidate));
 				}
 				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),
 							   result->next_id.size()) != 1)
