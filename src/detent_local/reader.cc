@@ -1,4 +1,6 @@
 #include "detent_local/reader.hh"
+#include "resources.hh"
+#include "state_equivalence.hh"
 #include <stdexcept>
 
 namespace detent::local {
@@ -23,6 +25,15 @@ bool GenerationReader::refresh() {
 	const auto &next = recovered.descriptor();
 	if (identity_ && !identity_->same_identity(next.cursor))
 		throw std::invalid_argument("local generation has an unexpected authority identity");
+	if (recovered_ && recovered_->descriptor().cursor == next.cursor) {
+		detail::StateEquivalence proof(*recovered_, recovered, resources::domain(limits_).storage_account());
+		while (!proof.done()) {
+			ValidationBudget budget;
+			proof.step(budget);
+		}
+		if (!proof.equal())
+			throw std::invalid_argument("local generation conflicts with the installed cursor");
+	}
 	ReadView retired;
 	{
 		std::lock_guard install_lock(installed_mutex_);
@@ -32,10 +43,6 @@ bool GenerationReader::refresh() {
 			if (!descriptor_->cursor.same_identity(next.cursor) ||
 				next.cursor.revision < descriptor_->cursor.revision)
 				throw std::invalid_argument("local generation identity changed or revision regressed");
-			if (next.cursor == descriptor_->cursor &&
-				(next.length != descriptor_->length || next.checksum != descriptor_->checksum ||
-				 next.profile != descriptor_->profile))
-				throw std::invalid_argument("local generation conflicts with the installed cursor");
 			if (next == *descriptor_)
 				return false;
 		}
@@ -44,10 +51,7 @@ bool GenerationReader::refresh() {
 		descriptor_ = next;
 		directory_identity_ = recovered.directory_identity();
 	}
-	if (recovered.paged_)
-		recovered_.emplace(std::move(recovered));
-	else
-		recovered_.reset();
+	recovered_.emplace(std::move(recovered));
 	// Root retirement never occurs while holding the SDK acquisition lock.
 	return true;
 }

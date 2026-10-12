@@ -271,3 +271,8 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_paged_collection_publication PRIVATE detent::local_publication)
   add_test(NAME test_local_paged_collection_publication COMMAND test_local_paged_collection_publication)
 endif()
+
+add_executable(test_local_state_equivalence test_state_equivalence.cc)
+target_include_directories(test_local_state_equivalence PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_state_equivalence PRIVATE detent::local_builder)
+add_test(NAME test_local_state_equivalence COMMAND test_local_state_equivalence)
