@@ -6,6 +6,7 @@
 namespace detent::distribution {
 class RetirementNode;
 class RetirementDomain;
+class RetirementFactory;
 class RetirementRuntime;
 namespace detail {
 struct RetirementState;
@@ -48,6 +49,7 @@ class RetirementNode {
 										void (*)(RetirementNode *) noexcept) noexcept;
 	friend struct detail::RetirementState;
 	friend class RetirementDomain;
+	friend class RetirementFactory;
 };
 
 // Library-owned references never allocate, destroy payloads or free a control
@@ -78,6 +80,7 @@ template <class T> class RetirementHandle {
 	explicit RetirementHandle(RetirementNode *node) noexcept : node_(node) {}
 	RetirementNode *node_ = nullptr;
 	friend class RetirementDomain;
+	friend class RetirementFactory;
 };
 
 class RetirementDrain {
@@ -92,19 +95,17 @@ class RetirementDrain {
 	friend class RetirementDomain;
 };
 
-class RetirementDomain {
+// Copyable admission capability; only the domain facade closes admission.
+class RetirementFactory {
   public:
-	RetirementDomain(RetirementDomain &&) noexcept = default;
-	RetirementDomain(const RetirementDomain &) = delete;
-	RetirementDomain &operator=(RetirementDomain &&) = delete;
-	~RetirementDomain();
-	RetirementDrain close() noexcept;
-	std::size_t residents() const noexcept;
-	std::shared_ptr<StorageLedger> storage_account() const;
-	template <class T, class... Args> RetirementHandle<T> make(Args &&...args) {
+	RetirementFactory(const RetirementFactory &) noexcept = default;
+	RetirementFactory(RetirementFactory &&) noexcept = default;
+	RetirementFactory &operator=(const RetirementFactory &) noexcept = default;
+	RetirementFactory &operator=(RetirementFactory &&) noexcept = default;
+	template <class T, class... Args> RetirementHandle<T> make(Args &&...args) const {
 		static_assert(std::is_base_of_v<RetirementNode, T>);
 		if (!state_)
-			throw std::logic_error("moved retirement domain");
+			throw std::logic_error("moved retirement factory");
 		auto state = state_;
 		detail::admit_resident(*state);
 		StorageAllocator<T> allocator(detail::retirement_account(*state));
@@ -125,6 +126,30 @@ class RetirementDomain {
 			allocation.deallocate(object, 1);
 		});
 		return RetirementHandle<T>(owner);
+	}
+
+  private:
+	explicit RetirementFactory(std::shared_ptr<detail::RetirementState> state) : state_(std::move(state)) {}
+	std::shared_ptr<detail::RetirementState> state_;
+	friend class RetirementDomain;
+};
+
+class RetirementDomain {
+  public:
+	RetirementDomain(RetirementDomain &&) noexcept = default;
+	RetirementDomain(const RetirementDomain &) = delete;
+	RetirementDomain &operator=(RetirementDomain &&) = delete;
+	~RetirementDomain();
+	RetirementDrain close() noexcept;
+	std::size_t residents() const noexcept;
+	std::shared_ptr<StorageLedger> storage_account() const;
+	RetirementFactory factory() const {
+		if (!state_)
+			throw std::logic_error("moved retirement domain");
+		return RetirementFactory(state_);
+	}
+	template <class T, class... Args> RetirementHandle<T> make(Args &&...args) {
+		return factory().make<T>(std::forward<Args>(args)...);
 	}
 
   private:
