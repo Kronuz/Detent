@@ -42,6 +42,7 @@ struct OverlayAssembler::Impl {
 	StorageIdentity storage;
 	GenerationId generation;
 	p::Limits limits;
+	std::uint64_t maximum_output_bytes, output_bytes = 0;
 	d::PagedStorage arena;
 	std::array<Frame, 203> frames{};
 	std::size_t depth = 0, position = 0, charge = 0;
@@ -55,10 +56,11 @@ struct OverlayAssembler::Impl {
 	bool failed = false, discarding = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, const TrieOverlay &source,
 		 std::span<const SegmentInput> segments, std::span<const SegmentReachability> reachability,
-		 p::Root base, StorageIdentity identity, GenerationId publication, d::Cursor target, p::Limits bounds)
+		 p::Root base, StorageIdentity identity, GenerationId publication, d::Cursor target, p::Limits bounds,
+		 std::uint64_t maximum_output)
 		: account(std::move(ledger)), overlay(source), inputs(segments), live(reachability),
 		  removed(overlay.removed()), root(base), storage(identity), generation(publication), limits(bounds),
-		  arena(*account, 8192) {
+		  maximum_output_bytes(maximum_output), arena(*account, 8192) {
 		require(inputs.size() == live.size() && live.size() == removed.size() &&
 				live.size() == root.segments);
 		require(root.cursor.same_identity(target) && target.revision >= root.cursor.revision);
@@ -99,9 +101,9 @@ OverlayAssembler::OverlayAssembler(std::shared_ptr<d::StorageLedger> account, co
 								   std::span<const SegmentInput> segments,
 								   std::span<const SegmentReachability> live, p::Root base,
 								   StorageIdentity storage, GenerationId generation, d::Cursor target,
-								   p::Limits limits)
+								   p::Limits limits, std::uint64_t maximum_output)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, overlay, segments, live,
-										base, storage, generation, target, limits)) {}
+										base, storage, generation, target, limits, maximum_output)) {}
 OverlayAssembler::~OverlayAssembler() = default;
 OverlayAssembler::OverlayAssembler(OverlayAssembler &&) noexcept = default;
 void OverlayAssembler::step(ValidationBudget &budget) {
@@ -154,6 +156,8 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 											node.children.size() * p::child_bytes + node.body.size();
 						require(length <= p::page_bytes && s.fresh_pages < s.limits.pages &&
 								length <= s.limits.bytes - s.fresh_bytes);
+						if (length > s.maximum_output_bytes - s.fresh_bytes)
+							throw std::length_error("compaction output bound exceeded");
 						++s.fresh_pages;
 						s.fresh_bytes += length;
 						frame.entered = true;
@@ -282,6 +286,9 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 					const auto ownership = s.segment->ownership();
 					require(s.output->impl_->segments.size() + s.reused_segments < s.limits.segments &&
 							ownership.length <= s.limits.bytes - s.physical_bytes);
+					if (ownership.length > s.maximum_output_bytes - s.output_bytes)
+						throw std::length_error("overlay output pack limit exceeded");
+					s.output_bytes += ownership.length;
 					s.physical_bytes += ownership.length;
 					s.output->impl_->segments.push_back({ownership, s.segment->bytes()});
 				}

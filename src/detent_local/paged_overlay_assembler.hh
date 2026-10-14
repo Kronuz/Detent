@@ -7,7 +7,8 @@ class OverlayAssembler {
   public:
 	OverlayAssembler(std::shared_ptr<distribution::StorageLedger>, const TrieOverlay &,
 					 std::span<const SegmentInput>, std::span<const SegmentReachability>, paged::Root,
-					 StorageIdentity, GenerationId, distribution::Cursor target, paged::Limits = {});
+					 StorageIdentity, GenerationId, distribution::Cursor target, paged::Limits = {},
+					 std::uint64_t maximum_output_bytes = UINT64_MAX);
 	~OverlayAssembler();
 	OverlayAssembler(OverlayAssembler &&) noexcept;
 	OverlayAssembler(const OverlayAssembler &) = delete;

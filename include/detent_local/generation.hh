@@ -10,6 +10,7 @@ class PagedDependencyCertificate;
 struct StoreCore;
 class PagedPlanBuilder;
 class PagedDeltaPlanBuilder;
+class PagedCompactionBuilder;
 class PagedCursor;
 class WarmGraphValidator;
 class PagedSnapshotSource;
@@ -61,6 +62,7 @@ class RecoveredGeneration {
 	friend class detail::PagedDependencyCertificate;
 	friend class detail::PagedPlanBuilder;
 	friend class detail::PagedDeltaPlanBuilder;
+	friend class detail::PagedCompactionBuilder;
 	friend class detail::PagedCursor;
 	friend class detail::WarmGraphValidator;
 	friend class detail::PagedSnapshotSource;

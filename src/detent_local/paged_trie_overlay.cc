@@ -31,6 +31,7 @@ struct TrieOverlay::Impl {
 		std::size_t child;
 		std::uint8_t label;
 	};
+	std::shared_ptr<d::StorageLedger> account_;
 	std::shared_ptr<const void> owner;
 	std::span<const SegmentInput> segments;
 	p::Limits limits;
@@ -49,10 +50,27 @@ struct TrieOverlay::Impl {
 	Action action = Action::Leaf;
 	Phase phase = Phase::Idle;
 	bool failed = false, sealed = false, changed = false, discarding = false;
+	struct RelocationFrame {
+		OverlayReference original;
+		View view{};
+		OverlayNode *node = nullptr;
+		std::size_t next = 0, copied = 0;
+		bool entered = false, copying = false, admitted = false;
+	};
+	struct RelocationWork {
+		std::array<RelocationFrame, 203> frames{};
+		std::array<StorageIdentity, 8> packs{};
+		std::size_t pack_count = 0, depth = 0, recipes = 0, recipe_limit = 0;
+		std::uint64_t visited = 0;
+		OverlayReference result;
+		bool pending = false;
+	};
+	d::StorageOwner<RelocationWork> relocation;
+
 	Impl(std::shared_ptr<d::StorageLedger> account, std::shared_ptr<const void> lifetime,
 		 std::span<const SegmentInput> input, p::Root base, p::Limits bounds)
-		: owner(std::move(lifetime)), segments(input), limits(bounds), arena(*account, 8192),
-		  removed(d::StorageAllocator<SegmentReachability>(account)), original{} {
+		: account_(account), owner(std::move(lifetime)), segments(input), limits(bounds),
+		  arena(*account, 8192), removed(d::StorageAllocator<SegmentReachability>(account)), original{} {
 		if (!owner || segments.size() != base.segments)
 			throw std::invalid_argument("missing checked overlay input");
 		p::encode_root(base, limits);
@@ -131,6 +149,78 @@ struct TrieOverlay::Impl {
 		copy = 0;
 		phase = Phase::Convert;
 	}
+	bool selected_pack(const StorageIdentity &identity) const {
+		return std::find(relocation->packs.begin(), relocation->packs.begin() + relocation->pack_count,
+						 identity) != relocation->packs.begin() + relocation->pack_count;
+	}
+	void copy_relocation(RelocationFrame &frame) {
+		if (relocation->recipes == relocation->recipe_limit)
+			throw std::length_error("compaction recipe limit exceeded");
+		frame.node =
+			node(frame.view.kind, frame.view.keys, frame.view.prefix, frame.view.body, frame.view.count());
+		++relocation->recipes;
+		const auto reference = p::decode_reference({frame.original.old, p::reference_bytes});
+		const auto index = find_segment(segments, reference.segment);
+		++removed[index].pages;
+		removed[index].bytes += reference.length;
+		frame.copying = true;
+	}
+	void relocation_step(ValidationBudget &budget) {
+		while (relocation->depth) {
+			auto &frame = relocation->frames[relocation->depth - 1];
+			if (!frame.entered) {
+				if (!grant(p::page_header_bytes + p::reference_bytes, budget))
+					return;
+				frame.view = inspect(frame.original);
+				frame.entered = true;
+				++relocation->visited;
+				const auto reference = p::decode_reference({frame.original.old, p::reference_bytes});
+				frame.admitted = selected_pack(reference.segment);
+			}
+			if ((frame.admitted || relocation->pending) && !frame.node) {
+				if (!grant(sizeof(OverlayNode), budget))
+					return;
+				copy_relocation(frame);
+			}
+			if (frame.copying) {
+				while (frame.copied < frame.view.count()) {
+					if (!grant(p::child_bytes + sizeof(OverlayChild), budget))
+						return;
+					std::construct_at(
+						frame.node->children.data() + frame.copied,
+						OverlayChild{frame.view.label(frame.copied), frame.view.child(frame.copied)});
+					++frame.copied;
+					frame.node->children = {frame.node->children.data(), frame.copied};
+				}
+				frame.copying = false;
+			}
+			if (relocation->pending) {
+				if (!grant(sizeof(OverlayChild), budget))
+					return;
+				frame.node->children[frame.next - 1].reference = relocation->result;
+				relocation->pending = false;
+			}
+			if (frame.next < frame.view.count()) {
+				if (!grant(p::child_bytes, budget))
+					return;
+				if (relocation->depth == relocation->frames.size())
+					throw std::length_error("compaction path depth exceeded");
+				const auto child = frame.view.child(frame.next++);
+				relocation->frames[relocation->depth++] = RelocationFrame{child};
+				continue;
+			}
+			relocation->result = frame.node ? OverlayReference{nullptr, frame.node} : frame.original;
+			--relocation->depth;
+			if (!relocation->depth) {
+				root = relocation->result;
+				phase = Phase::Done;
+				changed = relocation->recipes != 0;
+				return;
+			}
+			relocation->pending = relocation->result.fresh != nullptr;
+		}
+	}
+
 	void complete() {
 		phase = Phase::Done;
 		changed = difference || previous.has_value();
@@ -143,7 +233,7 @@ TrieOverlay::TrieOverlay(std::shared_ptr<d::StorageLedger> account, std::shared_
 TrieOverlay::~TrieOverlay() = default;
 TrieOverlay::TrieOverlay(TrieOverlay &&) noexcept = default;
 void TrieOverlay::change(std::string_view key, std::optional<std::span<const char>> body) {
-	if (!impl_ || impl_->failed || impl_->sealed ||
+	if (!impl_ || impl_->failed || impl_->sealed || impl_->relocation ||
 		(impl_->phase != Impl::Phase::Idle && impl_->phase != Impl::Phase::Done))
 		throw std::logic_error("overlay operation unavailable");
 	const auto parsed = p::decode_key(key);
@@ -162,6 +252,38 @@ void TrieOverlay::change(std::string_view key, std::optional<std::span<const cha
 	s.changed = false;
 	s.phase = Impl::Phase::Body;
 }
+void TrieOverlay::begin_relocation(std::span<const StorageIdentity> selected, std::size_t maximum_recipes) {
+	if (!impl_ || impl_->failed || impl_->sealed || impl_->phase != Impl::Phase::Idle || selected.empty() ||
+		selected.size() > 8 || !maximum_recipes)
+		throw std::invalid_argument("invalid compaction relocation admission");
+	auto &s = *impl_;
+	for (std::size_t i = 0; i < selected.size(); ++i) {
+		if (find_segment(s.segments, selected[i]) == s.segments.size() ||
+			std::find(selected.begin(), selected.begin() + i, selected[i]) != selected.begin() + i)
+			throw std::invalid_argument("compaction pack is absent or duplicated");
+	}
+	s.relocation = d::make_storage_owner<Impl::RelocationWork>(s.account_, std::malloc, std::free);
+	std::copy(selected.begin(), selected.end(), s.relocation->packs.begin());
+	s.relocation->pack_count = selected.size();
+	s.relocation->recipe_limit = maximum_recipes;
+
+	s.phase = Impl::Phase::Walk;
+	if (s.root) {
+		s.relocation->frames[0] = Impl::RelocationFrame{s.root};
+		s.relocation->depth = 1;
+	} else
+		s.phase = Impl::Phase::Done;
+}
+std::uint64_t TrieOverlay::visited_pages() const {
+	if (!impl_ || !impl_->relocation || impl_->failed)
+		throw std::logic_error("compaction metrics unavailable");
+	return impl_->relocation->visited;
+}
+std::size_t TrieOverlay::relocated_pages() const {
+	if (!impl_ || !impl_->relocation || impl_->failed)
+		throw std::logic_error("compaction metrics unavailable");
+	return impl_->relocation->recipes;
+}
 void TrieOverlay::step(ValidationBudget &budget) {
 	if (!impl_ || impl_->failed || impl_->sealed)
 		throw std::logic_error("overlay unavailable");
@@ -169,6 +291,10 @@ void TrieOverlay::step(ValidationBudget &budget) {
 	using Phase = Impl::Phase;
 	using Action = Impl::Action;
 	try {
+		if (s.relocation) {
+			s.relocation_step(budget);
+			return;
+		}
 		while (s.phase != Phase::Idle && s.phase != Phase::Done) {
 			switch (s.phase) {
 			case Phase::Body:

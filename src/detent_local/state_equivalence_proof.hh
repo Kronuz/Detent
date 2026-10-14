@@ -31,5 +31,6 @@ class StateEquivalenceProof {
 	bool valid_ = true;
 	friend class StateEquivalence;
 	friend class PagedMaintenanceBuilder;
+	friend class PagedCompactionBuilder;
 };
 } // namespace detent::local::detail

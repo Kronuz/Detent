@@ -1,6 +1,7 @@
 #include "detent_local/paged_definition.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_overlay_fixture.hh"
+#include "paged_split_fixture.hh"
 #include "paged_trie_overlay.hh"
 #include <map>
 namespace p = l::paged;
@@ -113,6 +114,60 @@ int main() {
 		while (!validator.done()) {
 			l::ValidationBudget b;
 			validator.step(b);
+		}
+	}
+	{
+		l::detail::TrieOverlay relocated(source->storage_account(), input, input->segments,
+										 input->image.root());
+		const auto identity = input->segments[0].ownership.segment;
+		relocated.begin_relocation({&identity, 1}, 100);
+		finish(relocated);
+		relocated.seal();
+		const auto [logical, keys] = fingerprint(relocated.root(), input->segments);
+		require(logical == input->image.root().logical &&
+				keys == input->image.root().records + input->image.root().namespaces);
+		require(relocated.visited_pages() == input->image.root().pages &&
+				relocated.relocated_pages() == input->image.root().pages);
+		require(relocated.removed()[0].pages == input->image.root().pages &&
+				relocated.removed()[0].bytes == input->image.root().bytes);
+	}
+	{
+		l::detail::TrieOverlay limited(source->storage_account(), input, input->segments,
+									   input->image.root());
+		const auto identity = input->segments[0].ownership.segment;
+		limited.begin_relocation({&identity, 1}, 1);
+		bool refused = false;
+		try {
+			finish(limited);
+		} catch (const std::length_error &) {
+			refused = true;
+		}
+		require(refused);
+	}
+	{
+		l::GenerationId split_generation{};
+		split_generation.fill('x');
+		auto split = std::make_shared<l::testing::SplitPagedInput>(
+			source->storage_account(), input->segments, input->image.root(), storage, split_generation);
+		l::detail::GraphValidator validator(source->storage_account(), split, split->inputs, split->root,
+											storage);
+		while (!validator.done()) {
+			l::ValidationBudget budget{1, 1};
+			validator.step(budget);
+		}
+		for (std::size_t choice = 0; choice < split->packs.size(); ++choice) {
+			l::detail::TrieOverlay relocated(source->storage_account(), split, split->inputs, split->root);
+			const auto identity = split->packs[choice].ownership.segment;
+			relocated.begin_relocation({&identity, 1}, 100);
+			finish(relocated);
+			relocated.seal();
+			const auto [logical, keys] = fingerprint(relocated.root(), split->inputs);
+			require(logical == split->root.logical && keys == split->root.records + split->root.namespaces);
+			require(relocated.visited_pages() == split->root.pages);
+			const auto selected = l::detail::find_segment(split->inputs, identity);
+			require(relocated.removed()[selected].pages == validator.segment_reachability(selected).pages);
+			if (!choice)
+				require(relocated.relocated_pages() < split->root.pages);
 		}
 	}
 	detent::BoolDef boolean;

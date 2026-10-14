@@ -29,7 +29,10 @@ class TrieOverlay {
 	TrieOverlay(const TrieOverlay &) = delete;
 	// The optional body stays borrowed until this operation completes or is discarded.
 	void change(std::string_view typed_key, std::optional<std::span<const char>> body);
+	void begin_relocation(std::span<const StorageIdentity>, std::size_t maximum_recipes);
 	void step(ValidationBudget &);
+	std::uint64_t visited_pages() const;
+	std::size_t relocated_pages() const;
 	bool operation_done() const noexcept;
 	bool changed() const;
 	std::optional<std::span<const char>> previous_body() const;

@@ -9,6 +9,9 @@ namespace detent::local::detail {
 class PagedPlanState final : public distribution::RetirementNode {
   public:
 	struct Forward {};
+	struct PhysicalMaintenance {};
+	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
+				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId, PhysicalMaintenance);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
 				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
 				   const distribution::ValidatedDelta &);
@@ -57,6 +60,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class PagedMaintenanceBuilder;
+	friend class PagedCompactionBuilder;
 };
 // Move-only exact-base publication authority; retirement never runs on its caller.
 class PagedPlan {
@@ -97,5 +101,6 @@ class PagedPlan {
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class PagedMaintenanceBuilder;
+	friend class PagedCompactionBuilder;
 };
 } // namespace detent::local::detail

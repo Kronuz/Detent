@@ -36,6 +36,17 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	descriptor_ = {generation, p::root_bytes, {}, source.target(), source.profile()};
 	encode_descriptor(descriptor_);
 }
+PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
+							   d::RetirementHandle<LeasedPagedRoot> base, GenerationId generation,
+							   PhysicalMaintenance)
+	: base_(std::move(base)), base_live_(d::StorageAllocator<SegmentReachability>(account)),
+	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
+	if (!base_ || !base_->registry()->uses_account(account) || generation == base_->descriptor().generation)
+		throw std::invalid_argument("compaction requires actual paged base and common admission");
+	registry_ = base_->registry();
+	descriptor_ = {generation, p::root_bytes, {}, base_->descriptor().cursor, base_->descriptor().profile};
+	encode_descriptor(descriptor_);
+}
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account, RecoveredGeneration base,
 							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage)
 	: construction_base_(std::move(base)), replacement_(std::move(replacement)),
