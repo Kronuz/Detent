@@ -55,7 +55,8 @@ class MappedRecoveryAdmission final : public distribution::RetirementNode {
 	distribution::RetirementHandle<LeasedPagedRoot> capability_;
 	std::shared_ptr<distribution::RetirementHandle<LeasedPagedRoot>> capability_hook_;
 	distribution::RetirementHandle<ReadView::Root> view_;
-	Descriptor target_, base_;
+	Descriptor target_;
+	std::optional<Descriptor> base_;
 	DirectoryIdentity directory_;
 	StorageIdentity storage_;
 	PagedStateCounts expected_counts_;

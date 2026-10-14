@@ -264,3 +264,15 @@ The next complete component follows this validated blueprint, with one consolida
 7. Keep v1 the default and preserve callable APIs. Paged input needs the shared accessor or verified downgrade before legacy delta construction. Older binaries require upgrade before reading v2 storage; no sibling completion API change is required.
 
 Qualification covers complete cross-format state equality, namespace prefixes, empty scopes, NUL-containing override keys, watermark changes and deletion/reinsertion; migration and maintenance faults/cancellation at every durability boundary; branch-only, leaf-only and mixed-pack compaction; pressure refusal before selection; pinned readers and exact debt; assembled authority/relay/agent/readers with concurrent maintenance; reproducible 100k/500k construction, recovery, compaction and reclamation measurements; native, Linux, FreeBSD, sanitizer and minimal SDK profiles. V2 configuration activation follows consolidated component acceptance.
+
+## Validated snapshot and delivery integration
+
+The Architect's snapshot/delivery blueprint retains the existing completion transaction and authentic recovery settlement. Fresh publication captures the real managed directory and storage identity with no recovered base; all replacements retain the actual selected descriptor and generation.
+
+1. Independently validate newly encoded snapshot packs and capture counts, reachability and histogram before sealing fresh, forward or reset construction intent. Same-cursor snapshots return bound equality evidence and acknowledge the existing physical selection.
+2. Authorize identity reset only through `DiskStore::begin_reset(plan, TrustedIdentityReset)`. A decoded cursor and a reset-tagged construction result supply no permission. Check current selection and configured target identity/profile before admission or transfer.
+3. Share target-aware warm eligibility between mapping admission and actual recovery. Fresh and reset targets recover cold; retain the prior generation through candidate recovery and account for physical coexistence.
+4. Run candidate construction on the existing configuration worker, settle its authentic completion on the owner, and publish at the settled boundary. Recover and confirm actual selection before replacing owner/sink state or issuing upstream feedback.
+5. Add opt-in paged writer configuration with v1 as the default. Migrate a configured flat head before accepting paged deltas/progress; obtain a trusted reset snapshot instead when the head belongs to the configured previous identity.
+6. Extend the shared borrowed source access for v1 construction over a paged predecessor. Traverse sequentially with budgeted preparation and bounded reconstructed keys/overrides, retaining the existing merge-reference index and avoiding a decoded full snapshot.
+7. Qualify fresh/forward/reset binding, lower-revision authorized reset, unchanged/conflicting snapshots, worker cancellation and assembled paged authority/relay/agent flows. Review the complete delivery integration before activation.

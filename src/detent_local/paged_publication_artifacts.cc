@@ -68,7 +68,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),
 			   encode_descriptor(descriptor), {});
 		descriptor_ = descriptor;
-		base_descriptor_ = plan.base_descriptor();
+		base_descriptor_ = plan.selected_base();
 		directory_ = plan.directory_identity();
 		storage_ = plan.storage_identity();
 		populated_ = true;
@@ -79,7 +79,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 }
 void PagedPublicationArtifacts::attach(PagedPlan &&plan) {
 	if (!populated_ || plan_ || plan.descriptor() != descriptor_ ||
-		plan.base_descriptor() != base_descriptor_ || plan.directory_identity() != directory_ ||
+		plan.selected_base() != base_descriptor_ || plan.directory_identity() != directory_ ||
 		plan.storage_identity() != storage_)
 		throw std::invalid_argument("paged artifact plan binding mismatch");
 	plan_.emplace(std::move(plan));

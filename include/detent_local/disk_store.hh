@@ -54,6 +54,7 @@ class DiskStore {
 	// Settles the retained plan only after actual selected recovery succeeds.
 	void confirm_recovered(const RecoveredGeneration &);
 	void begin_reset(const ImageBuilder &builder, const TrustedIdentityReset &reset);
+	void begin_reset(detail::PagedPlan &&, const TrustedIdentityReset &);
 	void cancel_publication() noexcept;
 	DiskPublicationStatus publication_status() const noexcept;
 	std::exception_ptr publication_error() const noexcept;
@@ -66,6 +67,7 @@ class DiskStore {
   private:
 	friend class detail::ManagedRecovery;
 	void begin_impl(const ImageBuilder &, std::optional<distribution::Cursor>, const TrustedIdentityReset *);
+	void begin_paged(detail::PagedPlan &&, const TrustedIdentityReset *);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 	friend std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &,

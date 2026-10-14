@@ -8,7 +8,7 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		throw std::logic_error("mapped admission unavailable");
 	try {
 		target_ = plan.descriptor();
-		base_ = plan.base_descriptor();
+		base_ = plan.selected_base();
 		directory_ = plan.directory_identity();
 		storage_ = plan.storage_identity();
 		expected_counts_ = plan.counts();

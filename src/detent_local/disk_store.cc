@@ -1482,20 +1482,37 @@ bool DiskStore::publication_ready() const noexcept {
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	begin_impl(builder, expected_base, nullptr);
 }
-void DiskStore::begin(detail::PagedPlan &&plan) {
+void DiskStore::begin(detail::PagedPlan &&plan) { begin_paged(std::move(plan), nullptr); }
+void DiskStore::begin_reset(detail::PagedPlan &&plan, const TrustedIdentityReset &reset) {
+	begin_paged(std::move(plan), &reset);
+}
+void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset *reset) {
 	auto &core = *impl_->core;
 	try {
 		if (!publication_ready())
 			throw std::logic_error("managed store unavailable for publication");
 		const auto descriptor = plan.descriptor();
-		if (core.selection.knowledge != SelectionKnowledge::Known ||
-			core.selection.descriptor != plan.base_descriptor() ||
-			plan.directory_identity() != core.directory_identity ||
-			plan.storage_identity() != core.identity ||
-			!descriptor.cursor.same_identity(plan.base_descriptor().cursor) ||
-			(plan.maintenance() ? descriptor.cursor != plan.base_descriptor().cursor
-								: descriptor.cursor.revision <= plan.base_descriptor().cursor.revision) ||
-			descriptor.profile != plan.base_descriptor().profile || plan.bytes()->account() != core.account ||
+		const auto base = plan.selected_base();
+		const auto intent = plan.intent();
+		if (core.selection.knowledge == SelectionKnowledge::Uncertain || core.selection.descriptor != base ||
+			(intent == detail::PagedPlanIntent::Fresh
+				 ? core.selection.knowledge != SelectionKnowledge::Absent
+				 : core.selection.knowledge != SelectionKnowledge::Known))
+			throw std::invalid_argument("managed paged publication actual selection mismatch");
+		if (reset) {
+			if (intent != detail::PagedPlanIntent::TrustedReset || !base ||
+				*base != reset->expected_selected || !descriptor.cursor.same_identity(reset->configured) ||
+				descriptor.profile != reset->profile || base->cursor.same_identity(descriptor.cursor) ||
+				plan.registry())
+				throw std::invalid_argument("managed paged trusted identity reset mismatch");
+		} else if (intent == detail::PagedPlanIntent::TrustedReset ||
+				   (base &&
+					(!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
+					 (plan.maintenance() ? descriptor.cursor != base->cursor
+										 : descriptor.cursor.revision <= base->cursor.revision))))
+			throw std::invalid_argument("managed paged publication requires authorized intent");
+		if (plan.directory_identity() != core.directory_identity ||
+			plan.storage_identity() != core.identity || plan.bytes()->account() != core.account ||
 			descriptor.length != paged::root_bytes ||
 			descriptor.length > core.options.recovery_limits.bytes ||
 			plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||

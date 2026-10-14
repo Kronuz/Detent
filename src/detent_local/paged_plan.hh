@@ -6,10 +6,14 @@
 #include <sha256.h>
 #include <vector>
 namespace detent::local::detail {
+enum class PagedPlanIntent { Fresh, Forward, TrustedReset, Maintenance };
 class PagedPlanState final : public distribution::RetirementNode {
   public:
 	struct Forward {};
 	struct PhysicalMaintenance {};
+	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, std::optional<RecoveredGeneration>,
+				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity, DirectoryIdentity,
+				   PagedPlanIntent);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
 				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId, PhysicalMaintenance);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
@@ -21,6 +25,8 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
 				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
 	bool maintenance() const;
+	PagedPlanIntent intent() const;
+	std::optional<Descriptor> selected_base() const;
 	const Descriptor &descriptor() const;
 	const paged::Root &root() const;
 	const Descriptor &base_descriptor() const;
@@ -42,6 +48,8 @@ class PagedPlanState final : public distribution::RetirementNode {
 	std::optional<RecoveredGeneration> construction_base_;
 	distribution::RetirementHandle<PagedImageOwner> replacement_;
 	StorageIdentity replacement_storage_{};
+	DirectoryIdentity construction_directory_{};
+	PagedPlanIntent intent_ = PagedPlanIntent::Forward;
 	std::optional<StateEquivalenceProof> maintenance_proof_;
 	distribution::RetirementHandle<SegmentRegistry> registry_;
 	paged::Root root_;
@@ -61,6 +69,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	friend class PagedDeltaPlanBuilder;
 	friend class SparsePlanFinalizer;
 	friend class PagedMaintenanceBuilder;
+	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
 };
 // Move-only exact-base publication authority; retirement never runs on its caller.
@@ -70,6 +79,8 @@ class PagedPlan {
 	PagedPlan(const PagedPlan &) = delete;
 	const Descriptor &descriptor() const { return checked_state().descriptor(); }
 	bool maintenance() const { return checked_state().maintenance(); }
+	PagedPlanIntent intent() const { return checked_state().intent(); }
+	std::optional<Descriptor> selected_base() const { return checked_state().selected_base(); }
 	const paged::Root &root() const { return checked_state().root(); }
 	const Descriptor &base_descriptor() const { return checked_state().base_descriptor(); }
 	DirectoryIdentity directory_identity() const { return checked_state().directory_identity(); }
@@ -102,6 +113,7 @@ class PagedPlan {
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class PagedMaintenanceBuilder;
+	friend class PagedSnapshotPlanBuilder;
 	friend class PagedCompactionBuilder;
 };
 } // namespace detent::local::detail

@@ -49,18 +49,49 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 }
 PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account, RecoveredGeneration base,
 							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage)
+	: PagedPlanState(std::move(account), std::optional<RecoveredGeneration>(base), std::move(replacement),
+					 storage, base.directory_identity(), PagedPlanIntent::Maintenance) {}
+PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
+							   std::optional<RecoveredGeneration> base,
+							   d::RetirementHandle<PagedImageOwner> replacement, StorageIdentity storage,
+							   DirectoryIdentity directory, PagedPlanIntent intent)
 	: construction_base_(std::move(base)), replacement_(std::move(replacement)),
-	  replacement_storage_(storage), base_live_(d::StorageAllocator<SegmentReachability>(account)),
+	  replacement_storage_(storage), construction_directory_(directory), intent_(intent),
+	  base_live_(d::StorageAllocator<SegmentReachability>(account)),
 	  new_live_(d::StorageAllocator<SegmentReachability>(account)) {
 	if (!replacement_ || replacement_->image().bytes()->account() != account)
-		throw std::invalid_argument("maintenance image account mismatch");
+		throw std::invalid_argument("snapshot image account mismatch");
 	root_ = replacement_->image().root();
 	descriptor_ = replacement_->image().descriptor();
-	const auto &prior = construction_base_->descriptor();
-	if (descriptor_.cursor != prior.cursor || descriptor_.profile != prior.profile ||
-		descriptor_.generation == prior.generation)
-		throw std::invalid_argument("maintenance target identity mismatch");
+	if ((intent == PagedPlanIntent::Fresh) != !construction_base_)
+		throw std::invalid_argument("snapshot intent and actual base mismatch");
+	if (construction_base_) {
+		const auto &prior = construction_base_->descriptor();
+		if (construction_base_->directory_identity() != directory ||
+			descriptor_.generation == prior.generation)
+			throw std::invalid_argument("snapshot physical base mismatch");
+		const bool same = descriptor_.cursor.same_identity(prior.cursor);
+		if ((intent == PagedPlanIntent::Forward &&
+			 (!same || descriptor_.cursor.revision <= prior.cursor.revision ||
+			  descriptor_.profile != prior.profile)) ||
+			(intent == PagedPlanIntent::Maintenance &&
+			 (descriptor_.cursor != prior.cursor || descriptor_.profile != prior.profile)) ||
+			(intent == PagedPlanIntent::TrustedReset && same))
+			throw std::invalid_argument("snapshot target intent mismatch");
+	}
 	new_live_.reserve(replacement_->image().segments().size());
+}
+PagedPlanIntent PagedPlanState::intent() const {
+	descriptor();
+	return maintenance_proof_ ? PagedPlanIntent::Maintenance : intent_;
+}
+std::optional<Descriptor> PagedPlanState::selected_base() const {
+	descriptor();
+	if (base_)
+		return base_->descriptor();
+	if (construction_base_)
+		return construction_base_->descriptor();
+	return {};
 }
 bool PagedPlanState::maintenance() const {
 	descriptor();
@@ -77,11 +108,15 @@ const p::Root &PagedPlanState::root() const {
 }
 const Descriptor &PagedPlanState::base_descriptor() const {
 	descriptor();
-	return base_ ? base_->descriptor() : construction_base_->descriptor();
+	if (base_)
+		return base_->descriptor();
+	if (construction_base_)
+		return construction_base_->descriptor();
+	throw std::logic_error("fresh paged plan has no selected base");
 }
 DirectoryIdentity PagedPlanState::directory_identity() const {
 	descriptor();
-	return base_ ? base_->directory_identity() : construction_base_->directory_identity();
+	return base_ ? base_->directory_identity() : construction_directory_;
 }
 StorageIdentity PagedPlanState::storage_identity() const {
 	descriptor();

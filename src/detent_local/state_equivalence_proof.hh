@@ -32,5 +32,6 @@ class StateEquivalenceProof {
 	friend class StateEquivalence;
 	friend class PagedMaintenanceBuilder;
 	friend class PagedCompactionBuilder;
+	friend class PagedSnapshotPlanBuilder;
 };
 } // namespace detent::local::detail

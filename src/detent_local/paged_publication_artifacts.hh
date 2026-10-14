@@ -44,7 +44,8 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	distribution::RetirementHandle<MappedRecoveryAdmission> recovery_;
 	DiskUsage usage_;
 	std::uint64_t physical_bytes_ = paged::root_bytes;
-	Descriptor descriptor_, base_descriptor_;
+	Descriptor descriptor_;
+	std::optional<Descriptor> base_descriptor_;
 	DirectoryIdentity directory_;
 	StorageIdentity storage_;
 	bool populated_ = false, failed_ = false;
