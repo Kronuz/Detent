@@ -3,6 +3,7 @@
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_maintenance_plan.hh"
+#include "paged_compaction_plan.hh"
 #include <completion/native_completion.h>
 namespace c = kronuz::io::completion;
 void drive(const std::shared_ptr<l::DiskStore> &store) {
@@ -64,9 +65,17 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 			builder.step(budget);
 		}
 		plan.emplace(builder.take());
-	} else {
+	} else if (intent == 2) {
 		l::detail::PagedMaintenanceBuilder builder(*base, domain.factory(), account, storage, next,
 												   options.recovery_limits);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		plan.emplace(builder.take());
+	} else {
+		const auto selected = image.segments().front().ownership.segment;
+		l::detail::PagedCompactionBuilder builder(*base, {&selected, 1}, next, domain);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -171,7 +180,7 @@ int main() {
 	}
 	auto image = builder.take();
 	unsigned cases = 0;
-	for (unsigned intent : {0u, 1u, 2u}) {
+	for (unsigned intent : {0u, 1u, 2u, 3u}) {
 		const auto reference = run(directory / std::to_string(cases++), image, storage, intent, SIZE_MAX, 0);
 		for (unsigned mode = 0; mode < 4; ++mode)
 			for (std::size_t point = 0; point < reference.size(); ++point)

@@ -252,3 +252,7 @@ The authority peer transport lives in `consensus` as the optional target `consen
 
 Acceptance: `reactor` 5 tests (with the new TLS test) and `consensus` 14 pass on macOS. Detent with every option on builds and, run serially, passes 174 of its 175 tests (181 before, less the 6 that moved); the remaining one is the in-progress `test_local_paged_compaction`, which does not compile in either state.
 
+
+### Compaction integration (2026-10-13)
+
+The formerly excluded `test_local_paged_compaction` now builds and passes against the extracted libraries (`6a03b42`). Native overlay/compaction checks pass 2/2 in 2.31 seconds; ASan/UBSan passes 2/2 in 2.85 seconds; the managed compaction check passes under TSan in 2.62 seconds. Branch-only, leaf-only and mixed replacements retain pinned readers and reclaim evacuated packs through the collector. This closes the specific compile failure recorded above; complete application and platform qualification remain separate gates.

@@ -123,12 +123,45 @@ void run(std::size_t choice) {
 		const auto wanted = plan.descriptor();
 		check(plan.maintenance() && wanted.cursor == descriptor.cursor &&
 			  plan.root().logical == split->root.logical);
+		{
+			const auto before = store->stats();
+			auto pressure = mappings->admit(mappings->limit() - mappings->used());
+			bool refused = false;
+			try {
+				store->begin(std::move(plan));
+			} catch (const d::StoragePressure &) {
+				refused = true;
+			}
+			check(refused && plan.descriptor() == wanted && store->publication_ready());
+			check(store->stats().used == before.used && store->stats().reserved == l::DiskUsage{});
+			check(l::read_generation_selection(directory).descriptor == descriptor);
+			check(!std::filesystem::exists(directory / (l::generation_name(next) + ".image")));
+		}
+		l::GenerationId stale_id{};
+		stale_id.fill('q');
+		l::detail::PagedCompactionBuilder stale_builder(*base, selection, stale_id, domain);
+		while (!stale_builder.done()) {
+			l::ValidationBudget budget;
+			stale_builder.step(budget);
+		}
+		std::optional<l::detail::PagedPlan> stale(stale_builder.take());
 		store->begin(std::move(plan));
 		drive(store);
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
 		auto recovered =
 			l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store));
 		store->confirm_recovered(recovered);
+		bool refused = false;
+		const auto stale_descriptor = stale->descriptor();
+		try {
+			store->begin(std::move(*stale));
+		} catch (const std::invalid_argument &) {
+			refused = true;
+		}
+		check(refused && stale->descriptor() == stale_descriptor && store->selection().descriptor == wanted);
+		check(store->stats().reserved == l::DiskUsage{});
+		check(!std::filesystem::exists(directory / (l::generation_name(stale_id) + ".image")));
+		stale.reset();
 		check(recovered.view().get("app", "count").value() == INT64_MIN &&
 			  base->view().get("app", "count").value() == INT64_MIN);
 		const l::detail::SegmentNames evacuated(selection.front());
@@ -148,8 +181,11 @@ void run(std::size_t choice) {
 		store->request_collection();
 		store->advance();
 		drive(store);
-		check(!std::filesystem::exists(directory / evacuated.payload_name()) &&
-			  !std::filesystem::exists(directory / evacuated.owner_name()));
+		for (const auto &identity : selection) {
+			const l::detail::SegmentNames names(identity);
+			check(!std::filesystem::exists(directory / names.payload_name()) &&
+				  !std::filesystem::exists(directory / names.owner_name()));
+		}
 		check(store->stats().used == census(directory) && store->stats().reserved == l::DiskUsage{});
 		check(recovered.view().eval("app", "flag", "host-a", "beta").has_value());
 		store->close();

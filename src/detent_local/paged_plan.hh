@@ -59,6 +59,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	bool sealed_ = false;
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
+	friend class SparsePlanFinalizer;
 	friend class PagedMaintenanceBuilder;
 	friend class PagedCompactionBuilder;
 };
