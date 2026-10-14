@@ -915,6 +915,7 @@ int main(int argc, char **argv) {
 		if (pressure || transitions)
 			final_cursor.revision = 3;
 		check(coordinator->drained());
+		check(!t::detail::CoordinatorAccess::retains_paged_candidate(*coordinator));
 		if (relay_bundle)
 			check(relay_bundle->status().fenced && !relay_bundle->status().ready);
 		if (recording) {

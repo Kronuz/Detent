@@ -906,6 +906,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 	close();
 	if (options.publication_sink)
 		options.publication_sink->fence();
+	paged_candidate.reset();
 	base.reset();
 }
 
@@ -974,6 +975,9 @@ void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
 	if (coordinator.impl_->running)
 		throw std::logic_error("paged test mode requires idle coordinator");
 	coordinator.impl_->paged_writer = true;
+}
+bool detail::CoordinatorAccess::retains_paged_candidate(const Coordinator &coordinator) {
+	return static_cast<bool>(coordinator.impl_->paged_candidate);
 }
 void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator,
 															   std::exception_ptr failure) {
