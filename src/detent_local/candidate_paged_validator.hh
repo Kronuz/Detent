@@ -27,7 +27,7 @@ class CandidatePagedValidator {
 	std::optional<GraphValidator> graph_;
 	std::size_t next_ = 0;
 	StorageIdentity storage_;
-	SHA256 hash_;
+	class SHA256 hash_;
 	std::size_t hashed_ = 0;
 	bool manifest_checked_ = false;
 };

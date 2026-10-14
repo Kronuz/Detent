@@ -63,7 +63,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	std::size_t image_capacity_ = 0;
 	std::array<char, paged::root_bytes> encoded_{};
 	std::size_t copied_ = 0, hashed_ = 0;
-	SHA256 hash_;
+	class SHA256 hash_;
 	bool sealed_ = false;
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
