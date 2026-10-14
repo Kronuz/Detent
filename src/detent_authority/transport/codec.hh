@@ -6,7 +6,7 @@
 #include <type_traits>
 
 namespace detent::transport {
-inline std::size_t control_frame_bound(cluster::consensus::Limits limits) {
+inline std::size_t control_frame_bound(kronuz::consensus::Limits limits) {
 	constexpr auto maximum = std::numeric_limits<std::size_t>::max();
 	if (limits.rpc_bytes > maximum - 68 || limits.rpc_entries > (maximum - 68 - limits.rpc_bytes) / 32)
 		throw std::invalid_argument("control frame bound overflow");
@@ -14,9 +14,9 @@ inline std::size_t control_frame_bound(cluster::consensus::Limits limits) {
 }
 // Versioned, bounded binary control messages. TLS admission supplies identity;
 // decoded bytes never create an authenticated peer capability.
-inline std::string encode(const cluster::consensus::Message &message,
-						  cluster::consensus::Limits limits = {}) {
-	using namespace cluster::consensus;
+inline std::string encode(const kronuz::consensus::Message &message,
+						  kronuz::consensus::Limits limits = {}) {
+	using namespace kronuz::consensus;
 	using kronuz::journal::put64;
 	std::string bytes("DTC1", 4);
 	const auto frame_bound = control_frame_bound(limits);
@@ -96,8 +96,8 @@ inline std::string encode(const cluster::consensus::Message &message,
 		message);
 	return bytes;
 }
-inline cluster::consensus::Message decode(std::string_view bytes, cluster::consensus::Limits limits = {}) {
-	using namespace cluster::consensus;
+inline kronuz::consensus::Message decode(std::string_view bytes, kronuz::consensus::Limits limits = {}) {
+	using namespace kronuz::consensus;
 	using kronuz::journal::Corruption;
 	using kronuz::journal::get64;
 	if (bytes.size() > control_frame_bound(limits) || !bytes.starts_with("DTC1"))

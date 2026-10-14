@@ -2,7 +2,7 @@
 #include <cassert>
 #include <chrono>
 using namespace detent::transport;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 using namespace std::chrono_literals;
 int main() {
 	AppendObservation observation;

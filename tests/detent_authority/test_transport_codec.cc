@@ -4,7 +4,7 @@
 #include "transport/tls.hh"
 #include <cassert>
 #include <iostream>
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 int main() {
 	FixedConfiguration configuration;
 	configuration.cluster[0] = 'c';

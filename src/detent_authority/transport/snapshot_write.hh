@@ -7,7 +7,7 @@ namespace detent::transport {
 // timeout, fencing or disconnect destroys that original while a write waits.
 class SnapshotWrite {
   public:
-	SnapshotWrite(const cluster::consensus::TransferOutput &output, std::shared_ptr<ByteBudget> budget)
+	SnapshotWrite(const kronuz::consensus::TransferOutput &output, std::shared_ptr<ByteBudget> budget)
 		: session_(output.session), token_(output.token), size_(output.bytes.size()),
 		  frame_(std::move(budget), size_) {
 		if (!token_ || !size_)
@@ -39,8 +39,8 @@ class SnapshotWrite {
 	}
 
   private:
-	cluster::consensus::TrustedSession session_;
-	cluster::consensus::Token token_;
+	kronuz::consensus::TrustedSession session_;
+	kronuz::consensus::Token token_;
 	std::size_t size_;
 	Frame frame_;
 	bool taken_ = false, settled_ = false;

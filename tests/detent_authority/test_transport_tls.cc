@@ -71,7 +71,7 @@ template <class Socket> void exchange(const std::filesystem::path &directory, un
 	BasicSession<Socket> client(std::move(sockets.second), client_context, incoming, maximum_frame, 200ms);
 	asio::steady_timer closer(io);
 	asio::cancellation_signal cancellation;
-	std::map<cluster::consensus::NodeId, Fingerprint> pins{{1, pin(directory / "one.pem")},
+	std::map<kronuz::consensus::NodeId, Fingerprint> pins{{1, pin(directory / "one.pem")},
 														   {2, pin(directory / "two.pem")}};
 	if (failure == 3)
 		pins.erase(2);
@@ -186,7 +186,7 @@ void malformed_frames(const std::filesystem::path &directory, unsigned mode) {
 	auto budget = std::make_shared<ByteBudget>(mode == 4 ? 0 : 64);
 	BasicSession<AsyncPipe> server(std::move(pipes.first), server_context, budget, 32, 200ms);
 	asio::ssl::stream<AsyncPipe> client(std::move(pipes.second), *client_context);
-	std::map<cluster::consensus::NodeId, Fingerprint> pins{{1, pin(directory / "one.pem")},
+	std::map<kronuz::consensus::NodeId, Fingerprint> pins{{1, pin(directory / "one.pem")},
 														   {2, pin(directory / "two.pem")}};
 	auto first = hello(1), second = hello(2);
 	bool expired = false;

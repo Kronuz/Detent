@@ -9,7 +9,7 @@ add_library(detent::authority_export ALIAS detent_authority_export)
 
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_library(detent_authority_node node.cc)
-  target_link_libraries(detent_authority_node PUBLIC detent::authority cluster::cluster)
+  target_link_libraries(detent_authority_node PUBLIC detent::authority consensus::consensus)
   add_library(detent::authority_node ALIAS detent_authority_node)
 endif()
 

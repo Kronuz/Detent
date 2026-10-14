@@ -44,7 +44,7 @@ endif()
 
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_terminal_retirement_bench terminal_retirement_bench.cc)
-  target_link_libraries(detent_authority_terminal_retirement_bench PRIVATE detent::authority_node)
+  target_link_libraries(detent_authority_terminal_retirement_bench PRIVATE detent::authority_node reactor::reactor)  # Asio
 endif()
 
 add_executable(detent_distribution_codec_bench distribution_codec_bench.cc)

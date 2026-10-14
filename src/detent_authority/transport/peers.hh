@@ -5,14 +5,14 @@
 #include "rpc_observation.hh"
 #include "snapshot_write.hh"
 #include <deque>
-#include <metrics.h>
+#include <metrics.hh>
 
 namespace detent::transport {
 struct PeerOptions {
 	TlsOptions tls;
 	asio::ip::tcp::endpoint listen;
-	std::map<cluster::consensus::NodeId, asio::ip::tcp::endpoint> addresses;
-	std::map<cluster::consensus::NodeId, Fingerprint> pins;
+	std::map<kronuz::consensus::NodeId, asio::ip::tcp::endpoint> addresses;
+	std::map<kronuz::consensus::NodeId, Fingerprint> pins;
 	std::size_t incoming_bytes = 16 * 1024 * 1024, outgoing_bytes = 16 * 1024 * 1024;
 	std::size_t queued_messages = 4, handshakes = 2;
 	std::chrono::milliseconds deadline{5000};
@@ -102,7 +102,7 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		return result;
 	}
 	asio::ip::tcp::endpoint local_endpoint() const { return acceptor_.local_endpoint(); }
-	void send(cluster::consensus::Send action) {
+	void send(kronuz::consensus::Send action) {
 		auto connection = find(action.peer, Lane::Control);
 		if (stopping_ || !connection || connection->queue.size() >= options_.queued_messages) {
 			++stats_.dropped;
@@ -111,9 +111,9 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		try {
 			ByteCredit credit(outgoing_, control_frame_bound(configuration_.consensus));
 			auto bytes = encode(action.message, configuration_.consensus);
-			std::optional<cluster::consensus::AppendRequest> observation;
-			if (auto request = std::get_if<cluster::consensus::AppendRequest>(&action.message))
-				observation.emplace(cluster::consensus::AppendRequest{
+			std::optional<kronuz::consensus::AppendRequest> observation;
+			if (auto request = std::get_if<kronuz::consensus::AppendRequest>(&action.message))
+				observation.emplace(kronuz::consensus::AppendRequest{
 					request->term, request->rpc, 0, 0, 0, request->read_probe, {}});
 			connection->queue.push_back({Frame(std::move(credit), std::move(bytes)), std::move(observation)});
 			connection->wake.cancel();
@@ -145,11 +145,11 @@ class Peers : public std::enable_shared_from_this<Peers> {
 			if (connection->closing || !connection->input)
 				continue;
 			auto result = node_->worker().try_submit_retained(*connection->input);
-			if (result == cluster::consensus::SubmitResult::Busy)
+			if (result == kronuz::consensus::SubmitResult::Busy)
 				return;
-			if (result == cluster::consensus::SubmitResult::Pressure)
+			if (result == kronuz::consensus::SubmitResult::Pressure)
 				continue;
-			if (result == cluster::consensus::SubmitResult::Fenced)
+			if (result == kronuz::consensus::SubmitResult::Fenced)
 				close(connection);
 			else {
 				++stats_.accepted;
@@ -175,19 +175,19 @@ class Peers : public std::enable_shared_from_this<Peers> {
   private:
 	struct ControlFrame {
 		Frame frame;
-		std::optional<cluster::consensus::AppendRequest> observation;
+		std::optional<kronuz::consensus::AppendRequest> observation;
 	};
 	struct Connection {
 		std::shared_ptr<Session> session;
 		asio::steady_timer wake;
 		asio::steady_timer admission_wake;
-		std::optional<cluster::consensus::Event> input;
+		std::optional<kronuz::consensus::Event> input;
 		std::chrono::steady_clock::time_point received_at;
 		std::deque<ControlFrame> queue;
 		AppendObservation append;
-		cluster::consensus::NodeId peer = 0;
+		kronuz::consensus::NodeId peer = 0;
 		Lane lane = Lane::Control;
-		std::optional<cluster::consensus::TrustedSession> trusted;
+		std::optional<kronuz::consensus::TrustedSession> trusted;
 		bool ready = false, closing = false, writing = false, incoming = false, notified = false;
 		Connection(asio::any_io_executor executor, std::shared_ptr<Session> stream)
 			: session(std::move(stream)), wake(executor), admission_wake(executor) {}
@@ -206,7 +206,7 @@ class Peers : public std::enable_shared_from_this<Peers> {
 			node_->channel().session_closed(*connection->trusted);
 		}
 	}
-	std::shared_ptr<Connection> find(cluster::consensus::NodeId peer, Lane lane) const {
+	std::shared_ptr<Connection> find(kronuz::consensus::NodeId peer, Lane lane) const {
 		for (auto &connection : connections_)
 			if (connection->ready && !connection->closing && connection->peer == peer &&
 				connection->lane == lane)
@@ -265,14 +265,14 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		// payload policy. Session's common wire cap is narrowed after admission.
 		auto stream = std::make_shared<Session>(std::move(socket), context_, incoming_,
 												std::max(control_frame_bound(configuration_.consensus),
-														 cluster::consensus::maximum_transfer_bytes),
+														 kronuz::consensus::maximum_transfer_bytes),
 												options_.deadline);
 		auto connection = std::make_shared<Connection>(executor_, std::move(stream));
 		connection->lane = lane;
 		connections_.push_back(connection);
 		return connection;
 	}
-	asio::awaitable<void> connect(cluster::consensus::NodeId peer, Lane lane,
+	asio::awaitable<void> connect(kronuz::consensus::NodeId peer, Lane lane,
 								  asio::ip::tcp::endpoint address) {
 		while (!stopping_) {
 			auto socket = std::make_shared<asio::ip::tcp::socket>(executor_);
@@ -300,7 +300,7 @@ class Peers : public std::enable_shared_from_this<Peers> {
 		co_await run(connection, true, 0);
 	}
 	asio::awaitable<void> run(std::shared_ptr<Connection> connection, bool server,
-							  cluster::consensus::NodeId expected) {
+							  kronuz::consensus::NodeId expected) {
 		try {
 			auto local = prototype_;
 			local.lane = connection->lane;
@@ -313,11 +313,11 @@ class Peers : public std::enable_shared_from_this<Peers> {
 			connection->lane = remote.lane;
 			connection->ready = true;
 			connection->session->set_frame_bound(remote.lane == Lane::Bulk
-													 ? cluster::consensus::maximum_transfer_bytes
+													 ? kronuz::consensus::maximum_transfer_bytes
 													 : control_frame_bound(configuration_.consensus));
 			if (remote.lane == Lane::Bulk) {
 				connection->trusted =
-					cluster::consensus::TrustedSession{remote.node, local.connection, remote.connection};
+					kronuz::consensus::TrustedSession{remote.node, local.connection, remote.connection};
 				node_->channel().register_session(*connection->trusted);
 			}
 			++stats_.admitted;
@@ -339,12 +339,12 @@ class Peers : public std::enable_shared_from_this<Peers> {
 				if (connection->lane == Lane::Control) {
 					ByteCredit decoded(incoming_, control_frame_bound(configuration_.consensus) +
 													  configuration_.consensus.rpc_entries *
-														  sizeof(cluster::consensus::Entry));
-					connection->input.emplace(cluster::consensus::Receive{
+														  sizeof(kronuz::consensus::Entry));
+					connection->input.emplace(kronuz::consensus::Receive{
 						connection->peer, decode(frame.bytes(), configuration_.consensus)});
 					connection->received_at = std::chrono::steady_clock::now();
-					const auto &message = std::get<cluster::consensus::Receive>(*connection->input).message;
-					if (auto response = std::get_if<cluster::consensus::AppendResponse>(&message)) {
+					const auto &message = std::get<kronuz::consensus::Receive>(*connection->input).message;
+					if (auto response = std::get_if<kronuz::consensus::AppendResponse>(&message)) {
 						connection->append.expire(connection->received_at, options_.deadline, stats_.append);
 						connection->append.receive(*response, connection->received_at, stats_.append);
 					}
@@ -358,7 +358,7 @@ class Peers : public std::enable_shared_from_this<Peers> {
 							asio::redirect_error(asio::use_awaitable, error));
 					}
 				} else {
-					if (frame.bytes().size() > cluster::consensus::maximum_transfer_bytes)
+					if (frame.bytes().size() > kronuz::consensus::maximum_transfer_bytes)
 						throw std::invalid_argument("bulk frame bound");
 					std::span<const char> bytes(frame.bytes().data(), frame.bytes().size());
 					bool busy = false;
@@ -367,10 +367,10 @@ class Peers : public std::enable_shared_from_this<Peers> {
 							throw std::runtime_error("bulk session closed");
 						auto result = node_->channel().receive(*connection->trusted, bytes);
 						bytes = bytes.subspan(result.consumed);
-						if (result.result == cluster::consensus::TransferReceive::Closed || stopping_ ||
+						if (result.result == kronuz::consensus::TransferReceive::Closed || stopping_ ||
 							connection->closing)
 							throw std::runtime_error("bulk session closed");
-						busy = result.result == cluster::consensus::TransferReceive::Busy;
+						busy = result.result == kronuz::consensus::TransferReceive::Busy;
 						if (busy)
 							co_await pause(std::chrono::milliseconds(1));
 					}

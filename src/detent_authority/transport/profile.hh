@@ -5,8 +5,8 @@
 
 namespace detent::transport {
 inline Fingerprint profile_fingerprint(const detent::authority::Limits &application,
-									   const cluster::consensus::FixedConfiguration &configuration,
-									   const cluster::consensus::Limits &consensus) {
+									   const kronuz::consensus::FixedConfiguration &configuration,
+									   const kronuz::consensus::Limits &consensus) {
 	using kronuz::journal::put64;
 	auto voters = configuration.voters;
 	std::sort(voters.begin(), voters.end());

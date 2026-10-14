@@ -6,11 +6,11 @@
 #include <cstdio>
 #include <ctime>
 #include <filesystem>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 using namespace detent::authority;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 using Clock = std::chrono::steady_clock;
 namespace {
 void check(bool valid, const char *message) {

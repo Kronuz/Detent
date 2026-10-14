@@ -12,13 +12,14 @@
 #include <fcntl.h>
 #include <http_owned_stream.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
-#include <journal/asio_completion.h>
-#include <journal/native_completion.h>
+#include <journal/mutation.h>
+#include <completion/asio_completion.h>
+#include <completion/native_completion.h>
 #endif
 #include <fstream>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <limits>
-#include <metrics.h>
+#include <metrics.hh>
 #include <random>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -1588,10 +1589,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				std::rethrow_exception(failure);
 			}
 			for (auto &action : node.take_network_actions()) {
-				if (std::holds_alternative<cluster::consensus::Send>(action)) {
+				if (std::holds_alternative<kronuz::consensus::Send>(action)) {
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
-					peers->send(std::move(std::get<cluster::consensus::Send>(action)));
+					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
 				}
 			}
 			if (peers)
@@ -1992,7 +1993,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 						const auto id = ++next;
 						session_pending.emplace(id, held);
 						task.quorum_pending = true;
-						if (node.read(id) == cluster::consensus::SubmitResult::Accepted) {
+						if (node.read(id) == kronuz::consensus::SubmitResult::Accepted) {
 							task.quorum_pending = true;
 							subscription_reads.add();
 						} else {
@@ -2288,7 +2289,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 						// Reserve bookkeeping before accepting the read obligation.
 						pending.emplace(id, Tasks{first});
 						auto result = node.read(id);
-						if (result != cluster::consensus::SubmitResult::Accepted) {
+						if (result != kronuz::consensus::SubmitResult::Accepted) {
 							pending.erase(id);
 							std::lock_guard lock(mutex_);
 							queue_.push_front(std::move(first));
@@ -2403,11 +2404,11 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 						auto id = p.request;
 						pending.insert(std::move(p.waiter));
 						auto result = node.propose_prepared(id, *p.proposal);
-						if (result == cluster::consensus::SubmitResult::Accepted)
+						if (result == kronuz::consensus::SubmitResult::Accepted)
 							preparing.reset();
 						else {
 							p.waiter = pending.extract(id);
-							if (result == cluster::consensus::SubmitResult::Fenced)
+							if (result == kronuz::consensus::SubmitResult::Fenced)
 								p.cancelling = true;
 						}
 					}

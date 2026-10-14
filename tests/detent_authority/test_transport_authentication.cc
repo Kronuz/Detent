@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
 		return TlsOptions{(directory / (node + ".pem")).string(), (directory / (node + ".key")).string(),
 						  (directory / (ca + ".pem")).string()};
 	};
-	std::map<cluster::consensus::NodeId, Fingerprint> pins{{1, certificate_pin(directory / "one.pem")},
+	std::map<kronuz::consensus::NodeId, Fingerprint> pins{{1, certificate_pin(directory / "one.pem")},
 														   {2, certificate_pin(directory / "two.pem")}};
 	for (unsigned mode = 0; mode != 5; ++mode) {
 		asio::ssl::context server_context(asio::ssl::context::tls), client_context(asio::ssl::context::tls);
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 		const bool accepted = handshake(server.get(), client.get());
 		assert(accepted == (mode == 0 || mode == 3));
 		if (mode == 0) {
-			cluster::consensus::FixedConfiguration configuration;
+			kronuz::consensus::FixedConfiguration configuration;
 			configuration.local = 1;
 			configuration.voters = {1, 2};
 			validate_peer_identity(server_context, configuration, pins);

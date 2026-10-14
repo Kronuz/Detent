@@ -2,7 +2,7 @@
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)
 **Date:** 2026-10-10
-**Status:** Recommendation, for the implementing agent
+**Status:** Recommendation, for the implementing agent. Steps 1 and 2 landed on 2026-10-13 (see [Progress](#progress)).
 
 ## Abstract
 
@@ -204,3 +204,39 @@ Each step lands and qualifies independently, in this order, so every intermediat
 ## Next steps
 
 Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k lines out of `cluster`) at the lowest risk, because the stack already compiles as separate targets. Steps 3 through 7 can follow in any order once the new repositories exist, and the legacy Raft comparison (step 10) can start as soon as step 2 lands. Report the before-and-after line counts per repository in this document when each step lands, and update the Roadmap and Dependencies pages in `website/` to match.
+
+## Progress
+
+### Steps 1 and 2 (2026-10-13)
+
+`metrics`, `completion`, `journal`, and `consensus` are their own repositories, extracted from `cluster` with `git filter-repo` so their history comes along; `cluster`'s own history is not rewritten, and its removal is one ordinary commit (`e70b5fc`), so commit IDs cited in these docs keep resolving.
+
+| Repository | Lines (headers and sources) | Contents |
+| --- | ---: | --- |
+| `cluster` before | 20,918 | Bus, legacy Raft, length codec, liveness, and the four below |
+| `cluster` after | 2,502 | Bus, legacy Raft, length codec, liveness |
+| `metrics` | 254 | `metrics.hh`, its test and benchmark |
+| `completion` | 4,619 | `include/completion/`, its tests |
+| `journal` | 5,943 | `include/journal/`, tests, benchmarks, demo |
+| `consensus` | 7,359 | `include/consensus/`, tests, benchmarks, demo |
+
+Decisions made while splitting:
+
+1. **Names.** CMake targets follow the catalog's `<library>::<library>` convention: `metrics::metrics`, `completion::completion` (and `completion::asio`), `journal::journal`, `consensus::consensus`; `cluster::journal`, `cluster::journal_completion`, and `kronuz::completion` are gone. C++ namespaces are `kronuz::metrics`, `kronuz::journal` (the I/O types in `completion` keep it), and `kronuz::consensus` (renamed from `cluster::consensus`).
+2. **Layout.** Headers live in `include/<library>/`, so every `#include "completion/..."`, `"journal/..."`, and `"consensus/..."` line is unchanged. `metrics.h` became `metrics.hh` at the root, like the other single-header libraries.
+3. **Dependencies are explicit and pinned.** `completion` fetches `metrics`, `journal` fetches `completion`, `consensus` fetches `journal`, each at a tested commit. `consensus` links `journal` (the hidden dependency in Findings item 3). `reactor` is fetched only for `consensus`'s Asio completion test and benchmark.
+4. **Compatibility debris removed.** `journal/`'s eight forwarding headers are deleted; callers include `completion/` headers directly (Detent's `<journal/posix.h>`, `<journal/native_completion.h>`, and `<journal/asio_completion.h>` lines changed accordingly). The test that needed `consensus` (`completion_asio_test`) moved to `consensus`.
+5. **READMEs.** Commands, names, and paths are corrected; the rewrite of qualification logs into library documentation remains step 9.
+
+Detent: the top-level `CMakeLists.txt` fetches `cluster` only for the distributor's classic mode, `consensus` for the authority, and `completion` otherwise, each new one pinned. The authority links `consensus::consensus` instead of reaching `consensus/` through `cluster`'s include root; `terminal_retirement_bench` links `reactor::reactor`, since it uses Asio directly; about 90 references move from `cluster::consensus` to `kronuz::consensus`.
+
+Acceptance:
+
+- Each new library's suite passes on macOS: `metrics` 1 test, `completion` 11 (with the Asio adapter), `journal` 4, `consensus` 6 (with the Asio completion test); `cluster` keeps 4 (bus, Raft, Raft safety, liveness).
+- Detent, all options on (authority, distributor, managed agent, relay, benchmarks, examples, tests), compared with the same build before the split: 180 of 181 tests build and pass in both. The exception, `test_local_paged_compaction`, did not compile before the split either (uncommitted work in progress calls a missing `DiskStore::collect`). Under parallel ctest a different pair of timing-sensitive tests fails in each run, before the split and after; each passes alone, and the serial run passes.
+- Xapiand builds against the new `cluster`. Removing `cluster/metrics.h` also removes a header that shared a name with Xapiand's own `src/metrics.h` on the same include path.
+- strata builds and passes against `completion` directly.
+- Not yet run: Linux and FreeBSD (gate 1) and the Homebrew formula (gate 5).
+
+Next: step 3 (the authority peer transport into `consensus/transport/`), then steps 4 through 10.
+

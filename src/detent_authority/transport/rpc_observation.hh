@@ -2,7 +2,7 @@
 #include <chrono>
 #include <consensus/types.h>
 #include <limits>
-#include <metrics.h>
+#include <metrics.hh>
 #include <optional>
 
 namespace detent::transport {
@@ -17,7 +17,7 @@ class AppendObservation {
   public:
 	using Clock = std::chrono::steady_clock;
 	using Time = Clock::time_point;
-	std::uint64_t emit(const cluster::consensus::AppendRequest &request, Time now, AppendTimings &timings) {
+	std::uint64_t emit(const kronuz::consensus::AppendRequest &request, Time now, AppendTimings &timings) {
 		timings.attempts.add();
 		if (flight_ && flight_->term == request.term && flight_->rpc == request.rpc &&
 			flight_->probe == request.read_probe) {
@@ -31,7 +31,7 @@ class AppendObservation {
 		flight_ = Flight{request.term, request.rpc, request.read_probe, ++generation_, now};
 		return generation_;
 	}
-	bool receive(const cluster::consensus::AppendResponse &response, Time now, AppendTimings &timings) {
+	bool receive(const kronuz::consensus::AppendResponse &response, Time now, AppendTimings &timings) {
 		if (!flight_ || response.rpc != flight_->rpc || response.read_probe != flight_->probe ||
 			response.term < flight_->term) {
 			timings.unmatched.add();
@@ -54,8 +54,8 @@ class AppendObservation {
 
   private:
 	struct Flight {
-		cluster::consensus::Term term;
-		cluster::consensus::Token rpc, probe;
+		kronuz::consensus::Term term;
+		kronuz::consensus::Token rpc, probe;
 		std::uint64_t generation;
 		Time started;
 	};

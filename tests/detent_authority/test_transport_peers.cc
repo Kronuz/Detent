@@ -3,16 +3,17 @@
 #include <filesystem>
 #include <future>
 #include <iostream>
-#include <journal/asio_completion.h>
-#include <journal/native_completion.h>
-#include <journal/posix.h>
+#include <journal/mutation.h>
+#include <completion/asio_completion.h>
+#include <completion/native_completion.h>
+#include <completion/posix.h>
 #include <openssl/pem.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 using namespace detent::transport;
 using namespace detent::authority;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 using namespace std::chrono_literals;
 
 Fingerprint pin(const std::filesystem::path &path) {

@@ -109,13 +109,13 @@ template <class Socket> class BasicSession {
 			throw std::invalid_argument("invalid peer session bounds");
 	}
 	asio::awaitable<Hello> authenticate(bool server, Hello local,
-										std::map<cluster::consensus::NodeId, Fingerprint> voters,
+										std::map<kronuz::consensus::NodeId, Fingerprint> voters,
 										bool infer_lane = false) {
 		if (ready_ || closed_)
 			throw std::logic_error("peer authentication state");
 		OperationGuard guard(authenticating_);
 		AuthenticationGuard failure{*this};
-		cluster::consensus::FixedConfiguration membership;
+		kronuz::consensus::FixedConfiguration membership;
 		membership.local = local.node;
 		for (const auto &[node, pin] : voters)
 			membership.voters.push_back(node);

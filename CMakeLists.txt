@@ -142,14 +142,19 @@ if(DETENT_BUILD_DISTRIBUTOR)
     GIT_TAG        main)
 
   FetchContent_MakeAvailable(http_lib cluster generation_cache)
-elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  # Managed publication needs the standalone completion module, without
-  # importing the cluster bus, consensus or HTTP server targets.
-  FetchContent_Declare(cluster
-    GIT_REPOSITORY https://github.com/Kronuz/cluster.git
-    GIT_TAG        main
-    SOURCE_SUBDIR completion)
-  FetchContent_MakeAvailable(cluster)
+endif()
+# Completion I/O for local publication (the managed agent and the relay), and the
+# durable consensus (which brings journal and completion) for the authority.
+if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  FetchContent_Declare(consensus
+    GIT_REPOSITORY https://github.com/Kronuz/consensus.git
+    GIT_TAG        0042bc3091ace876a857e4b3a6ff6df1def6cfd6)
+  FetchContent_MakeAvailable(consensus)
+elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+  FetchContent_Declare(completion
+    GIT_REPOSITORY https://github.com/Kronuz/completion.git
+    GIT_TAG        373f02a219a91e32af035abf6fb909a8211aef8b)
+  FetchContent_MakeAvailable(completion)
 endif()
 
 FetchContent_Declare(detent_logger

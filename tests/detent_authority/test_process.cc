@@ -3,14 +3,14 @@
 #include <csignal>
 #include <filesystem>
 #include <iostream>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 using namespace detent::authority;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 namespace {
 NodeOptions options() {
 	NodeOptions o;

@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <http_owned_stream.h>
 #include <iostream>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <rapidjson/document.h>
 #include <source_location>
 #include <unistd.h>
@@ -149,21 +149,21 @@ std::uint64_t seed_checkpoint(const a::ServiceOptions &options, std::size_t coun
 	store.create(identity);
 	while (!store.inventory_step(128).complete) {
 	}
-	const auto initialization = cluster::consensus::encode_initialization(options.node.configuration);
+	const auto initialization = kronuz::consensus::encode_initialization(options.node.configuration);
 	auto append = store.reserve_append(kronuz::journal::AdmissionClass::Control, initialization.size());
 	check(bool(append));
 	store.append(*append, initialization);
 	auto replacement = store.reserve_replacement(
-		image.size(), cluster::consensus::checkpoint_detail::maximum_size(options.node.consensus));
+		image.size(), kronuz::consensus::checkpoint_detail::maximum_size(options.node.consensus));
 	check(bool(replacement));
 	store.begin_artifact(*replacement, kronuz::journal::ArtifactPart::Application);
 	for (std::size_t offset = 0; offset < image.size(); offset += 65536)
 		store.write_chunk(*replacement, std::string_view(image).substr(offset, 65536));
 	const auto application = store.finish_artifact(*replacement);
-	cluster::consensus::RecoveredState recovered{
+	kronuz::consensus::RecoveredState recovered{
 		options.node.configuration, {1, 1, index}, index, 1, {}, index};
 	const auto bundle =
-		cluster::consensus::encode_checkpoint(recovered, 1, application, options.node.consensus, 0x44544101);
+		kronuz::consensus::encode_checkpoint(recovered, 1, application, options.node.consensus, 0x44544101);
 	store.begin_artifact(*replacement, kronuz::journal::ArtifactPart::Bundle);
 	store.write_chunk(*replacement, bundle);
 	store.finish_artifact(*replacement);

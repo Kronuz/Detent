@@ -6,12 +6,12 @@
 #include <cstdio>
 #include <fcntl.h>
 #include <fstream>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <random>
 #include <sys/stat.h>
 #include <unistd.h>
 using namespace detent::authority;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 namespace {
 void check(bool value, const char *message) {
 	if (!value)

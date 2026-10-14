@@ -50,17 +50,17 @@ int main(int argc, char **argv) {
 			state->collect(8192);
 	}
 	require(state->size() == 500000);
-	cluster::consensus::FixedConfiguration config;
+	kronuz::consensus::FixedConfiguration config;
 	config.local = 1;
 	config.voters = {1};
 	config.cluster[0] = 'c';
 	config.configuration[0] = 'v';
-	cluster::consensus::RecoveredState recovered;
+	kronuz::consensus::RecoveredState recovered;
 	recovered.configuration = config;
 	recovered.hard = {1, 1, 0};
 	for (std::uint64_t i = 1; i <= 65536; ++i)
-		recovered.entries.push_back({i, 1, cluster::consensus::EntryKind::Command, std::string(1024, 'x')});
-	auto core = std::make_unique<cluster::consensus::Core>(config, std::move(recovered));
+		recovered.entries.push_back({i, 1, kronuz::consensus::EntryKind::Command, std::string(1024, 'x')});
+	auto core = std::make_unique<kronuz::consensus::Core>(config, std::move(recovered));
 	std::uint64_t max = 0, total = 0, turns = 0, heartbeats = 0, reset = 0;
 	std::uint64_t peak_state = 0, peak_log = 0, peak_tail = 0, peak_wall = 0, peak_turn = 0;
 	if (synchronous) {
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 			CommandWorkBudget budget;
 			state->collect(budget);
 			const auto state_finished = cpu();
-			cluster::consensus::detail::RetirementBudget log_budget{32, 1024 * 1024};
+			kronuz::consensus::detail::RetirementBudget log_budget{32, 1024 * 1024};
 			core->retirement_step(log_budget);
 			const auto log_finished = cpu();
 			const auto turn_started = begin;

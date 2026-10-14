@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 namespace detent::authority {
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 namespace {
 std::shared_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal::IO> io) {
 	if (!io) {
@@ -116,8 +116,8 @@ void Node::retirement_step(CommandWorkBudget &budget) {
 	}
 	state_.collect(budget);
 	if (recorder_) recorder_->collect(budget);
-	cluster::consensus::detail::RetirementBudget payloads{8, options_.consensus.command_bytes};
-	cluster::consensus::detail::retire_actions(network_, payloads);
+	kronuz::consensus::detail::RetirementBudget payloads{8, options_.consensus.command_bytes};
+	kronuz::consensus::detail::retire_actions(network_, payloads);
 	unsigned local = 8;
 	while (local && !completions_.empty()) {
 		completions_.pop_back();

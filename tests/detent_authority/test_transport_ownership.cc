@@ -3,7 +3,7 @@
 #include <iostream>
 
 using namespace detent::transport;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 struct Channel {
 	std::optional<TransferOutput> current;
 	std::size_t consumed = 0;

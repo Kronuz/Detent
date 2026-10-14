@@ -9,14 +9,14 @@ namespace detent::transport {
 using Fingerprint = std::array<unsigned char, 32>;
 enum class Lane : std::uint64_t { Control = 1, Bulk = 2 };
 struct Hello {
-	cluster::consensus::Identity cluster{}, group{}, epoch{}, connection{};
-	cluster::consensus::NodeId node = 0;
+	kronuz::consensus::Identity cluster{}, group{}, epoch{}, connection{};
+	kronuz::consensus::NodeId node = 0;
 	Lane lane = Lane::Control;
 	Fingerprint profile{};
 };
 inline constexpr std::size_t hello_size = 120;
 inline std::string encode_hello(const Hello &hello) {
-	using namespace cluster::consensus;
+	using namespace kronuz::consensus;
 	if (!hello.node || hello.cluster == Identity{} || hello.group == Identity{} ||
 		hello.epoch == Identity{} || hello.connection == Identity{} ||
 		(hello.lane != Lane::Control && hello.lane != Lane::Bulk))
@@ -46,7 +46,7 @@ inline Hello decode_hello(std::string_view bytes) {
 }
 // Certificate admission must have established authenticated_node independently.
 inline void validate_hello(const Hello &remote, const Hello &local,
-						   cluster::consensus::NodeId authenticated_node, Lane lane) {
+						   kronuz::consensus::NodeId authenticated_node, Lane lane) {
 	if (remote.node != authenticated_node || remote.node == local.node || remote.lane != lane ||
 		remote.cluster != local.cluster || remote.group != local.group || remote.epoch != local.epoch ||
 		remote.profile != local.profile || remote.connection == local.connection)

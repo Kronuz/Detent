@@ -6,13 +6,13 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
-#include <journal/posix.h>
+#include <completion/posix.h>
 #include <rapidjson/document.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 using namespace detent::authority;
-using namespace cluster::consensus;
+using namespace kronuz::consensus;
 namespace {
 bool completion_storage = false;
 struct Cluster {
