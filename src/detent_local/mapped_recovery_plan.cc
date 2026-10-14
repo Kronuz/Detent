@@ -1,5 +1,6 @@
 #include "mapped_recovery_admission.hh"
 #include "paged_plan.hh"
+#include "warm_recovery_eligibility.hh"
 namespace detent::local::detail {
 namespace d = distribution;
 void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandle<LeasedPagedRoot> prior) {
@@ -13,14 +14,8 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 		expected_counts_ = plan.counts();
 		if (plan.bytes()->account() != heap_)
 			throw std::invalid_argument("mapped admission plan account mismatch");
-		warm_ = prior && prior->descriptor() == base_ && prior->directory_identity() == directory_ &&
-				prior->storage_identity() == storage_ && prior->registry()->uses_account(heap_);
-		if (warm_)
-			for (std::size_t i = 0; i < prior->registry()->inputs().size(); ++i)
-				if (prior->registry()->mapping(i)->storage_account() != mappings_) {
-					warm_ = false;
-					break;
-				}
+		warm_ = prior && prior->descriptor() == base_ &&
+				eligible_warm_recovery(prior, plan.root(), directory_, storage_, heap_, mappings_);
 		std::size_t count = plan.segments().size();
 		if (!warm_)
 			for (std::size_t i = 0; plan.registry() && i < plan.registry()->inputs().size(); ++i)

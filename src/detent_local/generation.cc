@@ -8,6 +8,7 @@
 #include "recovery_context.hh"
 #include "resources.hh"
 #include "segment_names.hh"
+#include "warm_recovery_eligibility.hh"
 #include "warm_registry_merge.hh"
 #include <algorithm>
 #include <cerrno>
@@ -349,20 +350,8 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 												 std::uint64_t(directory_info.st_ino)};
 				if (context.admission)
 					context.admission->bind(descriptor, identity, storage);
-				bool warm =
-					prior && prior->directory_identity() == identity &&
-					prior->storage_identity() == storage && prior->registry()->uses_account(account) &&
-					prior->root().cursor.same_identity(root.cursor) &&
-					root.cursor.revision >= prior->root().cursor.revision &&
-					root.profile == prior->root().profile && root.namespaces == prior->root().namespaces;
-				if (warm) {
-					const auto registry = prior->registry();
-					for (std::size_t i = 0; i < registry->inputs().size(); ++i)
-						if (registry->mapping(i)->storage_account() != mapping_account) {
-							warm = false;
-							break;
-						}
-				}
+				const bool warm =
+					detail::eligible_warm_recovery(prior, root, identity, storage, account, mapping_account);
 				if (context.admission)
 					require(context.admission->warm() == warm);
 				const bool progress = warm && detail::reuses_paged_state(prior->root(), root);

@@ -4,6 +4,7 @@
 #include "paged_disk_fixture.hh"
 #include "recovery_context.hh"
 #include "store_core.hh"
+#include "warm_recovery_eligibility.hh"
 #include <chrono>
 #include <thread>
 struct Resident final : d::RetirementNode {};
@@ -70,6 +71,26 @@ int main() {
 					builder.step(budget);
 				}
 				plan.emplace(builder.take());
+			}
+			{
+				const auto prior = core.verified_paged;
+				auto target = plan->root();
+				auto eligible = [&] {
+					return l::detail::eligible_warm_recovery(prior, target, recovered.directory_identity(), storage,
+															 heap, mappings);
+				};
+				require(eligible());
+				++target.namespaces;
+				require(!eligible());
+				target = plan->root();
+				target.cursor.restore_epoch[0] ^= 1;
+				require(!eligible());
+				target = plan->root();
+				target.cursor.revision = prior->root().cursor.revision - 1;
+				require(!eligible());
+				target = plan->root();
+				target.profile = {2, 1};
+				require(!eligible());
 			}
 			{
 				auto other_heap = std::make_shared<d::StorageLedger>(1024 * 1024);
