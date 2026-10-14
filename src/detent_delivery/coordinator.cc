@@ -525,6 +525,7 @@ struct Coordinator::Impl {
 			refusal = std::current_exception();
 		}
 		if (refusal) {
+			l::detail::ManagedRecovery::yield_optional(*store);
 			++diagnostic.failures;
 			diagnostic.error = refusal;
 			paged_candidate.reset();
@@ -861,6 +862,12 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				}
 			} catch (const MaintenanceFailure &) {
 				throw;
+			} catch (const d::StoragePressure &) {
+				l::detail::ManagedRecovery::yield_optional(*store);
+				failure = std::current_exception();
+			} catch (const std::bad_alloc &) {
+				l::detail::ManagedRecovery::yield_optional(*store);
+				failure = std::current_exception();
 			} catch (const SessionResetError &error) {
 				failure = std::current_exception();
 				if (options.publication_sink && fatal_source_reset(error.reason()))

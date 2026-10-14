@@ -1722,6 +1722,13 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	}
 	return store;
 }
+bool detail::ManagedRecovery::yield_optional(DiskStore &store) noexcept {
+	auto &core = *store.impl_->core;
+	const bool retained = std::any_of(core.certificates.begin(), core.certificates.end(),
+									  [](const auto &entry) { return static_cast<bool>(entry); });
+	core.drop_certificates();
+	return retained;
+}
 detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore &store) {
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)

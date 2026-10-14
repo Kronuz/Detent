@@ -14,6 +14,7 @@ class ManagedRecovery {
   public:
 	// Capture on the store executor; immutable capabilities may run on a worker.
 	static ManagedRecoveryContext capture(const DiskStore &);
+	static bool yield_optional(DiskStore &) noexcept;
 	static RecoveredGeneration recover(const std::filesystem::path &, ManagedRecoveryContext);
 	static void settle_failure(DiskStore &, const ManagedRecoveryContext &, std::exception_ptr);
 };

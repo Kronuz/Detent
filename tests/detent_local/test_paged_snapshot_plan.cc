@@ -1,9 +1,13 @@
 #include "detent_local/disk_store.hh"
 #include "managed_recovery.hh"
 #include "paged_disk_fixture.hh"
+#include "paged_progress_fixture.hh"
+#include "paged_reuse.hh"
 #include "paged_snapshot_plan.hh"
+#include "store_core.hh"
 #include <completion/native_completion.h>
 #include <source_location>
+#include <thread>
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("snapshot plan invariant at " + std::to_string(location.line()));
@@ -131,6 +135,42 @@ int main() {
 		store->confirm_recovered(base);
 		check(base.view().get("app", "count").value() == INT64_MIN);
 		generation.fill('b');
+		{
+			auto source = progress(base.descriptor().cursor, heap);
+			const auto required_capacity = heap->used();
+			auto core = context.owner.lock();
+			check(static_cast<bool>(core));
+			for (auto &entry : core->certificates) {
+				entry = domain.make<l::detail::PagedDependencyCertificate>(heap, domain.factory());
+				entry->capture(base);
+			}
+			const auto selected = store->selection().descriptor;
+			const auto committed = store->stats().used;
+			const auto occupied = heap->used();
+			auto pressure = heap->admit(heap->limit() - occupied);
+			bool refused = false;
+			try {
+				l::detail::PagedPlanBuilder blocked(base, source, generation, domain.factory(), heap);
+			} catch (const d::StoragePressure &) {
+				refused = true;
+			}
+			check(refused && l::detail::ManagedRecovery::yield_optional(*store));
+			check(!l::detail::ManagedRecovery::yield_optional(*store));
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+			while (heap->used() > pressure.bytes() + required_capacity &&
+				   std::chrono::steady_clock::now() < deadline)
+				std::this_thread::yield();
+			check(heap->used() <= pressure.bytes() + required_capacity);
+			l::detail::PagedPlanBuilder retry(base, source, generation, domain.factory(), heap);
+			while (!retry.done()) {
+				l::ValidationBudget budget{1, 1};
+				retry.step(budget);
+			}
+			check(retry.take().descriptor().cursor.revision == source->target().revision);
+			check(store->selection().descriptor == selected && store->stats().used == committed &&
+				  store->stats().reserved == l::DiskUsage{} &&
+				  base.view().get("app", "count").value() == INT64_MIN);
+		}
 		l::detail::PagedSnapshotPlanBuilder unchanged(input(heap, 42), base, context.directory,
 													  context.storage, generation, domain.factory(), heap,
 													  options.recovery_limits);
