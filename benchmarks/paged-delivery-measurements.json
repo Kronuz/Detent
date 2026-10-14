@@ -1,0 +1,52 @@
+{
+  "source_commit": "081856e",
+  "platform": "Intel macOS, Release Apple Clang",
+  "workload": "500000 synthetic app knobs; every integer, boolean default, switch fallback and hashed beta cohort checked after recovery",
+  "scenarios": [
+    "fresh relay publication",
+    "pinned flat-to-paged migration",
+    "progress, confirmed compaction and delta"
+  ],
+  "limits": "Single runs concurrent with Linux/FreeBSD qualification; managed admitted capacities are not RSS; no fleet throughput, power or cost claim",
+  "commands": [
+    "ctest --test-dir build --output-on-failure -R test_delivery_coordinator_subscription-relay-paged.*500000 -j 1"
+  ],
+  "measurements": [
+    {
+      "records": 500000,
+      "managed_heap_peak": 175884798,
+      "cache_heap_peak": 29598728,
+      "control_heap_peak": 0,
+      "combined_heap_peak": 204750662,
+      "mapped_peak": 116834304,
+      "disk_peak": 116792453,
+      "timer_turns": 28795,
+      "maximum_timer_lateness_us": 734,
+      "wall_ms": 38678
+    },
+    {
+      "records": 500000,
+      "managed_heap_peak": 176018590,
+      "cache_heap_peak": 29598728,
+      "control_heap_peak": 0,
+      "combined_heap_peak": 204884454,
+      "mapped_peak": 198836224,
+      "disk_peak": 157792848,
+      "timer_turns": 28789,
+      "maximum_timer_lateness_us": 9908,
+      "wall_ms": 40535
+    },
+    {
+      "records": 500000,
+      "managed_heap_peak": 175884798,
+      "cache_heap_peak": 29732312,
+      "control_heap_peak": 0,
+      "combined_heap_peak": 204750662,
+      "mapped_peak": 117895168,
+      "disk_peak": 117854238,
+      "timer_turns": 22634,
+      "maximum_timer_lateness_us": 2152,
+      "wall_ms": 33027
+    }
+  ]
+}
