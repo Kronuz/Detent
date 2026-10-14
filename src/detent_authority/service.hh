@@ -4,7 +4,7 @@
 #include "node.hh"
 #include "subscription.hh"
 #include "subscription_admission.hh"
-#include "transport/peers.hh"
+#include "peers.hh"
 #include <chrono>
 #include <connection_admission.h>
 #include <deque>
@@ -30,8 +30,8 @@ struct ServiceOptions {
 	NodeOptions node;
 	std::filesystem::path directory;
 	std::vector<Credential> credentials;
-	std::optional<transport::PeerOptions> peers;
-	std::optional<transport::TlsOptions> publisher_tls;
+	std::optional<kronuz::consensus::transport::PeerOptions> peers;
+	std::optional<reactor::tls::Options> publisher_tls;
 	asio::ip::address publisher_bind = asio::ip::make_address(detent_http::kLoopbackHost);
 	std::string publisher_name = "localhost";
 	// Linux queue setup policy; namespace/open composites may still use bounded fallback.

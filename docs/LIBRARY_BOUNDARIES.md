@@ -2,7 +2,7 @@
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)
 **Date:** 2026-10-10
-**Status:** Recommendation, for the implementing agent. Steps 1 and 2 landed on 2026-10-13 (see [Progress](#progress)).
+**Status:** Recommendation, for the implementing agent. Steps 1 to 3, and the TLS part of step 6, landed on 2026-10-13 (see [Progress](#progress)).
 
 ## Abstract
 
@@ -241,4 +241,14 @@ Acceptance:
 - Not yet run: FreeBSD (gate 1) and the Homebrew formula (gate 5).
 
 Next: step 3 (the authority peer transport into `consensus/transport/`), then steps 4 through 10.
+
+### Step 3, and the TLS part of step 6 (2026-10-13)
+
+The authority peer transport lives in `consensus` as the optional target `consensus::transport` (`include/consensus/transport/`, namespace `kronuz::consensus::transport`): codec, hello, peers, RPC observation, session, snapshot writes, TLS pinning, and the profile fingerprint. The `DTHL0001` hello, the `DTC1` codec, and the `DTPROF01` fingerprint are byte-identical.
+
+- **Decoupled from Detent.** `Peers` was built on Detent's `authority::Node` and `NodeOptions`; it is now `Peers<Host>` for any host with `worker()` and `channel()` (the `PeerHost` concept), configured by a `PeerConfiguration` (voters, consensus limits, cluster, group, epoch, profile). `profile_fingerprint` takes the application's profile bytes instead of Detent's `Limits`, and hashes through OpenSSL's EVP (the same SHA-256; the `sha256` library's `SHA256` class and OpenSSL's `SHA256()` function collide once both are visible). Detent's binding is `src/detent_authority/peers.hh`: `AuthorityPeers` (`Peers<Node>`) and `peer_configuration(NodeOptions)`, which fingerprints `semantic_profile(application)`.
+- **TLS in `reactor`.** `detent_transport/tls.hh` became `reactor_tls.h` (target `reactor::tls`, when OpenSSL 3 is found): `reactor::tls::Options`, `Role::{Peer, Server, Client}`, `configure()`, and `bind_hostname()` (the publisher-client binding). The peer transport, Detent's delivery client and configuration, the relay, `detentd`, and the HTTPS health client all use it, and `include/detent_transport/tls.hh` is gone. Detent pins `reactor` itself, ahead of `http` and `cluster`, so a managed-agent-only build has it too. The HTTPS client (`detent_transport/https_client.hh`) stays in Detent until the rest of step 6.
+- **Tests.** `consensus` takes the transport tests that do not need Detent's node (codec, TLS sessions over sockets and pipes, certificate authentication, ownership, RPC observation) with the certificate fixture, and adds a test that instantiates `Peers` over a minimal host: 14 tests pass. Detent keeps `test_transport_peers` (three voters over its node, with and without completion storage), `test_transport_https`, and the multi-voter process tests.
+
+Acceptance: `reactor` 5 tests (with the new TLS test) and `consensus` 14 pass on macOS. Detent with every option on builds and, run serially, passes 174 of its 175 tests (181 before, less the 6 that moved); the remaining one is the in-progress `test_local_paged_compaction`, which does not compile in either state.
 

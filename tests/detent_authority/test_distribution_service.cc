@@ -4,7 +4,7 @@
 #ifdef DETENT_TEST_MANAGED_DELIVERY
 #include "detent_delivery/client.hh"
 #endif
-#include "transport/tls.hh"
+#include "consensus/transport/tls.h"
 #include <filesystem>
 #include <http_asio_tls.h>
 #include <iostream>
@@ -35,10 +35,10 @@ Response request(asio::ip::tcp::endpoint endpoint, const std::filesystem::path &
 				 const std::string &body, std::string_view token) {
 	asio::io_context io;
 	asio::ssl::context tls(asio::ssl::context::tls);
-	detent::transport::configure_tls(tls, {"", "", (cert / "ca.pem").string()},
-									 detent::transport::TlsRole::PublisherClient);
+	reactor::tls::configure(tls, {"", "", (cert / "ca.pem").string()},
+									 reactor::tls::Role::Client);
 	asio::ssl::stream<asio::ip::tcp::socket> socket(io, tls);
-	detent::transport::configure_publisher_client(socket.native_handle(), "localhost");
+	reactor::tls::bind_hostname(socket.native_handle(), "localhost");
 	socket.next_layer().connect(endpoint);
 	socket.handshake(asio::ssl::stream_base::client);
 	const auto wire = "POST " + std::string(path) + " HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer " +
@@ -139,9 +139,9 @@ int main(int argc, char **argv) {
 		for (unsigned run = 0; run < 2; ++run) {
 			a::Service authority(options);
 			auto tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-			detent::transport::configure_tls(
+			reactor::tls::configure(
 				*tls, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
-				detent::transport::TlsRole::PublisherServer);
+				reactor::tls::Role::Server);
 			asio::io_context io;
 			asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
 			const auto endpoint = reservation.local_endpoint();
@@ -223,8 +223,8 @@ int main(int argc, char **argv) {
 					  .status == 400);
 #ifdef DETENT_TEST_MANAGED_DELIVERY
 			auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-			detent::transport::configure_tls(*client_tls, {"", "", (cert / "ca.pem").string()},
-											 detent::transport::TlsRole::PublisherClient);
+			reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
+											 reactor::tls::Role::Client);
 			for (bool compressed : {false, true}) {
 				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 				{

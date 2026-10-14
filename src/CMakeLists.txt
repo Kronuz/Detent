@@ -51,7 +51,7 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   target_link_libraries(detent_delivery_coordinator PUBLIC detent::delivery_transport detent::local_publication)
   add_library(detent::delivery_coordinator ALIAS detent_delivery_coordinator)
   add_library(detent_delivery_config detent_delivery/configuration.cc)
-  target_link_libraries(detent_delivery_config PUBLIC detent::delivery_coordinator)
+  target_link_libraries(detent_delivery_config PUBLIC detent::delivery_coordinator reactor::tls)
   add_library(detent::delivery_config ALIAS detent_delivery_config)
 endif()
 
@@ -105,7 +105,8 @@ if(DETENT_BUILD_DISTRIBUTOR)
     detent_http::detent_http
     http::http
     cluster::cluster
-    generation_cache::generation_cache)
+    generation_cache::generation_cache
+    reactor::tls)
 
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
@@ -143,7 +144,7 @@ include(GNUInstallDirs)
 if(DETENT_BUILD_RELAY)
   find_package(OpenSSL 3.0 REQUIRED)
   add_library(detent_relay_host detent_relay/host.cc)
-  target_link_libraries(detent_relay_host PUBLIC detent::relay_http detent::relay_config PRIVATE detent_logging detent_cli OpenSSL::SSL OpenSSL::Crypto)
+  target_link_libraries(detent_relay_host PUBLIC detent::relay_http detent::relay_config PRIVATE detent_logging detent_cli reactor::tls)
   add_executable(detent-relay detent_relay/main.cc)
   target_link_libraries(detent-relay PRIVATE detent_relay_host detent_cli detent_logging http_parser::http_parser)
   install(TARGETS detent-relay RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

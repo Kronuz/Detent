@@ -142,7 +142,7 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	input->resize(4096);
 	auto wire = request(options, resource, action);
 	asio::ssl::stream<asio::ip::tcp::socket> socket(executor, *options.tls_context);
-	transport::configure_publisher_client(socket.native_handle(), options.hostname);
+	reactor::tls::bind_hostname(socket.native_handle(), options.hostname);
 	std::exception_ptr failure;
 	std::optional<TransportResponse> result;
 	try {

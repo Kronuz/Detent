@@ -1,5 +1,5 @@
 #pragma once
-#include "detent_transport/tls.hh"
+#include "reactor_tls.h"
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/use_future.hpp>
@@ -8,13 +8,13 @@
 
 namespace detent::transport {
 namespace detail {
-inline asio::awaitable<std::string> fetch_health(TlsOptions options, asio::ip::tcp::endpoint endpoint,
+inline asio::awaitable<std::string> fetch_health(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint,
 												 std::string hostname, std::size_t maximum_bytes) {
 	auto executor = co_await asio::this_coro::executor;
 	asio::ssl::context context(asio::ssl::context::tls);
-	configure_tls(context, options, TlsRole::PublisherClient);
+	reactor::tls::configure(context, options, reactor::tls::Role::Client);
 	asio::ssl::stream<asio::ip::tcp::socket> stream(executor, context);
-	configure_publisher_client(stream.native_handle(), hostname);
+	reactor::tls::bind_hostname(stream.native_handle(), hostname);
 	co_await stream.next_layer().async_connect(endpoint, asio::use_awaitable);
 	co_await stream.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
 	const std::string request =
@@ -64,7 +64,7 @@ inline asio::awaitable<std::string> fetch_health(TlsOptions options, asio::ip::t
 struct HealthResult {
 	std::variant<std::string, std::exception_ptr> value;
 };
-inline asio::awaitable<HealthResult> health_result(TlsOptions options, asio::ip::tcp::endpoint endpoint,
+inline asio::awaitable<HealthResult> health_result(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint,
 												   std::string hostname, std::size_t maximum_bytes) {
 	try {
 		co_return HealthResult{
@@ -74,7 +74,7 @@ inline asio::awaitable<HealthResult> health_result(TlsOptions options, asio::ip:
 	}
 }
 inline asio::awaitable<std::string>
-health_before_deadline(TlsOptions options, asio::ip::tcp::endpoint endpoint, std::string hostname,
+health_before_deadline(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint, std::string hostname,
 					   std::chrono::milliseconds timeout, std::size_t maximum_bytes) {
 	auto executor = co_await asio::this_coro::executor;
 	asio::steady_timer timer(executor, timeout);
@@ -91,7 +91,7 @@ health_before_deadline(TlsOptions options, asio::ip::tcp::endpoint endpoint, std
 }
 } // namespace detail
 // CLI convenience: all network operations have one absolute asynchronous deadline.
-inline std::string https_health(TlsOptions options, asio::ip::tcp::endpoint endpoint, std::string hostname,
+inline std::string https_health(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint, std::string hostname,
 								std::chrono::milliseconds timeout = std::chrono::seconds(2),
 								std::size_t maximum_bytes = 65536) {
 	if (timeout <= std::chrono::milliseconds::zero() || !maximum_bytes ||

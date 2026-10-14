@@ -255,8 +255,8 @@ int run(const std::vector<std::string>& input_args) {
 			if (authority_options.publisher_tls) {
 				publisher_https = true;
 				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-				detent::transport::configure_tls(*context, *authority_options.publisher_tls,
-					detent::transport::TlsRole::PublisherServer);
+				reactor::tls::configure(*context, *authority_options.publisher_tls,
+					reactor::tls::Role::Server);
 				connection = http::tls_connection_factory_timed(std::move(context));
 			}
 			app = std::make_unique<detent::authority::Service>(std::move(authority_options));

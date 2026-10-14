@@ -1,5 +1,5 @@
 #include "transport/https_client.hh"
-#include "transport/tls.hh"
+#include "consensus/transport/tls.h"
 #include <cassert>
 #include <condition_variable>
 #include <filesystem>
@@ -45,9 +45,9 @@ int main(int argc, char **argv) {
 	std::filesystem::path cert(argv[1]);
 	App app;
 	auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-	detent::transport::configure_tls(
+	reactor::tls::configure(
 		*context, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
-		detent::transport::TlsRole::PublisherServer);
+		reactor::tls::Role::Server);
 	asio::io_context io;
 	asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
 	auto endpoint = reservation.local_endpoint();
@@ -58,10 +58,10 @@ int main(int argc, char **argv) {
 	service.set_bind_options(bind);
 	service.start(endpoint.port());
 	asio::ssl::context client_context(asio::ssl::context::tls);
-	detent::transport::configure_tls(client_context, {"", "", (cert / "ca.pem").string()},
-									 detent::transport::TlsRole::PublisherClient);
+	reactor::tls::configure(client_context, {"", "", (cert / "ca.pem").string()},
+									 reactor::tls::Role::Client);
 	asio::ssl::stream<asio::ip::tcp::socket> client(io, client_context);
-	detent::transport::configure_publisher_client(client.native_handle(), "localhost");
+	reactor::tls::bind_hostname(client.native_handle(), "localhost");
 	client.next_layer().connect(endpoint);
 	client.handshake(asio::ssl::stream_base::client);
 	asio::write(client, asio::buffer(std::string("GET /defer HTTP/1.1\r\nHost: localhost\r\n\r\n")));
@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 	assert(wire.find("deferred") != std::string::npos);
 	assert(wire.find("fast") != std::string::npos);
 	assert(wire.find("HTTP/1.1 200", wire.find("HTTP/1.1 200") + 1) != std::string::npos);
-	const detent::transport::TlsOptions client_options{"", "", (cert / "ca.pem").string()};
+	const reactor::tls::Options client_options{"", "", (cert / "ca.pem").string()};
 	assert(detent::transport::https_health(client_options, endpoint, "localhost") == "healthy");
 	for (const auto &[hostname, bound] :
 		 std::vector<std::pair<std::string, std::size_t>>{{"wrong.example", 65536}, {"localhost", 16}}) {
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
 	capped.set_bind_options(bind);
 	capped.start(capped_endpoint.port());
 	asio::ssl::stream<asio::ip::tcp::socket> held(io, client_context);
-	detent::transport::configure_publisher_client(held.native_handle(), "localhost");
+	reactor::tls::bind_hostname(held.native_handle(), "localhost");
 	held.next_layer().connect(capped_endpoint, error);
 	assert(!error);
 	held.handshake(asio::ssl::stream_base::client);
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 			 "", "GET /fast HTTP/1.1\r\nH",
 			 "POST /fast HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000\r\n\r\nx"}) {
 		asio::ssl::stream<asio::ip::tcp::socket> slow(io, client_context);
-		detent::transport::configure_publisher_client(slow.native_handle(), "localhost");
+		reactor::tls::bind_hostname(slow.native_handle(), "localhost");
 		slow.next_layer().connect(timed_endpoint);
 		slow.handshake(asio::ssl::stream_base::client);
 		const auto started = std::chrono::steady_clock::now();
@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
 	}
 	{
 		asio::ssl::stream<asio::ip::tcp::socket> rejected(io, client_context);
-		detent::transport::configure_publisher_client(rejected.native_handle(), "localhost");
+		reactor::tls::bind_hostname(rejected.native_handle(), "localhost");
 		rejected.next_layer().connect(timed_endpoint);
 		rejected.handshake(asio::ssl::stream_base::client);
 		asio::write(rejected,

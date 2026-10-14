@@ -287,13 +287,13 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 			std::filesystem::path p(text(field(value, key), 4096));
 			return (p.is_relative() ? path.parent_path() / p : p).string();
 		};
-		return transport::TlsOptions{resolve("certificate"), resolve("key"), resolve("ca")};
+		return reactor::tls::Options{resolve("certificate"), resolve("key"), resolve("ca")};
 	};
 	check(d.HasMember("node") == d.HasMember("voters"), "node and voters must be configured together");
 	if (d.HasMember("voters")) {
 		o.node.configuration.local = number(field(d, "node"));
 		o.node.configuration.voters.clear();
-		transport::PeerOptions peers;
+		kronuz::consensus::transport::PeerOptions peers;
 		peers.tls = tls(field(d, "peer_tls"));
 		auto &voters = field(d, "voters");
 		check(voters.IsArray() && voters.Size() >= 3 && voters.Size() <= o.node.consensus.voters &&
@@ -310,7 +310,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 				  "voter address");
 			auto hex = text(field(voter, "certificate_sha256"));
 			check(hex.size() == 64, "certificate fingerprint length");
-			transport::Fingerprint fingerprint;
+			kronuz::consensus::transport::Fingerprint fingerprint;
 			auto nibble = [](char c) -> unsigned {
 				if (c >= '0' && c <= '9')
 					return c - '0';
@@ -1096,7 +1096,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 	auto accounting_ = service.accounting_;
 	asio::steady_timer timer(io);
 	std::shared_ptr<Node> owned_node;
-	std::shared_ptr<transport::Peers> peers;
+	std::shared_ptr<AuthorityPeers> peers;
 
 	std::map<std::uint64_t, std::vector<std::shared_ptr<Task>>> pending;
 	std::uint64_t next = 0;
@@ -1341,7 +1341,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				observer = service.connections_;
 			}
 			auto connections = observer ? observer->stats() : reactor::ConnectionStats{};
-			auto peer_occupancy = peers ? peers->occupancy() : transport::PeerOccupancy{};
+			auto peer_occupancy = peers ? peers->occupancy() : kronuz::consensus::transport::PeerOccupancy{};
 			std::size_t requests, body_bytes, reply_bytes;
 			{
 				std::lock_guard lock(accounting_->mutex);
@@ -1395,7 +1395,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				std::to_string(policy.reservation_unavailable.get()) +
 				",\"checkpoint_captured_boundary\":" + std::to_string(policy.captured_boundary) +
 				",\"checkpoint_published_boundary\":" + std::to_string(policy.published_boundary);
-			const auto append = peers ? peers->stats().append : transport::AppendTimings{};
+			const auto append = peers ? peers->stats().append : kronuz::consensus::transport::AppendTimings{};
 			storage_health +=
 				",\"append_emit_attempts\":" + std::to_string(append.attempts.get()) +
 				",\"append_observations\":" + std::to_string(append.observations.get()) +
@@ -1546,8 +1546,8 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		}
 		node.attach_change_recorder(history);
 		if (options_.peers) {
-			peers = std::make_shared<transport::Peers>(io.get_executor(), owned_node, node_options,
-													   *options_.peers);
+			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node, peer_configuration(node_options),
+													 *options_.peers);
 			peers->start();
 		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");

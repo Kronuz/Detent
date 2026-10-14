@@ -153,11 +153,11 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 	std::sort(result.credentials.begin(), result.credentials.end(),
 			  [](const auto &a, const auto &b) { return a.token_hash < b.token_hash; });
 	result.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-	transport::configure_tls(*result.tls_context,
+	reactor::tls::configure(*result.tls_context,
 							 {path(field(object, "certificate"), base).string(),
 							  path(field(object, "private_key"), base).string(),
 							  path(field(object, "ca"), base).string()},
-							 transport::TlsRole::PublisherServer);
+							 reactor::tls::Role::Server);
 	return result;
 }
 } // namespace detent::relay

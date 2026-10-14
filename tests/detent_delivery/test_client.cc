@@ -214,13 +214,13 @@ int main(int argc, char **argv) {
 		check(argc == 2);
 		const std::filesystem::path cert(argv[1]);
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-		detent::transport::configure_tls(
+		reactor::tls::configure(
 			*server_tls,
 			{(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
-			detent::transport::TlsRole::PublisherServer);
+			reactor::tls::Role::Server);
 		auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-		detent::transport::configure_tls(*client_tls, {"", "", (cert / "ca.pem").string()},
-										 detent::transport::TlsRole::PublisherClient);
+		reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
+										 reactor::tls::Role::Client);
 		for (bool compressed : {false, true})
 			for (unsigned mode = 0; mode < 5; ++mode) {
 				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);

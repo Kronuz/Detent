@@ -1,4 +1,5 @@
-#include "transport/peers.hh"
+#include "peers.hh"
+#include "consensus/transport/tls.h"
 #include <cassert>
 #include <filesystem>
 #include <future>
@@ -11,7 +12,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-using namespace detent::transport;
+using namespace kronuz::consensus::transport;
 using namespace detent::authority;
 using namespace kronuz::consensus;
 using namespace std::chrono_literals;
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
 		reservations.push_back(std::move(acceptor));
 	}
 	std::vector<std::shared_ptr<Node>> nodes;
-	std::vector<std::shared_ptr<Peers>> peers;
+	std::vector<std::shared_ptr<AuthorityPeers>> peers;
 	std::vector<NodeOptions> configurations;
 	std::vector<PeerOptions> peer_options;
 	using Queue = kronuz::journal::NativeCompletionQueue;
@@ -104,7 +105,7 @@ int main(int argc, char **argv) {
 		for (unsigned j = 0; j != 3; ++j)
 			if (i != j)
 				options.addresses.emplace(j + 1, endpoints[j]);
-		auto runtime = std::make_shared<Peers>(io.get_executor(), nodes[i], configurations[i], options);
+		auto runtime = std::make_shared<AuthorityPeers>(io.get_executor(), nodes[i], peer_configuration(configurations[i]), options);
 		peer_options.push_back(options);
 		peers.push_back(runtime);
 		runtime->start();
@@ -212,8 +213,8 @@ int main(int argc, char **argv) {
 		}
 
 		assert(nodes[follower]->state().revision() == 0);
-		peers[follower] = std::make_shared<Peers>(io.get_executor(), nodes[follower],
-												  configurations[follower], peer_options[follower]);
+		peers[follower] = std::make_shared<AuthorityPeers>(io.get_executor(), nodes[follower],
+														   peer_configuration(configurations[follower]), peer_options[follower]);
 		peers[follower]->start();
 		bool reconnected = false;
 		for (unsigned turn = 0; turn != 10000 && !reconnected; ++turn) {

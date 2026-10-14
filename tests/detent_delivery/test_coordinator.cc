@@ -409,14 +409,14 @@ int main(int argc, char **argv) {
 		disk_options.limits = {pressure ? 1056ull : 512ull * 1024 * 1024, 100, 10};
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-		detent::transport::configure_tls(*server_tls,
+		reactor::tls::configure(*server_tls,
 										 {(certificates / "one.pem").string(),
 										  (certificates / "one.key").string(),
 										  (certificates / "ca.pem").string()},
-										 detent::transport::TlsRole::PublisherServer);
+										 reactor::tls::Role::Server);
 		auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-		detent::transport::configure_tls(*client_tls, {"", "", (certificates / "ca.pem").string()},
-										 detent::transport::TlsRole::PublisherClient);
+		reactor::tls::configure(*client_tls, {"", "", (certificates / "ca.pem").string()},
+										 reactor::tls::Role::Client);
 		asio::io_context server_io;
 		asio::ip::tcp::acceptor acceptor(server_io, {asio::ip::address_v4::loopback(), 0});
 		std::exception_ptr server_failure;

@@ -158,8 +158,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	if (ca.is_relative())
 		ca = configuration.parent_path() / ca;
 	source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-	detent::transport::configure_tls(*source.tls_context, {"", "", ca.string()},
-									 detent::transport::TlsRole::PublisherClient);
+	reactor::tls::configure(*source.tls_context, {"", "", ca.string()},
+									 reactor::tls::Role::Client);
 	source.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 60000, 1, 86400000));
 	result.coordinator.poll_interval = std::chrono::milliseconds(
 		number(object, "poll_interval_ms", 200, 1, 86400000));

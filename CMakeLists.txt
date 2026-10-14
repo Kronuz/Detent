@@ -120,6 +120,15 @@ add_library(cpp_btree::headers ALIAS cpp_btree_headers)
 ########################################################################
 # detent core library
 ########################################################################
+# reactor: the Asio runtime and reactor::tls, the TLS configuration every Detent client,
+# server, and peer uses. Declared before http and cluster, which also fetch it, so this
+# pin wins.
+FetchContent_Declare(reactor
+  GIT_REPOSITORY https://github.com/Kronuz/reactor.git
+  GIT_TAG        d5bd39bbf3c96a204d2b6dc379c4afdd5ce697f5)
+if(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+  FetchContent_MakeAvailable(reactor)
+endif()
 if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
   FetchContent_Declare(http_lib GIT_REPOSITORY https://github.com/Kronuz/http.git GIT_TAG main)
   FetchContent_MakeAvailable(http_lib)
@@ -146,9 +155,10 @@ endif()
 # Completion I/O for local publication (the managed agent and the relay), and the
 # durable consensus (which brings journal and completion) for the authority.
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+  set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)  # the authority's peer transport
   FetchContent_Declare(consensus
     GIT_REPOSITORY https://github.com/Kronuz/consensus.git
-    GIT_TAG        0042bc3091ace876a857e4b3a6ff6df1def6cfd6)
+    GIT_TAG        b7073bbe4d94e66dce526f193b0dd81a57cdb661)
   FetchContent_MakeAvailable(consensus)
 elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_Declare(completion
