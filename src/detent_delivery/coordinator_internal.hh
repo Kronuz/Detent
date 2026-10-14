@@ -3,7 +3,6 @@
 namespace detent::delivery::detail {
 // Private fault seam, unavailable through installed/public interfaces.
 struct CoordinatorAccess {
-	static void enable_paged_writer(Coordinator &);
 	static bool retains_paged_candidate(const Coordinator &);
 	static bool cancelled_construction_settled(const Coordinator &);
 	static void request_compaction(Coordinator &);

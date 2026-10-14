@@ -1,6 +1,6 @@
 # Local image format, version 1
 
-The managed agent publishes dynamically sized immutable v1 images through the Stage 4 delivery pipeline, with a separate selected-generation descriptor. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`. Stage 5C also adds checked paged-root recovery; durable paged publication remains disabled until its complete-component gates pass. The legacy agent shared-memory mode remains separate.
+The managed agent publishes dynamically sized immutable v1 images through the Stage 4 delivery pipeline, with a separate selected-generation descriptor. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`. Stage 5C adds checked paged-root recovery and an opt-in paged writer under assembled-process qualification. The legacy agent shared-memory mode remains separate.
 
 ## Encoding
 
@@ -233,3 +233,11 @@ Native reader/recovery/progress checks pass (3/3, 0.86 seconds), with ASan/UBSan
 ### Private warm changed-path validation
 
 The warm validator verifies only new segment bytes and new page extents, and checks every reused subtree at its exact entering context against the actual base. It prunes those subtrees during an old-tree walk to compute removals, then validates namespace watermarks, definitions, live-page totals and override statistics. Its completed proof can populate an admitted registry after exact ownership and byte-identity checks. This remains a private validation seam: changed-head recovery and durable paged publication are not enabled by it.
+
+## Writer preference and maintenance
+
+Managed source configuration accepts `image_format`: `flat-v1` (default) or `paged-v2`. The agent and relay bundle sources use the same loader. Paged writing migrates a configured flat head through verified equal-cursor replacement before accepting incremental deltas. Recovery reads either format. A flat writer over a paged head constructs its next forward image from the borrowed state adapter; changing the preference alone leaves an unchanged selected head in its current format.
+
+`compaction_interval_ms` defaults to 60,000; zero disables periodic compaction, and enabled intervals range from 1,000 to 86,400,000 milliseconds. Checks occur between upstream exchanges. Each attempt selects at most eight packs below 50% live occupancy, with fixed 32,768-recipe and 16 MiB output caps. Configured view limits also bound construction. Pre-IO admission pressure skips optional compaction; accepted publication still recovers and confirms the actual head. Collector settlement supplies disk credit.
+
+Both generations and all dependencies can coexist during publication. Pinned readers may retain predecessor storage indefinitely within configured admission limits. Older binaries supporting only flat images cannot read a selected v2 head. Deploy readers that support both formats before selecting `paged-v2`; reverting writer preference requires a subsequent forward publication before a flat-only reader can read the selection. The unreleased C++ `CoordinatorOptions` adds writer preference and compaction interval fields.

@@ -63,6 +63,30 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		using Format = detent::delivery::LocalImageFormat;
+		check(options.coordinator.image_format == Format::FlatV1 &&
+			  options.coordinator.compaction_interval == std::chrono::seconds(60));
+		object.AddMember("image_format", "paged-v2", object.GetAllocator());
+		object.AddMember("compaction_interval_ms", 0, object.GetAllocator());
+		write();
+		check(load().coordinator.image_format == Format::PagedV2 &&
+			  load().coordinator.compaction_interval == std::chrono::milliseconds::zero());
+		object["image_format"].SetString("unknown");
+		write();
+		rejected();
+		object["image_format"].SetString("flat-v1");
+		object["compaction_interval_ms"].SetUint64(86400000);
+		write();
+		check(load().coordinator.image_format == Format::FlatV1 &&
+			  load().coordinator.compaction_interval == std::chrono::hours(24));
+		for (const auto interval : {1u, 999u, 86400001u}) {
+			object["compaction_interval_ms"].SetUint64(interval);
+			write();
+			rejected();
+		}
+		object.RemoveMember("image_format");
+		object.RemoveMember("compaction_interval_ms");
+		write();
 		check(options.coordinator.delivery_mode == detent::delivery::DeliveryMode::Poll);
 		check(options.principal == "reader" && options.policy_epoch == 1 && !options.delivery_mode_explicit);
 		object.AddMember("delivery_mode", "subscription", object.GetAllocator());

@@ -146,6 +146,8 @@ The managed agent accounts for its own memory, mappings and disk:
 | `poll_interval_ms` | 200 |
 | `reconnect_maximum_ms` | 30,000, or the poll interval when larger |
 | `timeout_ms` | 60,000 |
+| `image_format` | `"flat-v1"`; opt in with `"paged-v2"` |
+| `compaction_interval_ms` | 60,000; zero disables; enabled range 1,000–86,400,000 |
 | `compression` | `true` |
 | `artifact_mode` | `384` (`0600`) for users, `420` (`0644`) for system agents |
 
@@ -168,4 +170,10 @@ Add `"delivery_mode":"subscription"` to the private managed credential configura
 
 The agent opens from its recovered local cursor, receives one update and sends exact publication feedback only after local publication and recovery complete. An unchanged agent waits without repeatedly exporting authority state. Session expiry permits reopening from the actual durable cursor. Lost history requests an explicit new snapshot; changed identity or revoked authorization fences the agent until trusted configuration is corrected.
 
-`poll_interval_ms` controls retry backoff in subscription mode. The authority negotiates the maximum long-poll wait, and each network operation remains bounded by `timeout_ms`. Shutdown drains accepted network work before a bounded best-effort session close. Subscription transport is under Stage 5A qualification; relay fan-out and incremental local publication remain planned.
+`poll_interval_ms` controls retry backoff in subscription mode. The authority negotiates the maximum long-poll wait, and each network operation remains bounded by `timeout_ms`. Shutdown drains accepted network work before a bounded best-effort session close. Subscriptions and relay fan-out have component acceptance. Opt-in incremental paged publication is under assembled-process qualification; sustained fleet capacity remains a separate gate.
+
+## Paged local publication
+
+Set `"image_format": "paged-v2"` in the private managed source configuration to publish incremental immutable pages. Relay bundle sources accept the same field. Existing configured flat heads migrate without changing the logical cursor; readers holding the old generation remain valid. New deltas replace changed pages and their index paths, while progress updates replace only the root.
+
+Compaction runs between upstream exchanges and skips admission pressure. Disk limits must cover physical coexistence with pinned predecessors. A stopped agent's selected generation remains readable through the current SDK. Older flat-only binaries cannot read v2; switching the writer back to `flat-v1` requires a subsequent forward publication before the selected head becomes flat.

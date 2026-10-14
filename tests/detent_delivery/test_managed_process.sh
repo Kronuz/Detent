@@ -8,6 +8,15 @@ certificates=$5
 delivery_mode=${6:-poll}
 relay=${7:-}
 isolated=${8:-}
+image_format=${9:-flat-v1}
+transition_to_flat=false
+if [[ "$image_format" == paged-to-flat ]]; then
+    image_format=paged-v2
+    transition_to_flat=true
+fi
+check_format() {
+    "$interpreter" "$(dirname "$0")/verify_local_format.py" "$1" "$2"
+}
 mkdir -p .scratch
 root=$(mktemp -d "$PWD/.scratch/managed-delivery.XXXXXX")
 authority_pid=
@@ -33,8 +42,8 @@ writer_token=managed-writer-test-000000000000000000000000
 reader_token=managed-reader-test-000000000000000000000000
 printf '{%s,"directory":"authority-data","publisher_tls":{"certificate":"%s/one.pem","key":"%s/one.key","ca":"%s/ca.pem"},"credentials":[{"token":"%s","producer":"writer","namespaces":["ns","other"]},{"token":"%s","producer":"agent","principal":"agent-reader","publish":false,"namespaces":["ns"]}]}\n' \
     "$identity" "$certificates" "$certificates" "$certificates" "$writer_token" "$reader_token" > "$root/authority.json"
-printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":%s,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s"}\n' \
-    "$identity" "$reader_token" "$port" "$certificates" "$delivery_mode" > "$root/managed.json"
+printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":%s,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s","image_format":"%s"}\n' \
+    "$identity" "$reader_token" "$port" "$certificates" "$delivery_mode" "$image_format" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
 if [[ -n "$relay" ]]; then
     relay_port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
@@ -135,6 +144,8 @@ wait_value() {
     cat "$root/agent.log"; return 1
 }
 wait_value 42
+check_format "$root/generations" "$image_format"
+if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
 [[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
 [[ ! -e "$root/run/snapshot.shm" ]]
 cp "$root/generations/storage.meta" "$root/storage-before"
@@ -162,6 +173,9 @@ kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
 if "$agent" --status --config "$root/agent.json" > "$root/stopped.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/stopped.txt"
+if [[ "$transition_to_flat" == true ]]; then
+    "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["image_format"]="flat-v1"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
+fi
 "$agent" --config "$root/agent.json" > "$root/agent-restart.log" 2>&1 &
 agent_pid=$!
 for ((attempt=0;attempt<200;attempt++)); do
@@ -170,6 +184,19 @@ for ((attempt=0;attempt<200;attempt++)); do
 done
 grep -q 'managed local store ready' "$root/agent-restart.log"
 cmp "$root/storage-before" "$root/generations/storage.meta"
+check_format "$root/generations" "$image_format"
+if [[ "$transition_to_flat" == true ]]; then
+    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":100},\"expected_revision\":$progress_revision}]}" > "$root/flat-forward.json"
+    flat_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/flat-forward.json")
+    for ((attempt=0;attempt<200;attempt++)); do
+        if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "; then break; fi
+        sleep 0.02
+    done
+    "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "
+    check_format "$root/generations" flat-v1
+    [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
+    image_format=flat-v1
+fi
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 if [[ -n "$relay" ]]; then
     cp "$root/relay-generations/storage.meta" "$root/relay-storage-before"

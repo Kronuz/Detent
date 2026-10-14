@@ -290,6 +290,8 @@ bindings/
 
 The core client has no networking dependency. Classic HTTP polling, binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
+Managed agents and relay bundle sources accept `"image_format": "paged-v2"` for incremental immutable local publication; `flat-v1` remains the default. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
+
 | Module | Main target | Purpose |
 | --- | --- | --- |
 | Core client | `detent::detent` | Local lookup, evaluation, defaults and file updates |

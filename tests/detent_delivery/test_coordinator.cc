@@ -565,6 +565,7 @@ int main(int argc, char **argv) {
 															io.get_executor(), queue);
 		t::CoordinatorOptions options;
 		options.directory = directory;
+		options.image_format = paged ? t::LocalImageFormat::PagedV2 : t::LocalImageFormat::FlatV1;
 		options.delivery_mode = subscription ? t::DeliveryMode::Subscription : t::DeliveryMode::Poll;
 		options.poll_interval =
 			(cancel_selected || pressure || reset_retry)
@@ -613,8 +614,6 @@ int main(int argc, char **argv) {
 				cache_pressure = cache_account->admit(cache_account->limit() - cache_account->used());
 		}
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-		if (paged)
-			t::detail::CoordinatorAccess::enable_paged_writer(*coordinator);
 		{
 			auto quota = std::make_shared<d::StorageLedger>(65536);
 			auto quota_domain = runtime.domain(quota, 8);

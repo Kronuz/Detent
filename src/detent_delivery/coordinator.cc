@@ -81,7 +81,8 @@ struct Coordinator::Impl {
 	d::RetirementHandle<RecoveryResult> base;
 	d::StorageOwner<l::ImageBuilder> builder;
 	d::RetirementHandle<PagedCandidateResult> paged_candidate;
-	bool paged_writer = false, pending_paged_confirmation = false, compaction_requested = false;
+	bool paged_writer = options.image_format == LocalImageFormat::PagedV2;
+	bool pending_paged_confirmation = false, compaction_requested = false;
 	bool compaction_admission_refused = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
@@ -316,8 +317,15 @@ struct Coordinator::Impl {
 					if (!count)
 						result->descriptor = actual->descriptor();
 					else {
+						l::paged::Limits bounds;
+						if (limits.bytes < l::paged::root_bytes)
+							throw std::invalid_argument("paged compaction manifest exceeds limit");
+						bounds.bytes = limits.bytes - l::paged::root_bytes;
+						bounds.records = limits.records;
+						bounds.namespaces = limits.namespaces;
 						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
-																	generation, factory, heap);
+																	generation, factory, heap,
+																	l::detail::CompactionLimits{}, bounds);
 						while (!candidate.done()) {
 							result->control.step();
 							l::ValidationBudget budget;
@@ -508,11 +516,13 @@ struct Coordinator::Impl {
 
 	asio::awaitable<void> compact_head() {
 		const auto now = std::chrono::steady_clock::now();
-		if (!paged_writer || (!compaction_requested && now < next_compaction_check) || !base->generation ||
-			!l::detail::StateCursor::logical_commitment(*base->generation))
+		if (!paged_writer ||
+			(!compaction_requested && (options.compaction_interval == std::chrono::milliseconds::zero() ||
+									   now < next_compaction_check)) ||
+			!base->generation || !l::detail::StateCursor::logical_commitment(*base->generation))
 			co_return;
 		const bool force = std::exchange(compaction_requested, false);
-		next_compaction_check = now + std::chrono::seconds(60);
+		next_compaction_check = now + options.compaction_interval;
 		diagnostic.phase = CoordinatorPhase::Building;
 		std::exception_ptr refusal;
 		try {
@@ -959,7 +969,13 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStore> store,
 						 std::shared_ptr<NativeDriver> driver, d::RetirementDomain &domain,
 						 asio::thread_pool &worker) {
-	if (!driver || options.directory.empty() || options.poll_interval <= std::chrono::milliseconds::zero() ||
+	if ((options.image_format != LocalImageFormat::FlatV1 &&
+		 options.image_format != LocalImageFormat::PagedV2) ||
+		options.compaction_interval < std::chrono::milliseconds::zero() ||
+		options.compaction_interval > std::chrono::hours(24) ||
+		(options.compaction_interval != std::chrono::milliseconds::zero() &&
+		 options.compaction_interval < std::chrono::seconds(1)) ||
+		!driver || options.directory.empty() || options.poll_interval <= std::chrono::milliseconds::zero() ||
 		options.poll_interval > std::chrono::hours(24) ||
 		options.reconnect_maximum < std::chrono::milliseconds::zero() ||
 		options.reconnect_maximum > std::chrono::hours(24) ||
@@ -1017,11 +1033,7 @@ asio::awaitable<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner)
 		std::terminate();
 	}
 }
-void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
-	if (coordinator.impl_->running)
-		throw std::logic_error("paged test mode requires idle coordinator");
-	coordinator.impl_->paged_writer = true;
-}
+
 bool detail::CoordinatorAccess::cancelled_construction_settled(const Coordinator &coordinator) {
 	const auto &impl = *coordinator.impl_;
 	return !impl.construction && impl.construction_stopped &&

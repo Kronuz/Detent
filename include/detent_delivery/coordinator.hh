@@ -12,6 +12,7 @@ namespace detail {
 struct CoordinatorAccess;
 }
 enum class DeliveryMode { Poll, Subscription };
+enum class LocalImageFormat { FlatV1, PagedV2 };
 struct CoordinatorOptions {
 	ClientOptions source;
 	DeliveryMode delivery_mode = DeliveryMode::Poll;
@@ -24,6 +25,8 @@ struct CoordinatorOptions {
 	std::optional<CompletionPort> completion_port;
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
+	LocalImageFormat image_format = LocalImageFormat::FlatV1;
+	std::chrono::milliseconds compaction_interval{60000};
 };
 enum class CoordinatorPhase {
 	Starting,

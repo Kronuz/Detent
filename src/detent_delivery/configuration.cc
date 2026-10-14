@@ -114,6 +114,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"poll_interval_ms",
 					"reconnect_maximum_ms",
 					"delivery_mode",
+					"image_format",
+					"compaction_interval_ms",
 					"timeout_ms",
 					"compression",
 					"reset_from"});
@@ -127,6 +129,16 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 											   ? detent::delivery::DeliveryMode::Subscription
 											   : detent::delivery::DeliveryMode::Poll;
 	}
+	if (object.HasMember("image_format")) {
+		const auto format = text(object["image_format"], 16);
+		require(format == "flat-v1" || format == "paged-v2", "invalid managed image format");
+		result.coordinator.image_format =
+			format == "paged-v2" ? LocalImageFormat::PagedV2 : LocalImageFormat::FlatV1;
+	}
+	const auto interval = number(object, "compaction_interval_ms", 60000, 0, 86400000);
+	require(interval == 0 || interval >= 1000,
+			"managed compaction interval must be zero or at least 1000 ms");
+	result.coordinator.compaction_interval = std::chrono::milliseconds(interval);
 	auto &source = result.coordinator.source;
 	source.configured.cluster = identity<16>(field(object, "cluster"));
 	source.configured.group = identity<16>(field(object, "group"));
@@ -158,11 +170,10 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	if (ca.is_relative())
 		ca = configuration.parent_path() / ca;
 	source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-	reactor::tls::configure(*source.tls_context, {"", "", ca.string()},
-									 reactor::tls::Role::Client);
+	reactor::tls::configure(*source.tls_context, {"", "", ca.string()}, reactor::tls::Role::Client);
 	source.timeout = std::chrono::milliseconds(number(object, "timeout_ms", 60000, 1, 86400000));
-	result.coordinator.poll_interval = std::chrono::milliseconds(
-		number(object, "poll_interval_ms", 200, 1, 86400000));
+	result.coordinator.poll_interval =
+		std::chrono::milliseconds(number(object, "poll_interval_ms", 200, 1, 86400000));
 	result.coordinator.reconnect_maximum = std::chrono::milliseconds(
 		number(object, "reconnect_maximum_ms",
 			   std::max<std::int64_t>(30000, result.coordinator.poll_interval.count()),

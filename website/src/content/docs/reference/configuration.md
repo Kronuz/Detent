@@ -100,6 +100,10 @@ The managed agent's private credential file. See
 [Managed Delivery](/Detent/guides/managed-delivery/) for every field and its
 resource bounds.
 
+The managed source accepts `image_format` as `"flat-v1"` (default) or `"paged-v2"`. The same option applies to relay bundle sources. Recovery reads either format; the preference controls subsequent publication. Changing to `flat-v1` leaves an unchanged paged selection in place until a forward update publishes a flat image. Deploy compatible readers before selecting paged writing.
+
+`compaction_interval_ms` defaults to 60,000. Zero disables periodic compaction; enabled values range from 1,000 to 86,400,000. Checks run between upstream exchanges, and admission pressure skips an optional attempt. Reader leases and durable collection determine when old storage can be reclaimed.
+
 ## `authority.json`
 
 The authority's private configuration. See

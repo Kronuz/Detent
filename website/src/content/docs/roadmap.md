@@ -79,7 +79,7 @@ targets, not demonstrated capacity.
 
 1. Resumable subscriptions with snapshot/history handoff and durable publication feedback have Stage 5A component acceptance. Native, sanitizer and focused supported-platform checks establish component behavior; sustained fleet capacity remains a Stage 6 qualification target.
 2. Regional relays for fan-out have Stage 5B component acceptance; sustained fleet qualification remains in Stage 6.
-3. Incremental, page-level local publication is in Stage 5C implementation. Private page/segment construction, bounded dependency discovery, cold graph validation, leased paged recovery, contextual reuse, progress plans, warm progress recovery, paged reads and profile-1 export are implemented; sparse changed-leaf collection, assembly, warm graph validation and move-only sparse plans are also implemented privately; private paged disk publication and root reclamation pass their consolidated Architect source review, with final qualification continuing; bounded marks, historical-root reading and shared byte-source dependency traversal are implemented privately; changed-head recovery integration, shared-segment reclamation, compaction, migration and complete-component qualification remain pending.
+3. Incremental page publication, warm recovery, shared-segment reclamation, migration and bounded maintenance have private-component source GO and affected native/platform/sanitizer qualification. Opt-in agent/relay format configuration is under assembled-process qualification; sustained pressure and fleet capacity remain in Stage 6.
 4. Multi-region replication for the classic distributor.
 5. Classic `/v1/snapshot` serving from the authority, or a migration path for
    unmanaged agents.
@@ -105,4 +105,4 @@ targets, not demonstrated capacity.
 5. Combined pressure/churn and whole-service telemetry overhead for the
    authority.
 
-The shared-segment collector now passes the consolidated Architect source review. Native, ASan/UBSan and TSan qualification covers complete-root marking, orphan and owner-only cleanup, pressure retry, crash recovery and publication between sweep batches; final Linux and FreeBSD runs are in progress. Changed-head warm recovery, whole-peak mapping admission, migration and bounded maintenance remain before operational v2 writing.
+The shared-segment collector, warm recovery, mapped admission and complete private paged delivery pass consolidated source review. Final affected Linux, FreeBSD, ASan/UBSan and TSan gates pass. Two native parallel 500k fixture failures pass in separate and CTest serial repeats; controlled-contention attribution remains open. Production configuration and complete fleet qualification remain separate gates.
