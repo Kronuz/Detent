@@ -65,6 +65,7 @@ struct Coordinator::Impl {
 	d::StorageOwner<l::ImageBuilder> builder;
 	d::RetirementHandle<PagedCandidateResult> paged_candidate;
 	bool paged_writer = false, pending_paged_confirmation = false, compaction_requested = false;
+	bool compaction_admission_refused = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
 	asio::cancellation_signal network_cancel;
@@ -415,10 +416,11 @@ struct Coordinator::Impl {
 		}
 	}
 	asio::awaitable<bool> publish_candidate() {
+		compaction_admission_refused = false;
 		diagnostic.phase = CoordinatorPhase::WaitingPublication;
 		notify_disk();
 		const auto expires = std::chrono::steady_clock::now() + options.source.timeout;
-		while (!cancelled() && !publication_started) {
+		while (!cancelled() && !publication_started && !compaction_admission_refused) {
 			if (std::chrono::steady_clock::now() >= expires)
 				throw std::runtime_error("managed publication admission deadline");
 			co_await wait_candidate(expires);
@@ -482,6 +484,11 @@ struct Coordinator::Impl {
 		}
 		if (!cancelled())
 			co_await publish_candidate();
+		if (compaction_admission_refused && !publication_started) {
+			paged_candidate.reset();
+			publication_retry = {};
+			co_return;
+		}
 		if (closing)
 			co_return;
 		const auto actual = store->selection();
@@ -496,10 +503,13 @@ struct Coordinator::Impl {
 
 	void offer_publication() {
 		if (diagnostic.phase != CoordinatorPhase::WaitingPublication || cancelled() ||
-			!store->publication_ready() || std::chrono::steady_clock::now() < publication_retry)
+			!store->publication_ready() || compaction_admission_refused ||
+			std::chrono::steady_clock::now() < publication_retry)
 			return;
 		const auto actual = store->selection();
 		if (paged_candidate) {
+			if (paged_candidate->compaction && std::exchange(fail_compaction_admission, false))
+				throw d::StoragePressure("injected compaction admission pressure");
 			if (!paged_candidate->plan)
 				throw std::logic_error("paged candidate has no publication plan");
 			if (paged_candidate->plan->intent() == l::detail::PagedPlanIntent::TrustedReset) {
@@ -541,12 +551,15 @@ struct Coordinator::Impl {
 			} catch (const l::DiskPressure &) {
 				store->request_collection();
 				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
+				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
 			} catch (const d::StoragePressure &) {
 				store->request_collection();
 				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
+				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
 			} catch (const std::bad_alloc &) {
 				store->request_collection();
 				publication_retry = std::chrono::steady_clock::now() + options.poll_interval;
+				compaction_admission_refused = paged_candidate && paged_candidate->compaction;
 			} catch (const SessionResetError &error) {
 				failure = std::current_exception();
 				if (options.publication_sink && fatal_source_reset(error.reason()))
@@ -945,6 +958,9 @@ void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
 	if (coordinator.impl_->running)
 		throw std::logic_error("paged test mode requires idle coordinator");
 	coordinator.impl_->paged_writer = true;
+}
+void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coordinator) {
+	coordinator.impl_->fail_compaction_admission = true;
 }
 void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
 	coordinator.impl_->compaction_requested = true;

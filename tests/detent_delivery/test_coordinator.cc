@@ -447,6 +447,8 @@ int main(int argc, char **argv) {
 		const bool paged = argc == 3 && std::string_view(argv[2]).find("paged") != std::string_view::npos;
 		const bool transitions =
 			paged && std::string_view(argv[2]).find("transitions") != std::string_view::npos;
+		const bool compaction_pressure =
+			paged && std::string_view(argv[2]).find("compaction-pressure") != std::string_view::npos;
 		const bool worker_cancel =
 			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
 		const bool migration = paged && std::string_view(argv[2]).find("migrate") != std::string_view::npos;
@@ -780,6 +782,9 @@ int main(int argc, char **argv) {
 							check(ready.get());
 							if (transitions)
 								asio::post(io, [&] {
+									if (compaction_pressure)
+										t::detail::CoordinatorAccess::fail_next_compaction_admission(
+											*coordinator);
 									t::detail::CoordinatorAccess::request_compaction(*coordinator);
 								});
 							else
@@ -815,7 +820,8 @@ int main(int argc, char **argv) {
 									status.selected.descriptor &&
 									status.selected.descriptor->cursor == expected &&
 									status.selected.descriptor->length == l::paged::root_bytes &&
-									t::detail::CoordinatorAccess::completed_compactions(*coordinator) == 1);
+									t::detail::CoordinatorAccess::completed_compactions(*coordinator) ==
+										(compaction_pressure ? 0u : 1u));
 							});
 							check(ready.get());
 							if (phase == 4)

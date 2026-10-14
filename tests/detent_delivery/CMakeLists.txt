@@ -109,7 +109,7 @@ target_include_directories(test_relay_bundle_maintenance PRIVATE "${CMAKE_SOURCE
 target_link_libraries(test_relay_bundle_maintenance PRIVATE detent::relay detent::local_builder)
 add_test(NAME test_relay_bundle_maintenance COMMAND test_relay_bundle_maintenance)
 
-foreach(mode IN ITEMS subscription-paged subscription-paged-100000 subscription-relay-paged-100000 subscription-relay-paged-migrate-100000 subscription-relay-paged-transitions-100000 subscription-paged-worker-cancel-100000 subscription-relay-paged-500000 subscription-relay-paged-migrate-500000 subscription-relay-paged-transitions-500000)
+foreach(mode IN ITEMS subscription-paged subscription-paged-100000 subscription-relay-paged-100000 subscription-relay-paged-migrate-100000 subscription-relay-paged-transitions-100000 subscription-relay-paged-transitions-compaction-pressure-100000 subscription-paged-worker-cancel-100000 subscription-relay-paged-500000 subscription-relay-paged-migrate-500000 subscription-relay-paged-transitions-500000)
   add_test(NAME test_delivery_coordinator_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
   set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 180)
 endforeach()
