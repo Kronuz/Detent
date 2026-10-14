@@ -256,3 +256,5 @@ Acceptance: `reactor` 5 tests (with the new TLS test) and `consensus` 14 pass on
 ### Compaction integration (2026-10-13)
 
 The formerly excluded `test_local_paged_compaction` now builds and passes against the extracted libraries (`6a03b42`). Native overlay/compaction checks pass 2/2 in 2.31 seconds; ASan/UBSan passes 2/2 in 2.85 seconds; the managed compaction check passes under TSan in 2.62 seconds. Branch-only, leaf-only and mixed replacements retain pinned readers and reclaim evacuated packs through the collector. This closes the specific compile failure recorded above; complete application and platform qualification remain separate gates.
+
+The complete native application build and all 175 serial tests pass in 721.04 seconds with compaction included. This run uses the frozen `6a03b42` application binaries and the extracted sibling libraries; the subsequent shared-finalizer refactor has separate focused sanitizer qualification.
