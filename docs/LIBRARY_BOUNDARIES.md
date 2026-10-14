@@ -262,3 +262,12 @@ The complete native application build and all 175 serial tests pass in 721.04 se
 ### SHA-256 header composition
 
 Paged plan and candidate-validator headers name the hasher with an elaborated class type, so they compile after OpenSSL declares its global `SHA256()` function. This preserves the existing hasher type and wire bytes. A namespaced hasher API in `Kronuz/sha256` would avoid the global class/function collision for future consumers while retaining the old class for existing callers.
+
+### Changes from strata's Track C and storage work (2026-10-14)
+
+strata's session changes these libraries for its own needs; each is a versioned commit in the library, and Detent moves its pins when it chooses. Findings that apply to Detent are in `completion/docs/PLATFORM_FINDINGS.md`.
+
+- `completion` `64d958b`: `IO::sync_files(files)` makes many files durable with one device flush where the platform allows it (macOS: `fsync` each, one `F_FULLFSYNC`; Linux: writeback started on all, then `fsync` each; FreeBSD unchanged). Additive: the default calls `File::sync` on each. A clean clone of Detent at `dcd729a` with every option on (authority, distributor, managed agent, relay, benchmarks, examples, tests), `completion` overridden to `64d958b`'s tree, builds and passes 191 of 191 tests run serially (1,025 s).
+- `consensus` `afd456d`, `ec95656`: `Repair{request, boundary}` and an application epoch on `LocalCheckpoint` and `CaptureMetadata` (trailing fields, default 0); additive for Detent's fixed groups.
+- `consensus` `188d196`: the randomized simulation harness and its mutants (tests only).
+- `consensus` `0307308`: pre-vote, the leader-contact guard, and CheckQuorum, for fixed groups too, and the `DTC2` codec (`DTC1` frames are rejected). This changes Detent's wire and election behavior; Detent adopts it in the coordinated commit that moves its `consensus` pin, with strata's Track C (`docs/design/track-c.md` in strata) fixing every `DTC2` tag first.
