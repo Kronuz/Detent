@@ -271,3 +271,28 @@ strata's session changes these libraries for its own needs; each is a versioned 
 - `consensus` `afd456d`, `ec95656`: `Repair{request, boundary}` and an application epoch on `LocalCheckpoint` and `CaptureMetadata` (trailing fields, default 0); additive for Detent's fixed groups.
 - `consensus` `188d196`: the randomized simulation harness and its mutants (tests only).
 - `consensus` `0307308`: pre-vote, the leader-contact guard, and CheckQuorum, for fixed groups too, and the `DTC2` codec (`DTC1` frames are rejected). This changes Detent's wire and election behavior; Detent adopts it in the coordinated commit that moves its `consensus` pin, with strata's Track C (`docs/design/track-c.md` in strata) fixing every `DTC2` tag first.
+- `consensus` `f050b7a`, `3b20cef`: membership in the log (`EntryKind::Configuration`, `ChangeMembership`, learners, single-voter changes, replacements); a checkpoint keeps `Configuration` entries in its suffix. Fixed groups run the same code with a founding membership that never changes; their storage bytes are unchanged.
+- `consensus` `90d3df0`: `TransferLeadership{target}` and `TimeoutNow` (`DTC2` tag 8). Useful for draining a node.
+- `consensus` `080e1c1`, `91de8ea`: witnesses (`2 + witness`), and `AppendRequest::data_matched` (a trailing field). The `DTC2` control frame's fixed header grows from 68 to 76 bytes, so `control_frame_bound` changes.
+- `consensus` `573bfce`: `RFTINIT2` (founding roles; written only when a founding member is not a voter, so a fixed group's record is unchanged) and `RFTJOIN1` (joiners); `Worker::found(membership)` and `Worker::membership()`.
+- `consensus` `e39abee`: limits in `Configuration` entries, checked by position (R16). `decode_membership` drops its limits parameter, and `checkpoint_detail::maximum_size()` without arguments is the decoder bound (the ceilings); reservations keep `maximum_size(limits)`.
+- `consensus` `dd82c06`: a libFuzzer target over every decoder; `RFTINIT2` naming only voters is refused.
+- `consensus` `056fcb7`: `RFTSNP02`, a snapshot descriptor with the base membership; a fixed group's descriptor stays the 72-byte `RFTSNP01`, so Detent's transfers are unchanged.
+- `consensus` `2f8e6e2`: a leader refuses pre-votes and ignores vote requests without the transfer flag. Before it, a node rejoining a 3-voter group with an up-to-date log won a pre-vote quorum with the leader and deposed it. This fixes `0307308`'s pre-vote for fixed groups too; `TimeoutNow` is resent each heartbeat during a transfer.
+- `consensus` `6cc0d88`, `7c60f58`: a witness leader hands off only to a data voter that has answered (witness groups only), and a T3 liveness harness in simulated time (`test/liveness_test.cc`) that Detent can run under its own timing profile.
+
+- `consensus` `9f7d43e`, `c5b2223`, `1822fd7`, `aa4b11e`: the architect's C1 review.
+  - **For Detent's fixed groups:**
+    - `Timing{}` now defaults to R4's default profile: 100 ms heartbeat, 500 ms RPC timeout, 1,000–2,000 ms elections. That is Detent's authority profile, but code relying on the old 20/40/100–200 defaults must pass its timing explicitly.
+    - `SnapshotReleaseReason` gains `Removed`, so an exhaustive switch over it needs a case.
+    - The Worker accepts a snapshot from any authenticated incarnation, not only a founding voter.
+    - `can_change_membership()` is false during a transfer.
+  - **For membership groups:**
+    - Learners and joiners vote.
+    - A joiner's snapshots name their base membership.
+    - A group's limits stay within its node's.
+    - Removed members are pruned.
+    - New members join as learners.
+  - **Compatibility:** `test/compat_test.cc` and `tools/compat.sh` check, in both directions, that today's code reads `b7073bb`'s stores and that `b7073bb` refuses the new formats.
+
+`DTC2` tags 1–8 are fixed (votes, appends, snapshot responses, pre-votes, `TimeoutNow`). The rest of `DTC2` is not yet: the frame header with group id and incarnations (C1, C4), coalesced heartbeats, `Wake`, `LeaderGone`, `Ping`, and `Pong` (C2), and window updates and snapshot chunk frames (C4). The coordinated commit that moves Detent's `consensus` pin waits for them, since a tag added later bumps the version. When it lands, Detent's fixed groups need no code change beyond the `decode_membership` and `maximum_size` call sites, if Detent calls them.
