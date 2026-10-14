@@ -506,9 +506,8 @@ struct Coordinator::Impl {
 				if (!actual.descriptor || !options.reset_from ||
 					!actual.descriptor->cursor.same_identity(*options.reset_from))
 					throw std::invalid_argument("managed paged reset is not configured");
-				store->begin_reset(
-					std::move(*paged_candidate->plan),
-					{*actual.descriptor, options.source.configured, paged_candidate->descriptor->profile});
+				store->begin_reset(std::move(*paged_candidate->plan),
+								   {*actual.descriptor, options.source.configured, {}});
 			} else
 				store->begin(std::move(*paged_candidate->plan));
 			pending_paged_confirmation = true;

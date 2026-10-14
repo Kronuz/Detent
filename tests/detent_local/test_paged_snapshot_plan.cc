@@ -213,6 +213,16 @@ int main() {
 		}
 		check(rejected && reset_plan.descriptor() == reset_target &&
 			  store->stats().reserved == l::DiskUsage{});
+		auto wrong_profile = reset_target.profile;
+		wrong_profile.required_capabilities ^= 1;
+		rejected = false;
+		try {
+			store->begin_reset(std::move(reset_plan), {wanted, reset_target.cursor, wrong_profile});
+		} catch (const std::invalid_argument &) {
+			rejected = true;
+		}
+		check(rejected && reset_plan.descriptor() == reset_target &&
+			  store->selection().descriptor == wanted && store->stats().reserved == l::DiskUsage{});
 		store->begin_reset(std::move(reset_plan), {wanted, reset_target.cursor, reset_target.profile});
 		drive(store);
 		auto restored =
