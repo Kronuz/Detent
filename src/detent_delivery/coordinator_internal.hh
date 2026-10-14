@@ -6,6 +6,7 @@ struct CoordinatorAccess {
 	static void enable_paged_writer(Coordinator &);
 	static void request_compaction(Coordinator &);
 	static void fail_next_compaction_admission(Coordinator &);
+	static void fail_next_maintenance_recovery(Coordinator &, std::exception_ptr);
 	static std::uint64_t completed_compactions(const Coordinator &);
 	static void fail_next_worker_wait(Coordinator &);
 	static void fail_worker_and_wait_after_ready(Coordinator &, std::exception_ptr);

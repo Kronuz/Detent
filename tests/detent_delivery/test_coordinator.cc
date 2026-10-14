@@ -336,7 +336,8 @@ asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinat
 asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
 							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
 							   const std::atomic<bool> *feedback_received, bool cancel_open = false,
-							   bool transitions = false, bool worker_cancel = false) {
+							   bool transitions = false, bool worker_cancel = false,
+							   bool maintenance_failure = false) {
 	using namespace asio::experimental::awaitable_operators;
 	if (worker_cancel) {
 		auto cancel = [&]() -> asio::awaitable<void> {
@@ -356,7 +357,7 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 		check(!coordinator->status().worker_pending && !coordinator->status().acknowledged);
 		co_return;
 	}
-	if (cancel_open) {
+	if (cancel_open || maintenance_failure) {
 		co_await coordinator->run();
 		co_return;
 	}
@@ -452,6 +453,10 @@ int main(int argc, char **argv) {
 		const bool worker_cancel =
 			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
 		const bool migration = paged && std::string_view(argv[2]).find("migrate") != std::string_view::npos;
+		const bool maintenance_failure =
+			migration && std::string_view(argv[2]).find("recovery-failure") != std::string_view::npos;
+		const auto original_maintenance_failure =
+			std::make_exception_ptr(std::runtime_error("original maintenance recovery failure"));
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
 		const bool relay_sessions =
 			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
@@ -626,13 +631,14 @@ int main(int argc, char **argv) {
 		acceptor.non_blocking(true);
 		std::jthread server([&] {
 			try {
-				for (unsigned attempt = 0; attempt != (cancel_open		 ? 2u
-													   : reset_retry	 ? 11u
-													   : worker_cancel	 ? 3u
-													   : subscription	 ? (transitions ? 6u : 4u)
-													   : pressure		 ? 3u
-													   : cancel_selected ? 2u
-																		 : 1u);
+				for (unsigned attempt = 0; attempt != (maintenance_failure ? 0u
+													   : cancel_open	   ? 2u
+													   : reset_retry	   ? 11u
+													   : worker_cancel	   ? 3u
+													   : subscription	   ? (transitions ? 6u : 4u)
+													   : pressure		   ? 3u
+													   : cancel_selected   ? 2u
+																		   : 1u);
 					 ++attempt) {
 					const auto phase =
 						cancel_open		? std::array<unsigned, 2>{0, 3}[attempt]
@@ -884,11 +890,14 @@ int main(int argc, char **argv) {
 		});
 		if (cancel_open)
 			t::detail::CoordinatorAccess::close_after_next_session_open(*coordinator);
+		if (maintenance_failure)
+			t::detail::CoordinatorAccess::fail_next_maintenance_recovery(*coordinator,
+																		 original_maintenance_failure);
 		Timing timing;
 		auto done = asio::co_spawn(io,
 								   exercise(coordinator, timing, cancel_selected, pressure, options,
 											subscription ? &feedback_received : nullptr, cancel_open,
-											transitions, worker_cancel),
+											transitions, worker_cancel, maintenance_failure),
 								   asio::use_future);
 		io.run();
 		std::exception_ptr run_failure;
@@ -915,6 +924,9 @@ int main(int argc, char **argv) {
 		}
 		if (cancel_open || worker_cancel) {
 			check(!store->selection().descriptor && (worker_cancel || !coordinator->status().received) &&
+				  !coordinator->status().acknowledged);
+		} else if (maintenance_failure) {
+			check(coordinator->status().error == original_maintenance_failure &&
 				  !coordinator->status().acknowledged);
 		} else {
 			check(store->selection().descriptor->cursor == final_cursor);

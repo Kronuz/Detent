@@ -33,6 +33,9 @@ struct RecoveryResult : d::RetirementNode {
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
+struct MaintenanceFailure {
+	std::exception_ptr cause;
+};
 struct PagedCandidateResult : d::RetirementNode {
 	bool compaction = false;
 	std::optional<l::detail::PagedPlan> plan;
@@ -58,7 +61,7 @@ struct Coordinator::Impl {
 	CoordinatorStatus diagnostic;
 	std::exception_ptr terminal_failure;
 	bool terminal_fenced = false;
-	std::exception_ptr injected_worker_failure;
+	std::exception_ptr injected_worker_failure, injected_maintenance_failure;
 	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
 	d::RetirementHandle<RecoveryResult> base;
@@ -433,6 +436,19 @@ struct Coordinator::Impl {
 			std::rethrow_exception(store->publication_error());
 		co_return false;
 	}
+	asio::awaitable<void> recover_maintenance(bool changed) {
+		try {
+			if (injected_maintenance_failure) {
+				injected_worker_failure = std::exchange(injected_maintenance_failure, {});
+				fail_settled_worker_wait = true;
+			}
+			auto recovered = co_await recover(changed);
+			if (!closing)
+				bind_base(std::move(recovered));
+		} catch (...) {
+			throw MaintenanceFailure{std::current_exception()};
+		}
+	}
 	asio::awaitable<void> migrate_flat_head() {
 		if (!paged_writer || !base->generation ||
 			l::detail::StateCursor::logical_commitment(*base->generation) ||
@@ -446,9 +462,7 @@ struct Coordinator::Impl {
 			co_return;
 		const auto actual = store->selection();
 		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
-		auto recovered = co_await recover(changed);
-		if (!closing)
-			bind_base(std::move(recovered));
+		co_await recover_maintenance(changed);
 		paged_candidate.reset();
 		publication_started = false;
 		publication_retry = {};
@@ -493,9 +507,7 @@ struct Coordinator::Impl {
 			co_return;
 		const auto actual = store->selection();
 		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
-		auto recovered = co_await recover(changed);
-		if (!closing)
-			bind_base(std::move(recovered));
+		co_await recover_maintenance(changed);
 		paged_candidate.reset();
 		publication_started = false;
 		publication_retry = {};
@@ -808,6 +820,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						}
 					}
 				}
+			} catch (const MaintenanceFailure &) {
+				throw;
 			} catch (const SessionResetError &error) {
 				failure = std::current_exception();
 				if (options.publication_sink && fatal_source_reset(error.reason()))
@@ -877,6 +891,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				co_await pause(options.delivery_mode == DeliveryMode::Poll ? options.poll_interval
 																		   : reconnect.next());
 		}
+	} catch (const MaintenanceFailure &error) {
+		fatal = error.cause;
 	} catch (...) {
 		fatal = std::current_exception();
 	}
@@ -958,6 +974,10 @@ void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
 	if (coordinator.impl_->running)
 		throw std::logic_error("paged test mode requires idle coordinator");
 	coordinator.impl_->paged_writer = true;
+}
+void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator,
+															   std::exception_ptr failure) {
+	coordinator.impl_->injected_maintenance_failure = std::move(failure);
 }
 void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coordinator) {
 	coordinator.impl_->fail_compaction_admission = true;
