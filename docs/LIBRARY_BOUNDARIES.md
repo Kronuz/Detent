@@ -236,7 +236,9 @@ Acceptance:
 - Detent, all options on (authority, distributor, managed agent, relay, benchmarks, examples, tests), compared with the same build before the split: 180 of 181 tests build and pass in both. The exception, `test_local_paged_compaction`, did not compile before the split either (uncommitted work in progress calls a missing `DiskStore::collect`). Under parallel ctest a different pair of timing-sensitive tests fails in each run, before the split and after; each passes alone, and the serial run passes.
 - Xapiand builds against the new `cluster`. Removing `cluster/metrics.h` also removes a header that shared a name with Xapiand's own `src/metrics.h` on the same include path.
 - strata builds and passes against `completion` directly.
-- Not yet run: Linux and FreeBSD (gate 1) and the Homebrew formula (gate 5).
+- Linux (the strata gate VM, Ubuntu 24.04, clang 18): `metrics` 1, `completion` 10, `journal` 5 (with the io_uring backend test), `consensus` 6, and `cluster` 4 tests pass.
+- A clean clone of Detent at `9621536`, with no `FETCHCONTENT_SOURCE_DIR_*` overrides and every option on, builds and passes all 180 tests run serially (gate 2).
+- Not yet run: FreeBSD (gate 1) and the Homebrew formula (gate 5).
 
 Next: step 3 (the authority peer transport into `consensus/transport/`), then steps 4 through 10.
 
