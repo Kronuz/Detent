@@ -5,6 +5,7 @@ namespace detent::delivery::detail {
 struct CoordinatorAccess {
 	static void enable_paged_writer(Coordinator &);
 	static bool retains_paged_candidate(const Coordinator &);
+	static bool cancelled_construction_settled(const Coordinator &);
 	static void request_compaction(Coordinator &);
 	static void fail_next_compaction_admission(Coordinator &);
 	static void fail_next_maintenance_recovery(Coordinator &, std::exception_ptr);

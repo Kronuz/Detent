@@ -36,7 +36,17 @@ struct RecoveryResult : d::RetirementNode {
 struct MaintenanceFailure {
 	std::exception_ptr cause;
 };
+struct ConstructionControl {
+	std::atomic<bool> stop{false};
+	std::atomic<std::uint64_t> steps{0};
+	void step() {
+		if (stop.load(std::memory_order_acquire))
+			throw asio::system_error(asio::error::operation_aborted);
+		steps.fetch_add(1, std::memory_order_relaxed);
+	}
+};
 struct PagedCandidateResult : d::RetirementNode {
+	ConstructionControl control;
 	bool compaction = false;
 	std::optional<l::detail::PagedPlan> plan;
 	std::optional<l::detail::StateEquivalenceProof> unchanged;
@@ -47,6 +57,7 @@ struct PagedCandidateResult : d::RetirementNode {
 	std::atomic<bool> ready{false};
 };
 struct CandidateComparisonResult : d::RetirementNode {
+	ConstructionControl control;
 	std::optional<l::detail::StateEquivalenceProof> proof;
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
@@ -60,6 +71,9 @@ struct Coordinator::Impl {
 	asio::thread_pool &worker;
 	CoordinatorStatus diagnostic;
 	std::exception_ptr terminal_failure;
+	ConstructionControl *construction = nullptr;
+	std::uint64_t steps_at_stop = 0, settled_construction_steps = 0;
+	bool construction_stopped = false;
 	bool terminal_fenced = false;
 	std::exception_ptr injected_worker_failure, injected_maintenance_failure;
 	bool fail_settled_worker_wait = false;
@@ -82,6 +96,17 @@ struct Coordinator::Impl {
 		  domain(retirement), worker(pool), base(domain.make<RecoveryResult>(options)) {
 		if (options.completion_port && !options.completion_port->uses(driver))
 			throw std::invalid_argument("coordinator completion port driver mismatch");
+	}
+	void stop_construction() noexcept {
+		if (construction) {
+			construction->stop.store(true, std::memory_order_release);
+			steps_at_stop = construction->steps.load(std::memory_order_relaxed);
+		}
+	}
+	void settle_construction(ConstructionControl &control) noexcept {
+		construction_stopped = control.stop.load(std::memory_order_acquire);
+		settled_construction_steps = control.steps.load(std::memory_order_relaxed);
+		construction = nullptr;
 	}
 	bool cancelled() const noexcept { return closing || candidate_cancellation != cancellation; }
 	void fence(std::exception_ptr failure) noexcept {
@@ -213,12 +238,14 @@ struct Coordinator::Impl {
 			try {
 				l::detail::CandidateFlatValidator validator(std::move(input), factory, heap, limits);
 				while (!validator.done()) {
+					result->control.step();
 					l::ValidationBudget budget;
 					validator.step(budget);
 				}
 				l::detail::StateEquivalence equality(l::detail::StateCursor(std::move(source), heap),
 													 l::detail::StateCursor(validator.take(), heap));
 				while (!equality.done()) {
+					result->control.step();
 					l::ValidationBudget budget;
 					equality.step(budget);
 				}
@@ -230,6 +257,7 @@ struct Coordinator::Impl {
 			}
 			result->ready.store(true, std::memory_order_release);
 		});
+		construction = &result->control;
 		diagnostic.worker_pending = true;
 		try {
 			while (!result->ready.load(std::memory_order_acquire))
@@ -237,11 +265,13 @@ struct Coordinator::Impl {
 		} catch (...) {
 			if (!result->ready.load(std::memory_order_acquire))
 				std::terminate();
+			settle_construction(result->control);
 			diagnostic.worker_pending = false;
 			if (result->failure)
 				std::rethrow_exception(result->failure);
 			throw;
 		}
+		settle_construction(result->control);
 		diagnostic.worker_pending = false;
 		if (result->failure)
 			std::rethrow_exception(result->failure);
@@ -289,6 +319,7 @@ struct Coordinator::Impl {
 						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
 																	generation, factory, heap);
 						while (!candidate.done()) {
+							result->control.step();
 							l::ValidationBudget budget;
 							candidate.step(budget);
 						}
@@ -303,6 +334,7 @@ struct Coordinator::Impl {
 					l::detail::PagedMaintenanceBuilder candidate(*actual, factory, heap, storage, generation,
 																 limits);
 					while (!candidate.done()) {
+						result->control.step();
 						l::ValidationBudget budget;
 						candidate.step(budget);
 					}
@@ -313,6 +345,7 @@ struct Coordinator::Impl {
 					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory,
 																  storage, generation, factory, heap, limits);
 					while (!candidate.done()) {
+						result->control.step();
 						l::ValidationBudget budget;
 						candidate.step(budget);
 					}
@@ -330,6 +363,7 @@ struct Coordinator::Impl {
 						l::detail::PagedPlanBuilder candidate(*actual, source->delta, generation, factory,
 															  heap);
 						while (!candidate.done()) {
+							result->control.step();
 							l::ValidationBudget budget;
 							candidate.step(budget);
 						}
@@ -344,6 +378,7 @@ struct Coordinator::Impl {
 						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, generation,
 																   factory, heap, bounds);
 						while (!candidate.done()) {
+							result->control.step();
 							l::ValidationBudget budget;
 							candidate.step(budget);
 						}
@@ -356,6 +391,7 @@ struct Coordinator::Impl {
 			}
 			result->ready.store(true, std::memory_order_release);
 		});
+		construction = &result->control;
 		diagnostic.worker_pending = true;
 		try {
 			while (!result->ready.load(std::memory_order_acquire))
@@ -363,11 +399,13 @@ struct Coordinator::Impl {
 		} catch (...) {
 			if (!result->ready.load(std::memory_order_acquire))
 				std::terminate();
+			settle_construction(result->control);
 			diagnostic.worker_pending = false;
 			if (result->failure)
 				std::rethrow_exception(result->failure);
 			throw;
 		}
+		settle_construction(result->control);
 		diagnostic.worker_pending = false;
 		if (result->failure)
 			std::rethrow_exception(result->failure);
@@ -614,6 +652,7 @@ struct Coordinator::Impl {
 		}
 	}
 	void close() noexcept {
+		stop_construction();
 		closing = true;
 		if (options.publication_sink)
 			options.publication_sink->fence();
@@ -976,6 +1015,11 @@ void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
 		throw std::logic_error("paged test mode requires idle coordinator");
 	coordinator.impl_->paged_writer = true;
 }
+bool detail::CoordinatorAccess::cancelled_construction_settled(const Coordinator &coordinator) {
+	const auto &impl = *coordinator.impl_;
+	return !impl.construction && impl.construction_stopped &&
+		   impl.settled_construction_steps <= impl.steps_at_stop + 1;
+}
 bool detail::CoordinatorAccess::retains_paged_candidate(const Coordinator &coordinator) {
 	return static_cast<bool>(coordinator.impl_->paged_candidate);
 }
@@ -994,6 +1038,7 @@ std::uint64_t detail::CoordinatorAccess::completed_compactions(const Coordinator
 	return coordinator.impl_->completed_compactions;
 }
 void Coordinator::cancel_update() noexcept {
+	impl_->stop_construction();
 	++impl_->cancellation;
 	impl_->network_cancel.emit(asio::cancellation_type::terminal);
 	impl_->notify_candidate();
