@@ -1,12 +1,15 @@
 #include "../../src/detent_delivery/coordinator_internal.hh"
+#include "detent/hashing.hh"
 #include "detent_delivery/coordinator.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_distribution/messagepack.hh"
+#include "detent_local/paged_layout.hh"
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
 #include <asio/experimental/awaitable_operators.hpp>
 #include <charconv>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <source_location>
 #include <thread>
@@ -172,13 +175,65 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 		   "X-Detent-Coding: raw\r\nContent-Length: " +
 		   std::to_string(frame.size()) + "\r\n\r\n" + frame;
 }
+std::string transition_response(bool progress) {
+	std::string wire;
+	auto a = [&](unsigned n) { m::array(wire, n); };
+	auto u = [&](std::uint64_t n) { m::unsigned_integer(wire, n); };
+	auto put_cursor = [&](unsigned revision) {
+		const auto value = cursor();
+		a(5);
+		for (const auto *part : {&value.cluster, &value.group, &value.restore_epoch})
+			m::string(wire, {part->data(), part->size()}, true);
+		m::string(wire, {value.scope.data(), value.scope.size()}, true);
+		u(revision);
+	};
+	a(progress ? 5 : 7);
+	u(1);
+	u(progress ? 3 : 2);
+	a(2);
+	u(1);
+	u(1);
+	put_cursor(progress ? 1 : 2);
+	put_cursor(progress ? 2 : 3);
+	if (!progress) {
+		a(4);
+		u(1);
+		u(1);
+		u(0);
+		u(16);
+		a(1);
+		a(3);
+		u(3);
+		a(1);
+		a(2);
+		m::string(wire, "app");
+		u(3);
+		a(1);
+		a(4);
+		u(0);
+		m::string(wire, "app:key000004");
+		u(0);
+		a(2);
+		u(1);
+		m::signed_integer(wire, -4);
+	}
+	d::Identity identity{};
+	identity.fill(progress ? 'p' : 'd');
+	const auto kind = progress ? d::UpdateKind::Progress : d::UpdateKind::Delta;
+	auto frame = d::encode_fragment({kind, identity, 0, wire.size(), true, wire}, false);
+	return "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.detent.distribution\r\nX-Detent-Profile: "
+		   "1\r\nX-Detent-Revision: " +
+		   std::to_string(progress ? 2 : 3) + "\r\nX-Detent-Kind: " + std::to_string(progress ? 3 : 2) +
+		   "\r\nX-Detent-Coding: raw\r\nContent-Length: " + std::to_string(frame.size()) + "\r\n\r\n" + frame;
+}
+
 struct Timing {
 	std::uint64_t turns = 0;
 	std::int64_t maximum_lateness_us = 0;
 };
 asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
 							  bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr,
-							  std::chrono::milliseconds timeout = 60s) {
+							  std::chrono::milliseconds timeout = 60s, unsigned final_revision = 1) {
 	auto executor = co_await asio::this_coro::executor;
 	asio::steady_timer timer(executor);
 	const auto deadline = std::chrono::steady_clock::now() + timeout;
@@ -235,7 +290,9 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 	timer.expires_after(5ms);
 	co_await timer.async_wait(asio::use_awaitable);
 	coordinator->close();
-	check(published && coordinator->status().recoverable == cursor());
+	auto final = cursor();
+	final.revision = final_revision;
+	check(published && coordinator->status().recoverable == final);
 }
 asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinator,
 									   const t::CoordinatorOptions &options) {
@@ -278,8 +335,27 @@ asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinat
 }
 asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
 							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
-							   const std::atomic<bool> *feedback_received, bool cancel_open = false) {
+							   const std::atomic<bool> *feedback_received, bool cancel_open = false,
+							   bool transitions = false, bool worker_cancel = false) {
 	using namespace asio::experimental::awaitable_operators;
+	if (worker_cancel) {
+		auto cancel = [&]() -> asio::awaitable<void> {
+			asio::steady_timer timer(co_await asio::this_coro::executor);
+			const auto deadline = std::chrono::steady_clock::now() + options.source.timeout;
+			while (!(coordinator->status().worker_pending && coordinator->status().received) &&
+				   std::chrono::steady_clock::now() < deadline) {
+				timer.expires_after(1ms);
+				co_await timer.async_wait(asio::use_awaitable);
+			}
+			const bool accepted = coordinator->status().worker_pending && coordinator->status().received;
+			coordinator->cancel_update();
+			coordinator->close();
+			check(accepted);
+		};
+		co_await (coordinator->run() && cancel());
+		check(!coordinator->status().worker_pending && !coordinator->status().acknowledged);
+		co_return;
+	}
 	if (cancel_open) {
 		co_await coordinator->run();
 		co_return;
@@ -288,8 +364,8 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 		co_await (coordinator->run() && observe_pressure(coordinator, options));
 		co_return;
 	}
-	co_await (coordinator->run() &&
-			  observe(coordinator, timing, cancel_selected, feedback_received, options.source.timeout));
+	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected, feedback_received,
+											options.source.timeout, transitions ? 3 : 1));
 }
 void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 							d::RetirementHandle<d::EncodedUpdate> expected,
@@ -368,6 +444,12 @@ void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
+		const bool paged = argc == 3 && std::string_view(argv[2]).find("paged") != std::string_view::npos;
+		const bool transitions =
+			paged && std::string_view(argv[2]).find("transitions") != std::string_view::npos;
+		const bool worker_cancel =
+			paged && std::string_view(argv[2]).find("worker-cancel") != std::string_view::npos;
+		const bool migration = paged && std::string_view(argv[2]).find("migrate") != std::string_view::npos;
 		const bool relay = argc == 3 && std::string_view(argv[2]).find("relay") != std::string_view::npos;
 		const bool relay_sessions =
 			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
@@ -403,20 +485,67 @@ int main(int argc, char **argv) {
 		auto root = std::make_shared<d::StorageLedger>(384 * 1024 * 1024);
 		auto account = std::make_shared<d::StorageLedger>(root, 256 * 1024 * 1024);
 		d::RetirementRuntime runtime(account, 3);
-		auto domain = runtime.domain(account, 64);
+		auto domain = runtime.domain(account, paged ? 2048 : 64);
+		auto mapping = std::make_shared<d::StorageLedger>(512ull * 1024 * 1024);
 		l::DiskStoreOptions disk_options;
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
-		disk_options.limits = {pressure ? 1056ull : 512ull * 1024 * 1024, 100, 10};
+		if (paged) {
+			disk_options.recovery_limits.mapping_account = mapping;
+			disk_options.recovery_limits.retirement_domain = &domain;
+		}
+		disk_options.limits = {pressure ? 1056ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
+		std::optional<l::ReadView> pinned_flat;
+		if (migration) {
+			const auto reply = response(count);
+			d::Limits input_limits;
+			input_limits.storage_account = account;
+			const std::array<std::string_view, 1> names{"app"};
+			t::ResponseDecoder decoder(
+				cursor(), {},
+				d::NamespaceSelection(count ? std::span(names) : std::span<const std::string_view>{}), false,
+				input_limits);
+			auto bytes = std::span<const char>(reply);
+			while (!decoder.done()) {
+				d::WorkBudget budget;
+				if (!bytes.empty() && decoder.needs_input())
+					decoder.feed(bytes, budget);
+				else
+					decoder.step(budget);
+			}
+			auto input = decoder.take();
+			l::GenerationId initial{};
+			initial.fill('i');
+			l::ImageBuilder builder(input.snapshot, initial);
+			while (!builder.done()) {
+				l::ValidationBudget budget;
+				builder.step(budget);
+			}
+			auto write = [&](const auto &path, std::span<const char> contents) {
+				std::ofstream file(path, std::ios::binary);
+				file.write(contents.data(), contents.size());
+				file.close();
+				check(bool(file));
+				std::filesystem::permissions(path, std::filesystem::perms::owner_read |
+													   std::filesystem::perms::owner_write);
+			};
+			const auto name = l::generation_name(initial);
+			write(directory / (name + ".image"), builder.bytes()->view());
+			write(directory / (name + ".lease"), {});
+			write(directory / "owner.lock", {});
+			write(directory / "selected", l::encode_descriptor(builder.descriptor()));
+			pinned_flat = l::recover_generation(directory, disk_options.recovery_limits).view();
+			disk_options.mode = l::StoreOpenMode::UpgradeLegacy;
+		}
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
+		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*server_tls,
-										 {(certificates / "one.pem").string(),
-										  (certificates / "one.key").string(),
-										  (certificates / "ca.pem").string()},
-										 reactor::tls::Role::Server);
+								{(certificates / "one.pem").string(), (certificates / "one.key").string(),
+								 (certificates / "ca.pem").string()},
+								reactor::tls::Role::Server);
 		auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*client_tls, {"", "", (certificates / "ca.pem").string()},
-										 reactor::tls::Role::Client);
+								reactor::tls::Role::Client);
 		asio::io_context server_io;
 		asio::ip::tcp::acceptor acceptor(server_io, {asio::ip::address_v4::loopback(), 0});
 		std::exception_ptr server_failure;
@@ -446,7 +575,6 @@ int main(int argc, char **argv) {
 #endif
 		if (count)
 			options.source.namespaces = {"app"};
-		auto mapping = std::make_shared<d::StorageLedger>(512ull * 1024 * 1024);
 		options.view_limits.mapping_account = mapping;
 		options.view_limits.retirement_domain = &domain;
 		std::shared_ptr<RecordingSink> recording;
@@ -478,6 +606,8 @@ int main(int argc, char **argv) {
 				cache_pressure = cache_account->admit(cache_account->limit() - cache_account->used());
 		}
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
+		if (paged)
+			t::detail::CoordinatorAccess::enable_paged_writer(*coordinator);
 		{
 			auto quota = std::make_shared<d::StorageLedger>(65536);
 			auto quota_domain = runtime.domain(quota, 8);
@@ -496,15 +626,17 @@ int main(int argc, char **argv) {
 			try {
 				for (unsigned attempt = 0; attempt != (cancel_open		 ? 2u
 													   : reset_retry	 ? 11u
-													   : subscription	 ? 4u
+													   : worker_cancel	 ? 3u
+													   : subscription	 ? (transitions ? 6u : 4u)
 													   : pressure		 ? 3u
 													   : cancel_selected ? 2u
 																		 : 1u);
 					 ++attempt) {
 					const auto phase =
-						cancel_open	  ? std::array<unsigned, 2>{0, 3}[attempt]
-						: reset_retry ? std::array<unsigned, 11>{0, 1, 4, 3, 0, 5, 3, 0, 1, 2, 3}[attempt]
-									  : attempt;
+						cancel_open		? std::array<unsigned, 2>{0, 3}[attempt]
+						: worker_cancel ? std::array<unsigned, 3>{0, 1, 3}[attempt]
+						: reset_retry	? std::array<unsigned, 11>{0, 1, 4, 3, 0, 5, 3, 0, 1, 2, 3}[attempt]
+										: attempt;
 					asio::ip::tcp::socket accepted(server_io);
 					const auto accept_deadline = std::chrono::steady_clock::now() + 60s;
 					for (;;) {
@@ -552,6 +684,12 @@ int main(int argc, char **argv) {
 									bool valid = status.recoverable == cursor() &&
 												 status.selected.descriptor &&
 												 status.selected.descriptor->cursor == cursor();
+									if (paged)
+										valid = valid &&
+												status.selected.descriptor->length == l::paged::root_bytes;
+									if (pinned_flat)
+										valid = valid && pinned_flat->cursor() == cursor() &&
+												pinned_flat->size() == count;
 									if (relay_bundle) {
 										valid = valid && relay_bundle->status().ready;
 										if (relay_pressure) {
@@ -640,7 +778,48 @@ int main(int argc, char **argv) {
 								}
 							});
 							check(ready.get());
-							feedback_received.store(true);
+							if (transitions)
+								asio::post(io, [&] {
+									t::detail::CoordinatorAccess::request_compaction(*coordinator);
+								});
+							else
+								feedback_received.store(true);
+						}
+						if (transitions && (phase == 3 || phase == 4)) {
+							if (body.find("\"after\":" + std::to_string(phase - 1)) == std::string::npos) {
+								std::promise<std::string> diagnostic;
+								auto result = diagnostic.get_future();
+								asio::post(io, [&] {
+									try {
+										if (auto error = coordinator->status().error)
+											std::rethrow_exception(error);
+										diagnostic.set_value("no coordinator error");
+									} catch (const std::exception &error) {
+										diagnostic.set_value(error.what());
+									}
+								});
+								throw std::runtime_error("transition feedback: " + body + "; " +
+														 result.get());
+							}
+							check(body.find("\"after\":" + std::to_string(phase - 1)) != std::string::npos);
+							check(body.find("\"revision\":" + std::to_string(phase - 1)) !=
+								  std::string::npos);
+							std::promise<bool> verified;
+							auto ready = verified.get_future();
+							asio::post(io, [&] {
+								const auto status = coordinator->status();
+								auto expected = cursor();
+								expected.revision = phase - 1;
+								verified.set_value(
+									status.recoverable == expected && status.acknowledged == expected &&
+									status.selected.descriptor &&
+									status.selected.descriptor->cursor == expected &&
+									status.selected.descriptor->length == l::paged::root_bytes &&
+									t::detail::CoordinatorAccess::completed_compactions(*coordinator) == 1);
+							});
+							check(ready.get());
+							if (phase == 4)
+								feedback_received.store(true);
 						}
 						if (attempt && !subscription)
 							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) !=
@@ -648,7 +827,19 @@ int main(int argc, char **argv) {
 					}
 					auto bytes = response(count, pressure ? attempt + 1 : 1);
 					if (subscription) {
-						if (phase == 0) {
+						if (transitions && (phase == 2 || phase == 3)) {
+							bytes = transition_response(phase == 2);
+							bytes.insert(bytes.find("\r\n") + 2,
+										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
+										 "11111111111111111111111111111111\r\nX-Detent-Window: " +
+											 std::to_string(phase) + "\r\n");
+						} else if (transitions && phase == 4) {
+							std::array<char, 1> buffer;
+							asio::error_code error;
+							socket.read_some(asio::buffer(buffer), error);
+							check(bool(error));
+							continue;
+						} else if (phase == 0) {
 							const std::string body =
 								"{\"version\":1,\"session\":\"11111111111111111111111111111111\","
 								"\"window\":0,\"mode\":\"snapshot\",\"wait_ms\":30000}";
@@ -690,7 +881,8 @@ int main(int argc, char **argv) {
 		Timing timing;
 		auto done = asio::co_spawn(io,
 								   exercise(coordinator, timing, cancel_selected, pressure, options,
-											subscription ? &feedback_received : nullptr, cancel_open),
+											subscription ? &feedback_received : nullptr, cancel_open,
+											transitions, worker_cancel),
 								   asio::use_future);
 		io.run();
 		std::exception_ptr run_failure;
@@ -705,7 +897,7 @@ int main(int argc, char **argv) {
 		if (run_failure)
 			std::rethrow_exception(run_failure);
 		auto final_cursor = cursor();
-		if (pressure)
+		if (pressure || transitions)
 			final_cursor.revision = 3;
 		check(coordinator->drained());
 		if (relay_bundle)
@@ -715,8 +907,8 @@ int main(int argc, char **argv) {
 			check(recording->last_selected == store->selection().descriptor);
 			check(recording->authentications == (subscription ? 1u : 0u));
 		}
-		if (cancel_open) {
-			check(!store->selection().descriptor && !coordinator->status().received &&
+		if (cancel_open || worker_cancel) {
+			check(!store->selection().descriptor && (worker_cancel || !coordinator->status().received) &&
 				  !coordinator->status().acknowledged);
 		} else {
 			check(store->selection().descriptor->cursor == final_cursor);
@@ -784,18 +976,34 @@ int main(int argc, char **argv) {
 		driver.reset();
 		queue.reset();
 		store.reset();
+		pinned_flat.reset();
 		domain.close().wait();
 		runtime.shutdown();
 		check(cache_account->used() == 0);
-		if (!cancel_open) {
+		if (!cancel_open && !worker_cancel) {
 			auto recovered = l::recover_generation(directory);
 			check(recovered.descriptor().cursor == final_cursor);
 			check(recovered.view().size() == count);
-			if (count > 4) {
-				auto integer = recovered.view().try_get("app", "key000004");
-				check(integer && *integer && integer->value() == -4);
-				auto boolean = recovered.view().try_eval("app", "key000001", {}, "beta");
-				check(boolean && *boolean);
+			const auto view = recovered.view();
+			check(view.int_count() == (count + 3) / 4 && view.bool_count() == count - (count + 3) / 4);
+			for (std::uint32_t i = 0; i != count; ++i) {
+				char digits[7];
+				const auto end = std::to_chars(digits, digits + sizeof(digits), i).ptr;
+				std::string key = "key";
+				key.append(6 - (end - digits), '0');
+				key.append(digits, end);
+				if (i % 4 == 0) {
+					auto integer = view.try_get("app", key);
+					check(integer && *integer && integer->value() == -std::int64_t(i));
+				} else {
+					auto boolean = view.try_eval("app", key);
+					check(boolean && *boolean && boolean->value() == bool(i % 2));
+					auto switched = view.try_eval("app", key, {}, "beta");
+					check(switched && *switched && switched->value() == bool(i % 2));
+					auto cohort = view.try_eval("app", key, "scale-host", "beta");
+					check(cohort && *cohort &&
+						  cohort->value() == (detent::stable_bucket("app:" + key, "scale-host") < 17));
+				}
 			}
 		}
 		check(mapping->used() == 0);

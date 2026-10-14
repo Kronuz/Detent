@@ -90,4 +90,11 @@ PagedPlan PagedMaintenanceBuilder::take() {
 		throw std::logic_error("maintenance plan is unavailable");
 	return PagedPlan(std::move(state_));
 }
+std::shared_ptr<const StateEquivalenceProof> PagedMaintenanceBuilder::evidence() const {
+	if (!done() || !state_ || !state_->maintenance_proof_)
+		throw std::logic_error("maintenance evidence unavailable");
+	using Handle = distribution::RetirementHandle<PagedPlanState>;
+	auto owner = std::allocate_shared<Handle>(distribution::StorageAllocator<Handle>(heap_), state_);
+	return {std::move(owner), &*state_->maintenance_proof_};
+}
 } // namespace detent::local::detail

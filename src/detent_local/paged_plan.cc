@@ -195,6 +195,13 @@ PagedPlanBuilder::PagedPlanBuilder(const RecoveredGeneration &base,
 	plan_ = domain.make<PagedPlanState>(source->storage_account(), base.paged_, generation, *source);
 }
 PagedPlanBuilder::~PagedPlanBuilder() = default;
+PagedPlanBuilder::PagedPlanBuilder(const RecoveredGeneration &base,
+								   std::shared_ptr<const d::ValidatedDelta> source, GenerationId generation,
+								   d::RetirementFactory factory, std::shared_ptr<d::StorageLedger> heap) {
+	if (!source || !base.paged_ || source->storage_account() != heap || !factory.uses_account(heap))
+		throw std::invalid_argument("paged progress requires exact captured resources");
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation, *source);
+}
 PagedPlanBuilder::PagedPlanBuilder(PagedPlanBuilder &&) noexcept = default;
 void PagedPlanBuilder::step(ValidationBudget &budget) {
 	if (!plan_ || failed_)

@@ -3,6 +3,10 @@
 #include "coordinator_internal.hh"
 #include "detent_delivery/reconnect_backoff.hh"
 #include "managed_recovery.hh"
+#include "paged_compaction_plan.hh"
+#include "paged_delta_plan.hh"
+#include "paged_maintenance_plan.hh"
+#include "paged_snapshot_plan.hh"
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
@@ -29,6 +33,16 @@ struct RecoveryResult : d::RetirementNode {
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
+struct PagedCandidateResult : d::RetirementNode {
+	bool compaction = false;
+	std::optional<l::detail::PagedPlan> plan;
+	std::optional<l::detail::StateEquivalenceProof> unchanged;
+	std::shared_ptr<const l::detail::StateEquivalenceProof> maintenance;
+	std::optional<l::Descriptor> descriptor;
+	std::optional<l::Descriptor> selected_base;
+	std::exception_ptr failure;
+	std::atomic<bool> ready{false};
+};
 struct CandidateComparisonResult : d::RetirementNode {
 	std::optional<l::detail::StateEquivalenceProof> proof;
 	std::exception_ptr failure;
@@ -49,6 +63,10 @@ struct Coordinator::Impl {
 	bool fail_worker_wait = false, close_after_session_open = false;
 	d::RetirementHandle<RecoveryResult> base;
 	d::StorageOwner<l::ImageBuilder> builder;
+	d::RetirementHandle<PagedCandidateResult> paged_candidate;
+	bool paged_writer = false, pending_paged_confirmation = false, compaction_requested = false;
+	std::uint64_t completed_compactions = 0;
+	std::chrono::steady_clock::time_point next_compaction_check{};
 	asio::cancellation_signal network_cancel;
 	std::optional<asio::steady_timer> candidate_wake, disk_wake;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
@@ -228,6 +246,133 @@ struct Coordinator::Impl {
 		co_return std::move(*result->proof);
 	}
 
+	asio::awaitable<void> build_paged(const ReceivedUpdate *update, bool compact = false,
+									  bool force = false) {
+		auto result = domain.make<PagedCandidateResult>();
+		result->compaction = compact;
+		std::optional<ReceivedUpdate> source;
+		if (update)
+			source = *update;
+		auto actual = base->generation;
+		result->selected_base = actual ? std::optional(actual->descriptor()) : std::nullopt;
+		const auto generation = base->next_id;
+		const auto context = l::detail::ManagedRecovery::capture(*store);
+		auto factory = domain.factory();
+		auto heap = domain.storage_account();
+		auto limits = options.view_limits;
+		limits.retirement_domain = nullptr;
+		asio::post(worker, [result, source = std::move(source), actual = std::move(actual), generation,
+							directory = context.directory, storage = context.storage,
+							prior = context.paged.prior, compact, force, factory, heap, limits]() mutable {
+			try {
+				if (!source && compact) {
+					if (!actual || !prior || prior->descriptor() != actual->descriptor())
+						throw std::invalid_argument("compaction lacks actual captured head");
+					std::array<l::StorageIdentity, 8> selected{};
+					std::size_t count = 0;
+					const auto inputs = prior->registry()->inputs();
+					for (std::size_t i = 0; i < inputs.size() && count < selected.size(); ++i) {
+						const auto live = prior->registry()->reachability(i);
+						if (live.pages && (force || live.bytes < inputs[i].ownership.length / 2)) {
+							selected[count++] = inputs[i].ownership.segment;
+							if (force)
+								break;
+						}
+					}
+					if (!count)
+						result->descriptor = actual->descriptor();
+					else {
+						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
+																	generation, factory, heap);
+						while (!candidate.done()) {
+							l::ValidationBudget budget;
+							candidate.step(budget);
+						}
+						result->maintenance = candidate.evidence();
+						result->plan.emplace(candidate.take());
+						result->descriptor = result->plan->descriptor();
+					}
+
+				} else if (!source) {
+					if (!actual)
+						throw std::invalid_argument("migration requires actual recovered base");
+					l::detail::PagedMaintenanceBuilder candidate(*actual, factory, heap, storage, generation,
+																 limits);
+					while (!candidate.done()) {
+						l::ValidationBudget budget;
+						candidate.step(budget);
+					}
+					result->maintenance = candidate.evidence();
+					result->plan.emplace(candidate.take());
+					result->descriptor = result->plan->descriptor();
+				} else if (source->snapshot) {
+					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory,
+																  storage, generation, factory, heap, limits);
+					while (!candidate.done()) {
+						l::ValidationBudget budget;
+						candidate.step(budget);
+					}
+					if (candidate.unchanged()) {
+						result->unchanged.emplace(candidate.take_unchanged_proof());
+						result->descriptor = actual->descriptor();
+					} else {
+						result->plan.emplace(candidate.take());
+						result->descriptor = result->plan->descriptor();
+					}
+				} else {
+					if (!actual || !l::detail::StateCursor::logical_commitment(*actual))
+						throw std::invalid_argument("paged delta requires a migrated actual base");
+					if (source->kind == d::UpdateKind::Progress) {
+						l::detail::PagedPlanBuilder candidate(*actual, source->delta, generation, factory,
+															  heap);
+						while (!candidate.done()) {
+							l::ValidationBudget budget;
+							candidate.step(budget);
+						}
+						result->plan.emplace(candidate.take());
+					} else {
+						l::paged::Limits bounds;
+						if (limits.bytes < l::paged::root_bytes)
+							throw std::invalid_argument("paged output manifest exceeds limit");
+						bounds.bytes = limits.bytes - l::paged::root_bytes;
+						bounds.records = limits.records;
+						bounds.namespaces = limits.namespaces;
+						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, generation,
+																   factory, heap, bounds);
+						while (!candidate.done()) {
+							l::ValidationBudget budget;
+							candidate.step(budget);
+						}
+						result->plan.emplace(candidate.take());
+					}
+					result->descriptor = result->plan->descriptor();
+				}
+			} catch (...) {
+				result->failure = std::current_exception();
+			}
+			result->ready.store(true, std::memory_order_release);
+		});
+		diagnostic.worker_pending = true;
+		try {
+			while (!result->ready.load(std::memory_order_acquire))
+				co_await pause(std::chrono::milliseconds(1));
+		} catch (...) {
+			if (!result->ready.load(std::memory_order_acquire))
+				std::terminate();
+			diagnostic.worker_pending = false;
+			if (result->failure)
+				std::rethrow_exception(result->failure);
+			throw;
+		}
+		diagnostic.worker_pending = false;
+		if (result->failure)
+			std::rethrow_exception(result->failure);
+		if (store->selection().descriptor != result->selected_base ||
+			store->directory_identity() != context.directory)
+			throw std::invalid_argument("paged construction actual base changed");
+		paged_candidate = std::move(result);
+	}
+
 	void bind_base(d::RetirementHandle<RecoveryResult> recovered) {
 		const auto actual = store->selection();
 		if (actual.knowledge == l::SelectionKnowledge::Uncertain)
@@ -246,17 +391,129 @@ struct Coordinator::Impl {
 				throw std::runtime_error("unexpected managed recovery for absent selection");
 			diagnostic.recoverable.reset();
 		}
+		bool equivalent = false;
+		if (pending_paged_confirmation) {
+			if (!paged_candidate)
+				throw std::invalid_argument("paged recovered selection differs from candidate");
+			if (recovered->generation && recovered->generation->descriptor() == paged_candidate->descriptor) {
+				store->confirm_recovered(*recovered->generation);
+				equivalent = bool(paged_candidate->maintenance);
+				if (equivalent && paged_candidate->compaction)
+					++completed_compactions;
+			} else if (actual.descriptor != paged_candidate->selected_base)
+				throw std::invalid_argument("paged rejection changed actual selection");
+			pending_paged_confirmation = false;
+			notify_disk();
+		}
 		base = std::move(recovered);
-		if (options.publication_sink && base->generation)
-			options.publication_sink->selected(*base->generation);
+		if (options.publication_sink && base->generation) {
+			if (equivalent)
+				options.publication_sink->selected_equivalent(*base->generation,
+															  *paged_candidate->maintenance);
+			else
+				options.publication_sink->selected(*base->generation);
+		}
 	}
+	asio::awaitable<bool> publish_candidate() {
+		diagnostic.phase = CoordinatorPhase::WaitingPublication;
+		notify_disk();
+		const auto expires = std::chrono::steady_clock::now() + options.source.timeout;
+		while (!cancelled() && !publication_started) {
+			if (std::chrono::steady_clock::now() >= expires)
+				throw std::runtime_error("managed publication admission deadline");
+			co_await wait_candidate(expires);
+		}
+		while (publication_started && store->publication_status() == l::DiskPublicationStatus::Preparing)
+			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
+		if (!cancelled() && store->publication_status() == l::DiskPublicationStatus::Published)
+			co_return true;
+		if (!cancelled() && store->publication_error())
+			std::rethrow_exception(store->publication_error());
+		co_return false;
+	}
+	asio::awaitable<void> migrate_flat_head() {
+		if (!paged_writer || !base->generation ||
+			l::detail::StateCursor::logical_commitment(*base->generation) ||
+			!base->generation->descriptor().cursor.same_identity(options.source.configured))
+			co_return;
+		diagnostic.phase = CoordinatorPhase::Building;
+		co_await build_paged(nullptr);
+		if (!cancelled())
+			co_await publish_candidate();
+		if (closing)
+			co_return;
+		const auto actual = store->selection();
+		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
+		auto recovered = co_await recover(changed);
+		if (!closing)
+			bind_base(std::move(recovered));
+		paged_candidate.reset();
+		publication_started = false;
+		publication_retry = {};
+	}
+
+	asio::awaitable<void> compact_head() {
+		const auto now = std::chrono::steady_clock::now();
+		if (!paged_writer || (!compaction_requested && now < next_compaction_check) || !base->generation ||
+			!l::detail::StateCursor::logical_commitment(*base->generation))
+			co_return;
+		const bool force = std::exchange(compaction_requested, false);
+		next_compaction_check = now + std::chrono::seconds(60);
+		diagnostic.phase = CoordinatorPhase::Building;
+		std::exception_ptr refusal;
+		try {
+			co_await build_paged(nullptr, true, force);
+		} catch (const d::StoragePressure &) {
+			refusal = std::current_exception();
+		} catch (const std::bad_alloc &) {
+			refusal = std::current_exception();
+		} catch (const std::length_error &) {
+			refusal = std::current_exception();
+		}
+		if (refusal) {
+			++diagnostic.failures;
+			diagnostic.error = refusal;
+			paged_candidate.reset();
+			co_return;
+		}
+		if (!paged_candidate->plan) {
+			paged_candidate.reset();
+			co_return;
+		}
+		if (!cancelled())
+			co_await publish_candidate();
+		if (closing)
+			co_return;
+		const auto actual = store->selection();
+		const bool changed = actual.descriptor && base->generation->descriptor() != actual.descriptor;
+		auto recovered = co_await recover(changed);
+		if (!closing)
+			bind_base(std::move(recovered));
+		paged_candidate.reset();
+		publication_started = false;
+		publication_retry = {};
+	}
+
 	void offer_publication() {
 		if (diagnostic.phase != CoordinatorPhase::WaitingPublication || cancelled() ||
 			!store->publication_ready() || std::chrono::steady_clock::now() < publication_retry)
 			return;
 		const auto actual = store->selection();
-		if (actual.knowledge == l::SelectionKnowledge::Known &&
-			!actual.descriptor->cursor.same_identity(options.source.configured)) {
+		if (paged_candidate) {
+			if (!paged_candidate->plan)
+				throw std::logic_error("paged candidate has no publication plan");
+			if (paged_candidate->plan->intent() == l::detail::PagedPlanIntent::TrustedReset) {
+				if (!actual.descriptor || !options.reset_from ||
+					!actual.descriptor->cursor.same_identity(*options.reset_from))
+					throw std::invalid_argument("managed paged reset is not configured");
+				store->begin_reset(
+					std::move(*paged_candidate->plan),
+					{*actual.descriptor, options.source.configured, paged_candidate->descriptor->profile});
+			} else
+				store->begin(std::move(*paged_candidate->plan));
+			pending_paged_confirmation = true;
+		} else if (actual.knowledge == l::SelectionKnowledge::Known &&
+				   !actual.descriptor->cursor.same_identity(options.source.configured)) {
 			if (!options.reset_from || !actual.descriptor->cursor.same_identity(*options.reset_from))
 				throw std::invalid_argument("managed reset is not configured");
 			store->begin_reset(*builder, {*actual.descriptor, options.source.configured, {}});
@@ -405,12 +662,17 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 		while (!closing) {
 			candidate_cancellation = cancellation;
 			publication_started = false;
+			paged_candidate.reset();
 			publication_retry = {};
 			std::optional<ReceivedUpdate> update;
 			std::optional<PublicationFeedback> offered;
 			bool reset_session = false, idle = false, offered_snapshot = false;
 			std::exception_ptr failure;
 			try {
+				co_await migrate_flat_head();
+				co_await compact_head();
+				if (cancelled())
+					throw asio::system_error(asio::error::operation_aborted);
 				auto request = options.source;
 				const auto actual = store->selection();
 				request.base =
@@ -488,29 +750,38 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						throw asio::system_error(asio::error::operation_aborted);
 					diagnostic.phase = CoordinatorPhase::Building;
 					auto account = store->storage_account();
-					if (update->snapshot)
-						builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
-																		 update->snapshot, base->next_id,
-																		 options.view_limits);
+					if (paged_writer)
+						co_await build_paged(&*update);
 					else {
-						if (!base->generation || base->generation->descriptor() != actual.descriptor)
-							throw std::invalid_argument("managed delta has no exact recovered base");
-						builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
-																		 update->delta, *base->generation,
-																		 base->next_id, options.view_limits);
-					}
-					while (!builder->done() && !cancelled()) {
-						l::ValidationBudget budget;
-						builder->step(budget);
-						if (!builder->done())
-							co_await yield();
+						if (update->snapshot)
+							builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
+																			 update->snapshot, base->next_id,
+																			 options.view_limits);
+						else {
+							if (!base->generation || base->generation->descriptor() != actual.descriptor)
+								throw std::invalid_argument("managed delta has no exact recovered base");
+							builder = d::make_storage_owner<l::ImageBuilder>(
+								account, std::malloc, std::free, update->delta, *base->generation,
+								base->next_id, options.view_limits);
+						}
+						while (!builder->done() && !cancelled()) {
+							l::ValidationBudget budget;
+							builder->step(budget);
+							if (!builder->done())
+								co_await yield();
+						}
 					}
 					if (!cancelled()) {
-						const auto candidate = builder->descriptor();
+						const auto candidate =
+							paged_candidate ? *paged_candidate->descriptor : builder->descriptor();
 						if (options.publication_sink)
 							options.publication_sink->bind_candidate(candidate, store->directory_identity());
 						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor) {
-							co_await compare_candidate();
+							if (!paged_candidate)
+								co_await compare_candidate();
+							else if (!paged_candidate->unchanged)
+								throw std::invalid_argument(
+									"same-cursor paged candidate lacks equality evidence");
 							if (cancelled())
 								throw asio::system_error(asio::error::operation_aborted);
 							if (options.publication_sink)
@@ -518,22 +789,10 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 																		 store->directory_identity());
 							diagnostic.acknowledged = candidate.cursor;
 						} else {
-							diagnostic.phase = CoordinatorPhase::WaitingPublication;
-							notify_disk();
-							const auto expires = std::chrono::steady_clock::now() + options.source.timeout;
-							while (!cancelled() && !publication_started) {
-								if (std::chrono::steady_clock::now() >= expires)
-									throw std::runtime_error("managed publication admission deadline");
-								co_await wait_candidate(expires);
+							if (co_await publish_candidate()) {
+								if (!paged_candidate)
+									diagnostic.acknowledged = candidate.cursor;
 							}
-							while (publication_started &&
-								   store->publication_status() == l::DiskPublicationStatus::Preparing)
-								co_await wait_candidate(std::chrono::steady_clock::time_point::max());
-							if (!cancelled() &&
-								store->publication_status() == l::DiskPublicationStatus::Published)
-								diagnostic.acknowledged = candidate.cursor;
-							else if (!cancelled() && store->publication_error())
-								std::rethrow_exception(store->publication_error());
 						}
 					}
 				}
@@ -582,8 +841,12 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			const bool changed = actual.descriptor &&
 								 (!base->generation || base->generation->descriptor() != actual.descriptor);
 			auto recovered = co_await recover(changed);
-			if (!closing)
+			if (!closing) {
 				bind_base(std::move(recovered));
+				if (paged_candidate && !failure && !cancelled() && diagnostic.received && base->generation &&
+					base->generation->descriptor().cursor == *diagnostic.received)
+					diagnostic.acknowledged = *diagnostic.received;
+			}
 			if (!closing && options.delivery_mode == DeliveryMode::Subscription && session.valid() &&
 				offered) {
 				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
@@ -678,6 +941,18 @@ asio::awaitable<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner)
 		// scheduler failure abandon a sibling's accepted original or worker.
 		std::terminate();
 	}
+}
+void detail::CoordinatorAccess::enable_paged_writer(Coordinator &coordinator) {
+	if (coordinator.impl_->running)
+		throw std::logic_error("paged test mode requires idle coordinator");
+	coordinator.impl_->paged_writer = true;
+}
+void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
+	coordinator.impl_->compaction_requested = true;
+	coordinator.impl_->notify_candidate();
+}
+std::uint64_t detail::CoordinatorAccess::completed_compactions(const Coordinator &coordinator) {
+	return coordinator.impl_->completed_compactions;
 }
 void Coordinator::cancel_update() noexcept {
 	++impl_->cancellation;

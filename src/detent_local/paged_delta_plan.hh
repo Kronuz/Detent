@@ -6,6 +6,9 @@ class PagedDeltaPlanBuilder {
   public:
 	PagedDeltaPlanBuilder(const RecoveredGeneration &, distribution::ValidatedDelta &&, GenerationId,
 						  distribution::RetirementDomain &, paged::Limits = {});
+	PagedDeltaPlanBuilder(const RecoveredGeneration &, std::shared_ptr<const distribution::ValidatedDelta>,
+						  GenerationId, distribution::RetirementFactory,
+						  std::shared_ptr<distribution::StorageLedger>, paged::Limits = {});
 	~PagedDeltaPlanBuilder();
 	PagedDeltaPlanBuilder(PagedDeltaPlanBuilder &&) noexcept;
 	PagedDeltaPlanBuilder(const PagedDeltaPlanBuilder &) = delete;

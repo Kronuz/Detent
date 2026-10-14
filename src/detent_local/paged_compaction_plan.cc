@@ -74,6 +74,26 @@ PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
 	work_ = domain.make<Work>(plan_, base, domain.storage_account(), selected, compaction, limits);
 }
 PagedCompactionBuilder::~PagedCompactionBuilder() = default;
+PagedCompactionBuilder::PagedCompactionBuilder(const RecoveredGeneration &base,
+											   std::span<const StorageIdentity> selected,
+											   GenerationId generation, d::RetirementFactory factory,
+											   std::shared_ptr<d::StorageLedger> heap,
+											   CompactionLimits compaction, p::Limits limits) {
+	if (!base.paged_ || !factory.uses_account(heap) || selected.empty() ||
+		selected.size() > compaction.maximum_packs || compaction.maximum_packs > 8 ||
+		!compaction.maximum_recipes || !compaction.maximum_output_bytes)
+		throw std::invalid_argument("compaction captured resources or selection mismatch");
+	plan_ =
+		factory.make<PagedPlanState>(heap, base.paged_, generation, PagedPlanState::PhysicalMaintenance{});
+	work_ = factory.make<Work>(plan_, base, std::move(heap), selected, compaction, limits);
+}
+std::shared_ptr<const StateEquivalenceProof> PagedCompactionBuilder::evidence() const {
+	if (!done() || !plan_->maintenance_proof_)
+		throw std::logic_error("compaction evidence unavailable");
+	using Handle = d::RetirementHandle<PagedPlanState>;
+	auto owner = std::allocate_shared<Handle>(d::StorageAllocator<Handle>(plan_->bytes()->account()), plan_);
+	return {std::move(owner), &*plan_->maintenance_proof_};
+}
 PagedCompactionBuilder::PagedCompactionBuilder(PagedCompactionBuilder &&) noexcept = default;
 void PagedCompactionBuilder::step(ValidationBudget &budget) {
 	if (!work_ || !plan_)

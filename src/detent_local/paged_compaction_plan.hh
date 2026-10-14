@@ -10,12 +10,16 @@ class PagedCompactionBuilder {
   public:
 	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const StorageIdentity>, GenerationId,
 						   distribution::RetirementDomain &, CompactionLimits = {}, paged::Limits = {});
+	PagedCompactionBuilder(const RecoveredGeneration &, std::span<const StorageIdentity>, GenerationId,
+						   distribution::RetirementFactory, std::shared_ptr<distribution::StorageLedger>,
+						   CompactionLimits = {}, paged::Limits = {});
 	~PagedCompactionBuilder();
 	PagedCompactionBuilder(PagedCompactionBuilder &&) noexcept;
 	PagedCompactionBuilder(const PagedCompactionBuilder &) = delete;
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	PagedPlan take();
+	std::shared_ptr<const StateEquivalenceProof> evidence() const;
 	bool discard(ValidationBudget &);
 	std::uint64_t visited_pages() const;
 	std::size_t relocated_pages() const;

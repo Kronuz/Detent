@@ -12,6 +12,7 @@ class PagedMaintenanceBuilder {
 	void step(ValidationBudget &);
 	bool done() const noexcept;
 	PagedPlan take();
+	std::shared_ptr<const StateEquivalenceProof> evidence() const;
 
   private:
 	RecoveredGeneration base_;

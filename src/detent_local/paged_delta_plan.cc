@@ -86,6 +86,15 @@ PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(const RecoveredGeneration &base, d:
 	work_ = domain.make<Work>(plan_, base, std::move(delta), limits);
 }
 PagedDeltaPlanBuilder::~PagedDeltaPlanBuilder() = default;
+PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(const RecoveredGeneration &base,
+											 std::shared_ptr<const d::ValidatedDelta> source,
+											 GenerationId generation, d::RetirementFactory factory,
+											 std::shared_ptr<d::StorageLedger> heap, p::Limits limits) {
+	if (!source || !base.paged_ || source->storage_account() != heap || !factory.uses_account(heap))
+		throw std::invalid_argument("paged delta plan requires exact captured resources");
+	plan_ = factory.make<PagedPlanState>(heap, base.paged_, generation, *source, PagedPlanState::Forward{});
+	work_ = factory.make<Work>(plan_, base, std::move(source), limits);
+}
 PagedDeltaPlanBuilder::PagedDeltaPlanBuilder(PagedDeltaPlanBuilder &&) noexcept = default;
 void PagedDeltaPlanBuilder::step(ValidationBudget &budget) {
 	if (!work_ || !plan_)
