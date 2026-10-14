@@ -1,7 +1,7 @@
 #pragma once
+#include "applied_base_source.hh"
 #include "delta_index.hh"
 #include "detent_distribution/protocol.hh"
-#include "pinned_source.hh"
 
 namespace detent::local::detail {
 // Worker-owned borrowed merge. Text and definitions remain in the pinned image
@@ -15,8 +15,8 @@ class AppliedImageSource {
   public:
 	AppliedImageSource(RecoveredGeneration base, std::shared_ptr<const distribution::ValidatedDelta> delta,
 					   ViewLimits limits)
-		: base_(std::move(base)), delta_(std::move(delta)), arena_(*account(delta_)), namespaces_(arena_),
-		  index_(arena_, *delta_), records_(arena_), limits_(limits) {
+		: base_(std::move(base), account(delta)), delta_(std::move(delta)), arena_(*account(delta_)),
+		  namespaces_(arena_), index_(arena_, *delta_), records_(arena_), limits_(limits) {
 		if (base_.descriptor().cursor != delta_->base() || base_.descriptor().profile != delta_->profile())
 			throw std::invalid_argument("distribution update does not match pinned base");
 		if (base_.namespace_count() > limits_.namespaces)
@@ -33,6 +33,12 @@ class AppliedImageSource {
 					return;
 				continue;
 			}
+			if (phase_ == 0 && position_ < base_.namespace_count() &&
+				!base_.prepare_namespace(position_, budget))
+				return;
+			if (phase_ == 4 && base_position_ < base_.record_count() &&
+				!base_.prepare_record(base_position_, budget))
+				return;
 			if (!charge_)
 				charge_ = 256;
 			auto bytes = std::min<std::size_t>(charge_, budget.bytes);
@@ -58,6 +64,12 @@ class AppliedImageSource {
 	std::uint64_t namespace_count() const noexcept { return namespaces_.size(); }
 	std::uint64_t record_count() const noexcept { return records_.size(); }
 	SourceNamespace name_space(std::uint64_t ordinal) const { return namespaces_[ordinal]; }
+	bool prepare_record(std::uint64_t ordinal, ValidationBudget &budget) {
+		if (ordinal >= records_.size())
+			return true;
+		const auto ref = records_[ordinal];
+		return ref.changed || base_.prepare_record(ref.ordinal, budget);
+	}
 	SourceRecord record(std::uint64_t ordinal) const {
 		const auto ref = records_[ordinal];
 		if (!ref.changed)
@@ -77,7 +89,7 @@ class AppliedImageSource {
 			const auto b = std::get<SourceBoolean>(base_.record(ref.ordinal).definition);
 			if (relative >= b.override_count)
 				throw std::out_of_range("source override");
-			return base_.override_value(b.override_start + relative);
+			return base_.override_value(ref.ordinal, relative);
 		}
 		const auto &b = std::get<distribution::WireBoolDef>(*delta_->mutation(ref.ordinal).value);
 		const auto &r = delta_->overrides(b)[relative];
@@ -98,7 +110,7 @@ class AppliedImageSource {
 			--budget.rows;
 			arena_.release_one();
 		}
-		return !arena_.front_capacity();
+		return !arena_.front_capacity() && base_.discard(budget);
 	}
 
   private:
@@ -180,7 +192,7 @@ class AppliedImageSource {
 		if (records_.size() >= limits_.records)
 			throw std::length_error("merged image record limit exceeded");
 	}
-	PinnedImageSource base_;
+	AppliedBaseSource base_;
 	std::shared_ptr<const distribution::ValidatedDelta> delta_;
 	distribution::PagedStorage arena_;
 	distribution::StableRows<SourceNamespace> namespaces_;

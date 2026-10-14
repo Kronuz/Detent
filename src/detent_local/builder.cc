@@ -228,6 +228,9 @@ void ImageBuilder::step(ValidationBudget &budget) {
 			require(p.namespace_count() <= p.limits.namespaces && p.record_count() <= p.limits.records);
 		}
 		while (p.phase < 5) {
+			if ((p.phase == 0 || p.phase == 2) && p.applied && p.ns >= p.namespace_count() &&
+				p.record < p.record_count() && !p.applied->prepare_record(p.record, budget))
+				return;
 			if (p.phase == 0) {
 				if (!budget.rows)
 					return;

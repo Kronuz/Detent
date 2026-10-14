@@ -7,6 +7,7 @@ class BorrowedSnapshotSource {
   public:
 	BorrowedSnapshotSource(RecoveredGeneration, std::shared_ptr<distribution::StorageLedger>);
 	bool prepare(std::uint64_t, ValidationBudget &) const;
+	void reset();
 	std::size_t key(std::uint64_t, std::span<char>) const;
 	paged::Definition definition(std::uint64_t) const;
 	paged::Override override_value(std::uint64_t, std::uint32_t) const;

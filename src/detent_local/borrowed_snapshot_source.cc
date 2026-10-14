@@ -10,6 +10,14 @@ const BorrowedSnapshotSource::Slot &BorrowedSnapshotSource::slot(std::uint64_t o
 			return row;
 	throw std::logic_error("borrowed snapshot row is not ready");
 }
+void BorrowedSnapshotSource::reset() {
+	records_.reset();
+	namespaces_.reset();
+	next_ = current_ = charge_ = 0;
+	phase_ = Phase::Acquire;
+	for (auto &row : slots_)
+		row.ready = false;
+}
 bool BorrowedSnapshotSource::prepare(std::uint64_t ordinal, ValidationBudget &budget) const {
 	for (const auto &row : slots_)
 		if (row.ready && row.ordinal == ordinal)

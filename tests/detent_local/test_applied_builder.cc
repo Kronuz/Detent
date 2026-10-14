@@ -1,6 +1,8 @@
 #include "applied_delta_fixture.hh"
 #include "delta_index.hh"
+#include "paged_snapshot_builder.hh"
 #include "pinned_source.hh"
+#include "segment_names.hh"
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -112,6 +114,66 @@ int main() {
 				require(rejected);
 				write(directory / "selected", l::encode_descriptor(original.descriptor()));
 			}
+
+		{
+			const auto paged_directory = directory / "paged";
+			std::filesystem::create_directories(paged_directory);
+			std::filesystem::permissions(paged_directory, std::filesystem::perms::owner_all);
+			l::StorageIdentity storage{};
+			storage.fill('s');
+			l::detail::PagedSnapshotBuilder encoder(source, storage, id);
+			while (!encoder.done()) {
+				l::ValidationBudget budget{1, 1};
+				encoder.step(budget);
+			}
+			auto image = encoder.take();
+			write(paged_directory / "storage.meta", l::encode_storage_identity(storage));
+			write(paged_directory / (name + ".image"), image.bytes()->view());
+			write(paged_directory / (name + ".lease"),
+				  l::encode_generation_ownership(
+					  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
+			for (const auto &segment : image.segments()) {
+				const l::detail::SegmentNames names(segment.ownership.segment);
+				write(paged_directory / names.payload_name(), segment.bytes->view());
+				write(paged_directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
+			}
+			write(paged_directory / "selected", l::encode_descriptor(image.descriptor()));
+			auto paged_base = l::recover_generation(paged_directory);
+			for (bool progress : {false, true})
+				for (unsigned tx : {1u, 2u, 17u}) {
+					auto input = delta(progress, tx);
+					auto next = id;
+					next.fill('p');
+					l::ImageBuilder applied(input, paged_base, next);
+					complete(applied);
+					l::ImageBuilder oracle(expected(progress, tx), next);
+					complete(oracle);
+					require(applied.base_descriptor() == image.descriptor());
+					require(applied.descriptor() == oracle.descriptor());
+					require(applied.bytes()->view().size() == oracle.bytes()->view().size());
+					require(std::equal(applied.bytes()->view().begin(), applied.bytes()->view().end(),
+									   oracle.bytes()->view().begin()));
+				}
+			for (unsigned partial : {0u, 1u, 1000u, 20000u, 1000000u}) {
+				auto changes = delta(false, 17);
+				auto next = id;
+				next.fill('q');
+				l::ImageBuilder cancelled(changes, paged_base, next);
+				for (unsigned turns = 0; turns < partial && !cancelled.done(); ++turns) {
+					l::ValidationBudget budget{1, 1};
+					cancelled.step(budget);
+				}
+				unsigned turns = 0;
+				while (true) {
+					l::ValidationBudget budget{1, 1};
+					if (cancelled.discard(budget))
+						break;
+					require(++turns < 5000000);
+				}
+				require(!cancelled.done());
+				require(paged_base.view().get("app", "count").value() == INT64_MIN);
+			}
+		}
 
 		{
 			auto input = delta(false);
