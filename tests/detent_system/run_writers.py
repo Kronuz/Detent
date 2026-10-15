@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import http.client
 import time
 from pathlib import Path
 
@@ -16,7 +17,14 @@ from writers import Writers
 
 async def sample(authority: Authority, evidence: Evidence, stop: asyncio.Event) -> None:
     while not stop.is_set():
-        status, health = await authority.request(authority.leader_index, "/v1/health")
+        try:
+            status, health = await authority.request(
+                authority.leader_index, "/v1/health"
+            )
+        except (OSError, http.client.HTTPException):
+            evidence.record("health_unavailable", monotonic_seconds=time.monotonic())
+            await authority.leader()
+            continue
         if status != 200:
             raise RuntimeError("authority health unavailable during sustained load")
         evidence.record("health", monotonic_seconds=time.monotonic(), snapshot=health)
@@ -24,6 +32,22 @@ async def sample(authority: Authority, evidence: Evidence, stop: asyncio.Event) 
             await asyncio.wait_for(stop.wait(), 1)
         except TimeoutError:
             pass
+
+
+async def kill_leader(authority: Authority, evidence: Evidence, after: float) -> None:
+    await asyncio.sleep(after)
+    index = await authority.leader()
+    evidence.record(
+        "leader_kill_requested", index=index, monotonic_seconds=time.monotonic()
+    )
+    await authority.kill_member(index)
+    new_leader = await authority.leader()
+    if index == new_leader:
+        raise RuntimeError("killed member still reports leadership")
+    evidence.record(
+        "leader_replaced", index=new_leader, monotonic_seconds=time.monotonic()
+    )
+    await authority.restart_member(index)
 
 
 async def drained(authority: Authority, evidence: Evidence) -> None:
@@ -54,6 +78,11 @@ async def run(arguments: argparse.Namespace) -> None:
         duration = arguments.duration
     else:
         duration = scenario.duration
+    if (
+        arguments.kill_leader_at is not None
+        and not 0 < arguments.kill_leader_at < duration
+    ):
+        raise ValueError("leader kill must occur within the sustained interval")
     if scenario.records < scenario.producers:
         raise ValueError("writer scenario needs at least one record per producer")
     if not arguments.binary.is_file():
@@ -74,6 +103,7 @@ async def run(arguments: argparse.Namespace) -> None:
             seed=arguments.seed,
             duration=duration,
             qualification="authority-writers-only",
+            kill_leader_at=arguments.kill_leader_at,
         )
         async with Actors(evidence, scenario.shutdown_seconds) as actors:
             authority = Authority(
@@ -102,6 +132,10 @@ async def run(arguments: argparse.Namespace) -> None:
             stop = asyncio.Event()
             async with asyncio.TaskGroup() as group:
                 group.create_task(sample(authority, evidence, stop))
+                if arguments.kill_leader_at is not None:
+                    group.create_task(
+                        kill_leader(authority, evidence, arguments.kill_leader_at)
+                    )
                 try:
                     await writers.phase("mutate", began + duration)
                 finally:
@@ -137,6 +171,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--duration", type=int)
+    parser.add_argument("--kill-leader-at", type=float)
     asyncio.run(run(parser.parse_args()))
 
 

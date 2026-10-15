@@ -50,6 +50,16 @@ def command(
 
 
 def repository(path: Path) -> dict[str, str]:
+    try:
+        top = command(["git", "rev-parse", "--show-toplevel"], path)
+    except ValueError:
+        top = ""
+    if not top or Path(top).resolve() != path.resolve():
+        return {
+            "revision": "archive",
+            "source_tree_sha256": archive_sha256(path),
+            "clean": "unknown",
+        }
     revision = command(["git", "rev-parse", "HEAD"], path)
     dirty = command(["git", "status", "--porcelain", "--untracked-files=all"], path)
     patch = command(["git", "diff", "--binary", "HEAD"], path)
@@ -92,7 +102,7 @@ def archive_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     files = 0
     for directory, names, filenames in os.walk(path):
-        names[:] = sorted(name for name in names if name != ".git")
+        names[:] = sorted(name for name in names if name not in (".git", ".scratch"))
         for name in sorted(filenames):
             file = Path(directory) / name
             files += 1
@@ -129,7 +139,17 @@ def physical_memory() -> int:
 def build_context(build: Path, output: Path) -> dict[str, Any]:
     cache: dict[str, str] = {}
     for line in (build / "CMakeCache.txt").read_text().splitlines():
-        if line.startswith(("CMAKE_CXX_COMPILER:", "CMAKE_BUILD_TYPE:")):
+        if line.startswith(
+            (
+                "CMAKE_CXX_COMPILER:",
+                "CMAKE_BUILD_TYPE:",
+                "CMAKE_HOME_DIRECTORY:",
+                "OPENSSL_CRYPTO_LIBRARY:",
+                "OPENSSL_SSL_LIBRARY:",
+                "LZ4_LIBRARY:",
+                "ZLIB_LIBRARY_RELEASE:",
+            )
+        ):
             key, value = line.split("=", 1)
             cache[key.split(":", 1)[0]] = value
     compiler = cache.get("CMAKE_CXX_COMPILER")
@@ -137,8 +157,14 @@ def build_context(build: Path, output: Path) -> dict[str, Any]:
         raise ValueError("build lacks compiler provenance")
     filesystem = os.statvfs(output)
     return {
+        "source": repository(Path(cache["CMAKE_HOME_DIRECTORY"])),
         "compiler": compiler,
         "compiler_version": command([compiler, "--version"]),
+        "system_link_inputs": {
+            key: {"path": value, "sha256": file_sha256(Path(value))}
+            for key, value in cache.items()
+            if "LIBRARY" in key and Path(value).is_file()
+        },
         "build_type": cache.get("CMAKE_BUILD_TYPE", ""),
         "filesystem_device": os.stat(output).st_dev,
         "filesystem_block_bytes": filesystem.f_frsize,

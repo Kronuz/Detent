@@ -15,3 +15,12 @@ if(Python3_FOUND AND TARGET detentd AND DETENT_BUILD_AUTHORITY)
   set_tests_properties(test_system_authority_writers PROPERTIES
     FIXTURES_REQUIRED authority_tls TIMEOUT 120)
 endif()
+
+if(Python3_FOUND AND TARGET detentd AND DETENT_BUILD_AUTHORITY)
+  add_test(NAME test_system_authority_writer_failover
+    COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_writers.sh
+      ${Python3_EXECUTABLE} $<TARGET_FILE:detentd>
+      ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} failover)
+  set_tests_properties(test_system_authority_writer_failover PROPERTIES
+    FIXTURES_REQUIRED authority_tls TIMEOUT 120)
+endif()

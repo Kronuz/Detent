@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from runtime import Actors
+from runtime import Actor, Actors
 
 CONTEXT = {
     "cluster": "63" + "00" * 15,
@@ -44,6 +44,7 @@ class Authority:
         self.actors = actors
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
         self.ports: list[int] = []
+        self.members: list[Actor] = []
         self.leader_index = 0
         self.lane = asyncio.Semaphore(producers)
         self.reservations: list[socket.socket] = []
@@ -99,24 +100,44 @@ class Authority:
             reservation.close()
         self.reservations.clear()
 
+    async def start_member(self, index: int) -> Actor:
+        return await self.actors.start(
+            f"authority-{index}",
+            [
+                str(self.binary),
+                "--authority",
+                str(self.directory / f"authority-{index}.json"),
+                "--port",
+                str(self.ports[index + 3]),
+                "--runtime-dir",
+                str(self.directory / f"runtime-{index}"),
+                "--workers",
+                "1",
+            ],
+        )
+
     async def start(self) -> None:
         self.release_ports()
         for index in range(3):
-            await self.actors.start(
-                f"authority-{index}",
-                [
-                    str(self.binary),
-                    "--authority",
-                    str(self.directory / f"authority-{index}.json"),
-                    "--port",
-                    str(self.ports[index + 3]),
-                    "--runtime-dir",
-                    str(self.directory / f"runtime-{index}"),
-                    "--workers",
-                    "1",
-                ],
-            )
+            self.members.append(await self.start_member(index))
         await self.leader()
+
+    async def kill_member(self, index: int) -> None:
+        member = self.members[index]
+        member.process.kill()
+        await member.process.wait()
+        await member.capture
+        self.actors.evidence.record(
+            "member_killed", index=index, code=member.process.returncode
+        )
+
+    async def restart_member(self, index: int) -> None:
+        member = self.members[index]
+        if member.process.returncode is None:
+            raise ValueError("cannot restart a running member")
+        await member.capture
+        self.actors.children.remove(member)
+        self.members[index] = await self.start_member(index)
 
     def _request(
         self, index: int, path: str, fields: dict[str, Any] | None, producer: int
