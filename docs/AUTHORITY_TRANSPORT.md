@@ -20,7 +20,7 @@ The session belongs to one authority executor. It retains its TLS context, allow
 
 `SnapshotWrite` copies SnapshotChannel's borrowed frame into owned write storage. Closing, fencing or timing out the channel cannot free those bytes during a suspended TLS write. Successful completion consumes channel output only when the trusted session, token and remaining length still match. An obsolete completion releases its own resources without consuming a replacement connection's frame. A socket write never synthesizes an Installed acknowledgment.
 
-The [retained admission API](../../Kronuz/cluster/consensus/README.md) supplies the additive Worker API needed to hold one decoded control event through Busy/Pressure without copying its payload on each retry. It is committed in cluster `10de37c`; the existing API and storage/wire formats remain compatible.
+The [retained admission API](https://github.com/Kronuz/consensus/blob/b7073bbe4d94e66dce526f193b0dd81a57cdb661/README.md) supplies the additive Worker API needed to hold one decoded control event through Busy/Pressure without copying its payload on each retry. It is committed in cluster `10de37c`; the existing API and storage/wire formats remain compatible.
 
 ## Qualification and remaining work
 
