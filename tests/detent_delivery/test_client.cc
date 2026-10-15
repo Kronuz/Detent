@@ -74,7 +74,18 @@ struct Server {
 				if (error)
 					return;
 				auto bytes = response(compressed);
-				if (mode == 2)
+				if (mode >= 5 && mode <= 10) {
+					constexpr const char *errors[] = {"source_not_leader", "unauthorized",
+													  "admission_full",	   "source_behind",
+													  "outcome_unknown",   "forbidden"};
+					const auto status = mode == 6 ? 401 : mode == 10 ? 403 : 503;
+					const auto body = "{\"error\":\"" + std::string(errors[mode - 5]) + "\"}";
+					bytes = "HTTP/1.1 " + std::to_string(status) +
+							" Control\r\nContent-Type: application/json\r\nContent-Length: " +
+							std::to_string(body.size()) + "\r\n\r\n" + body;
+				}
+
+				if (mode == 2 || mode == 11)
 					bytes.resize(bytes.find("\r\n\r\n") + 4 + 48);
 				if (mode == 3)
 					bytes.back() ^= 1;
@@ -146,10 +157,10 @@ struct SessionServer {
 					} else if (step == 3 || step == 4) {
 						check(body.find("\"after\":1") != std::string::npos &&
 							  body.find("\"published\":{") != std::string::npos);
-						const std::string control = step == 3 ? "{\"error\":\"source_behind\"}"
-																: "{\"error\":\"session_expired\"}";
+						const std::string control =
+							step == 3 ? "{\"error\":\"source_behind\"}" : "{\"error\":\"session_expired\"}";
 						wire = std::string(step == 3 ? "HTTP/1.1 503 Service Unavailable\r\n"
-														 : "HTTP/1.1 410 Gone\r\n") +
+													 : "HTTP/1.1 410 Gone\r\n") +
 							   "Content-Type: application/json\r\nContent-Length: " +
 							   std::to_string(control.size()) + "\r\n\r\n" + control;
 					} else {
@@ -192,6 +203,30 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 		rejected = true;
 	}
 	check(rejected && session.valid());
+	for (unsigned fault = 0; fault != 3; ++fault) {
+		auto routed = options;
+		if (fault == 0)
+			routed.endpoint.port(options.endpoint.port() == 65535 ? 1 : options.endpoint.port() + 1);
+		else if (fault == 1)
+			routed.hostname = "changed.example";
+		else
+			routed.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
+		bool refused = false;
+		try {
+			(void)co_await t::next_session(routed, session,
+										   t::PublicationFeedback{offer.window, offer.update.target}, 0ms);
+		} catch (const std::invalid_argument &) {
+			refused = true;
+		}
+		check(refused && session.valid());
+		refused = false;
+		try {
+			co_await t::close_session(routed, session);
+		} catch (const std::invalid_argument &) {
+			refused = true;
+		}
+		check(refused && session.valid());
+	}
 	const t::PublicationFeedback feedback{offer.window, offer.update.target};
 	for (;;) {
 		d::WorkBudget work;
@@ -220,9 +255,9 @@ int main(int argc, char **argv) {
 			reactor::tls::Role::Server);
 		auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
-										 reactor::tls::Role::Client);
+								reactor::tls::Role::Client);
 		for (bool compressed : {false, true})
-			for (unsigned mode = 0; mode < 5; ++mode) {
+			for (unsigned mode = 0; mode < 12; ++mode) {
 				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 				{
 					Server server(server_tls, mode == 4 ? 0 : mode, compressed);
@@ -249,7 +284,21 @@ int main(int argc, char **argv) {
 							if (received.snapshot->discard(work))
 								break;
 						}
+					} catch (const t::SessionResetError &error) {
+						constexpr std::array reasons{
+							t::SessionResetReason::NotLeader,	  t::SessionResetReason::Unauthorized,
+							t::SessionResetReason::AdmissionFull, t::SessionResetReason::SourceBehind,
+							t::SessionResetReason::Unavailable,	  t::SessionResetReason::Forbidden};
+						check(mode >= 5 && error.reason() == reasons[mode - 5]);
+						rejected = true;
+					} catch (const t::SourceUnavailableError &) {
+						check(mode == 1 || mode == 2 || mode == 11);
+						rejected = true;
+					} catch (const t::SourceTrustError &) {
+						check(mode == 4);
+						rejected = true;
 					} catch (const std::exception &) {
+						check(mode > 0 && mode < 4);
 						rejected = true;
 					}
 					check(rejected == (mode != 0));

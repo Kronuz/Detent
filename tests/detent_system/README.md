@@ -1,10 +1,10 @@
 # System qualification runner
 
-This directory implements the bounded process and evidence foundation for [Stage 6](../../docs/STAGE6_ARCHITECTURE.md). The authority writer driver runs three real voters; relay, agent and transport-probe orchestration remain pending. The JSON presets describe intended workloads and do not establish qualified capacity.
+This directory implements the bounded process and evidence foundation for [Stage 6](../../docs/STAGE6_ARCHITECTURE.md). The authority writer driver runs three real voters; bounded relay and agent cohorts exercise managed failover; transport-probe orchestration remains pending. The JSON presets describe intended workloads and do not establish qualified capacity.
 
 The runtime requires Python 3.12 or later. Scenario loading rejects unknown, duplicate and out-of-range fields, then checks descriptor and disk capacity before launch. At most 16 child processes are owned. Repeated cancellation waits for an accepted launch and for child drainage; launch and evidence failures still drain already-owned children. A child that exceeds its shutdown deadline is killed and fails the run.
 
-Evidence is capped by `artifact_bytes`. Child output drops after its share of the budget is exhausted, preserving one quarter of small budgets (up to 64 KiB) for control records. Exhausting the control-record budget fails the run. Metadata command output is bounded to 64 KiB (4 MiB for source-path inventories), with a ten-second deadline and child reaping on failure. Archive dependencies retain a content fingerprint; matching an upstream revision requires the frozen-build manifest.
+Evidence is capped by `artifact_bytes`. Child output drops after its share of the budget is exhausted, preserving one quarter of small budgets (up to 64 KiB) for control records. Exhausting the control-record budget fails the run. Metadata command output is bounded to 64 KiB (4 MiB for source-path inventories and tracked diffs), with a ten-second deadline and child reaping on failure. Archive dependencies retain a content fingerprint; matching an upstream revision requires the frozen-build manifest.
 
 ```sh
 /usr/local/bin/python3 -m unittest discover -s tests/detent_system -p 'test_*.py'
@@ -31,3 +31,9 @@ After intake stops, every configured definition is read through quorum-backed re
 A native macOS 60-second development run with 16 producers and 1,000 records received 2,541 mutation acknowledgments, verified every final definition and retained receipt, and drained all three daemons. This single run establishes no fleet capacity or comparative performance claim. The instrumented five-second follow-up also passes health drainage. CTest runs the five-second workload as `test_system_authority_writers`.
 
 `--kill-leader-at SECONDS` kills the elected leader during sustained writes, waits for a replacement and restarts the killed voter from its existing storage. A ten-second run against the publicly fetched frozen authority baseline reconciles 16 transport-unknown commands, verifies all 1,000 definitions and latest receipts, and drains the restarted three-voter group. Compilation ran concurrently on the same host; this is a correctness result, with no failover latency guarantee. An HTTPS-reachable peer partition remains a separate gate.
+
+## Managed failover checks
+
+CTest registers managed authority leader death, reachable former-leader partition, all-members restart, no-quorum recovery, polling failover, relay fanout and terminal trust rejection. Each managed cohort uses an independent C++ SDK reader to compare every expected integer against the durable local generation. Unavailable cases also compare the selected-generation record before and after the outage. Cohorts stop before the publisher connection-drain assertion.
+
+The trust fixture uses two real TLS endpoints and requires zero requests to the secondary after terminal denial. It covers Open authorization and identity rejection, invalid Next profile, certificate hostname and CA rejection, and authorization, identity or malformed-denial rejection during Close after a retryable Next failure. These correctness fixtures establish no throughput or fleet capacity.

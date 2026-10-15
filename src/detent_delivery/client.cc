@@ -12,6 +12,7 @@ namespace detent::delivery {
 namespace d = distribution;
 namespace {
 using TransportResponse = std::variant<ReceivedUpdate, ReceivedControl>;
+SessionResetReason reset_reason(const ReceivedControl &, std::pmr::memory_resource &);
 struct RequestAction {
 	SessionResponsePurpose purpose;
 	d::Identity session{};
@@ -147,7 +148,13 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	std::optional<TransportResponse> result;
 	try {
 		co_await socket.next_layer().async_connect(options.endpoint, asio::use_awaitable);
-		co_await socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+		asio::error_code handshake_error;
+		co_await socket.async_handshake(asio::ssl::stream_base::client,
+										asio::redirect_error(asio::use_awaitable, handshake_error));
+		if (SSL_get_verify_result(socket.native_handle()) != X509_V_OK)
+			throw SourceTrustError("delivery TLS verification failed");
+		if (handshake_error)
+			throw asio::system_error(handshake_error);
 		co_await asio::async_write(socket, asio::buffer(wire.data(), wire.size()), asio::use_awaitable);
 		while (!decoder->done()) {
 			if (decoder->needs_input()) {
@@ -163,7 +170,11 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 						co_await asio::post(executor, asio::use_awaitable);
 				}
 				if (error || !n) {
-					decoder->eof();
+					try {
+						decoder->eof();
+					} catch (const std::invalid_argument &) {
+						throw SourceUnavailableError("delivery transport closed before complete response");
+					}
 					if (error && error != asio::error::eof && error != asio::ssl::error::stream_truncated)
 						throw asio::system_error(error);
 				}
@@ -258,7 +269,7 @@ asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<
 	auto result = co_await (outcome(std::move(options), expires, action) ||
 							deadline.async_wait(asio::redirect_error(asio::use_awaitable, timer_error)));
 	if (result.index() != 0)
-		throw std::runtime_error("delivery network deadline");
+		throw SourceUnavailableError("delivery network deadline");
 	auto received = std::move(std::get<0>(result).value);
 	if (auto error = std::get_if<std::exception_ptr>(&received))
 		std::rethrow_exception(*error);
@@ -266,7 +277,13 @@ asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<
 }
 } // namespace
 asio::awaitable<ReceivedUpdate> receive(ClientOptions options) {
+	options.limits = d::detail::admitted_limits(std::move(options.limits));
+	auto account = options.limits.storage_account;
 	auto response = co_await perform(std::move(options));
+	if (auto *control = std::get_if<ReceivedControl>(&response)) {
+		d::LedgerMemoryResource resource(account);
+		throw SessionResetError(reset_reason(*control, resource));
+	}
 	co_return std::move(std::get<ReceivedUpdate>(response));
 }
 
@@ -275,6 +292,9 @@ struct SessionHandle::State {
 	d::ScopeIdentity namespace_digest{};
 	std::size_t namespace_count;
 	d::Cursor configured;
+	asio::ip::tcp::endpoint endpoint;
+	std::pmr::string hostname;
+	std::shared_ptr<asio::ssl::context> tls_context;
 	std::optional<d::Cursor> base;
 	d::Identity id{};
 	std::optional<PublicationFeedback> offered;
@@ -283,7 +303,8 @@ struct SessionHandle::State {
 	bool compression, snapshot = false, alive = true, busy = false, closed = false;
 	explicit State(const ClientOptions &options)
 		: resource(options.limits.storage_account), namespace_count(options.namespaces.size()),
-		  configured(options.configured), base(options.base), compression(options.compression) {}
+		  configured(options.configured), endpoint(options.endpoint), hostname(options.hostname, &resource),
+		  tls_context(options.tls_context), base(options.base), compression(options.compression) {}
 };
 namespace {
 struct JsonAllocator {
@@ -372,6 +393,11 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 		if (error == "session_busy")
 			return SessionResetReason::Busy;
 	}
+	if (control.status == 503 && error == "source_not_leader")
+		return SessionResetReason::NotLeader;
+	if (control.status == 503 && (error == "outcome_unknown" || error == "stopping" ||
+								  error == "distribution_unavailable" || error == "authorization_timeout"))
+		return SessionResetReason::Unavailable;
 	if (control.status == 503 && error == "source_behind")
 		return SessionResetReason::SourceBehind;
 	if (control.status == 503 || control.status == 429)
@@ -421,6 +447,10 @@ asio::awaitable<d::ScopeIdentity> namespace_digest(const std::vector<std::string
 	co_return result;
 }
 asio::awaitable<void> same_configuration(const ClientOptions &options, const SessionHandle::State &state) {
+	require(options.endpoint == state.endpoint &&
+				std::string_view(options.hostname) == std::string_view(state.hostname) &&
+				options.tls_context == state.tls_context,
+			"session source destination changed");
 	require(options.configured == state.configured && options.compression == state.compression &&
 				options.namespaces.size() == state.namespace_count,
 			"session configuration changed");

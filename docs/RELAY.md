@@ -77,7 +77,7 @@ The daemon runs in the foreground. `--daemonize` provides unmanaged user operati
 
 `--status` queries the HTTPS health endpoint and never starts the daemon. The health snapshot reports readiness, configured heap capacity and occupancy, request/transfer counts, selected bundle revisions, cache gaps, allocation refusals and mapping use. It contains no bearer tokens or knob definitions. Readiness requires recovery and fresh upstream authentication for all configured bundles; the ready health snapshot precedes the startup announcement. SIGTERM stops intake, drains accepted originals and coordinators, then releases storage and joins workers. Failure to allocate the initial Asio coordinator run group uses the existing fail-stop policy; it cannot promise graceful drainage for coordinators whose run original was never admitted. A service manager restarts the process using the last durable selection.
 
-An agent consuming the relay uses the same managed source configuration, with the relay endpoint and downstream token. Keep the source principal, policy and namespaces unchanged so its scope matches the bundle. Applications continue using their public reader configuration and local defaults.
+An agent consuming the relay uses the same managed source configuration, with the relay endpoint, downstream token and explicit `"delivery_mode":"subscription"`. Keep the source principal, policy and namespaces unchanged so its scope matches the bundle. Applications continue using their public reader configuration and local defaults.
 
 ## Capacity and continuity
 

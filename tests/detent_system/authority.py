@@ -15,6 +15,8 @@ from typing import Any
 
 from runtime import Actor, Actors
 
+READER_TOKEN = "ab" * 16
+READER_PRINCIPAL = "system-reader"
 CONTEXT = {
     "cluster": "63" + "00" * 15,
     "group": "67" + "00" * 15,
@@ -46,6 +48,7 @@ class Authority:
         self.ports: list[int] = []
         self.members: list[Actor] = []
         self.leader_index = 0
+        self.excluded: set[int] = set()
         self.lane = asyncio.Semaphore(producers)
         self.reservations: list[socket.socket] = []
         try:
@@ -84,6 +87,17 @@ class Authority:
                     "publisher_name": "localhost",
                     "credentials": [
                         credential(producer) for producer in range(producers)
+                    ]
+                    + [
+                        {
+                            "token": READER_TOKEN,
+                            "producer": READER_PRINCIPAL,
+                            "principal": READER_PRINCIPAL,
+                            "publish": False,
+                            "namespaces": [
+                                f"load{producer}" for producer in range(producers)
+                            ],
+                        }
                     ],
                 }
                 if sys.platform.startswith("linux"):
@@ -189,6 +203,8 @@ class Authority:
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             for index in range(3):
+                if index in self.excluded:
+                    continue
                 try:
                     status, health = await self.request(index, "/v1/health")
                     if (

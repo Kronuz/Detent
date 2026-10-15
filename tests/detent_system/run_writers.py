@@ -11,6 +11,7 @@ from pathlib import Path
 
 from authority import Authority
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
+from managed import ManagedCohort
 from runtime import Actors, Evidence, Scenario
 from writers import Writers
 
@@ -83,6 +84,12 @@ async def run(arguments: argparse.Namespace) -> None:
         and not 0 < arguments.kill_leader_at < duration
     ):
         raise ValueError("leader kill must occur within the sustained interval")
+    if (arguments.agents is None) != (arguments.local_oracle is None):
+        raise ValueError(
+            "managed qualification needs both agent and SDK oracle binaries"
+        )
+    if arguments.relays is not None and arguments.agents is None:
+        raise ValueError("relay qualification requires a managed cohort")
     if scenario.records < scenario.producers:
         raise ValueError("writer scenario needs at least one record per producer")
     if not arguments.binary.is_file():
@@ -102,7 +109,13 @@ async def run(arguments: argparse.Namespace) -> None:
             preflight=preflight,
             seed=arguments.seed,
             duration=duration,
-            qualification="authority-writers-only",
+            qualification="authority-managed-writers"
+            if arguments.agents is not None
+            else "authority-writers-only",
+            active_durable_agents=scenario.durable_agents
+            if arguments.agents is not None
+            else 0,
+            active_transport_probes=0,
             kill_leader_at=arguments.kill_leader_at,
         )
         async with Actors(evidence, scenario.shutdown_seconds) as actors:
@@ -127,6 +140,30 @@ async def run(arguments: argparse.Namespace) -> None:
                 records=scenario.records,
                 elapsed_seconds=time.monotonic() - began,
             )
+            cohort: ManagedCohort | None = None
+            if arguments.agents is not None:
+                cohort = ManagedCohort(
+                    authority,
+                    actors,
+                    arguments.output.resolve(),
+                    arguments.agents.resolve(),
+                    arguments.local_oracle.resolve(),
+                    arguments.certificates.resolve(),
+                    scenario.durable_agents,
+                    scenario.producers,
+                    relay=arguments.relays.resolve()
+                    if arguments.relays is not None
+                    else None,
+                    delivery_mode=arguments.delivery_mode,
+                )
+                await cohort.start()
+                await cohort.wait_selected(
+                    max(
+                        int(receipt["revision"])
+                        for receipt in writers.receipts
+                        if receipt is not None
+                    )
+                )
             baseline = writers.counts.copy()
             began = time.monotonic()
             stop = asyncio.Event()
@@ -143,6 +180,8 @@ async def run(arguments: argparse.Namespace) -> None:
             elapsed = time.monotonic() - began
             sustained = writers.counts - baseline
             await writers.phase("verify")
+            if cohort is not None:
+                await cohort.verify(writers)
             evidence.record(
                 "verified",
                 complete_records=scenario.records,
@@ -153,6 +192,8 @@ async def run(arguments: argparse.Namespace) -> None:
                 command_latency_total_seconds=writers.latency_total,
                 command_latency_maximum_seconds=writers.latency_maximum,
             )
+            if cohort is not None:
+                await cohort.close()
             await drained(authority, evidence)
             children = list(actors.children)
         if any(actor.process.returncode != 0 for actor in children):
@@ -166,6 +207,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", type=Path, required=True)
     parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--agents", type=Path)
+    parser.add_argument("--relays", type=Path)
+    parser.add_argument(
+        "--delivery-mode", choices=("poll", "subscription"), default="subscription"
+    )
+    parser.add_argument("--local-oracle", type=Path)
     parser.add_argument("--build", type=Path, default=Path("build"))
     parser.add_argument("--certificates", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)

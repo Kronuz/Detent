@@ -249,16 +249,12 @@ for ((attempt=0;attempt<200;attempt++)); do
 done
 grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-if [[ "$delivery_mode" == subscription ]]; then
-    for ((attempt=0;attempt<200;attempt++)); do
-        if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
-        sleep 0.02
-    done
-    if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
-    if wait "$agent_pid"; then exit 1; fi
-else
-    kill -TERM "$agent_pid"; wait "$agent_pid"
-fi
+for ((attempt=0;attempt<200;attempt++)); do
+    if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
+    sleep 0.02
+done
+if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
+if wait "$agent_pid"; then exit 1; fi
 agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
 cp "$root/managed-good.json" "$root/managed.json"

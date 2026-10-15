@@ -7,6 +7,7 @@
 #include "paged_delta_plan.hh"
 #include "paged_maintenance_plan.hh"
 #include "paged_snapshot_plan.hh"
+#include "source_selection.hh"
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
@@ -65,12 +66,14 @@ struct CandidateComparisonResult : d::RetirementNode {
 } // namespace
 struct Coordinator::Impl {
 	CoordinatorOptions options;
+	detail::SourceSelection sources;
 	std::shared_ptr<l::DiskStore> store;
 	std::shared_ptr<NativeDriver> driver;
 	d::RetirementDomain &domain;
 	asio::thread_pool &worker;
 	CoordinatorStatus diagnostic;
 	std::exception_ptr terminal_failure;
+	detail::CoordinatorAccess::ReconnectObservation reconnect_observation;
 	ConstructionControl *construction = nullptr;
 	std::uint64_t steps_at_stop = 0, settled_construction_steps = 0;
 	bool construction_stopped = false;
@@ -93,8 +96,11 @@ struct Coordinator::Impl {
 	std::chrono::steady_clock::time_point publication_retry{};
 	Impl(CoordinatorOptions config, std::shared_ptr<l::DiskStore> disk,
 		 std::shared_ptr<NativeDriver> completion, d::RetirementDomain &retirement, asio::thread_pool &pool)
-		: options(std::move(config)), store(std::move(disk)), driver(std::move(completion)),
-		  domain(retirement), worker(pool), base(domain.make<RecoveryResult>(options)) {
+		: options(std::move(config)),
+		  sources(options.authority_endpoints, options.source.endpoint, options.quorum_refresh,
+				  options.reconnect_seed ^ UINT64_C(0x6a09e667f3bcc909)),
+		  store(std::move(disk)), driver(std::move(completion)), domain(retirement), worker(pool),
+		  base(domain.make<RecoveryResult>(options)) {
 		if (options.completion_port && !options.completion_port->uses(driver))
 			throw std::invalid_argument("coordinator completion port driver mismatch");
 	}
@@ -124,6 +130,11 @@ struct Coordinator::Impl {
 	}
 	asio::awaitable<void> yield() {
 		co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
+	}
+	std::chrono::milliseconds next_reconnect_delay(ReconnectBackoff &backoff) noexcept {
+		reconnect_observation.delay = backoff.next();
+		++reconnect_observation.count;
+		return reconnect_observation.delay;
 	}
 	asio::awaitable<void> pause(std::chrono::milliseconds duration) {
 		co_await wait_candidate(std::chrono::steady_clock::now() + duration);
@@ -707,17 +718,32 @@ struct Coordinator::Impl {
 };
 
 namespace {
-asio::awaitable<void> release_session(ClientOptions options, SessionHandle &session) {
+asio::awaitable<void> release_session(ClientOptions options, SessionHandle &session, bool strict) {
 	co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 	options.timeout = std::min(options.timeout, std::chrono::milliseconds(1000));
 	try {
 		co_await close_session(std::move(options), session);
+	} catch (const SourceTrustError &) {
+		throw;
+	} catch (const SessionResetError &error) {
+		if (fatal_source_reset(error.reason()))
+			throw;
+	} catch (const std::invalid_argument &) {
+		if (strict)
+			throw;
 	} catch (...) {
 	}
 }
 } // namespace
 asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 	SessionHandle session;
+	auto opening_endpoint = options.source.endpoint;
+	auto session_source = [&] {
+		auto source = options.source;
+		source.endpoint = opening_endpoint;
+		return source;
+	};
+	bool revalidating = false;
 	std::optional<PublicationFeedback> feedback;
 	bool force_snapshot = false;
 	ReconnectBackoff reconnect(options.poll_interval, options.reconnect_maximum, options.reconnect_seed);
@@ -741,13 +767,21 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			std::optional<ReceivedUpdate> update;
 			std::optional<PublicationFeedback> offered;
 			bool reset_session = false, idle = false, offered_snapshot = false;
+			bool network_attempt = false, unavailable = false, round_complete = true;
 			std::exception_ptr failure;
 			try {
 				co_await migrate_flat_head();
 				co_await compact_head();
 				if (cancelled())
 					throw asio::system_error(asio::error::operation_aborted);
+				if (session.valid() && sources.refresh_due(std::chrono::steady_clock::now())) {
+					revalidating = true;
+					co_await release_session(session_source(), session, sources.pooled());
+					session = {};
+					feedback.reset();
+				}
 				auto request = options.source;
+				request.endpoint = sources.endpoint();
 				const auto actual = store->selection();
 				request.base =
 					actual.descriptor && actual.descriptor->cursor.same_identity(request.configured)
@@ -757,9 +791,16 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				if (options.delivery_mode == DeliveryMode::Subscription) {
 					const auto executor = co_await asio::this_coro::executor;
 					if (!session.valid()) {
+						network_attempt = true;
 						session = co_await asio::co_spawn(
 							executor, open_session(request, force_snapshot),
 							asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
+						opening_endpoint = request.endpoint;
+						const auto opened = std::chrono::steady_clock::now();
+						sources.opened(opened);
+						if (sources.pooled())
+							diagnostic.last_quorum_open = opened;
+						revalidating = false;
 						feedback.reset();
 						if (options.publication_sink && !cancelled())
 							options.publication_sink->authenticated();
@@ -768,8 +809,11 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 					}
 					if (cancelled())
 						throw asio::system_error(asio::error::operation_aborted);
-					const auto wait = std::min(
-						{session.maximum_wait(), std::chrono::milliseconds(30000), request.timeout / 2});
+					const auto wait =
+						sources.wait(std::chrono::steady_clock::now(),
+									 std::min({session.maximum_wait(), std::chrono::milliseconds(30000),
+											   request.timeout / 2}));
+					network_attempt = true;
 					auto event = co_await asio::co_spawn(
 						executor, next_session(request, session, feedback, wait),
 						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
@@ -779,9 +823,14 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						update.emplace(std::move(offer->update));
 					} else if (std::holds_alternative<SessionIdle>(event)) {
 						idle = true;
+						sources.successful();
 						reconnect.reset();
 					} else {
 						const auto reason = std::get<SessionReset>(event).reason;
+						if (sources.pooled() && (reason == SessionResetReason::NotLeader ||
+												 reason == SessionResetReason::Unavailable ||
+												 reason == SessionResetReason::SourceBehind))
+							throw SessionResetError(reason);
 						if (reason == SessionResetReason::Forbidden ||
 							reason == SessionResetReason::Unauthorized ||
 							reason == SessionResetReason::IdentityChanged ||
@@ -791,21 +840,27 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						force_snapshot = force_snapshot || reason == SessionResetReason::HistoryLost ||
 										 reason == SessionResetReason::RepresentationLimit;
 					}
+					network_attempt = false;
 					if (!update && !cancelled()) {
 						if (reset_session) {
-							co_await release_session(options.source, session);
+							co_await release_session(session_source(), session, sources.pooled());
 							session = {};
 							feedback.reset();
 						}
-						if (!idle || wait == std::chrono::milliseconds::zero())
-							co_await pause(idle ? options.poll_interval : reconnect.next());
+						if (idle && sources.pooled() && wait == std::chrono::milliseconds::zero())
+							co_await yield();
+						else if (!idle || wait == std::chrono::milliseconds::zero())
+							co_await pause(idle ? options.poll_interval : next_reconnect_delay(reconnect));
 						continue;
 					}
 				} else {
+					network_attempt = true;
 					update.emplace(co_await asio::co_spawn(
 						co_await asio::this_coro::executor, receive(std::move(request)),
 						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable)));
 				}
+				network_attempt = false;
+				sources.successful();
 				if (!update)
 					throw asio::system_error(asio::error::operation_aborted);
 				diagnostic.received = update->target;
@@ -896,22 +951,43 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			}
 			if (failure || cancelled()) {
 				if (session.identity() != d::Identity{})
-					co_await release_session(options.source, session);
+					co_await release_session(session_source(), session, sources.pooled());
 				session = {};
 				feedback.reset();
 			}
 			if (failure) {
 				try {
 					std::rethrow_exception(failure);
+				} catch (const SourceTrustError &) {
+					throw;
 				} catch (const SessionResetError &error) {
 					const auto reason = error.reason();
+					unavailable = reason == SessionResetReason::NotLeader ||
+								  reason == SessionResetReason::Unavailable ||
+								  reason == SessionResetReason::SourceBehind;
 					if (reason == SessionResetReason::Forbidden ||
 						reason == SessionResetReason::Unauthorized ||
 						reason == SessionResetReason::IdentityChanged ||
 						reason == SessionResetReason::InvalidRequest)
 						throw;
+				} catch (const SourceUnavailableError &) {
+					unavailable = network_attempt;
+				} catch (const asio::system_error &error) {
+					unavailable = network_attempt && error.code() != asio::error::operation_aborted;
+				} catch (const std::invalid_argument &) {
+					if (network_attempt && sources.pooled())
+						throw;
 				} catch (...) {
 				}
+			}
+			if (unavailable && sources.pooled() && !cancelled()) {
+				const auto previous = sources.index();
+				round_complete = sources.unavailable();
+				diagnostic.source_endpoint_index = sources.index();
+				if (sources.index() != previous)
+					++diagnostic.source_rotations;
+				if (revalidating)
+					++diagnostic.quorum_refresh_failures;
 			}
 			if (closing)
 				break;
@@ -929,6 +1005,10 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 					base->generation->descriptor().cursor == *diagnostic.received)
 					diagnostic.acknowledged = *diagnostic.received;
 			}
+			if (!closing && options.delivery_mode == DeliveryMode::Poll && !failure && !cancelled() &&
+				diagnostic.received && base->generation &&
+				base->generation->descriptor().cursor == *diagnostic.received)
+				reconnect.reset();
 			if (!closing && options.delivery_mode == DeliveryMode::Subscription && session.valid() &&
 				offered) {
 				if (actual.descriptor && actual.descriptor->cursor == offered->cursor && base->generation &&
@@ -938,22 +1018,33 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 					if (offered_snapshot)
 						force_snapshot = false;
 				} else {
-					co_await release_session(options.source, session);
+					co_await release_session(session_source(), session, sources.pooled());
 					session = {};
 					feedback.reset();
 				}
 			}
-			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid()))
-				co_await pause(options.delivery_mode == DeliveryMode::Poll ? options.poll_interval
-																		   : reconnect.next());
+			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid())) {
+				if (sources.pooled() && unavailable && !round_complete)
+					co_await yield();
+				else
+					co_await pause(options.delivery_mode == DeliveryMode::Poll &&
+										   !(sources.pooled() && unavailable)
+									   ? options.poll_interval
+									   : next_reconnect_delay(reconnect));
+			}
 		}
 	} catch (const MaintenanceFailure &error) {
 		fatal = error.cause;
 	} catch (...) {
 		fatal = std::current_exception();
 	}
-	if (session.identity() != d::Identity{})
-		co_await release_session(options.source, session);
+	try {
+		if (session.identity() != d::Identity{})
+			co_await release_session(session_source(), session, sources.pooled());
+	} catch (...) {
+		if (!fatal)
+			fatal = std::current_exception();
+	}
 	if (fatal) {
 		if (diagnostic.worker_pending)
 			std::terminate();
@@ -990,6 +1081,10 @@ Coordinator::Coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStor
 										store, std::move(driver), domain, worker);
 }
 Coordinator::~Coordinator() = default;
+detail::CoordinatorAccess::ReconnectObservation
+detail::CoordinatorAccess::reconnect_observation(const Coordinator &coordinator) {
+	return coordinator.impl_->reconnect_observation;
+}
 void detail::CoordinatorAccess::fail_worker_and_wait_after_ready(Coordinator &coordinator,
 																 std::exception_ptr failure) {
 	coordinator.impl_->injected_worker_failure = std::move(failure);

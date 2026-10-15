@@ -294,6 +294,40 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 	final.revision = final_revision;
 	check(published && coordinator->status().recoverable == final);
 }
+asio::awaitable<void> observe_poll_backoff(std::shared_ptr<t::Coordinator> coordinator,
+										   const std::atomic<bool> &server_completed) {
+	asio::steady_timer timer(co_await asio::this_coro::executor);
+	const auto deadline = std::chrono::steady_clock::now() + 15s;
+	std::exception_ptr failure;
+	try {
+		bool observed = false;
+		while (std::chrono::steady_clock::now() < deadline) {
+			const auto retry = t::detail::CoordinatorAccess::reconnect_observation(*coordinator);
+			if (retry.count >= 4 && server_completed.load(std::memory_order_acquire)) {
+				if (retry.count != 4 || retry.delay < 10ms || retry.delay > 20ms)
+					throw std::runtime_error(
+						"poll reconnect delay did not reset: count=" + std::to_string(retry.count) +
+						" delay_ms=" + std::to_string(retry.delay.count()));
+				const auto state = coordinator->status();
+				check(state.failures == 4 && state.acknowledged == cursor() &&
+					  state.recoverable == cursor() && state.selected.descriptor &&
+					  state.selected.descriptor->cursor == cursor() && !state.worker_pending &&
+					  state.source_rotations == 0);
+				observed = true;
+				break;
+			}
+			check(!coordinator->drained());
+			timer.expires_after(1ms);
+			co_await timer.async_wait(asio::use_awaitable);
+		}
+		check(observed);
+	} catch (...) {
+		failure = std::current_exception();
+	}
+	coordinator->close();
+	if (failure)
+		std::rethrow_exception(failure);
+}
 asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinator,
 									   const t::CoordinatorOptions &options) {
 	asio::steady_timer timer(co_await asio::this_coro::executor);
@@ -337,8 +371,13 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
 							   const std::atomic<bool> *feedback_received, bool cancel_open = false,
 							   bool transitions = false, bool worker_cancel = false,
-							   bool maintenance_failure = false) {
+							   bool maintenance_failure = false, bool poll_backoff = false) {
 	using namespace asio::experimental::awaitable_operators;
+	if (poll_backoff) {
+		check(feedback_received != nullptr);
+		co_await (coordinator->run() && observe_poll_backoff(coordinator, *feedback_received));
+		co_return;
+	}
 	if (worker_cancel) {
 		auto cancel = [&]() -> asio::awaitable<void> {
 			asio::steady_timer timer(co_await asio::this_coro::executor);
@@ -475,9 +514,11 @@ int main(int argc, char **argv) {
 		const bool cancel_open = argc == 3 && std::string_view(argv[2]) == "--subscription-cancel-open";
 		const bool reset_retry = argc == 3 && std::string_view(argv[2]) == "--subscription-reset";
 		const bool subscription = argc == 3 && std::string_view(argv[2]).starts_with("--subscription");
-		const auto requested = subscription ? (std::string_view(argv[2]).ends_with("-500000")	? 500000u
-											   : std::string_view(argv[2]).ends_with("-100000") ? 100000u
-																								: 0u)
+		const bool poll_backoff = argc == 3 && std::string_view(argv[2]) == "--pool-poll-backoff";
+		const auto requested = poll_backoff	  ? 4u
+							   : subscription ? (std::string_view(argv[2]).ends_with("-500000")	  ? 500000u
+												 : std::string_view(argv[2]).ends_with("-100000") ? 100000u
+																								  : 0u)
 							   : argc == 3 && !cancel_selected && !pressure && !sink ? std::stoul(argv[2])
 																					 : 0;
 		std::atomic<bool> feedback_received{false};
@@ -577,6 +618,13 @@ int main(int argc, char **argv) {
 		options.source.tls_context = client_tls;
 		options.source.configured = cursor();
 		options.source.compression = false;
+		if (poll_backoff) {
+			options.poll_interval = 20ms;
+			options.reconnect_maximum = 80ms;
+			options.reconnect_seed = 17;
+			options.authority_endpoints = {options.source.endpoint};
+			options.source.timeout = 10s;
+		}
 		if (paged && count >= 500000)
 			options.source.timeout = std::chrono::seconds(240);
 #ifdef DETENT_TEST_RELAY_HTTP
@@ -633,6 +681,7 @@ int main(int argc, char **argv) {
 		std::jthread server([&] {
 			try {
 				for (unsigned attempt = 0; attempt != (maintenance_failure ? 0u
+													   : poll_backoff	   ? 5u
 													   : cancel_open	   ? 2u
 													   : reset_retry	   ? 11u
 													   : worker_cancel	   ? 3u
@@ -665,7 +714,7 @@ int main(int argc, char **argv) {
 					socket.handshake(asio::ssl::stream_base::server);
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
-					if (cancel_selected || pressure || subscription) {
+					if (cancel_selected || pressure || subscription || poll_backoff) {
 						auto text = [&] {
 							return std::string(asio::buffers_begin(request.data()),
 											   asio::buffers_end(request.data()));
@@ -680,6 +729,42 @@ int main(int argc, char **argv) {
 							asio::read(socket, request,
 									   asio::transfer_exactly(body_start + length - request.size()));
 						const auto body = text().substr(body_start);
+						if (poll_backoff) {
+							check(header.starts_with("POST /v2/distribution ") &&
+								  (body.find("\"base\":{") != std::string::npos) == (attempt == 4));
+							if (attempt >= 3) {
+								std::promise<bool> observed;
+								auto ready = observed.get_future();
+								asio::post(io, [&] {
+									const auto retry =
+										t::detail::CoordinatorAccess::reconnect_observation(*coordinator);
+									const auto state = coordinator->status();
+									bool valid =
+										retry.count == 3 && retry.delay >= 40ms && retry.delay <= 80ms;
+									if (attempt == 3)
+										valid = valid && !state.selected.descriptor && !state.received;
+									else
+										valid = valid && state.acknowledged == cursor() &&
+												state.recoverable == cursor() && state.selected.descriptor &&
+												state.selected.descriptor->cursor == cursor();
+									observed.set_value(valid);
+								});
+								check(ready.get());
+							}
+							const std::string unavailable = "{\"error\":\"outcome_unknown\"}";
+							const auto bytes = attempt == 3
+												   ? response(count)
+												   : "HTTP/1.1 503 Service Unavailable\r\n"
+													 "Content-Type: application/json\r\nContent-Length: " +
+														 std::to_string(unavailable.size()) + "\r\n\r\n" +
+														 unavailable;
+							asio::write(socket, asio::buffer(bytes));
+							asio::error_code ignored;
+							socket.lowest_layer().close(ignored);
+							if (attempt == 4)
+								feedback_received.store(true, std::memory_order_release);
+							continue;
+						}
 						if (reset_retry && (attempt == 4 || attempt == 7))
 							check(body.find("\"force_snapshot\":true") != std::string::npos);
 						if (!subscription)
@@ -901,8 +986,9 @@ int main(int argc, char **argv) {
 		Timing timing;
 		auto done = asio::co_spawn(io,
 								   exercise(coordinator, timing, cancel_selected, pressure, options,
-											subscription ? &feedback_received : nullptr, cancel_open,
-											transitions, worker_cancel, maintenance_failure),
+											(subscription || poll_backoff) ? &feedback_received : nullptr,
+											cancel_open, transitions, worker_cancel, maintenance_failure,
+											poll_backoff),
 								   asio::use_future);
 		io.run();
 		std::exception_ptr run_failure;
@@ -933,6 +1019,9 @@ int main(int argc, char **argv) {
 		if (pressure || transitions)
 			final_cursor.revision = 3;
 		check(coordinator->drained());
+		if (poll_backoff)
+			check(coordinator->status().phase == t::CoordinatorPhase::Closed &&
+				  !coordinator->status().worker_pending);
 		check(!t::detail::CoordinatorAccess::retains_paged_candidate(*coordinator));
 		if (worker_cancel)
 			check(t::detail::CoordinatorAccess::cancelled_construction_settled(*coordinator));

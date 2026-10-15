@@ -171,3 +171,13 @@ or group/other write permission; Detent refuses it otherwise.
 ## Relay admission
 
 The private relay host configuration accepts `connections` (default 1,024) and `service_limits` for Open, Next, Close, sessions and transfers. Counts range from 1 to 65,536; transfer counts cannot exceed polls, and per-principal sessions cannot exceed total sessions. Idle and maximum session lifetimes are bounded to 24 hours. See the [relay configuration](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for defaults and a complete example.
+
+## Managed authority endpoint pools
+
+A managed source can set `authority_endpoints` to an array of up to eight objects such as `[{"address":"127.0.0.1","port":8317},{"address":"127.0.0.2","port":8317}]`, replacing the top-level `address` and `port`. Destinations must be distinct IP addresses with nonzero ports. All entries share the configured TLS hostname, CA, credential, authority identity and namespace scope.
+
+The coordinator tries members serially and stays on a successful member. Transport failures, unavailable authorities and follower read rejection permit rotation. Admission pressure and local storage failures retain the route. Authentication, authorization, TLS verification and unexpected identity or profile fail closed, including denials received while closing a session. Sessions and publication feedback remain bound to their opening endpoint.
+
+For pooled subscriptions, `quorum_refresh_ms` defaults to 30000 and accepts 1000 through 86400000. Refresh uses bounded jitter of ±20%; idle responses do not postpone it. A fresh Open revalidates authority quorum after accepted local publication and recovery settle. Polling already performs quorum reads. Discovery time includes refresh, per-member request deadlines, retry backoff and accepted local work; the default 60-second request timeout provides no short failover guarantee.
+
+Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay must use a single relay endpoint and explicit `"delivery_mode":"subscription"`.

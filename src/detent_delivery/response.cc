@@ -145,28 +145,33 @@ struct ResponseDecoder::Impl {
 		if (!field.empty())
 			commit_header();
 		require(!headers.contains("trailer"), "delivery HTTP trailers unsupported");
+		const auto status = parser.status_code;
+		const bool update = status == 200 && (!session || session->purpose == SessionResponsePurpose::Next);
+		if (!update) {
+			require(parser.http_major == 1 && parser.http_minor == 1, "control HTTP version rejected");
+			require((session && status == 200 && session->purpose == SessionResponsePurpose::Open) ||
+						(session && status == 204 && session->purpose != SessionResponsePurpose::Open) ||
+						status == 400 || status == 401 || status == 403 || status == 409 || status == 410 ||
+						status == 429 || status == 503,
+					"delivery control status rejected");
+			require(!headers.contains("transfer-encoding"), "delivery control requires fixed framing");
+			std::uint64_t length = 0;
+			if (headers.contains("content-length"))
+				length = number(header("content-length"));
+			if (status == 204)
+				require(!length, "session idle response has a body");
+			else
+				require(length && length <= 4096 && header("content-type") == "application/json",
+						"delivery control body bound or type");
+			control = d::make_owned_buffer(limits.storage_account, static_cast<std::size_t>(length));
+			maximum_wire = 65536 + 4096;
+			headers_done = true;
+			return;
+		}
 		if (session) {
-			require(parser.http_major == 1 && parser.http_minor == 1, "session HTTP version rejected");
-			const bool update = parser.status_code == 200 && session->purpose == SessionResponsePurpose::Next;
-			if (!update) {
-				const auto status = parser.status_code;
-				require((status == 200 && session->purpose == SessionResponsePurpose::Open) ||
-					(status == 204 && session->purpose != SessionResponsePurpose::Open) || status == 400 ||
-					status == 401 || status == 403 || status == 409 || status == 410 || status == 429 || status == 503,
-					"session HTTP status rejected");
-				require(!headers.contains("transfer-encoding"), "session control requires fixed framing");
-				std::uint64_t length = 0;
-				if (headers.contains("content-length")) length = number(header("content-length"));
-				if (status == 204) require(!length, "session idle response has a body");
-				else require(length && length <= 4096 && header("content-type") == "application/json",
-					"session control body bound or type");
-				control = d::make_owned_buffer(limits.storage_account, static_cast<std::size_t>(length));
-				maximum_wire = 65536 + 4096;
-				headers_done = true;
-				return;
-			}
 			require(header("x-detent-session-version") == "1" &&
-				number(header("x-detent-window")) == session->window, "session response window mismatch");
+						number(header("x-detent-window")) == session->window,
+					"session response window mismatch");
 			std::array<char, 32> identity{};
 			for (std::size_t i = 0; i < session->session.size(); ++i) {
 				const auto byte = static_cast<unsigned char>(session->session[i]);
@@ -174,7 +179,7 @@ struct ResponseDecoder::Impl {
 				identity[2 * i + 1] = "0123456789abcdef"[byte & 15];
 			}
 			require(header("x-detent-session") == std::string_view(identity.data(), identity.size()),
-				"session response identity mismatch");
+					"session response identity mismatch");
 		}
 		require(parser.status_code == 200 && parser.http_major == 1 && parser.http_minor == 1,
 				"delivery HTTP status or version rejected");

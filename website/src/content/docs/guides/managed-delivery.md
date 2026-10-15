@@ -177,3 +177,13 @@ The agent opens from its recovered local cursor, receives one update and sends e
 Set `"image_format": "paged-v2"` in the private managed source configuration to publish incremental immutable pages. Relay bundle sources accept the same field. Existing configured flat heads migrate without changing the logical cursor; readers holding the old generation remain valid. New deltas replace changed pages and their index paths, while progress updates replace only the root.
 
 Compaction runs between upstream exchanges and skips admission pressure. Disk limits must cover physical coexistence with pinned predecessors. A stopped agent's selected generation remains readable through the current SDK. Older flat-only binaries cannot read v2; switching the writer back to `flat-v1` requires a subsequent forward publication before the selected head becomes flat.
+
+## Managed authority endpoint pools
+
+A managed source can set `authority_endpoints` to an array of up to eight objects such as `[{"address":"127.0.0.1","port":8317},{"address":"127.0.0.2","port":8317}]`, replacing the top-level `address` and `port`. Destinations must be distinct IP addresses with nonzero ports. All entries share the configured TLS hostname, CA, credential, authority identity and namespace scope.
+
+The coordinator tries members serially and stays on a successful member. Transport failures, unavailable authorities and follower read rejection permit rotation. Admission pressure and local storage failures retain the route. Authentication, authorization, TLS verification and unexpected identity or profile fail closed, including denials received while closing a session. Sessions and publication feedback remain bound to their opening endpoint.
+
+For pooled subscriptions, `quorum_refresh_ms` defaults to 30000 and accepts 1000 through 86400000. Refresh uses bounded jitter of ±20%; idle responses do not postpone it. A fresh Open revalidates authority quorum after accepted local publication and recovery settle. Polling already performs quorum reads. Discovery time includes refresh, per-member request deadlines, retry backoff and accepted local work; the default 60-second request timeout provides no short failover guarantee.
+
+Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay must use a single relay endpoint and explicit `"delivery_mode":"subscription"`.

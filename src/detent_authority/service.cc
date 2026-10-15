@@ -12,12 +12,12 @@
 #include <fcntl.h>
 #include <http_owned_stream.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
-#include <journal/mutation.h>
 #include <completion/asio_completion.h>
 #include <completion/native_completion.h>
+#include <journal/mutation.h>
 #endif
-#include <fstream>
 #include <completion/posix.h>
+#include <fstream>
 #include <limits>
 #include <metrics.hh>
 #include <random>
@@ -156,6 +156,15 @@ std::string result_json(Result r) {
 		   ",\"namespace_revision\":" + std::to_string(r.namespace_revision) +
 		   ",\"generation\":" + std::to_string(r.generation) + ",\"sequence\":" + std::to_string(r.sequence) +
 		   "}";
+}
+const char *read_failure(const Completion &completion, bool fenced) noexcept {
+	if (completion.read && !fenced) {
+		if (completion.rejection == kronuz::consensus::RejectReason::NotLeader)
+			return "{\"error\":\"source_not_leader\"}";
+		if (completion.rejection == kronuz::consensus::RejectReason::Busy)
+			return "{\"error\":\"admission_full\"}";
+	}
+	return "{\"error\":\"outcome_unknown\"}";
 }
 int result_status(Result r) {
 	switch (r.status) {
@@ -1546,8 +1555,8 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		}
 		node.attach_change_recorder(history);
 		if (options_.peers) {
-			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node, peer_configuration(node_options),
-													 *options_.peers);
+			peers = std::make_shared<AuthorityPeers>(io.get_executor(), owned_node,
+													 peer_configuration(node_options), *options_.peers);
 			peers->start();
 		}
 		check(!node.worker().fenced(), "authority committed application/profile mismatch");
@@ -1609,7 +1618,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 					task->quorum_pending = false;
 					session_pending.erase(session);
 					if (completion.rejection || node.worker().fenced())
-						complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+						complete(task, {503, read_failure(completion, node.worker().fenced())});
 					else {
 						task->quorum_ready = true;
 						task->generation = completion.index;
@@ -1640,7 +1649,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				auto &task = found->second[i];
 				++callbacks;
 				if (completion.rejection || node.worker().fenced())
-					complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
+					complete(task, {503, read_failure(completion, node.worker().fenced())});
 				else if (task->kind == Task::Kind::Command) {
 					auto r = completion.results.at(i);
 					complete(task, {result_status(r), result_json(r)});

@@ -63,6 +63,44 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		object.AddMember("quorum_refresh_ms", 1000, object.GetAllocator());
+		write();
+		rejected();
+		auto pool = [&](const char *json) {
+			rapidjson::Document parsed;
+			parsed.Parse(json);
+			object.RemoveMember("authority_endpoints");
+			object.AddMember("authority_endpoints", rapidjson::Value(parsed, object.GetAllocator()),
+							 object.GetAllocator());
+			write();
+		};
+		pool(R"([{"address":"127.0.0.1","port":8317},{"address":"127.0.0.1","port":8318}])");
+		const auto pooled = load();
+		check(pooled.coordinator.authority_endpoints.size() == 2 &&
+			  pooled.coordinator.source.endpoint == pooled.coordinator.authority_endpoints.front() &&
+			  pooled.coordinator.quorum_refresh == std::chrono::seconds(1));
+		object.AddMember("port", 8317, object.GetAllocator());
+		write();
+		rejected();
+		object.RemoveMember("port");
+		for (const auto json :
+			 {"[]", "{}", R"([{"address":"0.0.0.0"}])", R"([{"address":"127.0.0.1","port":0}])",
+			  R"([{"address":"127.0.0.1"},{"address":"127.0.0.1"}])"}) {
+			pool(json);
+			rejected();
+		}
+		pool(R"([{"address":"127.0.0.1","port":8317}])");
+		for (const auto interval : {0u, 999u, 86400001u}) {
+			object["quorum_refresh_ms"].SetUint64(interval);
+			write();
+			rejected();
+		}
+		object["quorum_refresh_ms"].SetUint64(86400000);
+		write();
+		check(load().coordinator.quorum_refresh == std::chrono::hours(24));
+		object.RemoveMember("quorum_refresh_ms");
+		object.RemoveMember("authority_endpoints");
+		write();
 		using Format = detent::delivery::LocalImageFormat;
 		check(options.coordinator.image_format == Format::FlatV1 &&
 			  options.coordinator.compaction_interval == std::chrono::seconds(60));

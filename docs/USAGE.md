@@ -548,3 +548,15 @@ Changing authority identity requires an explicit `reset_from` object containing 
 Fresh macOS provisioning requires all traversed writable namespace edges to be on one filesystem, so the store's final owner-file `F_FULLFSYNC` covers them, including interrupted initialization retries. Read-only system ancestors are skipped only after filesystem inspection. An unsupported cross-filesystem path fails initialization; start from the intended volume and use a relative generation path. A preexisting final symlink is rejected, including one spelled with a trailing slash. Existing trusted ancestor links, such as macOS `/var`, remain supported.
 
 The coordinator reports one `worker_pending` slot. Accepted recovery work owns its immutable directory and limits and survives close or loss of the caller's facade until the actual worker returns. Infrastructure failure that prevents original I/O or worker drainage follows an explicit fail-stop policy; it never reports successful settlement. Normal delivery failures preserve the durable selection and can retry.
+
+## Managed authority endpoint pools
+
+A managed source can set `authority_endpoints` to an array of up to eight objects such as `[{"address":"127.0.0.1","port":8317},{"address":"127.0.0.2","port":8317}]`, replacing the top-level `address` and `port`. Destinations must be distinct IP addresses with nonzero ports. All entries share the configured TLS hostname, CA, credential, authority identity and namespace scope.
+
+The coordinator tries members serially and stays on a successful member. Transport failures, unavailable authorities and follower read rejection permit rotation. Admission pressure and local storage failures retain the route. Authentication, authorization, TLS verification and unexpected identity or profile fail closed, including denials received while closing a session. Sessions and publication feedback remain bound to their opening endpoint.
+
+For pooled subscriptions, `quorum_refresh_ms` defaults to 30000 and accepts 1000 through 86400000. Refresh uses bounded jitter of ±20%; idle responses do not postpone it. A fresh Open revalidates authority quorum after accepted local publication and recovery settle. Polling already performs quorum reads. Discovery time includes refresh, per-member request deadlines, retry backoff and accepted local work; the default 60-second request timeout provides no short failover guarantee.
+
+Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay must use a single relay endpoint and explicit `"delivery_mode":"subscription"`.
+
+Both polling and subscription delivery stop on terminal trust denial while retaining the last-known-good durable generation.

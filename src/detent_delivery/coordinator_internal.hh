@@ -3,6 +3,11 @@
 namespace detent::delivery::detail {
 // Private fault seam, unavailable through installed/public interfaces.
 struct CoordinatorAccess {
+	struct ReconnectObservation {
+		std::uint64_t count = 0;
+		std::chrono::milliseconds delay{0};
+	};
+	static ReconnectObservation reconnect_observation(const Coordinator &);
 	static bool retains_paged_candidate(const Coordinator &);
 	static bool cancelled_construction_settled(const Coordinator &);
 	static void request_compaction(Coordinator &);

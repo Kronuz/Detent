@@ -95,6 +95,17 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 		field(",\"mapping_bytes\":", record.mapping->used());
 		field(",\"gaps\":", state.gaps);
 		field(",\"refusals\":", state.refusals);
+		const auto delivery = record.coordinator->status();
+		field(",\"source_endpoint_index\":", delivery.source_endpoint_index);
+		field(",\"source_rotations\":", delivery.source_rotations);
+		field(",\"quorum_refresh_failures\":", delivery.quorum_refresh_failures);
+		if (delivery.last_quorum_open)
+			field(",\"quorum_open_age_ms\":",
+				  std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+																		*delivery.last_quorum_open)
+					  .count());
+		else
+			output->append(",\"quorum_open_age_ms\":null");
 		field(",\"snapshot_ready\":", record.bundle->offer({}, true).decision == d::CacheDecision::Update);
 		output->append("}");
 	}

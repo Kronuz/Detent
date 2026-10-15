@@ -4,6 +4,7 @@
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 #include <chrono>
+#include <stdexcept>
 #include <variant>
 namespace detent::delivery {
 struct ClientOptions {
@@ -39,7 +40,17 @@ enum class SessionResetReason {
 	Forbidden,
 	Unauthorized,
 	InvalidRequest,
-	SourceBehind
+	SourceBehind,
+	NotLeader,
+	Unavailable
+};
+class SourceUnavailableError : public std::runtime_error {
+  public:
+	using std::runtime_error::runtime_error;
+};
+class SourceTrustError : public std::runtime_error {
+  public:
+	using std::runtime_error::runtime_error;
 };
 class SessionResetError : public std::runtime_error {
   public:

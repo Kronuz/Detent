@@ -6,6 +6,7 @@
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
 #include <completion/native_completion.h>
+#include <vector>
 
 namespace detent::delivery {
 namespace detail {
@@ -27,6 +28,8 @@ struct CoordinatorOptions {
 	std::uint64_t reconnect_seed = 0;
 	LocalImageFormat image_format = LocalImageFormat::FlatV1;
 	std::chrono::milliseconds compaction_interval{60000};
+	std::vector<asio::ip::tcp::endpoint> authority_endpoints;
+	std::chrono::milliseconds quorum_refresh{30000};
 };
 enum class CoordinatorPhase {
 	Starting,
@@ -49,6 +52,9 @@ struct CoordinatorStatus {
 	bool initialized = false;
 	bool worker_pending = false;
 	std::exception_ptr error;
+	std::size_t source_endpoint_index = 0;
+	std::uint64_t source_rotations = 0, quorum_refresh_failures = 0;
+	std::optional<std::chrono::steady_clock::time_point> last_quorum_open;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive

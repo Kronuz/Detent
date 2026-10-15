@@ -16,7 +16,8 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 	asio::steady_timer timer(co_await asio::this_coro::executor);
 	bool announced = false;
 	std::optional<d::Cursor> reported;
-	std::uint64_t failures = 0;
+	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0;
+	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
 		if (!announced && state.initialized) {
@@ -34,6 +35,20 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			L_DEBUG("detent-agent: managed publication acknowledged at revision {}",
 					state.acknowledged ? state.acknowledged->revision : 0);
 			reported = state.acknowledged;
+		}
+		if (state.source_rotations != rotations) {
+			L_INFO("detent-agent: managed source endpoint {} after {} rotations", state.source_endpoint_index,
+				   state.source_rotations);
+			rotations = state.source_rotations;
+		}
+		if (state.quorum_refresh_failures != refresh_failures) {
+			L_WARNING("detent-agent: managed quorum refresh failures {}", state.quorum_refresh_failures);
+			refresh_failures = state.quorum_refresh_failures;
+		}
+		if (state.last_quorum_open != quorum_open) {
+			L_DEBUG("detent-agent: managed quorum Open succeeded at endpoint {}",
+					state.source_endpoint_index);
+			quorum_open = state.last_quorum_open;
 		}
 		if (state.failures != failures) {
 			std::string detail;

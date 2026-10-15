@@ -141,6 +141,21 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                 sum(isinstance(result, ValueError) for result in results), 1
             )
 
+    async def test_partial_stop_preserves_other_owned_children(self) -> None:
+        group = Actors(self.evidence, 1)
+        async with group:
+            first = await group.start(
+                "first", [sys.executable, "-c", "import time;time.sleep(60)"]
+            )
+            second = await group.start(
+                "second", [sys.executable, "-c", "import time;time.sleep(60)"]
+            )
+            await group.stop([first])
+            self.assertIsNotNone(first.process.returncode)
+            self.assertIsNone(second.process.returncode)
+            self.assertEqual(group.children, [second])
+        self.assertIsNotNone(second.process.returncode)
+
     async def test_evidence_is_bounded(self) -> None:
         for _ in range(100):
             self.evidence.record("actor_output", data="x" * 1000)

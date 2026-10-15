@@ -210,8 +210,18 @@ class Actors:
         if failure is not None:
             raise failure
 
+    async def stop(self, selected: list[Actor]) -> None:
+        if len({actor.name for actor in selected}) != len(selected) or any(
+            actor not in self.children for actor in selected
+        ):
+            raise ValueError("cannot stop an unowned or duplicate actor")
+        await self._close(selected.copy())
+
     async def close(self) -> None:
-        for actor in reversed(self.children):
+        await self._close(self.children.copy())
+
+    async def _close(self, selected: list[Actor]) -> None:
+        for actor in reversed(selected):
             if actor.process.returncode is None:
                 try:
                     actor.process.terminate()
@@ -219,7 +229,7 @@ class Actors:
                     pass
         failures: list[Exception] = []
         forced = False
-        for actor in reversed(self.children):
+        for actor in reversed(selected):
             try:
                 await asyncio.wait_for(actor.process.wait(), self.shutdown_seconds)
             except TimeoutError:
@@ -239,7 +249,8 @@ class Actors:
                 )
             except (OSError, ValueError) as error:
                 failures.append(error)
-        self.children.clear()
+        for actor in selected:
+            self.children.remove(actor)
         if forced:
             failures.append(
                 RuntimeError(

@@ -2,6 +2,7 @@
 #include "detent/identity.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
+#include "source_selection.hh"
 #include <algorithm>
 #include <cerrno>
 #include <fcntl.h>
@@ -102,6 +103,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"namespaces",
 					"token",
 					"address",
+					"authority_endpoints",
+					"quorum_refresh_ms",
 					"port",
 					"hostname",
 					"ca",
@@ -164,6 +167,26 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	const auto address = object.HasMember("address") ? text(object["address"], 253) : "127.0.0.1";
 	source.endpoint = {asio::ip::make_address(address),
 					   static_cast<unsigned short>(number(object, "port", 8317, 1, 65535))};
+	if (object.HasMember("authority_endpoints")) {
+		require(!object.HasMember("address") && !object.HasMember("port"),
+				"authority endpoint pool conflicts with address/port");
+		const auto &endpoints = object["authority_endpoints"];
+		require(endpoints.IsArray() && !endpoints.Empty() &&
+					endpoints.Size() <= detail::SourceSelection::maximum_endpoints,
+				"invalid authority endpoint count");
+		for (const auto &endpoint : endpoints.GetArray()) {
+			fields(endpoint, {"address", "port"});
+			result.coordinator.authority_endpoints.emplace_back(
+				asio::ip::make_address(text(field(endpoint, "address"), 253)),
+				static_cast<unsigned short>(number(endpoint, "port", 8317, 1, 65535)));
+		}
+		source.endpoint = result.coordinator.authority_endpoints.front();
+	} else
+		require(!object.HasMember("quorum_refresh_ms"), "quorum refresh requires authority endpoints");
+	result.coordinator.quorum_refresh =
+		std::chrono::milliseconds(number(object, "quorum_refresh_ms", 30000, 1000, 86400000));
+	const detail::SourceSelection validated(result.coordinator.authority_endpoints, source.endpoint,
+											result.coordinator.quorum_refresh, 0);
 	source.hostname = object.HasMember("hostname") ? text(object["hostname"], 253) : "localhost";
 	require(source.hostname.find_first_of("\r\n") == std::string::npos, "invalid managed TLS hostname");
 	auto ca = std::filesystem::path(text(field(object, "ca")));
