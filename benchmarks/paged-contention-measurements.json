@@ -1,0 +1,67 @@
+{
+  "source_baseline": {
+    "source_head": "cca83006ade55375bb1e41340fbfcb39bb7e261d",
+    "tracked_patch_sha256": "139caaa54f502056692490f51af36ee36b0b8340df3e896479eec72fc3d1b695",
+    "binary_sha256": "0ccfbdc9b1d46009c3a5b63be5df3fda74ffe9f7f7c6af0082ea0b4ccedcf356",
+    "dependencies_sha256": "062b4b787632c8780488b16b439977fab61b175bc0ed90a8c1a98cd58fe0c8bc"
+  },
+  "public_source_tree_sha256": "2080122a7da27c9f65f5802235cb3d286fd6e2c191ecfb33137d3b5fc151dc03",
+  "hardware": {
+    "system": "Darwin",
+    "release": "24.6.0",
+    "machine": "x86_64",
+    "python": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 17.0.0 (clang-1700.6.4.2)]",
+    "cpu_count": 16,
+    "load_average": [
+      6.47265625,
+      9.6015625,
+      8.06640625
+    ],
+    "physical_memory_bytes": 34359738368
+  },
+  "cpu_workers": 32,
+  "concurrency": 2,
+  "scope": "500000-key publication fixtures; unchanged frozen production libraries",
+  "results": [
+    {
+      "fixture_seconds": 60,
+      "contended": false,
+      "cases": {
+        "fresh": 37.82,
+        "migration": 46.16,
+        "transitions": 36.57
+      },
+      "passed": 3,
+      "elapsed_seconds": 74.77
+    },
+    {
+      "fixture_seconds": 60,
+      "contended": true,
+      "cases": {
+        "migration": 67.32,
+        "transitions": 61.58
+      },
+      "passed": 0,
+      "elapsed_seconds": 67.33,
+      "diagnosis": "Observer feedback deadline triggers Close; fixture server expects publication feedback and masks the observer failure."
+    },
+    {
+      "fixture_seconds": 240,
+      "contended": true,
+      "cases": {
+        "migration": 135.86,
+        "transitions": 113.06
+      },
+      "passed": 2,
+      "elapsed_seconds": 135.86
+    }
+  ],
+  "limits": [
+    "Single development-host repetitions; no throughput or production timeout guarantee.",
+    "Production request deadlines are unchanged.",
+    "Earlier Linux shared-host failures require their own attribution."
+  ],
+  "reproduce": "python3 tests/detent_system/run_contention.py --binary build/tests/detent_delivery/test_delivery_coordinator --certificates build/tests/detent_delivery/tls-fixture --workers 32 --output .scratch/stage6/contention",
+  "diagnostic_binary_sha256": "3bb95f8e1c1f650abe8662af82e93998e71645d6e82a71d0efbddecc23e8cb81",
+  "scaled_binary_sha256": "7a6d79d38dbe05a5596c0cf311150b36acf2ac5216a736e8d533bdab7c0c846e"
+}

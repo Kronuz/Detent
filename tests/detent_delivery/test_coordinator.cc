@@ -577,6 +577,8 @@ int main(int argc, char **argv) {
 		options.source.tls_context = client_tls;
 		options.source.configured = cursor();
 		options.source.compression = false;
+		if (paged && count >= 500000)
+			options.source.timeout = std::chrono::seconds(240);
 #ifdef DETENT_TEST_RELAY_HTTP
 		if (relay_network)
 			options.source.timeout = std::chrono::seconds(240);
@@ -645,15 +647,18 @@ int main(int argc, char **argv) {
 						: reset_retry	? std::array<unsigned, 11>{0, 1, 4, 3, 0, 5, 3, 0, 1, 2, 3}[attempt]
 										: attempt;
 					asio::ip::tcp::socket accepted(server_io);
-					const auto accept_deadline = std::chrono::steady_clock::now() + 60s;
+					const auto accept_deadline = std::chrono::steady_clock::now() + options.source.timeout;
 					for (;;) {
 						asio::error_code error;
 						acceptor.accept(accepted, error);
 						if (!error)
 							break;
-						if ((error != asio::error::would_block && error != asio::error::try_again) ||
-							std::chrono::steady_clock::now() >= accept_deadline)
+						if (error != asio::error::would_block && error != asio::error::try_again)
 							throw asio::system_error(error);
+						if (std::chrono::steady_clock::now() >= accept_deadline)
+							throw std::runtime_error(
+								"coordinator accept deadline: records=" + std::to_string(count) +
+								" attempt=" + std::to_string(attempt) + " phase=" + std::to_string(phase));
 						std::this_thread::sleep_for(1ms);
 					}
 					asio::ssl::stream<asio::ip::tcp::socket> socket(std::move(accepted), *server_tls);
@@ -680,9 +685,10 @@ int main(int argc, char **argv) {
 						if (!subscription)
 							check((body.find("\"base\":{") != std::string::npos) == (attempt != 0));
 						if (subscription && phase == 2) {
-							check(body.find("\"after\":1") != std::string::npos &&
-								  body.find("\"published\":{") != std::string::npos &&
-								  body.find("\"revision\":1") != std::string::npos);
+							if (body.find("\"after\":1") == std::string::npos ||
+								body.find("\"published\":{") == std::string::npos ||
+								body.find("\"revision\":1") == std::string::npos)
+								throw std::runtime_error("coordinator publication feedback: " + body);
 							std::promise<bool> recovered;
 							auto ready = recovered.get_future();
 							asio::post(io, [&] {
@@ -906,6 +912,19 @@ int main(int argc, char **argv) {
 			run_failure = std::current_exception();
 		}
 		server.join();
+		if (server_failure || run_failure) {
+			auto report = [](const char *label, std::exception_ptr failure) {
+				if (!failure)
+					return;
+				try {
+					std::rethrow_exception(failure);
+				} catch (const std::exception &error) {
+					std::cerr << label << ": " << error.what() << '\n';
+				}
+			};
+			report("fixture server", server_failure);
+			report("fixture coordinator", run_failure);
+		}
 		if (server_failure)
 			std::rethrow_exception(server_failure);
 		if (run_failure)

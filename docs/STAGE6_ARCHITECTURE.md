@@ -39,6 +39,6 @@ The relay's fixed connection/session limits need finite startup configuration or
 
 ## Attribution and acceptance
 
-Attribute the two native parallel 500k failures through controlled contention before changing fixture timing. Serial repeats alone do not identify the cause. The earlier Linux pressure failures remain in the same evidence ledger.
+Controlled contention attributes the native 500k feedback failure to the fixture observer deadline: Close arrives where the server expects feedback, masking the observer failure. Two 60-second fixtures fail under 32 CPU workers; the same frozen production libraries pass both with a 240-second fixture budget (135.86 seconds total). The [measurement record](../benchmarks/paged-contention-measurements.json) retains source/binary fingerprints and reproduction. Production deadlines remain unchanged. Earlier Linux shared-host pressure failures still require separate attribution.
 
 The supported initial product is one regional fixed three-voter authority with namespace-scoped atomicity and last-known-good local reads. Authorization denial fences distribution without promising erasure of retained SDK mappings. Producer result retention is bounded by operation count; it does not promise a time-based retry horizon or unlimited audit history. Restore uses a new epoch. Latency and fleet-capacity targets remain unqualified until the corresponding workload and hardware gates pass.
