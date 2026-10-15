@@ -25,3 +25,5 @@ One pre-admitted completion port per bundle feeds a fixed owner FIFO and one nat
 The relay retains cached encoded frames across downstream delivery, so simultaneous readers borrow the same payload. This establishes bounded component ownership, rather than a sustained fleet capacity claim. Shutdown drains listener originals and disk operations before retiring stores and workers.
 
 For system services, use absolute bundle directories under `/var/lib/detent-relay` on Linux or `/var/db/detent-relay` on macOS and FreeBSD. Relative bundle directories resolve beside the host configuration; placing them below `/etc` is incompatible with the Linux unit’s filesystem protection. Durable state belongs outside runtime directories, which are cleared at boot.
+
+Relay admission is configurable through `connections` and `service_limits` in the private host configuration. Defaults admit 1,024 connections and sessions, with 640 polls. Raising these ceilings also requires heap and descriptor capacity. See the [capacity settings](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for ranges and relationships.

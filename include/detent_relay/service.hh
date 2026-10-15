@@ -1,16 +1,12 @@
 #pragma once
 #include "registry.hh"
+#include "service_limits.hh"
 #include <http_handler.h>
 
 namespace detent::relay {
 struct ServiceAccounts {
 	std::shared_ptr<distribution::StorageLedger> metadata;
 	std::array<std::shared_ptr<distribution::StorageLedger>, 3> requests;
-};
-struct ServiceLimits {
-	std::size_t opens = 16, polls = 640, closes = 16;
-	std::size_t bootstrap_transfers = 512, catchup_transfers = 128;
-	distribution::SubscriptionLimits sessions{1024, 1024};
 };
 struct ServiceStatus {
 	std::array<std::size_t, 3> requests{};

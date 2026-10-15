@@ -167,3 +167,7 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 Private configuration must be a regular, single-link file without world access
 or group/other write permission; Detent refuses it otherwise.
+
+## Relay admission
+
+The private relay host configuration accepts `connections` (default 1,024) and `service_limits` for Open, Next, Close, sessions and transfers. Counts range from 1 to 65,536; transfer counts cannot exceed polls, and per-principal sessions cannot exceed total sessions. Idle and maximum session lifetimes are bounded to 24 hours. See the [relay configuration](https://github.com/Kronuz/Detent/blob/main/docs/RELAY.md#capacity-and-continuity) for defaults and a complete example.

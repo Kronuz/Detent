@@ -82,6 +82,47 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		check(options.connections == 1024 && options.service_limits.polls == 640 &&
+			  options.service_limits.sessions.sessions == 1024);
+		host.AddMember("connections", 16384, host.GetAllocator());
+		rapidjson::Value limits(rapidjson::kObjectType);
+		limits.AddMember("sessions", 10000, host.GetAllocator());
+		limits.AddMember("per_principal", 10000, host.GetAllocator());
+		limits.AddMember("polls", 10000, host.GetAllocator());
+		host.AddMember("service_limits", limits, host.GetAllocator());
+		auto scaled = load();
+		check(scaled.connections == 16384 && scaled.service_limits.polls == 10000 &&
+			  scaled.service_limits.sessions.sessions == 10000 &&
+			  scaled.service_limits.sessions.per_principal == 10000);
+		host["connections"].SetUint(0);
+		rejected();
+		host["connections"].SetUint(65537);
+		rejected();
+		host.RemoveMember("connections");
+		auto &configured_limits = host["service_limits"];
+		configured_limits["polls"].SetUint(0);
+		rejected();
+		configured_limits["polls"].SetUint(16);
+		configured_limits["sessions"].SetUint(16);
+		configured_limits["per_principal"].SetUint(17);
+		rejected();
+		configured_limits.RemoveMember("per_principal");
+		auto smaller = load();
+		check(smaller.service_limits.bootstrap_transfers == 16 &&
+			  smaller.service_limits.catchup_transfers == 16 &&
+			  smaller.service_limits.sessions.per_principal == 16);
+		configured_limits.AddMember("bootstrap_transfers", 17, host.GetAllocator());
+		rejected();
+		configured_limits.RemoveMember("bootstrap_transfers");
+		configured_limits.AddMember("idle_ms", 1000, host.GetAllocator());
+		configured_limits.AddMember("maximum_ms", 999, host.GetAllocator());
+		rejected();
+		configured_limits["maximum_ms"].SetUint(86400001);
+		rejected();
+		configured_limits["maximum_ms"].SetUint(1000);
+		configured_limits.AddMember("unknown", 1, host.GetAllocator());
+		rejected();
+		host.RemoveMember("service_limits");
 		host.AddMember("hostname", "bad\rhost", host.GetAllocator());
 		rejected();
 		host.RemoveMember("hostname");
@@ -101,11 +142,12 @@ int main(int argc, char **argv) {
 			const std::array<std::string_view, 1> names{"app"};
 			const detent::relay::RegistryBundle binding{
 				configured.coordinator.source.configured,
-				{detent::distribution::canonical_scope_identity("reader", 1, {}), 2}, names};
+				{detent::distribution::canonical_scope_identity("reader", 1, {}), 2},
+				names};
 			auto account = std::make_shared<detent::distribution::StorageLedger>(1024 * 1024);
 			detent::relay::Registry registry(account, {&binding, 1}, rotated.credentials);
-			const auto *authorization = registry.authenticate(
-				"Bearer downstream-token-0123456789abcdef0123456789");
+			const auto *authorization =
+				registry.authenticate("Bearer downstream-token-0123456789abcdef0123456789");
 			check(authorization && authorization->principal.policy_epoch == 2);
 			check(registry.resolve(*authorization, binding.identity, names) == 0);
 		}

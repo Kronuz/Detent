@@ -85,6 +85,28 @@ The host accepts up to 256 configured bundles and 10,000 credential entries with
 
 Defaults reserve 256 MiB of publication heap and 64 MiB of cache per bundle, 64 MiB of control heap and 16 MiB of baseline heap. Open, Next and Close have independent count and heap lanes. The runtime has 1,024 sessions, 640 admitted polls, 512 bootstrap transfers and 128 catch-up transfers. These are admission ceilings, not measured sustainable fleet throughput. TLS/framework allocations and process RSS are separate from admitted component capacity.
 
+
+The optional `connections` field bounds accepted connections (default 1,024, range 1–65,536). `service_limits` configures independent admission lanes:
+
+```json
+{
+  "connections": 16384,
+  "service_limits": {
+    "opens": 16,
+    "polls": 10000,
+    "closes": 16,
+    "sessions": 10000,
+    "per_principal": 10000,
+    "bootstrap_transfers": 512,
+    "catchup_transfers": 128,
+    "idle_ms": 60000,
+    "maximum_ms": 600000
+  }
+}
+```
+
+Count limits must be 1–65,536. Each transfer limit must fit within `polls`, and `per_principal` must fit within `sessions`; omitted dependent limits shrink to their enclosing limit. Session lifetimes must be 1–86,400,000 milliseconds, with `maximum_ms` at least `idle_ms`. Raising counts requires sufficient heap and operating-system descriptors; these values establish admission ceilings and do not establish sustainable throughput.
+
 Cache allocation pressure preserves durable publication and produces a continuity gap. The host rebuilds a current-head snapshot with bounded work and retry backoff. Source lag returns HTTP 503 without closing the session; a gap requires a snapshot. Requests and offered objects remain retained until authentic transport settlement, including timeout and Close. See [qualification evidence](RELAY_ARCHITECTURE.md) for measured state sizes and the remaining network, platform and fleet gates.
 
 ## System services

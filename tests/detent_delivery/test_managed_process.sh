@@ -49,7 +49,7 @@ if [[ -n "$relay" ]]; then
     relay_port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
     relay_token=managed-relay-test-000000000000000000000000
     cp "$root/managed.json" "$root/upstream.json"
-    printf '{"port":%s,"certificate":"%s/one.pem","private_key":"%s/one.key","ca":"%s/ca.pem","bundles":[{"source":"upstream.json","directory":"relay-generations","mode":"fresh"}],"credentials":[{"token":"%s","principal":"agent-reader","bundles":[0]}]}\n' \
+    printf '{"connections":64,"service_limits":{"opens":4,"polls":16,"closes":4,"sessions":64,"per_principal":64,"bootstrap_transfers":12,"catchup_transfers":4},"port":%s,"certificate":"%s/one.pem","private_key":"%s/one.key","ca":"%s/ca.pem","bundles":[{"source":"upstream.json","directory":"relay-generations","mode":"fresh"}],"credentials":[{"token":"%s","principal":"agent-reader","bundles":[0]}]}\n' \
         "$relay_port" "$certificates" "$certificates" "$certificates" "$relay_token" > "$root/relay.json"
     chmod 600 "$root/relay.json"
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["port"]=int(sys.argv[2]); data["token"]=sys.argv[3]; open(p,"w").write(json.dumps(data))' "$root/managed.json" "$relay_port" "$relay_token"

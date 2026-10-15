@@ -54,9 +54,35 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 	object.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(),
 																						 bytes.size());
 	require(!object.HasParseError(), "invalid relay configuration JSON");
-	fields(object, {"address", "port", "hostname", "certificate", "private_key", "ca", "bundles",
-					"credentials", "control_bytes", "baseline_bytes", "heap_bytes"});
+	fields(object,
+		   {"address", "port", "hostname", "certificate", "private_key", "ca", "bundles", "credentials",
+			"control_bytes", "baseline_bytes", "heap_bytes", "connections", "service_limits"});
 	HostOptions result;
+	result.connections = number(object, "connections", result.connections, 1, 65536);
+	if (object.HasMember("service_limits")) {
+		const auto &value = object["service_limits"];
+		fields(value, {"opens", "polls", "closes", "bootstrap_transfers", "catchup_transfers", "sessions",
+					   "per_principal", "idle_ms", "maximum_ms"});
+		auto &limits = result.service_limits;
+		limits.opens = number(value, "opens", limits.opens, 1, 65536);
+		limits.polls = number(value, "polls", limits.polls, 1, 65536);
+		limits.closes = number(value, "closes", limits.closes, 1, 65536);
+		limits.bootstrap_transfers =
+			number(value, "bootstrap_transfers", std::min(limits.bootstrap_transfers, limits.polls), 1,
+				   limits.polls);
+		limits.catchup_transfers = number(value, "catchup_transfers",
+										  std::min(limits.catchup_transfers, limits.polls), 1, limits.polls);
+		limits.sessions.sessions = number(value, "sessions", limits.sessions.sessions, 1, 65536);
+		limits.sessions.per_principal =
+			number(value, "per_principal", std::min(limits.sessions.per_principal, limits.sessions.sessions),
+				   1, limits.sessions.sessions);
+		limits.sessions.idle_lifetime =
+			std::chrono::milliseconds(number(value, "idle_ms", 60000, 1, 86400000));
+		limits.sessions.maximum_lifetime =
+			std::chrono::milliseconds(number(value, "maximum_ms", 600000, 1, 86400000));
+		require(limits.sessions.maximum_lifetime >= limits.sessions.idle_lifetime,
+				"relay maximum session lifetime must cover idle lifetime");
+	}
 	const auto base = std::filesystem::absolute(configuration).parent_path();
 	if (object.HasMember("address"))
 		result.endpoint.address(asio::ip::make_address(text(object["address"], 253)));
@@ -154,10 +180,10 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 			  [](const auto &a, const auto &b) { return a.token_hash < b.token_hash; });
 	result.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 	reactor::tls::configure(*result.tls_context,
-							 {path(field(object, "certificate"), base).string(),
-							  path(field(object, "private_key"), base).string(),
-							  path(field(object, "ca"), base).string()},
-							 reactor::tls::Role::Server);
+							{path(field(object, "certificate"), base).string(),
+							 path(field(object, "private_key"), base).string(),
+							 path(field(object, "ca"), base).string()},
+							reactor::tls::Role::Server);
 	return result;
 }
 } // namespace detent::relay

@@ -176,8 +176,9 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 												   registry_bindings, options.credentials);
 	registry_bindings.clear();
 	names.clear();
-	auto runtime = std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline),
-														accounts, registry, session_bindings);
+	auto runtime =
+		std::allocate_shared<ServiceRuntime>(d::StorageAllocator<ServiceRuntime>(baseline), accounts,
+											 registry, session_bindings, options.service_limits);
 	for (std::size_t index = 0; index < records.size(); ++index) {
 		auto &record = *records[index];
 		record.coordinator = t::prepare_coordinator(std::move(options.bundles[index].source.coordinator),
@@ -221,7 +222,7 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 	});
 	auto facade = std::make_unique<Service>(runtime);
 	http::HttpAsioService listener(*facade, 2, 2, 32, http::tls_connection_factory_timed(options.tls_context),
-								   1024);
+								   options.connections);
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
 	listener.set_bind_options(bind);
