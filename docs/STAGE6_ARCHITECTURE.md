@@ -14,6 +14,8 @@ Stage 6 qualifies the implemented fixed-voter authority, durable relays and host
 5. **Reproduction and packaging.** Pin every dependency and build clean profiles without live overrides. Cover authority, relay, managed agent, reader-only SDK and legacy consumers. Test installation, foreground/daemon/status behavior, directories, restart and compatible upgrade/rollback. Freeze the established completion baseline; adopting the separate `sync_files` update requires its own durability-contract gate.
 6. **Product contract.** State topology, capacity profile, retry/result horizon, staleness, restore, audit limits and reader-before-writer upgrade requirements. Dynamic membership and further library extraction stay outside this component.
 
+Managed authority failover has a separate [validated component blueprint](MANAGED_FAILOVER_ARCHITECTURE.md). It adds bounded endpoint selection and periodic quorum revalidation; a single configured endpoint cannot survive leader changes without external routing.
+
 ## Executable presets
 
 | Preset | Workload | Initial gate |
