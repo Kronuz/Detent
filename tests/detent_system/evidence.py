@@ -103,7 +103,9 @@ def archive_sha256(path: Path) -> str:
     files = 0
     for directory, names, filenames in os.walk(path):
         names[:] = sorted(name for name in names if name not in (".git", ".scratch"))
-        for name in sorted(filenames):
+        links = [name for name in names if (Path(directory) / name).is_symlink()]
+        names[:] = [name for name in names if name not in links]
+        for name in sorted(filenames + links):
             file = Path(directory) / name
             files += 1
             if files > 100000:
@@ -111,8 +113,10 @@ def archive_sha256(path: Path) -> str:
             digest.update(str(file.relative_to(path)).encode() + b"\0")
             if file.is_symlink():
                 digest.update(b"symlink\0" + os.readlink(file).encode())
-            else:
+            elif file.is_file():
                 digest.update(b"file\0" + bytes.fromhex(file_sha256(file)))
+            else:
+                raise ValueError("dependency archive contains a nonregular file")
     return digest.hexdigest()
 
 
