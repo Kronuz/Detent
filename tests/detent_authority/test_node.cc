@@ -1,9 +1,9 @@
 #include "node.hh"
 #include "prepared.hh"
 #include <cassert>
+#include <completion/posix.h>
 #include <filesystem>
 #include <iostream>
-#include <completion/posix.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -238,11 +238,57 @@ void terminal_state_retirement(const std::filesystem::path &path) {
 	assert(node.drained());
 }
 
+void rejected_read_kind(const std::filesystem::path &path) {
+	struct Cleanup {
+		const std::filesystem::path &path;
+		~Cleanup() { std::filesystem::remove_all(path); }
+	} cleanup{path};
+	std::filesystem::create_directories(path);
+	chmod(path.c_str(), 0700);
+	auto profile = options();
+	profile.configuration.voters = {1, 2, 3};
+	Node node(std::make_unique<kronuz::journal::PosixIO>(path), profile);
+	Identity id{};
+	id[0] = 'R';
+	node.create(id);
+	while (!node.worker().ready()) {
+		node.service({0, 100});
+		if (auto original = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*original);
+		node.take_network_actions();
+	}
+	node.start();
+	std::vector<Completion> completed;
+	for (unsigned turn = 0; turn != 200; ++turn) {
+		node.service({0, 100});
+		if (auto original = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*original);
+		node.take_network_actions();
+	}
+	assert(node.read(1) == SubmitResult::Accepted);
+	for (unsigned turn = 0; turn != 200 && completed.empty(); ++turn) {
+		node.service({0, 100});
+		if (auto original = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*original);
+		node.take_network_actions();
+		completed = node.take_completions();
+	}
+	assert(completed.size() == 1 && completed[0].read && completed[0].rejection == RejectReason::NotLeader);
+	node.close();
+	while (!node.drained()) {
+		CommandWorkBudget budget;
+		node.retirement_step(budget);
+		if (auto original = node.worker().take_io_operation())
+			kronuz::journal::drive_synchronously(*original);
+	}
+}
+
 int main(int argc, char **argv) {
 	completion_storage = argc == 2 && std::string_view(argv[1]) == "--completion-storage";
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
+	rejected_read_kind(path / "rejected-read");
 	terminal_state_retirement(path / "terminal-state");
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);

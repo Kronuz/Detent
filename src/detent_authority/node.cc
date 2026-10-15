@@ -278,8 +278,10 @@ void Node::drain() {
 			if (capture_ && rejected->request == checkpoint_request_) {
 				capture_.reset();
 			}
-			if (pending_.erase(rejected->request)) {
-				completions_.push_back({rejected->request, 0, {}, rejected->reason, false});
+			if (auto found = pending_.find(rejected->request); found != pending_.end()) {
+				const bool read = found->second.read;
+				pending_.erase(found);
+				completions_.push_back({rejected->request, 0, {}, rejected->reason, read});
 			}
 		} else if (auto published = std::get_if<CheckpointPublished>(&action)) {
 			if (capture_ && published->through == capture_->state.applied_index()) {
