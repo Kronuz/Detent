@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -22,6 +24,42 @@ class EvidenceTests(unittest.TestCase):
             after = repository(path)
             self.assertNotEqual(
                 before["source_tree_sha256"], after["source_tree_sha256"]
+            )
+
+    def test_large_tracked_diff_retains_exact_fingerprint(self) -> None:
+        scratch = Path.cwd() / ".scratch"
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as temporary:
+            path = Path(temporary)
+            subprocess.run(["git", "init", "-q", str(path)], check=True)
+            source = path / "source.cc"
+            source.write_text("before\n")
+            subprocess.run(["git", "-C", str(path), "add", "source.cc"], check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(path),
+                    "-c",
+                    "user.name=Test",
+                    "-c",
+                    "user.email=test@example.invalid",
+                    "commit",
+                    "-qm",
+                    "Seed",
+                ],
+                check=True,
+            )
+            source.write_text("after\n" * 12000)
+            patch = (
+                subprocess.check_output(["git", "diff", "--binary", "HEAD"], cwd=path)
+                .decode()
+                .strip()
+            )
+            self.assertGreater(len(patch), 65536)
+            self.assertEqual(
+                repository(path)["tracked_changes_sha256"],
+                hashlib.sha256(patch.encode()).hexdigest(),
             )
 
     def test_command_output_is_bounded(self) -> None:

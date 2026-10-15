@@ -62,7 +62,7 @@ def repository(path: Path) -> dict[str, str]:
         }
     revision = command(["git", "rev-parse", "HEAD"], path)
     dirty = command(["git", "status", "--porcelain", "--untracked-files=all"], path)
-    patch = command(["git", "diff", "--binary", "HEAD"], path)
+    patch = command(["git", "diff", "--binary", "HEAD"], path, 4 * 1024 * 1024)
     source = hashlib.sha256()
     names = command(
         ["git", "ls-files", "-c", "-o", "--exclude-standard", "-z"],
