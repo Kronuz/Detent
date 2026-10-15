@@ -1,0 +1,200 @@
+[
+  {
+    "name": "asio",
+    "repository": "https://github.com/chriskohlhoff/asio.git",
+    "revision": "231cb29bab30f82712fcd54faaea42424cc6e710",
+    "source_subdir": "."
+  },
+  {
+    "name": "atomic_shared_ptr",
+    "repository": "https://github.com/Kronuz/atomic-shared-ptr.git",
+    "revision": "05643b06bfeec90ad4a4744951732761f364e17f",
+    "source_subdir": "."
+  },
+  {
+    "name": "char_classify",
+    "repository": "https://github.com/Kronuz/char-classify.git",
+    "revision": "982b141e31f8eaa3c3f6bd291bcde19fb8a6660a",
+    "source_subdir": "."
+  },
+  {
+    "name": "cluster",
+    "repository": "https://github.com/Kronuz/cluster.git",
+    "revision": "e70b5fcbcd75ba8515a85c0f15eb37ef7307a8fe",
+    "source_subdir": "."
+  },
+  {
+    "name": "compressors",
+    "repository": "https://github.com/Kronuz/compressors.git",
+    "revision": "117210a0018942a25d5baea1b448fe224093bed0",
+    "source_subdir": "."
+  },
+  {
+    "name": "constexpr_phf",
+    "repository": "https://github.com/Kronuz/constexpr-phf.git",
+    "revision": "2a9cbff853385515822143dc7b1761c0ccb7d030",
+    "source_subdir": "."
+  },
+  {
+    "name": "cpp_btree",
+    "repository": "https://github.com/Kronuz/cpp-btree.git",
+    "revision": "f90c2bf2dd75e84b1c03e15daf107c7d915fc35f",
+    "source_subdir": "."
+  },
+  {
+    "name": "cppcodec",
+    "repository": "https://github.com/tplgy/cppcodec.git",
+    "revision": "8019b8b580f8573c33c50372baec7039dfe5a8ce",
+    "source_subdir": "do-not-configure"
+  },
+  {
+    "name": "detent_logger",
+    "repository": "https://github.com/Kronuz/logger.git",
+    "revision": "9e2b7eba71edacbd63d2358ec225a0573f2de64e",
+    "source_subdir": "."
+  },
+  {
+    "name": "endian",
+    "repository": "https://github.com/Kronuz/endian.git",
+    "revision": "cbab10b7e6112151b4deff78f7b2e38919989b7a",
+    "source_subdir": "."
+  },
+  {
+    "name": "enum_reflection",
+    "repository": "https://github.com/Kronuz/enum-reflection.git",
+    "revision": "0d9e96359be07b026bf8204f901b0f72e22f3e55",
+    "source_subdir": "."
+  },
+  {
+    "name": "generation_cache",
+    "repository": "https://github.com/Kronuz/generation-cache.git",
+    "revision": "01af1b2b17226d49ed89623e9af5d4f94a187588",
+    "source_subdir": "."
+  },
+  {
+    "name": "hashes",
+    "repository": "https://github.com/Kronuz/hashes.git",
+    "revision": "73f0ad3d159cc4aa2ed0b1b924b6ce03ef039082",
+    "source_subdir": "."
+  },
+  {
+    "name": "http_lib",
+    "repository": "https://github.com/Kronuz/http.git",
+    "revision": "8f27b3c1b425886fbedbcf95f589f9280827f2e0",
+    "source_subdir": "."
+  },
+  {
+    "name": "http_parser",
+    "repository": "https://github.com/Kronuz/http-parser.git",
+    "revision": "8bccf37f3f2769ab4f59a0b9b3a496acbed10b9e",
+    "source_subdir": "."
+  },
+  {
+    "name": "radix_router",
+    "repository": "https://github.com/Kronuz/radix-router.git",
+    "revision": "a3ad26f604370bfbcf1b224fae35578b7e55bb92",
+    "source_subdir": "."
+  },
+  {
+    "name": "random_lib",
+    "repository": "https://github.com/Kronuz/random.git",
+    "revision": "b1f14782a7f74b7619ea40794b7147396fee6736",
+    "source_subdir": "."
+  },
+  {
+    "name": "rapidjson",
+    "repository": "https://github.com/Tencent/rapidjson.git",
+    "revision": "24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+    "source_subdir": "do-not-configure"
+  },
+  {
+    "name": "reactor",
+    "repository": "https://github.com/Kronuz/reactor.git",
+    "revision": "d5bd39bbf3c96a204d2b6dc379c4afdd5ce697f5",
+    "source_subdir": "."
+  },
+  {
+    "name": "scheduler",
+    "repository": "https://github.com/Kronuz/scheduler.git",
+    "revision": "457c2e95ed3c581237258f02944ffe48ded14397",
+    "source_subdir": "."
+  },
+  {
+    "name": "sha256",
+    "repository": "https://github.com/Kronuz/sha256.git",
+    "revision": "9b32590de73940bd4a61775d888df9391f5161ca",
+    "source_subdir": "."
+  },
+  {
+    "name": "stash",
+    "repository": "https://github.com/Kronuz/stash.git",
+    "revision": "fd9fe1c0849e9893369e313474e4c232285efd4f",
+    "source_subdir": "."
+  },
+  {
+    "name": "static_string",
+    "repository": "https://github.com/Kronuz/static-string.git",
+    "revision": "95745f45542da441e95f48656d154dc9a03af2d9",
+    "source_subdir": "."
+  },
+  {
+    "name": "strict_stox",
+    "repository": "https://github.com/Kronuz/strict-stox.git",
+    "revision": "83c35409d873e297786be7f8a9854286ec259235",
+    "source_subdir": "."
+  },
+  {
+    "name": "term_color",
+    "repository": "https://github.com/Kronuz/term-color.git",
+    "revision": "47dc57b88ad10d020bc5bd8148c51801c64f2049",
+    "source_subdir": "."
+  },
+  {
+    "name": "threadpool",
+    "repository": "https://github.com/Kronuz/threadpool.git",
+    "revision": "f2a97569927460ee29a51684a80a64a2fee5ccb4",
+    "source_subdir": "."
+  },
+  {
+    "name": "varint",
+    "repository": "https://github.com/Kronuz/varint.git",
+    "revision": "c20e1ef81d712e986eac22e9151d7f582736caa2",
+    "source_subdir": "."
+  },
+  {
+    "name": "completion",
+    "repository": "https://github.com/Kronuz/completion.git",
+    "revision": "35d8e2aad69e85040c8da8aa683045d46762c77a",
+    "source_subdir": "."
+  },
+  {
+    "name": "journal",
+    "repository": "https://github.com/Kronuz/journal.git",
+    "revision": "57e6250e1b714925feddc210641c1c6ea49d5337",
+    "source_subdir": "."
+  },
+  {
+    "name": "metrics",
+    "repository": "https://github.com/Kronuz/metrics.git",
+    "revision": "9d7e724d596eb70cc3122672c7efec3d7f570f35",
+    "source_subdir": "."
+  },
+  {
+    "name": "consensus",
+    "repository": "https://github.com/Kronuz/consensus.git",
+    "revision": "b7073bbe4d94e66dce526f193b0dd81a57cdb661",
+    "source_subdir": "."
+  },
+  {
+    "name": "lz4",
+    "repository": "https://github.com/lz4/lz4.git",
+    "revision": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+    "source_subdir": "build/cmake"
+  },
+  {
+    "name": "zstd",
+    "repository": "https://github.com/facebook/zstd.git",
+    "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+    "source_subdir": "build/cmake"
+  }
+]

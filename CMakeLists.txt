@@ -53,53 +53,12 @@ endif()
 ########################################################################
 # Dependencies (Kronuz cpp-libraries leaf libraries, + RapidJSON)
 ########################################################################
-# Small, dependency-free (or shallow) pieces, consumed the same way Xapiand
-# consumes this ecosystem: FetchContent, first-declaration-wins, pin to a SHA
-# for anything that matters for reproducibility (left at GIT_TAG main here,
-# same as the collection's own convention, since this is a fresh project).
+# Declare tested revisions before any dependency populates its own graph.
 include(FetchContent)
+include(cmake/DependencyPins.cmake)
 
-# RapidJSON: declared up-front with SOURCE_SUBDIR=do-not-configure so its own
-# ancient CMakeLists (pre-3.5 cmake_minimum_required, bundled gtest) never
-# runs. Same pattern Xapiand uses. Unlike Xapiand, we do NOT relax
-# RAPIDJSON_PARSE_DEFAULT_FLAGS -- detent requires strict JSON (Section 4:
-# reject unknown fields, no comments/trailing commas), the opposite of
-# Xapiand's REST API leniency.
-FetchContent_Declare(rapidjson
-  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG        24b5e7a8b27f42fa16b96fc70aade9106cf7102f
-  SOURCE_SUBDIR  do-not-configure)
-
-FetchContent_Declare(char_classify
-  GIT_REPOSITORY https://github.com/Kronuz/char-classify.git
-  GIT_TAG        main)
-FetchContent_Declare(strict_stox
-  GIT_REPOSITORY https://github.com/Kronuz/strict-stox.git
-  GIT_TAG        main)
-FetchContent_Declare(endian
-  GIT_REPOSITORY https://github.com/Kronuz/endian.git
-  GIT_TAG        main)
-FetchContent_Declare(sha256
-  GIT_REPOSITORY https://github.com/Kronuz/sha256.git
-  GIT_TAG        main)
-FetchContent_Declare(atomic_shared_ptr
-  GIT_REPOSITORY https://github.com/Kronuz/atomic-shared-ptr.git
-  GIT_TAG        main)
-FetchContent_Declare(cpp_btree
-  GIT_REPOSITORY https://github.com/Kronuz/cpp-btree.git
-  GIT_TAG        master)
-FetchContent_Declare(random_lib
-  GIT_REPOSITORY https://github.com/Kronuz/random.git
-  GIT_TAG        main)
-# compressors: detent_http needs this unconditionally (zstd/gzip decode for
-# its own Accept-Encoding negotiation), so it's declared here rather than
-# inside the DETENT_BUILD_DISTRIBUTOR block below -- http::http/cluster::cluster
-# also pull it (first-declaration-wins), so this declaration is shared, not
-# duplicated.
-FetchContent_Declare(compressors
-  GIT_REPOSITORY https://github.com/Kronuz/compressors.git
-  GIT_TAG        main)
-
+# RapidJSON supplies headers only; keep its legacy build disabled.
+# Compression is shared by all HTTP consumers.
 FetchContent_MakeAvailable(
   rapidjson
   char_classify
@@ -120,56 +79,23 @@ add_library(cpp_btree::headers ALIAS cpp_btree_headers)
 ########################################################################
 # detent core library
 ########################################################################
-# reactor: the Asio runtime and reactor::tls, the TLS configuration every Detent client,
-# server, and peer uses. Declared before http and cluster, which also fetch it, so this
-# pin wins.
-FetchContent_Declare(reactor
-  GIT_REPOSITORY https://github.com/Kronuz/reactor.git
-  GIT_TAG        d5bd39bbf3c96a204d2b6dc379c4afdd5ce697f5)
+# Populate only the libraries required by this build profile.
 if(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(reactor)
 endif()
 if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
-  FetchContent_Declare(http_lib GIT_REPOSITORY https://github.com/Kronuz/http.git GIT_TAG main)
   FetchContent_MakeAvailable(http_lib)
 endif()
 if(DETENT_BUILD_DISTRIBUTOR)
-  # http::http and cluster::cluster each pull their own full dependency chain
-  # (Asio, reactor, http-parser, radix-router) via their own CMakeLists,
-  # first-declaration-wins; we only need to declare the two top-level repos
-  # ourselves. (compressors is declared unconditionally above, not here.)
-  FetchContent_Declare(http_lib
-    GIT_REPOSITORY https://github.com/Kronuz/http.git
-    GIT_TAG        main)
-  FetchContent_Declare(cluster
-    GIT_REPOSITORY https://github.com/Kronuz/cluster.git
-    GIT_TAG        main)
-  # detentd's composed-diff cache (route_get_snapshot) -- only the
-  # distributor needs this, not detent/detent_http, hence declared here.
-  FetchContent_Declare(generation_cache
-    GIT_REPOSITORY https://github.com/Kronuz/generation-cache.git
-    GIT_TAG        main)
-
   FetchContent_MakeAvailable(http_lib cluster generation_cache)
 endif()
-# Completion I/O for local publication (the managed agent and the relay), and the
-# durable consensus (which brings journal and completion) for the authority.
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
-  set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)  # the authority's peer transport
-  FetchContent_Declare(consensus
-    GIT_REPOSITORY https://github.com/Kronuz/consensus.git
-    GIT_TAG        b7073bbe4d94e66dce526f193b0dd81a57cdb661)
+  set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(consensus)
 elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  FetchContent_Declare(completion
-    GIT_REPOSITORY https://github.com/Kronuz/completion.git
-    GIT_TAG        373f02a219a91e32af035abf6fb909a8211aef8b)
   FetchContent_MakeAvailable(completion)
 endif()
 
-FetchContent_Declare(detent_logger
-  GIT_REPOSITORY https://github.com/Kronuz/logger.git
-  GIT_TAG 9e2b7eba71edacbd63d2358ec225a0573f2de64e)
 FetchContent_MakeAvailable(detent_logger)
 
 add_subdirectory(src)

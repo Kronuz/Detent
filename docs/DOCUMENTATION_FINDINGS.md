@@ -17,7 +17,7 @@ A fresh clone failed to configure (`detent::local_publication` missing) and to c
 
 **Local checkout note:** `~/code/Kronuz/cluster` is now one merge commit behind `origin/main` (a fast-forward `git pull` picks it up); its `length.h` becomes the `varint` shim and `CMakeLists.txt` gains the `varint` dependency.
 
-**Still open:** pin every `FetchContent_Declare` to a tested commit instead of `main`/`master`.
+**Resolved:** direct and transitive FetchContent revisions are centralized in the [immutable dependency manifest](DEPENDENCIES.md). The public-fetch daemon build and nine process checks pass without sibling overrides. Optional fetched codec fallbacks remain separate from the installed-codec qualification.
 
 ### 1.2 No license file (resolved 2026-10-09)
 
