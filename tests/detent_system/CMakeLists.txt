@@ -58,7 +58,7 @@ if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_sy
 endif()
 
 if(Python3_FOUND AND TARGET detent_fleet_load AND TARGET detentd AND TARGET detent-agent AND TARGET detent-relay AND TARGET detent_system_mixed_oracle AND DETENT_BUILD_AUTHORITY)
-  foreach(mode IN ITEMS raw zstd warm mixed partial-launch cancel)
+  foreach(mode IN ITEMS raw zstd warm mixed partial-launch cancel delayed parked-cancel)
     if(mode STREQUAL "mixed")
       set(fleet_oracle detent_system_mixed_oracle)
     else()

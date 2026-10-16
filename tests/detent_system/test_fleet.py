@@ -29,6 +29,16 @@ class FleetTests(unittest.TestCase):
             self.assertTrue(broken.ready.is_set())
             self.assertIsNotNone(broken.failure)
 
+    def test_expected_fault_diagnostic_remains_bounded(self) -> None:
+        output = FleetOutput(allow_failure=True)
+        output.feed(b"fleet: injected failure\n")
+        self.assertEqual(output.diagnostic, "fleet: injected failure")
+        self.assertIsNone(output.failure)
+        with self.assertRaises(ValueError):
+            output.feed(b"fleet: duplicate failure\n")
+        with self.assertRaisesRegex(ValueError, "4 KiB"):
+            FleetOutput(allow_failure=True).feed(b"fleet: " + b"x" * 4096)
+
     def test_measurement_acknowledgments_require_ordered_transitions(self) -> None:
         output = FleetOutput()
         output.feed(b'{"event":"measurement","running":1}\n')
@@ -83,7 +93,12 @@ class FleetTests(unittest.TestCase):
             ("transport_probes", "accepted", "completed", "opened", "ready", "checked"),
             500,
         )
-        result.update(success=True, durable_stores=0, checkpoint_revision=42)
+        result.update(
+            success=True,
+            durable_stores=0,
+            checkpoint_revision=42,
+            premature_ready_polls=0,
+        )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "result.json"
             path.write_text(json.dumps(result))

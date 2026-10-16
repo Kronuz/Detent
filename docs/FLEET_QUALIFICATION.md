@@ -18,6 +18,8 @@ Use `detent_system_local_oracle` for integer writers and `detent_system_mixed_or
 
 Relay health reports `sessions` as retained table entries, including closed entries awaiting bounded collection. The runner checks the live population at readiness and its return to durable-cohort headroom after healthy probe cleanup. Best-effort Close admission stops after 20 seconds of shutdown; accepted Close requests still drain, and skipped Close requests are counted. Remote sessions skipped at that deadline can remain until expiry or relay shutdown.
 
+Completed bootstrap probes park outside exchange admission while cold probes finish. An owner-local timer registration releases them after a monotonic completion latch, with wakeups batched in groups of 64. `peak_bootstrap_parked` and `premature_ready_polls` qualify this boundary. Reduced delayed/warm/cancelled bootstrap cases pass; the stopped 10k diagnostic reaps all accepted originals, while the corrected 10k rerun remains pending.
+
 ## Evidence and limits
 
 The runner records source and dependency fingerprints, binary hashes, host resources, effective admission, bounded process output, health samples and full-corpus verification. `fleet-result.json` requires exact accepted/completed/opened/ready/checked counts at one quorum checkpoint. Every probe snapshot digest must match the fully validated reference at that exact cursor; the independent SDK cohort checks semantic state.

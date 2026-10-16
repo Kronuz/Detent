@@ -78,6 +78,8 @@ async def run(arguments: argparse.Namespace) -> None:
         raise ValueError("hot namespace contention requires mixed oracle mode")
     if scenario.records < scenario.producers:
         raise ValueError("fleet needs at least one definition per producer")
+    if not 0 <= arguments.bootstrap_delay <= 60000:
+        raise ValueError("bootstrap delay must be between zero and 60000 ms")
     preflight = scenario.preflight(arguments.output)
     namespace_count = 1 if arguments.hot_namespace else scenario.producers
     preliminary = admission(scenario.subscribers, arguments.active, namespace_count)
@@ -193,12 +195,26 @@ async def run(arguments: argparse.Namespace) -> None:
                 command.extend(["--source", str(path)])
             if arguments.fault == "partial-launch":
                 command.extend(["--fail-launch-after", str(scenario.subscribers // 2)])
-            output = FleetOutput()
+            delay = (
+                60000
+                if arguments.fault == "parked-cancel"
+                else arguments.bootstrap_delay
+            )
+            if delay:
+                command.extend(
+                    [
+                        "--delay-bootstrap-slot",
+                        str(scenario.subscribers - 1),
+                        "--delay-bootstrap-ms",
+                        str(delay),
+                    ]
+                )
+            output = FleetOutput(allow_failure=bool(arguments.fault))
             probe = await actors.start(
                 "fleet",
                 command,
                 input_pipe=True,
-                observe=None if arguments.fault else output.feed,
+                observe=output.feed,
             )
             stop = asyncio.Event()
             async with asyncio.TaskGroup() as group:
@@ -210,7 +226,23 @@ async def run(arguments: argparse.Namespace) -> None:
                 )
                 try:
                     if arguments.fault:
-                        if arguments.fault == "cancel":
+                        if arguments.fault == "parked-cancel":
+                            deadline = time.monotonic() + 15
+                            while (
+                                output.latest.get("bootstrap_parked", 0)
+                                < scenario.subscribers - 1
+                            ):
+                                if (
+                                    probe.process.returncode is not None
+                                    or time.monotonic() >= deadline
+                                    or output.failure is not None
+                                ):
+                                    raise RuntimeError(
+                                        "fleet did not park completed bootstrap probes"
+                                    )
+                                await asyncio.sleep(0.01)
+                            probe.process.terminate()
+                        elif arguments.fault == "cancel":
                             # Give accepted Open/Next exchanges time to enter the transport.
                             await asyncio.sleep(1)
                             probe.process.terminate()
@@ -230,6 +262,13 @@ async def run(arguments: argparse.Namespace) -> None:
                             or fault.get("accepted") != accepted
                             or fault.get("completed") != accepted
                             or fault.get("retained_slot_bytes", 0) <= 0
+                            or fault.get("premature_ready_polls") != 0
+                            or output.diagnostic
+                            != (
+                                "fleet: injected fleet partial launch failure"
+                                if arguments.fault == "partial-launch"
+                                else "fleet: fleet stopped before complete checkpoint"
+                            )
                         ):
                             raise RuntimeError(
                                 "fleet injected failure did not drain accepted originals"
@@ -284,6 +323,10 @@ async def run(arguments: argparse.Namespace) -> None:
                             scenario.subscribers,
                             revision,
                         )
+                        if delay and result["peak_bootstrap_parked"] < 1:
+                            raise RuntimeError(
+                                "delayed bootstrap did not exercise completed-probe parking"
+                            )
                         if result["skipped_closes"] == 0:
                             await relay_settled(
                                 cohort, evidence, 0, cohort.count * 2 + 2
@@ -338,7 +381,10 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--duration", type=int)
-    parser.add_argument("--fault", choices=("partial-launch", "cancel"))
+    parser.add_argument(
+        "--fault", choices=("partial-launch", "cancel", "parked-cancel")
+    )
+    parser.add_argument("--bootstrap-delay", type=int, default=0)
     parser.add_argument("--warm", action="store_true")
     parser.add_argument("--mixed", action="store_true")
     parser.add_argument("--hot-namespace", action="store_true")

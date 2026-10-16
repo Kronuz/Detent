@@ -23,7 +23,8 @@ int main(int argc, char **argv) {
 			if (name == "--help") {
 				std::puts("detent_fleet_load --source PRIVATE.json [--source PRIVATE.json] --result NEW.json "
 						  "[--subscribers N] [--active N] [--workers N] [--seconds N] [--heap-bytes N] "
-						  "[--seed N] [--warm-revision N] [--fail-launch-after N]");
+						  "[--seed N] [--warm-revision N] [--fail-launch-after N] "
+						  "[--delay-bootstrap-slot N --delay-bootstrap-ms N]");
 				return 0;
 			}
 			if (index + 1 == argc)
@@ -47,6 +48,10 @@ int main(int argc, char **argv) {
 				options.heap_bytes = number(value, 1024 * 1024, 24ull * 1024 * 1024 * 1024);
 			else if (name == "--seed")
 				options.seed = number(value, 0, std::numeric_limits<std::uint64_t>::max());
+			else if (name == "--delay-bootstrap-slot")
+				options.delay_bootstrap_slot = number(value, 0, 49999);
+			else if (name == "--delay-bootstrap-ms")
+				options.bootstrap_delay = std::chrono::milliseconds(number(value, 1, 60000));
 			else if (name == "--fail-launch-after")
 				options.fail_launch_after = number(value, 0, 50000);
 			else if (name == "--warm-revision")
@@ -55,7 +60,9 @@ int main(int argc, char **argv) {
 				throw std::invalid_argument("unknown fleet option");
 		}
 		if (configurations.empty() || options.result.empty() || options.active > options.subscribers ||
-			options.workers > options.active)
+			options.workers > options.active ||
+			options.delay_bootstrap_slot.has_value() != (options.bootstrap_delay.count() != 0) ||
+			(options.delay_bootstrap_slot && *options.delay_bootstrap_slot >= options.subscribers))
 			throw std::invalid_argument("fleet requires sources, result and valid concurrency bounds");
 		for (const auto &path : configurations) {
 			auto managed = detent::delivery::load_managed_options(

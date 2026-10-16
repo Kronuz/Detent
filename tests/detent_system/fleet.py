@@ -14,8 +14,10 @@ from runtime import Actor
 
 
 class FleetOutput:
-    def __init__(self) -> None:
+    def __init__(self, *, allow_failure: bool = False) -> None:
         self.buffer = bytearray()
+        self.allow_failure = allow_failure
+        self.diagnostic: str | None = None
         self.ready = asyncio.Event()
         self.measurement_started = asyncio.Event()
         self.measurement_stopped = asyncio.Event()
@@ -32,6 +34,9 @@ class FleetOutput:
                 if len(line) > 4096:
                     raise ValueError("fleet output line exceeds 4 KiB")
                 if line.startswith(b"fleet: "):
+                    if self.allow_failure and self.diagnostic is None:
+                        self.diagnostic = line.decode(errors="replace")
+                        continue
                     raise ValueError(line.decode(errors="replace"))
                 data: Any = json.loads(line)
                 if not isinstance(data, dict) or data.get("event") not in {
@@ -188,6 +193,7 @@ def load_result(path: Path, subscribers: int, revision: int) -> dict[str, Any]:
         "ready": subscribers,
         "checked": subscribers,
         "checkpoint_revision": revision,
+        "premature_ready_polls": 0,
     }.items():
         if type(data.get(key)) is not int or data[key] != expected:
             raise ValueError(f"fleet result counter mismatch: {key}")

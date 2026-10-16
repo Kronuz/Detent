@@ -15,7 +15,8 @@ struct Options {
 	std::chrono::seconds lifetime{660};
 	std::uint64_t seed = 17;
 	std::optional<std::uint64_t> warm_revision;
-	std::optional<std::size_t> fail_launch_after;
+	std::optional<std::size_t> fail_launch_after, delay_bootstrap_slot;
+	std::chrono::milliseconds bootstrap_delay{0};
 };
 // One bounded stdin checkpoint follows writer reconciliation. Probe feedback
 // records transport consumption; independently managed stores prove durability.

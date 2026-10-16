@@ -25,6 +25,7 @@ struct Slot {
 	Owner *owner = nullptr;
 	std::size_t index = 0;
 	asio::cancellation_signal cancellation;
+	asio::steady_timer *bootstrap_wait = nullptr;
 	t::SessionHandle session;
 	std::optional<t::PublicationFeedback> feedback;
 	std::optional<t::detail::ProbeOffer> last;
@@ -36,6 +37,7 @@ struct Counters {
 	std::atomic<std::uint64_t> accepted{0}, completed{0}, opened{0}, ready{0}, checked{0};
 	std::atomic<std::uint64_t> offers{0}, idle{0}, retries{0}, logical_bytes{0}, wire_bytes{0};
 	std::atomic<std::uint64_t> exchanges{0}, peak_exchanges{0}, closes{0}, skipped_closes{0};
+	std::atomic<std::uint64_t> parked{0}, peak_parked{0}, premature_ready_polls{0};
 	std::array<std::atomic<std::uint64_t>, 64> latency{};
 };
 struct Owner {
@@ -65,7 +67,7 @@ struct Run {
 	std::unique_ptr<Slot[]> slots;
 	std::vector<std::unique_ptr<Owner>> owners;
 	Counters counts;
-	std::atomic<bool> stopping{false};
+	std::atomic<bool> stopping{false}, bootstrap_complete{false};
 	std::atomic<std::uint64_t> goal{0};
 	std::atomic<std::int64_t> measurement_begin_ms{0}, measurement_end_ms{0};
 	std::atomic<std::int64_t> cleanup_until_ms{INT64_MAX};
@@ -163,6 +165,26 @@ struct Run {
 			wake.cancel();
 		});
 	}
+	asio::awaitable<void> wake_bootstrap(Owner &owner) {
+		for (std::size_t index = owner.index; index < options.subscribers; index += owners.size()) {
+			if (auto *wait = slots[index].bootstrap_wait)
+				wait->cancel();
+			if ((index / owners.size()) % 64 == 63)
+				co_await asio::post(owner.executor, asio::use_awaitable);
+		}
+	}
+	void became_ready(Slot &slot) {
+		slot.ready = true;
+		if (++counts.ready == options.subscribers) {
+			bootstrap_complete.store(true, std::memory_order_release);
+			for (auto &owner : owners)
+				asio::co_spawn(owner->executor, wake_bootstrap(*owner), [this](std::exception_ptr error) {
+					if (error)
+						fail(error);
+				});
+		}
+		notify();
+	}
 	asio::awaitable<void> cancel(Owner &owner) {
 		for (std::size_t index = owner.index; index < options.subscribers; index += owners.size()) {
 			slots[index].cancellation.emit(asio::cancellation_type::all);
@@ -239,7 +261,29 @@ struct Run {
 		asio::steady_timer pause(slot.owner->executor);
 		std::exception_ptr fatal;
 		try {
+			if (options.delay_bootstrap_slot && slot.index == *options.delay_bootstrap_slot) {
+				pause.expires_after(options.bootstrap_delay);
+				co_await pause.async_wait(asio::use_awaitable);
+			}
 			while (!stopping.load(std::memory_order_acquire)) {
+				if (slot.ready && !bootstrap_complete.load(std::memory_order_acquire)) {
+					pause.expires_at(Clock::time_point::max());
+					slot.bootstrap_wait = &pause;
+					const auto parked = ++counts.parked;
+					auto peak = counts.peak_parked.load();
+					while (parked > peak && !counts.peak_parked.compare_exchange_weak(peak, parked)) {
+					}
+					asio::error_code error;
+					co_await pause.async_wait(asio::redirect_error(asio::use_awaitable, error));
+					slot.bootstrap_wait = nullptr;
+					--counts.parked;
+					if (error && error != asio::error::operation_aborted)
+						throw asio::system_error(error);
+					if (!bootstrap_complete.load(std::memory_order_acquire) &&
+						!stopping.load(std::memory_order_acquire))
+						throw std::runtime_error("fleet bootstrap timer released before completion");
+					continue;
+				}
 				const auto checkpoint = goal.load(std::memory_order_acquire);
 				if (checkpoint && !slot.checked && slot.last && slot.last->target.revision == checkpoint &&
 					slot.last->kind == d::UpdateKind::Snapshot) {
@@ -273,6 +317,8 @@ struct Run {
 							++counts.opened;
 						}
 					} else {
+						if (slot.ready && !bootstrap_complete.load(std::memory_order_acquire))
+							++counts.premature_ready_polls;
 						auto event = co_await t::detail::ProbeAccess::next(
 							source, slot.session, slot.feedback,
 							options.warm_revision && !slot.ready
@@ -300,19 +346,13 @@ struct Run {
 							++counts.offers;
 							counts.logical_bytes += offer->logical_bytes;
 							counts.wire_bytes += offer->wire_bytes;
-							if (!slot.ready) {
-								slot.ready = true;
-								++counts.ready;
-								notify();
-							}
+							if (!slot.ready)
+								became_ready(slot);
 							backoff.reset();
 						} else if (std::holds_alternative<t::SessionIdle>(event)) {
 							++counts.idle;
-							if (options.warm_revision && !slot.ready) {
-								slot.ready = true;
-								++counts.ready;
-								notify();
-							}
+							if (options.warm_revision && !slot.ready)
+								became_ready(slot);
 							backoff.reset();
 						} else
 							throw t::SessionResetError(std::get<t::SessionReset>(event).reason);
@@ -350,6 +390,10 @@ struct Run {
 			}
 		} catch (...) {
 			fatal = std::current_exception();
+		}
+		if (slot.bootstrap_wait) {
+			slot.bootstrap_wait = nullptr;
+			--counts.parked;
 		}
 		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 		try {
@@ -475,7 +519,7 @@ struct Run {
 	void sample() {
 		std::printf("{\"event\":\"sample\",\"opened\":%llu,\"ready\":%llu,\"checked\":%llu,\"offers\":%llu,"
 					"\"idle\":%llu,\"retries\":%llu,\"logical_bytes\":%llu,\"wire_bytes\":%llu,\"admitted_"
-					"heap\":%zu,\"active_exchanges\":%llu}\n",
+					"heap\":%zu,\"active_exchanges\":%llu,\"bootstrap_parked\":%llu}\n",
 					static_cast<unsigned long long>(counts.opened.load()),
 					static_cast<unsigned long long>(counts.ready.load()),
 					static_cast<unsigned long long>(counts.checked.load()),
@@ -484,7 +528,8 @@ struct Run {
 					static_cast<unsigned long long>(counts.retries.load()),
 					static_cast<unsigned long long>(counts.logical_bytes.load()),
 					static_cast<unsigned long long>(counts.wire_bytes.load()), account->used(),
-					static_cast<unsigned long long>(counts.exchanges.load()));
+					static_cast<unsigned long long>(counts.exchanges.load()),
+					static_cast<unsigned long long>(counts.parked.load()));
 		std::fflush(stdout);
 	}
 	asio::cancellation_signal protocol_cancellation;
@@ -526,7 +571,7 @@ struct Run {
 		}
 		auto sample_at = Clock::now();
 		while (!stopping.load(std::memory_order_acquire)) {
-			if (!ready_reported && counts.ready.load() == options.subscribers) {
+			if (!ready_reported && bootstrap_complete.load(std::memory_order_acquire)) {
 				ready_reported = true;
 				std::printf("{\"event\":\"ready\",\"sessions\":%zu,\"active_limit\":%zu,\"warm\":%s}\n",
 							options.subscribers, options.active, options.warm_revision ? "true" : "false");
@@ -569,7 +614,7 @@ struct Run {
 			minimum = std::min(minimum, slots[index].offers);
 			maximum = std::max(maximum, slots[index].offers);
 		}
-		if (account->used() != slots_ticket.bytes() || counts.exchanges.load())
+		if (account->used() != slots_ticket.bytes() || counts.exchanges.load() || counts.parked.load())
 			throw std::runtime_error("fleet admitted resources did not drain to retained slots");
 		rusage usage{};
 		if (::getrusage(RUSAGE_SELF, &usage) != 0)
@@ -599,11 +644,14 @@ struct Run {
 			result.get(),
 			"{\"measured_ms\":%lld,\"measured_minimum_offers\":%llu,\"measured_maximum_offers\":%llu,"
 			"\"measured_silent_probes\":%llu,\"measured_maximum_silence_ms\":%lld,"
-			"\"measured_cpu_seconds\":%.6f,",
+			"\"measured_cpu_seconds\":%.6f,\"peak_bootstrap_parked\":%llu,"
+			"\"premature_ready_polls\":%llu,",
 			static_cast<long long>(measurement_end ? measurement_end - measurement_begin : 0),
 			static_cast<unsigned long long>(measured_min), static_cast<unsigned long long>(measured_max),
 			static_cast<unsigned long long>(silent), static_cast<long long>(maximum_silence),
-			measurement_end ? measurement_cpu_end - measurement_cpu_begin : 0);
+			measurement_end ? measurement_cpu_end - measurement_cpu_begin : 0,
+			static_cast<unsigned long long>(counts.peak_parked.load()),
+			static_cast<unsigned long long>(counts.premature_ready_polls.load()));
 		std::fprintf(result.get(),
 					 "\"success\":%s,\"transport_probes\":%zu,\"durable_stores\":0,\"active_limit\":%zu,"
 					 "\"workers\":%zu,\"accepted\":%llu,\"completed\":%llu,\"opened\":%llu,\"ready\":%llu,"

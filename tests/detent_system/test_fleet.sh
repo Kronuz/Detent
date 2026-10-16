@@ -14,7 +14,8 @@ case "$mode" in
   zstd) set -- --compression zstd ;;
   warm) set -- --compression zstd --warm ;;
   mixed) set -- --compression zstd --mixed --hot-namespace ;;
-  partial-launch|cancel) set -- --fault "$mode" ;;
+  partial-launch|cancel|parked-cancel) set -- --fault "$mode" ;;
+  delayed) set -- --bootstrap-delay 5000 ;;
   *) exit 2 ;;
 esac
 mkdir -p "$repository/.scratch/stage6"
