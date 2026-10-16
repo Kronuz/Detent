@@ -317,8 +317,7 @@ class MixedWriters(Writers):
             self._deleted[producer] = []
 
     @override
-    async def mutate(self, producer: int, deadline: float) -> None:
-        rng = random.Random(self.seed + producer)
+    async def mutate_once(self, producer: int, rng: random.Random, turn: int) -> None:
         recipes = (
             (1, "upsert"),
             (10, "upsert"),
@@ -330,11 +329,8 @@ class MixedWriters(Writers):
             (1, "cas"),
             (1, "noop"),
         )
-        turn = 0
-        while time.monotonic() < deadline:
-            size, mode = recipes[turn % len(recipes)]
-            await self.workload(producer, size, mode, rng)
-            turn += 1
+        size, mode = recipes[turn % len(recipes)]
+        await self.workload(producer, size, mode, rng)
 
     @override
     async def verify(self, producer: int) -> None:

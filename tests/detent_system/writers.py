@@ -154,23 +154,28 @@ class Writers:
         if operations and not await self.transaction(producer, operations):
             raise RuntimeError("authority capacity cannot seed configured corpus")
 
+    async def mutate_once(self, producer: int, rng: random.Random, turn: int) -> None:
+        count = len(range(producer, self.records, self.producers))
+        ordinal = producer + self.producers * rng.randrange(count)
+        value = self.values[ordinal] + 1
+        applied = await self.transaction(
+            producer,
+            [
+                {
+                    "key": f"load{producer}:key{ordinal}",
+                    "value": {"type": "int", "default": value},
+                }
+            ],
+        )
+        if applied:
+            self.values[ordinal] = value
+
     async def mutate(self, producer: int, deadline: float) -> None:
         rng = random.Random(self.seed + producer)
-        count = len(range(producer, self.records, self.producers))
+        turn = 0
         while time.monotonic() < deadline:
-            ordinal = producer + self.producers * rng.randrange(count)
-            value = self.values[ordinal] + 1
-            applied = await self.transaction(
-                producer,
-                [
-                    {
-                        "key": f"load{producer}:key{ordinal}",
-                        "value": {"type": "int", "default": value},
-                    }
-                ],
-            )
-            if applied:
-                self.values[ordinal] = value
+            await self.mutate_once(producer, rng, turn)
+            turn += 1
 
     async def verify(self, producer: int) -> None:
         actual = await self.successful(

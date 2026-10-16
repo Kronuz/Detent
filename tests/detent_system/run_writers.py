@@ -13,6 +13,7 @@ from authority import Authority
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
 from http_activity import configure_workers
 from managed import ManagedCohort
+from pacing import paced_mutations, validate_rate
 from runtime import Actors, Evidence, Scenario
 from writers import Writers
 
@@ -74,6 +75,7 @@ async def drained(authority: Authority, evidence: Evidence) -> None:
 
 async def run(arguments: argparse.Namespace) -> None:
     scenario = Scenario.load(arguments.scenario)
+    validate_rate(arguments.offer_rate)
     http_workers = configure_workers(scenario.producers, arguments.http_workers)
     if arguments.duration is not None:
         if not 1 <= arguments.duration <= 86400:
@@ -111,6 +113,7 @@ async def run(arguments: argparse.Namespace) -> None:
             preflight=preflight,
             seed=arguments.seed,
             http_workers=http_workers,
+            offered_workloads_per_second=arguments.offer_rate,
             duration=duration,
             qualification="authority-managed-writers"
             if arguments.agents is not None
@@ -180,7 +183,12 @@ async def run(arguments: argparse.Namespace) -> None:
                         kill_leader(authority, evidence, arguments.kill_leader_at)
                     )
                 try:
-                    await writers.phase("mutate", began + duration)
+                    if arguments.offer_rate is None:
+                        await writers.phase("mutate", began + duration)
+                    else:
+                        await paced_mutations(
+                            writers, arguments.offer_rate, began + duration
+                        )
                 finally:
                     stop.set()
             elapsed = time.monotonic() - began
@@ -195,8 +203,10 @@ async def run(arguments: argparse.Namespace) -> None:
                 complete_records=scenario.records,
                 producer_receipts=scenario.producers,
                 sustained_seconds=elapsed,
-                sustained_counts=dict(sustained),
+                scheduled_interval_seconds=duration,
+                pending_drain_seconds=max(0, elapsed - duration),
                 generator_cpu_seconds=generator_cpu,
+                sustained_counts=dict(sustained),
                 http_initial=http_initial,
                 http_final=http_final,
                 total_counts=dict(writers.counts),
@@ -229,6 +239,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--http-workers", type=int)
+    parser.add_argument("--offer-rate", type=float)
     parser.add_argument("--duration", type=int)
     parser.add_argument("--kill-leader-at", type=float)
     asyncio.run(run(parser.parse_args()))

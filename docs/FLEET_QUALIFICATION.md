@@ -20,6 +20,12 @@ Relay health reports `sessions` as retained table entries, including closed entr
 
 Completed bootstrap probes park outside exchange admission while cold probes finish. An owner-local timer registration releases them after a monotonic completion latch, with wakeups batched in groups of 64. `peak_bootstrap_parked` and `premature_ready_polls` qualify this boundary. Reduced delayed/warm/cancelled bootstrap cases pass; the stopped 10k diagnostic reaps all accepted originals, while the corrected 10k rerun remains pending.
 
+## Offered-rate workloads
+
+`--offer-rate N` offers N logical workloads per second. The default remains one closed-loop actor per producer. A mixed 1,000-edit workload can issue several 128-operation authority commands; report scheduled workloads, admitted workloads, atomic commands and operation intents separately.
+
+The pacer keeps one accepted workload per producer and a bounded catch-up batch. It counts occupied-producer and late-schedule refusals instead of accumulating a queue. A low-rate run still spans the entire requested interval. Accepted workloads drain afterward, with nominal interval and pending-drain time reported separately. Native probe measurement ends after that drainage.
+
 ## HTTP generator admission
 
 `--http-workers N` bounds Python blocking HTTP workers; its default is the producer count. Pre-submit permits use the smaller of those counts and remain held through authentic request completion, including cancellation. Producer calls carry an absolute admission deadline. A request refused before submission raises `GeneratorAdmissionRefused`; qualification fails without advancing its sequence or changing the state oracle. A prior attempt that may have executed therefore remains unresolved, rather than being mislabeled as unsent.

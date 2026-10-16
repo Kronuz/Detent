@@ -15,6 +15,7 @@ from fleet import FleetOutput, admission, load_result, resident_bytes
 from http_activity import configure_workers
 from managed import ManagedCohort
 from mixed import MixedWriters
+from pacing import paced_mutations, validate_rate
 from run_writers import drained, sample
 from runtime import Actors, Evidence, Scenario
 from writers import Writers
@@ -68,6 +69,7 @@ async def relay_settled(
 
 async def run(arguments: argparse.Namespace) -> None:
     scenario = Scenario.load(arguments.scenario)
+    validate_rate(arguments.offer_rate)
     http_workers = configure_workers(scenario.producers, arguments.http_workers)
     duration = (
         arguments.duration if arguments.duration is not None else scenario.duration
@@ -102,6 +104,7 @@ async def run(arguments: argparse.Namespace) -> None:
             host=host(),
             seed=arguments.seed,
             http_workers=http_workers,
+            offered_workloads_per_second=arguments.offer_rate,
             duration=duration,
             transport_probes=scenario.subscribers,
             durable_stores=scenario.durable_agents,
@@ -297,10 +300,15 @@ async def run(arguments: argparse.Namespace) -> None:
                         began = time.monotonic()
                         generator_cpu = time.process_time()
                         http_initial = authority.http_activity.snapshot(reset=True)
-                        await writers.phase("mutate", began + duration)
+                        if arguments.offer_rate is None:
+                            await writers.phase("mutate", began + duration)
+                        else:
+                            await paced_mutations(
+                                writers, arguments.offer_rate, began + duration
+                            )
+                        http_final = authority.http_activity.snapshot()
                         workload_elapsed = time.monotonic() - began
                         generator_cpu = time.process_time() - generator_cpu
-                        http_final = authority.http_activity.snapshot()
                         sustained_counts = dict(writers.counts - baseline)
                         probe.process.stdin.write(b'{"measurement":false}\n')
                         await probe.process.stdin.drain()
@@ -350,11 +358,13 @@ async def run(arguments: argparse.Namespace) -> None:
                             complete_records=scenario.records,
                             producer_receipts=scenario.producers,
                             sustained_seconds=workload_elapsed,
+                            scheduled_interval_seconds=duration,
+                            pending_drain_seconds=max(0, workload_elapsed - duration),
+                            generator_cpu_seconds=generator_cpu,
                             checkpoint_and_verification_seconds=time.monotonic()
                             - began
                             - workload_elapsed,
                             sustained_counts=sustained_counts,
-                            generator_cpu_seconds=generator_cpu,
                             http_initial=http_initial,
                             http_final=http_final,
                             active_durable_stores=scenario.durable_agents,
@@ -392,6 +402,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--http-workers", type=int)
+    parser.add_argument("--offer-rate", type=float)
     parser.add_argument("--duration", type=int)
     parser.add_argument(
         "--fault", choices=("partial-launch", "cancel", "parked-cancel")
