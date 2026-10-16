@@ -16,6 +16,8 @@ Stage 6 qualifies the implemented fixed-voter authority, durable relays and host
 
 Managed authority failover has a separate [validated component blueprint](MANAGED_FAILOVER_ARCHITECTURE.md). It adds bounded endpoint selection and periodic quorum revalidation; a single configured endpoint cannot survive leader changes without external routing. The next sustained-load component follows the [bounded fleet qualification blueprint](FLEET_QUALIFICATION_ARCHITECTURE.md).
 
+Fresh three-voter restoration follows the [validated restore blueprint](RESTORE_ARCHITECTURE.md). Its implementation and executable qualification remain pending; the design uses the current qualified dependency pins and keeps activation separate from bootstrap.
+
 ## Executable presets
 
 | Preset | Workload | Initial gate |
