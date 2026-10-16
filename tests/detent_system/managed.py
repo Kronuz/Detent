@@ -152,7 +152,7 @@ class ManagedCohort:
                         connections=active + 128,
                         control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),
                         service_limits={
-                            "opens": 64,
+                            "opens": min(256, active + 64),
                             "closes": 64,
                             "polls": active + 64,
                             "bootstrap_transfers": min(128, active + 64),
