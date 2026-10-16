@@ -11,6 +11,8 @@ from array import array
 from collections import Counter
 from typing import Any, BinaryIO, Protocol
 
+from http_activity import GeneratorAdmissionRefused
+
 
 class AuthorityRequests(Protocol):
     leader_index: int
@@ -21,6 +23,8 @@ class AuthorityRequests(Protocol):
         path: str,
         fields: dict[str, Any] | None = None,
         producer: int = 0,
+        *,
+        admission_deadline: float | None = None,
     ) -> tuple[int, dict[str, Any]]: ...
 
     async def leader(self) -> int: ...
@@ -58,8 +62,17 @@ class Writers:
             self.counts["offered_attempts"] += 1
             try:
                 code, reply = await self.authority.request(
-                    self.authority.leader_index, path, fields, producer
+                    self.authority.leader_index,
+                    path,
+                    fields,
+                    producer,
+                    admission_deadline=deadline,
                 )
+            except GeneratorAdmissionRefused:
+                self.counts["generator_http_admission_refusals"] += 1
+                if attempts > 1:
+                    self.counts["unresolved_at_generator_deadline"] += 1
+                raise
             except (OSError, http.client.HTTPException):
                 self.counts["transport_unknown"] += 1
                 unknown = True

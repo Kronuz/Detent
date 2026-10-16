@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from http_activity import GeneratorAdmissionRefused, HTTPActivity
 from runtime import Actor, Actors
 
 READER_TOKEN = "ab" * 16
@@ -41,6 +42,7 @@ class Authority:
         actors: Actors,
         producers: int,
         shared_namespace: str | None = None,
+        http_workers: int | None = None,
     ) -> None:
         if not 1 <= producers <= 256:
             raise ValueError("authority fixture needs 1–256 producers")
@@ -66,7 +68,11 @@ class Authority:
         self.members: list[Actor] = []
         self.leader_index = 0
         self.excluded: set[int] = set()
-        self.lane = asyncio.Semaphore(producers)
+        workers = producers if http_workers is None else http_workers
+        if not 1 <= workers <= 264:
+            raise ValueError("invalid HTTP worker admission")
+        self.lane = asyncio.Semaphore(min(producers, workers))
+        self.http_activity = HTTPActivity()
         self.reservations: list[socket.socket] = []
         try:
             for _ in range(6):
@@ -181,6 +187,18 @@ class Authority:
         fields: dict[str, Any] | None,
         producer: int,
         endpoint_port: int | None = None,
+        submitted_ns: int = 0,
+    ) -> tuple[int, dict[str, Any]]:
+        with self.http_activity.observe(submitted_ns or time.monotonic_ns()):
+            return self._exchange(index, path, fields, producer, endpoint_port)
+
+    def _exchange(
+        self,
+        index: int,
+        path: str,
+        fields: dict[str, Any] | None,
+        producer: int,
+        endpoint_port: int | None,
     ) -> tuple[int, dict[str, Any]]:
         connection = http.client.HTTPSConnection(
             "localhost",
@@ -216,11 +234,35 @@ class Authority:
         producer: int = 0,
         *,
         endpoint_port: int | None = None,
+        admission_deadline: float | None = None,
     ) -> tuple[int, dict[str, Any]]:
-        async with self.lane:
+        submitted_ns = time.monotonic_ns()
+        deadline = (
+            time.monotonic() + 5 if admission_deadline is None else admission_deadline
+        )
+        if time.monotonic() >= deadline:
+            raise GeneratorAdmissionRefused("HTTP admission deadline already expired")
+        try:
+            async with asyncio.timeout_at(deadline):
+                await self.lane.acquire()
+        except TimeoutError as error:
+            raise GeneratorAdmissionRefused(
+                "HTTP original was not submitted before deadline"
+            ) from error
+        try:
+            if time.monotonic() >= deadline:
+                raise GeneratorAdmissionRefused(
+                    "HTTP admission deadline expired before submission"
+                )
             original = asyncio.create_task(
                 asyncio.to_thread(
-                    self._request, index, path, fields, producer, endpoint_port
+                    self._request,
+                    index,
+                    path,
+                    fields,
+                    producer,
+                    endpoint_port,
+                    submitted_ns,
                 )
             )
             cancellation: asyncio.CancelledError | None = None
@@ -233,6 +275,9 @@ class Authority:
             if cancellation is not None:
                 raise cancellation
             return result
+
+        finally:
+            self.lane.release()
 
     async def leader(self) -> int:
         deadline = time.monotonic() + 15

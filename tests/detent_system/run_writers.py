@@ -11,6 +11,7 @@ from pathlib import Path
 
 from authority import Authority
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
+from http_activity import configure_workers
 from managed import ManagedCohort
 from runtime import Actors, Evidence, Scenario
 from writers import Writers
@@ -73,6 +74,7 @@ async def drained(authority: Authority, evidence: Evidence) -> None:
 
 async def run(arguments: argparse.Namespace) -> None:
     scenario = Scenario.load(arguments.scenario)
+    http_workers = configure_workers(scenario.producers, arguments.http_workers)
     if arguments.duration is not None:
         if not 1 <= arguments.duration <= 86400:
             raise ValueError("duration must be 1–86400 seconds")
@@ -108,6 +110,7 @@ async def run(arguments: argparse.Namespace) -> None:
             build=build_context(arguments.build, arguments.output),
             preflight=preflight,
             seed=arguments.seed,
+            http_workers=http_workers,
             duration=duration,
             qualification="authority-managed-writers"
             if arguments.agents is not None
@@ -125,6 +128,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 arguments.output.resolve(),
                 actors,
                 scenario.producers,
+                http_workers=http_workers,
             )
             await authority.start()
             writers = Writers(
@@ -166,6 +170,8 @@ async def run(arguments: argparse.Namespace) -> None:
                 )
             baseline = writers.counts.copy()
             began = time.monotonic()
+            http_initial = authority.http_activity.snapshot(reset=True)
+            generator_cpu = time.process_time()
             stop = asyncio.Event()
             async with asyncio.TaskGroup() as group:
                 group.create_task(sample(authority, evidence, stop))
@@ -178,7 +184,9 @@ async def run(arguments: argparse.Namespace) -> None:
                 finally:
                     stop.set()
             elapsed = time.monotonic() - began
+            generator_cpu = time.process_time() - generator_cpu
             sustained = writers.counts - baseline
+            http_final = authority.http_activity.snapshot()
             await writers.phase("verify")
             if cohort is not None:
                 await cohort.verify(writers)
@@ -188,6 +196,9 @@ async def run(arguments: argparse.Namespace) -> None:
                 producer_receipts=scenario.producers,
                 sustained_seconds=elapsed,
                 sustained_counts=dict(sustained),
+                generator_cpu_seconds=generator_cpu,
+                http_initial=http_initial,
+                http_final=http_final,
                 total_counts=dict(writers.counts),
                 command_latency_total_seconds=writers.latency_total,
                 command_latency_maximum_seconds=writers.latency_maximum,
@@ -217,6 +228,7 @@ def main() -> None:
     parser.add_argument("--certificates", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--http-workers", type=int)
     parser.add_argument("--duration", type=int)
     parser.add_argument("--kill-leader-at", type=float)
     asyncio.run(run(parser.parse_args()))

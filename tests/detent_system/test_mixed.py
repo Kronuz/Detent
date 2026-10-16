@@ -43,6 +43,8 @@ class ModelAuthority:
         path: str,
         fields: dict[str, Any] | None = None,
         producer: int = 0,
+        *,
+        admission_deadline: float | None = None,
     ) -> tuple[int, dict[str, Any]]:
         if fields is None:
             raise ValueError("model authority requires request fields")

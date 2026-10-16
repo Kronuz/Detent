@@ -12,6 +12,7 @@ from pathlib import Path
 from authority import Authority
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
 from fleet import FleetOutput, admission, load_result, resident_bytes
+from http_activity import configure_workers
 from managed import ManagedCohort
 from mixed import MixedWriters
 from run_writers import drained, sample
@@ -67,6 +68,7 @@ async def relay_settled(
 
 async def run(arguments: argparse.Namespace) -> None:
     scenario = Scenario.load(arguments.scenario)
+    http_workers = configure_workers(scenario.producers, arguments.http_workers)
     duration = (
         arguments.duration if arguments.duration is not None else scenario.duration
     )
@@ -99,6 +101,7 @@ async def run(arguments: argparse.Namespace) -> None:
             scenario_sha256=hashlib.sha256(arguments.scenario.read_bytes()).hexdigest(),
             host=host(),
             seed=arguments.seed,
+            http_workers=http_workers,
             duration=duration,
             transport_probes=scenario.subscribers,
             durable_stores=scenario.durable_agents,
@@ -115,6 +118,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 arguments.output,
                 actors,
                 scenario.producers,
+                http_workers=http_workers,
                 shared_namespace="hot" if arguments.hot_namespace else None,
             )
             await authority.start()
@@ -291,8 +295,12 @@ async def run(arguments: argparse.Namespace) -> None:
                         await output.wait_event(probe, output.measurement_started, 10)
                         baseline = writers.counts.copy()
                         began = time.monotonic()
+                        generator_cpu = time.process_time()
+                        http_initial = authority.http_activity.snapshot(reset=True)
                         await writers.phase("mutate", began + duration)
                         workload_elapsed = time.monotonic() - began
+                        generator_cpu = time.process_time() - generator_cpu
+                        http_final = authority.http_activity.snapshot()
                         sustained_counts = dict(writers.counts - baseline)
                         probe.process.stdin.write(b'{"measurement":false}\n')
                         await probe.process.stdin.drain()
@@ -346,6 +354,9 @@ async def run(arguments: argparse.Namespace) -> None:
                             - began
                             - workload_elapsed,
                             sustained_counts=sustained_counts,
+                            generator_cpu_seconds=generator_cpu,
+                            http_initial=http_initial,
+                            http_final=http_final,
                             active_durable_stores=scenario.durable_agents,
                         )
                 finally:
@@ -380,6 +391,7 @@ def main() -> None:
     parser.add_argument("--active", type=int, default=128)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--http-workers", type=int)
     parser.add_argument("--duration", type=int)
     parser.add_argument(
         "--fault", choices=("partial-launch", "cancel", "parked-cancel")
