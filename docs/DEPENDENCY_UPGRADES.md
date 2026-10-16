@@ -50,3 +50,13 @@ The preliminary 500-session/128-exchange run passed checkpoint and full SDK veri
 
 
 The library maintainer's [C4 handoff](LIBRARY_BOUNDARIES.md) records later consensus pipeline, follower batching and control-priority work (`28e1b88`, `dd818a4`, `3f69530`, `367c89c`). The 27-library compatibility snapshot above predates those commits. Re-capture a coherent revision set before adoption, and wait for the documented DTC2 frame/tag boundary to settle; a passing build of `274a674` does not qualify the later C4 revisions.
+
+## Source findings awaiting the shared benchmark window
+
+Compilation and new load runs are held at the user's request while another agent benchmarks. The following are source findings, with reproductions and fixes still pending; they do not change the qualification baseline.
+
+| Finding | Evidence | Next action |
+| --- | --- | --- |
+| Legacy HTTP response allocations have no explicit wire or decoded size ceiling | `src/detent_http/http_client.cc`: header accumulation, `read_all_to_eof`, `reserve(Content-Length)` and gzip/zstd decoding all grow strings without a byte cap. This is the classic blocking client; the managed binary fragment decoder already admits decoded bytes and workspace separately. | Detent integration owns configurable header/wire/decoded bounds with compatible defaults, then oversized Content-Length, EOF-body and compression-expansion regressions. Evaluate the candidate bounded zstd helper during Pass 1; a pin bump alone does not bound existing callers or gzip. |
+| Compressor subset configurations skip the current test executable | Candidate `6f6d7c0` registers tests only when all three backends are enabled. Disabling all three also leaves a static target with no sources. | Library maintainer: define the all-disabled configuration contract, then qualify each supported backend subset. Confirm generation behavior after the compilation hold before claiming a reproduced failure. |
+| Thread wrapper restart semantics need explicit qualification | Candidate `fdc0a1e` changes join settlement, but `Thread::run()` still gates on `_running`; it does not recreate the one-shot promise/future after completion. README calls `run()` idempotent while running and does not specify post-join restart. | Library maintainer: reproduce run → join → run and concurrent completion/start boundaries under sanitizers, then define and implement restart or one-shot behavior without silently breaking consumers. No new runtime failure is claimed from this source inspection. |
