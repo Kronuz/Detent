@@ -304,5 +304,7 @@ strata's session changes these libraries for its own needs; each is a versioned 
   - `Worker::source_chunk` takes a defaulted index (the i-th chunk read ahead); `snapshot_window()` is new; `snapshot_buffer_capacity()` grows with the window.
   - A Credit covers every chunk up to the one it names. With a window of 1 only one chunk is outstanding, so the frames are byte-identical and old and new nodes interoperate.
   - `SnapshotChannel`'s timeout now measures inactivity: each accepted chunk resets it, and it stops once the final chunk arrives. A transfer longer than the timeout that keeps moving no longer fails, and a slow install after the last chunk is not cut off.
+- `consensus` `c4e37ce` (2026-10-16): C4's R19 append cap, additive with today's behavior as the default.
+  - `Flow` gains a defaulted `frame_bytes` (0: `rpc_bytes` stays the cap). A host that sets it bounds each append's payload; an entry above the cap still goes alone. `Flow{pipeline, window_bytes}` call sites are unchanged.
 
 `DTC2` tags 1–8 are fixed (votes, appends, snapshot responses, pre-votes, `TimeoutNow`). The rest of `DTC2` is not yet: the frame header with group id and incarnations (C1, C4), coalesced heartbeats, `Wake`, `LeaderGone`, `Ping`, and `Pong` (C2), and window updates and snapshot chunk frames (C4). The coordinated commit that moves Detent's `consensus` pin waits for them, since a tag added later bumps the version. When it lands, Detent's fixed groups need no code change beyond the `decode_membership` and `maximum_size` call sites, if Detent calls them.
