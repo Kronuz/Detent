@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import http.client
 import random
+import struct
 import time
 from array import array
 from collections import Counter
-from typing import Any, Protocol
+from typing import Any, BinaryIO, Protocol
 
 
 class AuthorityRequests(Protocol):
@@ -64,7 +65,13 @@ class Writers:
                 unknown = True
                 await self.authority.leader()
                 continue
-            if code == 200 or (code == 429 and reply.get("status") == "capacity"):
+            terminal = code == 429 and reply.get("status") == "capacity"
+            terminal |= (
+                code == 409
+                and reply.get("status") == "conflict"
+                and path in ("/v2/transactions", "/v2/result")
+            )
+            if code == 200 or terminal:
                 if attempts > 1:
                     self.counts["retried_commands"] += 1
                 if unknown:
@@ -78,6 +85,10 @@ class Writers:
         raise RuntimeError(
             f"unreconciled producer {producer} request after thirty seconds"
         )
+
+    def write_expected(self, stream: BinaryIO, revision: int) -> None:
+        stream.write(struct.pack("<QQQ", self.records, self.producers, revision))
+        stream.writelines(struct.pack("<q", value) for value in self.values)
 
     async def transaction(
         self, producer: int, operations: list[dict[str, Any]]

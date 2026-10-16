@@ -7,6 +7,7 @@ import json
 import resource
 import shutil
 from builtins import ExceptionGroup
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Self
@@ -164,11 +165,24 @@ class Actors:
         if cancellation is not None:
             raise cancellation
 
-    async def start(self, name: str, command: list[str]) -> Actor:
+    async def start(
+        self,
+        name: str,
+        command: list[str],
+        *,
+        input_pipe: bool = False,
+        observe: Callable[[bytes], None] | None = None,
+    ) -> Actor:
         async with self.launch_lock:
-            return await self._start(name, command)
+            return await self._start(name, command, input_pipe, observe)
 
-    async def _start(self, name: str, command: list[str]) -> Actor:
+    async def _start(
+        self,
+        name: str,
+        command: list[str],
+        input_pipe: bool,
+        observe: Callable[[bytes], None] | None,
+    ) -> Actor:
         if len(self.children) >= self.maximum or any(
             actor.name == name for actor in self.children
         ):
@@ -176,6 +190,9 @@ class Actors:
         launch = asyncio.create_task(
             asyncio.create_subprocess_exec(
                 *command,
+                stdin=asyncio.subprocess.PIPE
+                if input_pipe
+                else asyncio.subprocess.DEVNULL,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
                 limit=8192,
@@ -188,7 +205,7 @@ class Actors:
             except asyncio.CancelledError as error:
                 failure = failure or error
         process = launch.result()
-        capture = asyncio.create_task(self._capture(name, process))
+        capture = asyncio.create_task(self._capture(name, process, observe))
         actor = Actor(name, process, capture)
         self.children.append(actor)
         self.evidence.record("actor_started", name=name, pid=process.pid)
@@ -196,7 +213,12 @@ class Actors:
             raise failure
         return actor
 
-    async def _capture(self, name: str, process: asyncio.subprocess.Process) -> None:
+    async def _capture(
+        self,
+        name: str,
+        process: asyncio.subprocess.Process,
+        observe: Callable[[bytes], None] | None,
+    ) -> None:
         assert process.stdout is not None
         failure: Exception | None = None
         while payload := await process.stdout.read(1024):
@@ -205,7 +227,9 @@ class Actors:
                     self.evidence.record(
                         "actor_output", name=name, text=payload.decode(errors="replace")
                     )
-                except (OSError, ValueError) as error:
+                    if observe is not None:
+                        observe(payload)
+                except Exception as error:  # noqa: BLE001 - Drain output before reporting callback failure.
                     failure = error
         if failure is not None:
             raise failure
@@ -239,9 +263,15 @@ class Actors:
                 except ProcessLookupError:
                     pass
                 await actor.process.wait()
+            if actor.process.stdin is not None:
+                actor.process.stdin.close()
+                try:
+                    await actor.process.stdin.wait_closed()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
             try:
                 await actor.capture
-            except (OSError, ValueError) as error:
+            except Exception as error:  # noqa: BLE001 - Reap every owned child before reporting.
                 failures.append(error)
             try:
                 self.evidence.record(

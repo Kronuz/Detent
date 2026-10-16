@@ -45,10 +45,10 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         original = asyncio.create_subprocess_exec
 
         async def delayed(
-            *command: str, stdout: int, stderr: int, limit: int
+            *command: str, stdin: int, stdout: int, stderr: int, limit: int
         ) -> asyncio.subprocess.Process:
             process = await original(
-                *command, stdout=stdout, stderr=stderr, limit=limit
+                *command, stdin=stdin, stdout=stdout, stderr=stderr, limit=limit
             )
             spawned.set()
             await released.wait()
@@ -155,6 +155,51 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(second.process.returncode)
             self.assertEqual(group.children, [second])
         self.assertIsNotNone(second.process.returncode)
+
+    async def test_owned_input_and_observed_output(self) -> None:
+        output = bytearray()
+        async with Actors(self.evidence, 1) as group:
+            actor = await group.start(
+                "control",
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys;print(sys.stdin.readline().strip())",
+                ],
+                input_pipe=True,
+                observe=output.extend,
+            )
+            self.assertIsNotNone(actor.process.stdin)
+            assert actor.process.stdin is not None
+            actor.process.stdin.write(b"checkpoint 17\n")
+            await actor.process.stdin.drain()
+            await asyncio.wait_for(actor.process.wait(), 2)
+            await actor.capture
+            self.assertEqual(actor.process.returncode, 0)
+        self.assertEqual(output, b"checkpoint 17\n")
+
+    async def test_observer_failure_still_drains_stdout_and_other_children(
+        self,
+    ) -> None:
+        def reject(_payload: bytes) -> None:
+            raise RuntimeError("injected observer failure")
+
+        group = Actors(self.evidence, 1)
+        with self.assertRaises(ExceptionGroup) as caught:
+            async with group:
+                peer = await group.start(
+                    "peer", [sys.executable, "-c", "import time;time.sleep(60)"]
+                )
+                writer = await group.start(
+                    "writer",
+                    [sys.executable, "-c", "import os;os.write(1,b'x'*500000)"],
+                    observe=reject,
+                )
+                await asyncio.wait_for(writer.process.wait(), 2)
+                self.assertEqual(writer.process.returncode, 0)
+        self.assertIn("observer failure", str(caught.exception.exceptions[0]))
+        self.assertIsNotNone(peer.process.returncode)
+        self.assertEqual(group.children, [])
 
     async def test_evidence_is_bounded(self) -> None:
         for _ in range(100):

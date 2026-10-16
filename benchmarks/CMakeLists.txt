@@ -75,3 +75,8 @@ if(TARGET detent::local_publication)
   target_include_directories(detent_paged_collection_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(detent_paged_collection_bench PRIVATE detent::local_publication)
 endif()
+
+if(TARGET detent::delivery_config)
+  add_executable(detent_fleet_load detent_fleet_load.cc fleet_load.cc)
+  target_link_libraries(detent_fleet_load PRIVATE detent::delivery_config)
+endif()

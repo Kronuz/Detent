@@ -7,6 +7,9 @@
 #include <stdexcept>
 #include <variant>
 namespace detent::delivery {
+namespace detail {
+struct ProbeAccess;
+}
 struct ClientOptions {
 	asio::ip::tcp::endpoint endpoint;
 	std::string hostname, token;
@@ -83,6 +86,7 @@ class SessionHandle {
 	std::chrono::milliseconds maximum_wait() const noexcept;
 
   private:
+	friend struct detail::ProbeAccess;
 	std::shared_ptr<State> state_;
 	friend asio::awaitable<SessionHandle> open_session(ClientOptions, bool);
 	friend asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,

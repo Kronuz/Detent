@@ -24,11 +24,11 @@ CONTEXT = {
 }
 
 
-def credential(index: int) -> dict[str, Any]:
+def credential(index: int, shared_namespace: str | None = None) -> dict[str, Any]:
     return {
         "token": f"{index + 65536:032x}",
         "producer": f"load{index}",
-        "namespaces": [f"load{index}"],
+        "namespaces": [shared_namespace or f"load{index}"],
     }
 
 
@@ -40,10 +40,27 @@ class Authority:
         directory: Path,
         actors: Actors,
         producers: int,
+        shared_namespace: str | None = None,
     ) -> None:
+        if not 1 <= producers <= 256:
+            raise ValueError("authority fixture needs 1–256 producers")
+        if shared_namespace is not None and (
+            not 1 <= len(shared_namespace) <= 198
+            or any(
+                not (character.isascii() and character.isalnum())
+                and character not in "._/-"
+                for character in shared_namespace
+            )
+        ):
+            raise ValueError("invalid shared authority namespace")
         self.binary = binary
         self.directory = directory
         self.actors = actors
+        self.producers = producers
+        self.shared_namespace = shared_namespace
+        self.namespaces = tuple(
+            sorted({self.namespace(producer) for producer in range(producers)})
+        )
         self.context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
         self.ports: list[int] = []
         self.members: list[Actor] = []
@@ -86,7 +103,8 @@ class Authority:
                     "publisher_bind": "127.0.0.1",
                     "publisher_name": "localhost",
                     "credentials": [
-                        credential(producer) for producer in range(producers)
+                        credential(producer, shared_namespace)
+                        for producer in range(producers)
                     ]
                     + [
                         {
@@ -94,9 +112,7 @@ class Authority:
                             "producer": READER_PRINCIPAL,
                             "principal": READER_PRINCIPAL,
                             "publish": False,
-                            "namespaces": [
-                                f"load{producer}" for producer in range(producers)
-                            ],
+                            "namespaces": list(self.namespaces),
                         }
                     ],
                 }
@@ -108,6 +124,11 @@ class Authority:
         except BaseException:
             self.release_ports()
             raise
+
+    def namespace(self, producer: int) -> str:
+        if not 0 <= producer < self.producers:
+            raise ValueError("producer outside configured authority cohort")
+        return self.shared_namespace or f"load{producer}"
 
     def release_ports(self) -> None:
         for reservation in self.reservations:
@@ -154,17 +175,27 @@ class Authority:
         self.members[index] = await self.start_member(index)
 
     def _request(
-        self, index: int, path: str, fields: dict[str, Any] | None, producer: int
+        self,
+        index: int,
+        path: str,
+        fields: dict[str, Any] | None,
+        producer: int,
+        endpoint_port: int | None = None,
     ) -> tuple[int, dict[str, Any]]:
         connection = http.client.HTTPSConnection(
-            "localhost", self.ports[index + 3], context=self.context, timeout=5
+            "localhost",
+            endpoint_port or self.ports[index + 3],
+            context=self.context,
+            timeout=5,
         )
         try:
             headers = {"Connection": "close"}
             if fields is None:
                 connection.request("GET", path, headers=headers)
             else:
-                headers["Authorization"] = f"Bearer {credential(producer)['token']}"
+                headers["Authorization"] = (
+                    f"Bearer {credential(producer, self.shared_namespace)['token']}"
+                )
                 connection.request("POST", path, json.dumps(CONTEXT | fields), headers)
             response = connection.getresponse()
             body = response.read(1024 * 1024 + 1)
@@ -183,10 +214,14 @@ class Authority:
         path: str,
         fields: dict[str, Any] | None = None,
         producer: int = 0,
+        *,
+        endpoint_port: int | None = None,
     ) -> tuple[int, dict[str, Any]]:
         async with self.lane:
             original = asyncio.create_task(
-                asyncio.to_thread(self._request, index, path, fields, producer)
+                asyncio.to_thread(
+                    self._request, index, path, fields, producer, endpoint_port
+                )
             )
             cancellation: asyncio.CancelledError | None = None
             while not original.done():

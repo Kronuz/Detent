@@ -329,6 +329,7 @@ ServiceStatus ServiceRuntime::status() const noexcept {
 	result.bootstrap = p.bootstrap;
 	result.catchup = p.catchup;
 	result.peak_transfers = p.peak_transfers;
+	result.sessions = p.sessions.size();
 	result.closing = p.closing.load();
 	std::lock_guard lock(p.mutex);
 	for (std::size_t index = 0; index < 3; ++index)

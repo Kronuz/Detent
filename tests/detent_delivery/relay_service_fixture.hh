@@ -111,7 +111,7 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 		}
 	}
 	check(held && held->chunk.bytes == expected->frame(0, false)->view());
-	check(runtime->status().bootstrap == 1);
+	check(runtime->status().bootstrap == 1 && runtime->status().sessions == 1);
 	check(!next.exchange->complete_write(held->serial + 1, http::ReplySettlement::Written));
 	Writer close(account);
 	submit("/v2/distribution/session/close", "{\"version\":1,\"session\":\"" + session + "\"}", close);
@@ -127,7 +127,8 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 	check(next.exchange->settle());
 	for (unsigned turn = 0; turn < 1000 && !runtime->drained(); ++turn)
 		runtime->step(r::Sessions::Clock::now());
-	check(runtime->drained() && runtime->status().bootstrap == 0 && runtime->status().peak_transfers == 1);
+	check(runtime->drained() && runtime->status().bootstrap == 0 && runtime->status().peak_transfers == 1 &&
+		  runtime->status().sessions == 0);
 	std::cout << "relay HTTP Close, timeout and facade loss retain authentic binary originals\n";
 }
 } // namespace relay_service_fixture

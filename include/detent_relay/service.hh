@@ -11,6 +11,7 @@ struct ServiceAccounts {
 struct ServiceStatus {
 	std::array<std::size_t, 3> requests{};
 	std::size_t bootstrap = 0, catchup = 0, peak_transfers = 0;
+	std::size_t sessions = 0;
 	bool closing = false;
 };
 class ServiceRuntime {

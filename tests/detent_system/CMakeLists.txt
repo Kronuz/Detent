@@ -28,6 +28,8 @@ endif()
 if(Python3_FOUND AND TARGET detent::local_client)
   add_executable(detent_system_local_oracle local_oracle.cc)
   target_link_libraries(detent_system_local_oracle PRIVATE detent::local_client)
+  add_executable(detent_system_mixed_oracle mixed_oracle.cc)
+  target_link_libraries(detent_system_mixed_oracle PRIVATE detent::local_client)
 endif()
 if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_system_local_oracle AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   add_test(NAME test_system_managed_authority_failover
@@ -53,4 +55,21 @@ if(Python3_FOUND AND TARGET detentd AND TARGET detent-agent AND TARGET detent_sy
         $<TARGET_FILE:detent_system_local_oracle> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR} $<TARGET_FILE:detent-relay>)
     set_tests_properties(test_system_managed_relay PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 180)
   endif()
+endif()
+
+if(Python3_FOUND AND TARGET detent_fleet_load AND TARGET detentd AND TARGET detent-agent AND TARGET detent-relay AND TARGET detent_system_mixed_oracle AND DETENT_BUILD_AUTHORITY)
+  foreach(mode IN ITEMS raw zstd warm mixed partial-launch cancel)
+    if(mode STREQUAL "mixed")
+      set(fleet_oracle detent_system_mixed_oracle)
+    else()
+      set(fleet_oracle detent_system_local_oracle)
+    endif()
+    add_test(NAME test_system_fleet_${mode}
+      COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_fleet.sh ${mode}
+        ${Python3_EXECUTABLE} $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent>
+        $<TARGET_FILE:detent-relay> $<TARGET_FILE:${fleet_oracle}>
+        $<TARGET_FILE:detent_fleet_load> ${PROJECT_SOURCE_DIR} ${PROJECT_BINARY_DIR})
+    set_tests_properties(test_system_fleet_${mode} PROPERTIES
+      FIXTURES_REQUIRED authority_tls TIMEOUT 240)
+  endforeach()
 endif()

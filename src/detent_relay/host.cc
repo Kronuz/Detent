@@ -66,6 +66,7 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 	field(",\"heap_used\":", root.used());
 	field(",\"heap_peak\":", root.peak());
 	field(",\"heap_limit\":", root.limit());
+	field(",\"sessions\":", service.sessions);
 	field(",\"opens\":", service.requests[0]);
 	field(",\"polls\":", service.requests[1]);
 	field(",\"closes\":", service.requests[2]);

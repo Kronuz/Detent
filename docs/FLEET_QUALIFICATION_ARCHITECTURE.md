@@ -1,9 +1,11 @@
 # Validated Architectural Blueprint: bounded fleet qualification
 
 **Date:** 2026-10-15
-**Status:** Lead Software Architect design GO; implementation pending.
+**Status:** Lead Software Architect design GO; implementation and qualification active.
 
 The next [Stage 6](STAGE6_ARCHITECTURE.md) component qualifies sustained delivery with a native streaming transport driver and a separately sized durable SDK cohort. Transport probes do not represent durable agents or independent failure domains. The existing Python harness retains process ownership and the producer oracle.
+
+The [runner reference](FLEET_QUALIFICATION.md) describes invocation and evidence limits.
 
 ## Implementation boundaries
 

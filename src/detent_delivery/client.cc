@@ -1,4 +1,5 @@
 #include "detent_delivery/client.hh"
+#include "client_probe_internal.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
@@ -10,8 +11,12 @@
 #include <variant>
 namespace detent::delivery {
 namespace d = distribution;
+namespace detail {
+enum class ClientBodyMode { Semantic, Probe, Reference };
+}
 namespace {
-using TransportResponse = std::variant<ReceivedUpdate, ReceivedControl>;
+using BodyMode = detail::ClientBodyMode;
+using TransportResponse = std::variant<ReceivedUpdate, ReceivedControl, detail::ProbeOffer>;
 SessionResetReason reset_reason(const ReceivedControl &, std::pmr::memory_resource &);
 struct RequestAction {
 	SessionResponsePurpose purpose;
@@ -120,7 +125,7 @@ std::pmr::string request(const ClientOptions &options, std::pmr::memory_resource
 }
 asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 											   std::chrono::steady_clock::time_point expires,
-											   std::optional<RequestAction> action) {
+											   std::optional<RequestAction> action, BodyMode mode) {
 	const auto executor = co_await asio::this_coro::executor;
 	options.limits = d::detail::admitted_limits(std::move(options.limits));
 	auto account = options.limits.storage_account;
@@ -139,6 +144,8 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	auto decoder = d::make_storage_owner<ResponseDecoder>(account, std::malloc, std::free, options.configured,
 														  options.base, d::NamespaceSelection(names),
 														  options.compression, options.limits, binding);
+	if (mode != BodyMode::Semantic)
+		detail::ProbeDecoderAccess::prepare(*decoder, mode == BodyMode::Reference);
 	auto input = d::make_owned_buffer(account, 4096);
 	input->resize(4096);
 	auto wire = request(options, resource, action);
@@ -187,8 +194,10 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 		}
 		if (decoder->is_control())
 			result.emplace(decoder->take_control());
-		else
+		else if (mode == BodyMode::Semantic)
 			result.emplace(decoder->take());
+		else
+			result.emplace(detail::ProbeDecoderAccess::take(*decoder));
 	} catch (...) {
 		failure = std::current_exception();
 	}
@@ -217,8 +226,8 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 					break;
 				co_await asio::post(executor, asio::use_awaitable);
 			}
-		} else {
-			auto control = std::get<ReceivedControl>(*result).body;
+		} else if (const auto *value = std::get_if<ReceivedControl>(&*result)) {
+			auto control = value->body;
 			auto bytes = control ? control->storage_capacity() : 0;
 			while (bytes) {
 				bytes -= std::min<std::size_t>(bytes, 8192);
@@ -237,9 +246,9 @@ struct Outcome {
 	std::variant<TransportResponse, std::exception_ptr> value;
 };
 asio::awaitable<Outcome> outcome(ClientOptions options, std::chrono::steady_clock::time_point expires,
-								 std::optional<RequestAction> action) {
+								 std::optional<RequestAction> action, BodyMode mode) {
 	try {
-		co_return Outcome{co_await receive_one(std::move(options), expires, action)};
+		co_return Outcome{co_await receive_one(std::move(options), expires, action, mode)};
 	} catch (...) {
 		co_return Outcome{std::current_exception()};
 	}
@@ -259,14 +268,17 @@ void validate(const ClientOptions &options) {
 				options.namespaces.size() <= options.limits.namespaces,
 			"invalid delivery client options");
 }
-asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<RequestAction> action = {}) {
+asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<RequestAction> action = {},
+										  BodyMode mode = BodyMode::Semantic) {
 	validate(options);
+	require(mode == BodyMode::Semantic || (action && action->purpose == SessionResponsePurpose::Next),
+			"probe exchange requires session Next");
 	const auto executor = co_await asio::this_coro::executor;
 	const auto expires = std::chrono::steady_clock::now() + options.timeout;
 	asio::steady_timer deadline(executor, expires);
 	asio::error_code timer_error;
 	using namespace asio::experimental::awaitable_operators;
-	auto result = co_await (outcome(std::move(options), expires, action) ||
+	auto result = co_await (outcome(std::move(options), expires, action, mode) ||
 							deadline.async_wait(asio::redirect_error(asio::use_awaitable, timer_error)));
 	if (result.index() != 0)
 		throw SourceUnavailableError("delivery network deadline");
@@ -298,6 +310,7 @@ struct SessionHandle::State {
 	std::optional<d::Cursor> base;
 	d::Identity id{};
 	std::optional<PublicationFeedback> offered;
+	std::optional<BodyMode> body_mode;
 	std::uint64_t after = 0;
 	std::chrono::milliseconds wait{0};
 	bool compression, snapshot = false, alive = true, busy = false, closed = false;
@@ -494,13 +507,15 @@ asio::awaitable<SessionHandle> open_session(ClientOptions options, bool force_sn
 	result.state_ = std::move(state);
 	co_return result;
 }
-asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle &handle,
-										   std::optional<PublicationFeedback> feedback,
-										   std::chrono::milliseconds wait) {
-	auto state = handle.state_;
+namespace {
+using NextEvent = std::variant<SessionOffer, detail::ProbeOffer, SessionIdle, SessionReset>;
+asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<SessionHandle::State> state,
+									std::optional<PublicationFeedback> feedback,
+									std::chrono::milliseconds wait, BodyMode mode) {
 	require(state && state->alive && !state->closed, "session is not live");
 	SessionOperation operation(state);
 	co_await same_configuration(options, *state);
+	require(!state->body_mode || *state->body_mode == mode, "session consumption mode changed");
 	require(wait >= std::chrono::milliseconds::zero() && wait <= state->wait,
 			"session wait exceeds negotiated bound");
 	require(state->after < std::numeric_limits<std::uint64_t>::max(), "session window exhausted");
@@ -516,6 +531,7 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 		require(feedback->window == state->after && state->base && feedback->cursor == *state->base,
 				"session publication feedback does not match accepted window");
 	}
+	state->body_mode = mode;
 	options.base = state->base;
 	RequestAction action{SessionResponsePurpose::Next,
 						 state->id,
@@ -525,11 +541,16 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 						 false,
 						 state->snapshot};
 	try {
-		auto response = co_await perform(std::move(options), action);
+		auto response = co_await perform(std::move(options), action, mode);
 		if (auto *update = std::get_if<ReceivedUpdate>(&response)) {
 			const auto window = state->after + 1;
 			state->offered = PublicationFeedback{window, update->target};
 			co_return SessionOffer{window, std::move(*update)};
+		}
+		if (auto *offer = std::get_if<detail::ProbeOffer>(&response)) {
+			require(offer->window == state->after + 1, "probe response window mismatch");
+			state->offered = PublicationFeedback{offer->window, offer->target};
+			co_return std::move(*offer);
 		}
 		const auto &control = std::get<ReceivedControl>(response);
 		if (control.status == 204)
@@ -543,6 +564,38 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 		state->alive = false;
 		throw;
 	}
+}
+} // namespace
+asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle &handle,
+										 std::optional<PublicationFeedback> feedback,
+										 std::chrono::milliseconds wait) {
+	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Semantic);
+	if (auto *offer = std::get_if<SessionOffer>(&event))
+		co_return std::move(*offer);
+	if (std::holds_alternative<SessionIdle>(event))
+		co_return SessionIdle{};
+	co_return std::get<SessionReset>(event);
+}
+asio::awaitable<detail::ProbeEvent> detail::ProbeAccess::next(ClientOptions options, SessionHandle &handle,
+														  std::optional<PublicationFeedback> feedback,
+														  std::chrono::milliseconds wait) {
+	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Probe);
+	if (auto *offer = std::get_if<ProbeOffer>(&event))
+		co_return std::move(*offer);
+	if (std::holds_alternative<SessionIdle>(event))
+		co_return SessionIdle{};
+	co_return std::get<SessionReset>(event);
+}
+asio::awaitable<detail::ProbeEvent>
+detail::ProbeAccess::reference(ClientOptions options, SessionHandle &handle,
+							  std::optional<PublicationFeedback> feedback,
+							  std::chrono::milliseconds wait) {
+	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Reference);
+	if (auto *offer = std::get_if<ProbeOffer>(&event))
+		co_return std::move(*offer);
+	if (std::holds_alternative<SessionIdle>(event))
+		co_return SessionIdle{};
+	co_return std::get<SessionReset>(event);
 }
 asio::awaitable<void> close_session(ClientOptions options, SessionHandle &handle) {
 	auto state = handle.state_;

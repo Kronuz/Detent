@@ -2,6 +2,9 @@
 #include "detent_distribution/framing.hh"
 #include <optional>
 namespace detent::delivery {
+namespace detail {
+struct ProbeDecoderAccess;
+}
 struct ReceivedUpdate {
 	distribution::UpdateKind kind;
 	distribution::Cursor target;
@@ -40,6 +43,7 @@ class ResponseDecoder {
 	bool discard(distribution::WorkBudget &) noexcept;
 
   private:
+	friend struct detail::ProbeDecoderAccess;
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 };

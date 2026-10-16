@@ -1,4 +1,5 @@
 #include "detent_delivery/response.hh"
+#include "response_probe_internal.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <algorithm>
 #include <charconv>
@@ -6,6 +7,7 @@
 #include <exception>
 #include <http_parser.h>
 #include <map>
+#include <sha256.h>
 namespace detent::delivery {
 namespace d = distribution;
 namespace {
@@ -40,7 +42,10 @@ struct ResponseDecoder::Impl {
 	http_parser_settings settings{};
 	std::array<char, 4096> body{};
 	std::size_t position = 0, size = 0, header_bytes = 0, disposal = 0;
-	std::uint64_t received = 0, maximum_wire;
+	std::uint64_t received = 0, maximum_wire, logical_bytes = 0, wire_bytes = 0;
+	class SHA256 payload_hash;
+	std::array<unsigned char, 32> payload_digest{};
+	bool probe = false, reference = false;
 	bool compression, last_value = false, headers_done = false, http_done = false, complete = false,
 					  failed = false, taken = false, disposed = false;
 	d::UpdateKind kind = d::UpdateKind::Snapshot;
@@ -105,6 +110,7 @@ struct ResponseDecoder::Impl {
 						"delivery body intake overflow");
 				std::memcpy(self.body.data() + self.size, bytes, n);
 				self.size += n;
+				self.wire_bytes += n;
 			});
 		};
 		settings.on_message_complete = [](http_parser *p) {
@@ -202,12 +208,14 @@ struct ResponseDecoder::Impl {
 			require(number(header("content-length")) > 0 && number(header("content-length")) <= maximum_wire,
 					"delivery HTTP length bound");
 		frames.emplace(kind, limits.bytes, compression, limits.storage_account);
-		if (kind == d::UpdateKind::Snapshot)
-			snapshot.emplace(target, d::NamespaceSelection(selected), limits);
-		else {
+		if (kind != d::UpdateKind::Snapshot)
 			require(base && base->same_identity(target) && target.revision > base->revision,
 					"delivery delta base mismatch");
-			delta.emplace(*base, d::NamespaceSelection(selected), limits, kind);
+		if (!probe) {
+			if (kind == d::UpdateKind::Snapshot)
+				snapshot.emplace(target, d::NamespaceSelection(selected), limits);
+			else
+				delta.emplace(*base, d::NamespaceSelection(selected), limits, kind);
 		}
 		headers_done = true;
 	}
@@ -230,10 +238,24 @@ struct ResponseDecoder::Impl {
 				auto bytes = std::span<const char>(fragment->body->data() + fragment_position,
 												   fragment->body->size() - fragment_position);
 				const auto before = bytes.size();
-				if (snapshot)
+				if (probe) {
+					const auto n = std::min(bytes.size(), budget.bytes);
+					if (n)
+						payload_hash.add(bytes.data(), n);
+					bytes = bytes.subspan(n);
+					budget.bytes -= n;
+					--budget.tokens;
+					logical_bytes += n;
+				} else if (snapshot)
 					snapshot->feed(bytes, budget);
 				else
 					delta->feed(bytes, budget);
+				if (reference) {
+					const auto n = before - bytes.size();
+					if (n)
+						payload_hash.add(fragment->body->data() + fragment_position, n);
+					logical_bytes += n;
+				}
 				fragment_position += before - bytes.size();
 				if (!bytes.empty())
 					return;
@@ -258,13 +280,17 @@ struct ResponseDecoder::Impl {
 				return;
 			require(headers_done, "delivery response has no validated headers");
 			frames->finish();
-			if (snapshot) {
+			if (probe)
+				payload_hash.getHash(payload_digest.data());
+			else if (snapshot) {
 				decoded->snapshot.emplace(snapshot->finish());
 				require(decoded->snapshot->cursor() == target, "delivery header and body cursor disagree");
 			} else {
 				decoded->delta.emplace(delta->finish());
 				require(decoded->delta->target() == target, "delivery header and body cursor disagree");
 			}
+			if (reference)
+				payload_hash.getHash(payload_digest.data());
 			complete = true;
 		}
 	}
@@ -319,7 +345,8 @@ bool ResponseDecoder::needs_input() const noexcept {
 }
 bool ResponseDecoder::done() const noexcept { return impl_->complete && !impl_->failed; }
 ReceivedUpdate ResponseDecoder::take() {
-	require(done() && !impl_->taken && !impl_->control, "delivery update incomplete");
+	require(done() && !impl_->taken && !impl_->control && !impl_->probe && !impl_->reference,
+			"delivery update incomplete");
 	auto &p = *impl_;
 	ReceivedUpdate result{p.kind, p.target, {}, {}};
 	if (p.decoded->snapshot)
@@ -329,6 +356,23 @@ ReceivedUpdate ResponseDecoder::take() {
 	p.decoded.reset();
 	p.taken = true;
 	return result;
+}
+void detail::ProbeDecoderAccess::prepare(ResponseDecoder &decoder, bool reference) {
+	auto &p = *decoder.impl_;
+	require(!p.probe && !p.reference && !p.received && !p.headers_done && !p.taken && !p.failed && p.session &&
+				p.session->purpose == SessionResponsePurpose::Next,
+			"probe decoder requires a new session Next response");
+	p.probe = !reference;
+	p.reference = reference;
+	if (p.probe)
+		p.decoded.reset();
+}
+detail::ProbeOffer detail::ProbeDecoderAccess::take(ResponseDecoder &decoder) {
+	auto &p = *decoder.impl_;
+	require((p.probe || p.reference) && decoder.done() && !p.taken && !p.control && p.session,
+			"probe response incomplete");
+	p.taken = true;
+	return {p.session->window, p.target, p.kind, p.logical_bytes, p.wire_bytes, p.payload_digest};
 }
 bool ResponseDecoder::is_control() const noexcept { return static_cast<bool>(impl_->control); }
 ReceivedControl ResponseDecoder::take_control() {
