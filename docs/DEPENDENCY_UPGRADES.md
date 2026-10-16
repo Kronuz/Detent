@@ -43,3 +43,7 @@ These are reserved investigation budgets, not completion promises. A failed gate
 The candidate build captured 27 immutable first-party library revisions. Its successful three-daemon build and 1,000-key/16-producer smoke establish basic compatibility for that combined candidate set, not an independently qualified pin bump for each row. The completion durability fix landed afterward and needs its own Detent integration run.
 
 For each adoption, record old/new commit IDs, the source/API/format audit, exact test commands and results, measured effects, known limitations and the Detent commit that changes the pin. Coordinate file ownership with an active library maintainer before editing; never reset their work or point qualification builds at a changing sibling checkout. Publishing library commits and changing an application's dependency pin are separate actions.
+
+## Application-side performance findings
+
+The preliminary 500-session/128-exchange run passed checkpoint and full SDK verification, but spent 283.23 seconds around a 10.83-second measured write interval. Probe CPU was 9.54 seconds over the full process lifetime and 2.13 seconds during measurement. The qualification driver retained already-verified probes in the polling loop and queued operations could use the pre-checkpoint goal. Both paths are corrected in the pending checkpoint fix; a controlled 500-session rerun is required before claiming a speedup. This is a benchmark scheduling issue, not evidence of a library or production-daemon performance defect.

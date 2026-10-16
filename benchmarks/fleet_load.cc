@@ -248,6 +248,7 @@ struct Run {
 					slot.checked = true;
 					++counts.checked;
 					notify();
+					break;
 				}
 				if (checkpoint && !slot.checked && !slot.checkpoint_started) {
 					slot.checkpoint_started = true;
@@ -262,6 +263,8 @@ struct Run {
 					auto permit = co_await acquire(*slot.owner);
 					if (stopping.load(std::memory_order_acquire))
 						break;
+					if (goal.load(std::memory_order_acquire) != checkpoint)
+						continue;
 					if (!slot.session.valid()) {
 						slot.session =
 							co_await t::open_session(source, !options.warm_revision || checkpoint != 0);
