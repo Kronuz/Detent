@@ -179,7 +179,7 @@ int main() {
 					check(account->used() == 0);
 				}
 		}
-		for (unsigned fault = 0; fault < 9; ++fault) {
+		for (unsigned fault = 0; fault < 10; ++fault) {
 			auto wire = response(d::UpdateKind::Snapshot);
 			if (fault == 0)
 				replace(wire, "X-Detent-Revision: 5", "X-Detent-Revision: 5\r\nx-detent-revision: 5");
@@ -199,6 +199,8 @@ int main() {
 				replace(wire, "X-Detent-Kind: 1", "X-Detent-Kind: 3");
 			if (fault == 8)
 				replace(wire, "X-Detent-Coding: raw", "X-Detent-Coding: zstd");
+			if (fault == 9)
+				replace(wire, "X-Detent-Revision: 5", "X-Detent-Revision: 4");
 			auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 			d::Limits limits;
 			limits.storage_account = account;

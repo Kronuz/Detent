@@ -258,9 +258,10 @@ struct ResponseDecoder::Impl {
 				return;
 			require(headers_done, "delivery response has no validated headers");
 			frames->finish();
-			if (snapshot)
+			if (snapshot) {
 				decoded->snapshot.emplace(snapshot->finish());
-			else {
+				require(decoded->snapshot->cursor() == target, "delivery header and body cursor disagree");
+			} else {
 				decoded->delta.emplace(delta->finish());
 				require(decoded->delta->target() == target, "delivery header and body cursor disagree");
 			}

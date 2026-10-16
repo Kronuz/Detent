@@ -242,3 +242,9 @@ The fixture now supplies explicit retirement domains and waits for each failed r
 ## Preserve mixed-build compatibility in the dependency pin
 
 The initial frozen manifest selected cached cpp-btree `f90c2bf`, predating the published `fc4f941` fix. Its inactive-value and child-slot assertions depend on Debug-only maintenance, so a Debug test can reject storage mutated by a Release translation unit. The standalone mixed-build fixture reproduces an assertion against the old header; the corrected header passes all 16 native and 16 ASan/UBSan cases. Both Detent authority-node backend checks pass with the updated pin. The dependency change preserves container layouts and APIs and claims no performance improvement.
+
+## Require exact snapshot HTTP target agreement
+
+The semantic snapshot decoder treats its configured revision as a minimum. HTTP reception previously accepted a snapshot at revision 5 with `X-Detent-Revision: 4`, exposing different advertised and validated cursors. Reception now requires the completed snapshot cursor to equal the HTTP target, as delta and progress reception already require.
+
+The semantic response regression rejects the lower header revision and drains the rejected candidate back to zero admitted bytes. It fails against the preceding source. The native response and TLS client checks, including certificate preparation, pass 3/3 in 1.50 seconds. Existing raw/zstd and fixed/chunked response coverage remains in the same fixture.
