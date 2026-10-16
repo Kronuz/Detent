@@ -29,6 +29,29 @@ class FleetTests(unittest.TestCase):
             self.assertTrue(broken.ready.is_set())
             self.assertIsNotNone(broken.failure)
 
+    def test_measurement_acknowledgments_require_ordered_transitions(self) -> None:
+        output = FleetOutput()
+        output.feed(b'{"event":"measurement","running":1}\n')
+        self.assertTrue(output.measurement_started.is_set())
+        output.feed(b'{"event":"measurement","running":0}\n')
+        self.assertTrue(output.measurement_stopped.is_set())
+        for events in (
+            [0],
+            [1, 1],
+            [1, 0, 0],
+            [2],
+            [True],
+        ):
+            output = FleetOutput()
+            with self.assertRaises(ValueError):
+                for running in events:
+                    output.feed(
+                        json.dumps(
+                            {"event": "measurement", "running": running}
+                        ).encode()
+                        + b"\n"
+                    )
+
     def test_output_bound_applies_before_and_after_newline(self) -> None:
         for suffix in (b"", b"\n"):
             with self.assertRaisesRegex(ValueError, "4 KiB"):

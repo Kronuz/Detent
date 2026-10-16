@@ -28,7 +28,8 @@ struct Slot {
 	t::SessionHandle session;
 	std::optional<t::PublicationFeedback> feedback;
 	std::optional<t::detail::ProbeOffer> last;
-	std::uint64_t offers = 0;
+	std::uint64_t offers = 0, measured_offers = 0;
+	std::int64_t last_measure_ms = 0, maximum_silence_ms = 0;
 	bool opened = false, ready = false, checked = false, checkpoint_started = false;
 };
 struct Counters {
@@ -66,11 +67,13 @@ struct Run {
 	Counters counts;
 	std::atomic<bool> stopping{false};
 	std::atomic<std::uint64_t> goal{0};
+	std::atomic<std::int64_t> measurement_begin_ms{0}, measurement_end_ms{0};
 	std::atomic<std::int64_t> cleanup_until_ms{INT64_MAX};
 	std::array<unsigned char, 32> expected{};
 	std::mutex failure_mutex;
 	std::exception_ptr failure;
 	bool protocol_complete = false, ready_reported = false;
+	double measurement_cpu_begin = 0, measurement_cpu_end = 0;
 	Clock::time_point started = Clock::now();
 	std::unique_ptr<FILE, decltype(&std::fclose)> result{nullptr, &std::fclose};
 	asio::posix::stream_descriptor input{control};
@@ -278,6 +281,18 @@ struct Run {
 							slot.last = *offer;
 							source.base = offer->target;
 							slot.feedback = t::PublicationFeedback{offer->window, offer->target};
+							const auto delivered_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+														  Clock::now().time_since_epoch())
+														  .count();
+							const auto begin = measurement_begin_ms.load(std::memory_order_acquire);
+							const auto end = measurement_end_ms.load(std::memory_order_acquire);
+							if (begin && delivered_ms >= begin && (!end || delivered_ms <= end)) {
+								++slot.measured_offers;
+								slot.maximum_silence_ms =
+									std::max(slot.maximum_silence_ms,
+											 delivered_ms - std::max(begin, slot.last_measure_ms));
+								slot.last_measure_ms = delivered_ms;
+							}
 							++slot.offers;
 							++counts.offers;
 							counts.logical_bytes += offer->logical_bytes;
@@ -352,14 +367,42 @@ struct Run {
 	}
 	asio::awaitable<void> protocol() {
 		std::string line;
-		co_await asio::async_read_until(input, asio::dynamic_buffer(line, 256), '\n', asio::use_awaitable);
-		rapidjson::Document command;
-		command.Parse(line.data(), line.find('\n'));
-		if (command.HasParseError() || !command.IsObject() || command.MemberCount() != 1 ||
-			!command.HasMember("checkpoint") || !command["checkpoint"].IsUint64() ||
-			!command["checkpoint"].GetUint64())
-			throw std::invalid_argument("invalid fleet checkpoint command");
-		const auto revision = command["checkpoint"].GetUint64();
+		std::uint64_t revision = 0;
+		for (;;) {
+			co_await asio::async_read_until(input, asio::dynamic_buffer(line, 256), '\n',
+											asio::use_awaitable);
+			const auto length = line.find('\n');
+			rapidjson::Document command;
+			command.Parse(line.data(), length);
+			line.erase(0, length + 1);
+			if (command.HasParseError() || !command.IsObject() || command.MemberCount() != 1)
+				throw std::invalid_argument("invalid fleet control command");
+			if (command.HasMember("measurement") && command["measurement"].IsBool()) {
+				const bool begin = command["measurement"].GetBool();
+				if ((begin && measurement_begin_ms.load()) ||
+					(!begin && (!measurement_begin_ms.load() || measurement_end_ms.load())))
+					throw std::invalid_argument("invalid fleet measurement transition");
+				const auto now =
+					std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch())
+						.count();
+				(begin ? measurement_begin_ms : measurement_end_ms).store(now, std::memory_order_release);
+				rusage usage{};
+				if (::getrusage(RUSAGE_SELF, &usage) != 0)
+					throw std::system_error(errno, std::generic_category(), "fleet measurement CPU sample");
+				(begin ? measurement_cpu_begin : measurement_cpu_end) =
+					usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1000000.0 + usage.ru_stime.tv_sec +
+					usage.ru_stime.tv_usec / 1000000.0;
+				std::printf("{\"event\":\"measurement\",\"running\":%u}\n", begin ? 1u : 0u);
+				std::fflush(stdout);
+				continue;
+			}
+			if (!command.HasMember("checkpoint") || !command["checkpoint"].IsUint64() ||
+				!command["checkpoint"].GetUint64() ||
+				(measurement_begin_ms.load() && !measurement_end_ms.load()))
+				throw std::invalid_argument("invalid fleet checkpoint command");
+			revision = command["checkpoint"].GetUint64();
+			break;
+		}
 		auto source = options.sources.front();
 		source.base = source.configured;
 		source.base->revision = revision;
@@ -535,8 +578,31 @@ struct Run {
 #else
 		const auto rss = static_cast<std::uint64_t>(usage.ru_maxrss) * 1024;
 #endif
+		const auto measurement_begin = measurement_begin_ms.load();
+		const auto measurement_end = measurement_end_ms.load();
+		std::uint64_t measured_min = UINT64_MAX, measured_max = 0, silent = 0;
+		std::int64_t maximum_silence = 0;
+		for (std::size_t index = 0; index != options.subscribers; ++index) {
+			const auto &slot = slots[index];
+			measured_min = std::min(measured_min, slot.measured_offers);
+			measured_max = std::max(measured_max, slot.measured_offers);
+			silent += slot.measured_offers == 0;
+			if (measurement_begin && measurement_end)
+				maximum_silence =
+					std::max({maximum_silence, slot.maximum_silence_ms,
+							  measurement_end - std::max(measurement_begin, slot.last_measure_ms)});
+		}
+		std::fprintf(
+			result.get(),
+			"{\"measured_ms\":%lld,\"measured_minimum_offers\":%llu,\"measured_maximum_offers\":%llu,"
+			"\"measured_silent_probes\":%llu,\"measured_maximum_silence_ms\":%lld,"
+			"\"measured_cpu_seconds\":%.6f,",
+			static_cast<long long>(measurement_end ? measurement_end - measurement_begin : 0),
+			static_cast<unsigned long long>(measured_min), static_cast<unsigned long long>(measured_max),
+			static_cast<unsigned long long>(silent), static_cast<long long>(maximum_silence),
+			measurement_end ? measurement_cpu_end - measurement_cpu_begin : 0);
 		std::fprintf(result.get(),
-					 "{\"success\":%s,\"transport_probes\":%zu,\"durable_stores\":0,\"active_limit\":%zu,"
+					 "\"success\":%s,\"transport_probes\":%zu,\"durable_stores\":0,\"active_limit\":%zu,"
 					 "\"workers\":%zu,\"accepted\":%llu,\"completed\":%llu,\"opened\":%llu,\"ready\":%llu,"
 					 "\"checked\":%llu,\"checkpoint_revision\":%llu,\"offers\":%llu,\"minimum_offers\":%llu,"
 					 "\"maximum_offers\":%llu,\"logical_bytes\":%llu,\"wire_bytes\":%llu,\"retries\":%llu,"

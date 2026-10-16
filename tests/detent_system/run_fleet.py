@@ -246,11 +246,18 @@ async def run(arguments: argparse.Namespace) -> None:
                             scenario.subscribers,
                             scenario.subscribers + cohort.count * 2 + 2,
                         )
+                        assert probe.process.stdin is not None
+                        probe.process.stdin.write(b'{"measurement":true}\n')
+                        await probe.process.stdin.drain()
+                        await output.wait_event(probe, output.measurement_started, 10)
                         baseline = writers.counts.copy()
                         began = time.monotonic()
                         await writers.phase("mutate", began + duration)
                         workload_elapsed = time.monotonic() - began
                         sustained_counts = dict(writers.counts - baseline)
+                        probe.process.stdin.write(b'{"measurement":false}\n')
+                        await probe.process.stdin.drain()
+                        await output.wait_event(probe, output.measurement_stopped, 10)
                         await writers.phase("verify")
                         barrier = await writers.successful(
                             0,

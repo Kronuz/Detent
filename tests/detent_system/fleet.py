@@ -17,6 +17,8 @@ class FleetOutput:
     def __init__(self) -> None:
         self.buffer = bytearray()
         self.ready = asyncio.Event()
+        self.measurement_started = asyncio.Event()
+        self.measurement_stopped = asyncio.Event()
         self.failure: Exception | None = None
         self.latest: dict[str, int] = {}
         self.checkpoint_revision = 0
@@ -36,6 +38,7 @@ class FleetOutput:
                     "ready",
                     "sample",
                     "checkpoint",
+                    "measurement",
                 }:
                     raise ValueError("invalid fleet output event")
                 for key, value in data.items():
@@ -53,6 +56,18 @@ class FleetOutput:
                     if type(data.get("revision")) is not int or data["revision"] < 1:
                         raise ValueError("invalid fleet checkpoint revision")
                     self.checkpoint_revision = data["revision"]
+                elif data["event"] == "measurement":
+                    running = data.get("running")
+                    if running == 1 and not self.measurement_started.is_set():
+                        self.measurement_started.set()
+                    elif (
+                        running == 0
+                        and self.measurement_started.is_set()
+                        and not self.measurement_stopped.is_set()
+                    ):
+                        self.measurement_stopped.set()
+                    else:
+                        raise ValueError("invalid fleet measurement transition")
                 else:
                     self.latest = {
                         key: value for key, value in data.items() if type(value) is int
@@ -65,8 +80,15 @@ class FleetOutput:
             raise
 
     async def wait_ready(self, actor: Actor, timeout: float) -> None:
+        await self.wait_event(actor, self.ready, timeout)
+
+    async def wait_event(
+        self, actor: Actor, event: asyncio.Event, timeout: float
+    ) -> None:
         deadline = asyncio.get_running_loop().time() + timeout
-        while not self.ready.is_set():
+        while not event.is_set():
+            if self.failure is not None:
+                raise self.failure
             if actor.process.returncode is not None:
                 await actor.capture
                 raise RuntimeError("fleet exited before readiness")
