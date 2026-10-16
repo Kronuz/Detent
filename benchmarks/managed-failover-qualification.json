@@ -1,0 +1,52 @@
+{
+  "source_revision": "a423b9a1cca996d4bf3cdbe26cf2ab7f3fa8aeff",
+  "qualification": "managed authority failover component",
+  "fleet_capacity_qualified": false,
+  "checks": {
+    "native_full": {
+      "passed": 203,
+      "total": 203,
+      "seconds": 601.4,
+      "log_sha256": "d26e16f9a0582cad5f9512fcf30b0a8053a3e66ad38f5ccf9df51a8495638051"
+    },
+    "asan_process": {
+      "passed": 18,
+      "total": 18,
+      "seconds": 257.86,
+      "log_sha256": "dbd7b0b96b786662f8028c405b2af3fbe04a6777653f03340b8e58e63008efb0"
+    },
+    "tsan_process": {
+      "passed": 18,
+      "total": 18,
+      "seconds": 238.66,
+      "log_sha256": "13be36430f6ee964ca0e73dc13c416b3b18e16ff2e3815ec2f6cb7c7d528f219"
+    },
+    "linux_process": {
+      "passed": 16,
+      "total": 16,
+      "seconds": 190.8,
+      "log_sha256": "8103b5f06711f72cd70e878b72f35aef4b7ded6e3ce8bd646307247e7eb8ba1b"
+    },
+    "freebsd_process": {
+      "passed": 16,
+      "total": 16,
+      "seconds": 135.69,
+      "log_sha256": "99a227b75d6c0a8fc4b40e6b3c8d8cdcca9e96c8c1c8e1d72c3751783afab597"
+    }
+  },
+  "binaries": {
+    "build/src/detentd": "d918cd1ebf1e314350fa66210390e03e3adab4a88db95b97d16cb14854a34651",
+    "build/src/detent-agent": "77f8e168c2483747a3961229d4cbaa654359c0b6ff52893d237e4ec7eb2c6b03",
+    "build/src/detent-relay": "79ed0acb6186be9f5e4f4fc65b137ddf6e03501b766c4e0ea1ac88281dd4180a",
+    "build/tests/detent_system/detent_system_local_oracle": "c8e7bb93845fa5b6a10a80a0fd1342e6123b54ee83a6ed46613c9caa406d081d"
+  },
+  "regression_proof": {
+    "polling_backoff": "Removing only the post-recovery reset fails with 59 ms outside the required 10\u201320 ms range.",
+    "terminal_trust": "Ten real TLS/control cases require no requests to a secondary endpoint, including malformed Close denial."
+  },
+  "limitations": [
+    "A concurrent native run passed 199/203; four failures involved a 45-second fixture guard, request timeouts and a classic Raft receive error. Their isolated reruns pass; the concurrency failures remain unclassified.",
+    "An earlier concurrent TSan run passed 17/18; its hostname-denial actor exceeded a ten-second fixture wait. The unchanged trust fixture and complete isolated TSan matrix pass; this does not attribute that timeout.",
+    "Local processes and two VMs do not qualify independent failure domains or fleet capacity."
+  ]
+}

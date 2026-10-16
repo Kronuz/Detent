@@ -1,7 +1,7 @@
 # Validated Architectural Blueprint: managed authority failover
 
 **Date:** 2026-10-14
-**Status:** Lead Software Architect source GO; corrected native component checks pass 19/19 in 158.81 seconds. Final sanitizer and platform process qualification pending.
+**Status:** Lead Software Architect source GO; component qualified on native, ASan/UBSan, TSan, Linux and FreeBSD. [Qualification record](../benchmarks/managed-failover-qualification.json).
 
 Legacy single-endpoint managed sources retry one configured endpoint. In the pinned consensus baseline (`b7073bb`), followers reject reads, unclassified read rejection becomes generic HTTP 503, and parked subscription Next requests can return idle without a new quorum read. A reachable isolated former leader can therefore remain idle indefinitely. A configured endpoint pool needs periodic quorum revalidation as well as error-driven rotation.
 

@@ -16,7 +16,7 @@ Applications read their agent's selected local generation and configured default
 
 Authority identity, authorized scope and revisions bind each delivered update. Changing endpoints does not authorize identity reset or revision regression. Authorization denial fences further distribution, but it cannot erase bytes already mapped by a reader. Use a separate secret-management system for data that requires revocation to erase application access.
 
-A single managed endpoint does not provide automatic leader failover. The [managed failover component](MANAGED_FAILOVER_ARCHITECTURE.md) implements bounded authority endpoint pools and periodic quorum revalidation; final sanitizer and platform qualification remain pending. Relay readiness proves recovered storage and authenticated upstream availability at its last successful interaction, rather than continuous authority quorum availability.
+A single managed endpoint does not provide automatic leader failover. The [managed failover component](MANAGED_FAILOVER_ARCHITECTURE.md) implements bounded authority endpoint pools and periodic quorum revalidation; component checks pass native, sanitizer, Linux and FreeBSD qualification. Fleet capacity remains unqualified. Relay readiness proves recovered storage and authenticated upstream availability at its last successful interaction, rather than continuous authority quorum availability.
 
 ## Storage and upgrades
 
