@@ -294,5 +294,10 @@ strata's session changes these libraries for its own needs; each is a versioned 
     - Removed members are pruned.
     - New members join as learners.
   - **Compatibility:** `test/compat_test.cc` and `tools/compat.sh` check, in both directions, that today's code reads `b7073bb`'s stores and that `b7073bb` refuses the new formats.
+- `consensus` `28e1b88`, `dd818a4`, `3f69530`, `367c89c` (2026-10-15): C4's D15 and R19, all additive with today's behavior as the default.
+  - `Core` takes a defaulted `Flow{pipeline, window_bytes}`; `pipeline = 1` (the default) is today's one Append RPC in flight per peer. Detent's fixed groups need no change.
+  - `Receive` gains a defaulted `more` (merged appends from one leader); `Event` keeps its alternatives, so exhaustive visitors are unaffected.
+  - `WorkerLimits` gains `follower_batch_bytes` and `follower_batch_entries`, both 0 by default (no holding).
+  - The transport's control lane queues appends carrying entries apart from control frames, bounded by `PeerOptions::pipeline_frames` and `window_bytes` (defaults 4 and 4 MiB), and always sends control frames first; `PeerOccupancy` gains `queued_data`. A host that relied on more than four queued appends per connection now sees drops past the window instead.
 
 `DTC2` tags 1–8 are fixed (votes, appends, snapshot responses, pre-votes, `TimeoutNow`). The rest of `DTC2` is not yet: the frame header with group id and incarnations (C1, C4), coalesced heartbeats, `Wake`, `LeaderGone`, `Ping`, and `Pong` (C2), and window updates and snapshot chunk frames (C4). The coordinated commit that moves Detent's `consensus` pin waits for them, since a tag added later bumps the version. When it lands, Detent's fixed groups need no code change beyond the `decode_membership` and `maximum_size` call sites, if Detent calls them.
