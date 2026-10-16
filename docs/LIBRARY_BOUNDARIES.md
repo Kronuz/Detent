@@ -299,5 +299,10 @@ strata's session changes these libraries for its own needs; each is a versioned 
   - `Receive` gains a defaulted `more` (merged appends from one leader); `Event` keeps its alternatives, so exhaustive visitors are unaffected.
   - `WorkerLimits` gains `follower_batch_bytes` and `follower_batch_entries`, both 0 by default (no holding).
   - The transport's control lane queues appends carrying entries apart from control frames, bounded by `PeerOptions::pipeline_frames` and `window_bytes` (defaults 4 and 4 MiB), and always sends control frames first; `PeerOccupancy` gains `queued_data`. A host that relied on more than four queued appends per connection now sees drops past the window instead.
+- `consensus` `aa1dc80` (2026-10-16): C4's D18, windowed snapshot transfer, additive with today's behavior as the default.
+  - `SnapshotLimits` gains a defaulted `window` (1 to 256 chunks of 64 KiB); 1 is today's one chunk per round trip, so `SnapshotLimits{format, bytes}` call sites are unchanged.
+  - `Worker::source_chunk` takes a defaulted index (the i-th chunk read ahead); `snapshot_window()` is new; `snapshot_buffer_capacity()` grows with the window.
+  - A Credit covers every chunk up to the one it names. With a window of 1 only one chunk is outstanding, so the frames are byte-identical and old and new nodes interoperate.
+  - `SnapshotChannel`'s timeout now measures inactivity: each accepted chunk resets it, and it stops once the final chunk arrives. A transfer longer than the timeout that keeps moving no longer fails, and a slow install after the last chunk is not cut off.
 
 `DTC2` tags 1–8 are fixed (votes, appends, snapshot responses, pre-votes, `TimeoutNow`). The rest of `DTC2` is not yet: the frame header with group id and incarnations (C1, C4), coalesced heartbeats, `Wake`, `LeaderGone`, `Ping`, and `Pong` (C2), and window updates and snapshot chunk frames (C4). The coordinated commit that moves Detent's `consensus` pin waits for them, since a tag added later bumps the version. When it lands, Detent's fixed groups need no code change beyond the `decode_membership` and `maximum_size` call sites, if Detent calls them.
