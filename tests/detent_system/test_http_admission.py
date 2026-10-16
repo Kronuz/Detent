@@ -17,6 +17,7 @@ class HeldAuthority(Authority):
         self.entered = threading.Event()
         self.release = threading.Event()
         self.submitted = 0
+        self.fail = False
 
     @override
     def _exchange(
@@ -31,10 +32,37 @@ class HeldAuthority(Authority):
         self.entered.set()
         if not self.release.wait(timeout=3):
             raise TimeoutError("held HTTP original")
+        if self.fail:
+            raise ConnectionRefusedError("settled HTTP failure")
         return 200, {"ok": True}
 
 
 class AdmissionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_original_preserves_cancellation_after_reaping(self) -> None:
+        configure_workers(1, 1)
+        authority = HeldAuthority()
+        authority.fail = True
+        original = asyncio.create_task(authority.request(0, "/held"))
+        try:
+            deadline = time.monotonic() + 2
+            while not authority.entered.is_set():
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("original did not enter worker")
+                await asyncio.sleep(0.001)
+            original.cancel()
+            await asyncio.sleep(0.01)
+            original.cancel()
+            await asyncio.sleep(0.01)
+            self.assertFalse(original.done())
+            self.assertEqual(authority.http_activity.snapshot()["active"], 1)
+        finally:
+            authority.release.set()
+        with self.assertRaises(asyncio.CancelledError):
+            await original
+        self.assertEqual(authority.http_activity.snapshot()["active"], 0)
+        self.assertEqual(authority.http_activity.snapshot()["failed"], 1)
+        self.assertFalse(authority.lane.locked())
+
     async def test_held_original_retains_slot_through_cancellation(self) -> None:
         configure_workers(1, 1)
         authority = HeldAuthority()

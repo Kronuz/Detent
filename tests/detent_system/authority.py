@@ -268,13 +268,14 @@ class Authority:
             cancellation: asyncio.CancelledError | None = None
             while not original.done():
                 try:
-                    await asyncio.shield(original)
+                    await asyncio.wait({original})
                 except asyncio.CancelledError as error:
                     cancellation = cancellation or error
-            result = original.result()
             if cancellation is not None:
+                if not original.cancelled():
+                    original.exception()
                 raise cancellation
-            return result
+            return original.result()
 
         finally:
             self.lane.release()

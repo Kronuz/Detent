@@ -22,6 +22,8 @@ Completed bootstrap probes park outside exchange admission while cold probes fin
 
 The corrected 10k admission run reaches all 10,000 ready probes, with 9,999 parked during bootstrap and zero premature polls. It then fails during polling: managed-agent logs record `EADDRNOTAVAIL`, and the primary sampler exception is relay-health `ConnectionRefused`. The client creates a fresh TLS connection per request, but these observations do not establish the exact listener-failure cause. All daemon processes exit zero during cleanup. The [bootstrap evidence](../benchmarks/fleet-bootstrap-qualification.json) preserves successful reduced cases, the negative control and the failed scale attempt. Sustained polling and the full 10k checkpoint remain unqualified.
 
+The [persistent transport blueprint](PERSISTENT_TRANSPORT_ARCHITECTURE.md) defines bounded connection reuse and its component gate before repeating sustained fleet qualification.
+
 ## Offered-rate workloads
 
 `--offer-rate N` offers N logical workloads per second. The default remains one closed-loop actor per producer. A mixed 1,000-edit workload can issue several 128-operation authority commands; report scheduled workloads, admitted workloads, atomic commands and operation intents separately.
@@ -33,6 +35,8 @@ The pacer keeps one accepted workload per producer and a bounded catch-up batch.
 `--http-workers N` bounds Python blocking HTTP workers; its default is the producer count. Pre-submit permits use the smaller of those counts and remain held through authentic request completion, including cancellation. Producer calls carry an absolute admission deadline. A request refused before submission raises `GeneratorAdmissionRefused`; qualification fails without advancing its sequence or changing the state oracle. A prior attempt that may have executed therefore remains unresolved, rather than being mislabeled as unsent.
 
 Actual worker concurrency and fixed queue/service histograms accompany writer counters. Queue time includes asynchronous admission waiting; HTTP observations include health queries, reads and retries. Queue time is recorded on entry and service time on completion, with initial in-flight counts retained. Generator CPU is recorded separately. A lower-worker diagnostic does not establish server capacity.
+
+Cancellation retains its HTTP permit until the blocking original settles, including a failed original. The runner then propagates cancellation instead of exposing a retryable socket error to the producer. A regression reproduces cancellation replacement before the correction; all 49 Python checks pass afterward, with Ruff clean and strict Pyrefly reporting zero diagnostics.
 
 ## Evidence and limits
 
