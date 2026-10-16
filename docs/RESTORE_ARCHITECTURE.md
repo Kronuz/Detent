@@ -1,7 +1,7 @@
 # Validated Architectural Blueprint: fresh three-voter restore
 
 **Date:** 2026-10-16
-**Status:** Lead Software Architect design GO. Implementation and executable qualification remain pending; compilation and load runs are paused for concurrent benchmarks.
+**Status:** Lead Software Architect design GO. Implementation and executable qualification remain pending. Compilation and load qualification resumed after the benchmark hold.
 
 Restore validated definitions through bounded, ordinary replicated transactions into a quarantined new three-voter group. Each voter creates its own durable consensus state. Activate the group only after complete semantic comparison and independent offline checkpoints on all three members.
 
@@ -25,7 +25,13 @@ Initially configure only a private restore credential. Keep one outstanding comm
 
 After a quorum-backed full comparison, stop all three members. Recover and compare every definition on each member, then checkpoint each independently. Write a durable completion receipt only after all three succeed. Configure normal credentials only after that receipt settles. Failure or cancellation at any earlier boundary leaves the job quarantined.
 
-The implementation must make these activation boundaries explicit. Current credentials have a `publish` flag but no restore-only read restriction, so a private token alone does not enforce quarantine against its holder. Define either a server-enforced restore mode or a documented private network and credential boundary before claiming quarantine. A quorum-backed read also does not attest every follower's local applied boundary: require each member to recover through the final restore barrier before its checkpoint can qualify for activation. Hold validated artifact and directory handles through use; pathname preflight alone cannot prevent replacement races.
+Add an opt-in `RestorePolicy` to `ServiceOptions`. Quarantine accepts only the designated restore credential on producer Open/Transaction/Read/Result/Close and a restore-only barrier route. Reject ordinary credentials and all distribution/subscription routes; expose quarantine separately from storage readiness. Active mode rejects the restore credential. The current `publish` flag only restricts writes and cannot enforce this policy.
+
+Retain a restore configuration stanza binding the job ID, backup digest, target context, voter/profile digest and receipt path. Before public readiness, active startup validates a held, trusted receipt against its local voter/store identity and recovered committed/applied floor. Missing stores fail instead of taking automatic creation. Bind initial checkpoint descriptors as provenance while allowing later legitimate checkpoints and writes. Configuration and receipt ownership are trusted: removing the stanza is a privileged bypass, outside this first component's enforcement boundary.
+
+The restore-only barrier uses `Node::read()` and its `Completion.index`. Stop bootstrap writes, obtain boundary B, and wait for every member's committed/applied indexes to reach B. Health guides waiting; independent offline recovery supplies authoritative proof: committed/applied at least B, complete semantic equality and a checkpoint through at least B on each voter. A quorum-backed read alone cannot attest every follower's local state.
+
+Open the backup once under a held trusted parent, validate ownership and metadata, then hash and decode the same bounded chunks from that descriptor. Restore from the resulting owned immutable State without reopening its pathname. Create targets exclusively under held trusted parents, retaining distinct directory identities and checking named/held agreement. Write artifacts through pinned public `PosixIO::create_exclusive()`, `File::write_at()`, `File::sync()` and `PosixIO::sync_directory()`, retaining the owner lock through both durability barriers. The pinned macOS directory barrier requires that lock; legacy admin's raw `fsync` helper does not supply this contract.
 
 Old clients retain their selected generations and fail closed against the new identity. Changing endpoints does not authorize a reset. Reconfigure relays and agents with the new identity and their existing exact `reset_from` capability; select the new generation only after a full snapshot. Existing SDK mapping leases remain readable under the established retention contract.
 
@@ -40,7 +46,7 @@ Empty authorized scopes are configuration, while namespace watermarks belong to 
 | Dependency and state | No old Raft hard state, ballots, storage identities or producer receipts enter the new group. Each member checkpoints its own state. |
 | Security | Validate artifact ownership, framing and profile before target mutation. Keep secrets out of logs; use configured TLS endpoints and terminate on trust or identity failure. |
 
-After the benchmark hold lifts, review the complete component against this consolidated matrix:
+Review the complete component against this consolidated matrix:
 
 1. Malformed, truncated or incompatible backups leave targets untouched.
 2. A real three-voter restore survives leader loss and exact retries; a minority cannot acknowledge writes.
@@ -48,5 +54,7 @@ After the benchmark hold lifts, review the complete component against this conso
 4. Old requests and peer epochs are fenced; managed readers transition only after explicit reset.
 5. Cancellation and interruption cannot produce an activation receipt or normal-service credentials.
 6. Native, sanitizer, Linux and FreeBSD checks pass, with reproducible source and artifact fingerprints.
+
+Include premature active startup, missing/swapped receipts, one lagging voter, restore-token subscriptions, artifact replacement during validation and restart after legitimate post-activation writes as explicit negative or recovery cases.
 
 The current offline admin tool's `Runtime::ready()` elects a single voter, and `pump()` rejects outbound consensus sends. It does not implement this workflow. The source review establishes a design path, not executable restore evidence. Two local VMs also cannot establish three independent failure domains or device-power-loss recovery.
