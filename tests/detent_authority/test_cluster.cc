@@ -1,12 +1,13 @@
+#include "admin_runtime.hh"
 #include "node.hh"
 #include "read_reply.hh"
 #include <array>
 #include <cassert>
+#include <completion/posix.h>
 #include <deque>
 #include <filesystem>
 #include <functional>
 #include <iostream>
-#include <completion/posix.h>
 #include <rapidjson/document.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -363,5 +364,32 @@ int main(int argc, char **argv) {
 		assert(std::get<detent::IntDef>(*node->state().find("ns:key")->value).default_value == 99 &&
 			   node->state().lookup("writer", 1, 10) == lost.results[0]);
 	}
-	std::cout << "three-Worker authority snapshot, retry and failover passed\n";
+	group.until([&] {
+		return std::all_of(group.nodes.begin(), group.nodes.end(), [](const auto &node) {
+			return !node->worker().busy() && node->state().applied_index() == node->worker().committed();
+		});
+	});
+	for (unsigned i = 0; i < group.nodes.size(); ++i) {
+		auto expected = group.nodes[i]->state().snapshot();
+		auto committed = group.nodes[i]->worker().committed();
+		group.nodes[i].reset();
+		ServiceOptions profile;
+		profile.node = group.options(i);
+		profile.directory = group.root / std::to_string(i);
+		{
+			admin::Runtime offline(profile);
+			offline.recover_committed();
+			assert(offline.node.worker().role() == Role::Follower);
+			assert(offline.node.worker().committed() == committed);
+			assert(offline.node.state().snapshot().knobs == expected.knobs);
+			offline.checkpoint();
+			assert(offline.node.worker().base_index() == committed);
+			assert(offline.node.worker().role() == Role::Follower);
+		}
+		admin::Runtime restored(profile);
+		restored.recover_committed();
+		assert(restored.node.worker().base_index() == committed);
+		assert(restored.node.state().snapshot().knobs == expected.knobs);
+	}
+	std::cout << "three-Worker authority snapshot, retry, failover and offline checkpoints passed\n";
 }

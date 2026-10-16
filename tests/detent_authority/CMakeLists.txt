@@ -25,7 +25,7 @@ endif()
 
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_executable(test_authority_cluster test_cluster.cc)
-  target_link_libraries(test_authority_cluster PRIVATE detent::authority_node)
+  target_link_libraries(test_authority_cluster PRIVATE detent::authority_node detent_authority_admin_runtime)
   add_test(NAME test_authority_cluster COMMAND test_authority_cluster)
   add_test(NAME test_authority_cluster_completion COMMAND test_authority_cluster --completion-storage)
   set_tests_properties(test_authority_cluster_completion PROPERTIES TIMEOUT 90)

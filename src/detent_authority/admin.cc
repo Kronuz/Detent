@@ -1,12 +1,12 @@
 // Explicit offline migration. Authority and legacy stores are never mixed.
+#include "admin_runtime.hh"
 #include "detent/json_schema.hh"
-#include "service.hh"
 #include <array>
 #include <chrono>
+#include <completion/posix.h>
 #include <cstdio>
 #include <fcntl.h>
 #include <fstream>
-#include <completion/posix.h>
 #include <random>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -56,64 +56,7 @@ void output(const std::filesystem::path &path, std::string_view bytes) {
 	check(fsync(fd) == 0, "export durability");
 	sync_parent(path);
 }
-class Runtime {
-  public:
-	Node node;
-	std::uint64_t clock = 0, request = 0;
-	Runtime(ServiceOptions options)
-		: node(std::make_unique<kronuz::journal::PosixIO>(options.directory), options.node) {}
-	void pump() {
-		node.service({clock += 10, 100});
-		for (const auto &action : node.take_network_actions())
-			check(!std::holds_alternative<Send>(action), "offline migration requires one voter");
-		check(!node.worker().fenced(), "authority storage fenced");
-	}
-	void ready() {
-		for (unsigned i = 0; i < 10000 && !node.worker().ready(); ++i)
-			pump();
-		check(node.worker().ready(), "authority initialization timeout");
-		node.start();
-		for (unsigned i = 0; i < 10000 && node.worker().role() != Role::Leader; ++i)
-			pump();
-		check(node.worker().role() == Role::Leader, "offline leader timeout");
-	}
-	Result submit(const Command &command) {
-		auto id = ++request;
-		bool accepted = false;
-		for (unsigned i = 0; i < 100000; ++i) {
-			if (!accepted) {
-				auto result = node.propose(id, {command});
-				check(result == SubmitResult::Accepted || result == SubmitResult::Busy ||
-						  result == SubmitResult::Pressure,
-					  "migration submission rejected");
-				accepted = result == SubmitResult::Accepted;
-			}
-			pump();
-			for (auto &result : node.take_completions())
-				if (result.request == RequestId{id}) {
-					check(!result.rejection && result.results.size() == 1, "migration command rejected");
-					return result.results.front();
-				}
-		}
-		throw std::runtime_error("migration outcome unknown");
-	}
-	void checkpoint() {
-		bool started = false;
-		std::uint64_t boundary = 0;
-		for (unsigned i = 0; i < 100000; ++i) {
-			pump();
-			if (!started && node.worker().applied_index() == node.state().applied_index()) {
-				boundary = node.state().applied_index();
-				if (node.worker().base_index() == boundary)
-					return;
-				started = node.checkpoint();
-			}
-			if (started && node.worker().base_index() == boundary && !node.checkpoint_busy())
-				return;
-		}
-		throw std::runtime_error("migration checkpoint timeout");
-	}
-};
+
 } // namespace
 int main(int argc, char **argv) {
 	try {
@@ -133,7 +76,7 @@ int main(int argc, char **argv) {
 				  "import requires a new authority directory");
 			check(chmod(options.directory.c_str(), 0700) == 0, "authority directory permissions");
 			sync_parent(options.directory);
-			Runtime runtime(options);
+			admin::Runtime runtime(options);
 			std::random_device random;
 			Identity storage{};
 			for (auto &byte : storage)
@@ -199,14 +142,8 @@ int main(int argc, char **argv) {
 			auto value = std::stoull(version, &used);
 			check(used == version.size() && !version.empty() && version[0] != '-' && value > 0,
 				  "invalid legacy version");
-			Runtime runtime(options);
-			runtime.node.recover();
-			runtime.ready();
-			for (unsigned i = 0;
-				 i < 10000 && runtime.node.worker().applied_index() != runtime.node.worker().committed(); ++i)
-				runtime.pump();
-			check(runtime.node.worker().applied_index() == runtime.node.worker().committed(),
-				  "export application timeout");
+			admin::Runtime runtime(options);
+			runtime.recover_committed();
 			auto snapshot = runtime.node.state().snapshot();
 			snapshot.version = value;
 			output(argv[3], detent::serialize_snapshot(snapshot));

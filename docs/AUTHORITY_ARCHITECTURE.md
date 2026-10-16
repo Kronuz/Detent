@@ -90,7 +90,7 @@ Import only into a new, separate authority directory, with writers stopped until
 detent-authority-admin import authority.json legacy-snapshot.json
 ```
 
-The tool validates the bounded legacy document, applies namespace-scoped batches within transaction limits, compares every resulting definition with the source, and publishes an application checkpoint. Legacy version numbers never become authority revisions. A failed import leaves a directory for inspection; it cannot be silently resumed or overwrite an existing authority. The import session consumes one producer slot.
+The tool validates the bounded legacy document, applies namespace-scoped batches within transaction limits, compares every resulting definition with the source, and publishes an application checkpoint. Import requires a single voter. Legacy version numbers never become authority revisions. A failed import leaves a directory for inspection; it cannot be silently resumed or overwrite an existing authority. The import session consumes one producer slot.
 
 Stop the authority before a rollback export. Supply an explicit legacy version greater than the destination's last accepted version:
 
@@ -98,7 +98,7 @@ Stop the authority before a rollback export. Supply an explicit legacy version g
 detent-authority-admin export authority.json rollback-snapshot.json 1000
 ```
 
-The storage lock excludes a running daemon. Export recovers committed application state and creates a new `0600` output file durably; it refuses to overwrite an existing file. Verify and publish through the destination's ordinary interface before switching writers. A lower version will be rejected by the legacy destination.
+The storage lock excludes a running daemon. Export replays the selected voter's durable committed cut as a follower without advancing election time, including stores from a three-voter group. That cut can lag the group's latest commit; export does not contact a quorum. It creates a new `0600` output file and refuses to overwrite an existing file. The legacy output uses file and parent `fsync`; the stronger backup durability contract is part of the pending [restore component](RESTORE_ARCHITECTURE.md). Verify and publish through the destination's ordinary interface before switching writers. A lower version will be rejected by the legacy destination.
 
 ## Qualification evidence
 

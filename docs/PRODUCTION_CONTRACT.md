@@ -28,7 +28,7 @@ Process-kill and injected-I/O checks qualify their stated failure boundaries. Th
 
 ## Restore and audit
 
-Restore creates a new authority epoch and fences requests carrying the old identity. Provision the new fixed voter set and grant agent reset explicitly. The current offline admin tool runs a single-voter workflow; restoration into a fresh three-voter group remains a Stage 6 implementation gate. Do not describe that tool as a complete clustered disaster-recovery procedure.
+Restore creates a new authority epoch and fences requests carrying the old identity. Provision the new fixed voter set and grant agent reset explicitly. Offline import requires one voter; export replays one stopped voter's durable committed cut without leadership or quorum contact. Restoration into a fresh three-voter group remains a Stage 6 implementation gate. Do not describe that tool as a complete clustered disaster-recovery procedure.
 
 Retained producer results support bounded retry reconciliation. They are not an unlimited audit log. Operators needing complete change history must retain it independently. Back up and verify authority recovery artifacts together with their identity, configuration and credentials; copying a live runtime directory is not a backup protocol.
 
