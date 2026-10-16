@@ -18,7 +18,9 @@ Use `detent_system_local_oracle` for integer writers and `detent_system_mixed_or
 
 Relay health reports `sessions` as retained table entries, including closed entries awaiting bounded collection. The runner checks the live population at readiness and its return to durable-cohort headroom after healthy probe cleanup. Best-effort Close admission stops after 20 seconds of shutdown; accepted Close requests still drain, and skipped Close requests are counted. Remote sessions skipped at that deadline can remain until expiry or relay shutdown.
 
-Completed bootstrap probes park outside exchange admission while cold probes finish. An owner-local timer registration releases them after a monotonic completion latch, with wakeups batched in groups of 64. `peak_bootstrap_parked` and `premature_ready_polls` qualify this boundary. Reduced delayed/warm/cancelled bootstrap cases pass; the stopped 10k diagnostic reaps all accepted originals, while the corrected 10k rerun remains pending.
+Completed bootstrap probes park outside exchange admission while cold probes finish. An owner-local timer registration releases them after a monotonic completion latch, with wakeups batched in groups of 64. `peak_bootstrap_parked` and `premature_ready_polls` qualify this boundary. Reduced delayed/warm/cancelled bootstrap cases pass. Removing only the parking block produces 15 premature polls and fails the runner invariant after all 16 snapshots and 32 Close attempts settle.
+
+The corrected 10k admission run reaches all 10,000 ready probes, with 9,999 parked during bootstrap and zero premature polls. It then fails during polling: managed-agent logs record `EADDRNOTAVAIL`, and the primary sampler exception is relay-health `ConnectionRefused`. The client creates a fresh TLS connection per request, but these observations do not establish the exact listener-failure cause. All daemon processes exit zero during cleanup. The [bootstrap evidence](../benchmarks/fleet-bootstrap-qualification.json) preserves successful reduced cases, the negative control and the failed scale attempt. Sustained polling and the full 10k checkpoint remain unqualified.
 
 ## Offered-rate workloads
 
