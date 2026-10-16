@@ -1,10 +1,12 @@
 # Native fleet qualification
 
-**Status:** Implementation under qualification. No fleet capacity claim yet.
+**Status:** Tooling has Architect source approval. The reduced native matrix passes 11/11 in 178.65 seconds; large-fleet capacity qualification remains open.
 
 `detent_fleet_load` drives real TLS subscription sessions through the production client and decoder. Each probe retains a session, cursor and payload digest. It has no durable store. A separate cohort of managed agents publishes durable images, and an SDK oracle verifies every definition after writer reconciliation.
 
 The runner owns three authority processes, two relays, the durable cohort and one native probe process. `--active` bounds simultaneous probe exchanges independently of the session population; `--workers` selects fixed event-loop threads. A run with 10,000 sessions and 128 active exchanges does not establish 10,000 simultaneously parked connections. Cold bootstrap and checkpoint reconciliation occur outside the measured writer interval.
+
+The [smoke evidence](../benchmarks/fleet-tooling-qualification.json) records raw, zstd, warm, mixed, partial-launch and cancellation cases. Each successful case reconciles all 16 probes and independently checks 256 SDK definitions. These runs overlapped independent builds and do not calibrate sustainable capacity.
 
 ## Running
 
