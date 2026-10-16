@@ -25,7 +25,11 @@ Initially configure only a private restore credential. Keep one outstanding comm
 
 After a quorum-backed full comparison, stop all three members. Recover and compare every definition on each member, then checkpoint each independently. Write a durable completion receipt only after all three succeed. Configure normal credentials only after that receipt settles. Failure or cancellation at any earlier boundary leaves the job quarantined.
 
+The implementation must make these activation boundaries explicit. Current credentials have a `publish` flag but no restore-only read restriction, so a private token alone does not enforce quarantine against its holder. Define either a server-enforced restore mode or a documented private network and credential boundary before claiming quarantine. A quorum-backed read also does not attest every follower's local applied boundary: require each member to recover through the final restore barrier before its checkpoint can qualify for activation. Hold validated artifact and directory handles through use; pathname preflight alone cannot prevent replacement races.
+
 Old clients retain their selected generations and fail closed against the new identity. Changing endpoints does not authorize a reset. Reconfigure relays and agents with the new identity and their existing exact `reset_from` capability; select the new generation only after a full snapshot. Existing SDK mapping leases remain readable under the established retention contract.
+
+Empty authorized scopes are configuration, while namespace watermarks belong to the old authority history. Restore their configured accessibility and empty definition results without carrying historical watermark-only namespace entries into the new epoch.
 
 ## Architectural checks and component gate
 
