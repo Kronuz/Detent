@@ -233,7 +233,8 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 		return true;
 	});
 	auto facade = std::make_unique<Service>(runtime);
-	http::HttpAsioService listener(*facade, 2, 2, 32, http::tls_connection_factory_timed(options.tls_context),
+	http::HttpAsioService listener(*facade, 2, 2, options.connections,
+								   http::tls_connection_factory_timed(options.tls_context),
 								   options.connections);
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
