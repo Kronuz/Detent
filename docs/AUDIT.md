@@ -248,3 +248,9 @@ The initial frozen manifest selected cached cpp-btree `f90c2bf`, predating the p
 The semantic snapshot decoder treats its configured revision as a minimum. HTTP reception previously accepted a snapshot at revision 5 with `X-Detent-Revision: 4`, exposing different advertised and validated cursors. Reception now requires the completed snapshot cursor to equal the HTTP target, as delta and progress reception already require.
 
 The semantic response regression rejects the lower header revision and drains the rejected candidate back to zero admitted bytes. It fails against the preceding source. The native response and TLS client checks, including certificate preparation, pass 3/3 in 1.50 seconds. Existing raw/zstd and fixed/chunked response coverage remains in the same fixture.
+
+## Return typed relay admission errors from header intake
+
+Relay header intake allocates admitted body and sink storage before the worker handler runs. Exhausting those accounts throws `StoragePressure`; the worker error mapper cannot handle an exception from this earlier phase. The HTTP framework drops the connection unless intake raises `RequestRejected`, so clients receive an incomplete response instead of a typed overload refusal.
+
+Intake now maps storage pressure and allocation failure to bounded JSON HTTP 503 `admission_full`, matching the worker handler. A deterministic fixture exhausts each Open/Next/Close account and the health metadata account, checks the response contract, then verifies request counts and admitted bytes return to their baseline. The fixture fails before correction with `distribution storage pressure`. After correction, the three relay HTTP cases, including 100k and 500k definitions, pass with their TLS fixture (4/4, 16.83 seconds). This establishes correct refusal semantics; it does not increase byte budgets or establish sustained capacity.

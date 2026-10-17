@@ -62,6 +62,27 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 	auto runtime = std::allocate_shared<r::ServiceRuntime>(d::StorageAllocator<r::ServiceRuntime>(metadata),
 														   accounts, registry, bindings);
 	auto service = std::make_unique<r::Service>(runtime);
+	for (unsigned lane = 0; lane != 4; ++lane) {
+		auto ledger = lane == 3 ? metadata : accounts.requests[lane];
+		const auto before = ledger->used();
+		auto pressure = ledger->admit(ledger->limit() - before);
+		http::Request request;
+		request.method = lane == 3 ? "GET" : "POST";
+		constexpr std::array paths{"/v2/distribution/session/open", "/v2/distribution/session/next",
+								   "/v2/distribution/session/close", "/v1/health"};
+		request.path = paths[lane];
+		request.headers.emplace_back("Authorization", "Bearer " + token);
+		bool refused = false;
+		try {
+			(void)service->on_request_body(request);
+		} catch (const http::RequestRejected &error) {
+			refused = error.status() == 503 && std::string_view(error.content_type()) == "application/json" &&
+					  std::string_view(error.what()) == "{\"error\":\"admission_full\"}";
+		}
+		check(refused && runtime->status().requests == std::array<std::size_t, 3>{});
+		pressure = {};
+		check(ledger->used() == before);
+	}
 	auto submit = [&](std::string path, std::string body, Writer &writer) {
 		http::Request request;
 		request.method = "POST";

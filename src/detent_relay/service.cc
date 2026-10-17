@@ -351,7 +351,7 @@ Service::Service(std::shared_ptr<ServiceRuntime> runtime) : runtime_(std::move(r
 		throw std::invalid_argument("relay service runtime");
 }
 Service::~Service() { runtime_->close(); }
-std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) {
+std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) try {
 	if (request.path == "/v1/health" && request.method == "GET") {
 		if (!request.header("Transfer-Encoding").empty() ||
 			(!request.header("Content-Length").empty() && request.header("Content-Length") != "0"))
@@ -396,6 +396,10 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 	return std::make_unique<Sink>(
 		admission->lease, std::move(ticket),
 		runtime_->impl_->lanes[index]->admission.body_limit(static_cast<d::SubscriptionRequestKind>(index)));
+} catch (const d::StoragePressure &) {
+	reject(503, "{\"error\":\"admission_full\"}");
+} catch (const std::bad_alloc &) {
+	reject(503, "{\"error\":\"admission_full\"}");
 }
 void Service::handle(const http::Request &request, http::ResponseWriter &response) {
 	auto &p = *runtime_->impl_;
