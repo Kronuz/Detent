@@ -93,7 +93,7 @@ class ControlServer:
                     extra = b"X-Detent-Session-Version: 1\r\nX-Detent-Session: 11111111111111111111111111111111\r\nX-Detent-Window: 1\r\nX-Detent-Profile: 2\r\nX-Detent-Revision: 1\r\nX-Detent-Kind: 1\r\nX-Detent-Coding: raw\r\n"
             writer.write(
                 f"HTTP/1.1 {status} Response\r\n".encode()
-                + b"Content-Type: "
+                + b"Connection: close\r\nContent-Type: "
                 + content_type
                 + b"\r\nContent-Length: "
                 + str(len(body)).encode()
@@ -214,7 +214,11 @@ async def run(arguments: argparse.Namespace) -> None:
                         or secondary.requests
                         or primary.requests < minimum
                     ):
-                        raise RuntimeError(f"trust failure did not fail closed: {case}")
+                        raise RuntimeError(
+                            f"trust failure did not fail closed: {case} "
+                            f"(exit={agent.process.returncode}, primary={primary.requests}, "
+                            f"secondary={secondary.requests})"
+                        )
                 evidence.record(
                     "trust_rejected",
                     case=case,
