@@ -16,6 +16,10 @@ Source preparation lives in separate detached checkouts under `.scratch/library-
 
 Group F has a source-derived recovery-resource gate. Latest consensus reads retained state against library ceilings, while parts of incremental encoding still use operating limits. Fix that inconsistency through one shared library policy/validator across decode, replay, encode and Core recovery, rather than parallel legacy functionality. Keep configured checkpoint reservation sizing unchanged. Validate allocation bounds before growth and preserve historical group-limit semantics. Prefer library defaults; document a custom bound only after proving why the defaults are insufficient. This remains a source finding pending runtime qualification.
 
+## First dependency group qualification
+
+The frozen group A build passes eight initial Core/semantic checks and ten transport checks. [Preliminary footprint evidence](../benchmarks/library-adoption-progress-20261017.json) records every comparison binary. `detentd` grows by 73,776 bytes (1.59%) and the relay by 73,984 bytes (1.51%); these exceed the review threshold. In `detentd`, the executable text section grows by 30,992 bytes and the link-edit segment by 40,960 bytes. The largest symbol extent increases include HTTP progress-write/deadline templates and TLS failure reporting; these estimates do not isolate each feature's cost. Runtime comparison is pending, so this group is not accepted or pinned.
+
 ## Retained-state consistency findings
 
 The published consensus encoder rejects historical payloads after lowering operating limits, although checkpoint decoding and Core recovery accept them. Local consensus commit `c2cbf2e` shares the existing Recovery entry validator with the incremental encoder, preserves record budgets, and gives configuration payloads their membership encoding bound. A regression fails on published `fc66c0e`; the corrected checkpoint, Core, membership, Worker, compatibility, decoder-corpus and terminal suites pass (7/7, 88.91 seconds). Source review reports no P1/P2 findings for this scope. This correction is neither pushed nor pinned into Detent.

@@ -1,0 +1,165 @@
+{
+  "status": "Preliminary group A; runtime comparison pending; no pins adopted",
+  "common_application_commit": "170597d",
+  "candidate_inventory": "library-adoption-candidates-20261017-r2.json",
+  "groups": [
+    "a"
+  ],
+  "native_tests": {
+    "core": {
+      "passed": 8,
+      "seconds": 23.45
+    },
+    "transport": {
+      "passed": 10,
+      "seconds": 16.62
+    }
+  },
+  "footprint": {
+    "detent-agent": {
+      "before_bytes": 3266352,
+      "after_bytes": 3266944,
+      "delta_bytes": 592,
+      "delta_percent": 0.018124194820390294,
+      "before_sha256": "e1632a7021414f5d21eeb0daa340b9f732d467b91db66cfdb211756685063d99",
+      "after_sha256": "2dee3f5f88a439d8f0cf43fbb6764cbcf30542ac2b4e1d93a8d8759e4470f3f1"
+    },
+    "detent-relay": {
+      "before_bytes": 4897728,
+      "after_bytes": 4971712,
+      "delta_bytes": 73984,
+      "delta_percent": 1.510577965946669,
+      "before_sha256": "62f9fc5ddb4a1e6b9cd8a9105f81fa77b031d03e64d26a2691603eaf3383ba37",
+      "after_sha256": "5d8229beaa992af31e565c7859fa25d0a831dc695aa6bd77cc42dcbe313cf046"
+    },
+    "detent_agent_shm_bench": {
+      "before_bytes": 88136,
+      "after_bytes": 88136,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "e10cb8c87e9b13cd6f2bc5515756cb7e14e9142bb6d8bac21527ebfe889280b0",
+      "after_sha256": "e10cb8c87e9b13cd6f2bc5515756cb7e14e9142bb6d8bac21527ebfe889280b0"
+    },
+    "detent_authority_bench": {
+      "before_bytes": 425936,
+      "after_bytes": 425936,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "a9aea3cc1cfff5e96db01d9ba5e47c854f8cd460e0374708db6c30beb1d8de9c",
+      "after_sha256": "a9aea3cc1cfff5e96db01d9ba5e47c854f8cd460e0374708db6c30beb1d8de9c"
+    },
+    "detent_authority_durable_bench": {
+      "before_bytes": 1068248,
+      "after_bytes": 1068248,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "ef58c9a47b738b6c2a3e2d22a510386f587439514acc6fcd88e3203217418fc4",
+      "after_sha256": "ef58c9a47b738b6c2a3e2d22a510386f587439514acc6fcd88e3203217418fc4"
+    },
+    "detent_delta_decode_bench": {
+      "before_bytes": 96880,
+      "after_bytes": 96880,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "ceb685306c5ae05309e852d7fc578104afebd95856ce0868886fff176654de18",
+      "after_sha256": "ceb685306c5ae05309e852d7fc578104afebd95856ce0868886fff176654de18"
+    },
+    "detent_distribution_codec_bench": {
+      "before_bytes": 164328,
+      "after_bytes": 164328,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "70104d41841a0e5c7bafb3b54dd40da8ab752107a8991ae4d59d277617014761",
+      "after_sha256": "70104d41841a0e5c7bafb3b54dd40da8ab752107a8991ae4d59d277617014761"
+    },
+    "detent_fleet_load": {
+      "before_bytes": 1277224,
+      "after_bytes": 1281840,
+      "delta_bytes": 4616,
+      "delta_percent": 0.3614088053465858,
+      "before_sha256": "3c5fe340e3c7c0a81be0aa02df965f4392caa1ce78a2827fb9f4569e5de9bd4c",
+      "after_sha256": "b0507bc7bef80142fd152bf871921f97b578ba47d43fec4204b703fbe37e2201"
+    },
+    "detent_hash_bench": {
+      "before_bytes": 26920,
+      "after_bytes": 26920,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "3cccd65f2b2e514f381fed06232548dc2f86a78b447119ebf4266544ba2866ad",
+      "after_sha256": "3cccd65f2b2e514f381fed06232548dc2f86a78b447119ebf4266544ba2866ad"
+    },
+    "detent_local_image_bench": {
+      "before_bytes": 590672,
+      "after_bytes": 590672,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "ab41deec4593561bf2d2576ed0025b716b2328c229f7f472fd65cc57027e26f3",
+      "after_sha256": "ab41deec4593561bf2d2576ed0025b716b2328c229f7f472fd65cc57027e26f3"
+    },
+    "detent_paged_collection_bench": {
+      "before_bytes": 854792,
+      "after_bytes": 854792,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+      "after_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5"
+    },
+    "detent_paged_recovery_bench": {
+      "before_bytes": 926848,
+      "after_bytes": 926848,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "5e34855f4061fbb9760af309091e8f1b30f613715114c65505be8e4fa040ee20",
+      "after_sha256": "5e34855f4061fbb9760af309091e8f1b30f613715114c65505be8e4fa040ee20"
+    },
+    "detent_paged_snapshot_bench": {
+      "before_bytes": 424840,
+      "after_bytes": 424840,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "b15266564e50ff06067658c8722affa82e418ebee906aa8072ccc39f88512a9c",
+      "after_sha256": "b15266564e50ff06067658c8722affa82e418ebee906aa8072ccc39f88512a9c"
+    },
+    "detent_read_bench": {
+      "before_bytes": 282544,
+      "after_bytes": 282544,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "f1bec76ce0e41c773a4f5f775442ad2f62f5a1845d5fc38fafabde2ee7d80dea",
+      "after_sha256": "f1bec76ce0e41c773a4f5f775442ad2f62f5a1845d5fc38fafabde2ee7d80dea"
+    },
+    "detent_system_local_oracle": {
+      "before_bytes": 732680,
+      "after_bytes": 732680,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "c8e7bb93845fa5b6a10a80a0fd1342e6123b54ee83a6ed46613c9caa406d081d",
+      "after_sha256": "c8e7bb93845fa5b6a10a80a0fd1342e6123b54ee83a6ed46613c9caa406d081d"
+    },
+    "detent_system_mixed_oracle": {
+      "before_bytes": 745288,
+      "after_bytes": 745288,
+      "delta_bytes": 0,
+      "delta_percent": 0.0,
+      "before_sha256": "7bb55f187e19c5dd8f2acbd0b98d7efec4db764467d8b2a5fd3e553d52927b4f",
+      "after_sha256": "7bb55f187e19c5dd8f2acbd0b98d7efec4db764467d8b2a5fd3e553d52927b4f"
+    },
+    "detentd": {
+      "before_bytes": 4640568,
+      "after_bytes": 4714344,
+      "delta_bytes": 73776,
+      "delta_percent": 1.5898053858924177,
+      "before_sha256": "5bfd210e2f934b42ceece397a68f44b230a5ae4414911e7a21b2e9e2c524ca53",
+      "after_sha256": "33fb2b2fe9d596a8698c3fa7d34a199ab6edff81e819c99c0bd68f5bc8c05acf"
+    }
+  },
+  "detentd_sections": {
+    "text_before_bytes": 2058622,
+    "text_after_bytes": 2089614,
+    "text_segment_before_bytes": 2396160,
+    "text_segment_after_bytes": 2428928,
+    "linkedit_before_bytes": 2203648,
+    "linkedit_after_bytes": 2244608
+  },
+  "footprint_review": "Largest symbol extent increases include HTTP progress-write/deadline templates and TLS handshake failure reporting. Symbol extents are estimates, not isolated feature size attribution. Public library defaults unchanged by the caller."
+}
