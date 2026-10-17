@@ -30,6 +30,8 @@ The published consensus encoder rejects historical payloads after lowering opera
 
 Local consensus commit `ef30b4f` fixes delivery byte-budget underflow after a historical first entry exceeds a lowered RPC limit. Its regression fails before the guard; three focused suites pass afterward, and the 200-seed, 10,000-step simulation passes. Exact-boundary and zero-byte following entries are covered. The correction is neither pushed nor pinned into Detent.
 
+The [validated retained-state blueprint](RETAINED_STATE_ARCHITECTURE.md) defines the coherent remaining component. Isolated Journal reservation-growth preparation passes its admission and Store suites (2/2); it is not landed or part of the dependency comparison.
+
 Full retained-state resource qualification remains open. Worker checkpoint reservations must cover actual retained history after limits decrease; the Store recovery batch ceiling and Worker output accounting also need historical bounds. Live admission, follower replacement and transport must use consistent kind-aware payload checks. Preserve the existing retirement credit for one bounded replacement batch. These findings are coordinated here so library changes can use one implementation.
 
 ## Consensus peer protocol
