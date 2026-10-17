@@ -72,6 +72,13 @@ The standalone durable benchmark currently supports 16/64 producers; exercise 25
 
 Correctness gates permit no unexplained oracle mismatch, acknowledged-write loss, fabricated settlement, sanitizer error or undrained original. Investigate reproducible CPU/work or throughput regressions above 5%, p99 or longest-turn regressions above 10%, and unexplained peak-memory growth above 5%. Settled resources must return to their retained-owner baseline. Flag executable growth above the greater of 1% or 64 KiB. Preserve existing valid wire/disk fixtures and account for any amplification.
 
+The macOS measurement scripts consume immutable `ARM/bin/` executables. [The measurement runner](../benchmarks/library_adoption_measure.py) records commands, hashes, `/usr/bin/time -l` output and each workload's metrics in a new output directory. [The comparison runner](../benchmarks/library_adoption_compare.py) alternates before/after order for each pair and skips executables only when bytes and dynamic linkage match. Freeze dependency sources and build settings separately as described above.
+
+```sh
+python3 benchmarks/library_adoption_measure.py --arm BEFORE --output BASELINE --samples 1
+python3 benchmarks/library_adoption_compare.py --before BEFORE --after AFTER --output PAIRED
+```
+
 Compare CPU per committed operation and delivered GiB, not total CPU across differing closed-loop work counts. Translate CPU seconds per elapsed second into core demand; dollar estimates require a stated price, and power claims require energy measurements. The 10k fleet preset contains 1,000 records and transport probes, so it does not establish 10k durable-agent capacity or replace the separate 500k workload.
 
 ## Consensus transition and compatibility
