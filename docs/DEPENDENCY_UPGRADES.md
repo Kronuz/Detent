@@ -16,6 +16,10 @@ Source preparation lives in separate detached checkouts under `.scratch/library-
 
 Group F has a source-derived recovery-resource gate. Latest consensus reads retained state against library ceilings, while parts of incremental encoding still use operating limits. Fix that inconsistency through one shared library policy/validator across decode, replay, encode and Core recovery, rather than parallel legacy functionality. Keep configured checkpoint reservation sizing unchanged. Validate allocation bounds before growth and preserve historical group-limit semantics. Prefer library defaults; document a custom bound only after proving why the defaults are insufficient. This remains a source finding pending runtime qualification.
 
+## Baseline measurements
+
+The [old-library baseline](../benchmarks/library-adoption-baseline-20261017.json) contains one valid sample for each of 37 workloads, under strict `quiet` holds. It covers reads, hashing, codecs, deltas, authority/local-state operations at 100k/500k, durable 16/64-producer runs, and the existing maximum-definition scenario. The harness initially selected an invalid 100k/64 heavy case, which exceeds proposal and retained-log limits; that failure remains recorded, and the supported 128/1 heavy case passes. These are preliminary samples, not a nonregression claim. Paired comparisons alternate arm order and skip byte-identical binaries with identical dynamic linkage.
+
 ## First dependency group qualification
 
 The frozen group A build passes eight initial Core/semantic checks and ten transport checks. [Preliminary footprint evidence](../benchmarks/library-adoption-progress-20261017.json) records every comparison binary. `detentd` grows by 73,776 bytes (1.59%) and the relay by 73,984 bytes (1.51%); these exceed the review threshold. In `detentd`, the executable text section grows by 30,992 bytes and the link-edit segment by 40,960 bytes. The largest symbol extent increases include HTTP progress-write/deadline templates and TLS failure reporting; these estimates do not isolate each feature's cost. Runtime comparison is pending, so this group is not accepted or pinned.

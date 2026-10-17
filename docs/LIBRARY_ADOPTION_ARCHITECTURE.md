@@ -1,7 +1,7 @@
 # Validated Architectural Blueprint: latest-library adoption
 
 **Date:** 2026-10-17
-**Status:** Design accepted. Baseline capture and implementation are active; no dependency pin has changed in this pass.
+**Status:** Design accepted. The preliminary 37-workload baseline is captured; grouped integration and paired qualification are active. No dependency pin has changed on main in this pass.
 
 Adopt the latest published Kronuz dependencies in coherent groups, comparing identical application sources before and after. Audit the wider library catalog for reusable mechanisms, but keep pin upgrades separate from changes to storage, wire formats and concurrency ownership. The [refreshed candidate inventory](../benchmarks/library-adoption-candidates-20261017-r2.json) freezes published heads and records local divergence; it supersedes the older compatibility snapshot in [the coordination ledger](DEPENDENCY_UPGRADES.md).
 
