@@ -97,3 +97,10 @@ Write the objection in `DEPENDENCY_UPGRADES.md` under a heading naming the decis
 file under a "Detent's response" section. Library changes for these decisions land only after
 they are reviewed in their own repositories, and none of them removes or changes an interface
 Detent uses today.
+
+## History note
+
+On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
+push to strip `Claude-Session` trailers that five of them carried; their trees are unchanged and
+no document cites them. If you remember an older SHA, `.scratch/history-rewrite-2026-10-17.txt`
+maps each old SHA to its new one.
