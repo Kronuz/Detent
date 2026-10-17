@@ -43,6 +43,19 @@ This file is the shared handoff between Detent integration work and library main
 
 These are reserved investigation budgets, not completion promises. A failed gate produces a concrete finding here and leaves the qualified pin unchanged. A long-running benchmark may continue on the old immutable build while compatibility work uses another build; measurements used for capacity claims must record or exclude that contention.
 
+## Proposals from the library maintainer, October 17
+
+A heads-up while this pass is held: the library-side work below lands in the Kronuz libraries, additively. No Detent source, pin or baseline changed. Each item is a candidate for a later pass, adopted and measured like any other.
+
+| Proposal | Library change | What Detent would adopt | Notes |
+| --- | --- | --- | --- |
+| Colored request logs | None: `Kronuz/http-log` exists | Wrap the publisher, relay and status handlers in `http_log::AccessLog`, as Xapiand does (`manager.cc:187`) | Measure its CPU on the request path before enabling it by default |
+| Severity-tinted messages | `logger`: opt-in `LogConfig::tint`, coloring each message in its severity's palette color | Set `tint` | Off by default; output is unchanged unless set |
+| A color per voter, peer and bundle | `term-color`: `name_color(name)`, Xapiand's per-node color (FNV-1a hue, golden-ratio spread) | Color node, voter and bundle names in log lines | Same name, same color on every host |
+| Startup banner | `term-color`: `gradient_banner(art, top, bottom, info)` | A wordmark with version and build lines at startup | Optional |
+| TLS servers without a private CA | `reactor::tls`: the `Server` role may omit the CA, and a system-roots option for clients and `--status` | Publisher or relay listeners with public certificates | Additive: contexts that pass a CA behave as today |
+| Generated certificates (later) | `reactor::pki`: first-start CA, signed node certificates, single-use enrollment tokens bound to the CA fingerprint | An optional mode beside bring-your-own CA; pinned voters can pin issued leaves | Xapiand qualifies it first; reviewed as security code before any adoption |
+
 ## Coordination ledger
 
 | Library / candidate | Owner | Finding and action | State |
