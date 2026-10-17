@@ -22,7 +22,7 @@ Detent would need to do to disagree.
 | Ignoring the subject CN in host checks is opt-in | `reactor` | No | None |
 | A per-IO identity source for reproducible runs | `completion` | No: the default is today's behavior | None |
 | A recovery bound in consensus, as Detent asked | `consensus` | No | Confirm it is the bound Detent wanted |
-| Key files at 0640 when the group is the service's own | Xapiand, aligning with Detent | No | None: this is Detent's rule |
+| Key files at 0640 when the group is the service's own | Xapiand | No | Consider the same rule (see 5) |
 
 ## 1. Peer identity: SPKI pins (SYS-2)
 
@@ -83,11 +83,12 @@ were already building on the shared one. A measurement decides it, not whoever b
 - **The published `completion` fix** that Detent's ledger still lists as local is on `main`
   upstream (SYS-12); the ledger row can be updated.
 
-## 5. Aligned with Detent
+## 5. Related to Detent
 
-- **Key files at mode 0640** are accepted by Xapiand when the file's group is the service's own,
-  and wider modes are refused, which is Detent's rule; Kubernetes secrets mounted with `fsGroup`
-  then work for both (SYS-13).
+- **Key files at mode 0640** are accepted by Xapiand only when the file's group is the process's
+  effective group, and wider modes are refused, so Kubernetes secrets mounted with `fsGroup` work
+  (SYS-13). This is stricter than Detent, which accepts group read for any group and does not
+  check its TLS key files; Detent may adopt the same rule.
 - **A shared PKI helper** (Xapiand's `design/pki`, revision 1 in progress) issues certificates and
   prints SPKI pins; Detent may adopt it as is, with no code change.
 
