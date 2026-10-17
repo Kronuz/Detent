@@ -311,3 +311,9 @@ strata's session changes these libraries for its own needs; each is a versioned 
 - `boolean-parser` `ac248d1`, `time-point` `e024c28`, `cartesian` `34bf069`, `md5` `27dd372`, `ctrie` `89b7e4d` (2026-10-16): bug fixes with tests (operand order and unbounded depth; a nanosleep redefinition; `Cartesian::operator^=` and a mutating scale; unaligned MD5 loads; a leaking pragma). `cartesian` removes the member `operator*(double)`; `c * s` now resolves to the existing free overload, which returns a copy.
 
 `DTC2` tags 1–8 are fixed (votes, appends, snapshot responses, pre-votes, `TimeoutNow`). The rest of `DTC2` is not yet: the frame header with group id and incarnations (C1, C4), coalesced heartbeats, `Wake`, `LeaderGone`, `Ping`, and `Pong` (C2), and window updates and snapshot chunk frames (C4). The coordinated commit that moves Detent's `consensus` pin waits for them, since a tag added later bumps the version. When it lands, Detent's fixed groups need no code change beyond the `decode_membership` and `maximum_size` call sites, if Detent calls them.
+
+### Retained checkpoint validation (2026-10-17)
+
+Local consensus commit `c2cbf2e` shares retained-entry validation between Recovery and incremental checkpoint encoding. Existing history remains encodable after lowering operating limits, and malformed configuration payloads fail validation. The constructor still scans no entries, step budgets remain bounded, and public APIs and encoded bytes are unchanged. Seven relevant library suites pass; Detent has not adopted this unpublished commit. The broader retained-state funding and allocation findings remain in [DEPENDENCY_UPGRADES.md](DEPENDENCY_UPGRADES.md).
+
+Detent's synthetic election ticks now derive from configured `Timing` rather than assuming the old 100 ms minimum. Library adoption uses the current defaults; it does not preserve the old profile through a compatibility override.

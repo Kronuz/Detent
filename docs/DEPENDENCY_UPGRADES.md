@@ -16,6 +16,12 @@ Source preparation lives in separate detached checkouts under `.scratch/library-
 
 Group F has a source-derived recovery-resource gate. Latest consensus reads retained state against library ceilings, while parts of incremental encoding still use operating limits. Fix that inconsistency through one shared library policy/validator across decode, replay, encode and Core recovery, rather than parallel legacy functionality. Keep configured checkpoint reservation sizing unchanged. Validate allocation bounds before growth and preserve historical group-limit semantics. Prefer library defaults; document a custom bound only after proving why the defaults are insufficient. This remains a source finding pending runtime qualification.
 
+## Retained-state consistency findings
+
+The published consensus encoder rejects historical payloads after lowering operating limits, although checkpoint decoding and Core recovery accept them. Local consensus commit `c2cbf2e` shares the existing Recovery entry validator with the incremental encoder, preserves record budgets, and gives configuration payloads their membership encoding bound. A regression fails on published `fc66c0e`; the corrected checkpoint, Core, membership, Worker, compatibility, decoder-corpus and terminal suites pass (7/7, 88.91 seconds). Source review reports no P1/P2 findings for this scope. This correction is neither pushed nor pinned into Detent.
+
+Full retained-state resource qualification remains open. Worker checkpoint reservations must cover actual retained history after limits decrease; the Store recovery batch ceiling and Worker output accounting also need historical bounds. Live admission, follower replacement and transport must use consistent kind-aware payload checks. Preserve the existing retirement credit for one bounded replacement batch. Core delivery must guard subtraction after emitting one historical entry larger than the current RPC byte limit. These findings are coordinated here so library changes can use one implementation.
+
 ## Consensus peer protocol
 
 The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. Candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2. Replacing the dependency alone does not support a rolling upgrade with old voters. Adoption requires either a coordinated cluster restart or an explicitly designed dual-codec transition, with mixed-version rejection and recovery tests before release.
