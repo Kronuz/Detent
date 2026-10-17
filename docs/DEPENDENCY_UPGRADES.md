@@ -10,6 +10,8 @@ The user requested adoption of the latest libraries, before/after benchmarks and
 
 The current published completion head is `e6c28aaef09c`; the corrected per-device macOS synchronization exists only at local `4848450`. Individual-sync pin adoption can proceed independently; general cross-device `sync_files` and shared-log adoption wait for the correction and their durability gates. Journal's working tree has unrelated changes: use committed archives and preserve that work. Published HTTP/reactor do not replace Detent's persistent client or relay overload fixes. Pin adoption, extracting duplicated code and enabling new mechanisms are separate measured changes.
 
+Compilation and load runs are held again at the user's October 17 request while another benchmark finishes. The preliminary baseline harness and its current durable sample are suspended; exclude that interrupted sample and repeat it after the all-clear. Source review and documentation may continue. No dependency pin has changed.
+
 ## Consensus peer protocol
 
 The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. Candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2. Replacing the dependency alone does not support a rolling upgrade with old voters. Adoption requires either a coordinated cluster restart or an explicitly designed dual-codec transition, with mixed-version rejection and recovery tests before release.

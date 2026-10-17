@@ -38,6 +38,12 @@ Most leaf updates are documentation or CI changes. Published HTTP and reactor ha
 
 Residency currently supplies advisory `MADV_WILLNEED`, which can still leave page faults. Completion mappings allocate controls outside Detent's ledger. Neither supplies the complete generation lease and retirement contract. The bounded zstd string helper rejects frames without content size and does not preserve the managed decoder's admitted output/workspace model. The legacy HTTP client still needs independent header, wire and gzip expansion bounds.
 
+Three concrete consolidations have matching source contracts. Apply them separately after the same-application dependency comparison, then rerun their focused regressions:
+
+1. `PagedSegmentMarks::hash` in `src/detent_local/paged_segment_marks.cc` duplicates `fnv1ah64::hash` from `hashes.hh`, including unsigned-byte conversion, offset and prime. Link the existing hashes target explicitly on local publication; preserve the reader-only dependency boundary.
+2. Authority `identity(string_view)` and delivery `identity(Value)` duplicate `parse_identity_hex<16>` in `include/detent/identity.hh`. Preserve exact length, lowercase-only and nonzero rules, along with domain diagnostics where callers depend on them.
+3. Certificate fingerprint parsing in `src/detent_authority/service.cc` can use the already linked character classification library's `hexdigit` and `hexdec` after validating the 64-character length. Its mixed-case acceptance must not leak into canonical identity parsing.
+
 ## Known library boundaries
 
 Published completion `e6c28aa` performs macOS full synchronization only on the final descriptor's device. Local `4848450` contains the per-device correction. The pin can advance while Detent retains individual synchronization; adopting general cross-device `sync_files` or a backend relying on it is blocked until the correction is included and qualified. Publishing that local fix is a separate action.
@@ -59,6 +65,8 @@ Use five fresh-process samples for short benchmarks and three for longer workloa
 | Ingestion | 500k definitions, 16/64/256 producers; calibrate, then matched offered rates at 80/100/125% of the old plateau |
 | Fleet | 500/2k/10k sessions, raw/zstd, cold/warm, 128 active exchanges, fixed owners; 10 minutes per admitted level |
 | Mixed/failure | 30-minute 500k/256-producer workload, leader death, minority loss, restart and nonempty catch-up |
+
+The standalone durable benchmark currently supports 16/64 producers; exercise 256 through the real HTTP harness without changing the benchmark during A/B. The existing codec executable takes `json` or `messagepack` and reports raw/zstd measurements internally. Record these exact interfaces in the workload manifest.
 
 Correctness gates permit no unexplained oracle mismatch, acknowledged-write loss, fabricated settlement, sanitizer error or undrained original. Investigate reproducible CPU/work or throughput regressions above 5%, p99 or longest-turn regressions above 10%, and unexplained peak-memory growth above 5%. Settled resources must return to their retained-owner baseline. Flag executable growth above the greater of 1% or 64 KiB. Preserve existing valid wire/disk fixtures and account for any amplification.
 
