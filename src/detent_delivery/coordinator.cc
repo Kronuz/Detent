@@ -749,6 +749,9 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 	ReconnectBackoff reconnect(options.poll_interval, options.reconnect_maximum, options.reconnect_seed);
 	std::exception_ptr fatal;
 	try {
+		if (!options.source.connections)
+			options.source.connections = make_connection_cache(co_await asio::this_coro::executor, 1,
+															   options.source.limits.storage_account);
 		while (!closing && store->status() == l::StoreStatus::Starting)
 			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
 		if (!closing) {
@@ -1050,6 +1053,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			std::terminate();
 		fence(fatal);
 	}
+	options.source.connections.reset();
 	close();
 	if (options.publication_sink)
 		options.publication_sink->fence();

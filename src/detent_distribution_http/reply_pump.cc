@@ -26,11 +26,11 @@ void OwnedReplyPump::send_control(int status, std::string_view body,
 		bytes->seal();
 		if (!bytes->empty()) {
 			control = std::move(bytes);
-			if (reply->start(metadata, control->size()) != http::StreamSubmit::Accepted)
+			if (reply->start(metadata, control->size(), true) != http::StreamSubmit::Accepted)
 				reply->abandon();
 			return;
 		}
-		if (reply->start(metadata, 0) != http::StreamSubmit::Accepted ||
+		if (reply->start(metadata, 0, true) != http::StreamSubmit::Accepted ||
 			reply->finish() != http::StreamSubmit::Accepted)
 			reply->abandon();
 	} catch (...) {

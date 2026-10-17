@@ -1,6 +1,6 @@
 #include "detent_delivery/response.hh"
-#include "response_probe_internal.hh"
 #include "detent_distribution/memory_resource.hh"
+#include "response_probe_internal.hh"
 #include <algorithm>
 #include <charconv>
 #include <cstring>
@@ -58,7 +58,8 @@ struct ResponseDecoder::Impl {
 	std::shared_ptr<Decoded> decoded;
 	Impl(d::Cursor configured, std::optional<d::Cursor> from, d::NamespaceSelection scope, bool coding,
 		 d::Limits bounds, std::optional<SessionResponseBinding> binding)
-		: target(configured), base(from), session(std::move(binding)), limits(std::move(bounds)), resource(limits.storage_account),
+		: target(configured), base(from), session(std::move(binding)), limits(std::move(bounds)),
+		  resource(limits.storage_account),
 		  names(d::StorageAllocator<std::pmr::string>(limits.storage_account)),
 		  selected(d::StorageAllocator<std::string_view>(limits.storage_account)), headers(&resource),
 		  field(&resource), value(&resource), compression(coding) {
@@ -69,7 +70,8 @@ struct ResponseDecoder::Impl {
 				"invalid delivery response admission");
 		if (session && session->purpose != SessionResponsePurpose::Open)
 			require(session->session != d::Identity{} &&
-				(session->purpose != SessionResponsePurpose::Next || session->window), "invalid session response binding");
+						(session->purpose != SessionResponsePurpose::Next || session->window),
+					"invalid session response binding");
 		maximum_wire = (limits.bytes / d::fragment_bytes + 1) * d::OwnedFragmentEncoder::maximum_wire_bytes();
 		// Permit bounded HTTP chunk overhead without accumulating the response.
 		maximum_wire = maximum_wire * 2 + 65536;
@@ -144,7 +146,9 @@ struct ResponseDecoder::Impl {
 	}
 	std::string_view header(std::string_view key) const {
 		auto found = headers.find(key);
-		require(found != headers.end(), "missing delivery response header");
+		if (found == headers.end())
+			throw std::invalid_argument("missing delivery response header: " + std::string(key) + " (HTTP " +
+									 std::to_string(parser.status_code) + ")");
 		return found->second;
 	}
 	void admit_response() {
@@ -221,7 +225,8 @@ struct ResponseDecoder::Impl {
 	}
 	void advance(d::WorkBudget &budget) {
 		if (control) {
-			if (!budget.tokens || !budget.bytes) return;
+			if (!budget.tokens || !budget.bytes)
+				return;
 			const auto n = std::min(size - position, budget.bytes);
 			control->append({body.data() + position, n});
 			position += n;
@@ -229,7 +234,10 @@ struct ResponseDecoder::Impl {
 			--budget.tokens;
 			if (position == size) {
 				position = size = 0;
-				if (http_done) { control->seal_prefix(); complete = true; }
+				if (http_done) {
+					control->seal_prefix();
+					complete = true;
+				}
 			}
 			return;
 		}
@@ -344,6 +352,7 @@ bool ResponseDecoder::needs_input() const noexcept {
 	return !impl_->http_done && !impl_->fragment && !impl_->size && !impl_->failed;
 }
 bool ResponseDecoder::done() const noexcept { return impl_->complete && !impl_->failed; }
+bool ResponseDecoder::reusable() const noexcept { return done() && http_should_keep_alive(&impl_->parser); }
 ReceivedUpdate ResponseDecoder::take() {
 	require(done() && !impl_->taken && !impl_->control && !impl_->probe && !impl_->reference,
 			"delivery update incomplete");
@@ -359,8 +368,8 @@ ReceivedUpdate ResponseDecoder::take() {
 }
 void detail::ProbeDecoderAccess::prepare(ResponseDecoder &decoder, bool reference) {
 	auto &p = *decoder.impl_;
-	require(!p.probe && !p.reference && !p.received && !p.headers_done && !p.taken && !p.failed && p.session &&
-				p.session->purpose == SessionResponsePurpose::Next,
+	require(!p.probe && !p.reference && !p.received && !p.headers_done && !p.taken && !p.failed &&
+				p.session && p.session->purpose == SessionResponsePurpose::Next,
 			"probe decoder requires a new session Next response");
 	p.probe = !reference;
 	p.reference = reference;
@@ -438,7 +447,8 @@ bool ResponseDecoder::discard(d::WorkBudget &budget) noexcept {
 		return true;
 	};
 	if (p.control) {
-		if (!pay(p.control->storage_capacity())) return false;
+		if (!pay(p.control->storage_capacity()))
+			return false;
 		p.control.reset();
 	}
 	while (!p.headers.empty()) {

@@ -1,5 +1,6 @@
 #include "detent_delivery/client.hh"
 #include "client_probe_internal.hh"
+#include "connection_cache_internal.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
@@ -16,7 +17,17 @@ enum class ClientBodyMode { Semantic, Probe, Reference };
 }
 namespace {
 using BodyMode = detail::ClientBodyMode;
-using TransportResponse = std::variant<ReceivedUpdate, ReceivedControl, detail::ProbeOffer>;
+struct OpenedSession {
+	d::Identity id;
+	bool snapshot;
+	std::chrono::milliseconds wait;
+};
+struct ValidatedControl {
+	ReceivedControl wire;
+	std::optional<OpenedSession> opened;
+	std::optional<SessionResetReason> reason;
+};
+using TransportResponse = std::variant<ReceivedUpdate, ValidatedControl, detail::ProbeOffer>;
 SessionResetReason reset_reason(const ReceivedControl &, std::pmr::memory_resource &);
 struct RequestAction {
 	SessionResponsePurpose purpose;
@@ -26,6 +37,8 @@ struct RequestAction {
 	std::chrono::milliseconds wait{0};
 	bool force_snapshot = false, snapshot_allowed = false;
 };
+ValidatedControl validate_control(ReceivedControl, const ClientOptions &, std::optional<RequestAction>,
+								  std::pmr::memory_resource &);
 void require(bool condition, const char *message) {
 	if (!condition)
 		throw std::invalid_argument(message);
@@ -117,7 +130,9 @@ std::pmr::string request(const ClientOptions &options, std::pmr::memory_resource
 	wire += options.hostname;
 	wire += "\r\nAuthorization: Bearer ";
 	wire += options.token;
-	wire += "\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: ";
+	wire += "\r\nContent-Type: application/json\r\nConnection: ";
+	wire += options.connections ? "keep-alive" : "close";
+	wire += "\r\nContent-Length: ";
 	wire += std::to_string(body.size());
 	wire += "\r\n\r\n";
 	wire += body;
@@ -149,19 +164,24 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	auto input = d::make_owned_buffer(account, 4096);
 	input->resize(4096);
 	auto wire = request(options, resource, action);
-	asio::ssl::stream<asio::ip::tcp::socket> socket(executor, *options.tls_context);
-	reactor::tls::bind_hostname(socket.native_handle(), options.hostname);
+	ConnectionLease connection(options, executor);
+	auto &socket = connection.stream();
 	std::exception_ptr failure;
 	std::optional<TransportResponse> result;
+	bool reusable = true;
 	try {
-		co_await socket.next_layer().async_connect(options.endpoint, asio::use_awaitable);
-		asio::error_code handshake_error;
-		co_await socket.async_handshake(asio::ssl::stream_base::client,
-										asio::redirect_error(asio::use_awaitable, handshake_error));
-		if (SSL_get_verify_result(socket.native_handle()) != X509_V_OK)
-			throw SourceTrustError("delivery TLS verification failed");
-		if (handshake_error)
-			throw asio::system_error(handshake_error);
+		if (!connection.connected()) {
+			co_await socket.next_layer().async_connect(options.endpoint, asio::use_awaitable);
+			connection.tcp_connected();
+			asio::error_code handshake_error;
+			co_await socket.async_handshake(asio::ssl::stream_base::client,
+											asio::redirect_error(asio::use_awaitable, handshake_error));
+			if (SSL_get_verify_result(socket.native_handle()) != X509_V_OK)
+				throw SourceTrustError("delivery TLS verification failed");
+			if (handshake_error)
+				throw asio::system_error(handshake_error);
+			connection.mark_connected();
+		}
 		co_await asio::async_write(socket, asio::buffer(wire.data(), wire.size()), asio::use_awaitable);
 		while (!decoder->done()) {
 			if (decoder->needs_input()) {
@@ -177,6 +197,7 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 						co_await asio::post(executor, asio::use_awaitable);
 				}
 				if (error || !n) {
+					reusable = false;
 					try {
 						decoder->eof();
 					} catch (const std::invalid_argument &) {
@@ -192,8 +213,9 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 					co_await asio::post(executor, asio::use_awaitable);
 			}
 		}
+		reusable = reusable && decoder->reusable();
 		if (decoder->is_control())
-			result.emplace(decoder->take_control());
+			result.emplace(validate_control(decoder->take_control(), options, action, resource));
 		else if (mode == BodyMode::Semantic)
 			result.emplace(decoder->take());
 		else
@@ -206,8 +228,6 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	// Cleanup uses only posted CPU work. Preserve cancellation's latched state
 	// while suppressing automatic throws at those cleanup suspension points.
 	co_await asio::this_coro::throw_if_cancelled(false);
-	asio::error_code ignored;
-	socket.next_layer().close(ignored);
 	for (;;) {
 		d::WorkBudget work;
 		if (decoder->discard(work))
@@ -226,8 +246,8 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 					break;
 				co_await asio::post(executor, asio::use_awaitable);
 			}
-		} else if (const auto *value = std::get_if<ReceivedControl>(&*result)) {
-			auto control = value->body;
+		} else if (const auto *value = std::get_if<ValidatedControl>(&*result)) {
+			auto control = value->wire.body;
 			auto bytes = control ? control->storage_capacity() : 0;
 			while (bytes) {
 				bytes -= std::min<std::size_t>(bytes, 8192);
@@ -240,6 +260,7 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	}
 	if (failure)
 		std::rethrow_exception(failure);
+	connection.reusable(reusable);
 	co_return std::move(*result);
 }
 struct Outcome {
@@ -269,7 +290,7 @@ void validate(const ClientOptions &options) {
 			"invalid delivery client options");
 }
 asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<RequestAction> action = {},
-										  BodyMode mode = BodyMode::Semantic) {
+										   BodyMode mode = BodyMode::Semantic) {
 	validate(options);
 	require(mode == BodyMode::Semantic || (action && action->purpose == SessionResponsePurpose::Next),
 			"probe exchange requires session Next");
@@ -290,12 +311,9 @@ asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<
 } // namespace
 asio::awaitable<ReceivedUpdate> receive(ClientOptions options) {
 	options.limits = d::detail::admitted_limits(std::move(options.limits));
-	auto account = options.limits.storage_account;
 	auto response = co_await perform(std::move(options));
-	if (auto *control = std::get_if<ReceivedControl>(&response)) {
-		d::LedgerMemoryResource resource(account);
-		throw SessionResetError(reset_reason(*control, resource));
-	}
+	if (auto *control = std::get_if<ValidatedControl>(&response))
+		throw SessionResetError(control->reason.value());
 	co_return std::move(std::get<ReceivedUpdate>(response));
 }
 
@@ -419,6 +437,31 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 		return SessionResetReason::InvalidRequest;
 	throw std::invalid_argument("unknown session control response");
 }
+ValidatedControl validate_control(ReceivedControl control, const ClientOptions &options,
+								  std::optional<RequestAction> action, std::pmr::memory_resource &resource) {
+	ValidatedControl result{std::move(control), {}, {}};
+	if (result.wire.status == 204)
+		return result;
+	if (result.wire.status != 200) {
+		result.reason = reset_reason(result.wire, resource);
+		return result;
+	}
+	require(action && action->purpose == SessionResponsePurpose::Open, "unexpected opening control");
+	JsonAllocator allocator{&resource};
+	Json json(&allocator, 1024, &allocator);
+	parse(json, result.wire);
+	require(json.MemberCount() == 5 && member(json, "version").IsUint() && json["version"].GetUint() == 1 &&
+				member(json, "window").IsUint64() && json["window"].GetUint64() == 0 &&
+				member(json, "wait_ms").IsUint64() && json["wait_ms"].GetUint64() <= 60000,
+			"invalid session opening response");
+	const auto id = identity(member(json, "session"));
+	const auto mode = string(member(json, "mode"));
+	require(mode == "snapshot" || (mode == "resume" && options.base && !action->force_snapshot),
+			"invalid session opening mode");
+	result.opened =
+		OpenedSession{id, mode == "snapshot", std::chrono::milliseconds(json["wait_ms"].GetUint64())};
+	return result;
+}
 struct SessionOperation {
 	std::shared_ptr<SessionHandle::State> state;
 	explicit SessionOperation(std::shared_ptr<SessionHandle::State> value) : state(std::move(value)) {
@@ -487,22 +530,13 @@ asio::awaitable<SessionHandle> open_session(ClientOptions options, bool force_sn
 	RequestAction action{SessionResponsePurpose::Open};
 	action.force_snapshot = force_snapshot;
 	auto response = co_await perform(std::move(options), action);
-	const auto &control = std::get<ReceivedControl>(response);
-	if (control.status != 200)
-		throw SessionResetError(reset_reason(control, state->resource));
-	JsonAllocator allocator{&state->resource};
-	Json json(&allocator, 1024, &allocator);
-	parse(json, control);
-	require(json.MemberCount() == 5 && member(json, "version").IsUint() && json["version"].GetUint() == 1 &&
-				member(json, "window").IsUint64() && json["window"].GetUint64() == 0 &&
-				member(json, "wait_ms").IsUint64() && json["wait_ms"].GetUint64() <= 60000,
-			"invalid session opening response");
-	state->id = identity(member(json, "session"));
-	const auto mode = string(member(json, "mode"));
-	require(mode == "snapshot" || (mode == "resume" && state->base && !force_snapshot),
-			"invalid session opening mode");
-	state->snapshot = mode == "snapshot";
-	state->wait = std::chrono::milliseconds(json["wait_ms"].GetUint64());
+	const auto &control = std::get<ValidatedControl>(response);
+	if (control.wire.status != 200)
+		throw SessionResetError(control.reason.value());
+	const auto &opened = control.opened.value();
+	state->id = opened.id;
+	state->snapshot = opened.snapshot;
+	state->wait = opened.wait;
 	SessionHandle result;
 	result.state_ = std::move(state);
 	co_return result;
@@ -510,8 +544,8 @@ asio::awaitable<SessionHandle> open_session(ClientOptions options, bool force_sn
 namespace {
 using NextEvent = std::variant<SessionOffer, detail::ProbeOffer, SessionIdle, SessionReset>;
 asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<SessionHandle::State> state,
-									std::optional<PublicationFeedback> feedback,
-									std::chrono::milliseconds wait, BodyMode mode) {
+									  std::optional<PublicationFeedback> feedback,
+									  std::chrono::milliseconds wait, BodyMode mode) {
 	require(state && state->alive && !state->closed, "session is not live");
 	SessionOperation operation(state);
 	co_await same_configuration(options, *state);
@@ -552,10 +586,10 @@ asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<Ses
 			state->offered = PublicationFeedback{offer->window, offer->target};
 			co_return std::move(*offer);
 		}
-		const auto &control = std::get<ReceivedControl>(response);
-		if (control.status == 204)
+		const auto &control = std::get<ValidatedControl>(response);
+		if (control.wire.status == 204)
 			co_return SessionIdle{};
-		auto reason = reset_reason(control, state->resource);
+		auto reason = control.reason.value();
 		if (reason != SessionResetReason::Busy && reason != SessionResetReason::AdmissionFull &&
 			reason != SessionResetReason::SourceBehind)
 			state->alive = false;
@@ -567,8 +601,8 @@ asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<Ses
 }
 } // namespace
 asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle &handle,
-										 std::optional<PublicationFeedback> feedback,
-										 std::chrono::milliseconds wait) {
+										   std::optional<PublicationFeedback> feedback,
+										   std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Semantic);
 	if (auto *offer = std::get_if<SessionOffer>(&event))
 		co_return std::move(*offer);
@@ -577,8 +611,8 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 	co_return std::get<SessionReset>(event);
 }
 asio::awaitable<detail::ProbeEvent> detail::ProbeAccess::next(ClientOptions options, SessionHandle &handle,
-														  std::optional<PublicationFeedback> feedback,
-														  std::chrono::milliseconds wait) {
+															  std::optional<PublicationFeedback> feedback,
+															  std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Probe);
 	if (auto *offer = std::get_if<ProbeOffer>(&event))
 		co_return std::move(*offer);
@@ -588,8 +622,7 @@ asio::awaitable<detail::ProbeEvent> detail::ProbeAccess::next(ClientOptions opti
 }
 asio::awaitable<detail::ProbeEvent>
 detail::ProbeAccess::reference(ClientOptions options, SessionHandle &handle,
-							  std::optional<PublicationFeedback> feedback,
-							  std::chrono::milliseconds wait) {
+							   std::optional<PublicationFeedback> feedback, std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Reference);
 	if (auto *offer = std::get_if<ProbeOffer>(&event))
 		co_return std::move(*offer);
@@ -606,9 +639,9 @@ asio::awaitable<void> close_session(ClientOptions options, SessionHandle &handle
 	state->alive = false;
 	auto response =
 		co_await perform(std::move(options), RequestAction{SessionResponsePurpose::Close, state->id});
-	const auto &control = std::get<ReceivedControl>(response);
-	if (control.status != 204 && control.status != 410)
-		throw SessionResetError(reset_reason(control, state->resource));
+	const auto &control = std::get<ValidatedControl>(response);
+	if (control.wire.status != 204 && control.wire.status != 410)
+		throw SessionResetError(control.reason.value());
 	state->closed = true;
 }
 } // namespace detent::delivery

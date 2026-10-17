@@ -2153,7 +2153,8 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 								auto metadata = distribution_http::update_headers(slot.exporter->kind(),
 																				  slot.exporter->target(),
 																				  delivery.compress, session);
-								if (delivery.reply->start_chunked(metadata) != http::StreamSubmit::Accepted)
+								if (delivery.reply->start_chunked(metadata, true) !=
+									http::StreamSubmit::Accepted)
 									throw std::runtime_error("distribution stream closed");
 								delivery.started = true;
 							}

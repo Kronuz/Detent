@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <poll.h>
 #include <source_location>
 #include <thread>
 #include <unistd.h>
@@ -484,6 +485,7 @@ void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2 || argc == 3);
+		const bool retained_idle = argc == 2;
 		const bool paged = argc == 3 && std::string_view(argv[2]).find("paged") != std::string_view::npos;
 		const bool transitions =
 			paged && std::string_view(argv[2]).find("transitions") != std::string_view::npos;
@@ -752,12 +754,12 @@ int main(int argc, char **argv) {
 								check(ready.get());
 							}
 							const std::string unavailable = "{\"error\":\"outcome_unknown\"}";
-							const auto bytes = attempt == 3
-												   ? response(count)
-												   : "HTTP/1.1 503 Service Unavailable\r\n"
-													 "Content-Type: application/json\r\nContent-Length: " +
-														 std::to_string(unavailable.size()) + "\r\n\r\n" +
-														 unavailable;
+							auto bytes = attempt == 3 ? response(count)
+													  : "HTTP/1.1 503 Service Unavailable\r\n"
+														"Content-Type: application/json\r\nContent-Length: " +
+															std::to_string(unavailable.size()) + "\r\n\r\n" +
+															unavailable;
+							bytes.insert(bytes.find("\r\n") + 2, "Connection: close\r\n");
 							asio::write(socket, asio::buffer(bytes));
 							asio::error_code ignored;
 							socket.lowest_layer().close(ignored);
@@ -971,7 +973,17 @@ int main(int argc, char **argv) {
 							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 						}
 					}
+					if (!retained_idle)
+						bytes.insert(bytes.find("\r\n") + 2, "Connection: close\r\n");
 					asio::write(socket, asio::buffer(bytes));
+					if (retained_idle) {
+						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
+						check(::poll(&descriptor, 1, 5000) > 0);
+						std::array<char, 1> byte;
+						asio::error_code error;
+						socket.read_some(asio::buffer(byte), error);
+						check(bool(error));
+					}
 				}
 			} catch (...) {
 				server_failure = std::current_exception();
@@ -1091,6 +1103,42 @@ int main(int argc, char **argv) {
 			  failed->status().error);
 		failed.reset();
 		failed_store.reset();
+		auto pressure_directory = directory / "cache-admission-pressure";
+		std::filesystem::create_directory(pressure_directory);
+		std::filesystem::permissions(pressure_directory, std::filesystem::perms::owner_all);
+		auto pressure_store =
+			l::make_disk_store(domain, pressure_directory, std::make_shared<int>(1), disk_options);
+		for (unsigned turn = 0; pressure_store->operation() || pressure_store->needs_work(); ++turn) {
+			check(turn < 10000);
+			if (auto operation = pressure_store->operation()) {
+				operation->submitted();
+				check(operation->complete(
+					kronuz::journal::detail::execute_primitive(operation->io(), operation->request())));
+			}
+			pressure_store->advance();
+		}
+		check(pressure_store->status() == l::StoreStatus::Ready);
+		auto pressure_options = options;
+		pressure_options.directory = pressure_directory;
+		pressure_options.publication_sink.reset();
+		auto pressured = t::make_coordinator(pressure_options, pressure_store, driver, domain, worker);
+		auto exhausted = account->admit(account->limit() - account->used());
+		io.restart();
+		auto pressure_done = asio::co_spawn(io, pressured->run(), asio::use_future);
+		io.run();
+		pressure_done.get();
+		check(pressured->drained() && pressured->status().phase == t::CoordinatorPhase::Fenced &&
+			  pressured->status().error);
+		bool admission_refused = false;
+		try {
+			std::rethrow_exception(pressured->status().error);
+		} catch (const d::StoragePressure &) {
+			admission_refused = true;
+		}
+		check(admission_refused && pressure_store->drained());
+		exhausted.reset();
+		pressured.reset();
+		pressure_store.reset();
 		const auto disk_peak = store->stats().peak.bytes;
 		worker.join();
 		coordinator.reset();

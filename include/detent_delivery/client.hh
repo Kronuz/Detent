@@ -1,12 +1,23 @@
 #pragma once
 #include "reactor_tls.h"
 #include "response.hh"
+#include <asio/any_io_executor.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 #include <chrono>
 #include <stdexcept>
 #include <variant>
 namespace detent::delivery {
+class ConnectionCache;
+struct ConnectionCacheStats {
+	std::uint64_t connects = 0, handshakes = 0, reuse_attempts = 0, reuses = 0, retirements = 0, pressure = 0;
+	std::size_t live = 0, leased = 0, peak_live = 0;
+};
+// One owner executor accesses the cache and its counters. Idle sockets count
+// toward the caller's FD and TLS memory budgets until the cache retires.
+std::shared_ptr<ConnectionCache> make_connection_cache(asio::any_io_executor, std::size_t capacity,
+													   std::shared_ptr<distribution::StorageLedger>);
+ConnectionCacheStats connection_cache_stats(const std::shared_ptr<ConnectionCache> &);
 namespace detail {
 struct ProbeAccess;
 }
@@ -23,6 +34,7 @@ struct ClientOptions {
 	std::chrono::milliseconds timeout{60000};
 	std::size_t request_bytes = 256 * 1024;
 	bool compression = true;
+	std::shared_ptr<ConnectionCache> connections;
 };
 // One absolute deadline covers connect, handshake, request and incremental
 // reception. Cancellation reaps original network work and budgeted candidate

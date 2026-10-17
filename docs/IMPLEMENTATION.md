@@ -17,8 +17,8 @@ The authenticated authority delivery endpoint now joins quorum-backed owner capt
 | 2 | Durable storage and strict consensus | Component accepted |
 | 3 | Bounded transaction API and authority runtime | Isolated component accepted |
 | 4 | Portable distribution and immutable local views | Component accepted, including managed agent and SDK integration |
-| 5 | Resumable delivery, subscriptions, relays and incremental publication | Stage 5A component accepted: HTTP sessions and durable agent feedback pass consolidated source review, 110 native tests and focused platform/sanitizer gates. Stage 5B component accepted: isolated real-process, shared completion and 500-client network gates pass with platform/sanitizer qualification and consolidated Architect review. Stage 5C follows its validated incremental-publication blueprint. Linux shared-host pressure attribution remains a Stage 6 qualification gap |
-| 6 | Sustained system, fleet and failure qualification | Pending |
+| 5 | Resumable delivery, subscriptions, relays and incremental publication | Stages 5A, 5B and 5C have component acceptance. Sustained fleet behavior remains a Stage 6 gate |
+| 6 | Sustained system, fleet and failure qualification | Active: sustained delivery and overload component; short 10k transport checkpoint and conservation pass, sustained capacity remains unqualified |
 
 Stage 5A follows the [validated subscription blueprint](SUBSCRIPTIONS_ARCHITECTURE.md) and has consolidated component acceptance. Stage 5B follows the [validated relay blueprint](RELAY_ARCHITECTURE.md), with one consolidated review after complete implementation and qualification.
 
@@ -480,6 +480,10 @@ The component has consolidated Architect source GO with no remaining P1/P2 findi
 
 
 ## Stage 6 native fleet qualification
+
+The current position is Stage 6 component 2, sustained delivery and overload. Bounded orchestration and managed authority failover have qualified component evidence. Persistent transport passes the reduced raw/zstd/warm/mixed/launch/cancellation matrix (9/9 including the TLS fixture, 232.13 seconds), ten focused native checks and focused ASan/UBSan checks. A short 10k-session run completes all native checkpoint checks, SDK verification and server-session conservation after correcting offload admission and retryable Close settlement. Admission-byte pressure still produces avoidable connection failures; its new deterministic regression fails before correction. The [persistent transport record](../benchmarks/fleet-persistent-transport-qualification.json) preserves successful and failed gates separately.
+
+Remaining system work is the sustained raw/zstd fan-out ladder; 500k-key producer calibration; mixed pressure and soak runs; fresh three-voter restore with quarantine and activation proof; combined resource conservation; and clean-profile installation, upgrade and rollback qualification. [The Stage 6 blueprint](STAGE6_ARCHITECTURE.md) defines these complete components and their acceptance gates. Physical independent-failure-domain and power-loss certification require separate hardware. Earlier milestone entries below describe their recorded state rather than the current task queue.
 
 The [native fleet tooling](FLEET_QUALIFICATION.md) has Architect source approval and passes its reduced matrix (11/11, 178.65 seconds), including real TLS raw/zstd/warm/mixed delivery, full SDK state verification and partial-launch/cancellation conservation. The [record](../benchmarks/fleet-tooling-qualification.json) separates transport probes from durable stores. Preliminary 500- and 2,000-session runs with 128 active exchanges verify every checkpoint; they do not establish a durable-agent fleet or sustained capacity. The [checkpoint scheduling comparison](../benchmarks/fleet-checkpoint-comparison.json) records the corrected benchmark overhead and its RSS tradeoff.
 

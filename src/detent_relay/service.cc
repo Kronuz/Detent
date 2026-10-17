@@ -252,7 +252,7 @@ struct ServiceRuntime::Impl {
 			const auto metadata =
 				h::update_headers(task.update->kind(), task.update->target(), task.compression,
 								  h::SessionHeaders{task.session, task.offer->window});
-			if (task.reply->start_chunked(metadata) != http::StreamSubmit::Accepted)
+			if (task.reply->start_chunked(metadata, true) != http::StreamSubmit::Accepted)
 				throw std::runtime_error("relay stream closed");
 			task.started = true;
 		}

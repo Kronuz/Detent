@@ -1,4 +1,7 @@
 add_executable(test_delivery_response test_response.cc)
+add_executable(test_delivery_connection_cache test_connection_cache.cc)
+target_link_libraries(test_delivery_connection_cache PRIVATE detent::delivery_transport)
+add_test(NAME test_delivery_connection_cache COMMAND test_delivery_connection_cache)
 target_link_libraries(test_delivery_response PRIVATE detent::delivery_http)
 add_test(NAME test_delivery_response COMMAND test_delivery_response)
 find_program(DETENT_DELIVERY_TEST_OPENSSL openssl REQUIRED)

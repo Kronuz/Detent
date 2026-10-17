@@ -39,6 +39,9 @@ struct Counters {
 	std::atomic<std::uint64_t> exchanges{0}, peak_exchanges{0}, closes{0}, skipped_closes{0};
 	std::atomic<std::uint64_t> parked{0}, peak_parked{0}, premature_ready_polls{0};
 	std::array<std::atomic<std::uint64_t>, 64> latency{};
+	std::array<std::atomic<std::uint64_t>, 13> reset_retries{};
+	std::atomic<std::uint64_t> source_retries{0}, network_retries{0};
+	std::atomic<std::uint64_t> close_retries{0};
 };
 struct Owner {
 	using Channel = asio::experimental::channel<void(asio::error_code, unsigned)>;
@@ -46,6 +49,7 @@ struct Owner {
 	std::size_t index;
 	asio::strand<asio::io_context::executor_type> executor;
 	Channel permits, closes;
+	std::shared_ptr<t::ConnectionCache> connections;
 	Owner(Run &, std::size_t, std::size_t);
 };
 struct Permit {
@@ -76,6 +80,7 @@ struct Run {
 	std::exception_ptr failure;
 	bool protocol_complete = false, ready_reported = false;
 	double measurement_cpu_begin = 0, measurement_cpu_end = 0;
+	t::ConnectionCacheStats reference_network;
 	Clock::time_point started = Clock::now();
 	std::unique_ptr<FILE, decltype(&std::fclose)> result{nullptr, &std::fclose};
 	asio::posix::stream_descriptor input{control};
@@ -203,14 +208,17 @@ struct Run {
 	asio::awaitable<void> release(t::ClientOptions source, t::SessionHandle &session) {
 		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 		source.timeout = std::min(source.timeout, 1000ms);
-		std::exception_ptr error;
-		try {
-			co_await t::close_session(std::move(source), session);
-		} catch (...) {
-			error = std::current_exception();
-		}
-		session = {};
-		if (error) {
+		const auto deadline = Clock::now() + 5s;
+		asio::steady_timer retry(co_await asio::this_coro::executor);
+		for (;;) {
+			std::exception_ptr error;
+			try {
+				co_await t::close_session(source, session);
+			} catch (...) {
+				error = std::current_exception();
+			}
+			if (!error)
+				break;
 			try {
 				std::rethrow_exception(error);
 			} catch (const t::SourceUnavailableError &) {
@@ -219,7 +227,13 @@ struct Run {
 				if (!retryable(reset.reason()))
 					throw;
 			}
+			if (Clock::now() >= deadline)
+				std::rethrow_exception(error);
+			++counts.close_retries;
+			retry.expires_after(20ms);
+			co_await retry.async_wait(asio::use_awaitable);
 		}
+		session = {};
 	}
 	asio::awaitable<void> close(Slot &slot, t::ClientOptions source) {
 		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
@@ -253,6 +267,7 @@ struct Run {
 	asio::awaitable<void> subscriber(Slot &slot) {
 		const auto &configured = options.sources[slot.index % options.sources.size()];
 		t::ClientOptions source = configured;
+		source.connections = slot.owner->connections;
 		if (options.warm_revision) {
 			source.base = source.configured;
 			source.base->revision = *options.warm_revision;
@@ -370,10 +385,15 @@ struct Run {
 						std::rethrow_exception(attempt_error);
 					} catch (const t::SourceUnavailableError &) {
 						retry = true;
+						++counts.source_retries;
 					} catch (const asio::system_error &) {
 						retry = !stopping.load(std::memory_order_acquire);
+						if (retry)
+							++counts.network_retries;
 					} catch (const t::SessionResetError &error) {
 						retry = retryable(error.reason());
+						if (retry)
+							++counts.reset_retries.at(static_cast<std::size_t>(error.reason()));
 					} catch (...) {
 						throw;
 					}
@@ -451,6 +471,8 @@ struct Run {
 			break;
 		}
 		auto source = options.sources.front();
+		source.connections = t::make_connection_cache(control, 1, account);
+		auto reference_connections = source.connections;
 		source.base = source.configured;
 		source.base->revision = revision;
 		t::SessionHandle session;
@@ -506,6 +528,10 @@ struct Run {
 				fatal = std::current_exception();
 		}
 
+		reference_network = t::connection_cache_stats(reference_connections);
+		if (reference_network.leased)
+			throw std::runtime_error("fleet reference connection lease did not drain");
+		reference_connections.reset();
 		if (fatal)
 			std::rethrow_exception(fatal);
 		if (validated) {
@@ -609,6 +635,21 @@ struct Run {
 		}
 	}
 	int finish() {
+		t::ConnectionCacheStats network = reference_network;
+		for (auto &owner : owners) {
+			const auto stats = t::connection_cache_stats(owner->connections);
+			if (stats.leased)
+				throw std::runtime_error("fleet connection lease did not drain");
+			network.connects += stats.connects;
+			network.handshakes += stats.handshakes;
+			network.reuses += stats.reuses;
+			network.reuse_attempts += stats.reuse_attempts;
+			network.retirements += stats.retirements;
+			network.pressure += stats.pressure;
+			network.peak_live += stats.peak_live;
+			network.live += stats.live;
+			owner->connections.reset();
+		}
 		std::uint64_t minimum = UINT64_MAX, maximum = 0;
 		for (std::size_t index = 0; index != options.subscribers; ++index) {
 			minimum = std::min(minimum, slots[index].offers);
@@ -642,16 +683,37 @@ struct Run {
 		}
 		std::fprintf(
 			result.get(),
-			"{\"measured_ms\":%lld,\"measured_minimum_offers\":%llu,\"measured_maximum_offers\":%llu,"
-			"\"measured_silent_probes\":%llu,\"measured_maximum_silence_ms\":%lld,"
-			"\"measured_cpu_seconds\":%.6f,\"peak_bootstrap_parked\":%llu,"
-			"\"premature_ready_polls\":%llu,",
-			static_cast<long long>(measurement_end ? measurement_end - measurement_begin : 0),
-			static_cast<unsigned long long>(measured_min), static_cast<unsigned long long>(measured_max),
-			static_cast<unsigned long long>(silent), static_cast<long long>(maximum_silence),
-			measurement_end ? measurement_cpu_end - measurement_cpu_begin : 0,
-			static_cast<unsigned long long>(counts.peak_parked.load()),
-			static_cast<unsigned long long>(counts.premature_ready_polls.load()));
+			"{\"close_retries\":%llu,\"source_retries\":%llu,\"network_retries\":%llu,\"reset_retries\":[",
+			static_cast<unsigned long long>(counts.close_retries.load()),
+			static_cast<unsigned long long>(counts.source_retries.load()),
+			static_cast<unsigned long long>(counts.network_retries.load()));
+		for (std::size_t index = 0; index != counts.reset_retries.size(); ++index)
+			std::fprintf(result.get(), "%s%llu", index ? "," : "",
+						 static_cast<unsigned long long>(counts.reset_retries[index].load()));
+		std::fprintf(result.get(),
+					 "],\"tcp_connects\":%llu,\"tls_handshakes\":%llu,\"connection_reuses\":%llu,"
+					 "\"connection_reuse_attempts\":%llu,\"connection_runtime_retirements\":%llu,"
+					 "\"connection_pressure\":%llu,"
+					 "\"sum_cache_peak_connections\":%zu,\"cached_connections_closed_at_shutdown\":%zu,"
+					 "\"cached_connections_after_shutdown\":0,",
+					 static_cast<unsigned long long>(network.connects),
+					 static_cast<unsigned long long>(network.handshakes),
+					 static_cast<unsigned long long>(network.reuses),
+					 static_cast<unsigned long long>(network.reuse_attempts),
+					 static_cast<unsigned long long>(network.retirements),
+					 static_cast<unsigned long long>(network.pressure), network.peak_live, network.live);
+		std::fprintf(result.get(),
+					 "\"measured_ms\":%lld,\"measured_minimum_offers\":%llu,\"measured_maximum_offers\":%llu,"
+					 "\"measured_silent_probes\":%llu,\"measured_maximum_silence_ms\":%lld,"
+					 "\"measured_cpu_seconds\":%.6f,\"peak_bootstrap_parked\":%llu,"
+					 "\"premature_ready_polls\":%llu,",
+					 static_cast<long long>(measurement_end ? measurement_end - measurement_begin : 0),
+					 static_cast<unsigned long long>(measured_min),
+					 static_cast<unsigned long long>(measured_max), static_cast<unsigned long long>(silent),
+					 static_cast<long long>(maximum_silence),
+					 measurement_end ? measurement_cpu_end - measurement_cpu_begin : 0,
+					 static_cast<unsigned long long>(counts.peak_parked.load()),
+					 static_cast<unsigned long long>(counts.premature_ready_polls.load()));
 		std::fprintf(result.get(),
 					 "\"success\":%s,\"transport_probes\":%zu,\"durable_stores\":0,\"active_limit\":%zu,"
 					 "\"workers\":%zu,\"accepted\":%llu,\"completed\":%llu,\"opened\":%llu,\"ready\":%llu,"
@@ -704,6 +766,7 @@ Owner::Owner(Run &value, std::size_t ordinal, std::size_t capacity)
 	for (std::size_t token = 0; token != close_capacity; ++token)
 		if (!closes.try_send(asio::error_code{}, 0u))
 			throw std::logic_error("fleet Close permit initialization");
+	connections = t::make_connection_cache(executor, capacity + close_capacity, run.account);
 }
 Permit::Permit(Owner &value, Owner::Channel &pool) : owner(&value), channel(&pool) {
 	const auto active = ++owner->run.counts.exchanges;

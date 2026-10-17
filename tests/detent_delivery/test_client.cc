@@ -89,6 +89,23 @@ struct Server {
 					bytes.resize(bytes.find("\r\n\r\n") + 4 + 48);
 				if (mode == 3)
 					bytes.back() ^= 1;
+				if (mode == 12)
+					bytes.insert(bytes.find("\r\n") + 2, "Connection: close\r\n");
+				if (mode == 13) {
+					bytes += "trailing";
+					asio::write(socket, asio::buffer(bytes), error);
+					return;
+				}
+				if (mode == 14 || mode == 15) {
+					const std::string body = mode == 14 ? "{\"version\":1}" : "{\"error\":false}";
+					bytes =
+						std::string(mode == 14 ? "HTTP/1.1 200 OK\r\n" : "HTTP/1.1 503 Unavailable\r\n") +
+						"Content-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) +
+						"\r\n\r\n" + body;
+				}
+				if (mode == 16)
+					bytes =
+						"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 20\r\n\r\nService Unavailable\n";
 				// Deliberately split TLS application writes independently of frames.
 				for (std::size_t offset = 0; offset < bytes.size();) {
 					const auto n = std::min<std::size_t>(31, bytes.size() - offset);
@@ -112,12 +129,18 @@ struct SessionServer {
 	asio::ip::tcp::acceptor acceptor{io, {asio::ip::address_v4::loopback(), 0}};
 	std::thread worker;
 	std::exception_ptr failure;
-	SessionServer(std::shared_ptr<asio::ssl::context> context, bool compressed) {
-		worker = std::thread([&, context = std::move(context), compressed] {
+	SessionServer(std::shared_ptr<asio::ssl::context> context, bool compressed, bool persistent = false) {
+		worker = std::thread([&, context = std::move(context), compressed, persistent] {
 			try {
-				for (unsigned step = 0; step < 7; ++step) {
-					asio::ssl::stream<asio::ip::tcp::socket> socket(acceptor.accept(), *context);
-					socket.handshake(asio::ssl::stream_base::server);
+				std::unique_ptr<asio::ssl::stream<asio::ip::tcp::socket>> connection;
+				for (unsigned sequence = 0; sequence < (persistent ? 14u : 7u); ++sequence) {
+					const auto step = sequence % 7;
+					if (!persistent || !connection) {
+						connection = std::make_unique<asio::ssl::stream<asio::ip::tcp::socket>>(
+							acceptor.accept(), *context);
+						connection->handshake(asio::ssl::stream_base::server);
+					}
+					auto &socket = *connection;
 					asio::streambuf input;
 					asio::read_until(socket, input, "\r\n\r\n");
 					std::istream stream(&input);
@@ -184,7 +207,10 @@ struct SessionServer {
 			}
 		});
 	}
-	~SessionServer() { worker.join(); }
+	~SessionServer() {
+		if (worker.joinable())
+			worker.join();
+	}
 };
 asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 	auto session = co_await t::open_session(options);
@@ -256,6 +282,13 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 	co_await t::close_session(options, session);
 	co_await t::close_session(options, session);
 }
+asio::awaitable<t::ReceivedUpdate> request(t::ClientOptions options, unsigned mode) {
+	if (mode == 14) {
+		(void)co_await t::open_session(std::move(options));
+		co_return t::ReceivedUpdate{};
+	}
+	co_return co_await t::receive(std::move(options));
+}
 } // namespace
 int main(int argc, char **argv) {
 	try {
@@ -269,80 +302,111 @@ int main(int argc, char **argv) {
 		auto client_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*client_tls, {"", "", (cert / "ca.pem").string()},
 								reactor::tls::Role::Client);
-		for (bool compressed : {false, true})
-			for (unsigned mode = 0; mode < 12; ++mode) {
+		for (bool cached : {false, true}) {
+			for (bool compressed : {false, true})
+				for (unsigned mode = 0; mode < 17; ++mode) {
+					auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+					{
+						Server server(server_tls, mode == 4 ? 0 : mode, compressed);
+						asio::io_context io;
+						t::ClientOptions options;
+						options.endpoint = server.acceptor.local_endpoint();
+						options.hostname = mode == 4 ? "wrong.example" : "localhost";
+						options.token = "0123456789abcdef0123456789abcdef";
+						options.tls_context = client_tls;
+						options.configured = cursor();
+						options.compression = compressed;
+						options.limits.storage_account = account;
+						options.timeout = mode == 1 || mode == 2 ? 20ms : 2s;
+						auto cache =
+							cached ? t::make_connection_cache(io.get_executor(), 1, account) : nullptr;
+						options.connections = cache;
+						const auto began = std::chrono::steady_clock::now();
+						auto pending =
+							asio::co_spawn(io, request(std::move(options), mode), asio::use_future);
+						io.run();
+						bool rejected = false, accepted = false;
+						try {
+							auto received = pending.get();
+							accepted = true;
+							check((mode == 0 || mode == 12) && received.snapshot &&
+								  received.snapshot->records().size() == 0 && received.target == cursor());
+							for (;;) {
+								d::WorkBudget work;
+								if (received.snapshot->discard(work))
+									break;
+							}
+						} catch (const t::SessionResetError &error) {
+							constexpr std::array reasons{
+								t::SessionResetReason::NotLeader,	  t::SessionResetReason::Unauthorized,
+								t::SessionResetReason::AdmissionFull, t::SessionResetReason::SourceBehind,
+								t::SessionResetReason::Unavailable,	  t::SessionResetReason::Forbidden};
+							check(mode >= 5 && error.reason() == reasons[mode - 5]);
+							rejected = true;
+						} catch (const t::SourceUnavailableError &) {
+							check(mode == 1 || mode == 2 || mode == 11);
+							rejected = true;
+						} catch (const t::SourceTrustError &) {
+							check(mode == 4);
+							rejected = true;
+						} catch (const std::exception &error) {
+							check((mode > 0 && mode < 4) || mode >= 13);
+							if (mode == 16)
+								check(std::string_view(error.what()) ==
+									  "missing delivery response header: content-type (HTTP 503)");
+							rejected = true;
+						}
+						check(rejected == (mode != 0 && mode != 12));
+						check(accepted == (mode == 0 || mode == 12));
+						if (cache) {
+							const auto stats = t::connection_cache_stats(cache);
+							check(stats.leased == 0);
+							if ((mode >= 1 && mode <= 4) || mode >= 11)
+								check(stats.live == 0);
+						}
+						if (mode == 1 || mode == 2)
+							check(std::chrono::steady_clock::now() - began < 500ms);
+					}
+					check(account->used() == 0);
+				}
+		}
+		for (bool persistent : {false, true}) {
+			for (bool compressed : {false, true}) {
 				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 				{
-					Server server(server_tls, mode == 4 ? 0 : mode, compressed);
+					SessionServer server(server_tls, compressed, persistent);
+					asio::io_context io;
 					t::ClientOptions options;
 					options.endpoint = server.acceptor.local_endpoint();
-					options.hostname = mode == 4 ? "wrong.example" : "localhost";
+					options.hostname = "localhost";
 					options.token = "0123456789abcdef0123456789abcdef";
 					options.tls_context = client_tls;
 					options.configured = cursor();
+					options.base = cursor();
 					options.compression = compressed;
 					options.limits.storage_account = account;
-					options.timeout = mode == 1 || mode == 2 ? 20ms : 2s;
-					asio::io_context io;
-					const auto began = std::chrono::steady_clock::now();
-					auto pending = asio::co_spawn(io, t::receive(std::move(options)), asio::use_future);
+					options.timeout = 2s;
+					if (persistent)
+						options.connections = t::make_connection_cache(io.get_executor(), 1, account);
+					auto pending = asio::co_spawn(io, session_lifecycle(options), asio::use_future);
 					io.run();
-					bool rejected = false;
-					try {
-						auto received = pending.get();
-						check(mode == 0 && received.snapshot && received.snapshot->records().size() == 0 &&
-							  received.target == cursor());
-						for (;;) {
-							d::WorkBudget work;
-							if (received.snapshot->discard(work))
-								break;
-						}
-					} catch (const t::SessionResetError &error) {
-						constexpr std::array reasons{
-							t::SessionResetReason::NotLeader,	  t::SessionResetReason::Unauthorized,
-							t::SessionResetReason::AdmissionFull, t::SessionResetReason::SourceBehind,
-							t::SessionResetReason::Unavailable,	  t::SessionResetReason::Forbidden};
-						check(mode >= 5 && error.reason() == reasons[mode - 5]);
-						rejected = true;
-					} catch (const t::SourceUnavailableError &) {
-						check(mode == 1 || mode == 2 || mode == 11);
-						rejected = true;
-					} catch (const t::SourceTrustError &) {
-						check(mode == 4);
-						rejected = true;
-					} catch (const std::exception &) {
-						check(mode > 0 && mode < 4);
-						rejected = true;
+					pending.get();
+					if (persistent) {
+						io.restart();
+						auto again = asio::co_spawn(io, session_lifecycle(options), asio::use_future);
+						io.run();
+						again.get();
+						const auto stats = t::connection_cache_stats(options.connections);
+						check(stats.connects == 1 && stats.handshakes == 1 && stats.reuses == 13 &&
+							  stats.leased == 0);
+						options.connections.reset();
 					}
-					check(rejected == (mode != 0));
-					if (mode == 1 || mode == 2)
-						check(std::chrono::steady_clock::now() - began < 500ms);
+					server.worker.join();
+					if (server.failure)
+						std::rethrow_exception(server.failure);
 				}
 				check(account->used() == 0);
 			}
-
-		for (bool compressed : {false, true}) {
-			auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
-			{
-				SessionServer server(server_tls, compressed);
-				t::ClientOptions options;
-				options.endpoint = server.acceptor.local_endpoint();
-				options.hostname = "localhost";
-				options.token = "0123456789abcdef0123456789abcdef";
-				options.tls_context = client_tls;
-				options.configured = cursor();
-				options.base = cursor();
-				options.compression = compressed;
-				options.limits.storage_account = account;
-				options.timeout = 2s;
-				asio::io_context io;
-				auto pending = asio::co_spawn(io, session_lifecycle(options), asio::use_future);
-				io.run();
-				pending.get();
-				if (server.failure)
-					std::rethrow_exception(server.failure);
-			}
-			check(account->used() == 0);
 		}
 		std::cout << "incremental TLS client and deadline cleanup passed\n";
 	} catch (const std::exception &error) {

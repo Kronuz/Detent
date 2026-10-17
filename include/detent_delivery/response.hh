@@ -35,6 +35,7 @@ class ResponseDecoder {
 	void step(distribution::WorkBudget &);
 	bool needs_input() const noexcept;
 	bool done() const noexcept;
+	bool reusable() const noexcept;
 	ReceivedUpdate take();
 	bool is_control() const noexcept;
 	ReceivedControl take_control();
