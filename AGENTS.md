@@ -1,5 +1,12 @@
 # AGENTS.md: working in Detent
 
+## Shared library decisions
+
+strata and Xapiand share Kronuz libraries with Detent (`consensus`, `journal`, `completion`,
+`reactor`). Decisions they make that touch those libraries are recorded, with their reasons and
+how to object, in `docs/SHARED_LIBRARY_DECISIONS.md`. Read it before changing or pinning any of
+those libraries, and record agreement or objections there.
+
 ## Sharing this machine
 
 Other agents may run on the same machine, from other sessions and projects, and benchmarks may
