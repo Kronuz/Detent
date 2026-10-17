@@ -40,7 +40,7 @@ Command transaction(std::uint64_t sequence) {
 }
 std::uint64_t clock_value = 0;
 void step(Node &node) {
-	node.service({++clock_value, 100});
+	node.service({++clock_value, Timing{}.election_min});
 	node.take_network_actions();
 	assert(!node.worker().fenced());
 }

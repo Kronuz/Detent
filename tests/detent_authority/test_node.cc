@@ -56,7 +56,7 @@ std::vector<Completion> pump(Node &node, unsigned limit = 200) {
 	std::vector<Completion> completed;
 	static std::uint64_t clock = 0;
 	for (unsigned i = 0; i < limit; ++i) {
-		node.service({clock += 10, 100});
+		node.service({clock += 10, Timing{}.election_min});
 		if (auto job = node.worker().take_io_operation()) {
 			kronuz::journal::drive_synchronously(*job);
 		}
@@ -137,7 +137,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
 	node.recover();
 	while (!node.worker().ready()) {
-		node.service({0, 100});
+		node.service({0, Timing{}.election_min});
 		if (auto job = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
 		node.take_network_actions();
@@ -151,7 +151,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		// read() calls drain(), but cannot advance the application slot.
 		(void)node.read(1000 + turn);
 		assert(node.state().applied_index() == before);
-		node.service({invalid_middle || backlog ? 0u : 1000u, 100});
+		node.service({invalid_middle || backlog ? 0u : Timing{}.election_min, Timing{}.election_min});
 		if (auto job = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*job);
 		assert(node.state().applied_index() <= before + 1);
@@ -252,7 +252,7 @@ void rejected_read_kind(const std::filesystem::path &path) {
 	id[0] = 'R';
 	node.create(id);
 	while (!node.worker().ready()) {
-		node.service({0, 100});
+		node.service({0, Timing{}.election_min});
 		if (auto original = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*original);
 		node.take_network_actions();
@@ -260,14 +260,14 @@ void rejected_read_kind(const std::filesystem::path &path) {
 	node.start();
 	std::vector<Completion> completed;
 	for (unsigned turn = 0; turn != 200; ++turn) {
-		node.service({0, 100});
+		node.service({0, Timing{}.election_min});
 		if (auto original = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*original);
 		node.take_network_actions();
 	}
 	assert(node.read(1) == SubmitResult::Accepted);
 	for (unsigned turn = 0; turn != 200 && completed.empty(); ++turn) {
-		node.service({0, 100});
+		node.service({0, Timing{}.election_min});
 		if (auto original = node.worker().take_io_operation())
 			kronuz::journal::drive_synchronously(*original);
 		node.take_network_actions();
@@ -419,8 +419,9 @@ int main(int argc, char **argv) {
 			profile.application.results = 1;
 		Node node(std::make_unique<kronuz::journal::PosixIO>(plain), profile);
 		node.recover();
+		std::uint64_t node_clock = 0;
 		for (unsigned i = 0; i < 1000 && !node.worker().ready(); ++i) {
-			node.service({i, 100});
+			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}
@@ -429,7 +430,7 @@ int main(int argc, char **argv) {
 		assert(node.worker().ready());
 		node.start();
 		for (unsigned i = 0; i < 1000 && !node.worker().fenced(); ++i) {
-			node.service({i, 100});
+			node.service({node_clock++, Timing{}.election_min});
 			if (auto job = node.worker().take_io_operation()) {
 				kronuz::journal::drive_synchronously(*job);
 			}

@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 		auto pump = [&] {
 			auto start = Clock::now();
 			auto turn_cpu = std::clock();
-			node.service({tick += 10, 100});
+			node.service({tick += 10, options.timing.election_min});
 			for (const auto &action : node.take_network_actions())
 				check(!std::holds_alternative<Send>(action), "unexpected peer traffic");
 			check(!node.worker().fenced(), "worker fenced");
