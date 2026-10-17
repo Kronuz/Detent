@@ -115,7 +115,7 @@ struct SessionServer {
 	SessionServer(std::shared_ptr<asio::ssl::context> context, bool compressed) {
 		worker = std::thread([&, context = std::move(context), compressed] {
 			try {
-				for (unsigned step = 0; step < 6; ++step) {
+				for (unsigned step = 0; step < 7; ++step) {
 					asio::ssl::stream<asio::ip::tcp::socket> socket(acceptor.accept(), *context);
 					socket.handshake(asio::ssl::stream_base::server);
 					asio::streambuf input;
@@ -165,7 +165,13 @@ struct SessionServer {
 							   std::to_string(control.size()) + "\r\n\r\n" + control;
 					} else {
 						check(headers.starts_with("POST /v2/distribution/session/close "));
-						wire = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+						if (step == 5) {
+							const std::string control = "{\"error\":\"admission_full\"}";
+							wire = "HTTP/1.1 503 Service Unavailable\r\nContent-Type: "
+								   "application/json\r\nContent-Length: " +
+								   std::to_string(control.size()) + "\r\n\r\n" + control;
+						} else
+							wire = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 					}
 					for (std::size_t offset = 0; offset < wire.size();) {
 						const auto count = std::min<std::size_t>(17, wire.size() - offset);
@@ -240,6 +246,13 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 	check(std::get<t::SessionReset>(event).reason == t::SessionResetReason::SourceBehind && session.valid());
 	event = co_await t::next_session(options, session, {}, 0ms);
 	check(std::get<t::SessionReset>(event).reason == t::SessionResetReason::Expired && !session.valid());
+	bool close_refused = false;
+	try {
+		co_await t::close_session(options, session);
+	} catch (const t::SessionResetError &error) {
+		close_refused = error.reason() == t::SessionResetReason::AdmissionFull;
+	}
+	check(close_refused);
 	co_await t::close_session(options, session);
 	co_await t::close_session(options, session);
 }

@@ -98,5 +98,7 @@ asio::awaitable<SessionHandle> open_session(ClientOptions, bool force_snapshot =
 asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
 										   std::optional<PublicationFeedback> = {},
 										   std::chrono::milliseconds wait = std::chrono::seconds(30));
+// Invalidates Next immediately. A failed Close may be explicitly retried;
+// authenticated 204/410 settles it and makes subsequent Close calls local no-ops.
 asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
 } // namespace detent::delivery

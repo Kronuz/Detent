@@ -604,11 +604,11 @@ asio::awaitable<void> close_session(ClientOptions options, SessionHandle &handle
 	SessionOperation operation(state);
 	co_await same_configuration(options, *state);
 	state->alive = false;
-	state->closed = true;
 	auto response =
 		co_await perform(std::move(options), RequestAction{SessionResponsePurpose::Close, state->id});
 	const auto &control = std::get<ReceivedControl>(response);
 	if (control.status != 204 && control.status != 410)
 		throw SessionResetError(reset_reason(control, state->resource));
+	state->closed = true;
 }
 } // namespace detent::delivery
