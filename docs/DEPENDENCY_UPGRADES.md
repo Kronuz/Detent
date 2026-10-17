@@ -4,6 +4,12 @@
 
 Detent pins its direct and transitive dependencies in `cmake/dependencies.json`. Qualification uses immutable archives of those revisions. The sibling repositories may advance independently; their current working directories are not reproducible build inputs.
 
+## Active adoption pass, October 17
+
+The user requested adoption of the latest libraries, before/after benchmarks and an audit for duplicated mechanisms. The [validated adoption blueprint](LIBRARY_ADOPTION_ARCHITECTURE.md) governs this pass. Published default-branch heads differ for 27 of 28 Kronuz pins in the [new inventory](../benchmarks/library-adoption-candidates-20261017.json); older candidate rows below retain their historical qualification only. Freeze the transport application baseline before changing pins, capture preliminary old-library measurements, then compare old/new builds from identical application sources in alternating pairs.
+
+The current published completion head is `e6c28aaef09c`; the corrected per-device macOS synchronization exists only at local `4848450`. Individual-sync pin adoption can proceed independently; general cross-device `sync_files` and shared-log adoption wait for the correction and their durability gates. Journal's working tree has unrelated changes: use committed archives and preserve that work. Published HTTP/reactor do not replace Detent's persistent client or relay overload fixes. Pin adoption, extracting duplicated code and enabling new mechanisms are separate measured changes.
+
 ## Consensus peer protocol
 
 The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. Candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2. Replacing the dependency alone does not support a rolling upgrade with old voters. Adoption requires either a coordinated cluster restart or an explicitly designed dual-codec transition, with mixed-version rejection and recovery tests before release.
