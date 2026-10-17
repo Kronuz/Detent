@@ -44,6 +44,8 @@ Three concrete consolidations have matching source contracts. Apply them separat
 2. Authority `identity(string_view)` and delivery `identity(Value)` duplicate `parse_identity_hex<16>` in `include/detent/identity.hh`. Preserve exact length, lowercase-only and nonzero rules, along with domain diagnostics where callers depend on them.
 3. Certificate fingerprint parsing in `src/detent_authority/service.cc` can use the already linked character classification library's `hexdigit` and `hexdec` after validating the 64-character length. Its mixed-case acceptance must not leak into canonical identity parsing.
 
+Header-name normalization in `ResponseDecoder` can also use the already linked `chars::tolower`, preserving ASCII semantics without importing HTTP server helpers. These helper changes are prepared in a separate reuse checkout and remain uncompiled during the benchmark hold.
+
 ## Known library boundaries
 
 Published completion `e6c28aa` performs macOS full synchronization only on the final descriptor's device. Local `4848450` contains the per-device correction. The pin can advance while Detent retains individual synchronization; adopting general cross-device `sync_files` or a backend relying on it is blocked until the correction is included and qualified. Publishing that local fix is a separate action.
@@ -75,6 +77,12 @@ Compare CPU per committed operation and delivered GiB, not total CPU across diff
 ## Consensus transition and compatibility
 
 Latest consensus uses DTC2. Adopt it with the matching journal and completion closure, retaining fixed voters, the named-file backend, pipeline and snapshot windows of one, follower batching disabled and explicit existing timing values. Freeze the exact peer protocol contract; future incompatible frames require a new version or a designed transition.
+
+Source inspection found a concrete default change: old consensus timing is `{20, 40, 100, 200, 60000}`, while the latest library raises heartbeat/RPC/election values. Detent's standalone durable benchmark and several fixtures send election-delay ticks of 100; latest consensus ignores delays below its election minimum. Make the old `NodeOptions` timing explicit in both comparison application trees before rebuilding. Multivoter production already sets its larger timing values separately. This is a compatibility preparation, not an optional tuning change or a measured library regression.
+
+Latest recovery uses library ceilings to support generic lowered-limit reopening. Preserve Detent's prior configured retained-state envelope through an additive optional host recovery bound. Check checkpoint descriptor length before full-buffer allocation, decoded entry count and payload bounds before container growth, and aggregate retained log bytes/entries during restoration and replay. An optional bundle-byte cap alone is insufficient. Keep the library's existing behavior when no host bound is supplied. This library capability and its Detent call are a separately measured integration change; Group F remains unqualified until they pass.
+
+The configured `maximum_size(limits)` reservation calls remain correct. Snapshot windows still default to one, follower batching remains disabled and the named-file Worker constructor does not enable shared logs. Do not expose dynamic membership: Detent's adapter handles application commands and NoOp, not membership changes. Later telemetry integration should add `peer_queued_data` alongside the new control/data queue split; keep it outside the identical-application pin comparison.
 
 Use coordinated restart: stop producer admission, reconcile receipts, checkpoint a quorum, stop all voters, preserve every store, restart all voters on the new revision, verify semantics/receipts/quorum, then resume admission. Mixed old/new peers must fail closed in both directions. Cover slow snapshots, delayed final installation, bounded windows, control starvation and append drops.
 
