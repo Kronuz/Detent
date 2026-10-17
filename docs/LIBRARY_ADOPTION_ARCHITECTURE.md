@@ -3,11 +3,11 @@
 **Date:** 2026-10-17
 **Status:** Design accepted. Baseline capture and implementation are active; no dependency pin has changed in this pass.
 
-Adopt the latest published Kronuz dependencies in coherent groups, comparing identical application sources before and after. Audit the wider library catalog for reusable mechanisms, but keep pin upgrades separate from changes to storage, wire formats and concurrency ownership. The [candidate inventory](../benchmarks/library-adoption-candidates-20261017.json) freezes published heads and records local divergence; it supersedes the older compatibility snapshot in [the coordination ledger](DEPENDENCY_UPGRADES.md).
+Adopt the latest published Kronuz dependencies in coherent groups, comparing identical application sources before and after. Audit the wider library catalog for reusable mechanisms, but keep pin upgrades separate from changes to storage, wire formats and concurrency ownership. The [refreshed candidate inventory](../benchmarks/library-adoption-candidates-20261017-r2.json) freezes published heads and records local divergence; it supersedes the older compatibility snapshot in [the coordination ledger](DEPENDENCY_UPGRADES.md).
 
 ## Freeze and adoption order
 
-Finish the persistent transport component's platform checks, then preserve its application tree, actual dependency sources, build settings and binaries. The existing frozen configuration overrides cpp-btree with `.scratch/stage6-btree/after`; archive and hash that directory as well as the declared revision. Both benchmark arms must use the same application source, compiler, codec linkage, corpus and configuration. Capture every resolved dependency rather than relying on declarations alone.
+Finish the persistent transport component's platform checks, then preserve its application tree, actual dependency sources, build settings and binaries. The existing frozen configuration overrides cpp-btree with `.scratch/stage6-btree/after`; archive and hash that directory as well as the declared revision. Both benchmark arms must use the same application source, compiler, codec linkage and corpus. Exercise each library revision's defaults; record any required nondefault settings and the evidence for them. Capture every resolved dependency rather than relying on declarations alone.
 
 | Group | Scope | Qualification boundary |
 | --- | --- | --- |
@@ -48,9 +48,9 @@ Header-name normalization in `ResponseDecoder` can also use the already linked `
 
 ## Known library boundaries
 
-Published completion `e6c28aa` performs macOS full synchronization only on the final descriptor's device. Local `4848450` contains the per-device correction. The pin can advance while Detent retains individual synchronization; adopting general cross-device `sync_files` or a backend relying on it is blocked until the correction is included and qualified. Publishing that local fix is a separate action.
+Published completion `5251cf9` now includes the per-device macOS synchronization correction. Earlier candidate `e6c28aa` did not. Qualify the corrected published implementation directly, preserving the existing backend during the pin comparison. Shared-log or batched-I/O adoption remains a separate measured mechanism change, without a parallel old implementation.
 
-Threadpool `c1c1f39` still needs a defined post-join restart contract: `run()` does not recreate its one-shot promise/future. Verify Detent starts consumed objects once and joins authentic completion. Do not replace I/O ownership with TaskGroup merely because it is available. The journal sibling has unrelated uncommitted work; qualification uses committed archives, never its working directory.
+Published threadpool `628679a` defines restart after completion and fixes the earlier one-shot promise/future issue. Published compressors `ed590c8` tests supported backend subsets and rejects all-disabled configuration. Exercise these corrected APIs rather than retaining workaround behavior. Original I/O settlement still differs from TaskGroup ownership, so pin adoption alone does not justify replacing it.
 
 ## Measurements and acceptance
 
@@ -76,11 +76,11 @@ Compare CPU per committed operation and delivered GiB, not total CPU across diff
 
 ## Consensus transition and compatibility
 
-Latest consensus uses DTC2. Adopt it with the matching journal and completion closure, retaining fixed voters, the named-file backend, pipeline and snapshot windows of one, follower batching disabled and explicit existing timing values. Freeze the exact peer protocol contract; future incompatible frames require a new version or a designed transition.
+Latest consensus uses DTC2. Adopt it with the matching journal and completion closure, retaining fixed voters and the named-file backend. Start from library defaults for timing, pipeline, snapshot windows and batching; do not preserve older values through compatibility overrides. Freeze the exact peer protocol contract; future incompatible frames require a new version or a designed transition.
 
-Source inspection found a concrete default change: old consensus timing is `{20, 40, 100, 200, 60000}`, while the latest library raises heartbeat/RPC/election values. Detent's standalone durable benchmark and several fixtures send election-delay ticks of 100; latest consensus ignores delays below its election minimum. Make the old `NodeOptions` timing explicit in both comparison application trees before rebuilding. Multivoter production already sets its larger timing values separately. This is a compatibility preparation, not an optional tuning change or a measured library regression.
+Source inspection found a default timing change. Synthetic callers must derive their election delay from the configured `Timing`, rather than assuming 100 ms. Apply that caller correction to both comparison trees and leave `NodeOptions` on library defaults. Existing production overrides equal the latest defaults; remove them after pin adoption as a separate cleanup. A default change is not evidence of regression. Retain a nondefault setting only when qualification establishes a reason, and record it in the shared ledger for library-level evaluation.
 
-Latest recovery uses library ceilings to support generic lowered-limit reopening. Preserve Detent's prior configured retained-state envelope through an additive optional host recovery bound. Check checkpoint descriptor length before full-buffer allocation, decoded entry count and payload bounds before container growth, and aggregate retained log bytes/entries during restoration and replay. An optional bundle-byte cap alone is insufficient. Keep the library's existing behavior when no host bound is supplied. This library capability and its Detent call are a separately measured integration change; Group F remains unqualified until they pass.
+Latest recovery uses library ceilings to support lowered-limit reopening, but its incremental encoder still checks some retained payloads against operating limits. Resolve this in the library through one retained-state resource policy and shared validation used by decoding, replay, encoding and Core recovery. Keep historical group limits distinct from allocation bounds. Check descriptor lengths and decoded counts before allocation, and aggregate retained bytes before growth. Do not add a legacy recovery implementation or a Detent-only decoder. Evaluate the library's common default policy before choosing a custom host bound; record any demonstrated regression and its rationale in the shared ledger. Group F remains unqualified until these consistency and resource tests pass.
 
 The configured `maximum_size(limits)` reservation calls remain correct. Snapshot windows still default to one, follower batching remains disabled and the named-file Worker constructor does not enable shared logs. Do not expose dynamic membership: Detent's adapter handles application commands and NoOp, not membership changes. Later telemetry integration should add `peer_queued_data` alongside the new control/data queue split; keep it outside the identical-application pin comparison.
 
