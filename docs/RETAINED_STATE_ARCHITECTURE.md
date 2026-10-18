@@ -4,6 +4,14 @@
 
 Lowering operating limits must preserve valid historical state while keeping recovery, live admission, checkpoint funding and delivery inside one explicit resource envelope. Consensus uses one implementation and unchanged storage/wire bytes. Local corrections `c2cbf2e` and `ef30b4f` cover shared checkpoint-entry validation and delivery subtraction; they do not close this component.
 
+## Shared ownership and integration
+
+The October 18 architecture reconciliation assigns SYS-12 to this existing component. Continue the canonical resource implementation in the isolated `consensus-fix` checkout; the Journal maintainer integrates its paired `journal-fix` reservation growth. Track C consumes these helpers instead of introducing another recovery-bound API. The [shared decisions](SHARED_LIBRARY_DECISIONS.md) and adoption ledger record this ownership; Track C's work ledger still needs the corresponding assignment.
+
+Track C owns membership-transition semantics and transport negotiation. Resource and structural checks precede historical membership checks, which precede mutation or activation. Keep transport identity and quorum logic outside the resource cursor. Membership recovery must preserve the existing historical fallback in `recovered_limits(index)` when no explicit group limits exist. Reject invalid follower transitions before mutating the log. Add combined tests for lowered operating limits, membership changes and checkpoint funding before integration.
+
+This policy bounds one Worker's retained state. Future node-wide pools for many groups reuse these boundaries and admission mechanisms; this component does not establish a node-wide budget. Finalized version 2 reports peer limits, so Detent qualification must verify equal-limit fixed groups with those reports present. Continued absence of peer-limit reports is not a compatibility guarantee.
+
 ## Policy and validation
 
 Add `RetainedStatePolicy` with independent command-byte, log-byte/count and batch-byte/count bounds, defaulting to the existing library ceilings. Append it to `WorkerLimits` and propagate it through Core, Recovery, admission and checkpoint codecs using defaulted arguments. Defaults authorize bounded historical state without allocating or reserving their maxima.

@@ -26,6 +26,14 @@ The frozen group A build passes eight initial Core/semantic checks and ten trans
 
 The A–E native suite exposed a pre-existing trust fixture failure, reproduced with old libraries: the fixture closed persistent HTTP/1.1 responses without declaring `Connection: close`. A transport retry could then reach the secondary endpoint before the intended profile rejection. The fixture now declares its connection behavior; its assertions remain unchanged. All ten negative trust cases pass with both old and A–E binaries. This changes test behavior only; it is not an introduced library regression or a production trust fix.
 
+### Completed A–E comparison, October 18
+
+The [paired results](../benchmarks/library-adoption-paired-ae-20261017.json) contain 54 successful samples: three alternating pairs for each of nine workloads with changed executables. Another 28 workloads have byte-identical executables and identical dynamic linkage and were skipped. The full native run passes 213 of 214 tests in 1,209.39 seconds; the sole trust-fixture failure above passes in a corrected two-test rerun. This is not a single 214/214 invocation.
+
+The 500k paged-collection case exceeds the CPU review gate: median process CPU rises from 9.98 to 11.30 seconds (13.23%). Both arms have unchanged segment, I/O, CPU-turn and sampled-heap counts. Individual CPU samples are 11.32/9.92/9.98 seconds before and 11.31/11.30/9.93 after, so both arms span the observed range. A focused repeat and attribution are required before calling this an introduced regression or accepting the upgrade. The other eight changed workloads have median CPU differences between -0.75% and +0.24%.
+
+These microbenchmarks do not discharge the HTTP daemon CPU gate. Fleet process-CPU instrumentation remains unvalidated, and controlled raw/zstd fleet comparisons remain pending. No A–E pin is adopted on this evidence alone.
+
 ## Retained-state consistency findings
 
 The published consensus encoder rejects historical payloads after lowering operating limits, although checkpoint decoding and Core recovery accept them. Local consensus commit `c2cbf2e` shares the existing Recovery entry validator with the incremental encoder, preserves record budgets, and gives configuration payloads their membership encoding bound. A regression fails on published `fc66c0e`; the corrected checkpoint, Core, membership, Worker, compatibility, decoder-corpus and terminal suites pass (7/7, 88.91 seconds). Source review reports no P1/P2 findings for this scope. This correction is neither pushed nor pinned into Detent.
