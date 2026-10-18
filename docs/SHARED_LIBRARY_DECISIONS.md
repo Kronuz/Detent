@@ -71,9 +71,10 @@ were already building on the shared one. A measurement decides it, not whoever b
 
 - **reactor's UDP receive loop** exits for good when a message handler throws, so a node stops
   receiving all bus messages (found by Xapiand's failover work, `c51da3e09`: a leader killed
-  within a second of the first write left the survivors unable to elect). The loop will catch,
-  log, and continue. Detent's handlers are unaffected unless they throw, in which case the loop
-  now survives instead of dying.
+  within a second of the first write left the survivors unable to elect). The loop catches,
+  reports through reactor's `L_EXC` hook, and continues. The hook is a no-op unless the consumer
+  defines `L_EXC` or sets `REACTOR_TRACE_HEADER`, so until Detent wires it, a throwing handler's
+  datagram is dropped silently instead of killing the loop.
 - **`X509_CHECK_FLAG_NEVER_CHECK_SUBJECT` in reactor's `bind_hostname`** (the PKI security
   review's fix for hostnames matched against the CN) becomes an option, off by default, so no
   existing verifier changes.
