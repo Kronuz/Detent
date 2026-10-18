@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "date": "2026-10-18",
+  "component": "retained-state resources",
+  "status": "source reviewed; native qualified; final platform fixtures and Detent integration pending",
+  "snapshots": {
+    "consensus": {
+      "base": "3c60f472da68e6e0d4810bbc929c89c0643d0f8f",
+      "archive_sha256": "7dc17e1349fe0a53a7a7963c027e2bc20e38379e916c5df3cdf0add74a626b3c"
+    },
+    "journal": {
+      "base": "cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62",
+      "archive_sha256": "59dcb212653335d99a8e9e9aa100df90563c9677f8369a896d138f2a92c37ca3"
+    }
+  },
+  "evidence": {
+    "worker_focused": {
+      "path": "retained-incoming-large-tests.log",
+      "sha256": "3a712133bdab904dbe369dc21d50a450c6837cbff4ee97097b49f8dc0afc14b2",
+      "output": "134 retained Worker checks, 0 failures\n"
+    },
+    "retained_state": {
+      "path": "retained-follower-tests.log",
+      "sha256": "d94efb83fde8dc98af219cf7ad5b59aeee5e2e7930f069524896aaa99573b806",
+      "output": "285 retained-state checks passed\n"
+    },
+    "transport_configuration": {
+      "path": "retained-config-seam-tests.log",
+      "sha256": "b6d03c6098a6c7a896e73ac4e1a82e581e8f5034c758895bd2cd4a5ff461b4dd",
+      "output": "bounded control codec: 525 malformed frames rejected\n"
+    },
+    "native_full": {
+      "path": "retained-final-canonical-tests.log",
+      "sha256": "d1cfce8698f802e3408f9e567248772ec5d6b06aadc03f6537488d4ace0669da",
+      "output": "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/consensus-fix-build\n      Start  1: consensus_consensus\n 1/24 Test  #1: consensus_consensus ...................   Passed    3.55 sec\n      Start  2: consensus_checkpoint_encoder\n 2/24 Test  #2: consensus_checkpoint_encoder ..........   Passed    0.07 sec\n      Start  3: consensus_retained_log\n 3/24 Test  #3: consensus_retained_log ................   Passed    0.12 sec\n      Start  4: consensus_retirement\n 4/24 Test  #4: consensus_retirement ..................   Passed    0.01 sec\n      Start  5: consensus_simulation\n 5/24 Test  #5: consensus_simulation ..................   Passed    1.11 sec\n      Start  6: consensus_membership\n 6/24 Test  #6: consensus_membership ..................   Passed    0.38 sec\n      Start  7: consensus_pipeline\n 7/24 Test  #7: consensus_pipeline ....................   Passed    0.08 sec\n      Start  8: consensus_retained_state\n 8/24 Test  #8: consensus_retained_state ..............   Passed    0.02 sec\n      Start  9: consensus_compat\n 9/24 Test  #9: consensus_compat ......................   Passed    0.01 sec\n      Start 10: consensus_liveness\n10/24 Test #10: consensus_liveness ....................   Passed    2.24 sec\n      Start 11: consensus_shared_worker\n11/24 Test #11: consensus_shared_worker ...............   Passed    5.96 sec\n      Start 12: consensus_shared_cluster\n12/24 Test #12: consensus_shared_cluster ..............   Passed    2.97 sec\n      Start 13: consensus_worker\n13/24 Test #13: consensus_worker ......................   Passed   80.97 sec\n      Start 14: consensus_fuzz_decoders_replay\n14/24 Test #14: consensus_fuzz_decoders_replay ........   Passed    0.09 sec\n      Start 15: consensus_worker_terminal\n15/24 Test #15: consensus_worker_terminal .............   Passed    2.61 sec\n      Start 16: consensus_completion_asio\n16/24 Test #16: consensus_completion_asio .............   Passed    1.18 sec\n      Start 17: consensus_tls_certificates\n17/24 Test #17: consensus_tls_certificates ............   Passed    0.50 sec\n      Start 18: consensus_transport_codec\n18/24 Test #18: consensus_transport_codec .............   Passed    0.03 sec\n      Start 19: consensus_transport_rpc_observation\n19/24 Test #19: consensus_transport_rpc_observation ...   Passed    0.01 sec\n      Start 20: consensus_transport_ownership\n20/24 Test #20: consensus_transport_ownership .........   Passed    0.01 sec\n      Start 21: consensus_transport_peers\n21/24 Test #21: consensus_transport_peers .............   Passed    0.01 sec\n      Start 22: consensus_transport_tls\n22/24 Test #22: consensus_transport_tls ...............   Passed    2.21 sec\n      Start 23: consensus_transport_pipe\n23/24 Test #23: consensus_transport_pipe ..............   Passed    2.94 sec\n      Start 24: consensus_transport_authentication\n24/24 Test #24: consensus_transport_authentication ....   Passed    0.05 sec\n\n100% tests passed out of 24\n\nTotal Test time (real) = 107.39 sec\n"
+    },
+    "journal_growth": {
+      "path": "journal-grown-original-tests.log",
+      "sha256": "d6df3c23f2f53b249f1bdc1a080878793554a0fe4f08046ae80f7f5b96a13e0f",
+      "output": "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/journal-fix-build\n    Start 1: journal_journal\n1/2 Test #1: journal_journal ..................   Passed    2.57 sec\n    Start 3: journal_admission\n2/2 Test #3: journal_admission ................   Passed    0.01 sec\n\n100% tests passed out of 2\n\nTotal Test time (real) =   2.59 sec\n"
+    },
+    "journal_platforms": {
+      "path": "journal-grown-preflight.log",
+      "sha256": "20a4d6e76793a73fcb598d322a64bb9ad0ee6ad99aa187362c61c939f44ab0fd",
+      "output": "mac-hardened: ok\nmac-asan-ubsan: ok\nlinux: ok\nfreebsd: ok\n"
+    },
+    "retirement_platforms": {
+      "path": "retirement-fix-preflight.log",
+      "sha256": "20a4d6e76793a73fcb598d322a64bb9ad0ee6ad99aa187362c61c939f44ab0fd",
+      "output": "mac-hardened: ok\nmac-asan-ubsan: ok\nlinux: ok\nfreebsd: ok\n"
+    },
+    "metadata_mutant": {
+      "path": "resource-mutants/results.log",
+      "sha256": "db6c4e880011c836cc13db255d49225d79da54a5f1f2158968b4e4a66fdebd7e",
+      "output": "metadata-bypass: caught\ncapture-unfunded: SURVIVED\n"
+    },
+    "funding_and_rejection_mutants": {
+      "path": "resource-mutants/corrected-results.log",
+      "sha256": "a616a0403bda97db2582ca964532eaec79ddc7c917802031c94667c8b8f106a0",
+      "output": "capture-unfunded-both: caught\nrejection-needs-funding: caught\n"
+    },
+    "incoming_large_mutant": {
+      "path": "resource-mutants/incoming-large-results.log",
+      "sha256": "ac1fdc91554a4d1d0471b114036142d76799ae87d5e4c193a846b38384dc225d",
+      "output": "capture-unfunded-incoming-large: caught\n"
+    },
+    "incoming_initial_survived": {
+      "path": "resource-mutants/incoming-results.log",
+      "sha256": "869cd5c788d2d3bc173296203499124da627e36faccef0d1b9041092982eb074",
+      "output": "capture-unfunded-incoming: SURVIVED\n"
+    }
+  },
+  "limits": [
+    "Timing is functional qualification under concurrent host activity, not a performance comparison.",
+    "The paired consensus platform snapshot predates the final larger incoming fixture and Configuration transport seam; final fixture platform results remain required.",
+    "Journal commit is local and not published; production dependency closure is not established.",
+    "Initial incoming-only funding mutation survived with an 8KiB suffix that fit the conservative initial reservation; the strengthened 12KiB case catches it."
+  ]
+}
