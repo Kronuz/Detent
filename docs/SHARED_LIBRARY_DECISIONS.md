@@ -22,6 +22,7 @@ Detent would need to do to disagree.
 | Ignoring the subject CN in host checks is opt-in | `reactor` | No | None |
 | A per-IO identity source for reproducible runs | `completion` | No: the default is today's behavior | None |
 | A recovery bound in consensus, as Detent asked | `consensus` | No | Confirm it is the bound Detent wanted |
+| The peer transport's version 2 (section 6) | `consensus`, reactor | No, until the coordinated restart | Agree to the restart in `DEPENDENCY_UPGRADES.md` |
 | Key files at 0640 when the group is the service's own | Xapiand | No | Consider the same rule (see 5) |
 
 ## 1. Peer identity: SPKI pins (SYS-2)
@@ -91,6 +92,31 @@ were already building on the shared one. A measurement decides it, not whoever b
   check its TLS key files; Detent may adopt the same rule.
 - **A shared PKI helper** (Xapiand's `design/pki`, revision 1 in progress) issues certificates and
   prints SPKI pins; Detent may adopt it as is, with no code change.
+
+## 6. The peer transport, revision 1 (strata `design/peer-transport`, 2026-10-17)
+
+The shared peer transport design (strata's Track C D16, extended) is in review. What it asks of
+Detent, all additive until Detent opts in:
+
+1. **Leaving wire version 1 (Q4).** One coordinated restart into version 2 itself, never into
+   `d7192f7` or any commit in `0307308..fc66c0e`. Please record agreement in
+   `DEPENDENCY_UPGRADES.md` before strata's step 4 (the version-2 wire) lands.
+2. **`consensus` interfaces (PT-R8).** `PeerConfiguration` is untouched, so building it by
+   position keeps working; `PeerOptions` only gains fields at the end; there is no second
+   `strict` (reactor's `tls.strict` is the one); closing a session at certificate expiry is an
+   opt-in (`close_at_expiry`), off by default.
+3. **Detent's transport suite** runs at every additive step of the change, recorded in
+   `LIBRARY_BOUNDARIES.md`.
+4. **What version 2 changes at the restart:** per-group credit with a startup check (16 MiB
+   passes at the RPC limits Detent keeps), bulk windows replacing the snapshot `Credit`, either
+   node dialing, and group and epoch folded into the group id.
+5. **reactor:** in-memory PEM keys, and TLS 1.3 for the `Peer` role under `strict`. Neither
+   affects Detent while it sets no `strict`.
+6. **The consensus core:** quorum-based command admission and membership checks at every replica.
+   Neither changes a fixed group whose host reports no `PeerLimits`, which is Detent's case.
+7. **Opt-ins for later:** SPKI pins, exponential reconnect backoff (Detent keeps its flat one),
+   per-source handshake caps, closing at expiry, and the send low-water mark.
+8. **`Flow::frame_bytes`** may be retired at version 2; Detent leaves it at 0.
 
 ## How to disagree
 
