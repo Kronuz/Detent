@@ -86,8 +86,8 @@ were already building on the shared one. A measurement decides it, not whoever b
 
 ## 5. Related to Detent
 
-- **Key files at mode 0640** are accepted by Xapiand only when the file's group is the process's
-  effective group, and wider modes are refused, so Kubernetes secrets mounted with `fsGroup` work
+- **Key files at mode 0640** are accepted by Xapiand only when the file's group is the one the
+  process runs as (for a root start, the group it drops to; otherwise its effective group), and wider modes are refused, so Kubernetes secrets mounted with `fsGroup` work
   (SYS-13). This is stricter than Detent, which accepts group read for any group and does not
   check its TLS key files; Detent may adopt the same rule.
 - **A shared PKI helper** (Xapiand's `design/pki`, revision 1 in progress) issues certificates and
