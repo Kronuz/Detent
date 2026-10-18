@@ -28,6 +28,8 @@ Active retained state stays within policy. Preserve the existing temporary allow
 
 Retirement must also make progress when a historical command or configuration exceeds today's command-byte budget. One first oversized item may consume a fresh nonzero byte budget, saturating its remaining bytes to zero. Share that allowance across output containers and retained-log retirement for the whole turn; do not reconstruct it from remaining units and bytes. Zero-byte predecessors consume work units and postpone oversized work to a fresh turn. Explicit zero unit or byte capacity cannot release a positive-sized item. Accepted retained-state bounds still cap each item.
 
+The shared scope above is the terminal `Worker::retirement_turn`, which runs before active-service cleanup. Active `run_one` retains its existing separate cleanup quanta: one upfront and up to two Core steps on completion paths, with at most one additional storage-fault step. Each quantum has its own budget. Account for those quanta when measuring active-turn work; do not claim a single oversized allowance for the entire active service turn.
+
 ## Checkpoint funding
 
 Keep the initial checkpoint reservation based on operating capacity. Add `Core::retained_suffix(LogBoundary)`, returning entry count and payload bytes from cached subtree accounting in logarithmic work. Use the same boundary-match rule as installation.

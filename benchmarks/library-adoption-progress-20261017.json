@@ -1,5 +1,5 @@
 {
-  "status": "Preliminary group A; runtime comparison pending; no pins adopted",
+  "status": "A-E native coverage and paired microbenchmarks captured; performance and footprint review open; no pins adopted",
   "common_application_commit": "170597d",
   "candidate_inventory": "library-adoption-candidates-20261017-r2.json",
   "groups": [
@@ -161,5 +161,393 @@
     "linkedit_before_bytes": 2203648,
     "linkedit_after_bytes": 2244608
   },
-  "footprint_review": "Largest symbol extent increases include HTTP progress-write/deadline templates and TLS handshake failure reporting. Symbol extents are estimates, not isolated feature size attribution. Public library defaults unchanged by the caller."
+  "footprint_review": "Largest symbol extent increases include HTTP progress-write/deadline templates and TLS handshake failure reporting. Symbol extents are estimates, not isolated feature size attribution. Public library defaults unchanged by the caller.",
+  "ae": {
+    "groups": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e"
+    ],
+    "effective_dependency_manifest": "../.scratch/library-adoption-20261017/manifests/through-e-r2.json",
+    "native_tests": {
+      "full_invocation": {
+        "passed": 213,
+        "total": 214,
+        "seconds": 1209.39
+      },
+      "corrected_trust_rerun": {
+        "passed": 2,
+        "total": 2,
+        "seconds": 1.76
+      },
+      "limitation": "Full invocation contains the pre-existing trust fixture failure; corrected fixture rerun covers that failure. Not one 214/214 invocation."
+    },
+    "paired_microbenchmarks": "library-adoption-paired-ae-20261017.json",
+    "process_cpu_instrumentation": {
+      "focused_unit_tests": 7,
+      "ruff": "pass",
+      "strict_pyrefly": "pass",
+      "raw_smoke": "pass",
+      "zstd_smoke": "pass",
+      "limitation": "Functional checks under host contention; not a performance comparison."
+    },
+    "footprint": {
+      "detent-agent": {
+        "before_bytes": 3266352,
+        "after_bytes": 3280360,
+        "delta_bytes": 14008,
+        "delta_percent": 0.4288576368989013,
+        "before_sha256": "e1632a7021414f5d21eeb0daa340b9f732d467b91db66cfdb211756685063d99",
+        "after_sha256": "1b4e0941dd3448e7a4705e613f4d6fb96ca96c3698098ad4b0e60b01f5344ed6",
+        "review_required": false
+      },
+      "detent-relay": {
+        "before_bytes": 4897728,
+        "after_bytes": 4988464,
+        "delta_bytes": 90736,
+        "delta_percent": 1.8526141100526612,
+        "before_sha256": "62f9fc5ddb4a1e6b9cd8a9105f81fa77b031d03e64d26a2691603eaf3383ba37",
+        "after_sha256": "70fd1a58baeb080a1b5d1d354e6792b1c533a7040db6242db9c021ba5e1f9f14",
+        "review_required": true
+      },
+      "detent_agent_shm_bench": {
+        "before_bytes": 88136,
+        "after_bytes": 88136,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "e10cb8c87e9b13cd6f2bc5515756cb7e14e9142bb6d8bac21527ebfe889280b0",
+        "after_sha256": "e10cb8c87e9b13cd6f2bc5515756cb7e14e9142bb6d8bac21527ebfe889280b0",
+        "review_required": false
+      },
+      "detent_authority_bench": {
+        "before_bytes": 425936,
+        "after_bytes": 425936,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "a9aea3cc1cfff5e96db01d9ba5e47c854f8cd460e0374708db6c30beb1d8de9c",
+        "after_sha256": "a9aea3cc1cfff5e96db01d9ba5e47c854f8cd460e0374708db6c30beb1d8de9c",
+        "review_required": false
+      },
+      "detent_authority_durable_bench": {
+        "before_bytes": 1068248,
+        "after_bytes": 1076360,
+        "delta_bytes": 8112,
+        "delta_percent": 0.7593742277074238,
+        "before_sha256": "ef58c9a47b738b6c2a3e2d22a510386f587439514acc6fcd88e3203217418fc4",
+        "after_sha256": "b5adcaef8209ec6412a797a52780fac50bcfb56730481b5204e5bc2158ff214d",
+        "review_required": false
+      },
+      "detent_delta_decode_bench": {
+        "before_bytes": 96880,
+        "after_bytes": 96880,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "ceb685306c5ae05309e852d7fc578104afebd95856ce0868886fff176654de18",
+        "after_sha256": "ceb685306c5ae05309e852d7fc578104afebd95856ce0868886fff176654de18",
+        "review_required": false
+      },
+      "detent_distribution_codec_bench": {
+        "before_bytes": 164328,
+        "after_bytes": 164328,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "70104d41841a0e5c7bafb3b54dd40da8ab752107a8991ae4d59d277617014761",
+        "after_sha256": "70104d41841a0e5c7bafb3b54dd40da8ab752107a8991ae4d59d277617014761",
+        "review_required": false
+      },
+      "detent_fleet_load": {
+        "before_bytes": 1277224,
+        "after_bytes": 1281840,
+        "delta_bytes": 4616,
+        "delta_percent": 0.3614088053465954,
+        "before_sha256": "3c5fe340e3c7c0a81be0aa02df965f4392caa1ce78a2827fb9f4569e5de9bd4c",
+        "after_sha256": "b0507bc7bef80142fd152bf871921f97b578ba47d43fec4204b703fbe37e2201",
+        "review_required": false
+      },
+      "detent_hash_bench": {
+        "before_bytes": 26920,
+        "after_bytes": 26920,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "3cccd65f2b2e514f381fed06232548dc2f86a78b447119ebf4266544ba2866ad",
+        "after_sha256": "3cccd65f2b2e514f381fed06232548dc2f86a78b447119ebf4266544ba2866ad",
+        "review_required": false
+      },
+      "detent_local_image_bench": {
+        "before_bytes": 590672,
+        "after_bytes": 590672,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "ab41deec4593561bf2d2576ed0025b716b2328c229f7f472fd65cc57027e26f3",
+        "after_sha256": "ab41deec4593561bf2d2576ed0025b716b2328c229f7f472fd65cc57027e26f3",
+        "review_required": false
+      },
+      "detent_paged_collection_bench": {
+        "before_bytes": 854792,
+        "after_bytes": 862880,
+        "delta_bytes": 8088,
+        "delta_percent": 0.9461950977547754,
+        "before_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "after_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "review_required": false
+      },
+      "detent_paged_recovery_bench": {
+        "before_bytes": 926848,
+        "after_bytes": 934944,
+        "delta_bytes": 8096,
+        "delta_percent": 0.8734981356166276,
+        "before_sha256": "5e34855f4061fbb9760af309091e8f1b30f613715114c65505be8e4fa040ee20",
+        "after_sha256": "866704071e4732e1e4890d0b88bb3cf0505b6eb0cc105afdde8b29cb1e3a4513",
+        "review_required": false
+      },
+      "detent_paged_snapshot_bench": {
+        "before_bytes": 424840,
+        "after_bytes": 424840,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "b15266564e50ff06067658c8722affa82e418ebee906aa8072ccc39f88512a9c",
+        "after_sha256": "b15266564e50ff06067658c8722affa82e418ebee906aa8072ccc39f88512a9c",
+        "review_required": false
+      },
+      "detent_read_bench": {
+        "before_bytes": 282544,
+        "after_bytes": 282544,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "f1bec76ce0e41c773a4f5f775442ad2f62f5a1845d5fc38fafabde2ee7d80dea",
+        "after_sha256": "f1bec76ce0e41c773a4f5f775442ad2f62f5a1845d5fc38fafabde2ee7d80dea",
+        "review_required": false
+      },
+      "detent_system_local_oracle": {
+        "before_bytes": 732680,
+        "after_bytes": 732680,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "c8e7bb93845fa5b6a10a80a0fd1342e6123b54ee83a6ed46613c9caa406d081d",
+        "after_sha256": "c8e7bb93845fa5b6a10a80a0fd1342e6123b54ee83a6ed46613c9caa406d081d",
+        "review_required": false
+      },
+      "detent_system_mixed_oracle": {
+        "before_bytes": 745288,
+        "after_bytes": 745288,
+        "delta_bytes": 0,
+        "delta_percent": 0.0,
+        "before_sha256": "7bb55f187e19c5dd8f2acbd0b98d7efec4db764467d8b2a5fd3e553d52927b4f",
+        "after_sha256": "7bb55f187e19c5dd8f2acbd0b98d7efec4db764467d8b2a5fd3e553d52927b4f",
+        "review_required": false
+      },
+      "detentd": {
+        "before_bytes": 4640568,
+        "after_bytes": 4736040,
+        "delta_bytes": 95472,
+        "delta_percent": 2.057334360793765,
+        "before_sha256": "5bfd210e2f934b42ceece397a68f44b230a5ae4414911e7a21b2e9e2c524ca53",
+        "after_sha256": "a51336d27192e5c8339e90cfbd85b2a4f777db7a9c97de49ee201d7aa75b11a3",
+        "review_required": true
+      }
+    },
+    "effective_dependencies": [
+      {
+        "name": "asio",
+        "repository": "https://github.com/chriskohlhoff/asio.git",
+        "revision": "231cb29bab30f82712fcd54faaea42424cc6e710",
+        "source_subdir": "."
+      },
+      {
+        "name": "atomic_shared_ptr",
+        "repository": "https://github.com/Kronuz/atomic-shared-ptr.git",
+        "revision": "b7bf5efcec1dd437caf0692263cedfe368adceb2",
+        "source_subdir": "."
+      },
+      {
+        "name": "char_classify",
+        "repository": "https://github.com/Kronuz/char-classify.git",
+        "revision": "306ecd96d55d47d9bd3167eaeb7877e40d0631ac",
+        "source_subdir": "."
+      },
+      {
+        "name": "cluster",
+        "repository": "https://github.com/Kronuz/cluster.git",
+        "revision": "84e6b016406b9f16a6dd78882dabd0dcdf63deff",
+        "source_subdir": "."
+      },
+      {
+        "name": "compressors",
+        "repository": "https://github.com/Kronuz/compressors.git",
+        "revision": "ed590c87201afd270afbfbb2d58d5d467c6d23b6",
+        "source_subdir": "."
+      },
+      {
+        "name": "constexpr_phf",
+        "repository": "https://github.com/Kronuz/constexpr-phf.git",
+        "revision": "1a035230c03982a822637f7c741656bd688bd9e3",
+        "source_subdir": "."
+      },
+      {
+        "name": "cpp_btree",
+        "repository": "https://github.com/Kronuz/cpp-btree.git",
+        "revision": "dbe7557b000cb8eddfcf991d12fc16f8d994a49f",
+        "source_subdir": "."
+      },
+      {
+        "name": "cppcodec",
+        "repository": "https://github.com/tplgy/cppcodec.git",
+        "revision": "8019b8b580f8573c33c50372baec7039dfe5a8ce",
+        "source_subdir": "do-not-configure"
+      },
+      {
+        "name": "detent_logger",
+        "repository": "https://github.com/Kronuz/logger.git",
+        "revision": "8c5afcd89030586939dd5229ee2ae583069b83dd",
+        "source_subdir": "."
+      },
+      {
+        "name": "endian",
+        "repository": "https://github.com/Kronuz/endian.git",
+        "revision": "f6269f09da90bb3713018792003f01a67749b00c",
+        "source_subdir": "."
+      },
+      {
+        "name": "enum_reflection",
+        "repository": "https://github.com/Kronuz/enum-reflection.git",
+        "revision": "9b5ecea02d7de8356ddd10fd874cd981aba399db",
+        "source_subdir": "."
+      },
+      {
+        "name": "generation_cache",
+        "repository": "https://github.com/Kronuz/generation-cache.git",
+        "revision": "01af1b2b17226d49ed89623e9af5d4f94a187588",
+        "source_subdir": "."
+      },
+      {
+        "name": "hashes",
+        "repository": "https://github.com/Kronuz/hashes.git",
+        "revision": "7ab0c23325debfbaf4104044987ba6583d14808f",
+        "source_subdir": "."
+      },
+      {
+        "name": "http_lib",
+        "repository": "https://github.com/Kronuz/http.git",
+        "revision": "dc3be77028d13aca66d20648d498301c9d745968",
+        "source_subdir": "."
+      },
+      {
+        "name": "http_parser",
+        "repository": "https://github.com/Kronuz/http-parser.git",
+        "revision": "178f873450364b67f0abca9c96fbbc735589d435",
+        "source_subdir": "."
+      },
+      {
+        "name": "radix_router",
+        "repository": "https://github.com/Kronuz/radix-router.git",
+        "revision": "d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed",
+        "source_subdir": "."
+      },
+      {
+        "name": "random_lib",
+        "repository": "https://github.com/Kronuz/random.git",
+        "revision": "6487253c9e7a4855ccbea36f7a66cea5fef7d381",
+        "source_subdir": "."
+      },
+      {
+        "name": "rapidjson",
+        "repository": "https://github.com/Tencent/rapidjson.git",
+        "revision": "24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+        "source_subdir": "do-not-configure"
+      },
+      {
+        "name": "reactor",
+        "repository": "https://github.com/Kronuz/reactor.git",
+        "revision": "e19afd966d5cf18e377649398096be66fb40e800",
+        "source_subdir": "."
+      },
+      {
+        "name": "scheduler",
+        "repository": "https://github.com/Kronuz/scheduler.git",
+        "revision": "fb464cb39256057b321c3a8837a7dab2fe1e09b7",
+        "source_subdir": "."
+      },
+      {
+        "name": "sha256",
+        "repository": "https://github.com/Kronuz/sha256.git",
+        "revision": "2bb34f02973575ebe030e7444b2996024cc05fcf",
+        "source_subdir": "."
+      },
+      {
+        "name": "stash",
+        "repository": "https://github.com/Kronuz/stash.git",
+        "revision": "2908b488c10dbd6830c384f53358783639a36965",
+        "source_subdir": "."
+      },
+      {
+        "name": "static_string",
+        "repository": "https://github.com/Kronuz/static-string.git",
+        "revision": "eb1efcb39f4d8bb4fd20a9ea91498a288d25aca2",
+        "source_subdir": "."
+      },
+      {
+        "name": "strict_stox",
+        "repository": "https://github.com/Kronuz/strict-stox.git",
+        "revision": "21b7941c71064b5a4e52ffb50a2701ee4aae4c6c",
+        "source_subdir": "."
+      },
+      {
+        "name": "term_color",
+        "repository": "https://github.com/Kronuz/term-color.git",
+        "revision": "534e30905b1a40ae1f18dbde46b039dd4333747b",
+        "source_subdir": "."
+      },
+      {
+        "name": "threadpool",
+        "repository": "https://github.com/Kronuz/threadpool.git",
+        "revision": "628679a2e27b563cf2709a6f35f98f1657baf7b3",
+        "source_subdir": "."
+      },
+      {
+        "name": "varint",
+        "repository": "https://github.com/Kronuz/varint.git",
+        "revision": "21af82a64fd5860d14d5ec9591bec2ffd5d662d1",
+        "source_subdir": "."
+      },
+      {
+        "name": "completion",
+        "repository": "https://github.com/Kronuz/completion.git",
+        "revision": "5251cf9f24350c65548318b54a4be93389df73d0",
+        "source_subdir": "."
+      },
+      {
+        "name": "journal",
+        "repository": "https://github.com/Kronuz/journal.git",
+        "revision": "57e6250e1b714925feddc210641c1c6ea49d5337",
+        "source_subdir": "."
+      },
+      {
+        "name": "metrics",
+        "repository": "https://github.com/Kronuz/metrics.git",
+        "revision": "c975765bafe61fa79a0aa417be6deb30edf3b1db",
+        "source_subdir": "."
+      },
+      {
+        "name": "consensus",
+        "repository": "https://github.com/Kronuz/consensus.git",
+        "revision": "b7073bbe4d94e66dce526f193b0dd81a57cdb661",
+        "source_subdir": "."
+      },
+      {
+        "name": "lz4",
+        "repository": "https://github.com/lz4/lz4.git",
+        "revision": "ebb370ca83af193212df4dcbadcc5d87bc0de2f0",
+        "source_subdir": "build/cmake"
+      },
+      {
+        "name": "zstd",
+        "repository": "https://github.com/facebook/zstd.git",
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "source_subdir": "build/cmake"
+      }
+    ],
+    "effective_dependency_manifest_sha256": "3894a06a8870a370d4320b000e364c4c662174e67734a62b424c258014a00ce7"
+  }
 }
