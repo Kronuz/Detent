@@ -38,6 +38,16 @@ Full retained-state resource qualification remains open. Worker checkpoint reser
 
 ## Consensus peer protocol
 
+### Shared transport agreement, October 18
+
+Detent agrees to the [shared peer transport revision 1](SHARED_LIBRARY_DECISIONS.md#6-the-peer-transport-revision-1-strata-designpeer-transport-2026-10-17): use one coordinated restart directly from the qualified version-1 transport into finalized version 2. Do not adopt `d7192f7` or revisions in `0307308..fc66c0e`. Those revisions remain historical inspection and regression inputs only. Group F waits for Track C's transport work and its coherent dependency closure; the October 17 inventory is not an approved Group F target.
+
+Do not freeze unfinished consensus wire bytes. Qualify N/N-1 negotiation when the shared implementation lands; its future availability does not make the current version-1 transition rolling-compatible. Keep fixed voters and the named-file backend. Record Detent's transport-suite results at each additive step in [LIBRARY_BOUNDARIES.md](LIBRARY_BOUNDARIES.md), including the tested revision and dependency closure.
+
+Detent joins the journal backend decision after Track C T6 measures both backends at 1,000 groups. Keep existing backend use until those results exist. The shared recovery-bound work must reconcile with [the retained-state resource blueprint](RETAINED_STATE_ARCHITECTURE.md) before either implementation lands: a checkpoint length cap alone does not cover replay allocation, retained-log accounting or checkpoint funding. Use one shared policy and implementation.
+
+SPKI pins, service-group key permissions and reactor exception logging need source verification and focused qualification before adoption. Existing certificate-pin rotation documentation needs a restart-order audit against the PKI finding. These are open integration items, not security fixes established by this handoff.
+
 The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. Candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2. Replacing the dependency alone does not support a rolling upgrade with old voters. Adoption requires either a coordinated cluster restart or an explicitly designed dual-codec transition, with mixed-version rejection and recovery tests before release.
 
 The candidate also adds dynamic membership and shared turn-log support. Their availability in the library does not imply Detent exposes or qualifies them. Existing fixed-voter disk compatibility fixtures cover a different boundary from peer wire compatibility.

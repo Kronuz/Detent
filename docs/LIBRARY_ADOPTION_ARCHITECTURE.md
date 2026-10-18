@@ -16,7 +16,7 @@ Finish the persistent transport component's platform checks, then preserve its a
 | C | Scheduler, stash, threadpool and random | One shared random target, timer behavior, original completion and shutdown |
 | D | Compressors | Preserve enabled backends and actual codec versions; qualify helper adoption separately |
 | E | Completion | Retain individual-sync, existing mappings and the current storage backend |
-| F | Journal and consensus | Coherent closure, homogeneous DTC2 restart, recovery and rollback |
+| F | Journal and consensus | Finalized version-2 closure, coordinated restart, recovery and rollback |
 | G | Optional mechanisms | Demonstrated bottleneck and a separate ownership/durability design |
 
 Most leaf updates are documentation or CI changes. Published HTTP and reactor have no new production implementation relative to the qualified pins; they do not replace Detent's persistent client, offload-limit mitigation or typed header-pressure handling. Keep `random_lib` available before scheduler consumers. Keep all existing compressor backends enabled initially, with the same installed or pinned zstd/LZ4/zlib implementations in both comparison arms.
@@ -83,7 +83,7 @@ Compare CPU per committed operation and delivered GiB, not total CPU across diff
 
 ## Consensus transition and compatibility
 
-Latest consensus uses DTC2. Adopt it with the matching journal and completion closure, retaining fixed voters and the named-file backend. Start from library defaults for timing, pipeline, snapshot windows and batching; do not preserve older values through compatibility overrides. Freeze the exact peer protocol contract; future incompatible frames require a new version or a designed transition.
+Group F adopts finalized version 2 with the matching journal and completion closure, retaining fixed voters and the named-file backend. The [shared transport agreement](DEPENDENCY_UPGRADES.md#shared-transport-agreement-october-18) excludes `d7192f7` and revisions in `0307308..fc66c0e` as adoption targets. Wait for Track C to finish the transport before freezing its protocol contract. Qualify the shared N/N-1 negotiation when available; the transition from Detent's current version 1 still uses one coordinated restart. Start from library defaults for timing, pipeline, snapshot windows and batching; do not preserve older values through compatibility overrides.
 
 Source inspection found a default timing change. Synthetic callers must derive their election delay from the configured `Timing`, rather than assuming 100 ms. Apply that caller correction to both comparison trees and leave `NodeOptions` on library defaults. Existing production overrides equal the latest defaults; remove them after pin adoption as a separate cleanup. A default change is not evidence of regression. Retain a nondefault setting only when qualification establishes a reason, and record it in the shared ledger for library-level evaluation.
 

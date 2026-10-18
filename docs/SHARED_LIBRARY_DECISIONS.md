@@ -126,6 +126,12 @@ file under a "Detent's response" section. Library changes for these decisions la
 they are reviewed in their own repositories, and none of them removes or changes an interface
 Detent uses today.
 
+## Detent's response, October 18
+
+Detent agrees to the coordinated restart directly into finalized version 2, recorded in [DEPENDENCY_UPGRADES.md](DEPENDENCY_UPGRADES.md#shared-transport-agreement-october-18). Intermediate DTC2 candidates are excluded from adoption, and unfinished wire bytes remain unfrozen. Transport qualification accompanies each additive step. The journal backend decision waits for T6's 1,000-group measurements.
+
+The recovery-bound proposal must cover the [retained-state resource blueprint](RETAINED_STATE_ARCHITECTURE.md), with one shared implementation. SPKI adoption, rotation restart ordering, service-group key permissions and the reactor exception reporting hook remain source-audit and qualification items. No dependency pin changes with this response.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
