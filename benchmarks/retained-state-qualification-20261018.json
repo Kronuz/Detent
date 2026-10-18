@@ -2,7 +2,7 @@
   "schema": 1,
   "date": "2026-10-18",
   "component": "retained-state resources",
-  "status": "source reviewed; native qualified; final platform fixtures and Detent integration pending",
+  "status": "paired libraries qualified; Detent integration qualification active; published dependency closure pending",
   "snapshots": {
     "consensus": {
       "base": "3c60f472da68e6e0d4810bbc929c89c0643d0f8f",
@@ -68,12 +68,31 @@
       "path": "resource-mutants/incoming-results.log",
       "sha256": "869cd5c788d2d3bc173296203499124da627e36faccef0d1b9041092982eb074",
       "output": "capture-unfunded-incoming: SURVIVED\n"
+    },
+    "paired_platforms": {
+      "path": "retained-resource-preflight.log",
+      "sha256": "20a4d6e76793a73fcb598d322a64bb9ad0ee6ad99aa187362c61c939f44ab0fd",
+      "output": "mac-hardened: ok\nmac-asan-ubsan: ok\nlinux: ok\nfreebsd: ok\n"
+    },
+    "final_mac_fixtures": {
+      "path": "retained-final-fixtures-mac-retest.log",
+      "sha256": "e39f7eb5fd23ee248ac55fd5d36be12b19c24c10bee822303ed7ef766492b31b",
+      "output": "Test project /Users/kronuz/.scratch/preflight/consensus-resource-qualification/mac\n    Start 13: consensus_worker\n1/2 Test #13: consensus_worker .................   Passed   89.41 sec\n    Start 18: consensus_transport_codec\n2/2 Test #18: consensus_transport_codec ........   Passed    0.29 sec\n\n100% tests passed out of 2\n\nTotal Test time (real) =  89.71 sec\n"
+    },
+    "final_mac_sanitizer_fixtures": {
+      "path": "retained-final-fixtures-mac-asan-retest.log",
+      "sha256": "141743e5a61fcc2cc747eb41d9e35530f6e6b4fecfef9839965698600913a9f2",
+      "output": "Test project /Users/kronuz/.scratch/preflight/consensus-resource-qualification/mac-asan\n    Start 13: consensus_worker\n1/2 Test #13: consensus_worker .................   Passed   90.46 sec\n    Start 18: consensus_transport_codec\n2/2 Test #18: consensus_transport_codec ........   Passed    0.37 sec\n\n100% tests passed out of 2\n\nTotal Test time (real) =  90.89 sec\n"
     }
   },
   "limits": [
     "Timing is functional qualification under concurrent host activity, not a performance comparison.",
-    "The paired consensus platform snapshot predates the final larger incoming fixture and Configuration transport seam; final fixture platform results remain required.",
+    "The complete paired macOS preflight predates two strengthened fixtures; separate final hardened and ASan/UBSan fixture reruns pass. Linux and FreeBSD complete suites include those final fixtures.",
     "Journal commit is local and not published; production dependency closure is not established.",
     "Initial incoming-only funding mutation survived with an 8KiB suffix that fit the conservative initial reservation; the strengthened 12KiB case catches it."
-  ]
+  ],
+  "qualified_commits": {
+    "consensus": "47d2884",
+    "journal": "cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62"
+  }
 }
