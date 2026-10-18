@@ -44,6 +44,8 @@ The [validated retained-state blueprint](RETAINED_STATE_ARCHITECTURE.md) defines
 
 Full retained-state resource qualification remains open. Worker checkpoint reservations must cover actual retained history after limits decrease; the Store recovery batch ceiling and Worker output accounting also need historical bounds. Live admission, follower replacement and transport must use consistent kind-aware payload checks. Preserve the existing retirement credit for one bounded replacement batch. These findings are coordinated here so library changes can use one implementation.
 
+The October 18 checkpoint-funding regression exposes another historical-limit boundary: shutdown can spin indefinitely when retirement budgets use the lowered command limit and refuse a larger retained payload on every turn. A finite-drain regression fails both funded and pressure/canceled cases (25 checks, two failures). The component now requires one shared oversized-first retirement allowance; source preparation is under qualification. Do not raise every turn's ordinary budget to the default maximum retained command size.
+
 ## Consensus peer protocol
 
 ### Shared transport agreement, October 18

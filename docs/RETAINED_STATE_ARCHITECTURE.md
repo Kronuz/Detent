@@ -26,6 +26,8 @@ Apply the policy to proposals, membership entries, election NoOps, follower repl
 
 Active retained state stays within policy. Preserve the existing temporary allowance for one bounded replacement batch alongside detached retirement debt; repeated merged requests cannot accumulate extra allowances. Worker output accounting must cover permitted historical entries without preallocating the maxima. An oversized historical entry is delivered alone.
 
+Retirement must also make progress when a historical command or configuration exceeds today's command-byte budget. One first oversized item may consume a fresh nonzero byte budget, saturating its remaining bytes to zero. Share that allowance across output containers and retained-log retirement for the whole turn; do not reconstruct it from remaining units and bytes. Zero-byte predecessors consume work units and postpone oversized work to a fresh turn. Explicit zero unit or byte capacity cannot release a positive-sized item. Accepted retained-state bounds still cap each item.
+
 ## Checkpoint funding
 
 Keep the initial checkpoint reservation based on operating capacity. Add `Core::retained_suffix(LogBoundary)`, returning entry count and payload bytes from cached subtree accounting in logarithmic work. Use the same boundary-match rule as installation.
@@ -56,5 +58,6 @@ Detent retains its configured `maximum_size(o.consensus)` funding check and supp
 6. Pass configuration payloads above operating command limits through transport, admission, replay and checkpoints.
 7. Preserve old fixture bytes, acknowledged prefixes, original-I/O settlement and shutdown conservation. Add resource-bypass and capture-before-funding mutants.
 8. Run full library/application suites, compatibility, decoder/fuzz, sanitizer and platform checks. Measure this component separately from dependency-only comparisons.
+9. Drain historical commands and configuration entries under lowered operating limits in finite retirement turns. Cover two oversized items, zero-byte predecessors and shared budgets across containers without subtraction underflow or renewed allowances.
 
 Keep the named-file backend and existing transport mechanisms. Land the policy, reservation growth, Worker lifecycle and Detent integration as one coherent component before accepting dependency group F.
