@@ -20,8 +20,9 @@ these docs are collected here.
 | Python and Rust bindings | **Basic**: file source only |
 | Durable authority | **Component accepted**; fleet-scale qualification open |
 | Managed delivery and SDK source | **Component accepted** |
-| Resumable subscriptions, relays, incremental publication | **In progress** (Stage 5) |
-| Sustained system, fleet and failure qualification | **Pending** (Stage 6) |
+| Resumable subscriptions, relays, incremental publication | **Component accepted** (Stage 5) |
+| Sustained system, fleet and failure qualification | **Active** (Stage 6); sustained capacity remains unqualified |
+| Updated libraries and remaining reusable-library extraction | **In progress**; required before the initial release |
 
 ---
 
@@ -34,8 +35,8 @@ these docs are collected here.
 | 2 | Durable storage and strict consensus | Accepted |
 | 3 | Bounded transaction API and authority runtime | Accepted |
 | 4 | Portable distribution and immutable local views | Accepted, including managed agent and SDK |
-| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A and 5B components accepted; 5C incremental publication in implementation |
-| 6 | Sustained system, fleet and failure qualification | Pending |
+| 5 | Resumable delivery, subscriptions, relays, incremental publication | 5A, 5B and 5C components accepted |
+| 6 | Sustained system, fleet and failure qualification | Active; short 10k-session functional evidence, sustained qualification open |
 
 The planning workload for stages 5 and 6 is 500,000 knobs, 300 concurrent
 publishers, 1,000 transactions per second and 50,000 agents. Those are test
@@ -45,7 +46,9 @@ targets, not demonstrated capacity.
 
 ## Build and Release
 
-1. **Pin dependency revisions** instead of following `main`.
+The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/RELEASE_PLAN.md) tracks the remaining gates. It includes updated-library qualification and extraction of shared HTTP clients, bounded MessagePack, the persistent map and resource primitives. Final system qualification uses the resulting pinned library closure.
+
+1. **Qualify dependency updates** against the existing immutable pins before adopting them.
 2. **Tagged releases** with a changelog, and a version reported by the binaries.
 3. **Continuous integration** on Linux, macOS and FreeBSD, including the
    sanitizer runs.
@@ -105,4 +108,4 @@ targets, not demonstrated capacity.
 5. Combined pressure/churn and whole-service telemetry overhead for the
    authority.
 
-The shared-segment collector, warm recovery, mapped admission and complete private paged delivery pass consolidated source review. Final affected Linux, FreeBSD, ASan/UBSan and TSan gates pass. Two native parallel 500k fixture failures pass in separate and CTest serial repeats; controlled-contention attribution remains open. Production configuration and complete fleet qualification remain separate gates.
+The shared-segment collector, warm recovery, mapped admission and paged delivery have component acceptance, including affected Linux, FreeBSD, ASan/UBSan and TSan checks. Controlled contention attributes the native 500k feedback failure to a fixture observer deadline; production deadlines remain unchanged. Earlier Linux shared-host pressure failures retain a separate attribution gap. Short 10k-session transport checks do not establish 10k durable-agent capacity. Sustained workload, fresh-group restore, combined resource conservation and clean deployment qualification remain open.
