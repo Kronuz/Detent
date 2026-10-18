@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -137,6 +138,49 @@ def available_memory() -> int:
         ).split()
         return (int(counts[0]) + int(counts[1])) * int(counts[2])
     raise ValueError("fleet memory preflight supports Linux, macOS and FreeBSD")
+
+
+def parse_cpu_time(value: str) -> float:
+    """Read BSD fractional minutes and POSIX day/hour process CPU times."""
+    prefix, separator, clock = value.partition("-")
+    days = int(prefix) if separator else 0
+    parts = (clock if separator else prefix).split(":")
+    if len(parts) not in (2, 3):
+        raise ValueError("invalid process CPU time")
+    hours = int(parts[0]) if len(parts) == 3 else 0
+    minutes = int(parts[-2])
+    seconds = float(parts[-1])
+    if (
+        days < 0
+        or hours < 0
+        or minutes < 0
+        or (len(parts) == 3 and minutes >= 60)
+        or not math.isfinite(seconds)
+        or not 0 <= seconds < 60
+    ):
+        raise ValueError("invalid process CPU time")
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def process_cpu_seconds(actors: list[Actor]) -> dict[str, float]:
+    names = {
+        actor.process.pid: actor.name
+        for actor in actors
+        if actor.process.returncode is None
+    }
+    if not names:
+        return {}
+    report = command(["ps", "-o", "pid=,time=", "-p", ",".join(map(str, names))])
+    result: dict[str, float] = {}
+    for line in report.splitlines():
+        pid, clock = line.split()
+        name = names[int(pid)]
+        if name in result:
+            raise ValueError("duplicate process CPU report")
+        result[name] = parse_cpu_time(clock)
+    if set(result) != set(names.values()):
+        raise RuntimeError("incomplete process CPU report")
+    return result
 
 
 def resident_bytes(actors: list[Actor]) -> int:

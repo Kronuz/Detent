@@ -6,10 +6,23 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from fleet import FleetOutput, admission, load_result
+from fleet import FleetOutput, admission, load_result, parse_cpu_time
 
 
 class FleetTests(unittest.TestCase):
+    def test_process_cpu_time_formats(self) -> None:
+        for text, expected in (
+            ("0:00.02", 0.02),
+            ("61:02.50", 3662.5),
+            ("01:02:03", 3723.0),
+            ("2-03:04:05", 183845.0),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(parse_cpu_time(text), expected)
+        for text in ("1", "-1:00", "1:60", "1:60:00", "1:nan", "1:inf"):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                parse_cpu_time(text)
+
     def test_fragmented_events_and_exact_counter_types(self) -> None:
         output = FleetOutput()
         for byte in b'{"event":"ready","sessions":500,"warm":false}\n':

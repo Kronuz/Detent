@@ -11,7 +11,13 @@ from pathlib import Path
 
 from authority import Authority
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
-from fleet import FleetOutput, admission, load_result, resident_bytes
+from fleet import (
+    FleetOutput,
+    admission,
+    load_result,
+    process_cpu_seconds,
+    resident_bytes,
+)
 from http_activity import configure_workers
 from managed import ManagedCohort
 from mixed import MixedWriters
@@ -297,6 +303,8 @@ async def run(arguments: argparse.Namespace) -> None:
                         await probe.process.stdin.drain()
                         await output.wait_event(probe, output.measurement_started, 10)
                         baseline = writers.counts.copy()
+                        cpu_began = time.monotonic()
+                        cpu_initial = process_cpu_seconds(actors.children.copy())
                         began = time.monotonic()
                         generator_cpu = time.process_time()
                         http_initial = authority.http_activity.snapshot(reset=True)
@@ -309,6 +317,18 @@ async def run(arguments: argparse.Namespace) -> None:
                         http_final = authority.http_activity.snapshot()
                         workload_elapsed = time.monotonic() - began
                         generator_cpu = time.process_time() - generator_cpu
+                        cpu_final = process_cpu_seconds(actors.children.copy())
+                        cpu_elapsed = time.monotonic() - cpu_began
+                        if cpu_final.keys() != cpu_initial.keys():
+                            raise RuntimeError(
+                                "fleet process set changed during measurement"
+                            )
+                        process_cpu = {
+                            name: cpu_final[name] - cpu_initial[name]
+                            for name in cpu_initial
+                        }
+                        if any(value < 0 for value in process_cpu.values()):
+                            raise RuntimeError("fleet process CPU counter decreased")
                         sustained_counts = dict(writers.counts - baseline)
                         probe.process.stdin.write(b'{"measurement":false}\n')
                         await probe.process.stdin.drain()
@@ -361,6 +381,12 @@ async def run(arguments: argparse.Namespace) -> None:
                             scheduled_interval_seconds=duration,
                             pending_drain_seconds=max(0, workload_elapsed - duration),
                             generator_cpu_seconds=generator_cpu,
+                            process_cpu_seconds=process_cpu,
+                            process_cpu_interval_seconds=cpu_elapsed,
+                            process_core_demand={
+                                name: value / cpu_elapsed
+                                for name, value in process_cpu.items()
+                            },
                             checkpoint_and_verification_seconds=time.monotonic()
                             - began
                             - workload_elapsed,

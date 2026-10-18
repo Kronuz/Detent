@@ -36,6 +36,8 @@ The pacer keeps one accepted workload per producer and a bounded catch-up batch.
 
 Actual worker concurrency and fixed queue/service histograms accompany writer counters. Queue time includes asynchronous admission waiting; HTTP observations include health queries, reads and retries. Queue time is recorded on entry and service time on completion, with initial in-flight counts retained. Generator CPU is recorded separately. A lower-worker diagnostic does not establish server capacity.
 
+The `fleet_verified` event also records `process_cpu_seconds` for each authority, relay, durable agent and native probe, with `process_cpu_interval_seconds` and approximate `process_core_demand`. The parent samples cumulative `ps` CPU counters around the writer interval and rejects incomplete reports or decreasing counters. Sampling calls bracket that interval and are not atomic across processes; platform clock precision limits short-run conclusions. Use longer controlled runs and normalize CPU by committed work or delivered bytes when comparing revisions. Reduced raw/zstd checks validate this instrumentation, not capacity or performance.
+
 Cancellation retains its HTTP permit until the blocking original settles, including a failed original. The runner then propagates cancellation instead of exposing a retryable socket error to the producer. A regression reproduces cancellation replacement before the correction; all 49 Python checks pass afterward, with Ruff clean and strict Pyrefly reporting zero diagnostics.
 
 ## Evidence and limits

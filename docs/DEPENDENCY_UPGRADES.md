@@ -32,7 +32,7 @@ The [paired results](../benchmarks/library-adoption-paired-ae-20261017.json) con
 
 The 500k paged-collection case exceeds the CPU review gate: median process CPU rises from 9.98 to 11.30 seconds (13.23%). Both arms have unchanged segment, I/O, CPU-turn and sampled-heap counts. Individual CPU samples are 11.32/9.92/9.98 seconds before and 11.31/11.30/9.93 after, so both arms span the observed range. A focused repeat and attribution are required before calling this an introduced regression or accepting the upgrade. The other eight changed workloads have median CPU differences between -0.75% and +0.24%.
 
-These microbenchmarks do not discharge the HTTP daemon CPU gate. Fleet process-CPU instrumentation remains unvalidated, and controlled raw/zstd fleet comparisons remain pending. No A–E pin is adopted on this evidence alone.
+These microbenchmarks do not discharge the HTTP daemon CPU gate. Fleet process-CPU instrumentation passes Ruff, strict type checking, seven focused unit tests and reduced raw/zstd end-to-end checks with complete state verification. The initial manual checks used an expired one-day TLS fixture and failed before measurement; fresh isolated certificates pass. Those functional checks overlap other host work and establish no performance result. Controlled raw/zstd fleet comparisons remain pending. No A–E pin is adopted on this evidence alone.
 
 ## Retained-state consistency findings
 
