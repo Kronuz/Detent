@@ -207,6 +207,30 @@ Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k
 
 ## Progress
 
+### Current source boundaries and reuse audit (2026-10-18)
+
+The source directories separate application roles and optional dependency closures. They are not proposed standalone repositories. This source-only pass checks the current cpp-libraries catalog, its Rules of engagement and the owner's GitHub repository inventory; extraction and replacement still require API, lifetime, format and performance qualification.
+
+| Directory | Responsibility | Boundary to retain |
+| --- | --- | --- |
+| `detent_agent` | Host-local daemon, classic shared-memory publication and managed delivery host | Agent policy and process assembly |
+| `detent_authority` | Knob transactions, replicated state, receipts, scoped exports and subscriptions | Application state and the adapter to shared consensus |
+| `detent_cli` | Platform paths, daemon lifecycle, PID locks and logging setup | Application configuration; evaluate generic process plumbing separately |
+| `detent_delivery` | Receiving updates, source selection, authenticated sessions and local-publication coordination | Detent delivery semantics; separate generic HTTP client mechanics |
+| `detent_distribution` | Snapshot/delta schemas, cursors, encoding, framing and subscription admission | Detent protocol; extract generic codecs and resource primitives |
+| `detent_distribution_http` | HTTP binding shared by authority and relay, including reply pumping and session headers | Protocol-specific HTTP metadata; evaluate generic pumping separately |
+| `detent_http` | Optional blocking HTTP polling source for the classic SDK/agent path | Source adapter; consolidate generic client mechanics into `http` |
+| `detent_local` | Flat/paged local images, readers, validation, atomic publication, leases and collection | Knob layouts and ownership rules; reuse lower-level I/O and residency where their contracts fit |
+| `detent_relay` | Scoped fanout from upstream delivery through durable local bundles | Relay authorization, bundle routing and serving policy |
+
+The existing extraction has already moved completion I/O, journals, consensus, metrics, peer transport and TLS out of Detent. Their integration adapters remain intentionally local. Current `http` provides server machinery and shared parsing but no equivalent general client API for Detent's three paths: blocking polling, coroutine delivery and HTTPS health checks. Extend `http` with shared client mechanics, keeping Detent schemas, tokens, cursors and session decisions in its adapters.
+
+The bounded codec in `include/detent_distribution/messagepack.hh` is an extraction candidate into `msgpack`, with one bounded low-level implementation and a small optional target. The existing general-purpose DOM is not a proven replacement for its incremental decoding and allocation bounds. `persistent_map.hh` is another candidate: immutable snapshots and budgeted reclamation differ from the mutable `cpp-btree` API. No dedicated ledger or persistent-map repository appears in the checked GitHub inventory.
+
+Resource accounting overlaps across Detent, completion and journal. Share primitives only after separating concurrent allocation tickets from disk permits that require explicit durable settlement; replacing the latter with automatic destructor refunds would change correctness. Evaluate `allocators` before creating a ledger library. Evaluate `task`, `residency` and `flume` for scheduling, mapped reads and generic transfer, but none is established here as a replacement for Detent's state machines, generation leases or snapshot/delta protocol. In particular, residency's synchronous prefetch backend is advisory and does not guarantee fault-free event-loop reads.
+
+Prioritize client consolidation and bounded MessagePack reuse, then the persistent map and accounting primitives. Keep extraction commits separate from dependency-only comparisons and preserve valid wire/disk bytes. No extraction, dependency pin change or runtime qualification occurs in this audit.
+
 ### Steps 1 and 2 (2026-10-13)
 
 `metrics`, `completion`, `journal`, and `consensus` are their own repositories, extracted from `cluster` with `git filter-repo` so their history comes along; `cluster`'s own history is not rewritten, and its removal is one ordinary commit (`e70b5fc`), so commit IDs cited in these docs keep resolving.
