@@ -26,6 +26,7 @@ def main() -> None:
     parser.add_argument("--after", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--samples", type=int)
+    parser.add_argument("--case", action="append", dest="selected_cases")
     args = parser.parse_args()
     before: Path = args.before.resolve()
     after: Path = args.after.resolve()
@@ -33,11 +34,18 @@ def main() -> None:
     count: int | None = args.samples
     if count is not None and count < 1:
         raise ValueError("sample count must be positive")
+    cases = workloads()
+    selected: list[str] | None = args.selected_cases
+    if selected is not None:
+        unknown = set(selected) - {case.name for case in cases}
+        if unknown:
+            raise ValueError(f"unknown workloads: {sorted(unknown)}")
+        cases = [case for case in cases if case.name in selected]
     output.mkdir(parents=True, exist_ok=False)
     skipped: list[str] = []
     runner = Path(__file__).with_name("library_adoption_measure.py")
     with (output / "order.jsonl").open("x") as records:
-        for case in workloads():
+        for case in cases:
             old = before / "bin" / case.program
             new = after / "bin" / case.program
             if hashlib.sha256(old.read_bytes()).digest() == hashlib.sha256(
