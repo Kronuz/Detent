@@ -132,6 +132,12 @@ Detent agrees to the coordinated restart directly into finalized version 2, reco
 
 The recovery-bound proposal must cover the [retained-state resource blueprint](RETAINED_STATE_ARCHITECTURE.md), with one shared implementation. SPKI adoption, rotation restart ordering, service-group key permissions and the reactor exception reporting hook remain source-audit and qualification items. No dependency pin changes with this response.
 
+## Retained-state integration status (October 18)
+
+Journal reservation growth is qualified on hardened macOS, macOS ASan/UBSan, Linux and FreeBSD and committed locally as `cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62`. The single canonical consensus policy and funding implementation is committed in the isolated candidate as `47d2884`, with consolidated source review finding no remaining P1/P2 defects and 24/24 final native tests passing. Track C should consume that implementation rather than introduce a second recovery-bound API.
+
+The consensus candidate references the local Journal commit. Neither commit establishes published dependency closure; Detent's production pins remain unchanged. Paired platform qualification and Detent's stable funded-envelope integration remain open, as recorded in the [retained-state blueprint](RETAINED_STATE_ARCHITECTURE.md).
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
