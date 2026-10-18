@@ -207,6 +207,10 @@ Start with steps 1 and 2. They remove the largest source of clutter (about 11.5k
 
 ## Progress
 
+### Historical retirement correction (2026-10-18)
+
+Local consensus `3c60f47` preserves progress after operating limits decrease: one first oversized historical command or configuration may consume a fresh nonzero retirement budget, with remaining bytes saturated to zero. Output cleanup and retained-log cleanup share the same budget object, preventing both a renewed allowance and unsigned subtraction underflow. Zero-byte predecessors and explicit zero budgets retain bounded behavior. Core, retained-log, retirement and compatibility suites pass in an isolated build (4/4); a published-revision reproducer changes from three entries retained after 1,000 turns to complete drainage in three. The broader resource preparation also passes its 25 Worker checks. No public wire/disk bytes change, and Detent's pin remains unchanged pending finalized-v2 qualification. The cpp-libraries catalog is updated in local `63d9288`.
+
 ### Current source boundaries and reuse audit (2026-10-18)
 
 The source directories separate application roles and optional dependency closures. They are not proposed standalone repositories. This source-only pass checks the current cpp-libraries catalog, its Rules of engagement and the owner's GitHub repository inventory; extraction and replacement still require API, lifetime, format and performance qualification.
