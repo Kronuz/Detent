@@ -5,6 +5,8 @@
 
 Stage 6 qualifies the implemented fixed-voter authority, durable relays and host-local readers under sustained traffic and failures. Two local VMs provide process and asymmetric VM-loss qualification. Three independent failure domains, device power loss and a physical 10k-agent fleet require separate hardware certification.
 
+The [release execution plan](RELEASE_PLAN.md) includes the owner's October 18 requirement to finish reusable-library extraction before release. Those changes remain separate components with their own compatibility gates; final integrated qualification follows them.
+
 ## Components
 
 1. **Bounded runner and frozen evidence.** Add `tests/detent_system/` orchestration and `detent_fleet_load`, reusing the authority load runner, real network fixture, production clients/coordinators and complete-state oracle. Bound outstanding work, subscriber buffers, oracle state and artifact bytes. Record source/dependency revisions, seed, configuration hashes, backend, compiler, filesystem, CPU/RAM, FD limits and concurrent workloads. Preflight before launch; drain authentic accepted work on launch failure.
