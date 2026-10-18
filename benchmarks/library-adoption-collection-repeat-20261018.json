@@ -1,0 +1,605 @@
+{
+  "status": "Focused repeat complete; interpret with original paired evidence; daemon CPU and footprint review remain open",
+  "platform": "macOS x86_64, Intel i9-9980HK",
+  "samples_per_arm": 7,
+  "order": "Alternating before/after and after/before; frozen binaries under strict quiet lease",
+  "workload": "detent_paged_collection_bench-500000",
+  "source": "benchmarks/library_adoption_compare.py --case detent_paged_collection_bench-500000 --samples 7",
+  "samples": {
+    "before": [
+      {
+        "pair": 0,
+        "wall_seconds": 11.36990832304582,
+        "cpu_seconds": 11.18,
+        "maximum_resident_bytes": 352858112,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 1964,
+            "wall_us": 3791767
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 133,
+            "wall_us": 1800
+          }
+        ],
+        "time_output": "       11.36 real        10.49 user         0.69 sys\n           352858112  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86497  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 171  voluntary context switches\n                2925  involuntary context switches\n        119610952677  instructions retired\n         43348284803  cycles elapsed\n           201474048  peak memory footprint\n"
+      },
+      {
+        "pair": 1,
+        "wall_seconds": 11.877219225047156,
+        "cpu_seconds": 11.59,
+        "maximum_resident_bytes": 364244992,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 28745,
+            "wall_us": 4359369
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 112,
+            "wall_us": 1195
+          }
+        ],
+        "time_output": "       11.87 real        10.90 user         0.69 sys\n           364244992  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               89271  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n               14939  involuntary context switches\n        119655985255  instructions retired\n         43587783287  cycles elapsed\n           198672384  peak memory footprint\n"
+      },
+      {
+        "pair": 2,
+        "wall_seconds": 11.145770015893504,
+        "cpu_seconds": 11.09,
+        "maximum_resident_bytes": 353591296,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 186,
+            "wall_us": 4034373
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 103,
+            "wall_us": 1037
+          }
+        ],
+        "time_output": "       11.14 real        10.56 user         0.53 sys\n           353591296  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86670  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                3214  involuntary context switches\n        119512287629  instructions retired\n         42796484678  cycles elapsed\n           200859648  peak memory footprint\n"
+      },
+      {
+        "pair": 3,
+        "wall_seconds": 10.456108653917909,
+        "cpu_seconds": 10.399999999999999,
+        "maximum_resident_bytes": 363360256,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 616,
+            "wall_us": 3739898
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 102,
+            "wall_us": 1104
+          }
+        ],
+        "time_output": "       10.45 real         9.87 user         0.53 sys\n           363360256  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               89054  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   5  voluntary context switches\n                1764  involuntary context switches\n        119540236431  instructions retired\n         42295971439  cycles elapsed\n           195031040  peak memory footprint\n"
+      },
+      {
+        "pair": 4,
+        "wall_seconds": 10.586522079072893,
+        "cpu_seconds": 10.520000000000001,
+        "maximum_resident_bytes": 353927168,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 219,
+            "wall_us": 3715514
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 104,
+            "wall_us": 1152
+          }
+        ],
+        "time_output": "       10.58 real         9.96 user         0.56 sys\n           353927168  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86751  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                  62  voluntary context switches\n                1780  involuntary context switches\n        119511907984  instructions retired\n         42412075838  cycles elapsed\n           196472832  peak memory footprint\n"
+      },
+      {
+        "pair": 5,
+        "wall_seconds": 10.326958290999755,
+        "cpu_seconds": 10.29,
+        "maximum_resident_bytes": 341340160,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 355,
+            "wall_us": 3672463
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 112,
+            "wall_us": 1211
+          }
+        ],
+        "time_output": "       10.32 real         9.78 user         0.51 sys\n           341340160  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               83679  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                1105  involuntary context switches\n        119509446268  instructions retired\n         42213924950  cycles elapsed\n           195346432  peak memory footprint\n"
+      },
+      {
+        "pair": 6,
+        "wall_seconds": 10.343921289779246,
+        "cpu_seconds": 10.290000000000001,
+        "maximum_resident_bytes": 351715328,
+        "binary_sha256": "17c18ea782034d27eb2f225bfdb51892c994d271469bd42a72746fc917a82fe5",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 258,
+            "wall_us": 3660519
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 85,
+            "wall_us": 916
+          }
+        ],
+        "time_output": "       10.33 real         9.80 user         0.49 sys\n           351715328  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86211  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                1001  involuntary context switches\n        119499472226  instructions retired\n         42148268831  cycles elapsed\n           200396800  peak memory footprint\n"
+      }
+    ],
+    "after": [
+      {
+        "pair": 0,
+        "wall_seconds": 11.53000283590518,
+        "cpu_seconds": 11.48,
+        "maximum_resident_bytes": 349708288,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 887,
+            "wall_us": 4015174
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 115,
+            "wall_us": 1121
+          }
+        ],
+        "time_output": "       11.52 real        10.83 user         0.65 sys\n           349708288  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               85722  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   7  voluntary context switches\n                2244  involuntary context switches\n        119477768880  instructions retired\n         43008330633  cycles elapsed\n           196595712  peak memory footprint\n"
+      },
+      {
+        "pair": 1,
+        "wall_seconds": 11.420281678903848,
+        "cpu_seconds": 11.34,
+        "maximum_resident_bytes": 354844672,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 935,
+            "wall_us": 3984820
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 104,
+            "wall_us": 1134
+          }
+        ],
+        "time_output": "       11.41 real        10.68 user         0.66 sys\n           354844672  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86974  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                 111  voluntary context switches\n                2184  involuntary context switches\n        119536997059  instructions retired\n         43210040037  cycles elapsed\n           196624384  peak memory footprint\n"
+      },
+      {
+        "pair": 2,
+        "wall_seconds": 10.95031889108941,
+        "cpu_seconds": 10.86,
+        "maximum_resident_bytes": 352374784,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 638,
+            "wall_us": 3851058
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 104,
+            "wall_us": 1052
+          }
+        ],
+        "time_output": "       10.94 real        10.28 user         0.58 sys\n           352374784  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               86376  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   4  voluntary context switches\n                5655  involuntary context switches\n        119514189201  instructions retired\n         42614104098  cycles elapsed\n           202760192  peak memory footprint\n"
+      },
+      {
+        "pair": 3,
+        "wall_seconds": 10.521069508977234,
+        "cpu_seconds": 10.459999999999999,
+        "maximum_resident_bytes": 363929600,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 220,
+            "wall_us": 3769276
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 165,
+            "wall_us": 1078
+          }
+        ],
+        "time_output": "       10.51 real         9.95 user         0.51 sys\n           363929600  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               89192  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   4  voluntary context switches\n                2457  involuntary context switches\n        119619287745  instructions retired\n         42392364908  cycles elapsed\n           198647808  peak memory footprint\n"
+      },
+      {
+        "pair": 4,
+        "wall_seconds": 10.386368591105565,
+        "cpu_seconds": 10.34,
+        "maximum_resident_bytes": 360579072,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 265,
+            "wall_us": 3724852
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 111,
+            "wall_us": 1099
+          }
+        ],
+        "time_output": "       10.38 real         9.83 user         0.51 sys\n           360579072  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               88376  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                1997  involuntary context switches\n        119501011624  instructions retired\n         42293292091  cycles elapsed\n           196542464  peak memory footprint\n"
+      },
+      {
+        "pair": 5,
+        "wall_seconds": 10.431393567938358,
+        "cpu_seconds": 10.39,
+        "maximum_resident_bytes": 357998592,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 726,
+            "wall_us": 3749900
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 89,
+            "wall_us": 918
+          }
+        ],
+        "time_output": "       10.42 real         9.88 user         0.51 sys\n           357998592  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               87745  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                1037  involuntary context switches\n        119593547835  instructions retired\n         42444370348  cycles elapsed\n           198295552  peak memory footprint\n"
+      },
+      {
+        "pair": 6,
+        "wall_seconds": 10.331710428930819,
+        "cpu_seconds": 10.290000000000001,
+        "maximum_resident_bytes": 356564992,
+        "binary_sha256": "b0b303059316f19dbf26445a5819ac921822f5e502ae7e609bfd5c7e8c091c36",
+        "stdout_rows": [
+          {
+            "records": 500000,
+            "cache": "miss",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 53545,
+            "heap_sampled_peak": 119453778,
+            "heap_global_peak": 119453778,
+            "originals": 16834,
+            "payload_reads": 14262,
+            "cpu_turns": 526233,
+            "max_turn_us": 612,
+            "wall_us": 3692779
+          },
+          {
+            "records": 500000,
+            "cache": "hit",
+            "segments": 112,
+            "pack_bytes": 116777429,
+            "live_mapping_bytes": 116834304,
+            "heap_before": 62441,
+            "heap_sampled_peak": 722468,
+            "heap_global_peak": 119453778,
+            "originals": 556,
+            "payload_reads": 0,
+            "cpu_turns": 284,
+            "max_turn_us": 107,
+            "wall_us": 1155
+          }
+        ],
+        "time_output": "       10.32 real         9.80 user         0.49 sys\n           356564992  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n               87395  page reclaims\n                   0  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n                   0  messages sent\n                   0  messages received\n                   0  signals received\n                   3  voluntary context switches\n                 879  involuntary context switches\n        119595791344  instructions retired\n         42393414823  cycles elapsed\n           200572928  peak memory footprint\n"
+      }
+    ]
+  },
+  "medians": {
+    "before": {
+      "cpu_seconds": 10.520000000000001,
+      "wall_seconds": 10.586522079072893,
+      "maximum_resident_bytes": 353591296
+    },
+    "after": {
+      "cpu_seconds": 10.459999999999999,
+      "wall_seconds": 10.521069508977234,
+      "maximum_resident_bytes": 356564992
+    }
+  },
+  "median_change_percent": {
+    "cpu_seconds": -0.5703422053232154,
+    "wall_seconds": -0.6182631992525889,
+    "maximum_resident_bytes": 0.8409980770567316
+  },
+  "paired_cpu_change_percent": [
+    2.683363148479434,
+    -2.1570319240724722,
+    -2.073940486925163,
+    0.5769230769230749,
+    -1.7110266159695908,
+    0.9718172983479212,
+    0.0
+  ],
+  "median_paired_cpu_change_percent": 0.0,
+  "limits": [
+    "This focused repeat does not establish a causal explanation for the original three-pair 13.23% median CPU difference.",
+    "The library and host resource changes are outside both frozen benchmark arms."
+  ]
+}
