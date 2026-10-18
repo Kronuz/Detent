@@ -44,6 +44,8 @@ Query current suffix → Grow funding → Freeze → Encode → Publish
                       Pressure/retry
 ```
 
+Core exposes a pure `capture_usage` query for each capture request, sharing rejection predicates with its handlers. A request already owed a rejection requires no replacement growth. The Worker still dispatches that request through Core so a higher-term caught-up installation persists its term before reporting rejection. Invalid local captures and stale-epoch captures likewise reach their correlated rejection under funding pressure. Valid requests retain the grow-before-freeze ordering.
+
 Journal adds `Store::grow_replacement(id, minimum_bundle_cap)`, backed by one admission operation. It preserves the replacement identity and ticket, performs no I/O, and allows growth after settled application preparation. It rejects foreign/stale IDs, pending preparation quanta and growth after bundle preparation starts. Compute all accounting changes before mutation. Refusal leaves the existing reservation, candidate and counters unchanged.
 
 This closes the race where the retained suffix grows while application preparation runs. Funding failure or a backend artifact bound produces pressure before freezing, while protocol progress and cancellation remain available. Do not reserve the roughly 17 GB ceiling for every checkpoint. Arbitrarily undersized storage quotas cannot guarantee checkpoint completion.
@@ -55,7 +57,7 @@ Detent retains its configured `maximum_size(o.consensus)` funding check and supp
 1. Lower operating command, RPC, log-byte and entry limits independently; replay, construct Core, deliver, checkpoint through Worker and reopen with unchanged receipts.
 2. Reject out-of-policy descriptors, counts and payloads before corresponding library allocation. Invalid typed Core input creates no retained-log nodes.
 3. Grow history during application preparation, including membership changes; prove funding precedes freeze and covers emitted bytes.
-4. Refuse growth under pressure without fencing or losing the candidate; retry and cancellation conserve accounting.
+4. Refuse growth under pressure without fencing or losing the candidate; retry and cancellation conserve accounting. Already rejected captures must finish under the same pressure, including higher-term caught-up installs with durable term advancement.
 5. Replace a full log while retirement debt exists, including merged follower traffic; prove bounded debt and eventual admission.
 6. Pass configuration payloads above operating command limits through transport, admission, replay and checkpoints.
 7. Preserve old fixture bytes, acknowledged prefixes, original-I/O settlement and shutdown conservation. Add resource-bypass and capture-before-funding mutants.
