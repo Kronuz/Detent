@@ -65,3 +65,9 @@ Detent retains its configured `maximum_size(o.consensus)` funding check and supp
 9. Drain historical commands and configuration entries under lowered operating limits in finite retirement turns. Cover two oversized items, zero-byte predecessors and shared budgets across containers without subtraction underflow or renewed allowances.
 
 Keep the named-file backend and existing transport mechanisms. Land the policy, reservation growth, Worker lifecycle and Detent integration as one coherent component before accepting dependency group F.
+
+## Candidate qualification (2026-10-18)
+
+The isolated Worker candidate passes 86 focused checks, including historical suffix growth during application preparation, reopening the grown checkpoint, refusal without freezing, invalid-term and stale-epoch local captures, and incoming stale-term/current-term caught-up/higher-term caught-up rejection under insufficient replacement funding. The higher-term case advances the journal sequence without publishing a replacement. The full Worker suite before adding the three incoming pressure cases passes in 77.74 seconds; the expanded candidate still requires its complete-suite run.
+
+The independent retirement-progress correction passes hardened macOS and macOS ASan/UBSan qualification. Linux and FreeBSD qualification remains pending. These results do not close the resource component: independent operating-limit reductions through the complete Worker lifecycle, merged follower debt, original-I/O faults after growth, negative mutants, platform checks and Detent integration remain required.
