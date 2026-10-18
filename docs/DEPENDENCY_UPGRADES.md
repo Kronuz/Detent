@@ -56,7 +56,7 @@ Detent joins the journal backend decision after Track C T6 measures both backend
 
 SPKI pins, service-group key permissions and reactor exception logging need source verification and focused qualification before adoption. Existing certificate-pin rotation documentation needs a restart-order audit against the PKI finding. These are open integration items, not security fixes established by this handoff.
 
-The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. Candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2. Replacing the dependency alone does not support a rolling upgrade with old voters. Adoption requires either a coordinated cluster restart or an explicitly designed dual-codec transition, with mixed-version rejection and recovery tests before release.
+The qualified consensus revision `b7073bbe4d94e66dce526f193b0dd81a57cdb661` uses DTC1 peer control frames. The historical inspection candidate `d7192f728b98fa42866e5829818bb19b11ae89a9` uses DTC2 and is excluded from adoption by the agreement above. Replacing the dependency alone does not support a rolling upgrade with old voters. Detent uses the coordinated restart; no application-specific dual codec is planned. Mixed-version rejection and recovery tests remain release gates.
 
 The candidate also adds dynamic membership and shared turn-log support. Their availability in the library does not imply Detent exposes or qualifies them. Existing fixed-voter disk compatibility fixtures cover a different boundary from peer wire compatibility.
 
@@ -76,7 +76,7 @@ This file is the shared handoff between Detent integration work and library main
 | --- | --- | --- | --- |
 | 1 | Next focused 60–90 minute pass after the measurement/pacing harness | Compatible leaf/runtime updates, starting with compressors and threadpool; adopt one dependency or tightly coupled set at a time | Public API/disk/wire diff, focused regression and sanitizer checks, daemon smoke, binary footprint and relevant before/after workload |
 | 2 | Following 2–4 hour pass | Completion upgrade, including the cross-device fix below; retain Detent's existing storage backend | Local publication/recovery/cancellation and authority disk suites on macOS/Linux/FreeBSD, native versus fallback I/O accounting, no durability or resource regression |
-| 3 | Separate 2 hour architecture/compatibility pass before implementation | Coherent journal/consensus revision set and DTC1 → DTC2 transition | Document coordinated restart or dual-codec mechanism, old-state recovery, mixed-version refusal behavior and rollback boundary; then schedule implementation and full qualification |
+| 3 | Separate 2 hour architecture/compatibility pass before implementation | Finalized version-2 journal/consensus closure and coordinated restart from DTC1 | Qualify old-state recovery, mixed-version refusal behavior and rollback boundary; exclude intermediate DTC2 candidates |
 | 4 | Separately budgeted after measurements | Optional shared turn logs, batched device barriers, mappings and task groups | A demonstrated bottleneck, representative before/after data, lifetime/admission design and crash/power-loss model gates |
 
 These are reserved investigation budgets, not completion promises. A failed gate produces a concrete finding here and leaves the qualified pin unchanged. A long-running benchmark may continue on the old immutable build while compatibility work uses another build; measurements used for capacity claims must record or exclude that contention.
