@@ -1,0 +1,417 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "component": "owning resources and durable reservation extraction",
+  "review": "GO for component integration; no unresolved P1/P2 findings in reviewed source; release remains unaccepted",
+  "published": {
+    "allocators": {
+      "revision": "b7daa52f1b6a316e04bba2817f0f527d64d704eb",
+      "run": 39225161110,
+      "url": "https://github.com/Kronuz/allocators/actions/runs/39225161110",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "ci / linux-asan-ubsan",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-arm64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-tsan",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / freebsd-x86_64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-x86_64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-clang",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-arm64-gcc",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-gcc",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "completion": {
+      "revision": "21809c7ae35d19ee7707692e2d8bae6d8a7a92a8",
+      "run": 39225163803,
+      "url": "https://github.com/Kronuz/completion/actions/runs/39225163803",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "ci / linux-asan-ubsan",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-arm64-gcc",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-arm64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-x86_64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-gcc",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-clang",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-tsan",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / freebsd-x86_64",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "journal": {
+      "revision": "dbf753f60d1a74c9a036bf797406aeeb4b7998cc",
+      "run": 39225167744,
+      "url": "https://github.com/Kronuz/journal/actions/runs/39225167744",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "ci / linux-asan-ubsan",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-arm64-gcc",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-arm64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / macos-x86_64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-gcc",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / freebsd-x86_64",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-x86_64-clang",
+          "conclusion": "success"
+        },
+        {
+          "name": "ci / linux-tsan",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "detent_isolated_revision": "33d36bfa8e2857d3bd175235303688a5b914de30",
+  "native_results": {
+    "allocators_tracking_off": "4/4",
+    "allocators_tracking_on": "4/4",
+    "allocators_shared": "4/4",
+    "completion": "12/12",
+    "journal": "8/8",
+    "detent_composed": "12/12, 39.44 seconds"
+  },
+  "platform_results": [
+    "macOS hardened",
+    "macOS ASan/UBSan",
+    "Linux",
+    "FreeBSD"
+  ],
+  "sanitizers": {
+    "allocators_asan_ubsan": "4/4",
+    "allocators_tsan": "3/3"
+  },
+  "public_closure_no_source_overrides": {
+    "completion": "12/12, 6.08 seconds",
+    "journal": "8/8, 65.25 seconds"
+  },
+  "resource_only_linkage": {
+    "tracking": [
+      "OFF",
+      "ON"
+    ],
+    "legacy_backend_objects": 0,
+    "retirement_objects": 0,
+    "defined_global_new_delete_overrides": 0,
+    "retirement_option": "OFF"
+  },
+  "xapiand": {
+    "revision": "7e8cccb7d52ad505fba68e0eaeaa04b7ec6055fd",
+    "profile": "clean default Release build with LTO, tracked memory OFF; only allocators source override",
+    "build_exit_status": 0,
+    "version_exit_status": 0,
+    "version": "1.0.0-alpha.9",
+    "legacy_allocator_source_unchanged": true,
+    "build_log_sha256": "3d1916349ec7d208f130a3160a49e08b0f47cd8c5ae415596e24b0cbd6735a7f"
+  },
+  "logs": {
+    "allocators-resource-final-platforms.log": {
+      "sha256": "647e0f73f67e1805dce1a1199417cf095aa1be3a23b02438a4b5492168357bda",
+      "result_tail": [
+        "nostalls-many2-r1 [light]: no-stalls many-index round 1 again, 2-3 threads (since 01:16:53, until 01:28:53, by kronuz in .scratch (ppid 84778))",
+        "mac-hardened: ok",
+        "mac-asan-ubsan: ok",
+        "linux: ok",
+        "freebsd: ok"
+      ]
+    },
+    "allocators-resource-off-tests-final.log": {
+      "sha256": "0e9dab752d44f89c8fde87bbdbb709e459d9039fbba60c2de85be40613721d21",
+      "result_tail": [
+        "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/allocators-resource-off",
+        "    Start 1: allocators_retirement",
+        "1/4 Test #1: allocators_retirement ............   Passed    0.37 sec",
+        "    Start 2: allocators_resources",
+        "2/4 Test #2: allocators_resources .............   Passed    0.27 sec",
+        "    Start 3: allocators",
+        "3/4 Test #3: allocators .......................   Passed    0.01 sec",
+        "    Start 4: allocators_tracked",
+        "4/4 Test #4: allocators_tracked ...............   Passed    0.01 sec",
+        "",
+        "100% tests passed out of 4",
+        "",
+        "Total Test time (real) =   0.67 sec"
+      ]
+    },
+    "allocators-resource-on-tests-final.log": {
+      "sha256": "1cacd2dc4990be1615a9358fa4984138622ac36f9e8493cc0301584c16dc87b3",
+      "result_tail": [
+        "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/allocators-resource-on",
+        "    Start 1: allocators_retirement",
+        "1/4 Test #1: allocators_retirement ............   Passed    0.38 sec",
+        "    Start 2: allocators_resources",
+        "2/4 Test #2: allocators_resources .............   Passed    0.27 sec",
+        "    Start 3: allocators",
+        "3/4 Test #3: allocators .......................   Passed    0.01 sec",
+        "    Start 4: allocators_tracked",
+        "4/4 Test #4: allocators_tracked ...............   Passed    0.01 sec",
+        "",
+        "100% tests passed out of 4",
+        "",
+        "Total Test time (real) =   0.69 sec"
+      ]
+    },
+    "completion-resource-tests-final.log": {
+      "sha256": "3cbc383fb3a79d30c735504c56c7bed64faac4006c6ad26a025153795cd7422e",
+      "result_tail": [
+        "      Start  5: completion_scan",
+        " 5/12 Test  #5: completion_scan ..................   Passed    0.02 sec",
+        "      Start  6: completion_inspection",
+        " 6/12 Test  #6: completion_inspection ............   Passed    0.02 sec",
+        "      Start  7: completion_cursor_close",
+        " 7/12 Test  #7: completion_cursor_close ..........   Passed    0.01 sec",
+        "      Start  8: completion_reuse",
+        " 8/12 Test  #8: completion_reuse .................   Passed    0.08 sec",
+        "      Start  9: completion_image_close",
+        " 9/12 Test  #9: completion_image_close ...........   Passed    0.49 sec",
+        "      Start 10: completion_create_into",
+        "10/12 Test #10: completion_create_into ...........   Passed    0.22 sec",
+        "      Start 11: completion_sync_files",
+        "11/12 Test #11: completion_sync_files ............   Passed    0.20 sec",
+        "      Start 12: completion_map",
+        "12/12 Test #12: completion_map ...................   Passed    0.05 sec",
+        "",
+        "100% tests passed out of 12",
+        "",
+        "Total Test time (real) =   1.52 sec"
+      ]
+    },
+    "journal-resource-tests-final.log": {
+      "sha256": "7026b2c202d8915f00f87839c0714a7e6b90bf718d5264fae4867e5a75fb5886",
+      "result_tail": [
+        "    Start 1: journal_journal",
+        "1/8 Test #1: journal_journal ..................   Passed    2.75 sec",
+        "    Start 2: journal_inventory",
+        "2/8 Test #2: journal_inventory ................   Passed    0.04 sec",
+        "    Start 3: journal_admission",
+        "3/8 Test #3: journal_admission ................   Passed    0.26 sec",
+        "    Start 4: journal_turn_log",
+        "4/8 Test #4: journal_turn_log .................   Passed   31.66 sec",
+        "    Start 5: journal_turn_log_power",
+        "5/8 Test #5: journal_turn_log_power ...........   Passed    8.13 sec",
+        "    Start 6: journal_shared_store",
+        "6/8 Test #6: journal_shared_store .............   Passed   15.76 sec",
+        "    Start 7: journal_fuzz_replay",
+        "7/8 Test #7: journal_fuzz_replay ..............   Passed    0.73 sec",
+        "    Start 8: journal_completion",
+        "8/8 Test #8: journal_completion ...............   Passed    2.34 sec",
+        "",
+        "100% tests passed out of 8",
+        "",
+        "Total Test time (real) =  61.69 sec"
+      ]
+    },
+    "allocators-resource-shared-tests.log": {
+      "sha256": "dc9f585597356f018365d405746fdd132b670503dcea6b97476d2dc4200e6e67",
+      "result_tail": [
+        "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/allocators-resource-shared",
+        "    Start 1: allocators_retirement",
+        "1/4 Test #1: allocators_retirement ............   Passed    0.67 sec",
+        "    Start 2: allocators_resources",
+        "2/4 Test #2: allocators_resources .............   Passed    0.31 sec",
+        "    Start 3: allocators",
+        "3/4 Test #3: allocators .......................   Passed    0.55 sec",
+        "    Start 4: allocators_tracked",
+        "4/4 Test #4: allocators_tracked ...............   Passed    0.25 sec",
+        "",
+        "100% tests passed out of 4",
+        "",
+        "Total Test time (real) =   1.84 sec"
+      ]
+    },
+    "allocators-resource-asan-tests-final.log": {
+      "sha256": "b0bacf319e573592040f397734c7fc8fbd0117ccb1d6431495b3ac40e7afcbe8",
+      "result_tail": [
+        "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/allocators-resource-asan",
+        "    Start 1: allocators_retirement",
+        "1/4 Test #1: allocators_retirement ............   Passed    0.53 sec",
+        "    Start 2: allocators_resources",
+        "2/4 Test #2: allocators_resources .............   Passed    0.36 sec",
+        "    Start 3: allocators",
+        "3/4 Test #3: allocators .......................   Passed    0.07 sec",
+        "    Start 4: allocators_tracked",
+        "4/4 Test #4: allocators_tracked ...............   Passed    0.07 sec",
+        "",
+        "100% tests passed out of 4",
+        "",
+        "Total Test time (real) =   1.04 sec"
+      ]
+    },
+    "allocators-resource-tsan.log": {
+      "sha256": "9135fd25e5cb55527194caeea60bd20b22093a53aca813234ea4194cec5e4ca4",
+      "result_tail": [
+        "[ 58%] Built target allocators_retirement",
+        "[ 66%] Building CXX object CMakeFiles/allocators_test.dir/test/test.cc.o",
+        "[ 75%] Linking CXX executable allocators_test",
+        "[ 75%] Built target allocators_test",
+        "[ 83%] Building CXX object CMakeFiles/allocators_retirement_test.dir/test/retirement.cc.o",
+        "[ 91%] Linking CXX executable allocators_resources_test",
+        "[ 91%] Built target allocators_resources_test",
+        "[100%] Linking CXX executable allocators_retirement_test",
+        "[100%] Built target allocators_retirement_test",
+        "Test project /Users/kronuz/code/Detent/.scratch/library-adoption-20261017/allocators-resource-tsan",
+        "    Start 1: allocators_retirement",
+        "1/3 Test #1: allocators_retirement ............   Passed    0.73 sec",
+        "    Start 2: allocators_resources",
+        "2/3 Test #2: allocators_resources .............   Passed    0.56 sec",
+        "    Start 3: allocators",
+        "3/3 Test #3: allocators .......................   Passed    0.54 sec",
+        "",
+        "100% tests passed out of 3",
+        "",
+        "Total Test time (real) =   1.84 sec"
+      ]
+    },
+    "detent-resource-tests-final.log": {
+      "sha256": "314fe834bf6e34cb80b08b8221a210e69f3aa1eaa0668637fb77137946e7f730",
+      "result_tail": [
+        "      Start  64: test_distribution_retirement",
+        " 5/12 Test  #64: test_distribution_retirement ...........   Passed    0.40 sec",
+        "      Start  65: test_distribution_memory_resource",
+        " 6/12 Test  #65: test_distribution_memory_resource ......   Passed    0.26 sec",
+        "      Start  68: test_distribution_retirement_factory",
+        " 7/12 Test  #68: test_distribution_retirement_factory ...   Passed    0.30 sec",
+        "      Start 130: test_local_managed_reader",
+        " 8/12 Test #130: test_local_managed_reader ..............   Passed    0.28 sec",
+        "      Start 134: test_local_disk_ledger",
+        " 9/12 Test #134: test_local_disk_ledger .................   Passed    0.27 sec",
+        "      Start 135: test_local_view",
+        "10/12 Test #135: test_local_view ........................   Passed    0.27 sec",
+        "      Start 137: test_local_builder",
+        "11/12 Test #137: test_local_builder .....................   Passed    0.27 sec",
+        "      Start 149: test_local_applied_builder",
+        "12/12 Test #149: test_local_applied_builder .............   Passed    0.31 sec",
+        "",
+        "100% tests passed out of 12",
+        "",
+        "Total Test time (real) =  39.44 sec"
+      ]
+    },
+    "completion-resource-public.log": {
+      "sha256": "324641ac9d3036c57f97036a0b0998d70b4face6d6c36ed3ff01cc23f309b5b9",
+      "result_tail": [
+        "      Start  5: completion_scan",
+        " 5/12 Test  #5: completion_scan ..................   Passed    0.28 sec",
+        "      Start  6: completion_inspection",
+        " 6/12 Test  #6: completion_inspection ............   Passed    0.29 sec",
+        "      Start  7: completion_cursor_close",
+        " 7/12 Test  #7: completion_cursor_close ..........   Passed    0.28 sec",
+        "      Start  8: completion_reuse",
+        " 8/12 Test  #8: completion_reuse .................   Passed    0.37 sec",
+        "      Start  9: completion_image_close",
+        " 9/12 Test  #9: completion_image_close ...........   Passed    1.00 sec",
+        "      Start 10: completion_create_into",
+        "10/12 Test #10: completion_create_into ...........   Passed    0.74 sec",
+        "      Start 11: completion_sync_files",
+        "11/12 Test #11: completion_sync_files ............   Passed    0.69 sec",
+        "      Start 12: completion_map",
+        "12/12 Test #12: completion_map ...................   Passed    0.43 sec",
+        "",
+        "100% tests passed out of 12",
+        "",
+        "Total Test time (real) =   6.08 sec"
+      ]
+    },
+    "journal-resource-public.log": {
+      "sha256": "9ea613c41eea9eac6934b4e0483447405981a78e3260e539eb32e22530dfb1e4",
+      "result_tail": [
+        "    Start 1: journal_journal",
+        "1/8 Test #1: journal_journal ..................   Passed    3.13 sec",
+        "    Start 2: journal_inventory",
+        "2/8 Test #2: journal_inventory ................   Passed    0.31 sec",
+        "    Start 3: journal_admission",
+        "3/8 Test #3: journal_admission ................   Passed    0.31 sec",
+        "    Start 4: journal_turn_log",
+        "4/8 Test #4: journal_turn_log .................   Passed   32.08 sec",
+        "    Start 5: journal_turn_log_power",
+        "5/8 Test #5: journal_turn_log_power ...........   Passed    8.41 sec",
+        "    Start 6: journal_shared_store",
+        "6/8 Test #6: journal_shared_store .............   Passed   17.59 sec",
+        "    Start 7: journal_fuzz_replay",
+        "7/8 Test #7: journal_fuzz_replay ..............   Passed    0.87 sec",
+        "    Start 8: journal_completion",
+        "8/8 Test #8: journal_completion ...............   Passed    2.54 sec",
+        "",
+        "100% tests passed out of 8",
+        "",
+        "Total Test time (real) =  65.25 sec"
+      ]
+    },
+    "xapiand-resource-version.log": {
+      "sha256": "1a80fd5433581b9c5fe04407b0caf67dc38828233e97cde2658d2c687d75f756",
+      "result_tail": [
+        "1.0.0-alpha.9"
+      ]
+    }
+  },
+  "cost_artifact": "resource-extraction-ownership-20261019.json",
+  "remaining": [
+    "Final composed application platform/sanitizer qualification and default heap/CPU/capacity measurement",
+    "Production Detent adoption waits for coherent final transport v2; isolated consensus61149a2 is qualification-only",
+    "HTTP, bounded MessagePack and persistent-map extraction",
+    "Separate cpp-btree immutable-key mutation finding"
+  ]
+}
