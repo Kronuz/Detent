@@ -2,7 +2,7 @@
   "schema": 1,
   "date": "2026-10-18",
   "component": "retained-state resources",
-  "status": "paired libraries qualified; Detent integration qualification active; published dependency closure pending",
+  "status": "paired libraries published and CI qualified; Detent integration qualification active; production adoption pending",
   "snapshots": {
     "consensus": {
       "base": "3c60f472da68e6e0d4810bbc929c89c0643d0f8f",
@@ -94,5 +94,20 @@
   "qualified_commits": {
     "consensus": "47d2884",
     "journal": "cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62"
+  },
+  "publication": {
+    "consensus": {
+      "revision": "61149a2e43a4871676163198bde896fae3ac4ef6",
+      "ci": "https://github.com/Kronuz/consensus/actions/runs/39168898196",
+      "conclusion": "success",
+      "jobs_passed": 8
+    },
+    "journal": {
+      "revision": "cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62",
+      "ci": "https://github.com/Kronuz/journal/actions/runs/39168323988",
+      "conclusion": "success",
+      "jobs_passed": 8
+    },
+    "production_pins_changed": false
   }
 }

@@ -7,7 +7,7 @@ The initial release supports a regional fixed three-voter authority, durable rel
 | Component | Current evidence | Required exit |
 | --- | --- | --- |
 | Updated libraries A–E | Native coverage and paired samples captured; seven-pair collection repeat stays within the CPU review threshold | Qualify daemon CPU and footprint, then adopt immutable pins |
-| Retained-state resources | Paired library source reviewed; native and four-platform qualification pass | Complete Detent funded-envelope integration, default footprint and published dependency closure |
+| Retained-state resources | Paired library source reviewed, published and green in both eight-job CI runs; Detent Linux/FreeBSD host tests pass | Complete Detent sanitizer qualification, default footprint and final transport dependency closure |
 | Shared library extraction | Source audit recorded in `LIBRARY_BOUNDARIES.md` | Shared HTTP client mechanics, bounded MessagePack, persistent map and resource primitives integrated without parallel implementations; focused compatibility and performance evidence |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |
 | Sustained capacity | Reduced functional runs and short 10k-session evidence | Calibrated 500k-key ingestion, raw/zstd 500/2k/10k session ladder, mixed pressure and soak at the supported operating point |
