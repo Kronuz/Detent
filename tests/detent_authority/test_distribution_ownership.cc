@@ -243,7 +243,8 @@ int main(int argc, char **argv) {
 							  hex(options.node.context.group) + "\",\"epoch\":\"" +
 							  hex(options.node.context.epoch) + "\",";
 		bool elected = false;
-		for (unsigned turn = 0; turn < (idle_keys ? 6000u : 50u); ++turn) {
+		const auto election_deadline = std::chrono::steady_clock::now() + (idle_keys ? 120s : 5s);
+		while (std::chrono::steady_clock::now() < election_deadline) {
 			Writer probe;
 			invoke(*service, probe, "/v2/read", "{" + identity + "\"namespace\":\"ns\",\"keys\":[]}");
 			if (probe.code == 200) {

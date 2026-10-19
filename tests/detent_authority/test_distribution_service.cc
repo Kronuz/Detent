@@ -156,7 +156,8 @@ int main(int argc, char **argv) {
 			};
 			if (!run) {
 				Response open;
-				for (unsigned turn = 0; turn < 50; ++turn) {
+				const auto deadline = std::chrono::steady_clock::now() + 5s;
+				while (std::chrono::steady_clock::now() < deadline) {
 					open = call("/v2/open",
 								"\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"");
 					if (open.status == 200)
@@ -172,7 +173,8 @@ int main(int argc, char **argv) {
 				// Storage recovery precedes election. Wait for a quorum boundary
 				// rather than assuming construction makes this node a leader.
 				bool elected = false;
-				for (unsigned turn = 0; turn < 50; ++turn) {
+				const auto deadline = std::chrono::steady_clock::now() + 5s;
+				while (std::chrono::steady_clock::now() < deadline) {
 					if (call("/v2/read", "\"namespace\":\"ns\",\"keys\":[]").status == 200) {
 						elected = true;
 						break;

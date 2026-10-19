@@ -172,3 +172,9 @@ On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before 
 push to strip `Claude-Session` trailers that five of them carried; their trees are unchanged and
 no document cites them. If you remember an older SHA, `.scratch/history-rewrite-2026-10-17.txt`
 maps each old SHA to its new one.
+
+## Election readiness deadlines (October 19)
+
+Consensus commit `9f7d43e1` raises its default election interval from 100–200 ms to 1–2 seconds. Two authority distribution fixtures still stop checking after 50 sleeps of 20 ms. The service fixture fails at the same recovered-leader assertion both before and after HTTP migration; the ownership fixture passes or fails depending on election timing. The isolated HTTP run also encounters that ownership assertion in its large-scope case.
+
+Use steady-clock readiness deadlines of five seconds for these small fixtures, preserving the existing 120-second allowance for large recovered-state cases. Keep the library's production defaults. The changed service, ownership and large-scope cases pass with their TLS setup (4/4, 10.84 seconds), then pass three repetitions each (33.48 seconds). The broader suite continues against the original binaries; its election failures are covered by this focused rerun. This finding establishes a fixture deadline mismatch preceding HTTP migration.

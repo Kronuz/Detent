@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "status": "Preliminary native functional checks; complete component acceptance remains open",
   "profile": {
-    "compiler": "Apple Clang 23, C++20",
+    "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2), C++20",
     "optimization": "-O2 -UNDEBUG",
     "priority": "nice 19",
     "shared_host": "Light hold; elapsed times are not performance evidence"
@@ -55,8 +55,29 @@
   },
   "limits": [
     "Library candidates remain unpublished and excluded from production pins",
-    "Detent 191-test subset is in progress with two election-readiness failures under investigation",
+    "Detent 191-test subset remains in progress; original binaries hit three election-deadline failures covered by focused corrected reruns",
     "Detent session window/feedback held-completion gate remains open",
     "Fresh sanitizer, platform, public dependency and paired performance closures remain open"
-  ]
+  ],
+  "allocator_unique_ownership_sanitizers": {
+    "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "passed": 4,
+    "total": 4,
+    "elapsed_seconds": 1.71
+  },
+  "election_readiness": {
+    "cause": "Consensus default election interval changes from 100\u2013200 ms to 1\u20132 seconds while fixtures wait only one second",
+    "before_http_migration": "Service fails at the same recovered-leader assertion; ownership outcome varies with timing",
+    "correction": "Five-second steady-clock deadlines; retain 120-second large-recovery allowance",
+    "focused_cases_passed": 3,
+    "tls_fixture_passed": true,
+    "repetitions_per_case": 3,
+    "repeat_total_seconds": 33.48
+  }
 }
