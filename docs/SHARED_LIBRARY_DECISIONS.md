@@ -144,6 +144,10 @@ Fresh Detent host qualification with public `cpp-btree` revision `dbe7557` abort
 
 The build also requires coherent SDK discovery on this Intel Mac: Homebrew Clang uses SDK 15 implicit headers while default zlib discovery selects the SDK 26 alias. Selecting SDK 15 for both `CMAKE_OSX_SYSROOT` and the zlib include/library paths builds successfully. An explicit sysroot alone leaves the cached zlib paths unchanged and still fails. This toolchain configuration issue is separate from the runtime sanitizer finding.
 
+## cpp-btree immutable-key audit (October 18)
+
+The compact-layout review separately finds `btree_map_params::swap` modifying `std::pair<const Key, T>::first` through `const_cast` (`btree/btree.h:339` in the layout candidate). Correcting short-root storage does not make that mutation valid. This existing mechanism needs an independent library fix that preserves iterator/reference behavior and move-only mapped values. Reinterpreting a mutable pair as a const-key pair is not an accepted substitute. If preserving the public reference API requires key copies during relocation, measure that cost and record the API/performance decision before adoption. No sanitizer pass should be described as closing this finding.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
