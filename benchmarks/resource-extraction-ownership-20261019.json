@@ -1,0 +1,616 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "component": "owning resource extraction foundation",
+  "status": "component integration evidence; release and public immutable closure pending",
+  "platform": "macOS x86_64",
+  "compiler_command": "/usr/bin/c++ -std=c++20 -O2 -DNDEBUG; retirement also -pthread",
+  "candidate_define": "SHARED_RESOURCES",
+  "quiet": "exclusive detent-resource-ownership-pairs hold; no competing build/test processes before or after each sample",
+  "pairs": 5,
+  "order": "before/after on even pairs, after/before on odd pairs",
+  "provenance": {
+    "completed": true,
+    "pairs": 5,
+    "binaries": {
+      "ownership-before": {
+        "sha256": "6fae223af91a6b80fce0f84703c231a5d0833caf3595e1e7dd80b3ebe13d921b",
+        "bytes": 31128
+      },
+      "ownership-after": {
+        "sha256": "ba233b47a8585d804ea06cecbdd4c6a546fe3943fff31e264c2ce3d7740eff1f",
+        "bytes": 31928
+      },
+      "retirement-before": {
+        "sha256": "3c02fab0d6e0d3e80de9e5582829bb4b12a3d9bc4adaf092d7f8306000f73b70",
+        "bytes": 51016
+      },
+      "retirement-after": {
+        "sha256": "bf74e1b83810297b954f5e6469029807c175616f7b053a7c4ff9bbc2c125041c",
+        "bytes": 51248
+      }
+    }
+  },
+  "source": {
+    "allocators-resource-foundation": {
+      "base": "2ebd873e61684279297e0b12d70a58befca91ad4",
+      "changed_files": {
+        "AGENTS.md": "ae75e179485156f1d56917fdab8da67538f5d12baad74a7c9c47b0b3a832fc51",
+        "ARCHITECTURE.md": "4161e9ea825115c35438d7c2fb6d536318a84b1b3364485c2b6e3e5d7bdabfc8",
+        "CMakeLists.txt": "8e87f3a447c9f5ae52e8fd2fbbe35c9d21da54dab70e9222b5d1b4cd0047cdd1",
+        "README.md": "6aea0826727b931a1b177afce1de5862018e72d37c0cdf6676f160426dce89d7",
+        "docs/API.md": "4889dbdbff44e067fad76a31395d48a0378d55b23fd0b0a75511dc6402524980",
+        "examples/resources.cc": "4d80e6ff3d6f5d3ac742f27fa7b4b0c7d31eec960654a13aa53234c8e55f7157",
+        "include/allocators/allocation.h": "80172a30534e2cb711178417a42ce635f97d4a042f9edcf70fc594219d4e1425",
+        "include/allocators/buffer.h": "9bdd2832da556098c9c2a8357225d4d39ea928c722d6cbed1ce74d0ca12d9789",
+        "include/allocators/charged_allocator.h": "85e16bc8c278e2bb4917feb03ba0342f56dd57301a000c476b2ce526187be10e",
+        "include/allocators/memory_resource.h": "44297989963e03802782961e76dc441b656be39515b7afabaaf45206e0936936",
+        "include/allocators/resources.h": "076567622bdffc7480f1017b9ee6b8eb0fc3082e3fda3b73ab3e0bbc0fbb41cc",
+        "include/allocators/retirement.h": "7a190c5adcf3ed197b996303c01c8cd1154f6b6e087ea29c016e528e126ba8dd",
+        "include/allocators/storage.h": "214eb499b2b34f916ee5388d601c198ad0f670d1a0276c912e2016b1c78f726d",
+        "retirement.cc": "a559738d3e295988e35d4d326af56e33c68e58c045f4519325cbf2049551506a",
+        "test/resources.cc": "737f7d1046066098de34363dccb5a6853a49f34c21df4a2165e001084d2b8c41",
+        "test/retirement.cc": "cf8103ee5405bbe8d8838740504d59cc0a51769e4741c61a20470dcdfe11e19c"
+      }
+    },
+    "completion-resource-migration": {
+      "base": "5251cf9f24350c65548318b54a4be93389df73d0",
+      "changed_files": {
+        "CMakeLists.txt": "11962ae251a37841abda0f39ac2bd6ba8df32732c6915c22d93251d3c557b0bb",
+        "README.md": "0a0fe30959c9b7d755b718d58d193130ebeb0def359e8ab12a2ddfe839c46e70",
+        "include/completion/allocation.h": "fb7c917a00f7b31191172bc559ccd5d81c6e494080e1b14a4a012a72f0c75804"
+      }
+    },
+    "journal-resource-migration": {
+      "base": "cb66f3d4e644ee5f3c3e86cd61a8c83d2b36be62",
+      "changed_files": {
+        "CMakeLists.txt": "0c0dc22de3441561ff4e21e2c4b15641490a3f92dfdb0020fd5c43de7d50e713",
+        "README.md": "a43786e354e049ec922744e0196d797ec6a067c4d24cbaf69e0ae28d252b5814",
+        "include/journal/admission.h": "66a2f8776e5e703e239589aeee8e8791e715e1178b466363d7043ce152e7daaa",
+        "include/journal/resources.h": "5c2e1235bce9195502ebace6b88507ea17c7f05ada1d60504dc6edd05ee69104",
+        "test/admission_test.cc": "f39cfae8408c8db404dd0f7a0be6b44508fda416732ed3a59ddcec0601dbae11"
+      }
+    },
+    "detent-resource-migration": {
+      "base": "ce6e63069bfe2b865cd216a73a51f7cfeb868a75",
+      "changed_files": {
+        "CMakeLists.txt": "fa61b15daddd4880cc777ba6ad690e9177107a9e5fdd9c5d59986b19e22a07b9",
+        "cmake/dependencies.json": "7b0b4f15a7a7cf42e56a88f6d36100093bdd1210b96a03fd420be2649e63c5f1",
+        "docs/AUTHORITY_TRANSPORT.md": "e07b654cb746dc8ac7a0745ce1826150782cf6fcf5f4c90537fd35bf04b81a7e",
+        "docs/LIBRARY_BOUNDARIES.md": "2b087d4c4b001dfbe01f169f5aac9ab922688ddb619a2f804fb2959b4662b9cf",
+        "include/detent_distribution/allocator.hh": "85916eb8b34c5304750896324775a113731045edfe25183500b1bc2b5b7e9ad4",
+        "include/detent_distribution/buffer.hh": "f72d908c182df66d8fa81c3ac9e96c3d7a7dcc35ecd6e39e4d9a392f9b65d4ef",
+        "include/detent_distribution/memory_resource.hh": "c945b57ea71fe188273eb17c84859c5157f412230608365f48b4c6db01fc7b3f",
+        "include/detent_distribution/retirement.hh": "162693c37624c543d4734f1cc4be99b69c722c6be27380f207ba377653778ae3",
+        "include/detent_distribution/storage.hh": "9adb4bfafe72322c7ad500815a9cd1e4eb92218992ddb8bce4d36d2076e08315",
+        "include/detent_local/disk_ledger.hh": "6acfd33a5a5d2ea3f1e4cfdca8df7a93e852d1dbf70e50d13edadf4f35e6ded8",
+        "src/detent_authority/node.cc": "b1ad0a91009d0c913e20829a1852bd4e300f5082a2a8d2b78600bcb288cc2fd8",
+        "src/detent_authority/node.hh": "684a29aa4206e4a155fe69fe9ed1757ea5e876f61b66970894c9fc701ebae6ee",
+        "src/detent_authority/service.cc": "cadb6c26ff12eee79c3f1de30ea25d53da3d89e8e346a6616416cb5553c1d2dd",
+        "src/detent_distribution/CMakeLists.txt": "ac9b2563d43f3eea5640da78e3437d187cd0e7f634e8916c67812c88c09d964e",
+        "src/detent_distribution/retirement.cc": null,
+        "tests/detent_authority/test_node.cc": "966a2a24a459b40a43d3d062289273fb2b9d282c9c803de7a1b5c912a7fa6211",
+        "tests/detent_authority/test_service.cc": "30159895d1d69f95f8d9ad1b4dd1472b8841b4573cb21fef1c9f31d84405abc4"
+      }
+    }
+  },
+  "metrics": {
+    "account-construction": {
+      "samples": {
+        "before": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.000138033,
+            "cpu_seconds": 0.000138
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.000137763,
+            "cpu_seconds": 0.000138
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.000138147,
+            "cpu_seconds": 0.000138
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.000132215,
+            "cpu_seconds": 0.000132
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00011574,
+            "cpu_seconds": 0.000115
+          }
+        ],
+        "after": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.0056699,
+            "cpu_seconds": 0.005669
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00551138,
+            "cpu_seconds": 0.005512
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00550683,
+            "cpu_seconds": 0.005507
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00543221,
+            "cpu_seconds": 0.005427
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00561201,
+            "cpu_seconds": 0.005612
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.000138,
+      "after_median_cpu_seconds": 0.005512,
+      "median_cpu_change_percent": 3894.202898550725,
+      "added_cpu_ns_per_operation": 53.74
+    },
+    "root-admission": {
+      "samples": {
+        "before": [
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.075415,
+            "cpu_seconds": 0.07536
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.0705066,
+            "cpu_seconds": 0.070458
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.0728771,
+            "cpu_seconds": 0.072735
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.0736829,
+            "cpu_seconds": 0.073569
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.0747864,
+            "cpu_seconds": 0.07467
+          }
+        ],
+        "after": [
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.111631,
+            "cpu_seconds": 0.111498
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.105986,
+            "cpu_seconds": 0.1059
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.109483,
+            "cpu_seconds": 0.109343
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.10888,
+            "cpu_seconds": 0.108803
+          },
+          {
+            "operations": 5000000,
+            "wall_seconds": 0.110003,
+            "cpu_seconds": 0.109761
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.073569,
+      "after_median_cpu_seconds": 0.109343,
+      "median_cpu_change_percent": 48.62645951419755,
+      "added_cpu_ns_per_operation": 7.1548
+    },
+    "depth-eight-admission": {
+      "samples": {
+        "before": [
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.085682,
+            "cpu_seconds": 0.085452
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0948514,
+            "cpu_seconds": 0.094716
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0837897,
+            "cpu_seconds": 0.083705
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0875132,
+            "cpu_seconds": 0.087228
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0824373,
+            "cpu_seconds": 0.082164
+          }
+        ],
+        "after": [
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0939564,
+            "cpu_seconds": 0.093602
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0946533,
+            "cpu_seconds": 0.094502
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0885877,
+            "cpu_seconds": 0.088412
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0889451,
+            "cpu_seconds": 0.08888
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.0902315,
+            "cpu_seconds": 0.090058
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.085452,
+      "after_median_cpu_seconds": 0.090058,
+      "median_cpu_change_percent": 5.390160557974055,
+      "added_cpu_ns_per_operation": 4.605999999999999
+    },
+    "shared-control": {
+      "samples": {
+        "before": [
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.148678,
+            "cpu_seconds": 0.148464
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.150906,
+            "cpu_seconds": 0.150644
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.150358,
+            "cpu_seconds": 0.15018
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.155464,
+            "cpu_seconds": 0.155195
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.148203,
+            "cpu_seconds": 0.148139
+          }
+        ],
+        "after": [
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.156093,
+            "cpu_seconds": 0.155701
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.150071,
+            "cpu_seconds": 0.149873
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.148341,
+            "cpu_seconds": 0.148113
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.152239,
+            "cpu_seconds": 0.152037
+          },
+          {
+            "operations": 1000000,
+            "wall_seconds": 0.14728,
+            "cpu_seconds": 0.146932
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.15018,
+      "after_median_cpu_seconds": 0.149873,
+      "median_cpu_change_percent": -0.20442136103342445,
+      "added_cpu_ns_per_operation": -0.30700000000000166
+    },
+    "overaligned-pmr": {
+      "samples": {
+        "before": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.0078292,
+            "cpu_seconds": 0.007817
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.0077242,
+            "cpu_seconds": 0.007724
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00786732,
+            "cpu_seconds": 0.007867
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00793704,
+            "cpu_seconds": 0.007937
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00796953,
+            "cpu_seconds": 0.00797
+          }
+        ],
+        "after": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00838741,
+            "cpu_seconds": 0.008388
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00829854,
+            "cpu_seconds": 0.008235
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00823515,
+            "cpu_seconds": 0.008236
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.0082984,
+            "cpu_seconds": 0.008285
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00804379,
+            "cpu_seconds": 0.00798
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.007867,
+      "after_median_cpu_seconds": 0.008236,
+      "median_cpu_change_percent": 4.690479216982335,
+      "added_cpu_ns_per_operation": 3.6899999999999955
+    },
+    "single-page-arena": {
+      "samples": {
+        "before": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00661329,
+            "cpu_seconds": 0.006613
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00685408,
+            "cpu_seconds": 0.006855
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00693982,
+            "cpu_seconds": 0.00694
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.0067114,
+            "cpu_seconds": 0.006711
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00690187,
+            "cpu_seconds": 0.006901
+          }
+        ],
+        "after": [
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00956149,
+            "cpu_seconds": 0.009562
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00875952,
+            "cpu_seconds": 0.008759
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00915334,
+            "cpu_seconds": 0.009154
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00860531,
+            "cpu_seconds": 0.008604
+          },
+          {
+            "operations": 100000,
+            "wall_seconds": 0.00859489,
+            "cpu_seconds": 0.008595
+          }
+        ]
+      },
+      "before_median_cpu_seconds": 0.006855,
+      "after_median_cpu_seconds": 0.008759,
+      "median_cpu_change_percent": 27.77534646243618,
+      "added_cpu_ns_per_operation": 19.039999999999996
+    }
+  },
+  "retirement": {
+    "samples": {
+      "before": [
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013799851",
+          "release_seconds": "0.114870476",
+          "drain_seconds": "0.000011334",
+          "cpu_seconds": "0.225154000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013016556",
+          "release_seconds": "0.110038657",
+          "drain_seconds": "0.000007832",
+          "cpu_seconds": "0.215847000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013655949",
+          "release_seconds": "0.115115347",
+          "drain_seconds": "0.000011783",
+          "cpu_seconds": "0.223954000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013505345",
+          "release_seconds": "0.108358024",
+          "drain_seconds": "0.000011636",
+          "cpu_seconds": "0.212891000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013401601",
+          "release_seconds": "0.104644114",
+          "drain_seconds": "0.000006426",
+          "cpu_seconds": "0.206164000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        }
+      ],
+      "after": [
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013410823",
+          "release_seconds": "0.108829115",
+          "drain_seconds": "0.000009303",
+          "cpu_seconds": "0.213463000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013632261",
+          "release_seconds": "0.104930341",
+          "drain_seconds": "0.000011611",
+          "cpu_seconds": "0.205773000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013737444",
+          "release_seconds": "0.109022343",
+          "drain_seconds": "0.000008417",
+          "cpu_seconds": "0.215326000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013937115",
+          "release_seconds": "0.111089485",
+          "drain_seconds": "0.000009427",
+          "cpu_seconds": "0.216541000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        },
+        {
+          "owners": "100000",
+          "destroyed": "100000",
+          "creation_seconds": "0.013014654",
+          "release_seconds": "0.115001686",
+          "drain_seconds": "0.000002751",
+          "cpu_seconds": "0.224309000",
+          "fixed_heap_bytes": "432",
+          "peak": "8800336"
+        }
+      ]
+    },
+    "before_median_cpu_seconds": 0.215847,
+    "after_median_cpu_seconds": 0.215326,
+    "median_cpu_change_percent": -0.241374677433559
+  },
+  "raw_samples": {
+    "ownership-0-after.txt": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-construction operations=100000 seconds=0.0056699 cpu_seconds=0.005669\nroot-admission operations=5000000 seconds=0.111631 cpu_seconds=0.111498\ndepth-eight-admission operations=1000000 seconds=0.0939564 cpu_seconds=0.093602\nshared-control operations=1000000 seconds=0.156093 cpu_seconds=0.155701\noveraligned-pmr operations=100000 seconds=0.00838741 cpu_seconds=0.008388\nsingle-page-arena operations=100000 seconds=0.00956149 cpu_seconds=0.009562\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-0-before.txt": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-construction operations=100000 seconds=0.000138033 cpu_seconds=0.000138\nroot-admission operations=5000000 seconds=0.075415 cpu_seconds=0.07536\ndepth-eight-admission operations=1000000 seconds=0.085682 cpu_seconds=0.085452\nshared-control operations=1000000 seconds=0.148678 cpu_seconds=0.148464\noveraligned-pmr operations=100000 seconds=0.0078292 cpu_seconds=0.007817\nsingle-page-arena operations=100000 seconds=0.00661329 cpu_seconds=0.006613\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-1-after.txt": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-construction operations=100000 seconds=0.00551138 cpu_seconds=0.005512\nroot-admission operations=5000000 seconds=0.105986 cpu_seconds=0.1059\ndepth-eight-admission operations=1000000 seconds=0.0946533 cpu_seconds=0.094502\nshared-control operations=1000000 seconds=0.150071 cpu_seconds=0.149873\noveraligned-pmr operations=100000 seconds=0.00829854 cpu_seconds=0.008235\nsingle-page-arena operations=100000 seconds=0.00875952 cpu_seconds=0.008759\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-1-before.txt": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-construction operations=100000 seconds=0.000137763 cpu_seconds=0.000138\nroot-admission operations=5000000 seconds=0.0705066 cpu_seconds=0.070458\ndepth-eight-admission operations=1000000 seconds=0.0948514 cpu_seconds=0.094716\nshared-control operations=1000000 seconds=0.150906 cpu_seconds=0.150644\noveraligned-pmr operations=100000 seconds=0.0077242 cpu_seconds=0.007724\nsingle-page-arena operations=100000 seconds=0.00685408 cpu_seconds=0.006855\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-2-after.txt": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-construction operations=100000 seconds=0.00550683 cpu_seconds=0.005507\nroot-admission operations=5000000 seconds=0.109483 cpu_seconds=0.109343\ndepth-eight-admission operations=1000000 seconds=0.0885877 cpu_seconds=0.088412\nshared-control operations=1000000 seconds=0.148341 cpu_seconds=0.148113\noveraligned-pmr operations=100000 seconds=0.00823515 cpu_seconds=0.008236\nsingle-page-arena operations=100000 seconds=0.00915334 cpu_seconds=0.009154\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-2-before.txt": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-construction operations=100000 seconds=0.000138147 cpu_seconds=0.000138\nroot-admission operations=5000000 seconds=0.0728771 cpu_seconds=0.072735\ndepth-eight-admission operations=1000000 seconds=0.0837897 cpu_seconds=0.083705\nshared-control operations=1000000 seconds=0.150358 cpu_seconds=0.15018\noveraligned-pmr operations=100000 seconds=0.00786732 cpu_seconds=0.007867\nsingle-page-arena operations=100000 seconds=0.00693982 cpu_seconds=0.00694\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-3-after.txt": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-construction operations=100000 seconds=0.00543221 cpu_seconds=0.005427\nroot-admission operations=5000000 seconds=0.10888 cpu_seconds=0.108803\ndepth-eight-admission operations=1000000 seconds=0.0889451 cpu_seconds=0.08888\nshared-control operations=1000000 seconds=0.152239 cpu_seconds=0.152037\noveraligned-pmr operations=100000 seconds=0.0082984 cpu_seconds=0.008285\nsingle-page-arena operations=100000 seconds=0.00860531 cpu_seconds=0.008604\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-3-before.txt": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-construction operations=100000 seconds=0.000132215 cpu_seconds=0.000132\nroot-admission operations=5000000 seconds=0.0736829 cpu_seconds=0.073569\ndepth-eight-admission operations=1000000 seconds=0.0875132 cpu_seconds=0.087228\nshared-control operations=1000000 seconds=0.155464 cpu_seconds=0.155195\noveraligned-pmr operations=100000 seconds=0.00793704 cpu_seconds=0.007937\nsingle-page-arena operations=100000 seconds=0.0067114 cpu_seconds=0.006711\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-4-after.txt": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-construction operations=100000 seconds=0.00561201 cpu_seconds=0.005612\nroot-admission operations=5000000 seconds=0.110003 cpu_seconds=0.109761\ndepth-eight-admission operations=1000000 seconds=0.0902315 cpu_seconds=0.090058\nshared-control operations=1000000 seconds=0.14728 cpu_seconds=0.146932\noveraligned-pmr operations=100000 seconds=0.00804379 cpu_seconds=0.00798\nsingle-page-arena operations=100000 seconds=0.00859489 cpu_seconds=0.008595\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "ownership-4-before.txt": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-construction operations=100000 seconds=0.00011574 cpu_seconds=0.000115\nroot-admission operations=5000000 seconds=0.0747864 cpu_seconds=0.07467\ndepth-eight-admission operations=1000000 seconds=0.0824373 cpu_seconds=0.082164\nshared-control operations=1000000 seconds=0.148203 cpu_seconds=0.148139\noveraligned-pmr operations=100000 seconds=0.00796953 cpu_seconds=0.00797\nsingle-page-arena operations=100000 seconds=0.00690187 cpu_seconds=0.006901\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+    "retirement-0-after.txt": "owners=100000 destroyed=100000 creation_seconds=0.013410823 release_seconds=0.108829115 drain_seconds=0.000009303 cpu_seconds=0.213463000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-0-before.txt": "owners=100000 destroyed=100000 creation_seconds=0.013799851 release_seconds=0.114870476 drain_seconds=0.000011334 cpu_seconds=0.225154000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-1-after.txt": "owners=100000 destroyed=100000 creation_seconds=0.013632261 release_seconds=0.104930341 drain_seconds=0.000011611 cpu_seconds=0.205773000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-1-before.txt": "owners=100000 destroyed=100000 creation_seconds=0.013016556 release_seconds=0.110038657 drain_seconds=0.000007832 cpu_seconds=0.215847000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-2-after.txt": "owners=100000 destroyed=100000 creation_seconds=0.013737444 release_seconds=0.109022343 drain_seconds=0.000008417 cpu_seconds=0.215326000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-2-before.txt": "owners=100000 destroyed=100000 creation_seconds=0.013655949 release_seconds=0.115115347 drain_seconds=0.000011783 cpu_seconds=0.223954000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-3-after.txt": "owners=100000 destroyed=100000 creation_seconds=0.013937115 release_seconds=0.111089485 drain_seconds=0.000009427 cpu_seconds=0.216541000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-3-before.txt": "owners=100000 destroyed=100000 creation_seconds=0.013505345 release_seconds=0.108358024 drain_seconds=0.000011636 cpu_seconds=0.212891000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-4-after.txt": "owners=100000 destroyed=100000 creation_seconds=0.013014654 release_seconds=0.115001686 drain_seconds=0.000002751 cpu_seconds=0.224309000 fixed_heap_bytes=432 peak=8800336\n",
+    "retirement-4-before.txt": "owners=100000 destroyed=100000 creation_seconds=0.013401601 release_seconds=0.104644114 drain_seconds=0.000006426 cpu_seconds=0.206164000 fixed_heap_bytes=432 peak=8800336\n"
+  },
+  "fixture_sources": {
+    "resource_ownership_bench.cc": "#ifdef SHARED_RESOURCES\n#include <allocators/memory_resource.h>\nusing Account = allocators::ByteAccount;\nusing Pages = allocators::PagedStorage;\ntemplate <class T> using Charged = allocators::ChargedAllocator<T>;\nusing Resource = allocators::ChargedMemoryResource;\n#else\n#include \"detent_distribution/memory_resource.hh\"\nusing Account = detent::distribution::StorageLedger;\nusing Pages = detent::distribution::PagedStorage;\ntemplate <class T> using Charged = detent::distribution::StorageAllocator<T>;\nusing Resource = detent::distribution::LedgerMemoryResource;\n#endif\n#include <chrono>\n#include <ctime>\n#include <iostream>\n#include <vector>\n#include <string_view>\nstd::size_t upstream_bytes = 0, upstream_calls = 0;\nvoid *upstream(std::size_t bytes) { upstream_bytes += bytes; ++upstream_calls; return std::malloc(bytes); }\nvoid release(void *pointer) { std::free(pointer); }\ntemplate <class F> void measure(std::string_view name, std::size_t count, F operation) {\n\tconst auto start = std::chrono::steady_clock::now();\n\tconst auto cpu_start = std::clock();\n\tfor (std::size_t i = 0; i < count; ++i) operation();\n\tconst auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();\n\tconst double cpu = double(std::clock() - cpu_start) / CLOCKS_PER_SEC;\n\tstd::cout << name << \" operations=\" << count << \" seconds=\" << elapsed << \" cpu_seconds=\" << cpu << '\\n';\n}\nint main() {\n\tconstexpr std::size_t limit = 1024 * 1024;\n\tstd::cout << \"account_bytes=\" << sizeof(Account) << \" charge_bytes=\" << sizeof(Account::Ticket)\n\t\t<< \" page_header_bytes=\" << Pages::page_overhead() << \" allocator_header_bytes=\"\n\t\t<< Charged<int>::allocation_overhead() << \" arena_bytes=\" << sizeof(Pages) << '\\n';\n\tstd::size_t checksum = 0;\n\tmeasure(\"account-construction\", 100000, [&] {\n\t\tAccount account(limit);\n\t\tasm volatile(\"\" : : \"g\"(&account) : \"memory\");\n\t\tchecksum += account.limit();\n\t});\n\tauto root = std::make_shared<Account>(limit);\n\tmeasure(\"root-admission\", 5000000, [&] { auto charge = root->admit(64); checksum += charge.bytes(); });\n\tauto child = root;\n\tfor (std::size_t i = 1; i < Account::maximum_depth; ++i) child = std::make_shared<Account>(child, limit);\n\tmeasure(\"depth-eight-admission\", 1000000, [&] { auto charge = child->admit(64); checksum += charge.bytes(); });\n\tmeasure(\"shared-control\", 1000000, [&] {\n\t\tauto value = std::allocate_shared<int>(Charged<int>(root, upstream, release), 42);\n\t\tchecksum += *value;\n\t});\n\tResource resource(root, upstream, release);\n\tmeasure(\"overaligned-pmr\", 100000, [&] { auto pointer = resource.allocate(64, 4096); resource.deallocate(pointer, 64, 4096); });\n\tmeasure(\"single-page-arena\", 100000, [&] { Pages pages(*root, 1024, upstream, release); (void)pages.allocate(512); });\n\tstd::cout << \"checksum=\" << checksum << \" upstream_bytes=\" << upstream_bytes << \" upstream_calls=\"\n\t\t<< upstream_calls << \" used=\" << root->used() << \" peak=\" << root->peak() << '\\n';\n\treturn root->used() != 0;\n}\n",
+    "resource_retirement_bench.cc": "#ifdef SHARED_RESOURCES\n#include <allocators/retirement.h>\nnamespace resource = allocators;\nusing Account = allocators::ByteAccount;\n#else\n#include \"detent_distribution/retirement.hh\"\nnamespace resource = detent::distribution;\nusing Account = detent::distribution::StorageLedger;\n#endif\n#include <chrono>\n#include <cstdio>\n#include <ctime>\n#include <vector>\n\nstruct Payload : resource::RetirementNode {\n\tstatic inline std::atomic<std::size_t> destroyed{0};\n\t~Payload() { destroyed.fetch_add(1, std::memory_order_relaxed); }\n};\n\nint main() {\n\tconstexpr std::size_t count = 100000;\n\tauto baseline = std::make_shared<Account>(1024 * 1024);\n\tauto account = std::make_shared<Account>(64 * 1024 * 1024);\n\tresource::RetirementRuntime runtime(baseline);\n\tauto domain = runtime.domain(account, count + 1);\n\tstd::vector<resource::RetirementHandle<Payload>> owners;\n\towners.reserve(count);\n\tconst auto start = std::chrono::steady_clock::now();\n\tconst auto cpu_start = std::clock();\n\tfor (std::size_t i = 0; i < count; ++i) owners.push_back(domain.make<Payload>());\n\tconst auto created = std::chrono::steady_clock::now();\n\towners.clear();\n\tconst auto released = std::chrono::steady_clock::now();\n\tdomain.close().wait();\n\tconst auto drained = std::chrono::steady_clock::now();\n\tconst double cpu = double(std::clock() - cpu_start) / CLOCKS_PER_SEC;\n\tconst auto seconds = [](auto first, auto last) {\n\t\treturn std::chrono::duration<double>(last - first).count();\n\t};\n\tstd::printf(\"owners=%zu destroyed=%zu creation_seconds=%.9f release_seconds=%.9f drain_seconds=%.9f cpu_seconds=%.9f fixed_heap_bytes=%zu peak=%zu\\n\",\n\t\tcount, Payload::destroyed.load(), seconds(start, created), seconds(created, released),\n\t\tseconds(released, drained), cpu, runtime.fixed_heap_capacity(), account->peak());\n\truntime.shutdown();\n\treturn Payload::destroyed.load() != count || domain.residents() != 0;\n}\n"
+  },
+  "limits": [
+    "Old tickets borrow initiating facade lifetime; new charges own counter state and page arenas may allocate after facade destruction. This fixes a lifetime contract and is not performance-equivalent code.",
+    "Independent account construction adds one fixed shared-state allocation outside its own quota. Its synthetic ratio is not daemon throughput.",
+    "Headers and upstream extents stay unchanged for charged controls and pages; arena grows eight bytes.",
+    "Five short matched pairs do not establish statistical equivalence or macro capacity.",
+    "Retirement process CPU includes both caller and cleanup worker; phase wall time overlaps cleanup.",
+    "No power, dollar, capacity, or efficiency improvement is claimed."
+  ]
+}
