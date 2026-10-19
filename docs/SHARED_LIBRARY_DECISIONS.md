@@ -154,6 +154,12 @@ The immutable-key correction also covers exception-safe mutation. Existing split
 
 The accepted component plan compares two valid candidates before choosing a representation. An indirect map slot owns an actual `pair<const Key, T>` allocated through the supplied allocator; structural changes transfer ownership without moving existing entries. An inline candidate requires all fallible staging for the complete mutation before a proven nonthrowing commit, with explicit supported-type constraints. Both preserve real const-key references. Measure long keys, nested Detent definitions, allocation failure and construction failure, in addition to lookup and mutation costs. The extra allocation/indirection cost and any inline source-compatibility restriction remain unmeasured; no representation decision is made yet.
 
+## Legacy HTTP response bounds (October 19)
+
+The legacy poll/publisher client accumulates wire bytes without a ceiling. Its gzip decoder can expand one compressed input block into an unbounded temporary string, and its zstd call accepts any declared output size. The [HTTP extraction](HTTP_CLIENT_EXTRACTION_ARCHITECTURE.md) includes independently bounded encoded and decoded bodies. Reuse `decompress_zstd(bytes, max_size)` and extend the existing `DeflateDecompressData` implementation for bounded gzip output. A separate gzip implementation in HTTP is excluded.
+
+The compressor candidate is isolated from the published `ed590c8` baseline. It emits at most the existing 16 KiB block size, caps cumulative output before constructing a returned block, validates checksums and end-of-stream, and handles concatenated gzip members under one bound ([RFC 1952, section 2.2](https://www.rfc-editor.org/rfc/rfc1952#section-2.2)). Invalid trailing data and truncation become errors. The optional constructor/reset bound preserves existing source calls but changes the class layout and constructor ABI, requiring a coordinated C++ rebuild. Qualification and measurements remain open; no new compressor revision is adopted yet.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first

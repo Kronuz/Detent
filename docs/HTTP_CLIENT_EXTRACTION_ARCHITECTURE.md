@@ -21,6 +21,8 @@ Preserve `http::http` and existing server defaults. Client-only configuration wi
 
 Keep distribution raw/zstd decoding in Detent. Add generic HTTP content decoding only if an existing migrated behavior requires it; it must bound decoded output independently of encoded bytes and workspace.
 
+The legacy poll/publisher adapter currently accumulates the complete wire response without a bound. Its zstd helper allocates the frame's declared output size and gzip decoding appends without a decoded-size limit. The migration must use the existing bounded zstd helper and establish bounded gzip decoding in `compressors`, preserving one codec implementation. Qualify encoded, decoded and workspace limits independently, including highly compressible hostile responses. Neither a wire limit nor a post-decompression size check closes this finding.
+
 ## Framing and bounded work
 
 Wrap the existing `http-parser` once. Begin with the existing 64 KiB header, 128-field and 4 KiB read defaults; give body and total-wire limits finite documented values, with application-derived streaming ceilings. Count raw status/header syntax and chunk overhead, including bytes outside callbacks. Bound informational responses.
