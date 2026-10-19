@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-19",
+  "status": "Preliminary native functional checks; complete component acceptance remains open",
+  "profile": {
+    "compiler": "Apple Clang 23, C++20",
+    "optimization": "-O2 -UNDEBUG",
+    "priority": "nice 19",
+    "shared_host": "Light hold; elapsed times are not performance evidence"
+  },
+  "default_resource_regression": {
+    "published_http_revision": "dc3be77028d13aca66d20648d498301c9d745968",
+    "same_fixture": true,
+    "before_exit": 1,
+    "candidate_exit": 0,
+    "invariant": "Storage is freed through its originating PMR resource after the process default changes"
+  },
+  "server_client_ctest": {
+    "passed": 13,
+    "total": 13,
+    "elapsed_seconds": 11.78,
+    "held_completion_cases": 6,
+    "cases": "Fixed and chunked framing, each with written, abandonment and shutdown outcomes; real final-write completion retained after client reception; second handler blocked; one settlement and matched retention refund"
+  },
+  "partial_header_disposal": {
+    "passed": 1,
+    "total": 1,
+    "cases": [
+      "EOF with allocated partial header",
+      "Malformed continuation after allocated partial header"
+    ],
+    "budget_per_turn": {
+      "bytes": 1,
+      "tokens": 1
+    }
+  },
+  "files": {
+    "http-client-extraction/http_owned_storage.h": {
+      "sha256": "26fec4705336e7ac7243bf91aa0fea149cc7215eb4fbf01b9c51f591dd75d2dd"
+    },
+    "http-client-extraction/test/owned_stream_test.cc": {
+      "sha256": "a2589a6dfa74b0654646f0cc071f462bd802051212f85fe4b000104cc121ee12"
+    },
+    "http-client-extraction/test/held_response_test.cc": {
+      "sha256": "fd42c2a103d6084042752d2bb023b916046f0717a6518552f20864d7f24b7b29"
+    },
+    "http-client-extraction/test/support/held_write_stream.h": {
+      "sha256": "2a6ef7ee987c52279e57cf89a442f22da1a51798f6e2b6b80994e3e7ad2a719d"
+    },
+    "http-client-extraction/test/client_core_test.cc": {
+      "sha256": "1b6187844d0d5ef624332a7d220cbf5007506373e1c2acee9a1d18f6cbd877a0"
+    },
+    "allocators-http-ownership/include/allocators/allocation.h": {
+      "sha256": "ef2b0b42d49609473e21105459e72c73589641e19a8b49c84efd8498661adb4e"
+    }
+  },
+  "limits": [
+    "Library candidates remain unpublished and excluded from production pins",
+    "Detent 191-test subset is in progress with two election-readiness failures under investigation",
+    "Detent session window/feedback held-completion gate remains open",
+    "Fresh sanitizer, platform, public dependency and paired performance closures remain open"
+  ]
+}
