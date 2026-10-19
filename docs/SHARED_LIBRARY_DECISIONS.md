@@ -150,6 +150,10 @@ The build also requires coherent SDK discovery on this Intel Mac: Homebrew Clang
 
 The compact-layout review separately finds `btree_map_params::swap` modifying `std::pair<const Key, T>::first` through `const_cast` (`btree/btree.h:339` in the layout candidate). Correcting short-root storage does not make that mutation valid. This existing mechanism needs an independent library fix that preserves iterator/reference behavior and move-only mapped values. Reinterpreting a mutable pair as a const-key pair is not an accepted substitute. If preserving the public reference API requires key copies during relocation, measure that cost and record the API/performance decision before adoption. No sanitizer pass should be described as closing this finding.
 
+The immutable-key correction also covers exception-safe mutation. Existing split paths change counts before fallible key copies, insertion increments size before construction, and root promotion can publish before later allocation succeeds. Copy construction needs cleanup for an incrementally constructed tree. Detent's nested definition maps currently lack move constructors, so their apparent moves can copy entire override trees.
+
+The accepted component plan compares two valid candidates before choosing a representation. An indirect map slot owns an actual `pair<const Key, T>` allocated through the supplied allocator; structural changes transfer ownership without moving existing entries. An inline candidate requires all fallible staging for the complete mutation before a proven nonthrowing commit, with explicit supported-type constraints. Both preserve real const-key references. Measure long keys, nested Detent definitions, allocation failure and construction failure, in addition to lookup and mutation costs. The extra allocation/indirection cost and any inline source-compatibility restriction remain unmeasured; no representation decision is made yet.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first

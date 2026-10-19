@@ -508,9 +508,70 @@
   ],
   "footprint_exception": "Reviewed executable-size increases accepted for correctness/compatibility; no performance or memory improvement claimed",
   "limits": [
-    "Source inputs are preserved public-revision snapshots supplied through local FetchContent source overrides. Clean no-override product profiles remain part of release qualification.",
+    "Functional-test source inputs are public-revision snapshots supplied through local FetchContent overrides. A separate clean, no-override Release product profile builds and passes four help smoke checks; it runs no test suite.",
     "Resource extraction overhead, final transport F and sustained fleet capacity remain separate gates.",
     "All C++ consumers rebuild together when changing cpp-btree header revisions.",
     "The separate cpp-btree immutable-key mutation finding remains open."
-  ]
+  ],
+  "clean_public_product_build": {
+    "source_revision": "fbd15d5",
+    "profile": "Release -O3 -DNDEBUG; authority, managed agent, distributor and relay ON; tests, benchmarks, examples and language bindings OFF",
+    "source_overrides": 0,
+    "empty_override_cache_entries": 31,
+    "openssl": "4.0.3",
+    "build": "PASS",
+    "help_smoke_checks": "4/4 PASS",
+    "tests_executed": false,
+    "logs": {
+      "adoption-public-build.log": {
+        "sha256": "69d4f52d3bcf81cdad3372f6bd2320f7b05c290a14728689c9ad62075cad6e22",
+        "tail": [
+          "[ 99%] Built target detent_relay_host",
+          "[100%] Building CXX object src/CMakeFiles/detent-relay.dir/detent_relay/main.cc.o",
+          "[100%] Linking CXX executable detent-relay",
+          "ld: warning: ignoring duplicate libraries: '../_deps/http_parser-build/libhttp_parser.a'",
+          "[100%] Built target detent-relay"
+        ]
+      },
+      "adoption-public-detentd-help.log": {
+        "sha256": "610c29983abccec55042b7cf4c111bf567471095250aecd0dc1bf8e3d119ea22",
+        "tail": [
+          "example (three same-host replicas, each told its OWN advertised",
+          "endpoint plus every peer's):",
+          "  detentd 8081 /tmp/jk-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083",
+          "  detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083",
+          "  detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082"
+        ]
+      },
+      "adoption-public-agent-help.log": {
+        "sha256": "8011881ff3ed81ff92bccc6ce36bfc48d976286f429fd707f3e47190d8bfb5e8",
+        "tail": [
+          "  DETENT_DEFAULTS_PATH     optional baked defaults file",
+          "  DETENT_SOURCE_ADDRESS    host:port (default 127.0.0.1:8317 without defaults)",
+          "  DETENT_SOURCE_HTTP       legacy alias for DETENT_SOURCE_ADDRESS",
+          "  DETENT_SOURCE_PATH       local snapshot file path",
+          "  DETENT_POLL_INTERVAL_MS"
+        ]
+      },
+      "adoption-public-relay-help.log": {
+        "sha256": "73a3e86af84c1597315ba89d43798a95884ecb3efe6605606410c57634b3cf56",
+        "tail": [
+          "Usage: detent-relay [--config FILE] [--system] [--daemonize] [--status]",
+          "                    [--runtime-dir DIR] [--log-level LEVEL] [--color MODE]",
+          "Runs in the foreground by default. --config selects private relay JSON."
+        ]
+      },
+      "adoption-public-cli-help.log": {
+        "sha256": "a0c97cc25587f82a6f27e9efb1be282b716fcc046ac37132749dd121074f8e55",
+        "tail": [
+          "                  [--generation-dir PATH] [--managed PRIVATE_CONFIG]",
+          "       detent help | --help",
+          "User reads auto-start detent-agent; system reads attach to the managed service.",
+          "Config: agent.json in the standard Detent config directory.",
+          "Flags override environment variables, which override config."
+        ]
+      }
+    },
+    "limits": "Build and CLI startup evidence only. This O3/OpenSSL 4 profile is separate from the O2/assertion-enabled functional tests and frozen comparison binaries; no performance equivalence claimed."
+  }
 }

@@ -48,6 +48,8 @@ The completed component review accepts the recorded executable-size increases as
 
 ### Compatible pins adopted, October 19
 
+A separate clean build at `fbd15d5` fetches all dependency pins without local source overrides. Default Release (`-O3 -DNDEBUG`) builds the authority, distributor, managed agent and relay against OpenSSL 4.0.3; all four command help checks pass. Tests are disabled in this profile. Its [build evidence](../benchmarks/library-adoption-closure-20261019.json) supplements the assertion-enabled functional suite below and establishes no performance result.
+
 The [closure record](../benchmarks/library-adoption-closure-20261019.json) identifies the adopted A–E revisions, including the independently qualified cpp-btree `dd984d9` correction. A clean application build passes 201/201 tests in 957.12 seconds. The relay invocation passes 15/15 tests in 273.19 seconds: 13 newly enabled cases and two repeated prerequisite fixtures, for 214 distinct tests across both invocations. Assertions remain active. This is not a single 214-test invocation or a sustained-capacity measurement. The application source matches the qualified checkout; input snapshots preserve the declared public revisions.
 
 Consensus `b7073bb` and Journal `57e6250` remain unchanged in production. The published resource extraction and finalized transport/F have separate adoption gates. Clean product builds without local source overrides remain part of release qualification.
