@@ -138,6 +138,12 @@ Journal reservation growth is qualified on hardened macOS, macOS ASan/UBSan, Lin
 
 Consensus references the published Journal revision. Both libraries pass their eight-job public CI workflows; exact revisions and run links are in [DEPENDENCY_UPGRADES.md](DEPENDENCY_UPGRADES.md#published-resource-component-october-18). Detent's production pins remain unchanged while final transport qualification is pending. Paired hardened macOS, ASan/UBSan, Linux and FreeBSD checks pass, including the final changed fixtures. Detent's stable funded-envelope integration remains under qualification, as recorded in the [retained-state blueprint](RETAINED_STATE_ARCHITECTURE.md).
 
+## cpp-btree sanitizer blocker (October 18)
+
+Fresh Detent host qualification with public `cpp-btree` revision `dbe7557` aborts in all three macOS ASan/UBSan host tests at `btree/btree.h:870`. Clang 23 reports an insufficient-object-size upcast from `leaf_fields` to its base while initializing a short leaf root. `new_leaf_root_node` allocates only the header plus the requested number of values, then passes that storage as a full `leaf_fields`. The raw failure is preserved in `.scratch/library-adoption-20261017/host-resource-asan-sdk15-tests.log`. Source attribution and a library-level correction are under investigation; do not suppress UBSan or call the host sanitizer gate passed.
+
+The build also requires coherent SDK discovery on this Intel Mac: Homebrew Clang uses SDK 15 implicit headers while default zlib discovery selects the SDK 26 alias. Selecting SDK 15 for both `CMAKE_OSX_SYSROOT` and the zlib include/library paths builds successfully. An explicit sysroot alone leaves the cached zlib paths unchanged and still fails. This toolchain configuration issue is separate from the runtime sanitizer finding.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
