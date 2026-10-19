@@ -2,6 +2,8 @@
 
 **Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. Complete-component implementation review and release qualification remain open.
 
+The isolated implementation migrates all three Detent clients to the shared parser and removes the private delivery cache and deadline race. The first combined native check passes ten tests, including two TLS fixture setups; the client-only library passes four native and four ASan/UBSan tests, including authenticated reuse, trust/name rejection and budgeted parser disposal. A subsequent reuse pass consolidates HTTP's allocator and unique-owner bodies into `allocators`; its four native tests pass. These are preliminary checks, not final component acceptance. Full server/composed/platform tests, authentic held-final-write integration and paired cost measurements remain open. Published Detent pins still exclude these client candidates and intermediate transport F.
+
 ## Scope
 
 Move the blocking poll/publisher client, coroutine delivery transport and HTTPS health transport into optional targets in `Kronuz/http`. Keep one request representation and one bounded incremental response parser beneath blocking and Asio drivers. Buffered responses drain that same parser. Delete the migrated private parser, cache and transport bodies.

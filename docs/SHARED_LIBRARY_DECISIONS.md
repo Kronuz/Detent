@@ -160,6 +160,12 @@ The legacy poll/publisher client accumulates wire bytes without a ceiling. Its g
 
 The compressor candidate is isolated from the published `ed590c8` baseline. It emits at most the existing 16 KiB block size, caps cumulative output before constructing a returned block, validates checksums and end-of-stream, and handles concatenated gzip members under one bound ([RFC 1952, section 2.2](https://www.rfc-editor.org/rfc/rfc1952#section-2.2)). Invalid trailing data and truncation become errors. The optional constructor/reset bound preserves existing source calls but changes the class layout and constructor ABI, requiring a coordinated C++ rebuild. Qualification and measurements remain open; no new compressor revision is adopted yet.
 
+## HTTP allocation ownership (October 19)
+
+HTTP's private `StreamAllocator` and `ResourceDelete` duplicate the resource foundation's ownership mechanics. The candidate now forwards to `allocators::OwnedAllocator` and an additive `OwnedUnique`/`make_owned_unique` helper. The helper supports over-aligned and incomplete types and rolls back failed construction; four native allocator tests pass. The resource foundation's published `b7daa52` implementation remains unchanged in its qualification worktree.
+
+The empty HTTP preset also has a real resource-matching defect: it queries the current process PMR default again when freeing an existing allocation. Switching that default between allocation and destruction can free through a different resource. The forwarding preset captures the default at owner construction, preserving the server's default-resource choice while matching its deallocator. An explicitly supplied shared resource remains owned; a borrowed process default must still outlive its allocations. The regression switches defaults during construction and across surviving weak controls. Server and sanitizer qualification remain open. Existing `AllocationContext{}` keeps its process-lifetime `new_delete_resource()` default.
+
 ## History note
 
 On 2026-10-17 the 42 newest commits, ending at `488522d`, were rewritten before their first
