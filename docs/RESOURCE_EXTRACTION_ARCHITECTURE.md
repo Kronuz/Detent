@@ -1,6 +1,6 @@
 # Validated Architectural Blueprint: shared resource primitives
 
-**Date:** 2026-10-18. **Status:** Source design accepted; implementation and qualification pending.
+**Date:** 2026-10-18. **Status:** Isolated implementation and consolidated source review complete except for one permit-metadata correction; application and platform qualification active.
 
 Extend the existing `allocators` library with optional resource targets. Preserve two accounting mechanisms: concurrent allocation charges and single-executor reservations. Keep I/O lifecycle and durable-proof rules in their domain wrappers. No new ledger repository is justified by the inspected catalog and source.
 
@@ -58,3 +58,13 @@ First qualify the canonical consensus retirement-progress correction in the [ret
 Require concurrent hierarchy-pressure rollback, allocation/constructor failure, alignment/overflow, weak-control lifetime and surviving allocations after facade destruction. Reservation tests cover over-quota census, protected pools, failed growth with unchanged counters, abandonment, stale handles, original-operation settlement and proved reclaim. Retirement tests cover final-release handoff races, close/admission races, pinned owners, retry fairness, finite historical/configuration drainage and shared budget allowances.
 
 Resource-only linkage contains no global allocation overrides. Run focused application/library tests on the supported platforms and sanitizers. Measure allocation overhead, accounting cost and retirement work against the preserved baseline. Update the cpp-libraries index with the implementation series. This blueprint establishes no runtime result.
+
+## Implementation qualification (October 18)
+
+The isolated implementation moves owning byte accounts, page/buffer capacity, PMR allocation contexts and fixed retirement into optional `allocators` targets. Completion forwards its public allocation names; Detent removes the generic bodies. Journal and DiskLedger delegate committed/reserved arithmetic to one embedded reservation book while retaining their I/O and durable-proof rules. Alias canonical types and some layouts change, so C++ dependents require a coordinated rebuild; persisted bytes are unchanged.
+
+Native allocator tracking OFF and ON each pass all four suites. The migrated completion passes 12/12 and Journal passes 8/8, including original-I/O and grown-reservation cases. New allocator modules pass macOS ASan/UBSan and Linux; the FreeBSD suite passes after removing an unnecessary experimental `std::jthread` dependency from its test fixture. Successful byte admission and release allocate no bookkeeping storage; exception runtime allocation is outside that claim.
+
+The corrected implementation preserves `StoragePermit::peak()` after explicit abandonment through the reservation capability's existing preserve-debt operation, without a shadow counter. Its regression covers abandonment after the initiating facade is destroyed. The corrected allocator, completion and Journal native suites pass; the shared-library allocator profile passes 4/4. Final allocator preflight passes hardened macOS, macOS ASan/UBSan, Linux and FreeBSD.
+
+Resource-only override-symbol checks, final composed platform/sanitizer coverage, public immutable closure and measured construction, header, steady-admission and cleanup costs remain open. These source results do not accept the extraction for release.

@@ -42,6 +42,10 @@ The [daemon comparison](../benchmarks/library-adoption-daemon-cpu-20261018.json)
 
 Median CPU per command changes by +0.35% for raw and +2.58% for zstd. Paired differences range from -10.53% to +10.13% for raw and +2.11% to +10.99% for zstd. Both median observations are below the 5% review threshold; the spread prevents a statistical-equivalence or causal performance claim. Source editing and worktree creation continue under the quiet policy, while compilation, tests and competing benchmarks are excluded. This small workload does not qualify sustained fleet capacity. The artifact preserves process CPU counters, accepted/refused scheduling counts, verification results and source/binary provenance. Footprint review remains open.
 
+### A–E adoption review
+
+The completed component review accepts the recorded executable-size increases as an explicit exception for the compatibility and correctness changes. This is a file-size cost, with no claimed RSS, power or dollar benefit. The daemon medians stay below the 5% investigation threshold, while the small sample and pair variation remain limitations. Proceed with compatible A–E pin adoption after the independent cpp-btree layout correction passes downstream sanitizer qualification. Retained-state resources, new extraction overhead and finalized transport/F remain separate gates and cannot reuse these measurements as their qualification.
+
 ## Retained-state consistency findings
 
 The published consensus encoder rejects historical payloads after lowering operating limits, although checkpoint decoding and Core recovery accept them. Consensus commit `c2cbf2e` shares the existing Recovery entry validator with the incremental encoder, preserves record budgets, and gives configuration payloads their membership encoding bound. A regression fails on published `fc66c0e`; the corrected checkpoint, Core, membership, Worker, compatibility, decoder-corpus and terminal suites pass (7/7, 88.91 seconds). Source review reports no P1/P2 findings for this scope. This correction is published in the qualified library closure below; Detent production pins remain unchanged.

@@ -6,9 +6,9 @@ The initial release supports a regional fixed three-voter authority, durable rel
 
 | Component | Current evidence | Required exit |
 | --- | --- | --- |
-| Updated libraries A–E | Native coverage, seven-pair collection repeat and raw/zstd daemon CPU pairs captured | Review noisy daemon CPU observations and footprint, then adopt immutable pins |
+| Updated libraries A–E | Native coverage, seven-pair collection repeat and raw/zstd daemon CPU pairs captured | Footprint exception accepted; adopt compatible pins after cpp-btree downstream sanitizer qualification |
 | Retained-state resources | Paired library source reviewed, published and green in both eight-job CI runs; Detent Linux/FreeBSD host tests pass | Resolve cpp-btree sanitizer blocker; complete Detent sanitizer qualification, default footprint and final transport dependency closure |
-| Shared library extraction | Source audit recorded in `LIBRARY_BOUNDARIES.md` | Shared HTTP client mechanics, bounded MessagePack, persistent map and resource primitives integrated without parallel implementations; focused compatibility and performance evidence |
+| Shared library extraction | Resource source moved and reviewed in isolated checkouts; native component suites pass | Shared HTTP client mechanics, bounded MessagePack, persistent map and resource primitives integrated without parallel implementations; focused compatibility and performance evidence |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |
 | Sustained capacity | Reduced functional runs and short 10k-session evidence | Calibrated 500k-key ingestion, raw/zstd 500/2k/10k session ladder, mixed pressure and soak at the supported operating point |
 | Failure and restoration | Failure tooling and restore design available | Fresh three-voter restore under a new epoch; combined failure, receipt, complete-state and resource conservation checks |
