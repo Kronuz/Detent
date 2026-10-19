@@ -46,6 +46,12 @@ Median CPU per command changes by +0.35% for raw and +2.58% for zstd. Paired dif
 
 The completed component review accepts the recorded executable-size increases as an explicit exception for the compatibility and correctness changes. This is a file-size cost, with no claimed RSS, power or dollar benefit. The daemon medians stay below the 5% investigation threshold, while the small sample and pair variation remain limitations. Proceed with compatible A–E pin adoption after the independent cpp-btree layout correction passes downstream sanitizer qualification. Retained-state resources, new extraction overhead and finalized transport/F remain separate gates and cannot reuse these measurements as their qualification.
 
+### Compatible pins adopted, October 19
+
+The [closure record](../benchmarks/library-adoption-closure-20261019.json) identifies the adopted A–E revisions, including the independently qualified cpp-btree `dd984d9` correction. A clean application build passes 201/201 tests in 957.12 seconds. The relay invocation passes 15/15 tests in 273.19 seconds: 13 newly enabled cases and two repeated prerequisite fixtures, for 214 distinct tests across both invocations. Assertions remain active. This is not a single 214-test invocation or a sustained-capacity measurement. The application source matches the qualified checkout; input snapshots preserve the declared public revisions.
+
+Consensus `b7073bb` and Journal `57e6250` remain unchanged in production. The published resource extraction and finalized transport/F have separate adoption gates. Clean product builds without local source overrides remain part of release qualification.
+
 ## Retained-state consistency findings
 
 The published consensus encoder rejects historical payloads after lowering operating limits, although checkpoint decoding and Core recovery accept them. Consensus commit `c2cbf2e` shares the existing Recovery entry validator with the incremental encoder, preserves record budgets, and gives configuration payloads their membership encoding bound. A regression fails on published `fc66c0e`; the corrected checkpoint, Core, membership, Worker, compatibility, decoder-corpus and terminal suites pass (7/7, 88.91 seconds). Source review reports no P1/P2 findings for this scope. This correction is published in the qualified library closure below; Detent production pins remain unchanged.

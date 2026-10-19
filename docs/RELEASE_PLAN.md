@@ -6,7 +6,7 @@ The initial release supports a regional fixed three-voter authority, durable rel
 
 | Component | Current evidence | Required exit |
 | --- | --- | --- |
-| Updated libraries A–E | Native coverage, seven-pair collection repeat and raw/zstd daemon CPU pairs captured | Footprint exception accepted; adopt compatible pins after cpp-btree downstream sanitizer qualification |
+| Updated libraries A–E | Compatible pins adopted with reviewed footprint exception; corrected-layout sanitizer gate and 214 distinct native tests across two invocations pass | Final composed product/profile qualification after remaining extractions |
 | Retained-state resources | Paired library source published with green CI; Detent Linux/FreeBSD host tests and corrected-layout macOS sanitizer tests pass | Default footprint and final transport dependency closure |
 | Shared library extraction | Resource libraries published with 24 green CI jobs, clean public dependency builds and Xapiand compatibility; Detent integration isolated | Shared HTTP clients, bounded MessagePack and persistent map integrated without parallel implementations; final application qualification |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |
