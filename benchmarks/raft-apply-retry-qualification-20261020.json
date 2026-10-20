@@ -1,6 +1,6 @@
 {
   "date": "2026-10-20",
-  "status": "Source-qualified; immutable publication and clean public consumer closure pending; production pins unchanged",
+  "status": "Libraries published with terminal successful CI; immutable Detent consumer closure running; production pins unchanged",
   "macos": {
     "reactor": {
       "native": {
@@ -147,5 +147,38 @@
     "cluster-apply-retry/test/raft_safety_test.cc": "5553d7f5937e076241b0152de962736032de0171eda3f653ea3905b29c61f9ad",
     "detent-apply-retry/src/CMakeLists.txt": "e760aada3ea791e67ad3a219be03b3b1f3d936836654d9f3cc54d7dce60d3220",
     "detent-apply-retry/tests/detentd/test_raft_application_retry.cc": "943c02935d910074b9f171752f2756664887b572fa9ef6ee8d86245c456d503f"
+  },
+  "published": {
+    "reactor": {
+      "revision": "fe8c5ced4207508b32ebe96a4dcc524c08081414",
+      "ci": "https://github.com/Kronuz/reactor/actions/runs/39422378127",
+      "conclusion": "success",
+      "jobs": 8
+    },
+    "cluster": {
+      "revision": "f053a822134ab4287a40a9319b4b8db452143089",
+      "ci": "https://github.com/Kronuz/cluster/actions/runs/39422666787",
+      "conclusion": "success",
+      "jobs": 8
+    },
+    "catalog": "785e6a8",
+    "detent_candidate": "15b3fc7"
+  },
+  "public_cluster": {
+    "passed": 4,
+    "total": 4,
+    "elapsed_seconds": 12.9,
+    "source_overrides": false,
+    "reactor_revision": "fe8c5ced4207508b32ebe96a4dcc524c08081414",
+    "log": ".scratch/library-adoption-20261017/cluster-apply-retry-public-test.log",
+    "log_sha256": "7648631ae80c24dc74092bdf0eb2ac90822c4d2c086e2c9571d6c037d9ad628b"
+  },
+  "xapiand_discovery_compile": {
+    "base": "7e8cccb7d",
+    "exit": 0,
+    "flags": "Existing O3/NDEBUG/LTO production compile flags; candidate reactor and cluster include paths first",
+    "command_record": ".scratch/library-adoption-20261017/xapiand-apply-retry-compile-command.json",
+    "command_sha256": "4d3226339d6d886e77a4c59586f3942da9a50460ba6e8db110f8e3c405f9c4a7",
+    "scope": "Actual discovery/Raft translation unit only; no full relink or cluster process test for this component"
   }
 }
