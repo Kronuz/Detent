@@ -76,3 +76,7 @@ Keep blocking helper signatures as thin semantic adapters, including ETags, patc
 5. Record five alternating short pairs plus representative blocking keep-alive, cold/warm TLS, small control, large raw/zstd and multi-session workloads. Measure CPU/request and CPU/GiB, maximum owner turn, latency, allocation/high-water bytes, connection/reuse/FD counts and executable/dependency growth. Investigate changes above the existing 5% CPU/throughput/memory and 10% latency/turn gates. Relocation establishes no efficiency improvement.
 
 Complete this whole component before one consolidated review. Acceptance requires all three consumers sharing the implementation, no parallel mechanisms, authentic held-write coverage, verified optional closures, clean immutable dependency builds and no unresolved P1/P2 findings. Sustained fleet capacity remains a separate release gate.
+
+## Platform qualification, October 20
+
+The candidate passes all 14 server/client suites natively and with ASan/UBSan, object-size and pointer-overflow checks on Linux and FreeBSD. Server TLS and both asynchronous clients are enabled. GCC requires braced initialization in one POSIX test fixture to avoid a declaration parse; FreeBSD requires that fixture to include `netinet/in.h` explicitly. Production transport source is unchanged by these fixture corrections. [Recorded evidence](../benchmarks/http-client-preliminary-20261019.json) includes profiles and scope. Cross-platform Detent, Xapiand, public immutable pins and costs remain separate completion gates.
