@@ -122,7 +122,7 @@ A heads-up while this pass is held: the library-side work below lands in the Kro
 | TLS servers without a private CA | `reactor::tls`: the `Server` role may omit the CA, and a system-roots option for clients and `--status` | Publisher or relay listeners with public certificates | Additive: contexts that pass a CA behave as today |
 | A strict TLS option | `reactor::tls::Options::strict` (planned with Xapiand's HTTPS): TLS 1.2 restricted to ECDHE with AEAD ciphers, no session tickets in TLS 1.2 or 1.3, and no TLS 1.2 session-ID resumption | Setting `strict` on the peer, publisher, and relay contexts, after Detent's TLS tests | Off by default; contexts without it are unchanged. OpenSSL's default TLS 1.2 list includes four static-RSA suites without forward secrecy |
 | Consistent pins | Every Kronuz library pins its own dependencies since October 17, and a consistency pass moves lagging pins to each dependency's current commit | Closed library-side on October 17: journal `3dccf50` pins completion `5251cf9`, and consensus `fc66c0e` pins journal `3dccf50` and reactor `e19afd9`, each 8/8 and 22/22 tests natively and under ASan/UBSan. Every Kronuz library's consumers now pin one commit of it | Pass 3 can take these heads as its coherent set; Detent's own pins are unchanged until then |
-| Generated certificates (later) | `reactor::pki`: first-start CA, signed node certificates, single-use enrollment tokens bound to the CA fingerprint | An optional mode beside bring-your-own CA; pinned voters can pin issued leaves | Xapiand qualifies it first; reviewed as security code before any adoption |
+| Generated certificates (later) | `Kronuz/pki`: first-start CA, signed node certificates, single-use enrollment tokens bound to the CA fingerprint | An optional mode beside bring-your-own CA; pinned voters can pin issued leaves | Xapiand qualifies it first; reviewed as security code before any adoption |
 
 ## Coordination ledger
 
@@ -198,3 +198,9 @@ A persistence or allocation exception can still escape `on_raft_apply()`: the sn
 ### Adoption conditions
 
 Keep transitive pins coherent, including reactor users in cluster/http/consensus and completion users in journal/consensus. The finalized-v2 restriction still applies to consensus; a pin-skew fix does not authorize an intermediate wire adoption. Record each scratch run separately, then move ready production pins in a reviewed component commit. No new benchmark or runtime result is claimed by this source review.
+
+## Consolidation coordination, October 19
+
+The [audit response](CONSOLIDATION_RESPONSE.md) records Detent's position on all ten requested items. Owner-lock unification precedes any directory-lock substitution: recommend `both` for migrated mutable owners in strata and Detent, including locks acquired inside Journal. Preserve file bootstrap accounting and legacy exclusion, use directory-then-file ordering, and qualify the full multiprocess matrix. Two legacy owners using different protocols remain unsafe until migration; no new overload fixes those binaries automatically.
+
+Keep existing source names only as forwards to one engine. In particular, remove the duplicate CRC table when forwarding Journal to `hashes::crc32c`; preserve the actual strict directory refusal set rather than adding filesystem refusals under the same preset name. The existing HTTP/resource adoption components own CL-17/18 and their remaining tests. Shared-library implementation and production pin changes remain separate from this agreement.

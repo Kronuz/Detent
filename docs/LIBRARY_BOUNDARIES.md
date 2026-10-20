@@ -357,3 +357,9 @@ As the corresponding APIs arrive, include exact v2/v3 vectors and invalid-field 
 | Additive step | Candidate revision | Detent suite evidence | Adoption state |
 | --- | --- | --- | --- |
 | Durability-modes wire/API steps | Not landed at reviewed design `50245a1` | Pending each immutable implementation commit | Design contract agreed; no production pin change |
+
+### Consolidation coordination, October 19
+
+The [Detent response](CONSOLIDATION_RESPONSE.md) agrees to the ten requested audit items and defines the owner-lock migration. CL-17's HTTP allocator forwarding and CL-18's canonical resource adoption already have isolated implementations; finish those components and their qualification rather than create another extraction. The resource implementation is published and its application integration remains isolated at `33d36bf`. The audit's main-branch observation that Detent has no allocators link remains true until qualified production adoption.
+
+Any ownership change must reach Journal's internal owner acquisition and direct host storage sessions, preserve file-bootstrap accounting and run the multiprocess legacy/new contention matrix. Pure aliases cannot preserve the different bool/manual and owning-lease admission APIs; compatibility facades share one engine. New test-filesystem failures are investigated without weakening crash semantics. Apply the additive-commit scratch gate above and keep implementation evidence separate from these design positions.

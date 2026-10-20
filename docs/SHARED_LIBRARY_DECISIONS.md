@@ -87,12 +87,8 @@ were already building on the shared one. A measurement decides it, not whoever b
 
 ## 5. Related to Detent
 
-- **Key files at mode 0640** are accepted by Xapiand only when the file's group is the one the
-  process runs as (for a root start, the group it drops to; otherwise its effective group), and wider modes are refused, so Kubernetes secrets mounted with `fsGroup` work
-  (SYS-13). This is stricter than Detent, which accepts group read for any group and does not
-  check its TLS key files; Detent may adopt the same rule.
-- **A shared PKI helper** (Xapiand's `design/pki`, revision 1 in progress) issues certificates and
-  prints SPKI pins; Detent may adopt it as is, with no code change.
+1. **Key files at mode 0640.** Xapiand's `tls/d1-gate` candidate accepts group read only for the process's intended service group, including privileged startup before dropping groups. Xapiand master at the audit's `7e8cccb7d` still refuses group read; the candidate rule is not its published default. Detent currently permits group read for any group on checked configuration files and has no equivalent TLS-key trust check. Adopt the [shared checker and explicit service identity](CONSOLIDATION_RESPONSE.md) rather than copy either rule locally.
+2. **Shared PKI.** `Kronuz/pki` issues certificates and prints SPKI pins. Any Detent adoption remains optional and separately qualified; it is not part of reactor.
 
 ## 6. The peer transport, revision 1 (strata `design/peer-transport`, 2026-10-17)
 
@@ -217,3 +213,9 @@ Carry the newer completion revision into final dependency qualification with a f
 ## Optional bounded MessagePack (October 19)
 
 The [validated blueprint](MSGPACK_EXTRACTION_ARCHITECTURE.md) places the flat lexer and fixed scratch in `msgpack::bounded` and reuses the bundled packer through one append-to-write adapter. The existing DOM stays enabled by default; bounded-only configuration returns before DOM dependency population. The bundled packer and Xapiand's exception seam remain unchanged. Detent's private encoding engine is removed in the isolated migration. The isolated candidate passes two standalone native and two sanitizer tests, four default DOM/coexistence tests and five Detent distribution tests. Production fixture captures match all 14 logical outputs before and after migration, including maximum 200-byte snapshot keys. The [recorded qualification](../benchmarks/msgpack-extraction-preliminary-20261019.json) remains preliminary: other callers, platforms, clean public pins and production-path cost gates are open.
+
+## Consolidation audit response, October 19
+
+Detent's [item-by-item response](CONSOLIDATION_RESPONSE.md) accepts CL-1, CL-2, CL-3, CL-4, CL-5, CL-7, CL-9, CL-11, CL-17 and CL-18 with explicit compatibility conditions. CL-2 is a correctness defect: the two legacy lock protocols do not exclude each other. Both consumers should move mutable storage ownership to the canonical `both` protocol after qualified bootstrap and contention tests. Taking both protects against either legacy mode; two old processes using different modes remain unsafe. No production lock call changes with this response.
+
+CRC-32C compatibility names must forward to one engine immediately. Shared directory presets preserve Detent's actual refusal set, and counted-admission consolidation preserves the existing return types and distinct TLS lifetimes through thin facades. CL-17/18 are already implemented in isolated adoption components; their remaining integration gates remain open. No second extraction or competing accounting mechanism is authorized by this response.
