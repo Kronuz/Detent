@@ -1,6 +1,6 @@
 # Bounded MessagePack extraction
 
-**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. Isolated source preparation is in progress; builds, tests and measurements remain open.
+**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. The standalone bounded target passes two native and two sanitizer tests. The default DOM build passes four tests, including header coexistence. Detent integration, other platforms and measurements remain open.
 
 Move the flat incremental lexer and fixed scratch into `Kronuz/msgpack`. Encoding uses its existing packer through an append-to-write adapter. Detent keeps schema validation, storage admission and scheduling. Remove the private codec and its encoding engine after migrating callers.
 

@@ -60,13 +60,19 @@
     },
     "http-client-extraction/test/client_tls_test.cc": {
       "sha256": "d0540a9b4c614b5000c93647ba40d3eaaeb1a51619c680b0891edcfb4b656d09"
+    },
+    "detent-http-client-extraction/tests/detent_delivery/held_session_fixture.hh": {
+      "sha256": "b170a30dda7e4709731181fb807c5b43428fb21944322e15cc7d2d8bb4360942"
+    },
+    "detent-http-client-extraction/tests/detent_delivery/test_coordinator.cc": {
+      "sha256": "75e48860eb1e940e28f1b0f0fab09743a965ff8bf6fe96fd5e47b0383e4bc952"
     }
   },
   "limits": [
     "Library candidates remain unpublished and excluded from production pins",
-    "The new Detent held-session integration is being corrected and requalified; the original 191-case result predates that fixture",
     "Platform, clean public dependency and paired performance closures remain open",
-    "HTTP default server-only closure is pending; explicit server/client profiles pass"
+    "HTTP default server-only closure is pending; explicit server/client profiles pass",
+    "Native held-session integration passes; its sanitizer qualification remains open"
   ],
   "allocator_unique_ownership_sanitizers": {
     "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
@@ -127,5 +133,29 @@
       "pointer-overflow"
     ]
   },
-  "allocator_candidate_local_revision": "ebe16c6"
+  "allocator_candidate_local_revision": "ebe16c6",
+  "detent_held_session_native": {
+    "passed": 3,
+    "total": 3,
+    "elapsed_seconds": 3.79,
+    "includes_tls_certificate_fixture": true,
+    "snapshot_record_counts": [
+      0,
+      100000
+    ],
+    "invariants": [
+      "Authentic SDK final-write completion held after client reception",
+      "Fixed-length Open and chunked Next framing",
+      "Subsequent handler blocked and original admission retained",
+      "Window 1 feedback followed by Idle",
+      "One TLS connection and final account conservation"
+    ],
+    "limits": "Protocol feedback acceptance; does not prove durable publication at the receiving client"
+  },
+  "detent_refreshed_client_checks": {
+    "passed": 10,
+    "total": 10,
+    "elapsed_seconds": 7.18,
+    "includes_fixture_dependencies": true
+  }
 }
