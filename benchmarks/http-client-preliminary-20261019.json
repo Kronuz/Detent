@@ -224,5 +224,17 @@
     ],
     "includes_failure_drainage": true,
     "scope": "Functional network qualification, not a capacity or latency measurement"
+  },
+  "current_http_thread_sanitizer": {
+    "passed": 14,
+    "total": 14,
+    "elapsed_seconds": 15.77,
+    "compiler": "LLVM Clang 23.1.2",
+    "sdk": "MacOSX15.sdk",
+    "openssl": "4.0.3",
+    "flags": "-O1 -g -UNDEBUG -fsanitize=thread",
+    "includes_server_tls": true,
+    "includes_asio_and_posix_clients": true,
+    "scope": "Server and client library suites, including authentic held completion; Detent application TSan is separate"
   }
 }

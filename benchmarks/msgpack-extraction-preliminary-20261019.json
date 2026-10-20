@@ -65,7 +65,7 @@
   },
   "limits": [
     "Isolated, unpublished library and Detent source candidates",
-    "Cross-platform, Xapiand and clean immutable dependency checks remain open",
+    "Xapiand, cross-platform Detent and clean immutable dependency checks remain open",
     "Paired CPU, allocation, memory and owner-turn measurements remain open",
     "No release or performance acceptance claim",
     "The functional invocation excludes 23 cases; a separate network invocation covers three of them, leaving 20 system/fanout cases unqualified in this component"
@@ -184,5 +184,41 @@
     ],
     "includes_failure_drainage": true,
     "scope": "Three additional distinct cases; functional network qualification, not a capacity measurement"
+  },
+  "platform_library_checks": {
+    "scope": "Default DOM plus bounded decoder, independent vectors and header coexistence; library candidates only",
+    "linux": {
+      "os": "Ubuntu 24.04, Linux 6.8.0-147-generic, x86_64",
+      "native_compiler": "GCC 13.3.0",
+      "native": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 0.06
+      },
+      "sanitizer_compiler": "Clang 18.1.3",
+      "sanitizers": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 0.14
+      }
+    },
+    "freebsd": {
+      "os": "FreeBSD 14.4-RELEASE-p10, amd64",
+      "native_compiler": "Clang 19.1.7",
+      "native": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 0.09
+      },
+      "sanitizer_compiler": "Clang 19.1.7",
+      "sanitizers": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 0.12
+      }
+    },
+    "sanitizer_flags": "-O1 -g -UNDEBUG -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer",
+    "native_flags": "-O2 -UNDEBUG",
+    "execution": "Host and guest nice 19 under a light hold; elapsed times are not performance evidence"
   }
 }
