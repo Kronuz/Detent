@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-20",
+  "status": "Isolated candidate; production pin unchanged; paired cost run pending exclusive host window",
+  "before_revision": "2bb34f02973575ebe030e7444b2996024cc05fcf",
+  "candidate_revision": "45b7123c295f8c416eb6b7a852b0b0b2c47d1286",
+  "candidate_application_base": "de77b2a",
+  "migration": "Namespaced hasher, update/final/init and digest_size; no local wrapper; OpenSSL include-order comment removed",
+  "mac_native": {
+    "compiler": "Apple Clang 17.0.0",
+    "flags": "-O2 -UNDEBUG",
+    "all_products_build_exit": 0,
+    "selected_functional_passed": 191,
+    "selected_functional_total": 191,
+    "elapsed_seconds": 1288.84,
+    "excluded_regex": "(test_system_|test_relay_network_|test_load_fanout)",
+    "library_tests_passed": 3,
+    "library_tests_total": 3,
+    "library_elapsed_seconds": 1.04
+  },
+  "library_sanitizers": {
+    "compiler": "LLVM Clang 23.1.2",
+    "sdk": "MacOSX15.sdk",
+    "passed": 3,
+    "total": 3,
+    "elapsed_seconds": 1.41,
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "recovery_enabled": false
+  },
+  "upstream_ci": {
+    "revision": "45b7123c295f8c416eb6b7a852b0b0b2c47d1286",
+    "successful_runs": [
+      39357682276,
+      39357593041
+    ],
+    "scope": "Upstream evidence, separate from Detent product qualification"
+  },
+  "kernel": "portable; this Intel i9-9980HK has no SHA-NI",
+  "wire_capture": {
+    "equal_logical_payloads": 14,
+    "snapshot_records": 3000,
+    "compressed_frame_bytes_compared": false,
+    "captures": {
+      "34": {
+        "key_bytes": 34,
+        "files": {
+          "0.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "1.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      },
+      "200": {
+        "key_bytes": 200,
+        "files": {
+          "0.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "1.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      }
+    }
+  },
+  "cost_gate": {
+    "status": "Queued after HTTP platform qualification and all host holds",
+    "harness": "benchmarks/library_adoption_compare.py",
+    "pairs_per_workload": 5,
+    "workloads": [
+      "hash",
+      "detent_local_image_bench-100000",
+      "detent_local_image_bench-500000",
+      "detent_paged_snapshot_bench-100000",
+      "detent_paged_snapshot_bench-500000"
+    ],
+    "priority": "nice 19, exclusive quiet hold",
+    "before_build": "detent-reactor-build",
+    "after_build": "detent-sha256-build",
+    "baseline_note": "Both use the frozen public dependency closure and matching O2 flags. The baseline additionally has the isolated reactor UDP fix; selected benchmarks do not use its UDP path."
+  },
+  "limits": [
+    "No measured Detent speedup yet",
+    "Cross-platform Detent and final public closure remain separate gates",
+    "Selected functional tests exclude fleet, relay-network and fanout",
+    "Existing wire-capture corpus is not exhaustive equivalence"
+  ]
+}

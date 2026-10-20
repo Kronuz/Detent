@@ -1,6 +1,6 @@
 # Initial release qualification
 
-**Updated:** 2026-10-19. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
+**Updated:** 2026-10-20. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
 
 The initial release supports a regional fixed three-voter authority, durable relays and host-local last-known-good readers. Implementation acceptance for earlier stages does not establish sustained capacity, complete restoration or deployment qualification. Release requires the gates below; passing short transport probes does not certify a fleet of durable agents.
 
@@ -8,7 +8,7 @@ The initial release supports a regional fixed three-voter authority, durable rel
 | --- | --- | --- |
 | Updated libraries A–E | Compatible pins adopted with reviewed footprint exception; corrected-layout sanitizer gate and 214 distinct native tests across two invocations pass | Final composed product/profile qualification after remaining extractions |
 | Retained-state resources | Paired library source published with green CI; Detent Linux/FreeBSD host tests and corrected-layout macOS sanitizer tests pass | Default footprint and final transport dependency closure |
-| Shared library extraction | Resources published with 24 green CI jobs; isolated HTTP held-session native/sanitizer gates pass; bounded MessagePack passes 189 functional and three additional network cases | Shared HTTP clients, bounded MessagePack and persistent map integrated without parallel implementations; final application qualification |
+| Shared library extraction | Resources published with 24 green CI jobs; isolated HTTP held-session native/sanitizer gates pass; bounded MessagePack passes 189 functional and three additional network cases, Linux/FreeBSD library sanitizers and focused Xapiand compatibility | Shared HTTP clients, bounded MessagePack and persistent map integrated without parallel implementations; final application qualification |
 | Persistent-map correctness | Complete-node layout fix published; const-key mutation and exception-safety correction has a validated blueprint | Valid const-key storage, failure-injection closure and measured representation costs before release |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |
 | Sustained capacity | Reduced functional runs and short 10k-session evidence | Calibrated 500k-key ingestion, raw/zstd 500/2k/10k session ladder, mixed pressure and soak at the supported operating point |
