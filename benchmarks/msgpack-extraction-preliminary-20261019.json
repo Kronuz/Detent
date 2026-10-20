@@ -65,10 +65,10 @@
   },
   "limits": [
     "Isolated, unpublished library and Detent source candidates",
-    "Full Detent caller build remains in progress",
     "Cross-platform, Xapiand and clean immutable dependency checks remain open",
     "Paired CPU, allocation, memory and owner-turn measurements remain open",
-    "No release or performance acceptance claim"
+    "No release or performance acceptance claim",
+    "The functional invocation excludes 23 cases; a separate network invocation covers three of them, leaving 20 system/fanout cases unqualified in this component"
   ],
   "production_wire_equivalence": {
     "harness": "benchmarks/capture_production_wire.py",
@@ -142,5 +142,47 @@
     },
     "fixture_and_harness_runs_passed": 4,
     "limits": "Selected fixture corpus, not exhaustive wire equivalence or performance evidence"
+  },
+  "detent_distribution_sanitizers": {
+    "passed": 5,
+    "total": 5,
+    "elapsed_seconds": 3.88,
+    "compiler": "LLVM Clang 23.1.2",
+    "sdk": "MacOSX15.sdk",
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "recovery_enabled": false
+  },
+  "detent_functional_native": {
+    "passed": 189,
+    "total": 189,
+    "elapsed_seconds": 851.11,
+    "registered_tests": 212,
+    "excluded_tests": 23,
+    "exclude_regex": "(test_system_|test_relay_network_|test_load_fanout)",
+    "authority_enabled": true,
+    "relay_enabled": true,
+    "distributor_enabled": true,
+    "managed_agent_enabled": true,
+    "examples_enabled": true,
+    "benchmarks_enabled": true,
+    "full_build_exit": 0,
+    "scope": "One clean functional-subset invocation; sustained fleet/fanout and network cases are separate"
+  },
+  "relay_network_native": {
+    "passed": 4,
+    "total": 4,
+    "elapsed_seconds": 43.34,
+    "includes_tls_certificate_fixture": true,
+    "snapshot_record_counts": [
+      100000,
+      500000
+    ],
+    "includes_failure_drainage": true,
+    "scope": "Three additional distinct cases; functional network qualification, not a capacity measurement"
   }
 }

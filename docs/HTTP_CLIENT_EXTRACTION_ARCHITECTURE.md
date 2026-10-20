@@ -6,7 +6,13 @@ The isolated implementation migrates all three Detent clients to the shared pars
 
 The authentic held-write fixture covers fixed-length and chunked replies, blocking a second handler until the original completion arrives, including abandonment, shutdown and repeated release. Partial-header cleanup passes with one-byte, one-token disposal turns after malformed input and EOF. The default-resource regression exits 1 with published HTTP headers and 0 with the candidate using the same compiler and test source.
 
-The wider Detent run passes 188 of 191 selected cases and encounters three readiness failures in two fixtures. The service failure reproduces before HTTP migration: a one-second fixture wait is shorter than the newer consensus default election interval. Corrected service, ownership and large-scope cases pass three repetitions each, closing 191 distinct functional cases across runs. The new Detent held-session fixture passes natively and under ASan/UBSan with object-size and pointer-overflow checks for empty and 100,000-record snapshots. It verifies fixed-length Open and chunked Next responses, retained request admission, blocked second-handler entry, window 1 feedback followed by Idle, one TLS connection and final account conservation. A refreshed ten-case client check also passes. Full composed/platform closure and paired cost measurements remain open. Published Detent pins exclude these client candidates and intermediate transport F.
+The wider Detent run passes 188 of 191 selected cases and encounters three readiness failures in two fixtures. The service failure reproduces before HTTP migration: a one-second fixture wait is shorter than the newer consensus default election interval. Corrected service, ownership and large-scope cases pass three repetitions each, closing 191 distinct functional cases across runs.
+
+The new Detent held-session fixture passes natively and under ASan/UBSan with object-size and pointer-overflow checks for empty and 100,000-record snapshots. It verifies fixed-length Open and chunked Next responses, retained request admission, blocked second-handler entry, window 1 feedback followed by Idle, one TLS connection and final account conservation.
+
+The domain terminal variants cover runtime abandonment of a held Next, Reactor shutdown of a held Next, and Reactor shutdown of a held Open. All five modes pass with their TLS fixture natively (6/6) and under sanitizers (6/6). They distinguish zero live domain work from expired weak-registration storage, requiring exact lane baselines after Reactor registry release and final enclosing-account conservation.
+
+The default server-only profile passes 9/9, and real relay-network checks pass at 100k/500k records and during failure drainage. A refreshed ten-case client check also passes. Full composed/platform closure and paired cost measurements remain open. Published Detent pins exclude these client candidates and intermediate transport F.
 
 ## Scope
 

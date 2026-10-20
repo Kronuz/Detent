@@ -62,16 +62,18 @@
       "sha256": "d0540a9b4c614b5000c93647ba40d3eaaeb1a51619c680b0891edcfb4b656d09"
     },
     "detent-http-client-extraction/tests/detent_delivery/held_session_fixture.hh": {
-      "sha256": "b170a30dda7e4709731181fb807c5b43428fb21944322e15cc7d2d8bb4360942"
+      "sha256": "254866939a3643bdd64d8b5c7e7f13efebcd48a915956cc64eea541b608d19a8"
     },
     "detent-http-client-extraction/tests/detent_delivery/test_coordinator.cc": {
-      "sha256": "75e48860eb1e940e28f1b0f0fab09743a965ff8bf6fe96fd5e47b0383e4bc952"
+      "sha256": "fb5278e8aaafbc37f9005c5826306fc833ca69f053311dbe0ab243b8993b13d5"
+    },
+    "detent-http-client-extraction/tests/detent_delivery/CMakeLists.txt": {
+      "sha256": "e1837be44c9d11434fcc02b4599ced44cf08c827c89f5644f1030036a34c5eec"
     }
   },
   "limits": [
     "Library candidates remain unpublished and excluded from production pins",
-    "Platform, clean public dependency and paired performance closures remain open",
-    "HTTP default server-only closure is pending; explicit server/client profiles pass"
+    "Platform, clean public dependency and paired performance closures remain open"
   ],
   "allocator_unique_ownership_sanitizers": {
     "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
@@ -134,9 +136,9 @@
   },
   "allocator_candidate_local_revision": "ebe16c6",
   "detent_held_session_native": {
-    "passed": 3,
-    "total": 3,
-    "elapsed_seconds": 3.79,
+    "passed": 6,
+    "total": 6,
+    "elapsed_seconds": 11.01,
     "includes_tls_certificate_fixture": true,
     "snapshot_record_counts": [
       0,
@@ -149,7 +151,18 @@
       "Window 1 feedback followed by Idle",
       "One TLS connection and final account conservation"
     ],
-    "limits": "Protocol feedback acceptance; does not prove durable publication at the receiving client"
+    "limits": "Protocol feedback acceptance; does not prove durable publication at the receiving client",
+    "cases": [
+      "Written Open/Next with zero records",
+      "Written Open/Next with 100000 records",
+      "Runtime abandonment of held Next with 100000 records",
+      "Reactor shutdown of held Next with 100000 records",
+      "Reactor shutdown of held Open with zero records"
+    ],
+    "retention_boundaries": [
+      "Domain requests, transfers and sessions reach zero after genuine original completion and joined server callback",
+      "Exact lane baselines after Reactor weak-registry release; final enclosing account baseline"
+    ]
   },
   "detent_refreshed_client_checks": {
     "passed": 10,
@@ -158,9 +171,9 @@
     "includes_fixture_dependencies": true
   },
   "detent_held_session_sanitizers": {
-    "passed": 3,
-    "total": 3,
-    "elapsed_seconds": 9.02,
+    "passed": 6,
+    "total": 6,
+    "elapsed_seconds": 19.91,
     "includes_tls_certificate_fixture": true,
     "snapshot_record_counts": [
       0,
@@ -174,6 +187,42 @@
       "object-size",
       "pointer-overflow"
     ],
-    "recovery_enabled": false
+    "recovery_enabled": false,
+    "cases": [
+      "Written Open/Next with zero records",
+      "Written Open/Next with 100000 records",
+      "Runtime abandonment of held Next with 100000 records",
+      "Reactor shutdown of held Next with 100000 records",
+      "Reactor shutdown of held Open with zero records"
+    ],
+    "retention_boundaries": [
+      "Domain requests, transfers and sessions reach zero after genuine original completion and joined server callback",
+      "Exact lane baselines after Reactor weak-registry release; final enclosing account baseline"
+    ]
+  },
+  "reactor_registry_retention": {
+    "native_admitted_bytes_before_abort": 279,
+    "sanitizer_admitted_bytes_before_abort": 279,
+    "interpretation": "Expired allocate_shared control block retained by a live Reactor weak registration; all debt released by abort_all; not live request work"
+  },
+  "default_server_native": {
+    "passed": 9,
+    "total": 9,
+    "elapsed_seconds": 10.12,
+    "client_features_enabled": false,
+    "includes_server_tls": true,
+    "local_dependency_overrides": true
+  },
+  "relay_network_native": {
+    "passed": 4,
+    "total": 4,
+    "elapsed_seconds": 42.71,
+    "includes_tls_certificate_fixture": true,
+    "snapshot_record_counts": [
+      100000,
+      500000
+    ],
+    "includes_failure_drainage": true,
+    "scope": "Functional network qualification, not a capacity or latency measurement"
   }
 }

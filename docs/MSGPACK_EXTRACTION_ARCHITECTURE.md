@@ -1,6 +1,6 @@
 # Bounded MessagePack extraction
 
-**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. The standalone bounded target passes two native and two sanitizer tests. The default DOM build passes four tests, including header coexistence. Five Detent distribution tests pass. Four production encoding fixture runs preserve all 14 captured logical payloads with 34-byte and maximum 200-byte snapshot keys, including raw and zstd framing. Other callers, platforms and measurements remain open.
+**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. The standalone bounded target passes two native and two sanitizer tests. The default DOM build passes four tests, including header coexistence. Five Detent distribution tests pass natively and under ASan/UBSan with object-size and pointer-overflow checks. The complete enabled-product build passes, followed by one clean 189-case functional run and three additional network cases at 100k/500k records and failure drainage. Four production encoding fixture runs preserve all 14 captured logical payloads with 34-byte and maximum 200-byte snapshot keys, including raw and zstd framing. Full system/fleet coverage, other platforms and measurements remain open.
 
 Move the flat incremental lexer and fixed scratch into `Kronuz/msgpack`. Encoding uses its existing packer through an append-to-write adapter. Detent keeps schema validation, storage admission and scheduling. Remove the private codec and its encoding engine after migrating callers.
 
