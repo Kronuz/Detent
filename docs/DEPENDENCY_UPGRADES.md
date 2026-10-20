@@ -169,3 +169,32 @@ Keep all durable authority groups `synced` on the named-file, per-group journal.
 `Unsupported` must retain storage and stop recovery safely, even through existing `Corruption` catches. New v3 flags must not opt a synced-only receiver into recovery behavior. New APIs remain optional and require full C++ rebuilds and their own fault, format and platform checks. This agreement changes no production dependency pin or runtime behavior.
 
 Every additive library step must run the enabled-product Detent suite with its exact commit in a scratch manifest. Record the dependency closure, commands, results and limitations in [LIBRARY_BOUNDARIES.md](LIBRARY_BOUNDARIES.md#durability-modes-additive-commit-gate-october-19); a later combined head is insufficient. The existing journal-backend decision still waits for T6's per-group/shared comparison at 1,000 groups.
+
+## Library changes past the production pins, October 19
+
+This source review records the handoff without moving production pins. The proposed durability-mode APIs remain design-only unless an immutable implementation commit says otherwise. Each subsequent library step follows the [scratch consumer-suite gate](LIBRARY_BOUNDARIES.md#durability-modes-additive-commit-gate-october-19).
+
+| Library | Production pin → reviewed head | Verdict and evidence |
+| --- | --- | --- |
+| completion | `5251cf9` → `7734544` | Accept as a qualification candidate. Seven strata commits add directory ownership, filesystem/trust reporting and opt-in root handling; head also includes the separately qualified `21809c7` resource alias change. The handoff reports 214/214 Detent tests with the seven strata changes replayed onto the old pin. That is reported replay evidence, not a fresh Detent run against the complete `7734544` closure or a production adoption. |
+| reactor | `e19afd9` → `1c37def` | Accept the receive-loop correction, subject to the Detent checks below. Seven commits contain CR1–CR4, tests and review. A throwing UDP handler is reported through `L_EXC` and dropped; a throwing hook is also contained. A receive error still exits the loop; explicit `stop()` stops its io_context and joins the thread. |
+| threadpool | `628679a` → `394aaea` | Accept as a dependency-only candidate. The diff changes research/docs and top-level CMake's default-OFF `THREADPOOL_BUILD_RESEARCH`; linked pool code is unchanged. Detent does not enable research. `feature/scheduler` and its futex wake, per-group DRR and work classes are a separate future adoption, with their own lifecycle and cost qualification. |
+| hashes | `7ab0c23`; SipHash-2-4 proposed | Accept the additive primitive and qualify its eventual immutable commit. No SipHash implementation is present at the reviewed head. Detent has no new call site or pin change; rollout buckets, persisted digests and token identities retain their existing algorithms and bytes. |
+
+### Completion behavior and ownership
+
+`acquire_directory_owner()` flocks the directory descriptor without creating a lock file. It attempts the filesystem's lock operation and reports unsupported locking; it no longer refuses merely from a filesystem-type classification. `directory_filesystem()` and `directory_trust()` report facts through the IO base. `PosixIOOptions::follow_root_symlink` and `allow_shared_directory` remain opt-ins with strict path/permission defaults. Current Detent uses neither option nor filesystem classification, and its actual refusal set must stay unchanged by a later policy preset.
+
+There is one behavior change for an existing method: on macOS, `sync_directory()` without an acquired file owner performs directory `fsync` followed by `F_FULLFSYNC` through the directory descriptor, replacing its former `logic_error`. Unsupported barriers still fail closed. With `owner.lock` held, the full device barrier still uses that file. Detent's storage sessions and named-file journal retain file ownership across publication, so this is not an intended barrier change for those paths; qualify ownerless and owned paths separately.
+
+Completion now depends on `allocators::resources`. Its `AllocationContext` is the canonical alias from `21809c7`; use one immutable allocators revision throughout the closure and rebuild every C++ consumer. The [resource extraction evidence](../benchmarks/resource-extraction-qualification-20261019.json) covers that earlier component, separately from the handoff's replay. Do not substitute the directory lock for Detent's file lock: they do not exclude each other. The [CL-2 response](CONSOLIDATION_RESPONSE.md#cl-2-one-ownership-protocol) requires a coordinated dual-lock migration.
+
+### Reactor behavior in Detent
+
+The affected consumer is the classic distributor's `cluster::Bus` callback in `src/detentd/detentd.cc`, through `on_bus_message()` and `DetentRaftDelegate`. Shutdown explicitly calls `bus_->stop()` in the distributor destructor. No deliberate throw-as-stop contract is present. The durable authority's consensus transport is a separate TCP/TLS path.
+
+A persistence or allocation exception can still escape `on_raft_apply()`: the snapshot code persists before changing live state, and Raft advances `last_applied_` only after the delegate returns. These application failures need qualification under the continuing-loop behavior. Require a bad/throwing datagram followed by a valid one, a throwing diagnostic hook, explicit shutdown, and persistence failure followed by recovery, without silently accepting an unapplied command. No existing source check establishes those runtime results. Keep the shared diagnostic hook visible using Detent's logging adapter; do not add another logging engine or rely on the default hook to report an error.
+
+### Adoption conditions
+
+Keep transitive pins coherent, including reactor users in cluster/http/consensus and completion users in journal/consensus. The finalized-v2 restriction still applies to consensus; a pin-skew fix does not authorize an intermediate wire adoption. Record each scratch run separately, then move ready production pins in a reviewed component commit. No new benchmark or runtime result is claimed by this source review.
