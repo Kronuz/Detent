@@ -50,7 +50,7 @@ Require a process test for an old file-only creator held before first-manifest p
 
 ## Strata follow-up: node-wide retained usage
 
-Keep `RetainedStatePolicy` and consensus's `RetainedUsage` per group. The latter counts retained log entries and payload bytes; it is not total node memory. Host pools own node-wide admission, lifecycle and authoritative totals across consensus groups, checkpoints, queued operations and transports. Consensus should expose per-group usage suitable for reconciliation, with its units and sampling boundary stated. A convenience aggregate is observational and must not become a second admission ledger. Summing group policy ceilings gives a capacity bound, not current usage; summing separately sampled group gauges is not an atomic node snapshot. No node-wide consensus accounting mechanism is requested.
+Keep `RetainedStatePolicy` and consensus's `RetainedUsage` per group. The latter counts retained log entries and payload bytes; it is not total node memory. Host pools own node-wide admission, lifecycle and authoritative totals across consensus groups, checkpoints, queued operations and transports. Consensus should expose per-group usage suitable for reconciliation, with its units and sampling boundary stated. A convenience aggregate is observational and must not become a second admission ledger. Summing group policy ceilings gives a capacity bound, not current usage; summing separately sampled group gauges is not an atomic node snapshot. Keep stable historical validation bounds separate from changing group shares so node pressure cannot invalidate otherwise valid recovery history. No node-wide consensus accounting mechanism is requested.
 
 ## Strata follow-up: SHA-256
 
