@@ -347,3 +347,13 @@ Local consensus commit `c2cbf2e` shares retained-entry validation between Recove
 Detent's synthetic election ticks now derive from configured `Timing` rather than assuming the old 100 ms minimum. Library adoption uses the current defaults; it does not preserve the old profile through a compatibility override.
 
 Local consensus commit `ef30b4f` guards committed-delivery subtraction when retained entries exceed the current RPC byte limit. It emits an oversized first entry alone and preserves following entries for the next delivery. The before/after regression and 200-seed simulation qualify this resource correction without changing APIs or formats; Detent has not adopted the unpublished commit.
+
+### Durability-modes additive-commit gate, October 19
+
+Accepted with [shared decision 7](SHARED_LIBRARY_DECISIONS.md#7-the-durability-modes-strata-designdurability-modes-2026-10-19). At each additive library commit, move that immutable revision into a separate scratch Detent manifest, with a coherent transitive dependency closure. Enable authority, relay, managed agent and distributor explicitly, alongside tests; their defaults do not enable every product. Record Detent and library SHAs, compiler/SDK/build flags, the exact commands, pass/fail/skip counts and raw log locations here. Test each step before relying on the next; a moving sibling checkout, library CI or eventual combined head does not qualify the step.
+
+As the corresponding APIs arrive, include exact v2/v3 vectors and invalid-field refusals, adjacent-version elections/appends/checkpoints/blob transfers, unchanged synced membership/batch/checkpoint bytes, old-state recovery and receipts, failed-barrier fencing, and rejection of `written` on the per-group backend. Verify unsupported formats preserve storage without automatic rejoin. Keep native macOS/Linux/FreeBSD and sanitizer evidence distinct from paired cost measurements. Respect host holds and use frozen measurement arms. No new implementation result is claimed by this agreement.
+
+| Additive step | Candidate revision | Detent suite evidence | Adoption state |
+| --- | --- | --- | --- |
+| Durability-modes wire/API steps | Not landed at reviewed design `50245a1` | Pending each immutable implementation commit | Design contract agreed; no production pin change |

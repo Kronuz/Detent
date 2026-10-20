@@ -119,6 +119,35 @@ Detent, all additive until Detent opts in:
    per-source handshake caps, closing at expiry, and the send low-water mark.
 8. **`Flow::frame_bytes`** may be retired at version 2; Detent leaves it at 0.
 
+## 7. The durability modes (strata design/durability-modes, 2026-10-19)
+
+**Decision:** Agree to version 3's wire bytes for future consensus adoption. Reviewed [strata revision 50245a1](https://github.com/Kronuz/strata/blob/50245a1084df3a4744cc855876a9e24f27ffdbe6/docs/design/durability-modes.md#for-detent), including D3, D5, D6, D16 and D17. This is a design agreement; the proposed APIs and wire negotiation still require implementation and qualification. The [recorded agreement](DEPENDENCY_UPGRADES.md#durability-modes-agreement-october-19) precedes strata's wire-v3 step 4.
+
+1. **Groups without `acks: written`.** Agreed. Detent's durable authority groups keep `synced` acknowledgements: replies follow the barrier, and `commit_memory == commit_durable == commit`. An absent `acks` retains its existing encoding and means `synced`. No forgetful state or mark, `Recovery` entry, recovery election or new journal record activates for these groups, including after a failed barrier. Preserve their existing batch and checkpoint magics. Incoming v3 fields must not activate memory acknowledgements or recovery behavior in a locally synced-only group.
+2. **Forgetfulness on the turn log.** Declined for Detent. Its named-file, per-group journal publishes its frontier after sync and discards bytes beyond that frontier during recovery. Detent does not use the shared turn log and does not report `Written`. Importing D6's relearning and correlated-loss election wait has no demonstrated requirement here. A future backend change remains a separate decision after T6's 1,000-group measurements.
+3. **Per-group journal.** Agreed: retain this backend and its current durability semantics; it must reject `acks: written`, including configuration and recovery admission. Current authority configuration rejects unknown fields and has no acknowledgement-mode selector. Current production pins predate the proposed selector, so this is an adoption requirement rather than a claim that a new refusal test already passes. No contradictory opt-in exists in Detent's authority call sites.
+4. **Wire version 3.** Agree to the growth below and `RFTXFR02`. Sizes include the 40-byte frame header and exclude the four-byte session length prefix. Keep the one coordinated restart directly into finalized v2 from section 6; v3 follows through negotiated N/N-1 sessions without a second flag day. Keep host-profile bytes stable across those sessions and complete one adjacent-version upgrade before beginning the next. Wire negotiation does not activate new durable formats; those require their separate all-node activation procedure.
+
+| Kind | v2 bytes | v3 bytes | Growth |
+| --- | ---: | ---: | ---: |
+| 1 `VoteRequest` | 72 | 80 | +8 |
+| 2 `VoteResponse` | 56 | 64 | +8 |
+| 3 Empty `AppendRequest` | 104 | 136 | +32 |
+| 4 `AppendResponse` | 96 | 112 | +16 |
+| 4 With compacted boundary | 112 | 128 | +16 |
+| 6 `PreVoteRequest` | 64 | 72 | +8 |
+| 7 `PreVoteResponse` | 64 | 64 | 0 |
+| 9/10 Heartbeat/reply record | 48 | 64 | +16 each |
+
+The synced-field rule needs its full D16 meaning: recovery and forgetful flags are false, `recovery_term` is zero, `commit_memory` equals the existing commit field, and successful replies report `synced == matched`. Failed replies report no successful synced progress. `leader_last` names the actual leader log end; `sync_through` is zero when unused and otherwise a valid frontier no greater than `leader_last`. Neither relaxes the mandatory synced barrier. Pin these values in fixtures. Recompute empty-append classification and credit/admission bounds from the negotiated version, including v3's `136 + 32 * rpc_entries + rpc_bytes`, before buffering bodies.
+
+D17 extends the existing byte mover with file sets. Its `RFTSNP03` descriptor adds 52 bytes, taking the maximum Begin from 6,480 to 6,532 bytes; Request/Vouch asks are 184 bytes, Vouch answers 185, and Missing is bounded at 6,532. Detent keeps its one-blob descriptors and semantics. File lists, their reservations and file-set verification remain unused unless explicitly adopted. Qualify the version-specific `RFTXFR01/02` envelope choice without silently converting Detent's transfers.
+
+5. **Optional APIs.** Acknowledge consensus `Written`, `Repair{promotion}`, checkpoint ceilings, `StorageBatch` urgency, `PeerRestarted` and file-set transfers; completion boot identity and the directory barrier; journal per-record epochs, recovery verdict and V in `TurnRecovery`; and hashes' SipHash-2-4. None is a required Detent migration. `Unsupported` inheriting `Corruption` preserves catch compatibility, but unsupported bytes must fence and remain intact. They must never trigger deletion, damaged-group rejoin or a new incarnation through a broad corruption handler. Audit this on each adoption; historical readers do not gain the new classification.
+6. **Each additive library commit.** Agreed. Run Detent's enabled-product suite with that immutable commit moved in a scratch manifest and record source revisions, the coherent dependency closure, commands and results in [LIBRARY_BOUNDARIES.md](LIBRARY_BOUNDARIES.md#durability-modes-additive-commit-gate-october-19). Include version vectors, invalid-field refusal, mixed v2/v3 traffic, unchanged synced storage bytes, old-state recovery, receipts and failed-barrier fencing as those APIs land. Library CI and a final combined-head run cannot substitute for the per-step consumer check. Production pin adoption and whole-component review remain separate.
+
+There is no objection to the stated byte growth or synced-group behavior. Agreement covers Detent's contract; it does not approve strata's complete recovery-election or segment-verification implementation.
+
 ## How to disagree
 
 Write the objection in `DEPENDENCY_UPGRADES.md` under a heading naming the decision, or in this
