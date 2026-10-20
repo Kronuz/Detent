@@ -178,3 +178,13 @@ maps each old SHA to its new one.
 Consensus commit `9f7d43e1` raises its default election interval from 100–200 ms to 1–2 seconds. Two authority distribution fixtures still stop checking after 50 sleeps of 20 ms. The service fixture fails at the same recovered-leader assertion both before and after HTTP migration; the ownership fixture passes or fails depending on election timing. The isolated HTTP run also encounters that ownership assertion in its large-scope case.
 
 Use steady-clock readiness deadlines of five seconds for these small fixtures, preserving the existing 120-second allowance for large recovered-state cases. Keep the library's production defaults. The changed service, ownership and large-scope cases pass with their TLS setup (4/4, 10.84 seconds), then pass three repetitions each (33.48 seconds). The broader suite continues against the original binaries; its election failures are covered by this focused rerun. This finding establishes a fixture deadline mismatch preceding HTTP migration.
+
+## Later completion directory policies (October 19)
+
+Completion `7734544` adds directory-handle ownership, filesystem classification and opt-in handling of shared or symlinked roots after the resource-foundation revision `21809c7`. Existing `acquire_owner()` still locks `owner.lock`; the new `acquire_directory_owner()` is an additive mechanism with different persistence behavior. Detent's storage sessions already use `acquire_owner()`. Replacing that lock would lose exclusion against existing file-lock owners and requires a coordinated compatibility decision, rather than a mechanical substitution.
+
+Carry the newer completion revision into final dependency qualification with a full C++ rebuild. Retain its strict default directory trust policy. File leases protecting mapped generations and the CLI PID lock serve different lifetimes and are not substitutes for a storage-owner lock. The isolated HTTP comparisons retain their frozen completion revision to keep the transport comparison controlled.
+
+## Optional bounded MessagePack (October 19)
+
+The [validated blueprint](MSGPACK_EXTRACTION_ARCHITECTURE.md) places the flat lexer and fixed scratch in `msgpack::bounded` and reuses the bundled packer through one append-to-write adapter. The existing DOM stays enabled by default; bounded-only configuration returns before DOM dependency population. The bundled packer and Xapiand's exception seam remain unchanged. Detent's private encoding engine is removed in the isolated migration. Source preparation has no qualification claim until native, sanitizer, platform, byte-equivalence and production-path cost gates pass.

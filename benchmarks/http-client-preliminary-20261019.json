@@ -44,20 +44,29 @@
       "sha256": "fd42c2a103d6084042752d2bb023b916046f0717a6518552f20864d7f24b7b29"
     },
     "http-client-extraction/test/support/held_write_stream.h": {
-      "sha256": "2a6ef7ee987c52279e57cf89a442f22da1a51798f6e2b6b80994e3e7ad2a719d"
+      "sha256": "d664f448347fe93dcac4b26a6174b1be7fae28b75f4452ede92291f03f7562e9"
     },
     "http-client-extraction/test/client_core_test.cc": {
       "sha256": "1b6187844d0d5ef624332a7d220cbf5007506373e1c2acee9a1d18f6cbd877a0"
     },
     "allocators-http-ownership/include/allocators/allocation.h": {
       "sha256": "ef2b0b42d49609473e21105459e72c73589641e19a8b49c84efd8498661adb4e"
+    },
+    "http-client-extraction/http_client_tls.h": {
+      "sha256": "af868a7de3b77b31cdf201cf7745a96ab500b0627911e181165afc4c8400b2d5"
+    },
+    "http-client-extraction/http_client_tls.cc": {
+      "sha256": "463bc370f6987031ac45d903a481aa7148b2d4b57f45094584c44918916bc97b"
+    },
+    "http-client-extraction/test/client_tls_test.cc": {
+      "sha256": "d0540a9b4c614b5000c93647ba40d3eaaeb1a51619c680b0891edcfb4b656d09"
     }
   },
   "limits": [
     "Library candidates remain unpublished and excluded from production pins",
-    "Detent 191-test subset remains in progress; original binaries hit three election-deadline failures covered by focused corrected reruns",
-    "Detent session window/feedback held-completion gate remains open",
-    "Fresh sanitizer, platform, public dependency and paired performance closures remain open"
+    "The new Detent held-session integration is being corrected and requalified; the original 191-case result predates that fixture",
+    "Platform, clean public dependency and paired performance closures remain open",
+    "HTTP default server-only closure is pending; explicit server/client profiles pass"
   ],
   "allocator_unique_ownership_sanitizers": {
     "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
@@ -79,5 +88,44 @@
     "tls_fixture_passed": true,
     "repetitions_per_case": 3,
     "repeat_total_seconds": 33.48
-  }
+  },
+  "detent_functional_subset": {
+    "selected": 191,
+    "first_run_passed": 188,
+    "first_run_failed": 3,
+    "elapsed_seconds": 843.19,
+    "failures": [
+      "test_authority_distribution_service",
+      "test_authority_distribution_ownership",
+      "test_authority_distribution_large_scope"
+    ],
+    "corrected_cases_passed": 3,
+    "repetitions_per_corrected_case": 3,
+    "distinct_cases_qualified_across_runs": 191,
+    "scope": "Excludes 23 fleet, relay-network and fanout cases from the original 214-test profile; this is not one clean full-suite invocation"
+  },
+  "current_http_native": {
+    "passed": 13,
+    "total": 13,
+    "elapsed_seconds": 8.15,
+    "includes": [
+      "Uncached lease remembers verified connection state",
+      "A second buffered exchange clears prior cache reuse acceptance"
+    ]
+  },
+  "current_http_sanitizers": {
+    "passed": 13,
+    "total": 13,
+    "elapsed_seconds": 9.45,
+    "compiler": "LLVM Clang 23.1.2",
+    "sdk": "MacOSX15.sdk",
+    "openssl": "4.0.3",
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ]
+  },
+  "allocator_candidate_local_revision": "ebe16c6"
 }
