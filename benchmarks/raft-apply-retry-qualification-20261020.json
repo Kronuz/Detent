@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-20",
+  "status": "Source-qualified; immutable publication and clean public consumer closure pending; production pins unchanged",
+  "macos": {
+    "reactor": {
+      "native": {
+        "passed": 8,
+        "total": 8,
+        "elapsed_seconds": 6.23,
+        "log": ".scratch/library-adoption-20261017/reactor-event-failure-test.log",
+        "log_sha256": "dcf863975436eded831725828aa69da66ad35407f42f9f3115e5bf7f03482939"
+      },
+      "asan": {
+        "passed": 8,
+        "total": 8,
+        "elapsed_seconds": 6.87,
+        "log": ".scratch/library-adoption-20261017/reactor-event-failure-asan-test.log",
+        "log_sha256": "b635b01dfd0c0876100048b068ec200af2aed1af8d525ca50540f8dc4794ee0c"
+      }
+    },
+    "cluster": {
+      "native": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 13.14,
+        "log": ".scratch/library-adoption-20261017/cluster-apply-retry-test.log",
+        "log_sha256": "154ee63923818778461cd698fcf87e2bf474c3e7fcc3d33ffc44b7e55bb5cecd"
+      },
+      "asan": {
+        "passed": 4,
+        "total": 4,
+        "elapsed_seconds": 13.41,
+        "log": ".scratch/library-adoption-20261017/cluster-apply-retry-asan-test.log",
+        "log_sha256": "eeb5c01f395fb4fe145f81be7d8b368c1ae6af82b66d216c4265e3667425b904"
+      }
+    },
+    "final_callback_fixture": {
+      "native": {
+        "passed": 1,
+        "total": 1,
+        "elapsed_seconds": 0.28,
+        "log": ".scratch/library-adoption-20261017/reactor-callback-native-retest.log",
+        "log_sha256": "20530779ef71ac497c4769d9a925b4fe80fd3d061357715a31a81bffdeae9e3e"
+      },
+      "asan": {
+        "passed": 1,
+        "total": 1,
+        "elapsed_seconds": 0.4,
+        "log": ".scratch/library-adoption-20261017/reactor-callback-asan-retest.log",
+        "log_sha256": "d8c48a16542d3dc3b21ef7fc9995e18e27c82b0d0fafd50bc15ff4c35b903ba4"
+      }
+    },
+    "detent": {
+      "passed": 192,
+      "total": 192,
+      "elapsed_seconds": 836.25,
+      "log": ".scratch/library-adoption-20261017/detent-apply-retry-functional-test.log",
+      "log_sha256": "4ff2c8cf5fc7ae2fbbe44765d4216dd91ed9d3744208b970b4e9564b8feb8209",
+      "all_products_build_exit": 0,
+      "flags": "-O2 -UNDEBUG",
+      "excluded_regex": "(test_system_|test_relay_network_|test_load_fanout)"
+    }
+  },
+  "platforms": {
+    "linux": {
+      "reactor": {
+        "native": {
+          "passed": 8,
+          "total": 8,
+          "elapsed_seconds": 5.69,
+          "log": ".scratch/library-adoption-20261017/apply-retry-linux-REACTOR-native-test.log",
+          "log_sha256": "1bfc4e3de45b2cf8d131657bd05d88317447ea3581ee6aa7d947dc838238983b"
+        },
+        "asan": {
+          "passed": 8,
+          "total": 8,
+          "elapsed_seconds": 6.4,
+          "log": ".scratch/library-adoption-20261017/apply-retry-linux-REACTOR-asan-test.log",
+          "log_sha256": "2fe5b6bbf73f57df76418953a8d829a3bf86c8d3e3c367be7b23f7cc7e1b48c6"
+        }
+      },
+      "cluster": {
+        "native": {
+          "passed": 4,
+          "total": 4,
+          "elapsed_seconds": 11.8,
+          "log": ".scratch/library-adoption-20261017/apply-retry-linux-CLUSTER-native-test.log",
+          "log_sha256": "2e4c25a25633f1d0ef09504ce9bde046727adc5bcd737438c1019d8bf2399624"
+        },
+        "asan": {
+          "passed": 4,
+          "total": 4,
+          "elapsed_seconds": 11.87,
+          "log": ".scratch/library-adoption-20261017/apply-retry-linux-CLUSTER-asan-test.log",
+          "log_sha256": "7dd85ce971df56d3be04e7416b2eec4a1afed7f119186adca18d27d7eb85d33f"
+        }
+      }
+    },
+    "freebsd": {
+      "reactor": {
+        "native": {
+          "passed": 8,
+          "total": 8,
+          "elapsed_seconds": 3.89,
+          "log": ".scratch/library-adoption-20261017/apply-retry-freebsd-REACTOR-native-test.log",
+          "log_sha256": "1124e53f9d6bbc0498cf3b956bef69c9a1c0e9e4869d6451b29c0012b2cf1436"
+        },
+        "asan": {
+          "passed": 8,
+          "total": 8,
+          "elapsed_seconds": 4.43,
+          "log": ".scratch/library-adoption-20261017/apply-retry-freebsd-REACTOR-asan-test.log",
+          "log_sha256": "c45f7911fd04e68d898a4c5540131edb21f95c86da391857603733d404b846a3"
+        }
+      },
+      "cluster": {
+        "native": {
+          "passed": 4,
+          "total": 4,
+          "elapsed_seconds": 11.97,
+          "log": ".scratch/library-adoption-20261017/apply-retry-freebsd-CLUSTER-native-test.log",
+          "log_sha256": "b3d172b9a5f0e83607e2834dc90471ceaf675fa27eeddf483c2304ab45cc7225"
+        },
+        "asan": {
+          "passed": 4,
+          "total": 4,
+          "elapsed_seconds": 12.14,
+          "log": ".scratch/library-adoption-20261017/apply-retry-freebsd-CLUSTER-asan-test.log",
+          "log_sha256": "f8bf0973fa4e5458236a1c04c85860b785b7aecbdb1d90ec916def464917095e"
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Functional elapsed times under a light host hold are not performance results.",
+    "The 192-test Detent run excludes system, relay network and fanout groups.",
+    "These runs use local source overrides, not a clean immutable public dependency closure.",
+    "Separate Detent post-persist publication atomicity finding remains open."
+  ],
+  "reactor_base": "1c37deff6ddcaeef261270ed767fb09c17a2b656",
+  "cluster_base": "84e6b016406b9f16a6dd78882dabd0dcdf63deff",
+  "source_sha256": {
+    "reactor-event-failure/reactor_events.h": "dcd3c309f15a5918ddb813cc0003897ea5e056b3c5af22bc009198481e9366bf",
+    "reactor-event-failure/reactor_udp.h": "0817fad65d8f3f090c641b07ba04558cece4d4fcfbb3916aa264214f06ab9d0c",
+    "reactor-event-failure/test/callback_failure_test.cc": "a172ce82149c9d1a35ddf09340b90049de80e13ad94fdce7f1029b2e9f81faf2",
+    "cluster-apply-retry/raft.h": "8f9606d0dffd61a435fdef485f16abc8df5866b46a463af3cf80ff181c44b77d",
+    "cluster-apply-retry/test/raft_safety_test.cc": "5553d7f5937e076241b0152de962736032de0171eda3f653ea3905b29c61f9ad",
+    "detent-apply-retry/src/CMakeLists.txt": "e760aada3ea791e67ad3a219be03b3b1f3d936836654d9f3cc54d7dce60d3220",
+    "detent-apply-retry/tests/detentd/test_raft_application_retry.cc": "943c02935d910074b9f171752f2756664887b572fa9ef6ee8d86245c456d503f"
+  }
+}
