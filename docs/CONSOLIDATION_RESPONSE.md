@@ -55,3 +55,7 @@ Keep `RetainedStatePolicy` and consensus's `RetainedUsage` per group. The latter
 ## Strata follow-up: SHA-256
 
 The published `Kronuz/sha256` revision `45b7123c295f8c416eb6b7a852b0b0b2c47d1286` adds the namespaced API and hardware kernels without changing digest bytes. An isolated Detent candidate migrates its existing call sites to `kronuz::sha256::hasher` and removes the OpenSSL include-order workaround. Production adoption awaits the candidate's build, golden vectors, integration and byte-identity checks. This Intel Mac has no SHA-NI, so local results qualify the portable path and establish no hardware speedup.
+
+## Additional Xapiand compatibility observation, October 20
+
+Xapiand `7e8cccb7d` returns HTTP 500 and logs an unhandled parse error for a PUT body containing reserved MessagePack byte `c1`; malformed JSON returns 400. The frozen public MessagePack baseline and bounded-extraction candidate behave identically, and subsequent valid reads succeed. Record this application exception/status mapping for the Xapiand owner. No Xapiand source or error policy changes in this qualification. The [reproducible harness](../benchmarks/check_xapiand_msgpack.py) and [paired results](../benchmarks/msgpack-extraction-preliminary-20261019.json) distinguish the existing issue from an extraction regression.

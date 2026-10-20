@@ -65,7 +65,7 @@
   },
   "limits": [
     "Isolated, unpublished library and Detent source candidates",
-    "Xapiand, cross-platform Detent and clean immutable dependency checks remain open",
+    "Cross-platform Detent, complete Xapiand suite and clean immutable dependency checks remain open",
     "Paired CPU, allocation, memory and owner-turn measurements remain open",
     "No release or performance acceptance claim",
     "The functional invocation excludes 23 cases; a separate network invocation covers three of them, leaving 20 system/fanout cases unqualified in this component"
@@ -220,5 +220,27 @@
     "sanitizer_flags": "-O1 -g -UNDEBUG -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer",
     "native_flags": "-O2 -UNDEBUG",
     "execution": "Host and guest nice 19 under a light hold; elapsed times are not performance evidence"
+  },
+  "xapiand_compatibility": {
+    "source_revision": "7e8cccb7d",
+    "profile": "Apple Clang 17, Release -O3 -DNDEBUG, LTO enabled, clustering/WAL/data storage enabled",
+    "msgpack_candidate_base": "75d13ce7e99f8aad3526d109b38db151d1fc7fc4",
+    "allocation_revision": "b7daa52f1b6a316e04bba2817f0f527d64d704eb",
+    "full_product_build_exit": 0,
+    "version_exit": 0,
+    "reported_version": "1.0.0-alpha.9",
+    "harness": "benchmarks/check_xapiand_msgpack.py",
+    "before_and_after_results_equal": true,
+    "results": {
+      "json_put": 204,
+      "msgpack_put": 204,
+      "search_count": 2,
+      "invalid_msgpack": 500,
+      "invalid_json": 400
+    },
+    "valid_get_after_each_rejection": true,
+    "harness_sha256": "5940e7e9ec4dec3ef3dda4959b4280ebed0314fa9a6833882a5b8a7ca50c83da",
+    "scope": "Focused product compatibility, not the complete Xapiand documentation or cluster suite",
+    "pre_existing_issue": "Reserved MessagePack byte c1 returns HTTP 500 with parse error in both binaries; JSON syntax error returns 400"
   }
 }
