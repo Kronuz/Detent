@@ -63,7 +63,7 @@ namespace cluster { class Bus; }
 namespace detentd {
 
 struct Options {
-	// Optional daemon diagnostics, with no logger dependency in the library.
+	// Optional application diagnostics; runtime errors use the logger hook.
 	std::function<void(std::uint64_t)> on_accept;
 	std::function<void(detent::UpdateRejectReason)> on_reject;
 	// Where the current accepted snapshot is durably persisted (atomic

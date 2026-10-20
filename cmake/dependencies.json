@@ -20,7 +20,7 @@
   {
     "name": "cluster",
     "repository": "https://github.com/Kronuz/cluster.git",
-    "revision": "84e6b016406b9f16a6dd78882dabd0dcdf63deff",
+    "revision": "f053a822134ab4287a40a9319b4b8db452143089",
     "source_subdir": "."
   },
   {
@@ -110,7 +110,7 @@
   {
     "name": "reactor",
     "repository": "https://github.com/Kronuz/reactor.git",
-    "revision": "e19afd966d5cf18e377649398096be66fb40e800",
+    "revision": "fe8c5ced4207508b32ebe96a4dcc524c08081414",
     "source_subdir": "."
   },
   {

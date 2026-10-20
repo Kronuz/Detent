@@ -106,7 +106,9 @@ if(DETENT_BUILD_DISTRIBUTOR)
     http::http
     cluster::cluster
     generation_cache::generation_cache
-    reactor::tls)
+    reactor::tls
+    logger::logger)
+  target_compile_definitions(detentd_lib PUBLIC REACTOR_TRACE_HEADER="logger.h")
 
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
