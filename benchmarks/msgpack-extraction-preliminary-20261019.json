@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-19",
+  "status": "Preliminary; full component acceptance remains open",
+  "profile": {
+    "native_compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
+    "native_flags": "-O2 -UNDEBUG",
+    "sanitizer_compiler": "LLVM Clang 23.1.2",
+    "sanitizer_flags": "ASan, UBSan, object-size, pointer-overflow; recovery disabled",
+    "shared_host": "Light hold, nice 19; elapsed times are functional evidence only"
+  },
+  "library_base_revision": "75d13ce7e99f8aad3526d109b38db151d1fc7fc4",
+  "bounded_native": {
+    "passed": 2,
+    "total": 2,
+    "elapsed_seconds": 0.32,
+    "demo_exit": 0,
+    "fetched_dependency_directory_present": false
+  },
+  "bounded_sanitizers": {
+    "passed": 2,
+    "total": 2,
+    "elapsed_seconds": 0.54,
+    "demo_exit": 0
+  },
+  "default_dom_native": {
+    "passed": 4,
+    "total": 4,
+    "elapsed_seconds": 0.94,
+    "includes_bounded_dom_header_coexistence": true
+  },
+  "detent_native_distribution": {
+    "passed": 5,
+    "total": 5,
+    "elapsed_seconds": 1.79,
+    "cases": [
+      "snapshot",
+      "framing",
+      "delta",
+      "frame_encoder",
+      "encoded_update"
+    ]
+  },
+  "files": {
+    "msgpack-bounded-extraction/msgpack/bounded.hpp": {
+      "sha256": "e76f01a282bbb97176db2ef48ce32e565b4b6d55d3532b6e4c7592f5afe26e85"
+    },
+    "msgpack-bounded-extraction/msgpack/pack.hpp": {
+      "sha256": "cac85e2b46d0ea9b07f9f0ec5489632e7874f86370d8fc94d6e784c768309c5f"
+    },
+    "msgpack-bounded-extraction/CMakeLists.txt": {
+      "sha256": "6cea98c82dfe1e4b45b4f6c501639c1a2d77e812adaef4142ddaf3883e7e2180"
+    },
+    "msgpack-bounded-extraction/test/bounded.cc": {
+      "sha256": "f6b91e878e49d05968527ceccfc44897473d535c52c95b41387ce4c0475bf89d"
+    },
+    "msgpack-bounded-extraction/test/bounded_storage.hh": {
+      "sha256": "dc3cd22897421cf9b8a475c3a858bf40c24aa6dd4996d5771289032ee5ad3758"
+    },
+    "msgpack-bounded-extraction/test/bounded_vectors.py": {
+      "sha256": "7bcea1a001b88a588d264650aa0ef14dc008324b7f7d33da22dc44dbb2de74d8"
+    },
+    "msgpack-bounded-extraction/test/bounded_coexist.cc": {
+      "sha256": "b7c2f14371ae7f87b48740b0f93c5438b200439376820e75927d2cbcb06a69a8"
+    }
+  },
+  "limits": [
+    "Isolated, unpublished library and Detent source candidates",
+    "Full Detent caller build remains in progress",
+    "Cross-platform, Xapiand and clean immutable dependency checks remain open",
+    "Paired CPU, allocation, memory and owner-turn measurements remain open",
+    "No release or performance acceptance claim"
+  ],
+  "production_wire_equivalence": {
+    "harness": "benchmarks/capture_production_wire.py",
+    "before_source_revision": "33d36bfa8e2857d3bd175235303688a5b914de30",
+    "after_source": "Isolated Detent MessagePack migration from the same revision",
+    "snapshot_records": 3000,
+    "equal_captures": 14,
+    "logical_payloads_after_raw_and_zstd_framing": true,
+    "compressed_frame_bytes_compared": false,
+    "key_bytes_to_captures": {
+      "34": {
+        "0.wire": {
+          "bytes": 131733,
+          "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+        },
+        "1.wire": {
+          "bytes": 131733,
+          "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+        },
+        "2.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "3.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "4.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "5.wire": {
+          "bytes": 186,
+          "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+        },
+        "6.wire": {
+          "bytes": 186,
+          "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+        }
+      },
+      "200": {
+        "0.wire": {
+          "bytes": 629733,
+          "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+        },
+        "1.wire": {
+          "bytes": 629733,
+          "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+        },
+        "2.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "3.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "4.wire": {
+          "bytes": 212,
+          "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+        },
+        "5.wire": {
+          "bytes": 186,
+          "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+        },
+        "6.wire": {
+          "bytes": 186,
+          "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+        }
+      }
+    },
+    "fixture_and_harness_runs_passed": 4,
+    "limits": "Selected fixture corpus, not exhaustive wire equivalence or performance evidence"
+  }
+}

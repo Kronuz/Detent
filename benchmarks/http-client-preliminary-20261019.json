@@ -71,8 +71,7 @@
   "limits": [
     "Library candidates remain unpublished and excluded from production pins",
     "Platform, clean public dependency and paired performance closures remain open",
-    "HTTP default server-only closure is pending; explicit server/client profiles pass",
-    "Native held-session integration passes; its sanitizer qualification remains open"
+    "HTTP default server-only closure is pending; explicit server/client profiles pass"
   ],
   "allocator_unique_ownership_sanitizers": {
     "compiler": "Apple Clang 17.0.0 (clang-1700.6.4.2)",
@@ -157,5 +156,24 @@
     "total": 10,
     "elapsed_seconds": 7.18,
     "includes_fixture_dependencies": true
+  },
+  "detent_held_session_sanitizers": {
+    "passed": 3,
+    "total": 3,
+    "elapsed_seconds": 9.02,
+    "includes_tls_certificate_fixture": true,
+    "snapshot_record_counts": [
+      0,
+      100000
+    ],
+    "compiler": "LLVM Clang 23.1.2",
+    "sdk": "macOS 15",
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "recovery_enabled": false
   }
 }

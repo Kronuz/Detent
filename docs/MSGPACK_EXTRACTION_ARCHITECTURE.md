@@ -1,6 +1,6 @@
 # Bounded MessagePack extraction
 
-**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. The standalone bounded target passes two native and two sanitizer tests. The default DOM build passes four tests, including header coexistence. Detent integration, other platforms and measurements remain open.
+**Updated:** 2026-10-19. **Status:** Validated Architectural Blueprint, accepted for implementation. The standalone bounded target passes two native and two sanitizer tests. The default DOM build passes four tests, including header coexistence. Five Detent distribution tests pass. Four production encoding fixture runs preserve all 14 captured logical payloads with 34-byte and maximum 200-byte snapshot keys, including raw and zstd framing. Other callers, platforms and measurements remain open.
 
 Move the flat incremental lexer and fixed scratch into `Kronuz/msgpack`. Encoding uses its existing packer through an append-to-write adapter. Detent keeps schema validation, storage admission and scheduling. Remove the private codec and its encoding engine after migrating callers.
 
@@ -33,3 +33,7 @@ Xapiand continues using the full DOM and streaming unpacker with its current exc
 3. Qualify native macOS/Linux/FreeBSD and ASan/UBSan, a fresh bounded-only configuration with no DOM fetches, default DOM configuration, header coexistence and clean Xapiand compatibility.
 4. Measure actual production snapshot/delta paths using realistic and maximum field lengths with small fragments. Record allocations, peak admitted bytes, CPU and maximum owner-turn latency in alternating pairs. The codec trial's separate `Pack` implementation does not exercise the production lexer and cannot establish extraction cost.
 5. Review the complete component after the source and qualification gates. HTTP and sustained fleet qualification remain independent release requirements.
+
+## Reproduce the wire capture
+
+Build `test_distribution_encoded_update` in each arm using Unix Makefiles, then run `python3 benchmarks/capture_production_wire.py SOURCE BUILD OUTPUT --key-bytes 34` and repeat with `--key-bytes 200`. Use separate output directories without existing `.wire` files. Compare their `manifest.json` files. The harness checks the host hold before each compile, link and fixture execution; a strict hold defers the step. It uses the configured target flags and libraries and leaves source trees unchanged. Captures contain logical bytes after frame decoding, so this comparison does not assert identical compressed frames. [Recorded results](../benchmarks/msgpack-extraction-preliminary-20261019.json) include the hashes.
