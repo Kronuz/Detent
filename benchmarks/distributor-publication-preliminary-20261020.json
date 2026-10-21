@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-20",
+  "status": "Isolated source candidate; not adopted; blocked on Linux LeakSanitizer and cost gates",
+  "application_base": "15b3fc7",
+  "btree_pin": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "native_macos": {
+    "log": ".scratch/library-adoption-20261017/publication-native-test.log",
+    "log_sha256": "d2df6d966856394125890ed6ce38f305f398c3a721191f765da5dda9223f9a98",
+    "passed": 9,
+    "elapsed_seconds": 12.51
+  },
+  "sanitizers_macos": {
+    "log": ".scratch/library-adoption-20261017/publication-asan-test.log",
+    "log_sha256": "b2e2feec72e1ce86f00784dfb78e09de1ea222c5f495493627500cd38e337f4d",
+    "passed": 3,
+    "elapsed_seconds": 3.44
+  },
+  "native_linux": {
+    "log": ".scratch/library-adoption-20261017/publication-linux-r2-native-test.log",
+    "log_sha256": "1534002d8e57613a307c5407477267e593081423bd9abef6b0116fd5525bdd58",
+    "passed": 3,
+    "elapsed_seconds": 1.85
+  },
+  "sanitizers_linux": {
+    "log": ".scratch/library-adoption-20261017/publication-linux-r2-asan-test.log",
+    "log_sha256": "ab444151fb39622919e34f88538493116c769d2c1d6c0edf71389dc5ef1b8121",
+    "passed": null,
+    "elapsed_seconds": 5.59
+  },
+  "native_freebsd": {
+    "log": ".scratch/library-adoption-20261017/publication-freebsd-r2-native-test.log",
+    "log_sha256": "170e0f771b978dc83e42423ec291169d9e99944c513cfc11e8fda8b69a3b22c2",
+    "passed": 3,
+    "elapsed_seconds": 0.44
+  },
+  "sanitizers_freebsd": {
+    "log": ".scratch/library-adoption-20261017/publication-freebsd-r2-asan-test.log",
+    "log_sha256": "2f6cab8b2ebc3b171056a23b69b2adb38676ba6896fceaf288fb3a1fbad6873b",
+    "passed": 3,
+    "elapsed_seconds": 1.19
+  },
+  "allocation_failure_positions": {
+    "PUT": 245,
+    "PATCH": 277
+  },
+  "linux_leak_report": {
+    "bytes": 222608,
+    "allocations": 1032,
+    "passed": 2,
+    "total": 3,
+    "functional_assertions_passed": true
+  },
+  "isolated_unmodified_pin_reproduction": {
+    "source": ".scratch/library-adoption-20261017/btree-copy-failure-repro.cc",
+    "mode": "copy",
+    "exit": 1,
+    "source_node_bytes": 24,
+    "after_failed_copy_node_bytes": 48,
+    "orphan_bytes_after_source_destruction": 24,
+    "log": ".scratch/library-adoption-20261017/btree-copy-failure-before.log"
+  },
+  "limitations": [
+    "All measured elapsed times here are functional checks under shared host load, not performance comparisons.",
+    "macOS/FreeBSD sanitizer results do not replace Linux LeakSanitizer.",
+    "Close-only stream failure was not independently injected.",
+    "No fsync or power-loss durability added.",
+    "Broader btree const-key and arbitrary mutation exception-safety findings remain open.",
+    "The 100k paired CPU/RSS comparison has not run."
+  ],
+  "source_sha256": {
+    "src/detentd/detentd.cc": "f5b2106016b54514ec367e70550e537bc80ef24a5800c7f4e4e8796d36d88994",
+    "src/detentd/detentd.hh": "d8bf0c4f66c17bd5447266d36ad97f21079b588f75ec84881795efe71b1414a7",
+    "tests/detentd/test_publication_atomic.cc": "5b01f58a16bc6889a3a0160eaa4d6d94f43bd0c0123094ef6c196515a6f6ffb5"
+  }
+}

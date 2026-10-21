@@ -1,6 +1,6 @@
 {
   "date": "2026-10-20",
-  "status": "Libraries published with terminal successful CI; immutable Detent consumer closure running; production pins unchanged",
+  "status": "Published libraries and Detent production adoption qualified; separate publication atomicity/btree gates remain open",
   "macos": {
     "reactor": {
       "native": {
@@ -134,7 +134,7 @@
   "limitations": [
     "Functional elapsed times under a light host hold are not performance results.",
     "The 192-test Detent run excludes system, relay network and fanout groups.",
-    "These runs use local source overrides, not a clean immutable public dependency closure.",
+    "Earlier source-profile runs use local overrides; public_detent records the later clean immutable closure.",
     "Separate Detent post-persist publication atomicity finding remains open."
   ],
   "reactor_base": "1c37deff6ddcaeef261270ed767fb09c17a2b656",
@@ -180,5 +180,17 @@
     "command_record": ".scratch/library-adoption-20261017/xapiand-apply-retry-compile-command.json",
     "command_sha256": "4d3226339d6d886e77a4c59586f3942da9a50460ba6e8db110f8e3c405f9c4a7",
     "scope": "Actual discovery/Raft translation unit only; no full relink or cluster process test for this component"
+  },
+  "adopted_detent_revision": "3547901862eb4ebaaa4a750809736a31ecac0f4f",
+  "public_detent": {
+    "log": ".scratch/library-adoption-20261017/detent-apply-retry-public-functional-test.log",
+    "log_sha256": "4196add047ce7c81066158ef179106065df93073ef2efc8231e82b858969b74b",
+    "passed": 192,
+    "elapsed_seconds": 821.33,
+    "total": 192,
+    "all_products_build_exit": 0,
+    "source_overrides": false,
+    "flags": "-O2 -UNDEBUG",
+    "excluded_regex": "(test_system_|test_relay_network_|test_load_fanout)"
   }
 }
