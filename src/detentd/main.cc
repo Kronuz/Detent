@@ -13,6 +13,7 @@
 //   detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
 //   detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
 #include "detentd.hh"
+#include <http_log.h>
 #ifdef DETENT_WITH_AUTHORITY
 #include "../detent_authority/service.hh"
 #include "../detent_authority/transport/https_client.hh"
@@ -265,14 +266,22 @@ int run(const std::vector<std::string>& input_args) {
 #endif
 		 }
 		else { app = std::make_unique<detentd::Distributor>(options); }
+		std::unique_ptr<http_log::AccessLog> access;
+		auto* handler = app.get();
+		if (!settings.contains("--authority")) {
+			http_log::Options log_options;
+			log_options.metadata_only = true;
+			access = std::make_unique<http_log::AccessLog>(*app, std::move(log_options));
+			handler = access.get();
+		}
 #ifdef DETENT_WITH_AUTHORITY
-		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024, std::move(connection), settings.contains("--authority") ? 1024 : 0);
+		http::HttpAsioService service(*handler, reactors, workers, /*queue_limit=*/1024, std::move(connection), settings.contains("--authority") ? 1024 : 0);
 		service.set_request_timeout(authority_network_timeout);
 		if (settings.contains("--authority")) {
 			static_cast<detent::authority::Service&>(*app).observe_connections(service.connection_observer());
 		}
 #else
-		http::HttpAsioService service(*app, reactors, workers, /*queue_limit=*/1024);
+		http::HttpAsioService service(*handler, reactors, workers, /*queue_limit=*/1024);
 #endif
 		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
 

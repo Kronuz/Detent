@@ -97,6 +97,9 @@ elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RE
 endif()
 
 FetchContent_MakeAvailable(detent_logger)
+if(DETENT_BUILD_DISTRIBUTOR)
+  FetchContent_MakeAvailable(http_log)
+endif()
 
 add_subdirectory(src)
 

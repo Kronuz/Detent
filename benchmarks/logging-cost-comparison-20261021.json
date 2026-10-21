@@ -1,0 +1,364 @@
+{
+  "host": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "cpus": 16
+  },
+  "requests_per_run": 20000,
+  "knobs": 100000,
+  "pairs_per_case": 3,
+  "before_sha256": "f5fac8c0181a447972bdb93c4ebc79618b0f7a44cf54dd75538d2a6ac31c9e79",
+  "after_sha256": "dfff0ca52de2ebad5af4e73eb4ea2e29835105507a92074f196faf7960d4db19",
+  "summary": {
+    "filtered": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 156282880
+      },
+      "after": {
+        "median_cpu_seconds": 0.52,
+        "median_resident_bytes": 155967488
+      }
+    },
+    "verbose-plain": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 152227840
+      },
+      "after": {
+        "median_cpu_seconds": 1.44,
+        "median_resident_bytes": 160284672
+      }
+    },
+    "verbose-rgb": {
+      "before": {
+        "median_cpu_seconds": 0.5,
+        "median_resident_bytes": 154988544
+      },
+      "after": {
+        "median_cpu_seconds": 1.46,
+        "median_resident_bytes": 156545024
+      }
+    }
+  },
+  "samples": [
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.6900000000000001,
+      "request_wall_seconds": 3.6139182390179485,
+      "resident_bytes": 156282880,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.52,
+      "request_wall_seconds": 2.862712129019201,
+      "resident_bytes": 155967488,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8314593178220093,
+      "resident_bytes": 151384064,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.889061674941331,
+      "resident_bytes": 153915392,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.5,
+      "request_wall_seconds": 2.8300807040650398,
+      "resident_bytes": 156835840,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.53,
+      "request_wall_seconds": 2.8894965711515397,
+      "resident_bytes": 158097408,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.55,
+      "request_wall_seconds": 3.0552358799614012,
+      "resident_bytes": 147652608,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.5,
+      "request_wall_seconds": 3.4853404460009187,
+      "resident_bytes": 161583104,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.44,
+      "request_wall_seconds": 3.329485188005492,
+      "resident_bytes": 160284672,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.5,
+      "request_wall_seconds": 2.855483738007024,
+      "resident_bytes": 156291072,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.894153972156346,
+      "resident_bytes": 152227840,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.4100000000000001,
+      "request_wall_seconds": 3.283704997971654,
+      "resident_bytes": 147791872,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8995798269752413,
+      "resident_bytes": 154988544,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.46,
+      "request_wall_seconds": 3.2459825829137117,
+      "resident_bytes": 156545024,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.4500000000000002,
+      "request_wall_seconds": 3.220688227098435,
+      "resident_bytes": 161329152,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.5,
+      "request_wall_seconds": 2.843331206822768,
+      "resident_bytes": 156573696,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.47,
+      "request_wall_seconds": 2.698592040222138,
+      "resident_bytes": 150499328,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.4900000000000002,
+      "request_wall_seconds": 3.338623751187697,
+      "resident_bytes": 155901952,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    }
+  ],
+  "limits": [
+    "Synthetic 100k-style boolean state and one persistent polling connection, not fleet capacity.",
+    "Uses daemon reactor/worker defaults. CPU is live ps time with 10ms resolution.",
+    "CPU interval includes a 250ms logger drain; later shutdown CPU is excluded.",
+    "RSS is one post-workload resident sample, not peak memory or allocation accounting.",
+    "Log volume/counts include startup, seed, warmup and drained shutdown, unlike timed CPU.",
+    "Exchange counts include 100 warmups and three setup requests; the baseline has no HTTP logs and filtering/backpressure can omit events.",
+    "Baseline already enables severity tint; candidate adds depth options and HTTP metadata logging.",
+    "No incremental RGB CPU claim: plain and RGB arms run in separate time blocks with only three pairs each."
+  ],
+  "validity": {
+    "accepted_for_exploratory_cost_comparison": true,
+    "accepted_for_statistical_equivalence": false,
+    "coordination": "Completed under strict quiet hold; before/after snapshots for all 18 samples contain no recognized competing compiler, build, test or benchmark process.",
+    "remaining_noise": "Ordinary macOS background work remains (including Contacts/Spotlight activity at start); first filtered baseline is an outlier. Snapshot guards do not detect every possible transient workload.",
+    "source_artifacts": ".scratch/xapiand-logging/cost-pairs-r3"
+  },
+  "comparisons": {
+    "filtered": {
+      "pairs": [
+        {
+          "pair": 0,
+          "cpu_percent_change": -24.63768115942029,
+          "added_cpu_seconds_per_million_polls": -8.500000000000002
+        },
+        {
+          "pair": 1,
+          "cpu_percent_change": 0.0,
+          "added_cpu_seconds_per_million_polls": 0.0
+        },
+        {
+          "pair": 2,
+          "cpu_percent_change": 6.000000000000005,
+          "added_cpu_seconds_per_million_polls": 1.5000000000000013
+        }
+      ],
+      "median_paired_cpu_percent_change": 0.0,
+      "median_paired_added_cpu_seconds_per_million_polls": 0.0,
+      "added_cpu_seconds_per_million_from_arm_medians": 0.5000000000000004
+    },
+    "verbose-plain": {
+      "pairs": [
+        {
+          "pair": 0,
+          "cpu_percent_change": 172.72727272727272,
+          "added_cpu_seconds_per_million_polls": 47.5
+        },
+        {
+          "pair": 1,
+          "cpu_percent_change": 188.0,
+          "added_cpu_seconds_per_million_polls": 47.0
+        },
+        {
+          "pair": 2,
+          "cpu_percent_change": 176.47058823529414,
+          "added_cpu_seconds_per_million_polls": 45.00000000000001
+        }
+      ],
+      "median_paired_cpu_percent_change": 176.47058823529414,
+      "median_paired_added_cpu_seconds_per_million_polls": 47.0,
+      "added_cpu_seconds_per_million_from_arm_medians": 46.49999999999999
+    },
+    "verbose-rgb": {
+      "pairs": [
+        {
+          "pair": 0,
+          "cpu_percent_change": 186.27450980392157,
+          "added_cpu_seconds_per_million_polls": 47.5
+        },
+        {
+          "pair": 1,
+          "cpu_percent_change": 190.00000000000003,
+          "added_cpu_seconds_per_million_polls": 47.500000000000014
+        },
+        {
+          "pair": 2,
+          "cpu_percent_change": 217.02127659574475,
+          "added_cpu_seconds_per_million_polls": 51.000000000000014
+        }
+      ],
+      "median_paired_cpu_percent_change": 190.00000000000003,
+      "median_paired_added_cpu_seconds_per_million_polls": 47.500000000000014,
+      "added_cpu_seconds_per_million_from_arm_medians": 48.0
+    }
+  }
+}

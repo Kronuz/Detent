@@ -113,7 +113,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
   add_executable(detentd detentd/main.cc)
-  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging)
+  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging http_log::http_log)
 endif()
 
 ########################################################################

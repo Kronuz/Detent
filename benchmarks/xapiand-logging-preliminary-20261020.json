@@ -393,7 +393,8 @@
       "after_sha256": "7bc40b9f260494955f37b3f3db13eab7f3bfb874eccad30e44792d923b48e8d5"
     }
   ],
-  "runtime_cost_validity": "Both runs rejected: initial competing compiler; repeat competing format14_test. Clean repeat pending.",
+  "runtime_cost_validity": "Exploratory strict-repeat accepted with observed macOS background noise; no statistical equivalence or incremental RGB CPU claim.",
   "rejected_repeat": "logging-cost-comparison-20261021-rejected.json",
-  "adoption_status": "Prepared candidate; HTTP/http-log production pin adoption awaits clean performance qualification. Default tint and color-depth controls land separately."
+  "adoption_status": "Synchronous classic-distributor adoption approved; explicit +57552-byte/+2.68% executable-size exception. Authority/relay completion logging and release qualification remain open.",
+  "accepted_repeat": "logging-cost-comparison-20261021.json"
 }

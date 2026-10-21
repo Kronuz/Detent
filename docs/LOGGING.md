@@ -25,6 +25,12 @@ detent-agent --color always
 detentd --color truecolor -v >detent.log 2>&1
 ```
 
+## HTTP access logging
+
+The classic distributor uses [Kronuz/http-log](https://github.com/Kronuz/http-log), the same middleware as Xapiand. Requests retain its method palettes (blue GET, orange PUT/PATCH, red DELETE); responses retain its green success, teal redirect, tan 404 and red error palettes. Requests and successful/404 responses appear at debug (`-v`), other 4xx at info, and 5xx at notice. Detent selects metadata-only rendering: escaped bounded method/path labels, status and handler body size, without headers, bodies, query values or exception descriptions. These blocks describe the handler response before HTTP transforms, not confirmed delivery.
+
+Authority and relay access logging remains pending a [shared transport completion observer](HTTP_LOGGING_ARCHITECTURE.md). Their deferred/owned-stream replies outlive `handle()`; wrapping them with the synchronous middleware would report premature statuses. Daemon lifecycle tinting already applies to both.
+
 Both `agent.json` and `detentd.json` accept these fields:
 
 ```json
@@ -48,6 +54,22 @@ Release build on macOS x86_64, Apple Clang 17.0.0. Before binaries were saved be
 | `detent` | 253,768 | 257,864 | +4,096 | Not sampled | No logging thread |
 
 The reader's size change comes from shared configuration code; symbol inspection finds no `Logging::` or `StderrLogger` symbols. The added thread is the logger scheduler. No CPU, latency, power, or cost improvement is claimed from this measurement.
+
+## HTTP metadata and color-depth costs, October 21
+
+The [accepted exploratory comparison](../benchmarks/logging-cost-comparison-20261021.json) uses three alternating pairs per mode, 100k synthetic boolean knobs and 20k conditional polls per sample under a strict host hold. Its 38 process snapshots contain no recognized competing build/test process. Ordinary macOS background activity remains, and the first filtered baseline is an outlier.
+
+| Mode | Median daemon CPU before / after, per 20k polls | Median resident bytes before / after |
+| --- | ---: | ---: |
+| Default, success logs filtered | 0.51 / 0.52 seconds | 156,282,880 / 155,967,488 |
+| Verbose, plain | 0.51 / 1.44 seconds | 152,227,840 / 160,284,672 |
+| Verbose, RGB | 0.50 / 1.46 seconds | 154,988,544 / 156,545,024 |
+
+The default difference is one 10ms CPU-counter tick; its paired median change is zero, with individual changes from -24.64% to +6.00%. This does not establish statistical equivalence or zero overhead. Verbose logging adds median paired costs of 47 CPU seconds per million polls in plain mode and 47.5 in RGB, about 0.013 core-hours. These separate time blocks establish no incremental RGB CPU cost. Every verbose candidate retains all 20,103 request and response entries, including setup and warmup. RSS is one post-workload sample, not peak memory; shutdown CPU and allocation accounting remain outside this comparison.
+
+The unstripped classic distributor grows by 57,552 bytes (2.68%); the agent grows by 88 bytes. The component review accepts this explicit file-size exception for shared diagnostics. The baseline already includes tint, and this profile differs from the original stripped logger-addition table above. [Qualification evidence](../benchmarks/xapiand-logging-preliminary-20261020.json) records coherent pins, the clean public-pin product build and shared-library CI. Allocation/peak-memory qualification and authority/relay completion logging remain open.
+
+The [initial run](../benchmarks/logging-cost-comparison-20261020.json) and [first repeat](../benchmarks/logging-cost-comparison-20261021-rejected.json) remain rejected because competing compiler/test work appears in their snapshots.
 
 ## Library improvements to propose upstream
 

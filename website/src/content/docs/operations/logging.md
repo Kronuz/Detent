@@ -52,8 +52,11 @@ detentd --color truecolor -v >detent.log 2>&1
 2. Rejected publishes, by category only, e.g. `rejected publish (schema)`, never their contents.
 3. Agent source transitions: connected, unavailable, and refresh failures. Repeated failures drop to debug until a newer snapshot arrives.
 4. Shared-memory capacity failures.
+5. Classic distributor HTTP metadata through Xapiand's shared `http-log` middleware: method/path blocks and status/body-size blocks, with the same method and status palettes. Requests and successful/404 responses appear at debug, other 4xx at info, and 5xx at notice.
 
 Hash values, switch values and knob values are never logged.
+
+HTTP logging omits headers, bodies, query values and exception descriptions. Method and path labels are bounded and escaped. These logs describe the handler's response before HTTP transforms, not confirmed network delivery. Authority and relay HTTP access logging remains pending a shared completion observer for deferred replies and owned streams; their lifecycle logs already use the shared tint.
 
 ---
 
@@ -73,3 +76,7 @@ Logging drains before a normal exit, including on SIGTERM. Routine messages are 
 ## Footprint
 
 The original logger addition cost `detentd` 74,448 stripped bytes and one scheduler thread, and `detent-agent` 88,280 bytes. The `detent` reader doesn't link the logger at all. See [Benchmarks](/Detent/benchmarks/#footprint).
+
+The later color-depth and HTTP metadata addition costs 57,552 unstripped bytes (2.68%) in the isolated classic distributor profile and 88 bytes in the agent; this is a separate comparison with different build settings. [Recorded qualification](https://github.com/Kronuz/Detent/blob/main/benchmarks/xapiand-logging-preliminary-20261020.json) preserves the coherent public pins and clean product build.
+
+The [accepted exploratory comparison](https://github.com/Kronuz/Detent/blob/main/benchmarks/logging-cost-comparison-20261021.json) uses three alternating pairs per mode with 100k knobs and 20k conditional polls. Default-filtered CPU medians are 0.51/0.52 seconds, one counter tick apart; the paired median change is zero with substantial variation. Verbose logging adds about 47–47.5 CPU seconds per million polls (0.013 core-hours), and every verbose candidate retains all request and response entries. The component review accepts the file-size exception. These measurements establish neither zero default overhead nor an incremental RGB cost. Allocation, peak memory and fleet capacity remain open.

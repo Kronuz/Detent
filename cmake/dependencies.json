@@ -80,7 +80,7 @@
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "dc3be77028d13aca66d20648d498301c9d745968",
+    "revision": "6a07f99a1fe0c28e92b83357548c617e4c0ec657",
     "source_subdir": "."
   },
   {
@@ -196,5 +196,29 @@
     "repository": "https://github.com/facebook/zstd.git",
     "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
     "source_subdir": "build/cmake"
+  },
+  {
+    "name": "http_log",
+    "repository": "https://github.com/Kronuz/http-log.git",
+    "revision": "2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+    "source_subdir": "."
+  },
+  {
+    "name": "repr",
+    "repository": "https://github.com/Kronuz/repr.git",
+    "revision": "0fe9a1e98914a423574bfe675eaa82f3e1cb1df6",
+    "source_subdir": "."
+  },
+  {
+    "name": "split",
+    "repository": "https://github.com/Kronuz/split.git",
+    "revision": "aa9857a0383664e67cf2263108c656b36fa8b863",
+    "source_subdir": "."
+  },
+  {
+    "name": "strings",
+    "repository": "https://github.com/Kronuz/strings.git",
+    "revision": "b42d3c4ce1130043a381e487ae0a693248c2c0f5",
+    "source_subdir": "."
   }
 ]
