@@ -1,0 +1,26 @@
+{
+  "status": "Both defects attributed on the published pin; isolated repaired probes pass. Final combined platform and consumer qualification remains open.",
+  "baseline": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "probe_sha256": "80d7ab39e11a0f196e320162bf393d85404ceaabb81f836d12ffc99d75932c5a",
+  "compiler_flags": "clang++ -std=c++20 -O1 -g -UNDEBUG -fsanitize=address,undefined -fno-sanitize-recover=all",
+  "range_insertion": {
+    "baseline_exit": 134,
+    "baseline_diagnostic": "UndefinedBehaviorSanitizer: member call on null btree_node pointer at btree/btree.h:1054",
+    "candidate_exit": 0,
+    "cause": "Unique and duplicate-key range insertion caches cend() across mutations.",
+    "correction": "Reacquire the end hint for each insertion."
+  },
+  "first_comparator_copy": {
+    "baseline_exit": 1,
+    "baseline_observation": "refused=1 empty=0 size=0 bytes=32",
+    "candidate_exit": 0,
+    "candidate_observation": "refused=0 empty=0 size=1 bytes=32",
+    "cause": "Lookup copies the comparator after allocating a zero-count root and before the value-construction cleanup boundary.",
+    "correction": "Route the first entry directly through internal_emplace, without empty-tree lookup."
+  },
+  "limits": [
+    "These bounded probes do not qualify full insertion materialization or downstream publication.",
+    "The first combined suite snapshot failed to compile because new tests used unsupported initializer-list constructors; fixtures now exercise the existing insert(initializer_list) API.",
+    "Production pin unchanged."
+  ]
+}

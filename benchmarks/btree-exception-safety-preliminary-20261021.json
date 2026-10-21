@@ -60,7 +60,7 @@
     "native_macos_checks_per_variant": 546886,
     "platform_profiles": "macOS, Linux and FreeBSD pass all4 native and4 sanitized layout variants (546886 checks each), plus16 native and16 sanitized mixed-mode link combinations per platform.",
     "compatibility": "Constrain zero-argument container construction to real comparator/allocator availability. Preserve explicit stateful construction. Correct previously uninstantiable generic hinted insert/emplace and duplicate-key emplace declarations to iterator returns; signature-inspection code must update.",
-    "costs": "Matched mutation/copy/pruned-copy/nested-move executables prepared; strict comparison pending.",
+    "costs": "Five-pair comparison completed: btree-foundation-cost-20261021.json. Topology-clone copy bytes regress 27.27% populated and78.25% pruned; that draft is not accepted for adoption.",
     "platform_archive_sha256": "1450adb6e9dffb8efe9ad857d53865eda510c5509f766b4a9b0877b9774a579b"
   },
   "remaining": [
