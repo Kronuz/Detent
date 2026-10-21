@@ -38,10 +38,18 @@ Settings parse(std::vector<std::string>& args, const detent_cli::Config& config)
 	}
 	if (verbose || verbosity) result.level = std::min<int>(MAX_LOG_PRIORITY, result.level + verbose + verbosity);
 	if (auto it = values.find("--color"); it != values.end()) {
-		if (it->second == "auto") result.color = LogColorMode::automatic;
-		else if (it->second == "always") result.color = LogColorMode::always;
-		else if (it->second == "never") result.color = LogColorMode::never;
-		else throw std::invalid_argument("color must be auto, always, or never");
+		const auto& mode = it->second;
+		if (mode == "auto") result.color = LogColorMode::automatic;
+		else if (mode == "always" || mode == "on") result.color = LogColorMode::always;
+		else if (mode == "never" || mode == "off") result.color = LogColorMode::never;
+		else {
+			result.color = LogColorMode::always;
+			if (mode == "truecolor" || mode == "24bit") result.color_depth = LogColorDepth::truecolor;
+			else if (mode == "256" || mode == "256color") result.color_depth = LogColorDepth::ansi256;
+			else if (mode == "16" || mode == "ansi") result.color_depth = LogColorDepth::ansi16;
+			else if (mode == "stacked") result.color_depth = LogColorDepth::stacked;
+			else throw std::invalid_argument("color must be auto, always, never, truecolor, 256, 16, or stacked");
+		}
 	}
 	args = std::move(remaining);
 	return result;
@@ -49,6 +57,8 @@ Settings parse(std::vector<std::string>& args, const detent_cli::Config& config)
 Session::Session(Settings settings) {
 	Logging::config.log_level = settings.level;
 	Logging::config.color = settings.color;
+	Logging::config.color_depth = settings.color_depth;
+	Logging::config.tint = true;
 	Logging::config.timestamp_gradient = true;
 	Logging::config.iterm2 = false;
 	Logging::config.max_pending = 4096;

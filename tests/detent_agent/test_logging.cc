@@ -16,6 +16,17 @@ int main() {
 	assert(args.empty());
 	args = {};
 	assert(parse(args, {{"--verbosity", "0"}}).level == LOG_INFO);
+	for (const auto& [name, depth] : std::vector<std::pair<std::string, LogColorDepth>>{
+		{"truecolor", LogColorDepth::truecolor}, {"24bit", LogColorDepth::truecolor},
+		{"256", LogColorDepth::ansi256}, {"256color", LogColorDepth::ansi256},
+		{"16", LogColorDepth::ansi16}, {"ansi", LogColorDepth::ansi16},
+		{"stacked", LogColorDepth::stacked}}) {
+		args = {"--color", name};
+		settings = parse(args, {});
+		assert(settings.color == LogColorMode::always);
+		assert(settings.color_depth == depth);
+		assert(args.empty());
+	}
 	for (const auto& bad : std::vector<std::vector<std::string>>{{"--color"}, {"--color=bad"}, {"--log-level", "bad"}, {"--verbosity", "3"}, {"--verbosity=-1"}, {"--verbosity=1x"}}) {
 		args = bad;
 		bool rejected = false;

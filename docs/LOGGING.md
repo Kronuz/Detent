@@ -1,6 +1,6 @@
 # Daemon logging
 
-`detentd` and `detent-agent` use [Kronuz/logger](https://github.com/Kronuz/logger), extracted from Xapiand. Logs go to stderr with a severity marker and an ISO 8601 timestamp including milliseconds. Terminal output has severity colors and a timestamp gradient; redirected output is plain by default. iTerm2 window customization is disabled.
+`detentd`, `detent-agent` and `detent-relay` use [Kronuz/logger](https://github.com/Kronuz/logger), extracted from Xapiand. Logs go to stderr with a severity marker and an ISO 8601 timestamp including milliseconds. Terminal output tints messages with the shared severity palette and gives timestamps a grey gradient; redirected output is plain by default. Tinting is the default, with no separate option. iTerm2 window customization is disabled.
 
 ```sh
 # Lifecycle messages and warnings (the default).
@@ -18,7 +18,12 @@ detentd --log-level warning --color never
 detent-agent --color always
 ```
 
-`--log-level` accepts `emergency`, `alert`, `critical`, `error`, `warning`, `notice`, `info`, and `debug`. The default is `info`. Each `-v` increases the selected level, capped at the library's verbose level; `--verbosity 0..2` supplies the same increment. `--color auto|always|never` controls color, and `--no-color` selects `never`. In automatic mode, `NO_COLOR` disables color. Explicit `always` overrides it. Command-line settings override configuration.
+`--log-level` accepts `emergency`, `alert`, `critical`, `error`, `warning`, `notice`, `info`, and `debug`. The default is `info`. Each `-v` increases the selected level, capped at the library's verbose level; `--verbosity 0..2` supplies the same increment. `--color auto|always|never` controls color, and `--no-color` selects `never`. In automatic mode, `NO_COLOR` disables color. Explicit `always` overrides it. As in Xapiand, `--color truecolor`, `--color 256` and `--color 16` force a color depth; their aliases are `24bit`, `256color` and `ansi`. `on`/`off` alias `always`/`never`, and `stacked` preserves all three portable color tiers. Command-line settings override configuration.
+
+```sh
+# Preserve full RGB colors in a captured log.
+detentd --color truecolor -v >detent.log 2>&1
+```
 
 Both `agent.json` and `detentd.json` accept these fields:
 

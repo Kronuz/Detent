@@ -46,7 +46,7 @@ std::atomic<bool> g_stop{false};
 void handle_signal(int) { g_stop.store(true); }
 
 const char* kUsage =
-	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
+	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never|truecolor|256|16\n"
 	"usage: detentd [--daemonize | --status] [--runtime-dir PATH] [<port> <persist_path>] [--config PATH]\n"
 	"                [--authority PATH] (opt-in durable loopback authority mode)\n"
 	"                [--port N] [--persist-path PATH] [--reactors N] [--workers N]\n"

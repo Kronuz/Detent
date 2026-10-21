@@ -488,7 +488,7 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "Flags override environment variables, which override config.\n";
 #else
 const char *kUsage =
-	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never\n"
+	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never|truecolor|256|16\n"
 	"detent-agent: host-local managed or legacy configuration daemon\n"
 	"\n"
 	"usage:\n"

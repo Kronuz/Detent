@@ -6,6 +6,7 @@ namespace detent_logging {
 struct Settings {
 	int level = LOG_INFO;
 	LogColorMode color = LogColorMode::automatic;
+	LogColorDepth color_depth = LogColorDepth::automatic;
 };
 // Remove logging flags before application-specific argument parsing.
 Settings parse(std::vector<std::string>& args, const detent_cli::Config& config);
