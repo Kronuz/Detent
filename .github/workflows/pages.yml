@@ -37,8 +37,13 @@ jobs:
         # ```d2 fences render to SVG at build time by shelling out to the d2 CLI
         # (see website/src/lib/renderD2.mjs); without it those pages build empty.
         run: |
-          curl -fsSL https://d2lang.com/install.sh | sh -s --
-          d2 --version
+          mkdir -p .scratch/d2
+          curl --fail --location --retry 3 --output .scratch/d2/release.tar.gz \
+            https://github.com/d2lang/d2/releases/download/v0.9.0/d2-v0.9.0-linux-amd64.tar.gz
+          echo '5669ddc46b99e942cc96078f4a4e36d5e62103348f4c05179ede27802fdd87a9  .scratch/d2/release.tar.gz' | sha256sum --check
+          tar -xzf .scratch/d2/release.tar.gz -C .scratch/d2
+          echo "$GITHUB_WORKSPACE/.scratch/d2/d2-v0.9.0/bin" >> "$GITHUB_PATH"
+          .scratch/d2/d2-v0.9.0/bin/d2 --version
       - name: Build site
         run: npm run build
         working-directory: website
