@@ -1,0 +1,340 @@
+{
+  "host": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "cpus": 16
+  },
+  "requests_per_run": 20000,
+  "knobs": 100000,
+  "pairs_per_case": 3,
+  "before_sha256": "f5fac8c0181a447972bdb93c4ebc79618b0f7a44cf54dd75538d2a6ac31c9e79",
+  "after_sha256": "dfff0ca52de2ebad5af4e73eb4ea2e29835105507a92074f196faf7960d4db19",
+  "summary": {
+    "filtered": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 156151808
+      },
+      "after": {
+        "median_cpu_seconds": 0.52,
+        "median_resident_bytes": 159670272
+      }
+    },
+    "verbose-plain": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 157265920
+      },
+      "after": {
+        "median_cpu_seconds": 1.44,
+        "median_resident_bytes": 157315072
+      }
+    },
+    "verbose-rgb": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 158294016
+      },
+      "after": {
+        "median_cpu_seconds": 1.5,
+        "median_resident_bytes": 164171776
+      }
+    }
+  },
+  "samples": [
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.852125531062484,
+      "resident_bytes": 156151808,
+      "log_bytes": 212,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.5,
+      "request_wall_seconds": 2.7839573801029474,
+      "resident_bytes": 159670272,
+      "log_bytes": 211,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.52,
+      "request_wall_seconds": 2.808578149881214,
+      "resident_bytes": 153403392,
+      "log_bytes": 211,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.830258309841156,
+      "resident_bytes": 156438528,
+      "log_bytes": 212,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.5800000000000001,
+      "request_wall_seconds": 2.9553450318053365,
+      "resident_bytes": 151621632,
+      "log_bytes": 212,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.57,
+      "request_wall_seconds": 2.9107219690922648,
+      "resident_bytes": 162582528,
+      "log_bytes": 211,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.5,
+      "request_wall_seconds": 2.809057978913188,
+      "resident_bytes": 157265920,
+      "log_bytes": 281,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.46,
+      "request_wall_seconds": 3.3187554159667343,
+      "resident_bytes": 157315072,
+      "log_bytes": 2613647,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.44,
+      "request_wall_seconds": 3.3040781191084534,
+      "resident_bytes": 153313280,
+      "log_bytes": 2613647,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8809778501745313,
+      "resident_bytes": 154001408,
+      "log_bytes": 281,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8541649819817394,
+      "resident_bytes": 158789632,
+      "log_bytes": 281,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.4100000000000001,
+      "request_wall_seconds": 3.2702165280934423,
+      "resident_bytes": 159592448,
+      "log_bytes": 2613647,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8583756079897285,
+      "resident_bytes": 155340800,
+      "log_bytes": 1075,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.4900000000000002,
+      "request_wall_seconds": 3.3036289729643613,
+      "resident_bytes": 162377728,
+      "log_bytes": 14274177,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.5,
+      "request_wall_seconds": 3.4103565020486712,
+      "resident_bytes": 164171776,
+      "log_bytes": 14274177,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.53,
+      "request_wall_seconds": 3.005634600063786,
+      "resident_bytes": 158294016,
+      "log_bytes": 1075,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.808599900919944,
+      "resident_bytes": 158900224,
+      "log_bytes": 1075,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.5299999999999998,
+      "request_wall_seconds": 3.475758004002273,
+      "resident_bytes": 166895616,
+      "log_bytes": 14274177,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    }
+  ],
+  "limits": [
+    "Synthetic 100k-style boolean state and one persistent polling connection, not fleet capacity.",
+    "Uses daemon reactor/worker defaults. CPU is live ps time with 10ms resolution.",
+    "CPU interval includes a 250ms logger drain; later shutdown CPU is excluded.",
+    "RSS is one post-workload resident sample, not peak memory or allocation accounting.",
+    "Log volume/counts include startup, seed, warmup and drained shutdown, unlike timed CPU.",
+    "Exchange counts include 100 warmups and three setup requests; the baseline has no HTTP logs and filtering/backpressure can omit events.",
+    "Baseline already enables severity tint; candidate adds depth options and HTTP metadata logging.",
+    "Three pairs describe this workload; no statistical equivalence, fleet capacity, allocation, peak-memory, power or dollar claim. Counts are checked after shutdown; late drain CPU can fall outside the timed interval."
+  ],
+  "date": "2026-10-20",
+  "component": "Xapiand colors and synchronous HTTP metadata logging",
+  "http_revision": "6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+  "http_log_revision": "2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+  "baseline_source": {
+    "base": "b9163fd",
+    "patch": "Enable Logging::config.tint in shared Session; otherwise before color-depth/access-log changes."
+  },
+  "comparisons": {
+    "filtered": {
+      "median_cpu_delta_percent": 1.9607843137254832,
+      "paired_cpu_delta_percent": [
+        -1.9607843137254943,
+        1.9607843137254832,
+        -1.7241379310345084
+      ],
+      "median_log_bytes_before": 212,
+      "median_log_bytes_after": 211,
+      "added_cpu_seconds_per_million_from_arm_medians": 0.5000000000000004,
+      "median_paired_added_cpu_seconds_per_million_polls": -0.5000000000000004
+    },
+    "verbose-plain": {
+      "median_cpu_delta_percent": 182.35294117647055,
+      "paired_cpu_delta_percent": [
+        192.0,
+        182.35294117647055,
+        176.47058823529414
+      ],
+      "median_log_bytes_before": 281,
+      "median_log_bytes_after": 2613647,
+      "added_cpu_seconds_per_million_from_arm_medians": 46.49999999999999,
+      "median_paired_added_cpu_seconds_per_million_polls": 46.49999999999999
+    },
+    "verbose-rgb": {
+      "median_cpu_delta_percent": 194.1176470588235,
+      "paired_cpu_delta_percent": [
+        192.15686274509807,
+        183.01886792452828,
+        199.99999999999994
+      ],
+      "median_log_bytes_before": 1075,
+      "median_log_bytes_after": 14274177,
+      "added_cpu_seconds_per_million_from_arm_medians": 49.5,
+      "median_paired_added_cpu_seconds_per_million_polls": 49.000000000000014
+    }
+  },
+  "validity": {
+    "accepted_for_performance": false,
+    "reason": "Competing ninja/clang processes appear in both process snapshots. Timing and RSS observations are contaminated; repeat under the updated quiet protocol.",
+    "source_artifacts": ".scratch/xapiand-logging/cost-pairs/"
+  }
+}

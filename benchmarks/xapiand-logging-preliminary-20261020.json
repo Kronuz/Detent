@@ -1,0 +1,399 @@
+{
+  "date": "2026-10-20",
+  "component": "Xapiand colors and synchronous metadata access logging",
+  "http_log_revision": "2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+  "logger_revision": "8c5afcd89030586939dd5229ee2ae583069b83dd",
+  "http_revision": "6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+  "reference": {
+    "installed_xapiand": "0.40.0 rev20250419185751",
+    "source_revision": "855f75281602032c238b42fb1fcc75cf0206f984",
+    "redirected_colors_without_NO_COLOR": 145
+  },
+  "qualification": {
+    "website_build": {
+      "result": "passed",
+      "pages": 67
+    },
+    "completion_error_mapping": {
+      "baseline_http_log": "962c1c844efc9d11b4e9b29bcabb90074d6eda6a",
+      "baseline_regression_exit": -6,
+      "http_native": {
+        "passed": 9,
+        "seconds": 9.94
+      },
+      "http_asan_ubsan": {
+        "passed": 9,
+        "seconds": 10.5
+      },
+      "http_log_native": {
+        "passed": 2,
+        "seconds": 1.06
+      },
+      "http_log_asan_ubsan": {
+        "passed": 2,
+        "seconds": 0.87
+      },
+      "tcp_wrapped_unwrapped_comparisons": 5,
+      "http_ci": {
+        "run": 39533048546,
+        "jobs": 8,
+        "result": "success"
+      },
+      "http_log_ci": {
+        "run": 39533095002,
+        "jobs": 8,
+        "result": "success"
+      }
+    },
+    "clean_public_pin_build": {
+      "products": [
+        "authority-enabled detentd",
+        "managed detent-agent",
+        "detent-relay",
+        "reader"
+      ],
+      "passed": true,
+      "local_source_overrides": false,
+      "populated_pins": [
+        {
+          "name": "asio",
+          "revision": "231cb29bab30f82712fcd54faaea42424cc6e710"
+        },
+        {
+          "name": "atomic_shared_ptr",
+          "revision": "b7bf5efcec1dd437caf0692263cedfe368adceb2"
+        },
+        {
+          "name": "char_classify",
+          "revision": "306ecd96d55d47d9bd3167eaeb7877e40d0631ac"
+        },
+        {
+          "name": "cluster",
+          "revision": "f053a822134ab4287a40a9319b4b8db452143089"
+        },
+        {
+          "name": "compressors",
+          "revision": "ed590c87201afd270afbfbb2d58d5d467c6d23b6"
+        },
+        {
+          "name": "constexpr_phf",
+          "revision": "1a035230c03982a822637f7c741656bd688bd9e3"
+        },
+        {
+          "name": "cpp_btree",
+          "revision": "dd984d92540674d0794ce338712691ae9afa3d10"
+        },
+        {
+          "name": "cppcodec",
+          "revision": "8019b8b580f8573c33c50372baec7039dfe5a8ce"
+        },
+        {
+          "name": "detent_logger",
+          "revision": "8c5afcd89030586939dd5229ee2ae583069b83dd"
+        },
+        {
+          "name": "endian",
+          "revision": "f6269f09da90bb3713018792003f01a67749b00c"
+        },
+        {
+          "name": "enum_reflection",
+          "revision": "9b5ecea02d7de8356ddd10fd874cd981aba399db"
+        },
+        {
+          "name": "generation_cache",
+          "revision": "01af1b2b17226d49ed89623e9af5d4f94a187588"
+        },
+        {
+          "name": "hashes",
+          "revision": "7ab0c23325debfbaf4104044987ba6583d14808f"
+        },
+        {
+          "name": "http_lib",
+          "revision": "6a07f99a1fe0c28e92b83357548c617e4c0ec657"
+        },
+        {
+          "name": "http_parser",
+          "revision": "178f873450364b67f0abca9c96fbbc735589d435"
+        },
+        {
+          "name": "radix_router",
+          "revision": "d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed"
+        },
+        {
+          "name": "random_lib",
+          "revision": "6487253c9e7a4855ccbea36f7a66cea5fef7d381"
+        },
+        {
+          "name": "rapidjson",
+          "revision": "24b5e7a8b27f42fa16b96fc70aade9106cf7102f"
+        },
+        {
+          "name": "reactor",
+          "revision": "fe8c5ced4207508b32ebe96a4dcc524c08081414"
+        },
+        {
+          "name": "scheduler",
+          "revision": "fb464cb39256057b321c3a8837a7dab2fe1e09b7"
+        },
+        {
+          "name": "sha256",
+          "revision": "2bb34f02973575ebe030e7444b2996024cc05fcf"
+        },
+        {
+          "name": "stash",
+          "revision": "2908b488c10dbd6830c384f53358783639a36965"
+        },
+        {
+          "name": "static_string",
+          "revision": "eb1efcb39f4d8bb4fd20a9ea91498a288d25aca2"
+        },
+        {
+          "name": "strict_stox",
+          "revision": "21b7941c71064b5a4e52ffb50a2701ee4aae4c6c"
+        },
+        {
+          "name": "term_color",
+          "revision": "534e30905b1a40ae1f18dbde46b039dd4333747b"
+        },
+        {
+          "name": "threadpool",
+          "revision": "628679a2e27b563cf2709a6f35f98f1657baf7b3"
+        },
+        {
+          "name": "varint",
+          "revision": "21af82a64fd5860d14d5ec9591bec2ffd5d662d1"
+        },
+        {
+          "name": "completion",
+          "revision": "5251cf9f24350c65548318b54a4be93389df73d0"
+        },
+        {
+          "name": "journal",
+          "revision": "57e6250e1b714925feddc210641c1c6ea49d5337"
+        },
+        {
+          "name": "metrics",
+          "revision": "c975765bafe61fa79a0aa417be6deb30edf3b1db"
+        },
+        {
+          "name": "consensus",
+          "revision": "b7073bbe4d94e66dce526f193b0dd81a57cdb661"
+        },
+        {
+          "name": "http_log",
+          "revision": "2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97"
+        },
+        {
+          "name": "repr",
+          "revision": "0fe9a1e98914a423574bfe675eaa82f3e1cb1df6"
+        },
+        {
+          "name": "split",
+          "revision": "aa9857a0383664e67cf2263108c656b36fa8b863"
+        },
+        {
+          "name": "strings",
+          "revision": "b42d3c4ce1130043a381e487ae0a693248c2c0f5"
+        }
+      ],
+      "manifest_sha256": "4f3c787b984617433e4af181964adb078ec2764b2206e4188cc2afad37d0773b",
+      "selected_tests": {
+        "passed": 4,
+        "seconds": 6.72
+      }
+    },
+    "runtime_cost": "logging-cost-comparison-20261020.json",
+    "initial_metadata": {
+      "http_log_native": {
+        "passed": 1,
+        "seconds": 0.25
+      },
+      "http_log_asan_ubsan_object_size_pointer_overflow": {
+        "passed": 1,
+        "seconds": 0.59
+      },
+      "detent_selected_native": {
+        "passed": 3,
+        "seconds": 8.82,
+        "tests": [
+          "test_logging",
+          "test_agent_cli",
+          "test_agent_http"
+        ]
+      },
+      "all_products_native": {
+        "build": "passed",
+        "products": [
+          "detentd with authority",
+          "detent-agent with managed mode",
+          "detent-relay",
+          "detent reader"
+        ],
+        "help_checks": 3,
+        "selected_tests": {
+          "passed": 4,
+          "seconds": 7.31,
+          "tests": [
+            "test_logging",
+            "test_agent_cli",
+            "test_agent_http",
+            "test_distributor_cli"
+          ]
+        },
+        "local_source_overrides": true
+      },
+      "daemon_modes": [
+        {
+          "mode": "auto",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 0,
+          "bytes": 1091,
+          "log_sha256": "8fe0c65d8cebfe1b802568492b011d2f753e24716513c9f551ccff18ffa32f5b"
+        },
+        {
+          "mode": "never",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 0,
+          "bytes": 1092,
+          "log_sha256": "e3346062cb7c854098884ca0d6c3d12a1e457ba4c46f860a1ae5d8f4fbd7fbf8"
+        },
+        {
+          "mode": "always",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 280,
+          "bytes": 5625,
+          "log_sha256": "78b050056cbe2721f9bef86827fb26168e731f95d43b742b42da79794214c9ef"
+        },
+        {
+          "mode": "truecolor",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 280,
+          "bytes": 5628,
+          "log_sha256": "36bff8fcd98ddff87c49c2135d04723ce708d5c4fdaf8e6cb2411975ffc53491"
+        },
+        {
+          "mode": "256",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 280,
+          "bytes": 4322,
+          "log_sha256": "c5abbf9c723a622be26bb45ee0f237bc0343cee641e8128ead485e9c27ebf15b"
+        },
+        {
+          "mode": "16",
+          "exit": 0,
+          "statuses": [
+            200,
+            400,
+            200,
+            200,
+            304,
+            404
+          ],
+          "color_sequences": 280,
+          "bytes": 2917,
+          "log_sha256": "4a37b069863db147ae82e15847294c33304e6017789e6acae716f281bc38bf2a"
+        }
+      ],
+      "http_log_ci": {
+        "run": 39530177286,
+        "result": "success",
+        "jobs": 8,
+        "url": "https://github.com/Kronuz/http-log/actions/runs/39530177286"
+      }
+    }
+  },
+  "footprint": [
+    {
+      "program": "detentd",
+      "before_bytes": 2151240,
+      "after_bytes": 2208792,
+      "delta_bytes": 57552,
+      "delta_percent": 2.675294248898319,
+      "before_sha256": "f5fac8c0181a447972bdb93c4ebc79618b0f7a44cf54dd75538d2a6ac31c9e79",
+      "after_sha256": "dfff0ca52de2ebad5af4e73eb4ea2e29835105507a92074f196faf7960d4db19"
+    },
+    {
+      "program": "detent-agent",
+      "before_bytes": 1409384,
+      "after_bytes": 1409472,
+      "delta_bytes": 88,
+      "delta_percent": 0.006243862566912561,
+      "before_sha256": "87cc8623cac08bd01ff9349d4ed939a39d09d6e422581a63eae06555258febb2",
+      "after_sha256": "7bc40b9f260494955f37b3f3db13eab7f3bfb874eccad30e44792d923b48e8d5"
+    }
+  ],
+  "limits": [
+    "Native tests run at nice19 during another project light hold; no performance claim.",
+    "Footprint compares unstripped AppleClang17 x86_64 -O2 -UNDEBUG profiles with classic distributor enabled and authority, managed agent and relay disabled; baseline already enables tint, candidate adds color-depth modes and synchronous http-log.",
+    "Size is executable file size, not RSS or allocation accounting.",
+    "Only classic Distributor is wrapped; authority and relay need canonical completion observation.",
+    "Logged statuses are handler responses before transport transforms, not confirmed socket delivery.",
+    "Six daemon color-mode traces use the initial metadata closure; the completion correction has separate native/sanitizer/TCP and clean public-pin qualification.",
+    "Paired CPU and post-workload resident observations are recorded separately; allocation and peak-memory qualification remain open."
+  ],
+  "initial_http_revision": "dc3be77028d13aca66d20648d498301c9d745968",
+  "initial_http_log_revision": "962c1c844efc9d11b4e9b29bcabb90074d6eda6a",
+  "initial_footprint": [
+    {
+      "program": "detentd",
+      "before_bytes": 2151240,
+      "after_bytes": 2208760,
+      "delta_bytes": 57520,
+      "delta_percent": 2.673806734720441,
+      "before_sha256": "f5fac8c0181a447972bdb93c4ebc79618b0f7a44cf54dd75538d2a6ac31c9e79",
+      "after_sha256": "f3f8cba1981561daef6abbcc0e1b49aab8fba781af7aac7b7e644100528746a5"
+    },
+    {
+      "program": "detent-agent",
+      "before_bytes": 1409384,
+      "after_bytes": 1409472,
+      "delta_bytes": 88,
+      "delta_percent": 0.006243862566912561,
+      "before_sha256": "87cc8623cac08bd01ff9349d4ed939a39d09d6e422581a63eae06555258febb2",
+      "after_sha256": "7bc40b9f260494955f37b3f3db13eab7f3bfb874eccad30e44792d923b48e8d5"
+    }
+  ],
+  "runtime_cost_validity": "Both runs rejected: initial competing compiler; repeat competing format14_test. Clean repeat pending.",
+  "rejected_repeat": "logging-cost-comparison-20261021-rejected.json",
+  "adoption_status": "Prepared candidate; HTTP/http-log production pin adoption awaits clean performance qualification. Default tint and color-depth controls land separately."
+}

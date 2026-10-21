@@ -1,0 +1,294 @@
+{
+  "host": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "cpus": 16
+  },
+  "requests_per_run": 20000,
+  "knobs": 100000,
+  "pairs_per_case": 3,
+  "before_sha256": "f5fac8c0181a447972bdb93c4ebc79618b0f7a44cf54dd75538d2a6ac31c9e79",
+  "after_sha256": "dfff0ca52de2ebad5af4e73eb4ea2e29835105507a92074f196faf7960d4db19",
+  "summary": {
+    "filtered": {
+      "before": {
+        "median_cpu_seconds": 0.58,
+        "median_resident_bytes": 157216768
+      },
+      "after": {
+        "median_cpu_seconds": 0.5700000000000001,
+        "median_resident_bytes": 154730496
+      }
+    },
+    "verbose-plain": {
+      "before": {
+        "median_cpu_seconds": 0.51,
+        "median_resident_bytes": 159010816
+      },
+      "after": {
+        "median_cpu_seconds": 1.42,
+        "median_resident_bytes": 157978624
+      }
+    },
+    "verbose-rgb": {
+      "before": {
+        "median_cpu_seconds": 0.45000000000000007,
+        "median_resident_bytes": 159670272
+      },
+      "after": {
+        "median_cpu_seconds": 1.4,
+        "median_resident_bytes": 155377664
+      }
+    }
+  },
+  "samples": [
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.58,
+      "request_wall_seconds": 2.985683623002842,
+      "resident_bytes": 157216768,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.6,
+      "request_wall_seconds": 3.000410011038184,
+      "resident_bytes": 154730496,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.5700000000000001,
+      "request_wall_seconds": 2.900339314015582,
+      "resident_bytes": 152510464,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.8487750350032,
+      "resident_bytes": 159145984,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.5900000000000001,
+      "request_wall_seconds": 2.9879173641093075,
+      "resident_bytes": 149549056,
+      "log_bytes": 215,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "filtered",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.49,
+      "request_wall_seconds": 2.778746475931257,
+      "resident_bytes": 154836992,
+      "log_bytes": 214,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.51,
+      "request_wall_seconds": 2.873009904054925,
+      "resident_bytes": 159010816,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.42,
+      "request_wall_seconds": 3.220126844011247,
+      "resident_bytes": 161775616,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.46,
+      "request_wall_seconds": 3.3521588819567114,
+      "resident_bytes": 149123072,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.52,
+      "request_wall_seconds": 2.8890376209747046,
+      "resident_bytes": 159121408,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.48,
+      "request_wall_seconds": 2.7767945830710232,
+      "resident_bytes": 148848640,
+      "log_bytes": 284,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-plain",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.3599999999999999,
+      "request_wall_seconds": 3.1917341749649495,
+      "resident_bytes": 157978624,
+      "log_bytes": 2613650,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 0.45000000000000007,
+      "request_wall_seconds": 2.608929144917056,
+      "resident_bytes": 159670272,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 0,
+      "requests": 20000,
+      "cpu_seconds": 1.4,
+      "request_wall_seconds": 3.1420709670055658,
+      "resident_bytes": 153522176,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 1.4,
+      "request_wall_seconds": 3.157329608919099,
+      "resident_bytes": 155377664,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 1,
+      "requests": 20000,
+      "cpu_seconds": 0.45000000000000007,
+      "request_wall_seconds": 2.629524077055976,
+      "resident_bytes": 148873216,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "before",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 0.44000000000000006,
+      "request_wall_seconds": 2.622696115868166,
+      "resident_bytes": 160628736,
+      "log_bytes": 1078,
+      "request_logs": 0,
+      "response_logs": 0,
+      "http_exchanges": 20103
+    },
+    {
+      "arm": "after",
+      "case": "verbose-rgb",
+      "pair": 2,
+      "requests": 20000,
+      "cpu_seconds": 1.3900000000000001,
+      "request_wall_seconds": 3.1350497158709913,
+      "resident_bytes": 163028992,
+      "log_bytes": 14274180,
+      "request_logs": 20103,
+      "response_logs": 20103,
+      "http_exchanges": 20103
+    }
+  ],
+  "limits": [
+    "Synthetic 100k-style boolean state and one persistent polling connection, not fleet capacity.",
+    "Uses daemon reactor/worker defaults. CPU is live ps time with 10ms resolution.",
+    "CPU interval includes a 250ms logger drain; later shutdown CPU is excluded.",
+    "RSS is one post-workload resident sample, not peak memory or allocation accounting.",
+    "Log volume/counts include startup, seed, warmup and drained shutdown, unlike timed CPU.",
+    "Exchange counts include 100 warmups and three setup requests; the baseline has no HTTP logs and filtering/backpressure can omit events.",
+    "Baseline already enables severity tint; candidate adds depth options and HTTP metadata logging."
+  ],
+  "validity": {
+    "accepted_for_performance": false,
+    "reason": "A competing format14_test process consumed a full core during filtered/plain samples. The initial process guard checked test_ prefixes but missed _test suffixes. All timing/RSS comparisons are rejected; no RGB/plain incremental cost is established.",
+    "source_artifacts": ".scratch/xapiand-logging/cost-pairs-r2/",
+    "functional_http_log_conservation": true
+  }
+}
