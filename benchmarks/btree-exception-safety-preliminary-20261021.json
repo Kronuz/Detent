@@ -1,0 +1,74 @@
+{
+  "status": "Partial qualification; production pin and application publication candidate remain unchanged.",
+  "baseline": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "bounded_guards": {
+    "source_sha256": {
+      "btree/btree.h": "67fc3623b96591a8bcb07bfec53ea1324040550adb6cfda3d24d34262bff5638",
+      "btree/map.h": "50201cfcea6853fec721af006a585dcbb67d30be4b88ddcd3f7210fda5e3c7ab",
+      "btree/set.h": "6fa5e38f642082419edf7674e4d439d402bc9e2d2f81b5990251db08c3749fa4",
+      "tests/node_layout.cc": "bafc1a561cfe1d75520f337f21e73ef844a35e1639a66db5cde96a247548c836"
+    },
+    "native_macos": {
+      "variants": [
+        "C++17 release",
+        "C++17 debug",
+        "C++20 release",
+        "C++20 debug"
+      ],
+      "checks_per_variant": 546600
+    },
+    "macos_sanitizers": "All four layout variants pass ASan/UBSan/object-size/pointer-overflow; 16 native and16 sanitized mixed-mode link combinations pass.",
+    "attributed_probes": {
+      "tail_constructor_failure": {
+        "baseline_exit": 1,
+        "candidate_exit": 0,
+        "candidate_checks": 308
+      },
+      "root_then_sibling_allocation_failure": {
+        "baseline_exit": 1,
+        "candidate_exit": 0,
+        "baseline_height_after_refusal": 2,
+        "candidate_height_after_refusal": 1
+      },
+      "split_separator_failure": {
+        "baseline_exit": 1,
+        "candidate_exit": 1,
+        "expected_entries": 6,
+        "visited_entries_after_failure": 5,
+        "allocated_node_bytes": 840,
+        "reachable_node_bytes": 584,
+        "unreachable_node_bytes": 256,
+        "resolved": false
+      }
+    }
+  },
+  "ownership_moves_r1": {
+    "platform_archive_sha256": "a65f801c1a68376830a2871e114737047d530a45fe27070fe3af59ffb7f18cd8",
+    "checks_per_layout_variant": 546877,
+    "macos": "4 native and4 sanitizer layout variants;16 native and16 sanitizer mixed-mode combinations pass.",
+    "freebsd": "4 native and4 sanitizer layout variants;16 native and16 sanitizer mixed-mode combinations pass.",
+    "linux": "GCC native layout/mixed-mode and Clang sanitized C++17 pass. Clang/libstdc++13 C++20 fails to compile nested non-default-allocator map while evaluating pair default-construction traits. Not accepted as complete qualification.",
+    "detent_type_probe": "BoolDef, KnobDef, optional<KnobDef>, Snapshot and SnapshotPatch have nothrow move/swap traits; nested element address retained and source reusable. pair<const string,KnobDef> remains potentially throwing."
+  },
+  "constructor_and_overload_repairs_r2": {
+    "source_sha256": {
+      "btree/btree.h": "e42ab9970ff8f0e07ec1bcc1dd078703227b3cc94a912ab978a87afb8a05707b",
+      "btree/map.h": "34431fb39588734ca0fc3f2196ff9ab9a77caf17899b691685832ea8e86d6da8",
+      "btree/set.h": "760cb1f12c96ff3399d4402aff2320a7427c768a8614aa4f5bf591a62472ef14",
+      "tests/node_layout.cc": "f54ee35f6578aa727d0a3f20213e45a0bcdad4cf4a31973b5ee11d142b856da3"
+    },
+    "native_macos_checks_per_variant": 546886,
+    "platform_profiles": "macOS, Linux and FreeBSD pass all4 native and4 sanitized layout variants (546886 checks each), plus16 native and16 sanitized mixed-mode link combinations per platform.",
+    "compatibility": "Constrain zero-argument container construction to real comparator/allocator availability. Preserve explicit stateful construction. Correct previously uninstantiable generic hinted insert/emplace and duplicate-key emplace declarations to iterator returns; signature-inspection code must update.",
+    "costs": "Matched mutation/copy/pruned-copy/nested-move executables prepared; strict comparison pending.",
+    "platform_archive_sha256": "1450adb6e9dffb8efe9ad857d53865eda510c5509f766b4a9b0877b9774a579b"
+  },
+  "remaining": [
+    "Affected-node insertion staging with stable entry identities and two materialization policies",
+    "Full positioned promotion/split/rebalance sweeps and long real keys",
+    "Linux publication LeakSanitizer closure without suppression",
+    "Xapiand and clean immutable-pin consumer rebuilds",
+    "Before/after allocation, footprint and CPU comparisons",
+    "Whole-component review, separate upstream fixes and coordinated pin adoption"
+  ]
+}
