@@ -16,16 +16,19 @@ command is installed (`command -v quiet`), use it to coordinate; where it is not
 Before compiling, running test suites, or measuring anything, run `quiet check`:
 
 - Exit 0: the machine is free.
-- Exit 2: a light hold. Build and test at `nice -n 19` with at most 4 parallel jobs.
-- Exit 1: a strict hold. Do not compile, test, or measure; edit and read instead, and run
-  `quiet wait --light` before resuming. `quiet list` shows who holds the machine and until
-  when.
+- Exit 1: a strict hold or insufficient disk. Read and edit while waiting; do not compile, test or measure. `quiet list` shows current holds.
+- Exit 2: light holds, high load or low disk. A light `quiet run` queues for its slot.
 
-Wrap each benchmark, profile, or long fuzz run so others wait for it:
+Wrap builds and test suites in a light hold, run them at nice 19, and use at most four parallel jobs:
+
+```sh
+QUIET_LEVEL=light quiet run detent-build 15 "Detent build" -- nice -n 19 cmake --build build -j4
+```
+
+Wrap benchmarks, profiles and long fuzz runs in a strict hold. The wrapper waits for other holds and for host load to settle, then runs alone:
 
 ```sh
 quiet run detent-bench 90 "Detent: what it measures" -- <command>
-QUIET_LEVEL=light quiet run ...   # single-threaded or informational runs
 ```
 
-A hold ends with its process or at its deadline, so a crashed run blocks no one for long.
+Use realistic deadlines: a hold expires when its process exits or its deadline passes. Do not rely on a pre-build check alone; the light hold keeps an already-running build visible to a later benchmark.
