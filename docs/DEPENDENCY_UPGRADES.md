@@ -324,3 +324,18 @@ The [validated implementation blueprint](BTREE_EXCEPTION_SAFETY_ARCHITECTURE.md)
 ### Documentation renderer qualification, October 21
 
 The Pages run for HTTP logging fails before site compilation because D2's latest-version installer receives HTTP 403 from GitHub's release API. `5c45e82` replaces it with a direct v0.9.0 release download and a SHA-256 verified against the published asset metadata and local archive. The [replacement build and deployment](https://github.com/Kronuz/Detent/actions/runs/39595457380) both complete successfully. The renderer version and checksum are explicit; no unauthenticated latest-release lookup remains in this workflow.
+
+### Btree foundation cost gate, October 21
+
+**Verdict: do not adopt the foundation draft yet.** The [five-pair comparison](../benchmarks/btree-foundation-cost-20261021.json) exposes a deterministic copy-memory regression. The guarded topology clone preserves sparse node occupancy; the published ordered-reinsertion copy compacts it. Full-tree copies grow from 3,461,464 to 4,405,512 container bytes (+27.27%); pruned-tree copies grow from 866,056 to 1,543,704 bytes (+78.25%). These counts exclude string allocations and temporary storage. Exception safety must preserve compact copies before pin adoption.
+
+| Workload | Baseline median process CPU | Draft median process CPU | Median paired change |
+| --- | ---: | ---: | ---: |
+| Mutation | 266.746 ms | 279.528 ms | +3.75% |
+| Full copy | 89.936 ms | 90.918 ms | +2.13% |
+| Pruned copy | 13.353 ms | 14.645 ms | +8.47% |
+| Nested ownership move | 190.717 ms | 0.003 ms | Below useful ratio resolution |
+
+The timing run uses five alternating pairs under a strict hold, with 80 process snapshots and no recognized competing build or test process. Ordinary background activity includes iStat Menus above 70% CPU in two snapshots; paired timing ranges remain wide, so these are exploratory CPU results. The memory counts are reproducible structural observations. The move timer excludes construction and final destruction, and its draft samples approach clock resolution; no precise speedup ratio or fleet savings follows.
+
+These executables contain the qualified ownership-move foundation, not the insertion transaction. The shared insertion kernels and sparse node images remain an isolated draft. The Architect review must select a compact exception-safe copy construction path without retaining parallel implementations. The original publication LeakSanitizer failure and separator-transfer defect remain open.
