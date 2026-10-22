@@ -2,18 +2,20 @@
   "date": "2026-10-22",
   "status": "Prototype: early cost accepted for further qualification; not adopted",
   "baseline_commit": "cbc35762bc4a98ad91361be29d05f0ae715a1339",
-  "candidate": "Frozen ownership moves R1",
+  "candidate": "Reviewed corrected ownership moves R2",
   "source_sha256": {
-    "btree/btree.h": "8ab86e78c89e975c4b5d1c0ec759ec279e2524c8708407c5a8cd988490652965",
+    "btree/btree.h": "94c8a43183311ba747414de64b923dc5a43472e51e7d00878fa0e7b39148bf4c",
     "btree/map.h": "0a795c13cf829e76567bdec14a6c20b02949188970539a276bdf6f49e7c35c1a",
     "btree/set.h": "5cd96f2f5d45a99e715ac4cdff4ea44c14fe82411c9dd447e0bd42cfc6e8378c",
-    "tests/ownership_move.cc": "1300249d27258e74beed89470f9eaabc32e565096ff21b8c2005cdb1e2704a1c"
+    "tests/ownership_move.cc": "d0aa1fc71f81de5bb0be93aa004cbe4c97c8c50a52b71996cc213c78ff7ab155"
   },
   "model_probe_sha256": "1e68e825e55088b40538de020d102f3bd7df1b9c7ad45ffed7fbaca3c5dd3e16",
   "qualification": {
     "macos_native_ownership_profiles": 4,
     "cross_platform_sanitizers_and_mixed": "running",
-    "full_product": "pending candidate immutable pin"
+    "full_product": "pending candidate immutable pin",
+    "review": "Source GO after inherited operator& self-guard correction; corrected native ownership fixture passes four macOS profiles. Final platform, hosted and product gates pending.",
+    "hosted_ci": "https://github.com/Kronuz/btree/actions/runs/39874082109"
   },
   "results": {
     "operations": {
@@ -2518,5 +2520,34 @@
       ]
     }
   },
-  "scope": "Ownership transfer only. Full-node insertion and erase safety remain separate release gates."
+  "scope": "Ownership transfer only. Full-node insertion and erase safety remain separate release gates.",
+  "measured_source_sha256": {
+    "btree/btree.h": "8ab86e78c89e975c4b5d1c0ec759ec279e2524c8708407c5a8cd988490652965",
+    "btree/map.h": "0a795c13cf829e76567bdec14a6c20b02949188970539a276bdf6f49e7c35c1a",
+    "btree/set.h": "5cd96f2f5d45a99e715ac4cdff4ea44c14fe82411c9dd447e0bd42cfc6e8378c",
+    "tests/ownership_move.cc": "1300249d27258e74beed89470f9eaabc32e565096ff21b8c2005cdb1e2704a1c"
+  },
+  "candidate_commit": "25f9494b64c02a63827e7294cb25a79762b7544f",
+  "cost_binary_identity": {
+    "operations": {
+      "r1": "1de0b03e73a82bf3697fe683b841f0fa21e9497d5dbdfb9f03c01ce5130657c5",
+      "r2": "1de0b03e73a82bf3697fe683b841f0fa21e9497d5dbdfb9f03c01ce5130657c5",
+      "identical": true
+    },
+    "allocations": {
+      "r1": "f7bf4105f22634f986dc494fe9d148b34fda7d7b5f1e50d49526093dda6ccad4",
+      "r2": "f7bf4105f22634f986dc494fe9d148b34fda7d7b5f1e50d49526093dda6ccad4",
+      "identical": true
+    },
+    "model": {
+      "r1": "7a63bec2ba61f6048fbecf84f6a18dd00c593a4ba31738f13d463990d0dad430",
+      "r2": "7a63bec2ba61f6048fbecf84f6a18dd00c593a4ba31738f13d463990d0dad430",
+      "identical": true
+    },
+    "separated": {
+      "r1": "f87adb6fff909203b4606c0cbe6eeb790a1f5fd287ea84be1ed1d3a421de52be",
+      "r2": "f87adb6fff909203b4606c0cbe6eeb790a1f5fd287ea84be1ed1d3a421de52be",
+      "identical": true
+    }
+  }
 }

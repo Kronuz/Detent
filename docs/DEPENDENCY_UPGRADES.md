@@ -457,3 +457,11 @@ The cost decision accepts the explicit +6.83% long-key and +32.6% generic throwi
 ### Ownership-move qualification and pre-existing API defects, October 22
 
 The [ownership-move blueprint](BTREE_OWNERSHIP_MOVE_ARCHITECTURE.md) follows the adopted nonfull insertion repair. Its tests expose two pre-existing API compilation defects: `btree_container::get_allocator()` calls the core's private allocator accessor, and multi-container `emplace` declares a pair return while returning an iterator. Keep these independent of move implementation and qualify them separately; ownership tests can use the working insert API and tracked allocator ownership. Isolated C++20 translation units fail on both `cbc3576` and the move draft, confirming attribution. Logs and sources remain under `.scratch/library-adoption-20261017/btree-api-attribution/`. Neither defect is closed by the ownership work.
+
+### Reviewed ownership candidate, October 22
+
+Btree `25f9494b64c02a63827e7294cb25a79762b7544f` publishes the reviewed ownership-move component for qualification. Detent continues using `cbc3576` until the candidate's platform, hosted CI, separate assignment/publication measurements and clean full-product rebuild finish. The new product fixture preserves actual model move traits and nested element addresses.
+
+Review identifies an inherited comparator `operator&` that can bypass a raw self-address guard. The candidate uses `std::addressof` for move and the matching pre-existing copy guard; the permanent regression covers throwing address overloads across all four families. Corrected C++17/C++20 Release/Debug ownership fixtures pass. The reviewed state preparation, exact allocator transfer and conditional exception declarations have no other reported production P1/P2.
+
+The [cost evidence](../benchmarks/btree-ownership-moves-20261022.json) retains five paired actual-model samples, unchanged retained requested bytes and explicit CPU scope. The corrected operation, node-allocation and actual-model benchmark executables match their measured predecessors byte-for-byte; the separate assignment executable also matches its earlier unmeasured build. This preserves those samples without asserting unmeasured publication or fleet savings.

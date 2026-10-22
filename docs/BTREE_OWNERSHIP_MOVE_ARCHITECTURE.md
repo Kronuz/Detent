@@ -1,6 +1,6 @@
 # Ownership moves: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Bounded implementation and qualification in progress against `cbc3576`.
+**Date:** 2026-10-22. **Status:** Reviewed candidate `25f9494` in qualification against `cbc3576`; not adopted.
 
 ## Decision and scalability
 
