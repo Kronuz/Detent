@@ -1,8 +1,10 @@
 # Btree exception safety: validated architectural blueprint
 
+**Status:** Historical design. The combined sparse-image transaction passes functional qualification but fails its mutation-cost gate (about 5.75× baseline), so it remains unpublished and unadopted. Current work follows the [release risk evaluation](BTREE_RELEASE_RISK.md), [prepared nonfull insertion](BTREE_NONFULL_INSERTION_ARCHITECTURE.md), [ownership moves](BTREE_OWNERSHIP_MOVE_ARCHITECTURE.md) and [structural insertion](BTREE_STRUCTURAL_INSERTION_ARCHITECTURE.md).
+
 ## Abstract
 
-Detent's publication failure sweep exposes pre-existing lifetime defects in the pinned cpp-btree. The repair combines compact ordered copy construction, real container moves and affected-node insertion staging over stable entry identities. Component source review accepts these mechanisms; production pin adoption waits for the combined platform, cost and consumer gates, including the full publication sweep with Linux LeakSanitizer enabled.
+Detent's publication failure sweep exposes pre-existing lifetime defects in cpp-btree. This proposal combines compact ordered copying, real container moves and affected-node staging over stable entry identities. Source and functional acceptance do not override its failed cost gate. Independently qualified corrections land separately; this combined transaction is not the active implementation plan.
 
 | Review | Status | Date |
 | --- | --- | --- |
