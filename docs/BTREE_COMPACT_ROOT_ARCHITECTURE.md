@@ -1,6 +1,6 @@
 # Guarded compact-root growth: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Validated for bounded implementation; qualification and cost gates open.
+**Date:** 2026-10-22. **Status:** Bounded implementation qualified across three platforms and the publication fault suite; production adoption pending.
 
 ## Abstract
 
@@ -40,3 +40,7 @@ There is no dependency on new ownership moves, drain cursors or the transaction 
 4. Run three-platform native/sanitizer and mixed-mode profiles. Measure root growth and actual nested-definition allocation/CPU/peak costs against the preceding immutable revision.
 
 This component does not close full-node split, nonfull middle insertion, rebalance, erase or their const-key lifetime findings. The [release risk evaluation](BTREE_RELEASE_RISK.md) remains the acceptance boundary.
+
+## Qualification results
+
+The [frozen evidence](../benchmarks/btree-isolated-growth-20261022.json) records 24 layout profiles, 96 mixed-mode runs, actual-type allocation refusals and the unsuppressed Linux publication leak gate. Three allocation-ledger repetitions preserve allocation counts and retained bytes, with higher temporary peaks from overlapping old/replacement ownership. Synthetic CPU pairs remain exploratory; the actual-type CPU phase is rejected on interference. Remaining native mutation paths keep their separate release evaluation.

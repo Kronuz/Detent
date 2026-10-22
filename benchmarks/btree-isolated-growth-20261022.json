@@ -1,0 +1,590 @@
+{
+  "status": "Bounded compact-root repair qualified; production adoption pending",
+  "baseline_commit": "5aadde0c1b415b33c48d6515704ae7bdc32bb259",
+  "candidate_commit": "7d3f35d",
+  "source_sha256": {
+    "btree/btree.h": "fb67c275989817d0c4930787e0e423b38bfd0fa95cdb89046f8ae6076b1e23a5",
+    "tests/node_layout.cc": "344e965ad178bbdf7941106559c0cd9a395e8acd1787fc4b0dc5739fb0109c98"
+  },
+  "qualification": {
+    "platforms": [
+      "macOS",
+      "Linux",
+      "FreeBSD"
+    ],
+    "layout_profiles_per_platform": 8,
+    "mixed_mode_runs_per_platform": 32,
+    "actual_type_refusal_positions": [
+      2,
+      7,
+      12
+    ],
+    "actual_type_unreleased_allocations": 0,
+    "linux_publication_tests_passed": 3,
+    "put_refusal_positions": 131,
+    "patch_refusal_positions": 147,
+    "linux_publication_elapsed_seconds": 0.91,
+    "sanitizers": "ASan/UBSan with unsuppressed LeakSanitizer; LSAN_OPTIONS unset"
+  },
+  "operation_pairs": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "before_sha256": "95947ebe0697a20c521f52e9ef7fad69624a8a0d76f3d13cbf6bb3fddb00e475",
+    "after_sha256": "5553cbec35504c944d8427a584afba0ebbfb8851131e24612d6335c000a9804e",
+    "median_process_cpu_ms": {
+      "copy": {
+        "before": 100.638,
+        "after": 99.053
+      },
+      "copy-pruned": {
+        "before": 21.581,
+        "after": 17.934
+      },
+      "move-nested": {
+        "before": 78.606,
+        "after": 79.579
+      },
+      "mutation": {
+        "before": 340.358,
+        "after": 334.451
+      }
+    },
+    "samples": [
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 435.659,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 323.111,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 320.623,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 315.408,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 350.773,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 449.08,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 334.451,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 340.358,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 327.592,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 335.774,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 98.46,
+        "case": "copy",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 98.412,
+        "case": "copy",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 101.868,
+        "case": "copy",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 102.973,
+        "case": "copy",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 100.638,
+        "case": "copy",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 99.027,
+        "case": "copy",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 105.398,
+        "case": "copy",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 99.268,
+        "case": "copy",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 107.475,
+        "case": "copy",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 99.053,
+        "case": "copy",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.348,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 14.41,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 20.231,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.581,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 17.903,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 17.934,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 14.485,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 22.735,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.611,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 18.2,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 78.214,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 80.323,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 79.579,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 78.606,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 80.105,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 80.786,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 76.204,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 79.014,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 75.826,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 78.155,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 4
+      }
+    ],
+    "limits": [
+      "Five alternating pairs per workload, synthetic keys and one process.",
+      "Mutation/copy timing includes comparison and destruction as implemented by the benchmark.",
+      "Nested-move timing excludes source creation and final validation/destruction.",
+      "Requested/container bytes exclude string-owned storage; peak counters, where reported, cover metered container allocations only, not RSS.",
+      "After-move CPU near clock resolution cannot establish a precise speedup ratio.",
+      "Candidate contents are identified by the archived headers and executable hashes; no adoption or fleet-capacity claim follows."
+    ]
+  },
+  "actual_type_allocation_ledgers": {
+    "before": [
+      {
+        "workload": "root-short-1",
+        "repeats": 5000,
+        "retained_requested_bytes": 288,
+        "peak_requested_bytes": 512,
+        "calls_per_cycle": 4,
+        "requested_bytes_per_cycle": 512,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-short-2",
+        "repeats": 5000,
+        "retained_requested_bytes": 496,
+        "peak_requested_bytes": 784,
+        "calls_per_cycle": 8,
+        "requested_bytes_per_cycle": 1152,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-short-4",
+        "repeats": 5000,
+        "retained_requested_bytes": 1248,
+        "peak_requested_bytes": 1248,
+        "calls_per_cycle": 13,
+        "requested_bytes_per_cycle": 2048,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-1",
+        "repeats": 5000,
+        "retained_requested_bytes": 1112,
+        "peak_requested_bytes": 1744,
+        "calls_per_cycle": 13,
+        "requested_bytes_per_cycle": 1952,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-2",
+        "repeats": 5000,
+        "retained_requested_bytes": 1936,
+        "peak_requested_bytes": 2632,
+        "calls_per_cycle": 29,
+        "requested_bytes_per_cycle": 4440,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-4",
+        "repeats": 5000,
+        "retained_requested_bytes": 3920,
+        "peak_requested_bytes": 3920,
+        "calls_per_cycle": 46,
+        "requested_bytes_per_cycle": 7184,
+        "final_live_bytes": 0
+      }
+    ],
+    "after": [
+      {
+        "workload": "root-short-1",
+        "repeats": 5000,
+        "retained_requested_bytes": 288,
+        "peak_requested_bytes": 512,
+        "calls_per_cycle": 4,
+        "requested_bytes_per_cycle": 512,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-short-2",
+        "repeats": 5000,
+        "retained_requested_bytes": 496,
+        "peak_requested_bytes": 928,
+        "calls_per_cycle": 8,
+        "requested_bytes_per_cycle": 1152,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-short-4",
+        "repeats": 5000,
+        "retained_requested_bytes": 1248,
+        "peak_requested_bytes": 1248,
+        "calls_per_cycle": 13,
+        "requested_bytes_per_cycle": 2048,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-1",
+        "repeats": 5000,
+        "retained_requested_bytes": 1112,
+        "peak_requested_bytes": 1952,
+        "calls_per_cycle": 13,
+        "requested_bytes_per_cycle": 1952,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-2",
+        "repeats": 5000,
+        "retained_requested_bytes": 1936,
+        "peak_requested_bytes": 3600,
+        "calls_per_cycle": 29,
+        "requested_bytes_per_cycle": 4440,
+        "final_live_bytes": 0
+      },
+      {
+        "workload": "root-long-4",
+        "repeats": 5000,
+        "retained_requested_bytes": 3920,
+        "peak_requested_bytes": 4152,
+        "calls_per_cycle": 46,
+        "requested_bytes_per_cycle": 7184,
+        "final_live_bytes": 0
+      }
+    ]
+  },
+  "rejected_attempts": [
+    {
+      "phase": "actual-type paired CPU",
+      "reason": "XprotectService exceeded 50% of one CPU after first sample",
+      "usable_cpu_comparison": false
+    }
+  ],
+  "limits": [
+    "Operations are synthetic exploratory CPU samples with substantial pair variation; no capacity or power claim.",
+    "Actual-type construction includes seeding, insertion and destruction; the four-entry case also traverses other native paths.",
+    "Requested live bytes exclude allocator rounding, meter headers and process RSS.",
+    "Three identical allocation-ledger repetitions exclude CPU fields.",
+    "Ordinary middle insertion, full-node split, rebalance and erase remain outside the repair."
+  ]
+}
