@@ -1,0 +1,18 @@
+{
+  "candidate_commit": "fbecd36",
+  "preceding_commit": "13370b0",
+  "qualification": {
+    "native_layout_profiles": 4,
+    "sanitized_layout_profiles": 4,
+    "native_mixed_mode_runs": 16,
+    "sanitized_mixed_mode_runs": 16,
+    "preceding_revision_compile_exit": 1,
+    "benchmark_executable_byte_identical": true,
+    "before_sha256": "13cb62ebb2f1fdec7183b985e82852d16027c6fe45b925bb4933258adffa9bd9",
+    "after_sha256": "13cb62ebb2f1fdec7183b985e82852d16027c6fe45b925bb4933258adffa9bd9"
+  },
+  "limits": [
+    "Code identity applies to the existing synthetic mutation/copy benchmark, not every template instantiation.",
+    "No production Detent pin change or general mutation exception-safety claim."
+  ]
+}
