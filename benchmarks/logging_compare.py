@@ -36,6 +36,7 @@ class Sample:
 
 
 def check_interference(destination: Path) -> None:
+    """Reject build/test processes and other work using at least half a CPU."""
     snapshot = subprocess.check_output(["ps", "-axo", "pid,ppid,%cpu,comm"], text=True)
     destination.write_text(snapshot)
     blockers = []
@@ -45,7 +46,8 @@ def check_interference(destination: Path) -> None:
             continue
         name = Path(fields[3]).name
         if (
-            name.endswith(("_test", "-test", "_bench", "-bench"))
+            (int(fields[0]) != os.getpid() and float(fields[2]) >= 50.0)
+            or name.endswith(("_test", "-test", "_bench", "-bench"))
             or name
             in {
                 "ninja",
@@ -61,7 +63,8 @@ def check_interference(destination: Path) -> None:
             blockers.append(line)
     if blockers:
         raise RuntimeError(
-            "Competing build/test processes; timings rejected:\n" + "\n".join(blockers)
+            "Competing build/test or CPU-heavy processes; timings rejected:\n"
+            + "\n".join(blockers)
         )
 
 

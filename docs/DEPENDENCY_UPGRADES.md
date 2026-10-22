@@ -369,3 +369,7 @@ One cost attempt is rejected because the process guard detects an active LLVM co
 ### macOS SDK selection during btree integration, October 21
 
 A clean consumer build with Homebrew LLVM 23.1.2 fails in unchanged compressor sources: LLVM's implicit include list selects `MacOSX15.sdk` (15.4), while FindZLIB imports `MacOSX.sdk` (26.2). The resulting explicit SDK C-header include precedes libc++'s wrapper headers, which reject the ordering. This is a toolchain/SDK configuration mismatch, not evidence of a compressor or btree source regression. Configuring a fresh build with `-DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)"` makes its implicit SDK match dependency discovery; compressor and service compilation then pass, along with all four selected consumer tests. No dependency implementation or public API changes for this qualification.
+
+### Measurement interference guard, October 21
+
+The process-name guard misses a standalone `cad_br` workload using a full CPU, and could similarly miss active guest-VM compilers. It now rejects any other process reporting at least 50% of one CPU, alongside the existing build/test-name checks, and excludes its own driver from that CPU check. Ruff and Pyrefly pass, as do four mocked process cases covering an unfamiliar busy workload, its idle counterpart, a recognized idle test process and the driver itself. The guard still samples before and after workloads; it is not continuous isolation. Earlier exploratory results keep their recorded interference limits.
