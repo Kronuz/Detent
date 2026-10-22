@@ -1,6 +1,6 @@
 {
   "date": "2026-10-22",
-  "status": "Library fix published and hosted CI green; Detent pin adoption pending",
+  "status": "Adopted after all-product rebuild, 207 product tests and seven hosted library jobs",
   "library_commit": "bb2ad1df1c9124aa435a7a1a1a19c33dd25d8982",
   "baseline": "fbeba8d",
   "header_sha256": "af06d9322619353e81ac6d7580f76f0cbb9e42feea8d9c88f8b19b05fed27850",
@@ -27,6 +27,13 @@
       "url": "https://github.com/Kronuz/btree/actions/runs/39779777919",
       "conclusion": "success",
       "jobs": 7
+    },
+    "detent_product": {
+      "passed": 207,
+      "total": 207,
+      "seconds": 624.81,
+      "build": "Release; authority, relay, managed agent and examples enabled; optional bindings and benchmarks disabled",
+      "source_equivalence": "Product source, include and tests match Detent 62c0fb3; immutable dependency pin is the isolated change."
     }
   },
   "operations": {

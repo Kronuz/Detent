@@ -412,3 +412,7 @@ Detent adopts cpp-btree `5aadde0c1b415b33c48d6515704ae7bdc32bb259` after a fresh
 ### Guarded-growth adoption, October 22
 
 Detent uses the library-owned `btree::btree` target at immutable `19db54c0baa6747f9d8ba9a4052820c7b554cdb5` and removes its parallel CMake header wrapper. The renamed repository retains old Git redirects and the `cpp_btree::cpp_btree` alias. All-product Release build, 207/207 native tests (639.30 seconds) and seven hosted library jobs pass. The composed publication leak gate passes independently; remaining mutation paths and the publication atomicity integration stay separate release work.
+
+### Adopt isolated nonfull accounting, October 22
+
+Detent advances the btree pin to `bb2ad1df1c9124aa435a7a1a1a19c33dd25d8982`. The all-product Release rebuild and 207/207 registered tests pass in 624.81 seconds with two jobs; the library's [seven-job hosted matrix](https://github.com/Kronuz/btree/actions/runs/39779777919) is green. The correction only defers nonfull size publication until construction succeeds. The separate prepared insertion candidate remains unadopted while constructor forwarding, scratch-layout and complete-heap qualification finish. Split, rebalance and erase findings remain open.

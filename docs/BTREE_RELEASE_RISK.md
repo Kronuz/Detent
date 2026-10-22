@@ -20,7 +20,7 @@ Keep the separately reproduced first-insertion and copy correctness repairs. Rej
 
 ## Warning for the current production pin
 
-Detent now pins `19db54c`, including the independent range, comparator, first-root, copy and compact-root growth repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
+Detent now pins `bb2ad1d`, including the independent range, comparator, first-root, copy, compact-root growth and nonfull size-accounting repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
 
 A failed private snapshot can be discarded only if all live objects, node metadata and allocation ownership remain valid enough to destroy it. Publication isolation protects the previous snapshot; it does not by itself establish that failed temporary containers are safe. Rejecting invalid JSON or bounding input size likewise does not prove that later allocation cannot fail.
 
@@ -33,7 +33,9 @@ A failed private snapshot can be discarded only if all live objects, node metada
 
 ## Current next component
 
-Prototype replacing the four public map-bearing fields with `std::map` in an isolated source tree. Compare real 100k-knob PUT/PATCH publication and core behavior before choosing an implementation. This is an explicit public C++ field-type compatibility change if adopted; serialized bytes, key ordering and CLI behavior must remain compatible. Production types and pins remain unchanged during the prototype.
+Qualify the [prepared nonfull-leaf insertion design](BTREE_NONFULL_INSERTION_ARCHITECTURE.md). The first same-capacity replacement prototype is rejected after a 28.1% mutation CPU regression. The revised candidate prepares fallible work before a nonthrowing in-place shift for eligible types and retains guarded replacement for generic throwing-move types. Its adoption requires actual-model heap/cost evidence and complete failure qualification. The independent refused-append size correction is adopted at `bb2ad1d` after the all-product build and 207 tests pass.
+
+Keep the isolated standard-map prototype as a measured alternative, with its baseline refreshed against repaired btree. Compare real 100k-knob PUT/PATCH publication and core behavior before choosing an implementation. Adoption would change four public C++ field types; serialized bytes, key ordering and CLI behavior must remain compatible.
 
 After the isolated ownership-move/copy corrections, repeat remaining mutation-failure attribution with actual Detent values and long legal keys. The generic throwing-mapped separator reproducer alone does not prove that precise remaining failure for Detent. Preparing one swap at a time is insufficient if a later operation can throw after earlier topology changes; the localized alternative must prepare the whole affected operation before consuming values.
 
