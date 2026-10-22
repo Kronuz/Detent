@@ -416,3 +416,7 @@ Detent uses the library-owned `btree::btree` target at immutable `19db54c0baa674
 ### Adopt isolated nonfull accounting, October 22
 
 Detent advances the btree pin to `bb2ad1df1c9124aa435a7a1a1a19c33dd25d8982`. The all-product Release rebuild and 207/207 registered tests pass in 624.81 seconds with two jobs; the library's [seven-job hosted matrix](https://github.com/Kronuz/btree/actions/runs/39779777919) is green. The correction only defers nonfull size publication until construction succeeds. The separate prepared insertion candidate remains unadopted while constructor forwarding, scratch-layout and complete-heap qualification finish. Split, rebalance and erase findings remain open.
+
+### Adopt prepared nonfull insertion, October 22
+
+Detent adopts `cbc35762bc4a98ad91361be29d05f0ae715a1339` after the [seven-job library matrix](https://github.com/Kronuz/btree/actions/runs/39810560178), the all-product Release rebuild and 207/207 tests (630.01 seconds, two jobs). Actual-model retained bytes match; the cost report preserves the explicit long-key and generic fallback exceptions. This closes the nonfull-insertion component and leaves ownership moves, full-node mutations, erase and bounded reclamation independent.

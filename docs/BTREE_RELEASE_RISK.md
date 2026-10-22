@@ -20,7 +20,7 @@ Keep the separately reproduced first-insertion and copy correctness repairs. Rej
 
 ## Warning for the current production pin
 
-Detent now pins `bb2ad1d`, including the independent range, comparator, first-root, copy, compact-root growth and nonfull size-accounting repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
+Detent now pins `cbc3576`, including the independent range, comparator, first-root, copy, compact-root growth, nonfull size-accounting and prepared nonfull-insertion repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
 
 A failed private snapshot can be discarded only if all live objects, node metadata and allocation ownership remain valid enough to destroy it. Publication isolation protects the previous snapshot; it does not by itself establish that failed temporary containers are safe. Rejecting invalid JSON or bounding input size likewise does not prove that later allocation cannot fail.
 
@@ -33,7 +33,9 @@ A failed private snapshot can be discarded only if all live objects, node metada
 
 ## Current next component
 
-Qualify the [prepared nonfull-leaf insertion design](BTREE_NONFULL_INSERTION_ARCHITECTURE.md). The first same-capacity replacement prototype is rejected after a 28.1% mutation CPU regression. The revised candidate prepares fallible work before a nonthrowing in-place shift for eligible types and retains guarded replacement for generic throwing-move types. Its adoption requires actual-model heap/cost evidence and complete failure qualification. The independent refused-append size correction is adopted at `bb2ad1d` after the all-product build and 207 tests pass.
+Implement genuine ownership moves through the existing wrapper chain, with allocator/comparator preparation before pointer transfer. Qualify real nested definition traits, source reuse, ownership conservation and actual-model costs separately. No move or swap trait is presumed before those checks.
+
+The [prepared nonfull-leaf insertion design](BTREE_NONFULL_INSERTION_ARCHITECTURE.md) is adopted after independent qualification. The first same-capacity replacement prototype is rejected after a 28.1% mutation CPU regression. The revised candidate prepares fallible work before a nonthrowing in-place shift for eligible types and retains guarded replacement for generic throwing-move types. Its actual-model heap/cost evidence, complete failure qualification, seven hosted jobs and all 207 product tests pass. The independent refused-append size correction is adopted at `bb2ad1d` after the all-product build and 207 tests pass.
 
 Keep the isolated standard-map prototype as a measured alternative, with its baseline refreshed against repaired btree. Compare real 100k-knob PUT/PATCH publication and core behavior before choosing an implementation. Adoption would change four public C++ field types; serialized bytes, key ordering and CLI behavior must remain compatible.
 

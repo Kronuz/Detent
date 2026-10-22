@@ -1,6 +1,6 @@
 # Prepared nonfull-leaf insertion: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Corrected implementation receives source and measured-cost GO at `cbc3576`; immutable CI and full product adoption remain open.
+**Date:** 2026-10-22. **Status:** Adopted at `cbc3576` after source/cost GO, seven hosted library jobs and the full product build with 207/207 tests.
 
 ## Decision and evidence
 
@@ -39,3 +39,5 @@ Full-node split, promotion, rebalance and erase remain separate release findings
 The [R4 report](../benchmarks/btree-prepared-insertion-20261022.json) records 24 layout profiles, 24 complete-heap commitment profiles and 96 mixed profiles across the three platforms, three composed Linux sanitizer tests and thirteen actual-definition nonfull positions with sixteen allocation refusals each. Source review closes constructor forwarding, class allocation lookup, mapped-reference and exact scratch-padding findings.
 
 Extended mutation medians are 5,245.777 and 5,260.567 ms (+0.282%). Explicit safety costs remain +6.83% for long-key insertion and +32.6% for the generic throwing-move fixture. Actual 100k-knob/three-override model medians range from 1.60% lower to 0.25% higher, with identical retained requested bytes. Random-long construction makes 201,545 fewer requests and requests 20,344,136 fewer cumulative bytes, with a 1,760-byte higher temporary peak. These instrumented samples establish neither statistical equivalence nor a general speedup. The short pruned-copy timing gap does not reproduce in the longer run; both reports remain recorded.
+
+The immutable-pin all-product Release build and 207/207 registered tests pass in 630.01 seconds with two jobs. The [seven-job hosted matrix](https://github.com/Kronuz/btree/actions/runs/39810560178) is green. Authority, relay, managed agent and examples are enabled; optional bindings and benchmarks are disabled. This closes the bounded component, with ownership moves and the remaining mutation paths still separate.

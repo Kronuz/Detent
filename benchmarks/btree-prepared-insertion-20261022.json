@@ -1,6 +1,6 @@
 {
   "date": "2026-10-22",
-  "status": "Source and measured cost review GO; immutable CI and full product adoption pending",
+  "status": "Adopted after immutable library CI, full product rebuild and 207/207 tests",
   "baseline_commit": "bb2ad1df1c9124aa435a7a1a1a19c33dd25d8982",
   "candidate": "Frozen corrected prepared insertion R4",
   "source_sha256": {
@@ -34,7 +34,18 @@
       "refusals_per_position": 16,
       "final_live_allocations": 0
     },
-    "forwarding_attribution": "New constructor fixtures compile against bb2ad1d, fail against the rejected R3 prototype, and pass against R4."
+    "forwarding_attribution": "New constructor fixtures compile against bb2ad1d, fail against the rejected R3 prototype, and pass against R4.",
+    "hosted_ci": {
+      "url": "https://github.com/Kronuz/btree/actions/runs/39810560178",
+      "jobs": 7,
+      "conclusion": "success"
+    },
+    "detent_product": {
+      "passed": 207,
+      "total": 207,
+      "seconds": 630.01,
+      "profile": "All-product Release; authority, relay, managed agent and examples enabled; optional bindings and benchmarks disabled; two jobs"
+    }
   },
   "scope": "Nonfull leaf insertion only; full-node split, promotion, rebalance, erase and ownership moves remain separate.",
   "cost_review": {
