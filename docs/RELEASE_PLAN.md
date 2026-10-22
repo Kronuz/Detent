@@ -1,6 +1,6 @@
 # Initial release qualification
 
-**Updated:** 2026-10-21. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
+**Updated:** 2026-10-22. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
 
 The initial release supports a regional fixed three-voter authority, durable relays and host-local last-known-good readers. Implementation acceptance for earlier stages does not establish sustained capacity, complete restoration or deployment qualification. Release requires the gates below; passing short transport probes does not certify a fleet of durable agents.
 
@@ -9,7 +9,7 @@ The initial release supports a regional fixed three-voter authority, durable rel
 | Updated libraries A–E | Compatible pins adopted with reviewed footprint exception; corrected-layout sanitizer gate and 214 distinct native tests across two invocations pass | Final composed product/profile qualification after remaining extractions |
 | Retained-state resources | Paired library source published with green CI; Detent Linux/FreeBSD host tests and corrected-layout macOS sanitizer tests pass | Default footprint and final transport dependency closure |
 | Shared library extraction | Resources published with 24 green CI jobs; isolated HTTP held-session native/sanitizer gates pass; bounded MessagePack passes 189 functional and three additional network cases, Linux/FreeBSD library sanitizers and focused Xapiand compatibility | Shared HTTP clients, bounded MessagePack and persistent map integrated without parallel implementations; final application qualification |
-| Classic distributor correctness | Raft retry and callback containment published with green eight-job CI per library; clean public-pin all-products build and 192/192 pass, pins adopted | Publish separately qualified compact-copy correction and prepared-state publication atomicity; complete final product qualification |
+| Classic distributor correctness | Raft retry and callback containment published with green eight-job CI per library; clean public-pin all-products build and 192/192 pass, pins adopted | Adopt coherent independent repairs and prepared-state publication atomicity; native growth still leaks 3,120 bytes in the current failure sweep; complete final product qualification |
 | Persistent-map correctness | Complete-node layout fix published; combined draft passes three-platform profiles and composed LeakSanitizer, but mutation costs fail | Land independent fixes separately, eliminate transaction allocation churn, then repeat final integration and cost gates |
 | Daemon and HTTP logs | Shared severity tint/color-depth controls and classic distributor HTTP metadata adopted; clean public-pin build, functional checks and bounded logging-cost comparison complete | Complete the asynchronous authority/relay HTTP completion observer and composed-product checks |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |

@@ -1,0 +1,607 @@
+{
+  "candidate_commit": "5aadde0",
+  "preceding_commit": "2e93b45",
+  "status": "Independent copy repair qualified; general mutation and production adoption remain open",
+  "runtime_headers_sha256": {
+    "btree/btree.h": "a9a04024de352286b78739002b198abed66064707ebbea48765b3a3d0faa4145",
+    "btree/map.h": "50201cfcea6853fec721af006a585dcbb67d30be4b88ddcd3f7210fda5e3c7ab",
+    "btree/set.h": "6fa5e38f642082419edf7674e4d439d402bc9e2d2f81b5990251db08c3749fa4"
+  },
+  "qualification": {
+    "final_layout_profiles": 24,
+    "mixed_mode_runs_with_identical_runtime_headers": 96,
+    "platforms": [
+      "macOS",
+      "Linux",
+      "FreeBSD"
+    ],
+    "profiles": [
+      "C++17 release",
+      "C++17 debug",
+      "C++20 release",
+      "C++20 debug"
+    ],
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "expanded_cases": [
+      "Nested value and allocation refusal with exact lifetime/byte/node conservation",
+      "Aligned set and duplicate multiset copying",
+      "Flat nondefault allocator copy and assignment refusal",
+      "Comparison-free copies and equal retained compactness after pruning"
+    ],
+    "copy_refusal_before": "refused=1 extra_live_values=1",
+    "copy_refusal_after": "refused=1 extra_live_values=0"
+  },
+  "paired_operations": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "before_sha256": "d6c93a9ec1b6bead2264ab9d207f20de731ce0e6ac68f2c4a48bb8ca68e3ea6f",
+    "after_sha256": "5e071e20312e24976b25ba9bf59a40ae58ad6ada8532d0b1693b08bba9ef8264",
+    "median_process_cpu_ms": {
+      "copy": {
+        "before": 103.037,
+        "after": 102.73
+      },
+      "copy-pruned": {
+        "before": 19.933,
+        "after": 17.414
+      },
+      "move-nested": {
+        "before": 209.383,
+        "after": 76.846
+      },
+      "mutation": {
+        "before": 332.742,
+        "after": 327.903
+      }
+    },
+    "samples": [
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 332.742,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 327.903,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 335.385,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 336.061,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 327.682,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 327.056,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 337.145,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 338.738,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 321.927,
+        "case": "mutation",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "entries": 65536,
+        "cycles": 4,
+        "process_cpu_ms": 325.494,
+        "case": "mutation",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 106.928,
+        "case": "copy",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 100.656,
+        "case": "copy",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 102.957,
+        "case": "copy",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 101.58,
+        "case": "copy",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 104.987,
+        "case": "copy",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 102.73,
+        "case": "copy",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 106.643,
+        "case": "copy",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 103.037,
+        "case": "copy",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 102.262,
+        "case": "copy",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "copy",
+        "entries": 65536,
+        "cycles": 4,
+        "source_container_bytes": 4405512,
+        "copy_container_bytes": 3461464,
+        "process_cpu_ms": 101.421,
+        "case": "copy",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 19.398,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.101,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 16.976,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.465,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 20.297,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 21.713,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 16.332,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 19.933,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 19.004,
+        "case": "copy-pruned",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "copy-pruned",
+        "entries": 16384,
+        "cycles": 4,
+        "source_container_bytes": 1543704,
+        "copy_container_bytes": 866056,
+        "process_cpu_ms": 17.414,
+        "case": "copy-pruned",
+        "arm": "after",
+        "pair": 4
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 204.342,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 0
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 80.099,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 0
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 76.471,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 1
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 212.119,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 1
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 209.767,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 2
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 76.846,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 2
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 79.705,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 3
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 209.383,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 3
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 206.528,
+        "case": "move-nested",
+        "arm": "before",
+        "pair": 4
+      },
+      {
+        "workload": "move-nested",
+        "entries": 4096,
+        "groups": 8,
+        "cycles": 4,
+        "process_cpu_ms": 74.988,
+        "case": "move-nested",
+        "arm": "after",
+        "pair": 4
+      }
+    ],
+    "limits": [
+      "Five alternating pairs per workload, synthetic keys and one process.",
+      "Mutation/copy timing includes comparison and destruction as implemented by the benchmark.",
+      "Nested-move timing excludes source creation and final validation/destruction.",
+      "Requested/container bytes exclude string-owned storage; peak counters, where reported, cover metered container allocations only, not RSS.",
+      "After-move CPU near clock resolution cannot establish a precise speedup ratio.",
+      "Candidate contents are identified by the archived headers and executable hashes; no adoption or fleet-capacity claim follows."
+    ]
+  },
+  "deterministic_allocation_ledgers": {
+    "before": [
+      {
+        "workload": "tiny-1",
+        "entries": 1,
+        "repeats": 10000,
+        "source_live_requested_bytes": 64,
+        "retained_copy_requested_bytes": 64,
+        "peak_extra_requested_bytes": 64,
+        "allocation_calls_per_copy": 1,
+        "requested_bytes_per_copy": 64
+      },
+      {
+        "workload": "tiny-8",
+        "entries": 8,
+        "repeats": 10000,
+        "source_live_requested_bytes": 832,
+        "retained_copy_requested_bytes": 832,
+        "peak_extra_requested_bytes": 832,
+        "allocation_calls_per_copy": 6,
+        "requested_bytes_per_copy": 1216
+      },
+      {
+        "workload": "full",
+        "entries": 65536,
+        "repeats": 4,
+        "source_live_requested_bytes": 4405504,
+        "retained_copy_requested_bytes": 3461456,
+        "peak_extra_requested_bytes": 3461456,
+        "allocation_calls_per_copy": 13114,
+        "requested_bytes_per_copy": 3461840
+      },
+      {
+        "workload": "pruned",
+        "entries": 16384,
+        "repeats": 4,
+        "source_live_requested_bytes": 1543696,
+        "retained_copy_requested_bytes": 866048,
+        "peak_extra_requested_bytes": 866048,
+        "allocation_calls_per_copy": 3283,
+        "requested_bytes_per_copy": 866432
+      },
+      {
+        "workload": "nested-8x8",
+        "entries": 8,
+        "repeats": 1000,
+        "source_live_requested_bytes": 7488,
+        "retained_copy_requested_bytes": 7488,
+        "peak_extra_requested_bytes": 7488,
+        "allocation_calls_per_copy": 108,
+        "requested_bytes_per_copy": 21888
+      }
+    ],
+    "after": [
+      {
+        "workload": "tiny-1",
+        "entries": 1,
+        "repeats": 10000,
+        "source_live_requested_bytes": 64,
+        "retained_copy_requested_bytes": 64,
+        "peak_extra_requested_bytes": 64,
+        "allocation_calls_per_copy": 1,
+        "requested_bytes_per_copy": 64
+      },
+      {
+        "workload": "tiny-8",
+        "entries": 8,
+        "repeats": 10000,
+        "source_live_requested_bytes": 832,
+        "retained_copy_requested_bytes": 832,
+        "peak_extra_requested_bytes": 864,
+        "allocation_calls_per_copy": 5,
+        "requested_bytes_per_copy": 880
+      },
+      {
+        "workload": "full",
+        "entries": 65536,
+        "repeats": 4,
+        "source_live_requested_bytes": 4405504,
+        "retained_copy_requested_bytes": 3461456,
+        "peak_extra_requested_bytes": 3461584,
+        "allocation_calls_per_copy": 13115,
+        "requested_bytes_per_copy": 3461696
+      },
+      {
+        "workload": "pruned",
+        "entries": 16384,
+        "repeats": 4,
+        "source_live_requested_bytes": 1543696,
+        "retained_copy_requested_bytes": 866048,
+        "peak_extra_requested_bytes": 866176,
+        "allocation_calls_per_copy": 3284,
+        "requested_bytes_per_copy": 866288
+      },
+      {
+        "workload": "nested-8x8",
+        "entries": 8,
+        "repeats": 1000,
+        "source_live_requested_bytes": 7488,
+        "retained_copy_requested_bytes": 7488,
+        "peak_extra_requested_bytes": 7552,
+        "allocation_calls_per_copy": 45,
+        "requested_bytes_per_copy": 7920
+      }
+    ]
+  },
+  "consumer": {
+    "source_commit": "d5441b8 plus previously reviewed publication atomicity candidate",
+    "dependency_change": "Only isolated cpp-btree override; no transaction or ownership-move implementation",
+    "leak_sanitizer": "Enabled, LSAN_OPTIONS explicitly removed",
+    "passed": [
+      "test_diff_cache",
+      "test_raft_application_retry"
+    ],
+    "failed": {
+      "test_publication_atomic": {
+        "leaked_bytes": 3120,
+        "leaked_allocations": 20
+      }
+    },
+    "targeted_existing_growth_refusal_before": "allocation bytes=160 budget=1\nallocation bytes=56 budget=0\nrefused=1 size=1\nunreleased_allocations=1",
+    "targeted_existing_growth_refusal_after": "allocation bytes=160 budget=1\nallocation bytes=56 budget=0\nrefused=1 size=1\nunreleased_allocations=1"
+  },
+  "limits": [
+    "Expanded final fixtures run all 24 layouts; all 96 mixed-mode runs use byte-identical runtime headers from the earlier source freeze.",
+    "Paired operations complete all five guarded pairs. The separate allocation timing attempt is rejected after XprotectService exceeds the CPU threshold; three deterministic ledger repetitions exclude CPU timings.",
+    "No copy footprint regression in the tested full/pruned/nested cases. Planning adds one allocation and 128 peak requested bytes in full/pruned copying; this is not a zero-overhead claim.",
+    "The separate default-constructor trait problem for nested nondefault allocators under Clang/libstdc++13 C++20 remains documented. Flat nondefault allocators and nested default-constructible adapter tests both remain active.",
+    "The current consumer still fails LeakSanitizer in unchanged compact-root mutation paths. A targeted actual-type allocation ledger confirms one unreleased block before and after the copy correction; the singleton targeted LeakSanitizer probe alone did not report it.",
+    "No immutable production Detent pin change, full consumer success or release readiness is claimed."
+  ],
+  "failure_probe_source_sha256": {
+    "copy_refusal.cc": "664c4bb1d2fa38eef61deab4cc551d340fe4cb35c20a306b6bccbb82d4580351",
+    "growth_refusal.cc": "15b5b1cf82746c0b012401e2491a287ab4cc629e5b5ca090395e660bdbec538f"
+  }
+}

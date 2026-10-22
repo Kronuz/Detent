@@ -4,7 +4,7 @@
 
 ## Decision
 
-Keep the separately reproduced ownership and first-insertion repairs. Reject the staged mutation implementation at its [measured cost](../benchmarks/btree-transaction-cost-20261021.json). A production release needs safe behavior for Detent's actual types and failure paths; it does not require every possible stronger exception guarantee for arbitrary library clients.
+Keep the separately reproduced first-insertion and copy correctness repairs. Reject the staged mutation implementation at its [measured cost](../benchmarks/btree-transaction-cost-20261021.json). A production release needs safe behavior for Detent's actual types and failure paths; it does not require every possible stronger exception guarantee for arbitrary library clients.
 
 | Finding or feature | Detent relevance | Disposition |
 | --- | --- | --- |
@@ -55,3 +55,9 @@ This is an additional 8.58 MB or 9.00 MB per constructed snapshot in these cases
 Two paired 100k PUT/PATCH timing attempts stop on competing operating-system processes (`fseventsd`, then `PerfPowerServices`); neither establishes an accepted timing result. Completed samples consistently record fewer main-thread allocation requests in the standard-map variant, but the baseline lacks the independent move/copy fixes. Do not promote this into a claim that standard map outperforms a corrected btree.
 
 The prototype remains an alternative. No public field type changes are selected or applied to production. Independently qualifying compact copy continues because it repairs the reproduced copy failure without introducing mutation staging and allows a fairer repaired-btree comparison. Bounded reclamation, actual-type allocation-failure sweeps, final memory accounting and public C++ compatibility remain required before choosing the replacement.
+
+## Copy repair and remaining actual-type evidence, October 22
+
+The [independent compact-copy correction](../benchmarks/btree-isolated-copy-20261022.json), cpp-btree `5aadde0`, passes its three-platform qualification without mutation staging or ownership moves. The same consumer still leaks 3,120 bytes in 20 allocations during publication fault injection. A compact-growth probe using actual `SnapshotPatch` and nested definitions leaves one allocation unfreed on both the preceding revision and the corrected copy source. This establishes a remaining application failure path independently of the generic throwing-value reproducer, while excluding the copy correction as its introduction.
+
+Continue with localized compact-root ownership/transfer correction and actual-type failure attribution. The broad transaction draft remains rejected. Ownership moves can remove fallible nested copies and should be measured as a separate component; they do not make const-key mutation legal or prove all later key-copy failures safe. Production remains on its existing pin until coherent integration is qualified.
