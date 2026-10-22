@@ -44,3 +44,9 @@ Xapiand at `c625977e7d1254796dabb65352b0b26aabc0954b` has no cpp-btree include o
 ## Implementation review and preliminary qualification
 
 The component receives source GO with no confirmed P1/P2 production defect. [Preliminary evidence](../benchmarks/btree-erase-reclamation-preliminary-20261021.json) records four native and four sanitized macOS library profiles, four selected Detent consumer tests, and an expanded allocation-denial fixture for actual shared-arena collectors and partial command disposal. Production headers are identical across those source snapshots; newer fixtures extend coverage without changing the implementation. Final platform, mixed-mode, failure, publication LeakSanitizer, footprint and matched-cost gates remain open. No immutable repaired pin is adopted yet.
+
+## Adoption decision after final qualification
+
+The [final functional gates](../benchmarks/btree-erase-reclamation-qualification-20261021.json) pass across all three platforms and the composed Linux consumer, including unsuppressed LeakSanitizer. The [matched cost report](../benchmarks/btree-transaction-cost-20261021.json) rejects production adoption: normal mutation CPU is about 5.75 times baseline, with per-operation allocation churn. Persistent copy bytes match baseline; the default cursor adds 24 bytes to each measured owning type. Timing remains exploratory under recorded desktop activity.
+
+Land range hints, comparator checking, first-entry unwind, iterator/count corrections, ownership moves, compact copy and owning drain as separately qualified components on the original library. The staged insertion/erase rewrite remains unpublished. Its later optimization retains one transaction engine and must repeat failure, allocation, footprint and consumer gates.
