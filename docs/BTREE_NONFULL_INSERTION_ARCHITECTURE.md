@@ -1,34 +1,35 @@
-# Guarded nonfull-leaf insertion: validated architectural blueprint
+# Prepared nonfull-leaf insertion: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Validated for bounded implementation; qualification and cost gates open.
+**Date:** 2026-10-22. **Status:** Revised after the replacement prototype failed its cost gate; implementation and qualification remain open.
 
-## Abstract
+## Decision and evidence
 
-Extend the guarded replacement leaf to insertion into a nonfull leaf when values must shift. Keep tail append direct, and advance internal-root size only after construction succeeds. This removes const-key swapping from this branch without a planner or a whole-tree transaction. The [compact-root repair](BTREE_COMPACT_ROOT_ARCHITECTURE.md) supplies the construction and failure-ownership mechanism.
+The first design replaces a leaf even when it has room. It passes its initial functional fixture but increases synthetic mutation CPU by 28.1% and flat node allocation requests from 16,587 to 37,118. Keep its guarded construction for generic throwing-move types, then use bounded in-place construction for eligible types. The [rejected prototype and measurements](../benchmarks/btree-nonfull-replacement-20261022.json) remain reproducible. Land the independently reproduced append-size correction separately.
 
 ## Scalability
 
-Allocate one replacement leaf at the existing capacity and construct its final values in O(node capacity). Reuse one guarded construction helper for both geometric compact-root growth and same-capacity insertion. Incoming-first construction preserves contained lvalue aliases; a separate live-slot flag and prefix count own every completed value.
+Prepare incoming arguments and every fallible shifted-key copy before touching original values. Starting at the last occupied slot, construct an actual destination value in the empty next slot, destroy the source and continue backward through the resulting hole. Finally construct incoming at its destination and publish count and size. Commitment performs no allocation, comparison or throwing construction.
 
-This can add node/key/nested-value allocations to ordinary middle insertion. Measure those costs against the published independently repaired btree before extending replacement to structural mutations. Tail append allocates no replacement leaf. The rejected transaction engine remains excluded.
+Maps require copyable keys and nonthrowing key and mapped moves. When key copying is nonthrowing, copy directly during commitment without a key bank. Otherwise prepare copies only for shifted keys. Sets require nonthrowing key moves and no key bank. Keep append direct. Generic throwing-move types use the same guarded replacement mechanism as compact-root growth.
 
-## Edge cases and publication
+## Edge cases
 
-Keep the original leaf linked until replacement construction completes. A leaf root installs the replacement root. A nonroot leaf updates its parent's existing child slot and position, then updates the root's leftmost/rightmost references where needed, before destroying the original. Increment internal-root size only after successful publication. Return an iterator into the installed leaf.
+Prepare map arguments in real mutable key and mapped objects. Support two-member and piecewise-tuple construction structurally, and recognized pair arguments with the constness and value categories selected by existing C++17/20 construction. Other forms, including custom conversions to the public const-key pair, retain guarded construction with their original arguments. Avoid broad pair-construction traits that could change overload acceptance or trigger eager nested allocator machinery.
 
-Copy failures preserve original contents, links and size. Throwing move-only mapped values can remain moved-from while keys and topology stay valid. If a potentially throwing noncopyable set-key move consumes an original key and fails, clean the replacement and canonically clear the original tree. Explicit moved arguments can be consumed; moving contained set keys remains unsupported.
+Preparation failure preserves original values, topology and counts, apart from explicit caller argument consumption. Copyable generic replacement preserves originals; throwing move-only mapped values may remain moved-from. A consuming noncopyable set-key failure clears the original tree canonically. Contained lvalue arguments must be materialized before their sources move.
 
-A nonfull tail append constructs directly and advances overall size after success. Full-node split and promotion paths keep their existing accounting and remain outside this repair. Do not route a split's partial structural mutation through this component and claim rollback.
+## Dependency and state audit
 
-## Dependencies and state
+Use one nonfull-insertion entry point with compile-time materialization policies. Construct actual public value objects through the existing complete-object lifetime helpers. Never reinterpret a mutable pair as a const-key pair or use inactive union members as writable aliases.
 
-Preserve public interfaces, node layout, allocator ownership and iterator invalidation rules. Construct actual const-key pairs. Supply the original leaf, insertion position and replacement capacity explicitly to the single helper. No ownership-move API, drain cursor, image registry or staging arena is a prerequisite.
+Bound automatic scratch by the existing target-node byte budget. Use overflow-safe division to check incoming storage plus the worst-case shifted-key bank; choose guarded replacement when it does not fit. Key storage is aligned and uninitialized, with a constructed-prefix guard. Do not default-construct keys. Instantiate scratch only in the selected branch. Ownership moves are a separate component and are not a prerequisite or an assumed capability.
 
 ## Security and qualification
 
-1. Exercise leaf roots and nonroot first/interior/last children, both comparator orders, duplicates and contained aliases. Refuse replacement allocation, incoming construction and every original-value construction. Check unchanged published links/size after copy failure, allocator conservation, basic move recovery and reuse.
-2. Verify direct append refusal leaves internal-root size unchanged and successful append needs no replacement allocation. Cover nonroot boundary pointers before any old leaf is freed.
-3. Sweep actual Detent long-key/nested-definition allocations across enough entries to create internal roots, then run the composed publication/retry/diff-cache suite with unsuppressed LeakSanitizer.
-4. Run native/sanitizer and mixed-mode profiles across macOS, Linux and FreeBSD. Measure matched mutation and actual 100k-knob/three-override workloads, reporting calls, requested/retained/peak bytes and accepted CPU samples.
+1. Prove selected traits and forwarding behavior for custom conversions, piecewise arguments, aliases, nondefault allocators, alignment and oversized fallback.
+2. Refuse every preparation allocation, key copy and incoming construction. Check unchanged topology and exact conservation. Deny allocation during commitment and require success.
+3. Cover every nonfull position in root/nonroot leaves, both orders and duplicates; retain generic replacement refusal and recovery coverage.
+4. Run native, sanitizer and mixed-mode profiles on macOS, Linux and FreeBSD, plus the composed publication/retry/diff-cache leak gate.
+5. Compare against the current independently repaired btree, including complete string heaps, node and scratch allocations, retained/peak bytes and CPU. Require benefit on changed operations without accepting another whole-workload regression. Complete the actual 100k-knob/three-override comparison before a container-selection decision.
 
-Full-node split, parent promotion, rebalance and erase remain release findings. If one-leaf replacement has unacceptable churn, complete the [standard-map alternative](BTREE_RELEASE_RISK.md) rather than broadening a costly repair. Public type compatibility and its measured 8.58-9.00 MB additional retained allocation footprint remain explicit tradeoffs.
+Full-node split, promotion, rebalance and erase remain separate release findings. The [release risk evaluation](BTREE_RELEASE_RISK.md) tracks them. The older standard-map comparison needs a refreshed baseline before it can support a selection decision.
