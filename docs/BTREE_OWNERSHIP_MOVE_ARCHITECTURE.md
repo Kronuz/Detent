@@ -33,3 +33,9 @@ Rvalue construction/assignment now empties its source intentionally. Const rvalu
 7. Compare construction and assignment separately, accounting for previous-destination destruction. Repeat actual 100k-knob/three-override and publication costs against the preceding repaired source. Near-resolution pointer timings do not support precise speedup ratios.
 
 Completion requires ownership transfer, truthful default-type traits, preserved failure/state contracts, unchanged layout and independently qualified cost. Remaining const-key structural mutations and bounded reclamation stay release gates.
+
+## Early cost gate
+
+The [frozen R1 results](../benchmarks/btree-ownership-moves-20261022.json) compare against the adopted `cbc3576` header in five alternating pairs on the Intel Mac. Constructing, validating and destroying 100k actual definitions with three overrides takes 33.9–61.3% less process CPU across ordered/random and short/maximum-length keys. Retained requested bytes match in all four workloads; the random maximum-length case reduces allocation calls from 4,590,088 to 1,399,396. These are local model costs, with no publication-throughput, fleet-cost or power claim.
+
+Longer mutation and copy medians remain within about 1% of baseline. The existing nested round-trip move benchmark reaches clock resolution and does not establish a precise speedup ratio. Separate construction, empty assignment and populated assignment measurements, platform qualification and the immutable-pin full product rebuild remain required before adoption.
