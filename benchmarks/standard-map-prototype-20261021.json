@@ -1,0 +1,509 @@
+{
+  "status": "Prototype only; no public field-type change or production adoption selected",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+  "baseline_application_source": "ae4eb5c; application source unchanged through cf694a9",
+  "baseline_btree_pin": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "prototype_changes": [
+    "Four map-bearing public fields use std::map; no other application source changes."
+  ],
+  "core_tests": {
+    "passed": 10,
+    "failed": 0,
+    "seconds": 2.91
+  },
+  "exact_input_footprint": {
+    "before": [
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": false,
+        "snapshot_object_bytes": 72,
+        "definition_object_bytes": 32,
+        "retained_requested_bytes": 21022176,
+        "peak_requested_bytes": 21022400,
+        "allocation_calls": 2582371,
+        "requested_bytes": 238339176,
+        "final_live_bytes": 0
+      },
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": true,
+        "snapshot_object_bytes": 72,
+        "definition_object_bytes": 32,
+        "retained_requested_bytes": 84604336,
+        "peak_requested_bytes": 84605200,
+        "allocation_calls": 3683558,
+        "requested_bytes": 492912856,
+        "final_live_bytes": 0
+      }
+    ],
+    "after": [
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": false,
+        "snapshot_object_bytes": 88,
+        "definition_object_bytes": 48,
+        "retained_requested_bytes": 29600000,
+        "peak_requested_bytes": 29600000,
+        "allocation_calls": 400000,
+        "requested_bytes": 29600000,
+        "final_live_bytes": 0
+      },
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": true,
+        "snapshot_object_bytes": 88,
+        "definition_object_bytes": 48,
+        "retained_requested_bytes": 93600000,
+        "peak_requested_bytes": 93600000,
+        "allocation_calls": 800000,
+        "requested_bytes": 93600000,
+        "final_live_bytes": 0
+      }
+    ]
+  },
+  "overreserved_input_exploration": {
+    "before": [
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": false,
+        "snapshot_object_bytes": 72,
+        "definition_object_bytes": 32,
+        "retained_requested_bytes": 21022176,
+        "peak_requested_bytes": 21022400,
+        "allocation_calls": 2582371,
+        "requested_bytes": 238339176,
+        "final_live_bytes": 0
+      },
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": true,
+        "snapshot_object_bytes": 72,
+        "definition_object_bytes": 32,
+        "retained_requested_bytes": 84605392,
+        "peak_requested_bytes": 84606544,
+        "allocation_calls": 4083458,
+        "requested_bytes": 601676056,
+        "final_live_bytes": 0
+      }
+    ],
+    "after": [
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": false,
+        "snapshot_object_bytes": 88,
+        "definition_object_bytes": 48,
+        "retained_requested_bytes": 29600000,
+        "peak_requested_bytes": 29600000,
+        "allocation_calls": 400000,
+        "requested_bytes": 29600000,
+        "final_live_bytes": 0
+      },
+      {
+        "knobs": 100000,
+        "overrides_per_knob": 3,
+        "long_keys": true,
+        "snapshot_object_bytes": 88,
+        "definition_object_bytes": 48,
+        "retained_requested_bytes": 144782400,
+        "peak_requested_bytes": 144782488,
+        "allocation_calls": 1199900,
+        "requested_bytes": 202363200,
+        "final_live_bytes": 0
+      }
+    ]
+  },
+  "rejected_timing_attempts": {
+    "1": {
+      "reason": "fseventsd 61.7% CPU before PATCH pair3 baseline",
+      "completed_samples": [
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 5.70201,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 0,
+          "peak_rss_bytes": 1003556864
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.22118,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 0,
+          "peak_rss_bytes": 1033945088
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.24954,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 1,
+          "peak_rss_bytes": 1072480256
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 5.98247,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 1,
+          "peak_rss_bytes": 1037864960
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 5.94112,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 2,
+          "peak_rss_bytes": 1106313216
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.23927,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 2,
+          "peak_rss_bytes": 1140162560
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.1456,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 3,
+          "peak_rss_bytes": 919777280
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.08218,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 3,
+          "peak_rss_bytes": 865681408
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.17722,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 4,
+          "peak_rss_bytes": 1103708160
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.40313,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 4,
+          "peak_rss_bytes": 1011597312
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.47483,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 0,
+          "peak_rss_bytes": 676581376
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.29271,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 0,
+          "peak_rss_bytes": 622460928
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.38582,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 1,
+          "peak_rss_bytes": 694747136
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.32181,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 1,
+          "peak_rss_bytes": 662343680
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.26452,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 2,
+          "peak_rss_bytes": 697556992
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.35361,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 2,
+          "peak_rss_bytes": 625033216
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.6012,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 3,
+          "peak_rss_bytes": 626982912
+        }
+      ]
+    },
+    "2": {
+      "reason": "PerfPowerServices 96.5% CPU after PATCH pair3 prototype",
+      "completed_samples": [
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.13991,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 0,
+          "peak_rss_bytes": 1009319936
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.50122,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 0,
+          "peak_rss_bytes": 964513792
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.28526,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 1,
+          "peak_rss_bytes": 1024499712
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.17942,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 1,
+          "peak_rss_bytes": 1151062016
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 5.99282,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 2,
+          "peak_rss_bytes": 1064665088
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.24498,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 2,
+          "peak_rss_bytes": 1178841088
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.42591,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 3,
+          "peak_rss_bytes": 942981120
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.19298,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 3,
+          "peak_rss_bytes": 990646272
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 6.10382,
+          "allocations": 34221137,
+          "allocated_bytes": 3418250539,
+          "arm": "before",
+          "pair": 4,
+          "peak_rss_bytes": 974966784
+        },
+        {
+          "knobs": 100000,
+          "mode": "PUT",
+          "iterations": 3,
+          "seconds": 3.28643,
+          "allocations": 3600233,
+          "allocated_bytes": 453907051,
+          "arm": "after",
+          "pair": 4,
+          "peak_rss_bytes": 959954944
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.41658,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 0,
+          "peak_rss_bytes": 616587264
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.44224,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 0,
+          "peak_rss_bytes": 585396224
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.43234,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 1,
+          "peak_rss_bytes": 639918080
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.32084,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 1,
+          "peak_rss_bytes": 690999296
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 2.40732,
+          "allocations": 11624876,
+          "allocated_bytes": 1204357091,
+          "arm": "before",
+          "pair": 2,
+          "peak_rss_bytes": 688709632
+        },
+        {
+          "knobs": 100000,
+          "mode": "PATCH",
+          "iterations": 3,
+          "seconds": 1.41511,
+          "allocations": 1200179,
+          "allocated_bytes": 180164459,
+          "arm": "after",
+          "pair": 2,
+          "peak_rss_bytes": 640524288
+        }
+      ]
+    }
+  },
+  "source_sha256": {
+    "model_footprint.cc": "9f0e44bd68512dc97cc4a0a1fd821f19d1d71db5298ac38646c2d0590aed5037",
+    "publication_pair.py": "9fe2efb336fcadb88e3f4ac11baf5dcd8b2ca30290bcf1089c2fb9486f5f085a",
+    "publication_bench.cc": "1d57fa40f8a5451a4589e3282f26eda8205cfe6a07bf5913d661f5d90210b0ef"
+  },
+  "limits": [
+    "Footprint is requested live C++ allocation bytes including strings; it excludes allocator rounding, instrumentation headers and RSS. Final tracked live bytes are zero for all cases.",
+    "Exactly-sized legal maximum keys are 200-byte knob names and 128-byte group keys.",
+    "The original pin lacks the proposed ownership-move and compact-copy fixes, so these comparisons do not establish an advantage over a future repaired btree.",
+    "No accepted publication timing comparison: both attempts stopped on interference. Allocation counts in completed samples remain deterministic; raw timings must not be promoted to an accepted speed claim.",
+    "Public C++ field types, object sizes and accounting would change if adopted. Wire bytes, bounded reclamation, fault recovery and full product/platform qualification remain separate gates."
+  ]
+}

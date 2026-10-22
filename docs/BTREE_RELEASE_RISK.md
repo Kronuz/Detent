@@ -40,3 +40,18 @@ After the isolated ownership-move/copy corrections, repeat remaining mutation-fa
 ## Acceptance evidence
 
 Freeze each extracted candidate, reproduce its targeted defect on the preceding revision, and qualify it independently. Compare native/sanitized C++17/C++20 profiles, mixed modes, exact allocator conservation and real Detent consumers. Mutation alternatives must pass actual string/nested-definition failure sweeps and matched CPU/allocation/peak comparisons before pin adoption. No stronger generic guarantee is required merely because the rejected draft implemented it.
+
+## Standard-map prototype results
+
+The [isolated prototype](../benchmarks/standard-map-prototype-20261021.json) passes 10 core functional tests. Actual-model allocation probes use 100,000 knobs with three overrides each, and verify zero tracked live bytes after destruction.
+
+| Exactly-sized input | Original btree retained requested bytes | Standard map retained requested bytes |
+| --- | --- | --- |
+| Short keys | 21,022,176 | 29,600,000 |
+| Legal maximum-length keys (200/128 bytes) | 84,604,336 | 93,600,000 |
+
+This is an additional 8.58 MB or 9.00 MB per constructed snapshot in these cases, including string storage and excluding allocator rounding and instrumentation headers. Snapshot object size changes from 72 to 88 bytes; definition object size changes from 32 to 48 bytes. These are synthetic model workloads, not a physical-fleet capacity result.
+
+Two paired 100k PUT/PATCH timing attempts stop on competing operating-system processes (`fseventsd`, then `PerfPowerServices`); neither establishes an accepted timing result. Completed samples consistently record fewer main-thread allocation requests in the standard-map variant, but the baseline lacks the independent move/copy fixes. Do not promote this into a claim that standard map outperforms a corrected btree.
+
+The prototype remains an alternative. No public field type changes are selected or applied to production. Independently qualifying compact copy continues because it repairs the reproduced copy failure without introducing mutation staging and allows a fairer repaired-btree comparison. Bounded reclamation, actual-type allocation-failure sweeps, final memory accounting and public C++ compatibility remain required before choosing the replacement.
