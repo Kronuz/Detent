@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Detent's publication failure sweep exposes pre-existing lifetime defects in the pinned cpp-btree. Guarded cloning and compact-root transfer repair part of the ownership problem. Real container moves remove recursive mapped-map copies; affected-node staging must still handle long const-key transfers before publication. Production pin adoption waits for the full publication sweep with Linux LeakSanitizer enabled.
+Detent's publication failure sweep exposes pre-existing lifetime defects in the pinned cpp-btree. The repair combines compact ordered copy construction, real container moves and affected-node insertion staging over stable entry identities. Component source review accepts these mechanisms; production pin adoption waits for the combined platform, cost and consumer gates, including the full publication sweep with Linux LeakSanitizer enabled.
 
 | Review | Status | Date |
 | --- | --- | --- |
@@ -12,9 +12,11 @@ The published baseline is `dd984d92540674d0794ce338712691ae9afa3d10`. These chan
 
 ## Ownership repair
 
-Copies clone the existing topology with separate counts for constructed values and completed children. Cleanup frees only owned values/subtrees with matching allocator extents; root parent/rightmost metadata becomes visible after construction succeeds. Assignment retains its existing clear-then-copy policy, leaving an empty destination after clone failure. Topology cloning preserves occupancy rather than compacting through reinsertion, so populated and erase-thinned copy costs require separate measurement.
+Copies build a compact equal-depth shape from entry count, without comparisons or reinsertion. For capacity `B` and nonzero size `n`, use `L = n / (B + 1) + 1` leaves, distribute `n - (L - 1)` values evenly across them, and build parent levels with `1 + (children - 1) / (B + 1)` nodes until one root remains. Distribute child counts evenly at each level. This uses O(height) allocator-backed planning storage; singleton roots retain geometric capacity.
 
-Compact-root replacement tracks every constructed prefix and publishes after transfer succeeds. Failed first value construction restores the canonical null-root empty state. Root size advances only after successful insertion. Full-leaf promotion stages both root and sibling allocations before linking either. Separator transfer and internal-root promotion remain independent failure paths.
+Consume one const source iterator in child/separator order, constructing each actual value directly in its final slot. Track constructed prefixes and completed children independently. Cleanup frees only owned values/subtrees with matching allocator extents; finalize root parent/rightmost/size metadata before publishing the root. Assignment retains clear-then-copy semantics and leaves an empty destination after failure. Measure tiny/nested planning allocations as well as populated and erase-thinned retained footprints.
+
+First insertion bypasses empty-tree lookup before entering the existing value-construction boundary, so a comparator-copy failure cannot strand a zero-count root. Failed first value construction restores canonical null-root emptiness. Range insertion reacquires its end hint after every mutation. Compact growth, separator transfer and internal-root promotion use the insertion transaction below.
 
 ## Container moves and compatibility
 
@@ -56,6 +58,8 @@ For potentially throwing mapped transfers, materialize fresh native nodes for af
 Resolve the returned iterator from the incoming entry's final destination. Preparing every final key once handles entries relocated repeatedly by the logical algorithms. Measure transient images/key copies/scratch separately from retained node bytes; generic replacement can also duplicate mapped objects' owned storage.
 
 A move-only set key whose throwing move changes ordering needs a canonical-empty fallback after staged cleanup to preserve a usable basic guarantee. Map relocation still needs a valid way to construct actual const keys. Unchanged erase/merge const-key mutation remains open; the insertion design does not close that wider finding. Add no blanket type restriction to hide these paths.
+
+Lvalue aliases to contained mapped values must survive relocation through preparation of the incoming value. Explicitly moving a contained argument can consume it before a later failure. Moving a contained set key through the legacy mutable iterator violates ordering before staging can protect it. Prove that duplicate `try_emplace`, including hinted calls, performs no mapped construction or movement.
 
 ## Qualification and adoption
 
