@@ -1,6 +1,6 @@
 # Guarded compact-root growth: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Bounded implementation qualified across three platforms and the publication fault suite; production adoption pending.
+**Date:** 2026-10-22. **Status:** Bounded implementation qualified across three platforms and the publication fault suite; adopted at `19db54c` after 207/207 product tests and seven hosted CI jobs.
 
 ## Abstract
 

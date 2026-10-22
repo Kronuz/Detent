@@ -408,3 +408,7 @@ The [release risk evaluation](BTREE_RELEASE_RISK.md) replaces the assumption tha
 ### Independent btree adoption, October 22
 
 Detent adopts cpp-btree `5aadde0c1b415b33c48d6515704ae7bdc32bb259` after a fresh immutable fetch, an all-product Release build and 207/207 registered tests (640.81 seconds, two jobs). Authority, relay, managed agent and examples are enabled; benchmarks and optional bindings are disabled. The four independent fixes and their narrower sanitizer/cost evidence are recorded in [dependency upgrades](DEPENDENCY_UPGRADES.md). This adoption does not include the pending compact-root growth repair or close the publication failure-injection gate.
+
+### Guarded-growth adoption, October 22
+
+Detent uses the library-owned `btree::btree` target at immutable `19db54c0baa6747f9d8ba9a4052820c7b554cdb5` and removes its parallel CMake header wrapper. The renamed repository retains old Git redirects and the `cpp_btree::cpp_btree` alias. All-product Release build, 207/207 native tests (639.30 seconds) and seven hosted library jobs pass. The composed publication leak gate passes independently; remaining mutation paths and the publication atomicity integration stay separate release work.

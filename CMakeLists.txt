@@ -70,12 +70,6 @@ FetchContent_MakeAvailable(
   random_lib
   compressors)
 
-# cpp-btree ships no CMakeLists at all; its target is just its own repo root
-# on the include path (btree/map.h).
-add_library(cpp_btree_headers INTERFACE)
-target_include_directories(cpp_btree_headers INTERFACE "${cpp_btree_SOURCE_DIR}")
-add_library(cpp_btree::headers ALIAS cpp_btree_headers)
-
 ########################################################################
 # detent core library
 ########################################################################

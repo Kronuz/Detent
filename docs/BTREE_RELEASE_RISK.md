@@ -20,7 +20,7 @@ Keep the separately reproduced first-insertion and copy correctness repairs. Rej
 
 ## Warning for the current production pin
 
-Detent now pins `5aadde0`, including the independent range, comparator, first-root and copy repairs. The remaining compact-growth fault-injection leak and const-key mutation findings still apply to that production pin. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
+Detent now pins `19db54c`, including the independent range, comparator, first-root, copy and compact-root growth repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
 
 A failed private snapshot can be discarded only if all live objects, node metadata and allocation ownership remain valid enough to destroy it. Publication isolation protects the previous snapshot; it does not by itself establish that failed temporary containers are safe. Rejecting invalid JSON or bounding input size likewise does not prove that later allocation cannot fail.
 

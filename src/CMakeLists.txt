@@ -26,7 +26,7 @@ target_link_libraries(detent PUBLIC
   strict_stox::strict_stox
   sha256::sha256
   atomic-shared-ptr::atomic-shared-ptr
-  cpp_btree::headers
+  btree::btree
   random::random)
 
 target_compile_features(detent PUBLIC cxx_std_20)
