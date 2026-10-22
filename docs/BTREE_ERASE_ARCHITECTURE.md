@@ -20,7 +20,7 @@ Save the successor's source identity or an end marker before planning and resolv
 
 Expose a default-empty owning `drain_type`, acquired from the container in O(1) without traversing `bytes_used()`. Prepare allocator state before detaching ownership and emptying the source. Keep the original root identity, current node and traversal phase; use parent links to destroy live value prefixes and release exact node extents incrementally. Never consult the root-parent sentinel after its leaf is freed.
 
-`step(limit)` returns actual work consumed. Count each descent, pair destruction and node free separately; zero budget performs no work. The cursor destructor completes its own traversal, since ordinary recursive clear cannot inspect partially drained children. Move and abandonment must retain exact allocator ownership. Custom allocator-copy behavior remains part of acquisition's conditional exception contract; Detent's allocator must pass allocation-disabled acquisition and stepping tests.
+`step(limit)` returns actual work consumed. Count each descent, pair destruction and node free separately; zero budget performs no work. The cursor destructor completes its owned traversal. Ordinary clear and the cursor use the same iterative postorder walker, with explicit root-allocation metadata for subtree cleanup. Move and abandonment must retain exact allocator ownership. Custom allocator-copy behavior remains part of acquisition's conditional exception contract; Detent's allocator must pass allocation-disabled acquisition and stepping tests.
 
 ## Detent ownership and accounting
 
@@ -40,3 +40,7 @@ Single mutations retain O(node capacity × height) affected state; header-only n
 4. Freeze final combined headers for three-platform native/sanitizer/mixed-mode gates, Detent publication LeakSanitizer, retirement tests and matched CPU/allocation/peak costs. No suppression or parallel erase fallback.
 
 Xapiand at `c625977e7d1254796dabb65352b0b26aabc0954b` has no cpp-btree include or target in source/CMake or inspected built dependency metadata; its Xapian B-tree is unrelated. Its consumer gate is N/A for this library. Strata at `88a56e7` uses cpp-btree only in the opt-in `kv_proto_buffer` research target, which must repin when the fix is published.
+
+## Implementation review and preliminary qualification
+
+The component receives source GO with no confirmed P1/P2 production defect. [Preliminary evidence](../benchmarks/btree-erase-reclamation-preliminary-20261021.json) records four native and four sanitized macOS library profiles, four selected Detent consumer tests, and an expanded allocation-denial fixture for actual shared-arena collectors and partial command disposal. Production headers are identical across those source snapshots; newer fixtures extend coverage without changing the implementation. Final platform, mixed-mode, failure, publication LeakSanitizer, footprint and matched-cost gates remain open. No immutable repaired pin is adopted yet.

@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-21",
+  "status": "Preliminary source qualification; no repaired production pin adopted",
+  "production_pin": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "library_header_sha256": {
+    "btree/btree.h": "6f27ef619229eb6decb2ff21a7a118de79c46a6eff9dc00e74ec42905d17a713",
+    "btree/drain_cursor.h": "1aba45bcef7e9857dda95cff51f29ac55c7206ee164b6ede3f2e99752a3c1dd4",
+    "btree/drain_state.h": "23c39ba960763b5b4e3dddfdaf0c033975348881e0baef8409134860a022b522",
+    "btree/erase_ops.h": "575db046ec80bdcf561c9f499751a902aac180ec1a5d0ce0ebd180716ea9cbef",
+    "btree/map.h": "34431fb39588734ca0fc3f2196ff9ab9a77caf17899b691685832ea8e86d6da8",
+    "btree/mutation_images.h": "5b0a031d86b7eea5184faa1ac727dc83ba71c78b0eb1fcc46fddebbab4cdfeb1",
+    "btree/mutation_transaction.h": "89abc6b606f2ec1e85609225c744b5302b05107561cdb4326c0dad6beff95553",
+    "btree/node_ops.h": "6d608a71385681d6befc2bd2bfbfb584ed9e778fde102d910a8ae83e73413d70",
+    "btree/set.h": "760cb1f12c96ff3399d4402aff2320a7427c768a8614aa4f5bf591a62472ef14"
+  },
+  "source_review": {
+    "verdict": "Source GO; no confirmed P1/P2 production defect",
+    "remaining": "Qualification and cost gates; no adoption or publication approval"
+  },
+  "native_layout": {
+    "snapshot": "btree-erase-20261021-r1",
+    "platform": "macOS x86_64",
+    "standards": [
+      17,
+      20
+    ],
+    "modes": [
+      "Release",
+      "Debug"
+    ],
+    "profiles_passed": 4,
+    "checks_per_release_profile": 2881581,
+    "checks_per_debug_profile": 4325831,
+    "global_allocation_denial_drain": "Passed separately in each profile"
+  },
+  "sanitized_layout": {
+    "snapshot": "btree-erase-20261021-r2",
+    "platform": "macOS x86_64",
+    "standards": [
+      17,
+      20
+    ],
+    "modes": [
+      "Release",
+      "Debug"
+    ],
+    "profiles_passed": 4,
+    "checks_per_release_profile": 2944023,
+    "checks_per_debug_profile": 4388273,
+    "sanitizers": [
+      "address",
+      "undefined",
+      "object-size",
+      "pointer-overflow"
+    ],
+    "recovery": false,
+    "global_allocation_denial_drain": "Passed separately in each profile"
+  },
+  "consumer": {
+    "snapshot": "btree-erase-20261021-r3",
+    "dependencies": "Exact project pins with only cpp-btree source override",
+    "compiler": "Homebrew LLVM 23.1.2 with explicit CMAKE_OSX_SYSROOT from xcrun",
+    "tests": [
+      "test_authority_state",
+      "test_authority_service",
+      "test_authority_export_capture",
+      "test_authority_override_reclamation"
+    ],
+    "passed": 4,
+    "ctest_wall_seconds": 10.88
+  },
+  "expanded_consumer_fixture": {
+    "snapshot": "btree-erase-20261021-r4",
+    "linked_libraries": "Unchanged R3 Detent libraries; production library headers byte-identical",
+    "result": "Passed",
+    "covers": [
+      "State-copy and ExportCapture alternating collection with allocation denial",
+      "Decoder discard at six partial points with allocation denial",
+      "Application discard and partial cursor unwind with allocation denial",
+      "Shared arena lifetime and retained accounting",
+      "Command mutation transitions"
+    ]
+  },
+  "footprint": {
+    "default_allocator_drain_cursor_bytes": 24,
+    "consumer_enclosing_object_padding": "Not measured",
+    "allocation_peak_and_mutation_cpu": "Pending"
+  },
+  "rejected_cost_attempt": {
+    "reason": "Process guard detected active LLVM compiler despite quiet reservation",
+    "timing_results_usable": false
+  },
+  "toolchain_failure": {
+    "snapshot": "btree-erase-20261021-r2 consumer",
+    "cause": "Implicit LLVM SDK uses MacOSX15.sdk (15.4); FindZLIB uses MacOSX.sdk (26.2), producing explicit SDK C include ahead of libc++ headers",
+    "explicit_sdk_result": "R3 compressor and service compilation pass; 4/4 selected tests pass",
+    "dependency_source_modified": false
+  },
+  "remaining": [
+    "Final expanded library fixtures",
+    "Linux and FreeBSD erase/drain profiles",
+    "Final mixed-mode combinations",
+    "Composed consumer sanitizers and publication LeakSanitizer",
+    "Explicit service next-head transition and fixed-owner footprint evidence",
+    "Matched CPU allocation and peak costs",
+    "Immutable library publication and pin adoption"
+  ]
+}
