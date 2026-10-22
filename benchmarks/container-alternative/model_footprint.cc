@@ -4,6 +4,10 @@
 #include <cstddef>
 #include <cstdlib>
 #include <limits>
+#include <numeric>
+#include <random>
+#include <vector>
+#include <ctime>
 #include <memory>
 #include <new>
 
@@ -51,13 +55,18 @@ void operator delete[](void* pointer, std::align_val_t) noexcept { release(point
 void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept { release(pointer); }
 void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept { release(pointer); }
 int main() {
-    for (const bool long_keys : {false, true}) {
+    for (const bool random_order : {false, true}) for (const bool long_keys : {false, true}) {
+        std::vector<unsigned> order(100000);
+        std::iota(order.begin(), order.end(), 0);
+        std::mt19937 random(7106);
+        if (random_order) std::shuffle(order.begin(), order.end(), random);
         live = peak = calls = requested = 0;
         std::size_t retained = 0;
+        const auto start = std::clock();
         metering = true;
         {
             detent::Snapshot snapshot;
-            for (unsigned i = 0; i < 100000; ++i) {
+            for (unsigned i : order) {
                 detent::BoolDef value;
                 for (unsigned group = 0; group < 3; ++group) {
                     auto suffix = std::to_string(group);
@@ -76,6 +85,7 @@ int main() {
         }
         metering = false;
         if (live != 0) std::abort();
-        std::printf("{\"knobs\":100000,\"overrides_per_knob\":3,\"long_keys\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,\"retained_requested_bytes\":%zu,\"peak_requested_bytes\":%zu,\"allocation_calls\":%zu,\"requested_bytes\":%zu,\"final_live_bytes\":%zu}\n", long_keys ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::KnobDef), retained, peak, calls, requested, live);
+        const auto cpu = 1000.0 * (std::clock() - start) / CLOCKS_PER_SEC;
+        std::printf("{\"workload\":\"model-%s-%s\",\"process_cpu_ms\":%.6f,\"knobs\":100000,\"overrides_per_knob\":3,\"long_keys\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,\"retained_requested_bytes\":%zu,\"peak_requested_bytes\":%zu,\"allocation_calls\":%zu,\"requested_bytes\":%zu,\"final_live_bytes\":%zu}\n", random_order ? "random" : "ordered", long_keys ? "long" : "short", cpu, long_keys ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::KnobDef), retained, peak, calls, requested, live);
     }
 }
