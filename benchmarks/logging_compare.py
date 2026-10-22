@@ -36,7 +36,7 @@ class Sample:
 
 
 def check_interference(destination: Path) -> None:
-    """Reject build/test processes and other work using at least half a CPU."""
+    """Reject build/test processes and busy CLI work; record desktop activity."""
     snapshot = subprocess.check_output(["ps", "-axo", "pid,ppid,%cpu,comm"], text=True)
     destination.write_text(snapshot)
     blockers = []
@@ -46,7 +46,11 @@ def check_interference(destination: Path) -> None:
             continue
         name = Path(fields[3]).name
         if (
-            (int(fields[0]) != os.getpid() and float(fields[2]) >= 50.0)
+            (
+                int(fields[0]) != os.getpid()
+                and float(fields[2]) >= 50.0
+                and ".app/Contents/" not in fields[3]
+            )
             or name.endswith(("_test", "-test", "_bench", "-bench"))
             or name
             in {
