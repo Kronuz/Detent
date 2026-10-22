@@ -1,0 +1,872 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f890363..1cc6b5e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -28,6 +28,10 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+         add_executable(${layout} tests/node_layout.cc)
+         btree_test_profile(${layout} ${standard} ${diagnostic})
+         add_test(NAME ${layout} COMMAND ${layout})
++        set(commit prepared_commit_${standard}_${mode})
++        add_executable(${commit} tests/prepared_commit.cc)
++        btree_test_profile(${commit} ${standard} ${diagnostic})
++        add_test(NAME ${commit} COMMAND ${commit})
+       endforeach()
+ 
+       foreach(modes IN ITEMS RR RD DR DD)
+diff --git a/benchmarks/allocation_meter.hh b/benchmarks/allocation_meter.hh
+new file mode 100644
+index 0000000..abee16e
+--- /dev/null
++++ b/benchmarks/allocation_meter.hh
+@@ -0,0 +1,37 @@
++#pragma once
++
++#include <btree/map.h>
++#include <algorithm>
++#include <cstddef>
++#include <memory>
++#include <string>
++#include <utility>
++
++namespace btree_bench {
++struct AllocationMeter {
++	std::size_t live = 0, peak = 0, calls = 0, requested = 0;
++};
++template <typename T>
++struct MeterAllocator {
++	using value_type = T;
++	std::shared_ptr<AllocationMeter> meter;
++	explicit MeterAllocator(std::shared_ptr<AllocationMeter> value) : meter(std::move(value)) {}
++	template <typename U> MeterAllocator(const MeterAllocator<U>& other) : meter(other.meter) {}
++	T* allocate(std::size_t count) {
++		auto result = std::allocator<T>{}.allocate(count);
++		const auto bytes = count * sizeof(T);
++		meter->live += bytes; meter->requested += bytes; ++meter->calls;
++		meter->peak = std::max(meter->peak, meter->live);
++		return result;
++	}
++	void deallocate(T* pointer, std::size_t count) noexcept {
++		meter->live -= count * sizeof(T);
++		std::allocator<T>{}.deallocate(pointer, count);
++	}
++	template <typename U> bool operator==(const MeterAllocator<U>& other) const noexcept { return meter == other.meter; }
++	template <typename U> bool operator!=(const MeterAllocator<U>& other) const noexcept { return !(*this == other); }
++};
++template <typename Value>
++using Map = btree::map<std::string, Value, std::less<std::string>, MeterAllocator<std::pair<const std::string, Value>>>;
++
++} // namespace btree_bench
+diff --git a/benchmarks/mutation_allocation_bench.cc b/benchmarks/mutation_allocation_bench.cc
+new file mode 100644
+index 0000000..b48c03c
+--- /dev/null
++++ b/benchmarks/mutation_allocation_bench.cc
+@@ -0,0 +1,89 @@
++// Compile the same source against each compared include tree.
++#include "allocation_meter.hh"
++#include <cstdio>
++#include <ctime>
++#include <numeric>
++#include <random>
++#include <stdexcept>
++#include <vector>
++
++using btree_bench::AllocationMeter;
++using btree_bench::Map;
++using btree_bench::MeterAllocator;
++
++struct CopyFallback {
++	std::string data;
++	explicit CopyFallback(std::string value) : data(std::move(value)) {}
++	CopyFallback(const CopyFallback&) = default;
++	CopyFallback& operator=(const CopyFallback&) = default;
++	CopyFallback(CopyFallback&& other) noexcept(false) : data(std::move(other.data)) {}
++	CopyFallback& operator=(CopyFallback&& other) noexcept(false) { data = std::move(other.data); return *this; }
++};
++struct Phase {
++	const AllocationMeter& meter;
++	std::size_t initial, calls, requested;
++	std::clock_t start;
++	explicit Phase(AllocationMeter& counter)
++		: meter(counter), initial(counter.live), calls(counter.calls), requested(counter.requested), start(std::clock()) {
++		counter.peak = counter.live;
++	}
++	void finish(const char* name, const char* operation, unsigned entries) const {
++		const auto cpu = 1000.0 * (std::clock() - start) / CLOCKS_PER_SEC;
++		std::printf("{\"workload\":\"%s-%s\",\"entries\":%u,\"start_live_requested_bytes\":%zu,\"end_live_requested_bytes\":%zu,\"peak_live_requested_bytes\":%zu,\"allocation_calls\":%zu,\"requested_bytes\":%zu,\"process_cpu_ms\":%.6f}\n",
++			name, operation, entries, initial, meter.live, meter.peak, meter.calls - calls, meter.requested - requested, cpu);
++	}
++};
++template <class Value, class Factory, class Verify>
++void run(const char* name, unsigned entries, bool long_key, bool ordered, Factory factory, Verify verify) {
++	auto meter = std::make_shared<AllocationMeter>();
++	{
++		Map<Value> values(std::less<std::string>{}, MeterAllocator<std::pair<const std::string, Value>>{meter});
++		std::vector<unsigned> order(entries);
++		std::vector<std::string> keys;
++		std::iota(order.begin(), order.end(), 0);
++		std::mt19937 random(7106);
++		if (!ordered) std::shuffle(order.begin(), order.end(), random);
++		keys.reserve(entries);
++		for (unsigned i = 0; i < entries; ++i)
++			keys.push_back((long_key ? "ranking:feature:" + std::string(64, 'k') + ":" : "group") + std::to_string(1000000 + i));
++		{
++			Phase phase(*meter);
++			for (auto index : order) values.emplace(keys[index], factory(meter, index));
++			phase.finish(name, "insert", entries);
++		}
++		if (values.size() != entries) throw std::runtime_error("insert size mismatch");
++		for (const auto& value : values) verify(value.second);
++		{
++			Phase phase(*meter);
++			for (auto index : order)
++				if (values.erase(keys[index]) != 1) throw std::runtime_error("erase result mismatch");
++			phase.finish(name, "erase", entries);
++		}
++		if (!values.empty()) throw std::runtime_error("erase size mismatch");
++	}
++	if (meter->live != 0) throw std::runtime_error("mutation allocation leak");
++}
++int main() {
++	constexpr unsigned entries = 65536;
++	auto text = [](const auto&, unsigned) { return std::string(80, 'v'); };
++	auto check_text = [](const std::string& value) {
++		if (value != std::string(80, 'v')) throw std::runtime_error("mapped value mismatch");
++	};
++	run<std::string>("short-random", entries, false, false, text, check_text);
++	run<std::string>("long-random", entries, true, false, text, check_text);
++	run<std::string>("long-ordered", entries, true, true, text, check_text);
++	run<CopyFallback>("generic-long-random", entries, true, false,
++		[](const auto&, unsigned) { return CopyFallback(std::string(80, 'v')); },
++		[&](const CopyFallback& value) { check_text(value.data); });
++	using Inner = Map<std::string>;
++	run<Inner>("nested-8-long-random", entries / 8, true, false,
++		[](const std::shared_ptr<AllocationMeter>& meter, unsigned) {
++			Inner inner(std::less<std::string>{}, MeterAllocator<std::pair<const std::string, std::string>>{meter});
++			for (unsigned key = 0; key < 8; ++key)
++				inner.emplace("host-group:" + std::string(64, 'g') + std::to_string(key), std::string(80, 'v'));
++			return inner;
++		}, [&](const Inner& inner) {
++			if (inner.size() != 8) throw std::runtime_error("nested size mismatch");
++			for (const auto& value : inner) check_text(value.second);
++		});
++}
+diff --git a/benchmarks/mutation_bench.cc b/benchmarks/mutation_bench.cc
+index 9f9156e..a0dbb68 100644
+--- a/benchmarks/mutation_bench.cc
++++ b/benchmarks/mutation_bench.cc
+@@ -7,10 +7,15 @@
+ #include <numeric>
+ #include <random>
+ #include <string>
++#include <string_view>
+ #include <vector>
+ 
+-int main() {
+-	constexpr unsigned entries = 65536, cycles = 4;
++#ifndef BTREE_BENCH_CYCLES
++#define BTREE_BENCH_CYCLES 4
++#endif
++
++int main(int argc, char** argv) {
++	constexpr unsigned entries = 65536, cycles = BTREE_BENCH_CYCLES;
+ 	std::vector<std::string> keys;
+ 	std::vector<unsigned> order(entries);
+ 	std::iota(order.begin(), order.end(), 0);
+@@ -18,6 +23,46 @@ int main() {
+ 	std::shuffle(order.begin(), order.end(), random);
+ 	for (unsigned i = 0; i < entries; ++i)
+ 		keys.push_back("group" + std::to_string(1000000 + i));
++	if (argc == 2 && std::string_view(argv[1]) == "--move-nested") {
++		using Groups = btree::map<std::string, std::string>;
++		btree::map<std::string, Groups> source;
++		constexpr unsigned nested_entries = 4096, groups = 8;
++		for (unsigned index = 0; index < nested_entries; ++index) {
++			Groups values;
++			for (unsigned group = 0; group < groups; ++group)
++				values.emplace("host-group:" + std::string(32, 'g') + std::to_string(group), std::string(80, 'v'));
++			source.emplace("ranking:feature:" + keys[index] + std::string(24, 'k'), std::move(values));
++		}
++		const auto start = std::clock();
++		for (unsigned cycle = 0; cycle < cycles; ++cycle) {
++			auto moved = std::move(source);
++			source = std::move(moved);
++		}
++		const auto elapsed = 1000.0 * (std::clock() - start) / CLOCKS_PER_SEC;
++		if (source.size() != nested_entries) return 1;
++		for (const auto& entry : source) if (entry.second.size() != groups) return 1;
++		std::printf("{\"workload\":\"move-nested\",\"entries\":%u,\"groups\":%u,\"cycles\":%u,\"process_cpu_ms\":%.6f}\n",
++			nested_entries, groups, cycles, elapsed);
++		return 0;
++	}
++	if (argc == 2 && (std::string_view(argv[1]) == "--copy" || std::string_view(argv[1]) == "--copy-pruned")) {
++		btree::map<std::string, std::string> source;
++		for (auto index : order) source.emplace(keys[index], keys[index] + std::string(80, 'x'));
++		const bool pruned = std::string_view(argv[1]) == "--copy-pruned";
++		if (pruned) for (auto index : order) if (index % 4) source.erase(keys[index]);
++		std::size_t copied_bytes = 0;
++		const auto start = std::clock();
++		for (unsigned cycle = 0; cycle < cycles; ++cycle) {
++			auto copied = source;
++			if (copied.size() != source.size() || !std::equal(source.begin(), source.end(), copied.begin())) return 1;
++			copied_bytes = copied.bytes_used();
++		}
++		std::printf("{\"workload\":\"%s\",\"entries\":%zu,\"cycles\":%u,\"source_container_bytes\":%zu,\"copy_container_bytes\":%zu,\"process_cpu_ms\":%.6f}\n",
++			pruned ? "copy-pruned" : "copy", static_cast<std::size_t>(source.size()), cycles,
++			static_cast<std::size_t>(source.bytes_used()), copied_bytes, 1000.0 * (std::clock() - start) / CLOCKS_PER_SEC);
++		return 0;
++	}
++	if (argc != 1) return 2;
+ 	const auto start = std::clock();
+ 	for (unsigned cycle = 0; cycle < cycles; ++cycle) {
+ 		btree::map<std::string, std::string> map;
+diff --git a/btree/btree.h b/btree/btree.h
+index 4a2509a..c616983 100644
+--- a/btree/btree.h
++++ b/btree/btree.h
+@@ -123,6 +123,7 @@
+ #include <string>
+ #include <stdexcept>
+ #include <type_traits>
++#include <tuple>
+ #include <utility>
+ #include <vector>
+ 
+@@ -370,6 +371,62 @@ struct btree_set_params : public btree_common_params<Key, Compare, Alloc, Target
+ 	}
+ };
+ 
++template <typename T> struct btree_is_pair : std::false_type {};
++template <typename A, typename B>
++struct btree_is_pair<std::pair<A, B>> : std::true_type {};
++
++template <typename Pair>
++decltype(auto) btree_pair_source(Pair&& pair) {
++	if constexpr (std::is_lvalue_reference<Pair>::value || std::is_const<std::remove_reference_t<Pair>>::value)
++		return std::as_const(pair);
++	else return std::forward<Pair>(pair);
++}
++
++template <typename T> struct btree_is_tuple : std::false_type {};
++template <typename... T> struct btree_is_tuple<std::tuple<T...>> : std::true_type {};
++
++template <typename Key, typename Mapped, typename Pair,
++	bool = btree_is_pair<std::remove_cv_t<std::remove_reference_t<Pair>>>::value>
++struct btree_pair_preparable : std::false_type {};
++template <typename Key, typename Mapped, typename Pair>
++struct btree_pair_preparable<Key, Mapped, Pair, true> : std::integral_constant<bool,
++	!std::is_reference<typename std::remove_cv_t<std::remove_reference_t<Pair>>::first_type>::value &&
++	!std::is_reference<typename std::remove_cv_t<std::remove_reference_t<Pair>>::second_type>::value &&
++	std::is_constructible<Key, decltype((btree_pair_source(std::declval<Pair>()).first))>::value &&
++	std::is_constructible<Mapped, decltype((btree_pair_source(std::declval<Pair>()).second))>::value> {};
++
++template <typename Key, typename Mapped, typename... Args>
++struct btree_map_preparable : std::false_type {};
++template <typename Key, typename Mapped, typename A, typename B>
++struct btree_map_preparable<Key, Mapped, A, B> : std::integral_constant<bool,
++	std::is_constructible<Key, A&&>::value && std::is_constructible<Mapped, B&&>::value> {};
++template <typename Key, typename Mapped, typename Pair>
++struct btree_map_preparable<Key, Mapped, Pair> : btree_pair_preparable<Key, Mapped, Pair&&> {};
++template <typename Key, typename Mapped, typename A, typename B, typename C>
++struct btree_map_preparable<Key, Mapped, A, B, C> : std::integral_constant<bool,
++	std::is_same<std::remove_cv_t<std::remove_reference_t<A>>, std::piecewise_construct_t>::value &&
++	btree_is_tuple<std::remove_cv_t<std::remove_reference_t<B>>>::value &&
++	btree_is_tuple<std::remove_cv_t<std::remove_reference_t<C>>>::value> {};
++
++template <typename Key, typename Mapped>
++struct btree_prepared_map_value {
++	Key key;
++	Mapped mapped;
++
++	template <typename A, typename B>
++	btree_prepared_map_value(A&& a, B&& b) : key(std::forward<A>(a)), mapped(std::forward<B>(b)) {}
++	template <typename Pair>
++	explicit btree_prepared_map_value(Pair&& pair)
++		: key(btree_pair_source(std::forward<Pair>(pair)).first), mapped(btree_pair_source(std::forward<Pair>(pair)).second) {}
++	template <typename... A, typename... B>
++	btree_prepared_map_value(std::piecewise_construct_t, std::tuple<A...> a, std::tuple<B...> b)
++		: btree_prepared_map_value(std::move(a), std::move(b), std::index_sequence_for<A...>{}, std::index_sequence_for<B...>{}) {}
++private:
++	template <typename A, typename B, std::size_t... I, std::size_t... J>
++	btree_prepared_map_value(A&& a, B&& b, std::index_sequence<I...>, std::index_sequence<J...>)
++		: key(std::get<I>(std::forward<A>(a))...), mapped(std::get<J>(std::forward<B>(b))...) {}
++};
++
+ // An adapter class that converts a lower-bound compare into an upper-bound
+ // compare.
+ template <typename Key, typename Compare>
+@@ -1843,7 +1900,9 @@ private:
+ 	template <typename... Args>
+ 	iterator emplace_empty(Args&&... args);
+ 	template <typename... Args>
+-	iterator grow_leaf_root(int position, Args&&... args);
++	iterator replace_leaf(node_type* original, int position, int capacity, Args&&... args);
++	template <typename... Args>
++	iterator emplace_nonfull(iterator iter, Args&&... args);
+ 
+ 	// Returns an iterator pointing to the first value >= the value "iter" is
+ 	// pointing at. Note that "iter" might be pointing to an invalid location as
+@@ -2750,9 +2809,9 @@ btree<P>::emplace_empty(Args&&... args) {
+ 
+ template <typename P> template <typename... Args>
+ inline typename btree<P>::iterator
+-btree<P>::grow_leaf_root(int position, Args&&... args) {
+-	auto* original = root();
+-	auto* replacement = new_leaf_root_node(std::min<int>(kNodeValues, 2 * original->max_count()));
++btree<P>::replace_leaf(node_type* original, int position, int capacity, Args&&... args) {
++	auto* replacement = original == root() ? new_leaf_root_node(capacity)
++		: node_type::init_leaf(allocate_node(node_type::leaf_size(capacity)), original->get_parent(), capacity);
+ 	bool incoming_live = false;
+ 	bool keys_consumed = false;
+ 	try {
+@@ -2774,11 +2833,86 @@ btree<P>::grow_leaf_root(int position, Args&&... args) {
+ 		if (keys_consumed) clear();
+ 		throw;
+ 	}
+-	__root() = replacement;
++	if (original == root()) {
++		__root() = replacement;
++	} else {
++		const bool first = leftmost() == original, last = rightmost() == original;
++		original->get_parent()->set_child(original->position(), replacement);
++		if (first) root()->fields_.parent = replacement;
++		if (last) __rightmost() = replacement;
++		++__size();
++	}
+ 	delete_leaf_node(original);
+ 	return iterator(replacement, position);
+ }
+ 
++template <typename P> template <typename... Args>
++inline typename btree<P>::iterator
++btree<P>::emplace_nonfull(iterator iter, Args&&... args) {
++	auto* node = iter.node;
++	const int count = node->count();
++	if (iter.position == count) {
++		node->insert_value(count, std::forward<Args>(args)...);
++	} else if constexpr (std::is_same<key_type, value_type>::value) {
++		if constexpr (std::is_nothrow_move_constructible<value_type>::value && sizeof(value_type) <= P::kTargetNodeSize) {
++			value_type incoming(std::forward<Args>(args)...);
++			for (int j = count - 1; j >= iter.position; --j) {
++				node->construct_value(j + 1, std::move(node->value(j)));
++				node->destroy_value(j);
++			}
++			node->construct_value(iter.position, std::move(incoming));
++			node->set_count(count + 1);
++		} else return replace_leaf(node, iter.position, node->max_count(), std::forward<Args>(args)...);
++	} else {
++		constexpr bool eligible = std::is_copy_constructible<key_type>::value &&
++			std::is_nothrow_move_constructible<key_type>::value && !std::is_reference<mapped_type>::value &&
++			std::is_nothrow_move_constructible<mapped_type>::value;
++		constexpr bool preparable = [] {
++			if constexpr (eligible) return btree_map_preparable<key_type, mapped_type, Args...>::value;
++			else return false;
++		}();
++		if constexpr (preparable) {
++			using prepared = btree_prepared_map_value<key_type, mapped_type>;
++			auto commit = [&](prepared& incoming, auto&& key_at) {
++				for (int j = count - 1; j >= iter.position; --j) {
++					node->construct_value(j + 1, std::piecewise_construct,
++						std::forward_as_tuple(key_at(j)), std::forward_as_tuple(std::move(node->value(j).second)));
++					node->destroy_value(j);
++				}
++				node->construct_value(iter.position, std::piecewise_construct,
++					std::forward_as_tuple(std::move(incoming.key)), std::forward_as_tuple(std::move(incoming.mapped)));
++				node->set_count(count + 1);
++			};
++			if constexpr (std::is_nothrow_copy_constructible<key_type>::value) {
++				if constexpr (sizeof(prepared) <= P::kTargetNodeSize) {
++					prepared incoming(std::forward<Args>(args)...);
++					commit(incoming, [&](int j) -> const key_type& { return node->value(j).first; });
++				} else return replace_leaf(node, iter.position, node->max_count(), std::forward<Args>(args)...);
++			} else if constexpr (sizeof(prepared) <= P::kTargetNodeSize &&
++				std::size_t(kNodeValues - 1) <= (P::kTargetNodeSize - sizeof(prepared)) / sizeof(key_type)) {
++				struct key_bank {
++					std::aligned_storage_t<sizeof(key_type), alignof(key_type)> slots[kNodeValues - 1];
++					int count;
++					key_bank() : count(0) {}
++					key_type* at(int i) { return std::launder(reinterpret_cast<key_type*>(&slots[i])); }
++					~key_bank() { while (count) at(--count)->~key_type(); }
++				};
++				struct scratch { prepared incoming; key_bank keys; };
++				if constexpr (sizeof(scratch) <= P::kTargetNodeSize) {
++					scratch state{prepared(std::forward<Args>(args)...), key_bank{}};
++					for (int j = iter.position; j < count; ++j) {
++						::new (static_cast<void*>(&state.keys.slots[state.keys.count])) key_type(node->value(j).first);
++						++state.keys.count;
++					}
++					commit(state.incoming, [&](int j) -> key_type&& { return std::move(*state.keys.at(j - iter.position)); });
++				} else return replace_leaf(node, iter.position, node->max_count(), std::forward<Args>(args)...);
++			} else return replace_leaf(node, iter.position, node->max_count(), std::forward<Args>(args)...);
++		} else return replace_leaf(node, iter.position, node->max_count(), std::forward<Args>(args)...);
++	}
++	if (!root()->is_leaf()) ++__size();
++	return iter;
++}
++
+ template <typename P> template <typename... Args>
+ inline typename btree<P>::iterator
+ btree<P>::internal_emplace(const_iterator hint, Args&&... args) {
+@@ -2789,23 +2923,22 @@ btree<P>::internal_emplace(const_iterator hint, Args&&... args) {
+ 		--iter;
+ 		++iter.position;
+ 	}
+-	bool update_size = false;
++	if (iter.node->count() < iter.node->max_count()) {
++		return emplace_nonfull(iter, std::forward<Args>(args)...);
++	}
+ 	if (iter.node->count() == iter.node->max_count()) {
+ 		// Make room in the leaf for the new item.
+ 		if (iter.node->max_count() < kNodeValues) {
+ 			// Insertion into the root where the root is smaller that the full node
+ 			// size. Simply grow the size of the root node.
+ 			assert(iter.node == root());
+-			return grow_leaf_root(iter.position, std::forward<Args>(args)...);
++			return replace_leaf(iter.node, iter.position, std::min<int>(kNodeValues, 2 * iter.node->max_count()), std::forward<Args>(args)...);
+ 		} else {
+ 			rebalance_or_split(iter);
+ 			++__size();
+ 		}
+-	} else {
+-		update_size = !root()->is_leaf();
+ 	}
+ 	iter.node->insert_value(iter.position, std::forward<Args>(args)...);
+-	if (update_size) ++__size();
+ 	return iter;
+ }
+ 
+diff --git a/tests/node_layout.cc b/tests/node_layout.cc
+index 62812a2..8743790 100644
+--- a/tests/node_layout.cc
++++ b/tests/node_layout.cc
+@@ -556,6 +556,78 @@ int nonfull_position(const Iterator& cursor, const Allocations& state) {
+ 		if (std::addressof(node->value(i)) == std::addressof(*cursor)) return i;
+ 	throw std::runtime_error("value outside active node prefix");
+ }
++void nonfull_leaf_failures() {
++	using Pair = std::pair<const int, ThrowingValue>;
++	using Tree = btree::map<int, ThrowingValue, RootOrder, CountingAllocator<Pair>>;
++	for (bool reverse : {false, true}) for (int topology = 0; topology < 6; ++topology) {
++		bool covered = false;
++		for (unsigned seed = 0; seed < 64 && !covered; ++seed) {
++			auto state = std::make_shared<Allocations>();
++			{
++				Tree values(RootOrder{reverse}, CountingAllocator<Pair>{state});
++				const int count = topology == 0 ? 3 : 160;
++				std::vector<int> order;
++				for (int i = 0; i < count; ++i) order.push_back(i * 2);
++				std::mt19937 random(7106 + seed);
++				std::shuffle(order.begin(), order.end(), random);
++				for (int key : order) values.try_emplace(key, key);
++				auto first = nonfull_node(values.begin(), *state);
++				auto tail = values.end(); --tail;
++				auto last = nonfull_node(tail, *state);
++				for (int key = -1; key < count * 2 && !covered; key += 2) {
++					auto slot = values.lower_bound(key);
++					if (slot == values.end() || !nonfull_node(slot, *state)->is_leaf() || nonfull_position(slot, *state) == nonfull_node(slot, *state)->count() || nonfull_node(slot, *state)->count() == nonfull_node(slot, *state)->max_count()) continue;
++					auto* original = nonfull_node(slot, *state);
++					const bool root_leaf = original->is_root();
++					if ((topology == 0) != root_leaf) continue;
++					if (topology == 1 && original != first) continue;
++					if (topology == 2 && original != last) continue;
++					if (topology >= 3) {
++						if (original == first || original == last) continue;
++						const int child = original->position(), children = original->get_parent()->count();
++						if (topology == 3 && child != 0) continue;
++						if (topology == 4 && child != children) continue;
++						if (topology == 5 && (child == 0 || child == children)) continue;
++					}
++					covered = true;
++					ThrowingValue incoming(key);
++					const auto objects = ThrowingValue::live;
++					const auto bytes = state->bytes, nodes = state->live.size();
++					const int leaf_count = original->count();
++					std::vector<std::pair<int, int>> contents;
++					for (const auto& entry : values) contents.emplace_back(entry.first, entry.second.value);
++					auto unchanged = [&] {
++						require(values.size() == static_cast<std::size_t>(count));
++						auto expected = contents.begin();
++						for (const auto& entry : values) {
++							require(expected != contents.end() && entry.first == expected->first && entry.second.value == expected->second); ++expected;
++						}
++						require(expected == contents.end() && nonfull_node(values.begin(), *state) == first);
++						auto end = values.end(); --end; require(nonfull_node(end, *state) == last);
++						require(original->count() == leaf_count && ThrowingValue::live == objects && state->bytes == bytes && state->live.size() == nodes);
++						if (!root_leaf) require(original->get_parent()->child(original->position()) == original);
++						values.verify();
++					};
++					state->remaining = 0;
++					bool refused = false;
++					try { values.try_emplace(key, incoming); } catch (const std::bad_alloc&) { refused = true; }
++					state->remaining = -1; require(refused); unchanged();
++					for (int budget = 0; budget <= leaf_count + 1; ++budget) {
++						ThrowingValue::remaining = budget; refused = false;
++						try { values.try_emplace(key, incoming); } catch (const std::runtime_error&) { refused = true; }
++						ThrowingValue::remaining = -1;
++						require(refused == (budget < leaf_count + 1));
++						if (refused) unchanged();
++					}
++					values.verify(); require(values.size() == static_cast<std::size_t>(count + 1));
++					require(values.at(key).value == key);
++				}
++			}
++			require(ThrowingValue::live.empty() && state->live.empty() && state->bytes == 0);
++		}
++		require(covered);
++	}
++}
+ void nonfull_append_failure() {
+ 	using Pair = std::pair<const int, ThrowingValue>;
+ 	using Tree = btree::map<int, ThrowingValue, RootOrder, CountingAllocator<Pair>>;
+@@ -800,6 +872,189 @@ void range_insertions() {
+ 	unique_map.verify(); multi_map.verify(); unique_set.verify(); multi_set.verify();
+ 	require(unique_map.size() == 3 && multi_map.size() == 3 && unique_set.size() == 3 && multi_set.size() == 3);
+ }
++struct PreparedKey {
++	inline static int copies = -1;
++	inline static int live = 0;
++	inline static Allocations* deny = nullptr;
++	int value;
++	explicit PreparedKey(int v) : value(v) { ++live; }
++	PreparedKey(const PreparedKey& other) : value(other.value) {
++		if (copies == 0) throw std::runtime_error("prepared key copy");
++		if (copies > 0) --copies;
++		++live;
++	}
++	PreparedKey(PreparedKey&& other) noexcept : value(other.value) {
++		other.value = -999; ++live;
++		if (deny) deny->fail = true;
++	}
++	PreparedKey& operator=(const PreparedKey& other) { value = other.value; return *this; }
++	PreparedKey& operator=(PreparedKey&& other) noexcept { value = other.value; other.value = -999; return *this; }
++	~PreparedKey() { --live; }
++};
++struct PreparedCompare {
++	bool reverse = false;
++	bool operator()(const PreparedKey& a, const PreparedKey& b) const {
++		return reverse ? a.value > b.value : a.value < b.value;
++	}
++};
++void prepared_key_failures() {
++	using Pair = std::pair<const PreparedKey, int>;
++	using Params = btree::btree_map_params<PreparedKey, int, PreparedCompare, CountingAllocator<Pair>, 256>;
++	using Node = btree::btree_node<Params>;
++	using Tree = btree::map<PreparedKey, int, PreparedCompare, CountingAllocator<Pair>>;
++	static_assert(std::is_nothrow_move_constructible<PreparedKey>::value);
++	static_assert(!std::is_nothrow_copy_constructible<PreparedKey>::value);
++	for (bool reverse : {false, true}) for (int count : {3, 160}) {
++		int covered = 0;
++		for (int key = -1; key < count * 2; key += 2) {
++			auto state = std::make_shared<Allocations>();
++			{
++				Tree values(PreparedCompare{reverse}, CountingAllocator<Pair>{state});
++				std::vector<int> order;
++				for (int i = 0; i < count; ++i) order.push_back(i * 2);
++				std::mt19937 random(1093); std::shuffle(order.begin(), order.end(), random);
++				for (int item : order) values.try_emplace(PreparedKey(item), item);
++				auto cursor = values.lower_bound(PreparedKey(key));
++				if (cursor == values.end()) continue;
++				Node* node = nullptr;
++				int position = -1;
++				auto address = reinterpret_cast<std::uintptr_t>(std::addressof(*cursor));
++				for (const auto& allocation : state->live) {
++					auto begin = reinterpret_cast<std::uintptr_t>(allocation.first);
++					if (address >= begin && address < begin + allocation.second.bytes) node = std::launder(static_cast<Node*>(allocation.first));
++				}
++				require(node != nullptr);
++				if (!node->is_leaf() || node->count() == node->max_count()) continue;
++				for (int i = 0; i < node->count(); ++i) if (std::addressof(node->value(i)) == std::addressof(*cursor)) position = i;
++				require(position >= 0);
++				++covered;
++				std::vector<std::pair<int,int>> contents;
++				for (const auto& entry : values) contents.emplace_back(entry.first.value, entry.second);
++				const auto bytes = state->bytes, calls = state->requests.size();
++				const auto objects = PreparedKey::live;
++				for (int budget = 0; budget < node->count() - position; ++budget) {
++					PreparedKey::copies = budget;
++					bool refused = false;
++					try { values.try_emplace(PreparedKey(key), key); }
++					catch (const std::runtime_error& error) { require(std::string_view(error.what()) == "prepared key copy"); refused = true; }
++					PreparedKey::copies = -1;
++					require(refused && PreparedKey::live == objects && state->bytes == bytes && state->requests.size() == calls);
++					require(values.size() == contents.size());
++					auto expected = contents.begin();
++					for (const auto& entry : values) { require(entry.first.value == expected->first && entry.second == expected->second); ++expected; }
++					values.verify();
++				}
++				PreparedKey::deny = state.get();
++				auto inserted = values.try_emplace(PreparedKey(key), key);
++				PreparedKey::deny = nullptr; state->fail = false;
++				require(inserted.second && inserted.first->first.value == key && inserted.first->second == key);
++				require(state->requests.size() == calls && state->bytes == bytes && values.size() == static_cast<std::size_t>(count + 1));
++				values.verify();
++			}
++			require(PreparedKey::live == 0 && state->live.empty() && state->bytes == 0);
++		}
++		require(covered > 0);
++	}
++	btree::map<int, std::string> values;
++	values.emplace(0, "zero"); values.emplace(4, "four"); values.emplace(8, "eight");
++	values.try_emplace(2, values.at(4));
++	require(values.at(2) == "four" && values.at(4) == "four");
++	std::pair<int, std::string> pair{3, "three"};
++	values.emplace(pair); require(pair.second == "three" && values.at(3) == "three");
++	values.emplace(std::pair<int, std::string>{5, "five"});
++	values.emplace(std::piecewise_construct, std::forward_as_tuple(6), std::forward_as_tuple(3, 'x'));
++	require(values.at(5) == "five" && values.at(6) == "xxx"); values.verify();
++}
++
++struct ForwardedValue {
++	int value;
++	explicit ForwardedValue(int v) : value(v) {}
++	ForwardedValue(const ForwardedValue&) = default;
++	ForwardedValue(ForwardedValue&& other) noexcept : value(other.value) { other.value = -1; }
++	ForwardedValue(const ForwardedValue&&) = delete;
++	ForwardedValue& operator=(const ForwardedValue&) = default;
++	ForwardedValue& operator=(ForwardedValue&&) = default;
++};
++struct PlacementKey {
++	int value;
++	explicit PlacementKey(int v) : value(v) {}
++	PlacementKey(const PlacementKey& other) noexcept(false) : value(other.value) {}
++	PlacementKey(PlacementKey&&) noexcept = default;
++	PlacementKey& operator=(const PlacementKey&) = default;
++	PlacementKey& operator=(PlacementKey&&) = default;
++	static void* operator new(std::size_t) = delete;
++	bool operator<(const PlacementKey& other) const { return value < other.value; }
++};
++struct BudgetKey {
++	unsigned char bytes[3];
++	explicit BudgetKey(unsigned char value) : bytes{value, 0, 0} {}
++	BudgetKey(const BudgetKey& other) noexcept(false) : bytes{other.bytes[0], 0, 0} {}
++	BudgetKey(BudgetKey&&) noexcept = default;
++	BudgetKey& operator=(const BudgetKey&) = default;
++	BudgetKey& operator=(BudgetKey&&) = default;
++	bool operator<(const BudgetKey& other) const { return bytes[0] < other.bytes[0]; }
++};
++struct BudgetMapped {
++	unsigned char bytes[243]{};
++	explicit BudgetMapped(unsigned char v) { bytes[0] = v; }
++};
++void prepared_forwarding() {
++	for (int form = 0; form < 4; ++form) {
++		btree::map<int, ForwardedValue> values;
++		for (int key : {0, 4, 8}) values.emplace(key, ForwardedValue(key));
++		const ForwardedValue input(2);
++		if (form == 0) values.emplace(2, std::move(input));
++		if (form == 1) {
++			const std::pair<int, ForwardedValue> pair{2, ForwardedValue(2)};
++			values.emplace(std::move(pair));
++		}
++		if (form == 2) {
++			std::pair<int, const ForwardedValue> pair{2, ForwardedValue(2)};
++			values.emplace(std::move(pair));
++		}
++		if (form == 3) {
++			int key = 2; ForwardedValue mapped(2);
++			std::pair<int&&, ForwardedValue&&> pair{std::move(key), std::move(mapped)};
++			values.emplace(std::move(pair)); require(mapped.value == -1);
++		}
++		require(values.at(2).value == 2 && values.at(4).value == 4 && input.value == 2); values.verify();
++	}
++	{
++		btree::map<PlacementKey, int> values;
++		for (int key : {0, 4, 8, 2}) values.emplace(PlacementKey(key), key);
++		require(values.at(PlacementKey(2)) == 2); values.verify();
++	}
++	{
++		int zero = 0, four = 4, eight = 8, two = 2;
++		btree::map<int, int&> values;
++		values.emplace(0, zero); values.emplace(4, four); values.emplace(8, eight); values.emplace(2, two);
++		require(&values.at(2) == &two && &values.at(4) == &four && four == 4 && eight == 8); values.verify();
++	}
++	using Pair = std::pair<const BudgetKey, BudgetMapped>;
++	using Params = btree::btree_map_params<BudgetKey, BudgetMapped, std::less<BudgetKey>, CountingAllocator<Pair>, 256>;
++	using Node = btree::btree_node<Params>;
++	static_assert(sizeof(BudgetKey) == 3 && alignof(BudgetKey) == 1 && sizeof(BudgetMapped) == 243);
++	auto state = std::make_shared<Allocations>();
++	{
++		btree::map<BudgetKey, BudgetMapped, std::less<BudgetKey>, CountingAllocator<Pair>> values(std::less<BudgetKey>{}, CountingAllocator<Pair>{state});
++		for (unsigned char key : {0, 4, 8, 12}) values.try_emplace(BudgetKey(key), key);
++		auto last = values.find(BudgetKey(12)); require(last != values.end());
++		Node* node = nullptr;
++		auto address = reinterpret_cast<std::uintptr_t>(std::addressof(*last));
++		for (const auto& allocation : state->live) {
++			auto begin = reinterpret_cast<std::uintptr_t>(allocation.first);
++			if (address >= begin && address < begin + allocation.second.bytes) node = std::launder(static_cast<Node*>(allocation.first));
++		}
++		require(node && node->is_leaf() && node->count() < node->max_count());
++		state->fail = true; bool refused = false;
++		try { values.try_emplace(BudgetKey(10), 10); } catch (const std::bad_alloc&) { refused = true; }
++		state->fail = false;
++		require(refused && values.size() == 4 && values.find(BudgetKey(10)) == values.end()); values.verify();
++		values.try_emplace(BudgetKey(10), 10); require(values.size() == 5); values.verify();
++	}
++	require(state->live.empty() && state->bytes == 0);
++}
++
+ void ordered_model() {
+ 	btree::set<int> values;
+ 	std::set<int> expected;
+@@ -817,6 +1072,8 @@ int main(int argc, char** argv) {
+ 	try {
+ 		if (argc == 2 && std::string_view(argv[1]) == "--short-root-only") {
+ 			short_root_lifetime();
++		} else if (argc == 2 && std::string_view(argv[1]) == "--prepared-forwarding-only") {
++			prepared_forwarding();
+ 		} else if (argc == 2 && std::string_view(argv[1]) == "--nonfull-append-only") {
+ 			nonfull_append_failure();
+ 		} else {
+@@ -826,7 +1083,7 @@ int main(int argc, char** argv) {
+ 			compact_copy_boundaries(); copy_failure_positions(); compact_copy_history();
+ 			assignment_allocation_failure_positions(); assignment_failure_positions();
+ 			nested_copy_failure_positions(); aligned_and_duplicate_copies();
+-			nonfull_append_failure();
++			nonfull_leaf_failures(); nonfull_append_failure(); prepared_key_failures(); prepared_forwarding();
+ 			root_growth_failures(); root_growth_aliases(); root_growth_move_only_recovery(); root_growth_move_only_mapped();
+ 		}
+ 	}
+diff --git a/tests/prepared_commit.cc b/tests/prepared_commit.cc
+new file mode 100644
+index 0000000..cd39560
+--- /dev/null
++++ b/tests/prepared_commit.cc
+@@ -0,0 +1,107 @@
++#include "btree/map.h"
++#include <cstdio>
++#include <cstdlib>
++#include <new>
++#include <string>
++
++namespace {
++long allocation_budget = -1;
++long live_allocations = 0;
++bool deny_heap = false;
++unsigned denied_requests = 0;
++void check(bool condition) { if (!condition) std::abort(); }
++struct IncomingRefusal {};
++struct Value {
++    static inline const Value* arm_at = nullptr;
++    static inline bool refuse_incoming = false;
++    int number;
++    explicit Value(int input) : number(input) {
++        if (refuse_incoming) throw IncomingRefusal{};
++    }
++    Value(const Value&) = default;
++    Value(Value&& other) noexcept : number(other.number) {
++        if (&other == arm_at) deny_heap = true;
++        other.number = -1;
++    }
++    Value& operator=(const Value&) = default;
++    Value& operator=(Value&&) = default;
++};
++}
++namespace {
++void admit_allocation() {
++    if (deny_heap) { ++denied_requests; throw std::bad_alloc(); }
++    if (allocation_budget == 0) throw std::bad_alloc();
++    if (allocation_budget > 0) --allocation_budget;
++}
++}
++void* operator new(std::size_t bytes) {
++    admit_allocation();
++    if (auto* pointer = std::malloc(bytes ? bytes : 1)) { ++live_allocations; return pointer; }
++    throw std::bad_alloc();
++}
++void* operator new[](std::size_t bytes) { return ::operator new(bytes); }
++void* operator new(std::size_t bytes, std::align_val_t alignment) {
++    admit_allocation();
++    void* pointer = nullptr;
++    if (posix_memalign(&pointer, static_cast<std::size_t>(alignment), bytes ? bytes : 1)) throw std::bad_alloc();
++    ++live_allocations;
++    return pointer;
++}
++void* operator new[](std::size_t bytes, std::align_val_t alignment) { return ::operator new(bytes, alignment); }
++
++void operator delete(void* pointer) noexcept {
++    if (pointer) { --live_allocations; std::free(pointer); }
++}
++void operator delete[](void* pointer) noexcept { ::operator delete(pointer); }
++void operator delete(void* pointer, std::size_t) noexcept { ::operator delete(pointer); }
++void operator delete[](void* pointer, std::size_t) noexcept { ::operator delete(pointer); }
++void operator delete(void* pointer, std::align_val_t) noexcept { ::operator delete(pointer); }
++void operator delete[](void* pointer, std::align_val_t) noexcept { ::operator delete(pointer); }
++void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept { ::operator delete(pointer); }
++void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept { ::operator delete(pointer); }
++
++int main() {
++    const auto initial = live_allocations;
++    {
++        const auto zero = std::string(127, 'k') + '0';
++        const auto two = std::string(127, 'k') + '2';
++        const auto four = std::string(127, 'k') + '4';
++        const auto eight = std::string(127, 'k') + '8';
++        bool complete = false;
++        for (long budget = 0; budget < 32; ++budget) {
++            btree::map<std::string, Value> values;
++            values.try_emplace(zero, 0); values.try_emplace(four, 4); values.try_emplace(eight, 8);
++            const auto before = live_allocations;
++            Value::arm_at = &values.find(eight)->second;
++            allocation_budget = budget;
++            bool refused = false;
++            try { values.try_emplace(two, 2); }
++            catch (const std::bad_alloc&) { refused = true; }
++            const bool armed = deny_heap;
++            deny_heap = false; allocation_budget = -1; Value::arm_at = nullptr;
++            check(denied_requests == 0);
++            check(values.at(zero).number == 0 && values.at(four).number == 4 && values.at(eight).number == 8);
++            if (refused) {
++                check(!armed && values.size() == 3 && live_allocations == before);
++            } else {
++                check(armed && values.size() == 4 && values.at(two).number == 2);
++                complete = true;
++            }
++            values.verify();
++            if (complete) break;
++        }
++        check(complete);
++        btree::map<std::string, Value> values;
++        values.try_emplace(zero, 0); values.try_emplace(four, 4); values.try_emplace(eight, 8);
++        const auto before = live_allocations;
++        Value::arm_at = &values.find(eight)->second;
++        Value::refuse_incoming = true;
++        bool refused = false;
++        try { values.try_emplace(two, 2); } catch (const IncomingRefusal&) { refused = true; }
++        Value::refuse_incoming = false; Value::arm_at = nullptr;
++        check(refused && !deny_heap && values.size() == 3 && live_allocations == before);
++        check(values.at(four).number == 4 && values.at(eight).number == 8); values.verify();
++    }
++    check(live_allocations == initial);
++    std::puts("PASS prepared insertion complete-heap commitment and incoming refusal");
++}
+diff --git a/tests/run_layout.sh b/tests/run_layout.sh
+index 9d2a85d..aa38bda 100644
+--- a/tests/run_layout.sh
++++ b/tests/run_layout.sh
+@@ -8,17 +8,23 @@ test_compiler=${CXX:-c++}
+ for standard in 17 20; do
+     for mode in release debug; do
+         case "$mode" in release) diagnostic=-DNDEBUG ;; debug) diagnostic=-UNDEBUG ;; esac
++        for fixture in node_layout prepared_commit; do
+         output="$test_build/cxx$standard-$mode"
++        if [ "$fixture" = prepared_commit ]; then
++            if [ -n "${BTREE_TEST_CASE:-}" ]; then continue; fi
++            output="$output-commit"
++        fi
+         if [ "${BTREE_TEST_SANITIZE:-0}" = 1 ]; then
+-            "$test_compiler" -std=c++"$standard" -O1 -g -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer "$diagnostic" -I "$test_include" "$test_root/tests/node_layout.cc" -o "$output"
++            "$test_compiler" -std=c++"$standard" -O1 -g -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer "$diagnostic" -I "$test_include" "$test_root/tests/$fixture.cc" -o "$output"
+         else
+-            "$test_compiler" -std=c++"$standard" -O2 "$diagnostic" -I "$test_include" "$test_root/tests/node_layout.cc" -o "$output"
++            "$test_compiler" -std=c++"$standard" -O2 "$diagnostic" -I "$test_include" "$test_root/tests/$fixture.cc" -o "$output"
+         fi
+         if [ -n "${BTREE_TEST_CASE:-}" ]; then
+             "$output" "$BTREE_TEST_CASE"
+         else
+             "$output"
+         fi
+-        printf 'PASS compact layout C++%s %s\n' "$standard" "$mode"
++        printf 'PASS %s C++%s %s\n' "$fixture" "$standard" "$mode"
++        done
+     done
+ done
