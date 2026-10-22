@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-21",
+  "status": "Functional qualification complete for the frozen source; performance and immutable pin adoption pending",
+  "production_pin": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "library_archive_sha256": "3ddf4e68c41c5d2c6f6d2c50379dde47fdd22ab214e13ba77b1f4be96b2aa701",
+  "library_source_sha256": {},
+  "platforms": {
+    "macos": {
+      "standards": [
+        17,
+        20
+      ],
+      "modes": [
+        "Release",
+        "Debug"
+      ],
+      "native_layout_profiles_passed": 4,
+      "sanitized_layout_profiles_passed": 4,
+      "native_mixed_mode_runs_passed": 16,
+      "sanitized_mixed_mode_runs_passed": 16,
+      "checks_per_release_profile": 3224352,
+      "checks_per_debug_profile": 4668602
+    },
+    "linux": {
+      "standards": [
+        17,
+        20
+      ],
+      "modes": [
+        "Release",
+        "Debug"
+      ],
+      "native_layout_profiles_passed": 4,
+      "sanitized_layout_profiles_passed": 4,
+      "native_mixed_mode_runs_passed": 16,
+      "sanitized_mixed_mode_runs_passed": 16,
+      "checks_per_release_profile": 3138695,
+      "checks_per_debug_profile": 4582945
+    },
+    "freebsd": {
+      "standards": [
+        17,
+        20
+      ],
+      "modes": [
+        "Release",
+        "Debug"
+      ],
+      "native_layout_profiles_passed": 4,
+      "sanitized_layout_profiles_passed": 4,
+      "native_mixed_mode_runs_passed": 16,
+      "sanitized_mixed_mode_runs_passed": 16,
+      "checks_per_release_profile": 3224352,
+      "checks_per_debug_profile": 4668602
+    }
+  },
+  "total_layout_profiles": 24,
+  "total_mixed_mode_runs": 96,
+  "coverage": [
+    "Generic erase allocation and value-copy failure positions",
+    "Fast erase key-copy and allocation failure positions",
+    "Throwing move-only mapped and set erase failure paths",
+    "Duplicate successor identity through merges and collapse",
+    "All four container families: empty interior full ranges and duplicate erase(key)",
+    "Global allocation denial during drain acquisition stepping moves abandonment and ordinary clear",
+    "Partial cursor source reuse and destruction",
+    "Throwing allocator preparation during acquisition move construction and assignment",
+    "Exact allocation extents live-value conservation and over-alignment"
+  ],
+  "composed_consumer": {
+    "base": "c05d417",
+    "snapshot": "btree-composed-20261021-r5",
+    "archive_sha256": "29116ac3f54ec351d5e2b1bf155870c70cd1adeca4be4f87c83d809f364daf45",
+    "changes": [
+      "Shared definition-arena and persistent command-owner drain cursors",
+      "Reviewed classic publication atomicity candidate",
+      "Allocation-denial owner-transition and publication failure fixtures"
+    ],
+    "dependencies": "Project manifest pins, cpp-btree override only",
+    "platform": "Linux x86_64",
+    "profile": "Release -O1 -g -UNDEBUG -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer",
+    "ASAN_OPTIONS": "detect_leaks=1",
+    "UBSAN_OPTIONS": "halt_on_error=1",
+    "LSAN_OPTIONS": "Unset, verified in the same guest command environment",
+    "tests": [
+      "test_diff_cache",
+      "test_raft_application_retry",
+      "test_publication_atomic",
+      "test_authority_state",
+      "test_authority_service",
+      "test_authority_export_capture",
+      "test_authority_override_reclamation"
+    ],
+    "passed": 7,
+    "ctest_wall_seconds": 17.2,
+    "publication_failure_positions": {
+      "PUT": 161,
+      "PATCH": 173
+    },
+    "leak_report": "None"
+  },
+  "limits": [
+    "Check counts are runtime assertions, not independent test cases.",
+    "These are source-override results; production pin unchanged.",
+    "No matched CPU, allocation, peak-memory or fleet-capacity improvement is claimed.",
+    "Publication failure-position counts are not allocation-performance measurements.",
+    "Full composed-product suite, packaging and release qualification remain separate gates."
+  ],
+  "remaining": [
+    "Matched operation and staging cost gates",
+    "100k nested classic publication costs",
+    "Consumer fixed-owner/frame footprint accounting",
+    "Explicit service retirement next-head evidence",
+    "Immutable library publication and production pin adoption"
+  ]
+}
