@@ -1,0 +1,216 @@
+{
+  "status": "Combined copy/insertion repair passes library profiles and original publication leak regression; uncommitted library, production pin unchanged, erase/merge and cost gates open.",
+  "baseline": "dd984d92540674d0794ce338712691ae9afa3d10",
+  "archive_sha256": "8f0832d8ab07f6fd7f7f343cf770ce8a536c4e4db7a6850aa89887d5d9545068",
+  "source_sha256": {
+    "btree/insertion_images.h": "d372a9ebd8a593ff5284b60fb8a9b7a196c0ac96c568709c84786f5b120e8745",
+    "btree/insertion_transaction.h": "18bdfdfa5cbac58e94e8e2c92ebb83c3206c61396c8f40b47f7c1956ac93d4e8",
+    "btree/node_ops.h": "6d608a71385681d6befc2bd2bfbfb584ed9e778fde102d910a8ae83e73413d70",
+    ".gitignore": "04a403d205b8eb6c5efcabd8921a9099d1660e43cc848ec004560593e8db530a",
+    "AGENTS.md": "7811eaf8eb0cf4572e82ea507d1097c6ff6c694c65324e9c461a2e732e8ee671",
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "README.md": "77a35362bf723db1cc92fffeaf93217d23506c89ad162a509865a7f18b4098d6",
+    "benchmarks/compact-layout-qualification.json": "961e7921c62257b21ca5cc6dd8e17dd9c620fd8d325b7c9aa4e7af5c7db5ef63",
+    "benchmarks/mixed-mode-baseline.json": "a97a8313458f9980f9d74c5e5d50c6978f47e8694c24b5a3604cbba9636cd31a",
+    "benchmarks/mutation_bench.cc": "4f04df05e7b33ca8f360d5ac9cac903926937bca49823fd5b0d1e7d03ffb12b6",
+    "benchmarks/node_footprint.cc": "52fee6b54746fe4bf242bfc87ea5678369444a31a65e302053adae07e6977e07",
+    "btree/btree.h": "8022a15b243e6b418fe16ae13268cb23374a1e2e44fc05b49da4d70e2c6ab4b4",
+    "btree/map.h": "34431fb39588734ca0fc3f2196ff9ab9a77caf17899b691685832ea8e86d6da8",
+    "btree/set.h": "760cb1f12c96ff3399d4402aff2320a7427c768a8614aa4f5bf591a62472ef14",
+    "docs/NODE_LAYOUT.md": "7d15f51f36432f93af28cb3da372ac2ba2cb613a7a900e96c5c7e8862dd30652",
+    "docs/TESTING.md": "1095184e9950efc1a1cba5b6c728166e9baac3dafc6887c1d8b2f07a3bf8ec7b",
+    "tests/mixed_mode_main.cc": "8c6fc891665ebf6017b830bc37bd043e1849af5bee0069535c0923d60fa94212",
+    "tests/mixed_mode_mutate.cc": "3f6f6450c5006508dd3629b300802669b5d5af24327dffb66c75a15b2d57fc8b",
+    "tests/mixed_mode_types.hh": "d5c52c5147783dddcd348e865820ba9e72a79c93f0205a5cf41200ed143b3b90",
+    "tests/node_layout.cc": "64e64cca0d9d7c1b5fc9e146ed6e08732e3b54f3723a430e89547a84c046e0ea",
+    "tests/run_layout.sh": "5d7973c39061a720a8bba3f8f597569ecd798a8ed656ad76ae37ad60ce827619",
+    "tests/run_mixed_mode.sh": "aa12d109712f9acc26526f6991558ee53f0d4d8dcf2cb7634e69c57bf8e2c37e",
+    "tests/short_root_repro.cc": "204b5cc1a151fc7b09ed8b88fe5de1d84e0598dec935846ddcd2fa651654cbce"
+  },
+  "platforms": {
+    "macos": {
+      "native_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3153942
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3153942
+        }
+      ],
+      "sanitized_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3153942
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3153942
+        }
+      ],
+      "native_mixed_runs": 16,
+      "sanitized_mixed_runs": 16,
+      "result": "pass"
+    },
+    "linux": {
+      "native_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1670813
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3115063
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1670813
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3115063
+        }
+      ],
+      "sanitized_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1670813
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3115063
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1670813
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3115063
+        }
+      ],
+      "native_mixed_runs": 16,
+      "sanitized_mixed_runs": 16,
+      "result": "pass"
+    },
+    "freebsd": {
+      "native_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3153942
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3153942
+        }
+      ],
+      "sanitized_layout": [
+        {
+          "cpp_standard": 17,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 17,
+          "mode": "debug",
+          "checks": 3153942
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "release",
+          "checks": 1709692
+        },
+        {
+          "cpp_standard": 20,
+          "mode": "debug",
+          "checks": 3153942
+        }
+      ],
+      "native_mixed_runs": 16,
+      "sanitized_mixed_runs": 16,
+      "result": "pass"
+    }
+  },
+  "layout_sanitizers": [
+    "address",
+    "undefined",
+    "object-size",
+    "pointer-overflow"
+  ],
+  "mixed_sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "detent_linux_publication": {
+    "source": "Frozen original failing publication candidate; only cpp-btree source override changes.",
+    "build_flags": "-O1 -g -UNDEBUG -fsanitize=address,undefined,object-size,pointer-overflow -fno-sanitize-recover=all -fno-omit-frame-pointer",
+    "ASAN_OPTIONS": "detect_leaks=1",
+    "LSAN_OPTIONS": "unset",
+    "tests": {
+      "test_diff_cache": "pass",
+      "test_raft_application_retry": "pass",
+      "test_publication_atomic": "pass"
+    },
+    "put_failure_positions": 161,
+    "patch_failure_positions": 173,
+    "total_test_wall_seconds": 0.86,
+    "publication_test_wall_seconds": 0.67,
+    "leak_report": false,
+    "baseline_leaked_bytes": 222608,
+    "baseline_leaked_allocations": 1032
+  },
+  "limits": [
+    "Library snapshots are uncommitted; no repaired immutable pin is adopted.",
+    "Actual const-key mutation during erase/merge remains an open component.",
+    "Matched CPU, allocation and peak-requested-byte comparisons remain pending.",
+    "This original consumer regression is not a clean current-product or fleet qualification.",
+    "Failure-position counts are not a standalone allocation-performance result.",
+    "Xapiand c625977 has no cpp-btree include/target; its library consumer gate is N/A.",
+    "Strata88a56e7 uses cpp-btree only for opt-in kv_proto_buffer research, pending repin."
+  ]
+}

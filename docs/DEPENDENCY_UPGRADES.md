@@ -338,7 +338,7 @@ The Pages run for HTTP logging fails before site compilation because D2's latest
 
 The timing run uses five alternating pairs under a strict hold, with 80 process snapshots and no recognized competing build or test process. Ordinary background activity includes iStat Menus above 70% CPU in two snapshots; paired timing ranges remain wide, so these are exploratory CPU results. The memory counts are reproducible structural observations. The move timer excludes construction and final destruction, and its draft samples approach clock resolution; no precise speedup ratio or fleet savings follows.
 
-These executables contain the qualified ownership-move foundation, not the insertion transaction. Follow-up review selects a single compact ordered builder, described below. The reproduced separator-transfer probe passes with the isolated transaction candidate; full publication LeakSanitizer closure remains open.
+These executables contain the qualified ownership-move foundation, not the insertion transaction. Follow-up review selects a single compact ordered builder, described below. The reproduced separator-transfer probe passes with the isolated transaction candidate; the consumer sweep result is recorded below.
 
 ### Combined btree repair qualification, October 21
 
@@ -348,4 +348,12 @@ The review also identifies two [attributed pre-existing boundary defects](../ben
 
 The combined candidate includes targeted failures for throwing move-only mapped values, lvalue aliases under relocation and duplicate `try_emplace`, plus history-independent compact-copy footprints and distinct-allocator assignment refusals. Qualification runs use frozen source archives. An initial combined snapshot fails to compile because its new fixtures use initializer-list constructors that the library does not provide; the corrected fixtures exercise the existing initializer-list insertion API. Earlier layout counts are evidence for earlier source snapshots, not qualification of the final combined repair.
 
-Documented insertion guarantees distinguish copyable values, moved-from move-only mapped values and destructive recovery for a failed consuming move-only set key (an empty reusable set). Caller-requested moves from contained arguments can consume those arguments before a later failure. The separate erase/merge const-key and throwing-mutation findings remain outside this component. No repaired library pin, downstream leak closure or release approval is claimed.
+Documented insertion guarantees distinguish copyable values, moved-from move-only mapped values and destructive recovery for a failed consuming move-only set key (an empty reusable set). Caller-requested moves from contained arguments can consume those arguments before a later failure. The separate erase/merge const-key and throwing-mutation findings remain outside this component. No repaired library pin, final composed-product qualification or release approval is claimed.
+
+### Combined copy/insertion runtime gates, October 21
+
+The [frozen combined repair](../benchmarks/btree-copy-insertion-qualification-20261021.json) passes 24 layout variants and 96 mixed-mode runs across macOS, Linux and FreeBSD, covering C++17/C++20, Debug/Release and native/sanitized profiles. The archived 23-file source manifest remains unchanged throughout qualification. This supersedes the incomplete R1 fixture snapshot, without replacing its failure record.
+
+Rebuilding the original failing Detent publication candidate with only this cpp-btree override passes publication atomicity, application retry and diff-cache tests under Linux ASan/UBSan with LeakSanitizer explicitly enabled and no suppression setting. The publication sweep covers 161 PUT and 173 PATCH failure positions; all three tests finish in 0.86 seconds with no leak report. This closes the reproduced 222,608-byte/1,032-allocation leak for that consumer snapshot. Failure-position counts are not allocation-performance measurements, and this is not a clean current-product qualification.
+
+Matched cost checks and the separate erase/merge correction still block adoption. The [validated erase/reclamation blueprint](BTREE_ERASE_ARCHITECTURE.md) requires one shared mutation engine and an owning allocation-free drain cursor for Detent's `noexcept` retirement paths. Xapiand at `c625977` has no cpp-btree include/target in inspected source, CMake or built dependency metadata; its gate is N/A for this library. Strata at `88a56e7` uses only the opt-in buffer prototype and must repin when the correction is published.
