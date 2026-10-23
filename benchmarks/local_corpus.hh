@@ -1,8 +1,20 @@
 #pragma once
 #include "detent_distribution/messagepack.hh"
 #include "detent_distribution/protocol.hh"
-#include <charconv>
+#include <algorithm>
+#include <stdexcept>
 namespace detent::bench {
+inline std::size_t local_key_width(std::uint32_t count) {
+	if (!count)
+		throw std::invalid_argument("local corpus requires records");
+	return std::max<std::size_t>(6, std::to_string(count - 1).size());
+}
+inline std::string local_key(std::uint32_t index, std::size_t width) {
+	const auto digits = std::to_string(index);
+	if (digits.size() > width)
+		throw std::invalid_argument("local corpus key width exceeded");
+	return "key" + std::string(width - digits.size(), '0') + digits;
+}
 struct LocalCorpus {
 	distribution::Cursor cursor;
 	std::string wire;
@@ -11,7 +23,8 @@ struct LocalCorpus {
 inline LocalCorpus local_corpus(std::uint32_t count) {
 	namespace d = distribution;
 	namespace m = d::messagepack;
-	auto integers = (count + 3) / 4, overrides = count - integers;
+	const auto width = local_key_width(count);
+	auto integers = count / 4 + (count % 4 != 0), overrides = count - integers;
 	d::Cursor cursor;
 	cursor.cluster.fill('c');
 	cursor.group.fill('g');
@@ -37,18 +50,14 @@ inline LocalCorpus local_corpus(std::uint32_t count) {
 	u(1);
 	u(count);
 	u(overrides);
-	u(3 + std::uint64_t(count) * 13 + std::uint64_t(overrides) * 4);
+	u(3 + std::uint64_t(count) * (7 + width) + std::uint64_t(overrides) * 4);
 	a(1);
 	a(2);
 	s("app");
 	u(1);
 	a(count);
 	for (std::uint32_t i = 0; i < count; ++i) {
-		char digits[7];
-		auto end = std::to_chars(digits, digits + 7, i).ptr;
-		std::string key = "app:key";
-		key.append(6 - (end - digits), '0');
-		key.append(digits, end);
+		const auto key = "app:" + local_key(i, width);
 		a(4);
 		u(0);
 		s(key);

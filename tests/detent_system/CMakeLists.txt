@@ -1,3 +1,9 @@
+if(TARGET detent::distribution)
+  add_executable(test_scale_corpus test_scale_corpus.cc)
+  target_link_libraries(test_scale_corpus PRIVATE detent::distribution)
+  add_test(NAME test_scale_corpus COMMAND test_scale_corpus)
+endif()
+
 find_package(Python3 3.12 COMPONENTS Interpreter QUIET)
 if(Python3_FOUND)
   add_test(NAME test_system_runner_runtime

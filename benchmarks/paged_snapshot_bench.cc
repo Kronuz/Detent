@@ -72,10 +72,10 @@ int main(int argc, char **argv) {
 		auto validated = Clock::now();
 		auto validation_cpu = std::clock() - cpu;
 		std::vector<std::pair<std::string, std::uint32_t>> queries;
+		const auto key_width = detent::bench::local_key_width(count);
 		for (unsigned i = 0; i < 100000; ++i) {
 			auto index = (std::uint64_t(i) * 7919 % corpus.integers) * 4;
-			auto digits = std::to_string(index);
-			queries.emplace_back("key" + std::string(6 - digits.size(), '0') + digits, index);
+			queries.emplace_back(detent::bench::local_key(index, key_width), index);
 		}
 		auto begin = Clock::now();
 		for (const auto &[key, index] : queries) {
