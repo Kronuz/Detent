@@ -216,8 +216,46 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
 			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits",
-			   "delivery_limits", "subscription_limits"});
+			   "delivery_limits", "subscription_limits", "application_limits", "journal_limits"});
 	ServiceOptions o;
+	if (d.HasMember("application_limits")) {
+		const auto &limits = field(d, "application_limits");
+		fields(limits, {"keys", "namespaces", "producers", "mutations", "request_bytes",
+					   "state_bytes", "image_bytes", "definition_bytes", "overrides", "results"});
+		auto set = [&](const char *key, std::size_t &target) {
+			if (!limits.HasMember(key))
+				return;
+			const auto value = number(field(limits, key));
+			check(value <= std::numeric_limits<std::size_t>::max(), "application limit width");
+			target = static_cast<std::size_t>(value);
+		};
+		auto &application = o.node.application;
+		set("keys", application.keys);
+		set("namespaces", application.namespaces);
+		set("producers", application.producers);
+		set("mutations", application.mutations);
+		set("request_bytes", application.request_bytes);
+		set("state_bytes", application.state_bytes);
+		set("image_bytes", application.image_bytes);
+		set("definition_bytes", application.definition_bytes);
+		set("overrides", application.overrides);
+		set("results", application.results);
+	}
+	if (d.HasMember("journal_limits")) {
+		const auto &limits = field(d, "journal_limits");
+		fields(limits, {"hard_bytes", "hard_entries", "control_bytes", "control_entries",
+					   "replacement_bytes", "replacement_entries"});
+		auto set = [&](const char *name, std::uint64_t &target) {
+			if (limits.HasMember(name))
+				target = number(field(limits, name));
+		};
+		set("hard_bytes", o.node.storage.hard.logical_bytes);
+		set("hard_entries", o.node.storage.hard.entries);
+		set("control_bytes", o.node.storage.control_pool.logical_bytes);
+		set("control_entries", o.node.storage.control_pool.entries);
+		set("replacement_bytes", o.node.storage.replacement_pool.logical_bytes);
+		set("replacement_entries", o.node.storage.replacement_pool.entries);
+	}
 	if (d.HasMember("subscription_limits")) {
 		const auto &limits = field(d, "subscription_limits");
 		fields(limits,
@@ -252,11 +290,25 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	}
 	if (d.HasMember("delivery_limits")) {
 		const auto &limits = field(d, "delivery_limits");
-		fields(limits, {"heap_bytes", "wire_bytes"});
+		fields(limits, {"heap_bytes", "wire_bytes", "string_bytes", "records", "namespaces",
+					   "overrides", "definition_bytes"});
 		if (limits.HasMember("heap_bytes"))
 			o.delivery_heap_bytes = number(field(limits, "heap_bytes"));
 		if (limits.HasMember("wire_bytes"))
 			o.delivery.bytes = number(field(limits, "wire_bytes"));
+		auto set = [&](const char *name, std::uint32_t &target, std::uint64_t maximum) {
+			if (!limits.HasMember(name))
+				return;
+			const auto value = number(field(limits, name));
+			check(value && value <= maximum, "authority delivery limit bound");
+			target = static_cast<std::uint32_t>(value);
+		};
+		set("records", o.delivery.records, UINT32_MAX);
+		set("namespaces", o.delivery.namespaces, 65536);
+		set("overrides", o.delivery.overrides_per_definition, 256);
+		set("definition_bytes", o.delivery.definition_bytes, 16 * 1024);
+		if (limits.HasMember("string_bytes"))
+			o.delivery.string_bytes = number(field(limits, "string_bytes"));
 	}
 	if (d.HasMember("consensus_limits")) {
 		const auto &limits = field(d, "consensus_limits");
@@ -389,6 +441,8 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		}
 		o.credentials.push_back(std::move(c));
 	}
+	(void)State(o.node.context, o.node.application);
+	validate_node_options(o.node);
 	return o;
 }
 struct Service::Accounting {
@@ -464,8 +518,8 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 			  options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
 	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
-			  options_.delivery_heap_bytes <= 1024ull * 1024 * 1024 && options_.delivery.bytes &&
-			  options_.delivery.bytes <= 1024ull * 1024 * 1024 && options_.delivery.namespaces &&
+			  options_.delivery_heap_bytes <= SIZE_MAX && options_.delivery.bytes &&
+			  options_.delivery.bytes <= SIZE_MAX && options_.delivery.namespaces &&
 			  options_.delivery.namespaces <= 4096,
 		  "invalid authority delivery limits");
 	accounting_ = std::make_shared<Accounting>();

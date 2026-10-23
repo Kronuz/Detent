@@ -183,12 +183,30 @@ def process_cpu_seconds(actors: list[Actor]) -> dict[str, float]:
     return result
 
 
+def process_resources(actors: list[Actor]) -> dict[str, dict[str, int | float]]:
+    names = {
+        actor.process.pid: actor.name
+        for actor in actors
+        if actor.process.returncode is None
+    }
+    if not names:
+        return {}
+    report = command(
+        ["ps", "-o", "pid=,rss=,vsz=,time=", "-p", ",".join(map(str, names))]
+    )
+    result: dict[str, dict[str, int | float]] = {}
+    for line in report.splitlines():
+        pid, resident, virtual, clock = line.split()
+        result[names[int(pid)]] = {
+            "resident_bytes": int(resident) * 1024,
+            "virtual_bytes": int(virtual) * 1024,
+            "cpu_seconds": parse_cpu_time(clock),
+        }
+    return result
+
+
 def resident_bytes(actors: list[Actor]) -> int:
-    pids = [actor.process.pid for actor in actors if actor.process.returncode is None]
-    if not pids:
-        return 0
-    report = command(["ps", "-o", "rss=", "-p", ",".join(map(str, pids))])
-    return sum(int(line) * 1024 for line in report.splitlines())
+    return sum(int(row["resident_bytes"]) for row in process_resources(actors).values())
 
 
 def admission(

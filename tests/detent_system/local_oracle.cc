@@ -1,3 +1,4 @@
+#include "oracle_capacity.hh"
 #include "detent/client.hh"
 #include "detent/identity.hh"
 #include "detent_local/client_source.hh"
@@ -19,13 +20,14 @@ std::uint64_t number(std::istream &stream) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		if (argc != 7)
+		if (argc != 7 && argc != 14)
 			throw std::invalid_argument(
 				"local oracle requires directory, values and four identity components");
+		OracleCapacity capacity(argc, argv);
 		std::ifstream expected(argv[2], std::ios::binary);
 		const auto records = number(expected), producers = number(expected),
 				   minimum_revision = number(expected);
-		if (!records || records > 500000 || !producers || producers > 256 || producers > records ||
+		if (!records || records > capacity.limits.records || !producers || producers > 256 || producers > records ||
 			std::filesystem::file_size(argv[2]) != 24 + 8 * records)
 			throw std::invalid_argument("local oracle bounds");
 		detent::distribution::Cursor identity;
@@ -37,6 +39,7 @@ int main(int argc, char **argv) {
 		local.directory = argv[1];
 		local.identity = identity;
 		local.auto_refresh = false;
+		local.limits = capacity.limits;
 		detent::InitOptions options;
 		std::shared_ptr<detent::local::LocalReadSource> source;
 		options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
@@ -45,8 +48,10 @@ int main(int argc, char **argv) {
 																	  std::move(overrides));
 			return source;
 		};
+		const auto open_begin = std::chrono::steady_clock::now();
 		detent::Client client(std::move(options));
 		source->refresh();
+		const auto ready = std::chrono::steady_clock::now();
 		auto view = client.read_view();
 		const auto cursor = view.cursor();
 		if (!cursor || !cursor->same_identity(identity) || cursor->revision < minimum_revision ||
@@ -58,7 +63,10 @@ int main(int argc, char **argv) {
 			if (!value || value.value() != std::bit_cast<std::int64_t>(number(expected)))
 				throw std::runtime_error("local oracle mismatch: " + key);
 		}
-		std::cout << "{\"records\":" << records << ",\"revision\":" << cursor->revision << "}\n";
+		std::cout << "{\"records\":" << records << ",\"revision\":" << cursor->revision
+                  << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
+                  << ",\"verify_ms\":" << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - ready).count()
+                  << ",\"peak_rss_bytes_before_teardown\":" << oracle_peak_rss_bytes() << "}\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

@@ -25,7 +25,9 @@ class Scenario:
     shutdown_seconds: int = 30
 
     @classmethod
-    def load(cls, path: Path) -> Scenario:
+    def load(cls, path: Path, maximum_records: int = 500000) -> Scenario:
+        if not 1 <= maximum_records < 2**32:
+            raise ValueError("invalid scenario record envelope")
         if path.stat().st_size > 65536:
             raise ValueError("scenario exceeds 64 KiB")
 
@@ -60,7 +62,7 @@ class Scenario:
         ):
             raise ValueError("invalid scenario name")
         bounds = {
-            "records": (0, 500000),
+            "records": (0, maximum_records),
             "producers": (1, 256),
             "subscribers": (0, 50000),
             "durable_agents": (1, 8),

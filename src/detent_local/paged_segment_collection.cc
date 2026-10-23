@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "paged_segment_collection.hh"
 #include "detent_local/record_reader.hh"
 #include "names.hh"
@@ -180,7 +181,7 @@ void PagedSegmentCollection::start() {
 		s.core->pending_paged_recovery)
 		return;
 	s.marks = s.factory.make<PagedSegmentMarks>(s.core->account, s.core->directory_identity, s.core->identity,
-												paged::Limits{}.segments);
+												s.core->options.recovery_limits.segments);
 	s.claim = s.controls->claim(CollectorUse::Reclaim);
 	s.selected = s.core->selection.descriptor;
 	s.selected_seen = !s.selected;
@@ -336,7 +337,7 @@ void PagedSegmentCollection::advance() {
 			s.proof->inputs.emplace(s.factory, s.core->account, s.core->identity, root.segments,
 									s.core->options.recovery_limits.bytes);
 			s.proof->walk.emplace(s.core->account, s.proof->inputs->owner(), OwnedSegmentInputs::lookup, root,
-								  s.core->identity);
+								  s.core->identity, paged_limits(s.core->options.recovery_limits));
 			s.phase = Phase::Walk;
 		} else if (s.phase == Phase::CloseRoot && s.root->done()) {
 			if (s.root->error())
@@ -414,10 +415,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 				s.phase = Phase::Pack;
 			} else if (s.proof->walk->done()) {
 				const auto &limits = s.core->options.recovery_limits;
-				paged::Limits codec;
-				codec.bytes = limits.bytes;
-				codec.records = limits.records;
-				codec.namespaces = limits.namespaces;
+				const auto codec = paged_limits(limits);
 				s.proof->inputs->freeze();
 				s.proof->graph.emplace(s.core->account, s.proof->inputs->owner(), s.proof->inputs->inputs(),
 									   s.root->root(), s.core->identity, codec,

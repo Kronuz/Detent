@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "candidate_paged_validator.hh"
 #include "paged_navigation.hh"
 #include <cstring>
@@ -17,9 +18,9 @@ d::RetirementHandle<PagedImageOwner> adopt(PagedImage &&image, d::RetirementFact
 		descriptor.length != bytes->size() || descriptor.cursor != root.cursor ||
 		descriptor.profile != root.profile || root.bytes > limits.bytes - descriptor.length ||
 		root.records > limits.records || root.namespaces > limits.namespaces ||
-		image.segments().size() != root.segments || root.segments > paged::Limits{}.segments)
+		image.segments().size() != root.segments || root.segments > limits.segments)
 		throw std::invalid_argument("paged candidate manifest mismatch");
-	const auto encoded = paged::encode_root(root);
+	const auto encoded = paged::encode_root(root, paged_limits(limits, descriptor.length));
 	if (!std::equal(encoded.begin(), encoded.end(), bytes->data()))
 		throw std::invalid_argument("paged candidate bytes differ from manifest");
 	std::uint64_t physical = 0;
@@ -67,10 +68,7 @@ void CandidatePagedValidator::step(ValidationBudget &budget) {
 		const auto segments = image_->image().segments();
 		if (next_ == segments.size()) {
 			inputs_.freeze();
-			paged::Limits limits;
-			limits.bytes = limits_.bytes - image_->image().descriptor().length;
-			limits.records = limits_.records;
-			limits.namespaces = limits_.namespaces;
+			const auto limits = paged_limits(limits_, image_->image().descriptor().length);
 			graph_.emplace(heap_, inputs_.owner(), inputs_.inputs(), image_->image().root(), storage_, limits,
 						   PagedSemanticLimits{limits_.strings, limits_.overrides});
 			break;

@@ -1,9 +1,11 @@
+#include "paged_limits.hh"
 #include "mapped_recovery_admission.hh"
 #include "paged_plan.hh"
 #include "warm_recovery_eligibility.hh"
 namespace detent::local::detail {
 namespace d = distribution;
-void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandle<LeasedPagedRoot> prior) {
+void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandle<LeasedPagedRoot> prior,
+									  ViewLimits admission) {
 	if (populated_ || failed_ || root_ || !rows_.empty())
 		throw std::logic_error("mapped admission unavailable");
 	try {
@@ -21,7 +23,7 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 			for (std::size_t i = 0; plan.registry() && i < plan.registry()->inputs().size(); ++i)
 				if (plan.base_reachability(i).pages)
 					++count;
-		if (count > paged::Limits{}.segments)
+		if (count > admission.segments)
 			throw std::length_error("mapped admission segment limit exceeded");
 		rows_.reserve(count);
 		root_ = factory_.make<GenerationMapping>(mappings_);
@@ -40,7 +42,8 @@ void MappedRecoveryAdmission::populate(const PagedPlan &plan, d::RetirementHandl
 			std::allocate_shared<Directory>(d::StorageAllocator<Directory>(heap_), directory_control_);
 		using Mapping = d::RetirementHandle<GenerationMapping>;
 		root_hook_ = std::allocate_shared<Mapping>(d::StorageAllocator<Mapping>(heap_), root_);
-		paged::Limits limits;
+		auto limits = paged_limits(admission, target_.length);
+		paged::encode_root(plan.root(), limits);
 		limits.segments = plan.root().segments;
 		const bool progress = warm_ && reuses_paged_state(prior->root(), plan.root());
 		target_registry_ =

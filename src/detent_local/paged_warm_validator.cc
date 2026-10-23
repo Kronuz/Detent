@@ -602,7 +602,7 @@ bool WarmGraphValidator::record_reachability(SegmentRegistry &registry, Validati
 	auto &s = *impl_;
 	require(registry.storage_ == s.base->storage_identity());
 	if (registry.validated_root_) {
-		require(p::encode_root(*registry.validated_root_) == p::encode_root(s.expected));
+		require(p::encode_root(*registry.validated_root_, s.limits) == p::encode_root(s.expected, s.limits));
 		return true;
 	}
 	require(registry.inputs().size() == s.expected.segments && (!s.recorded || s.recorded == &registry));

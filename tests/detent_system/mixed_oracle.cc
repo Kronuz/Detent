@@ -1,3 +1,4 @@
+#include "oracle_capacity.hh"
 #include "detent/client.hh"
 #include "detent/identity.hh"
 #include "detent/validation.hh"
@@ -48,8 +49,9 @@ std::uint64_t bucket(std::string_view key, std::string_view cohort) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		if (argc != 7)
+		if (argc != 7 && argc != 14)
 			throw std::invalid_argument("mixed oracle requires directory, recipes and four identity components");
+		OracleCapacity capacity(argc, argv);
 		std::ifstream expected(argv[2], std::ios::binary);
 		std::array<char, 8> magic{};
 		expected.read(magic.data(), magic.size());
@@ -57,7 +59,7 @@ int main(int argc, char **argv) {
 			throw std::invalid_argument("mixed oracle format");
 		const auto records = number(expected), producers = number(expected), revision = number(expected),
 				   namespace_bytes = number(expected);
-		if (!records || records > 500000 || !producers || producers > 256 || producers > records ||
+		if (!records || records > capacity.limits.records || !producers || producers > 256 || producers > records ||
 			namespace_bytes > 198 || std::filesystem::file_size(argv[2]) != 40 + namespace_bytes + 8 * records)
 			throw std::invalid_argument("mixed oracle bounds");
 		std::string shared_namespace(namespace_bytes, '\0');
@@ -74,6 +76,7 @@ int main(int argc, char **argv) {
 		local.directory = argv[1];
 		local.identity = identity;
 		local.auto_refresh = false;
+		local.limits = capacity.limits;
 		detent::InitOptions options;
 		std::shared_ptr<detent::local::LocalReadSource> source;
 		options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
@@ -82,8 +85,10 @@ int main(int argc, char **argv) {
 																	  std::move(overrides));
 			return source;
 		};
+		const auto open_begin = std::chrono::steady_clock::now();
 		detent::Client client(std::move(options));
 		source->refresh();
+		const auto ready = std::chrono::steady_clock::now();
 		const auto view = client.read_view();
 		const auto cursor = view.cursor();
 		if (!cursor || !cursor->same_identity(identity) || cursor->revision < revision)
@@ -135,7 +140,10 @@ int main(int argc, char **argv) {
 			throw std::runtime_error("mixed SDK oracle corpus cardinality mismatch");
 		std::cout << "{\"records\":" << records << ",\"bool_knobs\":" << booleans
 				  << ",\"int_knobs\":" << integers << ",\"deleted\":" << deleted
-				  << ",\"revision\":" << cursor->revision << "}\n";
+				  << ",\"revision\":" << cursor->revision
+                  << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
+                  << ",\"verify_ms\":" << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - ready).count()
+                  << ",\"peak_rss_bytes_before_teardown\":" << oracle_peak_rss_bytes() << "}\n";
 	} catch (const std::exception &exception) {
 		std::cerr << exception.what() << '\n';
 		return 1;

@@ -121,7 +121,8 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"compaction_interval_ms",
 					"timeout_ms",
 					"compression",
-					"reset_from"});
+					"reset_from",
+					"image_limits"});
 	ManagedOptions result;
 	result.coordinator.directory = directory;
 	if (object.HasMember("delivery_mode")) {
@@ -208,12 +209,33 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 		require(object["compression"].IsBool(), "managed compression requires a boolean");
 		source.compression = object["compression"].GetBool();
 	}
-	result.heap_bytes = number(object, "heap_bytes", result.heap_bytes, 1024 * 1024, 1024ull * 1024 * 1024);
+	result.heap_bytes = number(object, "heap_bytes", result.heap_bytes, 1024 * 1024, SIZE_MAX);
 	result.mapping_bytes =
-		number(object, "mapping_bytes", result.mapping_bytes, 4096, 4ull * 1024 * 1024 * 1024);
+		number(object, "mapping_bytes", result.mapping_bytes, 4096, SIZE_MAX);
 	result.disk.limits = {number(object, "disk_bytes", 1024ull * 1024 * 1024, 1024, 1ull << 40),
 						  number(object, "disk_entries", 4096, 4, 1000000),
 						  number(object, "disk_generations", 1024, 1, 1000000)};
+	if (object.HasMember("image_limits")) {
+		const auto &limits = field(object, "image_limits");
+		fields(limits, {"records", "namespaces", "wire_bytes", "string_bytes", "decoded_bytes",
+					   "image_bytes", "pages", "segments", "overrides", "definition_bytes"});
+		auto &wire = source.limits;
+		auto &view = result.coordinator.view_limits;
+		wire.records = number(limits, "records", wire.records, 1, UINT32_MAX);
+		wire.namespaces = number(limits, "namespaces", wire.namespaces, 1, 65536);
+		wire.bytes = number(limits, "wire_bytes", wire.bytes, 1, SIZE_MAX);
+		wire.string_bytes = number(limits, "string_bytes", wire.string_bytes, 1, SIZE_MAX);
+		wire.storage_bytes = number(limits, "decoded_bytes", wire.storage_bytes, 1, result.heap_bytes);
+		wire.overrides_per_definition = number(limits, "overrides", wire.overrides_per_definition, 0, 256);
+		wire.definition_bytes = number(limits, "definition_bytes", wire.definition_bytes, 9, 16 * 1024);
+		view.records = wire.records;
+		view.namespaces = wire.namespaces;
+		view.strings = wire.string_bytes;
+		view.overrides = wire.overrides_per_definition;
+		view.bytes = number(limits, "image_bytes", view.bytes, 4096, result.mapping_bytes);
+		view.pages = number(limits, "pages", view.pages, 1, UINT64_MAX);
+		view.segments = number(limits, "segments", view.segments, 1, SIZE_MAX);
+	}
 	result.disk.mode = mode;
 	result.disk.artifact_mode = number(object, "artifact_mode", system ? 0644 : 0600, 0, 0777);
 	require(result.disk.artifact_mode == 0600 || result.disk.artifact_mode == 0640 ||

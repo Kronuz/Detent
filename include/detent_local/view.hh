@@ -3,6 +3,7 @@
 #include "detent/result.hh"
 #include "detent_distribution/retirement.hh"
 #include "layout.hh"
+#include "paged_layout.hh"
 #include <memory>
 #include <optional>
 
@@ -28,6 +29,7 @@ struct ViewLimits {
 	distribution::RetirementDomain *retirement_domain = nullptr;
 	// Mapped virtual bytes are counted separately from managed heap capacity.
 	std::shared_ptr<distribution::StorageLedger> mapping_account;
+	std::uint64_t pages = paged::Limits{}.pages, segments = paged::Limits{}.segments;
 };
 class ImageValidator;
 class ReadView {

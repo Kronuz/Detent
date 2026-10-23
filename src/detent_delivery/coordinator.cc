@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "detent_delivery/coordinator.hh"
 #include "candidate_flat_validator.hh"
 #include "coordinator_internal.hh"
@@ -328,12 +329,7 @@ struct Coordinator::Impl {
 					if (!count)
 						result->descriptor = actual->descriptor();
 					else {
-						l::paged::Limits bounds;
-						if (limits.bytes < l::paged::root_bytes)
-							throw std::invalid_argument("paged compaction manifest exceeds limit");
-						bounds.bytes = limits.bytes - l::paged::root_bytes;
-						bounds.records = limits.records;
-						bounds.namespaces = limits.namespaces;
+						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
 						l::detail::PagedCompactionBuilder candidate(*actual, {selected.data(), count},
 																	generation, factory, heap,
 																	l::detail::CompactionLimits{}, bounds);
@@ -388,12 +384,7 @@ struct Coordinator::Impl {
 						}
 						result->plan.emplace(candidate.take());
 					} else {
-						l::paged::Limits bounds;
-						if (limits.bytes < l::paged::root_bytes)
-							throw std::invalid_argument("paged output manifest exceeds limit");
-						bounds.bytes = limits.bytes - l::paged::root_bytes;
-						bounds.records = limits.records;
-						bounds.namespaces = limits.namespaces;
+						const auto bounds = l::detail::paged_limits(limits, l::paged::root_bytes);
 						l::detail::PagedDeltaPlanBuilder candidate(*actual, source->delta, generation,
 																   factory, heap, bounds);
 						while (!candidate.done()) {

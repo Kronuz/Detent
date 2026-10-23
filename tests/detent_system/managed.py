@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN, Authority
+from capacity import CapacityProfile
 from runtime import Actor, Actors
 from writers import Writers
 
@@ -48,8 +49,10 @@ class ManagedCohort:
         source_timeout_ms: int = 2000,
         selection_timeout: float = 30,
         namespaces: list[str] | None = None,
+        capacity: CapacityProfile | None = None,
     ) -> None:
         self.authority = authority
+        self.capacity = capacity
         self.actors = actors
         self.directory = directory
         self.binary = binary
@@ -115,6 +118,8 @@ class ManagedCohort:
                     "reconnect_maximum_ms": 100,
                     "timeout_ms": self.source_timeout_ms,
                 }
+                if self.capacity is not None:
+                    upstream.update(self.capacity.managed())
                 upstream_path = directory / "upstream.json"
                 upstream_path.write_text(json.dumps(upstream))
                 upstream_path.chmod(0o600)
@@ -197,6 +202,8 @@ class ManagedCohort:
                 "reconnect_maximum_ms": 100,
                 "timeout_ms": self.source_timeout_ms,
             }
+            if self.capacity is not None:
+                source.update(self.capacity.managed())
             if relay_ports:
                 source.pop("authority_endpoints")
                 source.pop("quorum_refresh_ms")
@@ -262,6 +269,7 @@ class ManagedCohort:
             writers.write_expected(stream, revision)
         await self.wait_selected(revision)
         for index in range(len(self.members)):
+            oracle_started = time.monotonic()
             directory = self.directory / f"agent-{index}" / "generations"
             verifier = await self.actors.start(
                 f"oracle-{index}",
@@ -273,6 +281,7 @@ class ManagedCohort:
                     CONTEXT["group"],
                     CONTEXT["epoch"],
                     self.scope,
+                    *(self.capacity.oracle_arguments() if self.capacity else []),
                 ],
             )
             await asyncio.wait_for(verifier.process.wait(), 60)
@@ -281,6 +290,7 @@ class ManagedCohort:
                 raise RuntimeError(f"independent SDK oracle rejected agent {index}")
             self.actors.evidence.record(
                 "managed_verified",
+                oracle_process_seconds=time.monotonic() - oracle_started,
                 index=index,
                 records=writers.records,
                 revision=revision,

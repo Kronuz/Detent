@@ -19,6 +19,7 @@ struct NodeOptions {
 		{1024ull * 1024 * 1024, 65536}, {8ull * 1024 * 1024, 3}, {512ull * 1024 * 1024, 4}, 64, 3};
 	std::size_t waiters = 1024;
 };
+void validate_node_options(const NodeOptions &);
 struct Completion {
 	kronuz::consensus::RequestId request;
 	std::uint64_t index;

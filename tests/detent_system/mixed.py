@@ -55,10 +55,15 @@ class MixedWriters(Writers):
         seed: int,
         *,
         shared_namespace: str | None = None,
+        maximum_records: int = 500000,
     ) -> None:
-        if not 1 <= producers <= 256 or not producers <= records <= 500000:
+        if (
+            not 1 <= producers <= 256
+            or not producers <= records <= maximum_records
+            or not 1 <= maximum_records < 2**32
+        ):
             raise ValueError(
-                "mixed writers require 1–256 producers and at most 500k keys"
+                "mixed writers exceed the configured producer or record bounds"
             )
         if shared_namespace is not None and (
             not 1 <= len(shared_namespace) <= 198

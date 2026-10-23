@@ -37,12 +37,6 @@ std::uint64_t minimum(std::span<const char> bytes, std::size_t offset, unsigned 
 	return value << ((width - available) * 8);
 }
 } // namespace
-p::Limits paged_format_limits() noexcept {
-	p::Limits limits;
-	limits.bytes = limits.pages = limits.segments = UINT64_MAX;
-	limits.records = limits.namespaces = limits.prefix_bytes = UINT32_MAX;
-	return limits;
-}
 std::optional<std::pair<distribution::Cursor, distribution::Profile>>
 validate_paged_root_prefix(std::span<const char> bytes) {
 	require(bytes.size() <= p::root_bytes);

@@ -1,4 +1,5 @@
 #include "paged_publication_artifacts.hh"
+#include <limits>
 #include "names.hh"
 #include "segment_names.hh"
 namespace detent::local::detail {
@@ -30,7 +31,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		if (artifacts_.get_allocator() != Allocator(plan.bytes()->account()))
 			throw std::invalid_argument("paged artifact account mismatch");
 		const auto segments = plan.segments();
-		if (segments.size() > paged::Limits{}.segments)
+		if (segments.size() > (std::numeric_limits<std::size_t>::max() - 3) / 2)
 			throw std::length_error("paged publication artifact count exceeded");
 		artifacts_.reserve(2 * segments.size() + 3);
 		const auto registry = plan.registry();
