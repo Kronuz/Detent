@@ -243,7 +243,7 @@ class MixedWriters(Writers):
     async def workload(
         self, producer: int, size: int, mode: str, rng: random.Random
     ) -> None:
-        if size not in (1, 10, 1000) or mode not in (
+        if size not in (1, 10, ATOMIC_OPERATIONS, 1000) or mode not in (
             "upsert",
             "delete",
             "reinsert",

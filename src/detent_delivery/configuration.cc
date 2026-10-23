@@ -235,6 +235,7 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 		view.bytes = number(limits, "image_bytes", view.bytes, 4096, result.mapping_bytes);
 		view.pages = number(limits, "pages", view.pages, 1, UINT64_MAX);
 		view.segments = number(limits, "segments", view.segments, 1, SIZE_MAX);
+		(void)maximum_response_wire_bytes(wire.bytes);
 	}
 	result.disk.mode = mode;
 	result.disk.artifact_mode = number(object, "artifact_mode", system ? 0644 : 0600, 0, 0777);

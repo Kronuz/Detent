@@ -217,6 +217,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 selection_timeout=300,
                 namespaces=list(authority.namespaces),
                 capacity=capacity,
+                relay_count=arguments.relay_count,
             )
             bootstrap_at = time.monotonic()
             await cohort.start()
@@ -237,6 +238,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 for size in (1, 128):
                     if size > 1 and not isinstance(writers, MixedWriters):
                         continue
+                    before_intents = writers.counts["sized_operation_intents"]
                     began_update = time.monotonic()
                     if isinstance(writers, MixedWriters):
                         await writers.workload(
@@ -254,7 +256,12 @@ async def run(arguments: argparse.Namespace) -> None:
                     evidence.record(
                         "capacity_bounded_update",
                         records=scenario.records,
-                        mutations=size,
+                        requested_mutations=size,
+                        mutations=(
+                            writers.counts["sized_operation_intents"] - before_intents
+                        )
+                        if isinstance(writers, MixedWriters)
+                        else 1,
                         durable_ack_seconds=acknowledged - began_update,
                         selected_seconds=time.monotonic() - began_update,
                         selection_poll_seconds=0.05,
@@ -518,6 +525,7 @@ def main() -> None:
             f"--{name}", type=lambda value: Path(value).resolve(), required=True
         )
     parser.add_argument("--capacity-config", type=lambda value: Path(value).resolve())
+    parser.add_argument("--relay-count", type=int, choices=(1, 2), default=2)
     parser.add_argument("--active", type=int, default=128)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed", type=int, default=17)

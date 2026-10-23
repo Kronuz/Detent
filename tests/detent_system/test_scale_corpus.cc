@@ -9,11 +9,11 @@ void check(bool value) {
 }
 int main() {
 	check(b::local_key(999999, b::local_key_width(1000000)) == "key999999");
-	check(b::local_key(0, b::local_key_width(1300000)) == "key0000000");
-	check(b::local_key(1299999, b::local_key_width(1300000)) == "key1299999");
+	check(b::local_key(0, b::local_key_width(1000001)) == "key0000000");
+	check(b::local_key(1000000, b::local_key_width(1000001)) == "key1000000");
 	check(b::local_key(9999999, b::local_key_width(10000000)) == "key9999999");
-	check(b::local_key(999999, b::local_key_width(1300000)) <
-		  b::local_key(1000000, b::local_key_width(1300000)));
+	check(b::local_key(999999, b::local_key_width(1000001)) <
+		  b::local_key(1000000, b::local_key_width(1000001)));
 	for (const auto count : {1u, 4u, 17u, 1000u}) {
 		const auto corpus = b::local_corpus(count);
 		d::SnapshotDecoder decoder(corpus.cursor, {"app"});

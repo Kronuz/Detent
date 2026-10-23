@@ -16,9 +16,9 @@ struct OracleCapacity {
 	OracleCapacity(int argc, char** argv) {
 		if (argc == 7)
 			return;
-		if (argc != 14)
-			throw std::invalid_argument("oracle requires seven optional capacity integers");
-		std::array<std::uint64_t, 7> values{};
+		if (argc != 16)
+			throw std::invalid_argument("oracle requires nine optional capacity integers");
+		std::array<std::uint64_t, 9> values{};
 		for (unsigned index = 0; index != values.size(); ++index) {
 			const std::string_view text(argv[index + 7]);
 			const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), values[index]);
@@ -33,6 +33,16 @@ struct OracleCapacity {
 		if (values[2]) limits.strings = values[2];
 		if (values[3]) limits.pages = values[3];
 		if (values[4]) limits.segments = values[4];
+        if (values[7] != UINT64_MAX) {
+            if (!values[7] || values[7] > UINT32_MAX)
+                throw std::invalid_argument("oracle namespace limit width");
+            limits.namespaces = values[7];
+        }
+        if (values[8] != UINT64_MAX) {
+            if (values[8] > 256)
+                throw std::invalid_argument("oracle override limit width");
+            limits.overrides = values[8];
+        }
 		heap = std::make_shared<detent::distribution::StorageLedger>(values[5]);
 		runtime = std::make_unique<detent::distribution::RetirementRuntime>(heap, 2);
 		domain.emplace(runtime->domain(heap, 4096));

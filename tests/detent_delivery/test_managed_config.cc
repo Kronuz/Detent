@@ -65,17 +65,17 @@ int main(int argc, char **argv) {
 		};
 		{
 			rapidjson::Document capacity;
-			capacity.Parse(R"({"records":1300000,"wire_bytes":536870912,"image_bytes":536870912,
-"decoded_bytes":536870912,"pages":3000000,"segments":2048})");
+			capacity.Parse(R"({"records":5000000,"wire_bytes":536870912,"image_bytes":536870912,
+"decoded_bytes":536870912,"pages":12000000,"segments":2048})");
 			object.AddMember("image_limits", rapidjson::Value(capacity, object.GetAllocator()),
 							 object.GetAllocator());
 			object.AddMember("heap_bytes", 1073741824, object.GetAllocator());
 			object.AddMember("mapping_bytes", 1073741824, object.GetAllocator());
 			write();
 			const auto larger = load();
-			check(larger.coordinator.source.limits.records == 1300000 &&
-				  larger.coordinator.view_limits.records == 1300000 &&
-				  larger.coordinator.view_limits.pages == 3000000 &&
+			check(larger.coordinator.source.limits.records == 5000000 &&
+				  larger.coordinator.view_limits.records == 5000000 &&
+				  larger.coordinator.view_limits.pages == 12000000 &&
 				  larger.coordinator.view_limits.segments == 2048 &&
 				  larger.coordinator.source.limits.storage_bytes == 536870912);
 			for (auto value : {0ull, 4294967296ull}) {
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 				write();
 				rejected();
 			}
-			object["image_limits"]["records"].SetUint(1300000);
+			object["image_limits"]["records"].SetUint(5000000);
 			object["image_limits"]["decoded_bytes"].SetUint64(1073741825);
 			write();
 			rejected();

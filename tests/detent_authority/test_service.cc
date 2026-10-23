@@ -35,7 +35,7 @@ void wait_released(const DeferredWriter &writer) {
 	}
 }
 std::string authority =
-	"\"cluster\":\"63000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
+	"\"cluster\":\"612000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
 	"\"epoch\":\"65000000000000000000000000000000\",";
 Writer call(Service &service, std::string path, std::string fields) {
 	http::Request r;
@@ -100,7 +100,7 @@ int main() {
 			assert(accepted == (std::string_view(flag) == "true" || std::string_view(flag) == "false"));
 		}
 		for (const auto *capacity : {
-			 R"({"keys":1300000,"state_bytes":268435456,"image_bytes":402653184})",
+			 R"({"keys":5000000,"state_bytes":268435456,"image_bytes":402653184})",
 			 R"({"keys":10000000,"state_bytes":268435456,"image_bytes":402653184})"}) {
 			{
 				std::ofstream file(config);
@@ -110,7 +110,7 @@ int main() {
 			}
 			assert(::chmod(config.c_str(), 0600) == 0);
 			const auto configured = load_service_options(config);
-			assert(configured.node.application.keys >= 1300000);
+			assert(configured.node.application.keys >= 5000000);
 			assert(configured.node.application.state_bytes == 268435456);
 			assert(configured.node.application.image_bytes == 402653184);
 			assert(semantic_profile(configured.node.application) != semantic_profile(Limits{}));

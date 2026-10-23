@@ -196,6 +196,25 @@ int main() {
 		auto image = builder.take();
 		require(!builder.done() && image.segments().size() == 1 && image.root().records == 2);
 		logical = image.root().logical;
+        {
+            auto controls = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
+            d::RetirementRuntime runtime{controls, 1};
+            auto domain = runtime.domain(account, 4);
+            auto metadata = image.root();
+            metadata.segments = metadata.pages = 4097;
+            metadata.bytes = metadata.pages * p::page_header_bytes + metadata.tree.length;
+            rejects<std::invalid_argument>([&] {
+                l::detail::DependencyDiscovery refused(account, domain, metadata, storage);
+            });
+            {
+                p::Limits limits;
+                limits.segments = 4097;
+                l::detail::DependencyDiscovery admitted(account, domain, metadata, storage, limits);
+                require(!admitted.done());
+            }
+            domain.close().wait();
+        }
+
 		recover_dependencies(image, account, storage, 1);
 		recover_dependencies(image, account, storage, 8192, false, 1);
 		{

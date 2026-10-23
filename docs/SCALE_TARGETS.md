@@ -1,4 +1,4 @@
-**Scale targets: 1.3M knobs, 10k publishers, 250k agents, sub-millisecond reads**
+**Scale targets: 5M knobs, 10k publishers, 250k agents, sub-millisecond reads**
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)
 **Date:** 2026-10-10
@@ -10,7 +10,7 @@ Detent's planning workload (500,000 knobs, 300 publishers, 50,000 agents) under-
 
 | Dimension | Target | Previous planning number |
 | --- | --- | --- |
-| Knobs | **1,300,000**, with 5M/10M exploratory trials | 500,000 |
+| Knobs | **5,000,000**, with 10M exploratory trials | 500,000 |
 | Concurrent publishers | **10,000+** | 300 |
 | Agents (hosts reading knobs) | **250,000+** | 50,000 |
 | Final read latency, warm (application call to value) | **under 1 ms** | p99 under 10 µs, lookup only |
@@ -166,14 +166,14 @@ Measure at 1,000,000 knobs, on Linux, macOS and FreeBSD, with release builds. Re
 | Agent restart | Process start to serving reads from the durable generation | Report |
 | Agent cold bootstrap | Empty state to current, through the relay tiers | Report, with bytes moved |
 | Relay restart | Start to serving its bundles | Report |
-| Authority restart | Recovery to accepting transactions at 1.3M knobs and 10,000 producers | Report |
+| Authority restart | Recovery to accepting transactions at 5M knobs and 10,000 producers | Report |
 | Fleet cold start | 250,000 agents reconnecting at once | Curve to 50%, 99% and 100% current |
 
 "Report" targets become numbers once the first measurement exists. Record each in `benchmarks/*.json` and summarize in this document.
 
 ## Next steps
 
-1. Make limits configurable and raisable online, then qualify the current pipeline at 1.3M knobs. Follow the [capacity matrix](CAPACITY_QUALIFICATION.md), including 130K as the supplied enterprise scale reference and 5M/10M exploratory trials.
+1. Make limits configurable and raisable online, then qualify the current pipeline at 5M knobs. Follow the [capacity matrix](CAPACITY_QUALIFICATION.md), including 130K as the supplied enterprise scale reference and 10M exploratory trials.
 2. Remove full validation on open, and add the Python and Rust mapped readers. These are the read-latency items, and they're independent of the distribution work.
 3. Finish Stage 5B relays with multi-tier support and the 250,000-agent harness.
 4. Stage 5C incremental publication, measured as fleet CPU per one-knob change.

@@ -49,7 +49,7 @@ std::uint64_t bucket(std::string_view key, std::string_view cohort) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		if (argc != 7 && argc != 14)
+		if (argc != 7 && argc != 16)
 			throw std::invalid_argument("mixed oracle requires directory, recipes and four identity components");
 		OracleCapacity capacity(argc, argv);
 		std::ifstream expected(argv[2], std::ios::binary);

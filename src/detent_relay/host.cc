@@ -164,6 +164,7 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 		auto &record = *records[index];
 		record.directory = configured.source.coordinator.directory;
 		BundleOptions bundle_options;
+		bundle_options.encoding = configured.source.coordinator.source.limits;
 		bundle_options.configured = configured.source.coordinator.source.configured;
 		bundle_options.namespaces = configured.source.coordinator.source.namespaces.size();
 		bundle_options.retained_edges = configured.retained_edges;

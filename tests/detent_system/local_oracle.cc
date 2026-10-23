@@ -20,7 +20,7 @@ std::uint64_t number(std::istream &stream) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		if (argc != 7 && argc != 14)
+		if (argc != 7 && argc != 16)
 			throw std::invalid_argument(
 				"local oracle requires directory, values and four identity components");
 		OracleCapacity capacity(argc, argv);

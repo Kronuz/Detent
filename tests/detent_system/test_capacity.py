@@ -22,7 +22,7 @@ class CapacityTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.path = Path(self.temporary.name) / "profile.json"
         self.data: dict[str, Any] = json.loads(
-            (Path(__file__).with_name("presets") / "capacity-1300000.json").read_text()
+            (Path(__file__).with_name("presets") / "capacity-5000000.json").read_text()
         )
 
     def write(self) -> None:
@@ -31,17 +31,17 @@ class CapacityTests(unittest.TestCase):
     def test_explicit_profile_reaches_native_participants(self) -> None:
         self.write()
         profile = CapacityProfile.load(self.path)
-        self.assertEqual(profile.application["keys"], 1300000)
+        self.assertEqual(profile.application["keys"], 5000000)
         self.assertEqual(profile.managed()["image_limits"], profile.image)
-        self.assertEqual(profile.oracle_arguments()[0], "1300000")
-        self.assertEqual(profile.journal, {})
+        self.assertEqual(profile.oracle_arguments()[0], "5000000")
+        self.assertEqual(profile.relay_cache_bytes, 2147483648)
 
     def test_booleans_and_unfunded_numeric_budgets_are_rejected(self) -> None:
         self.data["image"]["records"] = True
         self.write()
         with self.assertRaises(ValueError):
             CapacityProfile.load(self.path)
-        self.data["image"]["records"] = 1300000
+        self.data["image"]["records"] = 5000000
         self.data["heap_bytes"] = 0
         self.write()
         with self.assertRaises(ValueError):
@@ -57,7 +57,7 @@ class CapacityTests(unittest.TestCase):
             json.dumps(
                 {
                     "name": "capacity",
-                    "records": 1300000,
+                    "records": 5000000,
                     "producers": 4,
                     "subscribers": 16,
                     "durable_agents": 2,
@@ -67,7 +67,7 @@ class CapacityTests(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             Scenario.load(self.path)
-        self.assertEqual(Scenario.load(self.path, 1300000).records, 1300000)
+        self.assertEqual(Scenario.load(self.path, 5000000).records, 5000000)
         with self.assertRaises(ValueError):
             Scenario.load(self.path, 2**32)
 

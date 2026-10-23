@@ -2,7 +2,7 @@
 
 **Status:** Candidate implementation under qualification. No new supported system ceiling is declared.
 
-Authority and managed delivery configuration can set capacity without recompiling. Defaults remain unchanged. The [qualification plan](CAPACITY_QUALIFICATION.md) targets a fresh group with capacity for 1.3M knobs, then grows its actual contents through the cardinality matrix. A configuration accepted at startup is not evidence that the hardware sustains that workload.
+Authority and managed delivery configuration can set capacity without recompiling. Defaults remain unchanged. The [qualification plan](CAPACITY_QUALIFICATION.md) targets a fresh group with capacity for 5M knobs, then grows its actual contents through the cardinality matrix. A configuration accepted at startup is not evidence that the hardware sustains that workload.
 
 ## Authority
 
@@ -11,12 +11,14 @@ Merge the following settings into each voter's existing private authority config
 ```json
 {
   "application_limits": {
-    "keys": 1300000,
-    "state_bytes": 268435456,
-    "image_bytes": 402653184
+    "keys": 5000000,
+    "state_bytes": 805306368,
+    "image_bytes": 1073741824
   },
+  "journal_limits": {"hard_bytes": 4294967296, "replacement_bytes": 2147483648},
   "delivery_limits": {
-    "records": 1300000
+    "wire_bytes": 536870912,
+    "records": 5000000
   }
 }
 ```
@@ -36,15 +38,16 @@ Merge this envelope into the existing private managed source configuration used 
 ```json
 {
   "image_format": "paged-v2",
-  "heap_bytes": 1073741824,
-  "mapping_bytes": 1073741824,
-  "disk_bytes": 4294967296,
+  "heap_bytes": 3221225472,
+  "mapping_bytes": 3221225472,
+  "disk_bytes": 17179869184,
   "image_limits": {
-    "records": 1300000,
-    "decoded_bytes": 536870912,
-    "image_bytes": 536870912,
-    "pages": 3000000,
-    "segments": 4096
+    "records": 5000000,
+    "wire_bytes": 536870912,
+    "decoded_bytes": 2147483648,
+    "image_bytes": 1610612736,
+    "pages": 12000000,
+    "segments": 16384
   }
 }
 ```
@@ -57,6 +60,6 @@ The paged SDK accepts the corresponding `ViewLimits`, including page and segment
 
 ## Qualification harness
 
-`run_fleet.py --capacity-config tests/detent_system/presets/capacity-1300000.json` supplies the same explicit profile to the authority, relay source, agent and independent SDK oracle. The scenario retains the actual record count. Without an explicit profile, scenario and mixed-writer validation retain their 500K defaults.
+`run_fleet.py --capacity-config tests/detent_system/presets/capacity-5000000.json` supplies the same explicit profile to the authority, relay source, agent and independent SDK oracle. The scenario retains the actual record count. Without an explicit profile, scenario and mixed-writer validation retain their 500K defaults.
 
 Resource sampling starts before seeding, continues through bootstrap and workload verification, and records per-process RSS, virtual size and CPU. RSS maxima from that stream are sampled lower bounds; virtual size includes the process address space, not just data mappings. Native SDK oracles separately report kernel peak RSS before teardown and their open/verification times. The driver, service and mapped-reader measurements must remain distinct.

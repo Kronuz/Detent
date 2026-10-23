@@ -8,6 +8,7 @@
 namespace detent::relay {
 namespace {
 using Value = rapidjson::Value;
+constexpr std::size_t maximum_heap_bytes = std::min<std::uint64_t>(SIZE_MAX, 1ull << 40);
 void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
@@ -118,17 +119,22 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 				"relay sources require subscription delivery");
 		bundle.source.coordinator.delivery_mode = delivery::DeliveryMode::Subscription;
 		bundle.source.disk.artifact_mode = 0600;
-		bundle.cache_bytes = number(value, "cache_bytes", bundle.cache_bytes, 1024 * 1024, 1ull << 30);
+		bundle.cache_bytes = number(value, "cache_bytes", bundle.cache_bytes, 1024 * 1024, maximum_heap_bytes);
 		bundle.retained_edges = number(value, "retained_edges", bundle.retained_edges, 1, 256);
 		for (const auto &prior : result.bundles)
 			require(!prior.source.coordinator.source.configured.same_identity(
 						bundle.source.coordinator.source.configured),
 					"duplicate relay bundle identity");
-		result.heap_bytes += bundle.source.heap_bytes + bundle.cache_bytes;
+		for (const auto amount : {bundle.source.heap_bytes, bundle.cache_bytes}) {
+			require(result.heap_bytes <= maximum_heap_bytes &&
+					amount <= maximum_heap_bytes - result.heap_bytes,
+					"relay aggregate heap funding exceeds host limit");
+			result.heap_bytes += amount;
+		}
 		result.bundles.push_back(std::move(bundle));
 	}
 	const auto minimum_heap = result.heap_bytes;
-	result.heap_bytes = number(object, "heap_bytes", minimum_heap, minimum_heap, 1ull << 40);
+	result.heap_bytes = number(object, "heap_bytes", minimum_heap, minimum_heap, maximum_heap_bytes);
 	const auto &credentials = field(object, "credentials");
 	require(credentials.IsArray() && !credentials.Empty() && credentials.Size() <= 10000,
 			"relay credential count");

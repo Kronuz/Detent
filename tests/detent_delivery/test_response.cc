@@ -1,5 +1,6 @@
 #include "detent_delivery/response.hh"
 #include "detent_distribution/messagepack.hh"
+#include <array>
 #include <charconv>
 #include <iostream>
 #include <source_location>
@@ -135,6 +136,21 @@ void replace(std::string &text, std::string_view before, std::string_view after)
 int main() {
 	try {
 		const std::array<std::string_view, 1> names{"ns"};
+        {
+            d::Limits limits;
+            limits.bytes = 2ull * 1024 * 1024 * 1024;
+            t::ResponseDecoder decoder(cursor(), {}, d::NamespaceSelection(names), false, limits);
+            consume(decoder, response(d::UpdateKind::Snapshot, false, false));
+            check(decoder.done());
+            drain(decoder);
+            for (const auto invalid : std::array<std::uint64_t, 2>{0, UINT64_MAX}) {
+                bool refused = false;
+                try { (void)t::maximum_response_wire_bytes(invalid); }
+                catch (const std::invalid_argument &) { refused = true; }
+                check(refused);
+            }
+        }
+
 		for (auto kind : {d::UpdateKind::Snapshot, d::UpdateKind::Delta, d::UpdateKind::Progress}) {
 			for (bool compressed : {false, true})
 				for (bool chunked : {false, true}) {

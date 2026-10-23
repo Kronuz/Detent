@@ -50,9 +50,13 @@ class ManagedCohort:
         selection_timeout: float = 30,
         namespaces: list[str] | None = None,
         capacity: CapacityProfile | None = None,
+        relay_count: int = 2,
     ) -> None:
         self.authority = authority
         self.capacity = capacity
+        if relay_count not in (1, 2):
+            raise ValueError("invalid relay cohort size")
+        self.relay_count = relay_count
         self.actors = actors
         self.directory = directory
         self.binary = binary
@@ -100,7 +104,7 @@ class ManagedCohort:
         if self.relay is not None:
             if self.delivery_mode != "subscription":
                 raise ValueError("relay consumers require subscription delivery")
-            for index in range(2):
+            for index in range(self.relay_count):
                 directory = self.directory / f"relay-{index}"
                 directory.mkdir(mode=0o700)
                 upstream = CONTEXT | {
@@ -150,9 +154,22 @@ class ManagedCohort:
                         }
                     ],
                 }
+                if (
+                    self.capacity is not None
+                    and self.capacity.relay_cache_bytes is not None
+                ):
+                    configuration["bundles"][0]["cache_bytes"] = (
+                        self.capacity.relay_cache_bytes
+                    )
                 if self.probe_sessions:
-                    sessions = (self.probe_sessions + 1) // 2 + self.count + 32
-                    active = (self.probe_active + 1) // 2
+                    sessions = (
+                        (self.probe_sessions + self.relay_count - 1) // self.relay_count
+                        + self.count
+                        + 32
+                    )
+                    active = (
+                        self.probe_active + self.relay_count - 1
+                    ) // self.relay_count
                     configuration.update(
                         connections=active + 128,
                         control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),

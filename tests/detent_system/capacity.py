@@ -16,6 +16,7 @@ class CapacityProfile:
     mapping_bytes: int
     disk_bytes: int
     journal: dict[str, int] = field(default_factory=dict)
+    relay_cache_bytes: int | None = None
 
     @classmethod
     def load(cls, path: Path) -> CapacityProfile:
@@ -42,7 +43,7 @@ class CapacityProfile:
         if (
             not isinstance(value, dict)
             or not required <= value.keys()
-            or value.keys() - required - {"journal"}
+            or value.keys() - required - {"journal", "relay_cache_bytes"}
         ):
             raise ValueError("invalid capacity profile fields")
         tables: dict[str, dict[str, int]] = {}
@@ -75,8 +76,12 @@ class CapacityProfile:
             or not 1 <= tables["image"]["records"] < 2**32
         ):
             raise ValueError("capacity record bounds exceed the format")
+        cache = value.get("relay_cache_bytes")
+        if cache is not None and (type(cache) is not int or not 1 <= cache < 2**63):
+            raise ValueError("invalid relay cache budget")
         return cls(
             application=tables["application"],
+            relay_cache_bytes=cache,
             journal=tables["journal"],
             delivery=tables["delivery"],
             image=tables["image"],
@@ -104,5 +109,7 @@ class CapacityProfile:
                 self.image.get("segments", 0),
                 self.heap_bytes,
                 self.mapping_bytes,
+                self.image.get("namespaces", 2**64 - 1),
+                self.image.get("overrides", 2**64 - 1),
             )
         ]

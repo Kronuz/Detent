@@ -1,0 +1,27 @@
+{
+  "application": {
+    "keys": 5000000,
+    "state_bytes": 805306368,
+    "image_bytes": 1073741824
+  },
+  "journal": {
+    "hard_bytes": 4294967296,
+    "replacement_bytes": 2147483648
+  },
+  "delivery": {
+    "records": 5000000,
+    "wire_bytes": 536870912
+  },
+  "image": {
+    "records": 5000000,
+    "wire_bytes": 536870912,
+    "decoded_bytes": 2147483648,
+    "image_bytes": 1610612736,
+    "pages": 12000000,
+    "segments": 16384
+  },
+  "heap_bytes": 3221225472,
+  "mapping_bytes": 3221225472,
+  "disk_bytes": 17179869184,
+  "relay_cache_bytes": 2147483648
+}
