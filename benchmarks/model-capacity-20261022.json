@@ -2,7 +2,7 @@
   "date": "2026-10-22",
   "status": "Accepted isolated model capacity evidence; full-system qualification remains open.",
   "application_base": "66eb38a",
-  "primary_target_knobs": 1300000,
+  "primary_target_knobs": 5000000,
   "requested_tiers": [
     1000,
     10000,
@@ -10,7 +10,6 @@
     130000,
     500000,
     1000000,
-    1300000,
     5000000,
     10000000
   ],
@@ -5120,5 +5119,6 @@
     "Small tiers with rejected timing need retries; do not interpolate missing accepted points.",
     "10M success establishes only that these containers complete this normal-operation lifecycle on this host.",
     "Maximum-name, network, three-voter durability, mapped agent and recovery capacity are not established by this report."
-  ]
+  ],
+  "target_updated": "2026-10-23; 5M primary, 1M checkpoint, 10M exploratory; raw historical samples preserved."
 }

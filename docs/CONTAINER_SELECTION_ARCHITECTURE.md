@@ -40,7 +40,7 @@ Positional removal is amortized constant, not a strict wall-clock guarantee. Mea
 5. Qualify parsing, copying, PATCH and publication failures with unsuppressed leak checks. Require equivalent duplicate rejection, ordering and evaluation, plus exact protocol/storage bytes. Exercise shared arena/capture collection, partial discard and task retirement under allocation denial.
 6. Accept the measured CPU and memory tradeoffs explicitly. If a standard candidate is selected, remove Detent's unused direct btree fetch/link/pin, qualify all platforms and consumers, and document the C++ compatibility change. Keep upstream btree maintained. Return to structural repair only if a demonstrated operating constraint rules out the alternatives.
 
-The [capacity qualification](CAPACITY_QUALIFICATION.md) adds the 1K–1.3M primary matrix and 5M/10M exploratory tiers. A selected container must be evaluated inside that pipeline; the 100K comparison cannot establish full-system capacity.
+The [capacity qualification](CAPACITY_QUALIFICATION.md) adds the 1K–5M primary matrix and 10M exploratory tier. A selected container must be evaluated inside that pipeline; the 100K comparison cannot establish full-system capacity.
 
 ## Accepted 100K comparison
 

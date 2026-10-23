@@ -8461,7 +8461,7 @@
     }
   },
   "limits": [
-    "100K synthetic models do not establish full-system capacity. See docs/CAPACITY_QUALIFICATION.md for the primary 1.3M and exploratory 5M/10M qualification.",
+    "100K synthetic models do not establish full-system capacity. See docs/CAPACITY_QUALIFICATION.md for the primary 5M and exploratory 10M qualification.",
     "Hashes are standard-library hashes, with no adversarial collision-resistance guarantee.",
     "Memory results compare model C++ heap requests, not retained agent RSS."
   ],
@@ -8469,5 +8469,6 @@
     "paired-unordered-pruned": "Spotlight CPU interference; incomplete and excluded.",
     "paired-publication-selection-standard": "WindowServer CPU interference; incomplete and excluded.",
     "paired-publication-selection-unordered": "WindowServer CPU interference; incomplete and excluded."
-  }
+  },
+  "target_updated": "2026-10-23; 5M primary, 1M checkpoint, 10M exploratory; raw historical samples preserved."
 }
