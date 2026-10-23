@@ -56,7 +56,7 @@ Merge this envelope into the existing private managed source configuration used 
 
 Paged builders, candidate validation, recovery, compaction and collection use the supplied page and segment bounds. Internal root equality checks validate format framing without silently reapplying the smaller default admission profile. Segment metadata reservation uses checked vector sizes and the existing ledger; payload bytes are enforced when entries are admitted.
 
-The paged SDK accepts the corresponding `ViewLimits`, including page and segment counts. Those new fields change the public C++ struct layout; rebuild consumers with this update. CLI reader configuration and automatic profile discovery remain separate integration work. The fixed 4 MiB legacy shared-memory path is unchanged and is not used to qualify high-cardinality managed delivery.
+The paged SDK accepts the corresponding `ViewLimits`, including page and segment counts. Those new fields change the public C++ struct layout; rebuild consumers with this update. CLI reader configuration is under separate qualification in the [reader blueprint](READER_CAPACITY_ARCHITECTURE.md); automatic profile discovery remains open. The fixed 4 MiB legacy shared-memory path is unchanged and is not used to qualify high-cardinality managed delivery.
 
 ## Qualification harness
 

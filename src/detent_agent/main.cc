@@ -13,6 +13,7 @@
 #endif
 #include "../detent_cli/daemon.hh"
 #include "config.hh"
+#include "reader_capacity.hh"
 #include "detent/identity.hh"
 #include "detent_http/address.hh"
 #include "detent_local/generation.hh"
@@ -230,7 +231,7 @@ int run_agent(const std::vector<std::string>& args) {
 	});
 }
 
-int cmd_status() {
+int cmd_status(const std::vector<std::string> &args) {
 	auto pid = locked_pid();
 	if (g_generation_dir) {
 		if (pid)
@@ -238,7 +239,8 @@ int cmd_status() {
 		else
 			std::printf("not running\n");
 		try {
-			auto view = detent::local::open_generation(*g_generation_dir, {}, g_generation_identity);
+			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); });
+			auto view = detent::local::open_generation(*g_generation_dir, capacity.limits(), g_generation_identity);
 			std::printf("durable revision=%llu knob_count=%u\n", (unsigned long long)view.cursor().revision,
 						view.size());
 		} catch (const std::exception &error) {
@@ -287,7 +289,7 @@ void validate_get_args(const std::vector<std::string> &args) {
 		const auto &arg = args[i];
 		if (arg == "--system")
 			continue;
-		if (std::find(std::begin(values), std::end(values), arg) == std::end(values))
+		if (!detent_agent::is_reader_option(arg) && std::find(std::begin(values), std::end(values), arg) == std::end(values))
 			throw std::runtime_error("unknown argument: " + arg);
 		if (++i == args.size() || args[i].starts_with("--"))
 			throw std::runtime_error(arg + " requires a value");
@@ -346,12 +348,14 @@ void launch_agent(const std::vector<std::string> &args) {
 }
 
 int cmd_managed_get(const std::vector<std::string> &args) {
+	detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); });
 	auto fallback = arg_value(args, "--default");
 	detent::InitOptions options;
 	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH"))
 		options.defaults_path = *defaults;
 	detent::local::ClientSourceOptions local;
 	local.directory = *g_generation_dir;
+	local.limits = capacity.limits();
 	local.auto_refresh = false;
 	local.identity = g_generation_identity;
 	std::shared_ptr<detent::local::LocalReadSource> source;
@@ -485,6 +489,8 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "       detent help | --help\n"
 					 "User reads auto-start detent-agent; system reads attach to the managed service.\n"
 					 "Config: agent.json in the standard Detent config directory.\n"
+					 "Reader capacity: --reader-records N, --reader-image-bytes N, --reader-heap-bytes N,\n"
+					 "--reader-mapping-bytes N; see USAGE.md for all reader_* settings.\n"
 					 "Flags override environment variables, which override config.\n";
 #else
 const char *kUsage =
@@ -516,6 +522,7 @@ const char *kUsage =
 	"defaults.json beside agent.json is discovered automatically if present.\n"
 	"--source-http is a legacy alias for --source-address (HTTP transport).\n"
 	"Flags override environment variables, which override config settings.\n"
+	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
 	"--runtime-dir PATH selects the runtime directory for any command.\n"
 	"--system uses system config and /run/detent (BSD/macOS: /var/run/detent).\n"
 	"System agents run in the foreground; get does not start unmanaged services.\n"
@@ -562,7 +569,7 @@ int main(int argc, char** argv) {
 			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet" ||
 				arg == "--initialize-managed" || arg == "--upgrade-managed")
 				continue;
-			if (arg == "--defaults" || arg == "--source-path" || arg == "--source-address" ||
+			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" || arg == "--source-address" ||
 				arg == "--source-http" || arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
 				arg == "--generation-cluster" || arg == "--generation-group" || arg == "--generation-epoch" ||
@@ -607,7 +614,7 @@ int main(int argc, char** argv) {
 #ifndef DETENT_READER
 		if (has_flag(args, "--status")) {
 			if (has_flag(args, "--daemonize")) throw std::runtime_error("--status and --daemonize are mutually exclusive");
-			return cmd_status();
+			return cmd_status(args);
 		}
 		return run_agent(args);
 #else

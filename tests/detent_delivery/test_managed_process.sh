@@ -144,6 +144,12 @@ wait_value() {
     cat "$root/agent.log"; return 1
 }
 wait_value 42
+# Reader limits are independent of private delivery credentials.
+"$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
+chmod 644 "$root/reader-limits.json"
+[[ $("$reader" get ns:feature --system --config "$root/reader-limits.json") == 7 ]]
+[[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --system --config "$root/reader-limits.json") == 42 ]]
+[[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
 check_format "$root/generations" "$image_format"
 if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
 [[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
@@ -173,6 +179,10 @@ kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
 if "$agent" --status --config "$root/agent.json" > "$root/stopped.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/stopped.txt"
+if "$agent" --status --config "$root/agent.json" --reader-image-bytes 1 > "$root/reader-low-status.txt"; then exit 1; fi
+grep -q 'local generation unavailable:' "$root/reader-low-status.txt"
+if "$agent" --status --config "$root/agent.json" --reader-image-bytes 3221225472 > "$root/reader-high-status.txt"; then exit 1; fi
+grep -q 'durable revision=' "$root/reader-high-status.txt"
 if [[ "$transition_to_flat" == true ]]; then
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["image_format"]="flat-v1"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
 fi

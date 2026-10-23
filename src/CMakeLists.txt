@@ -131,7 +131,7 @@ target_include_directories(detent_agent_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(detent_agent_lib PUBLIC detent::detent)
 target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
-add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc)
+add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
 target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli detent_logging)
 if(DETENT_BUILD_MANAGED_AGENT)
   add_library(detent_managed_agent detent_agent/managed_host.cc)
@@ -158,7 +158,7 @@ endif()
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/packaging/ DESTINATION ${CMAKE_INSTALL_DATADIR}/detent USE_SOURCE_PERMISSIONS)
 install(FILES ${CMAKE_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/detent)
 
-add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc)
+add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
 target_link_libraries(detent-reader PRIVATE detent_agent_lib detent_cli)

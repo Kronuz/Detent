@@ -560,3 +560,26 @@ For pooled subscriptions, `quorum_refresh_ms` defaults to 30000 and accepts 1000
 Pools contain authority endpoints. Relay Open does not establish current authority quorum. An agent consuming a relay must use a single relay endpoint and explicit `"delivery_mode":"subscription"`.
 
 Both polling and subscription delivery stop on terminal trust denial while retaining the last-known-good durable generation.
+
+## Managed reader capacity
+
+Public `agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
+
+| Setting | Default | Bound |
+| --- | --- | --- |
+| `reader_records` | 500,000 | Positive 32-bit record count |
+| `reader_namespaces` | 4,096 | Positive 32-bit namespace count |
+| `reader_overrides` | 256 | 0–256 per definition |
+| `reader_image_bytes` | 256 MiB | Positive signed 64-bit file extent |
+| `reader_string_bytes` | 128 MiB | Positive signed 64-bit byte count |
+| `reader_pages` | Existing paged format default | Positive 64-bit page count |
+| `reader_segments` | Existing paged format default | Positive 64-bit segment count |
+| `reader_heap_bytes` | 8 MiB | Positive host allocation width |
+| `reader_mapping_bytes` | 512 MiB | Positive host allocation width |
+| `reader_owners` | 16,384 | Positive host-width resident ownership count, subject to domain admission |
+
+Without explicit reader settings, existing reader defaults and shared resources remain unchanged. Explicit settings create command-owned heap, retirement and mapping resources; clients, sources and views close before those resources drain. The retirement runner retains its separate 1 MiB baseline budget. Page, segment and image maxima remain independent; actual allocations and mappings still require ledger admission.
+
+A file supplying any `reader_*` field must be a regular file owned by root or the effective user, without group/other write permission or a final symlink. The loader checks the descriptor it reads and rejects a changed file extent. World-readable mode `0644` is allowed; credentials belong in the separate private managed configuration. The bounded legacy configuration path keeps its existing symlink behavior when no reader settings are present.
+
+The image never supplies its own limits. Keep generation identity binding configured, and fund the reader separately when increasing daemon capacity. These settings do not resize the legacy shared-memory image.

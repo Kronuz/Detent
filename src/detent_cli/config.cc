@@ -7,7 +7,10 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <filesystem>
-#include <fstream>
+#include <cerrno>
+#include <cstdint>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <stdexcept>
 
 namespace detent_cli {
@@ -109,14 +112,32 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 	auto fail = [&](const std::string& message) -> void {
 		throw std::runtime_error("config " + path.string() + ": " + message);
 	};
-	std::ifstream in(path, std::ios::binary);
-	if (!in) fail("cannot open file");
-	// Bound both allocation and parser nesting for user-supplied settings.
+	struct File {
+		int fd;
+		~File() { if (fd >= 0) ::close(fd); }
+	} file{::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW)};
+	const bool no_symlink = file.fd >= 0;
+	if (file.fd < 0 && errno == ELOOP)
+		file.fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+	if (file.fd < 0) fail("cannot open file");
+	struct stat before{}, after{};
+	const bool inspected = ::fstat(file.fd, &before) == 0;
 	std::string bytes(64 * 1024 + 1, '\0');
-	in.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-	bytes.resize(static_cast<std::size_t>(in.gcount()));
-	if (in.bad()) fail("cannot read file");
+	std::size_t used = 0;
+	while (used != bytes.size()) {
+		const auto n = ::read(file.fd, bytes.data() + used, bytes.size() - used);
+		if (n < 0 && errno == EINTR) continue;
+		if (n < 0) fail("cannot read file");
+		if (!n) break;
+		used += static_cast<std::size_t>(n);
+	}
+	bytes.resize(used);
 	if (bytes.size() > 64 * 1024) fail("file exceeds 64 KiB");
+	const bool trusted = no_symlink && inspected && ::fstat(file.fd, &after) == 0 &&
+		S_ISREG(before.st_mode) && (before.st_uid == 0 || before.st_uid == ::geteuid()) &&
+		!(before.st_mode & 0022) && !(after.st_mode & 0022) &&
+		after.st_uid == before.st_uid && before.st_size == after.st_size &&
+		before.st_size >= 0 && static_cast<std::uint64_t>(before.st_size) == bytes.size();
 	if (detent::internal::nesting_depth_exceeds(bytes, 16)) fail("JSON nesting exceeds limit");
 	rapidjson::Document doc;
 	doc.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(bytes.data(), bytes.size());
@@ -127,6 +148,7 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		std::string key(it->name.GetString(), it->name.GetStringLength());
 		auto field = schema.find(key);
 		if (field == schema.end()) fail("unknown field: " + key);
+		if (field->second.trusted && !trusted) fail("reader capacity requires a trusted regular configuration file");
 		const auto& flag = field->second.flag;
 		if (settings.contains(flag)) fail("duplicate field: " + key);
 		std::string value;
@@ -134,6 +156,10 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 			const bool positive = field->second.kind == FieldKind::PositiveInt;
 			if (!it->value.IsInt() || it->value.GetInt() < (positive ? 1 : 0)) fail(key + (positive ? " must be a positive integer" : " must be a nonnegative integer"));
 			value = std::to_string(it->value.GetInt());
+		} else if (field->second.kind == FieldKind::PositiveUint64 || field->second.kind == FieldKind::NonnegativeUint64) {
+			if (!it->value.IsUint64() || (field->second.kind == FieldKind::PositiveUint64 && !it->value.GetUint64()))
+				fail(key + " must be an unsigned capacity integer");
+			value = std::to_string(it->value.GetUint64());
 		} else {
 			if (!it->value.IsString() || it->value.GetStringLength() == 0) fail(key + " must be a nonempty string");
 			value.assign(it->value.GetString(), it->value.GetStringLength());
