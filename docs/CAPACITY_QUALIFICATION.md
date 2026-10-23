@@ -1,6 +1,6 @@
 # Capacity qualification
 
-**Date:** 2026-10-22. **Status:** Measurement and runtime-capacity design in progress; no new supported ceiling declared.
+**Date:** 2026-10-23. **Status:** Startup runtime-capacity configuration passes 217 native tests; full-system cardinality trials remain in progress. No new supported ceiling declared.
 
 Detent needs a measured operating envelope, including ingestion, replicated durability, distribution, durable local publication and application reads. Container microbenchmarks identify costs but cannot qualify that envelope. The [scale targets](SCALE_TARGETS.md) remain requirements, not completed qualification.
 
@@ -14,6 +14,8 @@ The supplied enterprise reference is approximately 130K knobs, 13 MiB wire size,
 Use both a reference-density mixed bool/int corpus and the existing short/maximum-length-name corpus with nested overrides. Record the seed, distributions, namespace scope and actual encoded size. Do not silently change definitions to make a larger tier pass. No real enterprise corpus has been supplied.
 
 ## Limits discovered before qualification
+
+This table records the starting boundaries. [Startup runtime configuration](CAPACITY_RUNTIME.md) now forwards explicit authority, managed image and journal settings without recompiling; default values and replicated profile equality remain unchanged. The table is not the current candidate's supported ceiling.
 
 | Boundary | Current behavior | Required work |
 | --- | --- | --- |
@@ -35,7 +37,7 @@ A larger configuration must still bound input and allocation. Removing guards do
 4. **Reads and reclamation.** Measure steady mapped SDK reads and startup/open cost, broad and hot working sets, group rollouts and misses. Measure partial cleanup turns and final-generation reclamation separately.
 5. **Recovery and pressure.** Measure restart/checkpoint recovery, slow subscribers and retained generations. Record which admission limit refuses first and whether service remains responsive. A clean refusal is not a successful larger-tier run.
 
-Use strict host reservations and existing interference checks. Advance one tier at a time; preflight memory, free disk and descriptors before starting. This host has 32 GiB physical RAM and shares resources with other work. Abort or refuse a trial before exhausting headroom, and retain the reason. A host-limited tier does not establish a product limit.
+Use exclusive host reservations for published measurements and existing interference checks. Advance one tier at a time; preflight memory, free disk and descriptors before starting. This host has 32 GiB physical RAM and shares resources with other work. Abort or refuse a trial before exhausting headroom, and retain the reason. A host-limited tier does not establish a product limit.
 
 Publish bytes per knob and amplification relative to encoded size alongside absolute totals. Express update CPU as core-seconds per accepted operation; project fleet core demand only from measured rates. Do not infer dollars or power without a deployment price or power model. Do not call the largest completed tier the realistic limit until sustained writes, agent convergence and recovery meet explicit operating budgets.
 

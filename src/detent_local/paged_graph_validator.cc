@@ -372,7 +372,7 @@ bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBu
 	require(registry.storage_ == state.storage && inputs.data() == state.segments.data() &&
 			inputs.size() == state.segments.size());
 	if (registry.validated_root_) {
-		require(p::encode_root(*registry.validated_root_) == p::encode_root(state.expected));
+		require(p::encode_root(*registry.validated_root_, state.limits) == p::encode_root(state.expected, state.limits));
 		return true;
 	}
 	require(!state.recorded_registry || state.recorded_registry == &registry);

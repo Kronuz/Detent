@@ -10,7 +10,8 @@ SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> ac
 	  reachable_(distribution::StorageAllocator<SegmentReachability>(account)), storage_(storage),
 	  limits_(limits) {
 	if (!std::any_of(storage.begin(), storage.end(), [](char c) { return c != 0; }) ||
-		limits.segments > paged::Limits{}.segments || limits.bytes > paged::Limits{}.bytes)
+		limits.segments > mappings_.max_size() || limits.segments > inputs_.max_size() ||
+		limits.segments > reachable_.max_size())
 		throw std::invalid_argument("invalid segment registry admission");
 	identity_ =
 		std::allocate_shared<unsigned char>(distribution::StorageAllocator<unsigned char>(account), 0);

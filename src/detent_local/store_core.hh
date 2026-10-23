@@ -1,4 +1,5 @@
 #pragma once
+#include "paged_root_prefix.hh"
 #include "detent_local/collector.hh"
 #include "detent_local/disk_store.hh"
 #include "leased_paged_root.hh"
@@ -65,7 +66,7 @@ struct StoreCore {
 	void confirm_paged(const RecoveredGeneration &generation) {
 		const auto &plan = pending_paged_recovery->plan();
 		if (!generation.paged_ || generation.paged_->storage_identity() != identity ||
-			paged::encode_root(generation.paged_->root()) != paged::encode_root(plan.root()))
+			paged::encode_root(generation.paged_->root(), paged_format_limits()) != paged::encode_root(plan.root(), paged_format_limits()))
 			throw std::invalid_argument("paged recovered graph differs from publication plan");
 		const auto counts = generation.paged_->counts(), expected = plan.counts();
 		if (counts.bools != expected.bools || counts.ints != expected.ints ||

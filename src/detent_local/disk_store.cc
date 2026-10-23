@@ -1516,6 +1516,8 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			descriptor.length != paged::root_bytes ||
 			descriptor.length > core.options.recovery_limits.bytes ||
 			plan.root().bytes > core.options.recovery_limits.bytes - descriptor.length ||
+			plan.root().pages > core.options.recovery_limits.pages ||
+			plan.root().segments > core.options.recovery_limits.segments ||
 			plan.root().records > core.options.recovery_limits.records ||
 			plan.root().namespaces > core.options.recovery_limits.namespaces ||
 			plan.counts().strings > core.options.recovery_limits.strings ||
@@ -1527,7 +1529,7 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
-		recovery->populate(plan, core.verified_paged);
+		recovery->populate(plan, core.verified_paged, core.options.recovery_limits);
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(

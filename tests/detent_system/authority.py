@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from capacity import CapacityProfile
 from http_activity import GeneratorAdmissionRefused, HTTPActivity
 from runtime import Actor, Actors
 
@@ -43,6 +44,7 @@ class Authority:
         producers: int,
         shared_namespace: str | None = None,
         http_workers: int | None = None,
+        capacity: CapacityProfile | None = None,
     ) -> None:
         if not 1 <= producers <= 256:
             raise ValueError("authority fixture needs 1–256 producers")
@@ -122,6 +124,10 @@ class Authority:
                         }
                     ],
                 }
+                if capacity is not None:
+                    configuration["application_limits"] = capacity.application
+                    configuration["delivery_limits"] = capacity.delivery
+                    configuration["journal_limits"] = capacity.journal
                 if sys.platform.startswith("linux"):
                     configuration["storage_backend"] = "native"
                 path = directory / f"authority-{index}.json"

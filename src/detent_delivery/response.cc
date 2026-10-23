@@ -1,7 +1,9 @@
 #include "detent_delivery/response.hh"
+#include "detent_distribution/encoded_update.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "response_probe_internal.hh"
 #include <algorithm>
+#include <limits>
 #include <charconv>
 #include <cstring>
 #include <exception>
@@ -10,6 +12,17 @@
 #include <sha256.h>
 namespace detent::delivery {
 namespace d = distribution;
+std::uint64_t maximum_response_wire_bytes(std::uint64_t logical_bytes) {
+	const auto maximum = std::uint64_t(d::encoded_update_fragment_limit) * d::fragment_bytes;
+	if (!logical_bytes || logical_bytes > maximum)
+		throw std::invalid_argument("delivery payload exceeds fragment directory limit");
+	const auto frames = logical_bytes / d::fragment_bytes + 1;
+	const auto frame = d::OwnedFragmentEncoder::maximum_wire_bytes();
+	const auto half = (std::numeric_limits<std::uint64_t>::max() - 65536) / 2;
+	if (!frame || frames > half / frame)
+		throw std::length_error("delivery HTTP wire bound overflow");
+	return frames * frame * 2 + 65536;
+}
 namespace {
 void require(bool value, const char *message) {
 	if (!value)
@@ -65,16 +78,14 @@ struct ResponseDecoder::Impl {
 		  field(&resource), value(&resource), compression(coding) {
 		require(target.cluster != d::Identity{} && target.group != d::Identity{} &&
 					target.restore_epoch != d::Identity{} && target.scope != d::ScopeIdentity{} &&
-					limits.bytes && limits.bytes <= 1024ull * 1024 * 1024 &&
+					limits.bytes &&
 					scope.names.size() <= limits.namespaces,
 				"invalid delivery response admission");
 		if (session && session->purpose != SessionResponsePurpose::Open)
 			require(session->session != d::Identity{} &&
 						(session->purpose != SessionResponsePurpose::Next || session->window),
 					"invalid session response binding");
-		maximum_wire = (limits.bytes / d::fragment_bytes + 1) * d::OwnedFragmentEncoder::maximum_wire_bytes();
-		// Permit bounded HTTP chunk overhead without accumulating the response.
-		maximum_wire = maximum_wire * 2 + 65536;
+		maximum_wire = maximum_response_wire_bytes(limits.bytes);
 		names.reserve(scope.names.size());
 		selected.reserve(scope.names.size());
 		for (auto name : scope.names)

@@ -6,16 +6,21 @@ import argparse
 import asyncio
 import hashlib
 import json
+import random
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from authority import Authority
+from capacity import CapacityProfile
 from evidence import build_context, cache_dependencies, file_sha256, host, repository
 from fleet import (
     FleetOutput,
     admission,
+    available_memory,
     load_result,
     process_cpu_seconds,
+    process_resources,
     resident_bytes,
 )
 from http_activity import configure_workers
@@ -32,16 +37,29 @@ async def resource_samples(
     evidence: Evidence,
     ceiling: int,
     stop: asyncio.Event,
-    cohort: ManagedCohort,
+    cohort: Callable[[], ManagedCohort | None],
 ) -> None:
     while not stop.is_set():
-        resident = resident_bytes(actors.children.copy())
-        evidence.record("fleet_resident", resident_bytes=resident)
-        await relay_snapshot(cohort, evidence, "sample")
-        if resident > ceiling:
+        resources = await asyncio.to_thread(
+            process_resources, actors.children.copy(), include_driver=True
+        )
+        driver = resources.pop("driver")
+        resident = sum(int(row["resident_bytes"]) for row in resources.values())
+        evidence.record(
+            "fleet_resident",
+            resident_bytes=resident,
+            processes=resources,
+            driver=driver,
+            monotonic_seconds=time.monotonic(),
+            sample_period_ms=200,
+        )
+        if resident + int(driver["resident_bytes"]) > ceiling:
             raise RuntimeError("fleet workload exceeded admitted resident ceiling")
+        selected = cohort()
+        if selected is not None:
+            await relay_snapshot(selected, evidence, "sample")
         try:
-            await asyncio.wait_for(stop.wait(), 1)
+            await asyncio.wait_for(stop.wait(), 0.2)
         except TimeoutError:
             pass
 
@@ -74,7 +92,17 @@ async def relay_settled(
 
 
 async def run(arguments: argparse.Namespace) -> None:
-    scenario = Scenario.load(arguments.scenario)
+    capacity = (
+        CapacityProfile.load(arguments.capacity_config)
+        if arguments.capacity_config is not None
+        else None
+    )
+    maximum_records = (
+        min(capacity.application["keys"], capacity.image["records"])
+        if capacity
+        else 500000
+    )
+    scenario = Scenario.load(arguments.scenario, maximum_records)
     validate_rate(arguments.offer_rate)
     http_workers = configure_workers(scenario.producers, arguments.http_workers)
     duration = (
@@ -107,6 +135,9 @@ async def run(arguments: argparse.Namespace) -> None:
                 for name in ("binary", "agents", "relays", "local_oracle", "fleet")
             },
             scenario_sha256=hashlib.sha256(arguments.scenario.read_bytes()).hexdigest(),
+            capacity_sha256=file_sha256(arguments.capacity_config)
+            if arguments.capacity_config
+            else None,
             host=host(),
             seed=arguments.seed,
             http_workers=http_workers,
@@ -120,7 +151,21 @@ async def run(arguments: argparse.Namespace) -> None:
             warm_start=arguments.warm,
             compression=arguments.compression,
         )
-        async with Actors(evidence, 60) as actors:
+        resource_stop = asyncio.Event()
+        resource_cohort: ManagedCohort | None = None
+        resource_ceiling = min(
+            preliminary["workload_ceiling_bytes"], available_memory() * 4 // 5
+        )
+        async with Actors(evidence, 60) as actors, asyncio.TaskGroup() as monitoring:
+            resources_task = monitoring.create_task(
+                resource_samples(
+                    actors,
+                    evidence,
+                    resource_ceiling,
+                    resource_stop,
+                    lambda: resource_cohort,
+                )
+            )
             authority = Authority(
                 arguments.binary,
                 arguments.certificates,
@@ -128,6 +173,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 actors,
                 scenario.producers,
                 http_workers=http_workers,
+                capacity=capacity,
                 shared_namespace="hot" if arguments.hot_namespace else None,
             )
             await authority.start()
@@ -138,13 +184,21 @@ async def run(arguments: argparse.Namespace) -> None:
                     scenario.producers,
                     arguments.seed,
                     shared_namespace="hot" if arguments.hot_namespace else None,
+                    maximum_records=maximum_records,
                 )
                 if arguments.mixed
                 else Writers(
                     authority, scenario.records, scenario.producers, arguments.seed
                 )
             )
+            seeded_at = time.monotonic()
             await writers.phase("prepare")
+            evidence.record(
+                "capacity_seeded",
+                records=scenario.records,
+                seconds=time.monotonic() - seeded_at,
+                process_cpu_seconds=process_cpu_seconds(actors.children),
+            )
             await writers.phase("verify")
             seed_revision = max(
                 int(receipt["revision"])
@@ -166,9 +220,62 @@ async def run(arguments: argparse.Namespace) -> None:
                 source_timeout_ms=240000,
                 selection_timeout=300,
                 namespaces=list(authority.namespaces),
+                capacity=capacity,
+                relay_count=arguments.relay_count,
             )
+            bootstrap_at = time.monotonic()
             await cohort.start()
+            await cohort.wait_selected(seed_revision)
+            evidence.record(
+                "capacity_bootstrap_selected",
+                records=scenario.records,
+                seconds=time.monotonic() - bootstrap_at,
+            )
             await cohort.verify(writers)
+            evidence.record(
+                "capacity_bootstrap_verified",
+                records=scenario.records,
+                seconds=time.monotonic() - bootstrap_at,
+            )
+            resource_cohort = cohort
+            if capacity is not None:
+                for size in (1, 128):
+                    if size > 1 and not isinstance(writers, MixedWriters):
+                        continue
+                    before_intents = writers.counts["sized_operation_intents"]
+                    began_update = time.monotonic()
+                    if isinstance(writers, MixedWriters):
+                        await writers.workload(
+                            0, size, "upsert", random.Random(arguments.seed)
+                        )
+                    else:
+                        await writers.mutate_once(0, random.Random(arguments.seed), 0)
+                    acknowledged = time.monotonic()
+                    revision = max(
+                        int(receipt["revision"])
+                        for receipt in writers.receipts
+                        if receipt is not None
+                    )
+                    await cohort.wait_selected(revision)
+                    evidence.record(
+                        "capacity_bounded_update",
+                        records=scenario.records,
+                        requested_mutations=size,
+                        mutations=(
+                            writers.counts["sized_operation_intents"] - before_intents
+                        )
+                        if isinstance(writers, MixedWriters)
+                        else 1,
+                        durable_ack_seconds=acknowledged - began_update,
+                        selected_seconds=time.monotonic() - began_update,
+                        selection_poll_seconds=0.05,
+                    )
+                    await cohort.verify(writers)
+            seed_revision = max(
+                int(receipt["revision"])
+                for receipt in writers.receipts
+                if receipt is not None
+            )
             memory = admission(
                 scenario.subscribers,
                 arguments.active,
@@ -232,11 +339,6 @@ async def run(arguments: argparse.Namespace) -> None:
             stop = asyncio.Event()
             async with asyncio.TaskGroup() as group:
                 group.create_task(sample(authority, evidence, stop))
-                group.create_task(
-                    resource_samples(
-                        actors, evidence, memory["workload_ceiling_bytes"], stop, cohort
-                    )
-                )
                 try:
                     if arguments.fault:
                         if arguments.fault == "parked-cancel":
@@ -397,6 +499,8 @@ async def run(arguments: argparse.Namespace) -> None:
                         )
                 finally:
                     stop.set()
+            resource_stop.set()
+            await resources_task
             await actors.stop([probe])
             await cohort.close()
             await drained(authority, evidence)
@@ -424,6 +528,8 @@ def main() -> None:
         parser.add_argument(
             f"--{name}", type=lambda value: Path(value).resolve(), required=True
         )
+    parser.add_argument("--capacity-config", type=lambda value: Path(value).resolve())
+    parser.add_argument("--relay-count", type=int, choices=(1, 2), default=2)
     parser.add_argument("--active", type=int, default=128)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--seed", type=int, default=17)

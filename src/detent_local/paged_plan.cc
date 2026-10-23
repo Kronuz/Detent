@@ -1,3 +1,4 @@
+#include "paged_root_prefix.hh"
 #include "paged_plan.hh"
 #include <algorithm>
 #include <stdexcept>
@@ -18,7 +19,7 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 	root_.cursor = source.target();
 	descriptor_ = {generation, p::root_bytes, {}, root_.cursor, root_.profile};
 	encode_descriptor(descriptor_);
-	encoded_ = p::encode_root(root_);
+	encoded_ = p::encode_root(root_, paged_format_limits());
 	counts_ = base_->counts();
 	registry_ = base_->registry();
 	bytes_ = d::make_owned_buffer(account, p::root_bytes);

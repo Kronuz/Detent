@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
 #include "generation_mapping.hh"
@@ -336,10 +337,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			hash.getHash(digest);
 			require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
 			if (generation_ownership && generation_ownership->layout_version == 2) {
-				paged::Limits bounds;
-				bounds.bytes = std::min(bounds.bytes, limits.bytes - descriptor.length);
-				bounds.records = limits.records;
-				bounds.namespaces = limits.namespaces;
+				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
 						(!expected || (expected->same_identity(root.cursor) &&

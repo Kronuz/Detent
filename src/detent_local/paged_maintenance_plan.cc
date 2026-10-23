@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "paged_maintenance_plan.hh"
 namespace detent::local::detail {
 PagedMaintenanceBuilder::PagedMaintenanceBuilder(RecoveredGeneration base,
@@ -10,12 +11,9 @@ PagedMaintenanceBuilder::PagedMaintenanceBuilder(RecoveredGeneration base,
 	if (!heap_ || !factory_.uses_account(heap_) || generation == base_.descriptor().generation)
 		throw std::invalid_argument("maintenance requires exact resources and a fresh generation");
 	limits_.retirement_domain = nullptr;
-	paged::Limits bounds;
 	if (limits_.bytes < paged::root_bytes)
 		throw std::invalid_argument("maintenance manifest exceeds limit");
-	bounds.bytes = limits_.bytes - paged::root_bytes;
-	bounds.records = limits_.records;
-	bounds.namespaces = limits_.namespaces;
+	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	encoder_.emplace(base_, heap_, storage_, generation, bounds);
 }
 bool PagedMaintenanceBuilder::grant(std::size_t amount, ValidationBudget &budget) {

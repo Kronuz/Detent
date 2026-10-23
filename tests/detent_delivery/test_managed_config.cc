@@ -63,6 +63,40 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+		{
+			rapidjson::Document capacity;
+			capacity.Parse(R"({"records":5000000,"wire_bytes":536870912,"image_bytes":536870912,
+"decoded_bytes":536870912,"pages":12000000,"segments":2048})");
+			object.AddMember("image_limits", rapidjson::Value(capacity, object.GetAllocator()),
+							 object.GetAllocator());
+			object.AddMember("heap_bytes", 1073741824, object.GetAllocator());
+			object.AddMember("mapping_bytes", 1073741824, object.GetAllocator());
+			write();
+			const auto larger = load();
+			check(larger.coordinator.source.limits.records == 5000000 &&
+				  larger.coordinator.view_limits.records == 5000000 &&
+				  larger.coordinator.view_limits.pages == 12000000 &&
+				  larger.coordinator.view_limits.segments == 2048 &&
+				  larger.coordinator.source.limits.storage_bytes == 536870912);
+			for (auto value : {0ull, 4294967296ull}) {
+				object["image_limits"]["records"].SetUint64(value);
+				write();
+				rejected();
+			}
+			object["image_limits"]["records"].SetUint(5000000);
+			object["image_limits"]["decoded_bytes"].SetUint64(1073741825);
+			write();
+			rejected();
+			object["image_limits"]["decoded_bytes"].SetUint(536870912);
+			object["image_limits"]["records"].SetBool(true);
+			write();
+			rejected();
+			object.RemoveMember("image_limits");
+			object.RemoveMember("heap_bytes");
+			object.RemoveMember("mapping_bytes");
+			write();
+			check(load().coordinator.source.limits.records == options.coordinator.source.limits.records);
+		}
 		object.AddMember("quorum_refresh_ms", 1000, object.GetAllocator());
 		write();
 		rejected();

@@ -8,7 +8,7 @@ EncodedUpdate::EncodedUpdate(Cursor base, Cursor target, UpdateKind kind, Identi
 	: base_(base), target_(target), kind_(kind), update_(update), length_(length),
 	  raw_(StorageAllocator<std::shared_ptr<const OwnedBuffer>>(account)), compressed_(raw_.get_allocator()) {
 	const auto fragments = length / fragment_bytes + (length % fragment_bytes != 0 || length == 0);
-	if (fragments > 65536)
+	if (fragments > encoded_update_fragment_limit)
 		throw std::length_error("encoded update fragment directory limit");
 	raw_.reserve(static_cast<std::size_t>(fragments));
 	compressed_.reserve(static_cast<std::size_t>(fragments));
@@ -106,7 +106,7 @@ struct UpdateStage::Impl {
 			const auto length = snapshot ? snapshot->encoded_length() : delta->encoded_length();
 			const auto kind = snapshot ? UpdateKind::Snapshot : delta->kind();
 			const auto fragments = length / fragment_bytes + (length % fragment_bytes != 0 || length == 0);
-			if (fragments > 65536)
+			if (fragments > encoded_update_fragment_limit)
 				throw std::length_error("encoded update fragment directory limit");
 			output->raw_.reserve(static_cast<std::size_t>(fragments));
 			output->compressed_.reserve(static_cast<std::size_t>(fragments));

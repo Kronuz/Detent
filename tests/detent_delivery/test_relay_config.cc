@@ -82,6 +82,17 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+
+        host["bundles"][0].AddMember("cache_bytes", std::uint64_t{2147483648}, host.GetAllocator());
+        write(configuration, host);
+        check(load().bundles[0].cache_bytes == 2147483648);
+        source.AddMember("heap_bytes", std::uint64_t{UINT64_MAX}, source.GetAllocator());
+        write(directory / "source.json", source);
+        rejected();
+        source.RemoveMember("heap_bytes");
+        write(directory / "source.json", source);
+        host["bundles"][0].RemoveMember("cache_bytes");
+        write(configuration, host);
 		check(options.connections == 1024 && options.service_limits.polls == 640 &&
 			  options.service_limits.sessions.sessions == 1024);
 		host.AddMember("connections", 16384, host.GetAllocator());

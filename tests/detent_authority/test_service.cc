@@ -99,6 +99,33 @@ int main() {
 			}
 			assert(accepted == (std::string_view(flag) == "true" || std::string_view(flag) == "false"));
 		}
+		for (const auto *capacity : {
+			 R"({"keys":5000000,"state_bytes":268435456,"image_bytes":402653184})",
+			 R"({"keys":10000000,"state_bytes":268435456,"image_bytes":402653184})"}) {
+			{
+				std::ofstream file(config);
+				file << "{" << authority << "\"directory\":\"capacity-state\",\"application_limits\":"
+					 << capacity << ",\"credentials\":[{\"token\":\"0123456789abcdef0123456789abcdef\","
+					 << "\"producer\":\"writer\",\"namespaces\":[\"ns\"]}]}";
+			}
+			assert(::chmod(config.c_str(), 0600) == 0);
+			const auto configured = load_service_options(config);
+			assert(configured.node.application.keys >= 5000000);
+			assert(configured.node.application.state_bytes == 268435456);
+			assert(configured.node.application.image_bytes == 402653184);
+			assert(semantic_profile(configured.node.application) != semantic_profile(Limits{}));
+		}
+		{
+			std::ofstream file(config);
+			file << "{" << authority << R"("directory":"large-capacity-state",
+"application_limits":{"keys":10000000,"state_bytes":1073741824,"image_bytes":1610612736},
+"journal_limits":{"hard_bytes":4294967296,"replacement_bytes":2147483648},
+"credentials":[{"token":"0123456789abcdef0123456789abcdef","producer":"writer","namespaces":["ns"]}]})";
+		}
+		assert(::chmod(config.c_str(), 0600) == 0);
+		const auto funded = load_service_options(config);
+		assert(funded.node.application.image_bytes == 1610612736 &&
+			   funded.node.storage.replacement_pool.logical_bytes == 2147483648);
 		std::filesystem::remove(config);
 	}
 	{

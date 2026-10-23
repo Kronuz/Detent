@@ -22,6 +22,8 @@ struct ReceivedControl {
 	unsigned status;
 	std::shared_ptr<const distribution::OwnedBuffer> body;
 };
+std::uint64_t maximum_response_wire_bytes(std::uint64_t logical_bytes);
+
 // Network-owner decoder. HTTP, frame integrity and schema completion must all
 // succeed before a candidate escapes. A caller retains each original read
 // buffer until feed() consumes it; step() needs no additional network bytes.

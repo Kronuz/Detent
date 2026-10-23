@@ -1,3 +1,4 @@
+#include "paged_limits.hh"
 #include "paged_snapshot_plan.hh"
 namespace detent::local::detail {
 namespace d = distribution;
@@ -14,10 +15,7 @@ PagedSnapshotPlanBuilder::PagedSnapshotPlanBuilder(std::shared_ptr<const d::Vali
 		limits_.bytes < paged::root_bytes)
 		throw std::invalid_argument("snapshot plan requires actual bindings and exact resources");
 	limits_.retirement_domain = nullptr;
-	paged::Limits bounds;
-	bounds.bytes = limits_.bytes - paged::root_bytes;
-	bounds.records = limits_.records;
-	bounds.namespaces = limits_.namespaces;
+	const auto bounds = paged_limits(limits_, paged::root_bytes);
 	encoder_.emplace(std::move(source), storage_, generation, bounds);
 }
 bool PagedSnapshotPlanBuilder::grant(std::size_t amount, ValidationBudget &budget) {

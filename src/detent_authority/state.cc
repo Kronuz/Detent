@@ -739,8 +739,8 @@ State::State(Context c, Limits l) : context_(c), limits_(l) {
 				l.request_bytes <= 16 * 1024 * 1024 && l.state_bytes >= l.request_bytes &&
 				l.image_bytes >= l.state_bytes,
 			"invalid authority limits");
-	require(l.keys <= 1000000 && l.namespaces <= 65536 && l.producers <= 65536 &&
-				l.image_bytes <= 1024ull * 1024 * 1024,
+	require(l.keys <= UINT32_MAX && l.namespaces <= 65536 && l.producers <= 65536 &&
+				l.image_bytes <= std::uint64_t(INT64_MAX),
 			"authority resource ceiling");
 	auto metadata =
 		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 215 +

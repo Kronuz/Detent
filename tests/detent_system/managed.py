@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from authority import CONTEXT, READER_PRINCIPAL, READER_TOKEN, Authority
+from capacity import CapacityProfile
 from runtime import Actor, Actors
 from writers import Writers
 
@@ -48,8 +49,14 @@ class ManagedCohort:
         source_timeout_ms: int = 2000,
         selection_timeout: float = 30,
         namespaces: list[str] | None = None,
+        capacity: CapacityProfile | None = None,
+        relay_count: int = 2,
     ) -> None:
         self.authority = authority
+        self.capacity = capacity
+        if relay_count not in (1, 2):
+            raise ValueError("invalid relay cohort size")
+        self.relay_count = relay_count
         self.actors = actors
         self.directory = directory
         self.binary = binary
@@ -97,7 +104,7 @@ class ManagedCohort:
         if self.relay is not None:
             if self.delivery_mode != "subscription":
                 raise ValueError("relay consumers require subscription delivery")
-            for index in range(2):
+            for index in range(self.relay_count):
                 directory = self.directory / f"relay-{index}"
                 directory.mkdir(mode=0o700)
                 upstream = CONTEXT | {
@@ -115,6 +122,8 @@ class ManagedCohort:
                     "reconnect_maximum_ms": 100,
                     "timeout_ms": self.source_timeout_ms,
                 }
+                if self.capacity is not None:
+                    upstream.update(self.capacity.managed())
                 upstream_path = directory / "upstream.json"
                 upstream_path.write_text(json.dumps(upstream))
                 upstream_path.chmod(0o600)
@@ -145,9 +154,22 @@ class ManagedCohort:
                         }
                     ],
                 }
+                if (
+                    self.capacity is not None
+                    and self.capacity.relay_cache_bytes is not None
+                ):
+                    configuration["bundles"][0]["cache_bytes"] = (
+                        self.capacity.relay_cache_bytes
+                    )
                 if self.probe_sessions:
-                    sessions = (self.probe_sessions + 1) // 2 + self.count + 32
-                    active = (self.probe_active + 1) // 2
+                    sessions = (
+                        (self.probe_sessions + self.relay_count - 1) // self.relay_count
+                        + self.count
+                        + 32
+                    )
+                    active = (
+                        self.probe_active + self.relay_count - 1
+                    ) // self.relay_count
                     configuration.update(
                         connections=active + 128,
                         control_bytes=max(64 * 1024 * 1024, (active + 128) * 65536),
@@ -197,6 +219,8 @@ class ManagedCohort:
                 "reconnect_maximum_ms": 100,
                 "timeout_ms": self.source_timeout_ms,
             }
+            if self.capacity is not None:
+                source.update(self.capacity.managed())
             if relay_ports:
                 source.pop("authority_endpoints")
                 source.pop("quorum_refresh_ms")
@@ -262,6 +286,7 @@ class ManagedCohort:
             writers.write_expected(stream, revision)
         await self.wait_selected(revision)
         for index in range(len(self.members)):
+            oracle_started = time.monotonic()
             directory = self.directory / f"agent-{index}" / "generations"
             verifier = await self.actors.start(
                 f"oracle-{index}",
@@ -273,6 +298,7 @@ class ManagedCohort:
                     CONTEXT["group"],
                     CONTEXT["epoch"],
                     self.scope,
+                    *(self.capacity.oracle_arguments() if self.capacity else []),
                 ],
             )
             await asyncio.wait_for(verifier.process.wait(), 60)
@@ -281,6 +307,7 @@ class ManagedCohort:
                 raise RuntimeError(f"independent SDK oracle rejected agent {index}")
             self.actors.evidence.record(
                 "managed_verified",
+                oracle_process_seconds=time.monotonic() - oracle_started,
                 index=index,
                 records=writers.records,
                 revision=revision,

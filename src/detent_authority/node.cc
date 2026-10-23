@@ -14,16 +14,23 @@ std::shared_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal:
 	return std::shared_ptr<kronuz::journal::IO>(std::move(io));
 }
 NodeOptions checked(NodeOptions o) {
-	if (o.configuration.cluster != o.context.cluster || !o.waiters || o.waiters > 65536 ||
-		o.consensus.command_bytes < o.application.request_bytes + 104 ||
-		o.storage.replacement_pool.logical_bytes <
-			o.application.image_bytes + checkpoint_detail::maximum_size(o.consensus) + 4096 ||
-		o.storage.replacement_pool.entries < 4) {
-		throw std::invalid_argument("authority runtime cannot fund configured limits");
-	}
+	validate_node_options(o);
 	return o;
 }
 } // namespace
+void validate_node_options(const NodeOptions &o) {
+	const auto checkpoint = checkpoint_detail::maximum_size(o.consensus);
+	const auto replacement = o.storage.replacement_pool.logical_bytes;
+	if (o.configuration.cluster != o.context.cluster || !o.waiters || o.waiters > 65536 ||
+		o.consensus.command_bytes < 104 ||
+		o.application.request_bytes > o.consensus.command_bytes - 104 ||
+		o.application.image_bytes > replacement || checkpoint > replacement - o.application.image_bytes ||
+		4096 > replacement - o.application.image_bytes - checkpoint ||
+		o.storage.replacement_pool.entries < 4) {
+		throw std::invalid_argument("authority runtime cannot fund configured limits");
+	}
+}
+
 Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)
 	: io_(checked_io(std::move(io))), options_(checked(std::move(options))),
 	  state_(options_.context, options_.application),

@@ -43,7 +43,6 @@ struct DependencyDiscovery::Impl {
 		 d::RetirementHandle<SegmentRegistry> admitted)
 		: account(std::move(ledger)), root(expected), storage(identity), limits(bounds) {
 		p::encode_root(root, limits);
-		require(root.segments <= p::Limits{}.segments);
 		inputs = std::allocate_shared<Inputs>(d::StorageAllocator<Inputs>(account), account, root.segments);
 		inputs->prior = std::move(prior);
 		if (inputs->prior)

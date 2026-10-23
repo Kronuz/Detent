@@ -21,7 +21,7 @@ struct OwnedSegmentInputs::State final : d::RetirementNode {
 		: inputs(d::StorageAllocator<SegmentInput>(account)),
 		  buffers(d::StorageAllocator<std::shared_ptr<const d::OwnedBuffer>>(account)),
 		  account(std::move(account)), storage(storage), capacity(capacity), maximum(maximum) {
-		if (capacity > paged::Limits{}.segments)
+		if (capacity > inputs.max_size() || capacity > buffers.max_size())
 			throw std::length_error("owned segment input capacity exceeded");
 		inputs.reserve(capacity);
 		buffers.reserve(capacity);

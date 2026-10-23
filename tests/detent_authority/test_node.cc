@@ -4,6 +4,7 @@
 #include <completion/posix.h>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -284,6 +285,22 @@ void rejected_read_kind(const std::filesystem::path &path) {
 }
 
 int main(int argc, char **argv) {
+	for (unsigned mode : {0u, 1u, 2u}) {
+		auto invalid = options();
+		if (mode == 0)
+			invalid.consensus.command_bytes = 103;
+		else if (mode == 1)
+			invalid.application.request_bytes = std::numeric_limits<std::size_t>::max();
+		else {
+			invalid.storage.replacement_pool.logical_bytes = UINT64_MAX;
+			invalid.application.image_bytes = std::numeric_limits<std::size_t>::max() - 2048;
+		}
+		bool refused = false;
+		try { validate_node_options(invalid); }
+		catch (const std::invalid_argument &) { refused = true; }
+		assert(refused);
+	}
+
 	completion_storage = argc == 2 && std::string_view(argv[1]) == "--completion-storage";
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);

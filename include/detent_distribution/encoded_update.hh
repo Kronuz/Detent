@@ -4,6 +4,7 @@
 #include "snapshot_encoder.hh"
 
 namespace detent::distribution {
+inline constexpr std::uint32_t encoded_update_fragment_limit = 65536;
 class UpdateStage;
 // Independent wire bytes. Final handle release queues incremental retirement.
 class EncodedUpdate final : public RetirementNode {
