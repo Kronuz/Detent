@@ -71,12 +71,13 @@ Background-process interference rejects several smaller-tier batches. Those poin
 
 ## Full-system trials, October 23
 
-The [system capacity report](../benchmarks/system-capacity-20261023.json) records completed 1K, 10K and 100K trials with three voters, two relays, two durable agents, four producer namespaces and sixteen native transport probes. Each trial verifies the complete mixed corpus with independent SDK processes, one-key and 128-key durable updates, a short fleet workload and clean shutdown. All use an explicit 5M startup profile; they do not establish online profile increases or continued growth of one persisted group.
+The [system capacity report](../benchmarks/system-capacity-20261023.json) records completed 1K, 10K, 100K and 130K trials with three voters, two relays, two durable agents, four producer namespaces and sixteen native transport probes. Each trial verifies the complete mixed corpus with independent SDK processes, one-key and 128-key durable updates, a short fleet workload and clean shutdown. All use an explicit 5M startup profile; they do not establish online profile increases or continued growth of one persisted group.
 
 | Knobs | Seed seconds | Bootstrap through SDK verification, seconds | Sampled service peak, MiB |
 | --- | --- | --- | --- |
 | 1K | 1.70 | 2.05 | 89.6 |
 | 10K | 11.00 | 2.97 | 185.5 |
 | 100K | 104.34 | 20.77 | 639.4 |
+| 130K | 138.71 | 30.55 | 782.8 |
 
-These are single functional trials, not repeated performance qualification. The service peak sums voters, relays and agents at each sample; native probes, SDK oracles and Python driver memory are separate in the report. Sampling reports lower bounds. At 100K, one bootstrap SDK process reports 30.7 MiB kernel peak RSS before teardown; this is neither agent residency nor aggregate service memory. Bootstrap includes both complete SDK verifications after selection, so it is not directly comparable to the enterprise reference's fetch time. Bootstrap growth warrants profiling before any efficiency claim.
+These are single functional trials, not repeated performance qualification. The service peak sums voters, relays and agents at each sample; native probes, SDK oracles and Python driver memory are separate in the report. Sampling reports lower bounds. RSS sums can count shared pages more than once and do not measure unique physical machine memory. At 100K, one bootstrap SDK process reports 30.7 MiB kernel peak RSS before teardown; this is neither agent residency nor aggregate service memory. Bootstrap includes both complete SDK verifications after selection, so it is not directly comparable to the enterprise reference's fetch time. Bootstrap growth warrants profiling before any efficiency claim.
