@@ -13,6 +13,10 @@ class ReaderCapacity {
   public:
 	using Setting = std::function<std::optional<std::string>(const std::string &, const char *)>;
 	explicit ReaderCapacity(const Setting &setting);
+	ReaderCapacity(const ReaderCapacity &) = delete;
+	ReaderCapacity &operator=(const ReaderCapacity &) = delete;
+	ReaderCapacity(ReaderCapacity &&) = delete;
+	ReaderCapacity &operator=(ReaderCapacity &&) = delete;
 	const detent::local::ViewLimits &limits() const noexcept { return limits_; }
 
   private:
