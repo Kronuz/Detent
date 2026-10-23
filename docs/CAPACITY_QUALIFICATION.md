@@ -67,3 +67,16 @@ At 10M, matched random-ID construction/validation/destruction CPU is 37.061 seco
 The exploratory process peaks include both schedules in one process and allocation-tracking headers. At 10M, median peak RSS is 2.967 GB for btree, 5.676 GB for standard maps and 6.522 GB for the hash prototype. The hash's lower requested-byte count therefore does not establish lower process memory. These are instrumented model lifecycles, not production allocator or decoded-agent RSS. All accepted exploratory samples report zero swaps and zero major page faults; tracked live allocation balance returns to zero.
 
 Background-process interference rejects several smaller-tier batches. Those points remain explicit gaps requiring retries, not interpolated measurements. No container trial closes the full-system capacity gate.
+
+
+## Full-system trials, October 23
+
+The [system capacity report](../benchmarks/system-capacity-20261023.json) records completed 1K, 10K and 100K trials with three voters, two relays, two durable agents, four producer namespaces and sixteen native transport probes. Each trial verifies the complete mixed corpus with independent SDK processes, one-key and 128-key durable updates, a short fleet workload and clean shutdown. All use an explicit 5M startup profile; they do not establish online profile increases or continued growth of one persisted group.
+
+| Knobs | Seed seconds | Bootstrap through SDK verification, seconds | Sampled service peak, MiB |
+| --- | --- | --- | --- |
+| 1K | 1.70 | 2.05 | 89.6 |
+| 10K | 11.00 | 2.97 | 185.5 |
+| 100K | 104.34 | 20.77 | 639.4 |
+
+These are single functional trials, not repeated performance qualification. The service peak sums voters, relays and agents at each sample; native probes, SDK oracles and Python driver memory are separate in the report. Sampling reports lower bounds. At 100K, one bootstrap SDK process reports 30.7 MiB kernel peak RSS before teardown; this is neither agent residency nor aggregate service memory. Bootstrap includes both complete SDK verifications after selection, so it is not directly comparable to the enterprise reference's fetch time. Bootstrap growth warrants profiling before any efficiency claim.

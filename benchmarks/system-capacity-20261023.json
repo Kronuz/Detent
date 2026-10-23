@@ -1,0 +1,1607 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-23",
+  "status": "functional cardinality trials; supported operating envelope not yet qualified",
+  "profile": "tests/detent_system/presets/capacity-5000000.json",
+  "topology": {
+    "voters": 3,
+    "relays": 2,
+    "durable_agents": 2,
+    "publisher_producers": 4,
+    "transport_probes": 16,
+    "active_probe_exchanges": 16
+  },
+  "corpus": "MixedWriters generation 0: alternating bool/int; boolean switch overrides, group rollout and embedded-NUL switch key. Not the supplied enterprise corpus.",
+  "limitations": [
+    "One completed trial per tier, not repeated performance qualification.",
+    "RSS maxima are sampled lower bounds; separate process peaks do not imply simultaneous residency.",
+    "Service RSS includes authority, relay and agent processes only. Native probes and SDK oracles are reported separately.",
+    "Driver RSS was not captured in the 1K pilot.",
+    "Bootstrap verified seconds includes two independent complete SDK verifications after selection; it is not a single network fetch time.",
+    "Actual sample timestamps are authoritative; 200ms is the requested sampling delay, excluding command and event-loop overhead.",
+    "Fresh groups share one fixed capacity profile. This does not establish continuous growth of one persisted group or online profile activation.",
+    "No comparable hardware/corpus baseline supports a cross-system efficiency claim."
+  ],
+  "trials": [
+    {
+      "records": 1000,
+      "raw_evidence_path": ".scratch/capacity-trials/1000-r2/events.jsonl",
+      "raw_evidence_sha256": "58b129ba5912513ad2bdf2fe9b85fc652e9b1a999d43462541dbb7588b2cb3e2",
+      "metadata": {
+        "binaries": {
+          "agents": "a9a5440c36491fb9f5a9ec81763502dc7d61cffe08c9fba326636127ae64fad0",
+          "binary": "5996303cdcc7b8c2365e9a97032c3202314c99acbfafc8d8214688e11ffea70e",
+          "fleet": "291f180b57fa2f65faf0c9ef5c0a9117b107ec9ff09579ce21bbf30d3744804b",
+          "local_oracle": "c4c6554f7062403961c7dbebcc9f276191796bb01ba530b9cb489579470b03ef",
+          "relays": "d8e5582a0793856b1e0a81dae1020bb1e6f55f81f59cdf34c67aca73a47b5422"
+        },
+        "build": {
+          "build_type": "Release",
+          "compiler": "/usr/local/opt/llvm/bin/clang++",
+          "compiler_version": "Homebrew clang version 23.1.2\nTarget: x86_64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /usr/local/Cellar/llvm/23.1.2/bin\nConfiguration file: /usr/local/Cellar/llvm/23.1.2/etc/clang/x86_64-apple-darwin24.cfg",
+          "filesystem_block_bytes": 4096,
+          "filesystem_device": 16777220,
+          "filesystem_mount": "Filesystem   512-blocks       Used Available Capacity  Mounted on\n/dev/disk1s1 1953595632 1692397272 199413968    90%    /System/Volumes/Data",
+          "source": {
+            "clean": "true",
+            "revision": "afe08378a665e7b24595bbcf7ee3f63d9086ffaa",
+            "source_tree_sha256": "553f99176be0307e8c38e906d4a582ebbef0239843201fc5ccbe765a8c549ceb",
+            "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "system_link_inputs": {
+            "LZ4_LIBRARY": {
+              "path": "/usr/local/lib/liblz4.dylib",
+              "sha256": "5085d2ef14c71431337f9661c9fa5d5a6d74419ed905a3f00a3a15b10904e6e0"
+            },
+            "OPENSSL_CRYPTO_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libcrypto.dylib",
+              "sha256": "a5ba3a73c46f13480c8c9248ef8b2fffb8e7d950951684ad62a1f1e80050f9f0"
+            },
+            "OPENSSL_SSL_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libssl.dylib",
+              "sha256": "189f1226e948fbf41d4b8cda39182394c2f8591a6fae3fa594a2e68328bd875d"
+            },
+            "ZLIB_LIBRARY_RELEASE": {
+              "path": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd",
+              "sha256": "d8345b4949b529ffd6057d84816b2a741db2ec73c24a61be0a23cab37096a7d7"
+            }
+          }
+        },
+        "capacity_sha256": "1e42c792c257d293148fbcda6dca0271c2bd01bfeeabe03de3e2059151a9eb5c",
+        "compression": "zstd",
+        "dependencies": {
+          "asio": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/asio-231cb29bab30f82712fcd54faaea42424cc6e710",
+            "source_tree_sha256": "72f5360b70d42873b7ee8cf5dcd52ff5cbf7e461874d2e0d269a3d98abd18fc1"
+          },
+          "atomic_shared_ptr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/atomic_shared_ptr-b7bf5efcec1dd437caf0692263cedfe368adceb2",
+            "source_tree_sha256": "8d9647ad40cb66a2f4ca9ea3748914d8286dbefa2271bf822b36e4f688224c5d"
+          },
+          "char_classify": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/char_classify-306ecd96d55d47d9bd3167eaeb7877e40d0631ac",
+            "source_tree_sha256": "fadda99b93f701158d33ff6550568f5fe2a2f9597e19bf8e5dfcaac1f5ac4f45"
+          },
+          "cluster": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cluster-f053a822134ab4287a40a9319b4b8db452143089",
+            "source_tree_sha256": "125144b629cd0d19f67426deb11eeec9f534e853220cf1cf4c3f49314ad46b9b"
+          },
+          "completion": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/completion-5251cf9f24350c65548318b54a4be93389df73d0",
+            "source_tree_sha256": "1d5c05b6695b3b2e212fcfbb9e500423df3bd94de5b504438f464e357d65b259"
+          },
+          "compressors": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/compressors-ed590c87201afd270afbfbb2d58d5d467c6d23b6",
+            "source_tree_sha256": "1d48d7e13a2f945035fbbfdbb08012061cc9bd269b4ee80d545ae0e6e0ef63ab"
+          },
+          "consensus": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/consensus-b7073bbe4d94e66dce526f193b0dd81a57cdb661",
+            "source_tree_sha256": "c55362835a33527e5e68877954f2485e3c1c78657502cb1cce4b0bcf4998aee4"
+          },
+          "constexpr_phf": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/constexpr_phf-1a035230c03982a822637f7c741656bd688bd9e3",
+            "source_tree_sha256": "fe1d942bd996f3eea26d32c928dc4bfab3c35c1c571963aa5e1e940f2ed9941a"
+          },
+          "cpp_btree": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-prepared-r4/source",
+            "source_tree_sha256": "f5ffa1d18e8d664d6bbc426132ae693e2d45b18d4736ae97b16d8ad5c5f81d73"
+          },
+          "cppcodec": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cppcodec-8019b8b580f8573c33c50372baec7039dfe5a8ce",
+            "source_tree_sha256": "3630a5e00506fa43d2ac626658407a217a47145a4670b084c16124d6ced7e4ba"
+          },
+          "detent_logger": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/detent_logger-8c5afcd89030586939dd5229ee2ae583069b83dd",
+            "source_tree_sha256": "d0ab3bdbc6208f217ce8eccab93e5a64e8bf6279411cda5473fc80bc83e33403"
+          },
+          "endian": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/endian-f6269f09da90bb3713018792003f01a67749b00c",
+            "source_tree_sha256": "907b372c71423b630fe392579e684c5868575ca32dc0e9ec8fe9d797070932bf"
+          },
+          "enum_reflection": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/enum_reflection-9b5ecea02d7de8356ddd10fd874cd981aba399db",
+            "source_tree_sha256": "b553e32e442ea4e623e164e03dd81235e0b7e5072bb2d10a4aaf5bb2942dea68"
+          },
+          "generation_cache": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/generation_cache-01af1b2b17226d49ed89623e9af5d4f94a187588",
+            "source_tree_sha256": "b1a20c21a77f6a0751bcd9559713235f9179ba667a7c1ba60683d77a675b14b6"
+          },
+          "hashes": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/hashes-7ab0c23325debfbaf4104044987ba6583d14808f",
+            "source_tree_sha256": "6a2e3559b7c2160864fcb1def5459ac07bd33f19a2a9f7ad4e0134275cdf7b92"
+          },
+          "http_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_lib-6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+            "source_tree_sha256": "d6e340c7839bc3a4ae1ee9e990fa6790eeede6102d3daa16291c5b101e9528b0"
+          },
+          "http_log": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_log-2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+            "source_tree_sha256": "333f4bebaafda795a15b799e0824c1844626065889ac84b69a24914cf98c8399"
+          },
+          "http_parser": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_parser-178f873450364b67f0abca9c96fbbc735589d435",
+            "source_tree_sha256": "3040199229d73b7347fe2908dc91b738ecaf619551103b1f677604273070e6e4"
+          },
+          "journal": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/journal-57e6250e1b714925feddc210641c1c6ea49d5337",
+            "source_tree_sha256": "c097f434bb4b15e321f15bed90c4a20d151652848dcaedf66e4afe27217a0812"
+          },
+          "metrics": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/metrics-c975765bafe61fa79a0aa417be6deb30edf3b1db",
+            "source_tree_sha256": "db4d8e0694b7a95259a893f0809f5a8a4d35bcea4f50a1c048e0300ade7a143d"
+          },
+          "radix_router": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/radix_router-d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed",
+            "source_tree_sha256": "32caa939c06e78e019329f04ded3e2e87fafbfcb84fb6bb5b063276af7d432aa"
+          },
+          "random_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/random_lib-6487253c9e7a4855ccbea36f7a66cea5fef7d381",
+            "source_tree_sha256": "caff5cd02e9a79e33bf0d855811166ccb184395acb1438c5df7656d067f56ffd"
+          },
+          "rapidjson": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/rapidjson-24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+            "source_tree_sha256": "9adb330d671c7afb0cce7311db58c0759e9323805a0ac18b5603fe7bd4ecb3b7"
+          },
+          "reactor": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/reactor-fe8c5ced4207508b32ebe96a4dcc524c08081414",
+            "source_tree_sha256": "dd68c83f03697b78a553ed09826ba33553aacec8890fdb7c61868886e8b07516"
+          },
+          "repr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/repr-0fe9a1e98914a423574bfe675eaa82f3e1cb1df6",
+            "source_tree_sha256": "a901c6d36c0bdae050572667047f2c79f7237b1b9e94053f3784db27aa37d457"
+          },
+          "scheduler": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/scheduler-fb464cb39256057b321c3a8837a7dab2fe1e09b7",
+            "source_tree_sha256": "5ade20827e131e6e8bce491a84835e9352245f6067d85c2a60de104ebad9cd23"
+          },
+          "sha256": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/sha256-2bb34f02973575ebe030e7444b2996024cc05fcf",
+            "source_tree_sha256": "b5bfbd9773712948b3a1dd9fed5b4d8bc040a26b07ebadf8e4984e965d14d773"
+          },
+          "split": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/split-aa9857a0383664e67cf2263108c656b36fa8b863",
+            "source_tree_sha256": "90175f2b051a07e7c7cb913296bb566a0409e1eb094dc0f7410789cc5755b1f8"
+          },
+          "stash": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/stash-2908b488c10dbd6830c384f53358783639a36965",
+            "source_tree_sha256": "e2dbdc5db80c34bdbbe3100b6c15dfc12e8a296f9f1078245942797882b73e32"
+          },
+          "static_string": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/static_string-eb1efcb39f4d8bb4fd20a9ea91498a288d25aca2",
+            "source_tree_sha256": "83f72766caae999477e8e89b5aa05208564b01b9474f97f6e868a3277ae4e0a7"
+          },
+          "strict_stox": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strict_stox-21b7941c71064b5a4e52ffb50a2701ee4aae4c6c",
+            "source_tree_sha256": "122952b0109c18173eed204309c448fdbf1ea14bbc04e846db8ef63d10feb188"
+          },
+          "strings": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strings-b42d3c4ce1130043a381e487ae0a693248c2c0f5",
+            "source_tree_sha256": "b604701cbb223baa3b86e7bd498f25f8b5c82e88bd9f5aa095ae6cc1333da8cd"
+          },
+          "term_color": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/term_color-534e30905b1a40ae1f18dbde46b039dd4333747b",
+            "source_tree_sha256": "d1f9118406cf29339cb314c4b574166f3d110db84eadfe9b9597326c6647deb3"
+          },
+          "threadpool": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/threadpool-628679a2e27b563cf2709a6f35f98f1657baf7b3",
+            "source_tree_sha256": "b8383cf2de779e5f8d67b52e3e39868494f77a78b29543908766a1913c4b1705"
+          },
+          "varint": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/varint-21af82a64fd5860d14d5ec9591bec2ffd5d662d1",
+            "source_tree_sha256": "b8aed826ba394e9294a8a8ac2adf346f80ab9c536042cd4229d974a508ddd850"
+          }
+        },
+        "durable_stores": 2,
+        "duration": 3,
+        "host": {
+          "cpu_count": 16,
+          "load_average": [
+            3.14892578125,
+            3.59521484375,
+            3.12353515625
+          ],
+          "machine": "x86_64",
+          "physical_memory_bytes": 34359738368,
+          "python": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 17.0.0 (clang-1700.6.4.2)]",
+          "release": "24.6.0",
+          "system": "Darwin"
+        },
+        "http_workers": 4,
+        "kind": "metadata",
+        "offered_workloads_per_second": null,
+        "preflight": {
+          "available_disk_bytes": 102099951616,
+          "hard_fds": 9223372036854775807,
+          "required_disk_bytes": 118878208,
+          "required_fds": 552,
+          "soft_fds": 1048576
+        },
+        "preliminary_memory": {
+          "available_memory_estimate_bytes": 11987668992,
+          "baseline_rss_bytes": 0,
+          "physical_memory_bytes": 34359738368,
+          "probe_heap_bytes": 335544320,
+          "required_workload_bytes": 377487360,
+          "transport_reserve_bytes": 41943040,
+          "workload_ceiling_bytes": 25769803776
+        },
+        "qualification": "native-transport-probes-and-durable-cohort",
+        "requested_active_exchanges": 16,
+        "scenario_sha256": "100e6d6b54d5f9e74215f9750c49e252ccf1f00b2c03720b846037a668bb38fe",
+        "seed": 17,
+        "source": {
+          "clean": "true",
+          "revision": "afe08378a665e7b24595bbcf7ee3f63d9086ffaa",
+          "source_tree_sha256": "553f99176be0307e8c38e906d4a582ebbef0239843201fc5ccbe765a8c549ceb",
+          "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "transport_probes": 16,
+        "warm_start": false
+      },
+      "phase_events": [
+        {
+          "kind": "capacity_seeded",
+          "process_cpu_seconds": {
+            "authority-0": 0.34,
+            "authority-1": 0.27,
+            "authority-2": 0.27
+          },
+          "records": 1000,
+          "seconds": 1.696652386104688
+        },
+        {
+          "kind": "capacity_bootstrap_selected",
+          "records": 1000,
+          "seconds": 1.7481463609728962
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.2628445620648563,
+          "records": 1000,
+          "revision": 8
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.022995267994701862,
+          "records": 1000,
+          "revision": 8
+        },
+        {
+          "kind": "capacity_bootstrap_verified",
+          "records": 1000,
+          "seconds": 2.0480175639968365
+        },
+        {
+          "durable_ack_seconds": 0.3104489119723439,
+          "kind": "capacity_bounded_update",
+          "mutations": 1,
+          "records": 1000,
+          "requested_mutations": 1,
+          "selected_seconds": 1.3590662069618702,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.02584596280939877,
+          "records": 1000,
+          "revision": 9
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.02323211496695876,
+          "records": 1000,
+          "revision": 9
+        },
+        {
+          "durable_ack_seconds": 0.3205786030739546,
+          "kind": "capacity_bounded_update",
+          "mutations": 128,
+          "records": 1000,
+          "requested_mutations": 128,
+          "selected_seconds": 1.3910520169883966,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.022415114799514413,
+          "records": 1000,
+          "revision": 10
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.022242655977606773,
+          "records": 1000,
+          "revision": 10
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.0204376180190593,
+          "records": 1000,
+          "revision": 26
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.020236538955941796,
+          "records": 1000,
+          "revision": 26
+        },
+        {
+          "dropped_output_records": 0,
+          "kind": "completed"
+        }
+      ],
+      "sampled_service_peak_bytes": 93974528,
+      "sampled_all_children_peak_bytes": 107667456,
+      "sampled_driver_peak_bytes": null,
+      "sampled_process_peak_bytes": {
+        "authority-0": 16457728,
+        "authority-1": 11476992,
+        "authority-2": 11247616,
+        "agent-0": 10575872,
+        "agent-1": 10584064,
+        "relay-0": 16998400,
+        "relay-1": 16633856,
+        "oracle-0": 1589248,
+        "oracle-1": 1425408,
+        "fleet": 13754368
+      },
+      "sdk_oracles": [
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 500,
+            "int_knobs": 500,
+            "deleted": 0,
+            "revision": 8,
+            "open_ms": 9.53219,
+            "verify_ms": 4.11925,
+            "peak_rss_bytes_before_teardown": 1556480
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 500,
+            "int_knobs": 500,
+            "deleted": 0,
+            "revision": 8,
+            "open_ms": 10.3527,
+            "verify_ms": 4.08446,
+            "peak_rss_bytes_before_teardown": 1613824
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 499,
+            "int_knobs": 501,
+            "deleted": 0,
+            "revision": 9,
+            "open_ms": 11.8381,
+            "verify_ms": 4.29765,
+            "peak_rss_bytes_before_teardown": 1667072
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 499,
+            "int_knobs": 501,
+            "deleted": 0,
+            "revision": 9,
+            "open_ms": 10.7578,
+            "verify_ms": 4.19932,
+            "peak_rss_bytes_before_teardown": 1605632
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 372,
+            "int_knobs": 628,
+            "deleted": 0,
+            "revision": 10,
+            "open_ms": 10.9626,
+            "verify_ms": 3.36197,
+            "peak_rss_bytes_before_teardown": 1667072
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 372,
+            "int_knobs": 628,
+            "deleted": 0,
+            "revision": 10,
+            "open_ms": 10.776,
+            "verify_ms": 3.41477,
+            "peak_rss_bytes_before_teardown": 1642496
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 0,
+            "int_knobs": 1000,
+            "deleted": 0,
+            "revision": 26,
+            "open_ms": 10.2226,
+            "verify_ms": 1.10188,
+            "peak_rss_bytes_before_teardown": 1654784
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 1000,
+            "bool_knobs": 0,
+            "int_knobs": 1000,
+            "deleted": 0,
+            "revision": 26,
+            "open_ms": 10.1372,
+            "verify_ms": 0.964342,
+            "peak_rss_bytes_before_teardown": 1597440
+          }
+        }
+      ]
+    },
+    {
+      "records": 10000,
+      "raw_evidence_path": ".scratch/capacity-trials/10000-r3/events.jsonl",
+      "raw_evidence_sha256": "e953d42330f56134382b39355d34b2e7b57649faa2f336f4410da91e3536e2e0",
+      "metadata": {
+        "binaries": {
+          "agents": "a9a5440c36491fb9f5a9ec81763502dc7d61cffe08c9fba326636127ae64fad0",
+          "binary": "5996303cdcc7b8c2365e9a97032c3202314c99acbfafc8d8214688e11ffea70e",
+          "fleet": "291f180b57fa2f65faf0c9ef5c0a9117b107ec9ff09579ce21bbf30d3744804b",
+          "local_oracle": "c4c6554f7062403961c7dbebcc9f276191796bb01ba530b9cb489579470b03ef",
+          "relays": "d8e5582a0793856b1e0a81dae1020bb1e6f55f81f59cdf34c67aca73a47b5422"
+        },
+        "build": {
+          "build_type": "Release",
+          "compiler": "/usr/local/opt/llvm/bin/clang++",
+          "compiler_version": "Homebrew clang version 23.1.2\nTarget: x86_64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /usr/local/Cellar/llvm/23.1.2/bin\nConfiguration file: /usr/local/Cellar/llvm/23.1.2/etc/clang/x86_64-apple-darwin24.cfg",
+          "filesystem_block_bytes": 4096,
+          "filesystem_device": 16777220,
+          "filesystem_mount": "Filesystem   512-blocks       Used Available Capacity  Mounted on\n/dev/disk1s1 1953595632 1692509144 188816424    90%    /System/Volumes/Data",
+          "source": {
+            "clean": "true",
+            "revision": "0c1e5adcc3d5b6c96081711e24cd15cb51f8a968",
+            "source_tree_sha256": "79b1987ca45c8350d8d4cfa4856d32aa7dadebc6d84c1d952d4872e4c3105754",
+            "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "system_link_inputs": {
+            "LZ4_LIBRARY": {
+              "path": "/usr/local/lib/liblz4.dylib",
+              "sha256": "5085d2ef14c71431337f9661c9fa5d5a6d74419ed905a3f00a3a15b10904e6e0"
+            },
+            "OPENSSL_CRYPTO_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libcrypto.dylib",
+              "sha256": "a5ba3a73c46f13480c8c9248ef8b2fffb8e7d950951684ad62a1f1e80050f9f0"
+            },
+            "OPENSSL_SSL_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libssl.dylib",
+              "sha256": "189f1226e948fbf41d4b8cda39182394c2f8591a6fae3fa594a2e68328bd875d"
+            },
+            "ZLIB_LIBRARY_RELEASE": {
+              "path": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd",
+              "sha256": "d8345b4949b529ffd6057d84816b2a741db2ec73c24a61be0a23cab37096a7d7"
+            }
+          }
+        },
+        "capacity_sha256": "1e42c792c257d293148fbcda6dca0271c2bd01bfeeabe03de3e2059151a9eb5c",
+        "compression": "zstd",
+        "dependencies": {
+          "asio": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/asio-231cb29bab30f82712fcd54faaea42424cc6e710",
+            "source_tree_sha256": "72f5360b70d42873b7ee8cf5dcd52ff5cbf7e461874d2e0d269a3d98abd18fc1"
+          },
+          "atomic_shared_ptr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/atomic_shared_ptr-b7bf5efcec1dd437caf0692263cedfe368adceb2",
+            "source_tree_sha256": "8d9647ad40cb66a2f4ca9ea3748914d8286dbefa2271bf822b36e4f688224c5d"
+          },
+          "char_classify": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/char_classify-306ecd96d55d47d9bd3167eaeb7877e40d0631ac",
+            "source_tree_sha256": "fadda99b93f701158d33ff6550568f5fe2a2f9597e19bf8e5dfcaac1f5ac4f45"
+          },
+          "cluster": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cluster-f053a822134ab4287a40a9319b4b8db452143089",
+            "source_tree_sha256": "125144b629cd0d19f67426deb11eeec9f534e853220cf1cf4c3f49314ad46b9b"
+          },
+          "completion": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/completion-5251cf9f24350c65548318b54a4be93389df73d0",
+            "source_tree_sha256": "1d5c05b6695b3b2e212fcfbb9e500423df3bd94de5b504438f464e357d65b259"
+          },
+          "compressors": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/compressors-ed590c87201afd270afbfbb2d58d5d467c6d23b6",
+            "source_tree_sha256": "1d48d7e13a2f945035fbbfdbb08012061cc9bd269b4ee80d545ae0e6e0ef63ab"
+          },
+          "consensus": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/consensus-b7073bbe4d94e66dce526f193b0dd81a57cdb661",
+            "source_tree_sha256": "c55362835a33527e5e68877954f2485e3c1c78657502cb1cce4b0bcf4998aee4"
+          },
+          "constexpr_phf": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/constexpr_phf-1a035230c03982a822637f7c741656bd688bd9e3",
+            "source_tree_sha256": "fe1d942bd996f3eea26d32c928dc4bfab3c35c1c571963aa5e1e940f2ed9941a"
+          },
+          "cpp_btree": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-prepared-r4/source",
+            "source_tree_sha256": "f5ffa1d18e8d664d6bbc426132ae693e2d45b18d4736ae97b16d8ad5c5f81d73"
+          },
+          "cppcodec": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cppcodec-8019b8b580f8573c33c50372baec7039dfe5a8ce",
+            "source_tree_sha256": "3630a5e00506fa43d2ac626658407a217a47145a4670b084c16124d6ced7e4ba"
+          },
+          "detent_logger": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/detent_logger-8c5afcd89030586939dd5229ee2ae583069b83dd",
+            "source_tree_sha256": "d0ab3bdbc6208f217ce8eccab93e5a64e8bf6279411cda5473fc80bc83e33403"
+          },
+          "endian": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/endian-f6269f09da90bb3713018792003f01a67749b00c",
+            "source_tree_sha256": "907b372c71423b630fe392579e684c5868575ca32dc0e9ec8fe9d797070932bf"
+          },
+          "enum_reflection": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/enum_reflection-9b5ecea02d7de8356ddd10fd874cd981aba399db",
+            "source_tree_sha256": "b553e32e442ea4e623e164e03dd81235e0b7e5072bb2d10a4aaf5bb2942dea68"
+          },
+          "generation_cache": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/generation_cache-01af1b2b17226d49ed89623e9af5d4f94a187588",
+            "source_tree_sha256": "b1a20c21a77f6a0751bcd9559713235f9179ba667a7c1ba60683d77a675b14b6"
+          },
+          "hashes": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/hashes-7ab0c23325debfbaf4104044987ba6583d14808f",
+            "source_tree_sha256": "6a2e3559b7c2160864fcb1def5459ac07bd33f19a2a9f7ad4e0134275cdf7b92"
+          },
+          "http_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_lib-6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+            "source_tree_sha256": "d6e340c7839bc3a4ae1ee9e990fa6790eeede6102d3daa16291c5b101e9528b0"
+          },
+          "http_log": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_log-2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+            "source_tree_sha256": "333f4bebaafda795a15b799e0824c1844626065889ac84b69a24914cf98c8399"
+          },
+          "http_parser": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_parser-178f873450364b67f0abca9c96fbbc735589d435",
+            "source_tree_sha256": "3040199229d73b7347fe2908dc91b738ecaf619551103b1f677604273070e6e4"
+          },
+          "journal": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/journal-57e6250e1b714925feddc210641c1c6ea49d5337",
+            "source_tree_sha256": "c097f434bb4b15e321f15bed90c4a20d151652848dcaedf66e4afe27217a0812"
+          },
+          "metrics": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/metrics-c975765bafe61fa79a0aa417be6deb30edf3b1db",
+            "source_tree_sha256": "db4d8e0694b7a95259a893f0809f5a8a4d35bcea4f50a1c048e0300ade7a143d"
+          },
+          "radix_router": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/radix_router-d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed",
+            "source_tree_sha256": "32caa939c06e78e019329f04ded3e2e87fafbfcb84fb6bb5b063276af7d432aa"
+          },
+          "random_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/random_lib-6487253c9e7a4855ccbea36f7a66cea5fef7d381",
+            "source_tree_sha256": "caff5cd02e9a79e33bf0d855811166ccb184395acb1438c5df7656d067f56ffd"
+          },
+          "rapidjson": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/rapidjson-24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+            "source_tree_sha256": "9adb330d671c7afb0cce7311db58c0759e9323805a0ac18b5603fe7bd4ecb3b7"
+          },
+          "reactor": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/reactor-fe8c5ced4207508b32ebe96a4dcc524c08081414",
+            "source_tree_sha256": "dd68c83f03697b78a553ed09826ba33553aacec8890fdb7c61868886e8b07516"
+          },
+          "repr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/repr-0fe9a1e98914a423574bfe675eaa82f3e1cb1df6",
+            "source_tree_sha256": "a901c6d36c0bdae050572667047f2c79f7237b1b9e94053f3784db27aa37d457"
+          },
+          "scheduler": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/scheduler-fb464cb39256057b321c3a8837a7dab2fe1e09b7",
+            "source_tree_sha256": "5ade20827e131e6e8bce491a84835e9352245f6067d85c2a60de104ebad9cd23"
+          },
+          "sha256": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/sha256-2bb34f02973575ebe030e7444b2996024cc05fcf",
+            "source_tree_sha256": "b5bfbd9773712948b3a1dd9fed5b4d8bc040a26b07ebadf8e4984e965d14d773"
+          },
+          "split": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/split-aa9857a0383664e67cf2263108c656b36fa8b863",
+            "source_tree_sha256": "90175f2b051a07e7c7cb913296bb566a0409e1eb094dc0f7410789cc5755b1f8"
+          },
+          "stash": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/stash-2908b488c10dbd6830c384f53358783639a36965",
+            "source_tree_sha256": "e2dbdc5db80c34bdbbe3100b6c15dfc12e8a296f9f1078245942797882b73e32"
+          },
+          "static_string": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/static_string-eb1efcb39f4d8bb4fd20a9ea91498a288d25aca2",
+            "source_tree_sha256": "83f72766caae999477e8e89b5aa05208564b01b9474f97f6e868a3277ae4e0a7"
+          },
+          "strict_stox": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strict_stox-21b7941c71064b5a4e52ffb50a2701ee4aae4c6c",
+            "source_tree_sha256": "122952b0109c18173eed204309c448fdbf1ea14bbc04e846db8ef63d10feb188"
+          },
+          "strings": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strings-b42d3c4ce1130043a381e487ae0a693248c2c0f5",
+            "source_tree_sha256": "b604701cbb223baa3b86e7bd498f25f8b5c82e88bd9f5aa095ae6cc1333da8cd"
+          },
+          "term_color": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/term_color-534e30905b1a40ae1f18dbde46b039dd4333747b",
+            "source_tree_sha256": "d1f9118406cf29339cb314c4b574166f3d110db84eadfe9b9597326c6647deb3"
+          },
+          "threadpool": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/threadpool-628679a2e27b563cf2709a6f35f98f1657baf7b3",
+            "source_tree_sha256": "b8383cf2de779e5f8d67b52e3e39868494f77a78b29543908766a1913c4b1705"
+          },
+          "varint": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/varint-21af82a64fd5860d14d5ec9591bec2ffd5d662d1",
+            "source_tree_sha256": "b8aed826ba394e9294a8a8ac2adf346f80ab9c536042cd4229d974a508ddd850"
+          }
+        },
+        "durable_stores": 2,
+        "duration": 3,
+        "host": {
+          "cpu_count": 16,
+          "load_average": [
+            3.3056640625,
+            2.95849609375,
+            2.81005859375
+          ],
+          "machine": "x86_64",
+          "physical_memory_bytes": 34359738368,
+          "python": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 17.0.0 (clang-1700.6.4.2)]",
+          "release": "24.6.0",
+          "system": "Darwin"
+        },
+        "http_workers": 4,
+        "kind": "metadata",
+        "offered_workloads_per_second": null,
+        "preflight": {
+          "available_disk_bytes": 96672063488,
+          "hard_fds": 9223372036854775807,
+          "required_disk_bytes": 370892800,
+          "required_fds": 552,
+          "soft_fds": 1048576
+        },
+        "preliminary_memory": {
+          "available_memory_estimate_bytes": 15009312768,
+          "baseline_rss_bytes": 0,
+          "physical_memory_bytes": 34359738368,
+          "probe_heap_bytes": 335544320,
+          "required_workload_bytes": 377487360,
+          "transport_reserve_bytes": 41943040,
+          "workload_ceiling_bytes": 25769803776
+        },
+        "qualification": "native-transport-probes-and-durable-cohort",
+        "requested_active_exchanges": 16,
+        "scenario_sha256": "d47ffe96222ca5bf4444cea7ae41a42c6cfd1a2df898257147f36670df30f50f",
+        "seed": 17,
+        "source": {
+          "clean": "true",
+          "revision": "0c1e5adcc3d5b6c96081711e24cd15cb51f8a968",
+          "source_tree_sha256": "79b1987ca45c8350d8d4cfa4856d32aa7dadebc6d84c1d952d4872e4c3105754",
+          "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "transport_probes": 16,
+        "warm_start": false
+      },
+      "phase_events": [
+        {
+          "kind": "capacity_seeded",
+          "process_cpu_seconds": {
+            "authority-0": 1.23,
+            "authority-1": 1.21,
+            "authority-2": 1.59
+          },
+          "records": 10000,
+          "seconds": 10.997385366121307
+        },
+        {
+          "kind": "capacity_bootstrap_selected",
+          "records": 10000,
+          "seconds": 2.671068320982158
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.1565143819898367,
+          "records": 10000,
+          "revision": 80
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.14361815014854074,
+          "records": 10000,
+          "revision": 80
+        },
+        {
+          "kind": "capacity_bootstrap_verified",
+          "records": 10000,
+          "seconds": 2.9749125549569726
+        },
+        {
+          "durable_ack_seconds": 0.2982748649083078,
+          "kind": "capacity_bounded_update",
+          "mutations": 1,
+          "records": 10000,
+          "requested_mutations": 1,
+          "selected_seconds": 1.3618493089452386,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.14950321381911635,
+          "records": 10000,
+          "revision": 81
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.13892144802957773,
+          "records": 10000,
+          "revision": 81
+        },
+        {
+          "durable_ack_seconds": 0.2652897599618882,
+          "kind": "capacity_bounded_update",
+          "mutations": 128,
+          "records": 10000,
+          "requested_mutations": 128,
+          "selected_seconds": 1.3753715900238603,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.1449046789202839,
+          "records": 10000,
+          "revision": 82
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.14181020786054432,
+          "records": 10000,
+          "revision": 82
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.15736337006092072,
+          "records": 10000,
+          "revision": 122
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 0.15570109011605382,
+          "records": 10000,
+          "revision": 122
+        },
+        {
+          "dropped_output_records": 0,
+          "kind": "completed"
+        }
+      ],
+      "sampled_service_peak_bytes": 194478080,
+      "sampled_all_children_peak_bytes": 212967424,
+      "sampled_driver_peak_bytes": 35307520,
+      "sampled_process_peak_bytes": {
+        "authority-0": 16932864,
+        "authority-1": 16936960,
+        "authority-2": 25440256,
+        "agent-0": 29421568,
+        "agent-1": 29425664,
+        "relay-0": 36941824,
+        "relay-1": 39378944,
+        "oracle-1": 7311360,
+        "fleet": 18628608
+      },
+      "sdk_oracles": [
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 5000,
+            "int_knobs": 5000,
+            "deleted": 0,
+            "revision": 80,
+            "open_ms": 99.3095,
+            "verify_ms": 44.4054,
+            "peak_rss_bytes_before_teardown": 4476928
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 5000,
+            "int_knobs": 5000,
+            "deleted": 0,
+            "revision": 80,
+            "open_ms": 94.5502,
+            "verify_ms": 40.7766,
+            "peak_rss_bytes_before_teardown": 4501504
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 4999,
+            "int_knobs": 5001,
+            "deleted": 0,
+            "revision": 81,
+            "open_ms": 97.7089,
+            "verify_ms": 41.2327,
+            "peak_rss_bytes_before_teardown": 4481024
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 4999,
+            "int_knobs": 5001,
+            "deleted": 0,
+            "revision": 81,
+            "open_ms": 89.0436,
+            "verify_ms": 41.9363,
+            "peak_rss_bytes_before_teardown": 4444160
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 4872,
+            "int_knobs": 5128,
+            "deleted": 0,
+            "revision": 82,
+            "open_ms": 95.3082,
+            "verify_ms": 40.775,
+            "peak_rss_bytes_before_teardown": 4616192
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 4872,
+            "int_knobs": 5128,
+            "deleted": 0,
+            "revision": 82,
+            "open_ms": 93.4528,
+            "verify_ms": 40.3792,
+            "peak_rss_bytes_before_teardown": 4624384
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 2986,
+            "int_knobs": 7014,
+            "deleted": 0,
+            "revision": 122,
+            "open_ms": 119.055,
+            "verify_ms": 29.7544,
+            "peak_rss_bytes_before_teardown": 7647232
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 10000,
+            "bool_knobs": 2986,
+            "int_knobs": 7014,
+            "deleted": 0,
+            "revision": 122,
+            "open_ms": 118.292,
+            "verify_ms": 29.5269,
+            "peak_rss_bytes_before_teardown": 7602176
+          }
+        }
+      ]
+    },
+    {
+      "records": 100000,
+      "raw_evidence_path": ".scratch/capacity-trials/100000-r3/events.jsonl",
+      "raw_evidence_sha256": "4376dc947a67e9016193122006af627206f7a26e5024b5b9397f14a3b1a48ba4",
+      "metadata": {
+        "binaries": {
+          "agents": "a9a5440c36491fb9f5a9ec81763502dc7d61cffe08c9fba326636127ae64fad0",
+          "binary": "5996303cdcc7b8c2365e9a97032c3202314c99acbfafc8d8214688e11ffea70e",
+          "fleet": "291f180b57fa2f65faf0c9ef5c0a9117b107ec9ff09579ce21bbf30d3744804b",
+          "local_oracle": "c4c6554f7062403961c7dbebcc9f276191796bb01ba530b9cb489579470b03ef",
+          "relays": "d8e5582a0793856b1e0a81dae1020bb1e6f55f81f59cdf34c67aca73a47b5422"
+        },
+        "build": {
+          "build_type": "Release",
+          "compiler": "/usr/local/opt/llvm/bin/clang++",
+          "compiler_version": "Homebrew clang version 23.1.2\nTarget: x86_64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /usr/local/Cellar/llvm/23.1.2/bin\nConfiguration file: /usr/local/Cellar/llvm/23.1.2/etc/clang/x86_64-apple-darwin24.cfg",
+          "filesystem_block_bytes": 4096,
+          "filesystem_device": 16777220,
+          "filesystem_mount": "Filesystem   512-blocks       Used Available Capacity  Mounted on\n/dev/disk1s1 1953595632 1692618904 188706664    90%    /System/Volumes/Data",
+          "source": {
+            "clean": "true",
+            "revision": "0c1e5adcc3d5b6c96081711e24cd15cb51f8a968",
+            "source_tree_sha256": "79b1987ca45c8350d8d4cfa4856d32aa7dadebc6d84c1d952d4872e4c3105754",
+            "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "system_link_inputs": {
+            "LZ4_LIBRARY": {
+              "path": "/usr/local/lib/liblz4.dylib",
+              "sha256": "5085d2ef14c71431337f9661c9fa5d5a6d74419ed905a3f00a3a15b10904e6e0"
+            },
+            "OPENSSL_CRYPTO_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libcrypto.dylib",
+              "sha256": "a5ba3a73c46f13480c8c9248ef8b2fffb8e7d950951684ad62a1f1e80050f9f0"
+            },
+            "OPENSSL_SSL_LIBRARY": {
+              "path": "/usr/local/Cellar/openssl@4/4.0.3/lib/libssl.dylib",
+              "sha256": "189f1226e948fbf41d4b8cda39182394c2f8591a6fae3fa594a2e68328bd875d"
+            },
+            "ZLIB_LIBRARY_RELEASE": {
+              "path": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd",
+              "sha256": "d8345b4949b529ffd6057d84816b2a741db2ec73c24a61be0a23cab37096a7d7"
+            }
+          }
+        },
+        "capacity_sha256": "1e42c792c257d293148fbcda6dca0271c2bd01bfeeabe03de3e2059151a9eb5c",
+        "compression": "zstd",
+        "dependencies": {
+          "asio": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/asio-231cb29bab30f82712fcd54faaea42424cc6e710",
+            "source_tree_sha256": "72f5360b70d42873b7ee8cf5dcd52ff5cbf7e461874d2e0d269a3d98abd18fc1"
+          },
+          "atomic_shared_ptr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/atomic_shared_ptr-b7bf5efcec1dd437caf0692263cedfe368adceb2",
+            "source_tree_sha256": "8d9647ad40cb66a2f4ca9ea3748914d8286dbefa2271bf822b36e4f688224c5d"
+          },
+          "char_classify": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/char_classify-306ecd96d55d47d9bd3167eaeb7877e40d0631ac",
+            "source_tree_sha256": "fadda99b93f701158d33ff6550568f5fe2a2f9597e19bf8e5dfcaac1f5ac4f45"
+          },
+          "cluster": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cluster-f053a822134ab4287a40a9319b4b8db452143089",
+            "source_tree_sha256": "125144b629cd0d19f67426deb11eeec9f534e853220cf1cf4c3f49314ad46b9b"
+          },
+          "completion": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/completion-5251cf9f24350c65548318b54a4be93389df73d0",
+            "source_tree_sha256": "1d5c05b6695b3b2e212fcfbb9e500423df3bd94de5b504438f464e357d65b259"
+          },
+          "compressors": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/compressors-ed590c87201afd270afbfbb2d58d5d467c6d23b6",
+            "source_tree_sha256": "1d48d7e13a2f945035fbbfdbb08012061cc9bd269b4ee80d545ae0e6e0ef63ab"
+          },
+          "consensus": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/consensus-b7073bbe4d94e66dce526f193b0dd81a57cdb661",
+            "source_tree_sha256": "c55362835a33527e5e68877954f2485e3c1c78657502cb1cce4b0bcf4998aee4"
+          },
+          "constexpr_phf": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/constexpr_phf-1a035230c03982a822637f7c741656bd688bd9e3",
+            "source_tree_sha256": "fe1d942bd996f3eea26d32c928dc4bfab3c35c1c571963aa5e1e940f2ed9941a"
+          },
+          "cpp_btree": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-prepared-r4/source",
+            "source_tree_sha256": "f5ffa1d18e8d664d6bbc426132ae693e2d45b18d4736ae97b16d8ad5c5f81d73"
+          },
+          "cppcodec": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/cppcodec-8019b8b580f8573c33c50372baec7039dfe5a8ce",
+            "source_tree_sha256": "3630a5e00506fa43d2ac626658407a217a47145a4670b084c16124d6ced7e4ba"
+          },
+          "detent_logger": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/detent_logger-8c5afcd89030586939dd5229ee2ae583069b83dd",
+            "source_tree_sha256": "d0ab3bdbc6208f217ce8eccab93e5a64e8bf6279411cda5473fc80bc83e33403"
+          },
+          "endian": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/endian-f6269f09da90bb3713018792003f01a67749b00c",
+            "source_tree_sha256": "907b372c71423b630fe392579e684c5868575ca32dc0e9ec8fe9d797070932bf"
+          },
+          "enum_reflection": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/enum_reflection-9b5ecea02d7de8356ddd10fd874cd981aba399db",
+            "source_tree_sha256": "b553e32e442ea4e623e164e03dd81235e0b7e5072bb2d10a4aaf5bb2942dea68"
+          },
+          "generation_cache": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/generation_cache-01af1b2b17226d49ed89623e9af5d4f94a187588",
+            "source_tree_sha256": "b1a20c21a77f6a0751bcd9559713235f9179ba667a7c1ba60683d77a675b14b6"
+          },
+          "hashes": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/hashes-7ab0c23325debfbaf4104044987ba6583d14808f",
+            "source_tree_sha256": "6a2e3559b7c2160864fcb1def5459ac07bd33f19a2a9f7ad4e0134275cdf7b92"
+          },
+          "http_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_lib-6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+            "source_tree_sha256": "d6e340c7839bc3a4ae1ee9e990fa6790eeede6102d3daa16291c5b101e9528b0"
+          },
+          "http_log": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_log-2f066ee41ad0cd36a0d7a63e5e7db8bfaaf97c97",
+            "source_tree_sha256": "333f4bebaafda795a15b799e0824c1844626065889ac84b69a24914cf98c8399"
+          },
+          "http_parser": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/http_parser-178f873450364b67f0abca9c96fbbc735589d435",
+            "source_tree_sha256": "3040199229d73b7347fe2908dc91b738ecaf619551103b1f677604273070e6e4"
+          },
+          "journal": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/journal-57e6250e1b714925feddc210641c1c6ea49d5337",
+            "source_tree_sha256": "c097f434bb4b15e321f15bed90c4a20d151652848dcaedf66e4afe27217a0812"
+          },
+          "metrics": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/metrics-c975765bafe61fa79a0aa417be6deb30edf3b1db",
+            "source_tree_sha256": "db4d8e0694b7a95259a893f0809f5a8a4d35bcea4f50a1c048e0300ade7a143d"
+          },
+          "radix_router": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/radix_router-d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed",
+            "source_tree_sha256": "32caa939c06e78e019329f04ded3e2e87fafbfcb84fb6bb5b063276af7d432aa"
+          },
+          "random_lib": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/random_lib-6487253c9e7a4855ccbea36f7a66cea5fef7d381",
+            "source_tree_sha256": "caff5cd02e9a79e33bf0d855811166ccb184395acb1438c5df7656d067f56ffd"
+          },
+          "rapidjson": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/rapidjson-24b5e7a8b27f42fa16b96fc70aade9106cf7102f",
+            "source_tree_sha256": "9adb330d671c7afb0cce7311db58c0759e9323805a0ac18b5603fe7bd4ecb3b7"
+          },
+          "reactor": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/reactor-fe8c5ced4207508b32ebe96a4dcc524c08081414",
+            "source_tree_sha256": "dd68c83f03697b78a553ed09826ba33553aacec8890fdb7c61868886e8b07516"
+          },
+          "repr": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/repr-0fe9a1e98914a423574bfe675eaa82f3e1cb1df6",
+            "source_tree_sha256": "a901c6d36c0bdae050572667047f2c79f7237b1b9e94053f3784db27aa37d457"
+          },
+          "scheduler": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/scheduler-fb464cb39256057b321c3a8837a7dab2fe1e09b7",
+            "source_tree_sha256": "5ade20827e131e6e8bce491a84835e9352245f6067d85c2a60de104ebad9cd23"
+          },
+          "sha256": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/sha256-2bb34f02973575ebe030e7444b2996024cc05fcf",
+            "source_tree_sha256": "b5bfbd9773712948b3a1dd9fed5b4d8bc040a26b07ebadf8e4984e965d14d773"
+          },
+          "split": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/split-aa9857a0383664e67cf2263108c656b36fa8b863",
+            "source_tree_sha256": "90175f2b051a07e7c7cb913296bb566a0409e1eb094dc0f7410789cc5755b1f8"
+          },
+          "stash": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/stash-2908b488c10dbd6830c384f53358783639a36965",
+            "source_tree_sha256": "e2dbdc5db80c34bdbbe3100b6c15dfc12e8a296f9f1078245942797882b73e32"
+          },
+          "static_string": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/static_string-eb1efcb39f4d8bb4fd20a9ea91498a288d25aca2",
+            "source_tree_sha256": "83f72766caae999477e8e89b5aa05208564b01b9474f97f6e868a3277ae4e0a7"
+          },
+          "strict_stox": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strict_stox-21b7941c71064b5a4e52ffb50a2701ee4aae4c6c",
+            "source_tree_sha256": "122952b0109c18173eed204309c448fdbf1ea14bbc04e846db8ef63d10feb188"
+          },
+          "strings": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/strings-b42d3c4ce1130043a381e487ae0a693248c2c0f5",
+            "source_tree_sha256": "b604701cbb223baa3b86e7bd498f25f8b5c82e88bd9f5aa095ae6cc1333da8cd"
+          },
+          "term_color": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/term_color-534e30905b1a40ae1f18dbde46b039dd4333747b",
+            "source_tree_sha256": "d1f9118406cf29339cb314c4b574166f3d110db84eadfe9b9597326c6647deb3"
+          },
+          "threadpool": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/threadpool-628679a2e27b563cf2709a6f35f98f1657baf7b3",
+            "source_tree_sha256": "b8383cf2de779e5f8d67b52e3e39868494f77a78b29543908766a1913c4b1705"
+          },
+          "varint": {
+            "clean": "unknown",
+            "revision": "archive",
+            "source": "/Users/kronuz/code/Detent/.scratch/library-adoption-20261017/btree-erase-20261021-r2/dependencies/varint-21af82a64fd5860d14d5ec9591bec2ffd5d662d1",
+            "source_tree_sha256": "b8aed826ba394e9294a8a8ac2adf346f80ab9c536042cd4229d974a508ddd850"
+          }
+        },
+        "durable_stores": 2,
+        "duration": 3,
+        "host": {
+          "cpu_count": 16,
+          "load_average": [
+            3.86669921875,
+            3.7216796875,
+            3.18212890625
+          ],
+          "machine": "x86_64",
+          "physical_memory_bytes": 34359738368,
+          "python": "3.15.0 (main, Oct  9 2026, 11:16:41) [Clang 17.0.0 (clang-1700.6.4.2)]",
+          "release": "24.6.0",
+          "system": "Darwin"
+        },
+        "http_workers": 4,
+        "kind": "metadata",
+        "offered_workloads_per_second": null,
+        "preflight": {
+          "available_disk_bytes": 96617811968,
+          "hard_fds": 9223372036854775807,
+          "required_disk_bytes": 877772800,
+          "required_fds": 552,
+          "soft_fds": 1048576
+        },
+        "preliminary_memory": {
+          "available_memory_estimate_bytes": 15004336128,
+          "baseline_rss_bytes": 0,
+          "physical_memory_bytes": 34359738368,
+          "probe_heap_bytes": 335544320,
+          "required_workload_bytes": 377487360,
+          "transport_reserve_bytes": 41943040,
+          "workload_ceiling_bytes": 25769803776
+        },
+        "qualification": "native-transport-probes-and-durable-cohort",
+        "requested_active_exchanges": 16,
+        "scenario_sha256": "d44babc152949623b2150d75ea7e0f8b5e5bf573b4cfb90eede34a402af62646",
+        "seed": 17,
+        "source": {
+          "clean": "true",
+          "revision": "0c1e5adcc3d5b6c96081711e24cd15cb51f8a968",
+          "source_tree_sha256": "79b1987ca45c8350d8d4cfa4856d32aa7dadebc6d84c1d952d4872e4c3105754",
+          "tracked_changes_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "transport_probes": 16,
+        "warm_start": false
+      },
+      "phase_events": [
+        {
+          "kind": "capacity_seeded",
+          "process_cpu_seconds": {
+            "authority-0": 10.9,
+            "authority-1": 11.13,
+            "authority-2": 14.49
+          },
+          "records": 100000,
+          "seconds": 104.33771369000897
+        },
+        {
+          "kind": "capacity_bootstrap_selected",
+          "records": 100000,
+          "seconds": 17.943565408000723
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.4073418059851974,
+          "records": 100000,
+          "revision": 784
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.3952657289337367,
+          "records": 100000,
+          "revision": 784
+        },
+        {
+          "kind": "capacity_bootstrap_verified",
+          "records": 100000,
+          "seconds": 20.77011232706718
+        },
+        {
+          "durable_ack_seconds": 0.31757920887321234,
+          "kind": "capacity_bounded_update",
+          "mutations": 1,
+          "records": 100000,
+          "requested_mutations": 1,
+          "selected_seconds": 1.280922083882615,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.4200008139014244,
+          "records": 100000,
+          "revision": 785
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.4035195040050894,
+          "records": 100000,
+          "revision": 785
+        },
+        {
+          "durable_ack_seconds": 0.3098332420922816,
+          "kind": "capacity_bounded_update",
+          "mutations": 128,
+          "records": 100000,
+          "requested_mutations": 128,
+          "selected_seconds": 1.4218198391608894,
+          "selection_poll_seconds": 0.05
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.438326614908874,
+          "records": 100000,
+          "revision": 786
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.403024529106915,
+          "records": 100000,
+          "revision": 786
+        },
+        {
+          "index": 0,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.4534715241752565,
+          "records": 100000,
+          "revision": 826
+        },
+        {
+          "index": 1,
+          "kind": "managed_verified",
+          "oracle_process_seconds": 1.4585113360080868,
+          "records": 100000,
+          "revision": 826
+        },
+        {
+          "dropped_output_records": 0,
+          "kind": "completed"
+        }
+      ],
+      "sampled_service_peak_bytes": 670490624,
+      "sampled_all_children_peak_bytes": 709394432,
+      "sampled_driver_peak_bytes": 38330368,
+      "sampled_process_peak_bytes": {
+        "authority-0": 62423040,
+        "authority-1": 62242816,
+        "authority-2": 74813440,
+        "agent-0": 106696704,
+        "agent-1": 108253184,
+        "relay-0": 129269760,
+        "relay-1": 126791680,
+        "oracle-0": 38912000,
+        "oracle-1": 38801408,
+        "fleet": 33513472
+      },
+      "sdk_oracles": [
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 50000,
+            "int_knobs": 50000,
+            "deleted": 0,
+            "revision": 784,
+            "open_ms": 926.553,
+            "verify_ms": 469.619,
+            "peak_rss_bytes_before_teardown": 32190464
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 50000,
+            "int_knobs": 50000,
+            "deleted": 0,
+            "revision": 784,
+            "open_ms": 912.951,
+            "verify_ms": 472.675,
+            "peak_rss_bytes_before_teardown": 32165888
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 49999,
+            "int_knobs": 50001,
+            "deleted": 0,
+            "revision": 785,
+            "open_ms": 924.036,
+            "verify_ms": 486.43,
+            "peak_rss_bytes_before_teardown": 32190464
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 49999,
+            "int_knobs": 50001,
+            "deleted": 0,
+            "revision": 785,
+            "open_ms": 914.841,
+            "verify_ms": 478.476,
+            "peak_rss_bytes_before_teardown": 32206848
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 49872,
+            "int_knobs": 50128,
+            "deleted": 0,
+            "revision": 786,
+            "open_ms": 952.363,
+            "verify_ms": 476.25,
+            "peak_rss_bytes_before_teardown": 32428032
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 49872,
+            "int_knobs": 50128,
+            "deleted": 0,
+            "revision": 786,
+            "open_ms": 918.14,
+            "verify_ms": 475.481,
+            "peak_rss_bytes_before_teardown": 32440320
+          }
+        },
+        {
+          "process": "oracle-0",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 47978,
+            "int_knobs": 52022,
+            "deleted": 0,
+            "revision": 826,
+            "open_ms": 978.5,
+            "verify_ms": 464.144,
+            "peak_rss_bytes_before_teardown": 38932480
+          }
+        },
+        {
+          "process": "oracle-1",
+          "result": {
+            "records": 100000,
+            "bool_knobs": 47978,
+            "int_knobs": 52022,
+            "deleted": 0,
+            "revision": 826,
+            "open_ms": 982.712,
+            "verify_ms": 465.822,
+            "peak_rss_bytes_before_teardown": 38825984
+          }
+        }
+      ]
+    }
+  ]
+}
