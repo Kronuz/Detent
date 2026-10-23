@@ -1,8 +1,8 @@
-**Scale targets: 1M knobs, 10k publishers, 250k agents, sub-millisecond reads**
+**Scale targets: 1.3M knobs, 10k publishers, 250k agents, sub-millisecond reads**
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)
 **Date:** 2026-10-10
-**Status:** Requirements, for the implementing agent. Supersedes the planning workload in [SCALING.md](SCALING.md).
+**Status:** Requirements; primary capacity target updated 2026-10-22. Supersedes the planning workload in [SCALING.md](SCALING.md). Current implementation and qualification evidence live in [the release plan](RELEASE_PLAN.md).
 
 ## Abstract
 
@@ -10,7 +10,7 @@ Detent's planning workload (500,000 knobs, 300 publishers, 50,000 agents) under-
 
 | Dimension | Target | Previous planning number |
 | --- | --- | --- |
-| Knobs | **1,000,000** | 500,000 |
+| Knobs | **1,300,000**, with 5M/10M exploratory trials | 500,000 |
 | Concurrent publishers | **10,000+** | 300 |
 | Agents (hosts reading knobs) | **250,000+** | 50,000 |
 | Final read latency, warm (application call to value) | **under 1 ms** | p99 under 10 µs, lookup only |
@@ -18,7 +18,7 @@ Detent's planning workload (500,000 knobs, 300 publishers, 50,000 agents) under-
 
 These are where the system must be able to *grow to*, not what it starts with. Detent starts small (thousands of knobs, dozens of publishers, a few thousand agents) and must reach these numbers without a redesign or a data migration. So the requirement is a growth path for every dimension: limits that are configuration rather than constants, and a topology that adds tiers when measured capacity says so.
 
-The read path already meets the latency target for C++ (about **1.4 µs** per lookup in a 500,000-knob mapped image). Every other dimension needs design work. The biggest items:
+The original 500,000-knob read baseline measures about **1.4 µs** per lookup in a mapped image. The original design gaps below remain requirements; use the release plan for current implementation status:
 
 - Relays become multi-tier.
 - A stateless ingestion tier sits in front of the authority, which drops its hand-listed credentials.
@@ -47,7 +47,7 @@ Today every capacity limit is a compiled-in default:
 
 The authority limits are also part of the replicated semantic profile. Recovery rejects a store whose limits changed (`"changed replicated semantic limits"` in `state.cc`), so raising them today means exporting into a new authority.
 
-A larger maximum does not slow reads or writes: the maps are persistent trees and the image lookup is a binary search over the records that exist. What it costs is reserved headroom:
+Map operations depend on actual contents, but larger configured limits can also change reservations and preallocation. Measure both rather than assuming that a higher maximum has no cost:
 
 - Each voter reserves disk for a worst-case image and checkpoint at startup (`node.cc` checks the replacement pool against `image_bytes`).
 - The per-producer result window is budgeted inside the image (producers × (177 + results × 80) bytes, about 21 MB at today's defaults).
@@ -166,14 +166,14 @@ Measure at 1,000,000 knobs, on Linux, macOS and FreeBSD, with release builds. Re
 | Agent restart | Process start to serving reads from the durable generation | Report |
 | Agent cold bootstrap | Empty state to current, through the relay tiers | Report, with bytes moved |
 | Relay restart | Start to serving its bundles | Report |
-| Authority restart | Recovery to accepting transactions at 1M knobs and 10,000 producers | Report |
+| Authority restart | Recovery to accepting transactions at 1.3M knobs and 10,000 producers | Report |
 | Fleet cold start | 250,000 agents reconnecting at once | Curve to 50%, 99% and 100% current |
 
 "Report" targets become numbers once the first measurement exists. Record each in `benchmarks/*.json` and summarize in this document.
 
 ## Next steps
 
-1. Make limits configurable and raisable online, then measure the current pipeline at 1M knobs to establish the baseline.
+1. Make limits configurable and raisable online, then qualify the current pipeline at 1.3M knobs. Follow the [capacity matrix](CAPACITY_QUALIFICATION.md), including 130K as the supplied enterprise scale reference and 5M/10M exploratory trials.
 2. Remove full validation on open, and add the Python and Rust mapped readers. These are the read-latency items, and they're independent of the distribution work.
 3. Finish Stage 5B relays with multi-tier support and the 250,000-agent harness.
 4. Stage 5C incremental publication, measured as fleet CPU per one-knob change.

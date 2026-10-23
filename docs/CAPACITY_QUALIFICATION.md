@@ -49,3 +49,21 @@ Qualify a fresh group configured for the complete 1.3M envelope, growing its con
 Online profile growth is a subsequent versioned application component. An authorized committed transition must carry the expected old profile and replacement, persist the active profile and replay historical records under their original semantics. Update queued/prepared proposal handling and Node's cached decoder settings coherently; changing only State is invalid. Activate only after required participants support the new version. Initially support increases only. No export migration substitutes for this mechanism.
 
 Container selection remains independent: the managed authority uses its persistent map and SDK reads use immutable pages. Hashing the classic Snapshot table cannot be credited with managed-path improvements. If the complete hash workload wins, qualify one canonical keyed-hash library component and its actual CPU costs before production selection; do not add a local duplicate primitive or require OpenSSL in the core client.
+
+## Isolated model ladder, October 22
+
+The [accepted model report](../benchmarks/model-capacity-20261022.json) records five alternating pairs at each completed point, with the same runtime-sized executable. The corpus is entirely boolean definitions with three overrides and short names. "Ordered" means ascending numeric IDs, not lexicographically sorted variable-width names. Values below are retained requested C++ heap, rounded to decimal MB; btree's range reflects insertion order.
+
+| Knobs | Ownership-qualified btree | Standard maps | Hash snapshot index, standard nested maps |
+| --- | --- | --- | --- |
+| 130K | 27.3–29.2 MB | 38.5 MB | 38.0 MB |
+| 1M | 210.2–224.2 MB | 296.0 MB | 293.2 MB |
+| 1.3M | 273.3–291.6 MB | 384.8 MB | 377.2 MB |
+| 5M | 1,051.3–1,121.4 MB | 1,480.0 MB | 1,452.7 MB |
+| 10M | 2,102.7–2,242.2 MB | 2,960.0 MB | 2,905.4 MB |
+
+At 10M, matched random-ID construction/validation/destruction CPU is 37.061 seconds for standard maps and 18.683 seconds for the hash index; ascending-ID CPU is 14.582 versus 21.449 seconds. Neither structure wins every insertion schedule.
+
+The exploratory process peaks include both schedules in one process and allocation-tracking headers. At 10M, median peak RSS is 2.967 GB for btree, 5.676 GB for standard maps and 6.522 GB for the hash prototype. The hash's lower requested-byte count therefore does not establish lower process memory. These are instrumented model lifecycles, not production allocator or decoded-agent RSS. All accepted exploratory samples report zero swaps and zero major page faults; tracked live allocation balance returns to zero.
+
+Background-process interference rejects several smaller-tier batches. Those points remain explicit gaps requiring retries, not interpolated measurements. No container trial closes the full-system capacity gate.
