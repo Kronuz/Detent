@@ -108,6 +108,7 @@ struct KnobRecord {
 	std::uint8_t has_rollout_pct = 0;
 	std::uint8_t rollout_pct = 0; // 0..100, meaningful only if has_rollout_pct
 	std::uint8_t reserved = 0;
+	std::uint32_t reserved_alignment = 0;
 	std::int64_t default_value = 0; // bool: 0/1; int: the full value
 	std::uint32_t override_count = 0;
 	std::uint32_t overrides_offset = 0; // override_count * OverrideRecord follow, in the blob region
@@ -115,6 +116,7 @@ struct KnobRecord {
 static_assert(std::is_trivially_copyable_v<KnobRecord>);
 static_assert(std::is_standard_layout_v<KnobRecord>);
 static_assert(sizeof(KnobRecord) == 32);
+static_assert(offsetof(KnobRecord, default_value) == 16);
 
 // One per-group boolean or percentage override. Int knobs never have overrides (Section 8:
 // "the specified integer model has no group overrides"), so this type is
@@ -124,9 +126,11 @@ struct OverrideRecord {
 	std::uint32_t name_len = 0;
 	std::uint8_t value = 0; // boolean value or rollout percentage
 	std::uint8_t is_rollout = 0;
+	std::uint16_t reserved = 0;
 };
 static_assert(std::is_trivially_copyable_v<OverrideRecord>);
 static_assert(std::is_standard_layout_v<OverrideRecord>);
+static_assert(sizeof(OverrideRecord) == 12);
 
 enum class KnobType : std::uint8_t { Bool = 0, Int = 1 };
 

@@ -3,6 +3,11 @@ target_link_libraries(test_agent_basic PRIVATE detent_agent_lib)
 add_test(NAME test_agent_basic COMMAND test_agent_basic)
 set_tests_properties(test_agent_basic PROPERTIES TIMEOUT 30)
 
+add_executable(test_snapshot_canonical test_snapshot_canonical.cc)
+target_link_libraries(test_snapshot_canonical PRIVATE detent_agent_lib)
+add_test(NAME test_snapshot_canonical COMMAND test_snapshot_canonical)
+set_tests_properties(test_snapshot_canonical PROPERTIES TIMEOUT 30)
+
 add_executable(test_shm_concurrency_stress test_shm_concurrency_stress.cc)
 target_link_libraries(test_shm_concurrency_stress PRIVATE detent_agent_lib)
 add_test(NAME test_shm_concurrency_stress COMMAND test_shm_concurrency_stress)
