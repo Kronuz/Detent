@@ -35,7 +35,7 @@ void wait_released(const DeferredWriter &writer) {
 	}
 }
 std::string authority =
-	"\"cluster\":\"612000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
+	"\"cluster\":\"63000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
 	"\"epoch\":\"65000000000000000000000000000000\",";
 Writer call(Service &service, std::string path, std::string fields) {
 	http::Request r;
