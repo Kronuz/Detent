@@ -62,4 +62,13 @@ The paged SDK accepts the corresponding `ViewLimits`, including page and segment
 
 `run_fleet.py --capacity-config tests/detent_system/presets/capacity-5000000.json` supplies the same explicit profile to the authority, relay source, agent and independent SDK oracle. The scenario retains the actual record count. Without an explicit profile, scenario and mixed-writer validation retain their 500K defaults.
 
-Resource sampling starts before seeding, continues through bootstrap and workload verification, and records per-process RSS, virtual size and CPU. RSS maxima from that stream are sampled lower bounds; virtual size includes the process address space, not just data mappings. Native SDK oracles separately report kernel peak RSS before teardown and their open/verification times. The driver, service and mapped-reader measurements must remain distinct.
+Resource sampling starts before seeding, continues through bootstrap and workload verification, and records per-process RSS, virtual size and CPU. The Python driver is reported separately and is included in the workload memory guard. RSS maxima from that stream are sampled lower bounds; virtual size includes the process address space, not just data mappings. Native SDK oracles separately report kernel peak RSS before teardown and their open/verification times. The driver, service and mapped-reader measurements must remain distinct.
+
+
+## Qualification progress, October 23
+
+The candidate passes the earlier 217-test product suite before the final review corrections. The subsequent focused run passes seven native tests covering authority capacity settings, managed settings, relay aggregate funding, response envelopes, segment discovery and seven-digit corpus ordering. Ruff and Pyrefly pass on the harness before the separate driver-memory addition; final validation remains pending.
+
+The three-voter, two-relay, two-agent 1K pilot completes independent SDK verification, one-key and 128-key durable updates, the short fleet workload and clean process teardown. This is a functional pilot, not qualification of the 5M target or sustained performance. Its source is `afe0837`; the raw evidence remains in `.scratch/capacity-trials/1000-r2/`. It predates separate Python-driver RSS sampling.
+
+Final review finds no remaining production blocker in the four corrections: relay encoding inherits configured admission limits; segment discovery preserves the admitted root bounds; response envelopes use checked arithmetic under the existing 4 GiB fragment-directory bound; relay aggregate heap funding rejects overflow before accumulation. Complete large-image traversal, recovery and the 1M → 5M → 10M trials remain open.

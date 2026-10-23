@@ -40,16 +40,20 @@ async def resource_samples(
     cohort: Callable[[], ManagedCohort | None],
 ) -> None:
     while not stop.is_set():
-        resources = await asyncio.to_thread(process_resources, actors.children.copy())
+        resources = await asyncio.to_thread(
+            process_resources, actors.children.copy(), include_driver=True
+        )
+        driver = resources.pop("driver")
         resident = sum(int(row["resident_bytes"]) for row in resources.values())
         evidence.record(
             "fleet_resident",
             resident_bytes=resident,
             processes=resources,
+            driver=driver,
             monotonic_seconds=time.monotonic(),
             sample_period_ms=200,
         )
-        if resident > ceiling:
+        if resident + int(driver["resident_bytes"]) > ceiling:
             raise RuntimeError("fleet workload exceeded admitted resident ceiling")
         selected = cohort()
         if selected is not None:

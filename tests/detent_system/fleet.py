@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 import sys
 from pathlib import Path
@@ -183,12 +184,16 @@ def process_cpu_seconds(actors: list[Actor]) -> dict[str, float]:
     return result
 
 
-def process_resources(actors: list[Actor]) -> dict[str, dict[str, int | float]]:
+def process_resources(
+    actors: list[Actor], *, include_driver: bool = False
+) -> dict[str, dict[str, int | float]]:
     names = {
         actor.process.pid: actor.name
         for actor in actors
         if actor.process.returncode is None
     }
+    if include_driver:
+        names[os.getpid()] = "driver"
     if not names:
         return {}
     report = command(
