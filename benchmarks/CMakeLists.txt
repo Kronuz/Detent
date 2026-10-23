@@ -6,6 +6,13 @@
 add_executable(detent_read_bench detent_read_bench.cc)
 target_link_libraries(detent_read_bench PRIVATE detent::detent)
 
+add_executable(detent_model_lookup container-alternative/model_lookup.cc)
+target_link_libraries(detent_model_lookup PRIVATE detent::detent)
+
+add_executable(detent_model_footprint container-alternative/model_footprint.cc)
+target_link_libraries(detent_model_footprint PRIVATE detent::detent)
+
+
 add_executable(detent_hash_bench detent_hash_bench.cc)
 target_link_libraries(detent_hash_bench PRIVATE detent::detent)
 

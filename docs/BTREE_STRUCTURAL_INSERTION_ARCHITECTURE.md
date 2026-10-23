@@ -1,6 +1,6 @@
 # Structural insertion: validated architectural blueprint
 
-**Date:** 2026-10-22. **Status:** Planned. Implementation follows ownership-move qualification.
+**Date:** 2026-10-22. **Status:** On hold pending the [model-container comparison](CONTAINER_SELECTION_ARCHITECTURE.md). Ownership qualification does not automatically authorize starting another mutation engine.
 
 ## Decision and scalability
 

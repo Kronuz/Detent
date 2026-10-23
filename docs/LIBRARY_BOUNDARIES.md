@@ -420,3 +420,7 @@ Detent advances the btree pin to `bb2ad1df1c9124aa435a7a1a1a19c33dd25d8982`. The
 ### Adopt prepared nonfull insertion, October 22
 
 Detent adopts `cbc35762bc4a98ad91361be29d05f0ae715a1339` after the [seven-job library matrix](https://github.com/Kronuz/btree/actions/runs/39810560178), the all-product Release rebuild and 207/207 tests (630.01 seconds, two jobs). Actual-model retained bytes match; the cost report preserves the explicit long-key and generic fallback exceptions. This closes the nonfull-insertion component and leaves ownership moves, full-node mutations, erase and bounded reclamation independent.
+
+### Ownership commit replay, October 22
+
+The additive btree commit `25f9494b64c02a63827e7294cb25a79762b7544f` is replayed through a fresh immutable-pin all-product Release build. All 208 tests pass in 627.94 seconds with two jobs. Three-platform library and composed leak checks also pass. This records the library-commit replay rule without advancing Detent's production pin: adoption is held for [container selection](CONTAINER_SELECTION_ARCHITECTURE.md), and the source remains `cbc3576`.

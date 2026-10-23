@@ -1,0 +1,163 @@
+diff --git a/include/detent/model.hh b/include/detent/model.hh
+index 5b02978..565d369 100644
+--- a/include/detent/model.hh
++++ b/include/detent/model.hh
+@@ -5,7 +5,9 @@
+ // instant. Both are FILLED BLANK per the spec -- the shape is a clone choice,
+ // not a claim about Meta's private representation.
+ 
+-#include <btree/map.h>
++#include <map>
++#include <unordered_map>
++#include <string_view>
+ 
+ #include <cstdint>
+ #include <optional>
+@@ -15,6 +17,12 @@
+ namespace detent {
+ 
+ using KnobName = std::string;
++struct ModelStringHash {
++    using is_transparent = void;
++    std::size_t operator()(std::string_view value) const noexcept {
++        return std::hash<std::string_view>{}(value);
++    }
++};
+ 
+ struct GroupRollout {
+ 	std::uint8_t rollout_pct = 0;
+@@ -24,7 +32,7 @@ using GroupOverride = std::variant<bool, GroupRollout>;
+ 
+ struct BoolDef {
+ 	bool default_value = false;
+-	btree::map<std::string, GroupOverride, std::less<>> overrides;   // group key -> forced value or percentage
++	std::map<std::string, GroupOverride, std::less<>> overrides;   // group key -> forced value or percentage
+ 	std::optional<std::uint8_t> rollout_pct;   // inclusive 0..100
+ 
+ 	[[nodiscard]] bool operator==(const BoolDef&) const = default;
+@@ -52,7 +60,7 @@ struct Snapshot {
+ 	std::uint64_t version = 0;              // 0 == baked-default startup snapshot
+ 	std::optional<std::string> published_at; // RFC 3339 UTC, source-provided
+ 	std::string source_id;                   // "defaults", "file:<path>", ...
+-	btree::map<KnobName, KnobDef, std::less<>> knobs;
++	std::unordered_map<KnobName, KnobDef, ModelStringHash, std::equal_to<>> knobs;
+ 
+ 	[[nodiscard]] std::size_t bool_count() const noexcept {
+ 		std::size_t n = 0;
+@@ -79,7 +87,7 @@ struct Snapshot {
+ // shape either direction.
+ struct SnapshotPatch {
+ 	std::uint64_t version = 0;
+-	btree::map<KnobName, std::optional<KnobDef>, std::less<>> knobs;
++	std::map<KnobName, std::optional<KnobDef>, std::less<>> knobs;
+ };
+ 
+ } // namespace detent
+diff --git a/include/detent/overrides.hh b/include/detent/overrides.hh
+index b40a949..0f6405c 100644
+--- a/include/detent/overrides.hh
++++ b/include/detent/overrides.hh
+@@ -7,7 +7,7 @@
+ 
+ #include "detent/result.hh"
+ 
+-#include <btree/map.h>
++#include <map>
+ 
+ #include <cstdint>
+ #include <string>
+@@ -19,7 +19,7 @@ namespace detent {
+ using OverrideValue = std::variant<bool, std::int64_t>;
+ 
+ struct OverrideTable {
+-	btree::map<std::string, OverrideValue, std::less<>> values;
++	std::map<std::string, OverrideValue, std::less<>> values;
+ };
+ 
+ // Parses repeatable "name=value" pairs (the part after "--just-knob "; CLI
+diff --git a/src/detent/json_schema.cc b/src/detent/json_schema.cc
+index e50a9c6..ad949f2 100644
+--- a/src/detent/json_schema.cc
++++ b/src/detent/json_schema.cc
+@@ -1,3 +1,4 @@
++#include <detent/detail/ordered_snapshot.hh>
+ #include "detent/json_schema.hh"
+ #include "detent/json_schema_internal.hh"
+ #include "detent/validation.hh"
+@@ -365,7 +366,8 @@ std::string serialize_snapshot(const Snapshot& snapshot) {
+ 	}
+ 
+ 	rapidjson::Value knobs(rapidjson::kObjectType);
+-	for (const auto& [name, def] : snapshot.knobs) {
++	for (const auto* entry : detail::ordered_snapshot_entries(snapshot)) {
++		const auto& [name, def] = *entry;
+ 		rapidjson::Value key(name.data(), static_cast<rapidjson::SizeType>(name.size()), alloc);
+ 		knobs.AddMember(key, internal::write_knob_def(def, alloc), alloc);
+ 	}
+diff --git a/src/detent_agent/shm_writer.cc b/src/detent_agent/shm_writer.cc
+index 8c6a25a..7735769 100644
+--- a/src/detent_agent/shm_writer.cc
++++ b/src/detent_agent/shm_writer.cc
+@@ -1,3 +1,4 @@
++#include <detent/detail/ordered_snapshot.hh>
+ #include "shm_writer.hh"
+ 
+ #include <fcntl.h>
+@@ -48,7 +49,8 @@ std::vector<std::uint8_t> serialize_for_shm(const detent::Snapshot& snapshot) {
+ 	records.reserve(snapshot.knobs.size());
+ 	std::vector<std::uint8_t> blob; // names + override arrays
+ 
+-	for (const auto& [name, def] : snapshot.knobs) {
++	for (const auto* entry : detent::detail::ordered_snapshot_entries(snapshot)) {
++		const auto& [name, def] = *entry;
+ 		shm::KnobRecord rec{};
+ 		rec.name_offset = record_bytes + append(blob, name.data(), name.size());
+ 		rec.name_len = static_cast<std::uint32_t>(name.size());
+diff --git a/src/detent_authority/admin.cc b/src/detent_authority/admin.cc
+index bbdbb33..3b9bd47 100644
+--- a/src/detent_authority/admin.cc
++++ b/src/detent_authority/admin.cc
+@@ -1,3 +1,4 @@
++#include <detent/detail/ordered_snapshot.hh>
+ // Explicit offline migration. Authority and legacy stores are never mixed.
+ #include "admin_runtime.hh"
+ #include "detent/json_schema.hh"
+@@ -101,7 +102,8 @@ int main(int argc, char **argv) {
+ 				command.mutations.clear();
+ 				++command.sequence;
+ 			};
+-			for (const auto &[key, value] : snapshot.knobs) {
++			for (const auto* entry : detent::detail::ordered_snapshot_entries(snapshot)) {
++				const auto& [key, value] = *entry;
+ 				auto ns = key.substr(0, key.find(':'));
+ 				if (ns != command.name_space) {
+ 					flush();
+diff --git a/include/detent/detail/ordered_snapshot.hh b/include/detent/detail/ordered_snapshot.hh
+new file mode 100644
+index 0000000..67bf6fc
+--- /dev/null
++++ b/include/detent/detail/ordered_snapshot.hh
+@@ -0,0 +1,23 @@
++#pragma once
++
++#include <detent/model.hh>
++
++#include <algorithm>
++#include <memory>
++#include <vector>
++
++namespace detent::detail {
++
++inline auto ordered_snapshot_entries(const Snapshot& snapshot) {
++    using Entry = decltype(snapshot.knobs)::value_type;
++    std::vector<const Entry*> entries;
++    entries.reserve(snapshot.knobs.size());
++    for (const auto& entry : snapshot.knobs)
++        entries.push_back(std::addressof(entry));
++    std::sort(entries.begin(), entries.end(), [](const Entry* a, const Entry* b) {
++        return a->first < b->first;
++    });
++    return entries;
++}
++
++} // namespace detent::detail

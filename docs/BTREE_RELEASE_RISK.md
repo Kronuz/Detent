@@ -33,7 +33,7 @@ A failed private snapshot can be discarded only if all live objects, node metada
 
 ## Current next component
 
-Implement genuine ownership moves through the existing wrapper chain, with allocator/comparator preparation before pointer transfer. Qualify real nested definition traits, source reuse, ownership conservation and actual-model costs separately. No move or swap trait is presumed before those checks.
+Genuine ownership moves are published at `25f9494` and pass the three-platform matrix, composed leak checks, seven hosted jobs and a clean all-product rebuild with 208/208 tests. Detent adoption is held for the [container selection](CONTAINER_SELECTION_ARCHITECTURE.md). Further structural btree implementation is on hold while standard ordered maps and a hash snapshot index are compared against this repaired baseline.
 
 The [prepared nonfull-leaf insertion design](BTREE_NONFULL_INSERTION_ARCHITECTURE.md) is adopted after independent qualification. The first same-capacity replacement prototype is rejected after a 28.1% mutation CPU regression. The revised candidate prepares fallible work before a nonthrowing in-place shift for eligible types and retains guarded replacement for generic throwing-move types. Its actual-model heap/cost evidence, complete failure qualification, seven hosted jobs and all 207 product tests pass. The independent refused-append size correction is adopted at `bb2ad1d` after the all-product build and 207 tests pass.
 

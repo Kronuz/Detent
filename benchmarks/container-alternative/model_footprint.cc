@@ -1,5 +1,6 @@
 #include <detent/model.hh>
 #include <algorithm>
+#include <charconv>
 #include <cstdio>
 #include <cstddef>
 #include <cstdlib>
@@ -10,6 +11,10 @@
 #include <ctime>
 #include <memory>
 #include <new>
+#include <optional>
+#include <string_view>
+
+// --move measures final snapshot transfer; --move-pruned removes 3/4 first.
 
 namespace {
 bool metering = false;
@@ -54,9 +59,34 @@ void operator delete(void* pointer, std::align_val_t) noexcept { release(pointer
 void operator delete[](void* pointer, std::align_val_t) noexcept { release(pointer); }
 void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept { release(pointer); }
 void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept { release(pointer); }
-int main() {
+std::string knob_name(unsigned id, bool long_keys) {
+    auto suffix = std::to_string(id);
+    auto key = std::string(long_keys ? 200 : 7 + suffix.size(), 'k');
+    key.replace(0, 6, "bench:");
+    key.replace(key.size() - suffix.size(), suffix.size(), suffix);
+    return key;
+}
+int main(int argc, char** argv) {
+    unsigned count = 100000;
+    std::string_view mode;
+    std::string_view key_profile = "both";
+    for (int index = 1; index < argc; ++index) {
+        const std::string_view argument(argv[index]);
+        if (argument == "--knobs" && index + 1 < argc) {
+            const std::string_view value(argv[++index]);
+            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), count);
+            if (error != std::errc{} || end != value.data() + value.size() || count == 0) return 2;
+        } else if (argument == "--key-profile" && index + 1 < argc) {
+            key_profile = argv[++index];
+            if (key_profile != "both" && key_profile != "short" && key_profile != "long") return 2;
+        } else if ((argument == "--move" || argument == "--move-pruned") && mode.empty()) {
+            mode = argument;
+        } else return 2;
+    }
+    const bool transfer = !mode.empty(), prune = mode == "--move-pruned";
     for (const bool random_order : {false, true}) for (const bool long_keys : {false, true}) {
-        std::vector<unsigned> order(100000);
+        if ((key_profile == "short" && long_keys) || (key_profile == "long" && !long_keys)) continue;
+        std::vector<unsigned> order(count);
         std::iota(order.begin(), order.end(), 0);
         std::mt19937 random(7106);
         if (random_order) std::shuffle(order.begin(), order.end(), random);
@@ -74,18 +104,24 @@ int main() {
                     key.replace(key.size() - suffix.size(), suffix.size(), suffix);
                     value.overrides.emplace(std::move(key), group % 2 == 0);
                 }
-                auto suffix = std::to_string(i);
-                auto key = std::string(long_keys ? 200 : 7 + suffix.size(), 'k');
-                key.replace(0, 6, "bench:");
-                key.replace(key.size() - suffix.size(), suffix.size(), suffix);
-                snapshot.knobs.emplace(std::move(key), std::move(value));
+                snapshot.knobs.emplace(knob_name(i, long_keys), std::move(value));
             }
-            if (snapshot.knobs.size() != 100000) std::abort();
+            if (snapshot.knobs.size() != count) std::abort();
+            if (prune)
+                for (unsigned i = 0; i < count; ++i)
+                    if (i % 4 && snapshot.knobs.erase(knob_name(i, long_keys)) != 1) std::abort();
+            const unsigned expected = prune ? count / 4 + (count % 4 != 0) : count;
+            std::optional<detent::Snapshot> published;
+            if (transfer) {
+                published.emplace(std::move(snapshot));
+                snapshot.knobs.clear();
+                if (published->knobs.size() != expected) std::abort();
+            } else if (snapshot.knobs.size() != expected) std::abort();
             retained = live;
         }
         metering = false;
         if (live != 0) std::abort();
         const auto cpu = 1000.0 * (std::clock() - start) / CLOCKS_PER_SEC;
-        std::printf("{\"workload\":\"model-%s-%s\",\"process_cpu_ms\":%.6f,\"knobs\":100000,\"overrides_per_knob\":3,\"long_keys\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,\"retained_requested_bytes\":%zu,\"peak_requested_bytes\":%zu,\"allocation_calls\":%zu,\"requested_bytes\":%zu,\"final_live_bytes\":%zu}\n", random_order ? "random" : "ordered", long_keys ? "long" : "short", cpu, long_keys ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::KnobDef), retained, peak, calls, requested, live);
+        std::printf("{\"workload\":\"model-%s-%s%s\",\"process_cpu_ms\":%.6f,\"knobs\":%u,\"overrides_per_knob\":3,\"long_keys\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,\"retained_requested_bytes\":%zu,\"peak_requested_bytes\":%zu,\"allocation_calls\":%zu,\"requested_bytes\":%zu,\"final_live_bytes\":%zu}\n", random_order ? "random" : "ordered", long_keys ? "long" : "short", prune ? "-pruned-moved" : transfer ? "-moved" : "", cpu, prune ? count / 4 + (count % 4 != 0) : count, long_keys ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::KnobDef), retained, peak, calls, requested, live);
     }
 }
