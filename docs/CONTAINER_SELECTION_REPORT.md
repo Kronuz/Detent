@@ -73,7 +73,7 @@ From the [`move-relocation` note](https://github.com/Kronuz/btree/blob/move-relo
 
 ## Correctness of the selected design
 
-`detent::flat_map` stores `std::pair<Key, T>` in one sorted `std::vector`. A `static_assert` requires nonthrowing moves, so shifts and erasure never allocate and insertion keeps the strong guarantee.
+`detent::flat_map` stores `std::pair<Key, T>` in one sorted `std::vector`. A `static_assert` requires nonthrowing moves, so shifts and erasure never allocate and insertion keeps the strong guarantee. Copy assignment copies into a temporary and swaps, so a failed copy leaves the target unchanged; `std::vector`'s element-wise assignment would leave a source prefix over the old tail, out of order. `erase_if` is `noexcept`.
 
 - **Bulk construction.** JSON snapshots, patches, override objects and CLI overrides are appended and sorted once. Each error exit first reports a duplicate already seen, so messages and their precedence match one-by-one insertion.
 - **Linear merges.** `apply_patch`, `diff_snapshots`, `compose_patches` and `merge_over_defaults` are single passes over two sorted tables.
@@ -83,7 +83,7 @@ From the [`move-relocation` note](https://github.com/Kronuz/btree/blob/move-relo
 | Check | Result |
 | --- | --- |
 | macOS arm64 Release ctest | 211/211 |
-| `test_model_alloc_failure` (all four tables: insert, erase, copy, assignment; parse, copy, patch, diff, compose, serialize) | passes; aborts on btree `25f9494` |
+| `test_model_alloc_failure` (all four tables: insert, erase, copy, assignment with an unchanged-target check; parse, copy, patch, diff, compose, serialize) | passes; aborts on btree `25f9494` and on `flat_map` with a defaulted copy assignment |
 | Differential probe against the `std::map` tree, 30,000 random rounds (parse, errors, patch, diff, compose, defaults, CLI) | identical |
 | Repeated `"overrides"` members, 160K (reviewer probe) | 18.7 ms (5.4 s before the fix; `std::map` 46.7 ms) |
 | 160K descending CLI overrides | 6.6 ms (11.9 s before the fix; `std::map` 51.6 ms) |
