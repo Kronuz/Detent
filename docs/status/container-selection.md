@@ -14,4 +14,6 @@
 
 The shared workflow selects Homebrew LLVM and an explicit macOS SDK. TLS fixtures own their OpenSSL request configuration: hosted certificates otherwise inherit ambient CA extensions twice and fail strict verification. The ARM macOS job passes with the hermetic fixture. Empty agent startup also guards zero-byte copies, preserving production sanitizer checks.
 
+The current composed gate is [run 40121767475](https://github.com/Kronuz/Detent/actions/runs/40121767475) at `5c0d7d3`. The preceding run passes Linux Clang, Linux ARM, Intel macOS and sanitizers. The two remaining fixture failures have isolated-account corrections (`0b9dbec`, `89d2cd6`), with 1,000 cleanup repetitions and 100 controlled-refund repetitions passing. Hosted verification remains pending. A separate 5M exploratory trial is running under an exclusive host hold.
+
 After this component lands, continue EX-1 resource adoption and the independent scaling gates. Passing the container checks does not establish release-scale capacity.

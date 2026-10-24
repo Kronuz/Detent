@@ -163,3 +163,11 @@ The Raft fixture now reserves OS-selected TCP ports until listener startup and b
 The 500K migration check passes locally in 38.28 seconds; selected-sink cancellation passes 100 local repetitions. Neither result attributes or resolves the hosted timeout. Coordinator checkpoints expose setup, TLS acceptance and drainage phases without increasing deadlines or weakening assertions.
 
 The standalone SDK consumer fixture passes after project-relative source path correction `875de05`. Standalone product compile commands remain byte-identical. This check covers embedding through CMake FetchContent, independently of the already-qualified Rust and Python shims.
+
+### Isolated lifecycle-fixture accounting
+
+[Run 40119681958](https://github.com/Kronuz/Detent/actions/runs/40119681958) passes Linux Clang, Linux ARM GCC, Intel macOS and ASan/UBSan/LSan. GCC x86 times out in two 500K cases after their main coordinators settle and servers join in 7.1 and 11.2 seconds. ARM macOS fails the encoded-update cancellation accounting assertion.
+
+The encoded-update check reproduces locally on repetition 402: 672 expected bytes versus 336 observed. The cleanup worker can release a previous domain's accounting metadata after signaling payload drainage. Revision `0b9dbec` isolates each cancellation case's account and passes 1,000 repetitions in 185.38 seconds. Revision `89d2cd6` isolates startup-refusal pressure from unrelated retirement and deliberately refunds a parent charge after filling the child account. That case passes 100 repetitions in 37.98 seconds; the 500K HTTP, migration and transition checks pass in 82.71 seconds. Neither change raises deadlines or production limits.
+
+[Run 40121767475](https://github.com/Kronuz/Detent/actions/runs/40121767475), source `5c0d7d3`, qualifies both corrections together. Its result is pending. The separate source-identified 5M exploratory full-system trial uses the same production sources and public-pin binaries; it does not replace the qualification matrix.
