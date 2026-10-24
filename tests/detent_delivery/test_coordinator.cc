@@ -528,6 +528,12 @@ int main(int argc, char **argv) {
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
 		const auto started = std::chrono::steady_clock::now();
+		auto checkpoint = [&](std::string_view phase) {
+			std::cerr << "coordinator records=" << count << " phase=" << phase << " elapsed_ms="
+				<< std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::steady_clock::now() - started).count() << '\n';
+		};
+		checkpoint("setup");
 		const std::filesystem::path certificates(argv[1]);
 		auto directory = std::filesystem::current_path() / ".scratch" /
 						 ("delivery-coordinator-" + std::to_string(::getpid()));
@@ -588,6 +594,7 @@ int main(int argc, char **argv) {
 			disk_options.mode = l::StoreOpenMode::UpgradeLegacy;
 		}
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
+		checkpoint("legacy-image-ready");
 		disk_options.mode = l::StoreOpenMode::FreshEmpty;
 		auto server_tls = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
 		reactor::tls::configure(*server_tls,
@@ -714,7 +721,9 @@ int main(int argc, char **argv) {
 						std::this_thread::sleep_for(1ms);
 					}
 					asio::ssl::stream<asio::ip::tcp::socket> socket(std::move(accepted), *server_tls);
+					checkpoint("server-accepted");
 					socket.handshake(asio::ssl::stream_base::server);
+					checkpoint("server-handshake");
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
 					if (cancel_selected || pressure || subscription || poll_backoff) {
@@ -1003,7 +1012,9 @@ int main(int argc, char **argv) {
 											cancel_open, transitions, worker_cancel, maintenance_failure,
 											poll_backoff),
 								   asio::use_future);
+		checkpoint("coordinator-running");
 		io.run();
+		checkpoint("coordinator-settled");
 		std::exception_ptr run_failure;
 		try {
 			done.get();
@@ -1011,6 +1022,7 @@ int main(int argc, char **argv) {
 			run_failure = std::current_exception();
 		}
 		server.join();
+		checkpoint("server-joined");
 		if (server_failure || run_failure) {
 			auto report = [](const char *label, std::exception_ptr failure) {
 				if (!failure)
@@ -1141,6 +1153,7 @@ int main(int argc, char **argv) {
 		pressured.reset();
 		pressure_store.reset();
 		const auto disk_peak = store->stats().peak.bytes;
+		checkpoint("worker-draining");
 		worker.join();
 		coordinator.reset();
 		options.publication_sink.reset();
@@ -1154,7 +1167,9 @@ int main(int argc, char **argv) {
 		queue.reset();
 		store.reset();
 		pinned_flat.reset();
+		checkpoint("domain-draining");
 		domain.close().wait();
+		checkpoint("domain-drained");
 		runtime.shutdown();
 		check(cache_account->used() == 0);
 		if (!cancel_open && !worker_cancel) {
