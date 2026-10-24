@@ -1,7 +1,7 @@
 // Compiles src/shim.cc (cxx's generated bridge glue + our own C++ shim)
 // and links against an *already-built* libdetent.a -- this crate doesn't
 // re-run CMake or re-resolve detent's own FetchContent dependency graph
-// (sha256, cpp-btree, atomic-shared-ptr, etc.); it expects `cmake -B build
+// (sha256, atomic-shared-ptr, etc.); it expects `cmake -B build
 // && cmake --build build` to have already been run at the repo root (the
 // same build/ directory the rest of this project's own README instructs
 // every consumer to create), matching how a real consumer would use this
@@ -33,7 +33,6 @@ fn main() {
         .include(deps_dir.join("sha256-src"))
         .include(deps_dir.join("endian-src"))
         .include(deps_dir.join("atomic_shared_ptr-src"))
-        .include(deps_dir.join("cpp_btree-src"))
         .include(deps_dir.join("random_lib-src"))
         .std("c++20")
         .flag_if_supported("-Wno-deprecated-declarations"); // rapidjson's own std::iterator use, not ours

@@ -207,7 +207,6 @@ Set `Options::Cluster` programmatically or pass `--cluster` to `detentd` to join
 ```text
 detent
   |-- atomic-shared-ptr
-  |-- cpp-btree
   |-- sha256 (+ endian)
   |-- char-classify
   |-- strict-stox
@@ -240,7 +239,6 @@ All dependencies are fetched with CMake `FetchContent`.
 | Library | Role |
 |---|---|
 | [`atomic-shared-ptr`](https://github.com/Kronuz/atomic-shared-ptr) | Snapshot publication |
-| [`cpp-btree`](https://github.com/Kronuz/cpp-btree) | Immutable `KnobName -> KnobDef` map |
 | [`sha256`](https://github.com/Kronuz/sha256) (+ `endian`) | Stable rollout-bucket hash |
 | [`char-classify`](https://github.com/Kronuz/char-classify) | Knob-name validation |
 | [`strict-stox`](https://github.com/Kronuz/strict-stox) | Strict integer parsing |

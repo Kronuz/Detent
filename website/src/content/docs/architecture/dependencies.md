@@ -50,7 +50,6 @@ the daemon libraries directly instead of spawning subprocesses.
 | Library | Role in Detent |
 | --- | --- |
 | [atomic-shared-ptr](https://github.com/Kronuz/atomic-shared-ptr) | Lock-free snapshot publication |
-| [cpp-btree](https://github.com/Kronuz/cpp-btree) | Immutable `name → definition` map |
 | [sha256](https://github.com/Kronuz/sha256) + [endian](https://github.com/Kronuz/endian) | Stable rollout bucket |
 | [char-classify](https://github.com/Kronuz/char-classify) | Knob-name validation |
 | [strict-stox](https://github.com/Kronuz/strict-stox) | Strict integer parsing |
