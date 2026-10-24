@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <map>
 #include <random>
 #include <thread>
 #include <vector>
@@ -32,9 +33,17 @@ std::filesystem::path temp_path(std::string_view suffix) {
 	return std::filesystem::temp_directory_path() / ("jk_raft_" + std::to_string(rng()) + std::string(suffix));
 }
 
+auto &reserved_ports() {
+	static std::map<unsigned short, std::unique_ptr<asio::ip::tcp::acceptor>> ports;
+	return ports;
+}
+
 unsigned short temp_port() {
-	static std::mt19937_64 rng{std::random_device{}()};
-	return static_cast<unsigned short>(24000 + (rng() % 6000));
+	static asio::io_context io;
+	auto socket = std::make_unique<asio::ip::tcp::acceptor>(io, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 0));
+	const auto port = socket->local_endpoint().port();
+	reserved_ports().emplace(port, std::move(socket));
+	return port;
 }
 
 unsigned short temp_mcast_port() {
@@ -71,7 +80,9 @@ struct RunningNode {
 	std::unique_ptr<http::HttpAsioService> service;
 	unsigned short port;
 
-	explicit RunningNode(detentd::Options opts) : options(std::move(opts)), port(temp_port()) {
+	explicit RunningNode(detentd::Options opts) : options(std::move(opts)),
+		port(static_cast<unsigned short>(std::stoul(options.cluster->self_address.substr(
+			options.cluster->self_address.rfind(':') + 1)))) {
 		start();
 	}
 
@@ -79,6 +90,7 @@ struct RunningNode {
 		app = std::make_unique<detentd::Distributor>(options);
 		service = std::make_unique<http::HttpAsioService>(*app, 2, 4, 256);
 		service->enable_conditional();
+		reserved_ports().erase(port);
 		service->start(port);
 	}
 
