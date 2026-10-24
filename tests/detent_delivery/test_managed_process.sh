@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'printf "Managed fixture failed at line %s\n" "$LINENO" >&2' ERR
 authority=$1
 agent=$2
 reader=$3
@@ -29,7 +30,11 @@ cleanup() {
         if [[ -n "$process" ]]; then kill "$process" 2>/dev/null || true; wait "$process" 2>/dev/null || true; fi
     done
     if [[ "$result" != 0 ]]; then
-        cat "$root/authority.log" "$root/agent.log" "$root/agent-restart.log" "$root/relay.log" "$root/relay-restart.log" 2>/dev/null || true
+        for logfile in "$root"/*.log; do
+            [[ -f "$logfile" ]] || continue
+            printf '=== %s ===\n' "${logfile##*/}" >&2
+            tail -n 80 "$logfile" >&2 || true
+        done
         printf 'Failed managed fixture retained at %s\n' "$root" >&2
     else
         rm -rf "$root"
