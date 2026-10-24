@@ -12,6 +12,9 @@ target_link_libraries(detent_model_lookup PRIVATE detent::detent)
 add_executable(detent_model_footprint container-alternative/model_footprint.cc)
 target_link_libraries(detent_model_footprint PRIVATE detent::detent)
 
+add_executable(detent_model_lifecycle container-alternative/lifecycle_bench.cc)
+target_link_libraries(detent_model_lifecycle PRIVATE detent::detent)
+
 
 add_executable(detent_hash_bench detent_hash_bench.cc)
 target_link_libraries(detent_hash_bench PRIVATE detent::detent)
@@ -23,6 +26,8 @@ add_executable(detent_agent_shm_bench detent_agent_shm_bench.cc)
 target_link_libraries(detent_agent_shm_bench PRIVATE detent_agent_lib detent::detent)
 
 if(DETENT_BUILD_DISTRIBUTOR)
+  add_executable(detentd_publication_bench container-alternative/publication_bench.cc)
+  target_link_libraries(detentd_publication_bench PRIVATE detentd_lib)
   add_executable(detentd_fanout_bench detentd_fanout_bench.cc)
   target_link_libraries(detentd_fanout_bench PRIVATE detentd_lib detent_http::detent_http)
 endif()
