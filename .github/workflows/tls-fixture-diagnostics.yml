@@ -69,10 +69,10 @@ jobs:
       - name: Build the real service and reader binaries
         run: cmake --build build --parallel 4 --target detentd detent-agent detent
       - name: Generate certificates
-        run: ctest --test-dir build --output-on-failure -R '^authority_tls_certificates$'
+        run: ctest --test-dir build --output-on-failure -R '^delivery_tls_certificates$'
       - name: Repeat managed delivery through restart and reset
         run: |
           [[ "$REPETITIONS" =~ ^[0-9]+$ ]] && (( REPETITIONS >= 1 && REPETITIONS <= 1000 ))
           ctest --test-dir build --output-on-failure --no-tests=error \
-            -R '^test_managed_delivery_process$' -FA authority_tls \
+            -R '^test_managed_delivery_process$' -FA delivery_tls \
             --repeat "until-fail:$REPETITIONS"

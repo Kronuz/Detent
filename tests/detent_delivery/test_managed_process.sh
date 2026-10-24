@@ -142,12 +142,18 @@ fi
 "$agent" --config "$root/agent.json" --initialize-managed > "$root/agent.log" 2>&1 &
 agent_pid=$!
 wait_value() {
+    local actual=
     for ((attempt=0;attempt<200;attempt++)); do
-        if [[ $("$reader" get ns:feature --system --config "$root/agent.json" 2>/dev/null) == "$1" ]]; then return; fi
+        if actual=$("$reader" get ns:feature --system --config "$root/agent.json" 2>"$root/reader-get.log"); then
+            if [[ "$actual" == "$1" ]]; then return; fi
+        fi
         if ! kill -0 "$agent_pid" 2>/dev/null; then cat "$root/agent.log"; return 1; fi
         sleep 0.02
     done
-    cat "$root/agent.log"; return 1
+    printf 'Reader expected=%s actual=%s\n' "$1" "$actual" >&2
+    "$agent" --status --config "$root/agent.json" >&2 || true
+    cat "$root/reader-get.log" "$root/agent.log" >&2
+    return 1
 }
 wait_value 42
 # Reader limits are independent of private delivery credentials.
