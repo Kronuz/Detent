@@ -163,6 +163,15 @@ wait_ready() {
     cat "$1" >&2
     return 1
 }
+wait_agent_failure() {
+    local status=0
+    wait "$1" || status=$?
+    if [[ "$status" != 1 ]]; then
+        printf 'Expected agent error exit=1, observed=%s\n' "$status" >&2
+        return 1
+    fi
+    grep -q '^detent: ' "$2"
+}
 wait_value 42
 # Reader limits are independent of private delivery credentials.
 "$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
@@ -286,7 +295,7 @@ for ((attempt=0;attempt<200;attempt++)); do
     sleep 0.02
 done
 if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
-if wait "$agent_pid"; then exit 1; fi
+wait_agent_failure "$agent_pid" "$root/agent-unauthorized.log"
 agent_pid=
 cmp "$root/selected-before" "$root/generations/selected"
 cp "$root/managed-good.json" "$root/managed.json"
@@ -333,7 +342,7 @@ for ((attempt=0;attempt<300;attempt++)); do
     sleep 0.02
 done
 if kill -0 "$agent_pid" 2>/dev/null; then exit 1; fi
-if wait "$agent_pid"; then exit 1; fi
+wait_agent_failure "$agent_pid" "$root/agent-fatal.log"
 agent_pid=
 printf 'Authenticated delivery, identity binding, rejected credentials, progress, deletion defaults, stopped reads, trusted-reset restart and fatal service exit passed\n'
 
