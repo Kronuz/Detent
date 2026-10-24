@@ -155,6 +155,14 @@ wait_value() {
     cat "$root/reader-get.log" "$root/agent.log" >&2
     return 1
 }
+wait_ready() {
+    for ((attempt=0;attempt<200;attempt++)); do
+        if grep -q 'managed local store ready' "$1"; then return; fi
+        sleep 0.02
+    done
+    cat "$1" >&2
+    return 1
+}
 wait_value 42
 # Reader limits are independent of private delivery credentials.
 "$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
@@ -200,11 +208,7 @@ if [[ "$transition_to_flat" == true ]]; then
 fi
 "$agent" --config "$root/agent.json" > "$root/agent-restart.log" 2>&1 &
 agent_pid=$!
-for ((attempt=0;attempt<200;attempt++)); do
-    if grep -q 'managed local store ready' "$root/agent-restart.log"; then break; fi
-    sleep 0.02
-done
-grep -q 'managed local store ready' "$root/agent-restart.log"
+wait_ready "$root/agent-restart.log"
 cmp "$root/storage-before" "$root/generations/storage.meta"
 check_format "$root/generations" "$image_format"
 if [[ "$transition_to_flat" == true ]]; then
@@ -299,28 +303,21 @@ grep -q '"generation":1' "$root/reset-open.json"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
 "$agent" --config "$root/agent.json" > "$root/agent-reset.log" 2>&1 &
 agent_pid=$!
+wait_ready "$root/agent-reset.log"
 wait_value 84
 cmp "$root/storage-before" "$root/generations/storage.meta"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 84 ]]
 "$agent" --config "$root/agent.json" > "$root/agent-reset-restart.log" 2>&1 &
 agent_pid=$!
-for ((attempt=0;attempt<200;attempt++)); do
-    if grep -q 'managed local store ready' "$root/agent-reset-restart.log"; then break; fi
-    sleep 0.02
-done
-grep -q 'managed local store ready' "$root/agent-reset-restart.log"
+wait_ready "$root/agent-reset-restart.log"
 wait_value 84
 cmp "$root/storage-before" "$root/generations/storage.meta"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
 # A terminal post-readiness recovery failure must reach the service manager.
 "$agent" --config "$root/agent.json" > "$root/agent-fatal.log" 2>&1 &
 agent_pid=$!
-for ((attempt=0;attempt<200;attempt++)); do
-    if grep -q 'managed local store ready' "$root/agent-fatal.log"; then break; fi
-    sleep 0.02
-done
-grep -q 'managed local store ready' "$root/agent-fatal.log"
+wait_ready "$root/agent-fatal.log"
 mv "$root/generations" "$root/displaced-generations"
 mkdir "$root/generations"
 chmod 700 "$root/generations"
