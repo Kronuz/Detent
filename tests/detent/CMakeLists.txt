@@ -9,7 +9,8 @@ set(DETENT_TESTS
   test_json_patch
   test_json_strings
   test_model_alloc_failure
-  test_client_publication_failure)
+  test_client_publication_failure
+  test_flat_map)
 
 list(APPEND DETENT_TESTS test_read_view)
 
