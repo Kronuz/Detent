@@ -6,3 +6,4 @@ compile_commands.json
 bindings/rust/target/
 __pycache__/
 *.pyc
+.scratch/
