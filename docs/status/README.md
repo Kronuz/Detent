@@ -11,7 +11,7 @@
 | Scaling architecture | Release-scale qualification rejected | SC-1 relay full-snapshot rebuilding; SC-2/3 segment and compaction costs; see review |
 | Relay snapshot lifecycle | Integrated; functional and scoped sanitizer gates pass | 219/219 candidate product tests; delayed raw/compressed TLS tests; ASan/UBSan; sustained capacity envelope remains open |
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
-| Btree/container selection | Unresolved | Current pin remains in production; complete comparison and structural safety gate before choosing |
+| Btree/container selection | Corrected flat-map candidate; adoption pending | Contributor branch owns the model change; generic library CI passes; [qualification state](container-selection.md) |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.
