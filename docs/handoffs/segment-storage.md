@@ -1,31 +1,29 @@
-# Ask: remove avoidable segment storage scaling costs
+# Ask: bound segment indexing, publication and compaction work
 
-Work in `/Users/kronuz/code/Detent`. Detent distributes configuration knobs through a replicated authority, relays, and local agents. Applications read immutable mapped pages from agents. Relays and agents share `detent_local` storage. A segment is a pack of pages, at most 1 MiB; updates can leave many partially live packs even at fixed key count.
+Review a C++20 immutable paged-storage engine used by a replicated data-distribution service. Readers retain mapped generations while writers publish new ones. Pages live in bounded segment packs; small updates can leave many partly live packs even when record count stays fixed. The task is to remove avoidable work while preserving integrity, crash consistency and reader lifetime.
 
-## Problem and evidence
+This brief is independent of any application or repository. Locate the mechanisms below in the supplied source; report which are present before proposing changes. Source-specific evidence belongs in the accompanying local index and is not required to understand the requested behavior.
 
-Independent source review identifies SC-2 and SC-3 in `docs/reviews/scaling-2026-10-23.md`. These are demonstrated complexity paths, not measured explanations of seed time. Seeding runs before relays and agents start.
+## Mechanisms to investigate
 
-1. `src/detent_local/sparse_plan_finalizer.cc` copies all segment reachability rows per delta. `paged_warm_validator.cc`, `warm_registry_merge.cc` and `paged_publication_artifacts.cc` also process whole segment directories. `generation.cc` checks ownership and payload names across all reused segments, including warm recovery. A one-key update therefore has costs that grow with segment count.
-2. `paged_trie_overlay.cc` visits all pages to compact a selected subset of packs. The coordinator's eight-pack selection bound does not bound that traversal.
-3. `paged_dependency_discovery.cc` and `owned_segment_inputs.cc` insert into sorted vectors by moving suffixes, creating worst-case quadratic segment-directory work. `sparse_plan_finalizer.cc` insertion-sorts new packs.
-4. Cold discovery hashes segments, then `paged_graph_validator.cc` hashes them again. Removing either pass requires a proof tied to the exact immutable mapping and ownership identity.
+1. Incremental publication copies or validates all segment-directory rows and performs filesystem checks on every reused segment. One-record updates can therefore depend on total segment count.
+2. Compaction chooses a bounded number of packs but visits the complete page graph to find their live pages. An output bound does not bound traversal work.
+3. Dependency discovery inserts each segment into a sorted vector by shifting its suffix. Random or reverse discovery order can produce quadratic moves. Candidate collection and final ordering can repeat this pattern.
+4. Cold discovery hashes segment bytes, and subsequent graph validation hashes the same bytes again. Eliminating a pass requires a proof tied to the exact immutable mapping and ownership identity.
+
+These are hypotheses to verify against the supplied implementation. Complexity analysis does not establish their timing contribution.
 
 ## Requested work
 
-1. Reproduce with a deterministic workload holding key count fixed while increasing segment count, fragmentation and held generations. Separately vary key count. Start small; no expensive 5M trial is needed to establish these mechanisms.
-2. Record segment rows moved/copied, pages visited, bytes hashed, metadata syscalls, requested heap and peak executor-turn work. Establish the baseline before changing the mechanism.
-3. Implement the smallest complete component first: budgeted segment ordering with accounted storage, duplicate rejection and deterministic final order. Use an existing library mechanism where appropriate; inspect `~/code/Kronuz/cpp-libraries/AGENTS.md` before proposing extraction or library changes.
-4. Address whole-directory publication/compaction work in a separate component after the ordering result. Propose a bounded mechanism before implementing a structural change. Keep duplicate hashing as a separately reviewed integrity change.
+1. Establish a deterministic baseline holding record count fixed while varying segment count, fragmentation and retained generations. Separately vary record count. Measure directory rows moved/copied, pages visited, bytes hashed, metadata syscalls, requested heap and maximum executor-turn work.
+2. Complete the ordering component first: one accounted index while collecting, followed by deterministic ordered emission. Preserve duplicate rejection. Use budgeted O(S log S) ordering rather than repeated vector insertion; S is segment count. An existing suitable mechanism takes precedence over a parallel implementation.
+3. Treat publication metadata and compaction as a separate component. Propose how unchanged directory structure can be shared and selected packs located without complete graph traversal. State the retained-memory and recovery tradeoffs before implementation.
+4. Treat repeated hashing as an independent integrity change. Specify the internal validation proof and its invalidation rules before removing checks.
 
 ## Constraints and acceptance
 
-Preserve storage and protocol bytes, corruption detection, duplicate rejection, crash recovery, resource refusal, immutable-reader lifetime and incremental retirement. No unbudgeted whole-container sort on the owner executor. Do not remove identity checks merely to reduce syscalls. Prefer library defaults; document measured reasons for overrides. One implementation per mechanism.
+Preserve durable and protocol bytes, corruption detection, duplicate rejection, resource refusal, crash recovery, immutable-reader lifetime and incremental retirement. No whole-container sort or cleanup hidden inside one owner-executor turn. Do not remove ownership or identity checks merely to reduce syscalls. Hash indexes need an adversarial-input policy; an ordered index avoids that extra policy.
 
-Tests must include reverse/random segment order, duplicate identities, tiny work budgets, allocation refusal, interrupted construction, cancellation, cold/warm recovery, compaction with held readers and final resource conservation. Compare complete decoded state and durable bytes before/after. Publish raw repeatable measurements, source/dependency identities and losing cases. A source-level complexity improvement alone does not establish a timing win.
+Tests cover reverse/random order, duplicates, tiny work budgets, allocation refusal, interrupted construction, cancellation, cold/warm recovery, compaction with held readers and final resource conservation. Compare complete decoded state and persisted bytes. Published measurements include repeated before/after runs, source/dependency identities, raw artifacts and losing cases. State when a complexity improvement has no measured latency benefit.
 
-## Execution and delivery
-
-Read repository `AGENTS.md`, `docs/SHARED_LIBRARY_DECISIONS.md`, the SC-2/3 review and relevant storage tests. Use a separate worktree; do not edit the relay bootstrap candidate. Before any build/test/measurement run `quiet check`; wrap builds/tests in `quiet light` with at most four jobs, published comparisons in `quiet exclusive`. Keep scratch data under `.scratch/`.
-
-Return separate fix commits with tests, raw artifact paths, a short before/after table and remaining risks. Do not push or alter shared-library pins without coordinating with the lead. Stop at a concrete design choice if safety requires a format or public API change; provide the exact proposed contract rather than a general blocker.
+Work serially in an isolated checkout and coordinate builds with the host's load-control mechanism. Follow local repository and shared-library rules. Return a bounded design, separate implementation commits per component, regression tests, a before/after table and remaining limits. If a required mechanism is absent, report that finding rather than adding speculative infrastructure.
