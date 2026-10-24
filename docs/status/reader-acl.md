@@ -26,4 +26,8 @@
 
 ## Blocked on
 
-- Scoped sanitizer and native non-macOS qualification remain pending. The macOS security recheck approves with condition C1.
+- Native non-macOS qualification remains pending. The macOS security recheck approves with condition C1.
+
+## Scoped sanitizer check
+
+The descriptor predicate passes ASan/UBSan on macOS for an ordinary file, an invalid descriptor, 1,000 inspections of an extended write-grant ACL, and removal of that ACL. The retained probe is `.scratch/reader-acl-sanitizer/check.cc`. LeakSanitizer is disabled on this host; this is a focused predicate check, not a sanitizer build of the complete CLI.
