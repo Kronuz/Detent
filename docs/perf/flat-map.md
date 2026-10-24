@@ -1,6 +1,6 @@
 # Sorted-vector flat_map for the four model tables
 
-Branch `explore/flat-map` (base `1766ef0`). Raw medians, commands, binary hashes and limits are in
+Measured on `explore/flat-map` at `3ec0df4` (base `1766ef0`); the model and merge code is unchanged on `flat-on-tip`. Raw medians, commands, binary hashes and limits are in
 `benchmarks/flat-map-exploration-20261023.json`. macOS arm64, Release, 100,000 knobs, five rounds,
 three arms (std::map, flat, btree), medians; flat/std ratios below, spread in the JSON.
 
@@ -24,12 +24,13 @@ misses 0.62-0.95. `cleanup_turn_ns` (erase of the last override at 256 overrides
 max 84-1084 ns, zero allocations; erase of `begin()` on the same table: p99 167 ns, max 416-8750 ns.
 
 Costs: `prune_half_positional` (erase every other element by iterator, 50,000 erases) takes about
-7.5 s against 2.7-5.5 ms: positional erase on a 100,000-entry table is O(n) per call. No Detent
-production path does that after the call-site changes; any future one must use a merge or an
-erase-if pass.
+7.5 s against 2.7-5.5 ms: positional erase on a 100,000-entry table is O(n) per call. The bench now
+prunes with `erase_if`, one linear pass. Production paths build tables with `flat_map_builder`
+(JSON snapshots, patches, overrides and CLI overrides), merge them linearly, or drain from the
+back; any future bulk update must do the same.
 
 ## Identity
 
-ctest 210/210, canonical bytes identical to the std::map arm, lifecycle digests identical in all
+ctest 211/211, canonical bytes identical to the std::map arm, lifecycle digests identical in all
 four configurations on all three arms, and the duplicate-precedence test passes on both the
 std::map arm and this one.
