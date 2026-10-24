@@ -4,7 +4,7 @@
 
 ## Required before release
 
-| ID | Mechanism and destination | Evidence and remaining work | Anonymous brief |
+| ID | Mechanism and destination | Evidence and remaining work | Standalone brief |
 | --- | --- | --- | --- |
 | EX-1 | Byte accounting, allocation adapters and deferred retirement → existing `allocators` optional targets | Shared resources are published. Detent still has private accounting and retirement bodies. Recover the isolated migration, reconcile current APIs and owner-lifetime rules, remove duplicate engines, measure footprint and qualify composed consumers. Disk settlement stays a domain policy. | [Resources](handoffs/resource-primitives.md) |
 | EX-2 | Blocking and coroutine HTTP client machinery → existing `http`; common TLS → existing `reactor` | Isolated client/parser migration and held-session tests exist. Main still has private client implementations. Reconcile current shared APIs, preserve authentic transport settlement, qualify all clients and remove migrated parser/cache/deadline bodies. Existing TLS reuse is not a reason to extract another TLS layer. | [HTTP clients](handoffs/http-clients.md) |

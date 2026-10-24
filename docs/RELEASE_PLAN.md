@@ -2,7 +2,7 @@
 
 **Updated:** 2026-10-23. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
 
-Use the [extraction checklist](EXTRACTION_CHECKLIST.md) to resume library work from a clean session. It separates remaining adoption from conditional candidates and points to existing implementations and anonymous handoffs.
+Use the [extraction checklist](EXTRACTION_CHECKLIST.md) to resume library work from a clean session. It separates remaining adoption from conditional candidates and points to existing implementations and standalone handoffs.
 
 The active [qualification index](status/README.md) prioritizes the measured ingestion and bootstrap costs after functional trials through 130K. Startup capacity passes 217 product tests; managed reader integration passes 218 product tests and real flat/paged process checks, with SR1 fixed and the macOS permission recheck passing under documented platform conditions. The [scaling review](reviews/scaling-2026-10-23.md) rejects release-scale qualification and identifies relay snapshot lifecycle and segment-processing blockers. These checks do not close the capacity or container-selection gates.
 

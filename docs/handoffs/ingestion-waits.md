@@ -1,8 +1,27 @@
 # Ask: separate durable-ingestion syscall time from queue and request waits
 
-Investigate a C++20 replicated service that acknowledges writes only after its required durability barrier. A load driver seeds fresh state through several concurrent producers. Each producer awaits its own bounded batches serially. Downstream distribution services start after seeding, so their work cannot explain this seed interval.
+**Priority:** P1 · Rank 3 of 7 · Ingestion-qualification blocker.
 
-This brief names no application or repository. Confirm the supplied implementation's journal operations, timing boundaries and acknowledgment contract before interpreting results. Existing observations suggest storage completion occupancy is substantial, but do not establish time spent inside sync syscalls.
+Start early: exact wait attribution is needed before changing durability or accepting ingestion throughput at release scale.
+
+## Repositories and starting point
+
+1. **Start repository:** [Kronuz/Detent](https://github.com/Kronuz/Detent).
+2. **IO diagnostics repository:** [Kronuz/completion](https://github.com/Kronuz/completion).
+3. **Existing evidence:** [Kronuz/Detent/blob/main/docs/perf/seeding-waits.md](https://github.com/Kronuz/Detent/blob/main/docs/perf/seeding-waits.md).
+4. **Shared-library rules:** [Kronuz/cpp-libraries/blob/main/AGENTS.md](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md).
+
+**Inspect first:** `tests/detent_system/authority.py`, `writers.py`, `mixed.py`, authority request phases under `src/detent_authority/`, and completion's existing timing hooks. Baseline: 100K records seed in 104.338 s, four producers and 784 transactions of up to 128 mutations. A verified 10K follow-up takes 10.363 s; its sampled sync occupancy is 5.963 s but misses the final receipt.
+
+**Dependencies and ownership:** Can start now. Coordinate completion instrumentation with its owner and resource-adoption changes with that task. No journal-format or durability-contract changes during attribution.
+
+**Release-unblocking outcome:** A reproducible seed-boundary phase table distinguishing syscall time from queue/reaping delay and overlapping requests, plus verified restart. Propose and qualify any justified fix separately; report the remaining throughput limit rather than declaring diagnosis alone a performance fix.
+
+This file is the complete task brief; no handoff README or conversation history is required. Repository links identify source and integration fixtures; reusable APIs must remain application-neutral. Read each edited repository's `AGENTS.md`. Existing candidates may be older than main: inspect current APIs and preserve uncommitted work before transplanting them.
+
+On the shared development host, run `quiet check` before builds/tests; use `quiet light` with at most four jobs and `quiet exclusive` for published measurements. Keep scratch artifacts under `.scratch/`. Work serially within this task and use one narrow component review, not a review tree. Deliver isolated commits, exact source/dependency identities, reproducible commands, test results and remaining limits.
+
+Investigate a C++20 replicated service that acknowledges writes only after its required durability barrier. A load driver seeds fresh state through several concurrent producers. Each producer awaits its own bounded batches serially. Downstream distribution services start after seeding, so their work cannot explain this seed interval.
 
 ## Measurement traps to avoid
 

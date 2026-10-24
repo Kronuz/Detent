@@ -1,8 +1,26 @@
 # Ask: bound segment indexing, publication and compaction work
 
-Review a C++20 immutable paged-storage engine used by a replicated data-distribution service. Readers retain mapped generations while writers publish new ones. Pages live in bounded segment packs; small updates can leave many partly live packs even when record count stays fixed. The task is to remove avoidable work while preserving integrity, crash consistency and reader lifetime.
+**Priority:** P1 · Rank 2 of 7 · Capacity-qualification blocker.
 
-This brief is independent of any application or repository. Locate the mechanisms below in the supplied source; report which are present before proposing changes. Source-specific evidence belongs in the accompanying local index and is not required to understand the requested behavior.
+Complete before larger capacity trials: avoidable segment-directory and compaction costs prevent credible scale qualification.
+
+## Repositories and starting point
+
+1. **Start repository:** [Kronuz/Detent](https://github.com/Kronuz/Detent).
+2. **Architecture evidence:** [Kronuz/Detent/blob/main/docs/reviews/scaling-2026-10-23.md](https://github.com/Kronuz/Detent/blob/main/docs/reviews/scaling-2026-10-23.md).
+3. **Shared-library rules:** [Kronuz/cpp-libraries/blob/main/AGENTS.md](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md).
+
+**Inspect first:** `src/detent_local/paged_dependency_discovery.cc`, `owned_segment_inputs.cc`, `sparse_plan_finalizer.cc`, `paged_warm_validator.cc`, `warm_registry_merge.cc`, `paged_publication_artifacts.cc`, `generation.cc`, `paged_graph_validator.cc` and `paged_trie_overlay.cc`; compaction selection is in `src/detent_delivery/coordinator.cc`. Read findings SC-2/SC-3.
+
+**Dependencies and ownership:** Can start now in a separate worktree. Own local segment indexing and traversal; coordinate allocator/retirement changes with the resource task. Do not modify relay session/cache semantics.
+
+**Release-unblocking outcome:** First deliver a fixed-cardinality fragmentation reproduction and budgeted ordering fix. Close remaining whole-directory/compaction costs in separately reviewed components, with measured work bounds, integrity tests and unchanged decoded state.
+
+This file is the complete task brief; no handoff README or conversation history is required. Repository links identify source and integration fixtures; reusable APIs must remain application-neutral. Read each edited repository's `AGENTS.md`. Existing candidates may be older than main: inspect current APIs and preserve uncommitted work before transplanting them.
+
+On the shared development host, run `quiet check` before builds/tests; use `quiet light` with at most four jobs and `quiet exclusive` for published measurements. Keep scratch artifacts under `.scratch/`. Work serially within this task and use one narrow component review, not a review tree. Deliver isolated commits, exact source/dependency identities, reproducible commands, test results and remaining limits.
+
+Review a C++20 immutable paged-storage engine used by a replicated data-distribution service. Readers retain mapped generations while writers publish new ones. Pages live in bounded segment packs; small updates can leave many partly live packs even when record count stays fixed. The task is to remove avoidable work while preserving integrity, crash consistency and reader lifetime.
 
 ## Mechanisms to investigate
 

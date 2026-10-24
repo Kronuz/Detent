@@ -1,8 +1,26 @@
 # Ask: qualify an ordered-container implementation or select a replacement
 
-Review a C++20 application using a B-tree for public model fields. The relevant shapes are string-keyed record tables, string-keyed patch tables, nested string-keyed scalar override tables, and caller-supplied override tables. Records contain scalar variants and nested tables. Some consumers publish immutable snapshots; others incrementally construct and retire definitions under work budgets.
+**Priority:** P0 · Rank 1 of 7 · Correctness blocker.
 
-This brief names no application or repository. Establish the actual container revision, value types, consumers and failure paths from the supplied source. Do not infer tested headers from a dependency pin when build-system source overrides exist.
+Resolve this first: unresolved actual-type lifetime or failure-cleanup defects prevent a safe release regardless of throughput.
+
+## Repositories and starting point
+
+1. **Start repository:** [Kronuz/btree](https://github.com/Kronuz/btree).
+2. **Consumer source and integration tests:** [Kronuz/Detent](https://github.com/Kronuz/Detent).
+3. **Shared-library rules:** [Kronuz/cpp-libraries/blob/main/AGENTS.md](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md).
+
+**Inspect first:** `include/detent/model.hh`, `include/detent/overrides.hh`, `docs/BTREE_RELEASE_RISK.md`, `docs/CONTAINER_SELECTION_ARCHITECTURE.md` and `benchmarks/model-container-comparison-20261022.json` in the consumer repository. The recorded consumer pin is `cbc35762bc4a98ad91361be29d05f0ae715a1339`; verify actual headers and overrides.
+
+**Dependencies and ownership:** Can start now. Own container implementation and four model fields; coordinate authority cleanup/accounting edits with the resource and persistent-map tasks.
+
+**Release-unblocking outcome:** An actual-type counterexample or explicit closure for every recorded safety gap, followed by one measured repair/replacement decision and qualified consumer adoption. A library-only patch or ordinary passing tests do not close this gate.
+
+This file is the complete task brief; no handoff README or conversation history is required. Repository links identify source and integration fixtures; reusable APIs must remain application-neutral. Read each edited repository's `AGENTS.md`. Existing candidates may be older than main: inspect current APIs and preserve uncommitted work before transplanting them.
+
+On the shared development host, run `quiet check` before builds/tests; use `quiet light` with at most four jobs and `quiet exclusive` for published measurements. Keep scratch artifacts under `.scratch/`. Work serially within this task and use one narrow component review, not a review tree. Deliver isolated commits, exact source/dependency identities, reproducible commands, test results and remaining limits.
+
+Review a C++20 application using a B-tree for public model fields. The relevant shapes are string-keyed record tables, string-keyed patch tables, nested string-keyed scalar override tables, and caller-supplied override tables. Records contain scalar variants and nested tables. Some consumers publish immutable snapshots; others incrementally construct and retire definitions under work budgets.
 
 ## Problem and decision boundary
 

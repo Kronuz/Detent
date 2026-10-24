@@ -1,16 +1,16 @@
 # Release blocker handoffs
 
-**Date:** 2026-10-23. Detent is in Stage 6, release qualification. The linked briefs are standalone and project-neutral. Share only the individual brief for an anonymous handoff; this index contains the local source and evidence mapping.
+**Date:** 2026-10-23. Detent is in Stage 6, release qualification. Each linked brief is self-contained: it includes priority, repository links, source paths, dependencies and release-unblocking criteria. Share the individual file; this index is optional. Generic library contracts remain independent of application semantics.
 
-| Ask | Owner boundary | Completion evidence |
+| Ask (priority order) | Owner boundary | Completion evidence |
 | --- | --- | --- |
-| [Segment storage scaling](segment-storage.md) | SC-2/SC-3, agent and relay local storage | Fixed-cardinality fragmentation trials, bounded work, unchanged integrity and recovery |
-| [Container safety and selection](container-safety.md) | SC-5, four public model fields and their cleanup | Actual-type failure tests, complete-path costs, explicit representation decision |
-| [Ingestion wait attribution](ingestion-waits.md) | SC-4, authority and completion diagnostics | Seed-boundary phase timings that distinguish syscall time from queue/reaping delay |
-| [Persistent ordered map](persistent-map.md) | Planned reusable-library extraction | Qualified version ownership, allocation accounting, bounded collection and consumer adoption |
-| [Resource primitives](resource-primitives.md) | Existing shared resource adoption | One accounting/retirement engine; domain settlement policy preserved |
-| [HTTP clients](http-clients.md) | Existing HTTP/TLS library extension and adoption | Unified parser and transport lifecycle; application semantics local |
-| [Bounded MessagePack](bounded-codec.md) | Existing codec extension and adoption | One lexer and packer; exact payload bytes and bounded-only target |
+| P0, rank 1: [Container safety and selection](container-safety.md) | SC-5, four public model fields and their cleanup | Actual-type failure tests, complete-path costs, explicit representation decision |
+| P1, rank 2: [Segment storage scaling](segment-storage.md) | SC-2/SC-3, agent and relay local storage | Fixed-cardinality fragmentation trials, bounded work, unchanged integrity and recovery |
+| P1, rank 3: [Ingestion wait attribution](ingestion-waits.md) | SC-4, authority and completion diagnostics | Seed-boundary phase timings that distinguish syscall time from queue/reaping delay |
+| P1, rank 4: [Resource primitives](resource-primitives.md) | Existing shared resource adoption | One accounting/retirement engine; domain settlement policy preserved |
+| P2, rank 5: [HTTP clients](http-clients.md) | Existing HTTP/TLS library extension and adoption | Unified parser and transport lifecycle; application semantics local |
+| P2, rank 6: [Bounded MessagePack](bounded-codec.md) | Existing codec extension and adoption | One lexer and packer; exact payload bytes and bounded-only target |
+| P2, rank 7: [Persistent ordered map](persistent-map.md) | Planned reusable-library extraction | Qualified version ownership, allocation accounting, bounded collection and consumer adoption |
 
 The lead owns SC-1 relay lifecycle. Its integrated component passes 219 candidate product tests, the delayed TLS bootstrap regression and scoped ASan/UBSan. Sustained-load capacity remains unqualified. Do not modify its relay session/cache files in the handoff tasks.
 
