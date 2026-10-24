@@ -9,7 +9,7 @@
 | [Ingestion wait attribution](ingestion-waits.md) | SC-4, authority and completion diagnostics | Seed-boundary phase timings that distinguish syscall time from queue/reaping delay |
 | [Persistent ordered map](persistent-map.md) | Planned reusable-library extraction | Qualified version ownership, allocation accounting, bounded collection and consumer adoption |
 
-The lead retains SC-1 relay integration. Its isolated candidate passes 219 product tests and the delayed TLS bootstrap regression; sanitizers and integration remain open. Do not modify its relay session/cache files in the handoff tasks.
+The lead owns SC-1 relay lifecycle. Its integrated component passes 219 candidate product tests, the delayed TLS bootstrap regression and scoped ASan/UBSan. Sustained-load capacity remains unqualified. Do not modify its relay session/cache files in the handoff tasks.
 
 Each task starts with a short source/evidence check and a concrete reproduction. Work serially within each task; do not spawn a review tree. Ask for one narrow component review when implementation is complete. Independent tasks may use separate worktrees, but all builds and measurements must coordinate through `quiet` on the shared host. Storage and ingestion agents must agree on any overlapping telemetry or shared-library edits before changing them.
 

@@ -275,6 +275,11 @@ template <class Marker, class Binding> class SessionTable {
 				   ? s->window.base()
 				   : std::nullopt;
 	}
+	std::optional<std::uint64_t> accepted(SubscriptionRequestToken token) const noexcept {
+		auto *s = impl_->find(token.session);
+		return s && s->incarnation == token.incarnation && s->serial == token.request && s->request
+			? std::optional(s->window.accepted()) : std::nullopt;
+	}
 	std::optional<Marker> handoff(SubscriptionRequestToken token) const noexcept {
 		auto *s = impl_->find(token.session);
 		return s && s->incarnation == token.incarnation && s->serial == token.request && s->request

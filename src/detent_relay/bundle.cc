@@ -6,8 +6,27 @@
 
 namespace detent::relay {
 namespace d = distribution;
+bool BootstrapPlan::covers(const d::Cursor &base) const noexcept {
+	if (!base.same_identity(head) || base.revision >= head.revision) return false;
+	for (std::size_t i = position; i < count; ++i)
+		if (updates[i] && updates[i]->kind() != d::UpdateKind::Snapshot && updates[i]->base() == base)
+			return true;
+	return false;
+}
+void BootstrapPlan::accepted(std::uint64_t window, std::optional<d::Cursor> base) {
+	if (!offered_window || window != offered_window) return;
+	if (position == count || !base || updates[position]->target() != *base)
+		throw std::logic_error("relay bootstrap acknowledgment mismatch");
+	updates[position++].reset();
+	offered_window = 0;
+}
+bool BootstrapPlan::retire_step() noexcept {
+	for (unsigned n = 0; n != 16 && position != count; ++n)
+		updates[position++].reset();
+	return position == count;
+}
 Bundle::Bundle(BundleOptions options, d::RetirementDomain &domain)
-	: options_(std::move(options)), domain_(domain), cache_(options_.incarnation, options_.retained_edges) {
+	: options_(std::move(options)), domain_(domain), cache_(options_.incarnation, options_.retained_edges, true) {
 	if (options_.namespaces > options_.encoding.namespaces)
 		throw std::invalid_argument("relay bundle namespace limit");
 	options_.encoding.storage_account = domain.storage_account();
@@ -40,8 +59,6 @@ void Bundle::refused() noexcept {
 void Bundle::begin_stage(const delivery::ReceivedUpdate &update) {
 	if (diagnostic_.fenced || stage_ || !update.target.same_identity(options_.configured))
 		throw std::logic_error("relay bundle staging state mismatch");
-	snapshot_stage_.reset();
-	snapshot_base_.reset();
 	token_.reset();
 	candidate_.reset();
 	stage_failed_ = false;
@@ -126,6 +143,9 @@ void Bundle::selected(const local::RecoveredGeneration &generation) {
 			++diagnostic_.gaps;
 		token_.reset();
 	}
+	if (snapshot_stage_ && snapshot_base_ &&
+		!cache_.covers_to_head(snapshot_base_->cursor))
+		snapshot_failed_ = true;
 	candidate_.reset();
 	head_ = generation;
 }
@@ -146,14 +166,37 @@ d::CacheOffer Bundle::offer(std::optional<d::Cursor> base, bool force_snapshot) 
 		return {diagnostic_.fenced ? d::CacheDecision::Fenced : d::CacheDecision::Busy, {}, cache_.marker()};
 	return cache_.offer(base, force_snapshot);
 }
+BootstrapCapture Bundle::capture_bootstrap(std::optional<d::Cursor> minimum) {
+	if (!ready()) return {diagnostic_.fenced ? d::CacheDecision::Fenced : d::CacheDecision::Busy, {}};
+	try {
+		auto plan = domain_.make<BootstrapPlan>();
+		const auto captured = cache_.capture_snapshot_path(minimum, plan->updates);
+		if (captured.decision != d::CacheDecision::Update) {
+			if (minimum && minimum->same_identity(*cache_.selected()) &&
+				minimum->revision <= cache_.selected()->revision &&
+				(!requested_snapshot_ || requested_snapshot_->revision < minimum->revision))
+				requested_snapshot_ = minimum;
+			return {captured.decision, {}};
+		}
+		plan->count = captured.count;
+		plan->head = captured.head;
+		plan->marker = captured.marker;
+		return {d::CacheDecision::Update, std::move(plan)};
+	} catch (const d::StoragePressure &) { refused(); }
+	catch (const std::bad_alloc &) { refused(); }
+	return {};
+}
 bool Bundle::covers(d::CacheMarker marker, const d::Cursor &base) const noexcept {
 	return ready() && cache_.covers(marker, base);
 }
 bool Bundle::snapshot_step(d::WorkBudget &budget) {
-	if (!ready() || stage_)
+	if (!ready())
 		return false;
 	if (!snapshot_stage_) {
-		if (cache_.offer({}, true).decision == d::CacheDecision::Update)
+		const auto frontier = cache_.snapshot_frontier();
+		const auto refresh_at = std::max<std::size_t>(1, options_.retained_edges / 2);
+		if (frontier && (!requested_snapshot_ || requested_snapshot_->revision <= frontier->revision) &&
+			cache_.edges_to_head(*frontier).value_or(options_.retained_edges) < refresh_at)
 			return true;
 		try {
 			snapshot_base_ = head_->descriptor();
@@ -162,6 +205,7 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 			snapshot_stage_ = domain_.make<d::UpdateStage>(
 				domain_, local::detail::make_snapshot_source(*head_, domain_.storage_account()),
 				next_identity(), options_.encoding);
+			++diagnostic_.snapshot_started;
 		} catch (const d::StoragePressure &) {
 			refused();
 			return false;
@@ -171,9 +215,13 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 		}
 	}
 	if (snapshot_failed_) {
+		const auto discarded_bytes = snapshot_stage_->emitted_logical_bytes();
 		if (!snapshot_stage_->abort(budget))
 			return false;
+		++diagnostic_.snapshot_discarded;
+		diagnostic_.snapshot_discarded_logical_bytes += discarded_bytes;
 		snapshot_stage_.reset();
+		snapshot_base_.reset();
 		return false;
 	}
 	try {
@@ -182,9 +230,17 @@ bool Bundle::snapshot_step(d::WorkBudget &budget) {
 			return false;
 		auto snapshot = snapshot_stage_->take();
 		snapshot_stage_.reset();
-		if (*snapshot_base_ != head_->descriptor() || snapshot_directory_ != head_->directory_identity())
+		if (!cache_.covers_to_head(snapshot_base_->cursor) ||
+			snapshot_directory_ != head_->directory_identity()) {
+			++diagnostic_.snapshot_discarded;
+			diagnostic_.snapshot_discarded_logical_bytes += snapshot->logical_bytes();
+			snapshot_base_.reset();
 			return false;
+		}
 		cache_.install_snapshot(std::move(snapshot));
+		if (requested_snapshot_ && requested_snapshot_->revision <= snapshot_base_->cursor.revision)
+			requested_snapshot_.reset();
+		snapshot_base_.reset();
 		++diagnostic_.snapshots;
 		return true;
 	} catch (const d::StoragePressure &) {
@@ -205,12 +261,15 @@ void Bundle::fence() noexcept {
 	token_.reset();
 	snapshot_stage_.reset();
 	snapshot_base_.reset();
+	requested_snapshot_.reset();
 	head_.reset();
 }
 BundleStatus Bundle::status() const noexcept {
 	auto result = diagnostic_;
 	result.ready = ready();
 	result.selected = cache_.selected();
+	result.snapshot_frontier = cache_.snapshot_frontier();
+	result.retained_edges = cache_.retained_edges();
 	return result;
 }
 std::shared_ptr<Bundle> make_bundle(BundleOptions options, d::RetirementDomain &domain) {

@@ -3,7 +3,7 @@
 namespace detent::relay {
 namespace d = distribution;
 struct Sessions::Impl {
-	using Table = d::SessionTable<d::CacheMarker, std::size_t>;
+	using Table = d::SessionTable<d::CacheMarker, RelaySessionBinding>;
 	std::vector<SessionBinding, d::StorageAllocator<SessionBinding>> bindings;
 	Table table;
 	Impl(std::shared_ptr<d::StorageLedger> account, std::span<const SessionBinding> configured,
@@ -28,9 +28,9 @@ struct Sessions::Impl {
 		auto *metadata = table.metadata(id, now);
 		if (!metadata)
 			return d::SubscriptionResult::Expired;
-		if (!authorization.allows(metadata->scope))
+		if (!authorization.allows(metadata->scope.bundle))
 			return d::SubscriptionResult::Forbidden;
-		const auto &binding = bindings[metadata->scope];
+		const auto &binding = bindings[metadata->scope.bundle];
 		if (!allow_fenced && binding.bundle->status().fenced)
 			return d::SubscriptionResult::Forbidden;
 		return table.authorize(id, metadata->incarnation, authorization.principal, binding.identity.scope,
@@ -69,8 +69,21 @@ d::SubscriptionResult Sessions::open(d::Identity id, const SessionAuthorization 
 							(candidate.decision == d::CacheDecision::Update &&
 							 candidate.update->kind() != d::UpdateKind::Snapshot)))
 		marker = candidate.marker;
-	return p.table.open(id, authorization.principal, index, *status.selected, base, force_snapshot,
+	RelaySessionBinding scope;
+	scope.bundle = index;
+	scope.snapshot = !marker;
+	if (scope.snapshot) {
+		auto captured = binding.bundle->capture_bootstrap(base);
+		if (captured.decision == d::CacheDecision::SourceBehind) return d::SubscriptionResult::SourceBehind;
+		if (captured.decision == d::CacheDecision::IdentityChanged) return d::SubscriptionResult::IdentityChanged;
+		if (captured.decision != d::CacheDecision::Update) return d::SubscriptionResult::Busy;
+		scope.bootstrap = std::move(captured.plan);
+	}
+	try {
+		return p.table.open(id, authorization.principal, std::move(scope), *status.selected, base, force_snapshot,
 						compression, marker, now, authorization.grants);
+	} catch (const d::StoragePressure &) { return d::SubscriptionResult::Busy; }
+	catch (const std::bad_alloc &) { return d::SubscriptionResult::Busy; }
 }
 const Sessions::Metadata *Sessions::metadata(d::Identity id, Clock::time_point now) noexcept {
 	return impl_->table.metadata(id, now);
@@ -88,7 +101,7 @@ PreparedOffer Sessions::prepare(d::SubscriptionRequestToken token, Clock::time_p
 	auto *metadata = p.table.metadata(token.session, now);
 	if (!metadata || metadata->incarnation != token.incarnation)
 		return {d::SubscriptionResult::Expired, {}, {}};
-	auto &bundle = *p.bindings[metadata->scope].bundle;
+	auto &bundle = *p.bindings[metadata->scope.bundle].bundle;
 	const auto status = bundle.status();
 	if (status.fenced) {
 		p.table.close(token.session, metadata->principal, token.incarnation);
@@ -96,18 +109,37 @@ PreparedOffer Sessions::prepare(d::SubscriptionRequestToken token, Clock::time_p
 	}
 	if (!status.ready || !status.selected)
 		return {d::SubscriptionResult::Busy, {}, {}};
+	auto *plan = metadata->scope.bootstrap.get();
 	const auto result = p.table.poll(
 		token, *status.selected,
-		[&bundle](const auto &marker, const auto &base, const auto &) noexcept {
-			return bundle.covers(marker, base);
+		[&bundle, plan](const auto &marker, const auto &base, const auto &) noexcept {
+			return (plan && marker == plan->marker && plan->covers(base)) || bundle.covers(marker, base);
 		},
 		now);
+	if (plan) {
+		if (auto accepted = p.table.accepted(token)) plan->accepted(*accepted, p.table.base(token));
+		if (plan->position == plan->count) {
+			metadata->scope.bootstrap.reset();
+			plan = nullptr;
+		}
+	}
 	if (result != d::SubscriptionResult::SnapshotReady && result != d::SubscriptionResult::ResumeReady)
 		return {result, {}, {}};
-	auto candidate = bundle.offer(p.table.base(token), result == d::SubscriptionResult::SnapshotReady);
+	d::CacheOffer candidate;
+	if (plan && plan->position < plan->count) {
+		auto update = plan->updates[plan->position];
+		const auto base = p.table.base(token);
+		if ((result == d::SubscriptionResult::SnapshotReady && update->kind() != d::UpdateKind::Snapshot) ||
+			(result == d::SubscriptionResult::ResumeReady && (!base || update->base() != *base)))
+			throw std::logic_error("relay bootstrap path order mismatch");
+		candidate = {d::CacheDecision::Update, std::move(update), plan->marker};
+	} else {
+		candidate = bundle.offer(p.table.base(token), result == d::SubscriptionResult::SnapshotReady);
+	}
 	switch (candidate.decision) {
 	case d::CacheDecision::Update: {
 		auto offered = p.table.offer(token, candidate.update->target(), candidate.marker, now);
+		if (plan && plan->position < plan->count) plan->offered_window = offered.window;
 		return {result, offered, std::move(candidate.update)};
 	}
 	case d::CacheDecision::SourceBehind:

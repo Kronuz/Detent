@@ -14,8 +14,28 @@ struct BundleOptions {
 struct BundleStatus {
 	bool authenticated = false, ready = false, fenced = false;
 	std::optional<distribution::Cursor> selected;
+	std::optional<distribution::Cursor> snapshot_frontier;
 	std::uint64_t staged = 0, gaps = 0, refusals = 0, snapshots = 0;
+	std::uint64_t snapshot_started = 0, snapshot_discarded = 0, snapshot_discarded_logical_bytes = 0;
+	std::size_t retained_edges = 0;
 	std::exception_ptr error;
+};
+class BootstrapPlan final : public distribution::RetirementNode {
+  public:
+	std::array<distribution::RetirementHandle<distribution::EncodedUpdate>,
+		distribution::UpdateCache::maximum_edges + 1> updates;
+	distribution::Cursor head{};
+	distribution::CacheMarker marker{};
+	std::size_t count = 0, position = 0;
+	std::uint64_t offered_window = 0;
+	bool covers(const distribution::Cursor &base) const noexcept;
+	void accepted(std::uint64_t window, std::optional<distribution::Cursor> base);
+  private:
+	bool retire_step() noexcept override;
+};
+struct BootstrapCapture {
+	distribution::CacheDecision decision = distribution::CacheDecision::Busy;
+	distribution::RetirementHandle<BootstrapPlan> plan;
 };
 // One finite configured scope. All methods run on the host's owner executor.
 class Bundle final : public delivery::PublicationSink {
@@ -31,6 +51,7 @@ class Bundle final : public delivery::PublicationSink {
 							 const local::detail::StateEquivalenceProof &) override;
 	void fence() noexcept override;
 	distribution::CacheOffer offer(std::optional<distribution::Cursor>, bool force_snapshot = false) const;
+	BootstrapCapture capture_bootstrap(std::optional<distribution::Cursor>);
 	bool covers(distribution::CacheMarker, const distribution::Cursor &) const noexcept;
 	bool snapshot_step(distribution::WorkBudget &);
 	bool cleanup_step(distribution::WorkBudget &) noexcept;
@@ -45,6 +66,7 @@ class Bundle final : public delivery::PublicationSink {
 	distribution::UpdateCache cache_;
 	std::optional<local::RecoveredGeneration> head_;
 	std::optional<local::Descriptor> candidate_, snapshot_base_;
+	std::optional<distribution::Cursor> requested_snapshot_;
 	local::DirectoryIdentity candidate_directory_, snapshot_directory_;
 	distribution::RetirementHandle<distribution::UpdateStage> stage_, snapshot_stage_;
 	distribution::RetirementHandle<distribution::EncodedUpdate> token_;

@@ -21,6 +21,10 @@ namespace d = distribution;
 namespace l = local;
 namespace t = delivery;
 namespace {
+std::size_t cache_owner_capacity(std::size_t sessions) {
+	if (sessions > SIZE_MAX - 4096) throw std::invalid_argument("relay cache owner capacity overflow");
+	return 4096 + sessions;
+}
 struct BundleState {
 	std::shared_ptr<d::StorageLedger> publication, cache, mapping;
 	d::RetirementDomain publication_domain, cache_domain;
@@ -30,10 +34,11 @@ struct BundleState {
 	std::filesystem::path directory;
 	std::chrono::steady_clock::time_point snapshot_retry{};
 	BundleState(d::RetirementRuntime &retirement, std::shared_ptr<d::StorageLedger> pub,
-				std::shared_ptr<d::StorageLedger> cached, std::shared_ptr<d::StorageLedger> mapped)
+				std::shared_ptr<d::StorageLedger> cached, std::shared_ptr<d::StorageLedger> mapped,
+				std::size_t sessions)
 		: publication(std::move(pub)), cache(std::move(cached)), mapping(std::move(mapped)),
 		  publication_domain(retirement.domain(publication, 4096)),
-		  cache_domain(retirement.domain(cache, 4096)) {}
+		  cache_domain(retirement.domain(cache, cache_owner_capacity(sessions))) {}
 };
 template <class Result, class Function> Result on_worker(asio::thread_pool &worker, Function function) {
 	std::promise<Result> result;
@@ -143,7 +148,7 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 															  configured.source.mapping_bytes);
 		records.push_back(d::make_storage_owner<BundleState>(
 			baseline, std::malloc, std::free, retirement, child(root, configured.source.heap_bytes),
-			child(root, configured.cache_bytes), std::move(mapping)));
+			child(root, configured.cache_bytes), std::move(mapping), options.service_limits.sessions.sessions));
 	}
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(baseline)));

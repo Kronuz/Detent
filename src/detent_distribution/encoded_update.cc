@@ -39,6 +39,7 @@ struct UpdateStage::Impl {
 	RetirementHandle<EncodedUpdate> output;
 	std::shared_ptr<const OwnedBuffer> chunk;
 	std::size_t credit = 0;
+	std::uint64_t emitted_logical_bytes = 0;
 	bool initialized = false, finishing = false, finished = false, retiring = false, failed = false,
 		 raw_taken = false, compressed_taken = false;
 	Impl(RetirementDomain &owner, std::shared_ptr<SnapshotSource> source, Identity identity, Limits limits)
@@ -144,7 +145,9 @@ struct UpdateStage::Impl {
 			}
 			if (!charge(budget, sizeof(std::shared_ptr<const OwnedBuffer>)))
 				return;
-			output->raw_.push_back(raw->take());
+			auto frame = raw->take();
+			emitted_logical_bytes += frame->view().size();
+			output->raw_.push_back(std::move(frame));
 			raw_taken = true;
 		}
 		if (!compressed_taken) {
@@ -154,7 +157,9 @@ struct UpdateStage::Impl {
 			}
 			if (!charge(budget, sizeof(std::shared_ptr<const OwnedBuffer>)))
 				return;
-			output->compressed_.push_back(compressed->take());
+			auto frame = compressed->take();
+			emitted_logical_bytes += frame->view().size();
+			output->compressed_.push_back(std::move(frame));
 			compressed_taken = true;
 		}
 		chunk.reset();
@@ -186,6 +191,7 @@ void UpdateStage::step(WorkBudget &budget) {
 	}
 }
 bool UpdateStage::done() const noexcept { return impl_ && impl_->finished; }
+std::uint64_t UpdateStage::emitted_logical_bytes() const noexcept { return impl_ ? impl_->emitted_logical_bytes : 0; }
 RetirementHandle<EncodedUpdate> UpdateStage::take() {
 	if (!done())
 		throw std::logic_error("encoded update stage unfinished");

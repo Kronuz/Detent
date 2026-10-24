@@ -451,7 +451,8 @@ void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 			  prepared.update.get() == expected.get());
 		held.push_back(std::move(prepared));
 	}
-	check(sessions.size() == 500 && cache_account->used() <= cache_before &&
+	const auto plan_bytes = sizeof(r::BootstrapPlan) + d::StorageAllocator<r::BootstrapPlan>::allocation_overhead();
+	check(sessions.size() == 500 && cache_account->used() <= cache_before + 500 * plan_bytes &&
 		  bundle->status().staged == staged_before);
 	check(sessions.open(id(500), authorization, 0, {}, true, false, now) == d::SubscriptionResult::Full);
 	check(sessions.next(id(1), forbidden, 1, cursor(), now).result == d::SubscriptionResult::Forbidden);
@@ -654,7 +655,7 @@ int main(int argc, char **argv) {
 		std::shared_ptr<detent::relay::Bundle> relay_bundle;
 		d::StorageLedger::Ticket cache_pressure;
 		if (relay) {
-			cache_domain.emplace(runtime.domain(cache_account, 64));
+			cache_domain.emplace(runtime.domain(cache_account, 64 + 500));
 			detent::relay::BundleOptions bundle_options;
 			bundle_options.configured = cursor();
 			bundle_options.namespaces = count ? 1 : 0;

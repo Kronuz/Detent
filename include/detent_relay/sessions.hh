@@ -23,10 +23,16 @@ struct PreparedOffer {
 };
 // The trusted intake resolves exact namespaces/profile to a finite binding.
 // Authorization masks come from immutable credential/grant configuration.
+struct RelaySessionBinding {
+	std::size_t bundle = 0;
+	bool snapshot = false;
+	// Acknowledgments release ownership without changing the binding.
+	mutable distribution::RetirementHandle<BootstrapPlan> bootstrap;
+};
 class Sessions {
   public:
 	using Clock = std::chrono::steady_clock;
-	using Metadata = distribution::SessionMetadata<std::size_t>;
+	using Metadata = distribution::SessionMetadata<RelaySessionBinding>;
 	Sessions(std::shared_ptr<distribution::StorageLedger>, std::span<const SessionBinding>,
 			 distribution::SubscriptionLimits = {});
 	~Sessions();

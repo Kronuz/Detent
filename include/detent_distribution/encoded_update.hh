@@ -43,6 +43,7 @@ class UpdateStage final : public RetirementNode {
 	~UpdateStage();
 	void step(WorkBudget &);
 	bool done() const noexcept;
+	std::uint64_t emitted_logical_bytes() const noexcept;
 	RetirementHandle<EncodedUpdate> take();
 	bool abort(WorkBudget &) noexcept;
 

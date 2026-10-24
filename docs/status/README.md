@@ -9,7 +9,7 @@
 | System cardinality | Functional trials through 130K complete | Raw source-identified trials; published report through 100K; 1M → 5M → 10M remains open |
 | Ingestion waits | Explorer profiling | Serial sync completions account for substantial measured time; separate worker time from queue delay and other request phases |
 | Scaling architecture | Release-scale qualification rejected | SC-1 relay full-snapshot rebuilding; SC-2/3 segment and compaction costs; see review |
-| Relay snapshot lifecycle | Isolated candidate passes full suite and delayed TLS test; sanitizers running | 219/219 product tests; raw/compressed retained-path delivery through live-history eviction; integration pending |
+| Relay snapshot lifecycle | Integrated; functional and scoped sanitizer gates pass | 219/219 candidate product tests; delayed raw/compressed TLS tests; ASan/UBSan; sustained capacity envelope remains open |
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
 | Btree/container selection | Unresolved | Current pin remains in production; complete comparison and structural safety gate before choosing |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |

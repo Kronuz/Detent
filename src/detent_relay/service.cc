@@ -194,17 +194,15 @@ struct ServiceRuntime::Impl {
 				return false;
 			}
 			if (task.admission->kind == h::RequestKind::Open) {
-				const auto candidate = bindings[task.binding].bundle->offer(task.base, task.force_snapshot);
-				const bool resume =
-					!task.force_snapshot && (candidate.decision == d::CacheDecision::Idle ||
-											 (candidate.decision == d::CacheDecision::Update &&
-											  candidate.update->kind() != d::UpdateKind::Snapshot));
 				const auto result = sessions.open(task.session, authorization, task.binding, task.base,
 												  task.force_snapshot, task.compression, now);
 				if (result != d::SubscriptionResult::Accepted) {
 					error(task, result);
 					return false;
 				}
+				const auto *admitted = sessions.metadata(task.session, now);
+				if (!admitted) throw std::logic_error("relay admitted session unavailable");
+				const bool resume = !admitted->scope.snapshot;
 				task.open_created = true;
 				control(task, 200,
 						"{\"version\":1,\"session\":\"" + hex(task.session) + "\",\"window\":0,\"mode\":\"" +
