@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-23",
+  "decision": "Adopt std::map (std::less<>) for Snapshot::knobs, SnapshotPatch::knobs, BoolDef::overrides and OverrideTable::values; remove the direct cpp_btree dependency. Hash index and further btree structural repair are not selected.",
+  "application_base": "80d4071",
+  "btree_revisions": {"production_pin": "cbc35762bc4a98ad91361be29d05f0ae715a1339", "ownership_qualified_head": "25f9494b64c02a63827e7294cb25a79762b7544f"},
+  "actual_type_counterexamples": {
+    "platform": "Linux x86_64, g++ 11.2.0 -std=c++20 -O1, ASan+UBSan, global operator new refusing the Nth allocation",
+    "probe": "benchmarks/btree-repair/actual_type_sweep.cc (args: knobs|patch|group|cli, insert|erase|copy, short|long, max_n)",
+    "findings": [
+      "Relocation inside full or rebalanced nodes move-constructs pair<const string, V>; the const key is copied, so names longer than the small-string buffer allocate during relocation. A refused allocation there corrupts the table: lost or misordered entries, leaked allocations, and on erase an ASan double-free.",
+      "25f9494 insert, long names: Snapshot::knobs and BoolDef::overrides violate contents/leak invariants (41 and 132 violations at max_n 40). Short names (<=15 bytes) never allocate during relocation and pass.",
+      "25f9494 erase, long names: all four tables fail (erase refuses an allocation mid-rebalance after removing the entry; ASan double-free). std::map erase never allocates (0 refusals in 480 attempts).",
+      "cbc3576 pin additionally publishes a wrong size after a refused nonfull insert (size N+1 != N, 118 to 174 violations per shape at max_n 12), the defect fixed later by bb2ad1d.",
+      "patch/cli insert with long names and cli insert with short names did not finish inside the 80 s probe limit at max_n 40; they are not counted as pass or fail.",
+      "const_cast in params::swap writes through const keys (language-level UB); no miscompile was demonstrated, and std::map removes the construct."
+    ],
+    "control": "std::map arm of the same probe: 0 violations for insert, erase and copy, short and long names."
+  },
+  "permanent_regression_test": {
+    "source": "tests/detent/test_model_alloc_failure.cc",
+    "scope": "all four model fields, insert/erase/copy, n=0..24, ordered and shuffled, four positions, short and 200/128-byte names, every refusal position",
+    "btree_25f9494": "aborts: FAILED content at insert n=3 budget=12 long_names=1",
+    "std_map": "PASS, 11 s on Linux with unsuppressed LeakSanitizer (two runs); passes in the full local suite"
+  },
+  "measurement_evidence_reused": {
+    "source": "benchmarks/model-container-comparison-20261022.json (five alternating pairs, macOS x86_64, identical dependency closures, btree 25f9494 vs std::map)",
+    "construction_cpu_ms_100k_knobs_3_overrides_btree_to_std": {"ordered_short": [83.661, 114.417], "ordered_long": [196.416, 218.717], "random_short": [133.564, 162.674], "random_long": [387.199, 350.933]},
+    "pruned_transfer_cpu_ms_btree_to_std": {"ordered_short": [109.809, 137.857], "ordered_long": [249.584, 249.015], "random_short": [163.005, 181.842], "random_long": [441.262, 370.235]},
+    "retained_requested_bytes": {"short_names": [21022176, 29600000], "long_names": [84604336, 93600000]},
+    "reads": "int hits within about 6%, bool default/forced reads 10-20% faster, broad misses 17-57% slower (31.1 to 48.8 ms short, 110.4 to 134.5 ms long, per 200k operations)",
+    "not_rerun": "A fresh CPU rerun was not taken: the local host held an exclusive hold for the shared session and the Linux host's strict cores were held by another job. Memory is exact and platform independent; the CPU rows are the accepted October 22 samples."
+  },
+  "consumer_qualification": {
+    "platform": "macOS arm64, Apple clang 17, Release, DETENT_BUILD_AUTHORITY=ON, benchmarks off",
+    "result": "clean build with no cpp_btree fetch; ctest 208/208 passed (includes the new test)"
+  },
+  "compatibility": "Four public C++ field types change from btree::map to std::map: layouts (Snapshot 72 to 88 bytes, BoolDef 32 to 48 bytes), iterator types and size_type change. Rebuild every C++ consumer together. Serialized bytes, ordering, duplicate rejection and CLI behavior are unchanged by construction (std::less<>, same call sites).",
+  "remaining": [
+    "Hash index (28.8 MB / 90.4 MB retained, 44-60% faster broad hits) is not selected: no adversarial-key policy and the sorted-publication cost is uncharged.",
+    "Byte-identical publication, command digests and mapped images were not re-run beyond the existing suite; run test_snapshot_canonical on the fleet corpus before release.",
+    "Incremental cleanup: positional std::map erase is amortized constant; maximum cleanup-turn latency at the supported override limit and allocation-denied authority cleanup are not yet measured.",
+    "Larger-system qualification (1.3M primary capacity tier, authority persistent-map and resource-task coordination) is outside this change.",
+    "Upstream btree keeps its open const-key relocation defect; document it there rather than repairing it."
+  ]
+}

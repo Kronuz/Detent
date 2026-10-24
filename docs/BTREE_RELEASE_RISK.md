@@ -1,6 +1,6 @@
 # Btree release risk evaluation
 
-**Date:** 2026-10-21. **Status:** Application safety boundary reviewed; standard-map prototype selected for comparison, not adoption.
+**Date:** 2026-10-21. **Status:** Resolved 2026-10-23 by adopting `std::map`; see [Container selection](CONTAINER_SELECTION_ARCHITECTURE.md#decision-october-23).
 
 ## Decision
 

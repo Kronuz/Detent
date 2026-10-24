@@ -7,7 +7,8 @@ set(DETENT_TESTS
   test_testing_guard
   test_concurrency_stress
   test_json_patch
-  test_json_strings)
+  test_json_strings
+  test_model_alloc_failure)
 
 list(APPEND DETENT_TESTS test_read_view)
 

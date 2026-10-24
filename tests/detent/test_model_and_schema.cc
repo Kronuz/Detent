@@ -122,7 +122,7 @@ void test_schema_violations_reject_whole_input() {
 		// (a C++ string literal can't have two identical keys and still be
 		// "the same" key twice at the language level, but the JSON *text*
 		// can) -- this tests the top-level knob-name duplicate-rejection
-		// fix (previously silently last-definition-wins via btree::map's
+		// fix (previously silently last-definition-wins via map
 		// operator[]).
 		std::string dup_knob_name =
 		    R"({"schema_version":1,"knobs":{"a:b":{"type":"int","default":1},"a:b":{"type":"int","default":2}}})";

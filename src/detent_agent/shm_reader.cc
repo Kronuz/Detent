@@ -88,7 +88,7 @@ std::uint32_t bounded_knob_count(std::uint32_t knob_count, std::uint32_t payload
 }
 
 // Binary search: the writer serializes detent::Snapshot::knobs (a
-// btree::map, always name-sorted) in iteration order, so the KnobRecord
+// std::map, always name-sorted) in iteration order, so the KnobRecord
 // array is name-sorted for free -- this is a real binary search, not a
 // linear scan dressed up as one. A record whose name doesn't fit
 // (field_name() returns nullopt) sorts as empty rather than being skipped:

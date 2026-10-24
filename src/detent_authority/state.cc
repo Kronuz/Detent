@@ -537,8 +537,7 @@ struct CommandDecoder::Impl {
 		auto bytes = pending.value ? definition_start - reader.bytes.size() : 0;
 		require(bytes <= limits.definition_bytes, "definition byte bound");
 		sizes.push_back(bytes);
-		// cpp-btree has copy constructors but no move constructors. Transfer
-		// its root with swap instead of making a whole-definition copy.
+		// Transfer the override table by swap instead of copying the definition.
 		command.mutations.emplace_back();
 		auto &completed = command.mutations.back();
 		completed.key = std::move(pending.key);

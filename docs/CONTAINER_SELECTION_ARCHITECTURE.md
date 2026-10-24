@@ -1,6 +1,6 @@
 # Model containers: validated decision blueprint
 
-**Date:** 2026-10-22. **Status:** Comparison in progress. Further btree structural implementation is on hold.
+**Date:** 2026-10-22. **Status:** Decided 2026-10-23: `std::map` for all four fields. Further btree structural implementation stays on hold.
 
 ## Decision scope
 
@@ -49,3 +49,15 @@ The [frozen comparison](../benchmarks/model-container-comparison-20261022.json) 
 Broad-access integer-hit CPU for actual `Client` and `ClientReadView` calls falls approximately 44–60% against standard maps. Broad misses cost approximately 17–23% more; hot32 results differ. The report retains all six workloads and all four name/access combinations rather than selecting only the winning case. Read checksums match across both arms and all pairs.
 
 The hash index therefore merits complete-path qualification, but standard hashing is not an accepted collision policy. Sorted publication correctness passes after the independent [reserved-byte correction](SHARED_MEMORY_PADDING.md). Initial persisted-publication timing batches are rejected for WindowServer interference. No production representation is selected from these incomplete costs.
+
+## Decision, October 23
+
+The [decision record](../benchmarks/model-container-decision-20261023.json) selects `std::map` with `std::less<>` for the four model fields and removes Detent's direct btree dependency.
+
+1. **Defect reproduced on actual types.** The [sweep](../benchmarks/btree-repair/actual_type_sweep.cc) refuses each allocation position. At `25f9494`, names longer than the small-string buffer make full-node relocation of `pair<const string, V>` copy the const key; a refused copy corrupts the table (lost or misordered entries, leaks) and an erase can double-free. Short names do not reproduce it. The same sweep passes on `std::map`, whose erase never allocates.
+2. **Regression test.** `test_model_alloc_failure` runs the sweep over all four fields. It aborts on btree `25f9494` and passes on `std::map` with unsuppressed LeakSanitizer on Linux.
+3. **Cost accepted.** About 8.6 MB (short names) and 9.0 MB (maximum-length names) more retained requested bytes per 100K-knob snapshot; construction CPU between -9% and +37% by workload; broad misses 17-57% slower in the [accepted October 22 samples](../benchmarks/model-container-comparison-20261022.json). A fresh CPU rerun was blocked by host holds.
+4. **Not selected.** The hash index lacks a collision policy and a charged sorted publication; more btree structural repair has no constraint that rules out `std::map`.
+5. **Compatibility.** Public field types, layouts and iterators change; rebuild every C++ consumer together. Wire and durable bytes are unchanged by construction.
+
+Remaining before release: the cleanup-turn latency at the override limit, allocation-denied authority cleanup, canonical publication bytes on the fleet corpus, and the 1.3M capacity tier.
