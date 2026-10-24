@@ -11,6 +11,10 @@ on:
         description: Managed-process repetitions (1 to 1000)
         type: number
         default: 100
+      parallel_runs:
+        description: Concurrent managed-process drivers (1 to 4)
+        type: number
+        default: 1
 permissions:
   contents: read
 jobs:
@@ -57,6 +61,7 @@ jobs:
       CC: clang-18
       CXX: clang++-18
       REPETITIONS: ${{ inputs.repetitions }}
+      PARALLEL_RUNS: ${{ inputs.parallel_runs }}
     steps:
       - uses: actions/checkout@v5
       - name: Configure the managed-process profile
@@ -75,6 +80,26 @@ jobs:
       - name: Repeat managed delivery through restart and reset
         run: |
           [[ "$REPETITIONS" =~ ^[0-9]+$ ]] && (( REPETITIONS >= 1 && REPETITIONS <= 1000 ))
-          ctest --test-dir build --output-on-failure --no-tests=error \
-            -R '^test_managed_delivery_process$' -FA delivery_tls \
-            --repeat "until-fail:$REPETITIONS"
+          [[ "$PARALLEL_RUNS" =~ ^[0-9]+$ ]] && (( PARALLEL_RUNS >= 1 && PARALLEL_RUNS <= 4 ))
+          drivers=()
+          for ((driver=1; driver<=PARALLEL_RUNS; driver++)); do
+            ctest --test-dir build --output-on-failure --no-tests=error \
+              -R '^test_managed_delivery_process$' -FA delivery_tls \
+              --repeat "until-fail:$REPETITIONS" > "managed-$driver.log" 2>&1 &
+            drivers+=("$!")
+          done
+          result=0
+          for driver in "${drivers[@]}"; do
+            wait "$driver" || result=1
+          done
+          for logfile in managed-*.log; do
+            printf '=== %s ===\n' "$logfile"
+            tail -n 120 "$logfile"
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: managed-process-repetition-logs
+          path: managed-*.log
+          if-no-files-found: ignore
