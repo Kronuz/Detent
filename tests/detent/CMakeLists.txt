@@ -8,7 +8,8 @@ set(DETENT_TESTS
   test_concurrency_stress
   test_json_patch
   test_json_strings
-  test_model_alloc_failure)
+  test_model_alloc_failure
+  test_client_publication_failure)
 
 list(APPEND DETENT_TESTS test_read_view)
 
