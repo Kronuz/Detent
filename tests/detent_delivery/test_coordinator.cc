@@ -1090,6 +1090,7 @@ int main(int argc, char **argv) {
 		early_done.get();
 		check(weak.expired() && early_store->drained());
 		early_store.reset();
+		checkpoint("early-close-settled");
 		auto failed_directory = directory / "failed-startup";
 		std::filesystem::create_directory(failed_directory);
 		std::filesystem::permissions(failed_directory, std::filesystem::perms::owner_all);
@@ -1116,11 +1117,18 @@ int main(int argc, char **argv) {
 			  failed->status().error);
 		failed.reset();
 		failed_store.reset();
+		checkpoint("failed-startup-settled");
+		auto unrelated_resident = account->admit(64 * 1024);
+		auto pressure_account =
+			std::make_shared<d::StorageLedger>(account, account->limit() - account->used());
+		auto pressure_domain = runtime.domain(pressure_account, 64);
+		auto pressure_disk_options = disk_options;
+		pressure_disk_options.recovery_limits.retirement_domain = &pressure_domain;
 		auto pressure_directory = directory / "cache-admission-pressure";
 		std::filesystem::create_directory(pressure_directory);
 		std::filesystem::permissions(pressure_directory, std::filesystem::perms::owner_all);
 		auto pressure_store =
-			l::make_disk_store(domain, pressure_directory, std::make_shared<int>(1), disk_options);
+			l::make_disk_store(pressure_domain, pressure_directory, std::make_shared<int>(1), pressure_disk_options);
 		for (unsigned turn = 0; pressure_store->operation() || pressure_store->needs_work(); ++turn) {
 			check(turn < 10000);
 			if (auto operation = pressure_store->operation()) {
@@ -1134,8 +1142,11 @@ int main(int argc, char **argv) {
 		auto pressure_options = options;
 		pressure_options.directory = pressure_directory;
 		pressure_options.publication_sink.reset();
-		auto pressured = t::make_coordinator(pressure_options, pressure_store, driver, domain, worker);
-		auto exhausted = account->admit(account->limit() - account->used());
+		auto pressured = t::make_coordinator(pressure_options, pressure_store, driver, pressure_domain, worker);
+		auto exhausted = pressure_account->admit(pressure_account->limit() - pressure_account->used());
+		// An unrelated refund must not undo the injected admission refusal.
+		unrelated_resident.reset();
+		checkpoint("pressure-startup-running");
 		io.restart();
 		auto pressure_done = asio::co_spawn(io, pressured->run(), asio::use_future);
 		io.run();
@@ -1152,6 +1163,8 @@ int main(int argc, char **argv) {
 		exhausted.reset();
 		pressured.reset();
 		pressure_store.reset();
+		pressure_domain.close().wait();
+		checkpoint("pressure-startup-settled");
 		const auto disk_peak = store->stats().peak.bytes;
 		checkpoint("worker-draining");
 		worker.join();
