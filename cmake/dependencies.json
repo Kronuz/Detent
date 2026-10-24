@@ -36,12 +36,6 @@
     "source_subdir": "."
   },
   {
-    "name": "cpp_btree",
-    "repository": "https://github.com/Kronuz/btree.git",
-    "revision": "cbc35762bc4a98ad91361be29d05f0ae715a1339",
-    "source_subdir": "."
-  },
-  {
     "name": "cppcodec",
     "repository": "https://github.com/tplgy/cppcodec.git",
     "revision": "8019b8b580f8573c33c50372baec7039dfe5a8ce",

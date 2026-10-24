@@ -1,4 +1,5 @@
 #include "detent/json_patch.hh"
+#include "detent/flat_map.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/validation.hh"
 
@@ -92,67 +93,94 @@ Result<SnapshotPatch, UpdateError> parse_snapshot_patch(
 	SnapshotPatch patch;
 	patch.version = version;
 
+	// Strict rejection, matching parse_common's duplicate-knob-name
+	// handling: a repeated key in the patch's own "knobs" object must
+	// reject the whole patch, not silently keep the last one. Entries are
+	// appended in input order and sorted once; the first duplicate in input
+	// order is reported and wins over any error found after its second
+	// occurrence.
+	flat_map_builder<KnobName, std::optional<KnobDef>, std::less<>> builder(patch.knobs);
+	builder.reserve(static_cast<std::size_t>(knobs_value->MemberCount()));
+	const auto duplicate_error = [&]() -> std::optional<PatchResult> {
+		if (const auto duplicate = builder.finish()) {
+			return fail(UpdateRejectReason::Schema, "duplicate knob name: " + builder.entry(*duplicate).first);
+		}
+		return std::nullopt;
+	};
 	for (auto it = knobs_value->MemberBegin(); it != knobs_value->MemberEnd(); ++it) {
 		std::string name(it->name.GetString(), it->name.GetStringLength());
 		if (!is_valid_knob_name(name)) {
+			if (auto duplicate = duplicate_error()) return std::move(*duplicate);
 			return fail(UpdateRejectReason::Schema, "invalid knob name: " + name);
 		}
 		std::optional<KnobDef> value;
 		if (!it->value.IsNull()) {
 			auto def_result = internal::parse_knob_def(it->value, name);
-			if (!def_result) return def_result.error();
+			if (!def_result) {
+				if (auto duplicate = duplicate_error()) return std::move(*duplicate);
+				return def_result.error();
+			}
 			value = std::move(def_result).value();
 		}
-		// Strict rejection, matching parse_common's duplicate-knob-name
-		// handling: a repeated key in the patch's own "knobs" object must
-		// reject the whole patch, not silently keep the last one.
-		if (!patch.knobs.insert({name, std::move(value)}).second) {
-			return fail(UpdateRejectReason::Schema, "duplicate knob name: " + name);
-		}
+		builder.push(std::move(name), std::move(value));
 	}
+	if (auto duplicate = duplicate_error()) return std::move(*duplicate);
 
 	return patch;
 }
 
 Result<Snapshot, UpdateError> apply_patch(const Snapshot& base, const SnapshotPatch& patch, std::size_t max_knobs) {
-	Snapshot out = base;
-	out.version = patch.version;
-	for (const auto& [name, def] : patch.knobs) {
-		if (def) {
-			out.knobs[name] = *def; // upsert: new knob or whole-definition replace, never field-wise
-		} else {
-			out.knobs.erase(name); // absent from the live overlay -> falls back to its baked default, if any
-		}
-	}
-	if (out.knobs.size() > max_knobs) {
+	// Linear merge of two sorted tables. A patch entry with a definition is an
+	// upsert (new knob or whole-definition replace, never field-wise); a null
+	// entry removes the knob (absent from the live overlay -> falls back to
+	// its baked default, if any) and is a no-op for a knob that is absent.
+	std::size_t count = 0;
+	flat_map_merge(
+		base.knobs, patch.knobs, [&](const auto&) { ++count; }, [&](const auto& e) { count += e.second ? 1 : 0; },
+		[&](const auto&, const auto& e) { count += e.second ? 1 : 0; });
+	if (count > max_knobs) {
 		return UpdateError{UpdateRejectReason::Oversize, "patch result exceeds max_knobs"};
 	}
+	Snapshot out;
+	out.version = patch.version;
+	out.published_at = base.published_at;
+	out.source_id = base.source_id;
+	out.knobs.reserve(count);
+	flat_map_merge(
+		base.knobs, patch.knobs, [&](const auto& e) { out.knobs.emplace(e); },
+		[&](const auto& e) {
+			if (e.second) out.knobs.emplace(e.first, *e.second);
+		},
+		[&](const auto&, const auto& e) {
+			if (e.second) out.knobs.emplace(e.first, *e.second);
+		});
 	return out;
 }
 
 SnapshotPatch diff_snapshots(const Snapshot& from, const Snapshot& to) {
 	SnapshotPatch patch;
 	patch.version = to.version;
-	for (const auto& [name, def] : to.knobs) {
-		auto it = from.knobs.find(name);
-		if (it == from.knobs.end() || !(it->second == def)) {
-			patch.knobs[name] = def; // new or changed
-		}
-	}
-	for (const auto& [name, def] : from.knobs) {
-		(void)def;
-		if (to.knobs.find(name) == to.knobs.end()) {
-			patch.knobs[name] = std::nullopt; // removed
-		}
-	}
+	flat_map_merge(
+		from.knobs, to.knobs,
+		[&](const auto& e) { patch.knobs.emplace(e.first, std::nullopt); },        // removed
+		[&](const auto& e) { patch.knobs.emplace(e.first, e.second); },            // new
+		[&](const auto& f, const auto& t) {
+			if (!(f.second == t.second)) patch.knobs.emplace(t.first, t.second); // changed
+		});
+	patch.knobs.shrink_to_fit();
 	return patch;
 }
 
 SnapshotPatch compose_patches(const SnapshotPatch& older, const SnapshotPatch& newer) {
 	SnapshotPatch composed;
 	composed.version = newer.version;
-	composed.knobs = older.knobs;
-	for (const auto& [name, entry] : newer.knobs) composed.knobs[name] = entry;
+	std::size_t count = 0;
+	flat_map_merge(older.knobs, newer.knobs, [&](const auto&) { ++count; }, [&](const auto&) { ++count; },
+	               [&](const auto&, const auto&) { ++count; });
+	composed.knobs.reserve(count);
+	flat_map_merge(
+		older.knobs, newer.knobs, [&](const auto& e) { composed.knobs.emplace(e); },
+		[&](const auto& e) { composed.knobs.emplace(e); }, [&](const auto&, const auto& e) { composed.knobs.emplace(e); });
 	return composed;
 }
 

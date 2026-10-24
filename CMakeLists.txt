@@ -66,7 +66,6 @@ FetchContent_MakeAvailable(
   endian
   sha256
   atomic_shared_ptr
-  cpp_btree
   random_lib
   compressors)
 

@@ -1,6 +1,6 @@
 # Model containers: validated decision blueprint
 
-**Date:** 2026-10-22. **Status:** Comparison in progress. Further btree structural implementation is on hold.
+**Date:** 2026-10-22. **Status:** Decided 2026-10-24: `detent::flat_map` for all four fields.
 
 ## Decision scope
 
@@ -49,3 +49,32 @@ The [frozen comparison](../benchmarks/model-container-comparison-20261022.json) 
 Broad-access integer-hit CPU for actual `Client` and `ClientReadView` calls falls approximately 44–60% against standard maps. Broad misses cost approximately 17–23% more; hot32 results differ. The report retains all six workloads and all four name/access combinations rather than selecting only the winning case. Read checksums match across both arms and all pairs.
 
 The hash index therefore merits complete-path qualification, but standard hashing is not an accepted collision policy. Sorted publication correctness passes after the independent [reserved-byte correction](SHARED_MEMORY_PADDING.md). Initial persisted-publication timing batches are rejected for WindowServer interference. No production representation is selected from these incomplete costs.
+
+## Decision, October 23
+
+The [decision record](../benchmarks/model-container-decision-20261023.json) selects `std::map` with `std::less<>` for the four model fields and removes Detent's direct btree dependency.
+
+1. **Defect reproduced on actual types.** The [sweep](../benchmarks/btree-repair/actual_type_sweep.cc) refuses each allocation position. At `25f9494`, names longer than the small-string buffer make full-node relocation of `pair<const string, V>` copy the const key; a refused copy corrupts the table (lost or misordered entries, leaks) and an erase can double-free. Short names do not reproduce it. The same sweep passes on `std::map`, whose erase never allocates.
+2. **Regression test.** `test_model_alloc_failure` runs the sweep over all four fields. It aborts on btree `25f9494` and passes on `std::map` with unsuppressed LeakSanitizer on Linux.
+3. **Cost measured.** Five alternating 100K-knob pairs against btree `25f9494` produce identical output digests. `std::map` raises total lifecycle CPU by 57% (ordered short names), 25% (random short), 16.5% (ordered long) and 7.5% (random long); copy and patch application are 1.8 to 5.5 times slower. The live snapshot requests 24.8 MB instead of 17.0 MB with short names and 76.2 MB instead of 68.4 MB with maximum-length names. Lookup hits stay within 20%; misses are 16% to 67% slower. Btree allocates during positional erase with long names (52,007 allocations to prune half a snapshot, about 509 per 256-override drain); `std::map` allocates none.
+4. **Not selected.** The hash index lacks a collision policy and a charged sorted publication; more btree structural repair has no constraint that rules out `std::map`.
+5. **Compatibility.** Public field types, layouts and iterators change; rebuild every C++ consumer together. Wire and durable bytes are unchanged by construction.
+
+Remaining before release: allocation-denied authority cleanup, the 1.3M capacity tier, and the comparison with a flat sorted map and a btree repaired to relocate by move. Canonical JSON and shared-memory bytes match; cleanup turns allocate nothing on `std::map`.
+
+## Decision, October 24
+
+The [three-way comparison](../benchmarks/model-container-three-way-20261024.json) selects Detent's own sorted-vector `detent::flat_map` over `std::map` and over btree repaired to relocate by move. All arms produce identical output digests, lookup checksums and canonical bytes.
+
+| 100K knobs, three overrides | flat_map | repaired btree | std::map |
+| --- | --- | --- | --- |
+| Live heap, short / maximum names (MB) | 14.4 / 65.8 | 17.0 / 68.4 | 24.8 / 76.2 |
+| Lifecycle CPU, ordered short (ms) | 112 | 142 | 221 |
+| Lifecycle CPU, random maximum names (ms) | 477 | 542 | 601 |
+
+1. **Safety by construction.** Entry moves cannot throw (`static_assert`), so insertion keeps the strong guarantee and erase never allocates. The four authority drains erase the last override, which is O(1).
+2. **Linear bulk paths.** Parsing appends and sorts once while reporting the same first duplicate in input order. Patch application, diff, composition and default merging are single merges; part of their speed-up is that algorithm, not the container.
+3. **Costs.** Any insert or erase invalidates every iterator. Keys are not const; callers must not modify them. Erasing one entry at a time in a loop is quadratic; use `erase_if`.
+4. **Compatibility.** The four public field types change again, with new iterator types and invalidation rules. Rebuild every C++ consumer. Wire and durable bytes are unchanged.
+
+The btree repair is a library decision, independent of this selection.

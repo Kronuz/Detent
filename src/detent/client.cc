@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 
 namespace detent {
 
@@ -396,6 +397,8 @@ void Client::run_generic_source(std::stop_token stop, InitOptions::SourcePoll so
 	}
 }
 
+static_assert(std::is_nothrow_move_assignable_v<Snapshot>, "publication commits the patch base by a nonthrowing move");
+
 bool Client::try_apply_source_bytes(std::string_view bytes) {
 	auto last_version = accepted_version_.load(std::memory_order_relaxed);
 	auto parsed = parse_source_snapshot(bytes, source_id_, max_knobs_);
@@ -409,11 +412,13 @@ bool Client::try_apply_source_bytes(std::string_view bytes) {
 		return false;
 	}
 
-	live_snapshot_ = snap; // kept so a LATER patch has the correct base to merge onto
 	auto merged = merge_over_defaults(defaults_, snap);
 	auto published = std::make_shared<const Snapshot>(std::move(merged));
+	// Commit only after every fallible step, so a refused allocation keeps the
+	// patch base at the last accepted version.
+	live_snapshot_ = std::move(snap);
 	current_.store(published);
-	accepted_version_.store(snap.version, std::memory_order_relaxed);
+	accepted_version_.store(live_snapshot_.version, std::memory_order_relaxed);
 	last_success_steady_ms_.store(steady_ms_now(), std::memory_order_relaxed);
 	metrics_.snapshot_swaps.fetch_add(1, std::memory_order_relaxed);
 	if (on_update_) (*on_update_)(*published);
@@ -445,9 +450,9 @@ bool Client::try_apply_source_patch(std::string_view patch_bytes) {
 		return false;
 	}
 
-	live_snapshot_ = applied.value();
 	auto merged = merge_over_defaults(defaults_, applied.value());
 	auto published = std::make_shared<const Snapshot>(std::move(merged));
+	live_snapshot_ = std::move(applied).value();
 	current_.store(published);
 	accepted_version_.store(patch.version, std::memory_order_relaxed);
 	last_success_steady_ms_.store(steady_ms_now(), std::memory_order_relaxed);

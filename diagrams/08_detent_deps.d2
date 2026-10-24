@@ -21,7 +21,6 @@ kronuz: Kronuz cpp-libraries used directly by detent {
   char_classify: char-classify {tooltip: "ASCII classification tables used by the JSON tokenizer"}
   strict_stox: strict-stox {tooltip: "Strict numeric string parsing (no silent truncation) for knob values"}
   atomic_shared_ptr: atomic-shared-ptr {tooltip: "Lock-free RCU snapshot swap -- the whole read-path fast path depends on this"}
-  cpp_btree: cpp-btree {tooltip: "Ordered map for the knob table, better cache behavior than std::map"}
   random: random {tooltip: "Randomized source retry and backoff jitter"}
   sha256: sha256 {tooltip: "Rollout hashing per the JustKnobs spec (stable bucket assignment)"}
   compressors: compressors {tooltip: "zstd/gzip codecs -- lets detent_http negotiate Accept-Encoding on its own, no HTTP-framework weight"}
@@ -35,7 +34,6 @@ thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
 detent -> kronuz.char_classify
 detent -> kronuz.strict_stox
 detent -> kronuz.atomic_shared_ptr
-detent -> kronuz.cpp_btree
 detent -> kronuz.random
 detent -> kronuz.sha256
 

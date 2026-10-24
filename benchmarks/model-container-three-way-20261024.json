@@ -1,0 +1,870 @@
+{
+ "date": "2026-10-24",
+ "question": "Which representation should Detent model tables use: detent::flat_map, btree with mutable-pair relocation, or std::map?",
+ "arms": {
+  "flat": "explore/flat-map 3ec0df4 (flat_map.hh, bulk builder, merge-based apply/diff/compose, erase-last drains)",
+  "btree_fixed": "Detent 80d4071 model with btree explore/move-relocation 536068c (mutable-pair slots, allocate before moving)",
+  "std_map": "container-std-map 1766ef0"
+ },
+ "platform": "macOS arm64, Apple clang 17, Release; quiet exclusive; five rounds per workload with rotating start arm; interference guard: 8 retried samples, 0 rejected; 596 s",
+ "binaries_sha256": {
+  "flat": {
+   "detent_model_lifecycle": "f43710ebd0d78a96edd17f5ac5b7f6cda03a2510eb69cfdb405c13d023d48673",
+   "detent_model_lookup": "a08686788bb4a3185211ba327966447884554e2ec83b44e79f302deec961ea42"
+  },
+  "btree_fixed": {
+   "detent_model_lifecycle": "0e37868fcfea6311de01751ecf9c3b76e69ad1496baf52f1681afddc46bda8b7",
+   "detent_model_lookup": "c20a8254cba954c9e814c63385f35e00027b0b679d9b17997167df049ae0bd9c"
+  },
+  "std_map": {
+   "detent_model_lifecycle": "fc6107490424f30fc60411bd19d2a63a77418ac055028bae331b2863a2c8eb20",
+   "detent_model_lookup": "c3de7294755c003d44e2b822b20b93bd21cf72e41c46830034a3566b5afbec9f"
+  }
+ },
+ "attribution": "The flat arm also carries linear merge-based apply_patch/diff_snapshots/compose_patches; its diff and compose gains are mostly algorithmic, not the container.",
+ "lifecycle": {
+  "short": {
+   "digests_identical": true,
+   "live_snapshot_requested_bytes": {
+    "flat": 14400000,
+    "btree_fixed": 17001936,
+    "std_map": 24800000
+   },
+   "coexisting_requested_bytes": {
+    "flat": 44811048,
+    "btree_fixed": 52899048,
+    "std_map": 76875048
+   },
+   "stage_median_cpu_ms": {
+    "parse_validate_construct": {
+     "flat": 35.027,
+     "btree_fixed": 43.548,
+     "std_map": 53.341
+    },
+    "serialize_snapshot": {
+     "flat": 36.178,
+     "btree_fixed": 35.868,
+     "std_map": 36.116
+    },
+    "copy_snapshot": {
+     "flat": 1.275,
+     "btree_fixed": 2.622,
+     "std_map": 15.438
+    },
+    "parse_patch": {
+     "flat": 1.033,
+     "btree_fixed": 1.114,
+     "std_map": 1.19
+    },
+    "apply_patch": {
+     "flat": 2.45,
+     "btree_fixed": 3.081,
+     "std_map": 15.393
+    },
+    "diff_snapshots": {
+     "flat": 1.378,
+     "btree_fixed": 15.472,
+     "std_map": 20.436
+    },
+    "serialize_patch": {
+     "flat": 0.561,
+     "btree_fixed": 0.541,
+     "std_map": 0.595
+    },
+    "compose_patches": {
+     "flat": 0.062,
+     "btree_fixed": 0.305,
+     "std_map": 0.538
+    },
+    "transfer_snapshot": {
+     "flat": 0.0,
+     "btree_fixed": 0.0,
+     "std_map": 0.0
+    },
+    "prune_half_positional": {
+     "flat": 7436.311,
+     "btree_fixed": 1.467,
+     "std_map": 2.371
+    },
+    "find_broad_100x4096": {
+     "flat": 28.557,
+     "btree_fixed": 32.749,
+     "std_map": 64.89
+    },
+    "destroy_pruned_copy": {
+     "flat": 0.794,
+     "btree_fixed": 3.99,
+     "std_map": 5.633
+    },
+    "destroy_published": {
+     "flat": 3.823,
+     "btree_fixed": 1.275,
+     "std_map": 3.267
+    },
+    "destroy_live": {
+     "flat": 0.902,
+     "btree_fixed": 1.343,
+     "std_map": 4.493
+    }
+   },
+   "stage_allocations": {
+    "parse_validate_construct": {
+     "flat": 75005,
+     "btree_fixed": 250013,
+     "std_map": 325004
+    },
+    "serialize_snapshot": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "copy_snapshot": {
+     "flat": 75001,
+     "btree_fixed": 100011,
+     "std_map": 325000
+    },
+    "parse_patch": {
+     "flat": 2006,
+     "btree_fixed": 7009,
+     "std_map": 9004
+    },
+    "apply_patch": {
+     "flat": 75001,
+     "btree_fixed": 102266,
+     "std_map": 329000
+    },
+    "diff_snapshots": {
+     "flat": 2014,
+     "btree_fixed": 3009,
+     "std_map": 9000
+    },
+    "serialize_patch": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "compose_patches": {
+     "flat": 2001,
+     "btree_fixed": 5006,
+     "std_map": 9000
+    },
+    "transfer_snapshot": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "prune_half_positional": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "find_broad_100x4096": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_pruned_copy": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_published": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_live": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    }
+   },
+   "cleanup_turn": {
+    "flat": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 209
+    },
+    "btree_fixed": {
+     "allocations": 0,
+     "median_p99_ns": 83,
+     "max_ns": 458
+    },
+    "std_map": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 9292
+    }
+   },
+   "total_cpu_ms_excluding_prune": {
+    "flat": 112.04,
+    "btree_fixed": 141.91,
+    "std_map": 221.33
+   }
+  },
+  "random": {
+   "digests_identical": true,
+   "live_snapshot_requested_bytes": {
+    "flat": 14400000,
+    "btree_fixed": 18823496,
+    "std_map": 24800000
+   },
+   "coexisting_requested_bytes": {
+    "flat": 44746576,
+    "btree_fixed": 54710968,
+    "std_map": 76767664
+   },
+   "stage_median_cpu_ms": {
+    "parse_validate_construct": {
+     "flat": 49.269,
+     "btree_fixed": 62.346,
+     "std_map": 57.541
+    },
+    "serialize_snapshot": {
+     "flat": 37.782,
+     "btree_fixed": 40.034,
+     "std_map": 44.343
+    },
+    "copy_snapshot": {
+     "flat": 2.935,
+     "btree_fixed": 7.514,
+     "std_map": 23.301
+    },
+    "parse_patch": {
+     "flat": 1.033,
+     "btree_fixed": 1.299,
+     "std_map": 1.189
+    },
+    "apply_patch": {
+     "flat": 2.867,
+     "btree_fixed": 6.549,
+     "std_map": 20.834
+    },
+    "diff_snapshots": {
+     "flat": 1.589,
+     "btree_fixed": 18.64,
+     "std_map": 28.412
+    },
+    "serialize_patch": {
+     "flat": 0.495,
+     "btree_fixed": 0.508,
+     "std_map": 0.589
+    },
+    "compose_patches": {
+     "flat": 0.067,
+     "btree_fixed": 0.346,
+     "std_map": 0.571
+    },
+    "transfer_snapshot": {
+     "flat": 0.0,
+     "btree_fixed": 0.0,
+     "std_map": 0.0
+    },
+    "prune_half_positional": {
+     "flat": 7461.452,
+     "btree_fixed": 1.474,
+     "std_map": 2.632
+    },
+    "find_broad_100x4096": {
+     "flat": 29.624,
+     "btree_fixed": 35.885,
+     "std_map": 33.244
+    },
+    "destroy_pruned_copy": {
+     "flat": 0.789,
+     "btree_fixed": 4.066,
+     "std_map": 5.74
+    },
+    "destroy_published": {
+     "flat": 4.019,
+     "btree_fixed": 1.323,
+     "std_map": 5.012
+    },
+    "destroy_live": {
+     "flat": 1.941,
+     "btree_fixed": 5.567,
+     "std_map": 15.147
+    }
+   },
+   "stage_allocations": {
+    "parse_validate_construct": {
+     "flat": 75006,
+     "btree_fixed": 257127,
+     "std_map": 325004
+    },
+    "serialize_snapshot": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "copy_snapshot": {
+     "flat": 75001,
+     "btree_fixed": 100011,
+     "std_map": 325000
+    },
+    "parse_patch": {
+     "flat": 1769,
+     "btree_fixed": 6494,
+     "std_map": 8293
+    },
+    "apply_patch": {
+     "flat": 75265,
+     "btree_fixed": 102029,
+     "std_map": 329000
+    },
+    "diff_snapshots": {
+     "flat": 1777,
+     "btree_fixed": 2918,
+     "std_map": 8289
+    },
+    "serialize_patch": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "compose_patches": {
+     "flat": 1764,
+     "btree_fixed": 4532,
+     "std_map": 8289
+    },
+    "transfer_snapshot": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "prune_half_positional": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "find_broad_100x4096": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_pruned_copy": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_published": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_live": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    }
+   },
+   "cleanup_turn": {
+    "flat": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 6125
+    },
+    "btree_fixed": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 8125
+    },
+    "std_map": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 11416
+    }
+   },
+   "total_cpu_ms_excluding_prune": {
+    "flat": 132.41,
+    "btree_fixed": 184.08,
+    "std_map": 235.92
+   }
+  },
+  "long": {
+   "digests_identical": true,
+   "live_snapshot_requested_bytes": {
+    "flat": 65800000,
+    "btree_fixed": 68401936,
+    "std_map": 76200000
+   },
+   "coexisting_requested_bytes": {
+    "flat": 204603048,
+    "btree_fixed": 212691048,
+    "std_map": 236667048
+   },
+   "stage_median_cpu_ms": {
+    "parse_validate_construct": {
+     "flat": 189.22,
+     "btree_fixed": 211.472,
+     "std_map": 234.671
+    },
+    "serialize_snapshot": {
+     "flat": 75.625,
+     "btree_fixed": 76.106,
+     "std_map": 76.686
+    },
+    "copy_snapshot": {
+     "flat": 7.109,
+     "btree_fixed": 8.253,
+     "std_map": 21.427
+    },
+    "parse_patch": {
+     "flat": 5.241,
+     "btree_fixed": 5.477,
+     "std_map": 5.669
+    },
+    "apply_patch": {
+     "flat": 9.383,
+     "btree_fixed": 9.392,
+     "std_map": 22.729
+    },
+    "diff_snapshots": {
+     "flat": 3.454,
+     "btree_fixed": 29.101,
+     "std_map": 33.286
+    },
+    "serialize_patch": {
+     "flat": 1.839,
+     "btree_fixed": 1.81,
+     "std_map": 2.068
+    },
+    "compose_patches": {
+     "flat": 0.345,
+     "btree_fixed": 0.827,
+     "std_map": 1.225
+    },
+    "transfer_snapshot": {
+     "flat": 0.0,
+     "btree_fixed": 0.0,
+     "std_map": 0.0
+    },
+    "prune_half_positional": {
+     "flat": 7436.657,
+     "btree_fixed": 3.672,
+     "std_map": 5.165
+    },
+    "find_broad_100x4096": {
+     "flat": 58.321,
+     "btree_fixed": 61.443,
+     "std_map": 91.607
+    },
+    "destroy_pruned_copy": {
+     "flat": 9.703,
+     "btree_fixed": 8.98,
+     "std_map": 11.098
+    },
+    "destroy_published": {
+     "flat": 6.149,
+     "btree_fixed": 6.959,
+     "std_map": 9.133
+    },
+    "destroy_live": {
+     "flat": 4.191,
+     "btree_fixed": 4.43,
+     "std_map": 6.713
+    }
+   },
+   "stage_allocations": {
+    "parse_validate_construct": {
+     "flat": 400005,
+     "btree_fixed": 1225013,
+     "std_map": 1300004
+    },
+    "serialize_snapshot": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "copy_snapshot": {
+     "flat": 400001,
+     "btree_fixed": 425011,
+     "std_map": 650000
+    },
+    "parse_patch": {
+     "flat": 11006,
+     "btree_fixed": 34009,
+     "std_map": 36004
+    },
+    "apply_patch": {
+     "flat": 400001,
+     "btree_fixed": 434266,
+     "std_map": 658000
+    },
+    "diff_snapshots": {
+     "flat": 11014,
+     "btree_fixed": 12009,
+     "std_map": 18000
+    },
+    "serialize_patch": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "compose_patches": {
+     "flat": 11001,
+     "btree_fixed": 20006,
+     "std_map": 18000
+    },
+    "transfer_snapshot": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "prune_half_positional": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "find_broad_100x4096": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_pruned_copy": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_published": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_live": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    }
+   },
+   "cleanup_turn": {
+    "flat": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 6417
+    },
+    "btree_fixed": {
+     "allocations": 0,
+     "median_p99_ns": 83,
+     "max_ns": 6042
+    },
+    "std_map": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 13500
+    }
+   },
+   "total_cpu_ms_excluding_prune": {
+    "flat": 370.58,
+    "btree_fixed": 424.25,
+    "std_map": 516.31
+   }
+  },
+  "long_random": {
+   "digests_identical": true,
+   "live_snapshot_requested_bytes": {
+    "flat": 65800000,
+    "btree_fixed": 70223496,
+    "std_map": 76200000
+   },
+   "coexisting_requested_bytes": {
+    "flat": 204270880,
+    "btree_fixed": 214235272,
+    "std_map": 236291968
+   },
+   "stage_median_cpu_ms": {
+    "parse_validate_construct": {
+     "flat": 221.441,
+     "btree_fixed": 243.173,
+     "std_map": 244.457
+    },
+    "serialize_snapshot": {
+     "flat": 86.623,
+     "btree_fixed": 84.981,
+     "std_map": 89.769
+    },
+    "copy_snapshot": {
+     "flat": 22.137,
+     "btree_fixed": 22.595,
+     "std_map": 43.515
+    },
+    "parse_patch": {
+     "flat": 4.899,
+     "btree_fixed": 5.315,
+     "std_map": 5.35
+    },
+    "apply_patch": {
+     "flat": 29.577,
+     "btree_fixed": 23.849,
+     "std_map": 41.499
+    },
+    "diff_snapshots": {
+     "flat": 15.605,
+     "btree_fixed": 54.0,
+     "std_map": 60.401
+    },
+    "serialize_patch": {
+     "flat": 1.692,
+     "btree_fixed": 1.801,
+     "std_map": 1.631
+    },
+    "compose_patches": {
+     "flat": 0.306,
+     "btree_fixed": 0.837,
+     "std_map": 1.271
+    },
+    "transfer_snapshot": {
+     "flat": 0.0,
+     "btree_fixed": 0.0,
+     "std_map": 0.0
+    },
+    "prune_half_positional": {
+     "flat": 7499.317,
+     "btree_fixed": 3.612,
+     "std_map": 4.938
+    },
+    "find_broad_100x4096": {
+     "flat": 61.098,
+     "btree_fixed": 69.853,
+     "std_map": 64.124
+    },
+    "destroy_pruned_copy": {
+     "flat": 10.158,
+     "btree_fixed": 9.193,
+     "std_map": 10.492
+    },
+    "destroy_published": {
+     "flat": 5.9,
+     "btree_fixed": 6.639,
+     "std_map": 8.67
+    },
+    "destroy_live": {
+     "flat": 18.042,
+     "btree_fixed": 19.417,
+     "std_map": 30.063
+    }
+   },
+   "stage_allocations": {
+    "parse_validate_construct": {
+     "flat": 400006,
+     "btree_fixed": 1232127,
+     "std_map": 1300004
+    },
+    "serialize_snapshot": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "copy_snapshot": {
+     "flat": 400001,
+     "btree_fixed": 425011,
+     "std_map": 650000
+    },
+    "parse_patch": {
+     "flat": 10058,
+     "btree_fixed": 31361,
+     "std_map": 33160
+    },
+    "apply_patch": {
+     "flat": 401057,
+     "btree_fixed": 433318,
+     "std_map": 658000
+    },
+    "diff_snapshots": {
+     "flat": 10066,
+     "btree_fixed": 11207,
+     "std_map": 16578
+    },
+    "serialize_patch": {
+     "flat": 5,
+     "btree_fixed": 5,
+     "std_map": 5
+    },
+    "compose_patches": {
+     "flat": 10053,
+     "btree_fixed": 18110,
+     "std_map": 16578
+    },
+    "transfer_snapshot": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "prune_half_positional": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "find_broad_100x4096": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_pruned_copy": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_published": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    },
+    "destroy_live": {
+     "flat": 0,
+     "btree_fixed": 0,
+     "std_map": 0
+    }
+   },
+   "cleanup_turn": {
+    "flat": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 4750
+    },
+    "btree_fixed": {
+     "allocations": 0,
+     "median_p99_ns": 83,
+     "max_ns": 9291
+    },
+    "std_map": {
+     "allocations": 0,
+     "median_p99_ns": 42,
+     "max_ns": 2750
+    }
+   },
+   "total_cpu_ms_excluding_prune": {
+    "flat": 477.48,
+    "btree_fixed": 541.65,
+    "std_map": 601.24
+   }
+  }
+ },
+ "lookup_median_process_cpu_ms_200k_ops": {
+  "client-int-hit-long": {
+   "flat": 126.049,
+   "btree_fixed": 130.263,
+   "std_map": 150.856
+  },
+  "client-int-hit-long-hot32": {
+   "flat": 57.21,
+   "btree_fixed": 59.958,
+   "std_map": 56.169
+  },
+  "client-int-hit-short": {
+   "flat": 33.996,
+   "btree_fixed": 37.742,
+   "std_map": 40.961
+  },
+  "client-int-hit-short-hot32": {
+   "flat": 11.498,
+   "btree_fixed": 14.057,
+   "std_map": 11.598
+  },
+  "view-bool-default-long": {
+   "flat": 127.68,
+   "btree_fixed": 140.989,
+   "std_map": 138.322
+  },
+  "view-bool-default-long-hot32": {
+   "flat": 56.451,
+   "btree_fixed": 58.836,
+   "std_map": 55.544
+  },
+  "view-bool-default-short": {
+   "flat": 33.141,
+   "btree_fixed": 38.092,
+   "std_map": 36.461
+  },
+  "view-bool-default-short-hot32": {
+   "flat": 10.145,
+   "btree_fixed": 12.472,
+   "std_map": 10.133
+  },
+  "view-bool-forced-long": {
+   "flat": 147.641,
+   "btree_fixed": 153.555,
+   "std_map": 160.034
+  },
+  "view-bool-forced-long-hot32": {
+   "flat": 57.756,
+   "btree_fixed": 63.742,
+   "std_map": 57.918
+  },
+  "view-bool-forced-short": {
+   "flat": 36.964,
+   "btree_fixed": 45.011,
+   "std_map": 43.523
+  },
+  "view-bool-forced-short-hot32": {
+   "flat": 12.704,
+   "btree_fixed": 17.058,
+   "std_map": 13.495
+  },
+  "view-bool-rollout-long": {
+   "flat": 268.82,
+   "btree_fixed": 273.137,
+   "std_map": 285.221
+  },
+  "view-bool-rollout-long-hot32": {
+   "flat": 158.197,
+   "btree_fixed": 159.744,
+   "std_map": 155.762
+  },
+  "view-bool-rollout-short": {
+   "flat": 68.646,
+   "btree_fixed": 75.114,
+   "std_map": 88.671
+  },
+  "view-bool-rollout-short-hot32": {
+   "flat": 46.201,
+   "btree_fixed": 49.43,
+   "std_map": 44.456
+  },
+  "view-int-hit-long": {
+   "flat": 125.105,
+   "btree_fixed": 125.054,
+   "std_map": 142.835
+  },
+  "view-int-hit-long-hot32": {
+   "flat": 56.096,
+   "btree_fixed": 58.026,
+   "std_map": 59.71
+  },
+  "view-int-hit-short": {
+   "flat": 32.911,
+   "btree_fixed": 36.234,
+   "std_map": 37.007
+  },
+  "view-int-hit-short-hot32": {
+   "flat": 10.16,
+   "btree_fixed": 11.407,
+   "std_map": 10.01
+  },
+  "view-int-miss-long": {
+   "flat": 48.201,
+   "btree_fixed": 50.459,
+   "std_map": 48.342
+  },
+  "view-int-miss-long-hot32": {
+   "flat": 24.399,
+   "btree_fixed": 24.111,
+   "std_map": 29.018
+  },
+  "view-int-miss-short": {
+   "flat": 9.076,
+   "btree_fixed": 8.992,
+   "std_map": 13.685
+  },
+  "view-int-miss-short-hot32": {
+   "flat": 8.853,
+   "btree_fixed": 8.258,
+   "std_map": 13.379
+  }
+ },
+ "limits": [
+  "prune_half_positional erased by position in a loop, quadratic on flat_map (about 7.4 s); production pruning uses erase_if, and the bench now measures prune_half_erase_if.",
+  "Requested heap bytes exclude allocator rounding; not RSS.",
+  "macOS arm64 only for timing; Linux GCC 11 sanitizer and leak qualification recorded separately."
+ ]
+}

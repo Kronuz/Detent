@@ -1,0 +1,22 @@
+name: CI
+on:
+  push:
+    branches: [main, 'track*/**', 'phase*/**', 'design/**']
+    paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    uses: Kronuz/cpp-libraries/.github/workflows/cmake.yml@main
+    with:
+      # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), and Clang ASan/UBSan with LeakSanitizer.
+      cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_BENCHMARKS=OFF
+      asan_cxx_flags: -O1
+      asan_timeout_minutes: 120
+      freebsd: false
+      tsan: false

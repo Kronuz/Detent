@@ -1,0 +1,2462 @@
+{
+ "date": "2026-10-23",
+ "branch": "explore/flat-map",
+ "base_commit": "1766ef0",
+ "measured_commit": "78985c58b3313ba9044f27d8b6efe529758e9a81",
+ "question": "Can an in-house sorted-vector flat_map replace std::map for Detent's four public model tables with equal correctness, lower memory and acceptable CPU?",
+ "platform": "macOS arm64, Apple clang 17, Release (-O3 -DNDEBUG), 100,000 knobs, three alternating-start arms, five rounds per workload, medians",
+ "design": {
+  "header": "include/detent/flat_map.hh",
+  "storage": "std::vector<std::pair<Key,T>> sorted unique; value_type non-const key; static_assert nothrow move",
+  "bulk": "flat_map_builder appends, tracks strict ascent, one index sort for unsorted input; first duplicate in input order via min over groups of the second occurrence",
+  "merge": "flat_map_merge linear pass used by apply_patch, diff_snapshots, compose_patches, merge_over_defaults",
+  "drains": "four authority disposal drains erase std::prev(end()) instead of begin()"
+ },
+ "correctness": {
+  "ctest": "210/210 pass (build-flat, after fixing my own precedence test); includes test_model_alloc_failure, new test_flat_map and test_duplicate_precedence",
+  "ctest_first_run": "two failures: test_duplicate_precedence (test bug: parse_defaults rejects \"version\"; fixed) and test_local_paged_snapshot_plan (StoragePressure abort, flaky: 1 failure in 8 runs on the flat arm and 1 in 6 on the std::map arm, passes on rerun)",
+  "precedence_tests_on_std_map_arm": "test_duplicate_precedence compiled against the std::map arm (build-adopt libdetent) also passes: the new tests encode the old behavior",
+  "canonical_bytes": "test_snapshot_canonical: snapshot.json and snapshot.shm cmp-identical to .scratch/canon-adopt",
+  "lifecycle_digests": "--knobs 2000 and --knobs 2000 --long --random digests equal the std::map arm; all four 100k configs digests equal across std_map, flat, btree",
+  "cleanup_turn_allocations": "0 in every flat run",
+  "quadratic_guard_seconds": {
+   "probe": ".scratch/quad_probe.cc",
+   "std_map": {
+    "parse_100k_random_knobs": 0.0433,
+    "parse_200k_random_overrides": 0.0628,
+    "parse_200k_overrides_dup_at_end": 0.0822
+   },
+   "flat": {
+    "parse_100k_random_knobs": 0.0365,
+    "parse_200k_random_overrides": 0.0495,
+    "parse_200k_overrides_dup_at_end": 0.0498
+   },
+   "note": "two runs per arm, medians of two shown for flat/adopt first run; second run within 15%; duplicate message identical"
+  },
+  "iterator_holders": "state.cc 306/445/1372, change_history.cc 95, export_encoder.cc 38, read_reply.cc 126 hold iterators only into const definitions (command mutations or shared_ptr<const KnobDef> records) that are not mutated meanwhile; none reported",
+  "examples": "examples/ build in build-flat (examples/publish_snapshot.cc keeps a BoolDef& from as_bool only until its next use, before any further insert)",
+  "bindings": "not built (DETENT_BUILD_PYTHON/RUST off); sources do not touch the four tables (only cli_overrides vectors)"
+ },
+ "lifecycle_medians": {
+  "long": {
+   "btree": {
+    "digests": [
+     "{\"diff\": \"011bc30947954769\", \"patch\": \"011bc30947954769\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 72,
+    "definition_object_bytes": 24,
+    "live_snapshot_requested_bytes": 68401936,
+    "coexisting_live_patch_history_requested_bytes": 212691048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 41,
+     "p99": 292,
+     "p999": 416,
+     "max": 5583,
+     "allocations": 101775
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 221.778,
+      "cpu_ms_min": 214.939,
+      "cpu_ms_max": 228.878,
+      "allocations": 1600011,
+      "requested_bytes": 242600907,
+      "peak_delta_bytes": 68402378,
+      "retained_delta_bytes": 68401936
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 76.009,
+      "cpu_ms_min": 69.083,
+      "cpu_ms_max": 84.719,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 9.592,
+      "cpu_ms_min": 8.765,
+      "cpu_ms_max": 9.939,
+      "allocations": 425011,
+      "requested_bytes": 68402176,
+      "peak_delta_bytes": 68402064,
+      "retained_delta_bytes": 68401936
+     },
+     "parse_patch": {
+      "cpu_ms": 5.892,
+      "cpu_ms_min": 5.563,
+      "cpu_ms_max": 6.13,
+      "allocations": 44982,
+      "requested_bytes": 6930779,
+      "peak_delta_bytes": 1945146,
+      "retained_delta_bytes": 1944704
+     },
+     "apply_patch": {
+      "cpu_ms": 11.03,
+      "cpu_ms_min": 9.935,
+      "cpu_ms_max": 11.585,
+      "allocations": 435779,
+      "requested_bytes": 70092240,
+      "peak_delta_bytes": 69225296,
+      "retained_delta_bytes": 68465296
+     },
+     "diff_snapshots": {
+      "cpu_ms": 31.015,
+      "cpu_ms_min": 30.151,
+      "cpu_ms_max": 31.263,
+      "allocations": 19476,
+      "requested_bytes": 3498184,
+      "peak_delta_bytes": 1945664,
+      "retained_delta_bytes": 1945664
+     },
+     "serialize_patch": {
+      "cpu_ms": 2.21,
+      "cpu_ms_min": 1.796,
+      "cpu_ms_max": 2.837,
+      "allocations": 5,
+      "requested_bytes": 1587075,
+      "peak_delta_bytes": 1587075,
+      "retained_delta_bytes": 1587048
+     },
+     "compose_patches": {
+      "cpu_ms": 0.938,
+      "cpu_ms_min": 0.858,
+      "cpu_ms_max": 1.039,
+      "allocations": 20006,
+      "requested_bytes": 3048704,
+      "peak_delta_bytes": 1944592,
+      "retained_delta_bytes": 1944464
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 4.823,
+      "cpu_ms_min": 4.563,
+      "cpu_ms_max": 4.992,
+      "allocations": 52007,
+      "requested_bytes": 10817456,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -39920560
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 66.438,
+      "cpu_ms_min": 62.518,
+      "cpu_ms_max": 73.812,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 11.084,
+      "cpu_ms_min": 10.884,
+      "cpu_ms_max": 11.309,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -28481376
+     },
+     "destroy_published": {
+      "cpu_ms": 7.883,
+      "cpu_ms_min": 6.684,
+      "cpu_ms_max": 9.131,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -68465296
+     },
+     "destroy_live": {
+      "cpu_ms": 5.301,
+      "cpu_ms_min": 5.039,
+      "cpu_ms_max": 6.166,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -68401936
+     }
+    }
+   },
+   "flat": {
+    "digests": [
+     "{\"diff\": \"011bc30947954769\", \"patch\": \"011bc30947954769\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 65800000,
+    "coexisting_live_patch_history_requested_bytes": 204603048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 42,
+     "max": 500,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 191.021,
+      "cpu_ms_min": 187.899,
+      "cpu_ms_max": 195.53,
+      "allocations": 400005,
+      "requested_bytes": 65800027,
+      "peak_delta_bytes": 65800026,
+      "retained_delta_bytes": 65800000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 76.853,
+      "cpu_ms_min": 71.958,
+      "cpu_ms_max": 81.126,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 7.54,
+      "cpu_ms_min": 7.119,
+      "cpu_ms_max": 7.785,
+      "allocations": 400001,
+      "requested_bytes": 65800000,
+      "peak_delta_bytes": 65800000,
+      "retained_delta_bytes": 65800000
+     },
+     "parse_patch": {
+      "cpu_ms": 5.251,
+      "cpu_ms_min": 5.179,
+      "cpu_ms_max": 5.33,
+      "allocations": 11006,
+      "requested_bytes": 1884027,
+      "peak_delta_bytes": 1884026,
+      "retained_delta_bytes": 1872000
+     },
+     "apply_patch": {
+      "cpu_ms": 9.5,
+      "cpu_ms_min": 9.164,
+      "cpu_ms_max": 10.372,
+      "allocations": 400001,
+      "requested_bytes": 65800000,
+      "peak_delta_bytes": 65800000,
+      "retained_delta_bytes": 65800000
+     },
+     "diff_snapshots": {
+      "cpu_ms": 3.435,
+      "cpu_ms_min": 3.015,
+      "cpu_ms_max": 3.585,
+      "allocations": 11014,
+      "requested_bytes": 2527280,
+      "peak_delta_bytes": 2199680,
+      "retained_delta_bytes": 1872000
+     },
+     "serialize_patch": {
+      "cpu_ms": 1.551,
+      "cpu_ms_min": 1.39,
+      "cpu_ms_max": 2.137,
+      "allocations": 5,
+      "requested_bytes": 1587075,
+      "peak_delta_bytes": 1587075,
+      "retained_delta_bytes": 1587048
+     },
+     "compose_patches": {
+      "cpu_ms": 0.33,
+      "cpu_ms_min": 0.315,
+      "cpu_ms_max": 0.345,
+      "allocations": 11001,
+      "requested_bytes": 1872000,
+      "peak_delta_bytes": 1872000,
+      "retained_delta_bytes": 1872000
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 7675.059,
+      "cpu_ms_min": 7523.276,
+      "cpu_ms_max": 7714.854,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -35600000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 60.798,
+      "cpu_ms_min": 57.923,
+      "cpu_ms_max": 66.026,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 11.577,
+      "cpu_ms_min": 11.019,
+      "cpu_ms_max": 11.981,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -30200000
+     },
+     "destroy_published": {
+      "cpu_ms": 6.855,
+      "cpu_ms_min": 5.861,
+      "cpu_ms_max": 7.333,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -65800000
+     },
+     "destroy_live": {
+      "cpu_ms": 4.337,
+      "cpu_ms_min": 3.844,
+      "cpu_ms_max": 4.626,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -65800000
+     }
+    },
+    "cleanup_begin_turn_ns": {
+     "p50": 83,
+     "p99": 167,
+     "max": 5125,
+     "allocations": 0
+    }
+   },
+   "std_map": {
+    "digests": [
+     "{\"diff\": \"011bc30947954769\", \"patch\": \"011bc30947954769\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 76200000,
+    "coexisting_live_patch_history_requested_bytes": 236667048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 41,
+     "p99": 42,
+     "p999": 125,
+     "max": 334,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 236.896,
+      "cpu_ms_min": 232.235,
+      "cpu_ms_max": 242.092,
+      "allocations": 1300004,
+      "requested_bytes": 179000027,
+      "peak_delta_bytes": 76200442,
+      "retained_delta_bytes": 76200000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 76.702,
+      "cpu_ms_min": 74.79,
+      "cpu_ms_max": 80.866,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 22.343,
+      "cpu_ms_min": 21.4,
+      "cpu_ms_max": 23.619,
+      "allocations": 650000,
+      "requested_bytes": 76200000,
+      "peak_delta_bytes": 76200000,
+      "retained_delta_bytes": 76200000
+     },
+     "parse_patch": {
+      "cpu_ms": 5.82,
+      "cpu_ms_min": 5.736,
+      "cpu_ms_max": 6.175,
+      "allocations": 36004,
+      "requested_bytes": 5040027,
+      "peak_delta_bytes": 2160442,
+      "retained_delta_bytes": 2160000
+     },
+     "apply_patch": {
+      "cpu_ms": 23.377,
+      "cpu_ms_min": 22.821,
+      "cpu_ms_max": 25.535,
+      "allocations": 658000,
+      "requested_bytes": 77112000,
+      "peak_delta_bytes": 77112000,
+      "retained_delta_bytes": 76200000
+     },
+     "diff_snapshots": {
+      "cpu_ms": 34.233,
+      "cpu_ms_min": 33.118,
+      "cpu_ms_max": 34.687,
+      "allocations": 18000,
+      "requested_bytes": 2160000,
+      "peak_delta_bytes": 2160000,
+      "retained_delta_bytes": 2160000
+     },
+     "serialize_patch": {
+      "cpu_ms": 2.23,
+      "cpu_ms_min": 1.956,
+      "cpu_ms_max": 2.889,
+      "allocations": 5,
+      "requested_bytes": 1587075,
+      "peak_delta_bytes": 1587075,
+      "retained_delta_bytes": 1587048
+     },
+     "compose_patches": {
+      "cpu_ms": 1.317,
+      "cpu_ms_min": 1.271,
+      "cpu_ms_max": 1.568,
+      "allocations": 18000,
+      "requested_bytes": 2160000,
+      "peak_delta_bytes": 2160000,
+      "retained_delta_bytes": 2160000
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 5.457,
+      "cpu_ms_min": 5.26,
+      "cpu_ms_max": 5.568,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -45600000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 96.466,
+      "cpu_ms_min": 86.963,
+      "cpu_ms_max": 105.811,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 12.256,
+      "cpu_ms_min": 11.458,
+      "cpu_ms_max": 13.861,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -30600000
+     },
+     "destroy_published": {
+      "cpu_ms": 9.923,
+      "cpu_ms_min": 8.568,
+      "cpu_ms_max": 10.759,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -76200000
+     },
+     "destroy_live": {
+      "cpu_ms": 7.685,
+      "cpu_ms_min": 6.994,
+      "cpu_ms_max": 8.118,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -76200000
+     }
+    }
+   }
+  },
+  "long_random": {
+   "btree": {
+    "digests": [
+     "{\"diff\": \"882bff4cd39afa5d\", \"patch\": \"882bff4cd39afa5d\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 72,
+    "definition_object_bytes": 24,
+    "live_snapshot_requested_bytes": 70223496,
+    "coexisting_live_patch_history_requested_bytes": 214235272,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 41,
+     "p99": 292,
+     "p999": 375,
+     "max": 542,
+     "allocations": 101775
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 266.933,
+      "cpu_ms_min": 266.398,
+      "cpu_ms_max": 287.707,
+      "allocations": 1823721,
+      "requested_bytes": 289474435,
+      "peak_delta_bytes": 70223938,
+      "retained_delta_bytes": 70223496
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 89.626,
+      "cpu_ms_min": 87.142,
+      "cpu_ms_max": 99.794,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 22.514,
+      "cpu_ms_min": 22.322,
+      "cpu_ms_max": 26.863,
+      "allocations": 425011,
+      "requested_bytes": 68402176,
+      "peak_delta_bytes": 68402064,
+      "retained_delta_bytes": 68401936
+     },
+     "parse_patch": {
+      "cpu_ms": 5.794,
+      "cpu_ms_min": 5.501,
+      "cpu_ms_max": 5.856,
+      "allocations": 44313,
+      "requested_bytes": 7083019,
+      "peak_delta_bytes": 1858498,
+      "retained_delta_bytes": 1857848
+     },
+     "apply_patch": {
+      "cpu_ms": 24.827,
+      "cpu_ms_min": 23.262,
+      "cpu_ms_max": 31.343,
+      "allocations": 434831,
+      "requested_bytes": 69961416,
+      "peak_delta_bytes": 69225296,
+      "retained_delta_bytes": 68611024
+     },
+     "diff_snapshots": {
+      "cpu_ms": 50.41,
+      "cpu_ms_min": 49.183,
+      "cpu_ms_max": 70.102,
+      "allocations": 17391,
+      "requested_bytes": 3132816,
+      "peak_delta_bytes": 1847160,
+      "retained_delta_bytes": 1847160
+     },
+     "serialize_patch": {
+      "cpu_ms": 1.895,
+      "cpu_ms_min": 1.833,
+      "cpu_ms_max": 2.072,
+      "allocations": 5,
+      "requested_bytes": 1480195,
+      "peak_delta_bytes": 1480195,
+      "retained_delta_bytes": 1480168
+     },
+     "compose_patches": {
+      "cpu_ms": 0.874,
+      "cpu_ms_min": 0.856,
+      "cpu_ms_max": 1.104,
+      "allocations": 18110,
+      "requested_bytes": 2787056,
+      "peak_delta_bytes": 1813768,
+      "retained_delta_bytes": 1813640
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 4.598,
+      "cpu_ms_min": 4.337,
+      "cpu_ms_max": 4.65,
+      "allocations": 52007,
+      "requested_bytes": 10817456,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -39920560
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 71.346,
+      "cpu_ms_min": 67.767,
+      "cpu_ms_max": 79.26,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 10.532,
+      "cpu_ms_min": 9.137,
+      "cpu_ms_max": 12.32,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -28481376
+     },
+     "destroy_published": {
+      "cpu_ms": 7.107,
+      "cpu_ms_min": 6.3,
+      "cpu_ms_max": 7.386,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -68611024
+     },
+     "destroy_live": {
+      "cpu_ms": 19.687,
+      "cpu_ms_min": 19.305,
+      "cpu_ms_max": 23.081,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -70223496
+     }
+    }
+   },
+   "flat": {
+    "digests": [
+     "{\"diff\": \"882bff4cd39afa5d\", \"patch\": \"882bff4cd39afa5d\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 65800000,
+    "coexisting_live_patch_history_requested_bytes": 204270880,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 42,
+     "max": 1084,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 232.299,
+      "cpu_ms_min": 223.78,
+      "cpu_ms_max": 239.82,
+      "allocations": 400006,
+      "requested_bytes": 66200027,
+      "peak_delta_bytes": 66200026,
+      "retained_delta_bytes": 65800000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 89.642,
+      "cpu_ms_min": 71.106,
+      "cpu_ms_max": 94.987,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 22.928,
+      "cpu_ms_min": 21.888,
+      "cpu_ms_max": 23.447,
+      "allocations": 400001,
+      "requested_bytes": 65800000,
+      "peak_delta_bytes": 65800000,
+      "retained_delta_bytes": 65800000
+     },
+     "parse_patch": {
+      "cpu_ms": 4.997,
+      "cpu_ms_min": 4.923,
+      "cpu_ms_max": 6.258,
+      "allocations": 10058,
+      "requested_bytes": 1764579,
+      "peak_delta_bytes": 1764578,
+      "retained_delta_bytes": 1752552
+     },
+     "apply_patch": {
+      "cpu_ms": 30.68,
+      "cpu_ms_min": 29.511,
+      "cpu_ms_max": 33.303,
+      "allocations": 401057,
+      "requested_bytes": 65933056,
+      "peak_delta_bytes": 65933056,
+      "retained_delta_bytes": 65933056
+     },
+     "diff_snapshots": {
+      "cpu_ms": 17.327,
+      "cpu_ms_min": 15.615,
+      "cpu_ms_max": 18.623,
+      "allocations": 10066,
+      "requested_bytes": 2407832,
+      "peak_delta_bytes": 2080232,
+      "retained_delta_bytes": 1752552
+     },
+     "serialize_patch": {
+      "cpu_ms": 1.796,
+      "cpu_ms_min": 1.447,
+      "cpu_ms_max": 1.894,
+      "allocations": 5,
+      "requested_bytes": 1480195,
+      "peak_delta_bytes": 1480195,
+      "retained_delta_bytes": 1480168
+     },
+     "compose_patches": {
+      "cpu_ms": 0.349,
+      "cpu_ms_min": 0.293,
+      "cpu_ms_max": 0.361,
+      "allocations": 10053,
+      "requested_bytes": 1752552,
+      "peak_delta_bytes": 1752552,
+      "retained_delta_bytes": 1752552
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 7569.694,
+      "cpu_ms_min": 7487.719,
+      "cpu_ms_max": 7686.958,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -35600000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 63.069,
+      "cpu_ms_min": 59.674,
+      "cpu_ms_max": 68.824,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 11.43,
+      "cpu_ms_min": 10.746,
+      "cpu_ms_max": 11.961,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -30200000
+     },
+     "destroy_published": {
+      "cpu_ms": 6.772,
+      "cpu_ms_min": 6.181,
+      "cpu_ms_max": 7.661,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -65933056
+     },
+     "destroy_live": {
+      "cpu_ms": 18.447,
+      "cpu_ms_min": 18.1,
+      "cpu_ms_max": 20.101,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -65800000
+     }
+    },
+    "cleanup_begin_turn_ns": {
+     "p50": 83,
+     "p99": 167,
+     "max": 8750,
+     "allocations": 0
+    }
+   },
+   "std_map": {
+    "digests": [
+     "{\"diff\": \"882bff4cd39afa5d\", \"patch\": \"882bff4cd39afa5d\", \"snapshot\": \"62115427f817804a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 76200000,
+    "coexisting_live_patch_history_requested_bytes": 236291968,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 41,
+     "p99": 42,
+     "p999": 84,
+     "max": 1917,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 248.885,
+      "cpu_ms_min": 245.115,
+      "cpu_ms_max": 259.009,
+      "allocations": 1300004,
+      "requested_bytes": 179000027,
+      "peak_delta_bytes": 76200442,
+      "retained_delta_bytes": 76200000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 96.431,
+      "cpu_ms_min": 91.163,
+      "cpu_ms_max": 100.807,
+      "allocations": 5,
+      "requested_bytes": 57639299,
+      "peak_delta_bytes": 57639299,
+      "retained_delta_bytes": 57639272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 41.169,
+      "cpu_ms_min": 40.928,
+      "cpu_ms_max": 46.19,
+      "allocations": 650000,
+      "requested_bytes": 76200000,
+      "peak_delta_bytes": 76200000,
+      "retained_delta_bytes": 76200000
+     },
+     "parse_patch": {
+      "cpu_ms": 5.469,
+      "cpu_ms_min": 5.132,
+      "cpu_ms_max": 5.537,
+      "allocations": 33160,
+      "requested_bytes": 4704435,
+      "peak_delta_bytes": 2018242,
+      "retained_delta_bytes": 2017800
+     },
+     "apply_patch": {
+      "cpu_ms": 43.52,
+      "cpu_ms_min": 41.015,
+      "cpu_ms_max": 54.947,
+      "allocations": 658000,
+      "requested_bytes": 77112000,
+      "peak_delta_bytes": 77112000,
+      "retained_delta_bytes": 76358400
+     },
+     "diff_snapshots": {
+      "cpu_ms": 61.088,
+      "cpu_ms_min": 59.181,
+      "cpu_ms_max": 81.034,
+      "allocations": 16578,
+      "requested_bytes": 2017800,
+      "peak_delta_bytes": 2017800,
+      "retained_delta_bytes": 2017800
+     },
+     "serialize_patch": {
+      "cpu_ms": 1.842,
+      "cpu_ms_min": 1.577,
+      "cpu_ms_max": 2.101,
+      "allocations": 5,
+      "requested_bytes": 1480195,
+      "peak_delta_bytes": 1480195,
+      "retained_delta_bytes": 1480168
+     },
+     "compose_patches": {
+      "cpu_ms": 1.294,
+      "cpu_ms_min": 1.244,
+      "cpu_ms_max": 1.592,
+      "allocations": 16578,
+      "requested_bytes": 2017800,
+      "peak_delta_bytes": 2017800,
+      "retained_delta_bytes": 2017800
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 5.309,
+      "cpu_ms_min": 5.076,
+      "cpu_ms_max": 5.493,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -45600000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 65.117,
+      "cpu_ms_min": 64.298,
+      "cpu_ms_max": 68.478,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 12.496,
+      "cpu_ms_min": 11.236,
+      "cpu_ms_max": 12.794,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -30600000
+     },
+     "destroy_published": {
+      "cpu_ms": 8.951,
+      "cpu_ms_min": 8.683,
+      "cpu_ms_max": 9.819,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -76358400
+     },
+     "destroy_live": {
+      "cpu_ms": 30.388,
+      "cpu_ms_min": 29.956,
+      "cpu_ms_max": 39.038,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -76200000
+     }
+    }
+   }
+  },
+  "random": {
+   "btree": {
+    "digests": [
+     "{\"diff\": \"2a44912a8917c0e5\", \"patch\": \"2a44912a8917c0e5\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 72,
+    "definition_object_bytes": 24,
+    "live_snapshot_requested_bytes": 18823496,
+    "coexisting_live_patch_history_requested_bytes": 54710968,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 84,
+     "max": 292,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 63.35,
+      "cpu_ms_min": 60.887,
+      "cpu_ms_max": 65.017,
+      "allocations": 257130,
+      "requested_bytes": 28424155,
+      "peak_delta_bytes": 18823522,
+      "retained_delta_bytes": 18823496
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 40.647,
+      "cpu_ms_min": 40.521,
+      "cpu_ms_max": 41.452,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 7.571,
+      "cpu_ms_min": 7.326,
+      "cpu_ms_max": 8.14,
+      "allocations": 100011,
+      "requested_bytes": 17002176,
+      "peak_delta_bytes": 17002064,
+      "retained_delta_bytes": 17001936
+     },
+     "parse_patch": {
+      "cpu_ms": 1.293,
+      "cpu_ms_min": 1.187,
+      "cpu_ms_max": 1.306,
+      "allocations": 6496,
+      "requested_bytes": 740747,
+      "peak_delta_bytes": 514650,
+      "retained_delta_bytes": 514544
+     },
+     "apply_patch": {
+      "cpu_ms": 6.28,
+      "cpu_ms_min": 5.963,
+      "cpu_ms_max": 6.745,
+      "allocations": 102029,
+      "requested_bytes": 17319408,
+      "peak_delta_bytes": 17209296,
+      "retained_delta_bytes": 17103312
+     },
+     "diff_snapshots": {
+      "cpu_ms": 19.275,
+      "cpu_ms_min": 18.23,
+      "cpu_ms_max": 22.065,
+      "allocations": 2921,
+      "requested_bytes": 504512,
+      "peak_delta_bytes": 503856,
+      "retained_delta_bytes": 503856
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.519,
+      "cpu_ms_min": 0.485,
+      "cpu_ms_max": 0.808,
+      "allocations": 5,
+      "requested_bytes": 293515,
+      "peak_delta_bytes": 293515,
+      "retained_delta_bytes": 293488
+     },
+     "compose_patches": {
+      "cpu_ms": 0.341,
+      "cpu_ms_min": 0.327,
+      "cpu_ms_max": 0.361,
+      "allocations": 4532,
+      "requested_bytes": 724448,
+      "peak_delta_bytes": 470464,
+      "retained_delta_bytes": 470336
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 1.522,
+      "cpu_ms_min": 1.455,
+      "cpu_ms_max": 1.589,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -9120560
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 35.938,
+      "cpu_ms_min": 34.973,
+      "cpu_ms_max": 39.332,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 4.85,
+      "cpu_ms_min": 4.759,
+      "cpu_ms_max": 5.033,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -7881376
+     },
+     "destroy_published": {
+      "cpu_ms": 1.285,
+      "cpu_ms_min": 1.253,
+      "cpu_ms_max": 1.38,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -17103312
+     },
+     "destroy_live": {
+      "cpu_ms": 5.855,
+      "cpu_ms_min": 5.51,
+      "cpu_ms_max": 7.019,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -18823496
+     }
+    }
+   },
+   "flat": {
+    "digests": [
+     "{\"diff\": \"2a44912a8917c0e5\", \"patch\": \"2a44912a8917c0e5\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 14400000,
+    "coexisting_live_patch_history_requested_bytes": 44746576,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 42,
+     "max": 84,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 49.648,
+      "cpu_ms_min": 48.099,
+      "cpu_ms_max": 50.214,
+      "allocations": 75006,
+      "requested_bytes": 14800027,
+      "peak_delta_bytes": 14800026,
+      "retained_delta_bytes": 14400000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 38.913,
+      "cpu_ms_min": 37.887,
+      "cpu_ms_max": 39.415,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 2.892,
+      "cpu_ms_min": 2.855,
+      "cpu_ms_max": 2.922,
+      "allocations": 75001,
+      "requested_bytes": 14400000,
+      "peak_delta_bytes": 14400000,
+      "retained_delta_bytes": 14400000
+     },
+     "parse_patch": {
+      "cpu_ms": 1.042,
+      "cpu_ms_min": 0.983,
+      "cpu_ms_max": 1.09,
+      "allocations": 1769,
+      "requested_bytes": 421275,
+      "peak_delta_bytes": 421274,
+      "retained_delta_bytes": 409248
+     },
+     "apply_patch": {
+      "cpu_ms": 3.004,
+      "cpu_ms_min": 2.898,
+      "cpu_ms_max": 3.133,
+      "allocations": 75265,
+      "requested_bytes": 14425344,
+      "peak_delta_bytes": 14425344,
+      "retained_delta_bytes": 14425344
+     },
+     "diff_snapshots": {
+      "cpu_ms": 1.594,
+      "cpu_ms_min": 1.519,
+      "cpu_ms_max": 1.629,
+      "allocations": 1777,
+      "requested_bytes": 1064528,
+      "peak_delta_bytes": 736928,
+      "retained_delta_bytes": 409248
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.492,
+      "cpu_ms_min": 0.471,
+      "cpu_ms_max": 0.568,
+      "allocations": 5,
+      "requested_bytes": 293515,
+      "peak_delta_bytes": 293515,
+      "retained_delta_bytes": 293488
+     },
+     "compose_patches": {
+      "cpu_ms": 0.072,
+      "cpu_ms_min": 0.064,
+      "cpu_ms_max": 0.081,
+      "allocations": 1764,
+      "requested_bytes": 409248,
+      "peak_delta_bytes": 409248,
+      "retained_delta_bytes": 409248
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 7450.94,
+      "cpu_ms_min": 7423.142,
+      "cpu_ms_max": 7584.846,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -4800000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 29.58,
+      "cpu_ms_min": 29.086,
+      "cpu_ms_max": 32.572,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 0.803,
+      "cpu_ms_min": 0.795,
+      "cpu_ms_max": 0.859,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -9600000
+     },
+     "destroy_published": {
+      "cpu_ms": 4.783,
+      "cpu_ms_min": 4.717,
+      "cpu_ms_max": 5.034,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14425344
+     },
+     "destroy_live": {
+      "cpu_ms": 1.926,
+      "cpu_ms_min": 1.907,
+      "cpu_ms_max": 2.088,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14400000
+     }
+    },
+    "cleanup_begin_turn_ns": {
+     "p50": 83,
+     "p99": 167,
+     "max": 416,
+     "allocations": 0
+    }
+   },
+   "std_map": {
+    "digests": [
+     "{\"diff\": \"2a44912a8917c0e5\", \"patch\": \"2a44912a8917c0e5\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 24800000,
+    "coexisting_live_patch_history_requested_bytes": 76767664,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 83,
+     "max": 333,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 57.48,
+      "cpu_ms_min": 55.745,
+      "cpu_ms_max": 59.022,
+      "allocations": 325004,
+      "requested_bytes": 24800027,
+      "peak_delta_bytes": 24800026,
+      "retained_delta_bytes": 24800000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 45.058,
+      "cpu_ms_min": 44.164,
+      "cpu_ms_max": 46.045,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 23.705,
+      "cpu_ms_min": 23.074,
+      "cpu_ms_max": 24.842,
+      "allocations": 325000,
+      "requested_bytes": 24800000,
+      "peak_delta_bytes": 24800000,
+      "retained_delta_bytes": 24800000
+     },
+     "parse_patch": {
+      "cpu_ms": 1.21,
+      "cpu_ms_min": 1.187,
+      "cpu_ms_max": 1.217,
+      "allocations": 8293,
+      "requested_bytes": 674523,
+      "peak_delta_bytes": 674522,
+      "retained_delta_bytes": 674496
+     },
+     "apply_patch": {
+      "cpu_ms": 20.251,
+      "cpu_ms_min": 19.264,
+      "cpu_ms_max": 22.597,
+      "allocations": 329000,
+      "requested_bytes": 25096000,
+      "peak_delta_bytes": 25096000,
+      "retained_delta_bytes": 24850688
+     },
+     "diff_snapshots": {
+      "cpu_ms": 27.518,
+      "cpu_ms_min": 26.97,
+      "cpu_ms_max": 28.369,
+      "allocations": 8289,
+      "requested_bytes": 674496,
+      "peak_delta_bytes": 674496,
+      "retained_delta_bytes": 674496
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.531,
+      "cpu_ms_min": 0.51,
+      "cpu_ms_max": 0.656,
+      "allocations": 5,
+      "requested_bytes": 293515,
+      "peak_delta_bytes": 293515,
+      "retained_delta_bytes": 293488
+     },
+     "compose_patches": {
+      "cpu_ms": 0.553,
+      "cpu_ms_min": 0.537,
+      "cpu_ms_max": 0.58,
+      "allocations": 8289,
+      "requested_bytes": 674496,
+      "peak_delta_bytes": 674496,
+      "retained_delta_bytes": 674496
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 2.783,
+      "cpu_ms_min": 2.347,
+      "cpu_ms_max": 2.801,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14800000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 34.084,
+      "cpu_ms_min": 33.173,
+      "cpu_ms_max": 35.647,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 6.355,
+      "cpu_ms_min": 6.2,
+      "cpu_ms_max": 7.024,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -10000000
+     },
+     "destroy_published": {
+      "cpu_ms": 4.59,
+      "cpu_ms_min": 4.127,
+      "cpu_ms_max": 5.437,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -24850688
+     },
+     "destroy_live": {
+      "cpu_ms": 14.829,
+      "cpu_ms_min": 14.371,
+      "cpu_ms_max": 18.277,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -24800000
+     }
+    }
+   }
+  },
+  "short": {
+   "btree": {
+    "digests": [
+     "{\"diff\": \"1de37f599169eb89\", \"patch\": \"1de37f599169eb89\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 72,
+    "definition_object_bytes": 24,
+    "live_snapshot_requested_bytes": 17001936,
+    "coexisting_live_patch_history_requested_bytes": 52899048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 84,
+     "max": 292,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 44.29,
+      "cpu_ms_min": 43.723,
+      "cpu_ms_max": 44.553,
+      "allocations": 250016,
+      "requested_bytes": 26602595,
+      "peak_delta_bytes": 17001962,
+      "retained_delta_bytes": 17001936
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 36.529,
+      "cpu_ms_min": 35.392,
+      "cpu_ms_max": 38.089,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 2.808,
+      "cpu_ms_min": 2.739,
+      "cpu_ms_max": 2.851,
+      "allocations": 100011,
+      "requested_bytes": 17002176,
+      "peak_delta_bytes": 17002064,
+      "retained_delta_bytes": 17001936
+     },
+     "parse_patch": {
+      "cpu_ms": 1.115,
+      "cpu_ms_min": 1.105,
+      "cpu_ms_max": 1.14,
+      "allocations": 7011,
+      "requested_bytes": 761243,
+      "peak_delta_bytes": 504730,
+      "retained_delta_bytes": 504704
+     },
+     "apply_patch": {
+      "cpu_ms": 3.245,
+      "cpu_ms_min": 3.158,
+      "cpu_ms_max": 3.294,
+      "allocations": 102266,
+      "requested_bytes": 17353536,
+      "peak_delta_bytes": 17209296,
+      "retained_delta_bytes": 17065296
+     },
+     "diff_snapshots": {
+      "cpu_ms": 15.897,
+      "cpu_ms_min": 15.809,
+      "cpu_ms_max": 16.11,
+      "allocations": 3012,
+      "requested_bytes": 506320,
+      "peak_delta_bytes": 505664,
+      "retained_delta_bytes": 505664
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.553,
+      "cpu_ms_min": 0.528,
+      "cpu_ms_max": 0.586,
+      "allocations": 5,
+      "requested_bytes": 315075,
+      "peak_delta_bytes": 315075,
+      "retained_delta_bytes": 315048
+     },
+     "compose_patches": {
+      "cpu_ms": 0.309,
+      "cpu_ms_min": 0.29,
+      "cpu_ms_max": 0.329,
+      "allocations": 5006,
+      "requested_bytes": 792704,
+      "peak_delta_bytes": 504592,
+      "retained_delta_bytes": 504464
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 1.468,
+      "cpu_ms_min": 1.447,
+      "cpu_ms_max": 1.56,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -9120560
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 32.954,
+      "cpu_ms_min": 32.711,
+      "cpu_ms_max": 33.71,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 4.629,
+      "cpu_ms_min": 4.146,
+      "cpu_ms_max": 4.8,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -7881376
+     },
+     "destroy_published": {
+      "cpu_ms": 1.27,
+      "cpu_ms_min": 1.23,
+      "cpu_ms_max": 1.388,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -17065296
+     },
+     "destroy_live": {
+      "cpu_ms": 1.353,
+      "cpu_ms_min": 1.284,
+      "cpu_ms_max": 1.398,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -17001936
+     }
+    }
+   },
+   "flat": {
+    "digests": [
+     "{\"diff\": \"1de37f599169eb89\", \"patch\": \"1de37f599169eb89\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 14400000,
+    "coexisting_live_patch_history_requested_bytes": 44811048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 42,
+     "max": 84,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 35.902,
+      "cpu_ms_min": 35.738,
+      "cpu_ms_max": 37.18,
+      "allocations": 75005,
+      "requested_bytes": 14400027,
+      "peak_delta_bytes": 14400026,
+      "retained_delta_bytes": 14400000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 36.217,
+      "cpu_ms_min": 35.887,
+      "cpu_ms_max": 38.691,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 1.404,
+      "cpu_ms_min": 1.298,
+      "cpu_ms_max": 1.471,
+      "allocations": 75001,
+      "requested_bytes": 14400000,
+      "peak_delta_bytes": 14400000,
+      "retained_delta_bytes": 14400000
+     },
+     "parse_patch": {
+      "cpu_ms": 1.017,
+      "cpu_ms_min": 0.99,
+      "cpu_ms_max": 1.055,
+      "allocations": 2006,
+      "requested_bytes": 444027,
+      "peak_delta_bytes": 444026,
+      "retained_delta_bytes": 432000
+     },
+     "apply_patch": {
+      "cpu_ms": 2.5,
+      "cpu_ms_min": 2.373,
+      "cpu_ms_max": 3.05,
+      "allocations": 75001,
+      "requested_bytes": 14400000,
+      "peak_delta_bytes": 14400000,
+      "retained_delta_bytes": 14400000
+     },
+     "diff_snapshots": {
+      "cpu_ms": 1.391,
+      "cpu_ms_min": 1.366,
+      "cpu_ms_max": 1.492,
+      "allocations": 2014,
+      "requested_bytes": 1087280,
+      "peak_delta_bytes": 759680,
+      "retained_delta_bytes": 432000
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.548,
+      "cpu_ms_min": 0.508,
+      "cpu_ms_max": 0.716,
+      "allocations": 5,
+      "requested_bytes": 315075,
+      "peak_delta_bytes": 315075,
+      "retained_delta_bytes": 315048
+     },
+     "compose_patches": {
+      "cpu_ms": 0.062,
+      "cpu_ms_min": 0.059,
+      "cpu_ms_max": 0.075,
+      "allocations": 2001,
+      "requested_bytes": 432000,
+      "peak_delta_bytes": 432000,
+      "retained_delta_bytes": 432000
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 7491.049,
+      "cpu_ms_min": 7449.981,
+      "cpu_ms_max": 7574.653,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -4800000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 29.915,
+      "cpu_ms_min": 28.29,
+      "cpu_ms_max": 30.629,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 0.79,
+      "cpu_ms_min": 0.765,
+      "cpu_ms_max": 0.836,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -9600000
+     },
+     "destroy_published": {
+      "cpu_ms": 4.638,
+      "cpu_ms_min": 4.348,
+      "cpu_ms_max": 4.812,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14400000
+     },
+     "destroy_live": {
+      "cpu_ms": 0.938,
+      "cpu_ms_min": 0.915,
+      "cpu_ms_max": 0.951,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14400000
+     }
+    },
+    "cleanup_begin_turn_ns": {
+     "p50": 83,
+     "p99": 167,
+     "max": 2583,
+     "allocations": 0
+    }
+   },
+   "std_map": {
+    "digests": [
+     "{\"diff\": \"1de37f599169eb89\", \"patch\": \"1de37f599169eb89\", \"snapshot\": \"3fb0c0855d557f3a\"}"
+    ],
+    "snapshot_object_bytes": 88,
+    "definition_object_bytes": 40,
+    "live_snapshot_requested_bytes": 24800000,
+    "coexisting_live_patch_history_requested_bytes": 76875048,
+    "model_residue_bytes": 0,
+    "cleanup_turn_ns": {
+     "p50": 0,
+     "p99": 42,
+     "p999": 83,
+     "max": 500,
+     "allocations": 0
+    },
+    "stages": {
+     "parse_validate_construct": {
+      "cpu_ms": 55.652,
+      "cpu_ms_min": 53.03,
+      "cpu_ms_max": 57.832,
+      "allocations": 325004,
+      "requested_bytes": 24800027,
+      "peak_delta_bytes": 24800026,
+      "retained_delta_bytes": 24800000
+     },
+     "serialize_snapshot": {
+      "cpu_ms": 37.338,
+      "cpu_ms_min": 36.313,
+      "cpu_ms_max": 37.816,
+      "allocations": 5,
+      "requested_bytes": 12239299,
+      "peak_delta_bytes": 12239299,
+      "retained_delta_bytes": 12239272
+     },
+     "copy_snapshot": {
+      "cpu_ms": 15.98,
+      "cpu_ms_min": 14.373,
+      "cpu_ms_max": 17.546,
+      "allocations": 325000,
+      "requested_bytes": 24800000,
+      "peak_delta_bytes": 24800000,
+      "retained_delta_bytes": 24800000
+     },
+     "parse_patch": {
+      "cpu_ms": 1.197,
+      "cpu_ms_min": 1.192,
+      "cpu_ms_max": 1.308,
+      "allocations": 9004,
+      "requested_bytes": 720027,
+      "peak_delta_bytes": 720026,
+      "retained_delta_bytes": 720000
+     },
+     "apply_patch": {
+      "cpu_ms": 16.083,
+      "cpu_ms_min": 14.651,
+      "cpu_ms_max": 18.283,
+      "allocations": 329000,
+      "requested_bytes": 25096000,
+      "peak_delta_bytes": 25096000,
+      "retained_delta_bytes": 24800000
+     },
+     "diff_snapshots": {
+      "cpu_ms": 21.145,
+      "cpu_ms_min": 20.754,
+      "cpu_ms_max": 23.823,
+      "allocations": 9000,
+      "requested_bytes": 720000,
+      "peak_delta_bytes": 720000,
+      "retained_delta_bytes": 720000
+     },
+     "serialize_patch": {
+      "cpu_ms": 0.598,
+      "cpu_ms_min": 0.576,
+      "cpu_ms_max": 0.795,
+      "allocations": 5,
+      "requested_bytes": 315075,
+      "peak_delta_bytes": 315075,
+      "retained_delta_bytes": 315048
+     },
+     "compose_patches": {
+      "cpu_ms": 0.577,
+      "cpu_ms_min": 0.543,
+      "cpu_ms_max": 0.596,
+      "allocations": 9000,
+      "requested_bytes": 720000,
+      "peak_delta_bytes": 720000,
+      "retained_delta_bytes": 720000
+     },
+     "transfer_snapshot": {
+      "cpu_ms": 0.0,
+      "cpu_ms_min": 0.0,
+      "cpu_ms_max": 0.0,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "prune_half_positional": {
+      "cpu_ms": 2.67,
+      "cpu_ms_min": 2.583,
+      "cpu_ms_max": 2.879,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -14800000
+     },
+     "find_broad_100x4096": {
+      "cpu_ms": 67.834,
+      "cpu_ms_min": 59.249,
+      "cpu_ms_max": 72.56,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+     },
+     "destroy_pruned_copy": {
+      "cpu_ms": 6.525,
+      "cpu_ms_min": 6.176,
+      "cpu_ms_max": 7.037,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -10000000
+     },
+     "destroy_published": {
+      "cpu_ms": 3.473,
+      "cpu_ms_min": 3.315,
+      "cpu_ms_max": 3.887,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -24800000
+     },
+     "destroy_live": {
+      "cpu_ms": 4.556,
+      "cpu_ms_min": 4.255,
+      "cpu_ms_max": 5.524,
+      "allocations": 0,
+      "requested_bytes": 0,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": -24800000
+     }
+    }
+   }
+  }
+ },
+ "lookup_medians_cpu_ms": {
+  "hot": {
+   "btree": {
+    "view-int-miss-short-hot32": {
+     "median_cpu_ms": 7.882,
+     "min": 7.702,
+     "max": 7.953,
+     "n": 5
+    },
+    "view-bool-default-short-hot32": {
+     "median_cpu_ms": 12.606,
+     "min": 12.31,
+     "max": 12.882,
+     "n": 5
+    },
+    "client-int-hit-short-hot32": {
+     "median_cpu_ms": 14.016,
+     "min": 13.472,
+     "max": 14.16,
+     "n": 5
+    },
+    "view-int-hit-short-hot32": {
+     "median_cpu_ms": 11.833,
+     "min": 11.258,
+     "max": 12.176,
+     "n": 5
+    },
+    "view-bool-rollout-short-hot32": {
+     "median_cpu_ms": 47.8,
+     "min": 47.113,
+     "max": 48.583,
+     "n": 5
+    },
+    "view-bool-forced-short-hot32": {
+     "median_cpu_ms": 16.81,
+     "min": 16.393,
+     "max": 17.049,
+     "n": 5
+    }
+   },
+   "flat": {
+    "view-int-miss-short-hot32": {
+     "median_cpu_ms": 8.794,
+     "min": 8.571,
+     "max": 9.834,
+     "n": 5
+    },
+    "view-bool-default-short-hot32": {
+     "median_cpu_ms": 9.894,
+     "min": 9.822,
+     "max": 10.026,
+     "n": 5
+    },
+    "client-int-hit-short-hot32": {
+     "median_cpu_ms": 11.057,
+     "min": 10.815,
+     "max": 12.088,
+     "n": 5
+    },
+    "view-int-hit-short-hot32": {
+     "median_cpu_ms": 9.432,
+     "min": 9.397,
+     "max": 9.963,
+     "n": 5
+    },
+    "view-bool-rollout-short-hot32": {
+     "median_cpu_ms": 46.407,
+     "min": 45.598,
+     "max": 47.197,
+     "n": 5
+    },
+    "view-bool-forced-short-hot32": {
+     "median_cpu_ms": 13.327,
+     "min": 12.685,
+     "max": 13.758,
+     "n": 5
+    }
+   },
+   "std_map": {
+    "view-int-miss-short-hot32": {
+     "median_cpu_ms": 14.158,
+     "min": 12.529,
+     "max": 15.361,
+     "n": 5
+    },
+    "view-bool-default-short-hot32": {
+     "median_cpu_ms": 10.067,
+     "min": 9.902,
+     "max": 10.966,
+     "n": 5
+    },
+    "client-int-hit-short-hot32": {
+     "median_cpu_ms": 11.431,
+     "min": 11.155,
+     "max": 11.618,
+     "n": 5
+    },
+    "view-int-hit-short-hot32": {
+     "median_cpu_ms": 9.941,
+     "min": 9.7,
+     "max": 10.842,
+     "n": 5
+    },
+    "view-bool-rollout-short-hot32": {
+     "median_cpu_ms": 44.142,
+     "min": 43.669,
+     "max": 45.761,
+     "n": 5
+    },
+    "view-bool-forced-short-hot32": {
+     "median_cpu_ms": 13.276,
+     "min": 13.162,
+     "max": 13.451,
+     "n": 5
+    }
+   }
+  },
+  "long": {
+   "btree": {
+    "view-bool-forced-long": {
+     "median_cpu_ms": 151.574,
+     "min": 147.65,
+     "max": 176.117,
+     "n": 5
+    },
+    "view-bool-default-long": {
+     "median_cpu_ms": 131.889,
+     "min": 128.37,
+     "max": 178.459,
+     "n": 5
+    },
+    "client-int-hit-long": {
+     "median_cpu_ms": 132.99,
+     "min": 124.687,
+     "max": 160.313,
+     "n": 5
+    },
+    "view-int-miss-long": {
+     "median_cpu_ms": 42.728,
+     "min": 38.818,
+     "max": 53.114,
+     "n": 5
+    },
+    "view-bool-rollout-long": {
+     "median_cpu_ms": 299.763,
+     "min": 276.718,
+     "max": 302.499,
+     "n": 5
+    },
+    "view-int-hit-long": {
+     "median_cpu_ms": 124.444,
+     "min": 122.987,
+     "max": 159.104,
+     "n": 5
+    }
+   },
+   "flat": {
+    "view-bool-forced-long": {
+     "median_cpu_ms": 147.571,
+     "min": 139.005,
+     "max": 169.085,
+     "n": 5
+    },
+    "view-bool-default-long": {
+     "median_cpu_ms": 133.372,
+     "min": 122.387,
+     "max": 173.013,
+     "n": 5
+    },
+    "client-int-hit-long": {
+     "median_cpu_ms": 132.241,
+     "min": 123.34,
+     "max": 155.063,
+     "n": 5
+    },
+    "view-int-miss-long": {
+     "median_cpu_ms": 50.101,
+     "min": 39.552,
+     "max": 60.293,
+     "n": 5
+    },
+    "view-bool-rollout-long": {
+     "median_cpu_ms": 279.657,
+     "min": 269.609,
+     "max": 299.692,
+     "n": 5
+    },
+    "view-int-hit-long": {
+     "median_cpu_ms": 131.457,
+     "min": 119.701,
+     "max": 151.726,
+     "n": 5
+    }
+   },
+   "std_map": {
+    "view-bool-forced-long": {
+     "median_cpu_ms": 149.226,
+     "min": 141.599,
+     "max": 160.456,
+     "n": 5
+    },
+    "view-bool-default-long": {
+     "median_cpu_ms": 132.521,
+     "min": 128.518,
+     "max": 144.61,
+     "n": 5
+    },
+    "client-int-hit-long": {
+     "median_cpu_ms": 152.676,
+     "min": 137.388,
+     "max": 167.261,
+     "n": 5
+    },
+    "view-int-miss-long": {
+     "median_cpu_ms": 52.48,
+     "min": 43.616,
+     "max": 64.821,
+     "n": 5
+    },
+    "view-bool-rollout-long": {
+     "median_cpu_ms": 291.273,
+     "min": 273.624,
+     "max": 297.883,
+     "n": 5
+    },
+    "view-int-hit-long": {
+     "median_cpu_ms": 136.173,
+     "min": 126.911,
+     "max": 150.902,
+     "n": 5
+    }
+   }
+  },
+  "long_hot": {
+   "btree": {
+    "client-int-hit-long-hot32": {
+     "median_cpu_ms": 61.264,
+     "min": 60.35,
+     "max": 62.534,
+     "n": 5
+    },
+    "view-bool-default-long-hot32": {
+     "median_cpu_ms": 59.497,
+     "min": 57.855,
+     "max": 62.207,
+     "n": 5
+    },
+    "view-bool-rollout-long-hot32": {
+     "median_cpu_ms": 158.737,
+     "min": 157.271,
+     "max": 159.699,
+     "n": 5
+    },
+    "view-int-miss-long-hot32": {
+     "median_cpu_ms": 23.688,
+     "min": 23.026,
+     "max": 25.427,
+     "n": 5
+    },
+    "view-int-hit-long-hot32": {
+     "median_cpu_ms": 58.297,
+     "min": 57.352,
+     "max": 62.036,
+     "n": 5
+    },
+    "view-bool-forced-long-hot32": {
+     "median_cpu_ms": 61.365,
+     "min": 60.599,
+     "max": 64.586,
+     "n": 5
+    }
+   },
+   "flat": {
+    "client-int-hit-long-hot32": {
+     "median_cpu_ms": 57.254,
+     "min": 55.041,
+     "max": 58.166,
+     "n": 5
+    },
+    "view-bool-default-long-hot32": {
+     "median_cpu_ms": 55.91,
+     "min": 54.152,
+     "max": 56.705,
+     "n": 5
+    },
+    "view-bool-rollout-long-hot32": {
+     "median_cpu_ms": 155.162,
+     "min": 151.491,
+     "max": 158.56,
+     "n": 5
+    },
+    "view-int-miss-long-hot32": {
+     "median_cpu_ms": 24.706,
+     "min": 22.837,
+     "max": 25.632,
+     "n": 5
+    },
+    "view-int-hit-long-hot32": {
+     "median_cpu_ms": 54.211,
+     "min": 53.359,
+     "max": 57.524,
+     "n": 5
+    },
+    "view-bool-forced-long-hot32": {
+     "median_cpu_ms": 56.738,
+     "min": 56.538,
+     "max": 57.783,
+     "n": 5
+    }
+   },
+   "std_map": {
+    "client-int-hit-long-hot32": {
+     "median_cpu_ms": 56.146,
+     "min": 54.752,
+     "max": 56.533,
+     "n": 5
+    },
+    "view-bool-default-long-hot32": {
+     "median_cpu_ms": 54.721,
+     "min": 53.633,
+     "max": 56.719,
+     "n": 5
+    },
+    "view-bool-rollout-long-hot32": {
+     "median_cpu_ms": 152.683,
+     "min": 152.455,
+     "max": 160.596,
+     "n": 5
+    },
+    "view-int-miss-long-hot32": {
+     "median_cpu_ms": 28.68,
+     "min": 27.585,
+     "max": 28.97,
+     "n": 5
+    },
+    "view-int-hit-long-hot32": {
+     "median_cpu_ms": 58.299,
+     "min": 57.405,
+     "max": 59.062,
+     "n": 5
+    },
+    "view-bool-forced-long-hot32": {
+     "median_cpu_ms": 57.088,
+     "min": 56.72,
+     "max": 59.482,
+     "n": 5
+    }
+   }
+  },
+  "short": {
+   "btree": {
+    "view-bool-forced-short": {
+     "median_cpu_ms": 43.541,
+     "min": 41.518,
+     "max": 45.377,
+     "n": 5
+    },
+    "client-int-hit-short": {
+     "median_cpu_ms": 38.152,
+     "min": 37.204,
+     "max": 42.958,
+     "n": 5
+    },
+    "view-bool-rollout-short": {
+     "median_cpu_ms": 73.402,
+     "min": 71.164,
+     "max": 76.709,
+     "n": 5
+    },
+    "view-int-miss-short": {
+     "median_cpu_ms": 8.616,
+     "min": 7.6,
+     "max": 9.12,
+     "n": 5
+    },
+    "view-bool-default-short": {
+     "median_cpu_ms": 36.407,
+     "min": 35.301,
+     "max": 40.198,
+     "n": 5
+    },
+    "view-int-hit-short": {
+     "median_cpu_ms": 36.936,
+     "min": 35.619,
+     "max": 37.48,
+     "n": 5
+    }
+   },
+   "flat": {
+    "view-bool-forced-short": {
+     "median_cpu_ms": 39.239,
+     "min": 37.45,
+     "max": 42.487,
+     "n": 5
+    },
+    "client-int-hit-short": {
+     "median_cpu_ms": 33.523,
+     "min": 32.977,
+     "max": 41.936,
+     "n": 5
+    },
+    "view-bool-rollout-short": {
+     "median_cpu_ms": 83.688,
+     "min": 66.654,
+     "max": 85.955,
+     "n": 5
+    },
+    "view-int-miss-short": {
+     "median_cpu_ms": 8.732,
+     "min": 8.571,
+     "max": 10.0,
+     "n": 5
+    },
+    "view-bool-default-short": {
+     "median_cpu_ms": 32.741,
+     "min": 32.482,
+     "max": 34.902,
+     "n": 5
+    },
+    "view-int-hit-short": {
+     "median_cpu_ms": 32.291,
+     "min": 31.734,
+     "max": 34.232,
+     "n": 5
+    }
+   },
+   "std_map": {
+    "view-bool-forced-short": {
+     "median_cpu_ms": 41.895,
+     "min": 41.079,
+     "max": 42.789,
+     "n": 5
+    },
+    "client-int-hit-short": {
+     "median_cpu_ms": 39.67,
+     "min": 38.55,
+     "max": 44.275,
+     "n": 5
+    },
+    "view-bool-rollout-short": {
+     "median_cpu_ms": 80.299,
+     "min": 77.101,
+     "max": 95.993,
+     "n": 5
+    },
+    "view-int-miss-short": {
+     "median_cpu_ms": 13.949,
+     "min": 12.877,
+     "max": 14.772,
+     "n": 5
+    },
+    "view-bool-default-short": {
+     "median_cpu_ms": 36.606,
+     "min": 35.43,
+     "max": 43.56,
+     "n": 5
+    },
+    "view-int-hit-short": {
+     "median_cpu_ms": 39.454,
+     "min": 38.689,
+     "max": 48.398,
+     "n": 5
+    }
+   }
+  }
+ },
+ "btree_recorded_retained_requested_bytes_decision_file": {
+  "short": 21022176,
+  "long": 84604336,
+  "note": "different workload than lifecycle_bench; compare ratios within lifecycle_bench rows"
+ },
+ "interference": {
+  "rejected_files": 24,
+  "rejection_reasons_last_line": {
+   "/System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServ": 1,
+   "copilot": 14,
+   "/Library/Application Support/Workflow/workflowd": 2,
+   "/Users/gmendezb/Development/Hodor/repos/hodor-daemon-wt/cfg2-k3/target/debug/dep": 2,
+   "/System/Library/PrivateFrameworks/Ecosystem.framework/Support/ecosystemd": 1,
+   "find": 2,
+   "/System/Library/PrivateFrameworks/EcosystemAnalytics.framework/Support/ecosystem": 1,
+   "rm": 1
+  },
+  "samples_with_retries": [
+   [
+    "detent_model_lifecycle",
+    [],
+    0,
+    "std_map",
+    1
+   ],
+   [
+    "detent_model_lifecycle",
+    [],
+    0,
+    "flat",
+    2
+   ],
+   [
+    "detent_model_lifecycle",
+    [],
+    1,
+    "flat",
+    4
+   ],
+   [
+    "detent_model_lifecycle",
+    [
+     "--random"
+    ],
+    3,
+    "flat",
+    2
+   ],
+   [
+    "detent_model_lifecycle",
+    [
+     "--long",
+     "--random"
+    ],
+    0,
+    "std_map",
+    1
+   ],
+   [
+    "detent_model_lifecycle",
+    [
+     "--long",
+     "--random"
+    ],
+    2,
+    "std_map",
+    1
+   ],
+   [
+    "detent_model_lifecycle",
+    [
+     "--long",
+     "--random"
+    ],
+    2,
+    "flat",
+    1
+   ],
+   [
+    "detent_model_lifecycle",
+    [
+     "--long",
+     "--random"
+    ],
+    3,
+    "flat",
+    1
+   ],
+   [
+    "detent_model_lookup",
+    [],
+    1,
+    "btree",
+    2
+   ],
+   [
+    "detent_model_lookup",
+    [],
+    1,
+    "std_map",
+    1
+   ],
+   [
+    "detent_model_lookup",
+    [
+     "--hot"
+    ],
+    1,
+    "std_map",
+    1
+   ],
+   [
+    "detent_model_lookup",
+    [
+     "--long"
+    ],
+    4,
+    "btree",
+    3
+   ],
+   [
+    "detent_model_lookup",
+    [
+     "--long"
+    ],
+    4,
+    "std_map",
+    2
+   ],
+   [
+    "detent_model_lookup",
+    [
+     "--long",
+     "--hot"
+    ],
+    1,
+    "btree",
+    1
+   ],
+   [
+    "detent_model_lookup",
+    [
+     "--long",
+     "--hot"
+    ],
+    2,
+    "flat",
+    1
+   ]
+  ],
+  "all_120_samples_eventually_clean": true,
+  "rejected_files_kept_in": "/Users/gmendezb/code/btree/.scratch/flat-map/pairs-100k/"
+ },
+ "commands": {
+  "configure": "cmake -S flat-wt -B .scratch/build-flat -DCMAKE_BUILD_TYPE=Release -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_BENCHMARKS=ON",
+  "pairs": "quiet exclusive flat-pairs 75 'flat vs std::map model pairs' -- python3 flat-wt/.scratch/flat_pair.py OUT (arms std_map=build-adopt, flat=build-flat, btree=build-base; start arm rotated per pair)",
+  "digests": "detent_model_lifecycle --knobs 2000 [--long --random]",
+  "canonical": "test_snapshot_canonical OUTDIR; cmp"
+ },
+ "binary_sha256": {
+  "std_map": {
+   "detent_model_lifecycle": "fc6107490424f30fc60411bd19d2a63a77418ac055028bae331b2863a2c8eb20",
+   "detent_model_lookup": "c3de7294755c003d44e2b822b20b93bd21cf72e41c46830034a3566b5afbec9f"
+  },
+  "flat": {
+   "detent_model_lifecycle": "f43710ebd0d78a96edd17f5ac5b7f6cda03a2510eb69cfdb405c13d023d48673",
+   "detent_model_lookup": "a08686788bb4a3185211ba327966447884554e2ec83b44e79f302deec961ea42"
+  },
+  "btree": {
+   "detent_model_lifecycle": "489ffb53354c6b5fe3180de996f28c46841ec86e426db7f5d49a92cc8b5609c8",
+   "detent_model_lookup": "69c506d83680f12df6b7f640f2f90db255b23fca944e91609a6b86d44527095a"
+  }
+ },
+ "limits": [
+  "macOS arm64 only; GCC 11/libstdc++ Linux not built, so Linux LeakSanitizer run of test_model_alloc_failure not taken",
+  "ASan hangs at startup on this host (even an empty program), so only UBSan ran on test_flat_map",
+  "lifecycle_bench cleanup stage in the flat arm erases the LAST override (the authority drain shape); std_map and btree arms were built from the older bench that erases begin(); flat also records an erase-begin variant (cleanup_begin_turn_ns)",
+  "prune_half_positional is the positional-erase pathology (not a Detent production operation)",
+  "decoder (state.cc 142/656) grows overrides by doubling; no reserve at count",
+  "diff_snapshots shrink_to_fit after a single pass costs extra requested bytes (transient)",
+  "fleet corpus and 1.3M capacity tier not measured"
+ ]
+}

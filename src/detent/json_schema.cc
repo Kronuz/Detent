@@ -1,4 +1,5 @@
 #include "detent/json_schema.hh"
+#include "detent/flat_map.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/validation.hh"
 
@@ -69,6 +70,12 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 	if (type == "bool") {
 		BoolDef def;
 		bool have_default = false;
+		// Override keys are appended in input order and sorted once. A
+		// duplicate key must still win over every error that comes after its
+		// second occurrence (the one-by-one insertion this replaces rejected
+		// at that point), so the duplicate check runs on every exit below.
+		flat_map_builder<std::string, GroupOverride, std::less<>> override_builder(def.overrides);
+		const auto member_error = [&]() -> std::optional<UpdateError> {
 		for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
 			std::string key(it->name.GetString(), it->name.GetStringLength());
 			if (key == "type") {
@@ -83,6 +90,7 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 				if (!it->value.IsObject()) {
 					return UpdateError{UpdateRejectReason::Schema, "overrides not object: " + name};
 				}
+				override_builder.reserve(override_builder.size() + it->value.MemberCount());
 				for (auto oit = it->value.MemberBegin(); oit != it->value.MemberEnd(); ++oit) {
 					std::string gkey(oit->name.GetString(), oit->name.GetStringLength());
 					if (!is_valid_group_key(gkey)) {
@@ -102,9 +110,8 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 					// within one knob's `overrides` object must reject the
 					// whole input, not silently keep whichever the JSON
 					// parser or this insertion order happened to see last.
-					if (!def.overrides.insert({gkey, value}).second) {
-						return UpdateError{UpdateRejectReason::Schema, "duplicate override key '" + gkey + "' on knob " + name};
-					}
+					// The duplicate is reported by override_builder.finish().
+					override_builder.push(std::move(gkey), value);
 				}
 			} else if (key == "rollout_pct") {
 				if (it->value.IsNull()) {
@@ -129,6 +136,13 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 		if (!have_default) {
 			return UpdateError{UpdateRejectReason::Schema, "bool knob missing required 'default': " + name};
 		}
+		return std::nullopt;
+		}();
+		if (const auto duplicate = override_builder.finish()) {
+			return UpdateError{UpdateRejectReason::Schema,
+			                   "duplicate override key '" + override_builder.entry(*duplicate).first + "' on knob " + name};
+		}
+		if (member_error) return *member_error;
 		return KnobDef{std::move(def)};
 	} else if (type == "int") {
 		IntDef def;
@@ -309,21 +323,35 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	snap.published_at = std::move(published_at);
 	snap.source_id = std::move(source_id);
 
+	// Strict rejection (Section 4): a duplicate knob name must reject the
+	// whole input, not silently keep whichever definition this insertion
+	// order happened to see last -- confirmed previously: two "a:b" entries
+	// parsed successfully with the later one winning. Knobs are appended in
+	// input order and sorted once; the first duplicate in input order is
+	// reported, and it wins over any error found after its second occurrence
+	// (the per-entry insertion this replaces rejected at that point).
+	flat_map_builder<KnobName, KnobDef, std::less<>> builder(snap.knobs);
+	builder.reserve(static_cast<std::size_t>(knobs_value->MemberCount()));
+	const auto duplicate_error = [&]() -> std::optional<SnapResult> {
+		if (const auto duplicate = builder.finish()) {
+			return fail(UpdateRejectReason::Schema, "duplicate knob name: " + builder.entry(*duplicate).first);
+		}
+		return std::nullopt;
+	};
 	for (auto it = knobs_value->MemberBegin(); it != knobs_value->MemberEnd(); ++it) {
 		std::string name(it->name.GetString(), it->name.GetStringLength());
 		if (!is_valid_knob_name(name)) {
+			if (auto duplicate = duplicate_error()) return std::move(*duplicate);
 			return fail(UpdateRejectReason::Schema, "invalid knob name: " + name);
 		}
 		auto def_result = internal::parse_knob_def(it->value, name);
-		if (!def_result) return def_result.error();
-		// Strict rejection (Section 4): a duplicate knob name must reject
-		// the whole input, not silently keep whichever definition this
-		// insertion order happened to see last -- confirmed previously:
-		// two "a:b" entries parsed successfully with the later one winning.
-		if (!snap.knobs.insert({name, std::move(def_result).value()}).second) {
-			return fail(UpdateRejectReason::Schema, "duplicate knob name: " + name);
+		if (!def_result) {
+			if (auto duplicate = duplicate_error()) return std::move(*duplicate);
+			return def_result.error();
 		}
+		builder.push(std::move(name), std::move(def_result).value());
 	}
+	if (auto duplicate = duplicate_error()) return std::move(*duplicate);
 
 	return snap;
 }
@@ -345,10 +373,15 @@ Snapshot merge_over_defaults(const Snapshot& defaults, const Snapshot& live) {
 	merged.version = live.version;
 	merged.published_at = live.published_at;
 	merged.source_id = live.source_id;
-	merged.knobs = defaults.knobs; // start from the baked defaults, whole map
-	for (const auto& [name, def] : live.knobs) {
-		merged.knobs[name] = def; // whole-definition replace, never field-wise
-	}
+	// Linear merge of the two sorted tables: the baked defaults, with every
+	// live definition replacing the whole definition (never field-wise).
+	std::size_t count = 0;
+	flat_map_merge(defaults.knobs, live.knobs, [&](const auto&) { ++count; }, [&](const auto&) { ++count; },
+	               [&](const auto&, const auto&) { ++count; });
+	merged.knobs.reserve(count);
+	flat_map_merge(
+		defaults.knobs, live.knobs, [&](const auto& e) { merged.knobs.emplace(e); },
+		[&](const auto& e) { merged.knobs.emplace(e); }, [&](const auto&, const auto& e) { merged.knobs.emplace(e); });
 	return merged;
 }
 

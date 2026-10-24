@@ -35,7 +35,7 @@ eval -> hash: "only if a rollout applies\nand hash_val is present"
 3. **Load the snapshot.** `SnapshotRef` is an atomic shared pointer; loading it
    is one acquire operation plus a reference-count increment that keeps the
    snapshot alive for the duration of the read.
-4. **Look up the knob** in an immutable `btree::map` with transparent
+4. **Look up the knob** in an immutable sorted `detent::flat_map` with transparent
    comparison, so the `std::string_view` name is used directly without
    building a `std::string`.
 5. **Evaluate** with the [precedence rules](/Detent/reference/evaluation/).
@@ -44,13 +44,12 @@ eval -> hash: "only if a rollout applies\nand hash_val is present"
 
 ---
 
-## Why a B-Tree
+## Why an ordered map
 
-The knob table is an ordered B-tree from
-[cpp-btree](https://github.com/Kronuz/cpp-btree) rather than `std::map` or a
-hash table. Its nodes pack many keys per cache line, lookups touch few cache
-lines, and ordered iteration makes serializing, diffing and merging snapshots
-straightforward on the update side.
+The knob table is a sorted vector, `detent::flat_map`, rather than a tree or
+a hash table. Lookups binary-search one contiguous array, ordered iteration
+makes serializing, diffing and merging snapshots linear passes, and entry
+moves never throw, so a refused allocation leaves a table unchanged.
 
 ---
 
