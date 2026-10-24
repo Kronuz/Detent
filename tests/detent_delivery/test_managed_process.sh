@@ -30,6 +30,7 @@ cleanup() {
         if [[ -n "$process" ]]; then kill "$process" 2>/dev/null || true; wait "$process" 2>/dev/null || true; fi
     done
     if [[ "$result" != 0 ]]; then
+        printf 'Managed fixture exit=%s at line %s\n' "$result" "${1:-unknown}" >&2
         for logfile in "$root"/*.log; do
             [[ -f "$logfile" ]] || continue
             printf '=== %s ===\n' "${logfile##*/}" >&2
@@ -40,7 +41,7 @@ cleanup() {
         rm -rf "$root"
     fi
 }
-trap cleanup EXIT
+trap 'cleanup "$LINENO"' EXIT
 port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 identity='"cluster":"63000000000000000000000000000000","group":"67000000000000000000000000000000","epoch":"65000000000000000000000000000000"'
 writer_token=managed-writer-test-000000000000000000000000

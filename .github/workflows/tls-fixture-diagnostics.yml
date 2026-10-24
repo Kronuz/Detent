@@ -1,10 +1,21 @@
-name: TLS fixture diagnostics
+name: TLS and managed-process diagnostics
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Diagnostic profile
+        type: choice
+        options: [certificates, managed]
+        default: certificates
+      repetitions:
+        description: Managed-process repetitions (1 to 1000)
+        type: number
+        default: 100
 permissions:
   contents: read
 jobs:
   certificates:
+    if: inputs.mode == 'certificates'
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -38,3 +49,30 @@ jobs:
           path: |
             build/tests/detent_authority/tls-fixture/*.pem
             build/tests/detent_delivery/tls-fixture/*.pem
+  managed:
+    if: inputs.mode == 'managed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CC: clang-18
+      CXX: clang++-18
+      REPETITIONS: ${{ inputs.repetitions }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure the managed-process profile
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g' \
+            '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g' \
+            -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON \
+            -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
+      - name: Build the real service and reader binaries
+        run: cmake --build build --parallel 4 --target detentd detent-agent detent
+      - name: Generate certificates
+        run: ctest --test-dir build --output-on-failure -R '^authority_tls_certificates$'
+      - name: Repeat managed delivery through restart and reset
+        run: |
+          [[ "$REPETITIONS" =~ ^[0-9]+$ ]] && (( REPETITIONS >= 1 && REPETITIONS <= 1000 ))
+          ctest --test-dir build --output-on-failure --no-tests=error \
+            -R '^test_managed_delivery_process$' -FA authority_tls \
+            --repeat "until-fail:$REPETITIONS"
