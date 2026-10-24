@@ -154,18 +154,25 @@ void sweep(const char* op, unsigned max_n) {
 								budget = -1;
 								want.erase(victim);
 							} else if (!std::strcmp(op, "assign")) {
-								// Basic guarantee: a refused assignment leaves a valid, sorted target.
+								// Strong guarantee: a refused assignment leaves the target unchanged.
+								// Its keys sort before every source key, so a partial overwrite
+								// (source prefix, old tail) would be out of order.
+								budget = -1;
 								Map target;
-								for (unsigned i = 0; i < n + 2; ++i)
-									target.try_emplace(key(i * 4 + 2), make<V>(i));
+								for (unsigned i = 0; i < n + 2; ++i) {
+									auto name = key(i * 4 + 2);
+									name[0] = 'a';
+									target.try_emplace(std::move(name), make<V>(i));
+								}
+								const std::vector<std::pair<std::string, V>> before(target.begin(), target.end());
+								budget = b;
 								try {
 									target = m;
 								} catch (const std::bad_alloc&) {
 									budget = -1;
-									if (!std::is_sorted(target.begin(), target.end(),
-														[](const auto& l, const auto& r) { return l.first < r.first; }) ||
-										static_cast<std::size_t>(std::distance(target.begin(), target.end())) != target.size())
-										fail("assigned target invalid", op, n, b);
+									if (!std::equal(target.begin(), target.end(), before.begin(), before.end(),
+													[](const auto& l, const auto& r) { return l.first == r.first && l.second == r.second; }))
+										fail("refused assignment changed the target", op, n, b);
 									throw;
 								}
 								budget = -1;

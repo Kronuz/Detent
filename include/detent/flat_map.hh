@@ -16,7 +16,12 @@
 //     erase_if (one linear pass); erasing in a loop is O(n^2).
 //   * Moves of value_type never throw (static_assert below), so shifting and
 //     erase never allocate or throw, and vector insertion keeps the strong
-//     guarantee: a refused allocation leaves the map unchanged.
+//     guarantee: a refused allocation leaves the map unchanged. Copy
+//     assignment copies first and then swaps, so a failed copy also leaves
+//     the target unchanged; an element-wise vector assignment would leave a
+//     source prefix in front of the old tail, out of order.
+//   * erase_if's predicate must not throw; erase_if is noexcept, so a
+//     throwing predicate terminates instead of leaving shifted keys unsorted.
 //
 // This is std::flat_map's shape reduced to what Detent uses; <flat_map> is
 // not available in every supported standard library.
@@ -65,6 +70,16 @@ public:
 
 	flat_map() = default;
 	explicit flat_map(const Compare& comp) : comp_(comp) {}
+	flat_map(const flat_map&) = default;
+	flat_map(flat_map&&) noexcept = default;
+	flat_map& operator=(flat_map&&) noexcept = default;
+	flat_map& operator=(const flat_map& other) {
+		if (this != &other) {
+			flat_map copy(other);
+			swap(copy);
+		}
+		return *this;
+	}
 
 	[[nodiscard]] iterator begin() noexcept { return v_.begin(); }
 	[[nodiscard]] const_iterator begin() const noexcept { return v_.begin(); }
@@ -193,7 +208,7 @@ public:
 	[[nodiscard]] friend bool operator==(const flat_map& a, const flat_map& b) { return a.v_ == b.v_; }
 
 	template <class Pred>
-	friend size_type erase_if(flat_map& map, Pred pred) {
+	friend size_type erase_if(flat_map& map, Pred pred) noexcept {
 		const auto first = std::remove_if(map.v_.begin(), map.v_.end(), pred);
 		const auto removed = static_cast<size_type>(map.v_.end() - first);
 		map.v_.erase(first, map.v_.end());

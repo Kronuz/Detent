@@ -5,6 +5,7 @@
 #include <iterator>
 #include <map>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -206,6 +207,52 @@ void builder_reserve_is_geometric() {
 	CHECK(map.size() == 100000 && std::is_sorted(map.begin(), map.end(), [](const auto& l, const auto& r) { return l.first < r.first; }));
 }
 
+// Copies throw once a shared countdown reaches zero; moves never throw.
+struct Fragile {
+	static inline int copies_left = -1;
+	int value = 0;
+	explicit Fragile(int v) : value(v) {}
+	Fragile(const Fragile& other) : value(other.value) { tick(); }
+	Fragile& operator=(const Fragile& other) {
+		tick();
+		value = other.value;
+		return *this;
+	}
+	Fragile(Fragile&&) noexcept = default;
+	Fragile& operator=(Fragile&&) noexcept = default;
+	bool operator==(const Fragile&) const = default;
+	static void tick() {
+		if (copies_left == 0)
+			throw std::runtime_error("copy refused");
+		if (copies_left > 0)
+			--copies_left;
+	}
+};
+
+// A failed copy assignment leaves the target unchanged. The target's keys sort
+// before the source's, so a source prefix over the old tail would be unsorted.
+void copy_assignment_is_strong() {
+	detent::flat_map<std::string, Fragile> source, target;
+	for (int i = 0; i < 8; ++i) {
+		source.try_emplace("k" + std::to_string(i), i);
+		target.try_emplace("a" + std::to_string(i), 100 + i);
+	}
+	for (int refuse_at = 0; refuse_at < 8; ++refuse_at) {
+		const auto before = target;
+		Fragile::copies_left = refuse_at;
+		bool threw = false;
+		try {
+			target = source;
+		} catch (const std::runtime_error&) {
+			threw = true;
+		}
+		Fragile::copies_left = -1;
+		CHECK(threw && target == before);
+	}
+	target = source;
+	CHECK(target == source);
+}
+
 void bulk_erase() {
 	detent::flat_map<std::string, int> map;
 	for (int i = 0; i < 1000; ++i)
@@ -228,6 +275,7 @@ int main() {
 	builder();
 	merge();
 	bulk_erase();
+	copy_assignment_is_strong();
 	builder_reserve_is_geometric();
 	std::puts("PASS flat_map");
 	return 0;
