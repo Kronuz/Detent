@@ -17,6 +17,8 @@ jobs:
       # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), and Clang ASan/UBSan with LeakSanitizer.
       cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_BENCHMARKS=OFF
       asan_cxx_flags: -O1
+      # Detent needs std::jthread; the runners' Apple libc++ does not provide it.
+      macos_llvm: true
       asan_timeout_minutes: 120
       freebsd: false
       tsan: false
