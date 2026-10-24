@@ -1,6 +1,6 @@
 """Alternate two builds' model benchmarks: five pairs per workload, interference-guarded.
 
-Usage: container_pair.py OUTPUT_DIR NAME=BENCHMARK_DIR NAME=BENCHMARK_DIR
+Usage: container_pair.py OUTPUT_DIR NAME=BENCHMARK_DIR NAME=BENCHMARK_DIR [NAME=BENCHMARK_DIR ...]
 Set KNOBS=N for a dry run size and DRY=1 to skip the interference guard.
 """
 
@@ -64,7 +64,7 @@ def guarded(cmd: list[str], out: Path, label: str) -> tuple[str, int]:
 
 def main() -> None:
     out = Path(sys.argv[1])
-    for spec in sys.argv[2:4]:
+    for spec in sys.argv[2:]:
         name, directory = spec.split("=", 1)
         ARMS[name] = Path(directory).resolve()
     out.mkdir(parents=True, exist_ok=False)
