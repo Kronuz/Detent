@@ -11,7 +11,7 @@
 | Scaling architecture | Release-scale qualification rejected | SC-1 relay full-snapshot rebuilding; SC-2/3 segment and compaction costs; see review |
 | Relay snapshot lifecycle | Integrated; functional and scoped sanitizer gates pass | 219/219 candidate product tests; delayed raw/compressed TLS tests; ASan/UBSan; sustained capacity envelope remains open |
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
-| Btree/container selection | `std::map` adopted on branch | Actual-type failure tests and 100K lifecycle pairs recorded; flat-map and repaired-btree alternatives under evaluation |
+| Btree/container selection | `detent::flat_map` adopted on branch | Actual-type failure tests and three-way 100K lifecycle pairs (flat map, repaired btree, `std::map`) recorded; Linux sanitizer qualification pending |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.

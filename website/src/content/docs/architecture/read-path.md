@@ -35,7 +35,7 @@ eval -> hash: "only if a rollout applies\nand hash_val is present"
 3. **Load the snapshot.** `SnapshotRef` is an atomic shared pointer; loading it
    is one acquire operation plus a reference-count increment that keeps the
    snapshot alive for the duration of the read.
-4. **Look up the knob** in an immutable `std::map` with transparent
+4. **Look up the knob** in an immutable sorted `detent::flat_map` with transparent
    comparison, so the `std::string_view` name is used directly without
    building a `std::string`.
 5. **Evaluate** with the [precedence rules](/Detent/reference/evaluation/).
@@ -46,10 +46,10 @@ eval -> hash: "only if a rollout applies\nand hash_val is present"
 
 ## Why an ordered map
 
-The knob table is a `std::map` rather than a hash table. Ordered iteration
-makes serializing, diffing and merging snapshots straightforward on the
-update side, and its node operations never allocate while rebalancing, so a
-refused allocation cannot corrupt a table under construction.
+The knob table is a sorted vector, `detent::flat_map`, rather than a tree or
+a hash table. Lookups binary-search one contiguous array, ordered iteration
+makes serializing, diffing and merging snapshots linear passes, and entry
+moves never throw, so a refused allocation leaves a table unchanged.
 
 ---
 

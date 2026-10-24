@@ -10,4 +10,4 @@ A clean native macOS configure fetches 31 dependency trees from public repositor
 
 Developer overrides remain available through CMake's `FETCHCONTENT_SOURCE_DIR_*` variables. They override the manifest and can point at changing sibling work. Use immutable archives or detached checkouts for qualification. The system runner records actual Git revisions and content fingerprints rather than assuming an override matches the declared revision. Its build-source fingerprint distinguishes a copied source snapshot from an enclosing Git repository.
 
-Detent no longer depends on cpp-btree. The model tables use `std::map`; see [Container selection](CONTAINER_SELECTION_ARCHITECTURE.md#decision-october-23).
+Detent no longer depends on cpp-btree. The model tables use Detent's own sorted-vector `detent::flat_map` (`include/detent/flat_map.hh`); see [Container selection](CONTAINER_SELECTION_ARCHITECTURE.md#decision-october-23).

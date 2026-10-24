@@ -1,6 +1,6 @@
 # Btree release risk evaluation
 
-**Date:** 2026-10-21. **Status:** Resolved 2026-10-23 by adopting `std::map`; see [Container selection](CONTAINER_SELECTION_ARCHITECTURE.md#decision-october-23).
+**Date:** 2026-10-21. **Status:** Resolved 2026-10-24 by adopting `detent::flat_map`; see [Container selection](CONTAINER_SELECTION_ARCHITECTURE.md#decision-october-23).
 
 ## Decision
 
@@ -20,7 +20,7 @@ Keep the separately reproduced first-insertion and copy correctness repairs. Rej
 
 ## Warning for the current production pin
 
-The `std::map` adoption removes this pin from Detent; the rest of this section describes the btree pin it replaces.
+The container adoption removes this pin from Detent; the rest of this section describes the btree pin it replaces.
 
 Detent now pins `cbc3576`, including the independent range, comparator, first-root, copy, compact-root growth, nonfull size-accounting and prepared nonfull-insertion repairs, after 207/207 product tests and the seven-job hosted library matrix pass. The reproduced compact-growth publication leak is closed; other const-key mutation and failure-safety findings remain open. Successful native or sanitizer runs do not establish that modifying an actually const key is defined behavior. Treat this as an open production-qualification issue, not a claim of a demonstrated external exploit or observed successful-operation data corruption.
 

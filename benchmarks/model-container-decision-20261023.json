@@ -1,6 +1,6 @@
 {
   "date": "2026-10-23",
-  "decision": "Adopt std::map (std::less<>) for Snapshot::knobs, SnapshotPatch::knobs, BoolDef::overrides and OverrideTable::values; remove the direct cpp_btree dependency. Hash index and further btree structural repair are not selected.",
+  "decision": "Superseded 2026-10-24: adopt detent::flat_map for the four model tables (see model-container-three-way-20261024.json). This record keeps the std::map step's evidence against btree 25f9494.",
   "application_base": "80d4071 (btree arm: FETCHCONTENT_SOURCE_DIR_CPP_BTREE at 25f9494); std::map arm: this branch",
   "btree_revisions": {
     "production_pin": "cbc35762bc4a98ad91361be29d05f0ae715a1339",

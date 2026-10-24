@@ -150,7 +150,7 @@ using GroupOverride = std::variant<bool, GroupRollout>;
 
 struct BoolDef {
     bool default_value = false;
-    std::map<std::string, GroupOverride, std::less<>> overrides;
+    flat_map<std::string, GroupOverride, std::less<>> overrides;
     std::optional<std::uint8_t> rollout_pct;
 };
 
@@ -162,7 +162,7 @@ struct Snapshot {
     std::uint64_t version = 0;
     std::optional<std::string> published_at;
     std::string source_id;
-    std::map<KnobName, KnobDef, std::less<>> knobs;
+    flat_map<KnobName, KnobDef, std::less<>> knobs;
 };
 ```
 

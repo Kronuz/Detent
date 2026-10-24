@@ -1,6 +1,6 @@
 # Model containers: validated decision blueprint
 
-**Date:** 2026-10-22. **Status:** Decided 2026-10-23: `std::map` for all four fields. Further btree structural implementation stays on hold.
+**Date:** 2026-10-22. **Status:** Decided 2026-10-24: `detent::flat_map` for all four fields.
 
 ## Decision scope
 
@@ -61,3 +61,20 @@ The [decision record](../benchmarks/model-container-decision-20261023.json) sele
 5. **Compatibility.** Public field types, layouts and iterators change; rebuild every C++ consumer together. Wire and durable bytes are unchanged by construction.
 
 Remaining before release: allocation-denied authority cleanup, the 1.3M capacity tier, and the comparison with a flat sorted map and a btree repaired to relocate by move. Canonical JSON and shared-memory bytes match; cleanup turns allocate nothing on `std::map`.
+
+## Decision, October 24
+
+The [three-way comparison](../benchmarks/model-container-three-way-20261024.json) selects Detent's own sorted-vector `detent::flat_map` over `std::map` and over btree repaired to relocate by move. All arms produce identical output digests, lookup checksums and canonical bytes.
+
+| 100K knobs, three overrides | flat_map | repaired btree | std::map |
+| --- | --- | --- | --- |
+| Live heap, short / maximum names (MB) | 14.4 / 65.8 | 17.0 / 68.4 | 24.8 / 76.2 |
+| Lifecycle CPU, ordered short (ms) | 112 | 142 | 221 |
+| Lifecycle CPU, random maximum names (ms) | 477 | 542 | 601 |
+
+1. **Safety by construction.** Entry moves cannot throw (`static_assert`), so insertion keeps the strong guarantee and erase never allocates. The four authority drains erase the last override, which is O(1).
+2. **Linear bulk paths.** Parsing appends and sorts once while reporting the same first duplicate in input order. Patch application, diff, composition and default merging are single merges; part of their speed-up is that algorithm, not the container.
+3. **Costs.** Any insert or erase invalidates every iterator. Keys are not const; callers must not modify them. Erasing one entry at a time in a loop is quadratic; use `erase_if`.
+4. **Compatibility.** The four public field types change again, with new iterator types and invalidation rules. Rebuild every C++ consumer. Wire and durable bytes are unchanged.
+
+The btree repair is a library decision, independent of this selection.

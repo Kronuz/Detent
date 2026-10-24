@@ -186,11 +186,9 @@ int main(int argc, char** argv) {
 		auto composed = measure("compose_patches", [&] { return detent::compose_patches(patch.value(), diff); });
 		coexisting_live = live - base;
 		auto published = measure("transfer_snapshot", [&] { return detent::Snapshot(std::move(applied).value()); });
-		measure("prune_half_positional", [&] {
-			for (auto it = copy.knobs.begin(); it != copy.knobs.end();) {
-				it = copy.knobs.erase(it);
-				if (it != copy.knobs.end()) ++it;
-			}
+		measure("prune_half_erase_if", [&] {
+			std::size_t index = 0;
+			erase_if(copy.knobs, [&](const auto&) { return index++ % 2 == 0; });
 		});
 		std::size_t hits = 0;
 		std::vector<std::string> probes;
