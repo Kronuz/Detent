@@ -707,7 +707,7 @@ bool CommandDecoder::discard(CommandWorkBudget &budget) {
 				while (!value->overrides.empty()) {
 					if (!Impl::claim(budget, 512))
 						return false;
-					value->overrides.erase(value->overrides.begin());
+					value->overrides.erase(std::prev(value->overrides.end())); // last element: no shift
 				}
 			}
 		}
@@ -785,7 +785,7 @@ std::size_t detail::collect_definition(DeferredValues<KnobDef> &arena, CommandWo
 		if (auto flag = std::get_if<BoolDef>(&value); flag && !flag->overrides.empty()) {
 			if (budget.bytes < 512)
 				return false;
-			flag->overrides.erase(flag->overrides.begin());
+			flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
 			budget.bytes -= 512;
 			--budget.receipts;
 			return false;
@@ -1078,7 +1078,7 @@ bool dispose_command(Command &command, CommandWorkBudget &budget) noexcept {
 					return false;
 				--budget.receipts;
 				budget.bytes -= 512;
-				flag->overrides.erase(flag->overrides.begin());
+				flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
 				continue;
 			}
 		if (!budget.receipts || budget.bytes < 1024)
@@ -1241,7 +1241,7 @@ struct CommandApplication::Impl {
 				if (auto flag = std::get_if<BoolDef>(&*op.value); flag && !flag->overrides.empty()) {
 					if (!retirement(b))
 						return false;
-					flag->overrides.erase(flag->overrides.begin());
+					flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
 					continue;
 				}
 			if (!retirement(b, 1024))

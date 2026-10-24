@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <ctime>
 #include <new>
 #include <numeric>
@@ -210,26 +211,35 @@ int main(int argc, char** argv) {
 
 	const std::size_t model_residue = live - base;
 
-	// Worst cleanup turn: erase(begin()) on one definition at the 256-override limit.
-	std::vector<std::uint64_t> turns;
-	turns.reserve(std::size_t(cleanup_reps) * 256);
-	std::size_t cleanup_allocs = 0;
-	for (unsigned rep = 0; rep < cleanup_reps; ++rep) {
-		detent::BoolDef def;
-		std::vector<unsigned> groups(256);
-		std::iota(groups.begin(), groups.end(), 0u);
-		std::shuffle(groups.begin(), groups.end(), std::mt19937(rep));
-		for (auto g : groups) def.overrides.try_emplace(group(g), detent::GroupOverride(bool(g & 1)));
-		const auto a0 = allocations;
-		while (!def.overrides.empty()) {
-			const auto t0 = std::chrono::steady_clock::now();
-			def.overrides.erase(def.overrides.begin());
-			turns.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
+	// Worst cleanup turn: one erase of an override on a definition at the
+	// 256-override limit. The authority drains erase the LAST override
+	// (O(1) on every container); the begin variant is recorded as well, since
+	// it shifts the whole tail on a contiguous container.
+	auto drain = [&](bool from_begin, std::size_t& allocs_out) {
+		std::vector<std::uint64_t> out;
+		out.reserve(std::size_t(cleanup_reps) * 256);
+		for (unsigned rep = 0; rep < cleanup_reps; ++rep) {
+			detent::BoolDef def;
+			std::vector<unsigned> groups(256);
+			std::iota(groups.begin(), groups.end(), 0u);
+			std::shuffle(groups.begin(), groups.end(), std::mt19937(rep));
+			for (auto g : groups) def.overrides.try_emplace(group(g), detent::GroupOverride(bool(g & 1)));
+			const auto a0 = allocations;
+			while (!def.overrides.empty()) {
+				const auto t0 = std::chrono::steady_clock::now();
+				def.overrides.erase(from_begin ? def.overrides.begin() : std::prev(def.overrides.end()));
+				out.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - t0).count());
+			}
+			allocs_out += allocations - a0;
 		}
-		cleanup_allocs += allocations - a0;
-	}
-	std::sort(turns.begin(), turns.end());
+		std::sort(out.begin(), out.end());
+		return out;
+	};
+	std::size_t cleanup_allocs = 0, cleanup_begin_allocs = 0;
+	auto turns = drain(false, cleanup_allocs);
+	auto begin_turns = drain(true, cleanup_begin_allocs);
 	auto pct = [&](double p) { return turns[std::min(turns.size() - 1, std::size_t(p * turns.size()))]; };
+	auto begin_pct = [&](double p) { return begin_turns[std::min(begin_turns.size() - 1, std::size_t(p * begin_turns.size()))]; };
 
 	std::printf("{\"knobs\":%u,\"long_names\":%s,\"random\":%s,\"snapshot_object_bytes\":%zu,\"definition_object_bytes\":%zu,",
 				count, long_names ? "true" : "false", random ? "true" : "false", sizeof(detent::Snapshot), sizeof(detent::BoolDef));
@@ -242,8 +252,9 @@ int main(int argc, char** argv) {
 		std::printf("%s\"%s\":{\"cpu_ms\":%.3f,\"allocations\":%zu,\"requested_bytes\":%zu,\"peak_delta_bytes\":%zu,\"retained_delta_bytes\":%lld}",
 					i ? "," : "", s.name, s.cpu, s.allocs, s.bytes, s.peak_delta, s.retained_delta);
 	}
-	std::printf("},\"cleanup_turn_ns\":{\"samples\":%zu,\"allocations\":%zu,\"p50\":%llu,\"p99\":%llu,\"p999\":%llu,\"max\":%llu},\"model_residue_bytes\":%zu}\n",
+	std::printf("},\"cleanup_turn_ns\":{\"samples\":%zu,\"allocations\":%zu,\"p50\":%llu,\"p99\":%llu,\"p999\":%llu,\"max\":%llu},\"cleanup_begin_turn_ns\":{\"allocations\":%zu,\"p50\":%llu,\"p99\":%llu,\"max\":%llu},\"model_residue_bytes\":%zu}\n",
 				turns.size(), cleanup_allocs, (unsigned long long)pct(0.5), (unsigned long long)pct(0.99), (unsigned long long)pct(0.999),
-				(unsigned long long)turns.back(), model_residue);
+				(unsigned long long)turns.back(), cleanup_begin_allocs, (unsigned long long)begin_pct(0.5),
+				(unsigned long long)begin_pct(0.99), (unsigned long long)begin_turns.back(), model_residue);
 	return 0;
 }

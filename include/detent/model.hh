@@ -5,7 +5,7 @@
 // instant. Both are FILLED BLANK per the spec -- the shape is a clone choice,
 // not a claim about Meta's private representation.
 
-#include <map>
+#include "detent/flat_map.hh"
 
 #include <cstdint>
 #include <optional>
@@ -24,7 +24,7 @@ using GroupOverride = std::variant<bool, GroupRollout>;
 
 struct BoolDef {
 	bool default_value = false;
-	std::map<std::string, GroupOverride, std::less<>> overrides;   // group key -> forced value or percentage
+	flat_map<std::string, GroupOverride, std::less<>> overrides;   // group key -> forced value or percentage
 	std::optional<std::uint8_t> rollout_pct;   // inclusive 0..100
 
 	[[nodiscard]] bool operator==(const BoolDef&) const = default;
@@ -52,7 +52,7 @@ struct Snapshot {
 	std::uint64_t version = 0;              // 0 == baked-default startup snapshot
 	std::optional<std::string> published_at; // RFC 3339 UTC, source-provided
 	std::string source_id;                   // "defaults", "file:<path>", ...
-	std::map<KnobName, KnobDef, std::less<>> knobs;
+	flat_map<KnobName, KnobDef, std::less<>> knobs;
 
 	[[nodiscard]] std::size_t bool_count() const noexcept {
 		std::size_t n = 0;
@@ -79,7 +79,7 @@ struct Snapshot {
 // shape either direction.
 struct SnapshotPatch {
 	std::uint64_t version = 0;
-	std::map<KnobName, std::optional<KnobDef>, std::less<>> knobs;
+	flat_map<KnobName, std::optional<KnobDef>, std::less<>> knobs;
 };
 
 } // namespace detent

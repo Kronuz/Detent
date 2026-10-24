@@ -7,7 +7,7 @@
 
 #include "detent/result.hh"
 
-#include <map>
+#include "detent/flat_map.hh"
 
 #include <cstdint>
 #include <string>
@@ -19,7 +19,7 @@ namespace detent {
 using OverrideValue = std::variant<bool, std::int64_t>;
 
 struct OverrideTable {
-	std::map<std::string, OverrideValue, std::less<>> values;
+	flat_map<std::string, OverrideValue, std::less<>> values;
 };
 
 // Parses repeatable "name=value" pairs (the part after "--just-knob "; CLI
