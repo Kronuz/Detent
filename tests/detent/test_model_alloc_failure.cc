@@ -153,6 +153,23 @@ void sweep(const char* op, unsigned max_n) {
 								m.erase(victim->first);
 								budget = -1;
 								want.erase(victim);
+							} else if (!std::strcmp(op, "assign")) {
+								// Basic guarantee: a refused assignment leaves a valid, sorted target.
+								Map target;
+								for (unsigned i = 0; i < n + 2; ++i)
+									target.try_emplace(key(i * 4 + 2), make<V>(i));
+								try {
+									target = m;
+								} catch (const std::bad_alloc&) {
+									budget = -1;
+									if (!std::is_sorted(target.begin(), target.end(),
+														[](const auto& l, const auto& r) { return l.first < r.first; }) ||
+										static_cast<std::size_t>(std::distance(target.begin(), target.end())) != target.size())
+										fail("assigned target invalid", op, n, b);
+									throw;
+								}
+								budget = -1;
+								verify(target, want, op, n, b);
 							} else {
 								Map copy(m);
 								budget = -1;
@@ -176,7 +193,7 @@ void sweep(const char* op, unsigned max_n) {
 
 template <class Map>
 void sweep_all(unsigned max_n) {
-	for (const char* op : {"insert", "erase", "copy"})
+	for (const char* op : {"insert", "erase", "copy", "assign"})
 		sweep<Map>(op, max_n);
 }
 
