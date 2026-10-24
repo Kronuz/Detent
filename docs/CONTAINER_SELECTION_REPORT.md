@@ -175,3 +175,5 @@ The encoded-update check reproduces locally on repetition 402: 672 expected byte
 ### Remaining real-process gate
 
 Run `40121767475` completes with five passing jobs: GCC x86/ARM, macOS x86/ARM and ASan/UBSan/LSan. Clang fails `test_managed_delivery_process` in 1.38 seconds. The log shows local selection and drainage but omits the failed assertion and credential/reset child logs. This failure remains open. Focused [run 40123378242](https://github.com/Kronuz/Detent/actions/runs/40123378242) at `dd6b0eb` adds bounded diagnostics and repeats that scenario without rebuilding every test executable. It does not cancel or replace the complete matrix.
+
+The first two focused attempts (`40123378242`, `40124032221`) fail because the diagnostic builds the core `detent` target instead of the `detent-reader` executable target. Their missing-reader failures do not reproduce or explain the original Clang assertion. Revision `903b3dc` builds and checks the executable; corrected [run 40124534586](https://github.com/Kronuz/Detent/actions/runs/40124534586) is pending.
