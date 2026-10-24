@@ -156,7 +156,7 @@ The full 224-case run identifies source `07a8a41`; final affected checks identif
 
 ## Hosted qualification follow-up
 
-[Run 40117311416](https://github.com/Kronuz/Detent/actions/runs/40117311416), source `6bf4e96`, passes Linux Clang x86 and macOS ARM. Linux GCC x86 fails with `bind: Address already in use` in the legacy Raft fixture. GCC ARM times out in 500K migration after 300 seconds; ASan/UBSan times out in selected-sink cancellation after 90 seconds. macOS x86 remains pending. These failures remain qualification blockers.
+[Run 40117311416](https://github.com/Kronuz/Detent/actions/runs/40117311416), source `6bf4e96`, passes Linux Clang x86 and macOS ARM. Linux GCC x86 fails with `bind: Address already in use` in the legacy Raft fixture. GCC ARM times out in 500K migration after 300 seconds; ASan/UBSan times out in selected-sink cancellation after 90 seconds. macOS x86 fails the 500K relay HTTP fixture at its 60-second publication deadline, with missing durable feedback. These failures remain qualification blockers.
 
 The Raft fixture now reserves OS-selected TCP ports until listener startup and binds the advertised peer endpoint. Ten repeated local cluster runs pass in 45.20 seconds. The original fixture selected an unrelated random listener port after configuring its advertised address. The reservation-to-listener handoff still requires closing the reservation because the HTTP service does not accept an existing acceptor.
 
