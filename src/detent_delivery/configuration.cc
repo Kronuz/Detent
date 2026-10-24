@@ -1,5 +1,6 @@
 #include "detent_delivery/configuration.hh"
 #include "detent/identity.hh"
+#include "detent/config_trust_internal.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
 #include "source_selection.hh"
@@ -65,7 +66,8 @@ std::string read_private_configuration(const std::filesystem::path &configuratio
 	struct stat info{};
 	require(file.descriptor >= 0 && ::fstat(file.descriptor, &info) == 0 && S_ISREG(info.st_mode) &&
 				(info.st_uid == 0 || info.st_uid == ::geteuid()) && info.st_nlink == 1 &&
-				!(info.st_mode & 0027) && info.st_size > 0 && info.st_size <= 1024 * 1024,
+				!(info.st_mode & 0027) && detent::internal::mode_only_acl(file.descriptor) &&
+				info.st_size > 0 && info.st_size <= 1024 * 1024,
 			"managed credential configuration ownership, permissions or size");
 	std::string bytes(static_cast<std::size_t>(info.st_size), '\0');
 	std::size_t offset = 0;
@@ -82,6 +84,8 @@ std::string read_private_configuration(const std::filesystem::path &configuratio
 		remaining = ::read(file.descriptor, &extra, 1);
 	} while (remaining < 0 && errno == EINTR);
 	require(remaining == 0, "managed configuration changed while reading");
+	require(detent::internal::mode_only_acl(file.descriptor),
+			"managed credential configuration ACL changed while reading");
 	return bytes;
 }
 

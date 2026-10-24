@@ -1,6 +1,7 @@
 #include "config.hh"
 
 #include "detent/json_schema_internal.hh"
+#include "detent/config_trust_internal.hh"
 #include <rapidjson/document.h>
 
 #include <algorithm>
@@ -133,7 +134,8 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 	}
 	bytes.resize(used);
 	if (bytes.size() > 64 * 1024) fail("file exceeds 64 KiB");
-	const bool trusted = no_symlink && inspected && ::fstat(file.fd, &after) == 0 &&
+	const bool trusted = no_symlink && inspected && detent::internal::mode_only_acl(file.fd) &&
+		::fstat(file.fd, &after) == 0 && detent::internal::mode_only_acl(file.fd) &&
 		S_ISREG(before.st_mode) && (before.st_uid == 0 || before.st_uid == ::geteuid()) &&
 		!(before.st_mode & 0022) && !(after.st_mode & 0022) &&
 		after.st_uid == before.st_uid && before.st_size == after.st_size &&

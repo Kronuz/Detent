@@ -3,6 +3,10 @@
 #include <cassert>
 #include <fstream>
 #include <sys/stat.h>
+#ifdef __APPLE__
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 using detent_agent::ReaderCapacity;
 static_assert(!std::is_move_constructible_v<ReaderCapacity>);
@@ -40,6 +44,29 @@ int main(int argc, char **argv) {
 	assert(heap->used() == 0 && mapping->used() == 0);
 	assert(::chmod(path.c_str(), 0664) == 0);
 	refused(load);
+#ifdef __APPLE__
+	write(R"({"reader_records":1})");
+	const auto child = ::fork();
+	assert(child >= 0);
+	if (child == 0) {
+		::execlp("chmod", "chmod", "+a", "everyone allow write", path.c_str(), nullptr);
+		::_exit(127);
+	}
+	int status = 0;
+	assert(::waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+	struct stat acl_file{};
+	assert(::stat(path.c_str(), &acl_file) == 0 && (acl_file.st_mode & 0777) == 0644);
+	refused(load);
+	write(R"({"poll_interval_ms":10})");
+	assert(load().at("--poll-interval-ms") == "10");
+	const auto cleanup = ::fork();
+	assert(cleanup >= 0);
+	if (cleanup == 0) {
+		::execlp("chmod", "chmod", "-N", path.c_str(), nullptr);
+		::_exit(127);
+	}
+	assert(::waitpid(cleanup, &status, 0) == cleanup && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+#endif
 	write(R"({"reader_records":1,"reader_records":2})"); refused(load);
 	write(R"({"reader_heap_bytes":18446744073709551616})"); refused(load);
 	write(R"({"reader_overrides":0})"); assert(load().at("--reader-overrides") == "0");

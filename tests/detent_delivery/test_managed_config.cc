@@ -12,6 +12,24 @@ void check(bool value) {
 	if (!value)
 		throw std::runtime_error("managed configuration invariant");
 }
+#ifdef __APPLE__
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+void chmod_acl(const std::filesystem::path &path, const char *operation, const char *rule = nullptr) {
+	const auto child = ::fork();
+	check(child >= 0);
+	if (child == 0) {
+		if (rule)
+			::execlp("chmod", "chmod", operation, rule, path.c_str(), nullptr);
+		else
+			::execlp("chmod", "chmod", operation, path.c_str(), nullptr);
+		::_exit(127);
+	}
+	int status = 0;
+	check(::waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+}
+#endif
 int main(int argc, char **argv) {
 	try {
 		check(argc == 2);
@@ -63,6 +81,14 @@ int main(int argc, char **argv) {
 			}
 			check(failed);
 		};
+#ifdef __APPLE__
+		chmod_acl(configuration, "+a", "everyone allow write");
+		struct stat acl_file{};
+		check(::stat(configuration.c_str(), &acl_file) == 0 && (acl_file.st_mode & 0777) == 0600);
+		rejected();
+		chmod_acl(configuration, "-N");
+		check(load().principal == "reader");
+#endif
 		{
 			rapidjson::Document capacity;
 			capacity.Parse(R"({"records":5000000,"wire_bytes":536870912,"image_bytes":536870912,

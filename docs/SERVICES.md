@@ -87,4 +87,4 @@ Relay durable roots require service ownership and mode `0700`, and their artifac
 
 ### Reader capacity and service credentials
 
-Applications and service status checks use the public `agent.json` reader settings described in [usage](USAGE.md#managed-reader-capacity). Configure `reader_records`, image bounds and reader heap/mapping budgets for the admitted deployment size; the private daemon capacity does not automatically authorize a reader increase. A root-owned, non-writable-by-others `0644` public file is valid. Keep TLS material and tokens in the existing private managed configuration.
+Applications and service status checks use the public `agent.json` reader settings described in [usage](USAGE.md#managed-reader-capacity). Configure `reader_records`, image bounds and reader heap/mapping budgets for the admitted deployment size; the private daemon capacity does not automatically authorize a reader increase. A root-owned `0644` public file is valid when its ACL does not add access rules. Keep TLS material and tokens in the existing private managed configuration.
