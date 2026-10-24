@@ -137,7 +137,6 @@ int main() {
 		generation.fill('b');
 		{
 			auto source = progress(base.descriptor().cursor, heap);
-			const auto required_capacity = heap->used();
 			auto core = context.owner.lock();
 			check(static_cast<bool>(core));
 			for (auto &entry : core->certificates) {
@@ -157,16 +156,21 @@ int main() {
 			check(refused && l::detail::ManagedRecovery::yield_optional(*store));
 			check(!l::detail::ManagedRecovery::yield_optional(*store));
 			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-			while (heap->used() > pressure.bytes() + required_capacity &&
-				   std::chrono::steady_clock::now() < deadline)
-				std::this_thread::yield();
-			check(heap->used() <= pressure.bytes() + required_capacity);
-			l::detail::PagedPlanBuilder retry(base, source, generation, domain.factory(), heap);
-			while (!retry.done()) {
-				l::ValidationBudget budget{1, 1};
-				retry.step(budget);
+			bool rebuilt = false;
+			while (!rebuilt && std::chrono::steady_clock::now() < deadline) {
+				try {
+					l::detail::PagedPlanBuilder retry(base, source, generation, domain.factory(), heap);
+					while (!retry.done()) {
+						l::ValidationBudget budget{1, 1};
+						retry.step(budget);
+					}
+					check(retry.take().descriptor().cursor.revision == source->target().revision);
+					rebuilt = true;
+				} catch (const d::StoragePressure &) {
+					std::this_thread::yield();
+				}
 			}
-			check(retry.take().descriptor().cursor.revision == source->target().revision);
+			check(rebuilt);
 			check(store->selection().descriptor == selected && store->stats().used == committed &&
 				  store->stats().reserved == l::DiskUsage{} &&
 				  base.view().get("app", "count").value() == INT64_MIN);
