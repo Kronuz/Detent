@@ -1,7 +1,7 @@
 # Model container selection: report
 
 **Date:** 2026-10-24. **Branch:** `track/container-selection` (base `main` at `80d4071`).
-**Status:** `detent::flat_map` selected and implemented. macOS qualification complete; Linux qualification runs in CI on this branch.
+**Status:** The reconciled candidate adopts the shared `Kronuz/flat-map` engine. Clean public-pin native qualification passes; Linux native and sanitizer CI pass. Final macOS CI is pending. The earlier private-container results and baseline comparison remain attributed below.
 
 ## Summary
 
@@ -91,17 +91,39 @@ From the [`move-relocation` note](https://github.com/Kronuz/btree/blob/move-relo
 
 Reviews: the [`std::map` step](reviews/container-std-map-code.md) was approved with conditions, and its findings fold into this branch. The [`flat_map` step](reviews/flat-map-code.md) was rejected for one quadratic parse path (CR1); CR1 to CR4 are fixed, each in its own commit.
 
+## Contributor baseline comparison
+
+This table preserves the comparison reported at `19cffc5`. It distinguishes baseline failures from evidence about the container change; the reconciliation results below describe their later disposition.
+
+The branch adds the shared C++ CI. To separate pre-existing failures from this change, `track/ci-baseline` runs the same workflow on `main` (`80d4071`) with only the CI commits. Linux jobs use GCC 13.3 and Clang 18 on Ubuntu 24.04.
+
+| Linux job | Baseline (`main`) | This branch, attempt 1 | This branch, attempt 2 |
+| --- | --- | --- | --- |
+| GCC x86_64 | 500K relay timeout | pass, 211/211 | pass |
+| GCC arm64 | pass, 207/207 | 500K relay timeout | 500K relay timeout |
+| Clang x86_64 | pass, 207/207 | two 500K timeouts, `test_managed_delivery_process` | pass, 211/211 |
+| Clang ASan/UBSan, LeakSanitizer on | `test_agent_cli`, `test_agent_http`, `test_system_authority_writer_failover` | `test_agent_cli`, `test_agent_http`, `test_local_managed_recovery_failure` | `test_agent_cli`, `test_agent_http`, `test_distribution_encoded_update` |
+
+The comparison identifies no reproducible failure introduced by the container change. It does not close the pre-existing release failures:
+
+- **`test_agent_cli` and `test_agent_http`** fail under ASan in every run, including the baseline: the agent daemon exits before reporting readiness. This is pre-existing.
+- **The 500K relay-paged tests** time out on some runners in both arms. They pass in 26 s on the development host.
+- **Each remaining failure occurs once** and passes in another run of the same commit. `test_local_managed_recovery_failure` also passes 200 of 200 local runs on both trees.
+- **Every container test passes on every Linux job**, including `test_model_alloc_failure`, `test_client_publication_failure`, `test_flat_map` and `test_duplicate_precedence` under ASan with LeakSanitizer.
+
+Two CI fixes apply to `main` as well: `.scratch/` is ignored (the system tests write evidence there, and without the rule `git status` exceeds their 64 KiB limit), and macOS builds with Homebrew LLVM for `std::jthread`. macOS still fails to build in both arms: with Homebrew LLVM 23, the `compressors` dependency places the SDK's C headers ahead of libc++'s, which libc++ rejects. That run leaves the include-order problem open; the macOS arm64 suite passes 211/211 on the development host. Reconciliation uses explicit SDK selection in the shared workflow (`8459784`), and both hosted macOS jobs now build and run tests. Their final results remain pending.
+
 ## Compatibility
 
 The four public field types change from `btree::map` to `detent::flat_map`. Enclosing layouts, iterator types and invalidation rules change: any insert or erase invalidates every iterator. Keys are not const, and callers must not modify them. Erasing entries one at a time in a loop is quadratic; use `erase_if`. Every C++ consumer must be rebuilt together. Serialized, durable and shared-memory bytes are unchanged, and Detent no longer depends on cpp-btree.
 
 ## Gaps and pending work
 
-1. **Linux full suite.** The shared development VM has only GCC 11, which lacks `<format>` (required by the `compressors` dependency), so it cannot build Detent. CI on this branch runs GCC 13.3 and Clang 18 on `ubuntu-24.04` (x86_64 and arm64), macOS, and Clang ASan/UBSan with leak checking.
+1. **macOS CI.** Build-stage toolchain and SDK mismatches are corrected in reconciliation; the final test results remain pending. The older GCC 11 development VM does not establish qualification of the current supported toolchain profile.
 2. **GCC 11 sanitizer loop.** `test_model_and_schema` and `test_eval_semantics` spin on `AddressSanitizer:DEADLYSIGNAL` under GCC 11 on the VM, an AddressSanitizer issue with high address-space randomization; reruns with randomization disabled are pending.
-3. **Pre-existing flake.** `test_local_paged_snapshot_plan` aborts about once in six runs on both `std::map` and `flat_map` trees.
-4. **Not measured.** Allocation-denied authority cleanup end to end, RSS, the 1M, 5M and exploratory 10M capacity tiers, durable publication timing, Linux timing, and the Python and Rust bindings (they do not name the four types).
-5. **btree library.** The `move-relocation` branch still needs its sanitizer matrix, FreeBSD, an unexplained GCC 16 `-O2` abort that also affects `master`, and the g++ leg of its sanitizer matrix. Its sanitized g++ `prepared_commit` spin is GCC 11's AddressSanitizer loop: `master` spins the same way, and both pass with address randomization disabled. Detent no longer depends on it.
+3. **Pre-existing failures and flakes.** The baseline comparison below records failures across both arms. Reconciliation fixes the empty-publication sanitizer abort, snapshot-plan admission wait and mapped-admission owner-pressure isolation; broader sustained-load qualification remains open.
+4. **Not measured.** Allocation-denied authority cleanup end to end, RSS, the 1M, 5M and exploratory 10M capacity tiers, durable publication timing and Linux timing. Python and Rust binding validation passes in reconciliation; this is functional coverage, not performance qualification.
+5. **btree library.** The [architecture recheck](reviews/container-extraction-architect-2026-10-24.md) rejects the const-key view at `44cb140` as a portable lifetime repair. Keep that prototype outside adoption; the comparison supplies no safe older rollback point. The independent btree repairs remain upstream. This decision does not require resolving its separate compiler and sanitizer investigations.
 6. **`std::flat_map`.** Once every supported toolchain ships it, a switch is a contained change, but it is another public type change and needs its own measurement.
 
 ## Reproduce
@@ -121,3 +143,13 @@ python3 benchmarks/container-alternative/container_pair.py OUT \
 The reconciled candidate links `flat_map::flat_map` from public revision `a9a52b02e387ab054ff38647d3f141f9f8c00593`. Its seven-job Linux/macOS/FreeBSD and sanitizer matrix passes. `detent/flat_map.hh` forwards names to the canonical implementation; it contains no container engine. Strong assignment and the contributor's failure tests are preserved. The library additionally constrains copy assignment to nonthrowing comparator swap and gives move operations conditional exception specifications. These restrictions preserve the current `std::less<>` model behavior.
 
 This adoption changes canonical C++ type names and requires rebuilding consumers, including bindings. The model comparison remains evidence for the selected representation; it does not measure the later library packaging or establish release-scale capacity. Public-pin composed checks and exact byte comparison remain required before landing.
+
+## Reconciliation qualification
+
+1. The clean native public-pin build passes 224/224 tests (786.80 seconds). Its 35 populated dependency repositories match their immutable pins, are clean, and use no source overrides. The final two isolated gate fixes pass all six affected checks; the two pressure fixtures each pass 100-run checks.
+2. Rust's rebuilt shim passes five integration tests. The existing Python binding passes all five checks on Python 3.15 against the rebuilt core. These checks do not imply compatibility with unrecompiled C++ consumers.
+3. Canonical JSON and mapped payload bytes match the contributor engine and shared engine. SHA-256: JSON `34ad7707bb440ce49e2b0d67a140cfd32d2d8fd1dc25aab8af7b9c150cdbe403`; mapped payload `ddfe90b02e5223fa8bd66151648bd0a74cfa648c668316bd1b0bcb951f387b1b`.
+4. Product CI run [40098546698](https://github.com/Kronuz/Detent/actions/runs/40098546698) passes Linux GCC x86/ARM, Clang x86 and ASan/UBSan with leak checks. Both macOS jobs are pending. The product workflow explicitly enables relay; this profile registers 216 cases with benchmarks disabled, while the local full profile registers 224.
+5. The empty source-only startup failure is a null `memcpy` source for a zero-byte payload, identified from the newly exposed detached-child log and fixed in `e882fcc`. The snapshot pressure test used an aggregate threshold greater than its entire heap; `07a8a41` waits for actual admission with pressure retained. `a23ca07` isolates and drains each mapped-recovery pressure domain.
+
+The full 224-case run identifies source `07a8a41`; final affected checks identify `a23ca07`. The later contributor updates change report content and duplicate existing CI setup, so reconciliation preserves the already-tested production and workflow blobs. Scope, counts and pending platform/capacity gates remain explicit.
