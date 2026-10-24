@@ -54,6 +54,12 @@
     "source_subdir": "."
   },
   {
+    "name": "flat_map",
+    "repository": "https://github.com/Kronuz/flat-map.git",
+    "revision": "a9a52b02e387ab054ff38647d3f141f9f8c00593",
+    "source_subdir": "."
+  },
+  {
     "name": "enum_reflection",
     "repository": "https://github.com/Kronuz/enum-reflection.git",
     "revision": "9b5ecea02d7de8356ddd10fd874cd981aba399db",

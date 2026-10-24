@@ -100,7 +100,7 @@ The four public field types change from `btree::map` to `detent::flat_map`. Encl
 1. **Linux full suite.** The shared development VM has only GCC 11, which lacks `<format>` (required by the `compressors` dependency), so it cannot build Detent. CI on this branch runs GCC 13.3 and Clang 18 on `ubuntu-24.04` (x86_64 and arm64), macOS, and Clang ASan/UBSan with leak checking.
 2. **GCC 11 sanitizer loop.** `test_model_and_schema` and `test_eval_semantics` spin on `AddressSanitizer:DEADLYSIGNAL` under GCC 11 on the VM, an AddressSanitizer issue with high address-space randomization; reruns with randomization disabled are pending.
 3. **Pre-existing flake.** `test_local_paged_snapshot_plan` aborts about once in six runs on both `std::map` and `flat_map` trees.
-4. **Not measured.** Allocation-denied authority cleanup end to end, RSS, the 1.3M-knob capacity tier, durable publication timing, Linux timing, and the Python and Rust bindings (they do not name the four types).
+4. **Not measured.** Allocation-denied authority cleanup end to end, RSS, the 1M, 5M and exploratory 10M capacity tiers, durable publication timing, Linux timing, and the Python and Rust bindings (they do not name the four types).
 5. **btree library.** The `move-relocation` branch still needs its sanitizer matrix, FreeBSD, an unexplained GCC 16 `-O2` abort that also affects `master`, and the g++ leg of its sanitizer matrix. Its sanitized g++ `prepared_commit` spin is GCC 11's AddressSanitizer loop: `master` spins the same way, and both pass with address randomization disabled. Detent no longer depends on it.
 6. **`std::flat_map`.** Once every supported toolchain ships it, a switch is a contained change, but it is another public type change and needs its own measurement.
 
@@ -115,3 +115,9 @@ cmake --build build -j4 && ctest --test-dir build -j4
 python3 benchmarks/container-alternative/container_pair.py OUT \
     flat=build/benchmarks btree=../btree-build/benchmarks std_map=../map-build/benchmarks
 ```
+
+## Shared-library adoption
+
+The reconciled candidate links `flat_map::flat_map` from public revision `a9a52b02e387ab054ff38647d3f141f9f8c00593`. Its seven-job Linux/macOS/FreeBSD and sanitizer matrix passes. `detent/flat_map.hh` forwards names to the canonical implementation; it contains no container engine. Strong assignment and the contributor's failure tests are preserved. The library additionally constrains copy assignment to nonthrowing comparator swap and gives move operations conditional exception specifications. These restrictions preserve the current `std::less<>` model behavior.
+
+This adoption changes canonical C++ type names and requires rebuilding consumers, including bindings. The model comparison remains evidence for the selected representation; it does not measure the later library packaging or establish release-scale capacity. Public-pin composed checks and exact byte comparison remain required before landing.

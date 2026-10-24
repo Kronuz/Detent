@@ -15,7 +15,8 @@ jobs:
     uses: Kronuz/cpp-libraries/.github/workflows/cmake.yml@main
     with:
       # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), and Clang ASan/UBSan with LeakSanitizer.
-      cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_BENCHMARKS=OFF
+      macos_llvm: true
+      cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
       asan_cxx_flags: -O1
       asan_timeout_minutes: 120
       freebsd: false

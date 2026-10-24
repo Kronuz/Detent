@@ -64,6 +64,7 @@ FetchContent_MakeAvailable(
   char_classify
   strict_stox
   endian
+  flat_map
   sha256
   atomic_shared_ptr
   random_lib
