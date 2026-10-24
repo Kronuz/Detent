@@ -187,6 +187,19 @@ void merge() {
 	CHECK(b_only.size() + both.size() == b.size());
 }
 
+void bulk_erase() {
+	detent::flat_map<std::string, int> map;
+	for (int i = 0; i < 1000; ++i)
+		map.try_emplace(std::to_string(1000 + i), i);
+	CHECK(erase_if(map, [](const auto& entry) { return entry.second % 4 != 0; }) == 750);
+	CHECK(map.size() == 250);
+	int expected = 0;
+	for (const auto& [key, value] : map) {
+		CHECK(value == expected && key == std::to_string(1000 + expected));
+		expected += 4;
+	}
+}
+
 } // namespace
 
 int main() {
@@ -195,6 +208,7 @@ int main() {
 	at_and_back_insert();
 	builder();
 	merge();
+	bulk_erase();
 	std::puts("PASS flat_map");
 	return 0;
 }

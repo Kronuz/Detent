@@ -11,8 +11,9 @@
 //     never modify a key through an iterator; doing so breaks the ordering.
 //   * Single insertion and erase in the middle cost O(n) moves. Appending a
 //     key greater than every present key is amortized O(1). Build large maps
-//     from arbitrary-order input with flat_map_builder (sorts once), and
-//     update many entries with flat_map_merge (one linear pass).
+//     from arbitrary-order input with flat_map_builder (sorts once), update
+//     many entries with flat_map_merge (one linear pass), and remove many with
+//     erase_if (one linear pass); erasing in a loop is O(n^2).
 //   * Moves of value_type never throw (static_assert below), so shifting and
 //     erase never allocate or throw, and vector insertion keeps the strong
 //     guarantee: a refused allocation leaves the map unchanged.
@@ -190,6 +191,14 @@ public:
 	friend void swap(flat_map& a, flat_map& b) noexcept(noexcept(a.swap(b))) { a.swap(b); }
 
 	[[nodiscard]] friend bool operator==(const flat_map& a, const flat_map& b) { return a.v_ == b.v_; }
+
+	template <class Pred>
+	friend size_type erase_if(flat_map& map, Pred pred) {
+		const auto first = std::remove_if(map.v_.begin(), map.v_.end(), pred);
+		const auto removed = static_cast<size_type>(map.v_.end() - first);
+		map.v_.erase(first, map.v_.end());
+		return removed;
+	}
 
 private:
 	friend class flat_map_builder<Key, T, Compare>;
