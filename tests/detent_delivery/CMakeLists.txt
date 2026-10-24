@@ -7,7 +7,7 @@ add_test(NAME test_delivery_response COMMAND test_delivery_response)
 find_program(DETENT_DELIVERY_TEST_OPENSSL openssl REQUIRED)
 add_test(NAME delivery_tls_certificates COMMAND ${CMAKE_COMMAND}
   -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/tls-fixture -DOPENSSL=${DETENT_DELIVERY_TEST_OPENSSL}
-  -P ${CMAKE_SOURCE_DIR}/tests/detent_authority/tls_certificates.cmake)
+  -P ${PROJECT_SOURCE_DIR}/tests/detent_authority/tls_certificates.cmake)
 set_tests_properties(delivery_tls_certificates PROPERTIES FIXTURES_SETUP delivery_tls TIMEOUT 30
   ENVIRONMENT "OPENSSL_CONF=${CMAKE_CURRENT_SOURCE_DIR}/../detent_authority/tls_ambient.cnf")
 add_executable(test_delivery_client test_client.cc)
@@ -24,7 +24,7 @@ add_test(NAME test_delivery_probe_client COMMAND test_delivery_probe_client ${CM
 set_tests_properties(test_delivery_probe_client PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
 add_executable(test_delivery_coordinator test_coordinator.cc)
 add_executable(test_delivery_worker_lifetime test_worker.cc)
-target_include_directories(test_delivery_worker_lifetime PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_delivery")
+target_include_directories(test_delivery_worker_lifetime PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_delivery")
 target_link_libraries(test_delivery_worker_lifetime PRIVATE detent::delivery_coordinator)
 add_test(NAME test_delivery_worker_lifetime COMMAND test_delivery_worker_lifetime)
 set_tests_properties(test_delivery_worker_lifetime PROPERTIES TIMEOUT 30)
@@ -131,7 +131,7 @@ add_test(NAME test_reconnect_cancel COMMAND test_reconnect_cancel)
 set_tests_properties(test_reconnect_cancel PROPERTIES TIMEOUT 15)
 
 add_executable(test_relay_bundle_maintenance test_bundle_maintenance.cc)
-target_include_directories(test_relay_bundle_maintenance PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local" "${CMAKE_SOURCE_DIR}/tests/detent_local")
+target_include_directories(test_relay_bundle_maintenance PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
 target_link_libraries(test_relay_bundle_maintenance PRIVATE detent::relay detent::local_builder)
 add_test(NAME test_relay_bundle_maintenance COMMAND test_relay_bundle_maintenance)
 
@@ -149,7 +149,7 @@ target_link_libraries(test_source_selection PRIVATE reactor::reactor)
 add_test(NAME test_source_selection COMMAND test_source_selection)
 
 add_executable(test_relay_bootstrap_retention test_bootstrap_retention.cc)
-target_include_directories(test_relay_bootstrap_retention PRIVATE "${CMAKE_SOURCE_DIR}/src/detent_local" "${CMAKE_SOURCE_DIR}/tests/detent_local")
+target_include_directories(test_relay_bootstrap_retention PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
 target_link_libraries(test_relay_bootstrap_retention PRIVATE detent::relay detent::local_builder)
 add_test(NAME test_relay_bootstrap_retention COMMAND test_relay_bootstrap_retention)
 set_tests_properties(test_relay_bootstrap_retention PROPERTIES TIMEOUT 30)

@@ -1,5 +1,5 @@
 add_executable(test_distribution_messagepack test_messagepack.cc)
-target_include_directories(test_distribution_messagepack PRIVATE "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(test_distribution_messagepack PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(test_distribution_messagepack PRIVATE cxx_std_20)
 add_test(NAME test_distribution_messagepack COMMAND test_distribution_messagepack)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)

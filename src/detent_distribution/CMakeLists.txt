@@ -1,5 +1,5 @@
 add_library(detent_resources retirement.cc)
-target_include_directories(detent_resources PUBLIC "${CMAKE_SOURCE_DIR}/include")
+target_include_directories(detent_resources PUBLIC "${PROJECT_SOURCE_DIR}/include")
 target_compile_features(detent_resources PUBLIC cxx_std_20)
 target_link_libraries(detent_resources PUBLIC Threads::Threads)
 add_library(detent::resources ALIAS detent_resources)

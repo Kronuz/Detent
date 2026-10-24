@@ -13,7 +13,7 @@ add_library(detent
   detent/test_hook.cc)
 
 target_include_directories(detent PUBLIC
-  "${CMAKE_SOURCE_DIR}/include")
+  "${PROJECT_SOURCE_DIR}/include")
 # SYSTEM: rapidjson's own headers use std::iterator (deprecated since
 # C++17) -- this is their code, not ours, so their deprecation warnings
 # shouldn't show up as if they were.
@@ -71,7 +71,7 @@ add_library(detent_http
   detent_http/http_source.cc)
 
 target_include_directories(detent_http PUBLIC
-  "${CMAKE_SOURCE_DIR}/include")
+  "${PROJECT_SOURCE_DIR}/include")
 
 target_link_libraries(detent_http PUBLIC detent::detent compressors::compressors)
 target_compile_features(detent_http PUBLIC cxx_std_20)
@@ -155,8 +155,8 @@ install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if(DETENT_BUILD_DISTRIBUTOR)
   install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/packaging/ DESTINATION ${CMAKE_INSTALL_DATADIR}/detent USE_SOURCE_PERMISSIONS)
-install(FILES ${CMAKE_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/detent)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/packaging/ DESTINATION ${CMAKE_INSTALL_DATADIR}/detent USE_SOURCE_PERMISSIONS)
+install(FILES ${PROJECT_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/detent)
 
 add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
