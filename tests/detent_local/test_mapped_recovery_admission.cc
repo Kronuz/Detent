@@ -185,19 +185,22 @@ int main() {
 				}
 			}
 			for (bool warm : {false, true}) {
+				auto pressure_domain = runtime.domain(heap, 256);
+				auto pressure_limits = limits;
+				pressure_limits.retirement_domain = &pressure_domain;
 				const auto baseline = mappings->used();
 				auto admission =
-					domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, domain.factory());
+					pressure_domain.make<l::detail::MappedRecoveryAdmission>(heap, mappings, pressure_domain.factory());
 				admission->populate(*plan, warm ? core.verified_paged
 												: d::RetirementHandle<l::detail::LeasedPagedRoot>{});
 				rejects<std::logic_error>([&] { admission->take_view(); });
 				rejects<std::logic_error>([&] { admission->capability()->root(); });
 				{
 					l::detail::RecoveryContext wrong_selection{
-						domain.factory(),
+						pressure_domain.factory(),
 						heap,
 						mappings,
-						limits,
+						pressure_limits,
 						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						admission};
 					rejects<std::invalid_argument>(
@@ -212,7 +215,7 @@ int main() {
 				std::vector<d::RetirementHandle<Resident>> residents;
 				for (;;) {
 					try {
-						residents.push_back(domain.make<Resident>());
+						residents.push_back(pressure_domain.make<Resident>());
 					} catch (const d::StoragePressure &) {
 						break;
 					}
@@ -231,10 +234,10 @@ int main() {
 				write(directory / "selected", l::encode_descriptor(plan->descriptor()));
 				{
 					l::detail::RecoveryContext context{
-						domain.factory(),
+						pressure_domain.factory(),
 						heap,
 						mappings,
-						limits,
+						pressure_limits,
 						warm ? core.verified_paged : d::RetirementHandle<l::detail::LeasedPagedRoot>{},
 						admission};
 					context.budget = {1, 1};
@@ -256,6 +259,8 @@ int main() {
 				}
 				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));
 				admission.reset();
+				residents.clear();
+				pressure_domain.close().wait();
 				wait_for([&] { return mappings->used() == baseline + pressure.bytes(); });
 			}
 			if (!progress) {
