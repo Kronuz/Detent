@@ -302,7 +302,12 @@ public:
 
 	explicit flat_map_builder(map_type& map) : map_(map) {}
 
-	void reserve(std::size_t n) { map_.v_.reserve(n); }
+	// Grows geometrically, so repeated calls with slowly rising totals stay linear.
+	void reserve(std::size_t n) {
+		auto& v = map_.v_;
+		if (n > v.capacity())
+			v.reserve(std::max(n, v.capacity() * 2));
+	}
 
 	template <class K, class V>
 	void push(K&& key, V&& value) {

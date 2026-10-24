@@ -187,6 +187,25 @@ void merge() {
 	CHECK(b_only.size() + both.size() == b.size());
 }
 
+// Repeated reserve calls with slowly rising totals must not reallocate
+// on every call, or bulk parsing with many reserve points goes quadratic.
+void builder_reserve_is_geometric() {
+	detent::flat_map<std::string, int> map;
+	detent::flat_map_builder<std::string, int, std::less<>> builder(map);
+	std::size_t reallocations = 0, capacity = map.capacity();
+	for (int i = 0; i < 100000; ++i) {
+		builder.reserve(builder.size() + 1);
+		builder.push(std::to_string(1000000 - i), i);
+		if (map.capacity() != capacity) {
+			++reallocations;
+			capacity = map.capacity();
+		}
+	}
+	CHECK(reallocations <= 40);
+	CHECK(!builder.finish());
+	CHECK(map.size() == 100000 && std::is_sorted(map.begin(), map.end(), [](const auto& l, const auto& r) { return l.first < r.first; }));
+}
+
 void bulk_erase() {
 	detent::flat_map<std::string, int> map;
 	for (int i = 0; i < 1000; ++i)
@@ -209,6 +228,7 @@ int main() {
 	builder();
 	merge();
 	bulk_erase();
+	builder_reserve_is_geometric();
 	std::puts("PASS flat_map");
 	return 0;
 }
