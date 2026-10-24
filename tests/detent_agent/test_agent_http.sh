@@ -24,6 +24,10 @@ stop_agent() {
     fi
 }
 cleanup() {
+    result=$?
+    if test "$result" -ne 0 && test -f "$root/session/detent/agent.log"; then
+        head -c 65536 "$root/session/detent/agent.log" >&2
+    fi
     stop_agent || true
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
