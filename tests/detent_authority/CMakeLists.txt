@@ -49,7 +49,8 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   add_test(NAME authority_tls_certificates COMMAND ${CMAKE_COMMAND}
     -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/tls-fixture -DOPENSSL=${DETENT_TEST_OPENSSL}
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tls_certificates.cmake)
-  set_tests_properties(authority_tls_certificates PROPERTIES FIXTURES_SETUP authority_tls TIMEOUT 30)
+  set_tests_properties(authority_tls_certificates PROPERTIES FIXTURES_SETUP authority_tls TIMEOUT 30
+  ENVIRONMENT "OPENSSL_CONF=${CMAKE_CURRENT_SOURCE_DIR}/tls_ambient.cnf")
   add_executable(test_authority_transport_peers test_transport_peers.cc)
   target_link_libraries(test_authority_transport_peers PRIVATE detent_authority_transport)
   add_test(NAME test_authority_transport_peers COMMAND test_authority_transport_peers ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
