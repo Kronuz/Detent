@@ -1,10 +1,12 @@
 # Initial release qualification
 
-**Updated:** 2026-10-23. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
+**Updated:** 2026-10-24. **Status:** Stage 6 active. The owner includes the remaining reusable-library extractions before release.
 
 Use the [extraction checklist](EXTRACTION_CHECKLIST.md) to resume library work from a clean session. It separates remaining adoption from conditional candidates and points to existing implementations and standalone handoffs.
 
 The active [qualification index](status/README.md) prioritizes the measured ingestion and bootstrap costs after functional trials through 130K. Startup capacity passes 217 product tests; managed reader integration passes 218 product tests and real flat/paged process checks, with SR1 fixed and the macOS permission recheck passing under documented platform conditions. The [scaling review](reviews/scaling-2026-10-23.md) rejects release-scale qualification and identifies relay snapshot lifecycle and segment-processing blockers. These checks do not close the capacity or container-selection gates.
+
+Before release, run a source-identified exploratory end-to-end trial at 5M knobs, then attempt 10M if host resources permit. Record ingestion and bootstrap time, CPU, requested heap, RSS, mapped bytes, disk use and restart/catch-up behavior. Preserve admission refusals or resource limits as results. A successful single run does not establish sustained operating capacity.
 
 The initial release supports a regional fixed three-voter authority, durable relays and host-local last-known-good readers. Implementation acceptance for earlier stages does not establish sustained capacity, complete restoration or deployment qualification. Release requires the gates below; passing short transport probes does not certify a fleet of durable agents.
 
