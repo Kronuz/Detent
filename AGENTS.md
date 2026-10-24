@@ -32,3 +32,7 @@ quiet run detent-bench 90 "Detent: what it measures" -- <command>
 ```
 
 Use realistic deadlines: a hold expires when its process exits or its deadline passes. Do not rely on a pre-build check alone; the light hold keeps an already-running build visible to a later benchmark.
+
+## Retirement accounting checks
+
+`RetirementDomain::close().wait()` waits for payload cleanup. The worker can retain a domain's accounting metadata briefly after signaling drainage. Use a dedicated child account for each case that compares resident bytes or injects admission pressure; unrelated retirement must not change its baseline or reopen its admission. Check aggregate final cleanup after runtime shutdown and release of caller-owned handles.
