@@ -31,7 +31,7 @@ cleanup() {
     done
     if [[ "$result" != 0 ]]; then
         printf 'Managed fixture exit=%s at line %s\n' "$result" "${1:-unknown}" >&2
-        for logfile in "$root"/*.log; do
+        for logfile in "$root"/*.log "$root"/*.txt; do
             [[ -f "$logfile" ]] || continue
             printf '=== %s ===\n' "${logfile##*/}" >&2
             tail -n 80 "$logfile" >&2 || true
@@ -184,9 +184,15 @@ done
 "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$progress_revision "
 [[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
+deleted_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/deleted.json")
+for ((attempt=0;attempt<200;attempt++)); do
+    if "$agent" --status --config "$root/agent.json" > "$root/deleted-status.txt" &&
+        grep -Fq "durable revision=$deleted_revision knob_count=0" "$root/deleted-status.txt"; then break; fi
+    sleep 0.02
+done
+grep -Fq "durable revision=$deleted_revision knob_count=0" "$root/deleted-status.txt"
 wait_value 7
 if [[ "$isolated" == isolated ]]; then
-    deleted_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/deleted.json")
     for ((attempt=0;attempt<200;attempt++)); do
         if "$agent" --status --config "$root/agent-empty.json" | grep -q "durable revision=$deleted_revision "; then break; fi
         sleep 0.02
