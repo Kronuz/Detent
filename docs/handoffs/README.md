@@ -8,12 +8,17 @@
 | [Container safety and selection](container-safety.md) | SC-5, four public model fields and their cleanup | Actual-type failure tests, complete-path costs, explicit representation decision |
 | [Ingestion wait attribution](ingestion-waits.md) | SC-4, authority and completion diagnostics | Seed-boundary phase timings that distinguish syscall time from queue/reaping delay |
 | [Persistent ordered map](persistent-map.md) | Planned reusable-library extraction | Qualified version ownership, allocation accounting, bounded collection and consumer adoption |
+| [Resource primitives](resource-primitives.md) | Existing shared resource adoption | One accounting/retirement engine; domain settlement policy preserved |
+| [HTTP clients](http-clients.md) | Existing HTTP/TLS library extension and adoption | Unified parser and transport lifecycle; application semantics local |
+| [Bounded MessagePack](bounded-codec.md) | Existing codec extension and adoption | One lexer and packer; exact payload bytes and bounded-only target |
 
 The lead owns SC-1 relay lifecycle. Its integrated component passes 219 candidate product tests, the delayed TLS bootstrap regression and scoped ASan/UBSan. Sustained-load capacity remains unqualified. Do not modify its relay session/cache files in the handoff tasks.
 
 Each task starts with a short source/evidence check and a concrete reproduction. Work serially within each task; do not spawn a review tree. Ask for one narrow component review when implementation is complete. Independent tasks may use separate worktrees, but all builds and measurements must coordinate through `quiet` on the shared host. Storage and ingestion agents must agree on any overlapping telemetry or shared-library edits before changing them.
 
 These asks close specific blockers. They do not replace the remaining release gates: capacity trials at 1M, 5M and exploratory 10M, recovery/restore and sustained-load trials, platform qualification, deployment/packaging, dependency adoption and reusable-library boundary checks. See [the release plan](../RELEASE_PLAN.md) and [active status](../status/README.md).
+
+The [extraction checklist](../EXTRACTION_CHECKLIST.md) is the clean-session restart point for library work. It records existing candidates, adoption gates and conditional keep-local decisions; the briefs alone do not imply a new library must be created.
 
 ## Local source and evidence mapping
 

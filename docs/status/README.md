@@ -18,6 +18,8 @@ Self-contained [blocker handoffs](../handoffs/README.md) define the storage, con
 
 The current priority is diagnosis of ingestion and bootstrap costs. Passing larger configured bounds does not close that gate. Avoid speculative tuning and further activation machinery until the measured paths are understood.
 
+The [extraction checklist](../EXTRACTION_CHECKLIST.md) preserves the remaining resource, HTTP, bounded-codec and persistent-map work, including existing worktrees and clean-session restart instructions. These are release gates; completed library publication does not imply consumer adoption.
+
 ## Diagnostic done criteria
 
 1. Reproduce the seed behavior at a small cardinality using unchanged durable semantics; attribute its major elapsed-time components with profiles or telemetry.

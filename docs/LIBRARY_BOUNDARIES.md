@@ -4,6 +4,8 @@
 **Date:** 2026-10-10
 **Status:** Recommendation, for the implementing agent. Steps 1 to 3, and the TLS part of step 6, landed on 2026-10-13 (see [Progress](#progress)).
 
+The current [extraction checklist](EXTRACTION_CHECKLIST.md) tracks remaining adoption and restart instructions. The inventory and test counts below record the original audit and subsequent evidence; they are not a current completion checklist.
+
 ## Abstract
 
 Detent's durable-authority work made the dependency libraries reusable on purpose, which was the right instruction. The result went too far in one direction: almost all of it landed inside `Kronuz/cluster`, which grew from about **900 lines** (a UDP multicast bus, a legacy Raft and a length codec) to about **12,400 lines** plus **6,800 lines of tests**. Three independent subsystems now live there: `completion` (asynchronous file I/O), `journal` (durable record storage) and `consensus` (strict durable Raft). None of them uses the original bus or Raft, and Xapiand, the other consumer of `cluster`, uses none of them.
