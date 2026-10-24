@@ -11,6 +11,8 @@
 #include <random>
 #include <vector>
 
+#include "detent/json_patch.hh"
+#include "detent/json_schema.hh"
 #include "detent/model.hh"
 #include "detent/overrides.hh"
 
@@ -178,6 +180,71 @@ void sweep_all(unsigned max_n) {
 		sweep<Map>(op, max_n);
 }
 
+std::string snapshot_json(unsigned version, unsigned count, unsigned salt) {
+	std::string json = R"({"schema_version":1,"version":)" + std::to_string(version) + R"(,"knobs":{)";
+	for (unsigned i = 0; i < count; ++i) {
+		if (i)
+			json += ',';
+		auto name = key(i * 3 + salt);
+		name.replace(0, 4, "app:");
+		json += '"' + name + R"(":)";
+		if (i % 4 == 3) {
+			json += R"({"type":"int","default":)" + std::to_string(i + salt) + "}";
+			continue;
+		}
+		json += R"({"type":"bool","default":true,"overrides":{")" + group(0) + R"(":true,")" + group(1) +
+				R"(":{"rollout_pct":)" + std::to_string(i % 100) + R"(},")" + group(2) + R"(":false}})";
+	}
+	return json + "}}";
+}
+
+// Refuses each allocation of `operation` in turn; inputs must stay intact and
+// every allocation must be released whether the operation throws or returns.
+template <class Operation>
+void deny_each(const char* op, Operation&& operation) {
+	for (long b = 0;; ++b) {
+		const long base = live;
+		bool refused = false;
+		budget = b;
+		try {
+			operation();
+		} catch (const std::bad_alloc&) {
+			refused = true;
+		}
+		budget = -1;
+		if (live != base)
+			fail("leak", op, 0, b);
+		if (!refused && b == 0)
+			fail("no allocation to refuse", op, 0, b);
+		if (!refused)
+			return;
+	}
+}
+
+void sweep_lifecycle() {
+	const auto base_json = snapshot_json(1, 40, 0);
+	const auto next_json = snapshot_json(2, 40, 1);
+	const auto base = parse_source_snapshot(base_json, "base").value();
+	const auto next = parse_source_snapshot(next_json, "next").value();
+	const auto patch = diff_snapshots(base, next);
+	const auto patch_json = serialize_patch(patch);
+	const auto expected = serialize_snapshot(next);
+	deny_each("parse_snapshot", [&] { (void)parse_source_snapshot(base_json, "base"); });
+	deny_each("copy_snapshot", [&] { Snapshot copy(base); });
+	deny_each("parse_patch", [&] { (void)parse_snapshot_patch(patch_json, "patch"); });
+	deny_each("apply_patch", [&] {
+		auto applied = apply_patch(base, patch);
+		budget = -1;
+		if (applied && serialize_snapshot(applied.value()) != expected)
+			fail("apply_patch content", "apply_patch", 0, 0);
+	});
+	deny_each("diff_snapshots", [&] { (void)diff_snapshots(base, next); });
+	deny_each("compose_patches", [&] { (void)compose_patches(patch, patch); });
+	deny_each("serialize_snapshot", [&] { (void)serialize_snapshot(base); });
+	if (serialize_snapshot(base) != serialize_snapshot(parse_source_snapshot(base_json, "base").value()))
+		fail("base modified", "lifecycle", 0, 0);
+}
+
 } // namespace
 
 int main() {
@@ -187,6 +254,7 @@ int main() {
 		sweep_all<decltype(SnapshotPatch::knobs)>(24);
 		sweep_all<decltype(BoolDef::overrides)>(24);
 		sweep_all<decltype(OverrideTable::values)>(24);
+		sweep_lifecycle();
 	}
 	std::puts("PASS model allocation failure sweep");
 	return 0;
