@@ -1,6 +1,6 @@
 # Reader configuration ACL admission
 
-**State:** Implementation and scoped validation in progress.
+**State:** Native macOS regression and independent security recheck pass; platform conditions remain.
 
 ## Done criteria
 
@@ -21,9 +21,9 @@
 
 ## Next
 
-- Run the scoped native tests and prove the ACL mutant fails.
-- Run sanitizer validation and commit the fix.
+- The recovered product reader/managed tests pass (3/3, 0.95 seconds); the CLI probe rejects SR1 and preserves the other expected outcomes.
+- Qualify Linux rich/NFSv4 ACLs and native FreeBSD before extending the filesystem trust claim.
 
 ## Blocked on
 
-- Final managed configuration check, sanitizers and independent security recheck remain pending.
+- Scoped sanitizer and native non-macOS qualification remain pending. The macOS security recheck approves with condition C1.

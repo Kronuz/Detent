@@ -27,3 +27,17 @@ The probe `.scratch/review-reader-security/probe_config.py` creates exactly that
 ## Limits
 
 **Not run:** A new sanitizer build, the full product test matrix, the one-million-record CLI case, a live same-extent writer race, an ACL write from a second user account, and a fresh flat/paged managed process setup. The source and existing process logs cover the last path, but this review only reran the focused CLI probe. No remote hosts or shared measurements were touched.
+
+## Re-check: `5fda9ad` (2026-10-23)
+
+**Verdict:** **APPROVE WITH CONDITIONS** for the reviewed ACL fix. **SR1 is closed on macOS.** No reproduced blocker remains on the native reader path.
+
+The new `mode_only_acl(fd)` rejects any macOS extended ACL on the already opened public config descriptor. The reader still accepts ordinary mode `0644` and still permits a legacy symlink when no reader field is present. The private managed credential loader now applies the same helper before and after its read. On FreeBSD the helper asks whether an NFSv4 ACL, or a POSIX ACL when NFSv4 is unsupported, is trivial; inspection errors reject the file. Other unrecognized platforms reject trusted admission.
+
+I reran `.scratch/review-reader-security/probe_config_fixed.py` against the rebuilt `.scratch/reader-capacity-build/src/detent` under `quiet light`. `.scratch/review-reader-security/recheck.log` records the mode `0644` file with `group:everyone allow write` and `everyone-write-acl-0644: rejected`; the other 12 cases retain their expected results. The existing `.scratch/reader-acl-product-tests.log` reports the reader, TLS certificate and managed config tests passed (3/3). I did not rerun those tests.
+
+**C1 (scope condition):** On Linux, `mode_only_acl` relies on POSIX ACL write grants appearing in the group-class mode mask. It does not inspect Linux NFSv4 or rich ACLs. This re-check cannot certify the stated no-group/other-write policy on a filesystem where those ACLs can grant write while `st_mode` remains read-only. Before claiming that policy for such mounts, either enforce it with a descriptor-based check or restrict deployment to filesystems whose ACL grants are reflected in the mode mask. This is a coverage limit, not a reproduced Linux bypass.
+
+**Blocking items:** None for the native macOS path. C1 remains a condition for a filesystem-independent Linux trust claim.
+
+**Not run:** Linux NFSv4/rich ACL or FreeBSD execution, a second-user ACL write, sanitizer and full product test matrices, and the one-million-record CLI case. No build or shared measurement ran in this re-check.
