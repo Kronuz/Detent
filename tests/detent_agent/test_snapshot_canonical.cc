@@ -1,6 +1,8 @@
 // Check deterministic JSON and shared-memory bytes across insertion orders.
 #include <detent/json_schema.hh>
 #include "shm_writer.hh"
+#include "shm_reader.hh"
+#include <unistd.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -54,6 +56,19 @@ int main(int argc, char** argv) {
 	try {
 		if (argc > 2)
 			throw std::invalid_argument("at most one output directory allowed");
+		const auto empty_path = std::filesystem::current_path() / ".scratch" /
+			("empty-publication-" + std::to_string(::getpid()) + ".shm");
+		std::filesystem::create_directories(empty_path.parent_path());
+		{
+			detent_agent::ShmWriter writer(empty_path);
+			detent::Snapshot empty;
+			empty.version = 19;
+			if (!writer.publish(empty)) throw std::runtime_error("empty publication refused");
+			auto reader = detent_agent::ShmReader::open(empty_path);
+			if (!reader || reader->status().knob_count != 0 || reader->status().accepted_version != 19)
+				throw std::runtime_error("empty publication metadata mismatch");
+		}
+		std::filesystem::remove(empty_path);
 		const auto first = make_snapshot(0);
 		const auto json = detent::serialize_snapshot(first);
 		const auto shm = detent_agent::serialize_for_shm(first);

@@ -111,8 +111,10 @@ std::vector<std::uint8_t> serialize_for_shm(const detent::Snapshot& snapshot) {
 
 	std::vector<std::uint8_t> payload;
 	payload.reserve(record_bytes + blob.size());
-	auto* rec_bytes = reinterpret_cast<const std::uint8_t*>(records.data());
-	payload.insert(payload.end(), rec_bytes, rec_bytes + record_bytes);
+	if (record_bytes) {
+		auto* rec_bytes = reinterpret_cast<const std::uint8_t*>(records.data());
+		payload.insert(payload.end(), rec_bytes, rec_bytes + record_bytes);
+	}
 	payload.insert(payload.end(), blob.begin(), blob.end());
 	return payload;
 }
@@ -165,7 +167,8 @@ bool ShmWriter::publish(const detent::Snapshot& snapshot) {
 	// reader's acquire-load-after-copy the guarantee it needs.
 	auto seq = header->seq.load(std::memory_order_relaxed);
 	header->seq.store(seq + 1, std::memory_order_release);
-	std::memcpy(payload_area, payload.data(), payload.size());
+	if (!payload.empty())
+		std::memcpy(payload_area, payload.data(), payload.size());
 	header->accepted_version = snapshot.version;
 	header->published_at_unix_ms = 0; // Snapshot::published_at is a string timestamp, not tracked here (yet)
 	header->knob_count = static_cast<std::uint32_t>(snapshot.knobs.size());
