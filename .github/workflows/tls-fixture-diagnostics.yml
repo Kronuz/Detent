@@ -1,0 +1,40 @@
+name: TLS fixture diagnostics
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  certificates:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure the TLS fixture profile
+        run: |
+          brew install llvm openssl@3
+          cmake -S . -B build \
+            -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+            -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON \
+            -DDETENT_BUILD_BENCHMARKS=OFF
+      - name: Generate certificates
+        run: ctest --test-dir build --verbose --output-on-failure -R '^(authority_tls_certificates|delivery_tls_certificates)$'
+      - name: Inspect the public certificate chain
+        run: |
+          grep -E '^(DETENT_.*TEST_OPENSSL|OPENSSL_.*LIBRARY|OPENSSL_INCLUDE_DIR):' build/CMakeCache.txt
+          verifier="$(brew --prefix openssl@3)/bin/openssl"
+          "$verifier" version -a
+          for component in detent_authority detent_delivery; do
+            directory="build/tests/$component/tls-fixture"
+            "$verifier" x509 -in "$directory/ca.pem" -noout -text
+            "$verifier" x509 -in "$directory/one.pem" -noout -text
+            "$verifier" verify -x509_strict -auth_level 2 -purpose sslserver -CAfile "$directory/ca.pem" "$directory/one.pem"
+            "$verifier" verify -x509_strict -auth_level 2 -purpose sslclient -CAfile "$directory/ca.pem" "$directory/one.pem"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-test-certificates
+          path: |
+            build/tests/detent_authority/tls-fixture/*.pem
+            build/tests/detent_delivery/tls-fixture/*.pem
