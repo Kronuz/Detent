@@ -13,6 +13,7 @@
 
 #include "detent/json_patch.hh"
 #include "detent/json_schema.hh"
+#include "detent/overrides.hh"
 
 using namespace detent;
 
@@ -88,6 +89,9 @@ void patch_names() {
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, kBadC}), "s")) == dup_a);
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kBadC, kA}), "s")) == "int knob missing required 'default': c:c");
 	CHECK(error_of(parse_snapshot_patch(patch({kA, R"("a:a":null)", null_c}), "s")) == dup_a);
+	const char* bad_name = R"("nocolon":{"type":"int","default":1})";
+	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, bad_name}), "s")) == dup_a);
+	CHECK(error_of(parse_snapshot_patch(patch({kA, bad_name, kA}), "s")) == "invalid knob name: nocolon");
 	auto ok = parse_snapshot_patch(patch({null_c, kA, kB}), "s");
 	CHECK(ok.has_value());
 	CHECK(ok.value().knobs.size() == 3 && ok.value().knobs.begin()->first == "a:a" &&
@@ -177,6 +181,27 @@ void random_orders() {
 	}
 }
 
+std::string cli_error(const std::vector<std::string>& pairs) {
+	auto r = parse_cli_overrides(pairs);
+	CHECK(!r.has_value());
+	return r.error();
+}
+
+void cli_overrides() {
+	const std::string dup_a = "duplicate --just-knob override for: a:a";
+	CHECK(cli_error({"a:a=1", "b:b=1", "a:a=1", "nocolon=1"}) == dup_a);
+	CHECK(cli_error({"a:a=1", "nocolon=1", "a:a=1"}) == "invalid knob name in override: nocolon");
+	CHECK(cli_error({"a:a=1", "b:b=1", "a:a=1", "c:c"}) == dup_a);
+	CHECK(cli_error({"a:a=1", "a:a=oops"}) == dup_a);
+	CHECK(cli_error({"a:a=oops", "a:a=1"}) == "invalid override value for a:a: oops");
+	CHECK(cli_error({"b:b=1", "a:a=1", "b:b=2"}) == "duplicate --just-knob override for: b:b");
+	auto ok = parse_cli_overrides({"c:c=true", "a:a=-5", "b:b=false"});
+	CHECK(ok.has_value());
+	const auto& values = ok.value().values;
+	CHECK(values.size() == 3 && values.begin()->first == "a:a");
+	CHECK(std::get<std::int64_t>(values.at("a:a")) == -5 && std::get<bool>(values.at("c:c")));
+}
+
 } // namespace
 
 int main() {
@@ -184,6 +209,7 @@ int main() {
 	patch_names();
 	override_keys();
 	random_orders();
+	cli_overrides();
 	std::puts("PASS duplicate precedence");
 	return 0;
 }
