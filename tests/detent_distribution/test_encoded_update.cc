@@ -341,10 +341,11 @@ int main() {
 			}
 
 			for (unsigned stop : {0, 100, 100000, 250000}) {
+				auto input_account = std::make_shared<d::StorageLedger>(publication, publication->limit());
 				auto domain = runtime.domain(cache, 16);
-				auto input_domain = runtime.domain(publication, 16);
-				const auto input_resident = publication->used();
-				auto input = decode(snapshot(), publication);
+				auto input_domain = runtime.domain(input_account, 16);
+				const auto input_resident = input_account->used();
+				auto input = decode(snapshot(), input_account);
 				auto stage = domain.make<d::UpdateStage>(
 					domain, d::make_snapshot_source(std::move(input), input_domain, cache),
 					cursor(42).cluster);
@@ -355,7 +356,7 @@ int main() {
 				stage.reset();
 				domain.close().wait();
 				input_domain.close().wait();
-				check(publication->used() == input_resident);
+				check(input_account->used() == input_resident);
 			}
 
 			runtime.shutdown();
