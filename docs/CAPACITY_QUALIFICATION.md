@@ -84,4 +84,16 @@ These are single functional trials, not repeated performance qualification. The 
 
 ## 5M exploratory trial, October 24
 
-The [source-identified report](../benchmarks/system-capacity-5m-20261024.json) records successful replicated seeding of 5M mixed knobs and authority verification. Replicated seeding takes 5,484.26 seconds; agent convergence then times out with repeated distribution-session resets. Daemon logs show shutdown at 13:21:30, before the first lid-close sleep at 13:30:53. Suspension does not explain this failure. Bootstrap diagnosis remains open. Sampled service RSS peaks at 5,144,834,048 bytes, separately from a sampled driver peak of 116,195,328 bytes. These are lower-bound observations, not decoded-agent residency or a supported capacity. The clean repeat and independent durable SDK verification remain open.
+The [source-identified report](../benchmarks/system-capacity-5m-20261024.json) records successful replicated seeding of 5M mixed knobs and authority verification. Replicated seeding takes 5,484.26 seconds; agent convergence then times out with repeated distribution-session resets. Daemon logs show shutdown at 13:21:30, before the first lid-close sleep at 13:30:53. Suspension does not explain this failure. Bootstrap diagnosis remains open. Sampled service RSS peaks at 5,144,834,048 bytes, separately from a sampled driver peak of 116,195,328 bytes. These are lower-bound observations, not decoded-agent residency or a supported capacity. Independent durable SDK verification and a complete successful bootstrap remain open. The preserved authority directories support recovery trials without repeating seeding.
+
+
+## 5M recovery diagnosis, October 24
+
+Application-image decoding creates persistent-map replacement nodes faster than its fixed byte allowance retires them. A candidate pauses row admission while the existing bounded collector drains that work, including the final tail. It changes neither application-image bytes nor dependency pins.
+
+The [5M report](../benchmarks/system-capacity-5m-20261024.json) records a sequential one-voter comparison over cloned persisted state. The original binary exceeds its 15,587,262,464-byte RSS guard before readiness. The candidate reaches local readiness in 37.74 seconds, with 1,733,603,328 bytes sampled peak RSS and 5M knobs at revision 39064. The candidate guard is 17,179,869,184 bytes because host availability determines the ceiling. The baseline is censored, so this comparison provides no exact speedup ratio. Local readiness alone does not verify quorum, every key, or agent publication.
+
+The three-voter candidate restores revision 39064, but both relays remain without an initial selected snapshot and return `busy` to agents. Successful quorum opens coexist with repeated upstream rotations. Relay upstream failure diagnosis remains separate from the decoder reclamation candidate; neither result qualifies sustained 5M operation.
+
+
+A short control with terminal export counters identifies 15 deadline expirations on the leader, with zero representation-limit, disconnect or unexpected-error terminations. Its unchanged five-second authority deadline expires during snapshot preparation. A preceding control stops on a retryable leader read before bootstrap; the subsequent control uses the existing bounded read-retry helper. Separate delivery timing and the cumulative string bound require qualification before the complete bootstrap can pass.

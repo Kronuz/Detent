@@ -41,6 +41,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_repeated_cancel_waits_for_original_launch(self) -> None:
         spawned = asyncio.Event()
+        ready = asyncio.Event()
         released = asyncio.Event()
         original = asyncio.create_subprocess_exec
 
@@ -60,7 +61,14 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                 pending = asyncio.create_task(
                     group.start(
                         "cancelled",
-                        [sys.executable, "-c", "import time;time.sleep(60)"],
+                        [
+                            sys.executable,
+                            "-c",
+                            "import time;print('ready', flush=True);time.sleep(60)",
+                        ],
+                        observe=lambda payload: (
+                            ready.set() if b"ready" in payload else None
+                        ),
                     )
                 )
                 await asyncio.wait_for(spawned.wait(), 2)
@@ -73,6 +81,7 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(asyncio.CancelledError):
                     await pending
                 actor = group.children[0]
+                await asyncio.wait_for(ready.wait(), 5)
         self.assertEqual(actor.process.returncode, -signal.SIGTERM)
 
     async def test_repeated_cancel_does_not_interrupt_shutdown(self) -> None:
