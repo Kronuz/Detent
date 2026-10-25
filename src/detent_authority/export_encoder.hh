@@ -14,6 +14,7 @@ class SnapshotExportEncoder {
 	SnapshotExportEncoder(const SnapshotExportEncoder &) = delete;
 	void step(distribution::WorkBudget &budget);
 	bool counted() const noexcept;
+	distribution::SnapshotEncodingProgress progress() const noexcept { return encoder_.progress(); }
 	std::uint64_t encoded_length() const;
 	bool done() const noexcept;
 	bool chunk_ready() const noexcept;

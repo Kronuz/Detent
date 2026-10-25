@@ -47,6 +47,9 @@ int main() {
 					encoded.append(encoder.take_chunk()->view());
 			}
 			require(encoded == fixture() && encoder.encoded_length() == encoded.size());
+			const auto progress = encoder.progress();
+			require(progress.counted && progress.records == 2 && progress.overrides == 1 &&
+					progress.string_bytes == 24 && progress.wire_bytes == encoded.size());
 		}
 		require(output->used() == 0 && snapshot->storage_account()->used() == input_capacity);
 		l::GenerationId generation;

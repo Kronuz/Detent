@@ -1407,6 +1407,9 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
 		auto publish_health = [&] {
+			const auto export_progress = delivering && delivering->exporter
+				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
+				: distribution::SnapshotEncodingProgress{};
 			auto captured_at = Clock::now();
 			std::shared_ptr<const reactor::ConnectionAdmission> observer;
 			{
@@ -1548,6 +1551,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				",\"distribution_export_disconnected\":" + std::to_string(export_disconnected.get()) +
 				",\"distribution_export_limits\":" + std::to_string(export_limits.get()) +
 				",\"distribution_export_errors\":" + std::to_string(export_errors.get()) +
+				",\"distribution_export_records\":" + std::to_string(export_progress.records) +
+				",\"distribution_export_strings\":" + std::to_string(export_progress.string_bytes) +
+				",\"distribution_export_wire\":" + std::to_string(export_progress.wire_bytes) +
+				",\"distribution_export_counted\":" + std::string(export_progress.counted ? "true" : "false") +
 				",\"subscription_idle_responses\":" + std::to_string(subscription_idle.get()) +
 				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
 				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
