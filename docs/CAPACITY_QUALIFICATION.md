@@ -41,6 +41,26 @@ Use exclusive host reservations for published measurements and existing interfer
 
 Publish bytes per knob and amplification relative to encoded size alongside absolute totals. Express update CPU as core-seconds per accepted operation; project fleet core demand only from measured rates. Do not infer dollars or power without a deployment price or power model. Do not call the largest completed tier the realistic limit until sustained writes, agent convergence and recovery meet explicit operating budgets.
 
+### Per-hop network accounting
+
+Complete capacity qualification includes a traffic budget for publisher ingestion, inter-voter replication, authority-to-relay distribution and relay-to-agent delivery. Normal SDK mapped reads contribute no network traffic per lookup. Logical payload size, framed encoded payload and observed transport traffic are separate quantities; mapped image size is not a network-byte measurement.
+
+The native fleet probe already reports `logical_bytes` and `wire_bytes`. The former covers concatenated decoded payload; the latter covers fragment headers and encoded payload, excluding HTTP and TLS. Reuse these counters and the existing connection/retry instrumentation. The [short persistent-transport evidence](../benchmarks/fleet-persistent-transport-qualification.json) includes both quantities but does not establish sustained capacity or a complete per-hop traffic budget. The [codec comparison](DISTRIBUTION_CODEC.md) measures a synthetic corpus and excludes transport; its JSON compressed output is smaller than its binary candidates despite higher encode/decode CPU.
+
+| Boundary | Required attribution |
+| --- | --- |
+| Publisher to authority | Accepted mutation bytes, batch size, request/response overhead, retries and refused traffic |
+| Authority peers | Command/framing bytes, replication to each follower, heartbeat and catch-up/checkpoint traffic |
+| Authority to relay | Snapshot, delta and progress bytes; compression, reconnects and repeated transfers |
+| Relay to agents | The same categories, multiplied by actual recipients; cached encoding reuse and connection reuse reported separately |
+
+1. Use the same source-identified corpus for cold bootstrap, one-key and bounded-batch updates, warm reconnect, slow subscribers and failure recovery. Include production-like key lengths, override density and less-compressible values. Do not infer a compression ratio from cardinality alone.
+2. Separate logical bytes, encoded frame bytes, HTTP/control bytes and transport observations. Record whether transport counts include TLS handshakes, record framing, TCP/IP headers or retransmissions. Count each directed hop once; sender and receiver observations are reconciliation checks, not additive traffic.
+3. Retain idle/control traffic and unsuccessful attempts. Normalize ingestion and replication by accepted durable mutations, and distribution by delivered updates or bootstrapped recipients. Keep session resets that force another full snapshot visible.
+4. Compare raw/zstd and snapshot/delta behavior with compression CPU, decode CPU, peak memory and fetch-to-ready latency. A smaller byte count alone does not establish the preferred representation. Require byte/semantic identity and a controlled before/after for any optimization.
+
+The 5M logical snapshot count is not compressed traffic. The complete per-hop budget, including retry amplification at the supported operating point, remains open before capacity can be declared qualified.
+
 ## Validated architectural blueprint
 
 The review covers scalability, edge cases, dependency/state ownership and security. Implement startup runtime capacity first: one explicit envelope forwards into existing limit types, preserves defaults and validates checked size arithmetic and overlapping resource funding before service admission. Use paged-v2. The 1.1M default page limit and hard uses of default segment/byte bounds must be included; exposing only the authority key setting is insufficient.

@@ -12,7 +12,8 @@
 | Relay snapshot lifecycle | Integrated; functional and scoped sanitizer gates pass | 219/219 candidate product tests; delayed raw/compressed TLS tests; ASan/UBSan; sustained capacity envelope remains open |
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
 | Container selection | Public flat-map adopted on main | 224 native tests and six enabled hosted jobs pass; [qualification state](container-selection.md) |
-| Recovery/delivery | Candidate passes 224 native tests and complete persisted 5M SDK verification | One Intel macOS coordinator deadline remains; focused exact-profile diagnostics running; candidate production changes remain unmerged |
+| Recovery/delivery | Qualified component merged on main | 224 native tests, complete persisted 5M SDK verification and all six enabled hosted profiles pass; sustained capacity remains open |
+| Fresh client attachment | Release performance blocker | New-process 5M attachment repeats full graph validation, measured at 47.8–58.8 seconds; target is under 1 ms through first knob read on a prepared local source; architecture revision pending |
 | Storage barriers | Blueprint validated; implementation pending | [Grouped preparation](../STORAGE_BARRIER_ARCHITECTURE.md), preserving file syncs and ownership-before-payload ordering |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
