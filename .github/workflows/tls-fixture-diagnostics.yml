@@ -1,18 +1,18 @@
-name: TLS and managed-process diagnostics
+name: TLS and process lifecycle diagnostics
 on:
   workflow_dispatch:
     inputs:
       mode:
         description: Diagnostic profile
         type: choice
-        options: [certificates, managed]
+        options: [certificates, managed, writers]
         default: certificates
       repetitions:
-        description: Managed-process repetitions (1 to 1000)
+        description: Process repetitions (1 to 1000)
         type: number
         default: 100
       parallel_runs:
-        description: Concurrent managed-process drivers (1 to 4)
+        description: Concurrent process drivers (1 to 4)
         type: number
         default: 1
 permissions:
@@ -54,12 +54,13 @@ jobs:
             build/tests/detent_authority/tls-fixture/*.pem
             build/tests/detent_delivery/tls-fixture/*.pem
   managed:
-    if: inputs.mode == 'managed'
+    if: inputs.mode == 'managed' || inputs.mode == 'writers'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      CC: clang-18
-      CXX: clang++-18
+      CC: ${{ inputs.mode == 'writers' && 'gcc-13' || 'clang-18' }}
+      CXX: ${{ inputs.mode == 'writers' && 'g++-13' || 'clang++-18' }}
+      MODE: ${{ inputs.mode }}
       REPETITIONS: ${{ inputs.repetitions }}
       PARALLEL_RUNS: ${{ inputs.parallel_runs }}
     steps:
@@ -73,26 +74,41 @@ jobs:
             -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
       - name: Build the real service and reader binaries
         run: |
-          cmake --build build --parallel 4 --target detentd detent-agent detent-reader
-          test -x build/src/detent
+          if [[ "$MODE" == writers ]]; then
+            cmake --build build --parallel 4 --target detentd
+          else
+            cmake --build build --parallel 4 --target detentd detent-agent detent-reader
+            test -x build/src/detent
+          fi
       - name: Generate certificates
-        run: ctest --test-dir build --output-on-failure -R '^delivery_tls_certificates$'
+        run: |
+          if [[ "$MODE" == writers ]]; then
+            ctest --test-dir build --output-on-failure -R '^authority_tls_certificates$'
+          else
+            ctest --test-dir build --output-on-failure -R '^delivery_tls_certificates$'
+          fi
       - name: Repeat managed delivery through restart and reset
         run: |
           [[ "$REPETITIONS" =~ ^[0-9]+$ ]] && (( REPETITIONS >= 1 && REPETITIONS <= 1000 ))
           [[ "$PARALLEL_RUNS" =~ ^[0-9]+$ ]] && (( PARALLEL_RUNS >= 1 && PARALLEL_RUNS <= 4 ))
+          fixture=delivery_tls
+          pattern='^test_managed_delivery_process$'
+          if [[ "$MODE" == writers ]]; then
+            fixture=authority_tls
+            pattern='^test_system_authority_writer_failover$'
+          fi
           drivers=()
           for ((driver=1; driver<=PARALLEL_RUNS; driver++)); do
             ctest --test-dir build --output-on-failure --no-tests=error \
-              -R '^test_managed_delivery_process$' -FA delivery_tls \
-              --repeat "until-fail:$REPETITIONS" > "managed-$driver.log" 2>&1 &
+              -R "$pattern" -FA "$fixture" \
+              --repeat "until-fail:$REPETITIONS" > "$MODE-$driver.log" 2>&1 &
             drivers+=("$!")
           done
           result=0
           for driver in "${drivers[@]}"; do
             wait "$driver" || result=1
           done
-          for logfile in managed-*.log; do
+          for logfile in "$MODE"-*.log; do
             printf '=== %s ===\n' "$logfile"
             tail -n 120 "$logfile"
           done
@@ -100,6 +116,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: managed-process-repetition-logs
-          path: managed-*.log
+          name: ${{ inputs.mode }}-process-repetition-logs
+          path: |
+            managed-*.log
+            writers-*.log
           if-no-files-found: ignore
