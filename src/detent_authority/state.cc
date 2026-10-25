@@ -1744,7 +1744,7 @@ struct ImageDecoder::Impl {
 	std::size_t received = 0;
 	std::uint64_t remaining = 0, position = 0;
 	unsigned stage = 0;
-	bool final = false, waiting = true, complete = false;
+	bool final = false, waiting = true, complete = false, released = false;
 	std::optional<decltype(State::records_)::Cursor> records;
 	Impl(Context context, Limits limits) : state(context, limits) {}
 	void row(Reader &r) {
@@ -1878,7 +1878,7 @@ ImageDecoder::ImageDecoder(ImageDecoder &&) noexcept = default;
 ImageDecoder &ImageDecoder::operator=(ImageDecoder &&) noexcept = default;
 void ImageDecoder::feed(std::string_view bytes, bool final) {
 	auto &d = *impl_;
-	require(d.waiting && !d.final && d.stage != 8, "image decoder input state");
+	require(!d.released && d.waiting && !d.final && d.stage != 8, "image decoder input state");
 	require(bytes.size() <= 65536 && bytes.size() <= d.state.limits_.image_bytes - d.received,
 			"application image bound");
 	// A producer row is the largest variable item; no whole-image buffering.
@@ -1894,6 +1894,7 @@ void ImageDecoder::step(std::size_t rows) {
 	auto &d = *impl_;
 	if (d.complete)
 		return;
+	require(!d.released, "released image decoder");
 	if (d.state.reclamation_pending()) {
 		CommandWorkBudget cleanup;
 		d.state.collect(cleanup);
@@ -1931,14 +1932,17 @@ void ImageDecoder::step(std::size_t rows) {
 	d.complete = d.stage == 8 && !d.state.reclamation_pending();
 }
 bool ImageDecoder::needs_input() const noexcept {
-	return !impl_->complete && impl_->waiting && !impl_->state.reclamation_pending();
+	return !impl_->released && !impl_->complete && impl_->waiting && !impl_->state.reclamation_pending();
 }
 bool ImageDecoder::finished() const noexcept { return impl_->complete; }
 State ImageDecoder::take() {
-	require(finished(), "incomplete application image");
+	require(!impl_->released && finished(), "incomplete application image");
+	impl_->released = true;
 	return std::move(impl_->state);
 }
 State ImageDecoder::discard() {
+	require(!impl_->released, "released image decoder");
+	impl_->released = true;
 	impl_->records.reset();
 	impl_->state.retire();
 	return std::move(impl_->state);

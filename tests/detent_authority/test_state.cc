@@ -764,6 +764,9 @@ void streaming_images() {
 		}
 	}));
 	auto retired = invalid.discard();
+	assert(!invalid.needs_input() && !invalid.finished());
+	assert(throws([&] { invalid.step(); }));
+	assert(throws([&] { invalid.feed({}); }));
 	assert(retired.retained_nodes() >= state.size());
 	while (retired.reclamation_pending()) {
 		auto before = retired.retained_nodes();
