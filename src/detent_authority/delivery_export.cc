@@ -52,6 +52,10 @@ DeliveryExport::DeliveryExport(const State &state, std::shared_ptr<const Authori
 											 selection, std::move(base_handoff));
 	  }()) {}
 DeliveryExport::~DeliveryExport() = default;
+std::optional<d::SnapshotEncodingProgress> DeliveryExport::snapshot_progress() const noexcept {
+	if (!impl_->snapshot) return {};
+	return impl_->snapshot->progress();
+}
 void DeliveryExport::step(d::WorkBudget &budget) {
 	auto &p = *impl_;
 	if (p.failed || p.retiring)

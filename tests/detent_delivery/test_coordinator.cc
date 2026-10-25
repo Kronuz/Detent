@@ -279,19 +279,35 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 			timer.expires_after(1ms);
 			co_await timer.async_wait(asio::use_awaitable);
 		}
-		if (!feedback_received->load()) {
+		{
 			const auto status = coordinator->status();
-			std::cerr << "coordinator feedback deadline: phase=" << static_cast<unsigned>(status.phase)
+			auto elapsed = [&](std::chrono::steady_clock::time_point at) -> std::int64_t {
+				return at == std::chrono::steady_clock::time_point{}
+						   ? -1
+						   : std::chrono::duration_cast<std::chrono::milliseconds>(at - (deadline - timeout)).count();
+			};
+			std::cerr << "coordinator feedback=" << (feedback_received->load() ? "received" : "deadline")
+					  << " phase=" << static_cast<unsigned>(status.phase)
 					  << " initialized=" << status.initialized << " worker_pending=" << status.worker_pending
 					  << " received=" << (status.received ? status.received->revision : 0)
 					  << " validated=" << (status.validated ? status.validated->revision : 0)
 					  << " recoverable=" << (status.recoverable ? status.recoverable->revision : 0)
 					  << " acknowledged=" << (status.acknowledged ? status.acknowledged->revision : 0)
+					  << " ack_ms=" << elapsed(status.publication_acknowledged_at)
+					  << " discard_ms=" << elapsed(status.discard_started_at)
+					  << " recovery_ms=" << elapsed(status.recovery_started_at)
 					  << '\n';
-			const auto error = status.error;
-			coordinator->close();
-			if (error)
-				std::rethrow_exception(error);
+			for (std::size_t index = 0; index < status.cleanup.size(); ++index) {
+				const auto &slice = status.cleanup[index];
+				std::cerr << "coordinator cleanup=" << index << " turns=" << slice.turns
+						  << " charged_bytes=" << slice.charged_bytes << " max_gap_ns=" << slice.maximum_gap_ns
+						  << " finished_ms=" << elapsed(slice.finished) << '\n';
+			}
+			if (!feedback_received->load()) {
+				coordinator->close();
+				if (status.error)
+					std::rethrow_exception(status.error);
+			}
 		}
 		check(feedback_received->load());
 	}
@@ -648,6 +664,8 @@ int main(int argc, char **argv) {
 #ifdef DETENT_TEST_RELAY_HTTP
 		if (relay_network)
 			options.source.timeout = std::chrono::seconds(240);
+		else if (relay_http && count >= 500000)
+			options.source.timeout = std::chrono::seconds(120);
 #endif
 		if (count)
 			options.source.namespaces = {"app"};

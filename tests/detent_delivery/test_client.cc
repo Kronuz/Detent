@@ -277,6 +277,7 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 		co_await t::close_session(options, session);
 	} catch (const t::SessionResetError &error) {
 		close_refused = error.reason() == t::SessionResetReason::AdmissionFull;
+		check(std::string_view(error.what()) == "distribution session reset: admission_full");
 	}
 	check(close_refused);
 	co_await t::close_session(options, session);

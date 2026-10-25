@@ -125,8 +125,13 @@ template <class Marker, class Binding> class SessionTable {
 					   ? session
 					   : nullptr;
 		}
+		void activity_finished(Session &session, Clock::time_point now) noexcept {
+			if (!closed && !session.closing && !session.request && !session.window.transferring())
+				session.idle = std::min(now + limits.idle_lifetime, session.maximum);
+		}
 		bool expire(Session &session, Clock::time_point now) noexcept {
-			if (closed || now >= session.idle || now >= session.maximum)
+			if (closed || now >= session.maximum ||
+				(now >= session.idle && !session.request && !session.window.transferring()))
 				session.closing = true;
 			return session.closing;
 		}
@@ -296,16 +301,18 @@ template <class Marker, class Binding> class SessionTable {
 		s->request = false;
 		return {s->id, s->incarnation, window};
 	}
-	void settle(SubscriptionOfferToken token, bool written) noexcept {
+	void settle(SubscriptionOfferToken token, bool written, Clock::time_point now = Clock::now()) noexcept {
 		auto *s = impl_->find(token.session);
 		if (!s || s->incarnation != token.incarnation || !s->window.settle(token.window))
 			return;
 		if (!written)
 			s->closing = true;
+		impl_->activity_finished(*s, now);
 	}
-	void release(SubscriptionRequestToken token) noexcept {
+	void release(SubscriptionRequestToken token, Clock::time_point now = Clock::now()) noexcept {
 		if (auto *s = impl_->find(token)) {
 			s->request = false;
+			impl_->activity_finished(*s, now);
 		}
 	}
 	SubscriptionResult close(Identity id, SubscriptionPrincipal principal,

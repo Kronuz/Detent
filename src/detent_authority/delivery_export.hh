@@ -15,6 +15,7 @@ class DeliveryExport {
 	~DeliveryExport();
 	void step(distribution::WorkBudget &);
 	bool counted() const noexcept;
+	std::optional<distribution::SnapshotEncodingProgress> snapshot_progress() const noexcept;
 	std::uint64_t encoded_length() const;
 	distribution::UpdateKind kind() const;
 	const distribution::Cursor &target() const noexcept;

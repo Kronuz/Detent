@@ -33,6 +33,7 @@ struct BundleState {
 	std::shared_ptr<l::DiskStore> store;
 	std::filesystem::path directory;
 	std::chrono::steady_clock::time_point snapshot_retry{};
+	std::uint64_t reported_failures = 0;
 	BundleState(d::RetirementRuntime &retirement, std::shared_ptr<d::StorageLedger> pub,
 				std::shared_ptr<d::StorageLedger> cached, std::shared_ptr<d::StorageLedger> mapped,
 				std::size_t sessions)
@@ -276,6 +277,21 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 			for (std::size_t visits = 0; visits < std::min<std::size_t>(8, records.size()); ++visits) {
 				auto &record = *records[bundle_cursor++ % records.size()];
 				const auto state = record.coordinator->status();
+				if (state.failures != record.reported_failures) {
+					std::string detail;
+					if (state.error) {
+						try {
+							std::rethrow_exception(state.error);
+						} catch (const std::exception &error) {
+							detail = error.what();
+						} catch (...) {
+							detail = "unknown failure";
+						}
+					}
+					L_WARNING("detent-relay: bundle {} delivery failures {}, preserving durable selection: {}",
+							  record.directory.string(), state.failures, detail);
+					record.reported_failures = state.failures;
+				}
 				if (state.phase == t::CoordinatorPhase::Fenced ||
 					(record.coordinator->drained() && !stop_requested)) {
 					failure = state.error;

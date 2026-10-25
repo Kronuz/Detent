@@ -5,7 +5,7 @@ on:
       mode:
         description: Diagnostic profile
         type: choice
-        options: [certificates, managed, writers]
+        options: [certificates, managed, writers, coordinator]
         default: certificates
       repetitions:
         description: Process repetitions (1 to 1000)
@@ -18,6 +18,54 @@ on:
 permissions:
   contents: read
 jobs:
+  coordinator:
+    if: inputs.mode == 'coordinator'
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    env:
+      REPETITIONS: ${{ inputs.repetitions }}
+      PARALLEL_RUNS: ${{ inputs.parallel_runs }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure the matrix Intel macOS profile
+        run: |
+          brew install llvm
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+            '-DCMAKE_C_FLAGS_RELWITHDEBINFO=-O2 -g' \
+            '-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=-O2 -g -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE' \
+            -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON \
+            -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
+      - name: Build the composed coordinator fixture
+        run: cmake --build build --parallel 4 --target test_delivery_coordinator
+      - name: Generate certificates
+        run: ctest --test-dir build --output-on-failure -R '^delivery_tls_certificates$'
+      - name: Repeat large HTTP publication with cleanup diagnostics
+        run: |
+          [[ "$REPETITIONS" =~ ^[0-9]+$ ]] && (( REPETITIONS >= 1 && REPETITIONS <= 1000 ))
+          [[ "$PARALLEL_RUNS" =~ ^[0-9]+$ ]] && (( PARALLEL_RUNS >= 1 && PARALLEL_RUNS <= 4 ))
+          drivers=()
+          for ((driver=1; driver<=PARALLEL_RUNS; driver++)); do
+            ctest --test-dir build --verbose --output-on-failure --no-tests=error \
+              -R '^test_delivery_coordinator_subscription-relay-http-500000$' -FA delivery_tls \
+              --repeat "until-fail:$REPETITIONS" > "coordinator-$driver.log" 2>&1 &
+            drivers+=("$!")
+          done
+          result=0
+          for driver in "${drivers[@]}"; do
+            wait "$driver" || result=1
+          done
+          for logfile in coordinator-*.log; do
+            tail -n 120 "$logfile"
+          done
+          exit "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coordinator-cleanup-diagnostics
+          path: coordinator-*.log
   certificates:
     if: inputs.mode == 'certificates'
     runs-on: macos-15

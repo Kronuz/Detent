@@ -291,9 +291,14 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	if (d.HasMember("delivery_limits")) {
 		const auto &limits = field(d, "delivery_limits");
 		fields(limits, {"heap_bytes", "wire_bytes", "string_bytes", "records", "namespaces",
-					   "overrides", "definition_bytes"});
+					   "overrides", "definition_bytes", "timeout_ms"});
 		if (limits.HasMember("heap_bytes"))
 			o.delivery_heap_bytes = number(field(limits, "heap_bytes"));
+		if (limits.HasMember("timeout_ms")) {
+			const auto value = number(field(limits, "timeout_ms"));
+			check(value && value <= 86400000, "authority delivery timeout bound");
+			o.delivery_timeout = std::chrono::milliseconds(value);
+		}
 		if (limits.HasMember("wire_bytes"))
 			o.delivery.bytes = number(field(limits, "wire_bytes"));
 		auto set = [&](const char *name, std::uint32_t &target, std::uint64_t maximum) {
@@ -517,6 +522,9 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 			  options_.timeout.count() > 0 && options_.timeout <= std::chrono::hours(24) &&
 			  options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
+	check(!options_.delivery_timeout || (options_.delivery_timeout->count() > 0 &&
+			  *options_.delivery_timeout <= std::chrono::hours(24)),
+		  "invalid authority delivery timeout");
 	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
 			  options_.delivery_heap_bytes <= SIZE_MAX && options_.delivery.bytes &&
 			  options_.delivery.bytes <= SIZE_MAX && options_.delivery.namespaces &&
@@ -848,7 +856,7 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 	task->kind = Task::Kind::Distribution;
 	task->admission = std::move(admission);
 	task->delivery = delivery;
-	task->deadline = Clock::now() + options_.timeout;
+	task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout);
 	std::lock_guard lock(mutex_);
 	check(!stopping_, "authority is stopping");
 	stream_task(response, task);
@@ -896,7 +904,8 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 		else {
 			task->kind = Task::Kind::SessionNext;
 			task->sequence = command.after;
-			task->deadline += std::chrono::milliseconds(command.wait_ms);
+			task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout) +
+				std::chrono::milliseconds(command.wait_ms);
 			task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
 			task->published = command.published;
 		}
@@ -1266,6 +1275,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 	};
 	std::optional<TaskQueue> close_authorization, session_authorization, session_retirement;
 	kronuz::metrics::Counter subscription_reads, subscription_exports, subscription_idle;
+	kronuz::metrics::Counter export_expired, export_disconnected, export_limits, export_errors;
 	using ActiveSessionEntry = std::pair<const distribution::Identity, std::weak_ptr<Task>>;
 	std::map<distribution::Identity, std::weak_ptr<Task>, std::less<>,
 			 distribution::StorageAllocator<ActiveSessionEntry>>
@@ -1397,6 +1407,9 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
 		auto publish_health = [&] {
+			const auto export_progress = delivering && delivering->exporter
+				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
+				: distribution::SnapshotEncodingProgress{};
 			auto captured_at = Clock::now();
 			std::shared_ptr<const reactor::ConnectionAdmission> observer;
 			{
@@ -1534,6 +1547,14 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				",\"subscription_sessions\":" + std::to_string(subscriptions->size()) +
 				",\"subscription_quorum_reads\":" + std::to_string(subscription_reads.get()) +
 				",\"subscription_exports\":" + std::to_string(subscription_exports.get()) +
+				",\"distribution_export_expired\":" + std::to_string(export_expired.get()) +
+				",\"distribution_export_disconnected\":" + std::to_string(export_disconnected.get()) +
+				",\"distribution_export_limits\":" + std::to_string(export_limits.get()) +
+				",\"distribution_export_errors\":" + std::to_string(export_errors.get()) +
+				",\"distribution_export_records\":" + std::to_string(export_progress.records) +
+				",\"distribution_export_strings\":" + std::to_string(export_progress.string_bytes) +
+				",\"distribution_export_wire\":" + std::to_string(export_progress.wire_bytes) +
+				",\"distribution_export_counted\":" + std::string(export_progress.counted ? "true" : "false") +
 				",\"subscription_idle_responses\":" + std::to_string(subscription_idle.get()) +
 				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
 				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
@@ -2181,6 +2202,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				if (!slot.retiring) {
 					try {
 						if (delivery.settled.load() || now >= slot.task->deadline) {
+							if (delivery.settled.load())
+								export_disconnected.add();
+							else
+								export_expired.add();
 							terminate();
 						} else if (wire.bytes && wire.tokens) {
 							if (!slot.exporter) {
@@ -2239,7 +2264,11 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 							slot.retiring = true;
 						} else
 							terminate();
+					} catch (const std::length_error &) {
+						export_limits.add();
+						terminate();
 					} catch (const std::exception &) {
+						export_errors.add();
 						terminate();
 					}
 				}

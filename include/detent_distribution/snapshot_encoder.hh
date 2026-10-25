@@ -4,6 +4,10 @@
 #include "retirement.hh"
 
 namespace detent::distribution {
+struct SnapshotEncodingProgress {
+	std::uint64_t records = 0, overrides = 0, string_bytes = 0, wire_bytes = 0;
+	bool counted = false;
+};
 struct SnapshotRecordStep {
 	std::optional<Record> record;
 	bool done = false;
@@ -40,6 +44,7 @@ class SnapshotEncoder {
 	SnapshotEncoder(const SnapshotEncoder &) = delete;
 	void step(WorkBudget &);
 	bool counted() const noexcept;
+	SnapshotEncodingProgress progress() const noexcept;
 	std::uint64_t encoded_length() const;
 	bool done() const noexcept;
 	bool chunk_ready() const noexcept;

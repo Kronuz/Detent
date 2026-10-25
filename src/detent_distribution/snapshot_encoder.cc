@@ -279,6 +279,10 @@ std::uint64_t SnapshotEncoder::encoded_length() const {
 		throw std::logic_error("snapshot export count incomplete");
 	return impl_->wire_length;
 }
+SnapshotEncodingProgress SnapshotEncoder::progress() const noexcept {
+	if (!impl_) return {};
+	return {impl_->records, impl_->overrides, impl_->strings, impl_->wire_length, impl_->phase >= 2};
+}
 bool SnapshotEncoder::counted() const noexcept { return impl_ && !impl_->failed && impl_->phase >= 2; }
 bool SnapshotEncoder::done() const noexcept {
 	return impl_ && impl_->finished && !impl_->ready && !impl_->failed;

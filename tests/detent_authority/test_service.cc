@@ -79,6 +79,17 @@ int main() {
 		}
 		assert(rejected && !std::filesystem::exists(directory));
 	}
+	for (auto timeout : {std::chrono::milliseconds::zero(), std::chrono::milliseconds::max()}) {
+		auto invalid = options(directory);
+		invalid.delivery_timeout = timeout;
+		bool rejected = false;
+		try {
+			Service service(std::move(invalid));
+		} catch (const std::invalid_argument &) {
+			rejected = true;
+		}
+		assert(rejected && !std::filesystem::exists(directory));
+	}
 	const std::string open = "\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"";
 	{
 		auto config = directory.parent_path() / (directory.filename().string() + ".json");
@@ -120,10 +131,12 @@ int main() {
 			file << "{" << authority << R"("directory":"large-capacity-state",
 "application_limits":{"keys":10000000,"state_bytes":1073741824,"image_bytes":1610612736},
 "journal_limits":{"hard_bytes":4294967296,"replacement_bytes":2147483648},
+"delivery_limits":{"timeout_ms":60000},
 "credentials":[{"token":"0123456789abcdef0123456789abcdef","producer":"writer","namespaces":["ns"]}]})";
 		}
 		assert(::chmod(config.c_str(), 0600) == 0);
 		const auto funded = load_service_options(config);
+		assert(funded.delivery_timeout == std::chrono::seconds(60));
 		assert(funded.node.application.image_bytes == 1610612736 &&
 			   funded.node.storage.replacement_pool.logical_bytes == 2147483648);
 		std::filesystem::remove(config);

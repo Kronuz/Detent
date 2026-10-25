@@ -25,6 +25,8 @@ An explicit `snapshot_required` closes the session and requires reopening with `
 
 ## Owner state and continuity
 
+Idle expiry applies when neither an accepted request nor an unsettled transfer is active. Completing the last activity starts a fresh idle interval, capped by maximum session lifetime. Maximum lifetime and explicit closure apply during active work; closing sessions keep their accounting until request and transport ownership drain. A settled offer awaiting publication feedback is idle, so client publication must fit the configured idle allowance. Owner-clock times make settlement and release deterministic in lifetime tests.
+
 ```text
 Open → Idle → Parked → Quorum → Exporting → AwaitPublication
          ↑                                  |
@@ -72,7 +74,7 @@ The delivery-export and session fixtures pass native macOS, ASan/UBSan, TSan, Li
 
 ## Qualified HTTP and agent integration
 
-The server admits session requests outside publisher counters. Close has reserved intake slots and a separate authorization queue. Parked polls submit no quorum reads or exporters until the applied revision advances. Health reports `subscription_sessions`, `subscription_quorum_reads`, `subscription_exports` and `subscription_idle_responses`. `knobs` reports the applied state size; `delivery_captures` reports an active authority export capture. Idle tests compare these observations after exact publication feedback.
+The server admits session requests outside publisher counters. Close has reserved intake slots and a separate authorization queue. Parked polls submit no quorum reads or exporters until the applied revision advances. Health reports `subscription_sessions`, `subscription_quorum_reads`, `subscription_exports` and `subscription_idle_responses`. Authority export failure counters distinguish request expiry (`distribution_export_expired`), settled transports (`distribution_export_disconnected`), representation limits (`distribution_export_limits`) and other exceptions (`distribution_export_errors`). Active snapshot progress reports counted records, cumulative string and wire bytes, and whether counting has completed through `distribution_export_records`, `distribution_export_strings`, `distribution_export_wire` and `distribution_export_counted`. These fields are zero without an active snapshot; `delivery_captures` distinguishes active capture ownership. `knobs` reports the applied state size; `delivery_captures` reports an active authority export capture. Idle tests compare these observations after exact publication feedback.
 
 Credential grants have a startup canonical digest and ordered borrowed views. A digest equal to the creator or last successfully authorized grant set proves the stored scope remains allowed. Different grants use a bounded merge over the complete namespace scope. Only a successful full scan caches the new digest. Principal, policy and slot incarnation are checked independently; authorization has a fixed deadline.
 

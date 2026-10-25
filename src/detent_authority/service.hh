@@ -44,6 +44,7 @@ struct ServiceOptions {
 	SubscriptionRequestLimits subscription_requests;
 	std::chrono::milliseconds subscription_wait{30000};
 	std::chrono::milliseconds timeout{5000};
+	std::optional<std::chrono::milliseconds> delivery_timeout;
 };
 ServiceOptions load_service_options(const std::filesystem::path &path);
 class Service final : public http::HttpHandler {
