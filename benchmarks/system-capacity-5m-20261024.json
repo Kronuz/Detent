@@ -41,5 +41,40 @@
     "first_sleep_local": "2026-10-24 13:30:53 -0700",
     "cause": "Clamshell Sleep",
     "verdict": "Sleep occurs after trial shutdown and does not explain the convergence failure."
+  },
+  "recovery_diagnostics": {
+    "candidate_commit": "dd939f3",
+    "mechanism": "Pause image row admission while existing persistent-map retirement work remains; drain terminal retirement before publication.",
+    "single_voter": {
+      "baseline_binary_sha256": "3ac33d4071dd2e58c59fc18b7fdf0ff838c44eb102d8b4e72d210f7ac3224875",
+      "candidate_binary_sha256": "5bc0fb05f269b05351bf748c242f46113d41c3c5fe10a7e346a5e191513de3c2",
+      "baseline_sampled_peak_rss_bytes": 15623393280,
+      "baseline_ceiling_bytes": 15587262464,
+      "baseline_ready": false,
+      "candidate_sampled_peak_rss_bytes": 1733603328,
+      "candidate_ceiling_bytes": 17179869184,
+      "candidate_local_ready_seconds": 37.738441765,
+      "candidate_knobs": 5000000,
+      "candidate_revision": 39064,
+      "limitations": [
+        "Baseline is resource-censored; no exact speedup ratio.",
+        "Ceilings differ because available host memory determines them.",
+        "Single-voter local recovery does not establish quorum or full SDK corpus verification."
+      ]
+    },
+    "three_voter_candidate": {
+      "trial": "5000000-restore-r4",
+      "restored_revision": 39064,
+      "agent_convergence": false,
+      "relay_snapshot_ready": false,
+      "agent_reset_reason": "busy",
+      "upstream_failure": "under investigation"
+    },
+    "qualified": false,
+    "evidence_sha256": {
+      "5000000-single-baseline-r1": "6561653db3eb5433a99691fc5dab14e185ae94e375a20f828ffd5e1a9a5c64a7",
+      "5000000-single-candidate-r1": "b367b12fb89ab7ac7cd5e2e256ab584afe6aec81e35482bdf4cc6e4733584d89",
+      "5000000-restore-r4": "9e93cc0a64cf5763478b3a7c578e61665ab9e1a71608970680c8501371ebf6d2"
+    }
   }
 }
