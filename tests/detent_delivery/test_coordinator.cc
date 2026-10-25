@@ -664,6 +664,8 @@ int main(int argc, char **argv) {
 #ifdef DETENT_TEST_RELAY_HTTP
 		if (relay_network)
 			options.source.timeout = std::chrono::seconds(240);
+		else if (relay_http && count >= 500000)
+			options.source.timeout = std::chrono::seconds(120);
 #endif
 		if (count)
 			options.source.namespaces = {"app"};
