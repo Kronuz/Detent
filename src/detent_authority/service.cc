@@ -1266,6 +1266,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 	};
 	std::optional<TaskQueue> close_authorization, session_authorization, session_retirement;
 	kronuz::metrics::Counter subscription_reads, subscription_exports, subscription_idle;
+	kronuz::metrics::Counter export_expired, export_disconnected, export_limits, export_errors;
 	using ActiveSessionEntry = std::pair<const distribution::Identity, std::weak_ptr<Task>>;
 	std::map<distribution::Identity, std::weak_ptr<Task>, std::less<>,
 			 distribution::StorageAllocator<ActiveSessionEntry>>
@@ -1534,6 +1535,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				",\"subscription_sessions\":" + std::to_string(subscriptions->size()) +
 				",\"subscription_quorum_reads\":" + std::to_string(subscription_reads.get()) +
 				",\"subscription_exports\":" + std::to_string(subscription_exports.get()) +
+				",\"distribution_export_expired\":" + std::to_string(export_expired.get()) +
+				",\"distribution_export_disconnected\":" + std::to_string(export_disconnected.get()) +
+				",\"distribution_export_limits\":" + std::to_string(export_limits.get()) +
+				",\"distribution_export_errors\":" + std::to_string(export_errors.get()) +
 				",\"subscription_idle_responses\":" + std::to_string(subscription_idle.get()) +
 				",\"owner_turn_ns\":" + duration_json(owner_turn.snapshot()) +
 				",\"owner_turn_cpu_ns\":" + duration_json(owner_cpu.snapshot()) +
@@ -2181,6 +2186,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				if (!slot.retiring) {
 					try {
 						if (delivery.settled.load() || now >= slot.task->deadline) {
+							if (delivery.settled.load())
+								export_disconnected.add();
+							else
+								export_expired.add();
 							terminate();
 						} else if (wire.bytes && wire.tokens) {
 							if (!slot.exporter) {
@@ -2239,7 +2248,11 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 							slot.retiring = true;
 						} else
 							terminate();
+					} catch (const std::length_error &) {
+						export_limits.add();
+						terminate();
 					} catch (const std::exception &) {
+						export_errors.add();
 						terminate();
 					}
 				}
