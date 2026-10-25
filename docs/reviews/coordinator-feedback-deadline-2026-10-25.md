@@ -1,6 +1,6 @@
 # Large HTTP publication deadline investigation
 
-**Date:** 2026-10-25. **Status:** Cause unassigned; targeted Intel macOS diagnostics pending.
+**Date:** 2026-10-25. **Status:** Exact-profile repetitions pass; phase attribution pending.
 
 The recovery candidate's [Intel macOS job](https://github.com/Kronuz/Detent/actions/runs/40183675919/job/121139836233) misses the 500K publication-feedback deadline. At the deadline, the snapshot is received and validated, publication is acknowledged at revision 1, recovery still reports revision 0, and the phase is `Discarding`. The worker is not pending. Closing then settles the coordinator within a few milliseconds and sends a session Close instead of publication feedback.
 
@@ -15,3 +15,9 @@ The manual coordinator profile matches the shared matrix's Intel macOS runner, L
 Late discard entry points to preceding work. Many charged slices point to cleanup/scheduling cost. Repeated slices without charged work point to a nonprogress branch. A long resume interval needs finer work-versus-executor profiling. If ownership is suspected, a deterministic small-budget cleanup fixture must retain relay/cache handles and complete without fencing.
 
 Twenty concurrent native controls pass before this instrumentation; three instrumented native controls pass. These controls do not replace the failing matrix profile or establish the cause.
+
+## Exact-profile control
+
+[Run 40204684340](https://github.com/Kronuz/Detent/actions/runs/40204684340), source `522c353`, passes 20 repetitions across two concurrent drivers. Driver totals are 546.86 and 547.36 seconds. Individual cases span 47.11–59.30 seconds against the 60-second fixture deadline. Native controls are substantially shorter, so they do not reproduce this runner cost. The successful run captures only failure output and therefore does not establish the publication-versus-cleanup split.
+
+The next focused run retains successful phase traces and verbose CTest output. A deadline adjustment requires evidence that cleanup progresses and that the allowance, rather than a stalled state transition, accounts for the failure. The original failed matrix remains a qualification failure.

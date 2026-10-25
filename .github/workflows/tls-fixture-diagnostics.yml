@@ -48,7 +48,7 @@ jobs:
           [[ "$PARALLEL_RUNS" =~ ^[0-9]+$ ]] && (( PARALLEL_RUNS >= 1 && PARALLEL_RUNS <= 4 ))
           drivers=()
           for ((driver=1; driver<=PARALLEL_RUNS; driver++)); do
-            ctest --test-dir build --output-on-failure --no-tests=error \
+            ctest --test-dir build --verbose --output-on-failure --no-tests=error \
               -R '^test_delivery_coordinator_subscription-relay-http-500000$' -FA delivery_tls \
               --repeat "until-fail:$REPETITIONS" > "coordinator-$driver.log" 2>&1 &
             drivers+=("$!")

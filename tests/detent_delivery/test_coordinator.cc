@@ -279,14 +279,15 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 			timer.expires_after(1ms);
 			co_await timer.async_wait(asio::use_awaitable);
 		}
-		if (!feedback_received->load()) {
+		{
 			const auto status = coordinator->status();
 			auto elapsed = [&](std::chrono::steady_clock::time_point at) -> std::int64_t {
 				return at == std::chrono::steady_clock::time_point{}
 						   ? -1
 						   : std::chrono::duration_cast<std::chrono::milliseconds>(at - (deadline - timeout)).count();
 			};
-			std::cerr << "coordinator feedback deadline: phase=" << static_cast<unsigned>(status.phase)
+			std::cerr << "coordinator feedback=" << (feedback_received->load() ? "received" : "deadline")
+					  << " phase=" << static_cast<unsigned>(status.phase)
 					  << " initialized=" << status.initialized << " worker_pending=" << status.worker_pending
 					  << " received=" << (status.received ? status.received->revision : 0)
 					  << " validated=" << (status.validated ? status.validated->revision : 0)
@@ -302,10 +303,11 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 						  << " charged_bytes=" << slice.charged_bytes << " max_gap_ns=" << slice.maximum_gap_ns
 						  << " finished_ms=" << elapsed(slice.finished) << '\n';
 			}
-			const auto error = status.error;
-			coordinator->close();
-			if (error)
-				std::rethrow_exception(error);
+			if (!feedback_received->load()) {
+				coordinator->close();
+				if (status.error)
+					std::rethrow_exception(status.error);
+			}
 		}
 		check(feedback_received->load());
 	}
