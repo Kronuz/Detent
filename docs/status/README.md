@@ -1,17 +1,19 @@
 # Active qualification work
 
-**Updated:** 2026-10-23. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
+**Updated:** 2026-10-25. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
 
 | Workstream | State | Evidence or next gate |
 | --- | --- | --- |
 | Startup runtime capacity | Landed and pushed | `5721d53`; 217 product tests and 54 Python tests pass |
 | Managed CLI reader capacity | Full suite and ownership check pass; macOS permission recheck approves with platform conditions | 218 product tests; flat/paged real-process checks; SR1 macOS ACL refusal fixed; Linux rich/NFSv4 ACL and native FreeBSD qualification remain open |
-| System cardinality | Functional trials through 130K complete | Raw source-identified trials; published report through 100K; 1M → 5M → 10M remains open |
+| System cardinality | 5M replicated seed and reduced-topology candidate SDK verification complete | [Capacity evidence](../CAPACITY_QUALIFICATION.md); original convergence fails, larger topology reaches host guard; sustained 5M and exploratory 10M remain open |
 | Ingestion waits | Explorer profiling | Serial sync completions account for substantial measured time; separate worker time from queue delay and other request phases |
 | Scaling architecture | Release-scale qualification rejected | SC-1 relay full-snapshot rebuilding; SC-2/3 segment and compaction costs; see review |
 | Relay snapshot lifecycle | Integrated; functional and scoped sanitizer gates pass | 219/219 candidate product tests; delayed raw/compressed TLS tests; ASan/UBSan; sustained capacity envelope remains open |
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
-| Btree/container selection | Corrected flat-map candidate; adoption pending | Contributor branch owns the model change; generic library CI passes; [qualification state](container-selection.md) |
+| Container selection | Public flat-map adopted on main | 224 native tests and six enabled hosted jobs pass; [qualification state](container-selection.md) |
+| Recovery/delivery | Candidate passes 224 native tests and complete persisted 5M SDK verification | One Intel macOS coordinator deadline remains; focused exact-profile diagnostics running; candidate production changes remain unmerged |
+| Storage barriers | Blueprint validated; implementation pending | [Grouped preparation](../STORAGE_BARRIER_ARCHITECTURE.md), preserving file syncs and ownership-before-payload ordering |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.
