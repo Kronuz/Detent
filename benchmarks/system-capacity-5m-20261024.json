@@ -79,7 +79,8 @@
       "5000000-restore-r6": "d183657ba2a9fc8900e283a7647d3eb41b460e56a5553cea1682d1bb06de2013",
       "5000000-restore-r7": "83ab0737e8beff4c8d22c69e07f58b0b4a5bf922facd5b50839a544f841a8bf9",
       "5000000-restore-r8": "fcd67f06f60514ca3efb1bc9473dffcf660b83012cb03ed9a82a632bedc76e08",
-      "5000000-restore-r9": "053d47650ee0150a1a95ae7ceaecf6365bae40aa406e28bc040bee4e546dc0f9"
+      "5000000-restore-r9": "053d47650ee0150a1a95ae7ceaecf6365bae40aa406e28bc040bee4e546dc0f9",
+      "5000000-restore-r10": "6ee5e480be00b07d0242eaaae79707953b718422bc69bd0fdc4d1bdaf86fb3c4"
     },
     "export_diagnosis": {
       "source_commit": "b5112bb",
@@ -133,6 +134,26 @@
         "Expiry censors preflight duration; no completed counting or emission timing.",
         "A one-second profiler sample perturbs this diagnostic trial."
       ]
+    },
+    "long_response_control": {
+      "date": "2026-10-25",
+      "trial": "5000000-restore-r10",
+      "delivery_timeout_ms": 600000,
+      "authority_string_limit_bytes": 536870912,
+      "receiver_string_limit_bytes": 134217728,
+      "terminal": "operator stops repeated unexpected export terminations; controller receives SIGINT; owned daemons drain",
+      "last_leader_observation": {
+        "distribution_export_counted": false,
+        "distribution_export_disconnected": 0,
+        "distribution_export_errors": 4,
+        "distribution_export_expired": 0,
+        "distribution_export_limits": 0,
+        "distribution_export_records": 81258,
+        "distribution_export_strings": 3972587,
+        "distribution_export_wire": 6164925
+      },
+      "working_hypothesis": "Idle expiry marks an accepted request closing before subscription offer. Fake-clock regression independently reproduces subscription offer state mismatch.",
+      "capacity_qualified": false
     }
   }
 }
