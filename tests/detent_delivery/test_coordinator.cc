@@ -280,7 +280,15 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 			co_await timer.async_wait(asio::use_awaitable);
 		}
 		if (!feedback_received->load()) {
-			const auto error = coordinator->status().error;
+			const auto status = coordinator->status();
+			std::cerr << "coordinator feedback deadline: phase=" << static_cast<unsigned>(status.phase)
+					  << " initialized=" << status.initialized << " worker_pending=" << status.worker_pending
+					  << " received=" << (status.received ? status.received->revision : 0)
+					  << " validated=" << (status.validated ? status.validated->revision : 0)
+					  << " recoverable=" << (status.recoverable ? status.recoverable->revision : 0)
+					  << " acknowledged=" << (status.acknowledged ? status.acknowledged->revision : 0)
+					  << '\n';
+			const auto error = status.error;
 			coordinator->close();
 			if (error)
 				std::rethrow_exception(error);

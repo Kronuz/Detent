@@ -1,6 +1,6 @@
 # Capacity qualification
 
-**Date:** 2026-10-23. **Status:** Startup runtime-capacity configuration passes 217 native tests; full-system cardinality trials remain in progress. No new supported ceiling declared.
+**Date:** 2026-10-25. **Status:** A candidate completes reduced-topology 5M durable SDK verification. Sustained capacity and the larger topology remain open; no new supported ceiling is declared.
 
 Detent needs a measured operating envelope, including ingestion, replicated durability, distribution, durable local publication and application reads. Container microbenchmarks identify costs but cannot qualify that envelope. The [scale targets](SCALE_TARGETS.md) remain requirements, not completed qualification.
 
@@ -100,3 +100,12 @@ A short control with terminal export counters identifies 15 deadline expirations
 
 
 With a 60-second delivery allowance, the original string bound produces one representation-limit rejection and no observed export expiry in the short control. With the string allowance raised to the existing 512 MiB wire ceiling, a longer control reaches 4,705,298 counted records before its first expiry but still fails agent convergence. Counting speed varies by namespace record mix; neither an early boolean-heavy interval nor a censored export establishes complete-snapshot throughput. A subsequent functional control uses a ten-minute response cap and a fifteen-minute selection deadline without changing production defaults.
+
+
+## Reduced-topology 5M verification, October 25
+
+The recovery/delivery candidate distributes all 5M mixed knobs through three voters, one relay and one agent, and selects revision 39064 durably. Its logical snapshot is 261,337,255 bytes, including 161,388,910 cumulative string bytes. Mapped segment length is 1,510,248,448 bytes. These quantities describe different representations; they are not interchangeable with compressed network traffic or resident memory.
+
+The composed trial exceeds the harness's separate 60-second SDK deadline. The same native verifier then checks the saved generation successfully after daemon shutdown, completing all 5M records in 83.61 seconds with exit zero. This verifies the durable data independently without repeating seeding or distribution. It does not establish application lookup latency or a repeated bootstrap time.
+
+The [source-identified report](../benchmarks/system-capacity-5m-20261024.json) separates service, driver and verifier RSS and records both resource ceilings. The two-relay/two-agent control stops at its host guard; the reduced control has a different, larger available-memory allowance. Neither trial establishes a general physical-memory limit. The performance investigation includes small export slices and per-file durability flushes; accepted durability remains intact. Candidate matrix qualification remains open.

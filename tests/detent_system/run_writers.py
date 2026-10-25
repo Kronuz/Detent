@@ -66,12 +66,33 @@ async def drained(authority: Authority, evidence: Evidence) -> None:
     )
     deadline = time.monotonic() + 10
     while True:
-        status, health = await authority.request(authority.leader_index, "/v1/health")
-        if status == 200 and all(health.get(key) == 0 for key in keys):
-            evidence.record("drained", snapshot=health)
+        members: dict[int, dict[str, object]] = {}
+        leader: dict[str, object] = {}
+        quiet = True
+        for index in range(3):
+            try:
+                status, health = await authority.request(index, "/v1/health")
+            except (OSError, http.client.HTTPException) as error:
+                members[index] = {"error": str(error)}
+                quiet = False
+                continue
+            members[index] = {
+                "status": status,
+                **{key: health.get(key) for key in ("ready", "fenced", *keys)},
+            }
+            if index == authority.leader_index:
+                leader = health
+            quiet &= (
+                status == 200
+                and health.get("ready") is True
+                and not health.get("fenced")
+                and all(health.get(key) == 0 for key in keys)
+            )
+        if quiet:
+            evidence.record("drained", snapshot=leader, members=members)
             return
         if time.monotonic() >= deadline:
-            raise RuntimeError(f"authority resources did not drain: {health}")
+            raise RuntimeError(f"authority resources did not drain: {members}")
         await asyncio.sleep(0.2)
 
 
