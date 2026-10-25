@@ -19,7 +19,7 @@ The initial release supports a regional fixed three-voter authority, durable rel
 | Recovery and delivery | Decoder reclamation pacing and active-session idle fix pass native tests and complete reduced-topology 5M SDK verification | Resolve the Intel macOS coordinator deadline, complete candidate matrix and land the component |
 | Daemon and HTTP logs | Shared severity tint/color-depth controls and classic distributor HTTP metadata adopted; clean public-pin build, functional checks and bounded logging-cost comparison complete | Complete the asynchronous authority/relay HTTP completion observer and composed-product checks |
 | Consensus/journal adoption | Coordinated restart directly into finalized v2 agreed | Track C transport complete, coherent pins, old-state recovery, mixed-version refusal and rollback qualification |
-| Sustained capacity | Reduced functional runs and short 10k-session evidence | Calibrated 500k-key ingestion, raw/zstd 500/2k/10k session ladder, mixed pressure and soak at the supported operating point |
+| Sustained capacity | Reduced functional runs and short 10k-session evidence | Calibrated ingestion, raw/zstd 500/2k/10k session ladder, per-hop traffic and retry amplification, mixed pressure and soak at the supported operating point |
 | Failure and restoration | Failure tooling and restore design available | Fresh three-voter restore under a new epoch; combined failure, receipt, complete-state and resource conservation checks |
 | Packaging and product contract | Profiles and deployment documentation exist | Clean installation/build profiles, service lifecycle, upgrade/rollback and documented measured limits |
 
