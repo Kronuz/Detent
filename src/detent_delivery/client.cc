@@ -515,7 +515,24 @@ asio::awaitable<void> same_configuration(const ClientOptions &options, const Ses
 }
 } // namespace
 SessionResetError::SessionResetError(SessionResetReason reason)
-	: std::runtime_error("distribution session reset"), reason_(reason) {}
+	: std::runtime_error([&] {
+		  switch (reason) {
+		  case SessionResetReason::HistoryLost: return "distribution session reset: history_lost";
+		  case SessionResetReason::RepresentationLimit: return "distribution session reset: representation_limit";
+		  case SessionResetReason::Expired: return "distribution session reset: expired";
+		  case SessionResetReason::IdentityChanged: return "distribution session reset: identity_changed";
+		  case SessionResetReason::OutOfSync: return "distribution session reset: out_of_sync";
+		  case SessionResetReason::Busy: return "distribution session reset: busy";
+		  case SessionResetReason::AdmissionFull: return "distribution session reset: admission_full";
+		  case SessionResetReason::Forbidden: return "distribution session reset: forbidden";
+		  case SessionResetReason::Unauthorized: return "distribution session reset: unauthorized";
+		  case SessionResetReason::InvalidRequest: return "distribution session reset: invalid_request";
+		  case SessionResetReason::SourceBehind: return "distribution session reset: source_behind";
+		  case SessionResetReason::NotLeader: return "distribution session reset: not_leader";
+		  case SessionResetReason::Unavailable: return "distribution session reset: unavailable";
+		  }
+		  return "distribution session reset: unknown";
+	  }()), reason_(reason) {}
 bool SessionHandle::valid() const noexcept { return state_ && state_->alive && !state_->closed; }
 d::Identity SessionHandle::identity() const noexcept { return state_ ? state_->id : d::Identity{}; }
 std::chrono::milliseconds SessionHandle::maximum_wait() const noexcept {
