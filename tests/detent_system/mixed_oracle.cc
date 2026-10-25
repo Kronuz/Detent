@@ -1,4 +1,5 @@
 #include "oracle_capacity.hh"
+#include "reader_benchmark.hh"
 #include "detent/client.hh"
 #include "detent/identity.hh"
 #include "detent/validation.hh"
@@ -49,6 +50,7 @@ std::uint64_t bucket(std::string_view key, std::string_view cohort) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
+		ReaderBenchmark benchmark(argc, argv);
 		if (argc != 7 && argc != 16)
 			throw std::invalid_argument("mixed oracle requires directory, recipes and four identity components");
 		OracleCapacity capacity(argc, argv);
@@ -67,6 +69,7 @@ int main(int argc, char **argv) {
 		if (!expected || (!shared_namespace.empty() &&
 			!detent::is_valid_knob_name(shared_namespace + ":key" + std::to_string(records - 1))))
 			throw std::invalid_argument("mixed oracle namespace");
+		benchmark.prepare(records);
 		detent::distribution::Cursor identity;
 		identity.cluster = detent::distribution::parse_identity_hex<16>(argv[3]);
 		identity.group = detent::distribution::parse_identity_hex<16>(argv[4]);
@@ -85,10 +88,12 @@ int main(int argc, char **argv) {
 																	  std::move(overrides));
 			return source;
 		};
+		const auto open_usage = ReaderBenchmark::usage();
 		const auto open_begin = std::chrono::steady_clock::now();
 		detent::Client client(std::move(options));
 		source->refresh();
 		const auto ready = std::chrono::steady_clock::now();
+		const auto ready_usage = ReaderBenchmark::usage();
 		const auto view = client.read_view();
 		const auto cursor = view.cursor();
 		if (!cursor || !cursor->same_identity(identity) || cursor->revision < revision)
@@ -112,6 +117,7 @@ int main(int argc, char **argv) {
 				const auto magnitude = static_cast<std::int64_t>((counter * 104729 + ordinal * 17) % (1ull << 60));
 				const auto value = ((ordinal + counter) & 2) ? -magnitude : magnitude;
 				equal(view.get(key), value, key);
+				benchmark.add(key, false, value);
 				equal(view.get(key, "ramp"), value, key);
 				error(view.eval(key), detent::ErrorCategory::WrongType, key);
 			} else {
@@ -127,6 +133,8 @@ int main(int argc, char **argv) {
 					const auto sample = bucket(key, cohort);
 					const bool global = (ordinal + counter) % 3 == 0 ? default_value
 														: sample < (ordinal * 13 + counter * 7) % 101;
+					if (cohort == std::string_view("cohort-A"))
+						benchmark.add(key, true, default_value, global);
 					equal(view.eval(key, cohort), global, key);
 					equal(view.eval(key, cohort, "unknown"), global, key);
 					equal(view.eval(key, cohort, "ramp"), sample < (ordinal * 17 + counter * 11) % 101, key);
@@ -138,11 +146,16 @@ int main(int argc, char **argv) {
 		}
 		if (source->status().bool_knobs != booleans || source->status().int_knobs != integers)
 			throw std::runtime_error("mixed SDK oracle corpus cardinality mismatch");
+		const auto verified = std::chrono::steady_clock::now();
+		benchmark.run(client, view);
 		std::cout << "{\"records\":" << records << ",\"bool_knobs\":" << booleans
 				  << ",\"int_knobs\":" << integers << ",\"deleted\":" << deleted
 				  << ",\"revision\":" << cursor->revision
                   << ",\"open_ms\":" << std::chrono::duration<double, std::milli>(ready - open_begin).count()
-                  << ",\"verify_ms\":" << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - ready).count()
+                  << ",\"open_cpu_seconds\":" << ReaderBenchmark::cpu(ready_usage) - ReaderBenchmark::cpu(open_usage)
+                  << ",\"open_minor_faults\":" << ready_usage.ru_minflt - open_usage.ru_minflt
+                  << ",\"open_major_faults\":" << ready_usage.ru_majflt - open_usage.ru_majflt
+                  << ",\"verify_ms\":" << std::chrono::duration<double, std::milli>(verified - ready).count()
                   << ",\"peak_rss_bytes_before_teardown\":" << oracle_peak_rss_bytes() << "}\n";
 	} catch (const std::exception &exception) {
 		std::cerr << exception.what() << '\n';
