@@ -77,7 +77,9 @@
       "5000000-restore-r4": "9e93cc0a64cf5763478b3a7c578e61665ab9e1a71608970680c8501371ebf6d2",
       "5000000-restore-r5": "2cd8aea08e63914179cfe21aedc253d82774cfc46039133dd67b44c45beab8bf",
       "5000000-restore-r6": "d183657ba2a9fc8900e283a7647d3eb41b460e56a5553cea1682d1bb06de2013",
-      "5000000-restore-r7": "83ab0737e8beff4c8d22c69e07f58b0b4a5bf922facd5b50839a544f841a8bf9"
+      "5000000-restore-r7": "83ab0737e8beff4c8d22c69e07f58b0b4a5bf922facd5b50839a544f841a8bf9",
+      "5000000-restore-r8": "fcd67f06f60514ca3efb1bc9473dffcf660b83012cb03ed9a82a632bedc76e08",
+      "5000000-restore-r9": "053d47650ee0150a1a95ae7ceaecf6365bae40aa406e28bc040bee4e546dc0f9"
     },
     "export_diagnosis": {
       "source_commit": "b5112bb",
@@ -92,6 +94,45 @@
       "verdict": "Fixed five-second authority task deadline terminates snapshot exports before any limit rejection is observed.",
       "earlier_control": "5000000-restore-r6 ends on a 503 outcome_unknown read before bootstrap; subsequent control uses the existing bounded leader-read retry helper.",
       "timing_policy_change_qualified": false
+    },
+    "longer_export_control": {
+      "source_commit": "c7bce17",
+      "trial": "5000000-restore-r8",
+      "delivery_timeout_ms": 60000,
+      "selection_timeout_seconds": 60,
+      "leader_terminal_counters": {
+        "distribution_export_expired": 0,
+        "distribution_export_limits": 1,
+        "distribution_export_disconnected": 0,
+        "distribution_export_errors": 0
+      },
+      "verdict": "Longer delivery allowance exposes a separate representation-limit rejection; bootstrap still fails.",
+      "original_string_limit_bytes": 134217728
+    },
+    "counting_progress_control": {
+      "date": "2026-10-25",
+      "source_commit": "2d1e12b",
+      "trial": "5000000-restore-r9",
+      "delivery_timeout_ms": 60000,
+      "string_limit_bytes": 536870912,
+      "selection_timeout_seconds": 300,
+      "maximum_sampled_records_before_first_expiry": 4705298,
+      "last_leader_observation": {
+        "distribution_export_counted": false,
+        "distribution_export_disconnected": 0,
+        "distribution_export_errors": 0,
+        "distribution_export_expired": 7,
+        "distribution_export_limits": 0,
+        "distribution_export_records": 3705034,
+        "distribution_export_strings": 139513279,
+        "distribution_export_wire": 222011557
+      },
+      "agent_convergence": false,
+      "limitations": [
+        "Counting throughput varies with integer and boolean-heavy namespaces.",
+        "Expiry censors preflight duration; no completed counting or emission timing.",
+        "A one-second profiler sample perturbs this diagnostic trial."
+      ]
     }
   }
 }

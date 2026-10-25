@@ -97,3 +97,6 @@ The three-voter candidate restores revision 39064, but both relays remain withou
 
 
 A short control with terminal export counters identifies 15 deadline expirations on the leader, with zero representation-limit, disconnect or unexpected-error terminations. Its unchanged five-second authority deadline expires during snapshot preparation. A preceding control stops on a retryable leader read before bootstrap; the subsequent control uses the existing bounded read-retry helper. Separate delivery timing and the cumulative string bound require qualification before the complete bootstrap can pass.
+
+
+With a 60-second delivery allowance, the original string bound produces one representation-limit rejection and no observed export expiry in the short control. With the string allowance raised to the existing 512 MiB wire ceiling, a longer control reaches 4,705,298 counted records before its first expiry but still fails agent convergence. Counting speed varies by namespace record mix; neither an early boolean-heavy interval nor a censored export establishes complete-snapshot throughput. A subsequent functional control uses a ten-minute response cap and a fifteen-minute selection deadline without changing production defaults.
