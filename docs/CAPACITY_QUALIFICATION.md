@@ -81,3 +81,7 @@ The [system capacity report](../benchmarks/system-capacity-20261023.json) record
 | 130K | 138.71 | 30.55 | 782.8 |
 
 These are single functional trials, not repeated performance qualification. The service peak sums voters, relays and agents at each sample; native probes, SDK oracles and Python driver memory are separate in the report. Sampling reports lower bounds. RSS sums can count shared pages more than once and do not measure unique physical machine memory. At 100K, one bootstrap SDK process reports 30.7 MiB kernel peak RSS before teardown; this is neither agent residency nor aggregate service memory. Bootstrap includes both complete SDK verifications after selection, so it is not directly comparable to the enterprise reference's fetch time. Bootstrap growth warrants profiling before any efficiency claim.
+
+## Interrupted 5M exploratory trial, October 24
+
+The [source-identified report](../benchmarks/system-capacity-5m-interrupted-20261024.json) records successful replicated seeding of 5M mixed knobs and authority verification. Agent convergence times out after user-reported laptop suspension. Performance numbers are excluded; the timeout does not establish a product defect. Sampled service RSS peaks at 5,144,834,048 bytes, separately from a sampled driver peak of 116,195,328 bytes. These are lower-bound observations, not decoded-agent residency or a supported capacity. The clean repeat and independent durable SDK verification remain open.

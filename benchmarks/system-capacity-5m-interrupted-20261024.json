@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-24",
+  "status": "interrupted exploratory trial; performance excluded",
+  "records": 5000000,
+  "source_commit": "5c0d7d3df4e49740b16ba5c37a6b74f7120e9e2b",
+  "completed": [
+    "replicated 5M-knob seeding",
+    "authority corpus verification before agent convergence"
+  ],
+  "not_completed": [
+    "agent convergence",
+    "independent durable SDK verification",
+    "short update workload"
+  ],
+  "interruption": "User reports closing the laptop during the trial; host suspension makes deadline and elapsed-time attribution unreliable.",
+  "terminal_error": "managed agent 0 did not converge",
+  "timing_qualified": false,
+  "capacity_qualified": false,
+  "observations": {
+    "resident_samples": 12066,
+    "sampled_service_peak_bytes": 5144834048,
+    "sampled_driver_peak_bytes": 116195328
+  },
+  "limitations": [
+    "RSS samples are lower bounds and sums can count shared pages repeatedly.",
+    "Service RSS is not fully decoded agent residency.",
+    "Host suspension and possible hold expiry exclude performance conclusions.",
+    "A convergence timeout in this interrupted run does not establish a product convergence defect."
+  ],
+  "raw_evidence_sha256": "708b2a793b521933fc84561a8fca8742365e6d86941bd9c6db4ee0bee6c60fe3",
+  "binaries": {
+    "agents": "bf0defc246baeb000086c4eab08653d03f4d7cd1ed4e866d509237897a4cc780",
+    "binary": "3ac33d4071dd2e58c59fc18b7fdf0ff838c44eb102d8b4e72d210f7ac3224875",
+    "fleet": "8e0aab928c7f88af48d8774e96e1c4e06858dcdd98f70047249351ac56db0341",
+    "local_oracle": "abfa3130bce5ca881fa9ccb1ef055e381621d2ba8a0c3cecbffa6bc8f966653f",
+    "relays": "1a782f5258b59c82bfae6b3e3dd605b88855dccdd6c2f90d4fc909f541f360e9"
+  }
+}
