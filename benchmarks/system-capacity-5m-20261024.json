@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-10-24",
-  "status": "5M seeding complete; agent bootstrap failure under investigation",
+  "status": "Original trial seeds 5M but fails bootstrap; recovery candidate passes reduced-topology durable SDK verification",
   "records": 5000000,
   "source_commit": "5c0d7d3df4e49740b16ba5c37a6b74f7120e9e2b",
   "completed": [
@@ -154,6 +154,62 @@
       },
       "working_hypothesis": "Idle expiry marks an accepted request closing before subscription offer. Fake-clock regression independently reproduces subscription offer state mismatch.",
       "capacity_qualified": false
+    },
+    "5000000-restore-r11": {
+      "date": "2026-10-25",
+      "trial": "5000000-restore-r11",
+      "sampled_service_peak_bytes": 10799685632,
+      "sampled_all_owned_and_driver_peak_bytes": 10920361984,
+      "sampled_oracle_peak_bytes": 0,
+      "evidence_sha256": "60da7df9f2e7e25af8e030b40aefd03af694da51662335e146ca32adf56a627d",
+      "topology": {
+        "voters": 3,
+        "relays": 2,
+        "agents": 2
+      },
+      "resource_ceiling_bytes": 10909460070,
+      "terminal": "host resource guard; includes driver RSS",
+      "capacity_qualified": false
+    },
+    "5000000-restore-r12": {
+      "date": "2026-10-25",
+      "trial": "5000000-restore-r12",
+      "sampled_service_peak_bytes": 13105737728,
+      "sampled_all_owned_and_driver_peak_bytes": 14802485248,
+      "sampled_oracle_peak_bytes": 1535979520,
+      "evidence_sha256": "ad151449ab276b7d6fb7e5668c6a695097d07e40256b821a19e9f8a2b5de9cba",
+      "topology": {
+        "voters": 3,
+        "relays": 1,
+        "agents": 1
+      },
+      "resource_ceiling_bytes": 17349797478,
+      "durable_agent_selected": true,
+      "revision": 39064,
+      "snapshot_logical_wire_bytes": 261337255,
+      "snapshot_string_bytes": 161388910,
+      "mapped_segment_bytes": 1510248448,
+      "terminal": "60-second SDK harness deadline; no completed oracle result in this trial",
+      "capacity_qualified": false,
+      "limitations": [
+        "Host resource ceilings differ across trials as available memory changes.",
+        "A diagnostic one-second relay profile perturbs this exploratory trial.",
+        "RSS sums can count shared mappings repeatedly and do not measure unique physical memory."
+      ]
+    },
+    "5000000-sdk-r1": {
+      "date": "2026-10-25",
+      "trial": "5000000-sdk-r1",
+      "sampled_service_peak_bytes": 0,
+      "sampled_all_owned_and_driver_peak_bytes": 1563250688,
+      "sampled_oracle_peak_bytes": 1535901696,
+      "evidence_sha256": "f740d3c2421d856490a85c396c694b8484d7106597c61ab77f4613641719339c",
+      "records": 5000000,
+      "elapsed_seconds": 83.60941323917359,
+      "source_trial": "5000000-restore-r12",
+      "daemons_running": false,
+      "verifier_exit": 0,
+      "qualification": "complete independent SDK check of persisted generation; not sustained performance"
     }
   }
 }
