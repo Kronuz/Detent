@@ -291,9 +291,14 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	if (d.HasMember("delivery_limits")) {
 		const auto &limits = field(d, "delivery_limits");
 		fields(limits, {"heap_bytes", "wire_bytes", "string_bytes", "records", "namespaces",
-					   "overrides", "definition_bytes"});
+					   "overrides", "definition_bytes", "timeout_ms"});
 		if (limits.HasMember("heap_bytes"))
 			o.delivery_heap_bytes = number(field(limits, "heap_bytes"));
+		if (limits.HasMember("timeout_ms")) {
+			const auto value = number(field(limits, "timeout_ms"));
+			check(value && value <= 86400000, "authority delivery timeout bound");
+			o.delivery_timeout = std::chrono::milliseconds(value);
+		}
 		if (limits.HasMember("wire_bytes"))
 			o.delivery.bytes = number(field(limits, "wire_bytes"));
 		auto set = [&](const char *name, std::uint32_t &target, std::uint64_t maximum) {
@@ -517,6 +522,9 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 			  options_.timeout.count() > 0 && options_.timeout <= std::chrono::hours(24) &&
 			  options_.reply_bytes >= 1024 && !options_.credentials.empty(),
 		  "invalid authority service limits");
+	check(!options_.delivery_timeout || (options_.delivery_timeout->count() > 0 &&
+			  *options_.delivery_timeout <= std::chrono::hours(24)),
+		  "invalid authority delivery timeout");
 	check(options_.delivery_heap_bytes >= 1024 * 1024 &&
 			  options_.delivery_heap_bytes <= SIZE_MAX && options_.delivery.bytes &&
 			  options_.delivery.bytes <= SIZE_MAX && options_.delivery.namespaces &&
@@ -848,7 +856,7 @@ void Service::distribute(const http::Request &request, http::ResponseWriter &res
 	task->kind = Task::Kind::Distribution;
 	task->admission = std::move(admission);
 	task->delivery = delivery;
-	task->deadline = Clock::now() + options_.timeout;
+	task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout);
 	std::lock_guard lock(mutex_);
 	check(!stopping_, "authority is stopping");
 	stream_task(response, task);
@@ -896,7 +904,8 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 		else {
 			task->kind = Task::Kind::SessionNext;
 			task->sequence = command.after;
-			task->deadline += std::chrono::milliseconds(command.wait_ms);
+			task->deadline = Clock::now() + options_.delivery_timeout.value_or(options_.timeout) +
+				std::chrono::milliseconds(command.wait_ms);
 			task->poll_deadline = Clock::now() + std::chrono::milliseconds(command.wait_ms);
 			task->published = command.published;
 		}
