@@ -6,7 +6,9 @@ import argparse
 import asyncio
 import hashlib
 import http.client
+import json
 import time
+from collections import deque
 from pathlib import Path
 
 from authority import Authority
@@ -217,8 +219,28 @@ async def run(arguments: argparse.Namespace) -> None:
                 await cohort.close()
             await drained(authority, evidence)
             children = list(actors.children)
-        if any(actor.process.returncode != 0 for actor in children):
-            raise RuntimeError("authority did not drain successfully")
+        failed = {
+            actor.name: actor.process.returncode
+            for actor in children
+            if actor.process.returncode != 0
+        }
+        if failed:
+            tail: deque[str] = deque(maxlen=24)
+            try:
+                with (arguments.output / "events.jsonl").open() as stream:
+                    for line in stream:
+                        record = json.loads(line)
+                        if (
+                            record.get("kind") == "actor_output"
+                            and record.get("name") in failed
+                            and isinstance(record.get("text"), str)
+                        ):
+                            tail.append(record["text"])
+            except (OSError, json.JSONDecodeError):
+                tail.append("Shutdown output unavailable")
+            raise RuntimeError(
+                f"authority did not drain successfully: {failed}\n{''.join(tail)}"
+            )
         evidence.record("completed", dropped_output_records=evidence.dropped)
     finally:
         evidence.close()
