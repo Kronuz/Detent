@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import copy
+import tempfile
 import unittest
 from collections import deque
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+from authority import Authority
 from http_activity import GeneratorAdmissionRefused
+from run_writers import drained
+from runtime import Evidence
 from writers import Writers
 
 
@@ -38,6 +44,40 @@ class Responses:
 
 
 class WriterTests(unittest.IsolatedAsyncioTestCase):
+    async def test_teardown_waits_for_restarted_follower(self) -> None:
+        authority = object.__new__(Authority)
+        authority.leader_index = 0
+        follower_attempts = 0
+
+        async def health(index: int, path: str) -> tuple[int, dict[str, int | bool]]:
+            nonlocal follower_attempts
+            self.assertEqual(path, "/v1/health")
+            if index == 2:
+                follower_attempts += 1
+                if follower_attempts == 1:
+                    raise ConnectionRefusedError("follower is recovering")
+            return 200, {
+                "ready": True,
+                "fenced": False,
+                "requests": 0,
+                "reserved_body_bytes": 0,
+                "reserved_reply_bytes": 0,
+                "connections_active": 0,
+                "retired_log_bytes": 0,
+                "retired_log_entries": 0,
+            }
+
+        scratch = Path.cwd() / ".scratch"
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as directory:
+            evidence = Evidence(Path(directory) / "events.jsonl", 4096)
+            try:
+                with patch.object(authority, "request", side_effect=health):
+                    await drained(authority, evidence)
+            finally:
+                evidence.close()
+        self.assertGreaterEqual(follower_attempts, 2)
+
     async def test_capacity_is_terminal_and_advances_sequence(self) -> None:
         capacity = {"status": "capacity", "generation": 1, "sequence": 1}
         applied = {"status": "applied", "generation": 1, "sequence": 2}
