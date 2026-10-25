@@ -676,20 +676,46 @@ struct Coordinator::Impl {
 		if (store)
 			store->close();
 	}
+	void record_cleanup(std::size_t index, std::chrono::steady_clock::time_point started,
+						std::size_t bytes, bool done) noexcept {
+		auto &slice = diagnostic.cleanup[index];
+		if (slice.last_resume != std::chrono::steady_clock::time_point{})
+			slice.maximum_gap_ns = std::max(slice.maximum_gap_ns, static_cast<std::uint64_t>(
+				std::chrono::duration_cast<std::chrono::nanoseconds>(started - slice.last_resume).count()));
+		slice.last_resume = started;
+		++slice.turns;
+		slice.charged_bytes += bytes;
+		if (done)
+			slice.finished = std::chrono::steady_clock::now();
+	}
+	void acknowledge(const d::Cursor &cursor) noexcept {
+		diagnostic.acknowledged = cursor;
+		diagnostic.publication_acknowledged_at = std::chrono::steady_clock::now();
+	}
 	asio::awaitable<void> discard(std::optional<ReceivedUpdate> &update) {
 		diagnostic.phase = CoordinatorPhase::Discarding;
+		diagnostic.discard_started_at = std::chrono::steady_clock::now();
+		diagnostic.cleanup = {};
 		if (options.publication_sink) {
 			for (;;) {
+				const auto started = std::chrono::steady_clock::now();
 				d::WorkBudget budget;
-				if (options.publication_sink->release_stage(budget))
+				const auto before = budget.bytes;
+				const bool done = options.publication_sink->release_stage(budget);
+				record_cleanup(0, started, before - budget.bytes, done);
+				if (done)
 					break;
 				co_await yield();
 			}
 		}
 		if (builder) {
 			for (;;) {
+				const auto started = std::chrono::steady_clock::now();
 				l::ValidationBudget budget;
-				if (builder->discard(budget))
+				const auto before = budget.bytes;
+				const bool done = builder->discard(budget);
+				record_cleanup(1, started, before - budget.bytes, done);
+				if (done)
 					break;
 				co_await yield();
 			}
@@ -697,8 +723,13 @@ struct Coordinator::Impl {
 		}
 		if (update) {
 			for (;;) {
+				const auto started = std::chrono::steady_clock::now();
 				d::WorkBudget budget;
-				if (update->snapshot ? update->snapshot->discard(budget) : update->delta->discard(budget))
+				const auto before = budget.bytes;
+				const bool done = update->snapshot ? update->snapshot->discard(budget)
+												: update->delta->discard(budget);
+				record_cleanup(2, started, before - budget.bytes, done);
+				if (done)
 					break;
 				co_await yield();
 			}
@@ -910,11 +941,11 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							if (options.publication_sink)
 								options.publication_sink->bind_candidate(*actual.descriptor,
 																		 store->directory_identity());
-							diagnostic.acknowledged = candidate.cursor;
+							acknowledge(candidate.cursor);
 						} else {
 							if (co_await publish_candidate()) {
 								if (!paged_candidate)
-									diagnostic.acknowledged = candidate.cursor;
+									acknowledge(candidate.cursor);
 							}
 						}
 					}
@@ -992,12 +1023,13 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 				throw std::runtime_error("managed selection is not recoverable");
 			const bool changed = actual.descriptor &&
 								 (!base->generation || base->generation->descriptor() != actual.descriptor);
+			diagnostic.recovery_started_at = std::chrono::steady_clock::now();
 			auto recovered = co_await recover(changed);
 			if (!closing) {
 				bind_base(std::move(recovered));
 				if (paged_candidate && !failure && !cancelled() && diagnostic.received && base->generation &&
 					base->generation->descriptor().cursor == *diagnostic.received)
-					diagnostic.acknowledged = *diagnostic.received;
+					acknowledge(*diagnostic.received);
 			}
 			if (!closing && options.delivery_mode == DeliveryMode::Poll && !failure && !cancelled() &&
 				diagnostic.received && base->generation &&

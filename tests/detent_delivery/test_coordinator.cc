@@ -281,13 +281,27 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 		}
 		if (!feedback_received->load()) {
 			const auto status = coordinator->status();
+			auto elapsed = [&](std::chrono::steady_clock::time_point at) -> std::int64_t {
+				return at == std::chrono::steady_clock::time_point{}
+						   ? -1
+						   : std::chrono::duration_cast<std::chrono::milliseconds>(at - (deadline - timeout)).count();
+			};
 			std::cerr << "coordinator feedback deadline: phase=" << static_cast<unsigned>(status.phase)
 					  << " initialized=" << status.initialized << " worker_pending=" << status.worker_pending
 					  << " received=" << (status.received ? status.received->revision : 0)
 					  << " validated=" << (status.validated ? status.validated->revision : 0)
 					  << " recoverable=" << (status.recoverable ? status.recoverable->revision : 0)
 					  << " acknowledged=" << (status.acknowledged ? status.acknowledged->revision : 0)
+					  << " ack_ms=" << elapsed(status.publication_acknowledged_at)
+					  << " discard_ms=" << elapsed(status.discard_started_at)
+					  << " recovery_ms=" << elapsed(status.recovery_started_at)
 					  << '\n';
+			for (std::size_t index = 0; index < status.cleanup.size(); ++index) {
+				const auto &slice = status.cleanup[index];
+				std::cerr << "coordinator cleanup=" << index << " turns=" << slice.turns
+						  << " charged_bytes=" << slice.charged_bytes << " max_gap_ns=" << slice.maximum_gap_ns
+						  << " finished_ms=" << elapsed(slice.finished) << '\n';
+			}
 			const auto error = status.error;
 			coordinator->close();
 			if (error)

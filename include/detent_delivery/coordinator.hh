@@ -6,6 +6,7 @@
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
 #include <completion/native_completion.h>
+#include <array>
 #include <vector>
 
 namespace detent::delivery {
@@ -44,6 +45,10 @@ enum class CoordinatorPhase {
 	Closed,
 	Fenced
 };
+struct CleanupProgress {
+	std::chrono::steady_clock::time_point last_resume{}, finished{};
+	std::uint64_t turns = 0, charged_bytes = 0, maximum_gap_ns = 0;
+};
 struct CoordinatorStatus {
 	CoordinatorPhase phase = CoordinatorPhase::Starting;
 	local::SelectionSnapshot selected;
@@ -55,6 +60,10 @@ struct CoordinatorStatus {
 	std::size_t source_endpoint_index = 0;
 	std::uint64_t source_rotations = 0, quorum_refresh_failures = 0;
 	std::optional<std::chrono::steady_clock::time_point> last_quorum_open;
+	std::chrono::steady_clock::time_point publication_acknowledged_at{}, discard_started_at{},
+		recovery_started_at{};
+	// Publication sink, image builder, then decoded input.
+	std::array<CleanupProgress, 3> cleanup;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive
