@@ -239,6 +239,9 @@ int main() {
 			assert(denied && invalid.body.empty());
 		}
 
+	}
+	{
+		Service service(options(directory.string() + "-admission"));
 		std::vector<http::Request> held(16);
 		for (auto &request : held) {
 			request.path = "/v2/open";
@@ -248,7 +251,7 @@ int main() {
 		http::Request excess;
 		excess.path = "/v2/open";
 		excess.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-		rejected = false;
+		bool rejected = false;
 		try {
 			service.on_request_body(excess);
 		} catch (const std::invalid_argument &) {
@@ -257,6 +260,7 @@ int main() {
 		assert(rejected && excess.body.empty());
 		held.clear();
 	}
+	std::filesystem::remove_all(directory.string() + "-admission");
 	DeferredWriter delayed;
 	std::optional<http::Response> held_reply;
 	{
