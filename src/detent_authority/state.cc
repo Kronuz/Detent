@@ -1744,7 +1744,7 @@ struct ImageDecoder::Impl {
 	std::size_t received = 0;
 	std::uint64_t remaining = 0, position = 0;
 	unsigned stage = 0;
-	bool final = false, waiting = true;
+	bool final = false, waiting = true, complete = false;
 	std::optional<decltype(State::records_)::Cursor> records;
 	Impl(Context context, Limits limits) : state(context, limits) {}
 	void row(Reader &r) {
@@ -1892,7 +1892,19 @@ void ImageDecoder::feed(std::string_view bytes, bool final) {
 }
 void ImageDecoder::step(std::size_t rows) {
 	auto &d = *impl_;
-	if (d.waiting || d.stage == 8)
+	if (d.complete)
+		return;
+	if (d.state.reclamation_pending()) {
+		CommandWorkBudget cleanup;
+		d.state.collect(cleanup);
+		if (d.state.reclamation_pending())
+			return;
+	}
+	if (d.stage == 8) {
+		d.complete = true;
+		return;
+	}
+	if (d.waiting)
 		return;
 	std::size_t consumed = 0;
 	auto allocations = d.state.allocations();
@@ -1916,9 +1928,12 @@ void ImageDecoder::step(std::size_t rows) {
 	}
 	d.buffer.erase(0, consumed);
 	d.state.collect(d.state.allocations() - allocations + 128);
+	d.complete = d.stage == 8 && !d.state.reclamation_pending();
 }
-bool ImageDecoder::needs_input() const noexcept { return impl_->waiting; }
-bool ImageDecoder::finished() const noexcept { return impl_->stage == 8; }
+bool ImageDecoder::needs_input() const noexcept {
+	return !impl_->complete && impl_->waiting && !impl_->state.reclamation_pending();
+}
+bool ImageDecoder::finished() const noexcept { return impl_->complete; }
 State ImageDecoder::take() {
 	require(finished(), "incomplete application image");
 	return std::move(impl_->state);

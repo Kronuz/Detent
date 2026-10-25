@@ -729,20 +729,25 @@ void streaming_images() {
 		assert(state.apply(++index, transaction(++sequence, std::move(mutations))).status == Status::Applied);
 	}
 	auto bytes = state.checkpoint();
-	for (std::size_t fragment : {std::size_t{1}, std::size_t{73}, std::size_t{65536}}) {
-		ImageDecoder decoder(context());
-		std::size_t offset = 0;
-		while (!decoder.finished()) {
-			if (decoder.needs_input()) {
-				auto count = std::min(fragment, bytes.size() - offset);
-				decoder.feed(std::string_view(bytes).substr(offset, count), offset + count == bytes.size());
-				offset += count;
+	for (std::size_t rows : {std::size_t{1}, std::size_t{128}}) {
+		for (std::size_t fragment : {std::size_t{1}, std::size_t{73}, std::size_t{65536}}) {
+			ImageDecoder decoder(context());
+			std::size_t offset = 0;
+			while (!decoder.finished()) {
+				if (decoder.needs_input()) {
+					auto count = std::min(fragment, bytes.size() - offset);
+					decoder.feed(std::string_view(bytes).substr(offset, count), offset + count == bytes.size());
+					offset += count;
+				}
+				decoder.step(rows);
 			}
+			auto recovered = decoder.take();
+			assert(decoder.finished() && !decoder.needs_input());
 			decoder.step(1);
+			assert(!recovered.reclamation_pending());
+			assert(recovered.checkpoint() == bytes);
+			assert(recovered.retained_nodes() < recovered.size() + 1024);
 		}
-		auto recovered = decoder.take();
-		assert(recovered.checkpoint() == bytes);
-		assert(recovered.retained_nodes() < recovered.size() + 1024);
 	}
 	assert(throws([&] { State::restore(bytes + "trailing", context()); }));
 	ImageDecoder invalid(context());
