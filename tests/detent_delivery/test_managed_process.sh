@@ -42,6 +42,17 @@ cleanup() {
     fi
 }
 trap 'cleanup "$LINENO"' EXIT
+wait_relay_ready() {
+    local deadline=$((SECONDS + 5))
+    while ((SECONDS < deadline)); do
+        if "$relay" --status --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay-status.json" 2> "$root/relay-status-error.txt" &&
+            grep -q '"ready":true' "$root/relay-status.json"; then return; fi
+        if ! kill -0 "$relay_pid" 2>/dev/null; then cat "$1"; return 1; fi
+        sleep 0.02
+    done
+    cat "$root/relay-status.json" "$root/relay-status-error.txt" "$1" >&2
+    return 1
+}
 port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 identity='"cluster":"63000000000000000000000000000000","group":"67000000000000000000000000000000","epoch":"65000000000000000000000000000000"'
 writer_token=managed-writer-test-000000000000000000000000
@@ -114,14 +125,7 @@ first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.ar
 if [[ -n "$relay" ]]; then
     "$relay" --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay.log" 2>&1 &
     relay_pid=$!
-    for ((attempt=0;attempt<200;attempt++)); do
-        if grep -q 'durable bundles ready' "$root/relay.log"; then break; fi
-        if ! kill -0 "$relay_pid" 2>/dev/null; then cat "$root/relay.log"; exit 1; fi
-        sleep 0.02
-    done
-    grep -q 'durable bundles ready' "$root/relay.log"
-    "$relay" --status --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay-status.json"
-    grep -q '"ready":true' "$root/relay-status.json"
+    wait_relay_ready "$root/relay.log"
     "$interpreter" -c 'import json,sys; data=json.loads(next(line for line in open(sys.argv[1]) if line.startswith("{"))); native=data["disk_native_submitted"]; fallback=data["disk_fallback_submitted"]; peak=data["disk_maximum_outstanding"]; assert native+fallback > 0 and peak == 1; print(f"Relay disk originals: native={native}, fallback={fallback}, maximum_outstanding={peak}")' "$root/relay-status.json"
     if [[ "$isolated" == isolated ]]; then
         "$agent" --config "$root/agent-empty.json" --initialize-managed > "$root/agent-empty.log" 2>&1 &
@@ -245,12 +249,7 @@ if [[ -n "$relay" ]]; then
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); [bundle.update(mode="existing") for bundle in data["bundles"]]; open(p,"w").write(json.dumps(data))' "$root/relay.json"
     "$relay" --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay-restart.log" 2>&1 &
     relay_pid=$!
-    for ((attempt=0;attempt<200;attempt++)); do
-        if grep -q 'durable bundles ready' "$root/relay-restart.log"; then break; fi
-        if ! kill -0 "$relay_pid" 2>/dev/null; then cat "$root/relay-restart.log"; exit 1; fi
-        sleep 0.02
-    done
-    grep -q 'durable bundles ready' "$root/relay-restart.log"
+    wait_relay_ready "$root/relay-restart.log"
     cmp "$root/relay-storage-before" "$root/relay-generations/storage.meta"
     "$agent" --config "$root/agent.json" > "$root/agent-relay-restart.log" 2>&1 &
     agent_pid=$!
