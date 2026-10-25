@@ -85,9 +85,9 @@ SubscriptionOfferToken Subscriptions::offer(SubscriptionRequestToken token, d::C
 	return impl_->table.offer(token, target, std::move(marker), now);
 }
 void Subscriptions::settle(SubscriptionOfferToken token, bool written) noexcept {
-	impl_->table.settle(token, written);
+	impl_->table.settle(token, written, Clock::now());
 }
-void Subscriptions::release(SubscriptionRequestToken token) noexcept { impl_->table.release(token); }
+void Subscriptions::release(SubscriptionRequestToken token) noexcept { impl_->table.release(token, Clock::now()); }
 SubscriptionResult Subscriptions::close(d::Identity id, SubscriptionPrincipal principal,
 										std::uint64_t incarnation) noexcept {
 	return impl_->table.close(id, principal, incarnation);

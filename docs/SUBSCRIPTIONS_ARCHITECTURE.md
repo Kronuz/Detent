@@ -25,6 +25,8 @@ An explicit `snapshot_required` closes the session and requires reopening with `
 
 ## Owner state and continuity
 
+Idle expiry applies when neither an accepted request nor an unsettled transfer is active. Completing the last activity starts a fresh idle interval, capped by maximum session lifetime. Maximum lifetime and explicit closure apply during active work; closing sessions keep their accounting until request and transport ownership drain. A settled offer awaiting publication feedback is idle, so client publication must fit the configured idle allowance. Owner-clock times make settlement and release deterministic in lifetime tests.
+
 ```text
 Open → Idle → Parked → Quorum → Exporting → AwaitPublication
          ↑                                  |

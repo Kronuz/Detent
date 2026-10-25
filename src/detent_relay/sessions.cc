@@ -158,9 +158,9 @@ PreparedOffer Sessions::prepare(d::SubscriptionRequestToken token, Clock::time_p
 	throw std::logic_error("invalid relay cache decision");
 }
 void Sessions::settle(d::SubscriptionOfferToken token, bool written) noexcept {
-	impl_->table.settle(token, written);
+	impl_->table.settle(token, written, Clock::now());
 }
-void Sessions::release(d::SubscriptionRequestToken token) noexcept { impl_->table.release(token); }
+void Sessions::release(d::SubscriptionRequestToken token) noexcept { impl_->table.release(token, Clock::now()); }
 d::SubscriptionResult Sessions::close(d::Identity id, const SessionAuthorization &authorization,
 									  Clock::time_point now) noexcept {
 	if (!impl_->table.metadata(id, now))
