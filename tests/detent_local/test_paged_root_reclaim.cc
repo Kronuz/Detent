@@ -127,6 +127,7 @@ int main() {
 	store->advance();
 	drive(store);
 	check(!std::filesystem::exists(root / (l::generation_name(next) + ".lease")));
+	check(!std::filesystem::exists(root / (l::generation_name(next) + ".read")));
 	check(std::filesystem::exists(root / (l::generation_name(last) + ".lease")));
 	check(store->stats().used == census(root) && store->stats().used.generations == 1);
 	{

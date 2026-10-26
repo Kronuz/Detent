@@ -1,7 +1,8 @@
 #include "paged_publication_artifacts.hh"
-#include <limits>
 #include "names.hh"
+#include "reader_metadata.hh"
 #include "segment_names.hh"
+#include <limits>
 namespace detent::local::detail {
 namespace d = distribution;
 PagedPublicationArtifacts::PagedPublicationArtifacts(std::shared_ptr<d::StorageLedger> account)
@@ -31,9 +32,9 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		if (artifacts_.get_allocator() != Allocator(plan.bytes()->account()))
 			throw std::invalid_argument("paged artifact account mismatch");
 		const auto segments = plan.segments();
-		if (segments.size() > (std::numeric_limits<std::size_t>::max() - 3) / 2)
+		if (segments.size() > (std::numeric_limits<std::size_t>::max() - 4) / 2)
 			throw std::length_error("paged publication artifact count exceeded");
-		artifacts_.reserve(2 * segments.size() + 3);
+		artifacts_.reserve(2 * segments.size() + 4);
 		const auto registry = plan.registry();
 		reused_.reserve(registry ? registry->inputs().size() : 0);
 		for (std::size_t i = 0; registry && i < registry->inputs().size(); ++i) {
@@ -66,6 +67,12 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 											descriptor.checksum, 2}),
 			   {}, true);
 		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
+		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
+		                                              descriptor.checksum, plan.counts(), physical_bytes_});
+		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
+		metadata_buffer->append({metadata.data(), metadata.size()});
+		append(GenerationName(descriptor.generation, GenerationFile::ReaderMetadata).view(), {},
+		       std::move(metadata_buffer));
 		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),
 			   encode_descriptor(descriptor), {});
 		descriptor_ = descriptor;

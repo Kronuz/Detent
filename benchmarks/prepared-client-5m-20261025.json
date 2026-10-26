@@ -1,0 +1,516 @@
+{
+  "sha256": {
+    ".scratch/fast-client-build/trial-5m/r2-artifacts/probe": "991642ad22ce8124070fffbc85087fdfa6b3620bec6a4f6fca03bf4ae39d339f",
+    ".scratch/fast-client-build/trial-5m/r2-artifacts/prepared_client_probe.cc": "77ea621707979d72d190e0f7bda45fb28fa765033748e56960d1f9c4a84d9521",
+    ".scratch/fast-client-build/trial-5m/cases.tsv": "23755636110f707b00c41fbcb49ad409b170685a70955fc1ff4619c5270ee4c5",
+    ".scratch/fast-client-build/product/src/detent_local/libdetent_local_client.a": "856a86e5cab7ea4a702769cea26a6d800852fb7fc4915a8df819cb893c97d6b0",
+    ".scratch/fast-client-build/product/src/detent_local/libdetent_local_view.a": "8e6dead8a9c424e794e182c5358017aa34f5f1bc158321aebda50d12a9ecf49d",
+    ".scratch/fast-client-build/product/src/libdetent.a": "9f26975fd69fd7da039f1dc0cfe16d7c59fad35a35e0002b1d89537cfca397de",
+    ".scratch/fast-client-build/product/_deps/sha256-build/libsha256.a": "e8b63b7b00cd8ae2867eaacb289c8e5edab80d7d4c1a3c75dc99b4b27b61b05d",
+    ".scratch/fast-client-build/product/_deps/random_lib-build/librandom.a": "f6f8e512a534758fe05ebbce59fda76475132160cfc2ec5186816c72e57bd748",
+    ".scratch/fast-client-build/product/src/detent_distribution/libdetent_resources.a": "eb1022ad02014675b16923c73bafb223ce3c02524642bbac12c0bf8e5024c1c9"
+  },
+  "link": [
+    "/usr/local/opt/llvm/bin/clang++",
+    "-O3",
+    "-DNDEBUG",
+    "-isysroot",
+    "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+    "-Wl,-search_paths_first",
+    "-Wl,-headerpad_max_install_names",
+    "CMakeFiles/detent_system_prepared_client_probe.dir/prepared_client_probe.cc.o",
+    "-o",
+    "detent_system_prepared_client_probe",
+    "../../src/detent_local/libdetent_local_client.a",
+    "../../src/detent_local/libdetent_local_view.a",
+    "../../src/libdetent.a",
+    "../../_deps/sha256-build/libsha256.a",
+    "../../_deps/random_lib-build/librandom.a",
+    "../../src/detent_distribution/libdetent_resources.a"
+  ],
+  "link_cwd": "/Users/kronuz/code/Detent/.scratch/fast-client-build/product/tests/detent_system",
+  "samples": [
+    {
+      "first_live_ns": 1188743,
+      "attach_ns": 680238,
+      "lookup_ns": 508505,
+      "process_cpu_us": 1235,
+      "minor_faults": 74,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1",
+      "expected_integer": 17
+    },
+    {
+      "first_live_ns": 1266182,
+      "attach_ns": 525919,
+      "lookup_ns": 740263,
+      "process_cpu_us": 1317,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key128205",
+      "expected_integer": 2179485
+    },
+    {
+      "first_live_ns": 1012648,
+      "attach_ns": 488111,
+      "lookup_ns": 524537,
+      "process_cpu_us": 1060,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key256411",
+      "expected_integer": -4358987
+    },
+    {
+      "first_live_ns": 964378,
+      "attach_ns": 459508,
+      "lookup_ns": 504870,
+      "process_cpu_us": 1004,
+      "minor_faults": 76,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key384615",
+      "expected_integer": -6538455
+    },
+    {
+      "first_live_ns": 988828,
+      "attach_ns": 493968,
+      "lookup_ns": 494860,
+      "process_cpu_us": 1034,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key512821",
+      "expected_integer": 8717957
+    },
+    {
+      "first_live_ns": 1161088,
+      "attach_ns": 521063,
+      "lookup_ns": 640025,
+      "process_cpu_us": 1211,
+      "minor_faults": 80,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key641025",
+      "expected_integer": 10897425
+    },
+    {
+      "first_live_ns": 914210,
+      "attach_ns": 487404,
+      "lookup_ns": 426806,
+      "process_cpu_us": 959,
+      "minor_faults": 76,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key769231",
+      "expected_integer": -13076927
+    },
+    {
+      "first_live_ns": 793806,
+      "attach_ns": 483984,
+      "lookup_ns": 309822,
+      "process_cpu_us": 844,
+      "minor_faults": 76,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key897435",
+      "expected_integer": -15256395
+    },
+    {
+      "first_live_ns": 1037337,
+      "attach_ns": 462773,
+      "lookup_ns": 574564,
+      "process_cpu_us": 1083,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1025641",
+      "expected_integer": 17435897
+    },
+    {
+      "first_live_ns": 1038766,
+      "attach_ns": 461943,
+      "lookup_ns": 576823,
+      "process_cpu_us": 1081,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1153845",
+      "expected_integer": 19615365
+    },
+    {
+      "first_live_ns": 1195314,
+      "attach_ns": 583353,
+      "lookup_ns": 611961,
+      "process_cpu_us": 1252,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key1282051",
+      "expected_integer": -21794867
+    },
+    {
+      "first_live_ns": 1197154,
+      "attach_ns": 478158,
+      "lookup_ns": 718996,
+      "process_cpu_us": 1241,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1410257",
+      "expected_integer": 23974369
+    },
+    {
+      "first_live_ns": 1183295,
+      "attach_ns": 499616,
+      "lookup_ns": 683679,
+      "process_cpu_us": 1235,
+      "minor_faults": 87,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1538461",
+      "expected_integer": 26153837
+    },
+    {
+      "first_live_ns": 962266,
+      "attach_ns": 462168,
+      "lookup_ns": 500098,
+      "process_cpu_us": 1006,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key1666667",
+      "expected_integer": -28333339
+    },
+    {
+      "first_live_ns": 915883,
+      "attach_ns": 430689,
+      "lookup_ns": 485194,
+      "process_cpu_us": 960,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key1794871",
+      "expected_integer": -30512807
+    },
+    {
+      "first_live_ns": 969428,
+      "attach_ns": 489720,
+      "lookup_ns": 479708,
+      "process_cpu_us": 1015,
+      "minor_faults": 77,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key1923077",
+      "expected_integer": 32692309
+    },
+    {
+      "first_live_ns": 1247578,
+      "attach_ns": 508344,
+      "lookup_ns": 739234,
+      "process_cpu_us": 1302,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key2051281",
+      "expected_integer": 34871777
+    },
+    {
+      "first_live_ns": 1001244,
+      "attach_ns": 486781,
+      "lookup_ns": 514463,
+      "process_cpu_us": 1045,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key2179487",
+      "expected_integer": -37051279
+    },
+    {
+      "first_live_ns": 1049640,
+      "attach_ns": 519175,
+      "lookup_ns": 530465,
+      "process_cpu_us": 1100,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key2307691",
+      "expected_integer": -39230747
+    },
+    {
+      "first_live_ns": 1139327,
+      "attach_ns": 459858,
+      "lookup_ns": 679469,
+      "process_cpu_us": 1186,
+      "minor_faults": 77,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key2435897",
+      "expected_integer": 41410249
+    },
+    {
+      "first_live_ns": 899975,
+      "attach_ns": 453880,
+      "lookup_ns": 446095,
+      "process_cpu_us": 943,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key2564103",
+      "expected_integer": -43589751
+    },
+    {
+      "first_live_ns": 1019274,
+      "attach_ns": 512696,
+      "lookup_ns": 506578,
+      "process_cpu_us": 1070,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key2692307",
+      "expected_integer": -45769219
+    },
+    {
+      "first_live_ns": 1107581,
+      "attach_ns": 509823,
+      "lookup_ns": 597758,
+      "process_cpu_us": 1163,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key2820513",
+      "expected_integer": 47948721
+    },
+    {
+      "first_live_ns": 895427,
+      "attach_ns": 440243,
+      "lookup_ns": 455184,
+      "process_cpu_us": 941,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key2948717",
+      "expected_integer": 50128189
+    },
+    {
+      "first_live_ns": 979111,
+      "attach_ns": 488650,
+      "lookup_ns": 490461,
+      "process_cpu_us": 1026,
+      "minor_faults": 77,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key3076923",
+      "expected_integer": -52307691
+    },
+    {
+      "first_live_ns": 1056519,
+      "attach_ns": 528554,
+      "lookup_ns": 527965,
+      "process_cpu_us": 1111,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key3205127",
+      "expected_integer": -54487159
+    },
+    {
+      "first_live_ns": 1241363,
+      "attach_ns": 495545,
+      "lookup_ns": 745818,
+      "process_cpu_us": 1287,
+      "minor_faults": 80,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key3333333",
+      "expected_integer": 56666661
+    },
+    {
+      "first_live_ns": 1183908,
+      "attach_ns": 548908,
+      "lookup_ns": 635000,
+      "process_cpu_us": 1237,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key3461537",
+      "expected_integer": 58846129
+    },
+    {
+      "first_live_ns": 955301,
+      "attach_ns": 473304,
+      "lookup_ns": 481997,
+      "process_cpu_us": 997,
+      "minor_faults": 77,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key3589743",
+      "expected_integer": -61025631
+    },
+    {
+      "first_live_ns": 1001256,
+      "attach_ns": 521515,
+      "lookup_ns": 479741,
+      "process_cpu_us": 1066,
+      "minor_faults": 76,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key3717947",
+      "expected_integer": -63205099
+    },
+    {
+      "first_live_ns": 1228260,
+      "attach_ns": 623645,
+      "lookup_ns": 604615,
+      "process_cpu_us": 1276,
+      "minor_faults": 94,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key3846153",
+      "expected_integer": 65384601
+    },
+    {
+      "first_live_ns": 839057,
+      "attach_ns": 465925,
+      "lookup_ns": 373132,
+      "process_cpu_us": 883,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key3974359",
+      "expected_integer": -67564103
+    },
+    {
+      "first_live_ns": 1136282,
+      "attach_ns": 507939,
+      "lookup_ns": 628343,
+      "process_cpu_us": 1182,
+      "minor_faults": 76,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key4102563",
+      "expected_integer": -69743571
+    },
+    {
+      "first_live_ns": 1205368,
+      "attach_ns": 501809,
+      "lookup_ns": 703559,
+      "process_cpu_us": 1248,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key4230769",
+      "expected_integer": 71923073
+    },
+    {
+      "first_live_ns": 1303086,
+      "attach_ns": 654770,
+      "lookup_ns": 648316,
+      "process_cpu_us": 1338,
+      "minor_faults": 92,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key4358973",
+      "expected_integer": 74102541
+    },
+    {
+      "first_live_ns": 1014110,
+      "attach_ns": 501076,
+      "lookup_ns": 513034,
+      "process_cpu_us": 1062,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key4487179",
+      "expected_integer": -76282043
+    },
+    {
+      "first_live_ns": 992304,
+      "attach_ns": 474420,
+      "lookup_ns": 517884,
+      "process_cpu_us": 1041,
+      "minor_faults": 77,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key4615383",
+      "expected_integer": -78461511
+    },
+    {
+      "first_live_ns": 1095832,
+      "attach_ns": 498882,
+      "lookup_ns": 596950,
+      "process_cpu_us": 1142,
+      "minor_faults": 78,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key4743589",
+      "expected_integer": 80641013
+    },
+    {
+      "first_live_ns": 1089255,
+      "attach_ns": 438880,
+      "lookup_ns": 650375,
+      "process_cpu_us": 1134,
+      "minor_faults": 79,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load1:key4871793",
+      "expected_integer": 82820481
+    },
+    {
+      "first_live_ns": 707541,
+      "attach_ns": 445683,
+      "lookup_ns": 261858,
+      "process_cpu_us": 749,
+      "minor_faults": 73,
+      "major_faults": 0,
+      "records": 5000000,
+      "key": "load3:key4999999",
+      "expected_integer": -84999983
+    }
+  ],
+  "first_live_median_ns": 1038051.5,
+  "scope": "Exploratory: forty fresh processes, distinct corpus-derived integer keys, resident prepared 5M state; source setup, runtime, Client and first checked value timed; process launch/loader excluded; auto-refresh enabled; no universal latency guarantee.",
+  "schema": 1,
+  "status": "Exploratory; latency acceptance remains open",
+  "host": {
+    "cpu": "Intel Core i9-9980HK",
+    "os": "macOS 15.8.1",
+    "compiler": "LLVM clang 23.1.2",
+    "profile": "Release -O3; shared library source overrides use frozen public dependency sources"
+  },
+  "dataset": {
+    "records": 5000000,
+    "revision": 39064,
+    "source": "5000000-restore-r12",
+    "preparation": "APFS clone of saved generation directory; full graph validation and publisher metadata generation before timing; original artifacts unchanged"
+  },
+  "summary": {
+    "first_live_ns": {
+      "minimum_ns": 707541,
+      "median_ns": 1038051.5,
+      "maximum_ns": 1303086
+    },
+    "attach_ns": {
+      "minimum_ns": 430689,
+      "median_ns": 491844.0,
+      "maximum_ns": 680238
+    },
+    "lookup_ns": {
+      "minimum_ns": 261858,
+      "median_ns": 526251.0,
+      "maximum_ns": 745818
+    },
+    "sub_millisecond": 14,
+    "major_faults": 0
+  },
+  "limitations": [
+    "Forty fresh processes do not establish a p99 bound.",
+    "Resident-file first access only; process launch and dynamic loading excluded.",
+    "Preparation fully validates once; clients rely on the explicitly trusted publisher and protected immutable files.",
+    "No daemon readiness, upgrade, rollback, collection, concurrent fleet or sustained capacity acceptance follows from this measurement.",
+    "The eager-reader baseline includes a full graph scan and storage faults; do not report an apples-to-apples speedup ratio."
+  ]
+}

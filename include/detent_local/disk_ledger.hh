@@ -52,7 +52,9 @@ class DiskLedger {
 		return {image_length + overhead, 3, 1};
 	}
 	static DiskUsage paged_peak(std::span<const std::uint64_t> pack_lengths) {
-		DiskUsage peak{paged::root_bytes + generation_ownership_bytes + descriptor_bytes, 3, 1};
+		DiskUsage peak{paged::root_bytes + generation_ownership_bytes + descriptor_bytes +
+		                   prepared_metadata_bytes,
+		               4, 1};
 		for (const auto length : pack_lengths) {
 			if (!length || length > paged::segment_bytes ||
 				length > std::numeric_limits<std::uint64_t>::max() - segment_ownership_bytes - peak.bytes ||

@@ -12,6 +12,7 @@
 #include "paged_publication_artifacts.hh"
 #include "paged_root_prefix.hh"
 #include "paged_segment_collection.hh"
+#include "reader_metadata.hh"
 #include "resources.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
@@ -721,7 +722,7 @@ struct ReclaimSlot {
 	GenerationId generation{};
 	GenerationOwnership proof;
 	std::optional<std::pair<distribution::Cursor, distribution::Profile>> image_scope;
-	std::array<std::optional<c::EntryInspection>, 3> entries;
+	std::array<std::optional<c::EntryInspection>, 4> entries;
 	bool open = false, valid = false;
 };
 struct ReclaimData {
@@ -752,9 +753,10 @@ class ReclaimOperation final : public c::Operation {
 	void submitted() override {
 		if (done() || paused() || submitted_)
 			throw std::logic_error("invalid reclamation submission");
-		if (phase_ == Phase::ReadLease || phase_ == Phase::ReadDescriptor)
+		if (phase_ == Phase::ReadLease || phase_ == Phase::ReadDescriptor || phase_ == Phase::ReadMetadata)
 			data_->reader.submitted();
-		if (phase_ == Phase::RemoveImage || phase_ == Phase::RemoveDescriptor || phase_ == Phase::RemoveLease)
+		if (phase_ == Phase::RemoveImage || phase_ == Phase::RemoveDescriptor ||
+		    phase_ == Phase::RemoveLease || phase_ == Phase::RemoveMetadata)
 			destructive_ = true;
 		submitted_ = true;
 	}
@@ -768,7 +770,9 @@ class ReclaimOperation final : public c::Operation {
 				data_->cursor_open = true;
 			if (phase == Phase::OpenLease && !result.error && result.count)
 				slot().open = true;
-			if ((phase == Phase::OpenDescriptor || phase == Phase::OpenImage) && !result.error)
+			if ((phase == Phase::OpenDescriptor || phase == Phase::OpenImage ||
+			     phase == Phase::OpenMetadata) &&
+			    !result.error)
 				data_->scratch_open = true;
 			if (phase == Phase::CloseScratch)
 				data_->scratch_open = false;
@@ -777,7 +781,8 @@ class ReclaimOperation final : public c::Operation {
 			if (phase == Phase::CloseCursor)
 				data_->cursor_open = false;
 			if ((cancelled_ || data_->core->closing) && !destructive_) {
-				if (phase == Phase::ReadLease || phase == Phase::ReadDescriptor) {
+				if (phase == Phase::ReadLease || phase == Phase::ReadDescriptor ||
+				    phase == Phase::ReadMetadata) {
 					data_->reader.complete(std::move(result));
 					if (data_->reader.status() == RecordReadStatus::Failed && data_->reader.error())
 						std::rethrow_exception(data_->reader.error());
@@ -787,7 +792,7 @@ class ReclaimOperation final : public c::Operation {
 				cleanup();
 				return true;
 			}
-			if (phase == Phase::ReadLease || phase == Phase::ReadDescriptor) {
+			if (phase == Phase::ReadLease || phase == Phase::ReadDescriptor || phase == Phase::ReadMetadata) {
 				data_->reader.complete(std::move(result));
 				if (data_->reader.status() == RecordReadStatus::Failed) {
 					if (auto error = data_->reader.error())
@@ -805,6 +810,8 @@ class ReclaimOperation final : public c::Operation {
 							slot().proof = decode_generation_ownership(data_->reader.bytes());
 							valid = slot().proof.storage == data_->core->identity &&
 									slot().proof.generation == slot().generation;
+						} else if (phase == Phase::ReadMetadata) {
+							validate_metadata_prefix(data_->reader.bytes());
 						} else {
 							const auto bytes = data_->reader.bytes();
 							if (bytes.size() == descriptor_bytes) {
@@ -887,9 +894,14 @@ class ReclaimOperation final : public c::Operation {
 					close_slot();
 				else
 					start_reader(Phase::ReadLease, 0, generation_ownership_bytes);
-			} else if (phase == Phase::InspectImage || phase == Phase::InspectDescriptor) {
-				const auto part = phase == Phase::InspectImage ? 1u : 2u;
-				const auto maximum = part == 1 ? slot().proof.image_length : descriptor_bytes;
+			} else if (phase == Phase::InspectImage || phase == Phase::InspectDescriptor ||
+			           phase == Phase::InspectMetadata) {
+				const auto part = phase == Phase::InspectImage        ? 1u
+				                  : phase == Phase::InspectDescriptor ? 2u
+				                                                      : 3u;
+				const auto maximum = part == 1   ? slot().proof.image_length
+				                     : part == 2 ? descriptor_bytes
+				                                 : detail::reader_metadata_bytes;
 				if (result.inspection && (!safe(*result.inspection, *data_->core) ||
 										  result.inspection->footprint.logical_bytes > maximum)) {
 					close_slot();
@@ -908,10 +920,13 @@ class ReclaimOperation final : public c::Operation {
 					} else
 						named(Phase::InspectDescriptor, c::Kind::InspectEntry, 2);
 				} else if (result.inspection && result.inspection->footprint.logical_bytes)
-					named(Phase::OpenDescriptor, c::Kind::OpenInto, 2);
+					named(part == 2 ? Phase::OpenDescriptor : Phase::OpenMetadata, c::Kind::OpenInto, part);
 				else {
 					slot().valid = true;
-					accept_slot();
+					if (part == 2)
+						named(Phase::InspectMetadata, c::Kind::InspectEntry, 3);
+					else
+						accept_slot();
 				}
 			} else if (phase == Phase::OpenImage) {
 				prepare(Phase::ImageHeld, c::Kind::InspectFile);
@@ -937,13 +952,18 @@ class ReclaimOperation final : public c::Operation {
 					}
 					named(Phase::ImageNamed, c::Kind::InspectEntry, 1);
 				}
-			} else if (phase == Phase::OpenDescriptor) {
-				start_reader(Phase::ReadDescriptor, 2, slot().entries[2]->footprint.logical_bytes);
+			} else if (phase == Phase::OpenDescriptor || phase == Phase::OpenMetadata) {
+				reading_metadata_ = phase == Phase::OpenMetadata;
+				const auto part = reading_metadata_ ? 3u : 2u;
+				start_reader(reading_metadata_ ? Phase::ReadMetadata : Phase::ReadDescriptor, part,
+				             slot().entries[part]->footprint.logical_bytes);
 			} else if (phase == Phase::CloseScratch) {
 				if (reading_image_ && slot().valid) {
 					reading_image_ = false;
 					named(Phase::InspectDescriptor, c::Kind::InspectEntry, 2);
-				} else if (slot().valid)
+				} else if (slot().valid && !reading_metadata_)
+					named(Phase::InspectMetadata, c::Kind::InspectEntry, 3);
+				else if (slot().valid)
 					accept_slot();
 				else
 					close_slot();
@@ -965,7 +985,7 @@ class ReclaimOperation final : public c::Operation {
 					cleanup();
 					return true;
 				}
-				if (++payload_part_ == 3) {
+				if (++payload_part_ == 4) {
 					payload_part_ = 0;
 					++index_;
 				}
@@ -977,20 +997,21 @@ class ReclaimOperation final : public c::Operation {
 					remove_payload();
 				}
 			} else if (phase == Phase::RemoveImage || phase == Phase::RemoveDescriptor ||
-					   phase == Phase::RemoveLease) {
-				const auto part = phase == Phase::RemoveImage		 ? 1u
-								  : phase == Phase::RemoveDescriptor ? 2u
-																	 : 0u;
+			           phase == Phase::RemoveLease || phase == Phase::RemoveMetadata) {
+				const auto part = phase == Phase::RemoveImage        ? 1u
+				                  : phase == Phase::RemoveDescriptor ? 2u
+				                  : phase == Phase::RemoveMetadata   ? 3u
+				                                                     : 0u;
 				data_->deleted.bytes += slot().entries[part]->footprint.logical_bytes;
 				++data_->deleted.entries;
 				if (!part)
 					++data_->deleted.generations;
-				if (phase == Phase::RemoveImage) {
-					payload_part_ = 2;
-					remove_payload();
-				} else if (phase == Phase::RemoveDescriptor) {
-					++index_;
-					payload_part_ = 1;
+				if (part) {
+					payload_part_ = part + 1;
+					if (payload_part_ == 4) {
+						++index_;
+						payload_part_ = 1;
+					}
 					remove_payload();
 				} else if (++index_ < count_)
 					named(Phase::RemoveLease, c::Kind::Remove, 0);
@@ -1086,12 +1107,16 @@ class ReclaimOperation final : public c::Operation {
 		InspectDescriptor,
 		OpenDescriptor,
 		ReadDescriptor,
+		InspectMetadata,
+		OpenMetadata,
+		ReadMetadata,
 		CloseScratch,
 		CloseSlot,
 		SyncLease,
 		Recheck,
 		RemoveImage,
 		RemoveDescriptor,
+		RemoveMetadata,
 		PayloadBarrier,
 		RemoveLease,
 		LeaseBarrier,
@@ -1213,6 +1238,13 @@ class ReclaimOperation final : public c::Operation {
 			!valid_identity(bytes, 104, 16) || !valid_identity(bytes, 120, 32))
 			throw std::runtime_error("partial descriptor has unconfigured identity");
 	}
+	void validate_metadata_prefix(std::span<const char> bytes) {
+        if (slot().proof.layout_version != 2)
+            throw std::runtime_error("reader metadata requires a paged generation");
+        detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
+                                                       slot().proof.image_checksum, {}, paged::root_bytes});
+    }
+
 	bool protected_generation(const GenerationId &generation) const noexcept {
 		const auto &core = *data_->core;
 		return core.selection.knowledge == SelectionKnowledge::Uncertain ||
@@ -1235,14 +1267,15 @@ class ReclaimOperation final : public c::Operation {
 		if (kind == c::Kind::OpenCandidateInto || kind == c::Kind::ExclusiveLease ||
 			phase == Phase::SyncLease || (kind == c::Kind::CloseFile && phase != Phase::CloseScratch))
 			request_.file = std::shared_ptr<c::File>(data_, &data_->controls->lease(index_));
-		if (phase == Phase::OpenDescriptor || phase == Phase::CloseScratch || phase == Phase::OpenImage ||
-			phase == Phase::ImageHeld || phase == Phase::ReadImage)
+		if (phase == Phase::OpenDescriptor || phase == Phase::OpenMetadata || phase == Phase::CloseScratch ||
+		    phase == Phase::OpenImage || phase == Phase::ImageHeld || phase == Phase::ReadImage)
 			request_.file = std::shared_ptr<c::File>(data_, &data_->controls->scratch_file());
 	}
 	void set_name(std::size_t part) {
-		const auto kind = part == 0	  ? detail::GenerationFile::Lease
-						  : part == 1 ? detail::GenerationFile::Image
-									  : detail::GenerationFile::Descriptor;
+		const auto kind = part == 0   ? detail::GenerationFile::Lease
+		                  : part == 1 ? detail::GenerationFile::Image
+		                  : part == 2 ? detail::GenerationFile::Descriptor
+		                              : detail::GenerationFile::ReaderMetadata;
 		const detail::GenerationName name(slot().generation, kind);
 		data_->name_size = name.view().size();
 		std::copy(name.view().begin(), name.view().end(), data_->name.begin());
@@ -1281,7 +1314,7 @@ class ReclaimOperation final : public c::Operation {
 			next_name();
 	}
 	void close_slot() {
-		reading_image_ = false;
+		reading_image_ = reading_metadata_ = false;
 		slot().valid = false;
 		prepare(Phase::CloseSlot, c::Kind::CloseFile);
 	}
@@ -1312,22 +1345,22 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void remove_payload() {
 		while (index_ < count_) {
-			if (payload_part_ == 1) {
-				if (slot().entries[1]) {
-					named(Phase::RemoveImage, c::Kind::Remove, 1);
+			while (payload_part_ < slot().entries.size()) {
+				if (slot().entries[payload_part_]) {
+					const auto phase = payload_part_ == 1   ? Phase::RemoveImage
+					                   : payload_part_ == 2 ? Phase::RemoveDescriptor
+					                                        : Phase::RemoveMetadata;
+					named(phase, c::Kind::Remove, payload_part_);
 					return;
 				}
-				payload_part_ = 2;
-			}
-			if (slot().entries[2]) {
-				named(Phase::RemoveDescriptor, c::Kind::Remove, 2);
-				return;
+				++payload_part_;
 			}
 			++index_;
 			payload_part_ = 1;
 		}
 		prepare(Phase::PayloadBarrier, c::Kind::DirectorySync);
 	}
+
 	void boundary() {
 		if (eof_ || cancelled_ || data_->core->closing)
 			cleanup();
@@ -1364,7 +1397,7 @@ class ReclaimOperation final : public c::Operation {
 	Phase phase_ = Phase::Done;
 	std::size_t count_ = 0, index_ = 0, slice_ = 0, inspected_ = 0, payload_part_ = 1;
 	bool submitted_ = false, eof_ = false, cancelled_ = false, destructive_ = false, barriers_done_ = false,
-		 stopping_ = false, reading_image_ = false;
+	     stopping_ = false, reading_image_ = false, reading_metadata_ = false;
 };
 } // namespace
 struct DiskStore::Impl {
