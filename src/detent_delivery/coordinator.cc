@@ -87,6 +87,8 @@ struct Coordinator::Impl {
 	bool fail_settled_worker_wait = false;
 	bool fail_worker_wait = false, close_after_session_open = false;
 	d::RetirementHandle<RecoveryResult> base;
+	std::optional<l::Descriptor> confirmed_prepared;
+	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause;
 	d::StorageOwner<l::ImageBuilder> builder;
 	d::RetirementHandle<PagedCandidateResult> paged_candidate;
 	bool paged_writer = options.image_format == LocalImageFormat::PagedV2;
@@ -193,6 +195,7 @@ struct Coordinator::Impl {
 		// when request interest has been cancelled on the owner executor.
 		const auto settlement = recovery;
 		asio::post(worker, [result, selected, recovery = std::move(recovery),
+							probe_pause = selected ? std::exchange(prepared_probe_pause, {}) : nullptr,
 							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
 				if (injected)
@@ -201,6 +204,10 @@ struct Coordinator::Impl {
 					auto candidate =
 						l::detail::ManagedRecovery::recover(result->directory, std::move(*recovery));
 					result->generation.emplace(std::move(candidate));
+					if (probe_pause) {
+						probe_pause->reached.store(true, std::memory_order_release);
+						probe_pause->resume.wait();
+					}
 					if (l::detail::StateCursor::logical_commitment(*result->generation))
 						result->prepared = l::detail::PreparedReader::metadata_ready(
 							result->directory, *result->generation, ::geteuid());
@@ -478,8 +485,10 @@ struct Coordinator::Impl {
 			notify_disk();
 		}
 		base = std::move(recovered);
-		diagnostic.prepared_ready = base->prepared && base->generation &&
-			base->generation->descriptor().cursor.same_identity(options.source.configured);
+		confirmed_prepared.reset();
+		if (base->prepared && base->generation &&
+			base->generation->descriptor().cursor.same_identity(options.source.configured))
+			confirmed_prepared = base->generation->descriptor();
 		if (options.publication_sink && base->generation) {
 			if (equivalent)
 				options.publication_sink->selected_equivalent(*base->generation,
@@ -1186,6 +1195,12 @@ bool detail::CoordinatorAccess::cancelled_construction_settled(const Coordinator
 bool detail::CoordinatorAccess::retains_paged_candidate(const Coordinator &coordinator) {
 	return static_cast<bool>(coordinator.impl_->paged_candidate);
 }
+void detail::CoordinatorAccess::pause_next_prepared_probe(Coordinator &coordinator,
+                                                        std::shared_ptr<PreparedProbePause> pause) {
+	if (!pause || !pause->resume.valid() || coordinator.impl_->prepared_probe_pause)
+		throw std::invalid_argument("invalid prepared probe pause");
+	coordinator.impl_->prepared_probe_pause = std::move(pause);
+}
 void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator,
 															   std::exception_ptr failure) {
 	coordinator.impl_->injected_maintenance_failure = std::move(failure);
@@ -1217,10 +1232,10 @@ CoordinatorStatus Coordinator::status() const noexcept {
 	auto status = impl_->diagnostic;
 	if (impl_->store)
 		status.selected = impl_->store->selection();
-	status.prepared_ready = status.prepared_ready && !impl_->closing &&
+	status.prepared_ready = impl_->confirmed_prepared.has_value() && !impl_->closing &&
 		status.phase != CoordinatorPhase::Fenced && status.phase != CoordinatorPhase::Closed &&
 		status.phase != CoordinatorPhase::Closing && status.selected.knowledge == l::SelectionKnowledge::Known &&
-		impl_->base->generation && status.selected.descriptor == impl_->base->generation->descriptor();
+		status.selected.descriptor == impl_->confirmed_prepared;
 	return status;
 }
 std::shared_ptr<Coordinator> make_coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStore> store,

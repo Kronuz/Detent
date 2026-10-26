@@ -25,10 +25,16 @@ set_tests_properties(test_delivery_probe_client PROPERTIES FIXTURES_REQUIRED del
 add_executable(test_delivery_coordinator test_coordinator.cc)
 add_executable(test_delivery_prepared_startup test_prepared_startup.cc)
 target_include_directories(test_delivery_prepared_startup PRIVATE
-  "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/tests/detent_local")
+  "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery"
+  "${PROJECT_SOURCE_DIR}/tests/detent_local")
 target_link_libraries(test_delivery_prepared_startup PRIVATE detent::delivery_coordinator)
 add_test(NAME test_delivery_prepared_startup COMMAND test_delivery_prepared_startup $<TARGET_FILE:detent-reader>)
 set_tests_properties(test_delivery_prepared_startup PROPERTIES TIMEOUT 30)
+foreach(mode IN ITEMS replace barrier-failure worker-confirmation)
+  add_test(NAME test_prepared_readiness_${mode}
+    COMMAND test_delivery_prepared_startup $<TARGET_FILE:detent-reader> --${mode})
+  set_tests_properties(test_prepared_readiness_${mode} PROPERTIES TIMEOUT 30)
+endforeach()
 if(TARGET detent_managed_agent)
   add_executable(test_preparation_deadline test_preparation_deadline.cc)
   target_include_directories(test_preparation_deadline PRIVATE
