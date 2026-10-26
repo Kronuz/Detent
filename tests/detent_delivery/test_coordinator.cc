@@ -661,6 +661,8 @@ int main(int argc, char **argv) {
 		}
 		if (paged && count >= 500000)
 			options.source.timeout = std::chrono::seconds(240);
+		else if (relay_sessions && count >= 500000)
+			options.source.timeout = std::chrono::seconds(120);
 #ifdef DETENT_TEST_RELAY_HTTP
 		if (relay_network)
 			options.source.timeout = std::chrono::seconds(240);
