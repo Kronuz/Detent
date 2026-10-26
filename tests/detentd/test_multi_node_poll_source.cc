@@ -31,10 +31,6 @@ std::filesystem::path temp_path(std::string_view suffix) {
 	return std::filesystem::temp_directory_path() / ("jk_multi_poll_" + std::to_string(rng()) + std::string(suffix));
 }
 
-unsigned short temp_port() {
-	static std::mt19937_64 rng{std::random_device{}()};
-	return static_cast<unsigned short>(27000 + (rng() % 6000));
-}
 
 bool wait_until(const std::function<bool()>& pred, std::chrono::milliseconds timeout) {
 	auto deadline = std::chrono::steady_clock::now() + timeout;
@@ -63,15 +59,34 @@ struct Node {
 	std::unique_ptr<detentd::Distributor> app;
 	std::unique_ptr<http::HttpAsioService> service;
 	std::filesystem::path persist;
-	unsigned short port;
+	unsigned short port = 0;
 
-	explicit Node(std::string knob_default_literal) : port(temp_port()) {
+	explicit Node(std::string knob_default_literal) {
 		persist = temp_path(".json");
 		options.persist_path = persist;
 		app = std::make_unique<detentd::Distributor>(options);
-		service = std::make_unique<http::HttpAsioService>(*app, 2, 4, 256);
-		service->enable_conditional();
-		service->start(port);
+		const auto deadline = std::chrono::steady_clock::now() + 3s;
+		for (;;) {
+			asio::io_context io;
+			asio::ip::tcp::acceptor reservation(io,
+			                                    asio::ip::tcp::endpoint(asio::ip::address_v4::loopback(), 0));
+			port = reservation.local_endpoint().port();
+			service = std::make_unique<http::HttpAsioService>(*app, 2, 4, 256);
+			http::AsioBindOptions binding;
+			binding.address = asio::ip::address_v4::loopback().to_string();
+			service->set_bind_options(binding);
+			service->enable_conditional();
+			reservation.close();
+			try {
+				service->start(port);
+				break;
+			} catch (const asio::system_error &error) {
+				service.reset();
+				if (error.code() != asio::error::address_in_use ||
+				    std::chrono::steady_clock::now() >= deadline)
+					throw;
+			}
+		}
 		std::this_thread::sleep_for(50ms);
 		wait_for_server_ready(port, 3s);
 
