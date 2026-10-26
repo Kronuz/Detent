@@ -69,12 +69,8 @@ void read(char **argv, std::uint64_t iterations) {
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
 		throw std::runtime_error("getrusage failed");
 	const auto start = std::chrono::steady_clock::now();
-	l::ClientSourceOptions source;
-	source.directory = argv[2];
-	source.limits = l::ViewLimits::prepared();
-	source.prepared_publisher = ::getuid();
 	detent::InitOptions options;
-	options.read_source = l::make_local_read_source(std::move(source));
+	options.read_source = l::make_managed_read_source(argv[2], ::getuid());
 	detent::Client client(std::move(options));
 	const auto attached = std::chrono::steady_clock::now();
 	const auto value = client.get(argv[3]);

@@ -515,6 +515,7 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 					 "       detent help | --help\n"
 					 "User reads auto-start detent-agent; system reads attach to the managed service.\n"
 					 "Config: agent.json in the standard Detent config directory.\n"
+					 "Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
 					 "Reader capacity: --reader-records N, --reader-image-bytes N, --reader-heap-bytes N,\n"
 					 "--reader-mapping-bytes N; see USAGE.md for all reader_* settings.\n"
 					 "Flags override environment variables, which override config.\n";
@@ -549,6 +550,7 @@ const char *kUsage =
 	"--source-http is a legacy alias for --source-address (HTTP transport).\n"
 	"Flags override environment variables, which override config settings.\n"
 	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
+	"Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
 	"--runtime-dir PATH selects the runtime directory for any command.\n"
 	"--system uses system config and /run/detent (BSD/macOS: /var/run/detent).\n"
 	"System agents run in the foreground; get does not start unmanaged services.\n"
