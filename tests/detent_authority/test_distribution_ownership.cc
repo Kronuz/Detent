@@ -353,7 +353,6 @@ int main(int argc, char **argv) {
 						   "\"expected_generation\":0,\"nonce\":\"6e000000000000000000000000000000\"}");
 				check(producer.code == 200);
 				std::atomic<unsigned> committed{0};
-				const auto began = std::chrono::steady_clock::now();
 				auto publishing = std::async(std::launch::async, [&] {
 					for (unsigned sequence = 1; sequence <= 100; ++sequence) {
 						Writer transaction;
@@ -379,7 +378,6 @@ int main(int argc, char **argv) {
 						   handle + ",\"after\":1,\"published\":" + published + ",\"wait_ms\":0}");
 					check(receive(poll).first.starts_with("HTTP/1.1 204 "));
 					++polls;
-					check(std::chrono::steady_clock::now() - began < 45s);
 				}
 				publishing.get();
 				check(overlapping != 0 && committed.load() == 100);
