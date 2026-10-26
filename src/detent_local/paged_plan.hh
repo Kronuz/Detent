@@ -11,6 +11,7 @@ class PagedPlanState final : public distribution::RetirementNode {
   public:
 	struct Forward {};
 	struct PhysicalMaintenance {};
+    struct Republish {};
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, std::optional<RecoveredGeneration>,
 				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity, DirectoryIdentity,
 				   PagedPlanIntent);
@@ -22,6 +23,8 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
 				   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId,
 				   const distribution::ValidatedDelta &, Forward);
+    PagedPlanState(std::shared_ptr<distribution::StorageLedger>,
+                   distribution::RetirementHandle<LeasedPagedRoot>, GenerationId, Republish);
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
 				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
 	bool maintenance() const;
@@ -64,7 +67,9 @@ class PagedPlanState final : public distribution::RetirementNode {
 	std::array<char, paged::root_bytes> encoded_{};
 	std::size_t copied_ = 0, hashed_ = 0;
 	class SHA256 hash_;
+	bool republish_ = false;
 	bool sealed_ = false;
+    void copy_root(std::shared_ptr<distribution::StorageLedger>, distribution::Cursor);
 	friend class PagedPlanBuilder;
 	friend class PagedDeltaPlanBuilder;
 	friend class SparsePlanFinalizer;

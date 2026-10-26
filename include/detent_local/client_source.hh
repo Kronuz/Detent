@@ -29,4 +29,7 @@ class LocalReadSource final : public ReadSource {
 	distribution::StorageOwner<Impl> impl_;
 };
 ReadSourceFactory make_local_read_source(ClientSourceOptions);
+ReadSourceFactory make_managed_read_source(std::filesystem::path, std::uint32_t publisher,
+                                         ViewLimits = ViewLimits::prepared(),
+                                         std::optional<distribution::Cursor> identity = {});
 } // namespace detent::local

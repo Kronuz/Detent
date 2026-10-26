@@ -11,7 +11,9 @@ struct PreparedGeneration {
 };
 class PreparedReader {
   public:
-	static ReaderMetadata describe(const RecoveredGeneration &);
+	static GenerationSelection selection(const std::filesystem::path &, uid_t publisher);
+    static ReaderMetadata describe(const RecoveredGeneration &);
+    static bool metadata_ready(const std::filesystem::path &, const RecoveredGeneration &, uid_t publisher);
 	static PreparedGeneration open(const std::filesystem::path &, uid_t publisher, ViewLimits,
 	                               std::optional<distribution::Cursor> expected = {});
 };

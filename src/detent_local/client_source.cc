@@ -165,4 +165,13 @@ ReadSourceFactory make_local_read_source(ClientSourceOptions options) {
 													 options, std::move(defaults), std::move(overrides));
 	};
 }
+ReadSourceFactory make_managed_read_source(std::filesystem::path directory, std::uint32_t publisher,
+                                           ViewLimits limits, std::optional<distribution::Cursor> identity) {
+    ClientSourceOptions options;
+    options.directory = std::move(directory);
+    options.prepared_publisher = publisher;
+    options.limits = std::move(limits);
+    options.identity = identity;
+    return make_local_read_source(std::move(options));
+}
 } // namespace detent::local

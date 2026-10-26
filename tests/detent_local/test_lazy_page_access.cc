@@ -8,6 +8,7 @@
 #include "prepared_reader.hh"
 #include "prepared_reader_fixture.hh"
 #include "resources.hh"
+#include "generation_file_access.hh"
 #include "segment_names.hh"
 #include <cstring>
 #include <fcntl.h>
@@ -38,6 +39,22 @@ template <class Action> void rejected(Action action) {
 
 } // namespace
 int main() {
+	{
+		x::RecoveryFile directory(x::open_publisher_directory("/var", 0));
+		struct stat held{}, expected{};
+		check(::fstat(directory.fd, &held) == 0 && ::stat("/var", &expected) == 0);
+		check(held.st_dev == expected.st_dev && held.st_ino == expected.st_ino);
+	}
+	{
+		auto fixture = std::make_shared<Fixture>();
+		const auto alias = fixture->path / "alias";
+		std::filesystem::create_directory_symlink(::getuid() ? fixture->path : alias, alias);
+		bool refused = false;
+		try { x::RecoveryFile directory(x::open_publisher_directory(alias, ::getuid())); }
+		catch (const std::runtime_error &) { refused = true; }
+		check(refused);
+		std::filesystem::remove(alias);
+	}
 	auto fixture = std::make_shared<Fixture>();
 	{
 		l::ClientSourceOptions source;

@@ -1,10 +1,15 @@
 #pragma once
 #include "detent/config_trust_internal.hh"
+#include "detent_local/generation.hh"
 #include "generation_mapping.hh"
+#include <array>
 #include <cerrno>
+#include <deque>
 #include <fcntl.h>
 #include <filesystem>
+#include <memory>
 #include <sys/stat.h>
+#include <vector>
 
 namespace detent::local::detail {
 inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
@@ -34,13 +39,64 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 	    !S_ISDIR(anchor.st_mode) || (anchor.st_mode & 0022) ||
 	    !internal::acceptable_acl(current.fd, internal::AclPolicy::DenialsAllowed))
 		throw std::runtime_error("cannot open publisher directory anchor");
-	for (const auto &part : absolute.relative_path()) {
+	std::vector<std::unique_ptr<RecoveryFile>> parents;
+	std::deque<std::filesystem::path> pending;
+	auto prepend = [&](const std::filesystem::path &target) {
+		std::vector<std::filesystem::path> parts;
+		for (const auto &part : target.relative_path())
+			parts.push_back(part);
+		if (parts.size() + pending.size() > 256)
+			throw std::runtime_error("publisher directory has too many components");
+		for (auto it = parts.rbegin(); it != parts.rend(); ++it)
+			pending.push_front(*it);
+	};
+	prepend(absolute);
+	unsigned components = 0, links = 0;
+	while (!pending.empty()) {
+		if (++components > 256)
+			throw std::runtime_error("publisher directory has too many components");
+		const auto part = std::move(pending.front());
+		pending.pop_front();
 		if (part.empty() || part == ".")
 			continue;
-		if (part == "..")
-			throw std::invalid_argument("publisher directory contains a parent traversal");
+		if (part == "..") {
+			if (!parents.empty()) {
+				std::swap(current.fd, parents.back()->fd);
+				parents.pop_back();
+			}
+			continue;
+		}
+		struct stat entry{};
+		if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
+			if (errno == ENOENT)
+				throw GenerationUnavailable("publisher directory is not available");
+			throw std::runtime_error("cannot inspect publisher directory component");
+		}
+		if (S_ISLNK(entry.st_mode)) {
+			struct stat parent{}, after{};
+			if (++links > 40 || entry.st_uid != 0 || ::fstat(current.fd, &parent) != 0 || parent.st_uid != 0)
+				throw std::runtime_error("publisher directory has an untrusted alias");
+			std::array<char, 4097> target{};
+			const auto count = ::readlinkat(current.fd, part.c_str(), target.data(), target.size());
+			if (count <= 0 || std::size_t(count) >= target.size() ||
+			    ::fstatat(current.fd, part.c_str(), &after, AT_SYMLINK_NOFOLLOW) != 0 ||
+			    entry.st_dev != after.st_dev || entry.st_ino != after.st_ino ||
+			    entry.st_uid != after.st_uid || entry.st_mode != after.st_mode)
+				throw std::runtime_error("publisher directory alias changed");
+			const std::filesystem::path resolved(std::string(target.data(), std::size_t(count)));
+			if (resolved.is_absolute()) {
+				while (!parents.empty()) {
+					std::swap(current.fd, parents.back()->fd);
+					parents.pop_back();
+				}
+			}
+			prepend(resolved);
+			continue;
+		}
 		RecoveryFile next(
 		    ::openat(current.fd, part.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+		if (next.fd < 0 && errno == ENOENT)
+			throw GenerationUnavailable("publisher directory is not available");
 		struct stat held{}, named{};
 		if (next.fd < 0 || ::fstat(next.fd, &held) != 0 || !S_ISDIR(held.st_mode) ||
 		    (held.st_uid != 0 && held.st_uid != owner) || (held.st_mode & 0022) ||
@@ -48,9 +104,11 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 		    ::fstatat(current.fd, part.c_str(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
 		    held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			throw std::runtime_error("publisher directory has untrusted ancestry");
+		parents.push_back(std::make_unique<RecoveryFile>(-1));
+		std::swap(current.fd, parents.back()->fd);
 		std::swap(current.fd, next.fd);
 	}
-	struct stat final_status {};
+	struct stat final_status{};
 	if (::fstat(current.fd, &final_status) != 0 || final_status.st_uid != owner)
 		throw std::runtime_error("publisher directory has an unexpected owner");
 	return std::exchange(current.fd, -1);
