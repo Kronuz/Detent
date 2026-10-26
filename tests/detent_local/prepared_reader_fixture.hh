@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_local/paged_definition.hh"
 #include "names.hh"
 #include "paged_segment_builder.hh"
 #include "prepared_reader.hh"
