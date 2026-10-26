@@ -62,6 +62,7 @@ struct LazyPageAccess::State {
 	std::shared_ptr<d::StorageLedger> heap, mapping_account, cache_account;
 	mutable std::mutex mutex;
 	mutable Maps maps;
+	mutable std::uint64_t mapped_bytes = 0;
 	mutable Cache checked;
 	mutable std::atomic<bool> failed{false};
 	State(std::shared_ptr<const void> owner, int fd, uid_t uid, StorageIdentity identity, p::Root selected,
@@ -86,21 +87,23 @@ struct LazyPageAccess::State {
 		return true;
 	}
 	Mapping open_mapping(const StorageIdentity &identity) const {
+		if (maps.size() >= root.segments)
+			throw ReadSourceFailure("local generation exceeds its pack count");
 		const SegmentNames names(identity);
-		RecoveryFile record(::openat(directory, names.ownership.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-		check_generation_file(record.fd, publisher, segment_ownership_bytes);
-		if (!internal::mode_only_acl(record.fd))
-			throw ReadSourceFailure("segment ownership has an unsafe ACL");
-		std::array<char, segment_ownership_bytes> bytes{};
-		read_generation_record(record.fd, bytes);
-		const auto ownership = decode_segment_ownership(bytes);
-		if (ownership.storage != storage || ownership.segment != identity)
-			throw ReadSourceFailure("segment ownership conflicts with selected storage");
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
-		check_generation_file(payload.fd, publisher, ownership.length);
+		struct stat held{};
+		if (payload.fd < 0 || ::fstat(payload.fd, &held) != 0 || held.st_size < p::page_header_bytes ||
+		    std::uint64_t(held.st_size) > p::segment_bytes)
+			throw ReadSourceFailure("local pack has an invalid extent");
+		const auto length = static_cast<std::size_t>(held.st_size);
+		check_generation_file(payload.fd, publisher, length);
 		if (!internal::mode_only_acl(payload.fd))
 			throw ReadSourceFailure("segment payload has an unsafe ACL");
-		auto mapped = factory.make<SegmentMapping>(mapping_account, payload.fd, publisher, ownership);
+		if (mapped_bytes > limits.bytes - p::root_bytes ||
+		    length > limits.bytes - p::root_bytes - mapped_bytes)
+			throw ReadSourceFailure("local generation exceeds its physical extent");
+		auto mapped =
+		    factory.make<SegmentMapping>(mapping_account, payload.fd, publisher, SegmentExtent{length});
 		struct stat named{};
 		if (::fstatat(directory, names.payload.data(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
 		    std::uint64_t(named.st_dev) != mapped->identity().device ||
@@ -108,6 +111,7 @@ struct LazyPageAccess::State {
 			throw ReadSourceFailure("segment payload changed during attachment");
 		return mapped;
 	}
+
 	void remember(const PageKey &key, const p::Reference &reference) const {
 		if (!limits.verification_cache_bytes)
 			return;
@@ -139,6 +143,7 @@ struct LazyPageAccess::State {
 						throw;
 					found = maps.emplace(reference.segment, open_mapping(reference.segment)).first;
 				}
+				mapped_bytes += found->second->bytes().size();
 			}
 			const auto &mapping = *found->second;
 			const auto extent = mapping.bytes();

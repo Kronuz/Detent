@@ -22,7 +22,7 @@ SegmentRegistry::SegmentRegistry(std::shared_ptr<distribution::StorageLedger> ac
 void SegmentRegistry::append(MappingHandle mapping) {
 	if (sealed_)
 		throw std::logic_error("sealed segment registry");
-	if (!mapping || inputs_.size() == limits_.segments || mapping->ownership().storage != storage_ ||
+	if (!mapping || !mapping->has_ownership() || inputs_.size() == limits_.segments || mapping->ownership().storage != storage_ ||
 		mapping->ownership().length > limits_.bytes - physical_bytes_ ||
 		(!inputs_.empty() &&
 		 std::memcmp(inputs_.back().ownership.segment.data(), mapping->ownership().segment.data(), 16) >= 0))

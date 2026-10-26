@@ -63,7 +63,7 @@ void prepare(char **argv) {
 	}
 	domain.close().wait();
 }
-void read(char **argv) {
+void read(char **argv, std::uint64_t iterations) {
 	const auto expected = integer<std::int64_t>(argv[4]);
 	rusage before{}, after{};
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
@@ -83,6 +83,18 @@ void read(char **argv) {
 	const auto stop = std::chrono::steady_clock::now();
 	if (::getrusage(RUSAGE_SELF, &after) != 0)
 		throw std::runtime_error("getrusage failed");
+    double steady_ns = 0;
+    if (iterations) {
+        for (unsigned i = 0; i != 1000; ++i)
+            if (client.get(argv[3]).value() != expected)
+                throw std::runtime_error("warmup live value differs");
+        const auto begin = std::chrono::steady_clock::now();
+        for (std::uint64_t i = 0; i != iterations; ++i)
+            if (client.get(argv[3]).value() != expected)
+                throw std::runtime_error("steady live value differs");
+        steady_ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                               std::chrono::steady_clock::now() - begin).count()) / double(iterations);
+    }
 	const auto cpu = [](const timeval &t) { return std::int64_t(t.tv_sec) * 1000000 + t.tv_usec; };
 	std::cout << "{\"first_live_ns\":"
 	          << std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count()
@@ -94,6 +106,7 @@ void read(char **argv) {
 	          << cpu(after.ru_utime) + cpu(after.ru_stime) - cpu(before.ru_utime) - cpu(before.ru_stime)
 	          << ",\"minor_faults\":" << after.ru_minflt - before.ru_minflt
 	          << ",\"major_faults\":" << after.ru_majflt - before.ru_majflt
+	          << ",\"steady_mean_ns\":" << steady_ns
 	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
 }
 } // namespace
@@ -101,11 +114,11 @@ int main(int argc, char **argv) {
 	try {
 		if (argc == 8 && std::string_view(argv[1]) == "--prepare")
 			prepare(argv);
-		else if (argc == 5 && std::string_view(argv[1]) == "--read")
-			read(argv);
+		else if ((argc == 5 || argc == 6) && std::string_view(argv[1]) == "--read")
+            read(argv, argc == 6 ? integer<std::uint64_t>(argv[5]) : 0);
 		else
 			throw std::invalid_argument(
-			    "use --prepare DIR RECORDS BYTES STRINGS HEAP MAPPINGS or --read DIR KNOB EXPECTED_INT");
+			    "use --prepare DIR RECORDS BYTES STRINGS HEAP MAPPINGS or --read DIR KNOB EXPECTED_INT [ITERATIONS]");
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;
