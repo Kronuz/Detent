@@ -72,7 +72,8 @@ ProcessLock::ProcessLock(const std::filesystem::path& path, bool system) {
 }
 ProcessLock::~ProcessLock() { if (fd_ >= 0) ::close(fd_); }
 
-int run_daemon(bool detach, const std::filesystem::path& log_path, const std::function<int(const Ready&)>& run) {
+int run_daemon(bool detach, const std::filesystem::path& log_path, const std::function<int(const Ready&)>& run,
+               std::chrono::seconds startup_timeout) {
 	if (!detach) return run([] {});
 	int pipefd[2];
 	if (::pipe(pipefd)) fail("startup pipe");
@@ -116,7 +117,7 @@ int run_daemon(bool detach, const std::filesystem::path& log_path, const std::fu
 	}
 	::close(output.value); output.value = -1;
 	std::string error;
-	auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+	auto deadline = std::chrono::steady_clock::now() + startup_timeout;
 	for (;;) {
 		auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now()).count();
 		pollfd pfd{input.value, POLLIN, 0};

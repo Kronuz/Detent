@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
 		object.RemoveMember("authority_endpoints");
 		write();
 		using Format = detent::delivery::LocalImageFormat;
-		check(options.coordinator.image_format == Format::FlatV1 &&
+		check(options.coordinator.image_format == Format::PagedV2 &&
 			  options.coordinator.compaction_interval == std::chrono::seconds(60));
 		object.AddMember("image_format", "paged-v2", object.GetAllocator());
 		object.AddMember("compaction_interval_ms", 0, object.GetAllocator());

@@ -3,6 +3,8 @@
 #include <cassert>
 #include <fstream>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <pwd.h>
 #ifdef __APPLE__
 #include <sys/wait.h>
 #include <unistd.h>
@@ -26,6 +28,21 @@ int main(int argc, char **argv) {
 		try { call(); } catch (const std::exception &) { rejected = true; }
 		assert(rejected);
 	};
+	assert(detent_agent::publisher_uid({}, false) == ::geteuid());
+	assert(detent_agent::publisher_uid(std::to_string(::geteuid()), true) == ::geteuid());
+	const auto account = ::getpwuid(::geteuid());
+	assert(account && detent_agent::publisher_uid(std::string(account->pw_name), true) == ::geteuid());
+	refused([&] { detent_agent::publisher_uid("4294967296", false); });
+	refused([&] { detent_agent::publisher_uid("4294967295", false); });
+	refused([&] { detent_agent::publisher_uid("", false); });
+	write("{\"publisher_user\":0,\"reader_validation\":\"prepared\"}");
+	assert(load().at("--publisher-user") == "0");
+	assert(::chmod(path.c_str(), 0664) == 0);
+	refused(load);
+	write("{\"publisher_user\":\"root\"}");
+	assert(load().at("--publisher-user") == "root");
+	ReaderCapacity prepared([](const auto &, const char *) { return std::nullopt; }, true);
+	assert(prepared.limits().records == detent::local::ViewLimits::prepared().records);
 	ReaderCapacity defaults([](const auto &, const char *) { return std::optional<std::string>{}; });
 	assert(defaults.limits().records == 500000 && !defaults.limits().retirement_domain);
 	write(R"({"reader_records":5000000,"reader_heap_bytes":3221225472,"reader_mapping_bytes":3221225472})");

@@ -17,7 +17,8 @@ bool is_reader_option(std::string_view flag) {
 		return suffix == option;
 	});
 }
-ReaderCapacity::ReaderCapacity(const Setting &setting) {
+ReaderCapacity::ReaderCapacity(const Setting &setting, bool prepared)
+	: limits_(prepared ? detent::local::ViewLimits::prepared() : detent::local::ViewLimits{}) {
 	std::array<std::optional<std::uint64_t>, std::size(reader_fields)> values;
 	bool configured = false;
 	for (std::size_t i = 0; i != values.size(); ++i) {

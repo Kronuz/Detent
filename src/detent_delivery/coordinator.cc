@@ -7,13 +7,16 @@
 #include "paged_compaction_plan.hh"
 #include "paged_delta_plan.hh"
 #include "paged_maintenance_plan.hh"
+#include "paged_reuse.hh"
 #include "paged_snapshot_plan.hh"
+#include "prepared_reader.hh"
 #include "source_selection.hh"
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <openssl/rand.h>
+#include <unistd.h>
 
 namespace detent::delivery {
 namespace d = distribution;
@@ -31,6 +34,7 @@ struct RecoveryResult : d::RetirementNode {
 	const std::filesystem::path directory;
 	const l::ViewLimits limits;
 	std::optional<l::RecoveredGeneration> generation;
+	bool prepared = false;
 	l::GenerationId next_id{};
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
@@ -169,6 +173,8 @@ struct Coordinator::Impl {
 	asio::awaitable<d::RetirementHandle<RecoveryResult>> recover(bool selected) {
 		auto result = base;
 		result->failure = {};
+		if (selected)
+			result->prepared = false;
 		result->ready.store(false, std::memory_order_relaxed);
 		std::optional<l::detail::ManagedRecoveryContext> recovery;
 		if (selected) {
@@ -195,6 +201,9 @@ struct Coordinator::Impl {
 					auto candidate =
 						l::detail::ManagedRecovery::recover(result->directory, std::move(*recovery));
 					result->generation.emplace(std::move(candidate));
+					if (l::detail::StateCursor::logical_commitment(*result->generation))
+						result->prepared = l::detail::PreparedReader::metadata_ready(
+							result->directory, *result->generation, ::geteuid());
 				}
 				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),
 							   result->next_id.size()) != 1)
@@ -343,6 +352,17 @@ struct Coordinator::Impl {
 						result->descriptor = result->plan->descriptor();
 					}
 
+				} else if (!source && actual && l::detail::StateCursor::logical_commitment(*actual)) {
+					l::detail::PagedPlanBuilder candidate(l::detail::PagedPlanBuilder::Republish{},
+						*actual, generation, factory, heap);
+					while (!candidate.done()) {
+						result->control.step();
+						l::ValidationBudget budget;
+						candidate.step(budget);
+					}
+					result->maintenance = candidate.evidence();
+					result->plan.emplace(candidate.take());
+					result->descriptor = result->plan->descriptor();
 				} else if (!source) {
 					if (!actual)
 						throw std::invalid_argument("migration requires actual recovered base");
@@ -458,6 +478,8 @@ struct Coordinator::Impl {
 			notify_disk();
 		}
 		base = std::move(recovered);
+		diagnostic.prepared_ready = base->prepared && base->generation &&
+			base->generation->descriptor().cursor.same_identity(options.source.configured);
 		if (options.publication_sink && base->generation) {
 			if (equivalent)
 				options.publication_sink->selected_equivalent(*base->generation,
@@ -499,7 +521,7 @@ struct Coordinator::Impl {
 	}
 	asio::awaitable<void> migrate_flat_head() {
 		if (!paged_writer || !base->generation ||
-			l::detail::StateCursor::logical_commitment(*base->generation) ||
+			base->prepared ||
 			!base->generation->descriptor().cursor.same_identity(options.source.configured))
 			co_return;
 		diagnostic.phase = CoordinatorPhase::Building;
@@ -1195,6 +1217,10 @@ CoordinatorStatus Coordinator::status() const noexcept {
 	auto status = impl_->diagnostic;
 	if (impl_->store)
 		status.selected = impl_->store->selection();
+	status.prepared_ready = status.prepared_ready && !impl_->closing &&
+		status.phase != CoordinatorPhase::Fenced && status.phase != CoordinatorPhase::Closed &&
+		status.phase != CoordinatorPhase::Closing && status.selected.knowledge == l::SelectionKnowledge::Known &&
+		impl_->base->generation && status.selected.descriptor == impl_->base->generation->descriptor();
 	return status;
 }
 std::shared_ptr<Coordinator> make_coordinator(CoordinatorOptions options, std::shared_ptr<l::DiskStore> store,

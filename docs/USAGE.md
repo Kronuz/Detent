@@ -563,24 +563,30 @@ Both polling and subscription delivery stop on terminal trust denial while retai
 
 ## Managed reader capacity
 
+Managed reads default to `reader_validation: "prepared"`. The daemon validates and prepares the immutable generation; applications authenticate its publisher and verify the pages they access. Explicit `reader_validation: "full"` supports flat or separately trusted stores and validates the complete graph on attachment. Missing or malformed prepared metadata never selects full validation automatically.
+
+The trusted `publisher_user` setting accepts an account name or numeric UID. Its default is the effective user for per-user operation, `detent` for Linux/FreeBSD system services, and `_detent` for macOS system services. `--publisher-user` and `--reader-validation` override these settings and have no environment-variable aliases. Numeric UIDs avoid account-name resolution on the read path. Publisher directories require protected ancestry; root-controlled aliases such as macOS `/var` are supported. User-controlled aliases are refused.
+
+C++ applications select the same prepared path with `detent::local::make_managed_read_source(directory, publisher_uid, limits, identity)`. Limits default to `ViewLimits::prepared()` and identity is optional. Keep the resulting `Client` alive across lookups: it retains mapped pages, polls the protected selection for new generations, and gives existing read views a stable leased generation. Each client currently owns its source; shared source contexts remain a separate qualification item.
+
 Public `agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
 
 | Setting | Default | Bound |
 | --- | --- | --- |
-| `reader_records` | 500,000 | Positive 32-bit record count |
-| `reader_namespaces` | 4,096 | Positive 32-bit namespace count |
+| `reader_records` | Format maximum | Positive 32-bit record count |
+| `reader_namespaces` | Format maximum | Positive 32-bit namespace count |
 | `reader_overrides` | 256 | 0–256 per definition |
-| `reader_image_bytes` | 256 MiB | Positive signed 64-bit file extent |
-| `reader_string_bytes` | 128 MiB | Positive signed 64-bit byte count |
-| `reader_pages` | Existing paged format default | Positive 64-bit page count |
-| `reader_segments` | Existing paged format default | Positive 64-bit segment count |
+| `reader_image_bytes` | Format maximum | Explicit settings use positive signed 64-bit extent |
+| `reader_string_bytes` | Format maximum | Explicit settings use positive signed 64-bit count |
+| `reader_pages` | Format maximum | Positive 64-bit page count |
+| `reader_segments` | Format maximum | Positive 64-bit segment count |
 | `reader_heap_bytes` | 8 MiB | Positive host allocation width |
 | `reader_mapping_bytes` | 512 MiB | Positive host allocation width |
 | `reader_owners` | 16,384 | Positive host-width resident ownership count, subject to domain admission |
 
-Without explicit reader settings, existing reader defaults and shared resources remain unchanged. Explicit settings create command-owned heap, retirement and mapping resources; clients, sources and views close before those resources drain. The retirement runner retains its separate 1 MiB baseline budget. Page, segment and image maxima remain independent; actual allocations and mappings still require ledger admission.
+Prepared reads use format-wide corpus limits and shared process resource budgets unless explicitly configured. Actual allocations and mappings require ledger admission. Explicit settings create command-owned heap, retirement and mapping resources; clients, sources and views close before those resources drain. The retirement runner retains its separate 1 MiB baseline budget. Full validation retains bounded defaults of 500,000 records, 4,096 namespaces, 256 MiB image bytes and 128 MiB strings unless explicitly configured.
 
-A file supplying any `reader_*` field must be a regular file owned by root or the effective user, without group/other write permission, an extended ACL that adds access rules, or a final symlink. The loader checks the descriptor it reads and rejects a changed file extent. World-readable mode `0644` is allowed when its ACL is safe. On macOS and FreeBSD, nontrivial ACLs are refused; on Linux, the POSIX ACL effective mask is reflected in the group mode bits. Credentials belong in the separate private managed configuration. The bounded legacy configuration path keeps its existing symlink behavior when no reader settings are present.
+A file supplying `publisher_user`, `reader_validation` or any reader-capacity field must be a regular file owned by root or the effective user, without group/other write permission, an extended ACL that adds access rules, or a final symlink. The loader checks the descriptor it reads and rejects a changed file extent. World-readable mode `0644` is allowed when its ACL is safe. On macOS and FreeBSD, nontrivial ACLs are refused; on Linux, the POSIX ACL effective mask is reflected in the group mode bits. Credentials belong in the separate private managed configuration. The bounded legacy configuration path keeps its existing symlink behavior when no reader settings are present.
 
 The image never supplies its own limits. Keep generation identity binding configured, and fund the reader separately when increasing daemon capacity. These settings do not resize the legacy shared-memory image.
 

@@ -22,7 +22,9 @@ A single managed endpoint does not provide automatic leader failover. The [manag
 
 Keep durable authority, relay and managed-agent generations outside runtime directories. Runtime files can disappear at boot. Service managers own foreground process lifecycle and logging; use the [service templates](SERVICES.md) and private credential permissions.
 
-Deploy readers that understand both flat and paged images before enabling `image_format: "paged-v2"`. Flat writing remains the default. Selecting flat writing later leaves an unchanged paged selection in place until a forward update publishes a flat image. An older binary that cannot read paged images cannot safely consume that store. Retained reader mappings and old generations need coexistence capacity during transitions.
+Managed writers default to `image_format: "paged-v2"`. Deploy compatible readers before upgrading writers. Applications authenticate the publisher and read prepared metadata and the required tree path; the daemon performs full semantic validation before publication. An old paged head without prepared metadata receives an equal-cursor generation at startup, reusing its verified packs. Flat state migrates through the existing verified publication path. Invalid metadata fences startup and remains available for diagnosis.
+
+Explicit `image_format: "flat-v1"` and reader `reader_validation: "full"` support compatibility deployments. Selecting flat writing later leaves an unchanged paged selection in place until a forward update publishes a flat image. An older binary that cannot read paged images needs a qualified export or backup restoration. Retained mappings and generations need coexistence capacity during transitions.
 
 Process-kill and injected-I/O checks qualify their stated failure boundaries. They do not simulate device power loss or establish the guarantees of every filesystem and storage controller. Mapping, admitted heap, disk accounting and process RSS measure different resources; budget and observe each separately.
 

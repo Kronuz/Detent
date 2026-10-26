@@ -27,7 +27,7 @@ struct CoordinatorOptions {
 	std::optional<CompletionPort> completion_port;
 	std::chrono::milliseconds reconnect_maximum{0};
 	std::uint64_t reconnect_seed = 0;
-	LocalImageFormat image_format = LocalImageFormat::FlatV1;
+	LocalImageFormat image_format = LocalImageFormat::PagedV2;
 	std::chrono::milliseconds compaction_interval{60000};
 	std::vector<asio::ip::tcp::endpoint> authority_endpoints;
 	std::chrono::milliseconds quorum_refresh{30000};
@@ -55,6 +55,7 @@ struct CoordinatorStatus {
 	std::optional<distribution::Cursor> received, validated, acknowledged, recoverable;
 	std::uint64_t failures = 0;
 	bool initialized = false;
+	bool prepared_ready = false;
 	bool worker_pending = false;
 	std::exception_ptr error;
 	std::size_t source_endpoint_index = 0;

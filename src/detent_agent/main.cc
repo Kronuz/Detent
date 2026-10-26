@@ -17,6 +17,7 @@
 #include "detent/identity.hh"
 #include "detent_http/address.hh"
 #include "detent_local/generation.hh"
+#include "detent_local/reader.hh"
 #include "shm_reader.hh"
 #ifdef DETENT_READER
 #include "detent/client.hh"
@@ -84,9 +85,16 @@ bool has_flag(const std::vector<std::string>& args, const std::string& flag) {
 
 std::optional<std::string> setting(const std::vector<std::string>& args, const std::string& flag, const char* env) {
 	if (auto value = arg_value(args, flag)) return value;
-	if (const char* value = std::getenv(env); value && *value) return value;
+	if (env) if (const char* value = std::getenv(env); value && *value) return value;
 	if (auto it = g_config.find(flag); it != g_config.end()) return it->second;
 	return std::nullopt;
+}
+
+bool prepared_reader(const std::vector<std::string> &args) {
+	const auto validation = setting(args, "--reader-validation", nullptr).value_or("prepared");
+	if (validation != "prepared" && validation != "full")
+		throw std::invalid_argument("reader validation must be prepared or full");
+	return validation == "prepared";
 }
 
 #ifndef DETENT_READER
@@ -213,7 +221,7 @@ int run_agent(const std::vector<std::string>& args) {
 					: has_flag(args, "--upgrade-managed")  ? detent::local::StoreOpenMode::UpgradeLegacy
 														   : detent::local::StoreOpenMode::ExistingManaged,
 					g_system, ready);
-			});
+			}, detent_agent::managed_startup_timeout);
 #else
 		throw std::runtime_error("managed agent support is disabled in this build");
 #endif
@@ -239,8 +247,12 @@ int cmd_status(const std::vector<std::string> &args) {
 		else
 			std::printf("not running\n");
 		try {
-			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); });
-			auto view = detent::local::open_generation(*g_generation_dir, capacity.limits(), g_generation_identity);
+			const bool prepared = prepared_reader(args);
+			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
+			detent::local::GenerationReader reader(*g_generation_dir, capacity.limits(), g_generation_identity,
+				prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt);
+			reader.refresh();
+			auto view = reader.read_view();
 			std::printf("durable revision=%llu knob_count=%u\n", (unsigned long long)view.cursor().revision,
 						view.size());
 		} catch (const std::exception &error) {
@@ -281,6 +293,8 @@ void validate_get_args(const std::vector<std::string> &args) {
 										"--runtime-dir",
 										"--managed",
 										"--generation-dir",
+										"--publisher-user",
+										"--reader-validation",
 										"--generation-cluster",
 										"--generation-group",
 										"--generation-epoch",
@@ -348,7 +362,8 @@ void launch_agent(const std::vector<std::string> &args) {
 }
 
 int cmd_managed_get(const std::vector<std::string> &args) {
-	detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); });
+	const bool prepared = prepared_reader(args);
+	detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
 	auto fallback = arg_value(args, "--default");
 	detent::InitOptions options;
 	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH"))
@@ -358,6 +373,8 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 	local.limits = capacity.limits();
 	local.auto_refresh = false;
 	local.identity = g_generation_identity;
+	if (prepared)
+		local.prepared_publisher = detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system);
 	std::shared_ptr<detent::local::LocalReadSource> source;
 	options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
 							  std::shared_ptr<const detent::OverrideTable> overrides) {
@@ -365,41 +382,50 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 																  std::move(overrides));
 		return source;
 	};
-	detent::Client client(std::move(options));
+	std::unique_ptr<detent::Client> client;
 	bool available = false;
-	try {
-		source->refresh();
-		available = true;
-	} catch (const std::exception &) {
-	}
+	bool validation_failed = false;
+	const auto deadline = std::chrono::steady_clock::now() + detent_agent::managed_startup_timeout;
+	auto attempt = [&] {
+		try {
+			if (!client) client = std::make_unique<detent::Client>(options);
+			if (!prepared) source->refresh();
+			available = true;
+		} catch (const detent::local::GenerationUnavailable &) {
+		} catch (const std::exception &) {
+			if (prepared) { validation_failed = true; throw; }
+		}
+	};
+	attempt();
 	// A durable selected image remains useful with the daemon stopped.
 	if (!available && !g_system && g_managed_config) {
 		try {
 			launch_agent(args);
-			const auto deadline = std::chrono::steady_clock::now() + 2s;
 			do {
-				try {
-					source->refresh();
-					available = true;
-				} catch (const std::exception &) {
-				}
+				attempt();
 				if (available)
 					break;
 				std::this_thread::sleep_for(20ms);
 			} while (std::chrono::steady_clock::now() < deadline);
 		} catch (const std::exception &error) {
+			if (validation_failed) throw;
 			if (!fallback)
 				std::fprintf(stderr, "detent: managed agent startup: %s\n", error.what());
 		}
 	}
-	auto view = client.read_view();
+	if (!available) {
+		detent::InitOptions baked;
+		baked.defaults_path = options.defaults_path;
+		client = std::make_unique<detent::Client>(std::move(baked));
+	}
+	auto view = client->read_view();
 	detent::KnobError error{detent::ErrorCategory::Uninitialized, "", ""};
 	auto result = try_read(view, args[0], arg_value(args, "--hash"), arg_value(args, "--switch"), &error);
 	if (result) {
 		std::printf("%s\n", result->c_str());
 		return 0;
 	}
-	if (fallback) {
+	if (fallback && error.category != detent::ErrorCategory::SourceFailure) {
 		std::printf("%s\n", fallback->c_str());
 		return 0;
 	}
@@ -572,6 +598,7 @@ int main(int argc, char** argv) {
 			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" || arg == "--source-address" ||
 				arg == "--source-http" || arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
+				arg == "--publisher-user" || arg == "--reader-validation" ||
 				arg == "--generation-cluster" || arg == "--generation-group" || arg == "--generation-epoch" ||
 				arg == "--generation-scope") {
 				if (++i == args.size() || args[i].starts_with('-')) throw std::runtime_error(arg + " requires a value");
