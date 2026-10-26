@@ -12,7 +12,7 @@ enum class RecordReadStatus { Idle, Reading, Ready, Missing, Unsafe, Changed, Ca
 // while advancing its strictly increasing step sequence.
 class RecordReader {
   public:
-	static constexpr std::size_t capacity = descriptor_bytes;
+	static constexpr std::size_t capacity = prepared_metadata_bytes;
 	void start(std::string_view name, std::size_t length, std::uint64_t trusted_owner,
 			   DirectoryIdentity directory);
 	kronuz::io::completion::Request prepare(kronuz::io::completion::Token token,

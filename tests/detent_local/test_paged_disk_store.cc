@@ -3,6 +3,7 @@
 #include "managed_recovery.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
+#include "prepared_reader.hh"
 #include <chrono>
 #include <completion/native_completion.h>
 #include <source_location>
@@ -203,6 +204,12 @@ int main() {
 					check(store->publication_status() == l::DiskPublicationStatus::Published);
 					check(store->selection().descriptor == wanted && !store->publication_ready());
 					rejects<std::invalid_argument>([&] { store->confirm_recovered(*base); });
+					{
+						const auto prepared =
+						    l::detail::PreparedReader::open(root, ::getuid(), options.recovery_limits);
+						check(prepared.descriptor == wanted && prepared.logical == logical);
+						check(prepared.view.get("app", "count").value() == (progress ? INT64_MIN : 1));
+					}
 					auto recovered = l::detail::ManagedRecovery::recover(
 						root, l::detail::ManagedRecovery::capture(*store));
 					{

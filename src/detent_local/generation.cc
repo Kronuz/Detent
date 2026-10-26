@@ -2,6 +2,7 @@
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
 #include "generation_mapping.hh"
+#include "generation_file_access.hh"
 #include "leased_paged_root.hh"
 #include "paged_dependency_discovery.hh"
 #include "paged_progress_view.hh"
@@ -47,21 +48,12 @@ std::size_t mapping_capacity(std::uint64_t length) {
 	return ((static_cast<std::size_t>(length) + bytes - 1) / bytes) * bytes;
 }
 void trusted_file(int fd, uid_t owner, std::uint64_t length) {
-	struct stat info{};
-	require(fd >= 0 && ::fstat(fd, &info) == 0 && S_ISREG(info.st_mode) && info.st_uid == owner &&
-			info.st_nlink == 1 && !(info.st_mode & 0022) && info.st_size >= 0 &&
-			std::uint64_t(info.st_size) == length);
+	detail::check_generation_file(fd, owner, length);
 }
 void read_record(int fd, std::span<char> bytes) {
-	std::size_t offset = 0;
-	while (offset < bytes.size()) {
-		auto count = ::pread(fd, bytes.data() + offset, bytes.size() - offset, offset);
-		if (count < 0 && errno == EINTR)
-			continue;
-		require(count > 0);
-		offset += static_cast<std::size_t>(count);
-	}
+	detail::read_generation_record(fd, bytes);
 }
+
 } // namespace
 std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &d) {
 	require(std::any_of(d.generation.begin(), d.generation.end(), [](char c) { return c != 0; }) &&

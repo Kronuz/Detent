@@ -11,6 +11,7 @@ enum class ErrorCategory {
 	MissingKnob,
 	WrongType,
 	ConversionFailed,
+	SourceFailure,
 };
 
 struct KnobError {

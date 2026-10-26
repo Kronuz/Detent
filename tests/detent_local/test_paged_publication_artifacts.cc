@@ -3,6 +3,7 @@
 #include "paged_dependency_check.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_publication_artifacts.hh"
+#include "reader_metadata.hh"
 #include <completion/native_completion.h>
 template <class Error, class Call> void rejects(Call call) {
 	try {
@@ -71,9 +72,9 @@ int main() {
 				} else {
 					artifacts->populate(*plan);
 					const auto rows = artifacts->artifacts();
-					require(rows.size() == (progress ? 3 : 5));
+					require(rows.size() == (progress ? 4 : 6));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
-					const auto &lease = rows[rows.size() - 3];
+					const auto &lease = rows[rows.size() - 4];
 					const auto ownership =
 						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
 					require(ownership.layout_version == 2 && ownership.storage == storage &&
@@ -82,6 +83,14 @@ int main() {
 					for (const auto &segment : plan->segments())
 						lengths.push_back(segment.bytes->size());
 					require(artifacts->usage() == l::DiskLedger::paged_peak(lengths));
+					const auto &record = rows[rows.size() - 2];
+					const auto metadata =
+					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
+					require(metadata.storage == storage && metadata.generation == next &&
+					        metadata.root_checksum == plan->descriptor().checksum &&
+					        metadata.counts.bools == plan->counts().bools &&
+					        metadata.counts.ints == plan->counts().ints &&
+					        metadata.physical_bytes == artifacts->target_physical_bytes());
 					require(artifacts->prefix_usage(0) == l::DiskUsage{});
 					require(artifacts->prefix_usage(rows.size()) == artifacts->usage());
 					require(artifacts->prefix_usage(rows.size() - 2).generations == 1);

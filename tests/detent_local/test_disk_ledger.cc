@@ -36,10 +36,10 @@ void operator delete(void *pointer) noexcept { std::free(pointer); }
 void operator delete(void *pointer, std::size_t) noexcept { std::free(pointer); }
 int main() {
 	try {
-		check(l::DiskLedger::paged_peak({}) == l::DiskUsage{624, 3, 1});
+		check(l::DiskLedger::paged_peak({}) == l::DiskUsage{816, 4, 1});
 		const std::array<std::uint64_t, 2> packs{1000, l::paged::segment_bytes};
 		const auto paged_peak = l::DiskLedger::paged_peak(packs);
-		check(paged_peak == l::DiskUsage{624 + 1000 + l::paged::segment_bytes + 256, 7, 1});
+		check(paged_peak == l::DiskUsage{816 + 1000 + l::paged::segment_bytes + 256, 8, 1});
 		for (const auto invalid :
 			 {std::uint64_t{0}, std::uint64_t{l::paged::segment_bytes + 1}, UINT64_MAX}) {
 			const std::array lengths{invalid};

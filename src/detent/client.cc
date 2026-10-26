@@ -42,6 +42,7 @@ const char* category_name(ErrorCategory c) noexcept {
 		case ErrorCategory::MissingKnob: return "MissingKnob";
 		case ErrorCategory::WrongType: return "WrongType";
 		case ErrorCategory::ConversionFailed: return "ConversionFailed";
+		case ErrorCategory::SourceFailure: return "SourceFailure";
 	}
 	return "Unknown";
 }

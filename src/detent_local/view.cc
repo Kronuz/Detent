@@ -51,6 +51,12 @@ std::shared_ptr<distribution::StorageLedger> mapping_account(const ViewLimits &l
 	return limits.mapping_account ? limits.mapping_account : defaults().mappings;
 }
 } // namespace resources
+ViewLimits ViewLimits::prepared() {
+    ViewLimits limits;
+    limits.bytes = limits.strings = limits.pages = limits.segments = UINT64_MAX;
+    limits.records = limits.namespaces = UINT32_MAX;
+    return limits;
+}
 ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
 	: lease(std::move(owner)), bytes(region), header(metadata) {}
 ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state,
@@ -343,7 +349,12 @@ std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_vie
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	auto definition = root_->definition(ns, key);
+	std::optional<detail::BorrowedDefinition> definition;
+	try {
+		definition = root_->definition(ns, key);
+	} catch (const detail::ReadSourceFailure &) {
+		return error(ErrorCategory::SourceFailure, key);
+	}
 	if (!definition)
 		return {};
 	if (definition->boolean())
@@ -365,7 +376,12 @@ ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std:
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	auto definition = root_->definition(ns, key);
+	std::optional<detail::BorrowedDefinition> definition;
+	try {
+		definition = root_->definition(ns, key);
+	} catch (const detail::ReadSourceFailure &) {
+		return error(ErrorCategory::SourceFailure, key);
+	}
 	if (!definition)
 		return {};
 	if (!definition->boolean())

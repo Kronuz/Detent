@@ -40,7 +40,7 @@ int main() {
 	auto account = std::make_shared<distribution::StorageLedger>(1024 * 1024);
 	auto controls = std::make_shared<distribution::StorageLedger>(1024 * 1024);
 	distribution::RetirementRuntime runtime{controls, 1};
-	auto domain = runtime.domain(account, 4);
+	auto domain = runtime.domain(account, 8);
 	auto baseline = account->used();
 	auto mapping = domain.make<local::detail::SegmentMapping>(account, fd, ::getuid(), ownership);
 	require(mapping->bytes().size() == bytes.size());
@@ -94,6 +94,18 @@ int main() {
 	registry_limits.segments = 1;
 	auto registry = domain.make<local::detail::SegmentRegistry>(account, ownership.storage, registry_limits);
 	rejects<std::logic_error>([&] { registry->inputs(); });
+    {
+        auto extent = domain.make<local::detail::SegmentMapping>(
+            account, fd, ::getuid(), local::detail::SegmentExtent{bytes.size()});
+        require(!extent->has_ownership() && extent->bytes().size() == bytes.size());
+        rejects<std::logic_error>([&] { extent->ownership(); });
+        rejects<std::invalid_argument>([&] { registry->append(extent); });
+        for (auto length : {std::size_t(0), std::size_t(local::paged::segment_bytes) + 1, bytes.size() + 1})
+            rejects<std::invalid_argument>([&] {
+                domain.make<local::detail::SegmentMapping>(
+                    account, fd, ::getuid(), local::detail::SegmentExtent{length});
+            });
+    }
 	registry->append(mapping);
 	require(registry->physical_bytes() == ownership.length);
 	rejects<std::invalid_argument>([&] { registry->append(mapping); });

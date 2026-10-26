@@ -9,6 +9,8 @@ struct ClientSourceOptions {
 	std::optional<distribution::Cursor> identity;
 	std::chrono::milliseconds poll_interval{200};
 	bool auto_refresh = true;
+    // Explicit publisher trust enables synchronous, checked-path attachment.
+    std::optional<std::uint32_t> prepared_publisher;
 };
 // Each Client receives its own source with immutable defaults/CLI overlays.
 // Automatic refresh runs on one configuration worker. Manual refresh belongs
