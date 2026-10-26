@@ -60,6 +60,8 @@ foreach(mode IN ITEMS cancel-selected reader-pressure subscription subscription-
   add_test(NAME test_delivery_coordinator_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
   set_tests_properties(test_delivery_coordinator_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 90)
 endforeach()
+set_tests_properties(test_delivery_coordinator_subscription-relay-sessions-500000
+  PROPERTIES TIMEOUT 180)
 add_executable(test_managed_config test_managed_config.cc)
 target_link_libraries(test_managed_config PRIVATE detent::delivery_config)
 add_test(NAME test_managed_config COMMAND test_managed_config ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
