@@ -4882,5 +4882,211 @@
         }
       }
     }
-  }
+  },
+  "baseline_code": "Detent:2c04f5d96b8c2e95b6d09f4574465451875e2aeb",
+  "candidate_code": "Detent:0e6abe3",
+  "common_probe_source": "Detent:2c04f5d96b8c2e95b6d09f4574465451875e2aeb:tests/detent_system/prepared_client_probe.cc",
+  "common_probe_sha256": "77ea621707979d72d190e0f7bda45fb28fa765033748e56960d1f9c4a84d9521",
+  "dataset": {
+    "records": 5000000,
+    "revision": 39064,
+    "logical_source": "5000000-restore-r12",
+    "prepared_once": "Complete publisher-side graph validation before timing; APFS clone preserves original artifacts"
+  },
+  "cases": [
+    {
+      "key": "load1:key1",
+      "expected_int": 17
+    },
+    {
+      "key": "load1:key128205",
+      "expected_int": 2179485
+    },
+    {
+      "key": "load3:key256411",
+      "expected_int": -4358987
+    },
+    {
+      "key": "load3:key384615",
+      "expected_int": -6538455
+    },
+    {
+      "key": "load1:key512821",
+      "expected_int": 8717957
+    },
+    {
+      "key": "load1:key641025",
+      "expected_int": 10897425
+    },
+    {
+      "key": "load3:key769231",
+      "expected_int": -13076927
+    },
+    {
+      "key": "load3:key897435",
+      "expected_int": -15256395
+    },
+    {
+      "key": "load1:key1025641",
+      "expected_int": 17435897
+    },
+    {
+      "key": "load1:key1153845",
+      "expected_int": 19615365
+    },
+    {
+      "key": "load3:key1282051",
+      "expected_int": -21794867
+    },
+    {
+      "key": "load1:key1410257",
+      "expected_int": 23974369
+    },
+    {
+      "key": "load1:key1538461",
+      "expected_int": 26153837
+    },
+    {
+      "key": "load3:key1666667",
+      "expected_int": -28333339
+    },
+    {
+      "key": "load3:key1794871",
+      "expected_int": -30512807
+    },
+    {
+      "key": "load1:key1923077",
+      "expected_int": 32692309
+    },
+    {
+      "key": "load1:key2051281",
+      "expected_int": 34871777
+    },
+    {
+      "key": "load3:key2179487",
+      "expected_int": -37051279
+    },
+    {
+      "key": "load3:key2307691",
+      "expected_int": -39230747
+    },
+    {
+      "key": "load1:key2435897",
+      "expected_int": 41410249
+    },
+    {
+      "key": "load3:key2564103",
+      "expected_int": -43589751
+    },
+    {
+      "key": "load3:key2692307",
+      "expected_int": -45769219
+    },
+    {
+      "key": "load1:key2820513",
+      "expected_int": 47948721
+    },
+    {
+      "key": "load1:key2948717",
+      "expected_int": 50128189
+    },
+    {
+      "key": "load3:key3076923",
+      "expected_int": -52307691
+    },
+    {
+      "key": "load3:key3205127",
+      "expected_int": -54487159
+    },
+    {
+      "key": "load1:key3333333",
+      "expected_int": 56666661
+    },
+    {
+      "key": "load1:key3461537",
+      "expected_int": 58846129
+    },
+    {
+      "key": "load3:key3589743",
+      "expected_int": -61025631
+    },
+    {
+      "key": "load3:key3717947",
+      "expected_int": -63205099
+    },
+    {
+      "key": "load1:key3846153",
+      "expected_int": 65384601
+    },
+    {
+      "key": "load3:key3974359",
+      "expected_int": -67564103
+    },
+    {
+      "key": "load3:key4102563",
+      "expected_int": -69743571
+    },
+    {
+      "key": "load1:key4230769",
+      "expected_int": 71923073
+    },
+    {
+      "key": "load1:key4358973",
+      "expected_int": 74102541
+    },
+    {
+      "key": "load3:key4487179",
+      "expected_int": -76282043
+    },
+    {
+      "key": "load3:key4615383",
+      "expected_int": -78461511
+    },
+    {
+      "key": "load1:key4743589",
+      "expected_int": 80641013
+    },
+    {
+      "key": "load1:key4871793",
+      "expected_int": 82820481
+    },
+    {
+      "key": "load3:key4999999",
+      "expected_int": -84999983
+    }
+  ],
+  "per_round": [
+    {
+      "round": 1,
+      "before": 876760.5,
+      "after": 760605.5
+    },
+    {
+      "round": 2,
+      "before": 861346.5,
+      "after": 755422.0
+    },
+    {
+      "round": 3,
+      "before": 851337.0,
+      "after": 754994.0
+    },
+    {
+      "round": 4,
+      "before": 867620.5,
+      "after": 759906.5
+    },
+    {
+      "round": 5,
+      "before": 862138.5,
+      "after": 755162.0
+    }
+  ],
+  "limitations": [
+    "Resident file-data experiment: one separate unmeasured baseline query warms each key immediately before its timed pair.",
+    "Only a warmed integer workload; forty distinct keys and five rounds do not establish universal or fleet p99 latency.",
+    "Two candidate values exceed 1 ms; maximum 1.262414 ms.",
+    "Traced latency is excluded from the timing samples; the tracer counts openat only, not every filesystem syscall.",
+    "The common probe source predates its optional steady-loop extension; reproduce with that same probe source for both production-code revisions."
+  ]
 }
