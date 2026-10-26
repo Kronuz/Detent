@@ -1,6 +1,6 @@
 # Fast attachment to daemon-prepared local data
 
-**Date:** 2026-10-25. **Status:** Validated architectural blueprint; implementation and qualification pending.
+**Date:** 2026-10-25. **Status:** Reviewed opt-in implementation on main; managed default activation under qualification.
 
 The final application client must attach to prepared local data and return its first verified knob in **under 1 ms on the measured resident-data host**. Measure from entry into `Client` construction through the returned value, including trust checks, leases, mappings, hashing, allocation and runtime initialization. Process launch and dynamic loading are separate measurements. Cold storage, page faults and arbitrary descheduling cannot provide an unconditional deadline.
 
