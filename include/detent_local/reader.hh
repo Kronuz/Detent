@@ -8,8 +8,10 @@ namespace detent::local {
 class GenerationReader {
   public:
 	GenerationReader(std::filesystem::path directory, ViewLimits limits = {},
-					 std::optional<distribution::Cursor> identity = {});
-	// Fully validate before installation. Exceptions preserve the previous view.
+	                 std::optional<distribution::Cursor> identity = {},
+	                 std::optional<std::uint32_t> prepared_publisher = {});
+	// A prepared publisher enables leased, checked-path attachment; otherwise
+	// refresh fully validates. Exceptions preserve the previous view.
 	// Returns false when the selected descriptor is already installed.
 	bool refresh();
 	ReadView read_view() const;
@@ -19,6 +21,8 @@ class GenerationReader {
 	std::filesystem::path directory_;
 	ViewLimits limits_;
 	std::optional<distribution::Cursor> identity_;
+	std::optional<std::uint32_t> prepared_publisher_;
+	std::optional<std::array<char, 32>> logical_;
 	std::mutex refresh_mutex_;
 	mutable std::mutex installed_mutex_;
 	ReadView installed_;

@@ -17,11 +17,14 @@ class GraphValidator;
 class PagedProgressView;
 class RecoveryEngine;
 class MappedRecoveryAdmission;
+class PreparedReader;
 } // namespace detail
 struct ValidationBudget {
 	std::size_t bytes = 8192, rows = 16;
 };
 struct ViewLimits {
+    // Format-wide corpus bounds; heap and aggregate mapping admission remain bounded.
+    static ViewLimits prepared();
 	std::uint64_t bytes = 256ull * 1024 * 1024, strings = 128ull * 1024 * 1024;
 	std::uint32_t namespaces = 4096, records = 500000, overrides = 256;
 	// Optional application-owned runtime domain. Its runner must outlive all
@@ -30,6 +33,7 @@ struct ViewLimits {
 	// Mapped virtual bytes are counted separately from managed heap capacity.
 	std::shared_ptr<distribution::StorageLedger> mapping_account;
 	std::uint64_t pages = paged::Limits{}.pages, segments = paged::Limits{}.segments;
+	std::size_t verification_cache_bytes = 1024 * 1024;
 };
 class ImageValidator;
 class ReadView {
@@ -63,6 +67,7 @@ class ReadView {
 	friend class detail::GraphValidator;
 	friend class detail::PagedProgressView;
 	friend class detail::MappedRecoveryAdmission;
+	friend class detail::PreparedReader;
 };
 // The supplied lease retains the immutable byte region through all views.
 // GenerationReader will supply a mapped image and its acquired kernel lease.

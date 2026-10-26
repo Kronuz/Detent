@@ -86,10 +86,12 @@ struct LocalReadSource::Impl {
 	std::atomic<bool> connected{false};
 	std::optional<std::jthread> worker;
 	Impl(ClientSourceOptions config, std::shared_ptr<const Snapshot> baked,
-		 std::shared_ptr<const OverrideTable> cli)
-		: options(std::move(config)), reader(options.directory, options.limits, options.identity),
-		  defaults(std::move(baked)), overrides(std::move(cli)), domain(resources::domain(options.limits)) {
-		install({});
+	     std::shared_ptr<const OverrideTable> cli)
+	    : options(std::move(config)),
+	      reader(options.directory, options.limits, options.identity, options.prepared_publisher),
+	      defaults(std::move(baked)), overrides(std::move(cli)), domain(resources::domain(options.limits)) {
+		if (!options.prepared_publisher)
+			install({});
 	}
 	void install(ReadView live) {
 		auto frozen = domain.make<FrozenEvaluation>(std::move(live), defaults, overrides);
@@ -106,8 +108,14 @@ LocalReadSource::LocalReadSource(ClientSourceOptions options, std::shared_ptr<co
 	auto account = resources::domain(options.limits).storage_account();
 	impl_ = distribution::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(options),
 												   std::move(defaults), std::move(overrides));
+	if (impl_->options.prepared_publisher)
+		refresh();
 	if (impl_->options.auto_refresh) {
 		impl_->worker.emplace([this](std::stop_token stop) {
+			if (impl_->options.prepared_publisher) {
+				std::unique_lock lock(impl_->sleep_mutex);
+				impl_->wake.wait_for(lock, stop, impl_->options.poll_interval, [] { return false; });
+			}
 			while (!stop.stop_requested()) {
 				try {
 					refresh();

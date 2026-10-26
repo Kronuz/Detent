@@ -297,3 +297,13 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_paged_snapshot_plan PRIVATE detent::local_publication)
   add_test(NAME test_local_paged_snapshot_plan COMMAND test_local_paged_snapshot_plan)
 endif()
+
+add_executable(test_local_reader_metadata test_reader_metadata.cc)
+target_include_directories(test_local_reader_metadata PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_reader_metadata PRIVATE detent::local_view)
+add_test(NAME test_local_reader_metadata COMMAND test_local_reader_metadata)
+
+add_executable(test_local_lazy_page_access test_lazy_page_access.cc)
+target_include_directories(test_local_lazy_page_access PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_lazy_page_access PRIVATE detent::local_builder detent::local_client)
+add_test(NAME test_local_lazy_page_access COMMAND test_local_lazy_page_access)

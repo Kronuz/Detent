@@ -16,6 +16,7 @@ class WarmGraphValidator;
 class PagedSnapshotSource;
 class RecoveryEngine;
 class StateCursor;
+class PreparedReader;
 } // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
@@ -27,6 +28,7 @@ struct Descriptor {
 	bool operator==(const Descriptor &) const = default;
 };
 inline constexpr std::size_t descriptor_bytes = 176;
+inline constexpr std::size_t prepared_metadata_bytes = 192;
 std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &descriptor);
 Descriptor decode_descriptor(std::span<const char> bytes);
 std::string generation_name(const GenerationId &generation);
@@ -69,6 +71,7 @@ class RecoveredGeneration {
 	friend class detail::RecoveryEngine;
 	friend class detail::StateCursor;
 	friend class GenerationReader;
+	friend class detail::PreparedReader;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
