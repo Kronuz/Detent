@@ -308,6 +308,14 @@ target_include_directories(test_local_lazy_page_access PRIVATE "${PROJECT_SOURCE
 target_link_libraries(test_local_lazy_page_access PRIVATE detent::local_builder detent::local_client)
 add_test(NAME test_local_lazy_page_access COMMAND test_local_lazy_page_access)
 
+add_executable(test_local_trusted_paths test_trusted_paths.cc)
+target_include_directories(test_local_trusted_paths PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_trusted_paths PRIVATE detent::local_view)
+add_test(NAME test_local_trusted_paths
+  COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/test_trusted_paths.sh
+    $<TARGET_FILE:test_local_trusted_paths> ${PROJECT_BINARY_DIR}/.scratch)
+set_tests_properties(test_local_trusted_paths PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77)
+
 if(TARGET detent::local_publication)
   add_executable(test_local_prepared_collection test_prepared_collection.cc)
   target_include_directories(test_local_prepared_collection PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
