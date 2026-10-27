@@ -115,9 +115,10 @@ void exercise(const fs::path &parent) {
 		expanded /= ".";
 	expanded /= "target";
 	fixture.rejects(expanded);
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 	check(fs::create_directory(root / "acl"));
 	check(::chown((root / "acl").c_str(), publisher, gid_t(-1)) == 0);
+#ifdef __APPLE__
 	const auto child = ::fork();
 	check(child >= 0);
 	if (!child) {
@@ -128,6 +129,19 @@ void exercise(const fs::path &parent) {
 	while (::waitpid(child, &status, 0) < 0)
 		check(errno == EINTR);
 	check(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+#else
+	x::RecoveryFile acl_directory(::open((root / "acl").c_str(), O_RDONLY | O_DIRECTORY));
+	check(acl_directory.fd >= 0);
+	const auto extended = ::fpathconf(acl_directory.fd, _PC_ACL_EXTENDED);
+	const auto nfs4 = ::fpathconf(acl_directory.fd, _PC_ACL_NFS4);
+	std::printf("FreeBSD ACL capabilities: extended=%ld nfs4=%ld\n", extended, nfs4);
+	check(extended == 1 && nfs4 == 0);
+	acl_t acl = ::acl_from_text("user::rwx,user:65534:r-x,group::---,mask::r-x,other::---");
+	check(acl != nullptr);
+	const bool installed = ::acl_set_file((root / "acl").c_str(), ACL_TYPE_ACCESS, acl) == 0;
+	const bool freed = ::acl_free(acl) == 0;
+	check(installed && freed);
+#endif
 	struct stat acl_mode{};
 	check(::stat((root / "acl").c_str(), &acl_mode) == 0 && !(acl_mode.st_mode & 0022));
 	fixture.rejects(root / "acl");
