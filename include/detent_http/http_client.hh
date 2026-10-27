@@ -1,30 +1,12 @@
 #pragma once
 
-// A minimal, dependency-light blocking HTTP/1.1 client: plain POSIX sockets,
-// no Asio/reactor/http-parser. Deliberately NOT built on the Kronuz/http
-// stack -- that stack is the *server*-side event-driven machinery (see
-// distributor/); a client issuing requests one at a time needs none of it,
-// and pulling it in here would force every consumer of detent_http to
-// also pull Asio.
-//
-// Two shapes, on purpose:
-//   - http_get/http_put: one-shot, "Connection: close", read-to-EOF. Simple,
-//     and fine for infrequent calls (the publisher CLI, a gossip-triggered
-//     peer pull, ad hoc tests).
-//   - HttpConnection: a REUSED keep-alive connection with real
-//     Content-Length-aware parsing. This is what make_http_poll_source()
-//     uses for its repeated polling, and it matters: an earlier version of
-//     this client always closed after one request, and a load test at 1,000
-//     concurrent pollers showed p99 fan-out latency balloon to ~5.5s versus
-//     ~100ms at 50 pollers -- almost certainly the cost of a fresh TCP
-//     handshake/teardown on every single poll, not the distributor's actual
-//     request handling. Reusing one connection per poller removes that
-//     churn; see distributor/tests/test_load_fanout.cc for the re-measured
-//     numbers.
+// Bounded HTTP adapters over http::client. One instance per polling thread.
+// Socket phases share one deadline; synchronous OS DNS is uncancellable.
 
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <memory>
 #include <string>
 
 namespace detent_http {
@@ -110,18 +92,8 @@ public:
 		std::optional<std::uint64_t> base_version = std::nullopt);
 
 private:
-	[[nodiscard]] HttpResponse get_once(
-		const std::string& path, const std::optional<std::string>& if_none_match,
-		std::optional<std::uint64_t> base_version);
-	void ensure_connected();
-	void disconnect() noexcept;
-
-	std::string host_;
-	std::uint16_t port_;
-	std::chrono::milliseconds timeout_;
-	std::chrono::milliseconds max_connection_age_;
-	std::chrono::steady_clock::time_point connected_at_{};
-	int fd_ = -1;
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
 };
 
 } // namespace detent_http

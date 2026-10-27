@@ -37,10 +37,6 @@ if(TARGET http::http)
   add_subdirectory(detent_distribution_http)
 endif()
 if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  if(NOT TARGET http_parser::http_parser)
-    FetchContent_Declare(http_parser GIT_REPOSITORY https://github.com/Kronuz/http-parser.git GIT_TAG main)
-    FetchContent_MakeAvailable(http_parser)
-  endif()
   add_subdirectory(detent_delivery)
 endif()
 add_subdirectory(detent_local)
@@ -73,7 +69,7 @@ add_library(detent_http
 target_include_directories(detent_http PUBLIC
   "${PROJECT_SOURCE_DIR}/include")
 
-target_link_libraries(detent_http PUBLIC detent::detent compressors::compressors)
+target_link_libraries(detent_http PUBLIC detent::detent compressors::compressors PRIVATE http::client)
 target_compile_features(detent_http PUBLIC cxx_std_20)
 
 add_library(detent_http::detent_http ALIAS detent_http)
@@ -113,7 +109,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
   target_compile_features(detentd_lib PUBLIC cxx_std_20)
 
   add_executable(detentd detentd/main.cc)
-  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging http_log::http_log)
+  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging http_log::http_log http::client_tls)
 endif()
 
 ########################################################################
@@ -148,7 +144,7 @@ if(DETENT_BUILD_RELAY)
   add_library(detent_relay_host detent_relay/host.cc)
   target_link_libraries(detent_relay_host PUBLIC detent::relay_http detent::relay_config PRIVATE detent_logging detent_cli reactor::tls)
   add_executable(detent-relay detent_relay/main.cc)
-  target_link_libraries(detent-relay PRIVATE detent_relay_host detent_cli detent_logging http_parser::http_parser)
+  target_link_libraries(detent-relay PRIVATE detent_relay_host detent_cli detent_logging)
   install(TARGETS detent-relay RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

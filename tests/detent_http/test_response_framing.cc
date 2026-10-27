@@ -82,6 +82,8 @@ class Server {
 };
 void verify(const std::string &wire, bool valid, std::string_view body = {}, int status = 200,
 			bool patch = false) {
+	static unsigned case_number = 0;
+	++case_number;
 	Server server(wire);
 	for (bool persistent : {false, true}) {
 		bool rejected = false;
@@ -96,7 +98,8 @@ void verify(const std::string &wire, bool valid, std::string_view body = {}, int
 		} catch (const std::exception &) {
 			rejected = true;
 		}
-		check(rejected != valid);
+		if (rejected == valid)
+			throw std::runtime_error("HTTP framing case " + std::to_string(case_number) + " unexpected acceptance or rejection");
 		if (valid)
 			check(response.status == status && response.body == body && response.is_patch == patch);
 	}
@@ -148,7 +151,7 @@ int main() {
 		verify("HTTP/1.1 200 OK\r\nContent-Length: 3\r\ncontent-length: 3\r\n\r\nabc", true, "abc");
 		verify("HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nab", false);
 		verify("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nabc", false);
-		verify("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n", false);
+		verify("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\n", true, "abc");
 		verify("HTTP/1.1 200 OK\r\nContent-Length: 3\r\nTransfer-Encoding: chunked\r\n\r\nabc", false);
 		verify("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabc", true, "abc");
 		verify("HTTP/1.0 200 OK\r\n\r\nabc", true, "abc");

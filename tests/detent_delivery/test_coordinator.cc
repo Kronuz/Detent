@@ -23,10 +23,11 @@ namespace m = d::messagepack;
 using namespace std::chrono_literals;
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
+		throw std::runtime_error("coordinator invariant at " + std::string(location.file_name()) + ":" + std::to_string(location.line()));
 }
 #ifdef DETENT_TEST_RELAY_HTTP
 #include "relay_network_fixture.hh"
+#include "held_session_fixture.hh"
 #include "relay_service_fixture.hh"
 #endif
 class RecordingSink final : public t::PublicationSink {
@@ -527,6 +528,12 @@ int main(int argc, char **argv) {
 		const bool relay_sessions =
 			relay && std::string_view(argv[2]).find("sessions") != std::string_view::npos;
 #ifdef DETENT_TEST_RELAY_HTTP
+		const bool relay_held = relay && std::string_view(argv[2]).find("held") != std::string_view::npos;
+		const auto held_outcome = !relay_held ? held_session_fixture::Outcome::Written
+			: std::string_view(argv[2]).find("abandon") != std::string_view::npos ? held_session_fixture::Outcome::AbandonNext
+			: std::string_view(argv[2]).find("shutdown-open") != std::string_view::npos ? held_session_fixture::Outcome::ShutdownOpen
+			: std::string_view(argv[2]).find("shutdown") != std::string_view::npos ? held_session_fixture::Outcome::ShutdownNext
+			: held_session_fixture::Outcome::Written;
 		const bool relay_http = relay && std::string_view(argv[2]).find("http") != std::string_view::npos;
 		const bool relay_network =
 			relay && std::string_view(argv[2]).find("network") != std::string_view::npos;
@@ -632,7 +639,14 @@ int main(int argc, char **argv) {
 		asio::ip::tcp::acceptor acceptor(server_io, {asio::ip::address_v4::loopback(), 0});
 		std::exception_ptr server_failure;
 
+#ifdef DETENT_TEST_RELAY_HTTP
+		std::optional<reactor::Reactor> held_owner;
+		if (relay_held) held_owner.emplace(0, 1);
+		asio::io_context ordinary_io(1);
+		auto &io = held_owner ? held_owner->io() : ordinary_io;
+#else
 		asio::io_context io(1);
+#endif
 		asio::thread_pool worker(1);
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
@@ -879,6 +893,16 @@ int main(int argc, char **argv) {
 										}
 									}
 #ifdef DETENT_TEST_RELAY_HTTP
+									if (valid && relay_held) {
+										auto offer = relay_bundle->offer({}, true);
+										asio::co_spawn(io, held_session_fixture::qualify(*held_owner, relay_bundle,
+											std::move(offer.update), control_account, server_tls, client_tls, count, held_outcome),
+											[&recovered](std::exception_ptr error) {
+												if (error) recovered.set_exception(error);
+												else recovered.set_value(true);
+											});
+										return;
+									}
 									if (valid && relay_network) {
 										auto offer = relay_bundle->offer({}, true);
 										asio::co_spawn(

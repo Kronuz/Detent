@@ -1,14 +1,15 @@
-#include "../../src/detent_delivery/connection_cache_internal.hh"
+#include "../../src/detent_delivery/connection_key.hh"
 #include <asio/io_context.hpp>
 #include <iostream>
 #include <source_location>
 
 namespace t = detent::delivery;
 namespace d = detent::distribution;
+namespace client = http::client;
 namespace {
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("connection cache invariant at " + std::to_string(where.line()));
+		throw std::runtime_error("connection binding invariant at " + std::to_string(where.line()));
 }
 } // namespace
 int main() {
@@ -22,55 +23,42 @@ int main() {
 			options.hostname = "localhost";
 			options.token = "0123456789abcdef0123456789abcdef";
 			options.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
-			const auto slot = cache->acquire(options, io.get_executor());
-			bool pressure = false;
-			try {
-				cache->acquire(options, io.get_executor());
-			} catch (const t::SourceUnavailableError &) {
-				pressure = true;
-			}
-			check(pressure && cache->stats().leased == 1 && cache->stats().pressure == 1);
-			cache->mark_connected(slot);
-			cache->release(slot, true);
+			options.tls_context->set_verify_mode(asio::ssl::verify_peer);
+			const auto original = t::connection_key(options).binding;
 			options.base = options.configured;
 			options.base->revision = 42;
-			check(cache->acquire(options, io.get_executor()) == slot);
-			cache->release(slot, true);
-			check(cache->stats().reuses == 1 && cache->stats().reuse_attempts == 1);
-			auto changed = [&](const t::ClientOptions &value) {
-				const auto before = cache->stats();
-				const auto acquired = cache->acquire(value, io.get_executor());
-				check(cache->stats().reuses == before.reuses);
-				check(cache->stats().retirements == before.retirements + 1);
-				cache->mark_connected(acquired);
-				cache->release(acquired, true);
+			check(t::connection_key(options).binding == original);
+			const auto changed = [&](auto mutate) {
+				auto copy = options;
+				mutate(copy);
+				check(t::connection_key(copy).binding != original);
 			};
-			options.token += "different";
-			changed(options);
-			options.configured.scope[0] = 's';
-			changed(options);
-			options.hostname = "elsewhere.localhost";
-			changed(options);
-			options.endpoint.port(4632);
-			changed(options);
-			auto original = options.tls_context;
-			options.tls_context = std::shared_ptr<asio::ssl::context>(original.get(), [](auto *) {});
-			changed(options);
-			options.tls_context = original;
-			changed(options);
-			bool wrong_owner = false;
-			try {
-				cache->acquire(options, other.get_executor());
-			} catch (const std::invalid_argument &) {
-				wrong_owner = true;
+			changed([](auto &copy) { copy.token += "different"; });
+			changed([](auto &copy) { copy.hostname = "elsewhere.localhost"; });
+			changed([](auto &copy) { copy.configured.cluster[0] = 'c'; });
+			changed([](auto &copy) { copy.configured.group[0] = 'g'; });
+			changed([](auto &copy) { copy.configured.restore_epoch[0] = 'e'; });
+			changed([](auto &copy) { copy.configured.scope[0] = 's'; });
+			{
+				client::TlsLease lease(t::connection_key(options), io.get_executor(), cache);
+				bool pressure = false, mismatch = false;
+				try {
+					client::TlsLease excess(t::connection_key(options), io.get_executor(), cache);
+				} catch (const client::Error &error) {
+					pressure = error.kind() == client::ErrorKind::Pressure;
+				}
+				try {
+					client::TlsLease wrong(t::connection_key(options), other.get_executor(), cache);
+				} catch (const client::Error &error) {
+					mismatch = error.kind() == client::ErrorKind::Options;
+				}
+				check(pressure && mismatch && cache->stats().leased == 1);
 			}
-			check(wrong_owner && cache->stats().leased == 0);
-			const auto acquired = cache->acquire(options, io.get_executor());
-			cache->release(acquired, false);
-			check(cache->stats().live == 0 && cache->stats().leased == 0 && cache->stats().peak_live == 1);
+			const auto stats = t::connection_cache_stats(cache);
+			check(stats.leased == 0 && stats.live == 0 && stats.peak_live == 1 && stats.retirements == 1);
 		}
 		check(account->used() == 0);
-		std::cout << "bounded source-bound connection cache passed\n";
+		std::cout << "delivery credential, authority and scope bindings passed\n";
 	} catch (const std::exception &error) {
 		std::cerr << error.what() << '\n';
 		return 1;

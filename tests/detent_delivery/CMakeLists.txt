@@ -60,6 +60,12 @@ if(TARGET detent::relay_http)
   target_link_libraries(test_delivery_coordinator PRIVATE detent::relay_http)
   target_compile_definitions(test_delivery_coordinator PRIVATE DETENT_TEST_RELAY_HTTP=1)
   target_link_libraries(test_delivery_coordinator PRIVATE http::http)
+  foreach(mode IN ITEMS subscription-relay-held subscription-relay-held-100000
+    subscription-relay-held-abandon-100000 subscription-relay-held-shutdown-100000
+    subscription-relay-held-shutdown-open)
+    add_test(NAME test_delivery_${mode} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --${mode})
+    set_tests_properties(test_delivery_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
+  endforeach()
   foreach(records IN ITEMS 100000 500000)
     add_test(NAME test_relay_network_${records} COMMAND test_delivery_coordinator ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --subscription-relay-network-${records})
     set_tests_properties(test_relay_network_${records} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 300 LABELS relay-network)

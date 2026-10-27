@@ -1,10 +1,9 @@
 #include "detent_delivery/client.hh"
 #include "client_probe_internal.hh"
-#include "connection_cache_internal.hh"
+#include "connection_key.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <cstring>
 #include <exception>
 #include <rapidjson/document.h>
@@ -12,6 +11,7 @@
 #include <variant>
 namespace detent::delivery {
 namespace d = distribution;
+namespace client = http::client;
 namespace detail {
 enum class ClientBodyMode { Semantic, Probe, Reference };
 }
@@ -38,7 +38,7 @@ struct RequestAction {
 	bool force_snapshot = false, snapshot_allowed = false;
 };
 ValidatedControl validate_control(ReceivedControl, const ClientOptions &, std::optional<RequestAction>,
-								  std::pmr::memory_resource &);
+                                  std::pmr::memory_resource &);
 void require(bool condition, const char *message) {
 	if (!condition)
 		throw std::invalid_argument(message);
@@ -64,9 +64,9 @@ void cursor(std::pmr::string &out, const d::Cursor &value, bool revision) {
 		out += std::to_string(value.revision);
 	}
 }
-std::pmr::string request(const ClientOptions &options, std::pmr::memory_resource &resource,
-						 std::optional<RequestAction> action) {
-	std::pmr::string body(&resource);
+client::PreparedRequest request(const ClientOptions &options, allocators::AllocationContext context,
+                                std::optional<RequestAction> action) {
+	std::pmr::string body(context.resource());
 	if (!action || action->purpose == SessionResponsePurpose::Open) {
 		body += '{';
 		cursor(body, options.configured, false);
@@ -77,9 +77,9 @@ std::pmr::string request(const ClientOptions &options, std::pmr::memory_resource
 		std::string_view previous;
 		for (const auto &name : options.namespaces) {
 			require(!name.empty() && name.size() <= 198 &&
-						std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
-						(previous.empty() || previous < name),
-					"delivery request scope is not canonical");
+			            std::all_of(name.begin(), name.end(), detent::detail::is_name_char) &&
+			            (previous.empty() || previous < name),
+			        "delivery request scope is not canonical");
 			if (!first)
 				body += ',';
 			first = false;
@@ -118,77 +118,66 @@ std::pmr::string request(const ClientOptions &options, std::pmr::memory_resource
 		body += '}';
 	}
 	require(body.size() <= options.request_bytes, "delivery request byte bound");
-	std::pmr::string wire(&resource);
-	wire += "POST /v2/distribution";
+	std::pmr::string target(context.resource());
+	target = "/v2/distribution";
 	if (action) {
-		wire += "/session/";
-		wire += action->purpose == SessionResponsePurpose::Open	  ? "open"
-				: action->purpose == SessionResponsePurpose::Next ? "next"
-																  : "close";
+		target += "/session/";
+		target += action->purpose == SessionResponsePurpose::Open   ? "open"
+		          : action->purpose == SessionResponsePurpose::Next ? "next"
+		                                                            : "close";
 	}
-	wire += " HTTP/1.1\r\nHost: ";
-	wire += options.hostname;
-	wire += "\r\nAuthorization: Bearer ";
-	wire += options.token;
-	wire += "\r\nContent-Type: application/json\r\nConnection: ";
-	wire += options.connections ? "keep-alive" : "close";
-	wire += "\r\nContent-Length: ";
-	wire += std::to_string(body.size());
-	wire += "\r\n\r\n";
-	wire += body;
-	return wire;
+	std::pmr::string authorization("Bearer ", context.resource());
+	authorization += options.token;
+	const std::array fields{client::RequestField{"Authorization", authorization},
+	                        client::RequestField{"Content-Type", "application/json"}};
+	client::Limits limits;
+	limits.body_bytes = options.request_bytes;
+	return client::PreparedRequest({"POST", options.hostname, target, fields, body, !options.connections},
+	                               limits, context);
 }
+
 asio::awaitable<TransportResponse> receive_one(ClientOptions options,
-											   std::chrono::steady_clock::time_point expires,
-											   std::optional<RequestAction> action, BodyMode mode) {
+                                               std::chrono::steady_clock::time_point expires,
+                                               std::optional<RequestAction> action, BodyMode mode) {
 	const auto executor = co_await asio::this_coro::executor;
 	options.limits = d::detail::admitted_limits(std::move(options.limits));
 	auto account = options.limits.storage_account;
-	d::LedgerMemoryResource resource(account);
+	auto resource = allocators::make_charged_resource(account, options.limits.storage_allocate,
+	                                                  options.limits.storage_release);
+	const allocators::AllocationContext context(resource);
 	std::vector<std::string_view, d::StorageAllocator<std::string_view>> names{
-		d::StorageAllocator<std::string_view>(account)};
+	    d::StorageAllocator<std::string_view>(account)};
 	names.reserve(options.namespaces.size());
 	for (const auto &name : options.namespaces)
 		names.push_back(name);
 	std::optional<SessionResponseBinding> binding;
 	if (action)
 		binding =
-			SessionResponseBinding{action->purpose, action->session,
-								   action->purpose == SessionResponsePurpose::Next ? action->after + 1 : 0,
-								   action->snapshot_allowed};
+		    SessionResponseBinding{action->purpose, action->session,
+			                       action->purpose == SessionResponsePurpose::Next ? action->after + 1 : 0,
+			                       action->snapshot_allowed};
 	auto decoder = d::make_storage_owner<ResponseDecoder>(account, std::malloc, std::free, options.configured,
-														  options.base, d::NamespaceSelection(names),
-														  options.compression, options.limits, binding);
+	                                                      options.base, d::NamespaceSelection(names),
+	                                                      options.compression, options.limits, binding);
 	if (mode != BodyMode::Semantic)
 		detail::ProbeDecoderAccess::prepare(*decoder, mode == BodyMode::Reference);
 	auto input = d::make_owned_buffer(account, 4096);
 	input->resize(4096);
-	auto wire = request(options, resource, action);
-	ConnectionLease connection(options, executor);
+	auto wire = request(options, context, action);
+	client::TlsLease connection(connection_key(options), executor, options.connections, context);
 	auto &socket = connection.stream();
 	std::exception_ptr failure;
 	std::optional<TransportResponse> result;
 	bool reusable = true;
 	try {
-		if (!connection.connected()) {
-			co_await socket.next_layer().async_connect(options.endpoint, asio::use_awaitable);
-			connection.tcp_connected();
-			asio::error_code handshake_error;
-			co_await socket.async_handshake(asio::ssl::stream_base::client,
-											asio::redirect_error(asio::use_awaitable, handshake_error));
-			if (SSL_get_verify_result(socket.native_handle()) != X509_V_OK)
-				throw SourceTrustError("delivery TLS verification failed");
-			if (handshake_error)
-				throw asio::system_error(handshake_error);
-			connection.mark_connected();
-		}
-		co_await asio::async_write(socket, asio::buffer(wire.data(), wire.size()), asio::use_awaitable);
+		co_await client::connect(connection);
+		co_await client::write(socket, std::move(wire));
 		while (!decoder->done()) {
 			if (decoder->needs_input()) {
 				asio::error_code error;
 				const auto n = co_await socket.async_read_some(
-					asio::buffer(input->mutable_bytes().data(), input->size()),
-					asio::redirect_error(asio::use_awaitable, error));
+				    asio::buffer(input->mutable_bytes().data(), input->size()),
+				    asio::redirect_error(asio::use_awaitable, error));
 				auto bytes = std::span<const char>(input->data(), n);
 				while (!bytes.empty()) {
 					d::WorkBudget work;
@@ -215,7 +204,7 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 		}
 		reusable = reusable && decoder->reusable();
 		if (decoder->is_control())
-			result.emplace(validate_control(decoder->take_control(), options, action, resource));
+			result.emplace(validate_control(decoder->take_control(), options, action, *resource));
 		else if (mode == BodyMode::Semantic)
 			result.emplace(decoder->take());
 		else
@@ -236,12 +225,12 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	}
 	const auto cancellation = co_await asio::this_coro::cancellation_state;
 	if (result && (cancellation.cancelled() != asio::cancellation_type::none ||
-				   std::chrono::steady_clock::now() >= expires)) {
+	               std::chrono::steady_clock::now() >= expires)) {
 		if (auto update = std::get_if<ReceivedUpdate>(&*result)) {
 			for (;;) {
 				d::WorkBudget work;
 				const bool drained =
-					update->snapshot ? update->snapshot->discard(work) : update->delta->discard(work);
+				    update->snapshot ? update->snapshot->discard(work) : update->delta->discard(work);
 				if (drained)
 					break;
 				co_await asio::post(executor, asio::use_awaitable);
@@ -263,50 +252,45 @@ asio::awaitable<TransportResponse> receive_one(ClientOptions options,
 	connection.reusable(reusable);
 	co_return std::move(*result);
 }
-struct Outcome {
-	std::variant<TransportResponse, std::exception_ptr> value;
-};
-asio::awaitable<Outcome> outcome(ClientOptions options, std::chrono::steady_clock::time_point expires,
-								 std::optional<RequestAction> action, BodyMode mode) {
-	try {
-		co_return Outcome{co_await receive_one(std::move(options), expires, action, mode)};
-	} catch (...) {
-		co_return Outcome{std::current_exception()};
-	}
-}
 void validate(const ClientOptions &options) {
 	require(options.tls_context &&
-				(SSL_CTX_get_verify_mode(options.tls_context->native_handle()) & SSL_VERIFY_PEER) &&
-				options.endpoint.port() && !options.hostname.empty() && options.hostname.size() <= 253 &&
-				options.hostname.find_first_of("\r\n") == std::string::npos &&
-				options.hostname.find('\0') == std::string::npos && options.token.size() >= 32 &&
-				options.token.size() <= 128 &&
-				std::all_of(options.token.begin(), options.token.end(),
-							[](unsigned char c) { return c >= 32 && c != 127; }) &&
-				options.timeout > std::chrono::milliseconds::zero() &&
-				options.timeout <= std::chrono::hours(24) && options.request_bytes &&
-				options.request_bytes <= 1024 * 1024 &&
-				options.namespaces.size() <= options.limits.namespaces,
-			"invalid delivery client options");
+	            (SSL_CTX_get_verify_mode(options.tls_context->native_handle()) & SSL_VERIFY_PEER) &&
+	            options.endpoint.port() && !options.hostname.empty() && options.hostname.size() <= 253 &&
+	            options.hostname.find_first_of("\r\n") == std::string::npos &&
+	            options.hostname.find('\0') == std::string::npos && options.token.size() >= 32 &&
+	            options.token.size() <= 128 &&
+	            std::all_of(options.token.begin(), options.token.end(),
+	                        [](unsigned char c) { return c >= 32 && c != 127; }) &&
+	            options.timeout > std::chrono::milliseconds::zero() &&
+	            options.timeout <= std::chrono::hours(24) && options.request_bytes &&
+	            options.request_bytes <= 1024 * 1024 &&
+	            options.namespaces.size() <= options.limits.namespaces,
+	        "invalid delivery client options");
 }
 asio::awaitable<TransportResponse> perform(ClientOptions options, std::optional<RequestAction> action = {},
-										   BodyMode mode = BodyMode::Semantic) {
+                                           BodyMode mode = BodyMode::Semantic) {
 	validate(options);
 	require(mode == BodyMode::Semantic || (action && action->purpose == SessionResponsePurpose::Next),
-			"probe exchange requires session Next");
-	const auto executor = co_await asio::this_coro::executor;
-	const auto expires = std::chrono::steady_clock::now() + options.timeout;
-	asio::steady_timer deadline(executor, expires);
-	asio::error_code timer_error;
-	using namespace asio::experimental::awaitable_operators;
-	auto result = co_await (outcome(std::move(options), expires, action, mode) ||
-							deadline.async_wait(asio::redirect_error(asio::use_awaitable, timer_error)));
-	if (result.index() != 0)
-		throw SourceUnavailableError("delivery network deadline");
-	auto received = std::move(std::get<0>(result).value);
-	if (auto error = std::get_if<std::exception_ptr>(&received))
-		std::rethrow_exception(*error);
-	co_return std::move(std::get<TransportResponse>(received));
+	        "probe exchange requires session Next");
+	const client::Deadline deadline(options.timeout);
+	try {
+		co_return co_await client::before(deadline,
+		                                  receive_one(std::move(options), deadline.expires(), action, mode));
+	} catch (const client::Error &error) {
+		if (error.kind() == client::ErrorKind::Trust)
+			throw SourceTrustError(error.what());
+		if (error.kind() == client::ErrorKind::Cancelled)
+			throw asio::system_error(asio::error::operation_aborted);
+		if (error.kind() == client::ErrorKind::Pressure &&
+			error.cause() != std::errc::resource_unavailable_try_again)
+			throw d::StoragePressure(error.what());
+		if ((error.kind() == client::ErrorKind::Transport || error.kind() == client::ErrorKind::Connect) && error.cause())
+			throw asio::system_error(error.cause(), error.what());
+		if (error.kind() == client::ErrorKind::Options || error.kind() == client::ErrorKind::Framing ||
+		    error.kind() == client::ErrorKind::Limit)
+			throw std::invalid_argument(error.what());
+		throw SourceUnavailableError(error.what());
+	}
 }
 } // namespace
 asio::awaitable<ReceivedUpdate> receive(ClientOptions options) {
@@ -333,9 +317,9 @@ struct SessionHandle::State {
 	std::chrono::milliseconds wait{0};
 	bool compression, snapshot = false, alive = true, busy = false, closed = false;
 	explicit State(const ClientOptions &options)
-		: resource(options.limits.storage_account), namespace_count(options.namespaces.size()),
-		  configured(options.configured), endpoint(options.endpoint), hostname(options.hostname, &resource),
-		  tls_context(options.tls_context), base(options.base), compression(options.compression) {}
+	    : resource(options.limits.storage_account), namespace_count(options.namespaces.size()),
+	      configured(options.configured), endpoint(options.endpoint), hostname(options.hostname, &resource),
+	      tls_context(options.tls_context), base(options.base), compression(options.compression) {}
 };
 namespace {
 struct JsonAllocator {
@@ -371,9 +355,9 @@ using Json = rapidjson::GenericDocument<rapidjson::UTF8<>, JsonAllocator, JsonAl
 using Value = Json::ValueType;
 void parse(Json &json, const ReceivedControl &control) {
 	require(control.body && control.body->size() && control.body->size() <= 4096,
-			"missing session control body");
+	        "missing session control body");
 	json.Parse<rapidjson::kParseIterativeFlag | rapidjson::kParseValidateEncodingFlag>(control.body->data(),
-																					   control.body->size());
+	                                                                                   control.body->size());
 	require(!json.HasParseError() && json.IsObject(), "invalid session control JSON");
 	for (auto a = json.MemberBegin(); a != json.MemberEnd(); ++a)
 		for (auto b = json.MemberBegin(); b != a; ++b)
@@ -427,7 +411,7 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 	if (control.status == 503 && error == "source_not_leader")
 		return SessionResetReason::NotLeader;
 	if (control.status == 503 && (error == "outcome_unknown" || error == "stopping" ||
-								  error == "distribution_unavailable" || error == "authorization_timeout"))
+	                              error == "distribution_unavailable" || error == "authorization_timeout"))
 		return SessionResetReason::Unavailable;
 	if (control.status == 503 && error == "source_behind")
 		return SessionResetReason::SourceBehind;
@@ -438,7 +422,7 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 	throw std::invalid_argument("unknown session control response");
 }
 ValidatedControl validate_control(ReceivedControl control, const ClientOptions &options,
-								  std::optional<RequestAction> action, std::pmr::memory_resource &resource) {
+                                  std::optional<RequestAction> action, std::pmr::memory_resource &resource) {
 	ValidatedControl result{std::move(control), {}, {}};
 	if (result.wire.status == 204)
 		return result;
@@ -451,15 +435,15 @@ ValidatedControl validate_control(ReceivedControl control, const ClientOptions &
 	Json json(&allocator, 1024, &allocator);
 	parse(json, result.wire);
 	require(json.MemberCount() == 5 && member(json, "version").IsUint() && json["version"].GetUint() == 1 &&
-				member(json, "window").IsUint64() && json["window"].GetUint64() == 0 &&
-				member(json, "wait_ms").IsUint64() && json["wait_ms"].GetUint64() <= 60000,
-			"invalid session opening response");
+	            member(json, "window").IsUint64() && json["window"].GetUint64() == 0 &&
+	            member(json, "wait_ms").IsUint64() && json["wait_ms"].GetUint64() <= 60000,
+	        "invalid session opening response");
 	const auto id = identity(member(json, "session"));
 	const auto mode = string(member(json, "mode"));
 	require(mode == "snapshot" || (mode == "resume" && options.base && !action->force_snapshot),
-			"invalid session opening mode");
+	        "invalid session opening mode");
 	result.opened =
-		OpenedSession{id, mode == "snapshot", std::chrono::milliseconds(json["wait_ms"].GetUint64())};
+	    OpenedSession{id, mode == "snapshot", std::chrono::milliseconds(json["wait_ms"].GetUint64())};
 	return result;
 }
 struct SessionOperation {
@@ -485,8 +469,8 @@ asio::awaitable<d::ScopeIdentity> namespace_digest(const std::vector<std::string
 	std::size_t bytes = 0;
 	for (const auto &name : names) {
 		require(!name.empty() && name.size() <= 198 && (previous.empty() || previous < name) &&
-					std::all_of(name.begin(), name.end(), detent::detail::is_name_char),
-				"session namespace selection is not canonical");
+		            std::all_of(name.begin(), name.end(), detent::detail::is_name_char),
+		        "session namespace selection is not canonical");
 		number(name.size());
 		hash.add(name.data(), name.size());
 		previous = name;
@@ -504,14 +488,14 @@ asio::awaitable<d::ScopeIdentity> namespace_digest(const std::vector<std::string
 }
 asio::awaitable<void> same_configuration(const ClientOptions &options, const SessionHandle::State &state) {
 	require(options.endpoint == state.endpoint &&
-				std::string_view(options.hostname) == std::string_view(state.hostname) &&
-				options.tls_context == state.tls_context,
-			"session source destination changed");
+	            std::string_view(options.hostname) == std::string_view(state.hostname) &&
+	            options.tls_context == state.tls_context,
+	        "session source destination changed");
 	require(options.configured == state.configured && options.compression == state.compression &&
-				options.namespaces.size() == state.namespace_count,
-			"session configuration changed");
+	            options.namespaces.size() == state.namespace_count,
+	        "session configuration changed");
 	require((co_await namespace_digest(options.namespaces)) == state.namespace_digest,
-			"session namespace selection changed");
+	        "session namespace selection changed");
 }
 } // namespace
 SessionResetError::SessionResetError(SessionResetReason reason)
@@ -542,7 +526,7 @@ asio::awaitable<SessionHandle> open_session(ClientOptions options, bool force_sn
 	validate(options);
 	options.limits = d::detail::admitted_limits(std::move(options.limits));
 	auto state = std::allocate_shared<SessionHandle::State>(
-		d::StorageAllocator<SessionHandle::State>(options.limits.storage_account), options);
+	    d::StorageAllocator<SessionHandle::State>(options.limits.storage_account), options);
 	state->namespace_digest = co_await namespace_digest(options.namespaces);
 	RequestAction action{SessionResponsePurpose::Open};
 	action.force_snapshot = force_snapshot;
@@ -561,36 +545,36 @@ asio::awaitable<SessionHandle> open_session(ClientOptions options, bool force_sn
 namespace {
 using NextEvent = std::variant<SessionOffer, detail::ProbeOffer, SessionIdle, SessionReset>;
 asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<SessionHandle::State> state,
-									  std::optional<PublicationFeedback> feedback,
-									  std::chrono::milliseconds wait, BodyMode mode) {
+                                      std::optional<PublicationFeedback> feedback,
+                                      std::chrono::milliseconds wait, BodyMode mode) {
 	require(state && state->alive && !state->closed, "session is not live");
 	SessionOperation operation(state);
 	co_await same_configuration(options, *state);
 	require(!state->body_mode || *state->body_mode == mode, "session consumption mode changed");
 	require(wait >= std::chrono::milliseconds::zero() && wait <= state->wait,
-			"session wait exceeds negotiated bound");
+	        "session wait exceeds negotiated bound");
 	require(state->after < std::numeric_limits<std::uint64_t>::max(), "session window exhausted");
 	if (state->offered) {
 		require(feedback && feedback->window == state->offered->window &&
-					feedback->cursor == state->offered->cursor,
-				"session requires exact publication feedback");
+		            feedback->cursor == state->offered->cursor,
+		        "session requires exact publication feedback");
 		state->after = feedback->window;
 		state->base = feedback->cursor;
 		state->offered.reset();
 		state->snapshot = false;
 	} else if (feedback) {
 		require(feedback->window == state->after && state->base && feedback->cursor == *state->base,
-				"session publication feedback does not match accepted window");
+		        "session publication feedback does not match accepted window");
 	}
 	state->body_mode = mode;
 	options.base = state->base;
 	RequestAction action{SessionResponsePurpose::Next,
-						 state->id,
-						 state->after,
-						 state->after ? state->base : std::nullopt,
-						 wait,
-						 false,
-						 state->snapshot};
+	                     state->id,
+	                     state->after,
+	                     state->after ? state->base : std::nullopt,
+	                     wait,
+	                     false,
+	                     state->snapshot};
 	try {
 		auto response = co_await perform(std::move(options), action, mode);
 		if (auto *update = std::get_if<ReceivedUpdate>(&response)) {
@@ -608,7 +592,7 @@ asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<Ses
 			co_return SessionIdle{};
 		auto reason = control.reason.value();
 		if (reason != SessionResetReason::Busy && reason != SessionResetReason::AdmissionFull &&
-			reason != SessionResetReason::SourceBehind)
+		    reason != SessionResetReason::SourceBehind)
 			state->alive = false;
 		co_return SessionReset{reason};
 	} catch (...) {
@@ -618,8 +602,8 @@ asio::awaitable<NextEvent> next_event(ClientOptions options, std::shared_ptr<Ses
 }
 } // namespace
 asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle &handle,
-										   std::optional<PublicationFeedback> feedback,
-										   std::chrono::milliseconds wait) {
+                                           std::optional<PublicationFeedback> feedback,
+                                           std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Semantic);
 	if (auto *offer = std::get_if<SessionOffer>(&event))
 		co_return std::move(*offer);
@@ -628,8 +612,8 @@ asio::awaitable<SessionEvent> next_session(ClientOptions options, SessionHandle 
 	co_return std::get<SessionReset>(event);
 }
 asio::awaitable<detail::ProbeEvent> detail::ProbeAccess::next(ClientOptions options, SessionHandle &handle,
-															  std::optional<PublicationFeedback> feedback,
-															  std::chrono::milliseconds wait) {
+                                                              std::optional<PublicationFeedback> feedback,
+                                                              std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Probe);
 	if (auto *offer = std::get_if<ProbeOffer>(&event))
 		co_return std::move(*offer);
@@ -639,7 +623,7 @@ asio::awaitable<detail::ProbeEvent> detail::ProbeAccess::next(ClientOptions opti
 }
 asio::awaitable<detail::ProbeEvent>
 detail::ProbeAccess::reference(ClientOptions options, SessionHandle &handle,
-							   std::optional<PublicationFeedback> feedback, std::chrono::milliseconds wait) {
+                               std::optional<PublicationFeedback> feedback, std::chrono::milliseconds wait) {
 	auto event = co_await next_event(std::move(options), handle.state_, feedback, wait, BodyMode::Reference);
 	if (auto *offer = std::get_if<ProbeOffer>(&event))
 		co_return std::move(*offer);
@@ -655,7 +639,7 @@ asio::awaitable<void> close_session(ClientOptions options, SessionHandle &handle
 	co_await same_configuration(options, *state);
 	state->alive = false;
 	auto response =
-		co_await perform(std::move(options), RequestAction{SessionResponsePurpose::Close, state->id});
+	    co_await perform(std::move(options), RequestAction{SessionResponsePurpose::Close, state->id});
 	const auto &control = std::get<ValidatedControl>(response);
 	if (control.wire.status != 204 && control.wire.status != 410)
 		throw SessionResetError(control.reason.value());

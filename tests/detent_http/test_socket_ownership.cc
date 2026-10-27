@@ -8,15 +8,17 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <thread>
+#include <atomic>
 #include <unistd.h>
 
 // A malformed-response exception allocates its diagnostic. Reuse the client
 // descriptor if it was already closed at that point; a second close must not
 // destroy this unrelated descriptor. The hook is active only on the caller.
 thread_local bool probe_enabled = false;
+std::atomic<bool> response_ready = false;
 int expected_socket = -1, replacement = -1;
 void *operator new(std::size_t size) {
-	if (probe_enabled && expected_socket >= 0 && ::fcntl(expected_socket, F_GETFD) == -1) {
+	if (probe_enabled && response_ready.load() && expected_socket >= 0 && ::fcntl(expected_socket, F_GETFD) == -1) {
 		probe_enabled = false;
 		replacement = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 	}
@@ -62,6 +64,7 @@ struct Listener {
 			}
 
 			constexpr char response[] = "malformed";
+			response_ready.store(true);
 			::send(connection, response, sizeof(response) - 1, 0);
 			::shutdown(connection, SHUT_WR);
 			::close(connection);
@@ -75,6 +78,7 @@ struct Listener {
 int main() {
 	try {
 		for (unsigned method = 0; method < 3; ++method) {
+			response_ready.store(false);
 			Listener listener(method == 0 ? 0 : 2);
 			auto probe = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
 			check(probe >= 0);
@@ -93,9 +97,8 @@ int main() {
 				else
 					(void)detent_http::http_patch("127.0.0.1", listener.port, "/", "{}",
 												  std::chrono::milliseconds(1000));
-			} catch (const std::exception &error) {
-				rejected =
-					std::string_view(error.what()).find("no header terminator") != std::string_view::npos;
+			} catch (const std::exception &) {
+				rejected = response_ready.load();
 			}
 			probe_enabled = false;
 			bool intact = replacement < 0 || ::fcntl(replacement, F_GETFD) != -1;
