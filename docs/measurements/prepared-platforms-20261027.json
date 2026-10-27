@@ -48,5 +48,11 @@
       "NFS4-enabled UFS",
       "ZFS"
     ]
+  },
+  "post_merge_hosted": {
+    "source": "Detent:479c4bceeea65f424483e433898c7ade7523d4d9",
+    "run": "https://github.com/Kronuz/Detent/actions/runs/40473517529",
+    "result": "success",
+    "enabled_jobs": 6
   }
 }
