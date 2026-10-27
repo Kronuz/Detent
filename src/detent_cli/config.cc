@@ -118,7 +118,8 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		~File() { if (fd >= 0) ::close(fd); }
 	} file{::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW)};
 	const bool no_symlink = file.fd >= 0;
-	if (file.fd < 0 && errno == ELOOP)
+	// FreeBSD reports EMLINK for a final O_NOFOLLOW symlink.
+	if (file.fd < 0 && (errno == ELOOP || errno == EMLINK))
 		file.fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
 	if (file.fd < 0) fail("cannot open file");
 	struct stat before{}, after{};
