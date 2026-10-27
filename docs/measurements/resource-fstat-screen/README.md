@@ -1,0 +1,7 @@
+# Rejected duplicate-stat prototype
+
+These are the scripts for the [80-process screen](../resource-fstat-screen-20261027.json). The qualification report records its losing end-to-end result. The production source retains `check_generation_file`; the prototype is discarded.
+
+Copy this directory to `.scratch/resource-adoption-20261027/fstat-screen/` in the recorded qualification workspace. The archived build controller expects the private baseline source unchanged and the shared candidate source with the single `check_generation_file(payload.fd, publisher, length);` line temporarily removed from `lazy_page_access.cc`. It checks those source states explicitly. Restore that line after the experiment. It copies the view archives, substitutes only that translation unit, reuses the original ordinary SDK probe object and links the shared trust fixture against the complete migration build. Existing builds, corpus and manifest are prerequisites.
+
+Run `quiet check`, then `build.py` through `quiet light` and `run.py` through `quiet exclusive`. The controller rotates four arms across 20 keys and warms each arm in a separate process immediately before measurement. Output refuses replacement. The small screen is not an acceptance run. The first trust-fixture link attempt lacks reader-only baseline artifacts; the recorded successful controller uses the complete shared migration profile instead.

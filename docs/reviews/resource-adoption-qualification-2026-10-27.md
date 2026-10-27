@@ -52,3 +52,18 @@ CPU and fault columns use only the 80 unhooked samples per arm. Allocation diffe
 The lookup difference is visible in caller CPU, not merely elapsed scheduling delay. It accompanies additional minor faults without additional allocation events. These observations locate work but do not identify a particular faulting mapping, instruction or justified source fix. Client construction does not show a median CPU regression in this batch despite its additional allocations. The sum of instrumented phase wall times remains below 1 ms for all 80 samples in each arm; this is diagnostic evidence, not acceptance, and does not erase the earlier ordinary-probe misses.
 
 The performance gate remains open. No unchanged acceptance run is repeated until green, and no criterion is weakened without an explicit performance decision.
+
+## Lookup attribution and rejected stat-removal screen
+
+The [bounded lookup diagnostic](../measurements/resource-lookup-diagnostic-20261027.json) covers 20 recorded keys, one counterbalanced round and 40 measured processes. Temporary copies of `lazy_page_access.cc` split mapping lookup/opening, page verification, header decoding and cache insertion. Production archives remain unchanged; instrumented timing is not acceptance evidence. Pack opening has median wall time 188.303 µs before migration and 194.129 µs after; page verification has 92.118 and 93.945 µs. Median counts are four opened mappings and 12 verified pages. Paired caller CPU differences are +5.749 µs for opening, +2.322 µs for verification and +2.893 µs for cache insertion. Process-wide faults do not identify a responsible address or stack.
+
+The [four-arm screen](../measurements/resource-fstat-screen-20261027.json) evaluates removal of the duplicate `check_generation_file` call before `SegmentMapping` repeats the same descriptor checks. It retains the mapping constructor's complete ownership/mode/link/length check, ACL check and named-inode comparison. The existing lazy-reader trust/corruption fixture passes against the reduced shared-resource archive. An initial attempt to link that fixture from the reader-only baseline lacks its test object and builder dependencies; the successful invocation uses the full-profile fixture and dependencies. No test failure is suppressed.
+
+| Paired change from removing the check | Private resources | Shared resources |
+| --- | ---: | ---: |
+| First verified read median difference | +1.408 µs | +0.892 µs |
+| Lookup median difference | −2.869 µs | −0.292 µs |
+| Process CPU median difference | +0.5 µs | +1.5 µs |
+| Minor-fault median difference | +2 | +2 |
+
+This is one 20-key screen with four rotated arms, each with a separate matching warmup. All 80 measured reads return the correct 5M corpus values below 1 ms, but that small screen does not establish acceptance or repeatability. It shows no end-to-end improvement from removing the check. The prototype is discarded in both source trees. No source fix or additional acceptance trial follows from these results. EX-1 stays isolated while independent required HTTP reconciliation advances.
