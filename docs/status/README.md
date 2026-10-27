@@ -1,11 +1,11 @@
 # Active qualification work
 
-**Updated:** 2026-10-25. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
+**Updated:** 2026-10-26. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
 
 | Workstream | State | Evidence or next gate |
 | --- | --- | --- |
-| Startup runtime capacity | Landed and pushed | `5721d53`; 217 product tests and 54 Python tests pass |
-| Managed CLI reader capacity | Full suite and ownership check pass; macOS permission recheck approves with platform conditions | 218 product tests; flat/paged real-process checks; SR1 macOS ACL refusal fixed; Linux rich/NFSv4 ACL and native FreeBSD qualification remain open |
+| Startup runtime capacity | Landed and pushed | `Detent:5721d53`; 217 product tests and 54 Python tests pass |
+| Managed CLI reader capacity | Full suite and ownership check pass; macOS permission recheck approves with platform conditions | Historical 218-test gate and flat/paged process checks; macOS ACL refusal and focused FreeBSD UFS checks pass; FreeBSD full-profile/sanitizer gates are running, while Linux rich/NFSv4 ACL and FreeBSD NFS4/ZFS remain unqualified |
 | System cardinality | 5M replicated seed and reduced-topology candidate SDK verification complete | [Capacity evidence](../CAPACITY_QUALIFICATION.md); original convergence fails, larger topology reaches host guard; sustained 5M and exploratory 10M remain open |
 | Ingestion waits | Explorer profiling | Serial sync completions account for substantial measured time; separate worker time from queue delay and other request phases |
 | Scaling architecture | Release-scale qualification rejected | SC-1 relay full-snapshot rebuilding; SC-2/3 segment and compaction costs; see review |
@@ -13,7 +13,7 @@
 | Reader ACL trust | MacOS fix qualified | Same descriptor predicate protects public reader and private managed configuration; unsupported filesystem scope documented |
 | Container selection | Public flat-map adopted on main | 224 native tests and six enabled hosted jobs pass; [qualification state](container-selection.md) |
 | Recovery/delivery | Qualified component merged on main | 224 native tests, complete persisted 5M SDK verification and all six enabled hosted profiles pass; sustained capacity remains open |
-| Fresh client attachment | Release performance blocker | New-process 5M attachment repeats full graph validation, measured at 47.8–58.8 seconds; target is under 1 ms through first knob read on a prepared local source; architecture revision pending |
+| Fresh client attachment | Opt-in reader landed; managed default under qualification | [Real 5M managed trial](../reviews/prepared-managed-qualification-2026-10-26.md): preparation/restart pass, live resident-data fresh reads 200/200 below 1 ms; composed matrix and FreeBSD gates remain open |
 | Storage barriers | Blueprint validated; implementation pending | [Grouped preparation](../STORAGE_BARRIER_ARCHITECTURE.md), preserving file syncs and ownership-before-payload ordering |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
