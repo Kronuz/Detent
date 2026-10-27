@@ -36,6 +36,11 @@ foreach(mode IN ITEMS replace barrier-failure worker-confirmation)
   set_tests_properties(test_prepared_readiness_${mode} PROPERTIES TIMEOUT 30)
 endforeach()
 if(TARGET detent_managed_agent)
+  add_executable(test_managed_readiness test_managed_readiness.cc)
+  target_include_directories(test_managed_readiness PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_agent")
+  target_link_libraries(test_managed_readiness PRIVATE detent_managed_agent)
+  add_test(NAME test_managed_readiness COMMAND test_managed_readiness)
+  set_tests_properties(test_managed_readiness PROPERTIES TIMEOUT 30)
   add_executable(test_preparation_deadline test_preparation_deadline.cc)
   target_include_directories(test_preparation_deadline PRIVATE
     "${PROJECT_SOURCE_DIR}/src/detent_agent" "${PROJECT_SOURCE_DIR}/src/detent_local"

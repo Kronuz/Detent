@@ -14,6 +14,15 @@ namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace l = detent::local;
 namespace detail {
+bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared) noexcept {
+	if (!state.initialized || state.phase == t::CoordinatorPhase::Fenced ||
+		state.phase == t::CoordinatorPhase::Closing || state.phase == t::CoordinatorPhase::Closed)
+		return false;
+	if (state.selected.knowledge == l::SelectionKnowledge::Absent)
+		return !state.selected.descriptor;
+	return state.selected.knowledge == l::SelectionKnowledge::Known && state.selected.descriptor &&
+		(!require_prepared || state.prepared_ready);
+}
 asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
 							 bool require_prepared, std::chrono::milliseconds preparation_timeout) {
 	asio::steady_timer timer(co_await asio::this_coro::executor);
@@ -29,9 +38,7 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			timed_out = true;
 			coordinator->close();
 		}
-		if (!announced && !timed_out && state.initialized && state.phase != t::CoordinatorPhase::Fenced &&
-			state.phase != t::CoordinatorPhase::Closing && state.phase != t::CoordinatorPhase::Closed &&
-			(!require_prepared || !state.selected.descriptor || state.prepared_ready)) {
+		if (!announced && !timed_out && may_announce_ready(state, require_prepared)) {
 			if (state.selected.descriptor)
 				L_INFO("detent-agent: managed local store ready, selected generation {}",
 					   state.selected.descriptor->cursor.revision);
