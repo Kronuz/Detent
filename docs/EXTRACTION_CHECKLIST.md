@@ -1,6 +1,6 @@
 # Reusable-library extraction checklist
 
-**Updated:** 2026-10-25. This is the restart index for extraction work. The historical audit is [LIBRARY_BOUNDARIES.md](LIBRARY_BOUNDARIES.md); its original inventory and test counts are not current completion claims. Extraction and consumer adoption are separate gates.
+**Updated:** 2026-10-26. This is the restart index for extraction work. The historical audit is [LIBRARY_BOUNDARIES.md](LIBRARY_BOUNDARIES.md); its original inventory and test counts are not current completion claims. Extraction and consumer adoption are separate gates.
 
 ## Required before release
 
@@ -32,4 +32,4 @@ The metrics/completion/journal/consensus split and shared peer transport/TLS wor
 5. Run `quiet check` before builds/tests; use `quiet light` with at most four jobs, `quiet exclusive` for published comparisons. Work serially. Use one narrow independent review at a component boundary, not a review tree or per-commit approval cycle.
 6. For each completed item, record public library revision, consumer commit, deleted private mechanism, test/platform results, raw before/after evidence and explicit exceptions here. Update the catalog and release plan. A conditional item closes with either adoption evidence or a reasoned keep-local decision.
 
-**Next extraction step:** after the active recovery/delivery component closes, reconcile EX-1's existing migration against current `allocators`; do not rebuild the resource primitives from scratch. The clean saved migration at `33d36bf` combines resources with older dependency and consensus funding changes, so its whole commit is not a mechanical transplant onto current main. The separate SC-2/3, SC-4 and SC-5 blockers remain open and are not closed by extraction.
+**Next extraction step:** after managed prepared-reader activation qualifies, reconcile EX-1's existing migration against current `allocators`; do not rebuild the resource primitives from scratch. The clean saved migration at Detent:33d36bf combines resources with older dependency and consensus funding changes, so its whole commit is not a mechanical transplant onto current main. The 2026-10-26 catalog and 261-repository owner inventory identify the existing optional `allocators` resource/retirement targets and no dedicated persistent-map repository. Recovery/delivery integration is on main; fast-reader qualification is the active component. The separate SC-2/3, SC-4 and SC-5 gates are not closed by extraction.
