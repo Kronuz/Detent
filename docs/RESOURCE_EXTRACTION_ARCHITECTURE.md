@@ -74,3 +74,59 @@ The [five-pair ownership comparison](../benchmarks/resource-extraction-ownership
 Independent account construction adds about 53.74 ns per account and one fixed shared-state allocation outside its own quota. That synthetic construction ratio is not a daemon throughput ratio. Root admission's added CPU corresponds to about 0.00715 core at one million admissions per second; actual application rates and the fixed state heap remain macro qualification inputs. Complete-component review accepts this cost for integration with no unresolved P1/P2 source finding.
 
 The [publication record](../benchmarks/resource-extraction-qualification-20261019.json) identifies allocator `b7daa52`, completion `21809c7` and Journal `dbf753f`. All three eight-job CI runs pass. Clean public dependency builds without source overrides pass completion 12/12 and Journal 8/8. Xapiand's clean default Release/LTO build and version smoke check pass against the new allocator layout; its legacy allocator source remains unchanged. The catalog is updated in the same series. Detent's integration remains isolated pending final transport closure. Final composed platform/sanitizer coverage and integrated capacity/default footprint remain release gates.
+
+## Validated Architectural Blueprint: EX-1 reconciliation
+
+**Date:** 2026-10-27. **Status:** Source reconciliation validated against Detent:479c4bc and public library commits; consumer qualification pending. This addendum governs EX-1 adoption order. The shared mechanisms above remain accepted.
+
+Adopt the published resource foundation serially, preserving the qualified prepared-reader default. Recover the resource hunks from Detent:33d36bf; exclude its authority funding changes and unrelated dependency edits. Published Journal reservation growth supports this extraction independently of consensus retained-state policy adoption.
+
+### Public dependency closure
+
+GitHub commit responses verify these immutable sources. Their CMake declarations form the resource closure; Detent's manifest declares them before transitive dependencies.
+
+| Dependency | Revision and action |
+| --- | --- |
+| allocators | Add [allocators:b7daa52f1b6a316e04bba2817f0f527d64d704eb](https://github.com/Kronuz/allocators/commit/b7daa52f1b6a316e04bba2817f0f527d64d704eb). Provides `resources`, `retirement`, `RetirementFactory::uses_account` and `RetirementTesting::before_ready`. |
+| completion | Replace completion:5251cf9 with [completion:21809c7ae35d19ee7707692e2d8bae6d8a7a92a8](https://github.com/Kronuz/completion/commit/21809c7ae35d19ee7707692e2d8bae6d8a7a92a8). Its allocation names forward to allocators. |
+| journal | Replace journal:57e6250 with [journal:dbf753f60d1a74c9a036bf797406aeeb4b7998cc](https://github.com/Kronuz/journal/commit/dbf753f60d1a74c9a036bf797406aeeb4b7998cc). Its admission wrapper uses the shared reservation book. |
+
+Keep consensus:b7073bbe4d94e66dce526f193b0dd81a57cdb661 and every other manifest revision. Journal's added shared backend is opt-in through separate constructors; existing Worker construction retains per-group storage. Preserve consensus wire bytes, funding configuration, synced acknowledgements and checkpoint behavior. All C++ consumers require rebuilding because canonical types and layouts change.
+
+### Ownership, scale and failure checks
+
+| Boundary | Required invariant and acceptance evidence |
+| --- | --- |
+| Heap admission | Charges retain account state through facade destruction. Exercise depth-eight parent refusal, overflow, allocation/constructor failure, alignment and weak controls; refund follows physical free. Admission/release introduces no bookkeeping allocation. Account construction's fixed state allocation remains outside its own quota and must appear in process-footprint accounting. |
+| Retirement | Keep the caller-owned runtime, fixed registry and resident limits. Final release only hands off work. Test close/admission and readiness races, pinned generations, retry fairness and eventual drainage. Give pressure/conservation cases dedicated child accounts; inspect aggregate cleanup after shutdown and caller-handle release. Payload drainage alone does not prove metadata release. |
+| Reservations | Keep Journal's protected pools and uncertainty fencing. DiskLedger retains its two slots, serial identities, original-operation counts and durable deletion proofs. The embedded book outlives its reservations; unresolved destruction preserves debt. Test over-quota census, failed growth, abandonment, stale handles and repeated/forged completion or reclaim attempts. |
+| Current readers | Preserve `paged_peak()`'s prepared-metadata charge and current generation formulas. Keep prepared-reader account matching and nonmovable holders with exported member addresses. Exercise held old views, replacement, cancellation and runtime shutdown through production entry points. |
+| Storage security | Preserve root/symlink refusals, owner-file bootstrap accounting and refusal without durable mutation. Malformed or unsupported storage cannot earn reclaim credit or trigger destructive recovery. No allocation alias changes authorization or transport settlement. |
+
+### Executable stages
+
+1. **Freeze and check dependencies.** Save the current manifest and baseline results. Create a fresh scratch candidate with only the three dependency changes above. Resolve public sources without `FETCHCONTENT_SOURCE_DIR_*` overrides, record every resolved revision and run authority/storage smoke checks. This separates dependency failures and costs from extraction. Sibling worktree HEADs are not adoption evidence.
+2. **Apply resource bodies.** Reconcile `include/detent_distribution/{storage,allocator,buffer,memory_resource,retirement}.hh` to aliases or thin forwarding functions. Convert `detent_resources` to an interface target linking `allocators::resources` and `allocators::retirement`; retain `PROJECT_SOURCE_DIR` include paths. Remove `src/detent_distribution/retirement.cc`. Replace DiskLedger arithmetic with `ReservationBook<3>` while retaining its domain checks and current footprint formulas. Exclude HTTP, MessagePack and authority funding hunks.
+3. **Qualify the composed consumer.** Run the commands below from the candidate checkout, using the selected supported compiler. Inspect build/link commands: no legacy `allocators.cc` or global allocation overrides. Run focused storage, retirement, prepared-reader and capacity tests first, then the complete suite. Qualify the final immutable closure through hosted Linux/macOS architectures and ASan/UBSan, plus FreeBSD; retain the documented FreeBSD LeakSanitizer exclusion. Run relevant concurrency tests with TSan on a supported host.
+
+```sh
+# Fresh public-source consumer build; configure also runs compiler probes.
+quiet check
+quiet light detent-ex1-configure 15 "EX-1 configure" -- cmake -S . -B .scratch/ex1-build \
+  -DCMAKE_BUILD_TYPE=Release -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON \
+  -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=ON
+quiet light detent-ex1-build 30 "EX-1 build" -- cmake --build .scratch/ex1-build -j4
+quiet light detent-ex1-focused 15 "EX-1 focused tests" -- \
+  ctest --test-dir .scratch/ex1-build --output-on-failure \
+  -R '(distribution_(storage|retirement)|local_(disk|storage_session|managed|prepared)|reader_capacity)'
+quiet light detent-ex1-tests 45 "EX-1 complete tests" -- \
+  ctest --test-dir .scratch/ex1-build --output-on-failure -j4
+```
+
+4. **Measure and close.** Restore the preserved ownership/retirement harnesses identified by [ownership evidence](../benchmarks/resource-extraction-ownership-20261019.json) into a reproducible repository path before measurement. Their current source is under `.scratch/library-adoption-20261017/resume/`; the committed record alone is not a runnable harness. Compare dependency-only and migrated candidates with identical compilers and inputs under `quiet exclusive`; retain current-main measurements separately. Run existing paged recovery and collection benchmarks at 100,000 keys, then 500,000 if results warrant confirmation. Record CPU, wall time, requested/admitted bytes, fixed account/runtime heap, process RSS and pinned-view backlog/drainage separately. Check default startup capacity and exact allocation conservation. Report regressions against the accepted ownership costs above; claim no efficiency improvement without measurements. One component review checks lifetime/failure evidence, exact bytes and deleted engines before adoption. Update extraction/release ledgers and verify post-merge CI to completion.
+
+### Limits and separate ownership activation
+
+This inspection runs no builds or benchmarks. Published component results do not qualify the current composed consumer; integrated footprint and sanitizer results remain acceptance gates.
+
+[CL-2](CONSOLIDATION_RESPONSE.md#cl-2-one-ownership-protocol) remains a separate correctness boundary. Public completion:ca0889d supplies `OwnerLockOptions` with `file`, `directory` and `both`, but [journal:d564dfea](https://github.com/Kronuz/journal/blob/d564dfea4ebbded1505c702ce11708548fda69f9/include/journal/journal.h) still calls `acquire_owner(bool)`, and [consensus:a4c28e09](https://github.com/Kronuz/consensus/blob/a4c28e090434d3b823531a31c7b748afb85e96ef/include/consensus/worker.h) exposes no Worker forwarding. A completion bump alone silently leaves Journal file-only. An immutable forwarding closure remains unresolved. Add mode forwarding through Journal/Store/Worker with existing defaults preserved, publish and qualify that closure separately, then select `both` at every mutable Detent entry point. Use completion's single lock implementation; no custom IO wrapper or invented revision. Retain the required multiprocess mode matrix, partial-acquisition rollback, bootstrap/trust tests and original-completion lifetime checks. Resource adoption does not close CL-2 or authorize mixed legacy owners on one directory.
