@@ -2,6 +2,7 @@
 #include "view.hh"
 #include <array>
 #include <filesystem>
+#include <stdexcept>
 
 namespace detent::local {
 namespace detail {
@@ -38,6 +39,10 @@ struct DirectoryIdentity {
 	bool operator==(const DirectoryIdentity &) const = default;
 };
 // Metadata only: this is not evidence of image validation or a publication base.
+class GenerationUnavailable : public std::runtime_error {
+  public:
+    using std::runtime_error::runtime_error;
+};
 struct GenerationSelection {
 	Descriptor descriptor;
 	DirectoryIdentity directory_identity;

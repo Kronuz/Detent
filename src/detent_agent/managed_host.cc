@@ -1,4 +1,6 @@
 #include "managed_host.hh"
+#include "config.hh"
+#include "managed_host_internal.hh"
 #include "../detent_cli/logging.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/directory.hh"
@@ -11,18 +13,37 @@ namespace detent_agent {
 namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace l = detent::local;
-namespace {
-asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready) {
+namespace detail {
+bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared) noexcept {
+	if (!state.initialized || state.phase == t::CoordinatorPhase::Fenced ||
+		state.phase == t::CoordinatorPhase::Closing || state.phase == t::CoordinatorPhase::Closed)
+		return false;
+	if (state.selected.knowledge == l::SelectionKnowledge::Absent)
+		return !state.selected.descriptor;
+	return state.selected.knowledge == l::SelectionKnowledge::Known && state.selected.descriptor &&
+		(!require_prepared || state.prepared_ready);
+}
+asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
+							 bool require_prepared, std::chrono::milliseconds preparation_timeout) {
 	asio::steady_timer timer(co_await asio::this_coro::executor);
 	bool announced = false;
+	bool timed_out = false;
+	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
 	std::optional<d::Cursor> reported;
 	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
-		if (!announced && state.initialized) {
-			L_INFO("detent-agent: managed local store ready, selected generation {}",
-				   state.selected.descriptor ? state.selected.descriptor->cursor.revision : 0);
+		if (!announced && !timed_out && std::chrono::steady_clock::now() >= preparation_deadline) {
+			timed_out = true;
+			coordinator->close();
+		}
+		if (!announced && !timed_out && may_announce_ready(state, require_prepared)) {
+			if (state.selected.descriptor)
+				L_INFO("detent-agent: managed local store ready, selected generation {}",
+					   state.selected.descriptor->cursor.revision);
+			else
+				L_INFO("detent-agent: managed delivery running, awaiting its first generation");
 			try {
 				ready();
 			} catch (...) {
@@ -68,6 +89,8 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 		timer.expires_after(std::chrono::milliseconds(20));
 		co_await timer.async_wait(asio::use_awaitable);
 	}
+	if (timed_out)
+		throw std::runtime_error("managed preparation timed out after draining accepted work");
 	const auto terminal = coordinator->status();
 	if (terminal.phase == t::CoordinatorPhase::Fenced) {
 		if (terminal.error)
@@ -79,9 +102,13 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 	if (!announced)
 		throw std::runtime_error("managed local startup failed before readiness");
 }
-asio::awaitable<void> supervise(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready) {
+} // namespace detail
+namespace {
+asio::awaitable<void> supervise(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
+							   bool require_prepared) {
 	using namespace asio::experimental::awaitable_operators;
-	co_await (coordinator->run() && monitor(coordinator, std::move(ready)));
+	co_await (coordinator->run() && detail::monitor(coordinator, std::move(ready), require_prepared,
+		managed_startup_timeout));
 }
 } // namespace
 int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
@@ -111,6 +138,7 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
 														io.get_executor(), queue, true);
+	const bool require_prepared = options.coordinator.image_format == t::LocalImageFormat::PagedV2;
 	auto coordinator = t::prepare_coordinator(std::move(options.coordinator), driver, domain, worker);
 	std::promise<std::shared_ptr<l::DiskStore>> opened;
 	auto opening = opened.get_future();
@@ -138,7 +166,7 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 		if (!error)
 			coordinator->close();
 	});
-	auto done = asio::co_spawn(io, supervise(coordinator, ready), asio::use_future);
+	auto done = asio::co_spawn(io, supervise(coordinator, ready, require_prepared), asio::use_future);
 	// The signal wait must not retain an otherwise drained io_context forever.
 	asio::steady_timer shutdown(io);
 	std::function<void(const asio::error_code &)> watch;

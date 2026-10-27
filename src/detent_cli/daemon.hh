@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <chrono>
 #include <functional>
 #include <optional>
 #include <sys/types.h>
@@ -24,6 +25,7 @@ using Ready = std::function<void()>;
 // Fork before constructing any threaded component. Startup errors propagate
 // through a pipe; the parent returns only after ready() or an error.
 int run_daemon(bool detach, const std::filesystem::path& log_path,
-               const std::function<int(const Ready&)>& run);
+               const std::function<int(const Ready&)>& run,
+               std::chrono::seconds startup_timeout = std::chrono::seconds(30));
 
 } // namespace detent_cli

@@ -12,7 +12,7 @@ bool is_reader_option(std::string_view flag);
 class ReaderCapacity {
   public:
 	using Setting = std::function<std::optional<std::string>(const std::string &, const char *)>;
-	explicit ReaderCapacity(const Setting &setting);
+	explicit ReaderCapacity(const Setting &setting, bool prepared = false);
 	ReaderCapacity(const ReaderCapacity &) = delete;
 	ReaderCapacity &operator=(const ReaderCapacity &) = delete;
 	ReaderCapacity(ReaderCapacity &&) = delete;

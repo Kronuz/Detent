@@ -236,7 +236,7 @@ The warm validator verifies only new segment bytes and new page extents, and che
 
 ## Writer preference and maintenance
 
-Managed source configuration accepts `image_format`: `flat-v1` (default) or `paged-v2`. The agent and relay bundle sources use the same loader. Paged writing migrates a configured flat head through verified equal-cursor replacement before accepting incremental deltas. Recovery reads either format. A flat writer over a paged head constructs its next forward image from the borrowed state adapter; changing the preference alone leaves an unchanged selected head in its current format.
+Managed source configuration accepts `image_format`: `paged-v2` (default) or `flat-v1`. The agent and relay bundle sources use the same loader. Paged writing migrates a configured flat head through verified equal-cursor replacement before accepting incremental deltas. An old paged head without prepared reader metadata receives an equal-cursor replacement that reuses its verified tree and packs. Recovery reads either format. A flat writer over a paged head constructs its next forward image from the borrowed state adapter; changing the preference alone leaves an unchanged selected head in its current format.
 
 `compaction_interval_ms` defaults to 60,000; zero disables periodic compaction, and enabled intervals range from 1,000 to 86,400,000 milliseconds. Checks occur between upstream exchanges. Each attempt selects at most eight packs below 50% live occupancy, with fixed 32,768-recipe and 16 MiB output caps. Configured view limits also bound construction. Pre-IO admission pressure skips optional compaction; accepted publication still recovers and confirms the actual head. Collector settlement supplies disk credit.
 

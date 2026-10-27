@@ -103,6 +103,7 @@ PYTHON
 fi
 scope=$("$interpreter" -c 'import hashlib,sys; principal=b"agent-reader"; namespace=b"ns"; wire=b"detent-authorized-scope-v1"+len(principal).to_bytes(8,"big")+principal+int(sys.argv[1]).to_bytes(8,"big")+(1).to_bytes(8,"big")+len(namespace).to_bytes(8,"big")+namespace; print(hashlib.sha256(wire).hexdigest())' "$policy_epoch")
 printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","defaults_path":"defaults.json","generation_cluster":"63000000000000000000000000000000","generation_group":"67000000000000000000000000000000","generation_epoch":"65000000000000000000000000000000","generation_scope":"%s"}\n' "$scope" > "$root/agent.json"
+"$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["reader_validation"]="full"; open(p,"w").write(json.dumps(data))' "$root/agent.json"
 if [[ "$isolated" == isolated ]]; then
     empty_scope=$("$interpreter" -c 'import hashlib,sys; p=b"agent-reader"; print(hashlib.sha256(b"detent-authorized-scope-v1"+len(p).to_bytes(8,"big")+p+int(sys.argv[1]).to_bytes(8,"big")+(0).to_bytes(8,"big")).hexdigest())' "$policy_epoch")
     cp "$root/agent.json" "$root/agent-empty.json"

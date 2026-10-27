@@ -118,7 +118,8 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		~File() { if (fd >= 0) ::close(fd); }
 	} file{::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK | O_NOFOLLOW)};
 	const bool no_symlink = file.fd >= 0;
-	if (file.fd < 0 && errno == ELOOP)
+	// FreeBSD reports EMLINK for a final O_NOFOLLOW symlink.
+	if (file.fd < 0 && (errno == ELOOP || errno == EMLINK))
 		file.fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NONBLOCK);
 	if (file.fd < 0) fail("cannot open file");
 	struct stat before{}, after{};
@@ -150,11 +151,13 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		std::string key(it->name.GetString(), it->name.GetStringLength());
 		auto field = schema.find(key);
 		if (field == schema.end()) fail("unknown field: " + key);
-		if (field->second.trusted && !trusted) fail("reader capacity requires a trusted regular configuration file");
+		if (field->second.trusted && !trusted) fail("setting requires a trusted regular configuration file");
 		const auto& flag = field->second.flag;
 		if (settings.contains(flag)) fail("duplicate field: " + key);
 		std::string value;
-		if (field->second.kind == FieldKind::PositiveInt || field->second.kind == FieldKind::NonnegativeInt) {
+		if (field->second.kind == FieldKind::StringOrUint64 && it->value.IsUint64()) {
+			value = std::to_string(it->value.GetUint64());
+		} else if (field->second.kind == FieldKind::PositiveInt || field->second.kind == FieldKind::NonnegativeInt) {
 			const bool positive = field->second.kind == FieldKind::PositiveInt;
 			if (!it->value.IsInt() || it->value.GetInt() < (positive ? 1 : 0)) fail(key + (positive ? " must be a positive integer" : " must be a nonnegative integer"));
 			value = std::to_string(it->value.GetInt());

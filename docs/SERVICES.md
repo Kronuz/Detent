@@ -87,4 +87,6 @@ Relay durable roots require service ownership and mode `0700`, and their artifac
 
 ### Reader capacity and service credentials
 
+Set public `publisher_user` to the numeric UID of the configured agent service account (`id -u detent`, or `id -u _detent` on macOS) when provisioning `agent.json`. Keep it synchronized with service-manager user overrides. Without this setting, system readers resolve the platform's default service account; they never infer trust from a generation directory's owner. Public reader configuration contains no delivery credentials. Managed startup and automatic reads allow up to 180 seconds for preparation, covering the measured approximately 60-second 5M full recovery with additional publication and drainage headroom; this allowance is not a certified recovery-time bound.
+
 Applications and service status checks use the public `agent.json` reader settings described in [usage](USAGE.md#managed-reader-capacity). Configure `reader_records`, image bounds and reader heap/mapping budgets for the admitted deployment size; the private daemon capacity does not automatically authorize a reader increase. A root-owned `0644` public file is valid when its ACL does not add access rules. Keep TLS material and tokens in the existing private managed configuration.

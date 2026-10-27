@@ -16,14 +16,21 @@ bool GenerationReader::refresh() {
 	std::lock_guard refresh_lock(refresh_mutex_);
 	// Selected images are immutable and the installed root retains its lease.
 	// An unchanged trusted selection needs no second mapping or image scan.
-	auto selection = read_generation_selection(directory_);
-	{
-		std::lock_guard install_lock(installed_mutex_);
-		if (directory_identity_ && *directory_identity_ != selection.directory_identity)
-			throw std::invalid_argument("local generation directory was replaced");
-		if (descriptor_ && *descriptor_ == selection.descriptor)
-			return false;
-	}
+    bool installed = false;
+    {
+        std::lock_guard lock(installed_mutex_);
+        installed = descriptor_.has_value();
+    }
+    if (!prepared_publisher_ || installed) {
+        const auto selection = prepared_publisher_
+            ? detail::PreparedReader::selection(directory_, *prepared_publisher_)
+            : read_generation_selection(directory_);
+        std::lock_guard install_lock(installed_mutex_);
+        if (directory_identity_ && *directory_identity_ != selection.directory_identity)
+            throw std::invalid_argument("local generation directory was replaced");
+        if (descriptor_ && *descriptor_ == selection.descriptor)
+            return false;
+    }
 	std::optional<RecoveredGeneration> recovered;
 	std::optional<detail::PreparedGeneration> prepared;
 	if (prepared_publisher_)

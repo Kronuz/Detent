@@ -1,0 +1,52 @@
+{
+  "production_source": "Detent:0631d1dc327baba89525bd55d8d15e49bde12c2b",
+  "hosted": {
+    "run": "https://github.com/Kronuz/Detent/actions/runs/40439430608",
+    "result": "success",
+    "enabled_jobs": 6,
+    "disabled_jobs": [
+      "FreeBSD",
+      "Linux TSan"
+    ]
+  },
+  "freebsd": {
+    "version": "14.4-RELEASE-p10 amd64",
+    "execution": "Local QEMU/HVF VM under shared-host light holds",
+    "sources": "Frozen public dependency revisions; no sibling source substitutions",
+    "native": {
+      "profile": "Managed agent on; authority, relay, distributor, examples and benchmarks off",
+      "passed": 170,
+      "failed": 0,
+      "seconds": 187.78
+    },
+    "sanitizer": {
+      "passed": 9,
+      "failed": 0,
+      "seconds": 1.37,
+      "enabled": [
+        "address",
+        "undefined",
+        "object-size",
+        "pointer-overflow"
+      ],
+      "leak_detection": false,
+      "leak_detection_reason": "FreeBSD sanitizer runtime refuses detect_leaks=1 before test execution"
+    },
+    "trust": {
+      "default_ufs_capabilities": [
+        0,
+        0
+      ],
+      "private_posix_acl_ufs_capabilities": [
+        1,
+        0
+      ],
+      "privileged_fixture": "passed without skip",
+      "private_mount_and_device_cleanup": "verified"
+    },
+    "not_qualified": [
+      "NFS4-enabled UFS",
+      "ZFS"
+    ]
+  }
+}

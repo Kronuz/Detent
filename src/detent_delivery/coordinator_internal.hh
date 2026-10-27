@@ -1,8 +1,15 @@
 #pragma once
 #include "detent_delivery/coordinator.hh"
+#include <atomic>
+#include <future>
 namespace detent::delivery::detail {
 // Private fault seam, unavailable through installed/public interfaces.
 struct CoordinatorAccess {
+	struct PreparedProbePause {
+		std::atomic<bool> reached{false};
+		std::shared_future<void> resume;
+	};
+	static void pause_next_prepared_probe(Coordinator &, std::shared_ptr<PreparedProbePause>);
 	struct ReconnectObservation {
 		std::uint64_t count = 0;
 		std::chrono::milliseconds delay{0};

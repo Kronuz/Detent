@@ -4,6 +4,7 @@
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/acl.h>
+#include <unistd.h>
 #endif
 
 namespace detent::internal {
@@ -37,7 +38,9 @@ inline bool acceptable_acl(int fd, AclPolicy policy) {
 	acl_t acl = ::acl_get_fd_np(fd, ACL_TYPE_NFS4);
 	if (!acl && (errno == EINVAL || errno == EOPNOTSUPP))
 		acl = ::acl_get_fd_np(fd, ACL_TYPE_ACCESS);
-	if (!acl) return false;
+	if (!acl)
+		return errno == EOPNOTSUPP && ::fpathconf(fd, _PC_ACL_EXTENDED) == 0 &&
+		       ::fpathconf(fd, _PC_ACL_NFS4) == 0;
 	int trivial = 0;
 	const bool inspected = ::acl_is_trivial_np(acl, &trivial) == 0;
 	const bool freed = ::acl_free(acl) == 0;

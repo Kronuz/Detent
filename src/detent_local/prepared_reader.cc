@@ -28,6 +28,9 @@ int open_record(int directory, std::string_view name) {
 }
 template <std::size_t N> std::array<char, N> record(int directory, std::string_view name, uid_t owner) {
 	RecoveryFile file(open_record(directory, name));
+    if (file.fd < 0 && errno == ENOENT &&
+        (name == "selected" || name.ends_with(".read")))
+        throw GenerationUnavailable("publisher has not prepared a selected generation");
 	check_generation_file(file.fd, owner, N);
 	require(internal::mode_only_acl(file.fd));
 	std::array<char, N> bytes{};
@@ -44,6 +47,13 @@ paged::Digest checksum(std::span<const char> bytes) {
 	return result;
 }
 } // namespace
+GenerationSelection PreparedReader::selection(const std::filesystem::path &path, uid_t publisher) {
+    RecoveryFile directory(open_publisher_directory(path, publisher));
+    struct stat info{};
+    require(::fstat(directory.fd, &info) == 0);
+    const auto bytes = record<descriptor_bytes>(directory.fd, "selected", publisher);
+    return {decode_descriptor(bytes), {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
+}
 ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	if (!generation.paged_)
 		throw std::invalid_argument("prepared metadata requires a verified paged generation");
@@ -53,6 +63,28 @@ ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 		throw std::overflow_error("prepared generation physical bytes overflow");
 	return {base.storage_identity(), generation.descriptor().generation, generation.descriptor().checksum,
 	        base.counts(), physical + paged::root_bytes};
+}
+bool PreparedReader::metadata_ready(const std::filesystem::path &path,
+                                    const RecoveredGeneration &generation, uid_t publisher) {
+    const auto expected = encode_reader_metadata(describe(generation));
+    RecoveryFile directory(open_publisher_directory(path, publisher));
+    struct stat held{};
+    require(directory.fd >= 0 && ::fstat(directory.fd, &held) == 0 && S_ISDIR(held.st_mode) &&
+            held.st_uid == publisher && !(held.st_mode & 0022) &&
+            internal::acceptable_acl(directory.fd, internal::AclPolicy::DenialsAllowed));
+    const auto identity = generation.directory_identity();
+    require(std::uint64_t(held.st_dev) == identity.device && std::uint64_t(held.st_ino) == identity.inode);
+    const GenerationName name(generation.descriptor().generation, GenerationFile::ReaderMetadata);
+    RecoveryFile file(open_record(directory.fd, name.view()));
+    if (file.fd < 0 && errno == ENOENT)
+        return false;
+    check_generation_file(file.fd, publisher, reader_metadata_bytes);
+    require(internal::mode_only_acl(file.fd));
+    std::array<char, reader_metadata_bytes> bytes{};
+    read_generation_record(file.fd, bytes);
+    decode_reader_metadata(bytes);
+    require(bytes == expected);
+    return true;
 }
 PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
                                         std::optional<d::Cursor> expected) {
@@ -68,7 +100,6 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		                                           std::uint64_t(directory.st_ino)};
 		const auto selected = record<descriptor_bytes>(files->directory.fd, "selected", publisher);
 		const auto descriptor = decode_descriptor(selected);
-		require(descriptor.length == paged::root_bytes);
 		if (expected)
 			require(expected->same_identity(descriptor.cursor) &&
 			        descriptor.cursor.revision >= expected->revision);
@@ -103,10 +134,13 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		const auto ownership = decode_generation_ownership(lease);
 		const auto storage = decode_storage_identity(
 		    record<storage_identity_bytes>(files->directory.fd, "storage.meta", publisher));
-		require(ownership.layout_version == 2 && ownership.storage == storage &&
+        require(ownership.storage == storage &&
 		        ownership.generation == descriptor.generation &&
 		        ownership.image_length == descriptor.length &&
 		        ownership.image_checksum == descriptor.checksum);
+        if (ownership.layout_version == 1)
+            throw GenerationUnavailable("publisher has not prepared a paged generation");
+        require(ownership.layout_version == 2 && descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
 		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
 		require(checksum(image) == descriptor.checksum);
@@ -145,6 +179,6 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		    metadata.counts.ints, metadata.counts.overrides, metadata.counts.strings);
 		return {ReadView(std::move(view)), descriptor, directory_identity, root.logical};
 	}
-	throw ReadSourceFailure("selected generation changed during attachment");
+	throw GenerationUnavailable("selected generation changed during attachment");
 }
 } // namespace detent::local::detail
