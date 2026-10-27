@@ -37,4 +37,18 @@ Median process CPU adds 61.39 ns per account construction, 8.679 ns per root adm
 
 The [controllers](../../benchmarks/resource-qualification/) use the restored CMake benchmark targets and the ordinary prepared-client probe. Run them through `quiet exclusive` with matched compiler flags and the recorded prepared corpus. The baseline executable snapshot is Detent:f3e6c68; migration production is Detent:39f19a4 with observation code Detent:6427b5e. The baseline snapshot is reachable through the candidate merge. Raw records retain binary hashes, all samples and method limits.
 
-The next step is the one bounded diagnostic batch in the component ruling: split source factory, Client construction and first lookup; separate caller CPU from process CPU and record faults, switches and allocation activity. Instrumented diagnostics cannot satisfy acceptance latency. No unchanged acceptance run is repeated until green, and no criterion is weakened without an explicit performance decision.
+## Bounded caller diagnostic
+
+The [single fixed diagnostic batch](../measurements/resource-caller-diagnostic-20261027.json) completes 320 measured processes: 40 keys, two counterbalanced rounds, two arms and separate unhooked/allocation-observer modes. Each measured process has its own matching warmup. The [common observer and archived controllers](../measurements/resource-caller-diagnostic/) retain required production initialization inside the measured phases. All values and the 5M cardinality check pass; no major faults occur in either unhooked arm.
+
+| Phase | Before caller CPU median | Shared caller CPU median | Paired caller CPU difference | Paired minor-fault difference | Paired allocation-event difference |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Source factory | 10.111 µs | 11.414 µs | +1.438 µs | +1 | 0 |
+| Client construction | 437.534 µs | 431.328 µs | −6.187 µs | −1 | +4 |
+| First lookup | 274.924 µs | 288.094 µs | +8.966 µs | +4 | 0 |
+
+CPU and fault columns use only the 80 unhooked samples per arm. Allocation differences use the separate 80 observed samples per arm; every Client pair adds exactly four events, while factory and lookup counts are identical. Faults and switches are process-wide; caller CPU excludes the retirement worker. Per-phase and paired medians are not additive.
+
+The lookup difference is visible in caller CPU, not merely elapsed scheduling delay. It accompanies additional minor faults without additional allocation events. These observations locate work but do not identify a particular faulting mapping, instruction or justified source fix. Client construction does not show a median CPU regression in this batch despite its additional allocations. The sum of instrumented phase wall times remains below 1 ms for all 80 samples in each arm; this is diagnostic evidence, not acceptance, and does not erase the earlier ordinary-probe misses.
+
+The performance gate remains open. No unchanged acceptance run is repeated until green, and no criterion is weakened without an explicit performance decision.

@@ -49,3 +49,27 @@ Other costs are explicit and explainable at the component boundary. Account heap
 1. Instrument the same diagnostic probe in both arms to separate source-factory construction, Client construction and first lookup. Record caller-thread CPU alongside wall time, faults and context switches; inspect allocation/runtime-startup activity separately. Preserve the public-path timing boundary. Run one fixed batch of the existing 40 keys in two counterbalanced rounds. Diagnostic instrumentation is not acceptance timing.
 2. Use that evidence to locate the added work. A fix may change resource initialization/allocation or first-access integration while preserving canonical ownership, accounting, trust checks and runtime lifetime. Do not add another engine, move required initialization outside the timer, suppress tails or expand the dependency closure to chase this number.
 3. After an attributed fix, run one fresh, uninstrumented 200-pair batch with the existing controller and all samples retained. Recheck changed failure/lifetime paths and the affected platform gates. If one diagnostic pass cannot identify a justified fix, report that limit and the measured tradeoff; do not repeat unchanged trials until one passes. A numeric criterion change requires an explicit performance decision with its own rationale.
+
+## G4 diagnostic attribution ruling, 2026-10-27
+
+**Verdict: attribution is insufficient for a justified implementation fix. G4 remains NO-GO.** Detent:dadfab7 retains the reviewed production implementation. This ruling inspects the common diagnostic probe, controller and 320 recorded samples; it runs no builds or trials. The [raw record](../measurements/resource-caller-diagnostic-20261027.json) and [probe](../../benchmarks/resource-qualification/diagnostic/probe.cc) match the inspected scratch files byte-for-byte.
+
+The batch contains 80 before/after pairs in each observer mode. Unhooked phase measurements give these median paired differences:
+
+| Phase | Wall time | Caller-thread CPU | Process minor faults |
+| --- | ---: | ---: | ---: |
+| Source factory | +1.422 µs | +1.438 µs | +1 |
+| Client construction | −6.351 µs | −6.187 µs | −1 |
+| First lookup | +8.944 µs | +8.966 µs | +4 |
+
+Caller CPU tracks the lookup increase, so that observed difference is not explained solely by time off the calling thread. Faults and context switches use `RUSAGE_SELF`, however, and include worker activity. They cannot identify which thread or memory region faults. The median involuntary-switch counts are unchanged in every phase.
+
+The observer-mode allocation counts are source factory 2→2, Client construction 75→79 and lookup 34→34. The four additional Client allocations are consistent with the shared-state allocation for each of the three default accounts in [view.cc](../../src/detent_local/view.cc) and the child verification-cache account in [lazy_page_access.cc](../../src/detent_local/lazy_page_access.cc). That matches the already measured account lifetime cost. Allocation counts do not identify stacks, requested sizes or page touches, and these counts come from the separate instrumented mode. They do not prove that account construction causes the first-lookup increase.
+
+The paired median sum of diagnostic phase times rises 3.443 µs. It does not supersede the uninstrumented end-to-end increase of 21.908 µs. The probe inserts CPU/rusage observations between phases, warms its CPU-clock path, and changes code/layout and execution boundaries. Its allocation-logging mode additionally installs and smoke-checks a malloc observer. These are useful attribution tools, not interchangeable acceptance measurements. Summing phase medians also does not recover an end-to-end median.
+
+The remaining plausible explanations include first-touch/code-layout effects and different allocation placement. The evidence identifies no redundant allocation, duplicated validation, incorrect cache miss, avoidable faulting region or other specific operation whose removal preserves the accepted contracts. Coalescing account state, removing the child quota or changing retirement initialization would therefore be speculative changes. Neither the original regression nor the sub-millisecond target is disproved.
+
+**Next action:** preserve this diagnostic and stop unchanged measurement retries. Keep the candidate isolated and present an explicit performance decision with the measured costs and unresolved first-read attribution. Retaining the target means G4 stays open; further work needs a separately bounded investigation that identifies responsible allocation/fault addresses or stacks before proposing one local change. Accepting this extraction with a documented first-read exception requires an explicit owner decision that names the exception and its release consequence. This review grants no such exception and supplies no replacement numeric threshold.
+
+No canonical library or integration edit is justified by this batch alone. Functional, lifetime and platform evidence remains valid for the unchanged candidate; it does not substitute for the unresolved performance decision.
