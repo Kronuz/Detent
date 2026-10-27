@@ -24,3 +24,28 @@
 Inspected local logs show dependency-only smoke suites passing 6/6 and 9/9, and the migration product build completing. These establish neither G1 nor G2. Migration performance evidence remains pending.
 
 CL-2 owner-mode forwarding and `both` activation remain separate. This resource closure retains existing file-only ownership; it does not qualify mixed legacy writers or close the release obligation. HTTP, MessagePack, persistent-map and consensus funding adoption are outside this ruling.
+
+## G4 performance ruling, 2026-10-27
+
+**Verdict: G4 remains NO-GO; source GO is unchanged.** Detent:29bc779 preserves the reviewed production code. The supplied native/platform/sanitizer results close the reported functional work, but they cannot close this performance gate. No builds or measurements run during this ruling.
+
+The counterbalanced `sdk-pairs.json` provides stronger attribution than the sequential profiles: 40 real keys, five rounds, separate per-arm warmup and alternating order under one exclusive hold. Both arms return correct values with zero major faults.
+
+| First verified read | Before | After |
+| --- | ---: | ---: |
+| Below 1 ms | 196/200 | 195/200 |
+| Median | 752.395 µs | 768.515 µs |
+| p99 | 1,093.883 µs | 1,056.333 µs |
+| Maximum | 1,158.457 µs | 1,551.799 µs |
+
+The median paired difference is **+21.908 µs**, with attachment and lookup contributing paired medians of +9.532 and +9.415 µs. Those medians are not additive. Paired process CPU rises 24 µs, minor faults rise four and RSS rises 16 KiB. Eight of the nine samples at or above 1 ms also record at least 1 ms process CPU; the candidate maximum records 1.612 ms CPU. Process CPU includes the retirement worker, so it neither isolates caller execution nor supports attributing these tails solely to descheduling. Extra faults are a hypothesis, not a proved cause. The paired steady-read median difference is −44.41 ns; that does not cancel first-read cost.
+
+My original 200/200 wording carries a historical sample result into a repeatability gate. Both-arm failure demonstrates that it is not an unconditional scheduling guarantee. It does **not** establish an acceptable replacement threshold: the [source requirement](../FAST_CLIENT_ARCHITECTURE.md) still measures construction through the first verified value below 1 ms on resident data. This ruling changes neither that target nor G4 to a median-only, percentile-only or relative tolerance selected after seeing results. The migration regression is not disproved.
+
+Other costs are explicit and explainable at the component boundary. Account heap grows from 80 bytes/one allocation to 128 bytes/two allocations per shared account, with zero residual; root admission adds 8.679 ns and arena construction 22.65 ns. Page/charged-allocation headers remain 48/32 bytes. Retirement CPU rises about 1.3% with unchanged admitted peak and fixed runtime allocation. Paged recovery preserves operation counts while its heap peaks add 208–432 bytes; collection adds 384 admitted bytes. Recovery RSS medians add 256 KiB; collection RSS medians rise from 72,122,368 to 74,657,792 bytes. These measurements support conservation and quantify cost, not global speedup or equivalence. Raw evidence is under `.scratch/resource-adoption-20261027/{sdk-pairs.json,ownership-pairs/result.json,paged-pairs/result.json}` and must be committed with the qualification record.
+
+**Next action, bounded:**
+
+1. Instrument the same diagnostic probe in both arms to separate source-factory construction, Client construction and first lookup. Record caller-thread CPU alongside wall time, faults and context switches; inspect allocation/runtime-startup activity separately. Preserve the public-path timing boundary. Run one fixed batch of the existing 40 keys in two counterbalanced rounds. Diagnostic instrumentation is not acceptance timing.
+2. Use that evidence to locate the added work. A fix may change resource initialization/allocation or first-access integration while preserving canonical ownership, accounting, trust checks and runtime lifetime. Do not add another engine, move required initialization outside the timer, suppress tails or expand the dependency closure to chase this number.
+3. After an attributed fix, run one fresh, uninstrumented 200-pair batch with the existing controller and all samples retained. Recheck changed failure/lifetime paths and the affected platform gates. If one diagnostic pass cannot identify a justified fix, report that limit and the measured tradeoff; do not repeat unchanged trials until one passes. A numeric criterion change requires an explicit performance decision with its own rationale.

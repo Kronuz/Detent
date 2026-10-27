@@ -1,0 +1,168 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-27T13:38:52.871900+00:00",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+  "method": "Five alternating before/after pairs for each identical workload, under quiet exclusive. macOS time -l maximum RSS is recorded in bytes. Account heap uses malloc zone live-allocation statistics outside the timed loops; retirement reports final charges after domain/runtime release.",
+  "samples": [
+    {
+      "workload": "ownership",
+      "pair": 0,
+      "arm": "before",
+      "binary_sha256": "48ee31d10f1781b8584b96a1910cffb51dbd83949faa7f8c4e58b3817130e4d7",
+      "stdout": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-heap accounts=4096 live_blocks=4096 live_bytes=327680 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.000142307 cpu_seconds=0.000143\nroot-admission operations=5000000 seconds=0.0831694 cpu_seconds=0.082859\ndepth-eight-admission operations=1000000 seconds=0.0973217 cpu_seconds=0.097116\nshared-control operations=1000000 seconds=0.160294 cpu_seconds=0.159721\noveraligned-pmr operations=100000 seconds=0.00888478 cpu_seconds=0.008867\nsingle-page-arena operations=100000 seconds=0.00767342 cpu_seconds=0.007674\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1228800
+    },
+    {
+      "workload": "ownership",
+      "pair": 0,
+      "arm": "after",
+      "binary_sha256": "3e61aa11ede79cb4309fb3615cd6be8b627b06f11c973919945f1a28c0054a2d",
+      "stdout": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-heap accounts=4096 live_blocks=8192 live_bytes=524288 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.0062802 cpu_seconds=0.00628\nroot-admission operations=5000000 seconds=0.122772 cpu_seconds=0.122462\ndepth-eight-admission operations=1000000 seconds=0.0935015 cpu_seconds=0.093479\nshared-control operations=1000000 seconds=0.153147 cpu_seconds=0.151964\noveraligned-pmr operations=100000 seconds=0.0088453 cpu_seconds=0.008845\nsingle-page-arena operations=100000 seconds=0.00997301 cpu_seconds=0.009974\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1425408
+    },
+    {
+      "workload": "ownership",
+      "pair": 1,
+      "arm": "after",
+      "binary_sha256": "3e61aa11ede79cb4309fb3615cd6be8b627b06f11c973919945f1a28c0054a2d",
+      "stdout": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-heap accounts=4096 live_blocks=8192 live_bytes=524288 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.00630535 cpu_seconds=0.006282\nroot-admission operations=5000000 seconds=0.123045 cpu_seconds=0.122873\ndepth-eight-admission operations=1000000 seconds=0.094744 cpu_seconds=0.094566\nshared-control operations=1000000 seconds=0.149828 cpu_seconds=0.149429\noveraligned-pmr operations=100000 seconds=0.0083689 cpu_seconds=0.008328\nsingle-page-arena operations=100000 seconds=0.00870196 cpu_seconds=0.008703\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1421312
+    },
+    {
+      "workload": "ownership",
+      "pair": 1,
+      "arm": "before",
+      "binary_sha256": "48ee31d10f1781b8584b96a1910cffb51dbd83949faa7f8c4e58b3817130e4d7",
+      "stdout": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-heap accounts=4096 live_blocks=4096 live_bytes=327680 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.000127664 cpu_seconds=0.000128\nroot-admission operations=5000000 seconds=0.077938 cpu_seconds=0.077902\ndepth-eight-admission operations=1000000 seconds=0.0905935 cpu_seconds=0.090543\nshared-control operations=1000000 seconds=0.152338 cpu_seconds=0.151992\noveraligned-pmr operations=100000 seconds=0.0088351 cpu_seconds=0.008802\nsingle-page-arena operations=100000 seconds=0.00827968 cpu_seconds=0.008259\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1208320
+    },
+    {
+      "workload": "ownership",
+      "pair": 2,
+      "arm": "before",
+      "binary_sha256": "48ee31d10f1781b8584b96a1910cffb51dbd83949faa7f8c4e58b3817130e4d7",
+      "stdout": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-heap accounts=4096 live_blocks=4096 live_bytes=327680 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.000144267 cpu_seconds=0.000144\nroot-admission operations=5000000 seconds=0.0796727 cpu_seconds=0.079479\ndepth-eight-admission operations=1000000 seconds=0.0910918 cpu_seconds=0.090878\nshared-control operations=1000000 seconds=0.161089 cpu_seconds=0.160736\noveraligned-pmr operations=100000 seconds=0.00946499 cpu_seconds=0.009459\nsingle-page-arena operations=100000 seconds=0.0078814 cpu_seconds=0.007883\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1200128
+    },
+    {
+      "workload": "ownership",
+      "pair": 2,
+      "arm": "after",
+      "binary_sha256": "3e61aa11ede79cb4309fb3615cd6be8b627b06f11c973919945f1a28c0054a2d",
+      "stdout": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-heap accounts=4096 live_blocks=8192 live_bytes=524288 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.00642866 cpu_seconds=0.006365\nroot-admission operations=5000000 seconds=0.124068 cpu_seconds=0.123717\ndepth-eight-admission operations=1000000 seconds=0.102922 cpu_seconds=0.102777\nshared-control operations=1000000 seconds=0.147847 cpu_seconds=0.147529\noveraligned-pmr operations=100000 seconds=0.00911311 cpu_seconds=0.009097\nsingle-page-arena operations=100000 seconds=0.010251 cpu_seconds=0.010165\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1417216
+    },
+    {
+      "workload": "ownership",
+      "pair": 3,
+      "arm": "after",
+      "binary_sha256": "3e61aa11ede79cb4309fb3615cd6be8b627b06f11c973919945f1a28c0054a2d",
+      "stdout": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-heap accounts=4096 live_blocks=8192 live_bytes=524288 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.00624633 cpu_seconds=0.006216\nroot-admission operations=5000000 seconds=0.120586 cpu_seconds=0.120278\ndepth-eight-admission operations=1000000 seconds=0.0979083 cpu_seconds=0.097662\nshared-control operations=1000000 seconds=0.14642 cpu_seconds=0.145965\noveraligned-pmr operations=100000 seconds=0.00903558 cpu_seconds=0.009013\nsingle-page-arena operations=100000 seconds=0.0102085 cpu_seconds=0.010148\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1437696
+    },
+    {
+      "workload": "ownership",
+      "pair": 3,
+      "arm": "before",
+      "binary_sha256": "48ee31d10f1781b8584b96a1910cffb51dbd83949faa7f8c4e58b3817130e4d7",
+      "stdout": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-heap accounts=4096 live_blocks=4096 live_bytes=327680 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.000142665 cpu_seconds=0.000141\nroot-admission operations=5000000 seconds=0.0797119 cpu_seconds=0.079551\ndepth-eight-admission operations=1000000 seconds=0.0890667 cpu_seconds=0.088975\nshared-control operations=1000000 seconds=0.16022 cpu_seconds=0.159838\noveraligned-pmr operations=100000 seconds=0.00900384 cpu_seconds=0.008983\nsingle-page-arena operations=100000 seconds=0.00689155 cpu_seconds=0.006892\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1208320
+    },
+    {
+      "workload": "ownership",
+      "pair": 4,
+      "arm": "before",
+      "binary_sha256": "48ee31d10f1781b8584b96a1910cffb51dbd83949faa7f8c4e58b3817130e4d7",
+      "stdout": "account_bytes=48 charge_bytes=16 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=72\naccount-heap accounts=4096 live_blocks=4096 live_bytes=327680 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.000139359 cpu_seconds=0.000139\nroot-admission operations=5000000 seconds=0.0789183 cpu_seconds=0.078806\ndepth-eight-admission operations=1000000 seconds=0.09224 cpu_seconds=0.09182\nshared-control operations=1000000 seconds=0.151965 cpu_seconds=0.151665\noveraligned-pmr operations=100000 seconds=0.00805955 cpu_seconds=0.00806\nsingle-page-arena operations=100000 seconds=0.00808503 cpu_seconds=0.007991\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1236992
+    },
+    {
+      "workload": "ownership",
+      "pair": 4,
+      "arm": "after",
+      "binary_sha256": "3e61aa11ede79cb4309fb3615cd6be8b627b06f11c973919945f1a28c0054a2d",
+      "stdout": "account_bytes=16 charge_bytes=24 page_header_bytes=48 allocator_header_bytes=32 arena_bytes=80\naccount-heap accounts=4096 live_blocks=8192 live_bytes=524288 residual_blocks=0 residual_bytes=0\naccount-construction operations=100000 seconds=0.00605064 cpu_seconds=0.006007\nroot-admission operations=5000000 seconds=0.123838 cpu_seconds=0.123524\ndepth-eight-admission operations=1000000 seconds=0.0945933 cpu_seconds=0.094353\nshared-control operations=1000000 seconds=0.154992 cpu_seconds=0.154623\noveraligned-pmr operations=100000 seconds=0.00945741 cpu_seconds=0.009362\nsingle-page-arena operations=100000 seconds=0.0103591 cpu_seconds=0.01034\nchecksum=105283600000 upstream_bytes=623100000 upstream_calls=1200000 used=0 peak=4199\n",
+      "maximum_rss_bytes": 1445888
+    },
+    {
+      "workload": "retirement",
+      "pair": 0,
+      "arm": "before",
+      "binary_sha256": "8a3200127875e70475e215bba81965bca02e99a81394e981e5d8d08b892efa99",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014203204 release_seconds=0.113929693 drain_seconds=0.000007912 cpu_seconds=0.222103000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11296768
+    },
+    {
+      "workload": "retirement",
+      "pair": 0,
+      "arm": "after",
+      "binary_sha256": "ace14c5b3d0f5d52e384a62cb514d96891862743f722a4a47419fa218b8bc222",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014023826 release_seconds=0.117087697 drain_seconds=0.000012425 cpu_seconds=0.228589000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11288576
+    },
+    {
+      "workload": "retirement",
+      "pair": 1,
+      "arm": "after",
+      "binary_sha256": "ace14c5b3d0f5d52e384a62cb514d96891862743f722a4a47419fa218b8bc222",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014512779 release_seconds=0.109680740 drain_seconds=0.000015263 cpu_seconds=0.216875000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11284480
+    },
+    {
+      "workload": "retirement",
+      "pair": 1,
+      "arm": "before",
+      "binary_sha256": "8a3200127875e70475e215bba81965bca02e99a81394e981e5d8d08b892efa99",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.013686887 release_seconds=0.109680000 drain_seconds=0.000071277 cpu_seconds=0.216343000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11292672
+    },
+    {
+      "workload": "retirement",
+      "pair": 2,
+      "arm": "before",
+      "binary_sha256": "8a3200127875e70475e215bba81965bca02e99a81394e981e5d8d08b892efa99",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.013503552 release_seconds=0.117174502 drain_seconds=0.000010731 cpu_seconds=0.229175000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11292672
+    },
+    {
+      "workload": "retirement",
+      "pair": 2,
+      "arm": "after",
+      "binary_sha256": "ace14c5b3d0f5d52e384a62cb514d96891862743f722a4a47419fa218b8bc222",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014764341 release_seconds=0.114403234 drain_seconds=0.000015801 cpu_seconds=0.225040000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11300864
+    },
+    {
+      "workload": "retirement",
+      "pair": 3,
+      "arm": "after",
+      "binary_sha256": "ace14c5b3d0f5d52e384a62cb514d96891862743f722a4a47419fa218b8bc222",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014367516 release_seconds=0.117430650 drain_seconds=0.000013881 cpu_seconds=0.227618000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11292672
+    },
+    {
+      "workload": "retirement",
+      "pair": 3,
+      "arm": "before",
+      "binary_sha256": "8a3200127875e70475e215bba81965bca02e99a81394e981e5d8d08b892efa99",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.013783674 release_seconds=0.120202053 drain_seconds=0.000013077 cpu_seconds=0.235310000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11288576
+    },
+    {
+      "workload": "retirement",
+      "pair": 4,
+      "arm": "before",
+      "binary_sha256": "8a3200127875e70475e215bba81965bca02e99a81394e981e5d8d08b892efa99",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.014206983 release_seconds=0.108419049 drain_seconds=0.000009785 cpu_seconds=0.215982000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11292672
+    },
+    {
+      "workload": "retirement",
+      "pair": 4,
+      "arm": "after",
+      "binary_sha256": "ace14c5b3d0f5d52e384a62cb514d96891862743f722a4a47419fa218b8bc222",
+      "stdout": "owners=100000 destroyed=100000 creation_seconds=0.013986974 release_seconds=0.111509716 drain_seconds=0.000009760 cpu_seconds=0.218434000 fixed_heap_bytes=432 peak=8800336 configured_stack_bytes=1048576\npayload_remaining=0 controls_remaining=0\n",
+      "maximum_rss_bytes": 11276288
+    }
+  ]
+}
