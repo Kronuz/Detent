@@ -14,12 +14,14 @@
 | Container selection | Public flat-map adopted on main | 224 native tests and six enabled hosted jobs pass; [qualification state](container-selection.md) |
 | Recovery/delivery | Qualified component merged on main | 224 native tests, complete persisted 5M SDK verification and all six enabled hosted profiles pass; sustained capacity remains open |
 | Fresh client attachment | Managed prepared-reader default qualified | [Real 5M managed trial](../reviews/prepared-managed-qualification-2026-10-26.md): preparation/restart pass, live resident-data fresh reads 200/200 below 1 ms; six enabled hosted jobs, 170 FreeBSD native checks and nine FreeBSD sanitizer checks pass |
+| Resource-library adoption | Functional gates pass; performance gate remains open | A later counterbalanced resident-data batch gives 196/200 baseline and 195/200 migrated first reads below 1 ms. The bounded diagnostic locates additional caller CPU in lookup without identifying a justified fix. Main retains private resource bodies pending a performance decision or separately bounded attribution. See the [extraction checklist](../EXTRACTION_CHECKLIST.md). |
+| Shared HTTP clients | Reconciliation active on an isolated candidate | Restore the saved component onto current server and Detent source, preserve large-dataset wire bounds and qualify its canonical allocator/parser/compressor prerequisites. The resource candidate remains isolated; HTTP integration does not waive its performance gate. |
 | Storage barriers | Blueprint validated; implementation pending | [Grouped preparation](../STORAGE_BARRIER_ARCHITECTURE.md), preserving file syncs and ownership-before-payload ordering |
 | Online capacity increases | Blueprint parked | Shared API design recorded; implementation follows resolution of current scaling concerns |
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.
 
-The current priority is diagnosis of ingestion and bootstrap costs. Passing larger configured bounds does not close that gate. Avoid speculative tuning and further activation machinery until the measured paths are understood.
+The current integration priority is shared HTTP client adoption. The bounded reader lookup experiment is complete: the duplicate-stat prototype shows no end-to-end win and is discarded. Resource adoption stays isolated. Ingestion/bootstrap and sustained-capacity qualification remain open; larger configured bounds alone do not close them. The [five release exits](../RELEASE_PLAN.md#remaining-release-checklist) bound the remaining scope.
 
 The [extraction checklist](../EXTRACTION_CHECKLIST.md) preserves the remaining resource, HTTP, bounded-codec and persistent-map work, including existing worktrees and clean-session restart instructions. These are release gates; completed library publication does not imply consumer adoption.
 

@@ -4,9 +4,27 @@
 
 Use the [extraction checklist](EXTRACTION_CHECKLIST.md) to resume library work from a clean session. It separates remaining adoption from conditional candidates and points to existing implementations and standalone handoffs.
 
+## Remaining release checklist
+
+Stage 6 contains the following exits. Each stays open until its recorded evidence passes. New optimizations need a demonstrated blocker against one of these exits; they do not become additional release requirements automatically.
+
+| Exit | Remaining work | Closure |
+| --- | --- | --- |
+| RC-1: Required integration | EX-1 resources, EX-2 HTTP, EX-3 bounded MessagePack, EX-4 persistent map; CL-2 owner-mode forwarding; finalized consensus transport; asynchronous authority/relay HTTP log completion | Reviewed public pins, deleted private engines, compatible bytes and failure/lifetime checks. Record each component separately. |
+| RC-2: Client performance and updates | First-read repeatability, incremental refresh and retained-reader behavior; daemon startup attribution | Preserve the sub-millisecond resident-data first-read target and record the measured limits. Full daemon preparation is measured separately from client attachment. An optimization needs an attributed cost and a controlled comparison. |
+| RC-3: Sustained capacity | Ingestion calibration, raw/zstd 500/2k/10k-session ladder, traffic/retry amplification and mixed-pressure soak; sustained 5M qualification | Publish an operating envelope supported by the actual topology and host. Preserve resource refusals. The exploratory 10M trial depends on available resources and does not silently raise the supported ceiling. |
+| RC-4: Failure and restoration | Fresh three-voter restore under a new epoch; combined failures, receipts and resource conservation | Complete-state and durable recovery checks pass with no unresolved release-blocking defect. |
+| RC-5: Composed release candidate | Final supported-platform/sanitizer matrix, clean installation, service lifecycle and upgrade/rollback | Qualify the integrated source and exact public dependency closure, then document installation and measured limits. |
+
+EX-0 flat-map adoption and the prepared-reader activation component are complete. Their existing evidence is retained in the final composed checks. The rejected btree rewrite, conditional extractions without a second consumer, new storage frameworks and speculative tuning add no release requirement.
+
+Work proceeds serially. A failed component gate blocks that component's landing. Preserve its candidate and evidence, then advance an independent required component when further work awaits a decision or host access. The active resource lookup diagnostic is limited to one 20-key paired screen; it either supports a specific fix or records the unresolved attribution before HTTP reconciliation continues. No unchanged performance retries are used to obtain a passing sample.
+
 The active [qualification index](status/README.md) tracks the remaining gates. Public flat-map adoption, recovery/delivery fixes and the opt-in prepared reader are on main. The reduced three-voter/one-relay/one-agent topology verifies every persisted knob in the 5M image. Main's corrected source passes all six enabled hosted jobs. The [fixture record](reviews/hosted-reader-fixtures-2026-10-26.md) separates the 500K Intel macOS fixture correction from production behavior.
 
 Managed prepared-reader activation satisfies the [component review](reviews/prepared-activation-component-2026-10-26.md) conditions: all six enabled hosted jobs pass, the complete managed FreeBSD native profile passes 170 checks, and nine focused FreeBSD sanitizer checks pass. [Real 5M preparation and restart](reviews/prepared-managed-qualification-2026-10-26.md) pass, as do 400 fresh SDK reads and 80 CLI checks. All 200 resident-data reads with the publisher running return below 1 ms. NFS4-enabled UFS/ZFS, cold storage and broader release gates remain outside this acceptance. No first release is claimed.
+
+That 200/200 result describes the recorded activation trial, not a repeatability guarantee. The subsequent resource-adoption comparison records 196/200 baseline and 195/200 migrated resident-data first reads below 1 ms. Resource adoption remains blocked pending attribution; the sub-millisecond goal is unchanged. The [extraction checklist](EXTRACTION_CHECKLIST.md) links the complete results and independent NO-GO ruling.
 
 The [5M exploratory trial](CAPACITY_QUALIFICATION.md) completes replicated seeding but fails original agent convergence. A reduced candidate topology with three voters, one relay and one agent reaches durable selection and passes the complete 5M SDK check. The two-relay/two-agent control reaches a host resource guard. These results do not establish sustained capacity. Complete the primary 5M qualification and attempt 10M if resources permit, preserving refusals and interrupted runs as results.
 

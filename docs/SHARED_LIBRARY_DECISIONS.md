@@ -210,6 +210,14 @@ Completion `7734544` adds directory-handle ownership, filesystem classification 
 
 Carry the newer completion revision into final dependency qualification with a full C++ rebuild. Retain its strict default directory trust policy. File leases protecting mapped generations and the CLI PID lock serve different lifetimes and are not substitutes for a storage-owner lock. The isolated HTTP comparisons retain their frozen completion revision to keep the transport comparison controlled.
 
+## HTTP reconciliation (October 27)
+
+The required HTTP extraction continues on isolated `track/http-integration` qualification branches. The component retains the published server response-completion API and the current Detent delivery wire-bound calculation. The saved integration's obsolete 1 GiB cap is excluded. Starting HTTP reconciliation does not merge the resource candidate or waive its first-read performance gate.
+
+The canonical prerequisites remain one implementation each: `allocators` adds unique owners through its existing allocation context; `http-parser` adds opt-in repeated numeric-equal Content-Length compatibility; `compressors` bounds cumulative gzip output in its existing deflate decoder. Parser initialization retains default duplicate rejection, and conflicting lengths or chunked/length ambiguity remain errors. The parser state grows, and the deflate decoder layout and constructor symbol change. All C++ consumers must rebuild with matching headers and implementations; mixing binary revisions is unsupported. No production pin changes follow from this record.
+
+The reconciled library candidates pass native allocator checks in both modes (4/4 each), parser (1/1), compressors (2/2) and combined HTTP server/client checks (14/14). This uses explicit local prerequisite sources, not final public-pin consumer qualification. The compressor qualification branch passes all eight hosted jobs, including FreeBSD and sanitizers. Final composed consumer, cost and review gates remain open.
+
 ## Optional bounded MessagePack (October 19)
 
 The [validated blueprint](MSGPACK_EXTRACTION_ARCHITECTURE.md) places the flat lexer and fixed scratch in `msgpack::bounded` and reuses the bundled packer through one append-to-write adapter. The existing DOM stays enabled by default; bounded-only configuration returns before DOM dependency population. The bundled packer and Xapiand's exception seam remain unchanged. Detent's private encoding engine is removed in the isolated migration. The isolated candidate passes two standalone native and two sanitizer tests, four default DOM/coexistence tests and five Detent distribution tests. Production fixture captures match all 14 logical outputs before and after migration, including maximum 200-byte snapshot keys. The [recorded qualification](../benchmarks/msgpack-extraction-preliminary-20261019.json) remains preliminary: other callers, platforms, clean public pins and production-path cost gates are open.

@@ -4,6 +4,8 @@
 
 The final application client must attach to prepared local data and return its first verified knob in **under 1 ms on the measured resident-data host**. Measure from entry into `Client` construction through the returned value, including trust checks, leases, mappings, hashing, allocation and runtime initialization. Process launch and dynamic loading are separate measurements. Cold storage, page faults and arbitrary descheduling cannot provide an unconditional deadline.
 
+Later resource-adoption qualification exposes repeatability limits in the unchanged baseline too: a counterbalanced batch records 196/200 baseline first reads below 1 ms (median 0.752 ms, p99 1.094 ms), versus 195/200 with shared resources (median 0.769 ms, p99 1.056 ms). Both have zero major faults. The earlier successful sample remains evidence for that run, not a universal deadline. Process CPU in most tail samples also exceeds 1 ms, so descheduling alone is not an established explanation. The [resource ruling](https://github.com/Kronuz/Detent/blob/track/resource-adoption/docs/reviews/resource-adoption-component-2026-10-27.md) keeps adoption blocked pending one bounded attribution batch; the submillisecond target is unchanged.
+
 ## Problem and chosen mechanism
 
 A fresh reader currently calls full generation recovery. The preserved 5M corpus takes 47.8–58.8 seconds to open and validate, separately from exhaustive oracle checks. Point reads afterward are local and substantially shorter. Repeating full graph validation in every application is a release performance blocker.
