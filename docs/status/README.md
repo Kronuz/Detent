@@ -21,7 +21,7 @@
 
 Self-contained [blocker handoffs](../handoffs/README.md) define the storage, container and ingestion asks. The lead retains relay integration.
 
-The current integration priority is shared HTTP client adoption. The bounded reader lookup experiment is complete: the duplicate-stat prototype shows no end-to-end win and is discarded. Resource adoption stays isolated. Ingestion/bootstrap and sustained-capacity qualification remain open; larger configured bounds alone do not close them. The [five release exits](../RELEASE_PLAN.md#remaining-release-checklist) bound the remaining scope.
+The current structural integration is bounded MessagePack adoption. The isolated HTTP consumer passes functional CI but awaits residual CPU attribution before adoption. The bounded reader lookup experiment is complete: the duplicate-stat prototype shows no end-to-end win and is discarded. Resource adoption stays isolated. Ingestion/bootstrap and sustained-capacity qualification remain open; larger configured bounds alone do not close them. The [five release exits](../RELEASE_PLAN.md#remaining-release-checklist) bound the remaining scope.
 
 The [extraction checklist](../EXTRACTION_CHECKLIST.md) preserves the remaining resource, HTTP, bounded-codec and persistent-map work, including existing worktrees and clean-session restart instructions. These are release gates; completed library publication does not imply consumer adoption.
 
