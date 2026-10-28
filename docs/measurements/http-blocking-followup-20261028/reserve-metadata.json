@@ -1,0 +1,10 @@
+{
+  "kind": "Local bounded-reservation diagnostic, not public-pin qualification",
+  "source_patch": "diff --git a/http_client_response.h b/http_client_response.h\nindex 44bdb91..e36008f 100644\n--- a/http_client_response.h\n+++ b/http_client_response.h\n@@ -29,7 +29,15 @@ class BufferedReceiver {\n \t\t\tparser_.feed(bytes, budget);\n \t\t\tif (parser_.head_ready()) parser_.accept_head();\n \t\t\tconst auto body = parser_.body();\n-\t\t\tif (!body.empty()) response_.body.append(body.data(), body.size());\n+\t\t\tif (!body.empty()) {\n+\t\t\t\tif (response_.body.empty() && parser_.head().content_length) {\n+\t\t\t\t\tconst auto length = *parser_.head().content_length;\n+\t\t\t\t\tif (length > response_.body.max_size())\n+\t\t\t\t\t\tthrow Error(ErrorKind::Limit, \"HTTP buffered response size\");\n+\t\t\t\t\tresponse_.body.reserve(static_cast<std::size_t>(length));\n+\t\t\t\t}\n+\t\t\t\tresponse_.body.append(body.data(), body.size());\n+\t\t\t}\n \t\t\tparser_.consume_body(body.size());\n \t\t\tfinish();\n \t\t} catch (const allocators::ResourcePressure &) {\n",
+  "files": {
+    "blocking-before": "3144a05918515c3a77b16c2d0d35079bf02e0b4abba29c625724be0ef1358019",
+    "blocking-after": "98285a753a4fa30828b5d0f1af1aa99a0420b171a995a83325976e66c552a87c",
+    "blocking.cc": "7ef45c45b48fb69141c1bacbb8d4173a772a8b69e6374a5443534bf9d8c36fe4",
+    "paired_reserve.py": "4647de8cc391e8d169f104c3e47f3b49e7667c0c0d793341984ba59c30624382"
+  }
+}
