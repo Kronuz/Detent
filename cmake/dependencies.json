@@ -80,7 +80,7 @@
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "cde879529c7f7a9bd77734de6cc1edcba8d79361",
+    "revision": "c352ae0ffadbb12021943934c4d7167eab65cd73",
     "source_subdir": "."
   },
   {
