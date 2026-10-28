@@ -5,7 +5,7 @@
 #include <limits>
 
 namespace detent::distribution {
-namespace m = messagepack;
+namespace m = msgpack::bounded;
 namespace {
 class ValidatedDeltaSource final : public DeltaSource {
   public:
@@ -45,18 +45,18 @@ class ValidatedDeltaSource final : public DeltaSource {
 			return {{}, true};
 		const auto &tx = delta_->transactions()[transaction_];
 		if (phase_ == 0) {
-			m::array(scratch_, 3);
-			m::unsigned_integer(scratch_, tx.revision);
-			m::array(scratch_, tx.touched.count);
+			m::AppendPacker(scratch_).pack_array(3);
+			m::AppendPacker(scratch_).pack_uint64(tx.revision);
+			m::AppendPacker(scratch_).pack_array(tx.touched.count);
 			phase_ = 1;
 		} else if (phase_ == 1) {
 			if (row_ < tx.touched.count) {
 				const auto &row = delta_->touched(tx.touched.start + row_++);
-				m::array(scratch_, 2);
-				m::string(scratch_, row.name);
-				m::unsigned_integer(scratch_, row.revision);
+				m::AppendPacker(scratch_).pack_array(2);
+				m::AppendPacker(scratch_).pack_str(row.name);
+				m::AppendPacker(scratch_).pack_uint64(row.revision);
 			} else {
-				m::array(scratch_, tx.mutations.count);
+				m::AppendPacker(scratch_).pack_array(tx.mutations.count);
 				row_ = 0;
 				phase_ = 2;
 			}
@@ -70,10 +70,10 @@ class ValidatedDeltaSource final : public DeltaSource {
 			}
 		} else if (row_ < tx.mutations.count) {
 			const auto &row = delta_->mutation(tx.mutations.start + row_++);
-			m::array(scratch_, 4);
-			m::unsigned_integer(scratch_, row.namespace_index);
-			m::string(scratch_, row.key);
-			m::unsigned_integer(scratch_, row.value ? 0 : 1);
+			m::AppendPacker(scratch_).pack_array(4);
+			m::AppendPacker(scratch_).pack_uint64(row.namespace_index);
+			m::AppendPacker(scratch_).pack_str(row.key);
+			m::AppendPacker(scratch_).pack_uint64(row.value ? 0 : 1);
 			if (row.value) {
 				detail::wire::definition(scratch_, *row.value);
 				if (const auto *flag = std::get_if<WireBoolDef>(&*row.value)) {
@@ -82,7 +82,7 @@ class ValidatedDeltaSource final : public DeltaSource {
 					phase_ = 3;
 				}
 			} else
-				scratch_.push_back('\xc0');
+				m::AppendPacker(scratch_).pack_nil();
 		} else {
 			++transaction_;
 			row_ = phase_ = 0;

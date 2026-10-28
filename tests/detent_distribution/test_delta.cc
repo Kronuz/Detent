@@ -1,10 +1,10 @@
 #include "detent_distribution/delta_encoder.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/protocol.hh"
 #include "storage_failure_fixture.hh"
 #include <iostream>
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 void require(bool value) {
 	if (!value)
 		throw std::runtime_error("delta invariant failed");
@@ -19,19 +19,19 @@ d::Cursor cursor() {
 	return value;
 }
 void put_cursor(std::string &out, d::Cursor value) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (const auto *field : {&value.cluster, &value.group, &value.restore_epoch})
-		m::string(out, std::string_view(field->data(), field->size()), true);
-	m::string(out, std::string_view(value.scope.data(), value.scope.size()), true);
-	m::unsigned_integer(out, value.revision);
+		m::AppendPacker(out).pack_bin(std::string_view(field->data(), field->size()));
+	m::AppendPacker(out).pack_bin(std::string_view(value.scope.data(), value.scope.size()));
+	m::AppendPacker(out).pack_uint64(value.revision);
 }
 std::string fixture(bool progress = false, std::uint64_t base = 42, std::uint64_t target = 45,
 					std::uint64_t transaction = 44, std::uint64_t strings = 20, bool duplicate = false,
 					bool bad_delete = false, std::optional<detent::GroupOverride> group = {}) {
 	std::string out;
-	auto a = [&](std::uint32_t value) { m::array(out, value); };
-	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
-	auto s = [&](std::string_view value) { m::string(out, value); };
+	auto a = [&](std::uint32_t value) { m::AppendPacker(out).pack_array(value); };
+	auto n = [&](std::uint64_t value) { m::AppendPacker(out).pack_uint64(value); };
+	auto s = [&](std::string_view value) { m::AppendPacker(out).pack_str(value); };
 	a(progress ? 5 : 7);
 	n(1);
 	n(progress ? 3 : 2);

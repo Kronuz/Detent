@@ -1,17 +1,17 @@
 #pragma once
 #include "snapshot_fixture.hh"
 inline void put_cursor(std::string &out, d::Cursor c) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (auto *id : {&c.cluster, &c.group, &c.restore_epoch})
-		m::string(out, {id->data(), id->size()}, true);
-	m::string(out, {c.scope.data(), c.scope.size()}, true);
-	m::unsigned_integer(out, c.revision);
+		m::AppendPacker(out).pack_bin({id->data(), id->size()});
+	m::AppendPacker(out).pack_bin({c.scope.data(), c.scope.size()});
+	m::AppendPacker(out).pack_uint64(c.revision);
 }
 inline std::string delta_wire(bool progress, unsigned transactions = 2, std::string_view scope = "app") {
 	std::string out;
-	auto a = [&](unsigned n) { m::array(out, n); };
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(out, v); };
-	auto s = [&](std::string_view v) { m::string(out, v); };
+	auto a = [&](unsigned n) { m::AppendPacker(out).pack_array(n); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(out).pack_uint64(v); };
+	auto s = [&](std::string_view v) { m::AppendPacker(out).pack_str(v); };
 	a(progress ? 5 : 7);
 	n(1);
 	n(progress ? 3 : 2);
@@ -46,7 +46,7 @@ inline std::string delta_wire(bool progress, unsigned transactions = 2, std::str
 			else {
 				a(2);
 				n(1);
-				m::signed_integer(out, tx);
+				m::AppendPacker(out).pack_int64(tx);
 			}
 			a(4);
 			n(0);
@@ -87,9 +87,9 @@ inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsig
 		return std::make_shared<const d::ValidatedSnapshot>(
 			decode(fixture(1, 24, 25, target.revision), target));
 	std::string out;
-	auto a = [&](unsigned v) { m::array(out, v); };
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(out, v); };
-	auto text = [&](std::string_view v) { m::string(out, v); };
+	auto a = [&](unsigned v) { m::AppendPacker(out).pack_array(v); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(out).pack_uint64(v); };
+	auto text = [&](std::string_view v) { m::AppendPacker(out).pack_str(v); };
 	a(7);
 	n(1);
 	n(1);
@@ -114,7 +114,7 @@ inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsig
 		n(42 + tx);
 		a(2);
 		n(1);
-		m::signed_integer(out, tx - 1);
+		m::AppendPacker(out).pack_int64(tx - 1);
 	}
 	a(4);
 	n(0);
@@ -130,8 +130,8 @@ inline std::shared_ptr<const d::ValidatedSnapshot> expected(bool progress, unsig
 
 inline d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account) {
 	std::string wire;
-	auto a = [&](unsigned value) { m::array(wire, value); };
-	auto n = [&](unsigned value) { m::unsigned_integer(wire, value); };
+	auto a = [&](unsigned value) { m::AppendPacker(wire).pack_array(value); };
+	auto n = [&](unsigned value) { m::AppendPacker(wire).pack_uint64(value); };
 	a(7);
 	n(1);
 	n(2);
@@ -152,12 +152,12 @@ inline d::ValidatedDelta one_key_delta(std::shared_ptr<d::StorageLedger> account
 	n(43);
 	a(1);
 	a(2);
-	m::string(wire, "app");
+	m::AppendPacker(wire).pack_str("app");
 	n(43);
 	a(1);
 	a(4);
 	n(0);
-	m::string(wire, "app:count");
+	m::AppendPacker(wire).pack_str("app:count");
 	n(0);
 	a(2);
 	n(1);

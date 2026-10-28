@@ -1,10 +1,10 @@
 #include "change_history.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <iostream>
 #include <source_location>
 namespace a = detent::authority;
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 void check(bool condition, std::source_location location = std::source_location::current()) {
 	if (!condition)
@@ -91,17 +91,17 @@ int main() {
 		auto held = history->find(1);
 		check(held && held->name_space() == "ns" && held->mutations == 1);
 		std::string expected;
-		m::array(expected, 4);
-		m::unsigned_integer(expected, 1);
-		m::unsigned_integer(expected, 1);
-		m::string(expected, "ns");
-		m::array(expected, 1);
-		m::array(expected, 3);
-		m::string(expected, "ns:a");
-		m::unsigned_integer(expected, 0);
-		m::array(expected, 2);
-		m::unsigned_integer(expected, 1);
-		m::signed_integer(expected, 1);
+		m::AppendPacker(expected).pack_array(4);
+		m::AppendPacker(expected).pack_uint64(1);
+		m::AppendPacker(expected).pack_uint64(1);
+		m::AppendPacker(expected).pack_str("ns");
+		m::AppendPacker(expected).pack_array(1);
+		m::AppendPacker(expected).pack_array(3);
+		m::AppendPacker(expected).pack_str("ns:a");
+		m::AppendPacker(expected).pack_uint64(0);
+		m::AppendPacker(expected).pack_array(2);
+		m::AppendPacker(expected).pack_uint64(1);
+		m::AppendPacker(expected).pack_int64(1);
 		check(held->body->view() == expected);
 		apply(); // Idempotent retry has no new revision or cache entry.
 		check(history->size() == 1 && history->through() == 1);

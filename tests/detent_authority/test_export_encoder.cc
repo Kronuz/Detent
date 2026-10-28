@@ -1,10 +1,10 @@
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "export_encoder.hh"
 #include <iostream>
 #include <limits>
 namespace a = detent::authority;
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 void check(bool value) {
 	if (!value)
@@ -28,9 +28,9 @@ std::string encode(a::SnapshotExportEncoder &encoder, std::size_t bytes = 1) {
 }
 std::string oracle(const d::Cursor &id) {
 	std::string out;
-	auto ar = [&](unsigned value) { m::array(out, value); };
-	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
-	auto s = [&](std::string_view value) { m::string(out, value); };
+	auto ar = [&](unsigned value) { m::AppendPacker(out).pack_array(value); };
+	auto n = [&](std::uint64_t value) { m::AppendPacker(out).pack_uint64(value); };
+	auto s = [&](std::string_view value) { m::AppendPacker(out).pack_str(value); };
 	ar(7);
 	n(1);
 	n(1);
@@ -39,8 +39,8 @@ std::string oracle(const d::Cursor &id) {
 	n(1);
 	ar(5);
 	for (const auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(out, {field->data(), field->size()}, true);
-	m::string(out, {id.scope.data(), id.scope.size()}, true);
+		m::AppendPacker(out).pack_bin({field->data(), field->size()});
+	m::AppendPacker(out).pack_bin({id.scope.data(), id.scope.size()});
 	n(3);
 	ar(4);
 	n(2);
@@ -78,7 +78,7 @@ std::string oracle(const d::Cursor &id) {
 	n(2);
 	ar(2);
 	n(1);
-	m::signed_integer(out, std::numeric_limits<std::int64_t>::min());
+	m::AppendPacker(out).pack_int64(std::numeric_limits<std::int64_t>::min());
 	return out;
 }
 } // namespace

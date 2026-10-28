@@ -3,18 +3,18 @@
 inline std::shared_ptr<const d::ValidatedDelta> progress(d::Cursor base,
 														 std::shared_ptr<d::StorageLedger> account) {
 	std::string out;
-	m::array(out, 5);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 3);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
+	m::AppendPacker(out).pack_array(5);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(3);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
 	auto encode = [&](const d::Cursor &c) {
-		m::array(out, 5);
+		m::AppendPacker(out).pack_array(5);
 		for (const auto *field : {&c.cluster, &c.group, &c.restore_epoch})
-			m::string(out, {field->data(), field->size()}, true);
-		m::string(out, {c.scope.data(), c.scope.size()}, true);
-		m::unsigned_integer(out, c.revision);
+			m::AppendPacker(out).pack_bin({field->data(), field->size()});
+		m::AppendPacker(out).pack_bin({c.scope.data(), c.scope.size()});
+		m::AppendPacker(out).pack_uint64(c.revision);
 	};
 	encode(base);
 	auto target = base;

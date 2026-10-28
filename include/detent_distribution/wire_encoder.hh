@@ -1,33 +1,36 @@
 #pragma once
 #include "definition.hh"
-#include "messagepack.hh"
+#include "wire_codec.hh"
 
 namespace detent::distribution::detail::wire {
+namespace m = msgpack::bounded;
 template <class Bytes> void definition(Bytes &out, const WireDefinition &value) {
+	m::AppendPacker pack(out);
 	if (const auto *flag = std::get_if<WireBoolDef>(&value)) {
-		messagepack::array(out, 4);
-		messagepack::unsigned_integer(out, 0);
-		out.push_back(flag->default_value ? '\xc3' : '\xc2');
+		pack.pack_array(4);
+		pack.pack_uint64(0);
+		flag->default_value ? pack.pack_true() : pack.pack_false();
 		if (flag->rollout_pct)
-			messagepack::unsigned_integer(out, *flag->rollout_pct);
+			pack.pack_uint64(*flag->rollout_pct);
 		else
-			out.push_back('\xc0');
-		messagepack::array(out, flag->overrides.count);
+			pack.pack_nil();
+		pack.pack_array(flag->overrides.count);
 	} else {
-		messagepack::array(out, 2);
-		messagepack::unsigned_integer(out, 1);
-		messagepack::signed_integer(out, std::get<IntDef>(value).default_value);
+		pack.pack_array(2);
+		pack.pack_uint64(1);
+		pack.pack_int64(std::get<IntDef>(value).default_value);
 	}
 }
 template <class Bytes> void override_row(Bytes &out, std::string_view name, const GroupOverride &value) {
-	messagepack::array(out, 3);
-	messagepack::string(out, name);
+	m::AppendPacker pack(out);
+	pack.pack_array(3);
+	pack.pack_str(name);
 	if (const auto *forced = std::get_if<bool>(&value)) {
-		messagepack::unsigned_integer(out, 0);
-		out.push_back(*forced ? '\xc3' : '\xc2');
+		pack.pack_uint64(0);
+		*forced ? pack.pack_true() : pack.pack_false();
 	} else {
-		messagepack::unsigned_integer(out, 1);
-		messagepack::unsigned_integer(out, std::get<GroupRollout>(value).rollout_pct);
+		pack.pack_uint64(1);
+		pack.pack_uint64(std::get<GroupRollout>(value).rollout_pct);
 	}
 }
 } // namespace detent::distribution::detail::wire

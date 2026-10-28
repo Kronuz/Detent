@@ -90,6 +90,12 @@
     "source_subdir": "."
   },
   {
+    "name": "msgpack",
+    "repository": "https://github.com/Kronuz/msgpack.git",
+    "revision": "f8975e37099959773cee069a2796409846029a62",
+    "source_subdir": "."
+  },
+  {
     "name": "radix_router",
     "repository": "https://github.com/Kronuz/radix-router.git",
     "revision": "d03574406e76f7a5dc7d7d4d11eb8bd6c20c6aed",

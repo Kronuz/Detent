@@ -1,35 +1,36 @@
 #pragma once
 #include "detent/model.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 namespace detent::authority::detail {
+namespace m = msgpack::bounded;
 template <class Output> void write_wire_definition_head(Output &out, const KnobDef &definition) {
-	namespace m = distribution::messagepack;
+	m::AppendPacker pack(out);
 	if (auto flag = std::get_if<BoolDef>(&definition)) {
-		m::array(out, 4);
-		m::unsigned_integer(out, 0);
-		out.push_back(flag->default_value ? '\xc3' : '\xc2');
+		pack.pack_array(4);
+		pack.pack_uint64(0);
+		flag->default_value ? pack.pack_true() : pack.pack_false();
 		if (flag->rollout_pct)
-			m::unsigned_integer(out, *flag->rollout_pct);
+			pack.pack_uint64(*flag->rollout_pct);
 		else
-			out.push_back('\xc0');
-		m::array(out, flag->overrides.size());
+			pack.pack_nil();
+		pack.pack_array(flag->overrides.size());
 	} else {
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
-		m::signed_integer(out, std::get<IntDef>(definition).default_value);
+		pack.pack_array(2);
+		pack.pack_uint64(1);
+		pack.pack_int64(std::get<IntDef>(definition).default_value);
 	}
 }
 template <class Output>
 void write_wire_override(Output &out, std::string_view name, const GroupOverride &value) {
-	namespace m = distribution::messagepack;
-	m::array(out, 3);
-	m::string(out, name);
+	m::AppendPacker pack(out);
+	pack.pack_array(3);
+	pack.pack_str(name);
 	if (auto forced = std::get_if<bool>(&value)) {
-		m::unsigned_integer(out, 0);
-		out.push_back(*forced ? '\xc3' : '\xc2');
+		pack.pack_uint64(0);
+		*forced ? pack.pack_true() : pack.pack_false();
 	} else {
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, std::get<GroupRollout>(value).rollout_pct);
+		pack.pack_uint64(1);
+		pack.pack_uint64(std::get<GroupRollout>(value).rollout_pct);
 	}
 }
 } // namespace detent::authority::detail

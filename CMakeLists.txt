@@ -59,6 +59,7 @@ include(cmake/DependencyPins.cmake)
 
 # RapidJSON supplies headers only; keep its legacy build disabled.
 # Compression is shared by all HTTP consumers.
+set(MSGPACK_BUILD_DOM OFF CACHE BOOL "Build MsgPack COW value and patcher")
 FetchContent_MakeAvailable(
   rapidjson
   char_classify
@@ -68,7 +69,8 @@ FetchContent_MakeAvailable(
   sha256
   atomic_shared_ptr
   random_lib
-  compressors)
+  compressors
+  msgpack)
 
 ########################################################################
 # detent core library

@@ -1,9 +1,9 @@
 #include "detent_distribution/delta_encoder.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <algorithm>
 
 namespace detent::distribution {
-namespace m = messagepack;
+namespace m = msgpack::bounded;
 struct DeltaEncoder::Impl {
 	static constexpr std::size_t chunk_bytes = 65536;
 	std::shared_ptr<DeltaSource> source;
@@ -27,26 +27,26 @@ struct DeltaEncoder::Impl {
 			throw DeltaRepresentationLimit("delta export aggregate limit");
 	}
 	void put_cursor(const Cursor &value) {
-		m::array(scratch, 5);
+		m::AppendPacker(scratch).pack_array(5);
 		for (const auto *id : {&value.cluster, &value.group, &value.restore_epoch})
-			m::string(scratch, {id->data(), id->size()}, true);
-		m::string(scratch, {value.scope.data(), value.scope.size()}, true);
-		m::unsigned_integer(scratch, value.revision);
+			m::AppendPacker(scratch).pack_bin({id->data(), id->size()});
+		m::AppendPacker(scratch).pack_bin({value.scope.data(), value.scope.size()});
+		m::AppendPacker(scratch).pack_uint64(value.revision);
 	}
 	void header() {
-		m::array(scratch, counts.transactions ? 7 : 5);
-		m::unsigned_integer(scratch, 1);
-		m::unsigned_integer(scratch, counts.transactions ? 2 : 3);
-		m::array(scratch, 2);
-		m::unsigned_integer(scratch, 1);
-		m::unsigned_integer(scratch, 1);
+		m::AppendPacker(scratch).pack_array(counts.transactions ? 7 : 5);
+		m::AppendPacker(scratch).pack_uint64(1);
+		m::AppendPacker(scratch).pack_uint64(counts.transactions ? 2 : 3);
+		m::AppendPacker(scratch).pack_array(2);
+		m::AppendPacker(scratch).pack_uint64(1);
+		m::AppendPacker(scratch).pack_uint64(1);
 		put_cursor(source->base());
 		put_cursor(source->target());
 		if (counts.transactions) {
-			m::array(scratch, 4);
+			m::AppendPacker(scratch).pack_array(4);
 			for (auto value : {counts.transactions, counts.mutations, counts.overrides, counts.strings})
-				m::unsigned_integer(scratch, value);
-			m::array(scratch, counts.transactions);
+				m::AppendPacker(scratch).pack_uint64(value);
+			m::AppendPacker(scratch).pack_array(counts.transactions);
 		}
 		pending = scratch;
 	}

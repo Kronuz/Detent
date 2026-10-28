@@ -1,4 +1,4 @@
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/protocol.hh"
 #include "storage_metrics.hh"
 #include <algorithm>
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <sys/resource.h>
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 int main(int argc, char **argv) {
 	if (argc != 2)
 		return 1;
@@ -22,14 +22,14 @@ int main(int argc, char **argv) {
 	auto target = base;
 	target.revision += count;
 	std::string bytes;
-	auto a = [&](std::uint32_t n) { m::array(bytes, n); };
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(bytes, v); };
-	auto s = [&](std::string_view v) { m::string(bytes, v); };
+	auto a = [&](std::uint32_t n) { m::AppendPacker(bytes).pack_array(n); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(bytes).pack_uint64(v); };
+	auto s = [&](std::string_view v) { m::AppendPacker(bytes).pack_str(v); };
 	auto cursor = [&](d::Cursor value) {
 		a(5);
 		for (auto *field : {&value.cluster, &value.group, &value.restore_epoch})
-			m::string(bytes, {field->data(), field->size()}, true);
-		m::string(bytes, {value.scope.data(), value.scope.size()}, true);
+			m::AppendPacker(bytes).pack_bin({field->data(), field->size()});
+		m::AppendPacker(bytes).pack_bin({value.scope.data(), value.scope.size()});
 		n(value.revision);
 	};
 	a(7);

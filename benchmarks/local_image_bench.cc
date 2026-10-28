@@ -1,4 +1,4 @@
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_local/builder.hh"
 #include "detent_local/reader.hh"
 #include "local_corpus.hh"
@@ -14,7 +14,7 @@
 #include <vector>
 namespace d = detent::distribution;
 namespace l = detent::local;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 using Clock = std::chrono::steady_clock;
 std::int64_t micros(Clock::duration value) {
 	return std::chrono::duration_cast<std::chrono::microseconds>(value).count();

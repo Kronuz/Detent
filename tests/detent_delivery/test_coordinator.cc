@@ -2,7 +2,7 @@
 #include "detent/hashing.hh"
 #include "detent_delivery/coordinator.hh"
 #include "detent_distribution/memory_resource.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_local/paged_layout.hh"
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
@@ -19,7 +19,7 @@
 namespace d = detent::distribution;
 namespace l = detent::local;
 namespace t = detent::delivery;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 using namespace std::chrono_literals;
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
@@ -106,8 +106,8 @@ d::Cursor cursor() {
 }
 std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 	std::string wire;
-	auto a = [&](auto n) { m::array(wire, n); };
-	auto u = [&](auto n) { m::unsigned_integer(wire, n); };
+	auto a = [&](auto n) { m::AppendPacker(wire).pack_array(n); };
+	auto u = [&](auto n) { m::AppendPacker(wire).pack_uint64(n); };
 	a(7);
 	u(1);
 	u(1);
@@ -117,8 +117,8 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 	a(5);
 	auto identity = cursor();
 	for (auto *part : {&identity.cluster, &identity.group, &identity.restore_epoch})
-		m::string(wire, {part->data(), part->size()}, true);
-	m::string(wire, {identity.scope.data(), identity.scope.size()}, true);
+		m::AppendPacker(wire).pack_bin({part->data(), part->size()});
+	m::AppendPacker(wire).pack_bin({identity.scope.data(), identity.scope.size()});
 	u(revision);
 	a(4);
 	const auto overrides = count - (count + 3) / 4;
@@ -129,7 +129,7 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 	a(count ? 1 : 0);
 	if (count) {
 		a(2);
-		m::string(wire, "app");
+		m::AppendPacker(wire).pack_str("app");
 		u(1);
 	}
 	a(count);
@@ -141,12 +141,12 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 		key.append(digits, end);
 		a(4);
 		u(0);
-		m::string(wire, key);
+		m::AppendPacker(wire).pack_str(key);
 		u(1);
 		if (i % 4 == 0) {
 			a(2);
 			u(1);
-			m::signed_integer(wire, -std::int64_t(i));
+			m::AppendPacker(wire).pack_int64(-std::int64_t(i));
 		} else {
 			a(4);
 			u(0);
@@ -154,7 +154,7 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 			u(25);
 			a(1);
 			a(3);
-			m::string(wire, "beta");
+			m::AppendPacker(wire).pack_str("beta");
 			u(1);
 			u(17);
 		}
@@ -178,14 +178,14 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 }
 std::string transition_response(bool progress) {
 	std::string wire;
-	auto a = [&](unsigned n) { m::array(wire, n); };
-	auto u = [&](std::uint64_t n) { m::unsigned_integer(wire, n); };
+	auto a = [&](unsigned n) { m::AppendPacker(wire).pack_array(n); };
+	auto u = [&](std::uint64_t n) { m::AppendPacker(wire).pack_uint64(n); };
 	auto put_cursor = [&](unsigned revision) {
 		const auto value = cursor();
 		a(5);
 		for (const auto *part : {&value.cluster, &value.group, &value.restore_epoch})
-			m::string(wire, {part->data(), part->size()}, true);
-		m::string(wire, {value.scope.data(), value.scope.size()}, true);
+			m::AppendPacker(wire).pack_bin({part->data(), part->size()});
+		m::AppendPacker(wire).pack_bin({value.scope.data(), value.scope.size()});
 		u(revision);
 	};
 	a(progress ? 5 : 7);
@@ -207,16 +207,16 @@ std::string transition_response(bool progress) {
 		u(3);
 		a(1);
 		a(2);
-		m::string(wire, "app");
+		m::AppendPacker(wire).pack_str("app");
 		u(3);
 		a(1);
 		a(4);
 		u(0);
-		m::string(wire, "app:key000004");
+		m::AppendPacker(wire).pack_str("app:key000004");
 		u(0);
 		a(2);
 		u(1);
-		m::signed_integer(wire, -4);
+		m::AppendPacker(wire).pack_int64(-4);
 	}
 	d::Identity identity{};
 	identity.fill(progress ? 'p' : 'd');

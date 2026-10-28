@@ -51,9 +51,9 @@ void run(bool nul_key, unsigned namespace_count) {
 			scope.push_back("app.sub");
 		auto input = [&](unsigned percentage, unsigned change = 0) {
 			std::string wire;
-			auto a = [&](unsigned count) { m::array(wire, count); };
-			auto n = [&](std::uint64_t value) { m::unsigned_integer(wire, value); };
-			auto text = [&](std::string_view value) { m::string(wire, value); };
+			auto a = [&](unsigned count) { m::AppendPacker(wire).pack_array(count); };
+			auto n = [&](std::uint64_t value) { m::AppendPacker(wire).pack_uint64(value); };
+			auto text = [&](std::string_view value) { m::AppendPacker(wire).pack_str(value); };
 			const auto group = nul_key ? std::string_view("b\0eta", 5) : std::string_view("beta");
 			a(7);
 			n(1);
@@ -64,8 +64,8 @@ void run(bool nul_key, unsigned namespace_count) {
 			a(5);
 			const auto identity = cursor();
 			for (const auto *field : {&identity.cluster, &identity.group, &identity.restore_epoch})
-				m::string(wire, {field->data(), field->size()}, true);
-			m::string(wire, {identity.scope.data(), identity.scope.size()}, true);
+				m::AppendPacker(wire).pack_bin({field->data(), field->size()});
+			m::AppendPacker(wire).pack_bin({identity.scope.data(), identity.scope.size()});
 			n(identity.revision);
 			std::uint64_t strings = 0;
 			for (const auto &name : scope)
@@ -89,7 +89,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				n(41);
 				a(2);
 				n(1);
-				m::signed_integer(wire, INT64_MIN);
+				m::AppendPacker(wire).pack_int64(INT64_MIN);
 				a(4);
 				n(i);
 				text(scope[i] + ":flag");

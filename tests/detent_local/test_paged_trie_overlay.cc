@@ -8,9 +8,9 @@ namespace p = l::paged;
 using Rows = std::map<std::string, std::pair<detent::KnobDef, std::uint64_t>>;
 std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 	std::string wire;
-	auto a = [&](unsigned v) { m::array(wire, v); };
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(wire, v); };
-	auto text = [&](std::string_view v) { m::string(wire, v); };
+	auto a = [&](unsigned v) { m::AppendPacker(wire).pack_array(v); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(wire).pack_uint64(v); };
+	auto text = [&](std::string_view v) { m::AppendPacker(wire).pack_str(v); };
 	a(7);
 	n(1);
 	n(1);
@@ -20,8 +20,8 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 	a(5);
 	const auto id = cursor();
 	for (const auto *f : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(wire, {f->data(), f->size()}, true);
-	m::string(wire, {id.scope.data(), id.scope.size()}, true);
+		m::AppendPacker(wire).pack_bin({f->data(), f->size()});
+	m::AppendPacker(wire).pack_bin({id.scope.data(), id.scope.size()});
 	n(42);
 	std::uint64_t strings = 3, overrides = 0;
 	for (const auto &[key, row] : rows) {
@@ -70,7 +70,7 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 		} else {
 			a(2);
 			n(1);
-			m::signed_integer(wire, std::get<detent::IntDef>(row.first).default_value);
+			m::AppendPacker(wire).pack_int64(std::get<detent::IntDef>(row.first).default_value);
 		}
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decode(wire));

@@ -51,8 +51,8 @@ void publish(const std::filesystem::path &directory, std::shared_ptr<const d::Va
 }
 std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	std::string out;
-	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
-	auto a = [&](std::uint32_t value) { m::array(out, value); };
+	auto n = [&](std::uint64_t value) { m::AppendPacker(out).pack_uint64(value); };
+	auto a = [&](std::uint32_t value) { m::AppendPacker(out).pack_array(value); };
 	a(7);
 	n(1);
 	n(1);
@@ -63,8 +63,8 @@ std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	auto target = cursor();
 	target.revision = 43;
 	for (const auto *identity : {&target.cluster, &target.group, &target.restore_epoch})
-		m::string(out, {identity->data(), identity->size()}, true);
-	m::string(out, {target.scope.data(), target.scope.size()}, true);
+		m::AppendPacker(out).pack_bin({identity->data(), identity->size()});
+	m::AppendPacker(out).pack_bin({target.scope.data(), target.scope.size()});
 	n(43);
 	a(4);
 	n(1);
@@ -73,7 +73,7 @@ std::shared_ptr<const d::ValidatedSnapshot> empty() {
 	n(3);
 	a(1);
 	a(2);
-	m::string(out, "app");
+	m::AppendPacker(out).pack_str("app");
 	n(43);
 	a(0);
 	return std::make_shared<const d::ValidatedSnapshot>(decode(out, target));

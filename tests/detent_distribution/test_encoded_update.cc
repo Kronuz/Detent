@@ -1,11 +1,11 @@
 #include "detent_distribution/encoded_update.hh"
 #include "detent_distribution/framing.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/update_cache.hh"
 #include <iostream>
 #include <source_location>
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 void check(bool condition, std::source_location where = std::source_location::current()) {
 	if (!condition)
@@ -21,40 +21,40 @@ d::Cursor cursor(std::uint64_t revision) {
 	return result;
 }
 void put_cursor(std::string &out, d::Cursor id) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (const auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(out, std::string_view(field->data(), field->size()), true);
-	m::string(out, std::string_view(id.scope.data(), id.scope.size()), true);
-	m::unsigned_integer(out, id.revision);
+		m::AppendPacker(out).pack_bin(std::string_view(field->data(), field->size()));
+	m::AppendPacker(out).pack_bin(std::string_view(id.scope.data(), id.scope.size()));
+	m::AppendPacker(out).pack_uint64(id.revision);
 }
 std::string delta(bool progress, std::uint64_t base = 42, std::uint64_t target = 45) {
 	std::string out;
-	m::array(out, progress ? 5 : 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, progress ? 3 : 2);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
+	m::AppendPacker(out).pack_array(progress ? 5 : 7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(progress ? 3 : 2);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
 	put_cursor(out, cursor(base));
 	put_cursor(out, cursor(target));
 	if (!progress) {
-		m::array(out, 4);
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, 0);
-		m::unsigned_integer(out, 8);
-		m::array(out, 1);
-		m::array(out, 3);
-		m::unsigned_integer(out, target - 1);
-		m::array(out, 1);
-		m::array(out, 2);
-		m::string(out, "app");
-		m::unsigned_integer(out, target - 1);
-		m::array(out, 1);
-		m::array(out, 4);
-		m::unsigned_integer(out, 0);
-		m::string(out, "app:x");
-		m::unsigned_integer(out, 1);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_uint64(0);
+		m::AppendPacker(out).pack_uint64(8);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(3);
+		m::AppendPacker(out).pack_uint64(target - 1);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_str("app");
+		m::AppendPacker(out).pack_uint64(target - 1);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(0);
+		m::AppendPacker(out).pack_str("app:x");
+		m::AppendPacker(out).pack_uint64(1);
 		out.push_back('\xc0');
 	}
 	return out;
@@ -62,38 +62,38 @@ std::string delta(bool progress, std::uint64_t base = 42, std::uint64_t target =
 
 std::string snapshot() {
 	std::string out;
-	m::array(out, 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_array(5);
 	const auto id = cursor(42);
 	for (const auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(out, std::string_view(field->data(), field->size()), true);
-	m::string(out, std::string_view(id.scope.data(), id.scope.size()), true);
-	m::unsigned_integer(out, id.revision);
-	m::array(out, 4);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 3000);
-	m::unsigned_integer(out, 0);
-	m::unsigned_integer(out, 3000 * 34 + 3);
-	m::array(out, 1);
-	m::array(out, 2);
-	m::string(out, "app");
-	m::unsigned_integer(out, 42);
-	m::array(out, 3000);
+		m::AppendPacker(out).pack_bin(std::string_view(field->data(), field->size()));
+	m::AppendPacker(out).pack_bin(std::string_view(id.scope.data(), id.scope.size()));
+	m::AppendPacker(out).pack_uint64(id.revision);
+	m::AppendPacker(out).pack_array(4);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(3000);
+	m::AppendPacker(out).pack_uint64(0);
+	m::AppendPacker(out).pack_uint64(3000 * 34 + 3);
+	m::AppendPacker(out).pack_array(1);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_str("app");
+	m::AppendPacker(out).pack_uint64(42);
+	m::AppendPacker(out).pack_array(3000);
 	for (unsigned i = 0; i < 3000; ++i) {
-		m::array(out, 4);
-		m::unsigned_integer(out, 0);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(0);
 		char key[35];
 		std::snprintf(key, sizeof(key), "app:%030u", i);
-		m::string(out, key);
-		m::unsigned_integer(out, 42);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
-		m::signed_integer(out, i);
+		m::AppendPacker(out).pack_str(key);
+		m::AppendPacker(out).pack_uint64(42);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_int64(i);
 	}
 	return out;
 }

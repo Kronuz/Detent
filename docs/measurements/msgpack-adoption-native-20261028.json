@@ -1,0 +1,177 @@
+{
+  "status": "native-functional-and-wire-passed; adoption-open",
+  "library": "msgpack:f8975e37099959773cee069a2796409846029a62",
+  "library_hosted_run": 40721775099,
+  "library_hosted_jobs": 8,
+  "consumer_base": "Detent:c1f3b57",
+  "baseline": "Detent:a5a8304",
+  "baseline_scope": "Production distribution/authority codec sources, root CMake and dependency manifest match current main; unrelated prepared-reader code differs. Baseline target built before capture.",
+  "native_profiles": {
+    "bounded_only": {
+      "tests": 2,
+      "elapsed_seconds": 0.47,
+      "fetched_dependency_sources": 0
+    },
+    "dom": {
+      "tests": 4,
+      "elapsed_seconds": 1.13
+    },
+    "consumer_focused": {
+      "tests": 66,
+      "elapsed_seconds": 153.36
+    },
+    "retention_with_tls_fixture": {
+      "tests": 3,
+      "elapsed_seconds": 1.26
+    }
+  },
+  "compiler": "Homebrew clang version 23.1.2",
+  "consumer_flags": "Release -O3 -DNDEBUG; runtime checks use target -UNDEBUG; explicit MacOSX SDK",
+  "local_dependency_overrides": false,
+  "logical_wire_captures": {
+    "34": {
+      "before": {
+        "key_bytes": 34,
+        "files": {
+          "0.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "1.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      },
+      "after": {
+        "key_bytes": 34,
+        "files": {
+          "0.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "1.wire": {
+            "bytes": 131733,
+            "sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      },
+      "byte_identical": true
+    },
+    "200": {
+      "before": {
+        "key_bytes": 200,
+        "files": {
+          "0.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "1.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      },
+      "after": {
+        "key_bytes": 200,
+        "files": {
+          "0.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "1.wire": {
+            "bytes": 629733,
+            "sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+          },
+          "2.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "3.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "4.wire": {
+            "bytes": 212,
+            "sha256": "0e0a9df60cae4f56ae007169674e181dc24ca4f07e22e584ec7968047d7358ff"
+          },
+          "5.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          },
+          "6.wire": {
+            "bytes": 186,
+            "sha256": "5452c5ff5a96309e46b0509692f5c418d47640374e5112a02fdb25c3e0b6af7e"
+          }
+        }
+      },
+      "byte_identical": true
+    }
+  },
+  "capture_controller_sha256": "c1719cae5fccdb08688bac94d50ef700ba25f2080f131affafcee4c94d25be2d",
+  "remaining": [
+    "Production-path paired CPU, turn and admitted-memory costs",
+    "Full consumer hosted/platform/sanitizer qualification",
+    "Consolidated component review and library/catalog/main adoption"
+  ]
+}

@@ -1,10 +1,10 @@
 #include "detent_distribution/snapshot_encoder.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/wire_encoder.hh"
 #include <algorithm>
 namespace detent::distribution {
 namespace d = detent::distribution;
-namespace m = distribution::messagepack;
+namespace m = msgpack::bounded;
 struct SnapshotEncoder::Impl {
 	static constexpr std::size_t chunk_bytes = 65536;
 	std::shared_ptr<SnapshotSource> source;
@@ -43,19 +43,19 @@ struct SnapshotEncoder::Impl {
 		wire_length += bytes.size();
 	}
 	void namespace_row(m::InlineBytes<512> &out, std::uint64_t ordinal) const {
-		m::array(out, 2);
+		m::AppendPacker(out).pack_array(2);
 		const auto row = source->name_space(ordinal);
-		m::string(out, row.name);
-		m::unsigned_integer(out, row.revision);
+		m::AppendPacker(out).pack_str(row.name);
+		m::AppendPacker(out).pack_uint64(row.revision);
 	}
 	static void override_row(m::InlineBytes<512> &out, std::string_view name, const GroupOverride &value) {
 		detail::wire::override_row(out, name, value);
 	}
 	static void record_row(m::InlineBytes<512> &out, const Record &row) {
-		m::array(out, 4);
-		m::unsigned_integer(out, row.namespace_index);
-		m::string(out, row.key);
-		m::unsigned_integer(out, row.revision);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(row.namespace_index);
+		m::AppendPacker(out).pack_str(row.key);
+		m::AppendPacker(out).pack_uint64(row.revision);
 		detail::wire::definition(out, row.definition);
 	}
 	void count_one() {
@@ -95,7 +95,7 @@ struct SnapshotEncoder::Impl {
 		if (!current) {
 			if (records_done) {
 				header(encoded);
-				m::array(encoded, records);
+				m::AppendPacker(encoded).pack_array(records);
 				count_wire(encoded);
 				namespaces = 0;
 				source->reset_records();
@@ -127,24 +127,24 @@ struct SnapshotEncoder::Impl {
 		}
 	}
 	void header(m::InlineBytes<512> &out) const {
-		m::array(out, 7);
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, 1);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, 1);
+		m::AppendPacker(out).pack_array(7);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_uint64(1);
 		const auto &id = source->cursor();
-		m::array(out, 5);
+		m::AppendPacker(out).pack_array(5);
 		for (auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-			m::string(out, {field->data(), field->size()}, true);
-		m::string(out, {id.scope.data(), id.scope.size()}, true);
-		m::unsigned_integer(out, id.revision);
-		m::array(out, 4);
-		m::unsigned_integer(out, source->namespace_count());
-		m::unsigned_integer(out, records);
-		m::unsigned_integer(out, overrides);
-		m::unsigned_integer(out, strings);
-		m::array(out, source->namespace_count());
+			m::AppendPacker(out).pack_bin({field->data(), field->size()});
+		m::AppendPacker(out).pack_bin({id.scope.data(), id.scope.size()});
+		m::AppendPacker(out).pack_uint64(id.revision);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(source->namespace_count());
+		m::AppendPacker(out).pack_uint64(records);
+		m::AppendPacker(out).pack_uint64(overrides);
+		m::AppendPacker(out).pack_uint64(strings);
+		m::AppendPacker(out).pack_array(source->namespace_count());
 	}
 	void emit_one() {
 		if (phase == 2) {
@@ -156,7 +156,7 @@ struct SnapshotEncoder::Impl {
 			if (namespaces < source->namespace_count())
 				namespace_row(pending, namespaces++);
 			else {
-				m::array(pending, records);
+				m::AppendPacker(pending).pack_array(records);
 				namespaces = 0;
 				phase = 4;
 			}

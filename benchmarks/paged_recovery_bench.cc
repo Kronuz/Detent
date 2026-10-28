@@ -14,7 +14,7 @@
 #include <unistd.h>
 namespace d = detent::distribution;
 namespace l = detent::local;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 using Clock = std::chrono::steady_clock;
 void check(bool value) {
 	if (!value)
@@ -36,13 +36,13 @@ std::string key(unsigned i) {
 }
 d::ValidatedDelta delta(d::Cursor base, unsigned changes, std::shared_ptr<d::StorageLedger> heap) {
 	std::string wire;
-	auto array = [&](unsigned n) { m::array(wire, n); };
-	auto number = [&](std::uint64_t n) { m::unsigned_integer(wire, n); };
+	auto array = [&](unsigned n) { m::AppendPacker(wire).pack_array(n); };
+	auto number = [&](std::uint64_t n) { m::AppendPacker(wire).pack_uint64(n); };
 	auto cursor = [&](const d::Cursor &value) {
 		array(5);
 		for (const auto *id : {&value.cluster, &value.group, &value.restore_epoch})
-			m::string(wire, {id->data(), id->size()}, true);
-		m::string(wire, {value.scope.data(), value.scope.size()}, true);
+			m::AppendPacker(wire).pack_bin({id->data(), id->size()});
+		m::AppendPacker(wire).pack_bin({value.scope.data(), value.scope.size()});
 		number(value.revision);
 	};
 	array(changes ? 7 : 5);
@@ -66,17 +66,17 @@ d::ValidatedDelta delta(d::Cursor base, unsigned changes, std::shared_ptr<d::Sto
 		number(base.revision + 1);
 		array(1);
 		array(2);
-		m::string(wire, "app");
+		m::AppendPacker(wire).pack_str("app");
 		number(base.revision + 1);
 		array(changes);
 		for (unsigned i = 0; i < changes; ++i) {
 			array(4);
 			number(0);
-			m::string(wire, "app:" + key(i * 4));
+			m::AppendPacker(wire).pack_str("app:" + key(i * 4));
 			number(0);
 			array(2);
 			number(1);
-			m::signed_integer(wire, 1000000 + i);
+			m::AppendPacker(wire).pack_int64(1000000 + i);
 		}
 	}
 	d::Limits limits;

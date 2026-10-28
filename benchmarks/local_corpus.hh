@@ -1,5 +1,5 @@
 #pragma once
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/protocol.hh"
 #include <algorithm>
 #include <stdexcept>
@@ -22,7 +22,7 @@ struct LocalCorpus {
 };
 inline LocalCorpus local_corpus(std::uint32_t count) {
 	namespace d = distribution;
-	namespace m = d::messagepack;
+	namespace m = msgpack::bounded;
 	const auto width = local_key_width(count);
 	auto integers = count / 4 + (count % 4 != 0), overrides = count - integers;
 	d::Cursor cursor;
@@ -32,9 +32,9 @@ inline LocalCorpus local_corpus(std::uint32_t count) {
 	cursor.scope.fill('s');
 	cursor.revision = 1;
 	std::string wire;
-	auto a = [&](auto n) { m::array(wire, n); };
-	auto u = [&](auto n) { m::unsigned_integer(wire, n); };
-	auto s = [&](std::string_view text) { m::string(wire, text); };
+	auto a = [&](auto n) { m::AppendPacker(wire).pack_array(n); };
+	auto u = [&](auto n) { m::AppendPacker(wire).pack_uint64(n); };
+	auto s = [&](std::string_view text) { m::AppendPacker(wire).pack_str(text); };
 	a(7);
 	u(1);
 	u(1);
@@ -43,8 +43,8 @@ inline LocalCorpus local_corpus(std::uint32_t count) {
 	u(1);
 	a(5);
 	for (auto *id : {&cursor.cluster, &cursor.group, &cursor.restore_epoch})
-		m::string(wire, {id->data(), id->size()}, true);
-	m::string(wire, {cursor.scope.data(), cursor.scope.size()}, true);
+		m::AppendPacker(wire).pack_bin({id->data(), id->size()});
+	m::AppendPacker(wire).pack_bin({cursor.scope.data(), cursor.scope.size()});
 	u(1);
 	a(4);
 	u(1);
@@ -65,7 +65,7 @@ inline LocalCorpus local_corpus(std::uint32_t count) {
 		if (i % 4 == 0) {
 			a(2);
 			u(1);
-			m::signed_integer(wire, -std::int64_t(i));
+			m::AppendPacker(wire).pack_int64(-std::int64_t(i));
 		} else {
 			a(4);
 			u(0);

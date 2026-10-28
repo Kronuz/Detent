@@ -1,12 +1,12 @@
 #include "detent_delivery/response.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <array>
 #include <charconv>
 #include <iostream>
 #include <source_location>
 namespace d = detent::distribution;
 namespace t = detent::delivery;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
@@ -22,56 +22,56 @@ d::Cursor cursor(std::uint64_t revision = 5) {
 	return result;
 }
 void put_cursor(std::string &out, d::Cursor value) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (const auto *part : {&value.cluster, &value.group, &value.restore_epoch})
-		m::string(out, {part->data(), part->size()}, true);
-	m::string(out, {value.scope.data(), value.scope.size()}, true);
-	m::unsigned_integer(out, value.revision);
+		m::AppendPacker(out).pack_bin({part->data(), part->size()});
+	m::AppendPacker(out).pack_bin({value.scope.data(), value.scope.size()});
+	m::AppendPacker(out).pack_uint64(value.revision);
 }
 std::string message(d::UpdateKind kind, unsigned rows = 1) {
 	std::string out;
-	m::array(out, kind == d::UpdateKind::Progress ? 5 : 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, static_cast<unsigned>(kind));
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
+	m::AppendPacker(out).pack_array(kind == d::UpdateKind::Progress ? 5 : 7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(static_cast<unsigned>(kind));
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
 	if (kind != d::UpdateKind::Snapshot)
 		put_cursor(out, cursor(4));
 	put_cursor(out, cursor());
 	if (kind == d::UpdateKind::Progress)
 		return out;
-	m::array(out, 4);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, rows);
-	m::unsigned_integer(out, 0);
-	m::unsigned_integer(out, 2 + rows * 12);
+	m::AppendPacker(out).pack_array(4);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(rows);
+	m::AppendPacker(out).pack_uint64(0);
+	m::AppendPacker(out).pack_uint64(2 + rows * 12);
 	if (kind == d::UpdateKind::Snapshot) {
-		m::array(out, 1);
-		m::array(out, 2);
-		m::string(out, "ns");
-		m::unsigned_integer(out, 5);
-		m::array(out, rows);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_str("ns");
+		m::AppendPacker(out).pack_uint64(5);
+		m::AppendPacker(out).pack_array(rows);
 	} else {
-		m::array(out, 1);
-		m::array(out, 3);
-		m::unsigned_integer(out, 5);
-		m::array(out, 1);
-		m::array(out, 2);
-		m::string(out, "ns");
-		m::unsigned_integer(out, 5);
-		m::array(out, rows);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(3);
+		m::AppendPacker(out).pack_uint64(5);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_str("ns");
+		m::AppendPacker(out).pack_uint64(5);
+		m::AppendPacker(out).pack_array(rows);
 	}
 	for (unsigned row = 0; row < rows; ++row) {
 		std::string key = std::to_string(row);
 		key = "ns:k" + std::string(8 - key.size(), '0') + key;
-		m::array(out, 4);
-		m::unsigned_integer(out, 0);
-		m::string(out, key);
-		m::unsigned_integer(out, kind == d::UpdateKind::Snapshot ? 5 : 0);
-		m::array(out, 2);
-		m::unsigned_integer(out, 1);
-		m::signed_integer(out, 7);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(0);
+		m::AppendPacker(out).pack_str(key);
+		m::AppendPacker(out).pack_uint64(kind == d::UpdateKind::Snapshot ? 5 : 0);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_int64(7);
 	}
 	return out;
 }

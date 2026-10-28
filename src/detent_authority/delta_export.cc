@@ -1,9 +1,9 @@
 #include "delta_export.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <algorithm>
 namespace detent::authority {
 namespace d = distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 struct HistoryDeltaSource final : d::DeltaSource {
 	struct Entry {
@@ -19,7 +19,7 @@ struct HistoryDeltaSource final : d::DeltaSource {
 	Entries entries;
 	m::InlineBytes<512> scratch;
 	std::string_view pending;
-	std::optional<m::WireDecoder> decoder;
+	std::optional<detent::distribution::WireDecoder> decoder;
 	std::span<const char> input;
 	std::uint64_t revision, mutations = 0, overrides = 0, strings = 0;
 	std::uint64_t children = 0;
@@ -85,13 +85,13 @@ struct HistoryDeltaSource final : d::DeltaSource {
 	}
 	void transaction_header() {
 		const auto &value = entries[entry];
-		m::array(scratch, 3);
-		m::unsigned_integer(scratch, value.change->revision);
-		m::array(scratch, 1);
-		m::array(scratch, 2);
-		m::string(scratch, value.change->name_space());
-		m::unsigned_integer(scratch, value.change->revision);
-		m::array(scratch, value.change->mutations);
+		m::AppendPacker(scratch).pack_array(3);
+		m::AppendPacker(scratch).pack_uint64(value.change->revision);
+		m::AppendPacker(scratch).pack_array(1);
+		m::AppendPacker(scratch).pack_array(2);
+		m::AppendPacker(scratch).pack_str(value.change->name_space());
+		m::AppendPacker(scratch).pack_uint64(value.change->revision);
+		m::AppendPacker(scratch).pack_array(value.change->mutations);
 		decoder.emplace(m::Limits{value.change->body->size(), 200, 32, UINT32_MAX});
 		input = {value.change->body->data(), value.change->body->size()};
 		skipped = token_start = 0;
@@ -114,8 +114,8 @@ struct HistoryDeltaSource final : d::DeltaSource {
 			if (value->kind != m::Kind::Array || value->number != 3)
 				throw std::logic_error("invalid cached mutation boundary");
 			children = 3;
-			m::array(scratch, 4);
-			m::unsigned_integer(scratch, entries[entry].ns);
+			m::AppendPacker(scratch).pack_array(4);
+			m::AppendPacker(scratch).pack_uint64(entries[entry].ns);
 			pending = scratch;
 		} else {
 			--children;

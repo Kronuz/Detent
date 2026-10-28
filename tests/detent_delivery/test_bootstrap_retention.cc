@@ -12,14 +12,15 @@ void check(bool value, std::source_location at = std::source_location::current()
 d::Cursor at(std::uint64_t revision) { auto c = cursor(); c.revision = revision; return c; }
 std::string progress(std::uint64_t base, std::uint64_t target) {
     std::string out;
-    m::array(out, 5); m::unsigned_integer(out, 1); m::unsigned_integer(out, 3);
-    m::array(out, 2); m::unsigned_integer(out, 1); m::unsigned_integer(out, 1);
+    m::AppendPacker pack(out);
+    pack.pack_array(5); pack.pack_uint64(1); pack.pack_uint64(3);
+    pack.pack_array(2); pack.pack_uint64(1); pack.pack_uint64(1);
     for (auto c : {at(base), at(target)}) {
-        m::array(out, 5);
+        pack.pack_array(5);
         for (auto *field : {&c.cluster, &c.group, &c.restore_epoch})
-            m::string(out, {field->data(), field->size()}, true);
-        m::string(out, {c.scope.data(), c.scope.size()}, true);
-        m::unsigned_integer(out, c.revision);
+            pack.pack_bin({field->data(), field->size()});
+        pack.pack_bin({c.scope.data(), c.scope.size()});
+        pack.pack_uint64(c.revision);
     }
     return out;
 }

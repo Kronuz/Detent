@@ -18,9 +18,9 @@ template <class Error, class F> void rejects(F call) {
 std::string heavy(bool snapshot) {
 	constexpr unsigned count = 256, overrides = 256;
 	std::string wire;
-	auto a = [&](unsigned n) { m::array(wire, n); };
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(wire, v); };
-	auto text = [&](std::string_view v) { m::string(wire, v); };
+	auto a = [&](unsigned n) { m::AppendPacker(wire).pack_array(n); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(wire).pack_uint64(v); };
+	auto text = [&](std::string_view v) { m::AppendPacker(wire).pack_str(v); };
 	auto boolean = [&] {
 		a(4);
 		n(0);
@@ -68,7 +68,7 @@ std::string heavy(bool snapshot) {
 		n(41);
 		a(2);
 		n(1);
-		m::signed_integer(wire, INT64_MIN);
+		m::AppendPacker(wire).pack_int64(INT64_MIN);
 		a(4);
 		n(0);
 		text("app:flag");

@@ -1,5 +1,5 @@
 #include "detent_delivery/client.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <asio.hpp>
 #include <filesystem>
 #include <iostream>
@@ -7,7 +7,7 @@
 #include <thread>
 namespace d = detent::distribution;
 namespace t = detent::delivery;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 using namespace std::chrono_literals;
 namespace {
 void check(bool value, std::source_location where = std::source_location::current()) {
@@ -25,23 +25,23 @@ d::Cursor cursor() {
 }
 std::string response(bool compressed) {
 	std::string out;
-	m::array(out, 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_array(5);
 	const auto id = cursor();
 	for (const auto *part : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(out, {part->data(), part->size()}, true);
-	m::string(out, {id.scope.data(), id.scope.size()}, true);
-	m::unsigned_integer(out, 1);
-	m::array(out, 4);
+		m::AppendPacker(out).pack_bin({part->data(), part->size()});
+	m::AppendPacker(out).pack_bin({id.scope.data(), id.scope.size()});
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_array(4);
 	for (unsigned i = 0; i < 4; ++i)
-		m::unsigned_integer(out, 0);
-	m::array(out, 0);
-	m::array(out, 0);
+		m::AppendPacker(out).pack_uint64(0);
+	m::AppendPacker(out).pack_array(0);
+	m::AppendPacker(out).pack_array(0);
 	d::Identity update;
 	update.fill('u');
 	const auto body =

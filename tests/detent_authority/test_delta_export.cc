@@ -1,56 +1,56 @@
 #include "delta_export.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <iostream>
 #include <source_location>
 namespace a = detent::authority;
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 void check(bool value, std::source_location line = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("delta export invariant at " + std::to_string(line.line()));
 }
 void cursor(std::string &out, const d::Cursor &value) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (const auto *id : {&value.cluster, &value.group, &value.restore_epoch})
-		m::string(out, {id->data(), id->size()}, true);
-	m::string(out, {value.scope.data(), value.scope.size()}, true);
-	m::unsigned_integer(out, value.revision);
+		m::AppendPacker(out).pack_bin({id->data(), id->size()});
+	m::AppendPacker(out).pack_bin({value.scope.data(), value.scope.size()});
+	m::AppendPacker(out).pack_uint64(value.revision);
 }
 std::string oracle(d::Cursor base, d::Cursor target, bool progress = false) {
 	std::string out;
-	m::array(out, progress ? 5 : 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, progress ? 3 : 2);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
+	m::AppendPacker(out).pack_array(progress ? 5 : 7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(progress ? 3 : 2);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
 	cursor(out, base);
 	cursor(out, target);
 	if (progress)
 		return out;
-	m::array(out, 4);
-	m::unsigned_integer(out, 2);
-	m::unsigned_integer(out, 2);
-	m::unsigned_integer(out, 0);
-	m::unsigned_integer(out, 12);
-	m::array(out, 2);
+	m::AppendPacker(out).pack_array(4);
+	m::AppendPacker(out).pack_uint64(2);
+	m::AppendPacker(out).pack_uint64(2);
+	m::AppendPacker(out).pack_uint64(0);
+	m::AppendPacker(out).pack_uint64(12);
+	m::AppendPacker(out).pack_array(2);
 	for (auto revision : {1, 3}) {
-		m::array(out, 3);
-		m::unsigned_integer(out, revision);
-		m::array(out, 1);
-		m::array(out, 2);
-		m::string(out, "ns");
-		m::unsigned_integer(out, revision);
-		m::array(out, 1);
-		m::array(out, 4);
-		m::unsigned_integer(out, 0);
-		m::string(out, "ns:a");
-		m::unsigned_integer(out, revision == 1 ? 0 : 1);
+		m::AppendPacker(out).pack_array(3);
+		m::AppendPacker(out).pack_uint64(revision);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(2);
+		m::AppendPacker(out).pack_str("ns");
+		m::AppendPacker(out).pack_uint64(revision);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(0);
+		m::AppendPacker(out).pack_str("ns:a");
+		m::AppendPacker(out).pack_uint64(revision == 1 ? 0 : 1);
 		if (revision == 1) {
-			m::array(out, 2);
-			m::unsigned_integer(out, 1);
-			m::signed_integer(out, 7);
+			m::AppendPacker(out).pack_array(2);
+			m::AppendPacker(out).pack_uint64(1);
+			m::AppendPacker(out).pack_int64(7);
 		} else
 			out.push_back('\xc0');
 	}

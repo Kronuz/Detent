@@ -1,13 +1,13 @@
 #include "detent_distribution/protocol.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <algorithm>
 #include <limits>
 
 namespace detent::distribution {
 namespace {
-namespace m = messagepack;
+namespace m = msgpack::bounded;
 void require(bool value, const char *message) {
 	if (!value)
 		throw std::invalid_argument(message);
@@ -40,15 +40,15 @@ template <class Names> Scope owned_scope(const Names &names, const Limits &limit
 		scope.emplace_back(name);
 	return scope;
 }
-std::uint64_t number(const m::WireToken &token) {
+std::uint64_t number(const detent::distribution::WireToken &token) {
 	require(token.kind == m::Kind::Unsigned || (token.kind == m::Kind::Signed && token.signed_value() >= 0),
 			"unsigned distribution integer required");
 	return token.number;
 }
-void array(const m::WireToken &token, std::uint64_t size) {
+void array(const detent::distribution::WireToken &token, std::uint64_t size) {
 	require(token.kind == m::Kind::Array && token.number == size, "distribution tuple arity mismatch");
 }
-template <std::size_t N> void identity(const m::WireToken &token, std::array<char, N> &output) {
+template <std::size_t N> void identity(const detent::distribution::WireToken &token, std::array<char, N> &output) {
 	require(token.kind == m::Kind::Binary && token.bytes.size() == N, "distribution identity width mismatch");
 	std::copy(token.bytes.begin(), token.bytes.end(), output.begin());
 }
@@ -105,7 +105,7 @@ struct DefinitionDecoder {
 	std::uint64_t remaining_overrides = 0, definition_arity = 0, override_tag = 0, definition_bytes = 0;
 	Phase phase = Phase::DefinitionTuple;
 	std::optional<WireDefinition> value;
-	std::string_view text(m::WireToken &token) {
+	std::string_view text(detent::distribution::WireToken &token) {
 		require(token.kind == m::Kind::String && token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
 				"distribution string budget exceeded");
@@ -113,7 +113,7 @@ struct DefinitionDecoder {
 		return store_text(arena, token.bytes).value;
 	}
 	void finish(WireDefinition definition) { value = std::move(definition); }
-	void consume(m::WireToken token) {
+	void consume(detent::distribution::WireToken token) {
 		require(!value, "definition already decoded");
 		switch (phase) {
 		case Phase::DefinitionTuple:
@@ -247,7 +247,7 @@ struct SnapshotDecoder::Impl {
 	Scope scope;
 	std::size_t scope_retirement_credit = 0;
 	Limits limits;
-	m::WireDecoder decoder;
+	detent::distribution::WireDecoder decoder;
 	ValidatedSnapshot snapshot;
 	Record record;
 	std::optional<DefinitionDecoder> definition;
@@ -267,7 +267,7 @@ struct SnapshotDecoder::Impl {
 					expected.restore_epoch != Identity{} && expected.scope != ScopeIdentity{},
 				"unconfigured distribution identity");
 	}
-	std::string_view text(m::WireToken &token) {
+	std::string_view text(detent::distribution::WireToken &token) {
 		require(token.kind == m::Kind::String, "distribution string required");
 		require(token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
@@ -283,7 +283,7 @@ struct SnapshotDecoder::Impl {
 		record = {};
 		phase = snapshot.storage_->records.size() == declared_records ? Phase::End : Phase::RecordTuple;
 	}
-	void consume(m::WireToken token) {
+	void consume(detent::distribution::WireToken token) {
 		switch (phase) {
 		case Phase::Root:
 			array(token, 7);
@@ -555,7 +555,7 @@ struct DeltaDecoder::Impl {
 	struct CursorParser {
 		Cursor value;
 		unsigned step = 0;
-		bool consume(const m::WireToken &token) {
+		bool consume(const detent::distribution::WireToken &token) {
 			switch (step++) {
 			case 0:
 				array(token, 5);
@@ -585,7 +585,7 @@ struct DeltaDecoder::Impl {
 	Scope scope;
 	std::size_t scope_retirement_credit = 0;
 	Limits limits;
-	m::WireDecoder decoder;
+	detent::distribution::WireDecoder decoder;
 	ValidatedDelta delta;
 	CursorParser cursor;
 	std::optional<DefinitionDecoder> definition;
@@ -612,7 +612,7 @@ struct DeltaDecoder::Impl {
 					expected.restore_epoch != Identity{} && expected.scope != ScopeIdentity{},
 				"unconfigured delta identity");
 	}
-	std::string_view text(m::WireToken &token) {
+	std::string_view text(detent::distribution::WireToken &token) {
 		require(token.kind == m::Kind::String && token.bytes.size() <= limits.string_bytes - seen_strings &&
 					token.bytes.size() <= declared_strings - seen_strings,
 				"delta string budget exceeded");
@@ -647,7 +647,7 @@ struct DeltaDecoder::Impl {
 		} else
 			phase = Phase::MutationTuple;
 	}
-	void consume(m::WireToken token) {
+	void consume(detent::distribution::WireToken token) {
 		switch (phase) {
 		case Phase::Root:
 			array(token, delta.kind_ == UpdateKind::Progress ? 5 : 7);

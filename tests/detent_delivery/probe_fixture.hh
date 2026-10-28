@@ -1,6 +1,6 @@
 #pragma once
 #include "detent_distribution/framing.hh"
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -10,7 +10,7 @@
 
 namespace probe_fixture {
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 inline void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("probe invariant at " + std::to_string(where.line()));
@@ -31,46 +31,46 @@ inline d::Identity session() {
 }
 inline std::string session_hex() { return "61616161616161616161616161616161"; }
 inline void put_cursor(std::string &out, d::Cursor value) {
-	m::array(out, 5);
+	m::AppendPacker(out).pack_array(5);
 	for (const auto *part : {&value.cluster, &value.group, &value.restore_epoch})
-		m::string(out, {part->data(), part->size()}, true);
-	m::string(out, {value.scope.data(), value.scope.size()}, true);
-	m::unsigned_integer(out, value.revision);
+		m::AppendPacker(out).pack_bin({part->data(), part->size()});
+	m::AppendPacker(out).pack_bin({value.scope.data(), value.scope.size()});
+	m::AppendPacker(out).pack_uint64(value.revision);
 }
 inline std::string semantic(d::UpdateKind kind = d::UpdateKind::Snapshot, std::uint64_t revision = 5) {
 	std::string out;
 	const bool progress = kind == d::UpdateKind::Progress;
-	m::array(out, progress ? 5 : 7);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, static_cast<unsigned>(kind));
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::unsigned_integer(out, 1);
+	m::AppendPacker(out).pack_array(progress ? 5 : 7);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(static_cast<unsigned>(kind));
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_uint64(1);
 	if (kind != d::UpdateKind::Snapshot)
 		put_cursor(out, cursor(4));
 	put_cursor(out, cursor(revision));
 	if (progress)
 		return out;
-	m::array(out, 4);
+	m::AppendPacker(out).pack_array(4);
 	for (const auto count : {1, 1, 0, 14})
-		m::unsigned_integer(out, count);
+		m::AppendPacker(out).pack_uint64(count);
 	if (kind == d::UpdateKind::Delta) {
-		m::array(out, 1);
-		m::array(out, 3);
-		m::unsigned_integer(out, revision);
+		m::AppendPacker(out).pack_array(1);
+		m::AppendPacker(out).pack_array(3);
+		m::AppendPacker(out).pack_uint64(revision);
 	}
-	m::array(out, 1);
-	m::array(out, 2);
-	m::string(out, "ns");
-	m::unsigned_integer(out, revision);
-	m::array(out, 1);
-	m::array(out, 4);
-	m::unsigned_integer(out, 0);
-	m::string(out, "ns:k00000000");
-	m::unsigned_integer(out, kind == d::UpdateKind::Snapshot ? revision : 0);
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
-	m::signed_integer(out, 7);
+	m::AppendPacker(out).pack_array(1);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_str("ns");
+	m::AppendPacker(out).pack_uint64(revision);
+	m::AppendPacker(out).pack_array(1);
+	m::AppendPacker(out).pack_array(4);
+	m::AppendPacker(out).pack_uint64(0);
+	m::AppendPacker(out).pack_str("ns:k00000000");
+	m::AppendPacker(out).pack_uint64(kind == d::UpdateKind::Snapshot ? revision : 0);
+	m::AppendPacker(out).pack_array(2);
+	m::AppendPacker(out).pack_uint64(1);
+	m::AppendPacker(out).pack_int64(7);
 	return out;
 }
 inline std::array<unsigned char, 32> digest(std::string_view bytes) {

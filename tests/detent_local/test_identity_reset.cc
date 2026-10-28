@@ -1,4 +1,4 @@
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_local/disk_store.hh"
 #include <completion/posix.h>
 #include <filesystem>
@@ -30,8 +30,8 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 std::unique_ptr<l::ImageBuilder> build(const d::Cursor &cursor, char generation,
 									   std::shared_ptr<d::StorageLedger> account) {
 	std::string wire;
-	auto n = [&](std::uint64_t value) { d::messagepack::unsigned_integer(wire, value); };
-	auto a = [&](std::uint32_t value) { d::messagepack::array(wire, value); };
+	auto n = [&](std::uint64_t value) { ::msgpack::bounded::AppendPacker(wire).pack_uint64(value); };
+	auto a = [&](std::uint32_t value) { ::msgpack::bounded::AppendPacker(wire).pack_array(value); };
 	a(7);
 	n(1);
 	n(1);
@@ -40,8 +40,8 @@ std::unique_ptr<l::ImageBuilder> build(const d::Cursor &cursor, char generation,
 	n(1);
 	a(5);
 	for (const auto *identity : {&cursor.cluster, &cursor.group, &cursor.restore_epoch})
-		d::messagepack::string(wire, {identity->data(), identity->size()}, true);
-	d::messagepack::string(wire, {cursor.scope.data(), cursor.scope.size()}, true);
+		::msgpack::bounded::AppendPacker(wire).pack_bin({identity->data(), identity->size()});
+	::msgpack::bounded::AppendPacker(wire).pack_bin({cursor.scope.data(), cursor.scope.size()});
 	n(cursor.revision);
 	a(4);
 	n(0);

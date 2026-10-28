@@ -17,9 +17,9 @@ std::string encode(std::shared_ptr<d::SnapshotSource> source, bool tiny) {
 }
 std::shared_ptr<const d::ValidatedSnapshot> small(unsigned count) {
 	std::string wire;
-	auto n = [&](std::uint64_t v) { m::unsigned_integer(wire, v); };
-	auto a = [&](unsigned v) { m::array(wire, v); };
-	auto text = [&](std::string_view v) { m::string(wire, v); };
+	auto n = [&](std::uint64_t v) { m::AppendPacker(wire).pack_uint64(v); };
+	auto a = [&](unsigned v) { m::AppendPacker(wire).pack_array(v); };
+	auto text = [&](std::string_view v) { m::AppendPacker(wire).pack_str(v); };
 	a(7);
 	n(1);
 	n(1);
@@ -29,8 +29,8 @@ std::shared_ptr<const d::ValidatedSnapshot> small(unsigned count) {
 	a(5);
 	const auto id = cursor();
 	for (const auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(wire, {field->data(), field->size()}, true);
-	m::string(wire, {id.scope.data(), id.scope.size()}, true);
+		m::AppendPacker(wire).pack_bin({field->data(), field->size()});
+	m::AppendPacker(wire).pack_bin({id.scope.data(), id.scope.size()});
 	n(id.revision);
 	a(4);
 	n(count ? 5 : 0);
@@ -57,7 +57,7 @@ std::shared_ptr<const d::ValidatedSnapshot> small(unsigned count) {
 			if (i != 1) {
 				a(2);
 				n(1);
-				m::signed_integer(wire, -1);
+				m::AppendPacker(wire).pack_int64(-1);
 			} else {
 				a(4);
 				n(0);

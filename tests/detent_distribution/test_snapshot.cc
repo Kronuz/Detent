@@ -1,9 +1,9 @@
-#include "detent_distribution/messagepack.hh"
+#include "detent_distribution/wire_codec.hh"
 #include "detent_distribution/protocol.hh"
 #include "storage_failure_fixture.hh"
 #include <iostream>
 namespace d = detent::distribution;
-namespace m = d::messagepack;
+namespace m = msgpack::bounded;
 void require(bool value) {
 	if (!value)
 		throw std::runtime_error("snapshot invariant failed");
@@ -20,9 +20,9 @@ d::Cursor cursor() {
 std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, std::uint64_t percentage = 25,
 					std::uint64_t revision = 42) {
 	std::string out;
-	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
-	auto a = [&](std::uint32_t value) { m::array(out, value); };
-	auto s = [&](std::string_view value) { m::string(out, value); };
+	auto n = [&](std::uint64_t value) { m::AppendPacker(out).pack_uint64(value); };
+	auto a = [&](std::uint32_t value) { m::AppendPacker(out).pack_array(value); };
+	auto s = [&](std::string_view value) { m::AppendPacker(out).pack_str(value); };
 	a(7);
 	n(1);
 	n(1);
@@ -32,8 +32,8 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	a(5);
 	const auto id = cursor();
 	for (const auto *field : {&id.cluster, &id.group, &id.restore_epoch})
-		m::string(out, std::string_view(field->data(), field->size()), true);
-	m::string(out, std::string_view(id.scope.data(), id.scope.size()), true);
+		m::AppendPacker(out).pack_bin(std::string_view(field->data(), field->size()));
+	m::AppendPacker(out).pack_bin(std::string_view(id.scope.data(), id.scope.size()));
 	n(revision);
 	a(4);
 	n(1);
@@ -51,7 +51,7 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	n(41);
 	a(2);
 	n(1);
-	m::signed_integer(out, std::numeric_limits<std::int64_t>::min());
+	m::AppendPacker(out).pack_int64(std::numeric_limits<std::int64_t>::min());
 	a(4);
 	n(0);
 	s("app:flag");

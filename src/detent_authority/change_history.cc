@@ -5,7 +5,7 @@
 #include <vector>
 namespace detent::authority {
 namespace d = distribution;
-namespace m = distribution::messagepack;
+namespace m = msgpack::bounded;
 namespace {
 class HistoryDraft final : public AppliedChangeDraft {
 	using Scratch = m::InlineBytes<512>;
@@ -28,13 +28,13 @@ class HistoryDraft final : public AppliedChangeDraft {
 		extent_ += bytes;
 	}
 	void header(Scratch &out) {
-		m::array(out, 4);
-		m::unsigned_integer(out, 1);
-		m::unsigned_integer(out, entry_->revision);
+		m::AppendPacker(out).pack_array(4);
+		m::AppendPacker(out).pack_uint64(1);
+		m::AppendPacker(out).pack_uint64(entry_->revision);
 		entry_->namespace_offset = out.size() + (command_->name_space.size() <= 31 ? 1 : 2);
 		entry_->namespace_length = command_->name_space.size();
-		m::string(out, command_->name_space);
-		m::array(out, entry_->mutations);
+		m::AppendPacker(out).pack_str(command_->name_space);
+		m::AppendPacker(out).pack_array(entry_->mutations);
 	}
 	void next() {
 		if (phase_ == 0) {
@@ -71,13 +71,13 @@ class HistoryDraft final : public AppliedChangeDraft {
 			return;
 		}
 		const auto &mutation = command_->mutations[row_];
-		m::array(pending_, 3);
-		m::string(pending_, mutation.key);
-		m::unsigned_integer(pending_, mutation.value ? 0 : 1);
+		m::AppendPacker(pending_).pack_array(3);
+		m::AppendPacker(pending_).pack_str(mutation.key);
+		m::AppendPacker(pending_).pack_uint64(mutation.value ? 0 : 1);
 		if (!emitting_)
 			entry_->strings += mutation.key.size();
 		if (!mutation.value) {
-			pending_.push_back('\xc0');
+			m::AppendPacker(pending_).pack_nil();
 			++row_;
 			return;
 		}
