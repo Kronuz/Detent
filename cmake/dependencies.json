@@ -26,7 +26,7 @@
   {
     "name": "compressors",
     "repository": "https://github.com/Kronuz/compressors.git",
-    "revision": "ed590c87201afd270afbfbb2d58d5d467c6d23b6",
+    "revision": "86ff17d171524977723f070f08d3867d6fdb7364",
     "source_subdir": "."
   },
   {
@@ -80,13 +80,13 @@
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "6a07f99a1fe0c28e92b83357548c617e4c0ec657",
+    "revision": "cde879529c7f7a9bd77734de6cc1edcba8d79361",
     "source_subdir": "."
   },
   {
     "name": "http_parser",
     "repository": "https://github.com/Kronuz/http-parser.git",
-    "revision": "178f873450364b67f0abca9c96fbbc735589d435",
+    "revision": "87ae8cf1e20c9e2bac5b503b0869ac2d8b03be90",
     "source_subdir": "."
   },
   {
@@ -230,7 +230,7 @@
   {
     "name": "allocators",
     "repository": "https://github.com/Kronuz/allocators.git",
-    "revision": "b7daa52f1b6a316e04bba2817f0f527d64d704eb",
+    "revision": "4b3981936112e45e06d54cdc922ebd6906787a4f",
     "source_subdir": "."
   }
 ]
