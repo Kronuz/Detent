@@ -66,37 +66,43 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			}
 			continue;
 		}
-		struct stat entry{};
-		if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
-			if (errno == ENOENT)
-				throw GenerationUnavailable("publisher directory is not available");
-			throw std::runtime_error("cannot inspect publisher directory component");
-		}
-		if (S_ISLNK(entry.st_mode)) {
-			struct stat parent{}, after{};
-			if (++links > 40 || entry.st_uid != 0 || ::fstat(current.fd, &parent) != 0 || parent.st_uid != 0)
-				throw std::runtime_error("publisher directory has an untrusted alias");
-			std::array<char, 4097> target{};
-			const auto count = ::readlinkat(current.fd, part.c_str(), target.data(), target.size());
-			if (count <= 0 || std::size_t(count) >= target.size() ||
-			    ::fstatat(current.fd, part.c_str(), &after, AT_SYMLINK_NOFOLLOW) != 0 ||
-			    entry.st_dev != after.st_dev || entry.st_ino != after.st_ino ||
-			    entry.st_uid != after.st_uid || entry.st_mode != after.st_mode)
-				throw std::runtime_error("publisher directory alias changed");
-			const std::filesystem::path resolved(std::string(target.data(), std::size_t(count)));
-			if (resolved.is_absolute()) {
-				while (!parents.empty()) {
-					std::swap(current.fd, parents.back()->fd);
-					parents.pop_back();
-				}
-			}
-			prepend(resolved);
-			continue;
-		}
 		RecoveryFile next(
 		    ::openat(current.fd, part.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
-		if (next.fd < 0 && errno == ENOENT)
-			throw GenerationUnavailable("publisher directory is not available");
+		if (next.fd < 0) {
+			const auto failure = errno;
+			if (failure == ENOENT)
+				throw GenerationUnavailable("publisher directory is not available");
+			if (failure != ELOOP && failure != ENOTDIR && failure != EMLINK)
+				throw std::runtime_error("cannot open publisher directory component");
+			struct stat entry{};
+			if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
+				if (errno == ENOENT)
+					throw GenerationUnavailable("publisher directory is not available");
+				throw std::runtime_error("cannot inspect publisher directory component");
+			}
+			if (S_ISLNK(entry.st_mode)) {
+				struct stat parent{}, after{};
+				if (++links > 40 || entry.st_uid != 0 || ::fstat(current.fd, &parent) != 0 || parent.st_uid != 0)
+					throw std::runtime_error("publisher directory has an untrusted alias");
+				std::array<char, 4097> target{};
+				const auto count = ::readlinkat(current.fd, part.c_str(), target.data(), target.size());
+				if (count <= 0 || std::size_t(count) >= target.size() ||
+				    ::fstatat(current.fd, part.c_str(), &after, AT_SYMLINK_NOFOLLOW) != 0 ||
+				    entry.st_dev != after.st_dev || entry.st_ino != after.st_ino ||
+				    entry.st_uid != after.st_uid || entry.st_mode != after.st_mode)
+					throw std::runtime_error("publisher directory alias changed");
+				const std::filesystem::path resolved(std::string(target.data(), std::size_t(count)));
+				if (resolved.is_absolute()) {
+					while (!parents.empty()) {
+						std::swap(current.fd, parents.back()->fd);
+						parents.pop_back();
+					}
+				}
+				prepend(resolved);
+				continue;
+			}
+			throw std::runtime_error("publisher directory component is not a traversable alias");
+		}
 		struct stat held{}, named{};
 		if (next.fd < 0 || ::fstat(next.fd, &held) != 0 || !S_ISDIR(held.st_mode) ||
 		    (held.st_uid != 0 && held.st_uid != owner) || (held.st_mode & 0022) ||

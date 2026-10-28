@@ -1,0 +1,13 @@
+{
+  "status": "failed",
+  "started_utc": "2026-10-28T15:23:13.929210+00:00",
+  "method": "One bounded diagnostic: first 20 recorded keys, one counterbalanced round, own matching warmup process per arm. Temporary instrumented copies of prepared_reader only; production archives unchanged. Per-step caller CPU, process-wide faults; instrumentation is not acceptance timing.",
+  "source_sha256": "5e12c6c56d0e0ebdb1655d9d13665ec41cfaf3bc5c6bc9607e4e87c82f9a16fe",
+  "binaries": {
+    "before": "ddf7e71527a97fe459f87106758bc84767ab1a6fcf871ae3981ad589c9085d5b",
+    "after": "74865bd3d504335478be60ada5635dda43c15f6eea399017645ddd7189fa8592"
+  },
+  "samples": [],
+  "error": "RuntimeError('Observer did not measure a real mapping')",
+  "finished_utc": "2026-10-28T15:23:14.275443+00:00"
+}

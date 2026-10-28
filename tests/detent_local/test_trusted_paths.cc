@@ -15,12 +15,34 @@
 #include <vector>
 
 namespace {
-bool race_armed = false, race_reached = false, race_failed = false;
-unsigned race_calls = 0;
+bool race_armed = false, race_opened = false, race_reached = false, race_failed = false;
+bool alias_race_armed = false, alias_race_reached = false, alias_race_failed = false;
+const char *fault_name = nullptr;
+int fault_error = 0;
+const char *stat_fault_name = nullptr;
+int stat_fault_error = 0;
+unsigned stat_fault_at = 1, stat_calls = 0;
+unsigned inspections = 0, alias_reads = 0;
 uid_t publisher = 0;
 } // namespace
+static int racing_openat(int directory, const char *name, int flags) {
+	if (fault_name && std::strcmp(name, fault_name) == 0) {
+		errno = fault_error;
+		return -1;
+	}
+	const auto result = ::openat(directory, name, flags);
+	if (race_armed && result >= 0 && std::strcmp(name, "raced") == 0)
+		race_opened = true;
+	return result;
+}
 static int racing_fstatat(int directory, const char *name, struct stat *info, int flags) {
-	if (race_armed && std::strcmp(name, "raced") == 0 && ++race_calls == 2) {
+	if (stat_fault_name && std::strcmp(name, stat_fault_name) == 0 && ++stat_calls == stat_fault_at) {
+		errno = stat_fault_error;
+		return -1;
+	}
+	if (fault_name && std::strcmp(name, fault_name) == 0)
+		++inspections;
+	if (race_armed && race_opened && std::strcmp(name, "raced") == 0) {
 		race_armed = false;
 		race_reached = true;
 		race_failed = ::renameat(directory, name, directory, "retired-raced") != 0 ||
@@ -29,10 +51,25 @@ static int racing_fstatat(int directory, const char *name, struct stat *info, in
 	}
 	return ::fstatat(directory, name, info, flags);
 }
+static ssize_t racing_readlinkat(int directory, const char *name, char *bytes, size_t size) {
+	++alias_reads;
+	const auto result = ::readlinkat(directory, name, bytes, size);
+	if (alias_race_armed && result >= 0 && std::strcmp(name, "alias-raced") == 0) {
+		alias_race_armed = false;
+		alias_race_reached = true;
+		alias_race_failed = ::renameat(directory, name, directory, "retired-alias-raced") != 0 ||
+		                    ::symlinkat("target", directory, name) != 0;
+	}
+	return result;
+}
 // Replace the directory between opening its descriptor and checking its name.
+#define openat racing_openat
 #define fstatat racing_fstatat
+#define readlinkat racing_readlinkat
 #include "generation_file_access.hh"
+#undef readlinkat
 #undef fstatat
+#undef openat
 
 namespace x = detent::local::detail;
 namespace fs = std::filesystem;
@@ -72,18 +109,117 @@ struct Fixture {
 		}
 		check(rejected);
 	}
+	void unavailable(const fs::path &path) const {
+		bool missing = false;
+		try {
+			x::RecoveryFile held(x::open_publisher_directory(path, publisher));
+		} catch (const detent::local::GenerationUnavailable &) {
+			missing = true;
+		}
+		check(missing);
+	}
+	void trust_error(const fs::path &path) const {
+		bool rejected = false;
+		try {
+			x::RecoveryFile held(x::open_publisher_directory(path, publisher));
+		} catch (const detent::local::GenerationUnavailable &) {
+			throw;
+		} catch (const std::runtime_error &) {
+			rejected = true;
+		}
+		check(rejected);
+	}
 	void opens(const fs::path &path) const {
 		x::RecoveryFile held(x::open_publisher_directory(path, publisher));
 		struct stat actual{}, expected{};
 		check(::fstat(held.fd, &actual) == 0 && ::stat(target.c_str(), &expected) == 0);
 		check(actual.st_dev == expected.st_dev && actual.st_ino == expected.st_ino);
+		check((::fcntl(held.fd, F_GETFD) & FD_CLOEXEC) != 0);
 	}
 };
+void ordinary(const fs::path &parent) {
+	fs::create_directories(parent);
+	Fixture fixture(parent);
+	fixture.opens(fixture.target);
+	fixture.opens(fs::relative(fixture.target));
+	fixture.opens(fixture.root / "./target");
+	check(fs::create_directory(fixture.root / "child"));
+	fixture.opens(fixture.root / "child/../target");
+	fixture.opens(fs::path("/../../") / fixture.target.relative_path());
+	fixture.rejects(fs::path{});
+	fixture.rejects(fs::path(std::string("bad\0path", 8)));
+	fixture.unavailable(fixture.root / "missing/target");
+	{
+		x::RecoveryFile file(::open((fixture.root / "file").c_str(), O_CREAT | O_WRONLY, 0600));
+		check(file.fd >= 0);
+	}
+	fixture.rejects(fixture.root / "file");
+	auto expanded = fixture.root;
+	for (unsigned i = 0; i != 257; ++i)
+		expanded /= ".";
+	fixture.rejects(expanded / "target");
+	const auto before = descriptors();
+	for (const int error : {EACCES, EIO, EINTR, EMFILE, ELOOP, ENOTDIR, EMLINK}) {
+		fault_name = "target";
+		fault_error = error;
+		inspections = alias_reads = 0;
+		fixture.rejects(fixture.target);
+		check(inspections == (error == ELOOP || error == ENOTDIR || error == EMLINK ? 1u : 0u));
+		check(alias_reads == 0);
+		fault_name = nullptr;
+		check(descriptors() == before);
+	}
+	fault_name = "target";
+	fault_error = ENOENT;
+	inspections = alias_reads = 0;
+	fixture.unavailable(fixture.target);
+	check(inspections == 0 && alias_reads == 0);
+	fault_name = nullptr;
+	check(descriptors() == before);
+	for (const int error : {EACCES, EIO, EINTR, ENOENT}) {
+		stat_fault_name = "target";
+		stat_fault_error = error;
+		stat_calls = 0;
+		fixture.trust_error(fixture.target);
+		check(stat_calls == 1);
+		stat_fault_name = nullptr;
+		check(descriptors() == before);
+	}
+}
 void exercise(const fs::path &parent) {
 	Fixture fixture(parent);
 	const auto &root = fixture.root;
 	fs::create_directory_symlink(fixture.target, root / "absolute");
 	fixture.opens(root / "absolute");
+	for (const int error : {ELOOP, ENOTDIR, EMLINK}) {
+		fault_name = "absolute";
+		fault_error = error;
+		inspections = 0;
+		fixture.opens(root / "absolute");
+		check(inspections == 2);
+		fault_name = nullptr;
+	}
+	stat_fault_name = "absolute";
+	for (const int error : {EACCES, EIO, EINTR, ENOENT}) {
+		stat_fault_error = error;
+		for (const unsigned call : {1u, 2u}) {
+			stat_fault_at = call;
+			stat_calls = 0;
+			if (error == ENOENT && call == 1)
+				fixture.unavailable(root / "absolute");
+			else
+				fixture.trust_error(root / "absolute");
+			check(stat_calls == call);
+		}
+	}
+	stat_fault_name = nullptr;
+	stat_fault_at = 1;
+	fs::create_directory_symlink("missing", root / "dangling");
+	fixture.unavailable(root / "dangling");
+	fs::create_directory_symlink("target", root / "alias-raced");
+	alias_race_armed = true;
+	fixture.rejects(root / "alias-raced");
+	check(alias_race_reached && !alias_race_failed);
 	check(fs::create_directory(root / "parent"));
 	fs::create_directory_symlink("../target", root / "parent/relative");
 	fixture.opens(root / "parent/relative");
@@ -161,7 +297,13 @@ void exercise(const fs::path &parent) {
 } // namespace
 int main(int argc, char **argv) {
 	try {
-		check(argc == 3 && ::geteuid() == 0);
+		check(argc == 3);
+		if (std::strcmp(argv[1], "--ordinary") == 0) {
+			publisher = ::getuid();
+			ordinary(fs::absolute(argv[2]));
+			return 0;
+		}
+		check(::geteuid() == 0);
 		const std::string_view uid(argv[1]);
 		const auto [end, error] = std::from_chars(uid.data(), uid.data() + uid.size(), publisher);
 		check(error == std::errc{} && end == uid.data() + uid.size());

@@ -1,0 +1,4175 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-28T15:38:52.697971+00:00",
+  "method": "One bounded diagnostic: first 20 recorded keys, one counterbalanced round, own matching warmup process per arm. Temporary instrumented copies of prepared_reader only; production archives unchanged. Per-step caller CPU, process-wide faults; instrumentation is not acceptance timing.",
+  "source_sha256": "5e12c6c56d0e0ebdb1655d9d13665ec41cfaf3bc5c6bc9607e4e87c82f9a16fe",
+  "builder_sha256": "490d169ee0b13e5534b2145042980a46b63533b793f27175c069977537df0226",
+  "controller_sha256": "85c8856896cb43cec9f627738df5fbe40a770c93e050b1b98b09ab90a7592f68",
+  "binaries": {
+    "before": "ddf7e71527a97fe459f87106758bc84767ab1a6fcf871ae3981ad589c9085d5b",
+    "after": "74865bd3d504335478be60ada5635dda43c15f6eea399017645ddd7189fa8592"
+  },
+  "samples": [
+    {
+      "arm": "before",
+      "key": "load1:key1",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9208,
+          "caller_cpu_ns": 12028,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 480737,
+          "caller_cpu_ns": 481377,
+          "process_cpu_ns": 502000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 227094,
+          "caller_cpu_ns": 227813,
+          "process_cpu_ns": 251000,
+          "minor_faults": 17,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 273,
+          "caller_cpu_ns": 819,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 213072,
+          "caller_cpu_ns": 213725,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21497,
+          "caller_cpu_ns": 22132,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28207,
+          "caller_cpu_ns": 28888,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18092,
+          "caller_cpu_ns": 18706,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18409,
+          "caller_cpu_ns": 18993,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 101,
+          "caller_cpu_ns": 669,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8800,
+          "caller_cpu_ns": 9343,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 389607,
+          "caller_cpu_ns": 390199,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10891,
+          "caller_cpu_ns": 13934,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 485484,
+          "caller_cpu_ns": 486114,
+          "process_cpu_ns": 508000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 232648,
+          "caller_cpu_ns": 233332,
+          "process_cpu_ns": 257000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 270,
+          "caller_cpu_ns": 990,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 214362,
+          "caller_cpu_ns": 215017,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23520,
+          "caller_cpu_ns": 24139,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29338,
+          "caller_cpu_ns": 30015,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18605,
+          "caller_cpu_ns": 19194,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17744,
+          "caller_cpu_ns": 18356,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 189,
+          "caller_cpu_ns": 739,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12145,
+          "caller_cpu_ns": 12686,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 391973,
+          "caller_cpu_ns": 392597,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key128205",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10836,
+          "caller_cpu_ns": 13886,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 481152,
+          "caller_cpu_ns": 481783,
+          "process_cpu_ns": 505000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 345686,
+          "caller_cpu_ns": 346369,
+          "process_cpu_ns": 366000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 240,
+          "caller_cpu_ns": 774,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 205877,
+          "caller_cpu_ns": 206491,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22464,
+          "caller_cpu_ns": 23069,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28801,
+          "caller_cpu_ns": 29420,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18541,
+          "caller_cpu_ns": 19106,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18275,
+          "caller_cpu_ns": 18865,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 168,
+          "caller_cpu_ns": 710,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12263,
+          "caller_cpu_ns": 12820,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 381872,
+          "caller_cpu_ns": 382501,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key128205",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9011,
+          "caller_cpu_ns": 11923,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 452375,
+          "caller_cpu_ns": 452977,
+          "process_cpu_ns": 474000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 334984,
+          "caller_cpu_ns": 335647,
+          "process_cpu_ns": 356000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 284,
+          "caller_cpu_ns": 815,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 197344,
+          "caller_cpu_ns": 198000,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19905,
+          "caller_cpu_ns": 20509,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 26468,
+          "caller_cpu_ns": 27148,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18624,
+          "caller_cpu_ns": 19249,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17958,
+          "caller_cpu_ns": 18559,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 170,
+          "caller_cpu_ns": 731,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8630,
+          "caller_cpu_ns": 9195,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 367269,
+          "caller_cpu_ns": 367833,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key256411",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9072,
+          "caller_cpu_ns": 11694,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 472659,
+          "caller_cpu_ns": 473264,
+          "process_cpu_ns": 494000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 329950,
+          "caller_cpu_ns": 320377,
+          "process_cpu_ns": 355000,
+          "minor_faults": 27,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 3,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 307,
+          "caller_cpu_ns": 841,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 202189,
+          "caller_cpu_ns": 202805,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 20189,
+          "caller_cpu_ns": 20835,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 27655,
+          "caller_cpu_ns": 28301,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17918,
+          "caller_cpu_ns": 18499,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17699,
+          "caller_cpu_ns": 18290,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 187,
+          "caller_cpu_ns": 734,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8559,
+          "caller_cpu_ns": 9106,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 373448,
+          "caller_cpu_ns": 374027,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key256411",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10361,
+          "caller_cpu_ns": 13232,
+          "process_cpu_ns": 15000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 470220,
+          "caller_cpu_ns": 470880,
+          "process_cpu_ns": 490000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 279775,
+          "caller_cpu_ns": 280432,
+          "process_cpu_ns": 302000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 281,
+          "caller_cpu_ns": 827,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 206710,
+          "caller_cpu_ns": 207371,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23847,
+          "caller_cpu_ns": 24486,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29539,
+          "caller_cpu_ns": 30206,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18806,
+          "caller_cpu_ns": 19405,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18120,
+          "caller_cpu_ns": 18722,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 151,
+          "caller_cpu_ns": 708,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12047,
+          "caller_cpu_ns": 12599,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 384657,
+          "caller_cpu_ns": 385254,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key384615",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10028,
+          "caller_cpu_ns": 12807,
+          "process_cpu_ns": 15000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 468721,
+          "caller_cpu_ns": 469366,
+          "process_cpu_ns": 489000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 283169,
+          "caller_cpu_ns": 283844,
+          "process_cpu_ns": 304000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 194,
+          "caller_cpu_ns": 773,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 199994,
+          "caller_cpu_ns": 200638,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22422,
+          "caller_cpu_ns": 23050,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28689,
+          "caller_cpu_ns": 29354,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18063,
+          "caller_cpu_ns": 18638,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17377,
+          "caller_cpu_ns": 17977,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 128,
+          "caller_cpu_ns": 670,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12116,
+          "caller_cpu_ns": 12647,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 373099,
+          "caller_cpu_ns": 373685,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key384615",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8604,
+          "caller_cpu_ns": 11173,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 443088,
+          "caller_cpu_ns": 443712,
+          "process_cpu_ns": 463000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 258330,
+          "caller_cpu_ns": 259007,
+          "process_cpu_ns": 282000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 256,
+          "caller_cpu_ns": 791,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 193999,
+          "caller_cpu_ns": 194650,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 20060,
+          "caller_cpu_ns": 20684,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 26738,
+          "caller_cpu_ns": 27375,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17573,
+          "caller_cpu_ns": 18149,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17608,
+          "caller_cpu_ns": 18189,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 109,
+          "caller_cpu_ns": 660,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8976,
+          "caller_cpu_ns": 9505,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 362264,
+          "caller_cpu_ns": 362844,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key512821",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8692,
+          "caller_cpu_ns": 11458,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 444937,
+          "caller_cpu_ns": 445552,
+          "process_cpu_ns": 465000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 253445,
+          "caller_cpu_ns": 254221,
+          "process_cpu_ns": 278000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 261,
+          "caller_cpu_ns": 810,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 196009,
+          "caller_cpu_ns": 196632,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 20009,
+          "caller_cpu_ns": 20607,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 25756,
+          "caller_cpu_ns": 26467,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17255,
+          "caller_cpu_ns": 17844,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17318,
+          "caller_cpu_ns": 17906,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 111,
+          "caller_cpu_ns": 655,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8332,
+          "caller_cpu_ns": 8882,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 362752,
+          "caller_cpu_ns": 363310,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key512821",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10617,
+          "caller_cpu_ns": 13399,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 464422,
+          "caller_cpu_ns": 465003,
+          "process_cpu_ns": 485000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 263858,
+          "caller_cpu_ns": 264489,
+          "process_cpu_ns": 286000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 286,
+          "caller_cpu_ns": 845,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 206108,
+          "caller_cpu_ns": 206730,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23258,
+          "caller_cpu_ns": 23848,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28904,
+          "caller_cpu_ns": 29530,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17720,
+          "caller_cpu_ns": 18299,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17282,
+          "caller_cpu_ns": 17862,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 193,
+          "caller_cpu_ns": 746,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11663,
+          "caller_cpu_ns": 12194,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 379487,
+          "caller_cpu_ns": 380065,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key641025",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10775,
+          "caller_cpu_ns": 14109,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 497298,
+          "caller_cpu_ns": 497959,
+          "process_cpu_ns": 521000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 316072,
+          "caller_cpu_ns": 316779,
+          "process_cpu_ns": 340000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 261,
+          "caller_cpu_ns": 828,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 221420,
+          "caller_cpu_ns": 222088,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24556,
+          "caller_cpu_ns": 25185,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 31000,
+          "caller_cpu_ns": 31662,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18721,
+          "caller_cpu_ns": 19283,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18033,
+          "caller_cpu_ns": 18619,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 241,
+          "caller_cpu_ns": 810,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11752,
+          "caller_cpu_ns": 12296,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 402060,
+          "caller_cpu_ns": 402668,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key641025",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10105,
+          "caller_cpu_ns": 13205,
+          "process_cpu_ns": 16000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 533076,
+          "caller_cpu_ns": 533758,
+          "process_cpu_ns": 557000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 310273,
+          "caller_cpu_ns": 311005,
+          "process_cpu_ns": 337000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 403,
+          "caller_cpu_ns": 1007,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 241001,
+          "caller_cpu_ns": 241711,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22594,
+          "caller_cpu_ns": 23208,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29696,
+          "caller_cpu_ns": 30472,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19035,
+          "caller_cpu_ns": 19640,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18789,
+          "caller_cpu_ns": 19390,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 159,
+          "caller_cpu_ns": 721,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9248,
+          "caller_cpu_ns": 9804,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 425345,
+          "caller_cpu_ns": 425940,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key769231",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9772,
+          "caller_cpu_ns": 13257,
+          "process_cpu_ns": 16000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 523415,
+          "caller_cpu_ns": 524068,
+          "process_cpu_ns": 552000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 226510,
+          "caller_cpu_ns": 227207,
+          "process_cpu_ns": 253000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 280,
+          "caller_cpu_ns": 827,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 241740,
+          "caller_cpu_ns": 242396,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23954,
+          "caller_cpu_ns": 24628,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29071,
+          "caller_cpu_ns": 29784,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18479,
+          "caller_cpu_ns": 19090,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18270,
+          "caller_cpu_ns": 18904,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 140,
+          "caller_cpu_ns": 691,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9333,
+          "caller_cpu_ns": 9886,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 425293,
+          "caller_cpu_ns": 425866,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key769231",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11449,
+          "caller_cpu_ns": 14429,
+          "process_cpu_ns": 18000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 531638,
+          "caller_cpu_ns": 532295,
+          "process_cpu_ns": 558000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 239112,
+          "caller_cpu_ns": 239805,
+          "process_cpu_ns": 271000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 295,
+          "caller_cpu_ns": 866,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 232483,
+          "caller_cpu_ns": 233129,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 26542,
+          "caller_cpu_ns": 27172,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 31419,
+          "caller_cpu_ns": 32106,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19310,
+          "caller_cpu_ns": 19906,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22621,
+          "caller_cpu_ns": 23278,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 191,
+          "caller_cpu_ns": 748,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 13058,
+          "caller_cpu_ns": 13634,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 425756,
+          "caller_cpu_ns": 426364,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key897435",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11511,
+          "caller_cpu_ns": 14475,
+          "process_cpu_ns": 18000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 556752,
+          "caller_cpu_ns": 557437,
+          "process_cpu_ns": 584000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 213080,
+          "caller_cpu_ns": 213768,
+          "process_cpu_ns": 234000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 459,
+          "caller_cpu_ns": 1027,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 242302,
+          "caller_cpu_ns": 242947,
+          "minor_faults": 10,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24753,
+          "caller_cpu_ns": 25372,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 34223,
+          "caller_cpu_ns": 34896,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18916,
+          "caller_cpu_ns": 19498,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19190,
+          "caller_cpu_ns": 19765,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 268,
+          "caller_cpu_ns": 831,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 13884,
+          "caller_cpu_ns": 14426,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 433556,
+          "caller_cpu_ns": 434165,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key897435",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 21313,
+          "caller_cpu_ns": 24458,
+          "process_cpu_ns": 28000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 515486,
+          "caller_cpu_ns": 516155,
+          "process_cpu_ns": 543000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 193921,
+          "caller_cpu_ns": 194700,
+          "process_cpu_ns": 222000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 300,
+          "caller_cpu_ns": 844,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 233005,
+          "caller_cpu_ns": 233649,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24810,
+          "caller_cpu_ns": 25452,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29024,
+          "caller_cpu_ns": 29672,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18649,
+          "caller_cpu_ns": 19238,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18235,
+          "caller_cpu_ns": 18835,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 242,
+          "caller_cpu_ns": 803,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8997,
+          "caller_cpu_ns": 9543,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 415982,
+          "caller_cpu_ns": 416558,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key1025641",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8856,
+          "caller_cpu_ns": 11740,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 463567,
+          "caller_cpu_ns": 464227,
+          "process_cpu_ns": 486000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 314489,
+          "caller_cpu_ns": 315181,
+          "process_cpu_ns": 338000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 267,
+          "caller_cpu_ns": 808,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 202317,
+          "caller_cpu_ns": 202970,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 20274,
+          "caller_cpu_ns": 20905,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28603,
+          "caller_cpu_ns": 29307,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18472,
+          "caller_cpu_ns": 19105,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17713,
+          "caller_cpu_ns": 18379,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 108,
+          "caller_cpu_ns": 657,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8956,
+          "caller_cpu_ns": 9502,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 376852,
+          "caller_cpu_ns": 377447,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1025641",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10428,
+          "caller_cpu_ns": 13432,
+          "process_cpu_ns": 16000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 469166,
+          "caller_cpu_ns": 469823,
+          "process_cpu_ns": 490000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 317421,
+          "caller_cpu_ns": 318157,
+          "process_cpu_ns": 339000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 282,
+          "caller_cpu_ns": 841,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 203416,
+          "caller_cpu_ns": 204115,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22633,
+          "caller_cpu_ns": 23287,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29524,
+          "caller_cpu_ns": 30195,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18371,
+          "caller_cpu_ns": 18981,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17733,
+          "caller_cpu_ns": 18344,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 124,
+          "caller_cpu_ns": 689,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11784,
+          "caller_cpu_ns": 12341,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 380250,
+          "caller_cpu_ns": 380868,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1153845",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10299,
+          "caller_cpu_ns": 12929,
+          "process_cpu_ns": 15000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 464889,
+          "caller_cpu_ns": 465541,
+          "process_cpu_ns": 486000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 327972,
+          "caller_cpu_ns": 328621,
+          "process_cpu_ns": 349000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 277,
+          "caller_cpu_ns": 831,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 202510,
+          "caller_cpu_ns": 203141,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22245,
+          "caller_cpu_ns": 22868,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29825,
+          "caller_cpu_ns": 30513,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18940,
+          "caller_cpu_ns": 19536,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17701,
+          "caller_cpu_ns": 18281,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 125,
+          "caller_cpu_ns": 678,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11935,
+          "caller_cpu_ns": 12504,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 379550,
+          "caller_cpu_ns": 380124,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key1153845",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9414,
+          "caller_cpu_ns": 12470,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 476852,
+          "caller_cpu_ns": 477516,
+          "process_cpu_ns": 497000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 309403,
+          "caller_cpu_ns": 310082,
+          "process_cpu_ns": 333000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 278,
+          "caller_cpu_ns": 836,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 212598,
+          "caller_cpu_ns": 213233,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21844,
+          "caller_cpu_ns": 22484,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28410,
+          "caller_cpu_ns": 29064,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18101,
+          "caller_cpu_ns": 18686,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18332,
+          "caller_cpu_ns": 18903,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 92,
+          "caller_cpu_ns": 678,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9044,
+          "caller_cpu_ns": 9623,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 388557,
+          "caller_cpu_ns": 389178,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key1282051",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10329,
+          "caller_cpu_ns": 13587,
+          "process_cpu_ns": 16000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 513677,
+          "caller_cpu_ns": 514310,
+          "process_cpu_ns": 537000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 288917,
+          "caller_cpu_ns": 289664,
+          "process_cpu_ns": 316000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 295,
+          "caller_cpu_ns": 838,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 228038,
+          "caller_cpu_ns": 228689,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21739,
+          "caller_cpu_ns": 22379,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30264,
+          "caller_cpu_ns": 30924,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19013,
+          "caller_cpu_ns": 19603,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18163,
+          "caller_cpu_ns": 18717,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 154,
+          "caller_cpu_ns": 696,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9234,
+          "caller_cpu_ns": 9780,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 411909,
+          "caller_cpu_ns": 412484,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key1282051",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10914,
+          "caller_cpu_ns": 13682,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 523802,
+          "caller_cpu_ns": 524412,
+          "process_cpu_ns": 550000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 298632,
+          "caller_cpu_ns": 299330,
+          "process_cpu_ns": 322000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 319,
+          "caller_cpu_ns": 883,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 230960,
+          "caller_cpu_ns": 231613,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 27087,
+          "caller_cpu_ns": 27694,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 32618,
+          "caller_cpu_ns": 33281,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19820,
+          "caller_cpu_ns": 20389,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18610,
+          "caller_cpu_ns": 19218,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 185,
+          "caller_cpu_ns": 737,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12925,
+          "caller_cpu_ns": 13493,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 424652,
+          "caller_cpu_ns": 425232,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1410257",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11039,
+          "caller_cpu_ns": 14076,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 530312,
+          "caller_cpu_ns": 530967,
+          "process_cpu_ns": 555000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 381100,
+          "caller_cpu_ns": 381889,
+          "process_cpu_ns": 404000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 286,
+          "caller_cpu_ns": 850,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 223616,
+          "caller_cpu_ns": 224322,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24863,
+          "caller_cpu_ns": 25479,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 31890,
+          "caller_cpu_ns": 32548,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19059,
+          "caller_cpu_ns": 19619,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18362,
+          "caller_cpu_ns": 18974,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 345,
+          "caller_cpu_ns": 906,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 13206,
+          "caller_cpu_ns": 13750,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 407617,
+          "caller_cpu_ns": 408197,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key1410257",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9318,
+          "caller_cpu_ns": 11908,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 473664,
+          "caller_cpu_ns": 474301,
+          "process_cpu_ns": 495000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 342452,
+          "caller_cpu_ns": 343131,
+          "process_cpu_ns": 366000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 264,
+          "caller_cpu_ns": 805,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 210782,
+          "caller_cpu_ns": 211470,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21562,
+          "caller_cpu_ns": 22179,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28303,
+          "caller_cpu_ns": 28963,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18083,
+          "caller_cpu_ns": 18687,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18050,
+          "caller_cpu_ns": 18644,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 103,
+          "caller_cpu_ns": 667,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8607,
+          "caller_cpu_ns": 9160,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 384859,
+          "caller_cpu_ns": 385464,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key1538461",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9213,
+          "caller_cpu_ns": 12220,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 490359,
+          "caller_cpu_ns": 490982,
+          "process_cpu_ns": 513000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 314543,
+          "caller_cpu_ns": 315256,
+          "process_cpu_ns": 342000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 242,
+          "caller_cpu_ns": 765,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 210342,
+          "caller_cpu_ns": 210997,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22194,
+          "caller_cpu_ns": 22812,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28079,
+          "caller_cpu_ns": 28730,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17883,
+          "caller_cpu_ns": 18462,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18240,
+          "caller_cpu_ns": 18793,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 124,
+          "caller_cpu_ns": 665,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9856,
+          "caller_cpu_ns": 10402,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 387587,
+          "caller_cpu_ns": 388221,
+          "minor_faults": 32,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1538461",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 12115,
+          "caller_cpu_ns": 15237,
+          "process_cpu_ns": 18000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 542683,
+          "caller_cpu_ns": 543317,
+          "process_cpu_ns": 567000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 338877,
+          "caller_cpu_ns": 339578,
+          "process_cpu_ns": 361000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 791,
+          "caller_cpu_ns": 1344,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 244178,
+          "caller_cpu_ns": 244813,
+          "minor_faults": 9,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23939,
+          "caller_cpu_ns": 24540,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30432,
+          "caller_cpu_ns": 31096,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19338,
+          "caller_cpu_ns": 19933,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19004,
+          "caller_cpu_ns": 19595,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 245,
+          "caller_cpu_ns": 801,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12691,
+          "caller_cpu_ns": 13248,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 432315,
+          "caller_cpu_ns": 432939,
+          "minor_faults": 32,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key1666667",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11170,
+          "caller_cpu_ns": 13930,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 509592,
+          "caller_cpu_ns": 510190,
+          "process_cpu_ns": 531000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 291215,
+          "caller_cpu_ns": 291951,
+          "process_cpu_ns": 313000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 353,
+          "caller_cpu_ns": 910,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 225840,
+          "caller_cpu_ns": 226484,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 25153,
+          "caller_cpu_ns": 25790,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29667,
+          "caller_cpu_ns": 30314,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19261,
+          "caller_cpu_ns": 19850,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18735,
+          "caller_cpu_ns": 19327,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 168,
+          "caller_cpu_ns": 719,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11961,
+          "caller_cpu_ns": 12509,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 411260,
+          "caller_cpu_ns": 411872,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key1666667",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9460,
+          "caller_cpu_ns": 12566,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 490731,
+          "caller_cpu_ns": 491365,
+          "process_cpu_ns": 514000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 278163,
+          "caller_cpu_ns": 278828,
+          "process_cpu_ns": 304000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 250,
+          "caller_cpu_ns": 815,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 211509,
+          "caller_cpu_ns": 212157,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22050,
+          "caller_cpu_ns": 22706,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29091,
+          "caller_cpu_ns": 29764,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18936,
+          "caller_cpu_ns": 19538,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18324,
+          "caller_cpu_ns": 18896,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 188,
+          "caller_cpu_ns": 731,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9433,
+          "caller_cpu_ns": 9979,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 390827,
+          "caller_cpu_ns": 391463,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key1794871",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9468,
+          "caller_cpu_ns": 12366,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 475107,
+          "caller_cpu_ns": 475735,
+          "process_cpu_ns": 495000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 267186,
+          "caller_cpu_ns": 267900,
+          "process_cpu_ns": 289000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 350,
+          "caller_cpu_ns": 891,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 210697,
+          "caller_cpu_ns": 211328,
+          "minor_faults": 10,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22240,
+          "caller_cpu_ns": 22875,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 27898,
+          "caller_cpu_ns": 28555,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17683,
+          "caller_cpu_ns": 18273,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17550,
+          "caller_cpu_ns": 18161,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 108,
+          "caller_cpu_ns": 663,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8506,
+          "caller_cpu_ns": 9054,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 383964,
+          "caller_cpu_ns": 384538,
+          "minor_faults": 31,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key1794871",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10940,
+          "caller_cpu_ns": 13634,
+          "process_cpu_ns": 16000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 487676,
+          "caller_cpu_ns": 488317,
+          "process_cpu_ns": 509000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 281786,
+          "caller_cpu_ns": 282487,
+          "process_cpu_ns": 305000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 289,
+          "caller_cpu_ns": 840,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 214536,
+          "caller_cpu_ns": 215198,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23581,
+          "caller_cpu_ns": 24217,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30721,
+          "caller_cpu_ns": 31363,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18507,
+          "caller_cpu_ns": 19086,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18396,
+          "caller_cpu_ns": 19005,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 115,
+          "caller_cpu_ns": 680,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11687,
+          "caller_cpu_ns": 12254,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 395972,
+          "caller_cpu_ns": 396590,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key1923077",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10919,
+          "caller_cpu_ns": 13706,
+          "process_cpu_ns": 16000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 507908,
+          "caller_cpu_ns": 508556,
+          "process_cpu_ns": 530000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 282503,
+          "caller_cpu_ns": 283191,
+          "process_cpu_ns": 304000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 258,
+          "caller_cpu_ns": 815,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 218727,
+          "caller_cpu_ns": 219370,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 25341,
+          "caller_cpu_ns": 25956,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 33661,
+          "caller_cpu_ns": 34382,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19270,
+          "caller_cpu_ns": 19871,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18479,
+          "caller_cpu_ns": 19047,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 174,
+          "caller_cpu_ns": 720,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11872,
+          "caller_cpu_ns": 12431,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 412060,
+          "caller_cpu_ns": 412680,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key1923077",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9480,
+          "caller_cpu_ns": 12688,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 517919,
+          "caller_cpu_ns": 518539,
+          "process_cpu_ns": 541000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 278404,
+          "caller_cpu_ns": 279118,
+          "process_cpu_ns": 303000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 278,
+          "caller_cpu_ns": 841,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 226148,
+          "caller_cpu_ns": 226819,
+          "minor_faults": 10,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 22943,
+          "caller_cpu_ns": 23591,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30892,
+          "caller_cpu_ns": 31515,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19110,
+          "caller_cpu_ns": 19678,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18854,
+          "caller_cpu_ns": 19403,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 90,
+          "caller_cpu_ns": 635,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9937,
+          "caller_cpu_ns": 10488,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 409158,
+          "caller_cpu_ns": 409764,
+          "minor_faults": 32,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key2051281",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8664,
+          "caller_cpu_ns": 11402,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 481313,
+          "caller_cpu_ns": 481954,
+          "process_cpu_ns": 502000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 343345,
+          "caller_cpu_ns": 344052,
+          "process_cpu_ns": 369000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 291,
+          "caller_cpu_ns": 844,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 220536,
+          "caller_cpu_ns": 221198,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21226,
+          "caller_cpu_ns": 21841,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 27793,
+          "caller_cpu_ns": 28491,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18188,
+          "caller_cpu_ns": 18787,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18036,
+          "caller_cpu_ns": 18617,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 133,
+          "caller_cpu_ns": 687,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 8997,
+          "caller_cpu_ns": 9549,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 394750,
+          "caller_cpu_ns": 395324,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key2051281",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10757,
+          "caller_cpu_ns": 14121,
+          "process_cpu_ns": 16000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 484831,
+          "caller_cpu_ns": 485461,
+          "process_cpu_ns": 506000,
+          "minor_faults": 61,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 348506,
+          "caller_cpu_ns": 349199,
+          "process_cpu_ns": 371000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 256,
+          "caller_cpu_ns": 811,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 213834,
+          "caller_cpu_ns": 214501,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23609,
+          "caller_cpu_ns": 24251,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30357,
+          "caller_cpu_ns": 31003,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18203,
+          "caller_cpu_ns": 18766,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 17830,
+          "caller_cpu_ns": 18426,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 114,
+          "caller_cpu_ns": 676,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 12144,
+          "caller_cpu_ns": 12685,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 390930,
+          "caller_cpu_ns": 391527,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key2179487",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10721,
+          "caller_cpu_ns": 14172,
+          "process_cpu_ns": 16000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 475967,
+          "caller_cpu_ns": 476572,
+          "process_cpu_ns": 497000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 377335,
+          "caller_cpu_ns": 358436,
+          "process_cpu_ns": 382000,
+          "minor_faults": 32,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 271,
+          "caller_cpu_ns": 826,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 206837,
+          "caller_cpu_ns": 207462,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24017,
+          "caller_cpu_ns": 24616,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 29104,
+          "caller_cpu_ns": 29791,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18663,
+          "caller_cpu_ns": 19240,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18557,
+          "caller_cpu_ns": 19162,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 169,
+          "caller_cpu_ns": 715,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11961,
+          "caller_cpu_ns": 12519,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 385476,
+          "caller_cpu_ns": 386083,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key2179487",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9268,
+          "caller_cpu_ns": 12132,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 473023,
+          "caller_cpu_ns": 473710,
+          "process_cpu_ns": 492000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 268525,
+          "caller_cpu_ns": 269214,
+          "process_cpu_ns": 287000,
+          "minor_faults": 22,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 667,
+          "caller_cpu_ns": 1214,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 208282,
+          "caller_cpu_ns": 208930,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21419,
+          "caller_cpu_ns": 22034,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28674,
+          "caller_cpu_ns": 29356,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18116,
+          "caller_cpu_ns": 18697,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18222,
+          "caller_cpu_ns": 18820,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 110,
+          "caller_cpu_ns": 681,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9332,
+          "caller_cpu_ns": 9890,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 386276,
+          "caller_cpu_ns": 386874,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load3:key2307691",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9552,
+          "caller_cpu_ns": 12389,
+          "process_cpu_ns": 16000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 510524,
+          "caller_cpu_ns": 511195,
+          "process_cpu_ns": 533000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 296326,
+          "caller_cpu_ns": 297035,
+          "process_cpu_ns": 322000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 306,
+          "caller_cpu_ns": 849,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 231656,
+          "caller_cpu_ns": 232320,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 23425,
+          "caller_cpu_ns": 24065,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28416,
+          "caller_cpu_ns": 29076,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19223,
+          "caller_cpu_ns": 19780,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18246,
+          "caller_cpu_ns": 18849,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 111,
+          "caller_cpu_ns": 656,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9632,
+          "caller_cpu_ns": 10169,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 414324,
+          "caller_cpu_ns": 414905,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load3:key2307691",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11023,
+          "caller_cpu_ns": 14026,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 490914,
+          "caller_cpu_ns": 491552,
+          "process_cpu_ns": 513000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 287003,
+          "caller_cpu_ns": 287712,
+          "process_cpu_ns": 310000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 261,
+          "caller_cpu_ns": 808,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 214973,
+          "caller_cpu_ns": 215637,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 25147,
+          "caller_cpu_ns": 25780,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 30335,
+          "caller_cpu_ns": 31003,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18667,
+          "caller_cpu_ns": 19228,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18230,
+          "caller_cpu_ns": 18816,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 123,
+          "caller_cpu_ns": 667,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 11711,
+          "caller_cpu_ns": 12261,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 397765,
+          "caller_cpu_ns": 398400,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "after",
+      "key": "load1:key2435897",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11392,
+          "caller_cpu_ns": 14263,
+          "process_cpu_ns": 17000,
+          "minor_faults": 6,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 557534,
+          "caller_cpu_ns": 558162,
+          "process_cpu_ns": 584000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 363181,
+          "caller_cpu_ns": 363875,
+          "process_cpu_ns": 386000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 274,
+          "caller_cpu_ns": 828,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 230174,
+          "caller_cpu_ns": 230824,
+          "minor_faults": 11,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 28776,
+          "caller_cpu_ns": 29408,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 43864,
+          "caller_cpu_ns": 44542,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 21705,
+          "caller_cpu_ns": 22294,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 20345,
+          "caller_cpu_ns": 20972,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 139,
+          "caller_cpu_ns": 705,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 13831,
+          "caller_cpu_ns": 14379,
+          "minor_faults": 6,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 456214,
+          "caller_cpu_ns": 456832,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    },
+    {
+      "arm": "before",
+      "key": "load1:key2435897",
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9955,
+          "caller_cpu_ns": 13190,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "client",
+          "wall_ns": 529000,
+          "caller_cpu_ns": 529652,
+          "process_cpu_ns": 553000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 369719,
+          "caller_cpu_ns": 370417,
+          "process_cpu_ns": 402000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": null
+        }
+      ],
+      "steps": [
+        {
+          "step": "files_control",
+          "wall_ns": 275,
+          "caller_cpu_ns": 832,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "directory_trust",
+          "wall_ns": 235805,
+          "caller_cpu_ns": 236490,
+          "minor_faults": 13,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 24119,
+          "caller_cpu_ns": 24752,
+          "minor_faults": 1,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 31254,
+          "caller_cpu_ns": 31998,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 19484,
+          "caller_cpu_ns": 20081,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "metadata_record",
+          "wall_ns": 18890,
+          "caller_cpu_ns": 19488,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "mapping_account",
+          "wall_ns": 132,
+          "caller_cpu_ns": 706,
+          "minor_faults": 0,
+          "major_faults": 0
+        },
+        {
+          "step": "view_controls",
+          "wall_ns": 9413,
+          "caller_cpu_ns": 9978,
+          "minor_faults": 4,
+          "major_faults": 0
+        },
+        {
+          "step": "attachment_total",
+          "wall_ns": 429955,
+          "caller_cpu_ns": 430590,
+          "minor_faults": 33,
+          "major_faults": 0
+        }
+      ]
+    }
+  ],
+  "finished_utc": "2026-10-28T15:38:53.745006+00:00"
+}
