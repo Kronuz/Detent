@@ -25,6 +25,10 @@ CONTEXT = {
 }
 
 
+class StartupBindCollision(RuntimeError):
+    pass
+
+
 def request(
     port: int,
     context: ssl.SSLContext,
@@ -81,7 +85,7 @@ def main() -> None:
             "key": str(certificates / f"{name}.key"),
             "ca": str(certificates / "ca.pem"),
         }
-        configuration = CONTEXT | {
+        configuration: dict[str, Any] = CONTEXT | {
             "node": index + 1,
             "voters": voters,
             "directory": str(directory / f"state-{index}"),
@@ -127,6 +131,21 @@ def main() -> None:
             stderr=subprocess.STDOUT,
         )
 
+    def await_startup() -> None:
+        pending = set(children)
+        deadline = time.monotonic() + 10
+        while pending and time.monotonic() < deadline:
+            for index in tuple(pending):
+                assert children[index].poll() is None, f"node {index} exited at startup"
+                try:
+                    request(ports[index + 3], context, "/v1/health")
+                    pending.remove(index)
+                except (OSError, http.client.HTTPException):
+                    pass
+            if pending:
+                time.sleep(0.02)
+        assert not pending, f"nodes did not start: {sorted(pending)}"
+
     def leader() -> int:
         deadline = time.monotonic() + 10
         observed: dict[int, Any] = {}
@@ -166,7 +185,24 @@ def main() -> None:
     try:
         for index in range(3):
             start(index)
-        successful("/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15})
+        try:
+            await_startup()
+            successful(
+                "/v2/open", {"expected_generation": 0, "nonce": "6e" + "00" * 15}
+            )
+        except AssertionError as error:
+            collisions = [
+                index
+                for index, child in children.items()
+                if child.poll() is not None
+                and "bind: Address already in use"
+                in (directory / f"node-{index}.log").read_text()
+            ]
+            if collisions:
+                raise StartupBindCollision(
+                    f"reserved ports were taken before startup: nodes {collisions}"
+                ) from error
+            raise
         status = subprocess.run(
             [
                 str(binary),
@@ -457,4 +493,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    for attempt in range(3):
+        try:
+            main()
+            break
+        except StartupBindCollision:
+            if attempt == 2:
+                raise
+            print(
+                "Retrying initial startup with fresh ports after a bind collision",
+                file=sys.stderr,
+            )
