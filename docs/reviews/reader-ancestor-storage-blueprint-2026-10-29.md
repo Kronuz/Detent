@@ -4,15 +4,15 @@
 
 ## T1 recheck
 
-The [result](resource-adoption-20261027/metadata-diagnostic/result.json), observer, builder, controller, and validation hashes agree. All 80 rows cover 20 keys × private/canonical resources × observation off/on. Observed rows contain 50 stages, 880 bytes read, four metadata closes, one attempt, and no retries. Per-key phase allocation counts match off/on exactly; constructor medians are 75/79 allocations.
+The [result](https://github.com/Kronuz/Detent/blob/52246e2/docs/measurements/reader-metadata-20261029/result.json), observer, builder, controller, and validation hashes agree. All 80 rows cover 20 keys × private/canonical resources × observation off/on. Observed rows contain 50 stages, 880 bytes read, four metadata closes, one attempt, and no retries. Per-key phase allocation counts match off/on exactly; constructor medians are 75/79 allocations.
 
 Caller-CPU medians confirm directory trust at 222.409/211.568 µs and five opens totaling 69.112/69.732 µs. Stat time is nested inside checks and must not be added twice. Observation raises constructor medians from 474.225/467.467 to 538.355/522.903 µs; these are attribution results, not acceptance timings. The controller checks required stages and byte counts. It does not establish an optimization win.
 
-[Validation](resource-adoption-20261027/metadata-diagnostic/validation.json) records 20 passing invocations and four privileged trust skips. Prepared-republish coverage promised by the preceding blueprint is absent. Preserve these limits and both missing-library link-failure artifacts; neither establishes a reader behavior failure. No builds, tests, or measurements run in this review.
+[Validation](https://github.com/Kronuz/Detent/blob/52246e2/docs/measurements/reader-metadata-20261029/validation.json) records 20 passing invocations and four privileged trust skips. Prepared-republish coverage promised by the preceding blueprint is absent. Preserve these limits and both missing-library link-failure artifacts; neither establishes a reader behavior failure. No builds, tests, or measurements run in this review.
 
 ## Decision and mechanism
 
-**D1: store ancestor owners inline.** In [open_publisher_directory](../src/detent_local/generation_file_access.hh), replace only `vector<unique_ptr<RecoveryFile>> parents` with `array<optional<RecoveryFile>, 256>` and a depth counter. Reuse the existing `RecoveryFile` destructor. Each ordinary descent currently allocates one owner object, plus occasional vector growth; the fixed container removes those allocations. Their time is unmeasured, so this is a bounded candidate, not a claimed saving.
+**D1: store ancestor owners inline.** In [open_publisher_directory](../../src/detent_local/generation_file_access.hh), replace only `vector<unique_ptr<RecoveryFile>> parents` with `array<optional<RecoveryFile>, 256>` and a depth counter. Reuse the existing `RecoveryFile` destructor. Each ordinary descent currently allocates one owner object, plus occasional vector growth; the fixed container removes those allocations. Their time is unmeasured, so this is a bounded candidate, not a claimed saving.
 
 After all existing checks succeed, emplace an empty owner at `depth`, transfer the current descriptor using the existing swaps, then increment depth. For `..`, swap with the last owner, reset that slot to close the departed directory, and decrement depth. Absolute aliases repeat the same pop operation. Success transfers `current.fd` out; destruction closes every engaged ancestor slot on success or exception.
 
