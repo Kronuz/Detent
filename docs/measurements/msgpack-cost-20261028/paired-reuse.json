@@ -1,0 +1,2540 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-29T03:35:26.117008+00:00",
+  "method": "Five rotating plain triplets (private codec, initial extraction, scoped-packer extraction) per snapshot \u00d7 34/200-byte key corpus \u00d7 37/4096-byte input fragments, 50 repeats/process. One additional observed pair per case, two repeats/process. Each process has its own matching warmup. Plain CPU is acceptance data; observed allocation events and per-step wall maxima include instrumentation overhead. Dedicated child accounts must fully refund. Encode verifies each output chunk against the canonical input; no frame compression or transport is timed.",
+  "sources": {
+    "production.cc": "ede99263531ab96012f71f5fa84a0faf3e379cca86b4780d8573dc905f0f28cd",
+    "observer.hh": "3990040224f37fb5f6589b02132b1c9f9b08d79f85e865cb1309ae23cc480969",
+    "build.py": "f3f9ac91f10a99062d1e9732ac439fdc11adb5766c82d47f2a484176c8815cf5",
+    "run_reuse.py": "8582caa21387223f0eb4c18378db64acb210fa677e444d6db7d6d97b4902a31b"
+  },
+  "binaries": {
+    "before": "6b39fe0ade22cd263295796d2803e2b77c54caa7afbaf75ec5165617bbdd268d",
+    "initial": "565b6c35c30696b3705896546dd89c67916c239c28d3b5571627b3ea674cd37b",
+    "after": "1e56202b57e3d060e6afa22ac4fa6c7f002157ee89f85144f7c484bdcb7a26db"
+  },
+  "candidate_patch": "diff --git a/src/detent_distribution/snapshot_encoder.cc b/src/detent_distribution/snapshot_encoder.cc\nindex c3368e9..625ad49 100644\n--- a/src/detent_distribution/snapshot_encoder.cc\n+++ b/src/detent_distribution/snapshot_encoder.cc\n@@ -43,19 +43,21 @@ struct SnapshotEncoder::Impl {\n \t\twire_length += bytes.size();\n \t}\n \tvoid namespace_row(m::InlineBytes<512> &out, std::uint64_t ordinal) const {\n-\t\tm::AppendPacker(out).pack_array(2);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(2);\n \t\tconst auto row = source->name_space(ordinal);\n-\t\tm::AppendPacker(out).pack_str(row.name);\n-\t\tm::AppendPacker(out).pack_uint64(row.revision);\n+\t\tpack.pack_str(row.name);\n+\t\tpack.pack_uint64(row.revision);\n \t}\n \tstatic void override_row(m::InlineBytes<512> &out, std::string_view name, const GroupOverride &value) {\n \t\tdetail::wire::override_row(out, name, value);\n \t}\n \tstatic void record_row(m::InlineBytes<512> &out, const Record &row) {\n-\t\tm::AppendPacker(out).pack_array(4);\n-\t\tm::AppendPacker(out).pack_uint64(row.namespace_index);\n-\t\tm::AppendPacker(out).pack_str(row.key);\n-\t\tm::AppendPacker(out).pack_uint64(row.revision);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(4);\n+\t\tpack.pack_uint64(row.namespace_index);\n+\t\tpack.pack_str(row.key);\n+\t\tpack.pack_uint64(row.revision);\n \t\tdetail::wire::definition(out, row.definition);\n \t}\n \tvoid count_one() {\n@@ -127,24 +129,25 @@ struct SnapshotEncoder::Impl {\n \t\t}\n \t}\n \tvoid header(m::InlineBytes<512> &out) const {\n-\t\tm::AppendPacker(out).pack_array(7);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_array(2);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(7);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_array(2);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_uint64(1);\n \t\tconst auto &id = source->cursor();\n-\t\tm::AppendPacker(out).pack_array(5);\n+\t\tpack.pack_array(5);\n \t\tfor (auto *field : {&id.cluster, &id.group, &id.restore_epoch})\n-\t\t\tm::AppendPacker(out).pack_bin({field->data(), field->size()});\n-\t\tm::AppendPacker(out).pack_bin({id.scope.data(), id.scope.size()});\n-\t\tm::AppendPacker(out).pack_uint64(id.revision);\n-\t\tm::AppendPacker(out).pack_array(4);\n-\t\tm::AppendPacker(out).pack_uint64(source->namespace_count());\n-\t\tm::AppendPacker(out).pack_uint64(records);\n-\t\tm::AppendPacker(out).pack_uint64(overrides);\n-\t\tm::AppendPacker(out).pack_uint64(strings);\n-\t\tm::AppendPacker(out).pack_array(source->namespace_count());\n+\t\t\tpack.pack_bin({field->data(), field->size()});\n+\t\tpack.pack_bin({id.scope.data(), id.scope.size()});\n+\t\tpack.pack_uint64(id.revision);\n+\t\tpack.pack_array(4);\n+\t\tpack.pack_uint64(source->namespace_count());\n+\t\tpack.pack_uint64(records);\n+\t\tpack.pack_uint64(overrides);\n+\t\tpack.pack_uint64(strings);\n+\t\tpack.pack_array(source->namespace_count());\n \t}\n \tvoid emit_one() {\n \t\tif (phase == 2) {\n",
+  "samples": [
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 51259161,
+        "wall_ns": 51257477,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14816902,
+        "wall_ns": 14778777,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 86418,
+        "wall_ns": 60217,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2060288,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 51890529,
+        "wall_ns": 52286965,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15394887,
+        "wall_ns": 15374914,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 95150,
+        "wall_ns": 67686,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4972544,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 48460939,
+        "wall_ns": 48422371,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14359202,
+        "wall_ns": 14323099,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 78513,
+        "wall_ns": 54565,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2052096,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 50630480,
+        "wall_ns": 50611951,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15100759,
+        "wall_ns": 15097748,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 86260,
+        "wall_ns": 59753,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2535424,
+      "arm": "initial",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 49261486,
+        "wall_ns": 49294874,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14553525,
+        "wall_ns": 14526527,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 83413,
+        "wall_ns": 58795,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3055616,
+      "arm": "after",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47783288,
+        "wall_ns": 47814702,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13224208,
+        "wall_ns": 13222482,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 77723,
+        "wall_ns": 53975,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2551808,
+      "arm": "before",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 50999819,
+        "wall_ns": 50971889,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14887951,
+        "wall_ns": 14850685,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 83917,
+        "wall_ns": 57822,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2052096,
+      "arm": "after",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 51414955,
+        "wall_ns": 51373510,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14430283,
+        "wall_ns": 14397744,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 85994,
+        "wall_ns": 58826,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2543616,
+      "arm": "before",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 51006075,
+        "wall_ns": 50965895,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15155382,
+        "wall_ns": 15155909,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 81427,
+        "wall_ns": 55092,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2097152,
+      "arm": "initial",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 49406541,
+        "wall_ns": 49433850,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14329911,
+        "wall_ns": 14298709,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 82153,
+        "wall_ns": 57030,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3039232,
+      "arm": "before",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 48109545,
+        "wall_ns": 48072235,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14160189,
+        "wall_ns": 14112754,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 94910,
+        "wall_ns": 70947,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 1568768,
+      "arm": "initial",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 48855353,
+        "wall_ns": 48991394,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14319180,
+        "wall_ns": 14303592,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 84128,
+        "wall_ns": 59952,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4067328,
+      "arm": "after",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 50503296,
+        "wall_ns": 50535052,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14622446,
+        "wall_ns": 14584803,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 82860,
+        "wall_ns": 57722,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2641920,
+      "arm": "initial",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47979406,
+        "wall_ns": 47961254,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14262203,
+        "wall_ns": 14256429,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 79250,
+        "wall_ns": 54643,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2535424,
+      "arm": "after",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 49926244,
+        "wall_ns": 50008234,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13874948,
+        "wall_ns": 13899040,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 82841,
+        "wall_ns": 58492,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3026944,
+      "arm": "before",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 2972826,
+        "wall_ns": 2996433,
+        "allocation_events": 22,
+        "steps": 7122,
+        "observed_max_step_ns": 30967
+      },
+      "encode": {
+        "caller_cpu_ns": 772833,
+        "wall_ns": 771154,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 3167
+      },
+      "cleanup": {
+        "caller_cpu_ns": 13162,
+        "wall_ns": 12005,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 446
+      },
+      "process_peak_rss_bytes": 1978368,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 2778600,
+        "wall_ns": 2776784,
+        "allocation_events": 22,
+        "steps": 7122,
+        "observed_max_step_ns": 6071
+      },
+      "encode": {
+        "caller_cpu_ns": 797247,
+        "wall_ns": 795520,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 2344
+      },
+      "cleanup": {
+        "caller_cpu_ns": 12894,
+        "wall_ns": 11802,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 463
+      },
+      "process_peak_rss_bytes": 1576960,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 2786605,
+        "wall_ns": 2785037,
+        "allocation_events": 22,
+        "steps": 7122,
+        "observed_max_step_ns": 7226
+      },
+      "encode": {
+        "caller_cpu_ns": 785290,
+        "wall_ns": 783558,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 10167
+      },
+      "cleanup": {
+        "caller_cpu_ns": 12607,
+        "wall_ns": 11498,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 411
+      },
+      "process_peak_rss_bytes": 1576960,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47824691,
+        "wall_ns": 47786214,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15227394,
+        "wall_ns": 15188020,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 87589,
+        "wall_ns": 60582,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2052096,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 46779355,
+        "wall_ns": 46810034,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15182614,
+        "wall_ns": 15189827,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 85887,
+        "wall_ns": 60159,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3530752,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 46717313,
+        "wall_ns": 46693406,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13680901,
+        "wall_ns": 13644208,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 80467,
+        "wall_ns": 54256,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2555904,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47452587,
+        "wall_ns": 47489972,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14991568,
+        "wall_ns": 14954411,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 87099,
+        "wall_ns": 61495,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3080192,
+      "arm": "after",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47919117,
+        "wall_ns": 47927251,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14447152,
+        "wall_ns": 14422858,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 84909,
+        "wall_ns": 58310,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2953216,
+      "arm": "before",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 45705220,
+        "wall_ns": 45739302,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14604502,
+        "wall_ns": 14592334,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 79991,
+        "wall_ns": 54454,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3031040,
+      "arm": "initial",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 45048302,
+        "wall_ns": 45055310,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13559822,
+        "wall_ns": 13536604,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 80829,
+        "wall_ns": 55880,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3080192,
+      "arm": "before",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 42784066,
+        "wall_ns": 42750279,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14111073,
+        "wall_ns": 14119367,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 112345,
+        "wall_ns": 52200,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 3018752,
+      "arm": "initial",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47734207,
+        "wall_ns": 47773207,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 15314875,
+        "wall_ns": 15308179,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 87085,
+        "wall_ns": 60899,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2555904,
+      "arm": "after",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 46728019,
+        "wall_ns": 46752864,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14558624,
+        "wall_ns": 14523084,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 79973,
+        "wall_ns": 54372,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2052096,
+      "arm": "initial",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 44840163,
+        "wall_ns": 44841260,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13817708,
+        "wall_ns": 13784031,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 93809,
+        "wall_ns": 52024,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 1957888,
+      "arm": "after",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 43897498,
+        "wall_ns": 43928353,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13283060,
+        "wall_ns": 13250429,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 72245,
+        "wall_ns": 50129,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2596864,
+      "arm": "before",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 44418498,
+        "wall_ns": 44611689,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13707840,
+        "wall_ns": 13679861,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 75962,
+        "wall_ns": 53613,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4026368,
+      "arm": "after",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 47893962,
+        "wall_ns": 47947709,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14575580,
+        "wall_ns": 14535494,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 88015,
+        "wall_ns": 61250,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2596864,
+      "arm": "before",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 45603796,
+        "wall_ns": 45564458,
+        "allocation_events": null,
+        "steps": 9650,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 14186742,
+        "wall_ns": 14181084,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 76534,
+        "wall_ns": 51604,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 2052096,
+      "arm": "initial",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 1893153,
+        "wall_ns": 1891610,
+        "allocation_events": 22,
+        "steps": 386,
+        "observed_max_step_ns": 19202
+      },
+      "encode": {
+        "caller_cpu_ns": 725444,
+        "wall_ns": 723961,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 18795
+      },
+      "cleanup": {
+        "caller_cpu_ns": 11734,
+        "wall_ns": 10695,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 350
+      },
+      "process_peak_rss_bytes": 1576960,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 2094984,
+        "wall_ns": 2093443,
+        "allocation_events": 22,
+        "steps": 386,
+        "observed_max_step_ns": 26832
+      },
+      "encode": {
+        "caller_cpu_ns": 763955,
+        "wall_ns": 762361,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 2894
+      },
+      "cleanup": {
+        "caller_cpu_ns": 12664,
+        "wall_ns": 11591,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 412
+      },
+      "process_peak_rss_bytes": 1691648,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 2054728,
+        "wall_ns": 2052905,
+        "allocation_events": 22,
+        "steps": 386,
+        "observed_max_step_ns": 16500
+      },
+      "encode": {
+        "caller_cpu_ns": 740240,
+        "wall_ns": 738706,
+        "allocation_events": 16,
+        "steps": 1538,
+        "observed_max_step_ns": 7264
+      },
+      "cleanup": {
+        "caller_cpu_ns": 12384,
+        "wall_ns": 11292,
+        "allocation_events": 0,
+        "steps": 98,
+        "observed_max_step_ns": 343
+      },
+      "process_peak_rss_bytes": 1576960,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 142010892,
+        "wall_ns": 142041375,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 20309891,
+        "wall_ns": 20284430,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 149277,
+        "wall_ns": 121274,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 5775360,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 133087757,
+        "wall_ns": 133198524,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 17028058,
+        "wall_ns": 17047826,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 143675,
+        "wall_ns": 119652,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7352320,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 143490718,
+        "wall_ns": 143583839,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 20117508,
+        "wall_ns": 20111812,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 148254,
+        "wall_ns": 120146,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7237632,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 137789277,
+        "wall_ns": 137966866,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18706514,
+        "wall_ns": 18711785,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 148135,
+        "wall_ns": 121547,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6721536,
+      "arm": "before",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 144812267,
+        "wall_ns": 145082493,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 21109719,
+        "wall_ns": 21089489,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 161826,
+        "wall_ns": 133573,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6955008,
+      "arm": "initial",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 133622042,
+        "wall_ns": 133546156,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18345705,
+        "wall_ns": 18305294,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 129398,
+        "wall_ns": 104809,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4739072,
+      "arm": "after",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 133251569,
+        "wall_ns": 133226183,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18253867,
+        "wall_ns": 18237160,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 123989,
+        "wall_ns": 99604,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4603904,
+      "arm": "initial",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 142236082,
+        "wall_ns": 142344130,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19629087,
+        "wall_ns": 19598043,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 142400,
+        "wall_ns": 115714,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7581696,
+      "arm": "after",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 140087045,
+        "wall_ns": 140251197,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18399005,
+        "wall_ns": 18346630,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 150293,
+        "wall_ns": 121174,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7688192,
+      "arm": "before",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 135236425,
+        "wall_ns": 135431354,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18736214,
+        "wall_ns": 18677119,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 134617,
+        "wall_ns": 109575,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7868416,
+      "arm": "after",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 126970994,
+        "wall_ns": 127098069,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 16436828,
+        "wall_ns": 16412429,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 119122,
+        "wall_ns": 96096,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 5001216,
+      "arm": "before",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 138037662,
+        "wall_ns": 138269331,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19380706,
+        "wall_ns": 19337370,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 138888,
+        "wall_ns": 113223,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 9043968,
+      "arm": "initial",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 135772004,
+        "wall_ns": 135811423,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18286776,
+        "wall_ns": 18268215,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 130470,
+        "wall_ns": 105364,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6451200,
+      "arm": "before",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 137098279,
+        "wall_ns": 137233624,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18994363,
+        "wall_ns": 18960106,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 132488,
+        "wall_ns": 107186,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6696960,
+      "arm": "initial",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 136419678,
+        "wall_ns": 136529772,
+        "allocation_events": null,
+        "steps": 851000,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19127201,
+        "wall_ns": 19094358,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 139065,
+        "wall_ns": 113187,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7962624,
+      "arm": "after",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 8619820,
+        "wall_ns": 8628594,
+        "allocation_events": 36,
+        "steps": 34040,
+        "observed_max_step_ns": 13289
+      },
+      "encode": {
+        "caller_cpu_ns": 945054,
+        "wall_ns": 943405,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 3227
+      },
+      "cleanup": {
+        "caller_cpu_ns": 24006,
+        "wall_ns": 22880,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 333
+      },
+      "process_peak_rss_bytes": 3051520,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 8852191,
+        "wall_ns": 8892265,
+        "allocation_events": 36,
+        "steps": 34040,
+        "observed_max_step_ns": 30716
+      },
+      "encode": {
+        "caller_cpu_ns": 1023830,
+        "wall_ns": 1021737,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 2928
+      },
+      "cleanup": {
+        "caller_cpu_ns": 25395,
+        "wall_ns": 24267,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 490
+      },
+      "process_peak_rss_bytes": 3416064,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 37,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 8718249,
+        "wall_ns": 8715940,
+        "allocation_events": 36,
+        "steps": 34040,
+        "observed_max_step_ns": 11959
+      },
+      "encode": {
+        "caller_cpu_ns": 984563,
+        "wall_ns": 983026,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 2855
+      },
+      "cleanup": {
+        "caller_cpu_ns": 24695,
+        "wall_ns": 23639,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 364
+      },
+      "process_peak_rss_bytes": 3276800,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 125159619,
+        "wall_ns": 125350046,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 17362139,
+        "wall_ns": 17333145,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 128273,
+        "wall_ns": 103459,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6946816,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 126734549,
+        "wall_ns": 126773422,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18074075,
+        "wall_ns": 18079055,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 152381,
+        "wall_ns": 98520,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 4997120,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 122019850,
+        "wall_ns": 122048202,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18054712,
+        "wall_ns": 18034946,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 124927,
+        "wall_ns": 101788,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 5005312,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 134079562,
+        "wall_ns": 134146082,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 20844583,
+        "wall_ns": 20804538,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 150764,
+        "wall_ns": 123300,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 9289728,
+      "arm": "initial",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 128314743,
+        "wall_ns": 128398668,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19246720,
+        "wall_ns": 19247036,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 143299,
+        "wall_ns": 116711,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7823360,
+      "arm": "after",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 131003430,
+        "wall_ns": 131152211,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18077500,
+        "wall_ns": 18091945,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 138084,
+        "wall_ns": 112205,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6103040,
+      "arm": "before",
+      "pair": 1,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 128922746,
+        "wall_ns": 129051693,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19409344,
+        "wall_ns": 19383072,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 136423,
+        "wall_ns": 110402,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6979584,
+      "arm": "after",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 132441591,
+        "wall_ns": 132512780,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19333136,
+        "wall_ns": 19286173,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 138809,
+        "wall_ns": 112152,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6963200,
+      "arm": "before",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 132807826,
+        "wall_ns": 132918484,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 20031840,
+        "wall_ns": 20003181,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 145832,
+        "wall_ns": 118860,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7372800,
+      "arm": "initial",
+      "pair": 2,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 121644395,
+        "wall_ns": 121824607,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 16758582,
+        "wall_ns": 16767295,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 128374,
+        "wall_ns": 104109,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7958528,
+      "arm": "before",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 131604745,
+        "wall_ns": 131722974,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19630465,
+        "wall_ns": 19610622,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 139945,
+        "wall_ns": 113324,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 5988352,
+      "arm": "initial",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 130586027,
+        "wall_ns": 130642849,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19450944,
+        "wall_ns": 19441590,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 144574,
+        "wall_ns": 118026,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6709248,
+      "arm": "after",
+      "pair": 3,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 127285019,
+        "wall_ns": 127379727,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 19603380,
+        "wall_ns": 19576124,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 131993,
+        "wall_ns": 106968,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 6516736,
+      "arm": "initial",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 126830766,
+        "wall_ns": 126920244,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18657315,
+        "wall_ns": 18620123,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 158085,
+        "wall_ns": 132565,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 8855552,
+      "arm": "after",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 50,
+      "fragment_bytes": 4096,
+      "observed": false,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 127563429,
+        "wall_ns": 127752709,
+        "allocation_events": null,
+        "steps": 15350,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 18276538,
+        "wall_ns": 18233818,
+        "allocation_events": null,
+        "steps": 41400,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 146342,
+        "wall_ns": 119743,
+        "allocation_events": null,
+        "steps": 5250,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 7270400,
+      "arm": "before",
+      "pair": 4,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 5551259,
+        "wall_ns": 5549254,
+        "allocation_events": 36,
+        "steps": 614,
+        "observed_max_step_ns": 28914
+      },
+      "encode": {
+        "caller_cpu_ns": 888201,
+        "wall_ns": 886536,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 8049
+      },
+      "cleanup": {
+        "caller_cpu_ns": 24292,
+        "wall_ns": 23209,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 308
+      },
+      "process_peak_rss_bytes": 3051520,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 5643191,
+        "wall_ns": 5641267,
+        "allocation_events": 36,
+        "steps": 614,
+        "observed_max_step_ns": 58055
+      },
+      "encode": {
+        "caller_cpu_ns": 943159,
+        "wall_ns": 941670,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 2447
+      },
+      "cleanup": {
+        "caller_cpu_ns": 24156,
+        "wall_ns": 23051,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 403
+      },
+      "process_peak_rss_bytes": 3264512,
+      "arm": "initial",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    },
+    {
+      "repeats": 2,
+      "fragment_bytes": 4096,
+      "observed": true,
+      "logical_bytes": 629733,
+      "peak_admitted_bytes": 919616,
+      "peak_decoder_arena_bytes": 852592,
+      "decode": {
+        "caller_cpu_ns": 5636442,
+        "wall_ns": 5634574,
+        "allocation_events": 36,
+        "steps": 614,
+        "observed_max_step_ns": 47403
+      },
+      "encode": {
+        "caller_cpu_ns": 915081,
+        "wall_ns": 913331,
+        "allocation_events": 44,
+        "steps": 1656,
+        "observed_max_step_ns": 2457
+      },
+      "cleanup": {
+        "caller_cpu_ns": 24238,
+        "wall_ns": 23120,
+        "allocation_events": 0,
+        "steps": 210,
+        "observed_max_step_ns": 428
+      },
+      "process_peak_rss_bytes": 3264512,
+      "arm": "after",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 200,
+      "corpus_sha256": "dff38973c1fc2c2ac2ba912021e2d784dbd2ba3f38c8666026ec2c7e652f4991"
+    }
+  ],
+  "finished_utc": "2026-10-29T03:35:34.878436+00:00"
+}

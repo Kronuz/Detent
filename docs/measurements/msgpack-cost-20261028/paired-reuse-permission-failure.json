@@ -1,0 +1,56 @@
+{
+  "status": "failed",
+  "started_utc": "2026-10-29T03:30:18.250590+00:00",
+  "method": "Five rotating plain triplets (private codec, initial extraction, scoped-packer extraction) per snapshot \u00d7 34/200-byte key corpus \u00d7 37/4096-byte input fragments, 50 repeats/process. One additional observed pair per case, two repeats/process. Each process has its own matching warmup. Plain CPU is acceptance data; observed allocation events and per-step wall maxima include instrumentation overhead. Dedicated child accounts must fully refund. Encode verifies each output chunk against the canonical input; no frame compression or transport is timed.",
+  "sources": {
+    "production.cc": "ede99263531ab96012f71f5fa84a0faf3e379cca86b4780d8573dc905f0f28cd",
+    "observer.hh": "3990040224f37fb5f6589b02132b1c9f9b08d79f85e865cb1309ae23cc480969",
+    "build.py": "f3f9ac91f10a99062d1e9732ac439fdc11adb5766c82d47f2a484176c8815cf5",
+    "run_reuse.py": "8582caa21387223f0eb4c18378db64acb210fa677e444d6db7d6d97b4902a31b"
+  },
+  "binaries": {
+    "before": "6b39fe0ade22cd263295796d2803e2b77c54caa7afbaf75ec5165617bbdd268d",
+    "initial": "565b6c35c30696b3705896546dd89c67916c239c28d3b5571627b3ea674cd37b",
+    "after": "1e56202b57e3d060e6afa22ac4fa6c7f002157ee89f85144f7c484bdcb7a26db"
+  },
+  "candidate_patch": "diff --git a/src/detent_distribution/snapshot_encoder.cc b/src/detent_distribution/snapshot_encoder.cc\nindex c3368e9..625ad49 100644\n--- a/src/detent_distribution/snapshot_encoder.cc\n+++ b/src/detent_distribution/snapshot_encoder.cc\n@@ -43,19 +43,21 @@ struct SnapshotEncoder::Impl {\n \t\twire_length += bytes.size();\n \t}\n \tvoid namespace_row(m::InlineBytes<512> &out, std::uint64_t ordinal) const {\n-\t\tm::AppendPacker(out).pack_array(2);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(2);\n \t\tconst auto row = source->name_space(ordinal);\n-\t\tm::AppendPacker(out).pack_str(row.name);\n-\t\tm::AppendPacker(out).pack_uint64(row.revision);\n+\t\tpack.pack_str(row.name);\n+\t\tpack.pack_uint64(row.revision);\n \t}\n \tstatic void override_row(m::InlineBytes<512> &out, std::string_view name, const GroupOverride &value) {\n \t\tdetail::wire::override_row(out, name, value);\n \t}\n \tstatic void record_row(m::InlineBytes<512> &out, const Record &row) {\n-\t\tm::AppendPacker(out).pack_array(4);\n-\t\tm::AppendPacker(out).pack_uint64(row.namespace_index);\n-\t\tm::AppendPacker(out).pack_str(row.key);\n-\t\tm::AppendPacker(out).pack_uint64(row.revision);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(4);\n+\t\tpack.pack_uint64(row.namespace_index);\n+\t\tpack.pack_str(row.key);\n+\t\tpack.pack_uint64(row.revision);\n \t\tdetail::wire::definition(out, row.definition);\n \t}\n \tvoid count_one() {\n@@ -127,24 +129,25 @@ struct SnapshotEncoder::Impl {\n \t\t}\n \t}\n \tvoid header(m::InlineBytes<512> &out) const {\n-\t\tm::AppendPacker(out).pack_array(7);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_array(2);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n-\t\tm::AppendPacker(out).pack_uint64(1);\n+\t\tm::AppendPacker pack(out);\n+\t\tpack.pack_array(7);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_array(2);\n+\t\tpack.pack_uint64(1);\n+\t\tpack.pack_uint64(1);\n \t\tconst auto &id = source->cursor();\n-\t\tm::AppendPacker(out).pack_array(5);\n+\t\tpack.pack_array(5);\n \t\tfor (auto *field : {&id.cluster, &id.group, &id.restore_epoch})\n-\t\t\tm::AppendPacker(out).pack_bin({field->data(), field->size()});\n-\t\tm::AppendPacker(out).pack_bin({id.scope.data(), id.scope.size()});\n-\t\tm::AppendPacker(out).pack_uint64(id.revision);\n-\t\tm::AppendPacker(out).pack_array(4);\n-\t\tm::AppendPacker(out).pack_uint64(source->namespace_count());\n-\t\tm::AppendPacker(out).pack_uint64(records);\n-\t\tm::AppendPacker(out).pack_uint64(overrides);\n-\t\tm::AppendPacker(out).pack_uint64(strings);\n-\t\tm::AppendPacker(out).pack_array(source->namespace_count());\n+\t\t\tpack.pack_bin({field->data(), field->size()});\n+\t\tpack.pack_bin({id.scope.data(), id.scope.size()});\n+\t\tpack.pack_uint64(id.revision);\n+\t\tpack.pack_array(4);\n+\t\tpack.pack_uint64(source->namespace_count());\n+\t\tpack.pack_uint64(records);\n+\t\tpack.pack_uint64(overrides);\n+\t\tpack.pack_uint64(strings);\n+\t\tpack.pack_array(source->namespace_count());\n \t}\n \tvoid emit_one() {\n \t\tif (phase == 2) {\n",
+  "samples": [
+    {
+      "repeats": 50,
+      "fragment_bytes": 37,
+      "observed": false,
+      "logical_bytes": 131733,
+      "peak_admitted_bytes": 460528,
+      "peak_decoder_arena_bytes": 393504,
+      "decode": {
+        "caller_cpu_ns": 49667136,
+        "wall_ns": 49624691,
+        "allocation_events": null,
+        "steps": 178050,
+        "observed_max_step_ns": null
+      },
+      "encode": {
+        "caller_cpu_ns": 13850377,
+        "wall_ns": 13849261,
+        "allocation_events": null,
+        "steps": 38450,
+        "observed_max_step_ns": null
+      },
+      "cleanup": {
+        "caller_cpu_ns": 79955,
+        "wall_ns": 55684,
+        "allocation_events": null,
+        "steps": 2450,
+        "observed_max_step_ns": null
+      },
+      "process_peak_rss_bytes": 1568768,
+      "arm": "before",
+      "pair": 0,
+      "kind": "snapshot",
+      "key_bytes": 34,
+      "corpus_sha256": "9a9822c7046d6de0a5350433067f50605dbaf660befcd888214cb28cfdd2fa9d"
+    }
+  ],
+  "error": "PermissionError(13, 'Permission denied')",
+  "finished_utc": "2026-10-29T03:30:18.623284+00:00"
+}
