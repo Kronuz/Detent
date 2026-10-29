@@ -224,7 +224,7 @@
   {
     "name": "lru_cache",
     "repository": "https://github.com/Kronuz/lru-cache.git",
-    "revision": "827ba676761b621c167e397985e9cfb54f4b3003",
+    "revision": "7dd23ebe41c3a3ba2856c6e3504509aa2a7a9e95",
     "source_subdir": "."
   }
 ]

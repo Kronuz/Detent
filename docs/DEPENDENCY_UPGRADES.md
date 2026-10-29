@@ -497,7 +497,7 @@ The fast-client candidate adds [Kronuz/lru-cache](https://github.com/Kronuz/lru-
 
 The library's allocator regression and existing example pass native and AddressSanitizer/UndefinedBehaviorSanitizer checks, two checks in each configuration. The [eight-job hosted matrix](https://github.com/Kronuz/lru-cache/actions/runs/40245146506) passes. The candidate's metadata and lazy-page attachment checks pass locally; this does not qualify final-client latency, complete publication or the full consumer matrix.
 
-A pre-existing library issue remains outside adoption: `erase(const Key&)` can return zero after erasing the final entry because it derives its count from the returned iterator. The checked-page cache uses iterator erasure and does not depend on that count. The inherited `std::iterator` deprecation also remains. Neither observation is evidence of a performance regression.
+At `lru-cache:827ba67`, `erase(const Key&)` can report zero after erasing the final entry because it derives its count from the successor iterator. The fix at `lru-cache:7dd23eb` reports one for a successful removal. Its regression fails on the unchanged header; native checks pass 3/3 afterward, with plain and aging caches, and all eight hosted jobs pass in run 40861405646. Detent's checked-page cache uses iterator erasure and does not depend on the corrected count. The pinned fix changes no allocation layout or eviction policy and makes no speed or memory claim. A clean public-pin SDK build passes the lazy-page, reader-metadata and retained-source checks (3/3); the complete hosted Detent matrix follows the pin update. The inherited `std::iterator` deprecation remains.
 
 ## HTTP qualification cost screen and deflate iterator (2026-10-28)
 
