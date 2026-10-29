@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <sys/stat.h>
 #include <vector>
 
@@ -40,8 +39,7 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 	    !S_ISDIR(anchor.st_mode) || (anchor.st_mode & 0022) ||
 	    !internal::acceptable_acl(current.fd, internal::AclPolicy::DenialsAllowed))
 		throw std::runtime_error("cannot open publisher directory anchor");
-	std::array<std::optional<RecoveryFile>, 256> parents;
-	std::size_t depth = 0;
+	std::vector<std::unique_ptr<RecoveryFile>> parents;
 	std::deque<std::filesystem::path> pending;
 	auto prepend = [&](const std::filesystem::path &target) {
 		std::vector<std::filesystem::path> parts;
@@ -62,9 +60,9 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 		if (part.empty() || part == ".")
 			continue;
 		if (part == "..") {
-			if (depth) {
-				std::swap(current.fd, parents[depth - 1]->fd);
-				parents[--depth].reset();
+			if (!parents.empty()) {
+				std::swap(current.fd, parents.back()->fd);
+				parents.pop_back();
 			}
 			continue;
 		}
@@ -87,9 +85,9 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 				throw std::runtime_error("publisher directory alias changed");
 			const std::filesystem::path resolved(std::string(target.data(), std::size_t(count)));
 			if (resolved.is_absolute()) {
-				while (depth) {
-					std::swap(current.fd, parents[depth - 1]->fd);
-					parents[--depth].reset();
+				while (!parents.empty()) {
+					std::swap(current.fd, parents.back()->fd);
+					parents.pop_back();
 				}
 			}
 			prepend(resolved);
@@ -106,10 +104,8 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 		    ::fstatat(current.fd, part.c_str(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
 		    held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			throw std::runtime_error("publisher directory has untrusted ancestry");
-		if (depth == parents.size())
-			throw std::runtime_error("publisher directory has too many components");
-		parents[depth].emplace(-1);
-		std::swap(current.fd, parents[depth++]->fd);
+		parents.push_back(std::make_unique<RecoveryFile>(-1));
+		std::swap(current.fd, parents.back()->fd);
 		std::swap(current.fd, next.fd);
 	}
 	struct stat final_status{};

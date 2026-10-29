@@ -1,6 +1,6 @@
 # Validated Architectural Blueprint
 
-> Status: CURRENT (2026-10-29). T1 attribution accepted with validation limits; conditional GO for one ancestor-storage prototype. Resource adoption remains NO-GO.
+> Status: HISTORICAL (2026-10-29). The authorized prototype fails its two-arm cost criterion and is discarded. See [the complete experiment](../measurements/reader-ancestor-20261029/README.md). Resource adoption remains NO-GO.
 
 ## T1 recheck
 
