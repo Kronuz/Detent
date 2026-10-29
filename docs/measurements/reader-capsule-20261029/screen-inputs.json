@@ -1,0 +1,18 @@
+{
+  "private": {
+    "build": "/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build",
+    "source_checkout": "/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-source",
+    "checkout_head": "a5a83041f7d409ac2222fa0f1c42c5eaf67ce255",
+    "reader_source_sha256": "5fa80bff9725f8aad98a62cc876590b01d8119c6602ad5ae45544e5b535a5e70",
+    "archive_sha256": "825917939831b20dd59a81282a47d7021b0bbec089184b299bd361c21481d780",
+    "compile_command": "/usr/local/opt/llvm/bin/clang++  -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-source/include -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/lru_cache-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/char_classify-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/strict_stox-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/sha256-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/endian-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/atomic_shared_ptr-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/flat_map-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/random_lib-src -isystem /Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-build/_deps/rapidjson-src/include -O3 -DNDEBUG -std=gnu++20 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -o CMakeFiles/detent_local_view.dir/prepared_reader.cc.o -c /Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/baseline-source/src/detent_local/prepared_reader.cc"
+  },
+  "canonical": {
+    "build": "/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build",
+    "source_checkout": "/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/migration-source",
+    "checkout_head": "52246e2ee128211401180416dfaf85ecdd0c100b",
+    "reader_source_sha256": "5fa80bff9725f8aad98a62cc876590b01d8119c6602ad5ae45544e5b535a5e70",
+    "archive_sha256": "453136dd2e19ee491a7b1400d76bfe8eec4f671de739d5d4c0526a85f500fe7b",
+    "compile_command": "/usr/local/opt/llvm/bin/clang++  -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/migration-source/include -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/lru_cache-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/char_classify-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/strict_stox-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/sha256-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/endian-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/atomic_shared_ptr-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/flat_map-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/random_lib-src -I/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/allocators-src/include -isystem /Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/reader-build/_deps/rapidjson-src/include -O3 -DNDEBUG -std=gnu++20 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -o CMakeFiles/detent_local_view.dir/prepared_reader.cc.o -c /Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/migration-source/src/detent_local/prepared_reader.cc"
+  }
+}

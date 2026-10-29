@@ -1,0 +1,9 @@
+{
+  "method": "APFS clonefile, independent inodes; selected generation leased while cloning. No live source mutation.",
+  "selected_sha256": "ef1270213ccd55e59a12cf42faa65a4c77498d3e9408ed019a2d9cbf8c5fb50d",
+  "files": 2890,
+  "logical_bytes_per_clone": 1510180581,
+  "full_local_manifest_sha256": "2a366976aba6738f143e541f2ed57df78d246e25c1291619f3e9135570f96e15",
+  "all_independent_regular_single_link_inodes": true,
+  "owner_mode_and_source_stability_checks": "clone_corpus.py fails on every mismatch"
+}

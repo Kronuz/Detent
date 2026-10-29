@@ -1,0 +1,96 @@
+Start testing: Oct 29 07:54 PDT
+----------------------------------------------------------
+46/85 Testing: test_local_managed_reader
+46/85 Test: test_local_managed_reader
+Command: "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_managed_reader"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_managed_reader" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+dual legacy/managed reader, selection binding and unsafe identity rejection passed
+<end of output>
+Test time =   0.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_managed_reader" end time: Oct 29 07:54 PDT
+"test_local_managed_reader" time elapsed: 00:00:00
+----------------------------------------------------------
+
+47/85 Testing: test_local_reader
+47/85 Test: test_local_reader
+Command: "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_reader"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_reader" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+worker refresh, concurrent root acquisition and failed-refresh retention passed
+<end of output>
+Test time =   0.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_reader" end time: Oct 29 07:54 PDT
+"test_local_reader" time elapsed: 00:00:00
+----------------------------------------------------------
+
+78/85 Testing: test_local_reader_metadata
+78/85 Test: test_local_reader_metadata
+Command: "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_reader_metadata"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_reader_metadata" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.30 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_reader_metadata" end time: Oct 29 07:54 PDT
+"test_local_reader_metadata" time elapsed: 00:00:00
+----------------------------------------------------------
+
+79/85 Testing: test_local_lazy_page_access
+79/85 Test: test_local_lazy_page_access
+Command: "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_lazy_page_access"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_lazy_page_access" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.36 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_lazy_page_access" end time: Oct 29 07:54 PDT
+"test_local_lazy_page_access" time elapsed: 00:00:00
+----------------------------------------------------------
+
+80/85 Testing: test_local_trusted_paths
+80/85 Test: test_local_trusted_paths
+Command: "/bin/sh" "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/source/tests/detent_local/test_trusted_paths.sh" "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_trusted_paths" "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/.scratch"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_trusted_paths" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+Root-owned path fixtures require noninteractive sudo; skipped.
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_trusted_paths" end time: Oct 29 07:54 PDT
+"test_local_trusted_paths" time elapsed: 00:00:00
+----------------------------------------------------------
+
+81/85 Testing: test_local_reader_capsule
+81/85 Test: test_local_reader_capsule
+Command: "/Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local/test_local_reader_capsule"
+Directory: /Users/kronuz/code/Detent/.scratch/reader-capsule-20261029/build/tests/detent_local
+"test_local_reader_capsule" start time: Oct 29 07:54 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.66 sec
+----------------------------------------------------------
+Test Passed.
+"test_local_reader_capsule" end time: Oct 29 07:54 PDT
+"test_local_reader_capsule" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Oct 29 07:54 PDT

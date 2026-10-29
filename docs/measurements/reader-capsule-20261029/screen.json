@@ -1,0 +1,3380 @@
+{
+  "status": "completed",
+  "scope": "twenty-key prototype screen",
+  "started_utc": "2026-10-29T15:15:42.195578+00:00",
+  "method": "One rotated four-arm private/canonical-resource by current/capsule screen. Independent APFS clones of frozen5M corpus, equal-depth/equal-length paths. First20 original keys. Matching fresh-process warmup per sample. Same malloc-event observer in all arms. No metadata attribution instrumentation. End-to-end phase sum is factory+client+lookup. Prototype screening only, not uninstrumented200/200 acceptance.",
+  "hashes": {
+    "build_screen.py": "98f53fe61c686486393f409ad38cdc2cbdf757b3274772fef5d1cfa5411f66d8",
+    "run_screen.py": "b1e7f8ef125213aa70131a937e06c9a0c497cd739f635ca2869a10a479ea42c4",
+    "corpus-clones.json": "2a366976aba6738f143e541f2ed57df78d246e25c1291619f3e9135570f96e15"
+  },
+  "binaries": {
+    "private-current": "ff0dfd31bd4e8ea11c1ed162af39f8e80834c063617956d7c07944438cb4bdf0",
+    "private-capsule": "fab1d61820bc305d065d7de7f650be4f84705f044e13debcbbdf5205dd30edfa",
+    "shared-current": "75ed247e3ed174283e9f3cbf3965ad0aa369a8cf91f276e0e9ccc01e10007ce1",
+    "shared-capsule": "41cf33843ed523e2d8db2a9ef4f635c962877e4b735397ee3cb4b4ee0be96417"
+  },
+  "samples": [
+    {
+      "arm": "private-current",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 10895429,
+      "process_wall_ns": 7246491,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8533,
+          "caller_cpu_ns": 9435,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 442898,
+          "caller_cpu_ns": 443607,
+          "process_cpu_ns": 464000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 210045,
+          "caller_cpu_ns": 210793,
+          "process_cpu_ns": 231000,
+          "minor_faults": 15,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 9806954,
+      "process_wall_ns": 7295369,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8741,
+          "caller_cpu_ns": 9684,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 424021,
+          "caller_cpu_ns": 424694,
+          "process_cpu_ns": 446000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 223416,
+          "caller_cpu_ns": 224130,
+          "process_cpu_ns": 247000,
+          "minor_faults": 15,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 8390741,
+      "process_wall_ns": 8373676,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10183,
+          "caller_cpu_ns": 11183,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 476888,
+          "caller_cpu_ns": 477594,
+          "process_cpu_ns": 502000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 245040,
+          "caller_cpu_ns": 245784,
+          "process_cpu_ns": 265000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 7470423,
+      "process_wall_ns": 7672156,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10411,
+          "caller_cpu_ns": 11439,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 462769,
+          "caller_cpu_ns": 463460,
+          "process_cpu_ns": 491000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 238228,
+          "caller_cpu_ns": 238948,
+          "process_cpu_ns": 264000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key128205",
+      "expected_int": 2179485,
+      "warmup_ns": 11548357,
+      "process_wall_ns": 8308982,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9878,
+          "caller_cpu_ns": 10834,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 478280,
+          "caller_cpu_ns": 479013,
+          "process_cpu_ns": 502000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 355919,
+          "caller_cpu_ns": 356593,
+          "process_cpu_ns": 381000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key128205",
+      "expected_int": 2179485,
+      "warmup_ns": 9637407,
+      "process_wall_ns": 7870574,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10234,
+          "caller_cpu_ns": 11131,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 454216,
+          "caller_cpu_ns": 454919,
+          "process_cpu_ns": 475000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 342618,
+          "caller_cpu_ns": 343346,
+          "process_cpu_ns": 367000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key128205",
+      "expected_int": 2179485,
+      "warmup_ns": 7306371,
+      "process_wall_ns": 7186863,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9386,
+          "caller_cpu_ns": 10225,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 368986,
+          "caller_cpu_ns": 369678,
+          "process_cpu_ns": 390000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 341888,
+          "caller_cpu_ns": 342611,
+          "process_cpu_ns": 366000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key128205",
+      "expected_int": 2179485,
+      "warmup_ns": 6982710,
+      "process_wall_ns": 7436324,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8970,
+          "caller_cpu_ns": 9904,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 470204,
+          "caller_cpu_ns": 470934,
+          "process_cpu_ns": 497000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 339176,
+          "caller_cpu_ns": 339895,
+          "process_cpu_ns": 362000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key256411",
+      "expected_int": -4358987,
+      "warmup_ns": 12403725,
+      "process_wall_ns": 8499410,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10563,
+          "caller_cpu_ns": 11594,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 488295,
+          "caller_cpu_ns": 488999,
+          "process_cpu_ns": 519000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 281114,
+          "caller_cpu_ns": 281798,
+          "process_cpu_ns": 306000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key256411",
+      "expected_int": -4358987,
+      "warmup_ns": 9998728,
+      "process_wall_ns": 7749406,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9786,
+          "caller_cpu_ns": 10657,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 403274,
+          "caller_cpu_ns": 404009,
+          "process_cpu_ns": 424000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 275155,
+          "caller_cpu_ns": 275850,
+          "process_cpu_ns": 298000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key256411",
+      "expected_int": -4358987,
+      "warmup_ns": 6982818,
+      "process_wall_ns": 7430000,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9088,
+          "caller_cpu_ns": 10004,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 460150,
+          "caller_cpu_ns": 460886,
+          "process_cpu_ns": 481000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 269308,
+          "caller_cpu_ns": 270003,
+          "process_cpu_ns": 289000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key256411",
+      "expected_int": -4358987,
+      "warmup_ns": 7937238,
+      "process_wall_ns": 7532964,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8424,
+          "caller_cpu_ns": 9300,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 403700,
+          "caller_cpu_ns": 404433,
+          "process_cpu_ns": 424000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 264619,
+          "caller_cpu_ns": 265316,
+          "process_cpu_ns": 290000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key384615",
+      "expected_int": -6538455,
+      "warmup_ns": 12726738,
+      "process_wall_ns": 7841589,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9976,
+          "caller_cpu_ns": 10933,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 407543,
+          "caller_cpu_ns": 408268,
+          "process_cpu_ns": 430000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 276730,
+          "caller_cpu_ns": 277463,
+          "process_cpu_ns": 300000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key384615",
+      "expected_int": -6538455,
+      "warmup_ns": 8794181,
+      "process_wall_ns": 8579707,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9327,
+          "caller_cpu_ns": 10650,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 487428,
+          "caller_cpu_ns": 488114,
+          "process_cpu_ns": 509000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 269053,
+          "caller_cpu_ns": 269796,
+          "process_cpu_ns": 292000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key384615",
+      "expected_int": -6538455,
+      "warmup_ns": 8060935,
+      "process_wall_ns": 7471548,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8140,
+          "caller_cpu_ns": 9033,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 394870,
+          "caller_cpu_ns": 395615,
+          "process_cpu_ns": 418000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 259064,
+          "caller_cpu_ns": 259788,
+          "process_cpu_ns": 283000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key384615",
+      "expected_int": -6538455,
+      "warmup_ns": 7565040,
+      "process_wall_ns": 7977647,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10955,
+          "caller_cpu_ns": 11975,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 487370,
+          "caller_cpu_ns": 488120,
+          "process_cpu_ns": 509000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 280768,
+          "caller_cpu_ns": 281462,
+          "process_cpu_ns": 305000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key512821",
+      "expected_int": 8717957,
+      "warmup_ns": 11367176,
+      "process_wall_ns": 8664635,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9244,
+          "caller_cpu_ns": 10143,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 510985,
+          "caller_cpu_ns": 511740,
+          "process_cpu_ns": 533000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 259063,
+          "caller_cpu_ns": 259860,
+          "process_cpu_ns": 281000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 32
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key512821",
+      "expected_int": 8717957,
+      "warmup_ns": 8918394,
+      "process_wall_ns": 7416983,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 12967,
+          "caller_cpu_ns": 13852,
+          "process_cpu_ns": 16000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 396890,
+          "caller_cpu_ns": 397613,
+          "process_cpu_ns": 418000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 246957,
+          "caller_cpu_ns": 247657,
+          "process_cpu_ns": 271000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 32
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key512821",
+      "expected_int": 8717957,
+      "warmup_ns": 7237760,
+      "process_wall_ns": 7114190,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9175,
+          "caller_cpu_ns": 9999,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 425464,
+          "caller_cpu_ns": 426166,
+          "process_cpu_ns": 446000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 251374,
+          "caller_cpu_ns": 252056,
+          "process_cpu_ns": 275000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 32
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key512821",
+      "expected_int": 8717957,
+      "warmup_ns": 6807827,
+      "process_wall_ns": 8665570,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11982,
+          "caller_cpu_ns": 13005,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 479398,
+          "caller_cpu_ns": 480117,
+          "process_cpu_ns": 502000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 325689,
+          "caller_cpu_ns": 322262,
+          "process_cpu_ns": 347000,
+          "minor_faults": 26,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": 32
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key641025",
+      "expected_int": 10897425,
+      "warmup_ns": 10658158,
+      "process_wall_ns": 7725833,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8980,
+          "caller_cpu_ns": 9864,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 409163,
+          "caller_cpu_ns": 409932,
+          "process_cpu_ns": 432000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 291534,
+          "caller_cpu_ns": 292241,
+          "process_cpu_ns": 314000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 36
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key641025",
+      "expected_int": 10897425,
+      "warmup_ns": 8467380,
+      "process_wall_ns": 7255005,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9400,
+          "caller_cpu_ns": 10260,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 424451,
+          "caller_cpu_ns": 425164,
+          "process_cpu_ns": 445000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 284506,
+          "caller_cpu_ns": 285214,
+          "process_cpu_ns": 308000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 36
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key641025",
+      "expected_int": 10897425,
+      "warmup_ns": 7021296,
+      "process_wall_ns": 7370291,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10276,
+          "caller_cpu_ns": 11116,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 410239,
+          "caller_cpu_ns": 410991,
+          "process_cpu_ns": 430000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 294152,
+          "caller_cpu_ns": 294899,
+          "process_cpu_ns": 314000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 36
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key641025",
+      "expected_int": 10897425,
+      "warmup_ns": 7889385,
+      "process_wall_ns": 8280530,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8945,
+          "caller_cpu_ns": 9876,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 486334,
+          "caller_cpu_ns": 487099,
+          "process_cpu_ns": 511000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 297578,
+          "caller_cpu_ns": 298293,
+          "process_cpu_ns": 322000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 36
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key769231",
+      "expected_int": -13076927,
+      "warmup_ns": 10958779,
+      "process_wall_ns": 7744479,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9908,
+          "caller_cpu_ns": 10932,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 449848,
+          "caller_cpu_ns": 450603,
+          "process_cpu_ns": 471000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 221594,
+          "caller_cpu_ns": 222310,
+          "process_cpu_ns": 240000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key769231",
+      "expected_int": -13076927,
+      "warmup_ns": 7743412,
+      "process_wall_ns": 8100693,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10705,
+          "caller_cpu_ns": 11671,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 430744,
+          "caller_cpu_ns": 431434,
+          "process_cpu_ns": 452000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 234418,
+          "caller_cpu_ns": 235095,
+          "process_cpu_ns": 253000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key769231",
+      "expected_int": -13076927,
+      "warmup_ns": 8344929,
+      "process_wall_ns": 7601832,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8391,
+          "caller_cpu_ns": 9273,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 446820,
+          "caller_cpu_ns": 447574,
+          "process_cpu_ns": 468000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 212414,
+          "caller_cpu_ns": 213163,
+          "process_cpu_ns": 236000,
+          "minor_faults": 17,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key769231",
+      "expected_int": -13076927,
+      "warmup_ns": 6971994,
+      "process_wall_ns": 6882010,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8040,
+          "caller_cpu_ns": 8883,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 383954,
+          "caller_cpu_ns": 384659,
+          "process_cpu_ns": 406000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 204854,
+          "caller_cpu_ns": 205591,
+          "process_cpu_ns": 227000,
+          "minor_faults": 17,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key897435",
+      "expected_int": -15256395,
+      "warmup_ns": 8905568,
+      "process_wall_ns": 7542911,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10147,
+          "caller_cpu_ns": 10962,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 407865,
+          "caller_cpu_ns": 408646,
+          "process_cpu_ns": 427000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 189971,
+          "caller_cpu_ns": 190661,
+          "process_cpu_ns": 211000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 23
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key897435",
+      "expected_int": -15256395,
+      "warmup_ns": 8576855,
+      "process_wall_ns": 7943595,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9230,
+          "caller_cpu_ns": 10157,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 456040,
+          "caller_cpu_ns": 456738,
+          "process_cpu_ns": 480000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 176831,
+          "caller_cpu_ns": 177605,
+          "process_cpu_ns": 194000,
+          "minor_faults": 16,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 23
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key897435",
+      "expected_int": -15256395,
+      "warmup_ns": 7230864,
+      "process_wall_ns": 6994360,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8224,
+          "caller_cpu_ns": 9097,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 381974,
+          "caller_cpu_ns": 382702,
+          "process_cpu_ns": 403000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 169326,
+          "caller_cpu_ns": 169997,
+          "process_cpu_ns": 192000,
+          "minor_faults": 17,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 23
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key897435",
+      "expected_int": -15256395,
+      "warmup_ns": 6843800,
+      "process_wall_ns": 6854946,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9591,
+          "caller_cpu_ns": 10450,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 419628,
+          "caller_cpu_ns": 420337,
+          "process_cpu_ns": 441000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 174310,
+          "caller_cpu_ns": 174980,
+          "process_cpu_ns": 196000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 23
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key1025641",
+      "expected_int": 17435897,
+      "warmup_ns": 9606523,
+      "process_wall_ns": 8326436,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9186,
+          "caller_cpu_ns": 10089,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 481991,
+          "caller_cpu_ns": 482699,
+          "process_cpu_ns": 506000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 299598,
+          "caller_cpu_ns": 300299,
+          "process_cpu_ns": 324000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1025641",
+      "expected_int": 17435897,
+      "warmup_ns": 9169262,
+      "process_wall_ns": 7705843,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8160,
+          "caller_cpu_ns": 9054,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 399493,
+          "caller_cpu_ns": 400150,
+          "process_cpu_ns": 421000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 296236,
+          "caller_cpu_ns": 296926,
+          "process_cpu_ns": 318000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1025641",
+      "expected_int": 17435897,
+      "warmup_ns": 7029891,
+      "process_wall_ns": 7053342,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9644,
+          "caller_cpu_ns": 10466,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 423084,
+          "caller_cpu_ns": 423799,
+          "process_cpu_ns": 443000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 292127,
+          "caller_cpu_ns": 292842,
+          "process_cpu_ns": 313000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1025641",
+      "expected_int": 17435897,
+      "warmup_ns": 7328673,
+      "process_wall_ns": 8399504,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11336,
+          "caller_cpu_ns": 12477,
+          "process_cpu_ns": 16000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 469423,
+          "caller_cpu_ns": 470266,
+          "process_cpu_ns": 492000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 316692,
+          "caller_cpu_ns": 317399,
+          "process_cpu_ns": 342000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1153845",
+      "expected_int": 19615365,
+      "warmup_ns": 10722314,
+      "process_wall_ns": 7906013,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8667,
+          "caller_cpu_ns": 9619,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 410048,
+          "caller_cpu_ns": 410782,
+          "process_cpu_ns": 431000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 302972,
+          "caller_cpu_ns": 303697,
+          "process_cpu_ns": 325000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1153845",
+      "expected_int": 19615365,
+      "warmup_ns": 9237132,
+      "process_wall_ns": 7934995,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9760,
+          "caller_cpu_ns": 10698,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 443942,
+          "caller_cpu_ns": 444656,
+          "process_cpu_ns": 468000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 301238,
+          "caller_cpu_ns": 301976,
+          "process_cpu_ns": 322000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1153845",
+      "expected_int": 19615365,
+      "warmup_ns": 7508316,
+      "process_wall_ns": 8293329,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11529,
+          "caller_cpu_ns": 12508,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 454884,
+          "caller_cpu_ns": 455625,
+          "process_cpu_ns": 479000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 321830,
+          "caller_cpu_ns": 322489,
+          "process_cpu_ns": 347000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key1153845",
+      "expected_int": 19615365,
+      "warmup_ns": 7862427,
+      "process_wall_ns": 7545193,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8447,
+          "caller_cpu_ns": 9327,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 440968,
+          "caller_cpu_ns": 441759,
+          "process_cpu_ns": 464000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 292736,
+          "caller_cpu_ns": 293462,
+          "process_cpu_ns": 315000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key1282051",
+      "expected_int": -21794867,
+      "warmup_ns": 12774129,
+      "process_wall_ns": 7769793,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10159,
+          "caller_cpu_ns": 11053,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 460393,
+          "caller_cpu_ns": 461119,
+          "process_cpu_ns": 480000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 276218,
+          "caller_cpu_ns": 276950,
+          "process_cpu_ns": 299000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key1282051",
+      "expected_int": -21794867,
+      "warmup_ns": 9476323,
+      "process_wall_ns": 8232963,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11025,
+          "caller_cpu_ns": 11977,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 428614,
+          "caller_cpu_ns": 429347,
+          "process_cpu_ns": 450000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 285205,
+          "caller_cpu_ns": 285954,
+          "process_cpu_ns": 309000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key1282051",
+      "expected_int": -21794867,
+      "warmup_ns": 7587075,
+      "process_wall_ns": 7185835,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8133,
+          "caller_cpu_ns": 9037,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 432785,
+          "caller_cpu_ns": 433482,
+          "process_cpu_ns": 455000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 255875,
+          "caller_cpu_ns": 256582,
+          "process_cpu_ns": 278000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key1282051",
+      "expected_int": -21794867,
+      "warmup_ns": 7006698,
+      "process_wall_ns": 6913896,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8182,
+          "caller_cpu_ns": 9040,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 380252,
+          "caller_cpu_ns": 380982,
+          "process_cpu_ns": 402000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 253723,
+          "caller_cpu_ns": 254415,
+          "process_cpu_ns": 277000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1410257",
+      "expected_int": 23974369,
+      "warmup_ns": 10301680,
+      "process_wall_ns": 8691613,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11373,
+          "caller_cpu_ns": 12353,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 432672,
+          "caller_cpu_ns": 433382,
+          "process_cpu_ns": 454000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 352737,
+          "caller_cpu_ns": 353452,
+          "process_cpu_ns": 370000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key1410257",
+      "expected_int": 23974369,
+      "warmup_ns": 10300471,
+      "process_wall_ns": 7858589,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8230,
+          "caller_cpu_ns": 9102,
+          "process_cpu_ns": 10000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 454465,
+          "caller_cpu_ns": 455197,
+          "process_cpu_ns": 476000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 338012,
+          "caller_cpu_ns": 338703,
+          "process_cpu_ns": 361000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1410257",
+      "expected_int": 23974369,
+      "warmup_ns": 7083893,
+      "process_wall_ns": 6974407,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8499,
+          "caller_cpu_ns": 9384,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 396990,
+          "caller_cpu_ns": 397731,
+          "process_cpu_ns": 418000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 329987,
+          "caller_cpu_ns": 330667,
+          "process_cpu_ns": 348000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1410257",
+      "expected_int": 23974369,
+      "warmup_ns": 7911323,
+      "process_wall_ns": 8238192,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10188,
+          "caller_cpu_ns": 11350,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 488108,
+          "caller_cpu_ns": 488797,
+          "process_cpu_ns": 511000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 347680,
+          "caller_cpu_ns": 348347,
+          "process_cpu_ns": 371000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key1538461",
+      "expected_int": 26153837,
+      "warmup_ns": 10723405,
+      "process_wall_ns": 7920118,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8482,
+          "caller_cpu_ns": 9291,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 452368,
+          "caller_cpu_ns": 453061,
+          "process_cpu_ns": 474000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 295727,
+          "caller_cpu_ns": 296438,
+          "process_cpu_ns": 319000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1538461",
+      "expected_int": 26153837,
+      "warmup_ns": 8305478,
+      "process_wall_ns": 7587110,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8327,
+          "caller_cpu_ns": 9135,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 408559,
+          "caller_cpu_ns": 409258,
+          "process_cpu_ns": 428000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 298955,
+          "caller_cpu_ns": 299665,
+          "process_cpu_ns": 319000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1538461",
+      "expected_int": 26153837,
+      "warmup_ns": 7930913,
+      "process_wall_ns": 8312610,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10472,
+          "caller_cpu_ns": 11613,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 469971,
+          "caller_cpu_ns": 470673,
+          "process_cpu_ns": 493000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 319629,
+          "caller_cpu_ns": 320365,
+          "process_cpu_ns": 345000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1538461",
+      "expected_int": 26153837,
+      "warmup_ns": 8042393,
+      "process_wall_ns": 7464873,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9840,
+          "caller_cpu_ns": 10679,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 393900,
+          "caller_cpu_ns": 394644,
+          "process_cpu_ns": 415000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 296947,
+          "caller_cpu_ns": 297630,
+          "process_cpu_ns": 317000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 38
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key1666667",
+      "expected_int": -28333339,
+      "warmup_ns": 10052769,
+      "process_wall_ns": 8070558,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9190,
+          "caller_cpu_ns": 10198,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 451433,
+          "caller_cpu_ns": 452150,
+          "process_cpu_ns": 474000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 281479,
+          "caller_cpu_ns": 282193,
+          "process_cpu_ns": 305000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key1666667",
+      "expected_int": -28333339,
+      "warmup_ns": 9338276,
+      "process_wall_ns": 7845549,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9726,
+          "caller_cpu_ns": 10749,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 466563,
+          "caller_cpu_ns": 467340,
+          "process_cpu_ns": 490000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 273517,
+          "caller_cpu_ns": 274262,
+          "process_cpu_ns": 297000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key1666667",
+      "expected_int": -28333339,
+      "warmup_ns": 7323791,
+      "process_wall_ns": 7232971,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 29579,
+          "caller_cpu_ns": 27116,
+          "process_cpu_ns": 29000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 497996,
+          "caller_cpu_ns": 487287,
+          "process_cpu_ns": 508000,
+          "minor_faults": 69,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 3,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 263324,
+          "caller_cpu_ns": 264005,
+          "process_cpu_ns": 284000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key1666667",
+      "expected_int": -28333339,
+      "warmup_ns": 7332437,
+      "process_wall_ns": 7072308,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 11108,
+          "caller_cpu_ns": 11997,
+          "process_cpu_ns": 14000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 429063,
+          "caller_cpu_ns": 429786,
+          "process_cpu_ns": 450000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 250810,
+          "caller_cpu_ns": 251495,
+          "process_cpu_ns": 273000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key1794871",
+      "expected_int": -30512807,
+      "warmup_ns": 10125709,
+      "process_wall_ns": 8748911,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10899,
+          "caller_cpu_ns": 12066,
+          "process_cpu_ns": 15000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 507007,
+          "caller_cpu_ns": 507727,
+          "process_cpu_ns": 533000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 287125,
+          "caller_cpu_ns": 287805,
+          "process_cpu_ns": 314000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key1794871",
+      "expected_int": -30512807,
+      "warmup_ns": 9047151,
+      "process_wall_ns": 7800416,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9938,
+          "caller_cpu_ns": 10924,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 419235,
+          "caller_cpu_ns": 419958,
+          "process_cpu_ns": 442000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 278331,
+          "caller_cpu_ns": 279046,
+          "process_cpu_ns": 298000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key1794871",
+      "expected_int": -30512807,
+      "warmup_ns": 7090067,
+      "process_wall_ns": 7156797,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 7964,
+          "caller_cpu_ns": 8804,
+          "process_cpu_ns": 10000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 418158,
+          "caller_cpu_ns": 418867,
+          "process_cpu_ns": 438000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 255996,
+          "caller_cpu_ns": 256700,
+          "process_cpu_ns": 278000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key1794871",
+      "expected_int": -30512807,
+      "warmup_ns": 7363745,
+      "process_wall_ns": 7733089,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8361,
+          "caller_cpu_ns": 9233,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 408528,
+          "caller_cpu_ns": 409206,
+          "process_cpu_ns": 432000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 264683,
+          "caller_cpu_ns": 265340,
+          "process_cpu_ns": 288000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1923077",
+      "expected_int": 32692309,
+      "warmup_ns": 9789627,
+      "process_wall_ns": 7501084,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9431,
+          "caller_cpu_ns": 10317,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 386986,
+          "caller_cpu_ns": 387720,
+          "process_cpu_ns": 410000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 263905,
+          "caller_cpu_ns": 264606,
+          "process_cpu_ns": 287000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key1923077",
+      "expected_int": 32692309,
+      "warmup_ns": 8428950,
+      "process_wall_ns": 7628940,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8209,
+          "caller_cpu_ns": 9080,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 449494,
+          "caller_cpu_ns": 450241,
+          "process_cpu_ns": 470000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 262670,
+          "caller_cpu_ns": 263415,
+          "process_cpu_ns": 286000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1923077",
+      "expected_int": 32692309,
+      "warmup_ns": 7594840,
+      "process_wall_ns": 8475031,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9195,
+          "caller_cpu_ns": 10232,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 447145,
+          "caller_cpu_ns": 447847,
+          "process_cpu_ns": 470000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 269011,
+          "caller_cpu_ns": 269666,
+          "process_cpu_ns": 291000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1923077",
+      "expected_int": 32692309,
+      "warmup_ns": 7782012,
+      "process_wall_ns": 7342746,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9217,
+          "caller_cpu_ns": 10045,
+          "process_cpu_ns": 11000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 426418,
+          "caller_cpu_ns": 427135,
+          "process_cpu_ns": 447000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 257150,
+          "caller_cpu_ns": 257832,
+          "process_cpu_ns": 277000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key2051281",
+      "expected_int": 34871777,
+      "warmup_ns": 12230904,
+      "process_wall_ns": 7896913,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8862,
+          "caller_cpu_ns": 9773,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 456611,
+          "caller_cpu_ns": 457332,
+          "process_cpu_ns": 476000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 338640,
+          "caller_cpu_ns": 339347,
+          "process_cpu_ns": 362000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key2051281",
+      "expected_int": 34871777,
+      "warmup_ns": 9277424,
+      "process_wall_ns": 8482135,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9288,
+          "caller_cpu_ns": 10218,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 445437,
+          "caller_cpu_ns": 446189,
+          "process_cpu_ns": 470000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 347115,
+          "caller_cpu_ns": 347845,
+          "process_cpu_ns": 370000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key2051281",
+      "expected_int": 34871777,
+      "warmup_ns": 7909609,
+      "process_wall_ns": 7727292,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9285,
+          "caller_cpu_ns": 10152,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 428582,
+          "caller_cpu_ns": 429285,
+          "process_cpu_ns": 448000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 320921,
+          "caller_cpu_ns": 321594,
+          "process_cpu_ns": 342000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key2051281",
+      "expected_int": 34871777,
+      "warmup_ns": 7291967,
+      "process_wall_ns": 7072595,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9411,
+          "caller_cpu_ns": 10310,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 389349,
+          "caller_cpu_ns": 390085,
+          "process_cpu_ns": 411000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 326471,
+          "caller_cpu_ns": 327179,
+          "process_cpu_ns": 346000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key2179487",
+      "expected_int": -37051279,
+      "warmup_ns": 9209549,
+      "process_wall_ns": 8353497,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9116,
+          "caller_cpu_ns": 10028,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 434999,
+          "caller_cpu_ns": 435721,
+          "process_cpu_ns": 456000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 267178,
+          "caller_cpu_ns": 267853,
+          "process_cpu_ns": 291000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key2179487",
+      "expected_int": -37051279,
+      "warmup_ns": 8682785,
+      "process_wall_ns": 7716209,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9564,
+          "caller_cpu_ns": 10472,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 432132,
+          "caller_cpu_ns": 432852,
+          "process_cpu_ns": 453000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 256961,
+          "caller_cpu_ns": 257631,
+          "process_cpu_ns": 279000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key2179487",
+      "expected_int": -37051279,
+      "warmup_ns": 6869284,
+      "process_wall_ns": 6971669,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9404,
+          "caller_cpu_ns": 10232,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 382656,
+          "caller_cpu_ns": 383371,
+          "process_cpu_ns": 403000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 260726,
+          "caller_cpu_ns": 261439,
+          "process_cpu_ns": 284000,
+          "minor_faults": 24,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key2179487",
+      "expected_int": -37051279,
+      "warmup_ns": 7228388,
+      "process_wall_ns": 8030069,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 12496,
+          "caller_cpu_ns": 13362,
+          "process_cpu_ns": 15000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 457348,
+          "caller_cpu_ns": 458074,
+          "process_cpu_ns": 477000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 264489,
+          "caller_cpu_ns": 265137,
+          "process_cpu_ns": 287000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load3:key2307691",
+      "expected_int": -39230747,
+      "warmup_ns": 10599399,
+      "process_wall_ns": 7527448,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9569,
+          "caller_cpu_ns": 10443,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 444418,
+          "caller_cpu_ns": 445109,
+          "process_cpu_ns": 465000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 271068,
+          "caller_cpu_ns": 271778,
+          "process_cpu_ns": 293000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load3:key2307691",
+      "expected_int": -39230747,
+      "warmup_ns": 9227232,
+      "process_wall_ns": 7623712,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9928,
+          "caller_cpu_ns": 10843,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 386593,
+          "caller_cpu_ns": 387286,
+          "process_cpu_ns": 407000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 268525,
+          "caller_cpu_ns": 269242,
+          "process_cpu_ns": 291000,
+          "minor_faults": 25,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load3:key2307691",
+      "expected_int": -39230747,
+      "warmup_ns": 7082370,
+      "process_wall_ns": 7606639,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8953,
+          "caller_cpu_ns": 9805,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 454600,
+          "caller_cpu_ns": 455339,
+          "process_cpu_ns": 473000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 262275,
+          "caller_cpu_ns": 263005,
+          "process_cpu_ns": 280000,
+          "minor_faults": 20,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load3:key2307691",
+      "expected_int": -39230747,
+      "warmup_ns": 7685819,
+      "process_wall_ns": 7424709,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8358,
+          "caller_cpu_ns": 9210,
+          "process_cpu_ns": 11000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 409741,
+          "caller_cpu_ns": 410475,
+          "process_cpu_ns": 430000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 268512,
+          "caller_cpu_ns": 269175,
+          "process_cpu_ns": 291000,
+          "minor_faults": 21,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 34
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key2435897",
+      "expected_int": 41410249,
+      "warmup_ns": 10358125,
+      "process_wall_ns": 7995070,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10042,
+          "caller_cpu_ns": 10970,
+          "process_cpu_ns": 14000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 422091,
+          "caller_cpu_ns": 422822,
+          "process_cpu_ns": 454000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 3,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 341860,
+          "caller_cpu_ns": 342530,
+          "process_cpu_ns": 365000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-current",
+      "key": "load1:key2435897",
+      "expected_int": 41410249,
+      "warmup_ns": 9473279,
+      "process_wall_ns": 8541718,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9168,
+          "caller_cpu_ns": 10166,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 472997,
+          "caller_cpu_ns": 473700,
+          "process_cpu_ns": 494000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 330892,
+          "caller_cpu_ns": 331596,
+          "process_cpu_ns": 352000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key2435897",
+      "expected_int": 41410249,
+      "warmup_ns": 8289388,
+      "process_wall_ns": 8019039,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9012,
+          "caller_cpu_ns": 9918,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 419672,
+          "caller_cpu_ns": 420403,
+          "process_cpu_ns": 440000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 335581,
+          "caller_cpu_ns": 336303,
+          "process_cpu_ns": 358000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key2435897",
+      "expected_int": 41410249,
+      "warmup_ns": 7576603,
+      "process_wall_ns": 7314399,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9144,
+          "caller_cpu_ns": 10002,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 425668,
+          "caller_cpu_ns": 426338,
+          "process_cpu_ns": 449000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 322765,
+          "caller_cpu_ns": 323429,
+          "process_cpu_ns": 344000,
+          "minor_faults": 23,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 43
+        }
+      ]
+    }
+  ],
+  "finished_utc": "2026-10-29T15:15:43.542716+00:00"
+}

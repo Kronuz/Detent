@@ -1,0 +1,94 @@
+{
+  "verdict": "PASS PROTOTYPE SCREEN",
+  "criterion": "Paired median factory+client+lookup wall and caller CPU benefit separately in both resource closures. Not uninstrumented200/200 acceptance or production adoption.",
+  "statistics": {
+    "private": {
+      "wall_ns": {
+        "current_median": 740348.5,
+        "capsule_median": 706783.0,
+        "paired_delta_median": -44764.0,
+        "capsule_lower_count": 17,
+        "samples": 20
+      },
+      "caller_cpu_ns": {
+        "current_median": 742720.5,
+        "capsule_median": 709083.5,
+        "paired_delta_median": -44785.0,
+        "capsule_lower_count": 17,
+        "samples": 20
+      },
+      "process_cpu_ns": {
+        "current_median": 786000.0,
+        "capsule_median": 754500.0,
+        "paired_delta_median": -47500.0,
+        "capsule_lower_count": 15,
+        "samples": 20
+      },
+      "caller_allocation_events": {
+        "current_median": 115.0,
+        "capsule_median": 111.0,
+        "paired_delta_median": -4.0,
+        "capsule_lower_count": 20,
+        "samples": 20
+      },
+      "minor_faults": {
+        "current_median": 83.0,
+        "capsule_median": 87.0,
+        "paired_delta_median": 4.0,
+        "capsule_lower_count": 0,
+        "samples": 20
+      },
+      "major_faults": {
+        "current_median": 0.0,
+        "capsule_median": 0.0,
+        "paired_delta_median": 0.0,
+        "capsule_lower_count": 0,
+        "samples": 20
+      }
+    },
+    "shared": {
+      "wall_ns": {
+        "current_median": 748288.0,
+        "capsule_median": 713037.5,
+        "paired_delta_median": -27194.5,
+        "capsule_lower_count": 14,
+        "samples": 20
+      },
+      "caller_cpu_ns": {
+        "current_median": 750736.5,
+        "capsule_median": 715426.5,
+        "paired_delta_median": -27106.5,
+        "capsule_lower_count": 14,
+        "samples": 20
+      },
+      "process_cpu_ns": {
+        "current_median": 796000.0,
+        "capsule_median": 762500.0,
+        "paired_delta_median": -22000.0,
+        "capsule_lower_count": 14,
+        "samples": 20
+      },
+      "caller_allocation_events": {
+        "current_median": 119.0,
+        "capsule_median": 115.0,
+        "paired_delta_median": -4.0,
+        "capsule_lower_count": 20,
+        "samples": 20
+      },
+      "minor_faults": {
+        "current_median": 87.0,
+        "capsule_median": 87.0,
+        "paired_delta_median": 0.0,
+        "capsule_lower_count": 2,
+        "samples": 20
+      },
+      "major_faults": {
+        "current_median": 0.0,
+        "capsule_median": 0.0,
+        "paired_delta_median": 0.0,
+        "capsule_lower_count": 0,
+        "samples": 20
+      }
+    }
+  }
+}

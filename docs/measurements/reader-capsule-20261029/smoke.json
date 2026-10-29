@@ -1,0 +1,188 @@
+{
+  "status": "completed",
+  "scope": "one-key correctness smoke",
+  "started_utc": "2026-10-29T14:56:59.058773+00:00",
+  "method": "One rotated four-arm private/canonical-resource by current/capsule screen. Independent APFS clones of frozen5M corpus, equal-depth/equal-length paths. First20 original keys. Matching fresh-process warmup per sample. Same malloc-event observer in all arms. No metadata attribution instrumentation. End-to-end phase sum is factory+client+lookup. Prototype screening only, not uninstrumented200/200 acceptance.",
+  "hashes": {
+    "build_screen.py": "98f53fe61c686486393f409ad38cdc2cbdf757b3274772fef5d1cfa5411f66d8",
+    "run_screen.py": "b1e7f8ef125213aa70131a937e06c9a0c497cd739f635ca2869a10a479ea42c4",
+    "corpus-clones.json": "2a366976aba6738f143e541f2ed57df78d246e25c1291619f3e9135570f96e15"
+  },
+  "binaries": {
+    "private-current": "ff0dfd31bd4e8ea11c1ed162af39f8e80834c063617956d7c07944438cb4bdf0",
+    "private-capsule": "fab1d61820bc305d065d7de7f650be4f84705f044e13debcbbdf5205dd30edfa",
+    "shared-current": "75ed247e3ed174283e9f3cbf3965ad0aa369a8cf91f276e0e9ccc01e10007ce1",
+    "shared-capsule": "41cf33843ed523e2d8db2a9ef4f635c962877e4b735397ee3cb4b4ee0be96417"
+  },
+  "samples": [
+    {
+      "arm": "private-current",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 299472972,
+      "process_wall_ns": 8175868,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8258,
+          "caller_cpu_ns": 9029,
+          "process_cpu_ns": 13000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 552976,
+          "caller_cpu_ns": 553615,
+          "process_cpu_ns": 592000,
+          "minor_faults": 59,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 315323,
+          "caller_cpu_ns": 315977,
+          "process_cpu_ns": 407000,
+          "minor_faults": 15,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 2,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "private-capsule",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 308904047,
+      "process_wall_ns": 8213612,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 9579,
+          "caller_cpu_ns": 10459,
+          "process_cpu_ns": 12000,
+          "minor_faults": 4,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 536869,
+          "caller_cpu_ns": 537598,
+          "process_cpu_ns": 558000,
+          "minor_faults": 63,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 75
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 264179,
+          "caller_cpu_ns": 264968,
+          "process_cpu_ns": 287000,
+          "minor_faults": 15,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-current",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 310061161,
+      "process_wall_ns": 7934437,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 10300,
+          "caller_cpu_ns": 11198,
+          "process_cpu_ns": 13000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 448355,
+          "caller_cpu_ns": 449097,
+          "process_cpu_ns": 469000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 83
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 219632,
+          "caller_cpu_ns": 220324,
+          "process_cpu_ns": 241000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    },
+    {
+      "arm": "shared-capsule",
+      "key": "load1:key1",
+      "expected_int": 17,
+      "warmup_ns": 291908090,
+      "process_wall_ns": 7127352,
+      "phases": [
+        {
+          "phase": "factory",
+          "wall_ns": 8523,
+          "caller_cpu_ns": 9286,
+          "process_cpu_ns": 12000,
+          "minor_faults": 5,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 0,
+          "caller_allocation_events": 2
+        },
+        {
+          "phase": "client",
+          "wall_ns": 348189,
+          "caller_cpu_ns": 348799,
+          "process_cpu_ns": 367000,
+          "minor_faults": 58,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 79
+        },
+        {
+          "phase": "lookup",
+          "wall_ns": 233760,
+          "caller_cpu_ns": 234472,
+          "process_cpu_ns": 253000,
+          "minor_faults": 19,
+          "major_faults": 0,
+          "voluntary_switches": 0,
+          "involuntary_switches": 1,
+          "caller_allocation_events": 28
+        }
+      ]
+    }
+  ],
+  "finished_utc": "2026-10-29T14:57:00.317964+00:00"
+}

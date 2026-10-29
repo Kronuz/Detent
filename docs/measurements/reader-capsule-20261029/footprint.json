@@ -1,0 +1,48 @@
+{
+  "method": "Mach-O segment byte counts and LLVM23 x86-64 function prologue inspection. Local reservation excludes saved registers, return address and callees. Not RSS.",
+  "private_current_text": 585728,
+  "private_capsule_text": 589824,
+  "canonical_current_text": 585728,
+  "canonical_capsule_text": 589824,
+  "data_all": 4096,
+  "stack": {
+    "private-current": {
+      "local_stack_reservation_bytes": 3064,
+      "prologue": [
+        "0000000000001f60 <detent::local::detail::PreparedReader::open(std::__1::__fs::filesystem::path const&, unsigned int, detent::local::ViewLimits, std::__1::optional<detent::distribution::Cursor>)>:",
+        "    1f60: 55                           \tpushq\t%rbp",
+        "    1f61: 48 89 e5                     \tmovq\t%rsp, %rbp",
+        "    1f64: 41 57                        \tpushq\t%r15",
+        "    1f66: 41 56                        \tpushq\t%r14",
+        "    1f68: 41 55                        \tpushq\t%r13",
+        "    1f6a: 41 54                        \tpushq\t%r12",
+        "    1f6c: 53                           \tpushq\t%rbx",
+        "    1f6d: 48 81 ec f8 0b 00 00         \tsubq\t$0xbf8, %rsp            ## imm = 0xBF8",
+        "    1f74: 89 95 1c f8 ff ff            \tmovl\t%edx, -0x7e4(%rbp)",
+        "    1f7a: 48 89 b5 a8 f7 ff ff         \tmovq\t%rsi, -0x858(%rbp)",
+        "    1f81: 48 89 bd 90 f7 ff ff         \tmovq\t%rdi, -0x870(%rbp)",
+        "    1f88: 48 8b 05 00 00 00 00         \tmovq\t(%rip), %rax            ## 0x1f8f <detent::local::detail::PreparedReader::open(std::__1::__fs::filesystem::path const&, unsigned int, detent::local::ViewLimits, std::__1::optional<detent::distribution::Cursor>)+0x2f>",
+        "    1f8f: 48 8b 00                     \tmovq\t(%rax), %rax"
+      ]
+    },
+    "private-capsule": {
+      "local_stack_reservation_bytes": 3528,
+      "prologue": [
+        "0000000000001f60 <detent::local::detail::PreparedReader::open(std::__1::__fs::filesystem::path const&, unsigned int, detent::local::ViewLimits, std::__1::optional<detent::distribution::Cursor>)>:",
+        "    1f60: 55                           \tpushq\t%rbp",
+        "    1f61: 48 89 e5                     \tmovq\t%rsp, %rbp",
+        "    1f64: 41 57                        \tpushq\t%r15",
+        "    1f66: 41 56                        \tpushq\t%r14",
+        "    1f68: 41 55                        \tpushq\t%r13",
+        "    1f6a: 41 54                        \tpushq\t%r12",
+        "    1f6c: 53                           \tpushq\t%rbx",
+        "    1f6d: 48 81 ec c8 0d 00 00         \tsubq\t$0xdc8, %rsp            ## imm = 0xDC8",
+        "    1f74: 48 89 cb                     \tmovq\t%rcx, %rbx",
+        "    1f77: 89 95 7c f6 ff ff            \tmovl\t%edx, -0x984(%rbp)",
+        "    1f7d: 48 89 b5 68 f6 ff ff         \tmovq\t%rsi, -0x998(%rbp)",
+        "    1f84: 48 89 bd 18 f6 ff ff         \tmovq\t%rdi, -0x9e8(%rbp)",
+        "    1f8b: 48 8b 05 00 00 00 00         \tmovq\t(%rip), %rax            ## 0x1f92 <detent::local::detail::PreparedReader::open(std::__1::__fs::filesystem::path const&, unsigned int, detent::local::ViewLimits, std::__1::optional<detent::distribution::Cursor>)+0x32>"
+      ]
+    }
+  }
+}
