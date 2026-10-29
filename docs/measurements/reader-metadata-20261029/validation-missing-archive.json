@@ -1,0 +1,22 @@
+{
+  "status": "failed",
+  "samples": [
+    {
+      "arm": "before",
+      "case": "test_local_reader_metadata",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_reader_metadata",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "error": "CalledProcessError(1, ['/usr/local/opt/llvm/bin/clang++', '-O3', '-DNDEBUG', '-isysroot', '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk', '-Wl,-search_paths_first', '-Wl,-headerpad_max_install_names', '/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/metadata-diagnostic/before/validation/test_local_lazy_page_access-0.o', '-o', '/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/metadata-diagnostic/before/validation/test_local_lazy_page_access', '-Wl,-rpath,/usr/local/lib', '../../src/detent_local/libdetent_local_builder.a', '../../src/detent_local/libdetent_local_client.a', '../../src/detent_distribution/libdetent_distribution.a', '../../_deps/compressors-build/libcompressors.a', '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd', '/usr/local/lib/liblz4.dylib', '/usr/local/lib/libzstd.1.5.7.dylib', '/Users/kronuz/code/Detent/.scratch/resource-adoption-20261027/metadata-diagnostic/before/libdetent_local_view.a', '../../src/libdetent.a', '../../_deps/sha256-build/libsha256.a', '../../_deps/random_lib-build/librandom.a', '../../src/detent_distribution/libdetent_resources.a'])"
+}

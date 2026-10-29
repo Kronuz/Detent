@@ -1,0 +1,197 @@
+{
+  "status": "passed",
+  "samples": [
+    {
+      "arm": "before",
+      "case": "test_local_reader_metadata",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_reader_metadata",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_lazy_page_access",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_lazy_page_access",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_managed_reader",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "dual legacy/managed reader, selection binding and unsafe identity rejection passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_managed_reader",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "dual legacy/managed reader, selection binding and unsafe identity rejection passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_client_source",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "local Client, absence-only defaults, pinned scope and zero-allocation acquisition passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_client_source",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "local Client, absence-only defaults, pinned scope and zero-allocation acquisition passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_pinned_source",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "pinned namespace/record/override iteration, saturation and lease retirement passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_pinned_source",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "pinned namespace/record/override iteration, saturation and lease retirement passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_trusted_paths",
+      "observer": false,
+      "returncode": 77,
+      "stdout": "Root-owned path fixtures require noninteractive sudo; skipped.\n",
+      "stderr": ""
+    },
+    {
+      "arm": "before",
+      "case": "test_local_trusted_paths",
+      "observer": true,
+      "returncode": 77,
+      "stdout": "Root-owned path fixtures require noninteractive sudo; skipped.\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_reader_metadata",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_reader_metadata",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_lazy_page_access",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_lazy_page_access",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_managed_reader",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "dual legacy/managed reader, selection binding and unsafe identity rejection passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_managed_reader",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "dual legacy/managed reader, selection binding and unsafe identity rejection passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_client_source",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "local Client, absence-only defaults, pinned scope and zero-allocation acquisition passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_client_source",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "local Client, absence-only defaults, pinned scope and zero-allocation acquisition passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_pinned_source",
+      "observer": false,
+      "returncode": 0,
+      "stdout": "pinned namespace/record/override iteration, saturation and lease retirement passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_pinned_source",
+      "observer": true,
+      "returncode": 0,
+      "stdout": "pinned namespace/record/override iteration, saturation and lease retirement passed\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_trusted_paths",
+      "observer": false,
+      "returncode": 77,
+      "stdout": "Root-owned path fixtures require noninteractive sudo; skipped.\n",
+      "stderr": ""
+    },
+    {
+      "arm": "after",
+      "case": "test_local_trusted_paths",
+      "observer": true,
+      "returncode": 77,
+      "stdout": "Root-owned path fixtures require noninteractive sudo; skipped.\n",
+      "stderr": ""
+    }
+  ]
+}

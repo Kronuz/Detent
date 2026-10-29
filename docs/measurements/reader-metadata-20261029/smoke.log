@@ -1,0 +1,4 @@
+{"arm": "before", "observer": false, "stages": 0, "returned_bytes": 0}
+{"arm": "before", "observer": true, "stages": 50, "returned_bytes": 880}
+{"arm": "after", "observer": false, "stages": 0, "returned_bytes": 0}
+{"arm": "after", "observer": true, "stages": 50, "returned_bytes": 880}
