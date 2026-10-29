@@ -325,9 +325,12 @@ int main() {
 				wrong_domain.close().wait();
 			}
 			{
-				auto input_domain = runtime.domain(publication, 1);
-				const auto resident = publication->used();
-				auto input = decode(snapshot(), publication);
+				auto case_account = std::make_shared<d::StorageLedger>(publication, publication->limit());
+				auto input_domain = runtime.domain(case_account, 1);
+				auto unrelated = publication->admit(1024);
+				const auto resident = case_account->used();
+				unrelated.reset();
+				auto input = decode(snapshot(), case_account);
 				auto zero = std::make_shared<d::StorageLedger>(0);
 				bool rejected = false;
 				try {
@@ -337,7 +340,7 @@ int main() {
 				}
 				check(rejected);
 				input_domain.close().wait();
-				check(publication->used() == resident);
+				check(case_account->used() == resident);
 			}
 
 			for (unsigned stop : {0, 100, 100000, 250000}) {
