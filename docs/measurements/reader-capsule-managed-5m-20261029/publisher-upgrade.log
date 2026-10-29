@@ -1,0 +1,10 @@
+▎2026-10-29 13:53:27.700 detent-agent: managed local store ready, selected generation 39064
+▌2026-10-29 13:53:35.484 detent-agent: managed delivery failures 1, preserving durable selection: Operation timed out
+▌2026-10-29 13:53:43.289 detent-agent: managed delivery failures 2, preserving durable selection: Operation timed out
+▌2026-10-29 13:53:51.064 detent-agent: managed delivery failures 3, preserving durable selection: Operation timed out
+▌2026-10-29 13:53:58.872 detent-agent: managed delivery failures 4, preserving durable selection: Operation timed out
+▌2026-10-29 13:54:06.738 detent-agent: managed delivery failures 5, preserving durable selection: Operation timed out
+▌2026-10-29 13:54:14.621 detent-agent: managed delivery failures 6, preserving durable selection: Operation timed out
+▌2026-10-29 13:54:22.470 detent-agent: managed delivery failures 7, preserving durable selection: Operation timed out
+▌2026-10-29 13:54:30.329 detent-agent: managed delivery failures 8, preserving durable selection: Operation timed out
+▍2026-10-29 13:54:32.136 detent-agent: managed delivery drained

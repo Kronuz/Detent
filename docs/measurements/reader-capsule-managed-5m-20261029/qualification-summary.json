@@ -1,0 +1,43 @@
+{
+  "latency_requirement": "Every one of 200 resident-data fresh first reads below 1 ms in each closure/state",
+  "latency_passed": false,
+  "functional_passed": true,
+  "groups": {
+    "live/private": {
+      "samples": 200,
+      "below_1ms": 199,
+      "median_first_us": 704.5225,
+      "maximum_first_us": 1126.646,
+      "median_steady_ns": 1390.515,
+      "maximum_rss_bytes": 1220608,
+      "major_faults": 0
+    },
+    "live/canonical": {
+      "samples": 200,
+      "below_1ms": 200,
+      "median_first_us": 702.725,
+      "maximum_first_us": 858.338,
+      "median_steady_ns": 1374.5,
+      "maximum_rss_bytes": 1204224,
+      "major_faults": 0
+    },
+    "stopped/private": {
+      "samples": 200,
+      "below_1ms": 198,
+      "median_first_us": 800.38,
+      "maximum_first_us": 1256.62,
+      "median_steady_ns": 1395.49,
+      "maximum_rss_bytes": 1208320,
+      "major_faults": 0
+    },
+    "stopped/canonical": {
+      "samples": 200,
+      "below_1ms": 193,
+      "median_first_us": 799.332,
+      "maximum_first_us": 1333.923,
+      "median_steady_ns": 1360.8249999999998,
+      "maximum_rss_bytes": 1196032,
+      "major_faults": 0
+    }
+  }
+}
