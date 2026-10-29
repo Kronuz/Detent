@@ -1,0 +1,21 @@
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/library-build
+[ 33%] Building CXX object CMakeFiles/stash_demo.dir/examples/demo.cc.o
+[ 33%] Building CXX object CMakeFiles/stash_test.dir/test/test.cc.o
+[ 50%] Building CXX object CMakeFiles/stash_concurrent.dir/test/concurrent.cc.o
+[ 66%] Linking CXX executable stash_demo
+[ 83%] Linking CXX executable stash_test
+[ 83%] Built target stash_demo
+[ 83%] Built target stash_test
+[100%] Linking CXX executable stash_concurrent
+[100%] Built target stash_concurrent
+Test project /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/library-build
+    Start 1: stash
+1/2 Test #1: stash ............................   Passed    0.30 sec
+    Start 2: stash_concurrent
+2/2 Test #2: stash_concurrent .................   Passed    2.54 sec
+
+100% tests passed out of 2
+
+Total Test time (real) =   2.84 sec

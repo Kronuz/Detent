@@ -1,0 +1,113 @@
+Start testing: Oct 29 09:01 PDT
+----------------------------------------------------------
+15/84 Testing: test_agent_basic
+15/84 Test: test_agent_basic
+Command: "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/test_agent_basic"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_agent_basic" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+detent-agent shared-memory publish/read (bool/int/missing/wrong-type, hash_val/switch_val precedence, status) OK
+<end of output>
+Test time =   0.61 sec
+----------------------------------------------------------
+Test Passed.
+"test_agent_basic" end time: Oct 29 09:01 PDT
+"test_agent_basic" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/84 Testing: test_snapshot_canonical
+16/84 Test: test_snapshot_canonical
+Command: "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/test_snapshot_canonical"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_snapshot_canonical" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_snapshot_canonical" end time: Oct 29 09:01 PDT
+"test_snapshot_canonical" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/84 Testing: test_shm_concurrency_stress
+17/84 Test: test_shm_concurrency_stress
+Command: "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/test_shm_concurrency_stress"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_shm_concurrency_stress" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+shm concurrency stress: 8 readers x 1425595 total reads racing 20000 publishes, no torn read OK
+<end of output>
+Test time =   0.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_shm_concurrency_stress" end time: Oct 29 09:01 PDT
+"test_shm_concurrency_stress" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/84 Testing: test_agent_cli
+18/84 Test: test_agent_cli
+Command: "/usr/local/bin/cmake" "-DAGENT=/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/src/detent-agent" "-DREADER=/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/src/detent" "-P" "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/source/tests/detent_agent/test_agent_cli.cmake"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_agent_cli" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   7.15 sec
+----------------------------------------------------------
+Test Passed.
+"test_agent_cli" end time: Oct 29 09:01 PDT
+"test_agent_cli" time elapsed: 00:00:07
+----------------------------------------------------------
+
+19/84 Testing: test_system_agent
+19/84 Test: test_system_agent
+Command: "/bin/sh" "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/source/tests/detent_agent/test_system_agent.sh" "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/src/detent-agent" "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/system-agent"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_system_agent" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+running (pid 54151)
+OK version=0 knob_count=1
+detent: system agent is not running; start it through its service manager
+<end of output>
+Test time =   0.41 sec
+----------------------------------------------------------
+Test Passed.
+"test_system_agent" end time: Oct 29 09:01 PDT
+"test_system_agent" time elapsed: 00:00:00
+----------------------------------------------------------
+
+20/84 Testing: test_logging
+20/84 Test: test_logging
+Command: "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/test_logging"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_logging" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_logging" end time: Oct 29 09:01 PDT
+"test_logging" time elapsed: 00:00:00
+----------------------------------------------------------
+
+21/84 Testing: test_reader_capacity
+21/84 Test: test_reader_capacity
+Command: "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/test_reader_capacity" "/Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent/reader-capacity"
+Directory: /Users/kronuz/code/Detent/.scratch/stash-adoption-20261029/build/tests/detent_agent
+"test_reader_capacity" start time: Oct 29 09:01 PDT
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.50 sec
+----------------------------------------------------------
+Test Passed.
+"test_reader_capacity" end time: Oct 29 09:01 PDT
+"test_reader_capacity" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Oct 29 09:01 PDT

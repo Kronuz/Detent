@@ -128,7 +128,7 @@
   {
     "name": "stash",
     "repository": "https://github.com/Kronuz/stash.git",
-    "revision": "2908b488c10dbd6830c384f53358783639a36965",
+    "revision": "fa1936ee2ff07afe55276722de12d712b15f17c7",
     "source_subdir": "."
   },
   {
