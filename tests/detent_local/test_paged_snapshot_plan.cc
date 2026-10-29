@@ -68,7 +68,7 @@ int main() {
 	auto heap = std::make_shared<d::StorageLedger>(64 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(32 * 1024 * 1024);
 	auto controls = std::make_shared<d::StorageLedger>(1024 * 1024);
-	d::RetirementRuntime runtime(controls, 1);
+	d::RetirementRuntime runtime(controls, 2);
 	auto domain = runtime.domain(heap, 512);
 	{
 		l::DiskStoreOptions options;
@@ -136,20 +136,26 @@ int main() {
 		check(base.view().get("app", "count").value() == INT64_MIN);
 		generation.fill('b');
 		{
-			auto source = progress(base.descriptor().cursor, heap);
+			auto pressure_heap = std::make_shared<d::StorageLedger>(heap, heap->limit() / 2);
+			auto pressure_domain = runtime.domain(pressure_heap, 512);
+			auto source = progress(base.descriptor().cursor, pressure_heap);
 			auto core = context.owner.lock();
 			check(static_cast<bool>(core));
 			for (auto &entry : core->certificates) {
-				entry = domain.make<l::detail::PagedDependencyCertificate>(heap, domain.factory());
+				entry = pressure_domain.make<l::detail::PagedDependencyCertificate>(
+					pressure_heap, pressure_domain.factory());
 				entry->capture(base);
 			}
 			const auto selected = store->selection().descriptor;
 			const auto committed = store->stats().used;
-			const auto occupied = heap->used();
-			auto pressure = heap->admit(heap->limit() - occupied);
+			auto unrelated = heap->admit(1024 * 1024);
+			const auto occupied = pressure_heap->used();
+			auto pressure = pressure_heap->admit(pressure_heap->limit() - occupied);
+			unrelated.reset();
 			bool refused = false;
 			try {
-				l::detail::PagedPlanBuilder blocked(base, source, generation, domain.factory(), heap);
+				l::detail::PagedPlanBuilder blocked(base, source, generation,
+													 pressure_domain.factory(), pressure_heap);
 			} catch (const d::StoragePressure &) {
 				refused = true;
 			}
@@ -159,7 +165,8 @@ int main() {
 			bool rebuilt = false;
 			while (!rebuilt && std::chrono::steady_clock::now() < deadline) {
 				try {
-					l::detail::PagedPlanBuilder retry(base, source, generation, domain.factory(), heap);
+					l::detail::PagedPlanBuilder retry(base, source, generation,
+													   pressure_domain.factory(), pressure_heap);
 					while (!retry.done()) {
 						l::ValidationBudget budget{1, 1};
 						retry.step(budget);

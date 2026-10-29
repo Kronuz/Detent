@@ -1,0 +1,14 @@
+clang++: error: no such file or directory: '../../src/detent_local/libdetent_local_publication.a'
+Traceback (most recent call last):
+  File "/Users/kronuz/code/Detent/.scratch/snapshot-pressure-20261029/verify.py", line 66, in <module>
+    main()
+    ~~~~^^
+  File "/Users/kronuz/code/Detent/.scratch/snapshot-pressure-20261029/verify.py", line 52, in main
+    good = compile_case(SOURCE, "isolated")
+  File "/Users/kronuz/code/Detent/.scratch/snapshot-pressure-20261029/verify.py", line 34, in compile_case
+    subprocess.run(link, cwd=target.parent.parent, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 692, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/usr/local/opt/llvm/bin/clang++', '-O3', '-DNDEBUG', '-isysroot', '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk', '-Wl,-search_paths_first', '-Wl,-headerpad_max_install_names', '/Users/kronuz/code/Detent/.scratch/snapshot-pressure-20261029/isolated.o', '-o', '/Users/kronuz/code/Detent/.scratch/snapshot-pressure-20261029/isolated', '-Wl,-rpath,/usr/local/lib', '../../src/detent_local/libdetent_local_publication.a', '../../src/detent_local/libdetent_local_builder.a', '../../src/detent_local/libdetent_local_view.a', '../../src/detent_distribution/libdetent_distribution.a', '../../src/libdetent.a', '../../_deps/sha256-build/libsha256.a', '../../_deps/random_lib-build/librandom.a', '../../src/detent_distribution/libdetent_resources.a', '../../_deps/compressors-build/libcompressors.a', '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/libz.tbd', '/usr/local/lib/liblz4.dylib', '/usr/local/lib/libzstd.1.5.7.dylib']' returned non-zero exit status 1.
