@@ -226,5 +226,11 @@
     "repository": "https://github.com/Kronuz/lru-cache.git",
     "revision": "827ba676761b621c167e397985e9cfb54f4b3003",
     "source_subdir": "."
+  },
+  {
+    "name": "persistent_map",
+    "repository": "https://github.com/Kronuz/persistent-map.git",
+    "revision": "938d65ebd5d61128ea17d18d5a3c97f80cb0c298",
+    "source_subdir": "."
   }
 ]

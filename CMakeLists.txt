@@ -65,6 +65,7 @@ FetchContent_MakeAvailable(
   strict_stox
   endian
   flat_map
+  persistent_map
   sha256
   atomic_shared_ptr
   random_lib
