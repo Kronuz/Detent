@@ -1,0 +1,26 @@
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 801536564
+INFO: Loaded 1 modules   (1991 inline 8-bit counters): 1991 [0x109675578, 0x109675d3f), 
+INFO: Loaded 1 PC tables (1991 PCs): 1991 [0x109675d40,0x10967d9b0), 
+INFO:        1 files found in .scratch/reader-capsule-20261029/fuzz/corpus
+INFO: seed corpus: files: 1 min: 624b max: 624b total: 624b rss: 33Mb
+#2	INITED cov: 480 ft: 480 corp: 1/624b exec/s: 0 rss: 33Mb
+#3	NEW    cov: 486 ft: 728 corp: 2/1248b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 1 ChangeBinInt-
+#5	NEW    cov: 488 ft: 745 corp: 3/1872b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 2 ShuffleBytes-ChangeASCIIInt-
+#6	NEW    cov: 491 ft: 886 corp: 4/2341b lim: 624 exec/s: 0 rss: 34Mb L: 469/624 MS: 1 EraseBytes-
+#7	NEW    cov: 491 ft: 889 corp: 5/2810b lim: 624 exec/s: 0 rss: 34Mb L: 469/624 MS: 1 ChangeBinInt-
+#13	NEW    cov: 491 ft: 928 corp: 6/3434b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 1 ChangeBinInt-
+#17	NEW    cov: 491 ft: 981 corp: 7/4058b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 4 ChangeASCIIInt-ChangeASCIIInt-CopyPart-ChangeASCIIInt-
+#18	NEW    cov: 493 ft: 984 corp: 8/4682b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 1 ChangeASCIIInt-
+#22	NEW    cov: 493 ft: 992 corp: 9/5234b lim: 624 exec/s: 0 rss: 34Mb L: 552/624 MS: 4 ChangeBinInt-CrossOver-ChangeASCIIInt-EraseBytes-
+#23	NEW    cov: 493 ft: 997 corp: 10/5858b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 1 ChangeByte-
+#39	NEW    cov: 493 ft: 999 corp: 11/6482b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 1 CrossOver-
+#40	NEW    cov: 497 ft: 1023 corp: 12/6771b lim: 624 exec/s: 0 rss: 34Mb L: 289/624 MS: 1 CrossOver-
+#84	NEW    cov: 497 ft: 1030 corp: 13/7395b lim: 624 exec/s: 0 rss: 34Mb L: 624/624 MS: 4 CMP-ChangeBit-ChangeByte-CrossOver- DE: "[K\241\203\274v\313[K\346_\201;\363'6\277\334Bn\226.q\317\366\007\264\021\265\367\342\362"-
+#89	NEW    cov: 498 ft: 1031 corp: 14/7773b lim: 624 exec/s: 0 rss: 34Mb L: 378/624 MS: 5 ShuffleBytes-EraseBytes-ChangeASCIIInt-ShuffleBytes-EraseBytes-
+#96	NEW    cov: 508 ft: 1048 corp: 15/7996b lim: 624 exec/s: 0 rss: 34Mb L: 223/624 MS: 2 ChangeBinInt-CrossOver-
+#100	DONE   cov: 508 ft: 1048 corp: 15/7996b lim: 624 exec/s: 0 rss: 34Mb
+###### Recommended dictionary. ######
+"[K\241\203\274v\313[K\346_\201;\363'6\277\334Bn\226.q\317\366\007\264\021\265\367\342\362" # Uses: 0
+###### End of recommended dictionary. ######
+Done 100 runs in 0 second(s)
