@@ -195,6 +195,7 @@ struct Coordinator::Impl {
 		// when request interest has been cancelled on the owner executor.
 		const auto settlement = recovery;
 		asio::post(worker, [result, selected, recovery = std::move(recovery),
+                            metadata_encoding = store->reader_metadata_encoding(),
 							probe_pause = selected ? std::exchange(prepared_probe_pause, {}) : nullptr,
 							injected = std::exchange(injected_worker_failure, {})]() mutable {
 			try {
@@ -210,7 +211,7 @@ struct Coordinator::Impl {
 					}
 					if (l::detail::StateCursor::logical_commitment(*result->generation))
 						result->prepared = l::detail::PreparedReader::metadata_ready(
-							result->directory, *result->generation, ::geteuid());
+							result->directory, *result->generation, ::geteuid(), metadata_encoding);
 				}
 				if (RAND_bytes(reinterpret_cast<unsigned char *>(result->next_id.data()),
 							   result->next_id.size()) != 1)

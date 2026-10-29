@@ -335,6 +335,13 @@ target_include_directories(test_local_reader_capsule PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(test_local_reader_capsule PRIVATE detent::local_builder)
 add_test(NAME test_local_reader_capsule COMMAND test_local_reader_capsule)
 
+if(TARGET detent::local_publication)
+  add_executable(test_local_reader_capsule_lifecycle test_reader_capsule_lifecycle.cc)
+  target_include_directories(test_local_reader_capsule_lifecycle PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(test_local_reader_capsule_lifecycle PRIVATE detent::local_publication)
+  add_dependencies(test_local_reader_capsule_lifecycle detent-agent)
+  add_test(NAME test_local_reader_capsule_lifecycle COMMAND test_local_reader_capsule_lifecycle $<TARGET_FILE:detent-agent>)
+endif()
 
 if(TARGET detent::local_publication)
   add_executable(test_local_reader_capsule_partial_reclaim test_reader_capsule_partial_reclaim.cc)

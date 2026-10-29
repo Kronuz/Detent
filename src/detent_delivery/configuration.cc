@@ -115,6 +115,7 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"heap_bytes",
 					"mapping_bytes",
 					"artifact_mode",
+					"reader_metadata",
 					"disk_bytes",
 					"disk_entries",
 					"disk_generations",
@@ -241,6 +242,15 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 		view.segments = number(limits, "segments", view.segments, 1, SIZE_MAX);
 		(void)maximum_response_wire_bytes(wire.bytes);
 	}
+	if (object.HasMember("reader_metadata")) {
+		const auto encoding = text(object["reader_metadata"], 16);
+		require(encoding == "legacy" || encoding == "capsule", "invalid managed reader metadata encoding");
+		result.disk.reader_metadata = encoding == "capsule" ? detent::local::ReaderMetadataEncoding::Capsule
+		                                                   : detent::local::ReaderMetadataEncoding::Legacy;
+	}
+	require(result.disk.reader_metadata == detent::local::ReaderMetadataEncoding::Legacy ||
+	        result.coordinator.image_format == LocalImageFormat::PagedV2,
+	        "capsule reader metadata requires paged-v2 images");
 	result.disk.mode = mode;
 	result.disk.artifact_mode = number(object, "artifact_mode", system ? 0644 : 0600, 0, 0777);
 	require(result.disk.artifact_mode == 0600 || result.disk.artifact_mode == 0640 ||

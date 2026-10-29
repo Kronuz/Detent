@@ -182,6 +182,25 @@ int main(int argc, char **argv) {
 			write();
 			rejected();
 		}
+		object["compaction_interval_ms"].SetUint64(0);
+		write();
+		check(load().disk.reader_metadata == detent::local::ReaderMetadataEncoding::Legacy);
+		object.AddMember("reader_metadata", "capsule", object.GetAllocator());
+		write();
+		rejected();
+		object["image_format"].SetString("paged-v2");
+		write();
+		check(load().disk.reader_metadata == detent::local::ReaderMetadataEncoding::Capsule);
+		object["reader_metadata"].SetString("future");
+		write();
+		rejected();
+		object["reader_metadata"].SetBool(true);
+		write();
+		rejected();
+		object["reader_metadata"].SetString("legacy");
+		write();
+		check(load().disk.reader_metadata == detent::local::ReaderMetadataEncoding::Legacy);
+		object.RemoveMember("reader_metadata");
 		object.RemoveMember("image_format");
 		object.RemoveMember("compaction_interval_ms");
 		write();

@@ -56,4 +56,6 @@ std::shared_ptr<StorageSession> make_owned_storage_session(detent::distribution:
 														   const std::filesystem::path &directory,
 														   std::shared_ptr<void> admission, bool create_owner,
 														   unsigned artifact_mode);
+// Worker-only rollback check. The held session excludes managed publishers.
+void verify_legacy_reader_metadata(const std::filesystem::path &, const StorageSession &);
 } // namespace detent::local

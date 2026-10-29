@@ -530,6 +530,7 @@ const char *kUsage =
 	"  detent-agent --managed PRIVATE_CONFIG [--generation-dir PATH]\n"
 	"               [--initialize-managed | --upgrade-managed]\n"
 	"  detent-agent --status\n"
+	"  detent-agent --verify-legacy-metadata --generation-dir PATH\n"
 	"  detent-agent --help | -h\n"
 	"\n"
 	"Runs in the foreground unless --daemonize is supplied.\n"
@@ -595,7 +596,7 @@ int main(int argc, char** argv) {
 		for (std::size_t i = 0; i < args.size(); ++i) {
 			const auto& arg = args[i];
 			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet" ||
-				arg == "--initialize-managed" || arg == "--upgrade-managed")
+				arg == "--initialize-managed" || arg == "--upgrade-managed" || arg == "--verify-legacy-metadata")
 				continue;
 			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" || arg == "--source-address" ||
 				arg == "--source-http" || arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
@@ -641,6 +642,16 @@ int main(int argc, char** argv) {
 								 arg_value(args, "--source-http")))
 			throw std::runtime_error("--managed and legacy source flags are mutually exclusive");
 #ifndef DETENT_READER
+		if (has_flag(args, "--verify-legacy-metadata")) {
+#ifdef DETENT_WITH_MANAGED_AGENT
+			if (!g_generation_dir || has_flag(args, "--daemonize") || has_flag(args, "--status") ||
+			    has_flag(args, "--initialize-managed") || has_flag(args, "--upgrade-managed"))
+				throw std::runtime_error("legacy verification requires a generation directory and no lifecycle flags");
+			return detent_agent::verify_legacy_metadata(*g_generation_dir);
+#else
+			throw std::runtime_error("managed agent support is disabled in this build");
+#endif
+		}
 		if (has_flag(args, "--status")) {
 			if (has_flag(args, "--daemonize")) throw std::runtime_error("--status and --daemonize are mutually exclusive");
 			return cmd_status(args);

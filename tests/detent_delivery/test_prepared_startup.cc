@@ -137,7 +137,8 @@ void check_cli(const char *reader, const std::filesystem::path &directory, bool 
 }
 int main(int argc, char **argv) {
 	check(argc == 2 || argc == 3);
-	const int replacement = argc == 2 ? 0 : (std::string_view(argv[2]) == "--barrier-failure" ? 2 :
+	const bool capsule = argc == 3 && std::string_view(argv[2]) == "--capsule";
+	const int replacement = argc == 2 || capsule ? 0 : (std::string_view(argv[2]) == "--barrier-failure" ? 2 :
 		(std::string_view(argv[2]) == "--worker-confirmation" ? 3 : 1));
 	auto fixture = std::make_shared<prepared_test::Fixture>();
 	prepared_test::write_file(fixture->path / "owner.lock", {});
@@ -166,6 +167,7 @@ int main(int argc, char **argv) {
 		options.view_limits.mapping_account =
 		    std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
 		l::DiskStoreOptions disk;
+		disk.reader_metadata = capsule ? l::ReaderMetadataEncoding::Capsule : l::ReaderMetadataEncoding::Legacy;
 		disk.limits = {64 * l::paged::segment_bytes, 100, 10};
 		disk.recovery_limits = options.view_limits;
 		auto store = l::make_disk_store(domain, fixture->path, account, disk);
@@ -186,6 +188,7 @@ int main(int argc, char **argv) {
 		check(prepared.descriptor == *selected && prepared.view.get("a", "k").value() == 42);
 		check_cli(argv[1], fixture->path, true);
 		const auto metadata = fixture->path / (l::generation_name(selected->generation) + ".read");
+		check(std::filesystem::file_size(metadata) == l::reader_metadata_length(disk.reader_metadata));
 		check(std::filesystem::remove(metadata));
 		prepared_test::write_file(metadata, std::array<char, l::prepared_metadata_bytes>{});
 		check_cli(argv[1], fixture->path, false);

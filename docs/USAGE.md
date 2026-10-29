@@ -549,6 +549,23 @@ Fresh macOS provisioning requires all traversed writable namespace edges to be o
 
 The coordinator reports one `worker_pending` slot. Accepted recovery work owns its immutable directory and limits and survives close or loss of the caller's facade until the actual worker returns. Infrastructure failure that prevents original I/O or worker drainage follows an explicit fail-stop policy; it never reports successful settlement. Normal delivery failures preserve the durable selection and can retry.
 
+### Prepared metadata rollout
+
+Private managed configuration accepts `reader_metadata`: `legacy` (default) or `capsule`. Capsule metadata requires `image_format: "paged-v2"`. A capsule stores the prepared reader's storage identity, root and statistics in one 624-byte `.read` record. Standalone originals remain available to full daemon recovery. Compared with legacy metadata, each retained capsule generation requires 432 additional named bytes; publication reserves this space before I/O.
+
+1. Deploy compatible SDK readers and daemons with `reader_metadata: "legacy"`. SDKs that accept only 192-byte metadata refuse capsule generations. Enable capsule writing only after the component's qualification gates pass.
+2. Set `reader_metadata: "capsule"` and restart the publisher. Full recovery validates the selected originals. The existing maintenance publication creates a new generation with unchanged cursor, logical state and reused segments; it does not rewrite published metadata in place.
+3. To roll back, set `reader_metadata: "legacy"` and restart the new daemon. It republishes the selected state as legacy metadata. Keep it running until normal collection reclaims every unselected capsule generation and all retained readers release their leases.
+4. Stop the daemon and run the check below as the publisher's user. The check takes the same stable owner lock as managed publication and refuses a running publisher. It validates every named `.read` as legacy metadata and requires the selected legacy record. Any capsule, partial, corrupt or unsafe metadata blocks verification. Diagnose retained artifacts and release readers; do not force unlink them.
+5. Start an older daemon only after verification succeeds. A restart of the new daemon resumes normal recovery and collection when rollback is interrupted.
+
+```sh
+# Check the stopped publisher's directory before starting an older daemon.
+detent-agent --verify-legacy-metadata --generation-dir ./agent-state
+```
+
+Capsule attachment authenticates the capsule, selected descriptor, shared lease, directory ancestry and each accessed segment. It does not inspect standalone `storage.meta` or generation `.image` ownership, permissions, ACLs or identity. A valid capsule can serve while an unused original is missing or corrupt; full daemon recovery can refuse that directory. Invalid capsules never fall back to the originals.
+
 ## Managed authority endpoint pools
 
 A managed source can set `authority_endpoints` to an array of up to eight objects such as `[{"address":"127.0.0.1","port":8317},{"address":"127.0.0.2","port":8317}]`, replacing the top-level `address` and `port`. Destinations must be distinct IP addresses with nonzero ports. All entries share the configured TLS hostname, CA, credential, authority identity and namespace scope.

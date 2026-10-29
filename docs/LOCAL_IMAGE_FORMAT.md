@@ -252,3 +252,24 @@ Each prepared paged generation includes `generation-<id>.read`, a 192-byte big-e
 The publisher prepares this record before the generation descriptor and selected replacement through the existing durable publication operation. It adds 192 bytes and one directory entry per paged generation. Reclamation validates its binding and removes it with the other payloads before the payload barrier and lease deletion. Flat generations retain their three-file layout.
 
 Prepared mode rejects missing metadata and symlinked directory ancestors. Existing generations need publisher-side preparation before this mode becomes the managed-client default; clients must not silently perform a complete scan as a substitute. Downgrading to a publisher that does not recognize `.read` can leave these records behind, and an older publisher's new generation cannot serve prepared mode. Default activation, upgrade/rollback qualification, collection with unopened dependencies and first-read latency remain acceptance gates in the [fast-client blueprint](FAST_CLIENT_ARCHITECTURE.md).
+
+
+### Prepared-reader capsule framing
+
+`reader_metadata: "capsule"` uses the same recognized generation `.read` name and preserves the original storage/root files. Integers use the existing big-endian field helpers. The nested formats retain their codecs and checksums.
+
+| Offset | Bytes | Field |
+| ---: | ---: | --- |
+| 0 | 8 | `DTCAPS01` |
+| 8 | 4 | Version 1 |
+| 12 | 4 | Exact length 624 |
+| 16 | 64 | Encoded storage identity |
+| 80 | 320 | Encoded paged root |
+| 400 | 192 | Encoded legacy reader metadata |
+| 592 | 32 | SHA-256 of bytes 0 through 591 |
+
+Prepared attachment dispatches only exact lengths 192 and 624. Capsule storage, generation, root commitment, cursor/profile, counts and admission bind to the selected descriptor and actual shared lease. Readiness additionally compares the capsule with fully recovered originals and observed statistics. A valid record in a different configured encoding requests equal-cursor republishing; malformed metadata is an error.
+
+The existing collector accepts valid legacy or capsule publication prefixes under an exclusive generation lease. Capsule prefixes must match known storage/generation/checksum bindings, any available original-root prefix, nested structural/statistics constraints and available outer digest bytes. Structural prefixes alone supply no deletion authority. Named/held identity rechecks, protected selections, payload-before-lease deletion and accounting barriers apply to both encodings. Unsupported or inconsistent artifacts remain retained.
+
+The [rollout and rollback procedure](USAGE.md#prepared-metadata-rollout) requires legacy republishing and successful offline verification before an older daemon starts.

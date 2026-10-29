@@ -13,6 +13,20 @@ namespace detent_agent {
 namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace l = detent::local;
+int verify_legacy_metadata(const std::filesystem::path &directory) {
+	auto baseline = std::make_shared<d::StorageLedger>(1024 * 1024);
+	auto account = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
+	d::RetirementRuntime runtime(baseline, 1);
+	auto domain = runtime.domain(account);
+	{
+		auto session = l::make_owned_storage_session(domain, directory, account, false);
+		l::verify_legacy_reader_metadata(directory, *session);
+		session->close();
+	}
+	domain.close().wait();
+	std::printf("legacy reader metadata verified; no capsule records remain\n");
+	return 0;
+}
 namespace detail {
 bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared) noexcept {
 	if (!state.initialized || state.phase == t::CoordinatorPhase::Fenced ||
