@@ -329,3 +329,8 @@ if(TARGET detent::local_publication)
   target_link_libraries(test_local_prepared_republish PRIVATE detent::local_publication)
   add_test(NAME test_local_prepared_republish COMMAND test_local_prepared_republish)
 endif()
+
+add_executable(test_local_reader_capsule test_reader_capsule.cc)
+target_include_directories(test_local_reader_capsule PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_reader_capsule PRIVATE detent::local_builder)
+add_test(NAME test_local_reader_capsule COMMAND test_local_reader_capsule)

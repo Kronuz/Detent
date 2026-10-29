@@ -1,4 +1,5 @@
 #include "prepared_reader.hh"
+#include "reader_capsule.hh"
 #include "generation_file_access.hh"
 #include "lazy_page_access.hh"
 #include "leased_paged_root.hh"
@@ -132,23 +133,50 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		std::array<char, generation_ownership_bytes> lease{};
 		read_generation_record(files->lease.fd, lease);
 		const auto ownership = decode_generation_ownership(lease);
-		const auto storage = decode_storage_identity(
-		    record<storage_identity_bytes>(files->directory.fd, "storage.meta", publisher));
-        require(ownership.storage == storage &&
-		        ownership.generation == descriptor.generation &&
-		        ownership.image_length == descriptor.length &&
-		        ownership.image_checksum == descriptor.checksum);
-        if (ownership.layout_version == 1)
-            throw GenerationUnavailable("publisher has not prepared a paged generation");
-        require(ownership.layout_version == 2 && descriptor.length == paged::root_bytes);
-		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
-		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
-		require(checksum(image) == descriptor.checksum);
-		const auto root = paged::decode_root(image, paged_format_limits());
-		require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);
 		const GenerationName metadata_name(descriptor.generation, GenerationFile::ReaderMetadata);
-		const auto metadata = decode_reader_metadata(
-		    record<reader_metadata_bytes>(files->directory.fd, metadata_name.view(), publisher));
+		RecoveryFile metadata_file(open_record(files->directory.fd, metadata_name.view()));
+		const auto metadata_error = errno;
+		struct stat metadata_info{};
+		const bool metadata_inspected = metadata_file.fd >= 0 && ::fstat(metadata_file.fd, &metadata_info) == 0;
+		const bool capsule = metadata_inspected && metadata_info.st_size == reader_capsule_bytes;
+		StorageIdentity storage{};
+		paged::Root root;
+		ReaderMetadata metadata;
+		if (capsule) {
+			check_generation_file(metadata_file.fd, publisher, reader_capsule_bytes);
+			require(internal::mode_only_acl(metadata_file.fd));
+			std::array<char, reader_capsule_bytes> bytes{};
+			read_generation_record(metadata_file.fd, bytes);
+			auto decoded = decode_reader_capsule(bytes);
+			storage = decoded.storage;
+			root = decoded.root;
+			metadata = decoded.metadata;
+		} else {
+			// Legacy refusals validate originals before reporting absent or invalid metadata.
+			storage = decode_storage_identity(
+			    record<storage_identity_bytes>(files->directory.fd, "storage.meta", publisher));
+		}
+		require(ownership.storage == storage && ownership.generation == descriptor.generation &&
+		        ownership.image_length == descriptor.length && ownership.image_checksum == descriptor.checksum);
+		if (ownership.layout_version == 1)
+			throw GenerationUnavailable("publisher has not prepared a paged generation");
+		require(ownership.layout_version == 2 && descriptor.length == paged::root_bytes);
+		if (!capsule) {
+			const GenerationName image_name(descriptor.generation, GenerationFile::Image);
+			const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
+			require(checksum(image) == descriptor.checksum);
+			root = paged::decode_root(image, paged_format_limits());
+			require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);
+			if (metadata_file.fd < 0 && metadata_error == ENOENT)
+				throw GenerationUnavailable("publisher has not prepared a selected generation");
+			require(metadata_inspected);
+			check_generation_file(metadata_file.fd, publisher, reader_metadata_bytes);
+			require(internal::mode_only_acl(metadata_file.fd));
+			std::array<char, reader_metadata_bytes> bytes{};
+			read_generation_record(metadata_file.fd, bytes);
+			metadata = decode_reader_metadata(bytes);
+		}
+		require(root.cursor == descriptor.cursor && root.profile == descriptor.profile);
 		require(metadata.storage == storage && metadata.generation == descriptor.generation &&
 		        metadata.root_checksum == descriptor.checksum &&
 		        std::uint64_t(metadata.counts.bools) + metadata.counts.ints == root.records &&
