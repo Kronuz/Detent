@@ -32,7 +32,7 @@ ctest --test-dir BUILD --output-on-failure -j1 \
 
 The reviewed exclusive four-arm twenty-key 5M screen passes. Paired median wall/caller CPU differences are -44.764/-44.785 microseconds for private resources and -27.1945/-27.1065 microseconds for canonical resources; every pair allocates four fewer objects. The lead owns the raw screen and published measurement record. These results do not establish the uninstrumented 200/200 acceptance target.
 
-Production validation is in progress. Coverage includes both writer modes, quota/accounting, original-boundary failure and cancellation, every capsule truncation through collection, retained readers, equal-cursor upgrade/rollback, restart, corrupt leftovers, offline verification and actual agent flags.
+All 22 selected native component entries pass across the initial run and corrected-fixture rerun. Coverage includes both writer modes, quota/accounting, original-boundary failure and cancellation, every capsule truncation through collection, retained readers, equal-cursor upgrade/rollback, restart, corrupt leftovers, offline verification and actual agent flags.
 
 ## Remaining gates
 
@@ -47,4 +47,6 @@ The first production-profile selection reports 20/22 entries passing in 369.37 s
 1. `test_managed_config` enters the new metadata checks with `compaction_interval_ms` still set to the intentionally invalid value 86,400,001 by the preceding interval-rejection loop. The fixture resets that field to zero before checking metadata modes. The rejected interval remains covered; the production parser does not change.
 2. `test_local_reader_capsule_partial_reclaim` initially rethrows every `collection_error`. Its intentionally partial original roots cause the existing segment collector to report `unsafe named paged root` at [paged_named_root.cc](../../src/detent_local/paged_named_root.cc#L298). This is conservative segment retention, independent of generation artifact reclamation. The legacy oracle's [driver](../../tests/detent_local/test_paged_root_partial_reclaim.cc#L13) permits that diagnostic while asserting generation reclamation and exact census accounting. The capsule fixture permits only this exact runtime-error message; other collection errors and every store error still fail. Assertions still require every valid unpinned generation artifact to disappear, every corrupt artifact to remain, the pinned generation to survive until lease release, selected reads to succeed, and disk accounting to equal the real census.
 
-The two corrected fixtures and their TLS setup are queued for a focused rerun. This evidence is not an all-green first attempt.
+The corrected fixtures and their TLS setup pass in the focused rerun (3/3 entries, 17.55 seconds; the 625-boundary GC case takes 17.07 seconds). Production sources remain unchanged. This evidence is not an all-green first attempt.
+
+The complete component at `Detent:fe0faf0` receives conditional architecture/code/security approval with no blocking implementation defect identified. Platform, sanitizer, privileged-trust, fuzz, canonical-resource and 200/200 latency conditions remain open. Legacy remains the default.
