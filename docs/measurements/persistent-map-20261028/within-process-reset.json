@@ -1,0 +1,1093 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-29T09:26:07.376444+00:00",
+  "method": "Single unresolved 100K/200-byte/batch-one/16-root case. Both private controls and extracted map coexist in one process. All three maps are fully rebuilt outside timing before EVERY round; the same initial 1024-key update trace runs in every round, rotating all six arm orders twice. 1024 updates per measured phase, matched key-lookup warmups before each phase; full values and node counts verified after every round. Three processes and rounds rotate initial map allocation placement; each process has a matching unrecorded warmup. This diagnoses within-process update CPU, not full-system acceptance.",
+  "hashes": {
+    "within_process_reset.cc": "628c1993637bc7a096d5011502c029e91c30191cea552127588b20acb98bd763",
+    "run_within_reset.py": "64d88d6056af65777bd28451e7e8641e41740ee166f05abf671ecd73dd326cbc",
+    "within-process-reset": "3aa17c6bff9319eda9cdee12962bcf10253099f14ada52e160a15dcea1d065a8"
+  },
+  "samples": [
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 7427657,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 9768542,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 9175613,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6785831,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6903919,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8303700,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6340678,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6958450,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 8050650,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6350263,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 8114697,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 7162415,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7102987,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8408155,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 9497963,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7622477,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 7971991,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 8317002,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 5554330,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 9461921,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 8797971,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 8274172,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 8353635,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 9291254,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7273670,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8541455,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 9144636,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6616356,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 5810719,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 9104203,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 8157864,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 9339589,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 9211706,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6874016,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 8679692,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 8923011,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6899577,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 7069870,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 7845365,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6512226,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6851154,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8626842,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7909391,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8123756,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 10839395,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6312690,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 10890533,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 10284952,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 11442171,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8436581,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 10877240,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6608797,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6731152,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 9044236,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 5627794,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 8009701,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 7838257,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 5696013,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 9385411,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8595037,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6991505,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6920198,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 9830608,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7627994,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6050290,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 8469934,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 5470943,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8177201,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8258485,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7218587,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 8306554,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 9241551,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6486192,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 8261234,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 7598038,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6085442,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 7467751,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 7603524,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6865002,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 8904295,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 7851375,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 8814163,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 8224432,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 9378640,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 8774386,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 7380204,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 7957439,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 5798432,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6541598,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 8199872,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 8019110,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 11176489,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 11880767,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 5963227,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6604552,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6949613,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7333328,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 7042345,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 7332337,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 8728441,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 8404882,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 11873973,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 8934298,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6641848,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8997315,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7884426,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 8292107,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 7196162,
+      "updates": 1024,
+      "allocated_nodes": 14227,
+      "retained_nodes": 100254
+    }
+  ],
+  "finished_utc": "2026-10-29T09:28:17.940981+00:00"
+}

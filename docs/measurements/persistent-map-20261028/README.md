@@ -32,3 +32,11 @@ Sources, raw records, executable hashes and build metadata are retained here. Or
 ## Longer-turn recheck
 
 `tree-cost-long.json` preserves 36 further fresh processes, with three rotating A/A/B triplets per 1K/100K and 34/200-byte key case. Batch size is one and 16 versions are retained; update turns increase from 64 to 1,024. Logical results, node counts and heap bytes still match. Three case update medians decrease, but the 100K/200-byte case increases 9.22% relative to the mean of the two control medians. Controls vary substantially too. This does not establish a causal source regression or clear the unexplained-cost gate. No production optimization is applied; the extraction stays isolated pending the bounded component recheck.
+
+The saved Makefile flag copies normalize trailing whitespace; values and compiler options are unchanged.
+
+## Within-process attribution
+
+Two further records preserve 108 phases each, using both implementations and two identical private controls in one process. All six execution orders run twice, with three initial allocation placements. The first record (`within-process.json`) carries equivalent evolving histories across rounds; it does not recreate the same starting state each round and cannot be presented as the exact requested reset protocol. The corrected record (`within-process-reset.json`) rebuilds all three maps outside timing before every round, replays the same 1,024-key update trace and validates every value plus node counts. No sample is discarded.
+
+The corrected record's median paired CPU changes against the mean same-round controls are -5.65%, +13.64% and +2.15% across the three placements. Identical-control phase differences range from -38.62% to +70.35%. The extracted arm exceeds both same-round controls in 11 of 36 rounds. This is inconclusive, not an established implementation regression or cost clearance. The architect's rule retains NO-GO for an inconclusive result. No source optimization or additional broad workload sweep follows from these data.

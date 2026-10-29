@@ -1,0 +1,1093 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-29T09:06:40.550652+00:00",
+  "method": "Single unresolved 100K/200-byte/batch-one/16-root case. Both private controls and extracted map coexist in one process. Each round runs all three arms with identical update indices and values, rotating all six arm orders twice. 1024 updates per measured phase, matched key-lookup warmups before each phase; full values and node counts verified after every round. Three processes rotate initial map allocation placement; each process has a matching unrecorded warmup. This diagnoses within-process update CPU, not full-system acceptance.",
+  "hashes": {
+    "within_process.cc": "1337ad0e7b5d49fef09fa90672f00c2946e525e12723f14ca92830efebbca7b5",
+    "run_within.py": "10c415b9a55a678524be694645ec8a354b03a2baf9b871a1f8bb5a7d5e2256a6",
+    "within-process": "a24e6209ed67f200553f8af50b9f91193fc05099ccdcd6720a887a74d55b7281"
+  },
+  "samples": [
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 8395642,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 7840640,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 0,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6269622,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 7607416,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 7069372,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 0,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 7486965,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6562106,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 5882527,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 5920148,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6122341,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6478800,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 0,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6051726,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6204342,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6644904,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 0,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 5740329,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6911817,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6456157,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 0,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 5449640,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6055769,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 5982880,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6604192,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 5562158,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6518793,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 0,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6066827,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 5743894,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6343626,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 0,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6424395,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6864861,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6011861,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 0,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 5974938,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7035668,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6397864,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 0,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 5651232,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6021505,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6493289,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 0,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 5706596,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 7128996,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6489434,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 1,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6029691,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 8012743,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6372505,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 1,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6105280,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6890982,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 5877745,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6223171,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6717648,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6148765,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 1,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6960335,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7606073,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 7518264,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 1,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6528276,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6217389,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 5666665,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 1,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6625220,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6598197,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 5496616,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 5961939,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 13037221,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 12278013,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 1,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 9722960,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 8628058,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 7405677,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 1,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6865574,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 8258194,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6804957,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6964339,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 9059737,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 7214414,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 1,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 8547688,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 7600857,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6330992,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 1,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 5139242,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6094515,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6220154,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 2,
+      "round": 0,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6422738,
+      "updates": 1024,
+      "allocated_nodes": 15288,
+      "retained_nodes": 100216
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6383019,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6631916,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 2,
+      "round": 1,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6207125,
+      "updates": 1024,
+      "allocated_nodes": 15599,
+      "retained_nodes": 100241
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7632940,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 5994549,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 2,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 5883741,
+      "updates": 1024,
+      "allocated_nodes": 15046,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 7046621,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6109325,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 2,
+      "round": 3,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6362534,
+      "updates": 1024,
+      "allocated_nodes": 15450,
+      "retained_nodes": 100258
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6981935,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6955030,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 2,
+      "round": 4,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6805780,
+      "updates": 1024,
+      "allocated_nodes": 15531,
+      "retained_nodes": 100260
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6672538,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6349627,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 2,
+      "round": 5,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 5953339,
+      "updates": 1024,
+      "allocated_nodes": 15024,
+      "retained_nodes": 100222
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6488983,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 6900759,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 6,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 5753568,
+      "updates": 1024,
+      "allocated_nodes": 14516,
+      "retained_nodes": 100234
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 0,
+      "position": 0,
+      "update_cpu_ns": 6018444,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6350772,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 2,
+      "round": 7,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 6996697,
+      "updates": 1024,
+      "allocated_nodes": 14616,
+      "retained_nodes": 100235
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 6486080,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6542126,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 2,
+      "round": 8,
+      "arm": 2,
+      "position": 2,
+      "update_cpu_ns": 6438716,
+      "updates": 1024,
+      "allocated_nodes": 15762,
+      "retained_nodes": 100266
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 1,
+      "position": 0,
+      "update_cpu_ns": 5909514,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 2,
+      "position": 1,
+      "update_cpu_ns": 6200264,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 9,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 7037902,
+      "updates": 1024,
+      "allocated_nodes": 16941,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 9017053,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 0,
+      "position": 1,
+      "update_cpu_ns": 6646376,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 2,
+      "round": 10,
+      "arm": 1,
+      "position": 2,
+      "update_cpu_ns": 7044682,
+      "updates": 1024,
+      "allocated_nodes": 17346,
+      "retained_nodes": 100281
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 2,
+      "position": 0,
+      "update_cpu_ns": 6715480,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 1,
+      "position": 1,
+      "update_cpu_ns": 5675168,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    },
+    {
+      "placement": 2,
+      "round": 11,
+      "arm": 0,
+      "position": 2,
+      "update_cpu_ns": 6181965,
+      "updates": 1024,
+      "allocated_nodes": 16566,
+      "retained_nodes": 100264
+    }
+  ],
+  "finished_utc": "2026-10-29T09:06:56.890736+00:00"
+}

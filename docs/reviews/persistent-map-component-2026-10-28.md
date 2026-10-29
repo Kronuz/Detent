@@ -41,3 +41,29 @@ The relevant hostile inputs are allocation failure and caller-supplied keys or p
 ## Not run
 
 Hosted CI, Linux/libstdc++, FreeBSD, arm64, TSan, leak sanitizer, benchmarks, fuzzing, mutation testing, consumer tests, checkpoint/export parity, or production cost and default-footprint comparisons. No library source changes, commits, repository creation or publication occur in this review.
+
+## Consumer recheck
+
+**2026-10-29: NO-GO for adoption.** The blueprint's requirement to reject unexplained cost increases remains unsatisfied. This is an unresolved cost finding, not an established source regression. Standalone source approval remains unchanged.
+
+Reviewed candidate `Detent:e060557`, pin `persistent-map:938d65e`, against private baseline `Detent:a5a8304`. The relevant authority/core sources match `Detent:bcfc77e`; the library header is unchanged since the source review. Evidence lives under `.scratch/persistent-map-adoption-20261028/`; `detent-source/docs/measurements/persistent-map-20261028/` holds the initial records.
+
+### Closed checks
+
+The alias preserves the three-parameter source interface (`detent-source/src/detent_authority/persistent_map.hh:6`), the target propagates the library dependency (`src/detent_authority/CMakeLists.txt:3`), and `cmake/dependencies.json:233` pins the full revision. The ledger correctly requires a complete matching C++ rebuild because the underlying namespace changes.
+
+The native log reports 234 passes and one privileged-path skip. `wire-identity.json` matches the checkpoint and both exports. Recomputed raw-record checks confirm 144 tree samples with exactly equal loaded and retained heap in all 16 cases. The lead reports all seven enabled library jobs and all six required consumer jobs successful, in runs 40813864441 and 40814412665 respectively; this recheck does not independently query hosted CI.
+
+### Open finding: unexplained update cost
+
+`tree-cost-long.json` contains 36 samples. For 100K keys, 200-byte keys, batch one and 16 retained roots, 1,024-update CPU medians are 9.523/9.954 ms for identical controls and 10.636 ms after extraction: **+9.22%** against the mean control median. After-extraction samples are 10.636, 9.772 and 11.531 ms. Overlapping ranges show uncertainty, not an explanation.
+
+The apparent improvements elsewhere do not cancel this finding. In the 100K/34-byte case, identical-control medians differ by 41.7%, making an aggregate comparison misleading. The controller starts a separate warmup process (`run_cost_long.py:50`) and then another measured process (`:57`); it cannot control process address layout or allocator history between arms. Its `status: passed` means execution and identity checks passed (`:66`, `:88`), not that costs passed.
+
+The 24 authority samples support the reported 100K costs, including update CPU changes of -0.26%/-3.49%. Equal tree heap and matching executable segment sizes establish useful resource facts. They do not attribute the remaining CPU difference or override the gate.
+
+### One bounded next step
+
+Run one same-process, rotated A/A/B experiment for **only the 100K/200-byte/batch-one/16-root case**, under an exclusive hold. Compile both map types into one executable with matched monomorphic wrappers; A1 and A2 call the identical private-map implementation. Recreate identical starting state outside timing, use the same 1,024-update trace and drainage policy, and rotate all six arm orders twice. Preserve all 36 phase results, value checks and node counts; compare B with both same-block controls and report the A/A spread. This isolates the suspected process/run-state variation without another workload sweep. A stable excess still blocks adoption; inconclusive results also remain NO-GO. Do not optimize source or discard samples to clear this check.
+
+**Not run:** Builds, new measurements, consumer tests or external CI queries. This recheck only reads preserved evidence and appends this ruling.
