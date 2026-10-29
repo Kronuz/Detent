@@ -426,3 +426,9 @@ Detent adopts `cbc35762bc4a98ad91361be29d05f0ae715a1339` after the [seven-job li
 ### Ownership commit replay, October 22
 
 The additive btree commit `25f9494b64c02a63827e7294cb25a79762b7544f` is replayed through a fresh immutable-pin all-product Release build. All 208 tests pass in 627.94 seconds with two jobs. Three-platform library and composed leak checks also pass. This records the library-commit replay rule without advancing Detent's production pin: adoption is held for [container selection](CONTAINER_SELECTION_ARCHITECTURE.md), and the source remains `cbc3576`.
+
+## Persistent-map source extraction, October 28
+
+[Kronuz/persistent-map](https://github.com/Kronuz/persistent-map) publishes `persistent-map:e20863c`, a dependency-free C++20 immutable AVL map extracted from the authority tree. It retains the existing owner-executor collection queue and introduces stored comparator and standard allocator support, with no additional worker, runtime or byte ledger. Final arena release can remain synchronous. The [component review](reviews/persistent-map-component-2026-10-28.md) approves standalone source publication conditional on hosted CI. Native tests and macOS ASan/UBSan pass; supplemental review probes cover 34 erase allocation failures and cross-arena cursor lifetimes.
+
+Detent main retains its private implementation. An isolated consumer replaces it with a forwarding alias; its local-source build and matched A/A/B cost screen are in progress. Source publication does not qualify consumer compatibility, immutable public-pin builds or production costs. The workflow-only follow-up `persistent-map:938d65e` excludes TSan for the single-executor API; the initial TSan link conflicts with the allocation-denial test’s global replacements. Supported-platform and ASan/UBSan qualification continues in run 40813864441.
