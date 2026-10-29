@@ -66,7 +66,8 @@ ReaderMetadata PreparedReader::describe(const RecoveredGeneration &generation) {
 	        base.counts(), physical + paged::root_bytes};
 }
 bool PreparedReader::metadata_ready(const std::filesystem::path &path,
-                                    const RecoveredGeneration &generation, uid_t publisher) {
+                                    const RecoveredGeneration &generation, uid_t publisher,
+                                    std::optional<ReaderMetadataEncoding> required) {
     const auto expected = encode_reader_metadata(describe(generation));
     RecoveryFile directory(open_publisher_directory(path, publisher));
     struct stat held{};
@@ -79,13 +80,27 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     RecoveryFile file(open_record(directory.fd, name.view()));
     if (file.fd < 0 && errno == ENOENT)
         return false;
-    check_generation_file(file.fd, publisher, reader_metadata_bytes);
+    struct stat info{};
+    require(file.fd >= 0 && ::fstat(file.fd, &info) == 0);
+    const bool capsule = info.st_size == reader_capsule_bytes;
+    check_generation_file(file.fd, publisher, capsule ? reader_capsule_bytes : reader_metadata_bytes);
     require(internal::mode_only_acl(file.fd));
-    std::array<char, reader_metadata_bytes> bytes{};
-    read_generation_record(file.fd, bytes);
-    decode_reader_metadata(bytes);
-    require(bytes == expected);
-    return true;
+    if (capsule) {
+        std::array<char, reader_capsule_bytes> bytes{};
+        read_generation_record(file.fd, bytes);
+        const auto decoded = decode_reader_capsule(bytes);
+        require(encode_reader_metadata(decoded.metadata) == expected &&
+                decoded.storage == generation.paged_->storage_identity() &&
+                paged::encode_root(decoded.root, paged_format_limits()) ==
+                    paged::encode_root(generation.paged_->root(), paged_format_limits()));
+    } else {
+        std::array<char, reader_metadata_bytes> bytes{};
+        read_generation_record(file.fd, bytes);
+        decode_reader_metadata(bytes);
+        require(bytes == expected);
+    }
+    const auto actual = capsule ? ReaderMetadataEncoding::Capsule : ReaderMetadataEncoding::Legacy;
+    return !required || *required == actual;
 }
 PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t publisher, ViewLimits limits,
                                         std::optional<d::Cursor> expected) {

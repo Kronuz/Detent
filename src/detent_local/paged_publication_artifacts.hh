@@ -22,7 +22,7 @@ struct ReusedDependency {
 class PagedPublicationArtifacts final : public distribution::RetirementNode {
   public:
 	explicit PagedPublicationArtifacts(std::shared_ptr<distribution::StorageLedger>);
-	void populate(const PagedPlan &);
+	void populate(const PagedPlan &, ReaderMetadataEncoding = ReaderMetadataEncoding::Legacy);
 	void attach(PagedPlan &&);
 	void attach_recovery(distribution::RetirementHandle<MappedRecoveryAdmission>);
 	distribution::RetirementHandle<MappedRecoveryAdmission> recovery_admission() const;

@@ -20,6 +20,7 @@ struct DiskStoreOptions {
 	std::size_t gc_scan_slice = 256;
 	unsigned artifact_mode = 0600;
 	ViewLimits recovery_limits;
+	ReaderMetadataEncoding reader_metadata = ReaderMetadataEncoding::Legacy;
 };
 namespace detail {
 struct StoreCore;
@@ -43,6 +44,7 @@ class DiskStore {
 	DiskStats stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
+	ReaderMetadataEncoding reader_metadata_encoding() const noexcept;
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
 	void advance();
 	bool needs_work() const noexcept;

@@ -12,7 +12,7 @@
 #include "paged_publication_artifacts.hh"
 #include "paged_root_prefix.hh"
 #include "paged_segment_collection.hh"
-#include "reader_metadata.hh"
+#include "reader_capsule.hh"
 #include "resources.hh"
 #include "segment_names.hh"
 #include "store_core.hh"
@@ -901,7 +901,7 @@ class ReclaimOperation final : public c::Operation {
 				                                                      : 3u;
 				const auto maximum = part == 1   ? slot().proof.image_length
 				                     : part == 2 ? descriptor_bytes
-				                                 : detail::reader_metadata_bytes;
+				                                 : detail::reader_capsule_bytes;
 				if (result.inspection && (!safe(*result.inspection, *data_->core) ||
 										  result.inspection->footprint.logical_bytes > maximum)) {
 					close_slot();
@@ -1241,8 +1241,16 @@ class ReclaimOperation final : public c::Operation {
 	void validate_metadata_prefix(std::span<const char> bytes) {
         if (slot().proof.layout_version != 2)
             throw std::runtime_error("reader metadata requires a paged generation");
-        detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
-                                                       slot().proof.image_checksum, {}, paged::root_bytes});
+        const detail::ReaderMetadata binding{data_->core->identity, slot().generation,
+                                              slot().proof.image_checksum, {}, paged::root_bytes};
+        if (bytes.size() > 2 && bytes[2] == 'C') {
+            const auto original = slot().entries[1] && slot().entries[1]->footprint.logical_bytes
+                ? std::span<const char>(data_->image_prefix).first(data_->prefix_length)
+                : std::span<const char>{};
+            detail::validate_reader_capsule_prefix(bytes, binding, original);
+        } else {
+            detail::validate_reader_metadata_prefix(bytes, binding);
+        }
     }
 
 	bool protected_generation(const GenerationId &generation) const noexcept {
@@ -1512,6 +1520,9 @@ bool DiskStore::publication_ready() const noexcept {
 		   (!impl_->reclaim || !impl_->reclaim->active_batch()) &&
 		   (!impl_->segments || impl_->segments->done() || impl_->segments->paused());
 }
+ReaderMetadataEncoding DiskStore::reader_metadata_encoding() const noexcept {
+	return impl_->core->options.reader_metadata;
+}
 void DiskStore::begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base) {
 	begin_impl(builder, expected_base, nullptr);
 }
@@ -1557,7 +1568,7 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			plan.counts().maximum_overrides > core.options.recovery_limits.overrides)
 			throw std::invalid_argument("managed paged publication exact base or admission mismatch");
 		auto artifacts = core.factory->make<detail::PagedPublicationArtifacts>(core.account);
-		artifacts->populate(plan);
+		artifacts->populate(plan, core.options.reader_metadata);
 		if (artifacts->target_physical_bytes() > core.options.recovery_limits.bytes)
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
@@ -1610,6 +1621,8 @@ void DiskStore::begin_reset(const ImageBuilder &builder, const TrustedIdentityRe
 void DiskStore::begin_impl(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base,
 						   const TrustedIdentityReset *reset) {
 	auto &core = *impl_->core;
+	if (core.options.reader_metadata != ReaderMetadataEncoding::Legacy)
+		throw std::invalid_argument("capsule metadata requires paged publication");
 	try {
 		if (!publication_ready())
 			throw std::logic_error("managed store unavailable for publication");
@@ -1690,6 +1703,7 @@ bool DiskStore::drained() const noexcept { return status() == StoreStatus::Close
 std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domain,
 										   const std::filesystem::path &directory,
 										   std::shared_ptr<void> admission, DiskStoreOptions options) {
+	(void)reader_metadata_length(options.reader_metadata);
 	if (!admission || !options.gc_scan_slice || !options.census_work_limit)
 		throw std::invalid_argument("invalid managed store admission or work bounds");
 	if (options.census_work_limit > (std::numeric_limits<std::uint64_t>::max() - 4096) / 1024)

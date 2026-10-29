@@ -33,7 +33,7 @@ l::DiskUsage census(const std::filesystem::path &root) {
 }
 std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::PagedImage &image,
 						 const l::StorageIdentity &storage, unsigned intent, std::size_t point,
-						 unsigned mode) {
+						 unsigned mode, l::ReaderMetadataEncoding encoding) {
 	install(root, image, storage);
 	write(root / "owner.lock", {});
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
@@ -42,6 +42,7 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 	auto domain = runtime.domain(account, 64);
 	const auto initial = account->used();
 	l::DiskStoreOptions options;
+	options.reader_metadata = encoding;
 	options.limits = {64 * l::paged::segment_bytes, 100, 10};
 	options.recovery_limits.retirement_domain = &domain;
 	options.recovery_limits.mapping_account =
@@ -159,7 +160,7 @@ std::vector<c::Kind> run(const std::filesystem::path &root, const l::detail::Pag
 	require(account->used() == initial && options.recovery_limits.mapping_account->used() == 0);
 	return trace;
 }
-int main() {
+void test_encoding(l::ReaderMetadataEncoding encoding) {
 	const auto directory = std::filesystem::current_path() / ".scratch" /
 						   ("paged-publication-faults-" + std::to_string(::getpid()));
 	struct Cleanup {
@@ -181,13 +182,17 @@ int main() {
 	auto image = builder.take();
 	unsigned cases = 0;
 	for (unsigned intent : {0u, 1u, 2u, 3u}) {
-		const auto reference = run(directory / std::to_string(cases++), image, storage, intent, SIZE_MAX, 0);
+		const auto reference = run(directory / std::to_string(cases++), image, storage, intent, SIZE_MAX, 0, encoding);
 		for (unsigned mode = 0; mode < 4; ++mode)
 			for (std::size_t point = 0; point < reference.size(); ++point)
-				run(directory / std::to_string(cases++), image, storage, intent, point, mode);
+				run(directory / std::to_string(cases++), image, storage, intent, point, mode, encoding);
 		for (std::size_t point = 0; point < reference.size(); ++point)
 			if (reference[point] == c::Kind::Read)
-				run(directory / std::to_string(cases++), image, storage, intent, point, 4);
+				run(directory / std::to_string(cases++), image, storage, intent, point, 4, encoding);
 	}
 	std::cout << cases << " paged publication original-boundary fault and cancellation cases passed\n";
+}
+int main() {
+	test_encoding(l::ReaderMetadataEncoding::Legacy);
+	test_encoding(l::ReaderMetadataEncoding::Capsule);
 }

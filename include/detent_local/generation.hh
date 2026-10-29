@@ -29,7 +29,13 @@ struct Descriptor {
 	bool operator==(const Descriptor &) const = default;
 };
 inline constexpr std::size_t descriptor_bytes = 176;
-inline constexpr std::size_t prepared_metadata_bytes = 192;
+inline constexpr std::size_t prepared_metadata_bytes = 192, prepared_capsule_bytes = 624;
+enum class ReaderMetadataEncoding { Legacy, Capsule };
+inline constexpr std::size_t reader_metadata_length(ReaderMetadataEncoding encoding) {
+	if (encoding == ReaderMetadataEncoding::Legacy) return prepared_metadata_bytes;
+	if (encoding == ReaderMetadataEncoding::Capsule) return prepared_capsule_bytes;
+	throw std::invalid_argument("unsupported reader metadata encoding");
+}
 std::array<char, descriptor_bytes> encode_descriptor(const Descriptor &descriptor);
 Descriptor decode_descriptor(std::span<const char> bytes);
 std::string generation_name(const GenerationId &generation);

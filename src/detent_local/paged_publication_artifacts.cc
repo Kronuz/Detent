@@ -1,6 +1,6 @@
 #include "paged_publication_artifacts.hh"
 #include "names.hh"
-#include "reader_metadata.hh"
+#include "reader_capsule.hh"
 #include "segment_names.hh"
 #include <limits>
 namespace detent::local::detail {
@@ -25,7 +25,7 @@ void PagedPublicationArtifacts::append(std::string_view name, std::span<const ch
 	artifacts_.push_back(std::move(row));
 	usage_ = artifacts_.back().prefix;
 }
-void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
+void PagedPublicationArtifacts::populate(const PagedPlan &plan, ReaderMetadataEncoding encoding) {
 	if (populated_ || failed_ || !artifacts_.empty())
 		throw std::logic_error("paged artifacts already populated or failed");
 	try {
@@ -67,10 +67,16 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 											descriptor.checksum, 2}),
 			   {}, true);
 		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
-		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
-		                                              descriptor.checksum, plan.counts(), physical_bytes_});
-		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
-		metadata_buffer->append({metadata.data(), metadata.size()});
+		const ReaderMetadata metadata{plan.storage_identity(), descriptor.generation,
+		                              descriptor.checksum, plan.counts(), physical_bytes_};
+		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), reader_metadata_length(encoding));
+		if (encoding == ReaderMetadataEncoding::Capsule) {
+			const auto bytes = encode_reader_capsule({plan.storage_identity(), plan.root(), metadata});
+			metadata_buffer->append({bytes.data(), bytes.size()});
+		} else {
+			const auto bytes = encode_reader_metadata(metadata);
+			metadata_buffer->append({bytes.data(), bytes.size()});
+		}
 		append(GenerationName(descriptor.generation, GenerationFile::ReaderMetadata).view(), {},
 		       std::move(metadata_buffer));
 		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),

@@ -53,7 +53,7 @@ void drive(const std::shared_ptr<l::DiskStore> &store, bool cancel_create = fals
 	}
 	store->advance();
 }
-int main() {
+void test_encoding(l::ReaderMetadataEncoding encoding) {
 	const auto directory =
 		std::filesystem::current_path() / ".scratch" / ("paged-disk-store-" + std::to_string(::getpid()));
 	struct Cleanup {
@@ -78,7 +78,7 @@ int main() {
 		for (unsigned scenario = 0; scenario < 9; ++scenario) {
 			if (scenario == 6 && progress)
 				continue;
-			const auto root = directory / (std::to_string(progress) + "-" + std::to_string(scenario));
+			const auto root = directory / (std::to_string(static_cast<unsigned>(encoding)) + "-" + std::to_string(progress) + "-" + std::to_string(scenario));
 			install(root, image, storage);
 			write(root / "owner.lock", {});
 			if (scenario == 5)
@@ -89,6 +89,7 @@ int main() {
 			auto domain = runtime.domain(account, 64);
 			const auto initial = account->used();
 			l::DiskStoreOptions options;
+			options.reader_metadata = encoding;
 			options.limits = {64 * l::paged::segment_bytes, 100, 10};
 			options.recovery_limits.retirement_domain = &domain;
 			auto mapping_account = std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
@@ -119,7 +120,7 @@ int main() {
 			std::vector<std::uint64_t> lengths;
 			for (const auto &segment : plan->segments())
 				lengths.push_back(segment.bytes->size());
-			const auto peak = l::DiskLedger::paged_peak(lengths);
+			const auto peak = l::DiskLedger::paged_peak(lengths, encoding);
 			if (scenario == 3)
 				options.limits.bytes = census(root).bytes + peak.bytes - 1;
 			if (scenario == 6) {
@@ -241,4 +242,8 @@ int main() {
 			check(account->used() == initial && mapping_account->used() == 0);
 		}
 	}
+}
+int main() {
+	test_encoding(l::ReaderMetadataEncoding::Legacy);
+	test_encoding(l::ReaderMetadataEncoding::Capsule);
 }

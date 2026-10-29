@@ -59,6 +59,20 @@ int main() {
 			rejects([&] { ledger.reserve(paged_peak); });
 			same(before, ledger.stats());
 		}
+        const auto legacy = l::DiskLedger::paged_peak({});
+        const auto capsule = l::DiskLedger::paged_peak({}, l::ReaderMetadataEncoding::Capsule);
+        check(capsule.bytes == legacy.bytes + 432 && capsule.entries == legacy.entries && capsule.generations == legacy.generations);
+        l::DiskLedger tight({capsule.bytes - 1, capsule.entries, capsule.generations});
+        tight.initialize({});
+        rejects([&] { tight.reserve(capsule); });
+        const auto legacy_permit = tight.reserve(legacy);
+        tight.cancel_unstarted(legacy_permit);
+        l::DiskLedger exact({capsule.bytes, capsule.entries, capsule.generations});
+        exact.initialize({});
+        const auto capsule_permit = exact.reserve(capsule);
+        exact.accepted(capsule_permit); exact.completed(capsule_permit); exact.settle(capsule_permit, capsule);
+        check(exact.stats().used == capsule && exact.stats().peak == capsule);
+        rejects([&] { l::DiskLedger::paged_peak({}, static_cast<l::ReaderMetadataEncoding>(99)); });
 		const auto peak = l::DiskLedger::generation_peak(192);
 		check(peak == l::DiskUsage{496, 3, 1});
 		for (unsigned dimension = 0; dimension < 3; ++dimension) {

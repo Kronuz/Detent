@@ -3,7 +3,7 @@
 #include "paged_dependency_check.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_publication_artifacts.hh"
-#include "reader_metadata.hh"
+#include "reader_capsule.hh"
 #include <completion/native_completion.h>
 template <class Error, class Call> void rejects(Call call) {
 	try {
@@ -13,7 +13,7 @@ template <class Error, class Call> void rejects(Call call) {
 	}
 	throw std::runtime_error("invalid paged artifact operation accepted");
 }
-int main() {
+void test_encoding(l::ReaderMetadataEncoding encoding) {
 	const auto directory =
 		std::filesystem::current_path() / ".scratch" / ("paged-artifacts-" + std::to_string(::getpid()));
 	struct Cleanup {
@@ -66,11 +66,11 @@ int main() {
 				auto artifacts = domain.factory().make<l::detail::PagedPublicationArtifacts>(account);
 				if (pressure) {
 					auto admission = account->admit(account->limit() - account->used());
-					rejects<d::StoragePressure>([&] { artifacts->populate(*plan); });
+					rejects<d::StoragePressure>([&] { artifacts->populate(*plan, encoding); });
 					rejects<std::logic_error>([&] { artifacts->artifacts(); });
 					require(plan->descriptor().generation == next);
 				} else {
-					artifacts->populate(*plan);
+					artifacts->populate(*plan, encoding);
 					const auto rows = artifacts->artifacts();
 					require(rows.size() == (progress ? 4 : 6));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
@@ -82,10 +82,16 @@ int main() {
 					std::vector<std::uint64_t> lengths;
 					for (const auto &segment : plan->segments())
 						lengths.push_back(segment.bytes->size());
-					require(artifacts->usage() == l::DiskLedger::paged_peak(lengths));
+					require(artifacts->usage() == l::DiskLedger::paged_peak(lengths, encoding));
 					const auto &record = rows[rows.size() - 2];
 					const auto metadata =
-					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
+					    encoding == l::ReaderMetadataEncoding::Capsule
+					        ? l::detail::decode_reader_capsule({record.bytes().data(), record.bytes().size()}).metadata
+					        : l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
+					require(record.bytes().size() == l::reader_metadata_length(encoding));
+					const auto legacy_usage = l::DiskLedger::paged_peak(lengths);
+					require(artifacts->usage().bytes - legacy_usage.bytes ==
+					        (encoding == l::ReaderMetadataEncoding::Capsule ? 432 : 0));
 					require(metadata.storage == storage && metadata.generation == next &&
 					        metadata.root_checksum == plan->descriptor().checksum &&
 					        metadata.counts.bools == plan->counts().bools &&
@@ -132,4 +138,8 @@ int main() {
 			require(account->used() == initial);
 		}
 	}
+}
+int main() {
+	test_encoding(l::ReaderMetadataEncoding::Legacy);
+	test_encoding(l::ReaderMetadataEncoding::Capsule);
 }

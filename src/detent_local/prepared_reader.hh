@@ -13,7 +13,8 @@ class PreparedReader {
   public:
 	static GenerationSelection selection(const std::filesystem::path &, uid_t publisher);
     static ReaderMetadata describe(const RecoveredGeneration &);
-    static bool metadata_ready(const std::filesystem::path &, const RecoveredGeneration &, uid_t publisher);
+    static bool metadata_ready(const std::filesystem::path &, const RecoveredGeneration &, uid_t publisher,
+                               std::optional<ReaderMetadataEncoding> required = {});
 	static PreparedGeneration open(const std::filesystem::path &, uid_t publisher, ViewLimits,
 	                               std::optional<distribution::Cursor> expected = {});
 };

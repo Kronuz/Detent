@@ -56,6 +56,16 @@ int main() {
 	const auto legacy_bytes = read_file(metadata_path);
 	const auto metadata = x::decode_reader_metadata(legacy_bytes);
 	const auto bytes = x::encode_reader_capsule({fixture.storage, fixture.root, metadata});
+	for (std::size_t length = 0; length <= bytes.size(); ++length) {
+		x::validate_reader_capsule_prefix(std::span(bytes).first(length), metadata);
+		x::validate_reader_capsule_prefix(std::span(bytes).first(length), metadata,
+		                                  p::encode_root(fixture.root));
+	}
+	for (const auto offset : {0u, 8u, 12u, 16u, 79u, 80u, 159u, 399u, 400u, 432u, 448u, 516u, 519u, 520u, 591u, 592u, 623u}) {
+		auto corrupt = bytes;
+		corrupt[offset] ^= 1;
+		rejected([&] { x::validate_reader_capsule_prefix(std::span(corrupt).first(offset + 1), metadata, p::encode_root(fixture.root)); });
+	}
 	check(bytes.size() == 624 && std::string_view(bytes.data(), 8) == "DTCAPS01");
 	check(x::encode_reader_capsule(x::decode_reader_capsule(bytes)) == bytes);
 	check(std::equal(legacy_bytes.begin(), legacy_bytes.end(), bytes.begin() + 400));

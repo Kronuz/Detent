@@ -173,7 +173,7 @@ int main() {
 		std::array<char, l::RecordReader::capacity> original;
 		for (std::size_t at = 0; at < original.size(); ++at)
 			original[at] = char(at);
-		for (std::size_t length : {64, 128, 176, 192}) {
+		for (std::size_t length : {64, 128, 176, 192, 624}) {
 			const auto path = directory / ("record-" + std::to_string(length));
 			std::ofstream stream(path, std::ios::binary);
 			stream.write(original.data(), length);
@@ -192,11 +192,11 @@ int main() {
 			const auto capacity = account->used();
 			auto pressure = account->admit(account->limit() - capacity);
 			for (unsigned pass = 0; pass < 100; ++pass) {
-				for (std::size_t length : {64, 128, 176, 192}) {
+				for (std::size_t length : {64, 128, 176, 192, 624}) {
 					const auto name = length == 64    ? "record-64"
 					                  : length == 128 ? "record-128"
 					                  : length == 176 ? "record-176"
-					                                  : "record-192";
+					                                  : length == 192 ? "record-192" : "record-624";
 					auto claim = controls->claim(l::CollectorUse::Census);
 					backend->open_existing_into(name, controls->scratch_file());
 					check(file->try_lease(c::LeaseMode::Shared));
