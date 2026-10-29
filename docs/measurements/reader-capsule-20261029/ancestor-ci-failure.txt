@@ -1,0 +1,7 @@
+Source: https://github.com/Kronuz/Detent/actions/runs/40859403284/job/123398919553
+Reviewed commit: Detent:1a7faae
+
+ci / macos-x86_64	UNKNOWN STEP	2026-10-29T11:11:01.0984650Z         Start 209: test_local_paged_snapshot_plan
+ci / macos-x86_64	UNKNOWN STEP	2026-10-29T11:11:01.1566980Z 208/227 Test #209: test_local_paged_snapshot_plan ..............................................................Subprocess aborted***Exception:   0.06 sec
+ci / macos-x86_64	UNKNOWN STEP	2026-10-29T11:11:01.1569750Z libc++abi: terminating due to uncaught exception of type std::runtime_error: snapshot plan invariant at 156
+ci / macos-x86_64	UNKNOWN STEP	2026-10-29T11:11:01.1573140Z 

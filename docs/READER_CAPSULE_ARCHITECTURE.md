@@ -2,7 +2,7 @@
 
 **Author:** [Germán Méndez Bravo](mailto:german.mb@gmail.com)
 **Date:** 2026-10-29
-**Status:** Reviewed proposal, not implemented. Format and refusal changes require an owner decision.
+**Status:** Prototype approved, implementation and qualification in progress. Production adoption remains gated.
 
 | Review | State |
 | --- | --- |
@@ -70,5 +70,4 @@ This changes no IPC or publisher authentication mechanism. Attachment reads rise
 
 After approval, run one counterbalanced private/canonical × current/capsule prototype on the unchanged twenty-key 5M corpus. Require identical values and end-to-end wall/CPU benefit in both resource arms; otherwise discard. A passing screen must then qualify format fixtures, decoder fuzzing, privileged trust, crash/partial publication, retained-view collection, rollback and supported-platform sanitizers. Uninstrumented resident-data acceptance remains 200/200 first reads below 1 ms in each resource arm, followed by component review.
 
-1. Decide whether the coordinated rollout and changed refusal behavior are acceptable for the prototype.
-2. Preserve the existing format if either contract must remain unchanged; continue independent release work.
+The owner approves the coordinated-rollout and changed-refusal contracts for one prototype. This approval does not waive the performance or safety gates and does not authorize capsule publication in production before qualification.
