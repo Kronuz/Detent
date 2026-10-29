@@ -1,0 +1,14 @@
+{
+  "before": {
+    "repository": "stash",
+    "revision": "2908b488c10dbd6830c384f53358783639a36965",
+    "sizeof_StashContext": 56,
+    "alignment": 8
+  },
+  "after": {
+    "repository": "stash",
+    "revision": "fa1936ee2ff07afe55276722de12d712b15f17c7",
+    "sizeof_StashContext": 4352,
+    "alignment": 64
+  }
+}
