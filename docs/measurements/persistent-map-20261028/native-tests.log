@@ -1,0 +1,481 @@
+Test project /Users/kronuz/code/Detent/.scratch/persistent-map-adoption-20261028/build
+        Start  42: authority_tls_certificates
+        Start  78: delivery_tls_certificates
+  1/235 Test  #42: authority_tls_certificates ..................................................................   Passed    0.43 sec
+        Start   1: test_model_and_schema
+  2/235 Test  #78: delivery_tls_certificates ...................................................................   Passed    0.50 sec
+        Start   2: test_hash_golden
+  3/235 Test   #1: test_model_and_schema .......................................................................   Passed    1.22 sec
+        Start   3: test_eval_semantics
+  4/235 Test   #2: test_hash_golden ............................................................................   Passed    1.40 sec
+        Start   4: test_overrides
+  5/235 Test   #3: test_eval_semantics .........................................................................   Passed    1.35 sec
+        Start   5: test_file_source
+  6/235 Test   #4: test_overrides ..............................................................................   Passed    1.79 sec
+        Start   6: test_testing_guard
+  7/235 Test   #6: test_testing_guard ..........................................................................   Passed    1.31 sec
+        Start   7: test_concurrency_stress
+  8/235 Test   #5: test_file_source ............................................................................   Passed    2.56 sec
+        Start   8: test_json_patch
+  9/235 Test   #8: test_json_patch .............................................................................   Passed    0.43 sec
+        Start   9: test_json_strings
+ 10/235 Test   #9: test_json_strings ...........................................................................   Passed    0.46 sec
+        Start  10: test_model_alloc_failure
+ 11/235 Test   #7: test_concurrency_stress .....................................................................   Passed    2.37 sec
+        Start  11: test_client_publication_failure
+ 12/235 Test  #11: test_client_publication_failure .............................................................   Passed    2.07 sec
+        Start  12: test_flat_map
+ 13/235 Test  #12: test_flat_map ...............................................................................   Passed    0.37 sec
+        Start  13: test_duplicate_precedence
+ 14/235 Test  #10: test_model_alloc_failure ....................................................................   Passed    3.59 sec
+        Start  14: test_read_view
+ 15/235 Test  #13: test_duplicate_precedence ...................................................................   Passed    0.39 sec
+        Start  15: test_agent_basic
+ 16/235 Test  #14: test_read_view ..............................................................................   Passed    0.47 sec
+        Start  16: test_snapshot_canonical
+ 17/235 Test  #16: test_snapshot_canonical .....................................................................   Passed    0.61 sec
+        Start  17: test_shm_concurrency_stress
+ 18/235 Test  #17: test_shm_concurrency_stress .................................................................   Passed    0.44 sec
+        Start  18: test_agent_cli
+ 19/235 Test  #15: test_agent_basic ............................................................................   Passed    2.95 sec
+        Start  19: test_agent_http
+ 20/235 Test  #19: test_agent_http .............................................................................   Passed    2.58 sec
+        Start  20: test_system_agent
+ 21/235 Test  #20: test_system_agent ...........................................................................   Passed    0.55 sec
+        Start  21: test_logging
+ 22/235 Test  #21: test_logging ................................................................................   Passed    0.32 sec
+        Start  22: test_reader_capacity
+ 23/235 Test  #22: test_reader_capacity ........................................................................   Passed    0.58 sec
+        Start  23: test_diff_cache
+ 24/235 Test  #23: test_diff_cache .............................................................................   Passed    0.62 sec
+        Start  24: test_distributor_basic
+ 25/235 Test  #24: test_distributor_basic ......................................................................   Passed    1.24 sec
+        Start  25: test_distributor_client_integration
+ 26/235 Test  #25: test_distributor_client_integration .........................................................   Passed    0.63 sec
+        Start  26: test_http_connection_aging
+ 27/235 Test  #18: test_agent_cli ..............................................................................   Passed    8.74 sec
+        Start  27: test_multi_node_poll_source
+ 28/235 Test  #26: test_http_connection_aging ..................................................................   Passed    0.87 sec
+        Start  28: test_raft_cluster
+ 29/235 Test  #27: test_multi_node_poll_source .................................................................   Passed    0.72 sec
+        Start  29: test_load_fanout
+ 30/235 Test  #29: test_load_fanout ............................................................................   Passed    3.14 sec
+        Start  30: test_distributor_cli
+ 31/235 Test  #28: test_raft_cluster ...........................................................................   Passed    5.16 sec
+        Start  31: test_raft_application_retry
+ 32/235 Test  #31: test_raft_application_retry .................................................................   Passed    0.39 sec
+        Start  32: test_authority_export_scope
+ 33/235 Test  #32: test_authority_export_scope .................................................................   Passed    0.33 sec
+        Start  33: test_authority_state
+ 34/235 Test  #30: test_distributor_cli ........................................................................   Passed    3.14 sec
+        Start  34: test_authority_node
+ 35/235 Test  #33: test_authority_state ........................................................................   Passed    2.68 sec
+        Start  35: test_authority_node_completion
+ 36/235 Test  #34: test_authority_node .........................................................................   Passed   15.72 sec
+        Start  36: test_authority_service
+ 37/235 Test  #35: test_authority_node_completion ..............................................................   Passed   16.22 sec
+        Start  37: test_authority_cluster
+ 38/235 Test  #36: test_authority_service ......................................................................   Passed   17.06 sec
+        Start  38: test_authority_cluster_completion
+ 39/235 Test  #37: test_authority_cluster ......................................................................   Passed   16.56 sec
+        Start  39: test_authority_process
+ 40/235 Test  #39: test_authority_process ......................................................................   Passed    3.31 sec
+        Start  40: test_authority_daemon
+ 41/235 Test  #40: test_authority_daemon .......................................................................   Passed    3.69 sec
+        Start  41: test_authority_migration
+ 42/235 Test  #38: test_authority_cluster_completion ...........................................................   Passed   10.53 sec
+        Start  43: test_authority_transport_peers
+ 43/235 Test  #41: test_authority_migration ....................................................................   Passed    3.88 sec
+        Start  44: test_authority_transport_peers_completion
+ 44/235 Test  #43: test_authority_transport_peers ..............................................................   Passed    9.38 sec
+        Start  45: test_authority_transport_https
+ 45/235 Test  #45: test_authority_transport_https ..............................................................   Passed    0.56 sec
+        Start  46: test_authority_distribution_service
+ 46/235 Test  #44: test_authority_transport_peers_completion ...................................................   Passed    8.88 sec
+        Start  47: test_authority_distribution_ownership
+ 47/235 Test  #46: test_authority_distribution_service .........................................................   Passed    2.28 sec
+        Start  48: test_authority_distribution_poll_publisher
+ 48/235 Test  #47: test_authority_distribution_ownership .......................................................   Passed    1.69 sec
+        Start  49: test_authority_distribution_idle_100000
+ 49/235 Test  #49: test_authority_distribution_idle_100000 .....................................................   Passed    4.65 sec
+        Start  50: test_authority_distribution_idle_500000
+ 50/235 Test  #48: test_authority_distribution_poll_publisher ..................................................   Passed   18.19 sec
+        Start  51: test_authority_distribution_held_header
+ 51/235 Test  #51: test_authority_distribution_held_header .....................................................   Passed    0.52 sec
+        Start  52: test_authority_distribution_large_scope
+ 52/235 Test  #52: test_authority_distribution_large_scope .....................................................   Passed    2.20 sec
+        Start  53: test_authority_multivoter
+ 53/235 Test  #50: test_authority_distribution_idle_500000 .....................................................   Passed   17.30 sec
+        Start  54: test_authority_readiness_pressure
+ 54/235 Test  #53: test_authority_multivoter ...................................................................   Passed   13.83 sec
+        Start  55: test_authority_snapshot_catchup
+ 55/235 Test  #54: test_authority_readiness_pressure ...........................................................   Passed   49.20 sec
+        Start  56: test_authority_read_reply
+ 56/235 Test  #56: test_authority_read_reply ...................................................................   Passed    0.46 sec
+        Start  57: test_authority_export_capture
+ 57/235 Test  #57: test_authority_export_capture ...............................................................   Passed    0.30 sec
+        Start  58: test_authority_export_encoder
+ 58/235 Test  #58: test_authority_export_encoder ...............................................................   Passed    0.32 sec
+        Start  59: test_authority_change_recorder
+ 59/235 Test  #59: test_authority_change_recorder ..............................................................   Passed    0.34 sec
+        Start  60: test_authority_change_history
+ 60/235 Test  #60: test_authority_change_history ...............................................................   Passed    0.33 sec
+        Start  61: test_authority_delta_export
+ 61/235 Test  #61: test_authority_delta_export .................................................................   Passed    0.32 sec
+        Start  62: test_authority_delivery_export
+ 62/235 Test  #62: test_authority_delivery_export ..............................................................   Passed    0.45 sec
+        Start  63: test_authority_subscription
+ 63/235 Test  #63: test_authority_subscription .................................................................   Passed    0.30 sec
+        Start  64: test_authority_subscription_admission
+ 64/235 Test  #64: test_authority_subscription_admission .......................................................   Passed    0.36 sec
+        Start  65: test_distribution_messagepack
+ 65/235 Test  #65: test_distribution_messagepack ...............................................................   Passed    0.36 sec
+        Start  66: test_distribution_messagepack_vectors
+ 66/235 Test  #66: test_distribution_messagepack_vectors .......................................................   Passed    0.07 sec
+        Start  67: test_distribution_snapshot
+ 67/235 Test  #67: test_distribution_snapshot ..................................................................   Passed    0.32 sec
+        Start  68: test_distribution_framing
+ 68/235 Test  #68: test_distribution_framing ...................................................................   Passed    0.32 sec
+        Start  69: test_distribution_delta
+ 69/235 Test  #69: test_distribution_delta .....................................................................   Passed    0.32 sec
+        Start  70: test_distribution_storage
+ 70/235 Test  #70: test_distribution_storage ...................................................................   Passed    0.37 sec
+        Start  71: test_distribution_retirement
+ 71/235 Test  #71: test_distribution_retirement ................................................................   Passed    0.45 sec
+        Start  72: test_distribution_memory_resource
+ 72/235 Test  #72: test_distribution_memory_resource ...........................................................   Passed    0.29 sec
+        Start  73: test_distribution_frame_encoder
+ 73/235 Test  #73: test_distribution_frame_encoder .............................................................   Passed    0.45 sec
+        Start  74: test_distribution_encoded_update
+ 74/235 Test  #74: test_distribution_encoded_update ............................................................   Passed    0.57 sec
+        Start  75: test_distribution_retirement_factory
+ 75/235 Test  #75: test_distribution_retirement_factory ........................................................   Passed    0.34 sec
+        Start  76: test_delivery_connection_cache
+ 76/235 Test  #76: test_delivery_connection_cache ..............................................................   Passed    0.37 sec
+        Start  77: test_delivery_response
+ 77/235 Test  #77: test_delivery_response ......................................................................   Passed    0.35 sec
+        Start  79: test_delivery_client
+ 78/235 Test  #79: test_delivery_client ........................................................................   Passed    1.44 sec
+        Start  80: test_delivery_probe_response
+ 79/235 Test  #80: test_delivery_probe_response ................................................................   Passed    0.48 sec
+        Start  81: test_delivery_probe_client
+ 80/235 Test  #81: test_delivery_probe_client ..................................................................   Passed    2.66 sec
+        Start  82: test_delivery_prepared_startup
+ 81/235 Test  #82: test_delivery_prepared_startup ..............................................................   Passed    1.06 sec
+        Start  83: test_prepared_readiness_replace
+ 82/235 Test  #83: test_prepared_readiness_replace .............................................................   Passed    0.96 sec
+        Start  84: test_prepared_readiness_barrier-failure
+ 83/235 Test  #84: test_prepared_readiness_barrier-failure .....................................................   Passed    1.00 sec
+        Start  85: test_prepared_readiness_worker-confirmation
+ 84/235 Test  #85: test_prepared_readiness_worker-confirmation .................................................   Passed    0.88 sec
+        Start  86: test_managed_readiness
+ 85/235 Test  #86: test_managed_readiness ......................................................................   Passed    0.37 sec
+        Start  87: test_preparation_deadline
+ 86/235 Test  #87: test_preparation_deadline ...................................................................   Passed    0.67 sec
+        Start  88: test_delivery_worker_lifetime
+ 87/235 Test  #88: test_delivery_worker_lifetime ...............................................................   Passed    0.58 sec
+        Start  89: test_relay_network_100000
+ 88/235 Test  #55: test_authority_snapshot_catchup .............................................................   Passed   59.12 sec
+        Start  90: test_relay_network_500000
+ 89/235 Test  #89: test_relay_network_100000 ...................................................................   Passed   11.31 sec
+        Start  91: test_relay_network_failure_drainage
+ 90/235 Test  #91: test_relay_network_failure_drainage .........................................................   Passed   11.85 sec
+        Start  92: test_delivery_coordinator_subscription-relay-http
+ 91/235 Test  #92: test_delivery_coordinator_subscription-relay-http ...........................................   Passed    0.37 sec
+        Start  93: test_delivery_coordinator_subscription-relay-http-100000
+ 92/235 Test  #93: test_delivery_coordinator_subscription-relay-http-100000 ....................................   Passed    2.99 sec
+        Start  94: test_delivery_coordinator_subscription-relay-http-500000
+ 93/235 Test  #90: test_relay_network_500000 ...................................................................   Passed   26.43 sec
+        Start  95: test_delivery_coordinator
+ 94/235 Test  #95: test_delivery_coordinator ...................................................................   Passed    0.37 sec
+        Start  96: test_delivery_coordinator_poll_backoff
+ 95/235 Test  #96: test_delivery_coordinator_poll_backoff ......................................................   Passed    0.51 sec
+        Start  97: test_delivery_coordinator_100000
+ 96/235 Test  #97: test_delivery_coordinator_100000 ............................................................   Passed    1.65 sec
+        Start  98: test_delivery_coordinator_500000
+ 97/235 Test  #94: test_delivery_coordinator_subscription-relay-http-500000 ....................................   Passed   12.15 sec
+        Start  99: test_delivery_coordinator_cancel-selected
+ 98/235 Test  #99: test_delivery_coordinator_cancel-selected ...................................................   Passed    0.40 sec
+        Start 100: test_delivery_coordinator_reader-pressure
+ 99/235 Test  #98: test_delivery_coordinator_500000 ............................................................   Passed    6.52 sec
+        Start 101: test_delivery_coordinator_subscription
+100/235 Test #101: test_delivery_coordinator_subscription ......................................................   Passed    0.77 sec
+        Start 102: test_delivery_coordinator_subscription-500000
+101/235 Test #100: test_delivery_coordinator_reader-pressure ...................................................   Passed    1.11 sec
+        Start 103: test_delivery_coordinator_subscription-reset
+102/235 Test #103: test_delivery_coordinator_subscription-reset ................................................   Passed    0.50 sec
+        Start 104: test_delivery_coordinator_subscription-cancel-open
+103/235 Test #104: test_delivery_coordinator_subscription-cancel-open ..........................................   Passed    0.20 sec
+        Start 105: test_delivery_coordinator_sink
+104/235 Test #105: test_delivery_coordinator_sink ..............................................................   Passed    0.35 sec
+        Start 106: test_delivery_coordinator_subscription-sink
+105/235 Test #106: test_delivery_coordinator_subscription-sink .................................................   Passed    0.37 sec
+        Start 107: test_delivery_coordinator_sink-cancel-selected
+106/235 Test #107: test_delivery_coordinator_sink-cancel-selected ..............................................   Passed    0.38 sec
+        Start 108: test_delivery_coordinator_subscription-relay
+107/235 Test #108: test_delivery_coordinator_subscription-relay ................................................   Passed    0.37 sec
+        Start 109: test_delivery_coordinator_subscription-relay-pressure
+108/235 Test #109: test_delivery_coordinator_subscription-relay-pressure .......................................   Passed    0.51 sec
+        Start 110: test_delivery_coordinator_subscription-relay-sessions
+109/235 Test #110: test_delivery_coordinator_subscription-relay-sessions .......................................   Passed    0.37 sec
+        Start 111: test_delivery_coordinator_subscription-relay-sessions-100000
+110/235 Test #111: test_delivery_coordinator_subscription-relay-sessions-100000 ................................   Passed    2.65 sec
+        Start 112: test_delivery_coordinator_subscription-relay-sessions-500000
+111/235 Test #102: test_delivery_coordinator_subscription-500000 ...............................................   Passed    7.00 sec
+        Start 113: test_delivery_coordinator_subscription-relay-100000
+112/235 Test #113: test_delivery_coordinator_subscription-relay-100000 .........................................   Passed    2.61 sec
+        Start 114: test_delivery_coordinator_subscription-relay-500000
+113/235 Test #112: test_delivery_coordinator_subscription-relay-sessions-500000 ................................   Passed   11.90 sec
+        Start 115: test_managed_config
+114/235 Test #115: test_managed_config .........................................................................   Passed    0.37 sec
+        Start 116: test_relay_config
+115/235 Test #116: test_relay_config ...........................................................................   Passed    0.37 sec
+        Start 117: test_relay_registry
+116/235 Test #117: test_relay_registry .........................................................................   Passed    0.33 sec
+        Start 118: test_managed_delivery_process
+117/235 Test #114: test_delivery_coordinator_subscription-relay-500000 .........................................   Passed   12.10 sec
+        Start 119: test_managed_subscription_process
+118/235 Test #118: test_managed_delivery_process ...............................................................   Passed    6.67 sec
+        Start 120: test_managed_paged-v2_process
+119/235 Test #119: test_managed_subscription_process ...........................................................   Passed    8.38 sec
+        Start 121: test_managed_paged-to-flat_process
+120/235 Test #120: test_managed_paged-v2_process ...............................................................   Passed    9.23 sec
+        Start 122: test_relay_paged_shared_process
+121/235 Test #121: test_managed_paged-to-flat_process ..........................................................   Passed    9.76 sec
+        Start 123: test_relay_paged_isolated_process
+122/235 Test #122: test_relay_paged_shared_process .............................................................   Passed    8.46 sec
+        Start 124: test_relay_delivery_process
+123/235 Test #124: test_relay_delivery_process .................................................................   Passed    7.98 sec
+        Start 125: test_relay_isolated_process
+124/235 Test #123: test_relay_paged_isolated_process ...........................................................   Passed   11.27 sec
+        Start 126: test_distribution_reply_pump
+125/235 Test #126: test_distribution_reply_pump ................................................................   Passed    0.31 sec
+        Start 127: test_distribution_session_table
+126/235 Test #127: test_distribution_session_table .............................................................   Passed    0.35 sec
+        Start 128: test_distribution_session_request
+127/235 Test #128: test_distribution_session_request ...........................................................   Passed    0.33 sec
+        Start 129: test_completion_scheduler
+128/235 Test #129: test_completion_scheduler ...................................................................   Passed    0.34 sec
+        Start 130: test_reconnect_backoff
+129/235 Test #130: test_reconnect_backoff ......................................................................   Passed    0.31 sec
+        Start 131: test_reconnect_cancel
+130/235 Test #131: test_reconnect_cancel .......................................................................   Passed    0.58 sec
+        Start 132: test_relay_bundle_maintenance
+131/235 Test #132: test_relay_bundle_maintenance ...............................................................   Passed    0.40 sec
+        Start 133: test_delivery_coordinator_subscription-paged
+132/235 Test #133: test_delivery_coordinator_subscription-paged ................................................   Passed    0.56 sec
+        Start 134: test_delivery_coordinator_subscription-paged-100000
+133/235 Test #125: test_relay_isolated_process .................................................................   Passed    7.97 sec
+        Start 135: test_delivery_coordinator_subscription-relay-paged-100000
+134/235 Test #134: test_delivery_coordinator_subscription-paged-100000 .........................................   Passed    7.26 sec
+        Start 136: test_delivery_coordinator_subscription-relay-paged-migrate-100000
+135/235 Test #135: test_delivery_coordinator_subscription-relay-paged-100000 ...................................   Passed    7.52 sec
+        Start 137: test_delivery_coordinator_subscription-relay-paged-transitions-100000
+136/235 Test #136: test_delivery_coordinator_subscription-relay-paged-migrate-100000 ...........................   Passed    8.92 sec
+        Start 138: test_delivery_coordinator_subscription-paged-migrate-recovery-failure-100000
+137/235 Test #137: test_delivery_coordinator_subscription-relay-paged-transitions-100000 .......................   Passed    8.41 sec
+        Start 139: test_delivery_coordinator_subscription-relay-paged-transitions-compaction-pressure-100000
+138/235 Test #138: test_delivery_coordinator_subscription-paged-migrate-recovery-failure-100000 ................   Passed    6.33 sec
+        Start 140: test_delivery_coordinator_subscription-paged-worker-cancel-100000
+139/235 Test #140: test_delivery_coordinator_subscription-paged-worker-cancel-100000 ...........................   Passed    0.56 sec
+        Start 141: test_delivery_coordinator_subscription-relay-paged-500000
+140/235 Test #139: test_delivery_coordinator_subscription-relay-paged-transitions-compaction-pressure-100000 ...   Passed    7.75 sec
+        Start 142: test_delivery_coordinator_subscription-relay-paged-migrate-500000
+141/235 Test #141: test_delivery_coordinator_subscription-relay-paged-500000 ...................................   Passed   40.29 sec
+        Start 143: test_delivery_coordinator_subscription-relay-paged-transitions-500000
+142/235 Test #142: test_delivery_coordinator_subscription-relay-paged-migrate-500000 ...........................   Passed   46.75 sec
+        Start 144: test_source_selection
+143/235 Test #144: test_source_selection .......................................................................   Passed    0.36 sec
+        Start 145: test_relay_bootstrap_retention
+144/235 Test #145: test_relay_bootstrap_retention ..............................................................   Passed    0.45 sec
+        Start 146: test_relay_bootstrap_retention_tls
+145/235 Test #146: test_relay_bootstrap_retention_tls ..........................................................   Passed    0.70 sec
+        Start 147: test_local_layout
+146/235 Test #147: test_local_layout ...........................................................................   Passed    0.35 sec
+        Start 148: test_local_ownership
+147/235 Test #148: test_local_ownership ........................................................................   Passed    0.38 sec
+        Start 149: test_local_managed_reader
+148/235 Test #149: test_local_managed_reader ...................................................................   Passed    0.41 sec
+        Start 150: test_local_reader
+149/235 Test #150: test_local_reader ...........................................................................   Passed    0.41 sec
+        Start 151: test_local_client_source
+150/235 Test #151: test_local_client_source ....................................................................   Passed    0.46 sec
+        Start 152: test_local_pinned_source
+151/235 Test #152: test_local_pinned_source ....................................................................   Passed    0.38 sec
+        Start 153: test_local_disk_ledger
+152/235 Test #153: test_local_disk_ledger ......................................................................   Passed    0.33 sec
+        Start 154: test_local_view
+153/235 Test #154: test_local_view .............................................................................   Passed    0.38 sec
+        Start 155: test_local_directory_ownership
+154/235 Test #155: test_local_directory_ownership ..............................................................   Passed    0.37 sec
+        Start 156: test_local_builder
+155/235 Test #156: test_local_builder ..........................................................................   Passed    0.36 sec
+        Start 157: test_local_managed_recovery_failure
+156/235 Test #157: test_local_managed_recovery_failure .........................................................   Passed    2.65 sec
+        Start 158: test_local_mapped_recovery_admission
+157/235 Test #158: test_local_mapped_recovery_admission ........................................................   Passed    0.33 sec
+        Start 159: test_local_directory_provisioning
+158/235 Test #159: test_local_directory_provisioning ...........................................................   Passed    0.60 sec
+        Start 160: test_local_disk_store
+159/235 Test #143: test_delivery_coordinator_subscription-relay-paged-transitions-500000 .......................   Passed   44.54 sec
+        Start 161: test_local_publication_retirement
+160/235 Test #161: test_local_publication_retirement ...........................................................   Passed    0.44 sec
+        Start 162: test_local_identity_reset
+161/235 Test #162: test_local_identity_reset ...................................................................   Passed    1.40 sec
+        Start 163: test_local_record_reader
+162/235 Test #163: test_local_record_reader ....................................................................   Passed    0.44 sec
+        Start 164: test_local_storage_session
+163/235 Test #164: test_local_storage_session ..................................................................   Passed    0.93 sec
+        Start 165: test_local_collector
+164/235 Test #165: test_local_collector ........................................................................   Passed    0.42 sec
+        Start 166: test_local_inventory
+165/235 Test #166: test_local_inventory ........................................................................   Passed    0.65 sec
+        Start 167: test_local_publication
+166/235 Test #167: test_local_publication ......................................................................   Passed   10.51 sec
+        Start 168: test_local_applied_builder
+167/235 Test #168: test_local_applied_builder ..................................................................   Passed    0.87 sec
+        Start 169: test_local_paged_layout
+168/235 Test #169: test_local_paged_layout .....................................................................   Passed    0.33 sec
+        Start 170: test_local_paged_page_builder
+169/235 Test #170: test_local_paged_page_builder ...............................................................   Passed    0.35 sec
+        Start 171: test_local_paged_segment_builder
+170/235 Test #171: test_local_paged_segment_builder ............................................................   Passed    0.33 sec
+        Start 172: test_local_paged_page_validator
+171/235 Test #172: test_local_paged_page_validator .............................................................   Passed    0.33 sec
+        Start 173: test_local_paged_graph_validator
+172/235 Test #173: test_local_paged_graph_validator ............................................................   Passed    0.36 sec
+        Start 174: test_local_paged_trie_cursor
+173/235 Test #174: test_local_paged_trie_cursor ................................................................   Passed    0.36 sec
+        Start 175: test_local_paged_snapshot_builder
+174/235 Test #175: test_local_paged_snapshot_builder ...........................................................   Passed    1.92 sec
+        Start 176: test_local_borrowed_definition
+175/235 Test #176: test_local_borrowed_definition ..............................................................   Passed    0.38 sec
+        Start 177: test_local_segment_mapping
+176/235 Test #177: test_local_segment_mapping ..................................................................   Passed    0.42 sec
+        Start 178: test_local_paged_recovery
+177/235 Test #178: test_local_paged_recovery ...................................................................   Passed    0.67 sec
+        Start 179: test_local_paged_reuse
+178/235 Test #179: test_local_paged_reuse ......................................................................   Passed    2.12 sec
+        Start 180: test_local_paged_plan
+179/235 Test #180: test_local_paged_plan .......................................................................   Passed    0.48 sec
+        Start 181: test_local_paged_cursor
+180/235 Test #181: test_local_paged_cursor .....................................................................   Passed    2.13 sec
+        Start 182: test_local_paged_export
+181/235 Test #182: test_local_paged_export .....................................................................   Passed    2.29 sec
+        Start 183: test_local_paged_progress_recovery
+182/235 Test #183: test_local_paged_progress_recovery ..........................................................   Passed    0.62 sec
+        Start 184: test_local_paged_trie_overlay
+183/235 Test #184: test_local_paged_trie_overlay ...............................................................   Passed    0.35 sec
+        Start 185: test_local_paged_leaf_body
+184/235 Test #185: test_local_paged_leaf_body ..................................................................   Passed    0.33 sec
+        Start 186: test_local_paged_delta_leaves
+185/235 Test #186: test_local_paged_delta_leaves ...............................................................   Passed    0.53 sec
+        Start 187: test_local_paged_overlay_assembler
+186/235 Test #187: test_local_paged_overlay_assembler ..........................................................   Passed    2.04 sec
+        Start 188: test_local_paged_delta_plan
+187/235 Test #188: test_local_paged_delta_plan .................................................................   Passed    0.81 sec
+        Start 189: test_local_paged_store_startup
+188/235 Test #189: test_local_paged_store_startup ..............................................................   Passed    2.19 sec
+        Start 190: test_local_paged_publication_artifacts
+189/235 Test #190: test_local_paged_publication_artifacts ......................................................   Passed    0.50 sec
+        Start 191: test_local_paged_disk_store
+190/235 Test #191: test_local_paged_disk_store .................................................................   Passed    8.82 sec
+        Start 192: test_local_paged_publication_faults
+191/235 Test #160: test_local_disk_store .......................................................................   Passed  190.19 sec
+        Start 193: test_local_paged_root_reclaim
+192/235 Test #193: test_local_paged_root_reclaim ...............................................................   Passed    2.07 sec
+        Start 194: test_local_paged_root_prefix
+193/235 Test #194: test_local_paged_root_prefix ................................................................   Passed    0.31 sec
+        Start 195: test_local_paged_root_partial_reclaim
+194/235 Test #195: test_local_paged_root_partial_reclaim .......................................................   Passed   16.33 sec
+        Start 196: test_local_paged_certificate
+195/235 Test #196: test_local_paged_certificate ................................................................   Passed    0.53 sec
+        Start 197: test_local_paged_segment_marks
+196/235 Test #197: test_local_paged_segment_marks ..............................................................   Passed    0.57 sec
+        Start 198: test_local_paged_named_root
+197/235 Test #198: test_local_paged_named_root .................................................................   Passed    0.73 sec
+        Start 199: test_local_paged_dependency_walk
+198/235 Test #199: test_local_paged_dependency_walk ............................................................   Passed    0.35 sec
+        Start 200: test_local_paged_segment_read
+199/235 Test #200: test_local_paged_segment_read ...............................................................   Passed    0.82 sec
+        Start 201: test_local_owned_segment_inputs
+200/235 Test #201: test_local_owned_segment_inputs .............................................................   Passed    0.35 sec
+        Start 202: test_local_paged_segment_collection
+201/235 Test #202: test_local_paged_segment_collection .........................................................   Passed    3.77 sec
+        Start 203: test_local_paged_collection_shutdown
+202/235 Test #203: test_local_paged_collection_shutdown ........................................................   Passed    6.88 sec
+        Start 204: test_local_paged_collection_crash
+203/235 Test #204: test_local_paged_collection_crash ...........................................................   Passed    2.15 sec
+        Start 205: test_local_paged_collection_publication
+204/235 Test #205: test_local_paged_collection_publication .....................................................   Passed    2.30 sec
+        Start 206: test_local_state_equivalence
+205/235 Test #206: test_local_state_equivalence ................................................................   Passed    3.60 sec
+        Start 207: test_local_paged_maintenance
+206/235 Test #207: test_local_paged_maintenance ................................................................   Passed    1.96 sec
+        Start 208: test_local_paged_compaction
+207/235 Test #208: test_local_paged_compaction .................................................................   Passed    3.41 sec
+        Start 209: test_local_paged_snapshot_plan
+208/235 Test #209: test_local_paged_snapshot_plan ..............................................................   Passed    2.03 sec
+        Start 210: test_local_reader_metadata
+209/235 Test #210: test_local_reader_metadata ..................................................................   Passed    0.31 sec
+        Start 211: test_local_lazy_page_access
+210/235 Test #211: test_local_lazy_page_access .................................................................   Passed    2.60 sec
+        Start 212: test_local_trusted_paths
+211/235 Test #212: test_local_trusted_paths ....................................................................***Skipped   0.09 sec
+        Start 213: test_local_prepared_collection
+212/235 Test #213: test_local_prepared_collection ..............................................................   Passed    1.45 sec
+        Start 214: test_local_prepared_republish
+213/235 Test #214: test_local_prepared_republish ...............................................................   Passed    1.16 sec
+        Start 215: test_http_socket_ownership
+214/235 Test #215: test_http_socket_ownership ..................................................................   Passed    0.37 sec
+        Start 216: test_http_response_framing
+215/235 Test #216: test_http_response_framing ..................................................................   Passed    1.55 sec
+        Start 217: test_scale_corpus
+216/235 Test #217: test_scale_corpus ...........................................................................   Passed    0.32 sec
+        Start 218: test_system_runner_runtime
+217/235 Test #218: test_system_runner_runtime ..................................................................   Passed    4.44 sec
+        Start 219: test_system_authority_writers
+218/235 Test #219: test_system_authority_writers ...............................................................   Passed   17.23 sec
+        Start 220: test_system_authority_writer_failover
+219/235 Test #220: test_system_authority_writer_failover .......................................................   Passed   19.61 sec
+        Start 221: test_system_managed_authority_failover
+220/235 Test #192: test_local_paged_publication_faults .........................................................   Passed  233.59 sec
+        Start 222: test_system_managed_partition
+221/235 Test #221: test_system_managed_authority_failover ......................................................   Passed   24.89 sec
+        Start 223: test_system_managed_all-down
+222/235 Test #222: test_system_managed_partition ...............................................................   Passed   20.12 sec
+        Start 224: test_system_managed_no-quorum
+223/235 Test #223: test_system_managed_all-down ................................................................   Passed   21.75 sec
+        Start 225: test_system_managed_poll
+224/235 Test #224: test_system_managed_no-quorum ...............................................................   Passed   17.95 sec
+        Start 226: test_system_managed_trust
+225/235 Test #226: test_system_managed_trust ...................................................................   Passed    2.49 sec
+        Start 227: test_system_managed_relay
+226/235 Test #225: test_system_managed_poll ....................................................................   Passed   24.12 sec
+        Start 228: test_system_fleet_raw
+227/235 Test #227: test_system_managed_relay ...................................................................   Passed   28.28 sec
+        Start 229: test_system_fleet_zstd
+228/235 Test #228: test_system_fleet_raw .......................................................................   Passed   48.52 sec
+        Start 230: test_system_fleet_warm
+229/235 Test #229: test_system_fleet_zstd ......................................................................   Passed   46.75 sec
+        Start 231: test_system_fleet_mixed
+230/235 Test #230: test_system_fleet_warm ......................................................................   Passed   46.43 sec
+        Start 232: test_system_fleet_partial-launch
+231/235 Test #231: test_system_fleet_mixed .....................................................................   Passed   46.06 sec
+        Start 233: test_system_fleet_cancel
+232/235 Test #232: test_system_fleet_partial-launch ............................................................   Passed   10.63 sec
+        Start 234: test_system_fleet_delayed
+233/235 Test #233: test_system_fleet_cancel ....................................................................   Passed   13.24 sec
+        Start 235: test_system_fleet_parked-cancel
+234/235 Test #235: test_system_fleet_parked-cancel .............................................................   Passed   12.43 sec
+235/235 Test #234: test_system_fleet_delayed ...................................................................   Passed   51.36 sec
+
+100% tests passed out of 235
+
+Label Time Summary:
+relay-network    =  49.59 sec*proc (3 tests)
+
+Total Test time (real) = 867.95 sec
+
+The following tests did not run:
+	212 - test_local_trusted_paths (Skipped)

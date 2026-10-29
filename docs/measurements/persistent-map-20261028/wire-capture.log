@@ -1,0 +1,4 @@
+snapshot export oracle, multi-chunk framing and retained admission passed
+{"knobs":1000,"namespaces":100,"overrides":2,"load_ms":5.784,"load_cpu_ms":5.784,"legacy_patch_median_ms":0.070102,"authority_update_median_ms":0.018286,"legacy_cpu_ms_per_update":0.123762,"authority_cpu_ms_per_update":0.018379,"nodes_allocated_per_update":18.00,"retained_nodes":1101,"capture_us":4.936,"image_bytes":107146,"encode_ms":0.853,"max_encode_turn_ms":0.302,"peak_rss_bytes":16678912}
+snapshot export oracle, multi-chunk framing and retained admission passed
+{"knobs":1000,"namespaces":100,"overrides":2,"load_ms":6.052,"load_cpu_ms":6.052,"legacy_patch_median_ms":0.071161,"authority_update_median_ms":0.020113,"legacy_cpu_ms_per_update":0.129429,"authority_cpu_ms_per_update":0.019307,"nodes_allocated_per_update":18.00,"retained_nodes":1101,"capture_us":4.970,"image_bytes":107146,"encode_ms":21.499,"max_encode_turn_ms":0.308,"peak_rss_bytes":19464192}

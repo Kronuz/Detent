@@ -1,0 +1,28 @@
+{
+  "library": "persistent-map:938d65e",
+  "consumer": "Detent:e060557",
+  "baseline": "Detent:a5a8304",
+  "local_source_override": "/Users/kronuz/code/Kronuz/persistent-map",
+  "consumer_hosted_run": 40814412665,
+  "library_hosted_run": 40813864441,
+  "library_enabled_jobs_passed": 7,
+  "native_tests": {
+    "registered": 235,
+    "passed": 234,
+    "skipped": 1,
+    "skipped_case": "test_local_trusted_paths",
+    "elapsed_seconds": 867.95,
+    "mode": "quiet light, j2, cohosted correctness run; elapsed time is not a performance comparison"
+  },
+  "description": "Public-pin hosted consumer build is separate from the initial local-source build. Baseline authority/distribution/core and benchmark sources match the main consumer base; prepared-reader differences are unrelated to the authority benchmark target.",
+  "compiler": "Homebrew clang version 23.1.2\nTarget: x86_64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /usr/local/Cellar/llvm/23.1.2/bin\nConfiguration file: /usr/local/Cellar/llvm/23.1.2/etc/clang/x86_64-apple-darwin24.cfg\n",
+  "host": "Darwin kronuz.local 24.6.0 Darwin Kernel Version 24.6.0: Sun Aug 23 20:30:56 PDT 2026; root:xnu-11417.140.69.712.69~1/RELEASE_X86_64 x86_64",
+  "cpu": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+  "size_segments": "__TEXT\t__DATA\t__OBJC\tothers\tdec\thex\n311296\t4096\t0\t4295090176\t4295405568\t10006b000\t.scratch/resource-adoption-20261027/baseline-build/benchmarks/detent_authority_bench\n311296\t4096\t0\t4295090176\t4295405568\t10006b000\t.scratch/persistent-map-adoption-20261028/build/benchmarks/detent_authority_bench\n",
+  "headers": {
+    "/Users/kronuz/code/Kronuz/persistent-map/persistent_map.h": "00d07d2a9a45ffa1f69cfea4cf2a6dd37a4c17d5a3d8c5309845529c20efb96a",
+    ".scratch/resource-adoption-20261027/baseline-source/src/detent_authority/persistent_map.hh": "3f91c84002d573577675a7b03be8096da762b1f99e89281a104d479108f8e54e"
+  },
+  "consumer_hosted_jobs_passed": 6,
+  "consumer_hosted_conclusion": "success"
+}
