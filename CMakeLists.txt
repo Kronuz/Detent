@@ -60,6 +60,7 @@ include(cmake/DependencyPins.cmake)
 # RapidJSON supplies headers only; keep its legacy build disabled.
 # Compression is shared by all HTTP consumers.
 FetchContent_MakeAvailable(
+  allocators
   rapidjson
   char_classify
   strict_stox

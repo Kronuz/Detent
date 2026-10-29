@@ -164,13 +164,13 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "5251cf9f24350c65548318b54a4be93389df73d0",
+    "revision": "21809c7ae35d19ee7707692e2d8bae6d8a7a92a8",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "57e6250e1b714925feddc210641c1c6ea49d5337",
+    "revision": "dbf753f60d1a74c9a036bf797406aeeb4b7998cc",
     "source_subdir": "."
   },
   {
@@ -225,6 +225,12 @@
     "name": "lru_cache",
     "repository": "https://github.com/Kronuz/lru-cache.git",
     "revision": "7dd23ebe41c3a3ba2856c6e3504509aa2a7a9e95",
+    "source_subdir": "."
+  },
+  {
+    "name": "allocators",
+    "repository": "https://github.com/Kronuz/allocators.git",
+    "revision": "b7daa52f1b6a316e04bba2817f0f527d64d704eb",
     "source_subdir": "."
   }
 ]

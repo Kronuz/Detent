@@ -28,6 +28,7 @@ target_include_directories(test_delivery_prepared_startup PRIVATE
   "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery"
   "${PROJECT_SOURCE_DIR}/tests/detent_local")
 target_link_libraries(test_delivery_prepared_startup PRIVATE detent::delivery_coordinator)
+add_dependencies(test_delivery_prepared_startup detent-reader)
 add_test(NAME test_delivery_prepared_startup COMMAND test_delivery_prepared_startup $<TARGET_FILE:detent-reader>)
 set_tests_properties(test_delivery_prepared_startup PROPERTIES TIMEOUT 30)
 add_test(NAME test_delivery_capsule_startup COMMAND test_delivery_prepared_startup $<TARGET_FILE:detent-reader> --capsule)
