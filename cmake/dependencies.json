@@ -86,7 +86,7 @@
   {
     "name": "http_parser",
     "repository": "https://github.com/Kronuz/http-parser.git",
-    "revision": "178f873450364b67f0abca9c96fbbc735589d435",
+    "revision": "c7023b0042c32a1c102c09c11f2f28b2eb2e4285",
     "source_subdir": "."
   },
   {
