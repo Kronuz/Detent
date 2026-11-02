@@ -247,3 +247,15 @@ This records Detent's proposed contract, not agreement from strata or Xapiand. U
 The [EX-1 reconciliation](RESOURCE_EXTRACTION_ARCHITECTURE.md#validated-architectural-blueprint-ex-1-reconciliation) accepts the coherent published foundation allocators:b7daa52, completion:21809c7 and journal:dbf753f for isolated consumer qualification. Consensus:b7073bbe and every unrelated dependency stay fixed. The saved migration combines generic resource extraction with separate authority funding and transport changes; those hunks are excluded. This stage changes no consensus wire bytes, synced acknowledgements or per-group journal policy. Full C++ rebuilding is required for the shared resource layouts.
 
 CL-2 both-lock activation remains required and separate. Public completion:ca0889d supplies the unified modes, but the inspected public Journal/Worker closure does not forward them. A completion-only upgrade cannot activate both locks. Extend the shared forwarding API while preserving existing defaults, publish and qualify that closure, then select both at mutable consumer entry points; do not introduce a custom IO wrapper or a second locking implementation. Newer library adoption remains tracked rather than implied by foundation adoption.
+
+## Coroutine drivers for journal and consensus (November 2)
+
+Agreed between the Detent and Xapiand leads; Detent owns both designs, Xapiand reviews them for the points below and 7b fit before any code lands. Work starts after Detent's M1 ([plan](PLAN.md)).
+
+1. journal's resumable state machines and consensus's I/O-free `Core` stay the one implementation. A coroutine driver replaces the polling loops and the callback Worker API; the old Worker API is deleted once Detent migrates. Nothing in strata or Xapiand uses journal or consensus today; strata uses completion only through `PosixIO`/`IO`, which this does not touch.
+2. The public type is Kronuz/task's `task::task<T>`, generic over the scheduler (`scheduler_ref`), with an asio adapter for Detent. No `asio::awaitable` in the public API.
+3. Scheduler, clock and IO are injectable (completion's `IO` seam), so strata's deterministic simulator can drive journal and consensus step by step with no real time or threads.
+4. An idle group costs bytes, not resources: no thread, `io_context`, armed timer or coroutine frame per idle group; timers live in a shared wheel per reactor. Each design carries a per-idle-group cost row (Xapiand targets millions of indexes per host, one group per shard in 7b).
+5. A blocking entry point drives the same state machine to completion without an `io_context` on the calling thread (run-to-completion, or `sync_wait` on the task), for Xapiand's device chores on a WorkPool. This is the one implementation driven two ways, not a second API.
+
+Xapiand's per-index turn (an async lease) holds the journal append and the apply in one turn; journal carries no turn log for it.

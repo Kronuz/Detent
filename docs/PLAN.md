@@ -28,6 +28,7 @@ publishers, 250k+ agents, sub-millisecond warm reads.
 | Milestone | Content | Exit |
 | --- | --- | --- |
 | M1 On the tip | Every Kronuz pin at its head; Detent on coroutine HTTP handlers with no offload path | Done criteria below |
+| M1b Async drivers | Coroutine drivers for journal and consensus (`task::task<T>`, injectable scheduler/clock/IO, bytes per idle group, a run-to-completion entry), then Detent's owner loops on them; agreed with Xapiand in [SHARED_LIBRARY_DECISIONS.md](SHARED_LIBRARY_DECISIONS.md#coroutine-drivers-for-journal-and-consensus-november-2) | Designs reviewed by the architect and the Xapiand lead; old Worker API deleted |
 | M2 Integration (RC-1) | Re-qualify the parked candidates on the tip, one at a time: resources, shared HTTP clients, bounded MessagePack, persistent map, consensus transport, async HTTP log completion | Each lands or is rejected with evidence |
 | M3 Client performance (RC-2) | First-read repeatability, incremental refresh, daemon startup attribution | Sub-millisecond resident-data first read held |
 | M4 Capacity and restoration (RC-3, RC-4) | Ingestion ladder, sustained 5M, 10M attempt, fresh three-voter restore | Published operating envelope |
