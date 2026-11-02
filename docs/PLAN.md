@@ -106,3 +106,9 @@ the tip in M2, never adopted on the old pins.
 Pacing follows `pace claude advise`; on 2026-11-02 the week runs ahead (16% used against 7%
 pace), so one token-heavy agent runs at a time and the lead does mechanical library work itself.
 Builds and tests run under `quiet light`, timing under `quiet strict` holds of at most ten minutes.
+
+Timing that decides a gate runs on the shared AWS benchmark account through `lease` (us-east-2,
+on-demand; one lease per session at a time; batches queued and run back to back in one lease, then
+`lease down`). c7a.4xlarge (x86) and c7g.4xlarge (arm64) serve A/B ratios; metal only for gate or
+published numbers, after messaging the Xapiand lead. The Linux x86-64 gate for http on task (T6/T7)
+runs there once task's C3 lands.
