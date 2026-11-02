@@ -259,3 +259,12 @@ Agreed between the Detent and Xapiand leads; Detent owns both designs, Xapiand r
 5. A blocking entry point drives the same state machine to completion without an `io_context` on the calling thread (run-to-completion, or `sync_wait` on the task), for Xapiand's device chores on a WorkPool. This is the one implementation driven two ways, not a second API.
 
 Xapiand's per-index turn (an async lease) holds the journal append and the apply in one turn; journal carries no turn log for it.
+
+## One coroutine type: http handlers on task (November 2)
+
+Agreed between the Detent and Xapiand leads after the owner asked why the family carried two coroutine types. `task::task<T>` (Kronuz/task) is the family's one coroutine type; asio stays the reactor, bound through `task_asio.hh`.
+
+1. http's handler type, `Router` routes and `BodyStream` reads become `task::task`-based. http-log, prism, Detent and Xapiand's `SearchService` migrate in the same wave; Xapiand's `task::as_awaitable` bridge is deleted.
+2. Detent owns the http, http-log and prism change; the Xapiand lead reviews the design before code and migrates Xapiand when it lands.
+3. The L3 review's constraints hold on the new API: request, writer and `BodyStream` outlive a destroyed connection frame; a disconnect cancels reads, not writes, and a pipelined byte ends monitoring; the `AdmissionGate` count stays exact on every exit path; a throwing `on_cancel` is contained; a truncated body is an error, not end of file. The L3 probes (`http-wt/l3-http/.scratch/review-l3/`) rerun on the new API.
+4. Gate: end-to-end req/s and p99 latency at 8 and 64 connections within the A/A band of today's head, and coroutine frame allocation per request no worse than asio's. Whether http's internal connection loop also moves to task follows that measurement.

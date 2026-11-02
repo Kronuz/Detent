@@ -46,6 +46,7 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 | --- | --- | --- |
 | W1 completion pins | lead | Move completion's own metrics and allocators pins to heads in the library; cascade completion through journal and consensus (and cluster where it pins them) |
 | W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission stays Detent's own (JSON refusals; http's `in_flight_limit` gate is set so it never fires), body caps map onto `set_max_body()` and `BodyStream`; reactor's new constructors |
+| W2a http on task | designer, then developer | http's handlers, routes and `BodyStream` become `task::task`; http-log, prism and Xapiand migrate in the same wave ([decision](SHARED_LIBRARY_DECISIONS.md#one-coroutine-type-http-handlers-on-task-november-2)); W2 then targets the task API |
 | W3 pin waves | developer | Move pins dependency first in waves: leaves; then the completion chain; then reactor, http-parser, http, http-log, cluster with W2 |
 | W4 threadpool and scheduler | Xapiand campaign, then W3 | ThreadPool's family is removed and scheduler runs on WorkPool; Detent takes threadpool, scheduler, logger and stash in one step when `xapiand-74` reports them landed |
 | W5 evidence | lead | Input-class diffs, hot-path A/B with an A/A control, CHANGELOG |
@@ -54,7 +55,7 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 
 ```
 W1 completion -> journal -> consensus pins ─┐
-W2 design -> architect review -> implement ──┼─> W3 final wave + W4 -> full suite, sanitizers, CI -> W5 A/B -> land
+W2a http-on-task design -> review -> http lands -> W2 implement ──┼─> W3 final wave + W4 -> full suite, sanitizers, CI -> W5 A/B -> land
 W4 threadpool/scheduler (Xapiand) ──────────┘
 ```
 
