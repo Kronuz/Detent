@@ -4,7 +4,7 @@
 
 - Design: docs/design/http-coroutines.md (DRAFT, revised for the review); reviews: docs/reviews/http-coroutines-design.md (architect preliminary, REJECT, 2026-11-02; findings folded)
 - Branch / worktree: `design/http-coroutines` at `~/code/Kronuz/Detent-wt/http-coroutines`; head: see `git log -1`
-- State: ready for implementation (findings folded)
+- State: waiting on W2a (http on task::task). The re-check approves with conditions; the next revision retargets D2 from asio co_spawn and channels to task::task and folds N1-N6 before S1 starts (lead, 2026-11-02).
 - Done criteria (set by the lead; contributors tick, never edit):
   - [ ] PLAN M1 done criterion 3 (no `workers`, `should_offload`, `DeferredReply`, `user_data`, `BodyReader` or blocking wait on a reactor thread; every handler a coroutine; body cap from Detent's limits)
   - [ ] Cross-thread completion uses Asio's `co_spawn` hop and an owner-local channel, with no Detent completion type; T1's bridge rows pass (added per review L1)
