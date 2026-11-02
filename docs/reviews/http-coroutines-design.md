@@ -372,3 +372,269 @@ Follow-ups, outside W2:
 
 Not run: Detent builds and suites (the design has no code yet), benchmarks, fuzzing, and a TLS
 variant of the D8 probe. The D8 probe ran on plain TCP only (5 cases, under `quiet light`).
+
+## Re-check, 2026-11-02
+
+- Re-checked: `docs/design/http-coroutines.md` at `Detent:8bb0e36` (`git diff e7d58f3..8bb0e36`), ledger
+  `docs/status/http-coroutines.md`, against the review above (L1-L5, C1-C6).
+- Sources: Detent worktree at `Detent:8bb0e36`; http `679c0f8` and reactor `ade618d` exports in
+  `.scratch/arch-review/{http-head,reactor-head}/`, plus `git show origin/main:docs/mechanisms/coroutine-handlers.md`
+  in the http checkout; Asio `231cb29` (`impl/co_spawn.hpp`); reactor pin `fe8c5ce` and cluster
+  `428d57d`, read-only with `git show`.
+- Probes, in `.scratch/arch-review/recheck/`, built and run under `quiet light` (one core at a time):
+  - `l2_owned_stream_probe.{cc,sh,out}` adapts `d8_deadline_probe` to the revised D8: `request_timeout`
+    = T = 1 s, no header or inactivity timeout, a body trickled over 0.8 s, an outcome wait of T, then
+    a 134-byte or 8 MiB reply through an owned stream (deadline = ready + 1 s) or through a buffered
+    `send`; plain TCP and TLS (`tls_connection_factory`); a slow reader; and `stop()` 300 ms into the wait.
+  - `l1_hop_probe.{cc,out}`: Asio-only model of D2's hop, cancellation slot and capacity-1 channel.
+- Not run: Detent builds and suites (the design has no code), benchmarks, fuzzing, sanitizers, a TLS
+  slow-reader timing finer than "cut before the full body". No test reverts: the branch has no code.
+  `l1_hop_probe` did not finish (see L1).
+
+### Verdicts
+
+| ID | Verdict | One line |
+|---|---|---|
+| L1 | CLOSED | D2 `design/http-coroutines.md:94-170` states all the review asked; the cancel wake-up is unproven by my probe (N6), T1(b) decides it first in S1 |
+| L2 | CLOSED | D8 `:245-273`; owned-stream reply survives an expired request deadline on plain and TLS, 8 MiB to a slow reader is still cut; keep-alive wording N3 |
+| L3 | PARTIAL | D9 `:275-285` closed; D10 `:290-299` Shutdown replies cannot leave through an owned stream (N1) |
+| L4 | CLOSED | D13 `:327-364`, T2 `:445` |
+| L5 | CLOSED | D14 `:366-379`, T3 `:446`, T2 hook; the S1 pin gap is under C3 |
+| C1 | CLOSED | D13.6 `:356-360`, S3 `:512` |
+| C2 | CLOSED | D6 `:229-231`, Q5 `:474-482`, S4 `:513` |
+| C3 | PARTIAL | order matches A8; S1 `:510` cannot build `assert_off_loop` on the current reactor pin (N2) |
+| C4 | PARTIAL | T10's first pattern is precise; its second can never be empty (N5); T9 and T4/T6 closed |
+| C5 | CLOSED | D10 `:309-312`, D4 `:189-203`, user-visible table `:388,:394` |
+| C6 | CLOSED | gate header `:437-440`, T1 `:444`, T4 `:447`, T6 `:449` |
+
+### L1: CLOSED (design); cancel wake-up unproven
+
+The design replaces `Outcome<T>` with `co_spawn(owner, work, bind_cancellation_slot(slot, use_awaitable))`
+and a capacity-1 channel on the owner (D2, `:94-170`). The four things the review asked it to state are
+there: the explicit slot binding with only the Shutdown bridge emitting (`:128-137`), the lifetimes
+(`:139-158`), the cost (`:160-161`), and `task::event` as the alternative with its reason (`:169-170`).
+T1 (`:444`) has the review's five bridge rows (a)-(f), in native, ASan and TSan.
+
+Cancellation reaches the owner by post. `co_spawn_cancellation_handler` dispatches the emit to the
+owner executor (`asio/impl/co_spawn.hpp:244-269`; the dispatching specialisation is chosen when the
+handler has an associated executor, which `use_awaitable` inside a coroutine does). `l1_hop_probe.out`:
+
+```
+work: waiting on owner=1        (the hopped work parks on the owner thread)
+emit from loop=1                (Request::cancel's bridge runs on the loop thread)
+emit returned                   (emit() returned at once; the waiter did not resume inside it)
+```
+
+The probe then stopped making progress: neither the cancelled wait nor the work's own 5 s timer resumed
+within 12 s, and a `sample` showed both loops idle with `main` waiting for the result. I did not find
+the cause (a probe bug, or a lost wakeup of `chan.async_receive || timer` under a bound terminal slot).
+Variants with only the channel and only the timer were queued behind exclusive holds and did not
+complete. So the post to the owner is confirmed from source and the first three lines, and the cancelled
+wait's wake-up is not confirmed by my probe (N6).
+
+Channel placement is sound. The channel is constructed on the owner executor and settled only on the
+owner thread. For the authority that is the runtime thread, where `complete` already runs once
+(`service.cc:1333-1365`, `task->settled`), so no post is needed there. For the classic path the
+apply posts to the owner (D13.2). A late completion holds the `shared_ptr` to the channel and sends into
+it after the waiter has gone (probe case D).
+
+The newly found authority `io_context` lifetime defect is real and the fix is sound. `Runtime` is a
+local of `Service::run` (`service.cc:1059`, `:1141`). Its `io.run()` returns once the runtime coroutine
+ends, and the failure callback at `:1143-1146` only sets `stopping_`. The thread then leaves `run`, and
+`Runtime` and its `io_context` die while the HTTP service still accepts requests (`main.cc:241` `app`
+outlives `service` at `:278`). A hop to that executor after that is a use after free. Moving `io` to a
+`Service` member held by a work guard, released in `~Service` after `stopping_` is set and before the
+join (`design:147-158`), has two properties worth stating. First, `io.run()` no longer returns on a
+failure, so the `Runtime` local, with its timers, node and driver handlers, stays alive until
+`~Service`; no handler can fire on a destroyed `Runtime`. Second, a hop that wins the race with the
+failure can enqueue a task nobody will take, and the waiter then ends at its outcome timer with
+`outcome_unknown`, which is truthful. Dying in reverse declaration order (queue, then `io`) puts every
+task and channel before the `io_context`.
+
+Gap (N4, non-blocking): S4 should say that the work guard is released only after `stopping_` is set,
+or `io.run()` never returns and `~Service` hangs on `join()`.
+
+### L2: CLOSED
+
+The mechanism. At head, an owned stream's write is bounded by `exchange->deadline()` alone:
+`write_owned_response` (`http_asio.h:568-619`) checks `exchange->deadline()` (`:574`) and writes with
+`write_before_deadline(socket, buffers, control->exchange->deadline())` (`:606`). `write_response`
+takes that branch first (`:624`), and `respond` calls it before any use of `request_deadline`
+(`:793-794`). The request deadline reaches the reply only in `write_with_progress(..., request_deadline)`
+for buffered replies (`:794`). Nothing between `handle` returning and the write reads it (`:965-969`).
+`serve_tls_connection` ends in the same `serve_connection<ssl::stream>` (`http_asio_tls.h:108`), so
+TLS runs the same code. The stream's deadline is fixed when `response.stream(options)` runs
+(`http_owned_stream.h:36,268`, `start` returns `Closed` once it has passed), so the handler must create
+the stream after the outcome, which D8 says: "measured when the reply is ready" (`:257`).
+
+Measured (`l2_owned_stream_probe.out`, T = 1 s = `request_timeout`, body trickled over 0.8 s, outcome
+at T, so the request deadline is 0.8 s old when the reply starts):
+
+| Case | Plain TCP | TLS |
+|---|---|---|
+| buffered 8 MiB reply | 327,212 bytes, then close | 24,576 bytes, then close |
+| owned 8 MiB reply, fast reader | 8,388,703 of 8,388,703 | 8,388,703 of 8,388,703 |
+| owned 134-byte reply | 134 of 134, at 1814 ms | 134 of 134, at 1816 ms |
+| owned 8 MiB reply, reader at 64 KiB per 50 ms | 1,987,276 bytes, then close | 1,040,384 bytes, then close |
+
+The buffered rows reproduce A1. The owned rows show the revised D8: the reply that A1 cut is delivered
+in full on both transports after the request deadline has passed, and the slow-reader rows show the
+stream's own deadline (ready + 1 s) still cuts an 8 MiB reply to a reader that cannot take it. (A
+small buffered TLS reply also got through, a race between a write that completes at once and an expired
+timer; the review's "every TLS reply" was too strong for tiny replies, and 8 MiB is the case that matters.)
+
+The receive window stays T: the revision adds no timeout, and `main.cc:279` is the only
+`set_request_timeout` in `src/` (the authority's `timeout`; 0 in classic mode). A trickling client holds
+a slot at most T, and the idle keep-alive wait does not lengthen. Not tested: a TLS slow reader to the
+millisecond.
+
+Wording gap (N3): D8 cites `start(metadata, length)` (`design:261`). At head `start`'s `keep_alive`
+defaults to `false` (`http_owned_stream.h:301`), which writes `Connection: close` and closes the
+connection after every publisher reply (`:82-83`). The distribution path passes `true`
+(`reply_pump.cc:29,33`). The deferred reply it replaces keeps the connection alive. D8 must pass
+`request.keep_alive`, and T11 should send a second request on the same connection.
+
+### L3: PARTIAL
+
+Closed parts. D9 (`:275-285`) answers an over-budget command with `outcome_unknown` and a read with
+`admission_full`; D10 (`:290-299`) answers a Shutdown wait with `stopping` only before the task is
+queued, `outcome_unknown` after, the existing `Transport` retry reply for a clustered classic waiter
+(`detentd.cc:32,340-342` confirm the 503 and the "retry" text), and lets a started classic commit finish.
+Disconnect keeps waiting (`:300-302`, T6 includes a half-close). The Disconnect rule matches the
+monitor rule at head (`coroutine-handlers.md`, "Cancel reads, not writes", rule 2).
+
+Open part (N1, blocking for S4): the Shutdown replies cannot be written through an owned stream, and D8
+sends every reply after a submission through one. `stop()` runs `abort_all()` first, and a stream
+registered with the reactor closes with `Shutdown` (`coroutine-handlers.md`, "Shutdown" step 1;
+`AsioOwnedStreamControl::abort`, `http_owned_stream_asio.h:27`). `Reactor::track` aborts at once when
+the walk has already passed (`reactor.h:208-211`). A handler that wakes from a Shutdown cancel and then
+calls `response.stream()` gets an exchange that is closed before `start`. The probe shows it, with the
+handler waking 1.2 s after `stop()` began:
+
+```
+plain  buffered small, shutdown  :  139 reply bytes (first at 1500 ms)
+plain  owned small, shutdown     :    0 reply bytes, stream start=2 (StreamSubmit::Closed)
+tls    buffered small, shutdown  :  139 reply bytes (first at 1500 ms)
+tls    owned small, shutdown     :    0 reply bytes, stream start=2 (StreamSubmit::Closed)
+```
+
+So as designed, T1(b) and T6 ("a queued task gets 503 `outcome_unknown`", "a task not yet queued gets
+503 `stopping`") would fail at S4, and a client sees a close with no reply, which is the contract
+break L3 was raised for. A stream created before `stop()` fares no better: `abort()` closes it with
+`Shutdown` before `start`. The contract holds if Shutdown replies take the buffered path: a handler
+that wakes from the Shutdown bridge answers with `w.send(503, ...)` (a few dozen bytes), which the
+probe delivers on both transports even though the request deadline had passed. D8's rule needs the
+exception "except when the wait ended on Shutdown" and T6 should pin it. The decision to hop only
+the writes and answer small JSON errors buffered is already D8's rule for refusals.
+
+### L4: CLOSED
+
+D13 (`:327-364`) names one owner `io_context` and thread, publishes one
+`atomic_shared_ptr<const Published>` (`:347-350`; `include/detent/snapshot_ref.hh:19` is the existing
+use), and removes `snapshot_mutex_`. GET and health load the pointer (`:351-353`) and never reach the
+owner. Clustered applies post to the owner "through a strand ... so applies run in log order"
+(`:338-342`). That order holds: the Bus is one loop thread posting FIFO, `add_command` is a mutex and a
+signal (`cluster/raft.h:178-181` at `cluster:428d57d`, thread-safe as D13.1 says), the commit never
+suspends (`:343`), and the owner has one thread. A strand over a one-thread `io_context` is redundant
+but harmless.
+
+No stale insert: today `composed_diff_cache_.try_insert` needs a generation guard because the cache is
+shared across versions (`detentd.cc:577-581`, `generation_cache`). In D13 the cache is a member of the
+`Published` the GET loaded (`:353-355`), so an insert lands in the cache of the version it was composed
+against, and the next publish starts an empty one, as the old `clear()` did. Persist-before-publish is
+kept (`:345-346`). T2 (`:445`) is deterministic through a latch inside the commit, and has a clustered
+no-quorum case.
+
+Small gaps, non-blocking: the cache inside an immutable `Published` still needs its own
+synchronisation (the existing `generation_cache::Cache` has it; D13 should name the type), and the diff
+history copied into each new `Published` should share its entries by `shared_ptr`, or a commit copies up
+to 64 patches. S3's commit-duration log will show it.
+
+### L5: CLOSED
+
+D14 (`:366-379`) defines `assert_off_loop` as `assert(!reactor::inside_run())` and lists the commit and
+its entry points, `persist_locked`, `read_file`, and any remaining future or condition-variable wait.
+`inside_run()` is true inside `Reactor::run()` and `RunScope` (`reactor.h:135-143,193`), and the
+authority runtime and Distributor owner are plain `io_context`s, as the review stated. T3 (`:446`) is
+(a) the assertion across the suites, (b) the lag probe, and (c) the mutant that moves the commit back
+inline, which the assertion catches on a loop thread. T2 is deterministic. D12's `run_handler` wraps
+tests in `RunScope` so the assertion fires in unit tests.
+
+### C1-C6
+
+- **C1 CLOSED.** D13.6 (`:356-360`) logs each commit's duration and keeps the review's threshold
+  (a quarter of the 5 s grace, 1.25 s); S3 (`:512`) assigns the measurement.
+- **C2 CLOSED.** D6 lists the composed-diff GET with its estimate and the relay parse (`:229,:231`); S4
+  times the authority parse (`:513`); Q5 asks the lead (`:474-482`).
+- **C3 PARTIAL.** The order is the review's, with S1 as bridge plus helper on the current pins (`:510`).
+  The helper cannot be written there: `reactor::inside_run` and `RunScope` arrive with reactor
+  `d381e4d`, and Detent's pin is `fe8c5ce` (`cmake/dependencies.json:112`), which has neither (N2).
+- **C4 PARTIAL.** T9 now names the managed first read (`:452`). T4 and T6 assert `reserved_reply_bytes`
+  returns to baseline (`:447,:449`). T10's first pattern (`should_offload|DeferredReply|...|BodyReader`
+  over `src include tests benchmarks`) is precise: its 27 hits today are all removals. The second
+  (`--workers|DETENTD_WORKERS` over `src/detentd docs website`) can never be empty: the design (5
+  hits), this review (3), the ledger (1) and `docs/FLEET_QUALIFICATION.md:7`, whose `--workers` belongs
+  to the fleet runner, all match (N5).
+- **C5 CLOSED.** D10 states `listener.stop()` before `facade.reset()` (`:309-312`; `host.cc:375,379`
+  agree). D4 builds the cap and `in_flight_limit` from one value (`:189-198`; `main.cc:278` has the two
+  literals today). The user-visible table has the authority health-body change (`:388`) and states that
+  half-close and idle keep-alive do not change (`:394`).
+- **C6 CLOSED.** The gate header (`:437-440`) makes `build-asan` and `build-tsan` separate, and T1, T4
+  and T6 run in both.
+
+### The unclosed limit
+
+`Request::cancel` keeps only the first reason (`http_message.h:149-150`), so a client that disconnects
+before `stop()` consumes the cancel, and a later Shutdown is swallowed (the Limits bullet, `design:412-414`).
+On plain TCP a half-closed client does the same at the first `on_cancel` (the watch peeks at once).
+
+Authority: acceptable as a documented limit. The service is destroyed before the runtime (`main.cc:241`
+vs `:278`), so the runtime is alive during `HTTP stop()` and answers `outcome_unknown` at the outcome
+deadline T after submission (`service.cc:1780-1787`). Because `stop()` starts after submission, that is
+at most T after `stop()` begins, inside the 5 s grace. The backstop's extra second matters only if the
+runtime has failed, so the excess over the grace is at most 1 s and only for a failed runtime. The
+Limits bullet overstates it ("6 s").
+
+Classic clustered: the limit is not documented and is larger. A disconnected writer's waiter holds the
+owner's 10 s timer (`detentd.cc:306`, D13.1); the swallowed cancel never wakes it, and the owner's
+`stopping_` read applies to writes that have not started. `stop()` can wait up to 10 s, five seconds past
+the grace. That is no regression (a blocked worker holds `stop()` the same way today), but the design
+presents `stop()` as answering waiting requests by the contract.
+
+Verdict: not a blocker. Close it cheaply or document both: `main.cc` calls a `begin_shutdown()` on the
+handler before `service.stop()`, which sets `stopping_` and posts one settle-all to the owner, so no
+waiter depends on a per-request cancel. If not, extend the Limits bullet to the classic 10 s wait and
+add a T6 case, "disconnect, then `stop()`", asserting `stop()` returns within grace + 1 s (authority)
+or documents the 10 s (classic).
+
+### New findings
+
+- **N1 (blocking for S4; keeps L3 PARTIAL).** Shutdown replies cannot leave through an owned stream
+  (above). Fix: D8 says a wait that ends on Shutdown answers through the buffered writer; T1(b) and T6
+  keep their rows, which then pass.
+- **N2 (condition; C3).** S1 cannot build `assert_off_loop` on reactor `fe8c5ce`. Move the helper to S2
+  after the pin, or have S1 carry it behind a compile-time stub; keep S1 to the hop and T1 (a)-(d).
+- **N3 (condition; L2).** Pass `request.keep_alive` to the owned stream's `start` (default is
+  `false`), and add a second-request row to T11.
+- **N4 (non-blocking).** Say in S4 that `~Service` releases the work guard after `stopping_` is set.
+- **N5 (condition; C4).** Make T10's second pattern emptiable: scope it to `src/detentd website
+  docs/USAGE.md`, or exclude `docs/design`, `docs/reviews`, `docs/status` and `docs/FLEET_QUALIFICATION.md`.
+
+- **N6 (condition; L1).** My Asio-only model of D2's cancel path hung after the emit (above). Make T1(b)
+  (a Shutdown cancel reaches the owner wait and wakes it, with a channel and a timer in the race) the
+  first test S1 lands, before S3 or S4 build on D2. If it hangs there too, the `||` race under a bound
+  terminal slot needs a different shape (for example a flag polled by the timer tick).
+
+Outside this scope, one line for the lead: the relay's `set_request_timeout(65 s)` (`host.cc:249`) and
+the classic mode's request timeout of 0 (`main.cc:245,279`: `authority_network_timeout` stays 0 unless
+`--authority`) are not covered by D8's timeline; the classic receive window is unbounded today.
+
+Not run: Detent builds, suites, sanitizers, benchmarks, fuzzing; a TLS slow-reader timing finer than
+"cut before the full body"; reverts of tests (there are none on the branch).
+
+### Overall
+
+L1 (design), L2, L4, L5 closed. L3 is PARTIAL on one concrete defect (N1) that the design's own T6 would catch at
+S4; it is a text fix to D8/D10, not a redesign. C3 and C4 are PARTIAL on small, mechanical items (N2,
+N5). Recommendation: **APPROVE WITH CONDITIONS** for S1, S2 and S3 to start (none depend on N1), with N1
+fixed in the design before S4 starts, N6 answered by S1's T1(b), and N2, N3, N5 folded in the same revision.
