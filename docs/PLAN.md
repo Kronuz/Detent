@@ -45,7 +45,7 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 | Workstream | Owner | Content |
 | --- | --- | --- |
 | W1 completion pins | lead | Move completion's own metrics and allocators pins to heads in the library; cascade completion through journal and consensus (and cluster where it pins them) |
-| W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission and body limits map onto `in_flight_limit`, `set_max_body()` and `BodyStream`; reactor's new constructors |
+| W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission stays Detent's own (JSON refusals; http's `in_flight_limit` gate is set so it never fires), body caps map onto `set_max_body()` and `BodyStream`; reactor's new constructors |
 | W3 pin waves | developer | Move pins dependency first in waves: leaves; then the completion chain; then reactor, http-parser, http, http-log, cluster with W2 |
 | W4 threadpool and scheduler | Xapiand campaign, then W3 | ThreadPool's family is removed and scheduler runs on WorkPool; Detent takes threadpool, scheduler, logger and stash in one step when `xapiand-74` reports them landed |
 | W5 evidence | lead | Input-class diffs, hot-path A/B with an A/A control, CHANGELOG |
