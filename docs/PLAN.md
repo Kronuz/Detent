@@ -16,7 +16,10 @@ publishers, 250k+ agents, sub-millisecond warm reads.
 
 1. Stay on the tip. Every library pins its dependencies at their heads, and so does Detent. A stale
    pin is fixed in the library that holds it, never overridden by an earlier declaration here.
-2. One implementation per mechanism. No legacy or duplicate APIs, shims or deprecated aliases.
+2. One shape everywhere: one obvious way to do each thing, for every type, mechanism and API
+   (the family's coroutine type is `task::task`). No legacy or duplicate APIs, shims or deprecated
+   aliases. The only exception is a considerable cost gap that cannot be narrowed or closed, brought
+   to the owner with before/after numbers.
 3. Every library consumer is ours: change a library additively, or migrate every caller.
 4. Coordinate with the Xapiand lead (`xapiand-74`) before changing a shared library's API, moving a
    pin wave or removing something. Its plan: `~/code/Kronuz/strata/docs/status/road-to-release.md`;
