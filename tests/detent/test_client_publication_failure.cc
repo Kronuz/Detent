@@ -16,19 +16,19 @@ namespace {
 thread_local long budget = -1;
 }
 
-void* operator new(std::size_t bytes) {
-	if (budget == 0) {
-		budget = -1;
-		throw std::bad_alloc();
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (budget == 0) {
+			budget = -1;
+			throw std::bad_alloc();
+		}
+		if (budget > 0)
+			--budget;
 	}
-	if (budget > 0)
-		--budget;
-	if (auto p = std::malloc(bytes ? bytes : 1))
-		return p;
-	throw std::bad_alloc();
-}
-void operator delete(void* p) noexcept { std::free(p); }
-void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 
 using namespace detent;
 using namespace std::chrono_literals;

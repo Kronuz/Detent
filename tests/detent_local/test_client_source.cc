@@ -10,18 +10,15 @@
 
 thread_local bool count_allocations = false;
 thread_local std::size_t allocations = 0;
-void *operator new(std::size_t size) {
-	if (count_allocations)
-		++allocations;
-	if (auto *pointer = std::malloc(size ? size : 1))
-		return pointer;
-	throw std::bad_alloc();
-}
-void *operator new[](std::size_t size) { return ::operator new(size); }
-void operator delete(void *pointer) noexcept { std::free(pointer); }
-void operator delete[](void *pointer) noexcept { std::free(pointer); }
-void operator delete(void *pointer, std::size_t) noexcept { std::free(pointer); }
-void operator delete[](void *pointer, std::size_t) noexcept { std::free(pointer); }
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (count_allocations)
+			++allocations;
+	}
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 
 namespace l = detent::local;
 namespace {

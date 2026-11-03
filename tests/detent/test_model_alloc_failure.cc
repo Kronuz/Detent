@@ -20,27 +20,22 @@ namespace {
 long budget = -1, live = 0;
 }
 
-void* operator new(std::size_t bytes) {
-	if (budget == 0)
-		throw std::bad_alloc();
-	if (budget > 0)
-		--budget;
-	if (auto p = std::malloc(bytes ? bytes : 1)) {
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (budget == 0)
+			throw std::bad_alloc();
+		if (budget > 0)
+			--budget;
 		++live;
-		return p;
 	}
-	throw std::bad_alloc();
-}
-void operator delete(void* p) noexcept {
-	if (p)
-		--live;
-	std::free(p);
-}
-void operator delete(void* p, std::size_t) noexcept {
-	if (p)
-		--live;
-	std::free(p);
-}
+	static void release(void* p) noexcept {
+		if (p)
+			--live;
+	}
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 
 using namespace detent;
 

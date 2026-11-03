@@ -15,17 +15,17 @@
 // destroy this unrelated descriptor. The hook is active only on the caller.
 thread_local bool probe_enabled = false;
 int expected_socket = -1, replacement = -1;
-void *operator new(std::size_t size) {
-	if (probe_enabled && expected_socket >= 0 && ::fcntl(expected_socket, F_GETFD) == -1) {
-		probe_enabled = false;
-		replacement = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (probe_enabled && expected_socket >= 0 && ::fcntl(expected_socket, F_GETFD) == -1) {
+			probe_enabled = false;
+			replacement = ::open("/dev/null", O_RDONLY | O_CLOEXEC);
+		}
 	}
-	if (auto *pointer = std::malloc(size ? size : 1))
-		return pointer;
-	throw std::bad_alloc();
-}
-void operator delete(void *pointer) noexcept { std::free(pointer); }
-void operator delete(void *pointer, std::size_t) noexcept { std::free(pointer); }
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 void check(bool value) {
 	if (!value)
 		throw std::runtime_error("HTTP socket ownership invariant failed");

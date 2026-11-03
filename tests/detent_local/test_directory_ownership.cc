@@ -15,15 +15,15 @@ unsigned open_descriptors() {
 	return count;
 }
 } // namespace
-void *operator new(std::size_t bytes) {
-	if (std::exchange(fail_next_allocation, false))
-		throw std::bad_alloc();
-	if (auto pointer = std::malloc(bytes ? bytes : 1))
-		return pointer;
-	throw std::bad_alloc();
-}
-void operator delete(void *pointer) noexcept { std::free(pointer); }
-void operator delete(void *pointer, std::size_t) noexcept { std::free(pointer); }
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (std::exchange(fail_next_allocation, false))
+			throw std::bad_alloc();
+	}
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 
 int main() {
 	try {
