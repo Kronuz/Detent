@@ -219,7 +219,7 @@ The source directories separate application roles and optional dependency closur
 
 | Directory | Responsibility | Boundary to retain |
 | --- | --- | --- |
-| `detent_agent` | Host-local daemon, classic shared-memory publication and managed delivery host | Agent policy and process assembly |
+| `detent_agent` | Host-local daemon and managed delivery host | Agent policy and process assembly |
 | `detent_authority` | Knob transactions, replicated state, receipts, scoped exports and subscriptions | Application state and the adapter to shared consensus |
 | `detent_cli` | Platform paths, daemon lifecycle, PID locks and logging setup | Application configuration; evaluate generic process plumbing separately |
 | `detent_delivery` | Receiving updates, source selection, authenticated sessions and local-publication coordination | Detent delivery semantics; separate generic HTTP client mechanics |

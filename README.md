@@ -1,6 +1,6 @@
 # Detent (C++)
 
-Detent is a C++ runtime-configuration client for namespaced boolean and integer knobs, plus an HTTP distribution layer (`detentd`) and a host-local shared-memory agent (`detent-agent`). It implements the model in [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md) and adds a concrete publisher/distributor path, PATCH-based partial updates, diff-since-last-version polling, cached compression, and optional Raft-based replication for `detentd`.
+Detent is a C++ runtime-configuration client for namespaced boolean and integer knobs, plus an HTTP distribution layer (`detentd`) and a host-local managed agent (`detent-agent`). It implements the model in [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md) and adds a concrete publisher/distributor path, PATCH-based partial updates, diff-since-last-version polling, cached compression, and optional Raft-based replication for `detentd`.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network distribution, configuration, and library examples.
 
@@ -11,7 +11,7 @@ Detent is a C++ runtime-configuration client for namespaced boolean and integer 
 - Bool knobs support exact-match group overrides and stable SHA-256 percentage rollouts. Integer knobs do not support per-group overrides in v1.
 - Missing knobs are errors. CLI overrides (`name=value`) shadow both baked defaults and live data.
 - `detentd` serves full snapshots, accepts partial updates, persists the last accepted snapshot to disk, and optionally replicates writes through `cluster::Raft`.
-- `detent-agent` keeps one warm `detent::Client` and publishes a pre-parsed binary snapshot into shared memory for fast host-local reads by shell scripts or other non-C++ callers.
+- `detent-agent` receives snapshots and deltas from an authority or relay and publishes immutable generations on disk. Applications and `detent get` read the selected generation through a read-only mapping.
 
 ## How Detent fits together
 
@@ -160,7 +160,7 @@ This repository implements the spec's client model and adds a concrete distribut
 - `detent`: core client, schema validation, rollout hashing, overrides, publication, health.
 - `detent_http`: client-side HTTP poll source.
 - `detentd`: HTTP distributor with persistence, PATCH support, diff serving, cached compression, and optional clustering.
-- `detent-agent`: host-local shared-memory publisher for non-C++ readers.
+- `detent-agent`: host-local managed delivery agent that publishes immutable generations for `detent get` and applications.
 - Python and Rust bindings that wrap the same C++ core.
 
 The wire format remains `schema_version: 1`. Full snapshots, PATCH payloads, and diff responses all validate through the same schema machinery.
@@ -202,15 +202,13 @@ detentd_lib
   |-- http (+ reactor, http-parser, radix-router, compressors)
   `-- cluster
 
-detent_agent_lib
-  `-- detent
-
 detent-agent (exe)
-  |-- detent_agent_lib
-  `-- detent_http   # for --source-http
+  |-- detent_local (generation reader)
+  |-- delivery_config
+  `-- detent_cli
 ```
 
-`detent` has no networking dependencies. `detent_http` is plain POSIX-socket client code plus one codec library (no Asio/HTTP-framework weight) so it can actually request the compression `detentd` already serves. `detentd` pulls the HTTP framework plus `cluster` for Raft transport. `detent-agent`'s library stays local-only; only the CLI executable links `detent_http` for `--source-http`.
+`detent` has no networking dependencies. `detent_http` is plain POSIX-socket client code plus one codec library (no Asio/HTTP-framework weight) so it can actually request the compression `detentd` already serves. `detentd` pulls the HTTP framework plus `cluster` for Raft transport. `detent-agent` links the local generation reader and managed delivery configuration only.
 
 ## Dependencies
 
@@ -248,7 +246,7 @@ src/
   detent/              Core implementation
   detent_http/         Classic HTTP polling
   detentd/             Distributor host and classic Raft adapter
-  detent_agent/        Agent host, shared memory and managed configuration
+  detent_agent/        Agent host and managed configuration
   detent_authority/    Durable authority, transactions and distribution
   detent_distribution/ Protocol and session implementation
   detent_distribution_http/ Shared server parsing and reply pumping
@@ -285,7 +283,7 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Managed transport | `detent::delivery_transport` | Incremental TLS delivery and sessions |
 | Managed coordinator | `detent::delivery_coordinator` | Join source delivery to local publication |
 | Private source configuration | `detent::delivery_config` | Validate source credentials, scope, TLS and publication limits |
-| Distributor and agent hosts | `detentd_lib`, `detent_agent_lib` | Reuse daemon logic in embedded tests |
+| Distributor host | `detentd_lib` | Reuse daemon logic in embedded tests |
 
 ## Binaries and their dependencies
 
@@ -298,7 +296,7 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | `detent` | `src/detent_agent/main.cc` | CLI and local reader libraries | Host-local `get` reader |
 | `test_*` (`tests/detent/`) | `tests/detent/*.cc` | `detent` | Core correctness suite |
 | Distributor tests (`tests/detentd/`) | `tests/detentd/*.cc` | `detentd_lib` | Distributor correctness, end-to-end polling, load measurement, and real Raft cluster coverage |
-| Agent tests (`tests/detent_agent/`) | `tests/detent_agent/*.cc` | `detent_agent_lib` | Shared-memory agent correctness and stress |
+| Agent tests (`tests/detent_agent/`) | `tests/detent_agent/*.cc` | `detent_cli`, `detent_local_view` | Agent configuration and reader capacity |
 
 ## Build
 
@@ -388,43 +386,28 @@ Optional `detentd.json` lives in the same platform config directory as `agent.js
 
 ### Running detent-agent
 
-With a local distributor on `127.0.0.1:8317` and a published snapshot:
+With a managed configuration (see [the usage guide](docs/USAGE.md#managed-authority-delivery)):
 
 ```sh
-./build/src/detent get search:max_results
-./build/src/detent-agent --status
+./build/src/detent-agent --managed managed.json --generation-dir ./agent-state --daemonize
+./build/src/detent get search:max_results --generation-dir ./agent-state
+./build/src/detent-agent --status --generation-dir ./agent-state
 kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
-`get` starts the agent automatically. Defaults and environment variables are optional. For persistent settings, put `agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
+`get` reads the selected generation directly, even while the agent is stopped, and starts a missing agent in user mode when a managed configuration is present. For persistent settings, put `agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
 
 ```json
-{"source_address": "127.0.0.1:8317", "poll_interval_ms": 200}
+{"managed_path": "managed.json", "generation_dir": "agent-state"}
 ```
 
-`--config PATH` selects another config file. `--source-address HOST:PORT` and `DETENT_SOURCE_ADDRESS` override the configured address. The transport is HTTP; `--source-http` and `DETENT_SOURCE_HTTP` remain aliases.
-
-Optional `defaults.json` beside the config supplies local fallback knobs. `--defaults PATH` selects another file. Without defaults, the first read waits up to two seconds for a source snapshot; `--default VALUE` provides a per-read fallback. With only defaults configured, the agent serves local-only reads.
+`--config PATH` selects another config file. Optional `defaults.json` beside the config supplies local fallback knobs; `--defaults PATH` selects another file, and `--default VALUE` provides a per-read fallback.
 
 Runtime files use `$XDG_RUNTIME_DIR/detent`, falling back to a private `detent-<uid>` directory under the system temporary directory. `runtime_dir`, `--runtime-dir`, or `DETENT_RUNTIME_DIR` selects another directory. Stop the agent to apply changed startup settings. See [the usage guide](docs/USAGE.md#persistent-agent-configuration) for system config locations and precedence.
 
-### IPC design: shared memory, not a socket
+### Local reads: mapped generations, not a socket
 
-`detent-agent` publishes a flat binary snapshot into a memory-mapped file under a seqlock. Readers map that file read-only and evaluate directly against the published bytes.
-
-Measured throughput on the same development machine:
-
-| Benchmark | Result |
-|---|---|
-| `detent_read_bench 4 2000000` | 6.71M ops/sec (149.1 ns/op) |
-| `detent_agent_shm_bench 4 2000000` | 36.2M ops/sec (27.6 ns/op) |
-
-The shared-memory benchmark reports about 5.4 times the throughput in this run. Both benchmarks read local, already parsed data; neither parses JSON or contacts a daemon for each lookup. These results do not establish which implementation difference causes the ratio.
-
-Two implementation constraints remain relevant:
-
-1. The reader bounds-checks all offsets and lengths against `payload_len` before dereferencing them.
-2. The seqlock publication protocol is correct for the targeted platforms, but the writer's plain `memcpy` and the readers' plain loads are still outside a formal race-free C++ object-model proof.
+`detent-agent` publishes each accepted update as an immutable generation file and atomically updates the `selected` descriptor. Readers map the selected generation read-only and evaluate directly against it; no read talks to the daemon. See [the local image format](docs/LOCAL_IMAGE_FORMAT.md).
 
 ## Language bindings
 
@@ -487,7 +470,6 @@ Benchmarks in `benchmarks/` build by default. Measured output on one 14-core arm
 | `detent_read_bench` | Steady-state read throughput | `detent_read_bench 4 2000000` | 6.71M ops/sec (149.1 ns/op) |
 | `detent_hash_bench` | `stable_bucket()` only | `detent_hash_bench 5000000` | 5.05M calls/sec (198.2 ns/call) |
 | `detent_update_bench` | Parse + validate + merge for a 100-knob snapshot | `detent_update_bench 200000 100` | 28.6K updates/sec (35.0 us/update) |
-| `detent_agent_shm_bench` | Shared-memory read throughput | `detent_agent_shm_bench 4 2000000` | 36.2M ops/sec (27.6 ns/op) |
 | `detentd_fanout_bench` | Distributor fan-out capacity | `detentd_fanout_bench 1000 3000 200 4` | 1,000 watchers, ~17,000 requests served, 1000/1000 converged, p50 30-100/p90 190-210/p99 200-215/max 205-216 ms (run-to-run variance, see below) |
 
 ### Load/fan-out: what was actually measured
@@ -542,8 +524,6 @@ Boolean overrides may be `true` or `false`, or an object containing only `rollou
 ```
 
 A matching group rollout replaces the knob-wide rollout percentage and uses the same hash bucket. Without a hash, it returns the knob's default. Unknown groups use the knob-wide rollout. Boolean overrides still force their value. The behavior is shared by C++ clients, language bindings, and `detent get`. PATCH replaces a complete knob definition, including all its groups.
-
-The shared-memory layout is now version 2. Stop and restart existing agents when upgrading; older readers cannot interpret group rollout records.
 
 Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal colors, service configuration, and measured footprint. The logger is linked only into daemon executables.
 

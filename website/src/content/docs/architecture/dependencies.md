@@ -10,12 +10,11 @@ repositories. Everything is fetched with CMake `FetchContent`.
 
 ## Detent's Own Targets
 
-```d2 alt="detent is the core; detent_http, detentd_lib and detent_agent_lib build on it; detentd and detent-agent are executables over their libraries"
+```d2 alt="detent is the core; detent_http and detentd_lib build on it; detentd is an executable over detentd_lib; detent-agent and the detent shell reader read managed generations through detent::local_client"
 direction: down
 detent: "detent\n(core client)"
 http: "detent_http\n(poll source)"
 dlib: "detentd_lib"
-alib: "detent_agent_lib"
 local: "detent::local_client\n(managed generations)"
 detentd: "detentd" {shape: hexagon}
 agent: "detent-agent" {shape: hexagon}
@@ -23,12 +22,9 @@ reader: "detent" {shape: hexagon}
 http -> detent
 dlib -> detent
 dlib -> http
-alib -> detent
 local -> detent
 detentd -> dlib
-agent -> alib
-agent -> http: "--source-address"
-reader -> alib
+agent -> local
 reader -> local
 ```
 
@@ -37,7 +33,6 @@ reader -> local
 | `detent` | the core libraries below | Client, schema, evaluation, overrides, file source |
 | `detent_http` | `detent`, `compressors` | Plain POSIX-socket HTTP poller; no Asio |
 | `detentd_lib` | `detent`, `detent_http`, `http`, `cluster` | Distributor logic, linkable by tests |
-| `detent_agent_lib` | `detent` | Shared-memory agent logic, linkable by tests |
 | `detent::local_client` | `detent`, local view | Managed generation reader |
 
 `detent` deliberately has no networking dependency, and the test suites link

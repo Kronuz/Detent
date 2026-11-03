@@ -59,7 +59,7 @@ Use five fresh-process samples for short benchmarks and three for longer workloa
 | Dimension | Workload |
 | --- | --- |
 | Footprint | Release reader-only, legacy, authority, relay and managed-agent profiles; stripped/unstripped bytes, text/data, linkage and startup RSS |
-| Read path | 1/4/8 threads, 2M operations per thread; shared-memory reads separately |
+| Read path | 1/4/8 threads, 2M operations per thread |
 | Authority | 100k/500k definitions, uniform/hot namespaces, normal/override-heavy |
 | Durable storage | 100k/500k definitions, 16/64/256 producers; commit, checkpoint, recovery, latency and physical bytes |
 | Codec | 1k/100k/500k definitions, raw/zstd and delta decode; CPU, wire bytes, workspace and malformed-input checks |

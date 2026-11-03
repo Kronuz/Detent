@@ -236,7 +236,7 @@ Host-local publication needs a concrete lifetime design:
 7. Preserve live/default/override layering. Deleting a live knob must continue to expose its baked default where that is the existing semantic.
 8. Store optional restart checkpoints in the persistent state directory. Runtime mappings alone are not reboot recovery.
 
-The existing [shared-memory layout](../src/detent_agent/shm_format.hh#L51) documents plain payload races. The [reader](../src/detent_agent/shm_reader.cc#L176) retries indefinitely when publication remains odd. Neither issue should survive the replacement design; WG21's [bytewise atomic-copy proposal](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0603r0.htm) explains why ordinary seqlock retry does not legalize concurrent plain C++ payload access.
+Immutable generations avoid the plain payload races of a seqlock: WG21's [bytewise atomic-copy proposal](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0603r0.htm) explains why ordinary seqlock retry does not legalize concurrent plain C++ payload access.
 
 Keep daemon operation aligned: foreground default, optional `--daemonize`, and read-only `--status`. Status should report process identity plus role-appropriate useful work. For the authority, expose quorum/storage readiness and durable/applied revisions; for the agent, expose published revision, source connectivity, lag, and last publication failure. Apply a deadline to status inspection, and never auto-start from it.
 

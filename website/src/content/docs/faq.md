@@ -38,7 +38,7 @@ buckets.
 
 No. A C++ process can poll the distributor or a file directly. The agent is for
 shell scripts, programs in other languages, and hosts where you'd rather have
-one poller than one per process.
+one connection to the authority than one per process.
 
 ### Can two people publish at the same time?
 

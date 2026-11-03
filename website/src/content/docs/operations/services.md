@@ -24,16 +24,16 @@ for systemd, launchd and FreeBSD rc.d in `packaging/`, installed to
    knobs, and only the service account can change them.
 
 The units pass explicit configuration files, so create them first. An empty
-object is a valid configuration that uses every default:
+object is a valid `detentd.json` that uses every default:
 
 ```sh
-echo '{}' | sudo tee /etc/detent/detentd.json /etc/detent/agent.json
+echo '{}' | sudo tee /etc/detent/detentd.json
 ```
 
-For an agent on a host without a local distributor:
+The agent configuration names the private managed configuration and the generation directory:
 
 ```json title="/etc/detent/agent.json"
-{"source_address": "distributor.internal:8317"}
+{"managed_path": "managed.json", "generation_dir": "/var/lib/detent-agent"}
 ```
 
 :::hint[Knobs are not secrets]{.warning}

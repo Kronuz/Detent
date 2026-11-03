@@ -22,9 +22,6 @@ target_link_libraries(detent_hash_bench PRIVATE detent::detent)
 add_executable(detent_update_bench detent_update_bench.cc)
 target_link_libraries(detent_update_bench PRIVATE detent::detent)
 
-add_executable(detent_agent_shm_bench detent_agent_shm_bench.cc)
-target_link_libraries(detent_agent_shm_bench PRIVATE detent_agent_lib detent::detent)
-
 if(DETENT_BUILD_DISTRIBUTOR)
   add_executable(detentd_publication_bench container-alternative/publication_bench.cc)
   target_link_libraries(detentd_publication_bench PRIVATE detentd_lib)
@@ -33,7 +30,7 @@ if(DETENT_BUILD_DISTRIBUTOR)
 endif()
 
 add_executable(detent_scale_bench detent_scale_bench.cc)
-target_link_libraries(detent_scale_bench PRIVATE detent_agent_lib)
+target_link_libraries(detent_scale_bench PRIVATE detent::detent)
 
 add_executable(detent_authority_bench detent_authority_bench.cc)
 target_link_libraries(detent_authority_bench PRIVATE detent::authority)

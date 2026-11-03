@@ -122,9 +122,9 @@ Each update carries a cursor (authority identity, scope and revision). The agent
 4. Restart: it resumes from the cursor of its selected generation. The upstream sends a delta when its retained history covers that cursor, and a full snapshot otherwise.
 5. Upstream down: it keeps the last selection and retries with backoff.
 
-**Where.** Every application host. `detent-agent` is always built; `--managed` needs `DETENT_BUILD_MANAGED_AGENT=ON`, which is the default. The public `agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
+**Where.** Every application host. `detent-agent` is built with `DETENT_BUILD_MANAGED_AGENT=ON`, the default. The public `agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
 
-Without `--managed`, `detent-agent` runs the legacy profile instead: it polls a classic distributor and writes `snapshot.shm`. See [The classic profile](#the-classic-profile).
+`detent-agent` requires `--managed` (or `managed_path` in `agent.json`).
 
 ## Client
 
@@ -190,17 +190,16 @@ cmake --build build -j
 | --- | --- | --- | --- |
 | Configuration | `$XDG_CONFIG_HOME/detent`, else `~/.config/detent` | `~/Library/Application Support/Detent` | `/etc/detent`; FreeBSD `/usr/local/etc/detent`; macOS `/Library/Application Support/Detent` |
 | State | `$XDG_STATE_HOME/detent`, else `~/.local/state/detent` | `~/Library/Application Support/Detent/state` | `/var/lib/detent`; macOS and FreeBSD `/var/db/detent` |
-| Runtime (PID, log, `snapshot.shm`) | `$XDG_RUNTIME_DIR/detent`, else `detent-<uid>` in the temporary directory | Same | `/run/detent`; macOS and FreeBSD `/var/run/detent` |
+| Runtime (PID, log) | `$XDG_RUNTIME_DIR/detent`, else `detent-<uid>` in the temporary directory | Same | `/run/detent`; macOS and FreeBSD `/var/run/detent` |
 
 `agent.json` and `detentd.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.
 
 ## The classic profile
 
-The classic profile is the original, simpler path. The code calls it legacy (`detentd` refuses to mix `--authority` with "legacy multicast", and `detent-agent` describes itself as a "managed or legacy" daemon). It has no authentication or TLS.
+The classic profile is the original, simpler path. The code calls it legacy (`detentd` refuses to mix `--authority` with "legacy multicast"). It has no authentication or TLS.
 
 1. **Distributor.** `detentd` without `--authority` serves `PUT`, `PATCH` and `GET /v1/snapshot` and `GET /v1/health` on port 8317. It writes the whole snapshot to `persist_path` (`snapshot.json` in the state directory) on every accepted write and reloads it at startup. `--cluster` joins a classic Raft group over `cluster::Bus` UDP multicast; see `src/detentd/CLUSTERING.md`.
 2. **Producer.** Anything that sends `PUT` or `PATCH /v1/snapshot`.
 3. **Client.** `detent::Client` with `detent_http::make_http_poll_source()` polls `GET /v1/snapshot` with `If-None-Match` and `X-Detent-Base-Version`, and gets `304`, a diff or the full body.
-4. **Legacy agent.** `detent-agent` with `source_address` runs one polling client and copies each accepted snapshot into `snapshot.shm` under a seqlock. `detent get` without a generation directory maps that file and starts a user agent on demand.
 
 The managed and classic profiles share the `detentd` binary and its default port, so one process runs one profile.

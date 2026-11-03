@@ -25,7 +25,7 @@ flags, kill switches and live settings. It features:
 ##### Distribution:
   * A small HTTP distributor with ETags, cached diffs and zstd/gzip.
   * Optional Raft replication.
-  * A host-local shared-memory agent and `detent get` for any language.
+  * A host-local managed agent and `detent get` for any language.
 
 ##### Durable authority:
   * Authenticated, atomic, per-namespace transactions with compare-and-set.

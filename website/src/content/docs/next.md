@@ -10,16 +10,8 @@ overridden groups. Here's where to go next, depending on what you're building.
 ## Stop the Quick-start Daemons
 
 Press Ctrl-C in the terminal running `detentd`, or, if you started it with
-`--daemonize`, find its PID with `detentd --status` and send it SIGTERM. The
-agent that `detent get` started keeps running in the background; inspect it
-and stop it with:
-
-```sh
-detent-agent --status
-# running (pid 65214)
-# OK version=12 knob_count=4
-kill -TERM <pid>
-```
+`--daemonize`, find its PID with `detentd --status` and send it SIGTERM. Remove
+the `live.json` file the `knob` helper wrote.
 
 ---
 

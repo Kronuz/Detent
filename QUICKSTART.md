@@ -1,6 +1,6 @@
 # Quick start
 
-Change settings and roll out features against a running distributor. Run the examples in order from the repository root.
+Change settings and roll out features against a running distributor, and evaluate the published knobs from the shell. Run the examples in order from the repository root.
 
 ## Build and start the distributor
 
@@ -17,7 +17,13 @@ Leave `detentd` running and open another terminal in the repository root:
 export PATH="$PWD/build/src:$PATH"
 ```
 
-The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version. If an agent is already running with another source, inspect it with `detent-agent --status` and send SIGTERM to its PID before the first read.
+The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version.
+
+The published snapshot has the same shape as a defaults file, so `detent get` can evaluate it. Define a helper that fetches the current snapshot and reads one knob from it:
+
+```sh
+knob() { name=$1; shift; curl -sS localhost:8317/v1/snapshot -o live.json && detent get "$name" --defaults live.json "$@"; }
+```
 
 ## 1. Change a numeric setting
 
@@ -26,23 +32,22 @@ Publish a result limit and read it:
 ```sh
 curl --fail-with-body -sS -X PUT localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":1,"knobs":{"search:max_results":{"type":"int","default":25}}}'
-detent get search:max_results
+knob search:max_results
 # 25
 ```
 
-The first `get` starts the local agent automatically and connects it to the distributor. No agent configuration is needed.
+`knob` fetches the latest snapshot on every call.
 
-Change the limit without restarting the agent or your application:
+Change the limit:
 
 ```sh
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":2,"knobs":{"search:max_results":{"type":"int","default":100}}}'
-sleep 1
-detent get search:max_results
+knob search:max_results
 # 100
 ```
 
-Every publish needs a higher version. PATCH preserves unrelated knobs and replaces each supplied knob definition as a whole. The agent picks up updates on its next poll (200 ms by default); `sleep 1` lets the examples wait for propagation before reading.
+Every publish needs a higher version. PATCH preserves unrelated knobs and replaces each supplied knob definition as a whole.
 
 ## 2. Toggle a feature
 
@@ -51,14 +56,12 @@ Enable a new checkout path, then disable it if needed:
 ```sh
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":3,"knobs":{"checkout:new_path":{"type":"bool","default":true}}}'
-sleep 1
-detent get checkout:new_path
+knob checkout:new_path
 # true
 
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":4,"knobs":{"checkout:new_path":{"type":"bool","default":false}}}'
-sleep 1
-detent get checkout:new_path
+knob checkout:new_path
 # false
 ```
 
@@ -69,10 +72,9 @@ Start with 10% of users:
 ```sh
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":5,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":10}}}'
-sleep 1
-detent get payments:new_processor --hash user-1
+knob payments:new_processor --hash user-1
 # false
-detent get payments:new_processor --hash user-42
+knob payments:new_processor --hash user-42
 # true
 ```
 
@@ -84,8 +86,7 @@ curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
 # Check your application before advancing.
 curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
   -d '{"schema_version":1,"version":7,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":100}}}'
-sleep 1
-detent get payments:new_processor --hash user-1
+knob payments:new_processor --hash user-1
 # true
 
 # Roll back everyone, removing the rollout gate.
@@ -112,14 +113,13 @@ curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d '{
     }
   }
 }'
-sleep 1
-detent get payments:new_processor --hash user-1 --switch beta
+knob payments:new_processor --hash user-1 --switch beta
 # true
-detent get payments:new_processor --hash user-1 --switch production
+knob payments:new_processor --hash user-1 --switch production
 # false
-detent get payments:new_processor --hash user-1 --switch employees
+knob payments:new_processor --hash user-1 --switch employees
 # true
-detent get payments:new_processor --hash user-1 --switch excluded
+knob payments:new_processor --hash user-1 --switch excluded
 # false
 ```
 
@@ -128,7 +128,7 @@ Your application supplies the group with `--switch`. A matching boolean forces i
 ## 5. Supply a fallback for a missing knob
 
 ```sh
-detent get checkout:unpublished_feature --default false
+knob checkout:unpublished_feature --default false
 # false
 ```
 
@@ -136,7 +136,7 @@ This fallback applies only to this read; it does not publish or change a knob.
 
 ## Stop
 
-Press Ctrl-C in the distributor's terminal to stop `detentd`. Use `detent-agent --status` to inspect the agent, and send SIGTERM to its reported PID when finished. System services use their service manager for shutdown.
+Press Ctrl-C in the distributor's terminal to stop `detentd`. Remove `live.json` when finished. System services use their service manager for shutdown.
 
 ## Next steps
 

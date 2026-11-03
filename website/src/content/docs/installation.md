@@ -106,8 +106,8 @@ ctest --test-dir build --output-on-failure
 The suite covers the core client (schema validation, golden hash vectors,
 evaluation precedence, CLI overrides, the file source, concurrency stress),
 the distributor (PUT/GET/PATCH, persistence, diffs, multi-node polling,
-fan-out load, a real three-node Raft cluster), the agent's shared-memory
-reader and writer, and the authority, delivery and local-image libraries.
+fan-out load, a real three-node Raft cluster), the agent's configuration and
+reader capacity, and the authority, delivery and local-image libraries.
 
 ---
 

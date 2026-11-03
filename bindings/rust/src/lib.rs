@@ -7,8 +7,8 @@
 // Scope: file-source only, same as the Python binding -- see
 // bindings/python/detent_python.cc's header comment for the rationale
 // (HTTP-source polling is not wired in here to avoid pulling detent_http's
-// own dependency chain into every Rust build; use detent-agent's
-// shared-memory channel for live HTTP-distributed updates instead).
+// own dependency chain into every Rust build; use detent-agent and
+// `detent get` for live updates instead).
 
 #[cxx::bridge(namespace = "detent_rust")]
 mod ffi {

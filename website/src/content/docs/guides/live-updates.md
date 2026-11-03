@@ -151,10 +151,7 @@ overhead, not bytes.
 | --- | --- |
 | Kill switches on latency-sensitive services | 200 ms – 1 s |
 | General feature flags and settings | 1 – 5 s |
-| Large fleets polling one distributor | Several seconds, or an agent per host |
-
-For many processes on one host, prefer one [agent](/Detent/guides/shell-and-agent/)
-per host over one poller per process.
+| Large fleets polling one distributor | Several seconds |
 
 :::hint[Polling, not long-polling]{.info}
 `GET /v1/snapshot` always answers immediately. The distributor never parks a

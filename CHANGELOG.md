@@ -9,6 +9,16 @@
 - Removed `detent-authority-admin` import and export, `test_authority_migration` and its
   website page. `admin::Runtime` keeps only offline committed recovery and checkpoint, which
   `test_authority_cluster` uses.
+- Removed the shared-memory agent and the unmanaged `detent-agent` mode: `shm_writer`,
+  `shm_reader`, `shm_format`, `Agent`, `detent_agent_lib`, `test_agent_basic`,
+  `test_shm_concurrency_stress`, `test_snapshot_canonical`, `test_system_agent`,
+  `detent_agent_shm_bench`, the `source_path`, `source_address`, `source_http` and
+  `poll_interval_ms` fields of `agent.json`, `--source-path`, `--source-address`,
+  `--source-http`, `--poll-interval-ms` and the `DETENT_SOURCE_*` and
+  `DETENT_POLL_INTERVAL_MS` variables. `detent-agent` requires `--managed` and is built
+  with `DETENT_BUILD_MANAGED_AGENT`. `detent get` reads a managed generation, or the baked
+  defaults when no generation directory is configured. `test_agent_http` is no longer
+  registered; its script goes with the classic distributor.
 
 ### Dependency pins (cmake/dependencies.json)
 

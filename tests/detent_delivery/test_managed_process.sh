@@ -203,7 +203,6 @@ chmod 644 "$root/reader-limits.json"
 check_format "$root/generations" "$image_format"
 if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
 [[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
-[[ ! -e "$root/run/snapshot.shm" ]]
 cp "$root/generations/storage.meta" "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 progress_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/progress.json")

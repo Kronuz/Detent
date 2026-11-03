@@ -87,10 +87,10 @@ across nodes with Raft.
 
 ## Agent
 
-The agent, `detent-agent`, is a host-local daemon that runs one warm client and
-republishes every accepted snapshot into a shared-memory file. Shell scripts and
-programs in any language read knobs from that file with `detent get` without
-talking to the network or to the daemon.
+The agent, `detent-agent`, is a host-local daemon that receives snapshots and
+deltas from the authority or a relay and publishes immutable generations on
+disk. Shell scripts and programs in any language read knobs from the selected
+generation with `detent get` without talking to the network or to the daemon.
 
 ## Override
 

@@ -41,8 +41,7 @@ You can check the [Installation](/Detent/installation/) section for compiler
 requirements, build options and platform notes.
 
 :::hint[Turn up the logs]{.tip}
-`-v` shows every accepted publish as it happens, and `detent-agent -vv` also
-shows the agent's source metrics. See [Logging](/Detent/operations/logging/).
+`-v` shows every accepted publish as it happens. See [Logging](/Detent/operations/logging/).
 :::
 
 ---
@@ -76,15 +75,15 @@ one. A stale or repeated version is rejected with `409 Conflict`.
 
 ## Reading
 
-Read the knob from the shell:
+The published snapshot has the same shape as a defaults file, so `detent get`
+can evaluate it. Define a helper that fetches the current snapshot and reads one
+knob from it:
 
 ```sh
-detent get search:max_results
+knob() { name=$1; shift; curl -sS localhost:8317/v1/snapshot -o live.json && detent get "$name" --defaults live.json "$@"; }
+knob search:max_results
 # 25
 ```
-
-The first `get` starts a local `detent-agent` automatically and points it at
-`127.0.0.1:8317`. No configuration is needed.
 
 Now change the value without restarting anything:
 
@@ -101,14 +100,12 @@ PATCH /v1/snapshot
 ```
 
 ```sh
-sleep 1
-detent get search:max_results
+knob search:max_results
 # 100
 ```
 
-The agent polls every 200 ms by default, so the new value shows up almost
-immediately. Your applications would see it the same way: the next read after
-the update lands returns the new value, with no restart and no redeploy.
+A polling client sees the new value on its next poll, with no restart and no
+redeploy.
 
 ---
 

@@ -1,6 +1,6 @@
 # Local image format, version 1
 
-The managed agent publishes dynamically sized immutable v1 images through the Stage 4 delivery pipeline, with a separate selected-generation descriptor. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`. Stage 5C adds checked paged-root recovery and an opt-in paged writer under assembled-process qualification. The legacy agent shared-memory mode remains separate.
+The managed agent publishes dynamically sized immutable v1 images through the Stage 4 delivery pipeline, with a separate selected-generation descriptor. The reader and builder libraries are available through `detent::local_view` and `detent::local_builder`. Stage 5C adds checked paged-root recovery and an opt-in paged writer under assembled-process qualification.
 
 ## Encoding
 

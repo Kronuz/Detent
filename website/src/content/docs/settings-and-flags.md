@@ -27,10 +27,9 @@ PATCH /v1/snapshot
 ```
 
 ```sh
-sleep 1
-detent get search:max_results
+knob search:max_results
 # 500
-detent get search:timeout_ms
+knob search:timeout_ms
 # 250
 ```
 
@@ -66,8 +65,7 @@ PATCH /v1/snapshot
 ```
 
 ```sh
-sleep 1
-detent get checkout:new_path
+knob checkout:new_path
 # true
 ```
 
@@ -86,8 +84,7 @@ PATCH /v1/snapshot
 ```
 
 ```sh
-sleep 1
-detent get checkout:new_path
+knob checkout:new_path
 # false
 ```
 
@@ -139,7 +136,7 @@ From the shell, `--default` supplies a value for one read when the knob can't
 be read at all:
 
 ```sh
-detent get checkout:unpublished_feature --default false
+knob checkout:unpublished_feature --default false
 # false
 ```
 

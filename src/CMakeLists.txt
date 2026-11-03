@@ -128,29 +128,15 @@ if(DETENT_BUILD_DISTRIBUTOR)
 endif()
 
 ########################################################################
-# detent_agent: the host-local daemon + its own CLI in one binary (see
-# README's "detent-agent" section). Shares one warm detent::Client across
-# every local reader via a shared-memory snapshot (ShmWriter/ShmReader),
-# instead of each local process running its own updater thread against
-# detentd or going through a socket round trip. Private headers, same
-# reasoning as detentd.hh above.
+# detent_agent: the host-local managed delivery daemon, built from the same
+# main.cc as the `detent` shell reader. Private headers, same reasoning as
+# detentd.hh above.
 ########################################################################
-add_library(detent_agent_lib detent_agent/agent.cc detent_agent/shm_writer.cc detent_agent/shm_reader.cc)
-
-target_include_directories(detent_agent_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detent_agent")
-
-target_link_libraries(detent_agent_lib PUBLIC detent::detent)
-target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
-
-add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
-target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli detent_logging)
 if(DETENT_BUILD_MANAGED_AGENT)
   add_library(detent_managed_agent detent_agent/managed_host.cc)
   target_link_libraries(detent_managed_agent PUBLIC detent::delivery_config PRIVATE logger::logger)
-  target_link_libraries(detent-agent PRIVATE detent_managed_agent)
-  target_compile_definitions(detent-agent PRIVATE DETENT_WITH_MANAGED_AGENT=1)
-else()
-  target_link_libraries(detent-agent PRIVATE detent::local_view)
+  add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
+  target_link_libraries(detent-agent PRIVATE detent_managed_agent detent::local_view detent_cli detent_logging)
 endif()
 
 include(GNUInstallDirs)
@@ -162,7 +148,9 @@ if(DETENT_BUILD_RELAY)
   target_link_libraries(detent-relay PRIVATE detent_relay_host detent_cli detent_logging http_parser::http_parser task::asio)
   install(TARGETS detent-relay RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
-install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(DETENT_BUILD_MANAGED_AGENT)
+  install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 if(DETENT_BUILD_DISTRIBUTOR)
   install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
@@ -172,7 +160,7 @@ install(FILES ${PROJECT_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL
 add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
-target_link_libraries(detent-reader PRIVATE detent_agent_lib detent_cli)
+target_link_libraries(detent-reader PRIVATE detent_cli)
 target_link_libraries(detent-reader PRIVATE detent::local_client)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

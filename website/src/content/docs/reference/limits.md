@@ -26,21 +26,6 @@ are the defaults.
 | Minimum compressed body | 256 bytes | no |
 | Poll interval | must be positive | `poll_interval` |
 
-## Agent
-
-| Limit | Value |
-| --- | --- |
-| Legacy shared-memory mapping | 4 MiB |
-| Wait for first snapshot in `detent get` | 2 seconds |
-
-:::hint[The legacy agent's 4 MiB mapping]{.caution}
-The legacy agent publishes into a fixed 4 MiB shared-memory file. A snapshot
-that doesn't fit is reported as a capacity failure and isn't published; readers
-keep the previous one. The 100,000-knob synthetic corpus encodes to about
-9 MB, so large configurations need the managed agent, whose immutable
-generations are sized dynamically.
-:::
-
 ## Managed Agent
 
 | Limit | Default |

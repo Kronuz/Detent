@@ -8,7 +8,7 @@ Choose containers for Detent's model tables before replacing more of btree's mut
 
 | Model field | Uses |
 | --- | --- |
-| `Snapshot::knobs` | Standalone client snapshots, classic distributor publication and legacy shared-memory serialization |
+| `Snapshot::knobs` | Standalone client snapshots and classic distributor publication |
 | `SnapshotPatch::knobs` | PATCH parsing, application, composition and history |
 | `BoolDef::overrides` | Group evaluation, authority definitions, encoding and bounded disposal |
 | `OverrideTable::values` | Per-process CLI overrides |
@@ -48,7 +48,7 @@ The [frozen comparison](../benchmarks/model-container-comparison-20261022.json) 
 
 Broad-access integer-hit CPU for actual `Client` and `ClientReadView` calls falls approximately 44–60% against standard maps. Broad misses cost approximately 17–23% more; hot32 results differ. The report retains all six workloads and all four name/access combinations rather than selecting only the winning case. Read checksums match across both arms and all pairs.
 
-The hash index therefore merits complete-path qualification, but standard hashing is not an accepted collision policy. Sorted publication correctness passes after the independent [reserved-byte correction](SHARED_MEMORY_PADDING.md). Initial persisted-publication timing batches are rejected for WindowServer interference. No production representation is selected from these incomplete costs.
+The hash index therefore merits complete-path qualification, but standard hashing is not an accepted collision policy. Initial persisted-publication timing batches are rejected for WindowServer interference. No production representation is selected from these incomplete costs.
 
 ## Decision, October 23
 

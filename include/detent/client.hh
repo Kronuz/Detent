@@ -109,9 +109,7 @@ struct InitOptions {
 	// pub/sub bus, just a single hook for a process that needs to react to
 	// "the live snapshot changed" without polling accepted_version() itself.
 	// Must be fast and must not throw (exceptions here are not caught the
-	// way source_poll's are); detent-agent uses this to publish a
-	// pre-serialized copy into shared memory for other local processes to
-	// read without any per-call work on this process at all.
+	// way source_poll's are).
 	using OnUpdate = std::function<void(const Snapshot&)>;
 	std::optional<OnUpdate> on_update;
 	// Construct once with this Client's immutable defaults and CLI overlays.
@@ -179,9 +177,8 @@ public:
 		std::optional<std::string_view> switch_val = std::nullopt) const;
 
 	// The live snapshot itself, not an evaluated value -- for a consumer
-	// that needs the whole thing (e.g. detent-agent's shared-memory
-	// publisher, seeding its initial publish before any source update has
-	// landed yet, since InitOptions::on_update only fires on subsequent
+	// that needs the whole thing (e.g. a publisher seeding its initial
+	// state, since InitOptions::on_update only fires on subsequent
 	// accepted updates, not for the baked-defaults snapshot set at
 	// construction). Ordinary read-path consumers should use eval()/get(),
 	// not this.

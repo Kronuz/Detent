@@ -4,14 +4,13 @@ title: "detent"
 
 ```text
 detent get NAME [--hash VAL] [--switch VAL] [--default VAL]
-                [--config PATH] [--defaults PATH] [--source-address HOST:PORT]
-                [--source-path PATH] [--runtime-dir PATH] [--system]
+                [--config PATH] [--defaults PATH] [--runtime-dir PATH] [--system]
                 [--generation-dir PATH] [--managed PRIVATE_CONFIG]
 detent help | --help
 ```
 
 `detent get` reads one knob and prints its value: `true`, `false`, or an
-integer. It maps the agent's published snapshot read-only and evaluates
+integer. It maps the agent's selected generation read-only and evaluates
 locally; it doesn't send a request to the agent.
 
 ---
@@ -24,21 +23,20 @@ locally; it doesn't send a request to the agent.
 | `--switch VAL` | Switch value for group overrides |
 | `--default VAL` | Fallback printed if the knob can't be read; publishes nothing |
 | `--config PATH` | Use this `agent.json` |
-| `--defaults PATH` | Typed defaults for a newly started agent |
-| `--source-address HOST:PORT` | Distributor for a newly started agent (alias: `--source-http`) |
-| `--source-path PATH` | Snapshot file for a newly started agent |
-| `--runtime-dir PATH` | Runtime directory holding the agent's pid, log and snapshot |
+| `--defaults PATH` | Typed fallback knobs |
+| `--runtime-dir PATH` | Runtime directory holding the agent's pid and log |
 | `--system` | Attach to the system agent; never start one |
 | `--generation-dir PATH` | Read a managed agent's durable generation directory |
-| `--managed PRIVATE_CONFIG` | Managed credential file for a newly started managed agent |
+| `--managed PRIVATE_CONFIG` | Managed credential file for a newly started agent |
 | `--generation-cluster`, `--generation-group`, `--generation-epoch`, `--generation-scope` | Expected managed identity; all four or none |
 
 ---
 
 ## Behavior
 
-1. If no agent is running for the runtime directory, `get` starts one with the
-   given startup settings and waits up to two seconds for the first snapshot.
+1. If no generation is available and a managed configuration is present,
+   `get` starts an agent with the given startup settings and waits for its
+   first generation.
 2. With `--system`, `get` attaches to the service-managed agent. If it isn't
    running, `get` fails and says the service must be started.
 3. With `--generation-dir`, `get` reads the selected durable generation, even
@@ -70,6 +68,5 @@ detent get checkout:nope --default false
 
 ## Environment
 
-`DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_PATH`, `DETENT_DEFAULTS_PATH`,
-`DETENT_POLL_INTERVAL_MS` and `DETENT_RUNTIME_DIR` configure a newly started
-agent; see [`detent-agent`](/Detent/reference/cli/detent-agent/#environment).
+`DETENT_MANAGED_CONFIG`, `DETENT_GENERATION_DIR`, `DETENT_DEFAULTS_PATH` and
+`DETENT_RUNTIME_DIR` configure a newly started agent; see [`detent-agent`](/Detent/reference/cli/detent-agent/#environment).

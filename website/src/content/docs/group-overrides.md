@@ -38,14 +38,13 @@ PATCH /v1/snapshot
 Your application supplies the caller's group as the *switch value*:
 
 ```sh
-sleep 1
-detent get payments:new_processor --hash user-1 --switch beta
+knob payments:new_processor --hash user-1 --switch beta
 # true
-detent get payments:new_processor --hash user-1 --switch production
+knob payments:new_processor --hash user-1 --switch production
 # false
-detent get payments:new_processor --hash user-1 --switch employees
+knob payments:new_processor --hash user-1 --switch employees
 # true
-detent get payments:new_processor --hash user-1 --switch excluded
+knob payments:new_processor --hash user-1 --switch excluded
 # false
 ```
 
@@ -70,7 +69,7 @@ For a bool knob, Detent checks, in order:
 A group that isn't listed falls through to the knob-wide rollout:
 
 ```sh
-detent get payments:new_processor --hash user-1 --switch unknown
+knob payments:new_processor --hash user-1 --switch unknown
 # false   (user-1 is outside the knob-wide 10%)
 ```
 

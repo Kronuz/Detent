@@ -32,8 +32,7 @@ The project still has no semantic `VERSION` or release tags. The website display
 ## 3. Behavior worth fixing
 
 1. **Confusing error for an unknown `detent get` flag (resolved 2026-10-09).** The reader validates options before reading configuration or starting an agent. Unknown options, missing values and extra positional arguments produce one argument error and exit 1, including when `--default` is supplied. Negative integer defaults remain accepted. The CLI regression checks that invalid invocations create no runtime artifacts.
-2. **Legacy agent capacity vs. client limits.** The client accepts up to 100,000 knobs and 16 MiB, but the legacy shared-memory mapping is a fixed 4 MiB, so large snapshots are accepted by the agent's client and then fail to publish (logged as a capacity failure). Either size the mapping from the accepted snapshot or reject earlier with a clear message.
-3. **`detent get` silently ignores `--hash`/`--switch` for int knobs.** Matches the spec, but a one-line stderr note would catch mistakes.
+2. **`detent get` silently ignores `--hash`/`--switch` for int knobs.** Matches the spec, but a one-line stderr note would catch mistakes.
 
 ## 4. Specification items not implemented
 

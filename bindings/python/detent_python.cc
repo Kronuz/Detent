@@ -11,9 +11,9 @@
 // snapshot file) -- the same scope as examples/demo.cc. HTTP-source
 // polling is not wired into this binding to avoid pulling detent_http (and
 // its own POSIX-socket dependency) into every Python install; a Python
-// process that needs live HTTP-distributed updates should run
-// `detent-agent` alongside it and read via the shared-memory channel
-// instead (see bindings/rust for the analogous case).
+// process that needs live updates should run
+// `detent-agent` alongside it and read via `detent get` instead
+// (see bindings/rust for the analogous case).
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 

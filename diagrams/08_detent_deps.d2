@@ -11,11 +11,7 @@ detent_http: "detent_http" {
 detentd_lib: "detentd_lib" {
   tooltip: HTTP distributor daemon logic
 }
-detent_agent_lib: "detent_agent_lib" {
-  tooltip: Shared-memory agent reader and writer logic
-}
 detentd_exe: "detentd (exe)"
-detent_agent_exe: "detent-agent (exe)"
 
 kronuz: Kronuz cpp-libraries used directly by detent {
   char_classify: char-classify {tooltip: "ASCII classification tables used by the JSON tokenizer"}
@@ -46,6 +42,3 @@ detentd_lib -> thirdparty.http: "serves GET/PUT/PATCH /v1/snapshot"
 detentd_lib -> thirdparty.cluster: "replicates committed snapshots through Raft"
 detentd_exe -> detentd_lib
 
-detent_agent_lib -> detent: "one warm in-process snapshot per agent"
-detent_agent_exe -> detent_agent_lib
-detent_agent_exe -> detent_http: "classic --source-address mode" {style.stroke-dash: 4}

@@ -26,9 +26,8 @@ Detent has three moving parts:
    it; clients poll it with conditional `GET`s. It can replicate itself with
    Raft, or run as a durable, authenticated authority.
 3. **`detent-agent`** and **`detent`**, the host-local agent and its shell
-   reader. One agent per host keeps a warm client and publishes a pre-parsed
-   snapshot into shared memory, so `detent get NAME` answers in microseconds
-   from any script or language.
+   reader. One agent per host publishes immutable generations on disk, so
+   `detent get NAME` reads a mapped generation from any script or language.
 
 :::hint[Where the name comes from]{.info}
 Detent began as a faithful, independent clone of the publicly observable

@@ -8,21 +8,15 @@ Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivi
 | FreeBSD | `/usr/local/etc/detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 | macOS | `/Library/Application Support/Detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 
-Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid and snapshot files are `0644` so other users can inspect status and read knobs. Configuration values published through the shared agent are therefore visible to local users. Keep secrets out of knobs. Only the service account can modify the runtime files.
+Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid file is `0644` so other users can inspect status; generation files are `0644` by default so other users can read knobs. Configuration values published through the shared agent are therefore visible to local users. Keep secrets out of knobs. Only the service account can modify the runtime files.
 
-Use `agent.json` and `detentd.json` in the configuration directory. Neither file is required when using the built-in port `8317` and paths. Templates pass explicit config files, so create them before starting services:
-
-```json
-{}
-```
-
-For another distributor, the agent configuration is:
+Use `agent.json` and `detentd.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. The agent configuration names the private managed configuration and the generation directory:
 
 ```json
-{"source_address": "distributor.example:8317"}
+{"managed_path": "managed.json", "generation_dir": "/var/lib/detent-agent"}
 ```
 
-A distributor has no baked-defaults file. Its snapshot is created by the first accepted publish. An agent may use optional `defaults.json` beside its config to serve fallback values before connecting to the distributor.
+An agent may use optional `defaults.json` beside its config to serve fallback values when no generation is available.
 
 ## Linux: systemd
 
@@ -56,8 +50,6 @@ The legacy distributor HTTP API and multicast transport have no built-in authent
 These templates are deployment artifacts, not an installer that modifies the host. Native service-manager integration must be verified on each platform. macOS functional tests do not validate systemd or FreeBSD rc.d at runtime.
 
 References: [systemd directory management](https://github.com/systemd/systemd/blob/main/man/systemd.exec.xml), [launchd process supervision](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html), [FreeBSD rc.d](https://docs.freebsd.org/en/articles/rc-scripting/), [FreeBSD daemon](https://man.freebsd.org/cgi/man.cgi?apropos=0&manpath=FreeBSD+14.2-RELEASE&query=daemon&sektion=8).
-
-When upgrading to group rollout support (shared-memory layout version 2), restart the agent through its service manager and upgrade the readers too. Older readers reject the new layout.
 
 ## Log controls
 

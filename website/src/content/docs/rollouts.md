@@ -30,10 +30,9 @@ PATCH /v1/snapshot
 Each read passes the entity's stable identifier as the *hash value*:
 
 ```sh
-sleep 1
-detent get payments:new_processor --hash user-1
+knob payments:new_processor --hash user-1
 # false
-detent get payments:new_processor --hash user-42
+knob payments:new_processor --hash user-42
 # true
 ```
 
@@ -108,8 +107,7 @@ PATCH /v1/snapshot
 ```
 
 ```sh
-sleep 1
-detent get payments:new_processor --hash user-1
+knob payments:new_processor --hash user-1
 # true
 ```
 

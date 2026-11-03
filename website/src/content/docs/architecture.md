@@ -119,7 +119,7 @@ multicast. See [Authority](/Detent/architecture/authority/),
 1. [Read Path](/Detent/architecture/read-path/) and
    [Update Path](/Detent/architecture/update-path/): the client.
 2. [Distributor](/Detent/architecture/distributor/): the classic, legacy server.
-3. [Agent and Shared Memory](/Detent/architecture/agent/): host-local reads.
+3. [Agent](/Detent/architecture/agent/): host-local reads.
 4. [Raft Clustering](/Detent/architecture/raft/): the classic replication.
 5. [Durable Authority](/Detent/architecture/authority/): transactions and
    durable consensus.
