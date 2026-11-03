@@ -84,3 +84,94 @@ Ordering otherwise: an aligned release store after the rename, an acquire load p
 - C4 (RD-2, RD-5, RD-8, RD-11): folded into the design before S5; RD-5 agreed with namespace delivery.
 
 Not run: Detent's build and tests, the 5M corpus, Linux, any remote measurement host.
+
+## Re-check, 2026-11-03
+
+- Rechecked: `docs/design/reader.md` at `Detent:64f4076` against L1 to L4 (RD-1, RD-3, RD-4, RD-6) and the two new D3 mechanisms. Code cited at `Detent:d4abd4a` (unchanged on main).
+- Probes in `.scratch/recheck/` (`build.sh`, `d5_rev.cc`, `granule.py`, `results-*.txt`); built and run under `quiet light`. `d5_rev.cc` is the original `d5_model` with the publisher replaced by D5's text (`reader.md:160-171`) and D10's three `pthread_atfork` handlers added.
+
+| Finding | Verdict |
+| --- | --- |
+| L1 (RD-1) | CLOSED, with two gaps in D5's pseudocode (N1) |
+| L2 (RD-3) | PARTIAL: the two reviewed fork cases pass; a fork during a publish does not |
+| L3 (RD-4) | CLOSED |
+| L4 (RD-6) | CLOSED |
+| D3 verified bitmap | Sound for every page kind; verifies once per mapping, never on a capacity miss |
+| D3 dropped digest compare | Sound, on a better basis than the design gives (R3's validators, not only Limit 5); two sentences to correct |
+
+### L1 (RD-1): CLOSED
+
+D5 states the orderings (`current.store(s + 1, seq_cst)`, `sum_seq_cst`, `reader.md:160-171`) and the single freer (`reader.md:174`: only the holder of `refreshing`; `detent_refresh` takes it too and returns without work if it is held; `detent_close` runs alone).
+
+With the publisher written as D5 reads (reclaim after the `current` store, `free_view(next.view)` before it, plain `view` pointers, two lookups racing for `refreshing`, 8 readers):
+
+- ASan+UBSan, 10 s: 277,987,955 lookups, 397,647 publishes, 12,216,350 refused, `max_live=4`, no freed view read, no regression. A second 10 s run: 269M lookups, 396,412 publishes, clean.
+- TSan, 10 s: 21,210,840 lookups, 145,944 publishes, clean. The plain `view` read after the recheck is ordered by the `current` pair; TSan agrees.
+
+Revert either rule and it fails:
+
+- **Rule 1 reverted** (`current.store(release)`, acquire scans, `-DMUT_ORDER`): ASan stress read a view that was being freed in 3 of 4 runs (`bad_view=2, 0, 1, 1`; the last run also saw a sequence regression). The hardware litmus isolates the interleaving: publisher `X = 1; r1 = Y` against reader `Y += 1 (seq_cst); r2 = X`, 10M iterations, x86-64: release/acquire gives `r1 == 0 && r2 == 0` 41, 43 and 28 times (4 of 3M in an earlier run); seq_cst gives 0 of 10M, twice. This is the review's diagram, on x86. TSan did not catch the mutant in 10 s (it slows both sides); the litmus and ASan do.
+- **Rule 2 reverted** (a second freer, as `detent_refresh` was before, `-DMUT_FREER`): ASan `attempting double-free` within the 10 s run; TSan reports the data race on the slot's `view`.
+
+**N1 (D5 pseudocode, fix before S6).**
+
+1. The retired-slot loop (`reader.md:171`) calls `free_view(ring[k].view)` and never clears the slot, and the refusal test (`:167`) frees `next.view` whenever it is non-null. Read literally, the next publish frees the dangling pointer: `-DLITERAL` aborts the ASan stress with `heap-use-after-free` in `publish_locked`. State that `free_view` clears the slot.
+2. The refusal path (`:167`) does not free `built`, so each refused publish leaks the segments and lease descriptor the winner attached. It also does not say whether the view's recorded sequence advances. If it does not, a handle stalled by a parked reader (Limit 3) re-attaches on every lookup (about 0.43 ms each, on the caller's thread) until the reader resumes. If it does, nothing retries after the reader resumes until the next change. Pick one; the first with a backoff is the safer shape. D4 only says a failed attach remembers its sequence.
+3. State the orderings of `refreshing`: acquire on the compare-and-swap, release on the clear. The `current.load(relaxed)` ("only the holder stores it") depends on them across holders; the model used them.
+
+### L2 (RD-3): PARTIAL
+
+D10 picks option (a) (`reader.md:209-213`) and T6 and Limit 8 follow. The review's two cases pass with D10's handlers (prepare takes the registry mutex, parent releases it, child zeroes every counter and clears `refreshing`, then releases it): `fork-pinned` and `fork-refreshing` both publish 10 of 10 in the child, ASan clean (they were 3 and 0 before).
+
+The handlers do not cover a fork while a parent thread is inside a publish, and D10 says only that an unpublished `built` view leaks. A publisher parked after `free_view` and before the slot is cleared (the window includes the unmaps and the descriptor close) leaves a freed pointer in the child. The child clears `refreshing`, so its first publish frees the pointer again: `fork-midfree` aborts with `heap-use-after-free` in `publish_locked` (`results-fork.txt`). The same window exists in `free_view(next.view)` and between `next.view = built` and the `current` store.
+
+Fix (one sentence in D10): the prepare handler also takes each live handle's `refreshing` (waiting out an attach or publish, which holds it for under a millisecond to a few), the parent handler releases it, and the child handler zeroes the counters only. Then no child ever sees a half-finished publish, and Limit 8 shrinks to nothing. With that change `fork-midfree`, `fork-refreshing` and `fork-pinned` each publish 10 of 10 in the child under ASan (`results-fork-fix.txt`). T6 should add a fork during a parked publish (the park hook after `free_view`), not only an idle `refreshing` holder.
+
+### L3 (RD-4): CLOSED
+
+D4 rules 1 to 5 (`reader.md:143-151`) map one to one onto RD-4 items 1 to 5:
+
+1. Rule 1: the winner loads the store word and the namespace sequence before reading `selected` and records those.
+2. Rule 2: the agent bumps the store word and every namespace sequence at startup, before ready; an unchanged generation id keeps the generation.
+3. Rule 3: release `fetch_add` after the rename, `owner.lock` exclusive in S5 (`owner.lock` is namespace delivery's file, `namespace-delivery.md:90`; today only the pid lock takes `LOCK_EX`, `daemon.cc:39,63`, as the design says).
+4. Rule 4: `O_RDONLY | O_NOFOLLOW | O_CLOEXEC`, owner, mode, mode-only ACL, size a multiple of 8 covering every slot, read-only mapping.
+5. Rule 5: a store with `selected` and no valid `change` is refused at open; no fallback.
+
+N2 (one sentence): "a slot past the mapping is remapped by the winner only" needs the old mapping to live as long as any view whose slot pointers point into it. Make the mapping a member of the view, freed by the D5 freer, so a remap never unmaps under a reader.
+
+### L4 (RD-6): CLOSED
+
+D2 attaches nothing at open (`reader.md:111-123`): directory trust once per store, `change` checked, table read; the first lookup in a namespace attaches it. T2 is gated for 1 and for 1,000 namespaces with S1's counters (directory-trust calls per open = 1, namespaces attached = 1). Today `PreparedReader::open` calls `open_publisher_directory` itself (`prepared_reader.cc:96`), so S6 must give attach a directory-descriptor parameter; the design says attach reuses the descriptor, which is the refactor. The 1,000-entry table read and parse at open is inside T2's path and unmeasured; the gate covers it.
+
+### D3 verified bitmap: sound, verifies once per mapping
+
+Granule argument, for every page kind:
+
+- A reference is accepted only with `offset % 8 == 0`, `80 <= length <= 65536`, `offset + length <= segment_bytes` (`paged_layout.cc:25-30`, applied in `decode_reference` and `encode_reference`). So the 80-byte header is a length floor for all four kinds, and `floor(offset / 80)` is below the bitmap size once the existing extent check passes. `Overflow` cannot occur in a tree: both validators reject it (`paged_graph_validator.cc:275`, `paged_warm_validator.cc:378`) and the builder cannot make one (`paged_page_builder.cc:42`).
+- Distinct pages need distinct granules. Pages in a validated generation are disjoint: both validators mark every 8-byte cell a reference covers and `require` it unmarked (`paged_graph_validator.cc:254-261`; the warm validator keeps the same bitmap). Two disjoint pages of at least 80 bytes start at least 80 bytes apart, so their `offset / 80` differ. `granule.py`: 0 collisions among disjoint pairs at every 8-byte offset of a 1 MiB segment with every gap 80 to 400 step 8, and 0 in 2,000 random disjoint layouts; overlapping references do collide (offsets 8 and 16), which is what the validators reject. The disjointness basis is the validators' cell mark, not the header: the design cites the header (`paged_layout.hh:7-8`), and the sentence should cite the mark.
+- Size: 13,108 bits and 1,639 bytes per 1 MiB segment, 1/640 of mapped bytes; the 5M store's 1.51 GB gives 2.25 MiB (the design says about 2.4 MiB; fine).
+
+Once per mapping: there is no table to overflow. The segment table is fixed at attach (`2 × root.segments`), segment objects are freed only by the D5 freer, and bits are only set. A page re-verifies only when its segment object is freed and mapped again. Today's cache (`lazy_page_access.cc:81,115-129`) does evict, which RD-7 priced. One thing the design leaves open: a miss at the mapped-bytes cap throws `ReadSourceFailure` (`:102-104`), and the `catch (...)` then sets `failed` for the whole namespace generation (`:173-175`). That is today's behavior and not a capacity re-verification, but D3 should say what a cap miss does now that the cap is the only limit.
+
+### D3 dropped digest compare: sound, with two corrections
+
+The designer's conclusion holds; the stated basis is thinner than the real one.
+
+- The compare (`lazy_page_access.cc:155-156`) only compares the reference used now with the reference that verified the page, not the bytes. In a generation that passed full validation (R3) it cannot fail: every page is referenced once, and every reference's digests were checked against the bytes. A second digest for the same offset needs a reference the validators would have rejected (a cell marked twice) or a segment rewritten under a stable identity. Both are publisher actions, which Limit 5 already trusts.
+- What is lost is narrow: a publisher that rewrites a verified parent page to carry a different child reference used to be caught on a cached child page, and is not now. That detection was partial (a consistent forgery of the child passed), so the claim "a publisher matter under R3 and Limit 5" is right.
+
+Corrections:
+
+1. Limit 5 says "unchanged from today"; after this it is slightly weaker. Say that a rewritten reference to a verified page is no longer observed.
+2. D3 shares a segment object across generations of one namespace. Today each generation re-opens the payload and checks the name's device and inode against the mapping (`lazy_page_access.cc:108-110`); a kept object skips that. State that segment identity means immutable bytes (the agent never rewrites a payload under one identity), which is what makes sharing the bits, and the dropped compare, safe across generations. The semantic checks that depend on the root revision (`:162-165`) are monotone under A4, so a bit set under a later revision never admits a page the earlier view would reject in a validated tree.
+
+### New findings
+
+- **N1** (D5 pseudocode): slot clearing, the refusal path and the `refreshing` orderings, above. Fix before S6.
+- **N2** (D4 rule 4): the `change` remap lifetime, above.
+
+### Updated conditions
+
+L1, L3 and L4 are met. L2 needs D10's prepare-handler sentence and a T6 case for a fork during a parked publish. N1 and N2 go with C4 before S6. S1 to S4 may start; S5 and S6 wait on L2 and N1.
+
+Not run: Detent's build and tests (nothing is implemented), the 5M corpus, Linux (x86-64 macOS only, so the store-buffer litmus ran on x86 TSO, not on a weaker model), any remote measurement host, any benchmark.
