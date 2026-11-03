@@ -247,6 +247,7 @@ int run(const std::vector<std::string>& input_args) {
 		// The handler's owner loop and the call that ends its owner waits, for D15's teardown.
 		detent::OwnerLoop* owner = nullptr;
 		std::function<void()> begin_shutdown;
+		std::function<void()> drain = [] {}; // the authority settles its runtime before the owner stops
 		std::size_t body_cap = detent::kDefaultMaxBytes;
 
 #ifdef DETENT_WITH_AUTHORITY
@@ -273,6 +274,7 @@ int run(const std::vector<std::string>& input_args) {
 			auto authority = std::make_unique<detent::authority::Service>(std::move(authority_options));
 			owner = &authority->owner();
 			begin_shutdown = [raw = authority.get()] { raw->begin_shutdown(); };
+			drain = [raw = authority.get()] { raw->drain(); };
 			app = std::move(authority);
 #else
 			throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
@@ -333,6 +335,7 @@ int run(const std::vector<std::string>& input_args) {
 		L_NOTICE("detentd: shutting down");
 		begin_shutdown();
 		service.stop();
+		drain();
 		owner->stop();
 		service.close();
 		owner->close();
