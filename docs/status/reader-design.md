@@ -25,6 +25,14 @@
 - Design vs code: not applicable (nothing built).
 - Last verified: the review's new citations re-read at `Detent:d4abd4a` on 2026-11-03 (`client.hh:228`, `client.cc:28-34,166,185,223,256,273`, `client_source.cc:82,137-139`, `daemon.cc:39,63`, `lazy_page_access.cc:100,154-167`, `paged_layout.hh:7-8`, `prepared_reader.cc:51`); measured numbers are the review's probes, none mine; nothing built, run or measured.
 
+
+## Lead calls under "move fast" (2026-11-03; the owner may reverse any)
+- Q1 (a), Q3 (a), Q4 (a): the recommendations, matching the review.
+- Q2 (a): wrappers return the default and `lookup` gives the status; Python stops raising.
+- Q5 (a): one mapped-bytes cap covering the bitmaps; the heap ledger goes.
+- Q6 (a): open succeeds on an empty store; lookups return the default with `DETENT_UNAVAILABLE`, retrying open at most once per 200 ms.
+- RD-5: namespace delivery adopts D4's `change` shape (per-namespace sequences, slots never reused, grow-only) in its D8.
+
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, namespace-delivery brief, legacy inventory (`explore/legacy-inventory` at `Detent:5abdf13`), the reader code, spec, bindings and the first-read evidence. Drafted the design; state set to ready for preliminary review.
 - 2026-11-03: Draft committed and pushed as `Detent:a037429` on `design/reader`.

@@ -46,6 +46,14 @@
 - Design vs code: not applicable (nothing built).
 - Last verified: every file:line re-read on 2026-11-03 at `Detent:d4abd4a`, `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured.
 
+
+## Lead calls under "move fast" (2026-11-03; the owner may reverse any)
+- Q1 (b) limited to exact names, whole-component prefixes and `*`; the security reviewer reviews the matcher.
+- Q2 (a) with lagged retention and a floor (ND-R2); Q3 (a) with the residual in Limits.
+- Q4 (c): one session endpoint with a wait time; `poll` is a zero wait. One path, no second mode.
+- Q5 (d): each namespace's position is its own counter assigned at apply; S6-S9 build on today's single group; the group count is chosen once strata C2 exists and T8 is measured on Linux.
+- D8 takes the reader's `change` shape (reader D4, RD-5).
+
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, the startup attribution (`explore/agent-startup` at `Detent:e8d4e59`), the reader draft (`Detent:a3bb22f`), ACTORS, RELAY, AUTHORITY_EXPORT, DELIVERY_INTEGRATION_ARCHITECTURE, SCALE_TARGETS, STORAGE_BARRIER_ARCHITECTURE, the legacy inventory and the cited code.
 - 2026-11-03: First draft used state-plus-tombstones history; replaced by the namespace journal (D6) after the lead relayed the owner's one-replication-mechanism rule and the Xapiand lead's directions. Strata evaluated: replication shape adopted, core and segments not used for delivery or the agent store.
