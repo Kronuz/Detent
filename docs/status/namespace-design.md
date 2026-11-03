@@ -11,11 +11,12 @@
 - Done criteria (set by the lead; contributors tick, never edit):
   - S1 (completion `SyncFiles` and `OrderFiles`):
     - [ ] 1. The asynchronous driver runs `sync_files_and_directory` and `order_files_and_directory` as one primitive each, over a list of read-only or read-write descriptors and one directory.
+    - [ ] 1a. Opening an existing file gains a read-only mode (today `posix.h:731` opens `O_RDWR`), so the census and collector never open a seeded file for writing (N4a).
     - [ ] 2. Seam tests on every CI platform (Linux, macOS arm64 and x86_64, FreeBSD where completion runs it) record the exact call sequence per platform: fsync or fdatasync per file, then one device flush (`F_FULLFSYNC` on macOS) and one directory sync; the recorded sequences are committed as expected values, not counts.
     - [ ] 3. Each platform's semantics stated in completion's docs: what reaches stable storage after the call returns, and what an error on one file means for the rest.
     - [ ] 4. A mutant that drops the device flush or the directory sync fails a seam test; sanitizers (ASan+UBSan, TSan) in separate builds; completion CI green; the pin moves in Detent with CI green.
   - S2 (D11 on today's store):
-    - [ ] 1. Publication syncs in the grouped order owner records, barrier; payloads, barrier; table and change word, barrier (ND-R9), through S1's primitives.
+    - [ ] 1. Publication syncs in the grouped order owner records, barrier; payloads, barrier; the new table written under a temporary name and fsynced, renamed over `selected`, directory synced, then `change` incremented with no sync (D11, N6), through S1's primitives. Revert check: renaming before the fsync fails T7.
     - [ ] 2. The census issues no per-file sync (`disk_store.cc:133`, `:171` gone) and one startup barrier; `ready()` stays after that barrier.
     - [ ] 3. Sync counters (files synced, device flushes, directory syncs) per publication and per startup, exposed to tests and the bootstrap harness.
     - [ ] 4. T7 on today's store: an interruption at every primitive of publication and of the startup barrier, plus restart-then-republish cycles, each followed by simulated power loss through completion's seam; every file the durable table reaches exists and verifies. Revert check: restoring a per-file order that breaks the invariant fails T7.
