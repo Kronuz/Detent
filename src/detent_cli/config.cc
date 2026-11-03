@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdexcept>
+#include <string_view>
 
 namespace detent_cli {
 
@@ -106,6 +107,23 @@ std::filesystem::path config_path(const std::vector<std::string>& args, const st
 
 } // namespace
 
+namespace {
+struct RemovedOption { std::string_view program, flag, field, env, reason; };
+constexpr RemovedOption kRemoved[] = {
+	{"detentd", "--workers", "workers", "DETENTD_WORKERS", "requests run on the reactor loops (--reactors sets their count)"},
+};
+} // namespace
+
+void reject_removed_options(const std::string& program, const std::vector<std::string>& args) {
+	for (const auto& removed : kRemoved) {
+		if (removed.program != program) continue;
+		for (const auto& arg : args)
+			if (arg == removed.flag) throw std::runtime_error(std::string(removed.flag) + " was removed: " + std::string(removed.reason));
+		if (const char* value = std::getenv(std::string(removed.env).c_str()); value && *value)
+			throw std::runtime_error(std::string(removed.env) + " was removed: " + std::string(removed.reason));
+	}
+}
+
 ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema) {
 	bool explicit_path = false;
 	auto path = config_path(args, filename, explicit_path);
@@ -150,7 +168,12 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 	for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
 		std::string key(it->name.GetString(), it->name.GetStringLength());
 		auto field = schema.find(key);
-		if (field == schema.end()) fail("unknown field: " + key);
+		if (field == schema.end()) {
+			for (const auto& removed : kRemoved)
+				if (removed.field == key && filename == std::string(removed.program) + ".json")
+					fail(std::string(removed.field) + " was removed: " + removed.reason);
+			fail("unknown field: " + key);
+		}
 		if (field->second.trusted && !trusted) fail("setting requires a trusted regular configuration file");
 		const auto& flag = field->second.flag;
 		if (settings.contains(flag)) fail("duplicate field: " + key);

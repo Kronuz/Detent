@@ -34,6 +34,7 @@
 #include "detent/json_patch.hh"
 #include "detent/json_schema.hh"
 #include "detent/model.hh"
+#include "detent/owner_loop.hh"
 #include "raft_delegate.hh"
 
 #include <http_handler.h>
@@ -43,8 +44,8 @@
 #include <generation_cache.hh>
 
 #include <atomic>
+#include <atomic_shared_ptr.h>
 #include <chrono>
-#include <condition_variable>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
@@ -53,7 +54,6 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <shared_mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -66,6 +66,9 @@ struct Options {
 	// Optional application diagnostics; runtime errors use the logger hook.
 	std::function<void(std::uint64_t)> on_accept;
 	std::function<void(detent::UpdateRejectReason)> on_reject;
+	// Called on the owner thread: before each commit (a test latch) and with each commit's duration.
+	std::function<void()> on_commit_begin;
+	std::function<void(std::uint64_t, std::chrono::nanoseconds)> on_commit;
 	// Where the current accepted snapshot is durably persisted (atomic
 	// write + rename), so a restart resumes at the last accepted version
 	// instead of regressing to "no snapshot" (Section 9's "keep
@@ -115,21 +118,19 @@ public:
 	Distributor(const Distributor&) = delete;
 	Distributor& operator=(const Distributor&) = delete;
 
-	void handle(const http::Request& request, http::ResponseWriter& response) override;
-	// GETs are cheap and non-blocking (in-memory read under a shared lock);
-	// keep them inline on the reactor. PUT/PATCH do file I/O, validation,
-	// and (when clustered) waiting on consensus, so they get the default
-	// (offloaded to the worker pool).
-	bool should_offload(const http::Request& request) const override;
+	// Every route is a task on the connection's loop. GETs never suspend; PUT and PATCH hop to the
+	// owner, wait there for the commit, and come home with the reply (D2, D13).
+	task::task<void> handle(http::Request& request, http::ResponseWriter& response) override;
+	// A PUT or PATCH takes one of kWriteSlots write slots for as long as the request lives; with none
+	// free the request is refused before any body byte (D3).
+	std::unique_ptr<http::RequestExtension> create_extension(const http::Request& request) override;
 
-	// Section 4's own oversize/parse-limit posture ("reject before allocation
-	// exceeds configured cap"), applied to the transport layer: the http
-	// framework's default buffered-body path has NO built-in size limit --
-	// confirmed by reading http_request_parser.h -- so an unbounded PUT
-	// Content-Length would otherwise be buffered into memory in full before
-	// json_schema's own kDefaultMaxBytes check ever runs. This caps it at the
-	// only hook that fires before buffering (headers-complete).
-	[[nodiscard]] std::unique_ptr<http::BodySink> on_request_body(http::Request& request) override;
+	// Ends every owner wait with its truthful reply (D10). Call before the HTTP service stops.
+	void begin_shutdown() noexcept;
+	// The owner of serialized snapshot writes; its D15 phases belong to the process (main.cc).
+	[[nodiscard]] detent::OwnerLoop& owner() noexcept { return owner_; }
+
+	static constexpr std::size_t kWriteSlots = 1024;
 
 	// Diagnostics for tests; not part of the HTTP surface.
 	[[nodiscard]] std::uint64_t current_version() const;
@@ -157,16 +158,18 @@ public:
 	void on_raft_apply(const std::string& command);
 
 private:
-	void route_put_snapshot(const http::Request&, http::ResponseWriter&, const http::Params&);
-	void route_patch_snapshot(const http::Request&, http::ResponseWriter&, const http::Params&);
-	void route_get_snapshot(const http::Request&, http::ResponseWriter&, const http::Params&);
-	void route_get_health(const http::Request&, http::ResponseWriter&, const http::Params&);
+	task::task<void> route_write_snapshot(http::Request&, http::ResponseWriter&, bool is_patch);
+	task::task<void> route_get_snapshot(http::Request&, http::ResponseWriter&);
+	task::task<void> route_get_health(http::Request&, http::ResponseWriter&);
 
-	// Where a PUT and a PATCH both land: `resolve` runs WHILE
-	// snapshot_mutex_ is held exclusively, given the current locked state,
-	// and returns the new full Snapshot. Persists, caches ETag/compression,
-	// and caches the diff. The only place state is ever mutated -- the
-	// unclustered fast path and Raft's on_raft_apply() both call into it.
+	struct Published;
+	struct Write;
+	struct WriteSlot;
+
+	// Where a PUT and a PATCH both land, on the owner thread only: `resolve` runs on the owner's
+	// current state (which is what makes a PATCH's merge race-free) and returns the new full
+	// Snapshot. Persists, builds the immutable Published and swaps it in. The only place state is
+	// ever mutated -- the unclustered path and Raft's on_raft_apply() both call into it.
 	using SnapshotResolver = std::function<detent::Result<detent::Snapshot, detent::UpdateError>(
 		const detent::Snapshot& current, bool has_current)>;
 	[[nodiscard]] detent::Result<std::uint64_t, detent::UpdateError> resolve_and_commit(SnapshotResolver resolve);
@@ -174,27 +177,21 @@ private:
 	// Validates + (if newer) accepts `bytes` as a full replacement snapshot.
 	[[nodiscard]] detent::Result<std::uint64_t, detent::UpdateError> try_accept(std::string_view bytes);
 
-	// Validates + (if newer, and if a snapshot already exists to patch)
-	// merges `patch_bytes` onto the current snapshot. Same acceptance path
-	// as try_accept (persist/etag/diff) -- just arriving at the new full
-	// state via a merge instead of a full replace, so a caller only has to
-	// send the one or few knobs that actually changed.
+	// Validates + (if newer, and if a snapshot already exists to patch) merges `patch_bytes` onto the
+	// current snapshot. Same acceptance path as try_accept (persist/etag/diff) -- just arriving at
+	// the new full state via a merge instead of a full replace.
 	[[nodiscard]] detent::Result<std::uint64_t, detent::UpdateError> try_accept_patch(std::string_view patch_bytes);
 
-	// The write entry point BOTH route_put_snapshot and route_patch_snapshot
-	// call: unclustered, applies `body` directly via try_accept/
-	// try_accept_patch (today's single-node behavior, unchanged). Clustered,
-	// submits it through Raft's replicated log (rejecting outright if this
-	// node isn't the elected leader) and BLOCKS the calling worker thread
-	// (already off-reactor; see should_offload) until on_raft_apply()
-	// reports the outcome or a timeout elapses -- so the HTTP response
-	// still means "a quorum has this", not just "I queued it". `is_patch`
-	// selects try_accept vs. try_accept_patch once the bytes reach
-	// on_raft_apply(), on whichever node applies them (this one, if
-	// unclustered or leader; every member, once Raft commits, if
-	// clustered).
-	[[nodiscard]] detent::Result<std::uint64_t, detent::UpdateError> submit_command(
+	// The write entry point BOTH PUT and PATCH call, a task the handler awaits: it hops to the owner.
+	// Unclustered, the owner applies `body` directly via try_accept/try_accept_patch. Clustered, the
+	// owner submits it through Raft's replicated log and the wait ends when on_raft_apply() reports
+	// the outcome, a stop, or the 10 s backstop -- so the HTTP response still means "a quorum has
+	// this", not just "I queued it". `is_patch` selects try_accept vs. try_accept_patch once the
+	// bytes reach on_raft_apply(), on whichever node applies them.
+	[[nodiscard]] task::task<detent::Result<std::uint64_t, detent::UpdateError>> submit_command(
 		std::string_view body, bool is_patch);
+
+	void apply_envelope(const std::string& command); // owner thread
 
 	void compress_into(std::string_view identity, std::string& gzip_out, std::string& zstd_out);
 	void write_negotiated(
@@ -202,88 +199,19 @@ private:
 		const std::string& identity, const std::string& gzip_body, const std::string& zstd_body,
 		std::string_view content_type);
 
-	void persist_locked(std::string_view bytes, std::uint64_t version); // caller holds snapshot_mutex_ exclusively
+	void persist(std::string_view bytes, std::uint64_t version); // owner thread
 	void load_persisted();
 	void on_bus_message(int wire_type, std::string_view content);
 
 	Options options_;
 	http::Router router_;
 
-	mutable std::shared_mutex snapshot_mutex_;
-	std::string current_bytes_;
-	std::uint64_t current_version_ = 0;
-	bool has_snapshot_ = false;
-	// Cached alongside current_bytes_/current_version_, computed once per
-	// accepted update rather than once per GET: the http library's own
-	// automatic conditional-GET support (enable_conditional()) hashes the
-	// *entire response body on every single request* to derive its ETag,
-	// found by performance review to cost ~577us/request hashing alone at a
-	// 560KB snapshot (~2.8 cores at 5K req/s just to rediscover the same
-	// validator). Setting our own "ETag" header before returning makes the
-	// library skip its own computation entirely (it explicitly checks
-	// has_header("ETag") first) -- see route_get_snapshot().
-	std::string current_etag_;
-	// Pre-compressed forms of current_bytes_, cached alongside it (see
-	// compress_into's comment): empty if not computed/not worth it, in
-	// which case a request negotiating that coding falls back to identity.
-	std::string current_bytes_gzip_;
-	std::string current_bytes_zstd_;
-
-	// The parsed form of current_bytes_, kept so a PATCH request has
-	// something to merge onto and so the NEXT accepted update can diff
-	// against it (diff_snapshots needs two structured Snapshots, not two
-	// byte strings).
-	detent::Snapshot current_snapshot_;
-	// A cached JSON Merge Patch (see json_patch.hh) from
-	// current_diff_base_version_ to the current one, precomputed and
-	// pre-compressed at accept time so the common "one update behind"
-	// poller costs nothing extra per request. A poller further behind
-	// composes from diff_history_ instead (route_get_snapshot); this
-	// single cached entry is a fast path, not the only path.
-	bool has_diff_ = false;
-	std::uint64_t current_diff_base_version_ = 0;
-	std::string current_diff_bytes_;
-	std::string current_diff_bytes_gzip_;
-	std::string current_diff_bytes_zstd_;
-
-	// One entry per accepted update: the patch from base_version to the
-	// next accepted version, in order. Bounded to max_diff_history_
-	// entries (oldest evicted first) so memory stays fixed regardless of
-	// uptime. A poller whose last-known version is >= the oldest retained
-	// base_version gets a diff composed from these entries instead of the
-	// full body, however many versions behind it is, up to that bound.
-	struct StepDiff {
-		std::uint64_t base_version;
-		detent::SnapshotPatch patch;
-	};
+	// The immutable published state: GET and health load the pointer and never wait on a commit.
+	// Written by the owner thread only (resolve_and_commit), which keeps the mutable working copy
+	// below.
+	atomic_shared_ptr<const Published> published_;
+	detent::Snapshot current_snapshot_; // owner thread only
 	std::size_t max_diff_history_ = 64;
-	std::deque<StepDiff> diff_history_;
-
-	// Composing N step-diffs for a given base_version (route_get_snapshot)
-	// does real work -- parsing/merging N patches -- and every poller still
-	// behind the SAME base_version between two accepted updates needs the
-	// identical result. Cached here, keyed by base_version, and entirely
-	// cleared on the next accepted update (resolve_and_commit): every
-	// entry's result is relative to the OLD current_version_, so none of
-	// them are valid once that changes. At most max_diff_history_ distinct
-	// keys are ever reachable (anything older already falls back to the
-	// full body), so this cache is implicitly bounded by the same option.
-	//
-	// generation_cache::Cache (not a hand-rolled map+mutex) is what makes
-	// this safe against a real race: a reader composes a diff while
-	// holding snapshot_mutex_ shared, but only serializes/compresses it
-	// (the expensive part) AFTER releasing that lock -- so a NEW accepted
-	// update, and the clear() that comes with it, can land in between.
-	// try_insert() silently drops a result whose captured generation no
-	// longer matches current, instead of resurrecting a value relative to
-	// the OLD current_version_ -- see generation_cache's own README/
-	// ARCHITECTURE.md for the general case this solves.
-	struct CachedComposedDiff {
-		std::string bytes;
-		std::string bytes_gzip;
-		std::string bytes_zstd;
-	};
-	generation_cache::Cache<std::uint64_t, CachedComposedDiff> composed_diff_cache_;
 
 	std::atomic<std::uint64_t> requests_served_{0};
 	std::atomic<std::uint64_t> puts_accepted_{0};
@@ -292,33 +220,27 @@ private:
 	std::atomic<std::uint64_t> diffs_composed_{0};
 	std::chrono::steady_clock::time_point start_time_{std::chrono::steady_clock::now()};
 
+	std::atomic<std::size_t> write_slots_{0};
+	std::atomic<bool> stopping_{false};
+	task::cancel_source stop_;
+
+	// Declared before bus_: the Bus' reactor thread spawns applies on the owner, and ~Distributor
+	// stops the Bus before the owner goes.
+	detent::OwnerLoop owner_;
+
 	std::unique_ptr<cluster::Bus> bus_;
 	std::unique_ptr<DetentRaftDelegate> raft_delegate_;
 	std::unique_ptr<cluster::Raft<RaftNode>> raft_;
 
-	// Bridges submit_command()'s blocking wait to on_raft_apply()'s
-	// callback (Bus reactor thread): a correlation id keys a slot the
-	// waiter registers before add_command(); apply() fills it in and
-	// notifies if a match exists (only the originating node has one).
-	// Mutex/condvar, not promise/future, since a timed-out waiter reclaims
-	// its own slot.
-	struct PendingCommand {
-		bool done = false;
-		detent::Result<std::uint64_t, detent::UpdateError> result{detent::UpdateError{
-			detent::UpdateRejectReason::Io, "no result recorded"}};
-	};
-	std::mutex pending_mutex_;
-	std::condition_variable pending_cv_;
-	std::map<std::string, PendingCommand> pending_commands_;
+	// Clustered writes in flight, keyed by correlation id; owner thread only (apply runs there too).
+	std::map<std::string, std::shared_ptr<Write>> pending_;
 	std::atomic<std::uint64_t> command_counter_{0};
 
-	// command_counter_ restarts from 0 every process launch, so a bare
-	// address+counter id can collide with one this same node used
-	// BEFORE a crash -- a restarted node replays its whole prior Raft
-	// log during catch-up, and a replayed old entry can then steal a
-	// freshly-registered pending_commands_ slot meant for a brand new
-	// write, handing its waiter a stale result. session_id_ (random,
-	// chosen fresh per process) makes every id unique across restarts.
+	// command_counter_ restarts from 0 every process launch, so a bare address+counter id can
+	// collide with one this same node used BEFORE a crash -- a restarted node replays its whole
+	// prior Raft log during catch-up, and a replayed old entry can then steal a freshly-registered
+	// pending slot meant for a brand new write, handing its waiter a stale result. session_id_
+	// (random, chosen fresh per process) makes every id unique across restarts.
 	const std::uint64_t session_id_ = random_int(1, UINT64_MAX);
 
 	mutable std::mutex leader_mutex_;

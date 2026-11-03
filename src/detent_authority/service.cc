@@ -845,7 +845,7 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 void Service::distribute(const http::Request &request, http::ResponseWriter &response,
 						 std::shared_ptr<Admission> admission) {
 	check(request.method == "POST", "distribution requires POST");
-	auto parsed = distribution_http::parse_session_request_on_worker(
+	auto parsed = distribution_http::parse_session_request(
 		accounting_->delivery_account, distribution_http::RequestKind::Distribution, request.body,
 		{std::min<std::size_t>(admission->bytes, 1024 * 1024), options_.delivery.namespaces,
 		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
@@ -876,7 +876,7 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 	}
 	const auto kind = distribution_http::classify_session_route(request.path);
 	check(kind.has_value(), "unknown subscription route");
-	auto parsed = distribution_http::parse_session_request_on_worker(
+	auto parsed = distribution_http::parse_session_request(
 		accounting_->delivery_account, *kind, input.view(),
 		{admission->bytes, options_.delivery.namespaces,
 		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
