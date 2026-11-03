@@ -20,6 +20,8 @@ foreach(test_name ${DETENT_TESTS})
   target_link_libraries(${test_name} PRIVATE detent::detent)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+detent_use_allocation_probe(test_model_alloc_failure)
+detent_use_allocation_probe(test_client_publication_failure)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   add_executable(test_config_acl_policy test_config_acl_policy.cc)

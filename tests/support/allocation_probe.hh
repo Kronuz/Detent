@@ -9,9 +9,9 @@
 //   };
 //   }
 //
-// The whole replaceable set is defined, so ThreadSanitizer's runtime (which
-// defines the same set in one object) is never linked beside it. The probe
-// observes the calls; it never changes what a sanitizer sees of the heap.
+// The whole replaceable set is defined, over malloc and free, so every
+// allocation takes one path. Link the test with detent_use_allocation_probe()
+// (tests/CMakeLists.txt) so these definitions win over ThreadSanitizer's.
 #pragma once
 
 #include <cstddef>
