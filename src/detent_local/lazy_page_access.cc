@@ -5,53 +5,52 @@
 #include "segment_mapping.hh"
 #include "segment_names.hh"
 #include <atomic>
-#include <lru.h>
-#include <mutex>
+#include <bit>
+#include <cstring>
 #include <system_error>
-#include <unordered_map>
+#include <vector>
 
 namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
 namespace {
-std::shared_ptr<d::StorageLedger> cache_account_for(const std::shared_ptr<d::StorageLedger> &heap,
-                                                    std::size_t bytes) {
-	if (!heap)
-		throw std::invalid_argument("lazy reader requires a storage account");
-	if (!bytes)
-		return heap;
-	return std::allocate_shared<d::StorageLedger>(d::StorageAllocator<d::StorageLedger>(heap), heap,
-	                                              std::min(bytes, heap->limit() / 2));
+std::atomic<void (*)(LazyPageWindow, void *) noexcept> window_hook{nullptr};
+std::atomic<void *> window_context{nullptr};
+void window(LazyPageWindow at) noexcept {
+	if (auto hook = window_hook.load(std::memory_order_relaxed))
+		hook(at, window_context.load(std::memory_order_relaxed));
 }
-struct IdentityHash {
-	std::size_t operator()(const StorageIdentity &value) const noexcept {
-		return std::hash<std::string_view>{}({value.data(), value.size()});
-	}
-};
-struct PageKey {
-	const SegmentMapping *mapping;
-	std::uint32_t offset, length;
-	bool operator==(const PageKey &) const = default;
-};
-struct PageHash {
-	std::size_t operator()(const PageKey &key) const noexcept {
-		const std::array<std::size_t, 3> parts{std::hash<const void *>{}(key.mapping), key.offset,
-		                                       key.length};
-		return std::hash<std::string_view>{}({reinterpret_cast<const char *>(parts.data()), sizeof(parts)});
-	}
-};
-struct VerifiedPage {
-	p::Digest physical, logical;
-};
+// One bit per 80-byte granule: validated pages are disjoint (the validators' cell marks),
+// start 8-aligned and span at least one header, so distinct pages own distinct granules.
+constexpr std::size_t granule_bytes = p::page_header_bytes;
+std::size_t slot_count(std::uint64_t segments) {
+	return std::bit_ceil(std::max<std::size_t>(2, std::size_t(std::min<std::uint64_t>(segments, 1u << 20)) * 2));
+}
+std::size_t identity_hash(const StorageIdentity &identity) noexcept {
+	std::uint64_t low, high;
+	std::memcpy(&low, identity.data(), 8);
+	std::memcpy(&high, identity.data() + 8, 8);
+	return std::size_t((low ^ (high * 0x9e3779b97f4a7c15ull)) * 0xff51afd7ed558ccdull >> 17);
+}
 } // namespace
+void LazyPageTesting::install(void (*hook)(LazyPageWindow, void *) noexcept, void *context) noexcept {
+	window_context.store(context, std::memory_order_relaxed);
+	window_hook.store(hook, std::memory_order_relaxed);
+}
 struct LazyPageAccess::State {
 	using Mapping = d::RetirementHandle<SegmentMapping>;
-	using MappingEntry = std::pair<const StorageIdentity, Mapping>;
-	using Maps = std::unordered_map<StorageIdentity, Mapping, IdentityHash, std::equal_to<StorageIdentity>,
-	                                d::StorageAllocator<MappingEntry>>;
-	using Node = lru::node<std::pair<const PageKey, VerifiedPage>, lru::base_node>;
-	using CacheAllocator = d::StorageAllocator<std::pair<const PageKey, Node>>;
-	using Cache = lru::lru<PageKey, VerifiedPage, PageHash, std::equal_to<PageKey>, Node, CacheAllocator>;
+	using Word = std::atomic<std::uint64_t>;
+	// A mapped segment and its verified-page bitmap; immutable once published except for the bits.
+	struct Segment {
+		StorageIdentity identity;
+		Mapping mapping;
+		std::span<const char> bytes;
+		std::vector<Word, d::StorageAllocator<Word>> verified;
+		Segment(const StorageIdentity &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
+		    : identity(id), mapping(std::move(held)), bytes(mapping->bytes()),
+		      verified((bytes.size() / granule_bytes + 64) / 64, d::StorageAllocator<Word>(account)) {}
+	};
+	using Slot = std::atomic<Segment *>;
 	std::shared_ptr<const void> lease;
 	int directory;
 	uid_t publisher;
@@ -59,36 +58,48 @@ struct LazyPageAccess::State {
 	p::Root root;
 	ViewLimits limits;
 	d::RetirementFactory factory;
-	std::shared_ptr<d::StorageLedger> heap, mapping_account, cache_account;
-	mutable std::mutex mutex;
-	mutable Maps maps;
-	mutable std::uint64_t mapped_bytes = 0;
-	mutable Cache checked;
+	std::shared_ptr<d::StorageLedger> heap, mapping_account;
+	std::vector<Slot, d::StorageAllocator<Slot>> slots;
+	mutable std::atomic<std::uint64_t> mapped_bytes{0}, published{0}, verifications{0};
 	mutable std::atomic<bool> failed{false};
+	std::size_t retired = 0;
 	State(std::shared_ptr<const void> owner, int fd, uid_t uid, StorageIdentity identity, p::Root selected,
 	      ViewLimits bounds, d::RetirementFactory allocator, std::shared_ptr<d::StorageLedger> account,
 	      std::shared_ptr<d::StorageLedger> mappings)
 	    : lease(std::move(owner)), directory(fd), publisher(uid), storage(identity), root(selected),
 	      limits(bounds), factory(std::move(allocator)), heap(std::move(account)),
 	      mapping_account(std::move(mappings)),
-	      cache_account(cache_account_for(heap, limits.verification_cache_bytes)),
-	      maps(0, IdentityHash{}, std::equal_to<StorageIdentity>{}, d::StorageAllocator<MappingEntry>(heap)),
-	      checked(0, std::chrono::milliseconds(0), CacheAllocator(cache_account)) {
+	      slots(slot_count(root.segments), d::StorageAllocator<Slot>(heap)) {
 		if (!lease || directory < 0 || !heap || !mapping_account || !factory.uses_account(heap))
 			throw std::invalid_argument("lazy reader requires pinned resources");
 		p::encode_root(root, paged_limits(limits, p::root_bytes));
 	}
-	bool evict_one() const {
-		if (checked.empty())
-			return false;
-		auto oldest = checked.end();
-		--oldest;
-		checked.erase(oldest);
-		return true;
+	~State() {
+		while (release_one())
+			;
+	}
+	void destroy(Segment *segment) const noexcept {
+		d::StorageAllocator<Segment> allocator(heap);
+		std::destroy_at(segment);
+		allocator.deallocate(segment, 1);
+	}
+	bool release_one() noexcept {
+		for (; retired != slots.size(); ++retired)
+			if (auto segment = slots[retired].exchange(nullptr, std::memory_order_acquire)) {
+				destroy(segment);
+				return true;
+			}
+		return false;
+	}
+	void check_capacity(std::uint64_t segments, std::uint64_t bytes, std::size_t length) const {
+		if (segments > root.segments)
+			throw ReadSourceFailure("local generation exceeds its pack count");
+		if (bytes > limits.bytes - p::root_bytes || length > limits.bytes - p::root_bytes - bytes)
+			throw ReadSourceFailure("local generation exceeds its physical extent");
 	}
 	Mapping open_mapping(const StorageIdentity &identity) const {
-		if (maps.size() >= root.segments)
-			throw ReadSourceFailure("local generation exceeds its pack count");
+		check_capacity(published.load(std::memory_order_relaxed) + 1, mapped_bytes.load(std::memory_order_relaxed),
+		               0);
 		const SegmentNames names(identity);
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		struct stat held{};
@@ -99,9 +110,8 @@ struct LazyPageAccess::State {
 		check_generation_file(payload.fd, publisher, length);
 		if (!internal::mode_only_acl(payload.fd))
 			throw ReadSourceFailure("segment payload has an unsafe ACL");
-		if (mapped_bytes > limits.bytes - p::root_bytes ||
-		    length > limits.bytes - p::root_bytes - mapped_bytes)
-			throw ReadSourceFailure("local generation exceeds its physical extent");
+		check_capacity(published.load(std::memory_order_relaxed) + 1, mapped_bytes.load(std::memory_order_relaxed),
+		               length);
 		auto mapped =
 		    factory.make<SegmentMapping>(mapping_account, payload.fd, publisher, SegmentExtent{length});
 		struct stat named{};
@@ -111,51 +121,66 @@ struct LazyPageAccess::State {
 			throw ReadSourceFailure("segment payload changed during attachment");
 		return mapped;
 	}
-
-	void remember(const PageKey &key, const p::Reference &reference) const {
-		if (!limits.verification_cache_bytes)
-			return;
-		try {
-			checked.emplace(key, VerifiedPage{reference.physical, reference.logical});
-			return;
-		} catch (const d::StoragePressure &) {
-		} catch (const std::bad_alloc &) {
+	// Slots publish with a release compare-and-swap and are read with acquire loads, so a reader
+	// sees a segment's mapping, extent and zeroed bitmap; relaxed here is a data race on them.
+	const Segment &segment(const StorageIdentity &identity) const {
+		const auto mask = slots.size() - 1;
+		auto start = identity_hash(identity) & mask;
+		for (auto probe = start, n = std::size_t(0); n != slots.size(); probe = (probe + 1) & mask, ++n) {
+			const auto found = slots[probe].load(std::memory_order_acquire);
+			if (!found)
+				return publish(identity, probe);
+			if (found->identity == identity)
+				return *found;
 		}
-		if (!evict_one())
-			return;
+		throw ReadSourceFailure("local generation exceeds its pack count");
+	}
+	const Segment &publish(const StorageIdentity &identity, std::size_t probe) const {
+		d::StorageAllocator<Segment> allocator(heap);
+		auto mapping = open_mapping(identity);
+		auto mine = allocator.allocate(1);
 		try {
-			checked.emplace(key, VerifiedPage{reference.physical, reference.logical});
-		} catch (const d::StoragePressure &) {
-		} catch (const std::bad_alloc &) {
+			std::construct_at(mine, identity, std::move(mapping), heap);
+		} catch (...) {
+			allocator.deallocate(mine, 1);
+			throw;
 		}
+		window(LazyPageWindow::Publish);
+		const auto mask = slots.size() - 1;
+		for (std::size_t n = 0; n != slots.size(); probe = (probe + 1) & mask, ++n) {
+			Segment *found = nullptr;
+			if (slots[probe].compare_exchange_strong(found, mine, std::memory_order_release,
+			                                         std::memory_order_acquire)) {
+				const auto length = mine->bytes.size();
+				check_capacity(published.fetch_add(1, std::memory_order_relaxed) + 1,
+				               mapped_bytes.fetch_add(length, std::memory_order_relaxed), length);
+				return *mine;
+			}
+			if (found->identity == identity) {
+				destroy(mine);
+				return *found;
+			}
+		}
+		destroy(mine);
+		throw ReadSourceFailure("local generation exceeds its pack count");
 	}
 	std::span<const char> resolve(const p::Reference &reference) const {
-		std::lock_guard lock(mutex);
 		if (failed.load(std::memory_order_relaxed))
 			throw ReadSourceFailure("local generation failed verification");
 		try {
-			auto found = maps.find(reference.segment);
-			if (found == maps.end()) {
-				try {
-					found = maps.emplace(reference.segment, open_mapping(reference.segment)).first;
-				} catch (const d::StoragePressure &) {
-					if (!evict_one())
-						throw;
-					found = maps.emplace(reference.segment, open_mapping(reference.segment)).first;
-				}
-				mapped_bytes += found->second->bytes().size();
-			}
-			const auto &mapping = *found->second;
-			const auto extent = mapping.bytes();
-			if (reference.offset > extent.size() || reference.length > extent.size() - reference.offset)
+			const auto &mapped = segment(reference.segment);
+			const auto extent = mapped.bytes;
+			if (reference.length < p::page_header_bytes || reference.offset > extent.size() ||
+			    reference.length > extent.size() - reference.offset)
 				throw ReadSourceFailure("local page exceeds its segment");
-			const PageKey key{&mapping, reference.offset, reference.length};
 			const auto bytes = extent.subspan(reference.offset, reference.length);
-			if (auto hit = checked.find(key); hit != checked.end()) {
-				if (hit->second.physical != reference.physical || hit->second.logical != reference.logical)
-					throw ReadSourceFailure("local page reference changed");
+			const auto granule = reference.offset / granule_bytes;
+			auto &word = mapped.verified[granule / 64];
+			const auto bit = std::uint64_t(1) << (granule % 64);
+			// Release on the set pairs with acquire on the test, so a hit happens after a completed
+			// verification. The bytes are immutable while mapped, so this orders no data today.
+			if (word.load(std::memory_order_acquire) & bit)
 				return bytes;
-			}
 			const auto bounds = paged_limits(limits, p::root_bytes);
 			p::verify_page(bytes, reference, bounds);
 			const auto header = p::decode_page_header(bytes, bounds);
@@ -164,7 +189,9 @@ struct LazyPageAccess::State {
 			else if (header.kind == p::PageKind::Namespace &&
 			         read_integer(bytes.last(header.body), 0, 8) > root.cursor.revision)
 				throw ReadSourceFailure("local namespace exceeds selected revision");
-			remember(key, reference);
+			verifications.fetch_add(1, std::memory_order_relaxed);
+			window(LazyPageWindow::Mark);
+			word.fetch_or(bit, std::memory_order_release);
 			return bytes;
 		} catch (const d::StoragePressure &) {
 			throw ReadSourceFailure("local reader admission exhausted");
@@ -190,19 +217,17 @@ std::span<const char> LazyPageAccess::resolve(const p::Reference &reference) con
 std::uint32_t LazyPageAccess::maximum_overrides() const noexcept { return state_->limits.overrides; }
 bool LazyPageAccess::available() const noexcept { return !state_->failed.load(std::memory_order_relaxed); }
 std::size_t LazyPageAccess::mapped_segments() const {
-	std::lock_guard lock(state_->mutex);
-	return state_->maps.size();
+	return state_->published.load(std::memory_order_relaxed);
+}
+std::uint64_t LazyPageAccess::page_verifications() const noexcept {
+	return state_->verifications.load(std::memory_order_relaxed);
 }
 bool LazyPageAccess::retire_step() noexcept {
-	for (std::size_t i = 0; i != ValidationBudget{}.rows; ++i) {
-		if (state_->evict_one())
-			continue;
-		if (state_->maps.empty()) {
+	for (std::size_t i = 0; i != ValidationBudget{}.rows; ++i)
+		if (!state_->release_one()) {
 			state_.reset();
 			return true;
 		}
-		state_->maps.erase(state_->maps.begin());
-	}
 	return false;
 }
 } // namespace detent::local::detail

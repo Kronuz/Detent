@@ -313,6 +313,11 @@ target_include_directories(test_local_lazy_page_access PRIVATE "${PROJECT_SOURCE
 target_link_libraries(test_local_lazy_page_access PRIVATE detent::local_builder detent::local_client)
 add_test(NAME test_local_lazy_page_access COMMAND test_local_lazy_page_access)
 
+add_executable(test_local_lazy_page_bitmap test_lazy_page_bitmap.cc)
+target_include_directories(test_local_lazy_page_bitmap PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_lazy_page_bitmap PRIVATE detent::local_builder detent::local_client)
+add_test(NAME test_local_lazy_page_bitmap COMMAND test_local_lazy_page_bitmap)
+
 add_executable(test_local_trusted_paths test_trusted_paths.cc)
 target_include_directories(test_local_trusted_paths PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_trusted_paths PRIVATE detent::local_view)

@@ -180,8 +180,13 @@ int main() {
 	check(state.definition("a", "k")->default_int() == 42);
 	check(state.definition("b", "k")->default_bool() == true);
 	check(access->mapped_segments() == 3);
+	// A verified page is not hashed again, so a second digest for its offset is not compared.
+	auto forged = fixture->definitions[0];
+	forged.physical[0] ^= 1;
+	check(access->resolve(forged).data() == access->resolve(fixture->definitions[0]).data());
 	auto wrong = fixture->definitions[0];
-	wrong.physical[0] ^= 1;
+	wrong.offset += p::page_header_bytes;
+	wrong.length -= p::page_header_bytes;
 	rejected([&] { access->resolve(wrong); });
 	check(!access->available());
 	rejected([&] { state.definition("a", "k"); });
