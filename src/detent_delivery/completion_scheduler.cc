@@ -9,9 +9,9 @@ struct CompletionScheduler::Impl {
 		std::shared_ptr<kronuz::journal::IOOperation> operation;
 		bool granted = false;
 		std::chrono::steady_clock::time_point queued_at;
-		explicit Slot(asio::any_io_executor executor) : wake(executor) {}
+		explicit Slot(const asio::any_io_executor &executor) : wake(executor) {}
 	};
-	asio::any_io_executor executor;
+	task::asio_scheduler &scheduler;
 	std::shared_ptr<NativeDriver> driver;
 	std::vector<Slot, d::StorageAllocator<Slot>> slots;
 	std::vector<std::size_t, d::StorageAllocator<std::size_t>> queue;
@@ -20,16 +20,16 @@ struct CompletionScheduler::Impl {
 	bool active = false;
 	std::size_t peak_waiting = 0;
 	std::uint64_t grants = 0, maximum_wait_nanoseconds = 0;
-	Impl(asio::any_io_executor owner, std::shared_ptr<NativeDriver> completion,
+	Impl(task::asio_scheduler &owner, std::shared_ptr<NativeDriver> completion,
 		 std::shared_ptr<d::StorageLedger> account, std::size_t participants)
-		: executor(std::move(owner)), driver(std::move(completion)),
+		: scheduler(owner), driver(std::move(completion)),
 		  slots(d::StorageAllocator<Slot>(account)), queue(d::StorageAllocator<std::size_t>(account)) {
 		if (!driver || participants == 0 || participants > 256)
 			throw std::invalid_argument("invalid completion scheduler participants");
 		slots.reserve(participants);
 		queue.resize(participants);
 		for (std::size_t i = 0; i < participants; ++i)
-			slots.emplace_back(executor);
+			slots.emplace_back(scheduler.executor());
 	}
 	void grant(std::size_t index) noexcept {
 		++grants;
@@ -52,9 +52,9 @@ struct CompletionScheduler::Impl {
 		}
 	}
 };
-CompletionScheduler::CompletionScheduler(asio::any_io_executor executor, std::shared_ptr<NativeDriver> driver,
+CompletionScheduler::CompletionScheduler(task::asio_scheduler &scheduler, std::shared_ptr<NativeDriver> driver,
 										 std::shared_ptr<d::StorageLedger> account, std::size_t participants)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(executor),
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, scheduler,
 										std::move(driver), account, participants)) {}
 CompletionScheduler::~CompletionScheduler() = default;
 bool CompletionScheduler::idle() const noexcept { return !impl_->active && impl_->waiting == 0; }
@@ -77,21 +77,20 @@ CompletionPort CompletionScheduler::port(std::size_t index) {
 bool CompletionPort::uses(const std::shared_ptr<NativeDriver> &driver) const noexcept {
 	return scheduler_ && scheduler_->impl_->driver == driver;
 }
-asio::awaitable<void> CompletionPort::run_one(std::shared_ptr<kronuz::journal::IOOperation> operation) {
+task::task<void> CompletionPort::run_one(std::shared_ptr<kronuz::journal::IOOperation> operation) {
 	if (!scheduler_)
 		throw std::logic_error("unbound completion participant");
 	return CompletionScheduler::run_owned(scheduler_, index_, std::move(operation));
 }
-asio::awaitable<void>
+task::task<void>
 CompletionScheduler::run_owned(std::shared_ptr<CompletionScheduler> lifetime, std::size_t index,
 							   std::shared_ptr<kronuz::journal::IOOperation> operation) {
 	auto &state = *lifetime->impl_;
-	if (co_await asio::this_coro::executor != state.executor)
-		throw std::logic_error("completion scheduler requires its owner executor");
+	if (!state.scheduler.runs_here())
+		throw std::logic_error("completion scheduler requires its owner scheduler");
 	auto &slot = state.slots.at(index);
 	if (!operation || slot.operation || operation->in_flight())
 		throw std::logic_error("completion participant is not available");
-	co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 	slot.operation = std::move(operation);
 	slot.queued_at = std::chrono::steady_clock::now();
 	slot.wake.expires_at(std::chrono::steady_clock::time_point::max());
@@ -104,8 +103,8 @@ CompletionScheduler::run_owned(std::shared_ptr<CompletionScheduler> lifetime, st
 		state.peak_waiting = std::max(state.peak_waiting, state.waiting);
 	}
 	while (!slot.granted) {
-		asio::error_code error;
-		co_await slot.wake.async_wait(asio::redirect_error(asio::use_awaitable, error));
+		const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
+			[&](auto handler) { slot.wake.async_wait(std::move(handler)); });
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
@@ -116,7 +115,7 @@ CompletionScheduler::run_owned(std::shared_ptr<CompletionScheduler> lifetime, st
 	} release{state, index};
 	if (++state.turns == 16) {
 		state.turns = 0;
-		co_await asio::post(state.executor, asio::use_awaitable);
+		co_await task::yield();
 	}
 	// Cancellation may finish or rewrite the operation while it waits its turn.
 	co_await state.driver->run_one(slot.operation);

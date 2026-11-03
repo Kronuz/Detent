@@ -1,5 +1,6 @@
 #include "peers.hh"
 #include "consensus/transport/tls.h"
+#include "detent_transport/await_io.hh"
 #include <cassert>
 #include <filesystem>
 #include <future>
@@ -52,6 +53,7 @@ int main(int argc, char **argv) {
 	using Driver = kronuz::journal::AsioCompletionDriver<Queue>;
 	std::vector<std::shared_ptr<Queue>> queues;
 	std::vector<std::shared_ptr<Driver>> drivers;
+	task::asio_scheduler scheduler(io.get_executor());
 	std::array<bool, 3> active{};
 	std::exception_ptr storage_error;
 	const std::vector<std::string> names{"one", "two", "three"};
@@ -88,7 +90,7 @@ int main(int argc, char **argv) {
 #else
 			auto queue = std::make_shared<Queue>();
 #endif
-			drivers.push_back(std::make_shared<Driver>(io.get_executor(), queue));
+			drivers.push_back(std::make_shared<Driver>(scheduler, queue));
 			queues.push_back(std::move(queue));
 		}
 		configurations.push_back(options);
@@ -110,7 +112,7 @@ int main(int argc, char **argv) {
 		peers.push_back(runtime);
 		runtime->start();
 	}
-	auto exercise = [&]() -> asio::awaitable<void> {
+	auto exercise = [&]() -> task::task<void> {
 		const auto origin = std::chrono::steady_clock::now();
 		asio::steady_timer timer(io);
 		std::optional<unsigned> leader;
@@ -127,15 +129,15 @@ int main(int argc, char **argv) {
 					if (auto operation = nodes[i]->worker().take_io_operation()) {
 						assert(!active[i]);
 						active[i] = true;
-						asio::co_spawn(io, drivers[i]->run(operation),
-									   [&, i, owner = nodes[i], operation](std::exception_ptr error) {
-										   if (error) {
-											   storage_error = error;
-											   owner->worker().storage_operation_failed(
-												   operation, "native peer fixture IO failed");
-										   }
-										   active[i] = false;
-									   });
+						task::spawn(task::scheduler_ref::of(scheduler), drivers[i]->run(operation),
+									[&, i, owner = nodes[i], operation](std::exception_ptr error) {
+										if (error) {
+											storage_error = error;
+											owner->worker().storage_operation_failed(
+												operation, "native peer fixture IO failed");
+										}
+										active[i] = false;
+									});
 					}
 				}
 				assert(!storage_error && !nodes[i]->worker().fenced());
@@ -161,7 +163,7 @@ int main(int argc, char **argv) {
 			for (auto &node : nodes)
 				committed = committed && node->state().producer("tls-publisher") != nullptr;
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		assert(committed && leader);
 		for (auto &runtime : peers)
@@ -172,7 +174,7 @@ int main(int argc, char **argv) {
 		peers[follower]->stop();
 		while (!peers[follower]->drained()) {
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		for (unsigned sequence = 1; sequence <= 4; ++sequence) {
 			Command command;
@@ -188,7 +190,7 @@ int main(int argc, char **argv) {
 				if (!proposed)
 					proposed = nodes[*leader]->propose(sequence + 1, {command}) == SubmitResult::Accepted;
 				timer.expires_after(1ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 			assert(nodes[*leader]->state().revision() == sequence);
 		}
@@ -201,13 +203,13 @@ int main(int argc, char **argv) {
 				 ++turn) {
 				pump();
 				timer.expires_after(1ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 			assert(nodes[voter]->checkpoint());
 			for (unsigned turn = 0; turn != 5000 && nodes[voter]->checkpoint_busy(); ++turn) {
 				pump();
 				timer.expires_after(1ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 			assert(!nodes[voter]->checkpoint_busy());
 		}
@@ -223,7 +225,7 @@ int main(int argc, char **argv) {
 						  nodes[follower]->state().revision() == 4 &&
 						  nodes[follower]->worker().base_index() > 0;
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		assert(reconnected);
 		for (auto &runtime : peers)
@@ -248,12 +250,14 @@ int main(int argc, char **argv) {
 				co_return;
 			}
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		assert(false && "peer shutdown did not reap original operations");
 	};
-	auto completion = asio::co_spawn(io, exercise(), asio::use_future);
+	std::exception_ptr failure;
+	task::spawn(task::scheduler_ref::of(scheduler), exercise(), [&](std::exception_ptr error) { failure = error; });
 	io.run();
-	completion.get();
+	if (failure)
+		std::rethrow_exception(failure);
 	std::cout << "three TLS voters: authenticated lanes, durable replication and reaped shutdown passed\n";
 }

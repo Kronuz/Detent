@@ -13,7 +13,7 @@ struct CompletionSchedulerStatus {
 class CompletionScheduler;
 class CompletionPort {
   public:
-	asio::awaitable<void> run_one(std::shared_ptr<kronuz::journal::IOOperation>);
+	task::task<void> run_one(std::shared_ptr<kronuz::journal::IOOperation>);
 	bool uses(const std::shared_ptr<NativeDriver> &) const noexcept;
 
   private:
@@ -24,7 +24,7 @@ class CompletionPort {
 // Fixed startup participants share one native original at a time on one owner.
 class CompletionScheduler : public std::enable_shared_from_this<CompletionScheduler> {
   public:
-	CompletionScheduler(asio::any_io_executor, std::shared_ptr<NativeDriver>,
+	CompletionScheduler(task::asio_scheduler &, std::shared_ptr<NativeDriver>,
 						std::shared_ptr<distribution::StorageLedger>, std::size_t participants);
 	~CompletionScheduler();
 	CompletionPort port(std::size_t);
@@ -33,7 +33,7 @@ class CompletionScheduler : public std::enable_shared_from_this<CompletionSchedu
 
   private:
 	friend class CompletionPort;
-	static asio::awaitable<void> run_owned(std::shared_ptr<CompletionScheduler>, std::size_t,
+	static task::task<void> run_owned(std::shared_ptr<CompletionScheduler>, std::size_t,
 										   std::shared_ptr<kronuz::journal::IOOperation>);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;

@@ -1057,6 +1057,7 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 
 struct Service::Runtime {
 	asio::io_context io{1};
+	task::asio_scheduler scheduler{io.get_executor()};
 	bool active = false;
 	std::exception_ptr failure;
 	kronuz::metrics::DurationHistogram<> owner_turn, owner_cpu, wake_lateness, job_settlement,
@@ -1083,7 +1084,7 @@ struct Service::Runtime {
 #endif
 		driver =
 			std::make_shared<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>>(
-				io.get_executor(), queue, true);
+				scheduler, queue, true);
 	}
 
 #else
@@ -1108,20 +1109,20 @@ struct Service::Runtime {
 			storage_flight.emplace(Flight{operation, Clock::now()});
 			active = true;
 			try {
-				asio::co_spawn(io, driver->run(operation),
-							   [this, owner, operation](std::exception_ptr error) {
-								   if (error) {
-									   // A dead driver cannot gracefully reap an original
-									   // still owned by its backend. Follow its fail-stop
-									   // policy rather than refunding or waiting forever.
-									   if (operation->in_flight())
-										   std::terminate();
-									   failure = error;
-									   owner->worker().storage_operation_failed(
-										   operation, "authority completion driver failed");
-								   }
-								   active = false;
-							   });
+				task::spawn(task::scheduler_ref::of(scheduler), driver->run(operation),
+							[this, owner, operation](std::exception_ptr error) {
+								if (error) {
+									// A dead driver cannot gracefully reap an original
+									// still owned by its backend. Follow its fail-stop
+									// policy rather than refunding or waiting forever.
+									if (operation->in_flight())
+										std::terminate();
+									failure = error;
+									owner->worker().storage_operation_failed(
+										operation, "authority completion driver failed");
+								}
+								active = false;
+							});
 			} catch (...) {
 				active = false;
 				if (operation->in_flight())

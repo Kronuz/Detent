@@ -1,5 +1,6 @@
 #include "detent_delivery/completion_scheduler.hh"
 #include "detent_distribution/memory_resource.hh"
+#include "detent_transport/await_io.hh"
 #include <atomic>
 #include <iostream>
 #include <thread>
@@ -57,11 +58,12 @@ int main() {
 	try {
 		auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
 		asio::io_context owner;
+		task::asio_scheduler loop(owner.get_executor());
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
-		auto driver = std::make_shared<t::NativeDriver>(owner.get_executor(), queue);
+		auto driver = std::make_shared<t::NativeDriver>(loop, queue);
 		auto scheduler = std::allocate_shared<t::CompletionScheduler>(
-			d::StorageAllocator<t::CompletionScheduler>(account), owner.get_executor(), driver, account, 3);
+			d::StorageAllocator<t::CompletionScheduler>(account), loop, driver, account, 3);
 		FakeIO io;
 		auto first = std::make_shared<Operation>(io, "", true);
 		auto second = std::make_shared<Operation>(io, "stale");
@@ -74,17 +76,17 @@ int main() {
 			++completed;
 		};
 		auto repeat = [&](std::size_t index, std::shared_ptr<Operation> operation,
-						  std::string_view next) -> asio::awaitable<void> {
+						  std::string_view next) -> task::task<void> {
 			co_await scheduler->port(index).run_one(operation);
 			operation->finished = false;
 			operation->command.kind = j::PrimitiveKind::Remove;
 			operation->command.source = next;
 			co_await scheduler->port(index).run_one(operation);
 		};
-		asio::co_spawn(owner, repeat(0, first, "first-again"), completion);
-		asio::co_spawn(owner, repeat(1, second, "second-again"), completion);
-		asio::co_spawn(owner, scheduler->port(2).run_one(third), completion);
-		asio::co_spawn(owner, scheduler->port(1).run_one(second), [&](std::exception_ptr error) {
+		task::spawn(task::scheduler_ref::of(loop), repeat(0, first, "first-again"), completion);
+		task::spawn(task::scheduler_ref::of(loop), repeat(1, second, "second-again"), completion);
+		task::spawn(task::scheduler_ref::of(loop), scheduler->port(2).run_one(third), completion);
+		task::spawn(task::scheduler_ref::of(loop), scheduler->port(1).run_one(second), [&](std::exception_ptr error) {
 			try {
 				if (error)
 					std::rethrow_exception(error);
@@ -93,10 +95,10 @@ int main() {
 			}
 		});
 		asio::steady_timer timer(owner);
-		auto release_original = [&]() -> asio::awaitable<void> {
+		auto release_original = [&]() -> task::task<void> {
 			while (!io.entered.load()) {
 				timer.expires_after(std::chrono::milliseconds(1));
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 			check(completed == 0 && !scheduler->idle() && duplicate);
 			responsive = true;
@@ -104,7 +106,7 @@ int main() {
 			third->finished = true;
 			io.release.store(true);
 		};
-		asio::co_spawn(owner, release_original(), [](std::exception_ptr error) {
+		task::spawn(task::scheduler_ref::of(loop), release_original(), [](std::exception_ptr error) {
 			if (error)
 				std::rethrow_exception(error);
 		});
@@ -119,12 +121,12 @@ int main() {
 		scheduler.reset();
 		owner.restart();
 		scheduler = std::allocate_shared<t::CompletionScheduler>(
-			d::StorageAllocator<t::CompletionScheduler>(account), owner.get_executor(), driver, account, 256);
+			d::StorageAllocator<t::CompletionScheduler>(account), loop, driver, account, 256);
 		std::weak_ptr<t::CompletionScheduler> weak = scheduler;
 		for (std::size_t index = 0; index < 256; ++index) {
 			auto done = std::make_shared<Operation>(io, "never-submitted");
 			done->finished = true;
-			asio::co_spawn(owner, scheduler->port(index).run_one(done), completion);
+			task::spawn(task::scheduler_ref::of(loop), scheduler->port(index).run_one(done), completion);
 		}
 		scheduler.reset();
 		check(!weak.expired());
@@ -132,7 +134,7 @@ int main() {
 		check(completed == 259 && weak.expired());
 		bool refused = false;
 		try {
-			t::CompletionScheduler invalid(owner.get_executor(), driver, account, 257);
+			t::CompletionScheduler invalid(loop, driver, account, 257);
 		} catch (const std::invalid_argument &) {
 			refused = true;
 		}
