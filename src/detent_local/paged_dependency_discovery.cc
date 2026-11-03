@@ -1,3 +1,4 @@
+#include "explore_switch.hh"
 #include "paged_dependency_discovery.hh"
 #include "paged_dependency_walk.hh"
 #include <algorithm>
@@ -118,7 +119,8 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				auto bytes = s.pending->bytes();
 				auto n = std::min(budget.bytes, bytes.size() - s.offset);
 				if (n) {
-					s.hash.add(bytes.data() + s.offset, n);
+					if (!explore_skip_allhash)
+						s.hash.add(bytes.data() + s.offset, n);
 					s.hashed += n;
 					s.offset += n;
 					budget.bytes -= n;
@@ -128,7 +130,7 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				--budget.rows;
 				unsigned char digest[32];
 				s.hash.getHash(digest);
-				require(std::memcmp(digest, s.pending->ownership().checksum.data(), 32) == 0);
+				require(explore_skip_allhash || std::memcmp(digest, s.pending->ownership().checksum.data(), 32) == 0);
 				s.position = s.find(s.pending->ownership().segment) - s.inputs->mappings.begin();
 				s.moving = s.inputs->mappings.size();
 				s.inputs->mappings.emplace_back();

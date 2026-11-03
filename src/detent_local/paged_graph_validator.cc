@@ -1,3 +1,4 @@
+#include "explore_switch.hh"
 #include "paged_graph_validator.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
@@ -199,6 +200,8 @@ void GraphValidator::step(ValidationBudget &budget) {
 				continue;
 			}
 			if (state.phase == Impl::Phase::Segments) {
+				if (explore_skip_rehash)
+					state.index = state.segments.size();
 				if (state.index == state.segments.size()) {
 					state.phase = Impl::Phase::Walk;
 					continue;
@@ -263,7 +266,8 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!budget.rows)
 					return;
 				--budget.rows;
-				state.page.emplace(state.account, state.owner, frame.bytes, frame.reference, state.limits);
+				state.page.emplace(state.account, state.owner, frame.bytes, frame.reference, state.limits,
+								   !explore_skip_rehash);
 				frame.phase = Impl::NodePhase::Check;
 				break;
 			case Impl::NodePhase::Check:

@@ -8,7 +8,7 @@ namespace detent::local::detail {
 class PageValidator {
   public:
 	PageValidator(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> owner,
-				  std::span<const char> bytes, paged::Reference, paged::Limits = {});
+				  std::span<const char> bytes, paged::Reference, paged::Limits = {}, bool digests = true);
 	~PageValidator();
 	PageValidator(PageValidator &&) noexcept;
 	PageValidator(const PageValidator &) = delete;

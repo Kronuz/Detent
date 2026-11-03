@@ -1,3 +1,4 @@
+#include "explore_switch.hh"
 #include "detent_local/disk_store.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/collector.hh"
@@ -129,8 +130,10 @@ class StartupOperation final : public c::Operation {
 					} catch (...) {
 						remember(std::current_exception());
 					}
-					prepare(data_->failure ? Phase::Close : Phase::Sync,
-							data_->failure ? c::Kind::CloseFile : c::Kind::Sync);
+					if (data_->failure || detail::explore_skip_startup_sync)
+						prepare(Phase::Close, c::Kind::CloseFile);
+					else
+						prepare(Phase::Sync, c::Kind::Sync);
 				} else
 					prepare_reader();
 			} else {
@@ -167,6 +170,8 @@ class StartupOperation final : public c::Operation {
 						throw std::runtime_error("selected file changed during validation");
 					if (phase == Phase::ObservedHeld)
 						prepare(Phase::ObservedNamed, c::Kind::InspectEntry);
+					else if (detail::explore_skip_startup_sync)
+						prepare(Phase::Close, c::Kind::CloseFile);
 					else
 						prepare(Phase::Sync, c::Kind::Sync);
 				} else if (phase == Phase::Sync) {

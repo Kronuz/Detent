@@ -1,3 +1,4 @@
+#include "explore_switch.hh"
 #include "paged_dependency_walk.hh"
 #include "paged_navigation.hh"
 #include <algorithm>
@@ -103,7 +104,7 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 							input->ownership.length == input->bytes.size() &&
 							input->bytes.size() <= p::segment_bytes);
 					frame.bytes = checked_page_bytes(*input, frame.reference);
-					s.page.emplace(s.account, s.source, frame.bytes, frame.reference, s.limits);
+					s.page.emplace(s.account, s.source, frame.bytes, frame.reference, s.limits, !explore_skip_allhash);
 					s.waiting = false;
 				}
 				s.page->step(budget);
