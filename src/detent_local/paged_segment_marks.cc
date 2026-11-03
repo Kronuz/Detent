@@ -1,4 +1,5 @@
 #include "paged_segment_marks.hh"
+#include "hashes.hh"
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
@@ -35,12 +36,7 @@ bool PagedSegmentMarks::admit(ValidationBudget &budget) {
 	return true;
 }
 std::size_t PagedSegmentMarks::hash(const StorageIdentity &identity) noexcept {
-	std::uint64_t value = 14695981039346656037ull;
-	for (unsigned char byte : identity) {
-		value ^= byte;
-		value *= 1099511628211ull;
-	}
-	return static_cast<std::size_t>(value);
+	return static_cast<std::size_t>(fnv1ah64::hash(identity.data(), identity.size()));
 }
 void PagedSegmentMarks::begin(distribution::RetirementHandle<PagedDependencyCertificate> certificate) {
 	if (sealed_ || failed_ || busy() || !certificate)
