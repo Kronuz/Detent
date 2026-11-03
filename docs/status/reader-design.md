@@ -2,26 +2,30 @@
 
 # reader-design
 
-- Design: docs/design/reader.md on `design/reader`; reviews: none yet.
-- Branch / worktree: `design/reader` at `~/code/Kronuz/Detent-wt/reader-design`; base `Detent:d4abd4a`.
-- State: designing (ready for preliminary review)
+- Design: docs/design/reader.md; reviews: [preliminary](../reviews/reader-design-preliminary.md), APPROVE WITH CONDITIONS.
+- Branch / worktree: `design/reader-rev` at `~/code/Kronuz/Detent-wt/reader-rev`, from `Detent:55255af` (the draft on `design/reader` landed on main).
+- State: designing (preliminary review folded in; ready for re-check of L1-L4)
 - Done criteria (set by the lead; contributors tick, never edit):
   - none set yet
-- Done: the full draft of docs/design/reader.md (D1-D9, T1-T6, alternatives, limits, Q1-Q5, S1-S9), rulings R1-R4 kept verbatim (`Detent:a037429`).
-- Doing: nothing; stopped at preliminary review.
+- Done:
+  - The full draft (D1-D9, T1-T6, alternatives, limits, Q1-Q5, S1-S9), rulings R1-R4 kept verbatim (`Detent:a037429`).
+  - Revision folding in the preliminary review: L1 (RD-1) D5 seq_cst publisher and one freer; L2 (RD-3) D10 `pthread_atfork`; L3 (RD-4) D4 rules 1-5 with no older-agent case; L4 (RD-6) lazy attach and directory trust once per store; RD-2, RD-5, RD-7 to RD-11, C1-C4; Q6 added from RD-8. Mapping in the design's "Review findings" table. R1-R4 unchanged.
+- Doing: nothing; stopped for the re-check.
 - Next:
-  1. Architect preliminary review of docs/design/reader.md; fold findings in by ID.
-  2. Owner answers to Q1-Q5.
-  3. After approval, S1-S4 can start in parallel (no open question blocks them).
+  1. Architect re-check of L1-L4 and C1-C4.
+  2. Namespace delivery agrees D4's `change` shape (per-namespace sequences, slots, growth) into its D8 (RD-5, C4).
+  3. Owner answers Q1-Q6.
+  4. S1-S4 may start now (review verdict); S5 and S6 after the re-check.
 - Blocked on:
-  - S5 (change word) on Q4, owner; its file belongs to namespace delivery's store format.
+  - S5 (`change` file) on Q4, owner, and on RD-5's agreement with namespace delivery, which owns the file.
+  - S6's open behavior on an empty store on Q6, owner (RD-8).
   - S7 (CLI) on Q5, owner (reader capacity settings).
   - S8 and S9 (Python, Rust) on Q2, owner (wrapper behavior on wrong type and invalid name).
-  - D2's assumptions A1-A4 wait on the namespace-delivery design, which is a brief.
-- Findings folded in: none.
+- Findings folded in: RD-1 to RD-11; L1-L4; C1-C4 (C4's RD-5 still needs namespace delivery's agreement).
 - Design vs code: not applicable (nothing built).
-- Last verified: every file:line in the design re-read at `Detent:d4abd4a` on 2026-11-03; nothing built, run or measured.
+- Last verified: the review's new citations re-read at `Detent:d4abd4a` on 2026-11-03 (`client.hh:228`, `client.cc:28-34,166,185,223,256,273`, `client_source.cc:82,137-139`, `daemon.cc:39,63`, `lazy_page_access.cc:100,154-167`, `paged_layout.hh:7-8`, `prepared_reader.cc:51`); measured numbers are the review's probes, none mine; nothing built, run or measured.
 
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, namespace-delivery brief, legacy inventory (`explore/legacy-inventory` at `Detent:5abdf13`), the reader code, spec, bindings and the first-read evidence. Drafted the design; state set to ready for preliminary review.
 - 2026-11-03: Draft committed and pushed as `Detent:a037429` on `design/reader`.
+- 2026-11-03: Preliminary review (APPROVE WITH CONDITIONS) on main at `Detent:55255af`. Worktree `reader-rev` on `design/reader-rev` from it. Read the review, its probe results, namespace-delivery D8 and its review (lead's call: one store directory). Folded in L1-L4, C1-C4 and every RD finding; the review's Q1-Q5 positions change no owner ruling and are recorded with each question; RD-8's open-on-empty-store question added as Q6.
