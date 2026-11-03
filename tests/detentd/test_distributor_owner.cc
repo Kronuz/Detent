@@ -5,8 +5,6 @@
 //       reply within the grace instead of the 10 s backstop
 //   T13 after D15's phases, forced with a grace of 0 while a clustered write waits on the owner, no task
 //       frame is left
-#define TASK_COUNT_FRAMES 1
-
 #include "detentd.hh"
 #include "detent_http/http_client.hh"
 
@@ -180,7 +178,9 @@ void test_clustered_writer_without_quorum() {
 }
 
 void test_teardown_leaves_no_frames() {
+#ifdef TASK_COUNT_FRAMES // Debug builds define it for every target, as the library's inline counters need
 	const auto frames = task::detail::live_frames();
+#endif
 	{
 		const auto port = temp_port();
 		auto options = cluster_options(port, static_cast<unsigned short>(port + 1));
@@ -206,8 +206,10 @@ void test_teardown_leaves_no_frames() {
 		(void)waiting.get();
 		std::filesystem::remove(options.persist_path);
 	}
+#ifdef TASK_COUNT_FRAMES
 	assert(task::detail::live_frames() == frames);
 	assert(task::detail::orphaned_waiters() == 0);
+#endif
 	std::puts("T13: no task frame survives D15's phases with a write suspended on the owner OK");
 }
 } // namespace
