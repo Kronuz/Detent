@@ -812,6 +812,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 		}
 		while (!closing) {
 			candidate_cancellation = cancellation;
+			network_cancel = task::cancel_source{};
 			publication_started = false;
 			paged_candidate.reset();
 			publication_retry = {};
