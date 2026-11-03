@@ -568,8 +568,11 @@ int main() {
 				assert(reader.writer.release(*reply));
 				wait_released(reader.writer);
 			} else {
-				assert(reader.writer.code == 503 && reader.writer.body.find("outcome_unknown") != std::string::npos);
-				++canceled;
+				// Answered buffered because the wait ended on the stop: a reply that was ready, or the
+				// outcome contract's 503.
+				assert(reader.writer.code == 200 ||
+					   (reader.writer.code == 503 && reader.writer.body.find("outcome_unknown") != std::string::npos));
+				canceled += reader.writer.code == 503;
 			}
 		}
 		owner.reset();
