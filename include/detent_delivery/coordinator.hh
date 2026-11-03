@@ -78,7 +78,7 @@ class Coordinator : public std::enable_shared_from_this<Coordinator> {
 	// Startup result attachment, exactly once before run(). This lets hosts
 	// admit coordinator controls before make_disk_store performs startup IO.
 	void attach_store(std::shared_ptr<local::DiskStore>);
-	asio::awaitable<void> run();
+	task::task<void> run();
 	void cancel_update() noexcept;
 	void close() noexcept;
 	bool drained() const noexcept;
@@ -86,7 +86,7 @@ class Coordinator : public std::enable_shared_from_this<Coordinator> {
 
   private:
 	friend struct detail::CoordinatorAccess;
-	static asio::awaitable<void> run_owned(std::shared_ptr<Coordinator>);
+	static task::task<void> run_owned(std::shared_ptr<Coordinator>);
 	struct Impl;
 	distribution::StorageOwner<Impl> impl_;
 };

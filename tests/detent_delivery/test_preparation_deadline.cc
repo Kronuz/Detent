@@ -1,8 +1,8 @@
 #include "prepared_reader_fixture.hh"
 #include "managed_host_internal.hh"
+#include "task_support.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <future>
 #include <string_view>
 #include <utility>
@@ -19,12 +19,12 @@ struct Gate {
 	void release() { if (!std::exchange(released, true)) promise.set_value(); }
 	~Gate() { release(); }
 };
-asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Gate &gate) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator, Gate &gate) {
+	asio::steady_timer timer(scheduler.executor());
 	const auto admission_deadline = std::chrono::steady_clock::now() + 5s;
 	while (!coordinator->status().worker_pending && std::chrono::steady_clock::now() < admission_deadline) {
 		timer.expires_after(1ms);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 	if (!coordinator->status().worker_pending) {
 		gate.release();
@@ -33,26 +33,24 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Gate 
 	}
 	bool announced = false, expired = false;
 	const auto start = std::chrono::steady_clock::now();
-	auto release = [&]() -> asio::awaitable<void> {
+	auto release = [&]() -> task::task<void> {
 		timer.expires_after(40ms);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 		gate.release();
 	};
-	auto monitor = [&]() -> asio::awaitable<void> {
+	auto monitor = [&]() -> task::task<void> {
 		try {
-			co_await detent_agent::detail::monitor(coordinator, [&] { announced = true; }, true, 5ms);
+			co_await detent_agent::detail::monitor(scheduler, coordinator, [&] { announced = true; }, true, 5ms);
 		} catch (const std::runtime_error &error) {
 			expired = std::string_view(error.what()).find("preparation timed out") != std::string_view::npos;
 		}
 	};
-	using namespace asio::experimental::awaitable_operators;
-	co_await (monitor() && release());
+	co_await task::when_all(monitor(), release());
 	check(expired && !announced && coordinator->drained() && !coordinator->status().worker_pending);
 	check(std::chrono::steady_clock::now() - start >= 40ms);
 }
-asio::awaitable<void> run(std::shared_ptr<t::Coordinator> coordinator, Gate &gate) {
-	using namespace asio::experimental::awaitable_operators;
-	co_await (coordinator->run() && observe(coordinator, gate));
+task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator, Gate &gate) {
+	co_await task::when_all(coordinator->run(), observe(scheduler, coordinator, gate));
 }
 int main() {
 	auto fixture = std::make_shared<prepared_test::Fixture>();
@@ -62,14 +60,16 @@ int main() {
 	auto domain = runtime.domain(account, 512);
 	{
 		asio::io_context io;
+		task::asio_scheduler scheduler(io.get_executor());
 		asio::thread_pool worker(1);
 		Gate gate;
 		const auto release = gate.promise.get_future().share();
 		asio::post(worker, [release] { release.wait(); });
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
-		auto driver = std::make_shared<t::NativeDriver>(io.get_executor(), queue);
+		auto driver = std::make_shared<t::NativeDriver>(scheduler, queue);
 		t::CoordinatorOptions options;
+		options.source.scheduler = &scheduler;
 		options.directory = fixture->path;
 		options.source.configured = fixture->root.cursor;
 		options.source.endpoint = {asio::ip::address_v4::loopback(), 1};
@@ -83,7 +83,7 @@ int main() {
 		disk.recovery_limits = options.view_limits;
 		auto store = l::make_disk_store(domain, fixture->path, account, disk);
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-		auto done = asio::co_spawn(io, run(coordinator, gate), asio::use_future);
+		auto done = spawn_future(scheduler, run(scheduler, coordinator, gate));
 		io.run();
 		done.get();
 		worker.join();

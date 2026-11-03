@@ -1,4 +1,5 @@
 #include "coordinator_internal.hh"
+#include "task_support.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
 #include <csignal>
@@ -36,10 +37,10 @@ struct Gate {
 	}
 	~Gate() { release(); }
 };
-asio::awaitable<void> observe(std::weak_ptr<t::Coordinator> weak, Gate &gate) {
+task::task<void> observe(task::asio_scheduler &scheduler, std::weak_ptr<t::Coordinator> weak, Gate &gate) {
 	std::exception_ptr failure;
 	try {
-		asio::steady_timer timer(co_await asio::this_coro::executor);
+		asio::steady_timer timer(scheduler.executor());
 		const auto deadline = std::chrono::steady_clock::now() + 5s;
 		for (;;) {
 			auto coordinator = weak.lock();
@@ -48,7 +49,7 @@ asio::awaitable<void> observe(std::weak_ptr<t::Coordinator> weak, Gate &gate) {
 				coordinator->close();
 				coordinator.reset();
 				timer.expires_after(10ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 				auto retained = weak.lock();
 				check(retained && retained->status().worker_pending && !retained->drained());
 				retained.reset();
@@ -58,7 +59,7 @@ asio::awaitable<void> observe(std::weak_ptr<t::Coordinator> weak, Gate &gate) {
 			check(std::chrono::steady_clock::now() < deadline);
 			coordinator.reset();
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 	} catch (...) {
 		failure = std::current_exception();
@@ -76,6 +77,7 @@ void exercise(bool injected, bool settled = false) {
 	d::RetirementRuntime runtime(account, 1);
 	auto domain = runtime.domain(account, 64);
 	asio::io_context io(1);
+	task::asio_scheduler scheduler(io.get_executor());
 	asio::thread_pool worker(1);
 	Gate gate(worker);
 	l::DiskStoreOptions disk;
@@ -85,8 +87,9 @@ void exercise(bool injected, bool settled = false) {
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
-														io.get_executor(), queue);
+														scheduler, queue);
 	t::CoordinatorOptions options;
+	options.source.scheduler = &scheduler;
 	options.directory = root;
 	options.source.endpoint = {asio::ip::address_v4::loopback(), 8317};
 	options.source.hostname = "localhost";
@@ -106,10 +109,10 @@ void exercise(bool injected, bool settled = false) {
 		t::detail::CoordinatorAccess::fail_next_worker_wait(*coordinator);
 	std::weak_ptr<t::Coordinator> weak = coordinator;
 	auto original = coordinator->run();
-	auto done = asio::co_spawn(io, std::move(original), asio::use_future);
+	auto done = spawn_future(scheduler, std::move(original));
 	std::future<void> observed;
 	if (!injected && !settled)
-		observed = asio::co_spawn(io, observe(weak, gate), asio::use_future);
+		observed = spawn_future(scheduler, observe(scheduler, weak, gate));
 	auto retained = settled ? coordinator : nullptr;
 	coordinator.reset();
 	io.run();

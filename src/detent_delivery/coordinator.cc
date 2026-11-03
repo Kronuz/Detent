@@ -14,7 +14,6 @@
 #include "state_equivalence.hh"
 #include <algorithm>
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <openssl/rand.h>
 #include <unistd.h>
 
@@ -96,7 +95,7 @@ struct Coordinator::Impl {
 	bool compaction_admission_refused = false, fail_compaction_admission = false;
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
-	asio::cancellation_signal network_cancel;
+	task::cancel_source network_cancel;
 	std::optional<asio::steady_timer> candidate_wake, disk_wake;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
 	bool closing = false, running = false, settled = false, publication_started = false;
@@ -135,21 +134,18 @@ struct Coordinator::Impl {
 		diagnostic.phase = CoordinatorPhase::Fenced;
 		close();
 	}
-	asio::awaitable<void> yield() {
-		co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
-	}
 	std::chrono::milliseconds next_reconnect_delay(ReconnectBackoff &backoff) noexcept {
 		reconnect_observation.delay = backoff.next();
 		++reconnect_observation.count;
 		return reconnect_observation.delay;
 	}
-	asio::awaitable<void> pause(std::chrono::milliseconds duration) {
+	task::task<void> pause(std::chrono::milliseconds duration) {
 		co_await wait_candidate(std::chrono::steady_clock::now() + duration);
 	}
-	asio::awaitable<void> wait_candidate(std::chrono::steady_clock::time_point expires) {
+	task::task<void> wait_candidate(std::chrono::steady_clock::time_point expires) {
 		candidate_wake->expires_at(expires);
-		asio::error_code error;
-		co_await candidate_wake->async_wait(asio::redirect_error(asio::use_awaitable, error));
+		const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
+			[&](auto handler) { candidate_wake->async_wait(std::move(handler)); });
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
@@ -161,18 +157,18 @@ struct Coordinator::Impl {
 		if (disk_wake)
 			disk_wake->cancel();
 	}
-	asio::awaitable<void> wait_disk() {
+	task::task<void> wait_disk() {
 		auto expires = std::chrono::steady_clock::time_point::max();
 		if (diagnostic.phase == CoordinatorPhase::WaitingPublication && !cancelled() &&
 			publication_retry > std::chrono::steady_clock::now())
 			expires = publication_retry;
 		disk_wake->expires_at(expires);
-		asio::error_code error;
-		co_await disk_wake->async_wait(asio::redirect_error(asio::use_awaitable, error));
+		const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
+			[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
 		if (error && error != asio::error::operation_aborted)
 			throw asio::system_error(error);
 	}
-	asio::awaitable<d::RetirementHandle<RecoveryResult>> recover(bool selected) {
+	task::task<d::RetirementHandle<RecoveryResult>> recover(bool selected) {
 		auto result = base;
 		result->failure = {};
 		if (selected)
@@ -250,7 +246,7 @@ struct Coordinator::Impl {
 		}
 		co_return result;
 	}
-	asio::awaitable<l::detail::StateEquivalenceProof> compare_candidate() {
+	task::task<l::detail::StateEquivalenceProof> compare_candidate() {
 		if (!base->generation || !builder || !builder->done())
 			throw std::logic_error("same-cursor comparison lacks completed input");
 		auto input = l::detail::CandidateFlatInput::capture(*builder);
@@ -309,7 +305,7 @@ struct Coordinator::Impl {
 		co_return std::move(*result->proof);
 	}
 
-	asio::awaitable<void> build_paged(const ReceivedUpdate *update, bool compact = false,
+	task::task<void> build_paged(const ReceivedUpdate *update, bool compact = false,
 									  bool force = false) {
 		auto result = domain.make<PagedCandidateResult>();
 		result->compaction = compact;
@@ -497,7 +493,7 @@ struct Coordinator::Impl {
 				options.publication_sink->selected(*base->generation);
 		}
 	}
-	asio::awaitable<bool> publish_candidate() {
+	task::task<bool> publish_candidate() {
 		compaction_admission_refused = false;
 		diagnostic.phase = CoordinatorPhase::WaitingPublication;
 		notify_disk();
@@ -515,7 +511,7 @@ struct Coordinator::Impl {
 			std::rethrow_exception(store->publication_error());
 		co_return false;
 	}
-	asio::awaitable<void> recover_maintenance(bool changed) {
+	task::task<void> recover_maintenance(bool changed) {
 		try {
 			if (injected_maintenance_failure) {
 				injected_worker_failure = std::exchange(injected_maintenance_failure, {});
@@ -528,7 +524,7 @@ struct Coordinator::Impl {
 			throw MaintenanceFailure{std::current_exception()};
 		}
 	}
-	asio::awaitable<void> migrate_flat_head() {
+	task::task<void> migrate_flat_head() {
 		if (!paged_writer || !base->generation ||
 			base->prepared ||
 			!base->generation->descriptor().cursor.same_identity(options.source.configured))
@@ -547,7 +543,7 @@ struct Coordinator::Impl {
 		publication_retry = {};
 	}
 
-	asio::awaitable<void> compact_head() {
+	task::task<void> compact_head() {
 		const auto now = std::chrono::steady_clock::now();
 		if (!paged_writer ||
 			(!compaction_requested && (options.compaction_interval == std::chrono::milliseconds::zero() ||
@@ -628,14 +624,14 @@ struct Coordinator::Impl {
 		diagnostic.phase = CoordinatorPhase::Publishing;
 		notify_candidate();
 	}
-	asio::awaitable<void> disk_loop() {
+	task::task<void> disk_loop() {
 		try {
 			co_await disk_loop_body();
 		} catch (...) {
 			std::terminate();
 		}
 	}
-	asio::awaitable<void> disk_loop_body() {
+	task::task<void> disk_loop_body() {
 		unsigned burst = 0;
 		while (!store->drained()) {
 			// Publication gets the settled boundary before advance resumes GC.
@@ -682,10 +678,10 @@ struct Coordinator::Impl {
 				notify_candidate();
 				if (++burst == 16) {
 					burst = 0;
-					co_await yield();
+					co_await task::yield();
 				}
 			} else if (store->needs_work()) {
-				co_await yield();
+				co_await task::yield();
 			} else {
 				burst = 0;
 				if (store->status() == l::StoreStatus::Fenced)
@@ -701,7 +697,7 @@ struct Coordinator::Impl {
 		if (options.publication_sink)
 			options.publication_sink->fence();
 		++cancellation;
-		network_cancel.emit(asio::cancellation_type::terminal);
+		network_cancel.request();
 		notify_candidate();
 		notify_disk();
 		if (store)
@@ -723,7 +719,7 @@ struct Coordinator::Impl {
 		diagnostic.acknowledged = cursor;
 		diagnostic.publication_acknowledged_at = std::chrono::steady_clock::now();
 	}
-	asio::awaitable<void> discard(std::optional<ReceivedUpdate> &update) {
+	task::task<void> discard(std::optional<ReceivedUpdate> &update) {
 		diagnostic.phase = CoordinatorPhase::Discarding;
 		diagnostic.discard_started_at = std::chrono::steady_clock::now();
 		diagnostic.cleanup = {};
@@ -736,7 +732,7 @@ struct Coordinator::Impl {
 				record_cleanup(0, started, before - budget.bytes, done);
 				if (done)
 					break;
-				co_await yield();
+				co_await task::yield();
 			}
 		}
 		if (builder) {
@@ -748,7 +744,7 @@ struct Coordinator::Impl {
 				record_cleanup(1, started, before - budget.bytes, done);
 				if (done)
 					break;
-				co_await yield();
+				co_await task::yield();
 			}
 			builder.reset();
 		}
@@ -762,17 +758,16 @@ struct Coordinator::Impl {
 				record_cleanup(2, started, before - budget.bytes, done);
 				if (done)
 					break;
-				co_await yield();
+				co_await task::yield();
 			}
 			update.reset();
 		}
 	}
-	asio::awaitable<void> candidate_loop();
+	task::task<void> candidate_loop();
 };
 
 namespace {
-asio::awaitable<void> release_session(ClientOptions options, SessionHandle &session, bool strict) {
-	co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
+task::task<void> release_session(ClientOptions options, SessionHandle &session, bool strict) {
 	options.timeout = std::min(options.timeout, std::chrono::milliseconds(1000));
 	try {
 		co_await close_session(std::move(options), session);
@@ -788,7 +783,7 @@ asio::awaitable<void> release_session(ClientOptions options, SessionHandle &sess
 	}
 }
 } // namespace
-asio::awaitable<void> Coordinator::Impl::candidate_loop() {
+task::task<void> Coordinator::Impl::candidate_loop() {
 	SessionHandle session;
 	auto opening_endpoint = options.source.endpoint;
 	auto session_source = [&] {
@@ -803,8 +798,8 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 	std::exception_ptr fatal;
 	try {
 		if (!options.source.connections)
-			options.source.connections = make_connection_cache(co_await asio::this_coro::executor, 1,
-															   options.source.limits.storage_account);
+			options.source.connections =
+				make_connection_cache(options.source.scheduler->executor(), 1, options.source.limits.storage_account);
 		while (!closing && store->status() == l::StoreStatus::Starting)
 			co_await wait_candidate(std::chrono::steady_clock::time_point::max());
 		if (!closing) {
@@ -845,12 +840,9 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 						: std::nullopt;
 				diagnostic.phase = CoordinatorPhase::Receiving;
 				if (options.delivery_mode == DeliveryMode::Subscription) {
-					const auto executor = co_await asio::this_coro::executor;
 					if (!session.valid()) {
 						network_attempt = true;
-						session = co_await asio::co_spawn(
-							executor, open_session(request, force_snapshot),
-							asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
+						session = co_await open_session(request, force_snapshot, network_cancel.token());
 						opening_endpoint = request.endpoint;
 						const auto opened = std::chrono::steady_clock::now();
 						sources.opened(opened);
@@ -870,9 +862,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 									 std::min({session.maximum_wait(), std::chrono::milliseconds(30000),
 											   request.timeout / 2}));
 					network_attempt = true;
-					auto event = co_await asio::co_spawn(
-						executor, next_session(request, session, feedback, wait),
-						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable));
+					auto event = co_await next_session(request, session, feedback, wait, network_cancel.token());
 					if (auto *offer = std::get_if<SessionOffer>(&event)) {
 						offered = PublicationFeedback{offer->window, offer->update.target};
 						offered_snapshot = offer->update.kind == d::UpdateKind::Snapshot;
@@ -904,16 +894,14 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							feedback.reset();
 						}
 						if (idle && sources.pooled() && wait == std::chrono::milliseconds::zero())
-							co_await yield();
+							co_await task::yield();
 						else if (!idle || wait == std::chrono::milliseconds::zero())
 							co_await pause(idle ? options.poll_interval : next_reconnect_delay(reconnect));
 						continue;
 					}
 				} else {
 					network_attempt = true;
-					update.emplace(co_await asio::co_spawn(
-						co_await asio::this_coro::executor, receive(std::move(request)),
-						asio::bind_cancellation_slot(network_cancel.slot(), asio::use_awaitable)));
+					update.emplace(co_await receive(std::move(request), network_cancel.token()));
 				}
 				network_attempt = false;
 				sources.successful();
@@ -928,7 +916,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							d::WorkBudget budget;
 							if (options.publication_sink->stage_step(budget))
 								break;
-							co_await yield();
+							co_await task::yield();
 						}
 					}
 					if (cancelled())
@@ -953,7 +941,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 							l::ValidationBudget budget;
 							builder->step(budget);
 							if (!builder->done())
-								co_await yield();
+								co_await task::yield();
 						}
 					}
 					if (!cancelled()) {
@@ -1082,7 +1070,7 @@ asio::awaitable<void> Coordinator::Impl::candidate_loop() {
 			}
 			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid())) {
 				if (sources.pooled() && unavailable && !round_complete)
-					co_await yield();
+					co_await task::yield();
 				else
 					co_await pause(options.delivery_mode == DeliveryMode::Poll &&
 										   !(sources.pooled() && unavailable)
@@ -1162,21 +1150,21 @@ void Coordinator::attach_store(std::shared_ptr<l::DiskStore> store) {
 	if (impl_->closing)
 		impl_->store->close();
 }
-asio::awaitable<void> Coordinator::run() {
+task::task<void> Coordinator::run() {
 	if (impl_->running || !impl_->store)
 		throw std::logic_error("managed coordinator already started");
+	if (!impl_->options.source.scheduler)
+		throw std::invalid_argument("managed coordinator requires its owner scheduler");
 	auto owner = shared_from_this();
 	impl_->running = true;
 	return run_owned(std::move(owner));
 }
-asio::awaitable<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner) {
+task::task<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner) {
 	try {
-		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
-		auto executor = co_await asio::this_coro::executor;
+		const auto &executor = owner->impl_->options.source.scheduler->executor();
 		owner->impl_->candidate_wake.emplace(executor);
 		owner->impl_->disk_wake.emplace(executor);
-		using namespace asio::experimental::awaitable_operators;
-		co_await (owner->impl_->disk_loop() && owner->impl_->candidate_loop());
+		co_await task::when_all(owner->impl_->disk_loop(), owner->impl_->candidate_loop());
 		owner->impl_->settled = true;
 		owner->impl_->diagnostic.phase =
 			owner->impl_->terminal_fenced ? CoordinatorPhase::Fenced : CoordinatorPhase::Closed;
@@ -1218,7 +1206,7 @@ std::uint64_t detail::CoordinatorAccess::completed_compactions(const Coordinator
 void Coordinator::cancel_update() noexcept {
 	impl_->stop_construction();
 	++impl_->cancellation;
-	impl_->network_cancel.emit(asio::cancellation_type::terminal);
+	impl_->network_cancel.request();
 	impl_->notify_candidate();
 	impl_->notify_disk();
 	if (impl_->store)

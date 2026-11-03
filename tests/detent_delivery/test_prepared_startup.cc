@@ -3,8 +3,8 @@
 #include "prepared_reader_fixture.hh"
 #include "paged_plan.hh"
 #include "coordinator_internal.hh"
+#include "task_support.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <future>
 #include <sys/wait.h>
 
@@ -52,9 +52,9 @@ void replace_prepared(const std::shared_ptr<t::Coordinator> &coordinator,
 	check(replaced && barrier && !coordinator->status().prepared_ready);
 	check(store->publication_status() == (fail_barrier ? l::DiskPublicationStatus::Fenced : l::DiskPublicationStatus::Published));
 }
-asio::awaitable<void> await_prepared(std::shared_ptr<t::Coordinator> coordinator,
-                                   std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> await_prepared(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+                                std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
+	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + 10s;
 	std::optional<l::Descriptor> prepared;
 	bool stable = true;
@@ -70,7 +70,7 @@ asio::awaitable<void> await_prepared(std::shared_ptr<t::Coordinator> coordinator
 			(!replacement || (!state.worker_pending && !store->operation() && !store->needs_work())))
 			break;
 		timer.expires_after(1ms);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 	const bool ready = prepared && stable && coordinator->status().prepared_ready &&
 		coordinator->status().failures >= 2;
@@ -87,7 +87,7 @@ asio::awaitable<void> await_prepared(std::shared_ptr<t::Coordinator> coordinator
 		while (!pause->reached.load(std::memory_order_acquire) &&
 			std::chrono::steady_clock::now() < deadline && !coordinator->drained()) {
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		unconfirmed = pause->reached.load(std::memory_order_acquire) &&
 			coordinator->status().worker_pending && !coordinator->status().prepared_ready;
@@ -97,10 +97,9 @@ asio::awaitable<void> await_prepared(std::shared_ptr<t::Coordinator> coordinator
 	check(!coordinator->status().prepared_ready);
 	check(ready && unconfirmed);
 }
-asio::awaitable<void> run(std::shared_ptr<t::Coordinator> coordinator,
-                         std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
-	using namespace asio::experimental::awaitable_operators;
-	co_await (coordinator->run() && await_prepared(coordinator, store, options, replacement));
+task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+                     std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
+	co_await task::when_all(coordinator->run(), await_prepared(scheduler, coordinator, store, options, replacement));
 }
 void check_cli(const char *reader, const std::filesystem::path &directory, bool valid) {
 	int output[2];
@@ -147,14 +146,16 @@ int main(int argc, char **argv) {
 	auto domain = runtime.domain(account, 512);
 	{
 		asio::io_context io;
+		task::asio_scheduler scheduler(io.get_executor());
 		asio::ip::tcp::socket unavailable(io);
 		unavailable.open(asio::ip::tcp::v4());
 		unavailable.bind({asio::ip::address_v4::loopback(), 0});
 		asio::thread_pool worker(1);
 		auto queue = kronuz::io::completion::make_native_queue(
 		    kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
-		auto driver = std::make_shared<t::NativeDriver>(io.get_executor(), queue);
+		auto driver = std::make_shared<t::NativeDriver>(scheduler, queue);
 		t::CoordinatorOptions options;
+		options.source.scheduler = &scheduler;
 		options.directory = fixture->path;
 		options.image_format = t::LocalImageFormat::PagedV2;
 		options.source.configured = fixture->root.cursor;
@@ -170,7 +171,7 @@ int main(int argc, char **argv) {
 		disk.recovery_limits = options.view_limits;
 		auto store = l::make_disk_store(domain, fixture->path, account, disk);
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-		auto done = asio::co_spawn(io, run(coordinator, store, options, replacement), asio::use_future);
+		auto done = spawn_future(scheduler, run(scheduler, coordinator, store, options, replacement));
 		io.run();
 		done.get();
 		worker.join();

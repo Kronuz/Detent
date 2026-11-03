@@ -3,6 +3,7 @@
 #include <asio/error_code.hpp>
 #include <asio/system_error.hpp>
 #include <asio/io_context.hpp>
+#include <asio/steady_timer.hpp>
 #include <coroutine>
 #include <exception>
 #include <optional>
@@ -46,6 +47,11 @@ template <typename... R, typename Init> class checked_io<void(asio::error_code, 
 template <typename Sig, typename Init>
 [[nodiscard]] detail::checked_io<Sig, std::decay_t<Init>> await_io(Init &&init, task::cancel_token token = {}) {
 	return detail::checked_io<Sig, std::decay_t<Init>>(std::forward<Init>(init), std::move(token));
+}
+// Awaits `timer` reaching its expiry; a cancel or an error throws asio::system_error.
+[[nodiscard]] inline auto await_timer(asio::steady_timer &timer, task::cancel_token token = {}) {
+	return await_io<void(asio::error_code)>([&timer](auto handler) { timer.async_wait(std::move(handler)); },
+											std::move(token));
 }
 // Runs `work` on `scheduler` and the calling thread's `io` until it finishes, then returns its result or
 // rethrows its exception. `io` must be the scheduler's own loop; call io.restart() before a second use.

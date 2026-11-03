@@ -1,4 +1,5 @@
 #include "detent_delivery/coordinator.hh"
+#include "task_support.hh"
 #include "detent_distribution/memory_resource.hh"
 #include <asio.hpp>
 #include <filesystem>
@@ -13,23 +14,23 @@ static void require(bool ok) {
 	if (!ok)
 		throw std::runtime_error("reconnect cancellation invariant");
 }
-asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator) {
+	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + 5s;
 	while (!coordinator->status().failures) {
 		require(std::chrono::steady_clock::now() < deadline);
 		timer.expires_after(1ms);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 	timer.expires_after(100ms);
-	co_await timer.async_wait(asio::use_awaitable);
+	co_await detent::transport::await_timer(timer);
 	require(coordinator->status().failures == 1);
 	const auto began = std::chrono::steady_clock::now();
 	coordinator->close();
 	while (!coordinator->drained()) {
 		require(std::chrono::steady_clock::now() - began < 1s);
 		timer.expires_after(1ms);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 }
 int main() {
@@ -42,6 +43,7 @@ int main() {
 		d::RetirementRuntime runtime(account, 1);
 		auto domain = runtime.domain(account, 64);
 		asio::io_context io(1);
+		task::asio_scheduler scheduler(io.get_executor());
 		asio::thread_pool worker(1);
 		// A bound socket without listen refuses connects without a port-allocation race.
 		asio::ip::tcp::socket unavailable(io);
@@ -54,8 +56,9 @@ int main() {
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 		auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
-															io.get_executor(), queue);
+															scheduler, queue);
 		t::CoordinatorOptions options;
+		options.source.scheduler = &scheduler;
 		options.directory = root;
 		options.delivery_mode = t::DeliveryMode::Subscription;
 		options.poll_interval = 30s;
@@ -70,8 +73,8 @@ int main() {
 		options.source.configured.scope.fill('s');
 		options.source.tls_context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls_client);
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-		auto run = asio::co_spawn(io, coordinator->run(), asio::use_future);
-		auto observed = asio::co_spawn(io, observe(coordinator), asio::use_future);
+		auto run = spawn_future(scheduler, coordinator->run());
+		auto observed = spawn_future(scheduler, observe(scheduler, coordinator));
 		io.run();
 		run.get();
 		observed.get();

@@ -6,7 +6,7 @@
 #include "detent_local/paged_layout.hh"
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
-#include <asio/experimental/awaitable_operators.hpp>
+#include "task_support.hh"
 #include <charconv>
 #include <filesystem>
 #include <fstream>
@@ -232,16 +232,15 @@ struct Timing {
 	std::uint64_t turns = 0;
 	std::int64_t maximum_lateness_us = 0;
 };
-asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
-							  bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr,
+task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						 Timing &timing, bool cancel_selected, const std::atomic<bool> *feedback_received = nullptr,
 							  std::chrono::milliseconds timeout = 60s, unsigned final_revision = 1) {
-	auto executor = co_await asio::this_coro::executor;
-	asio::steady_timer timer(executor);
+	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + timeout;
 	if (cancel_selected) {
 		while (coordinator->status().selected.knowledge != l::SelectionKnowledge::Known &&
 			   std::chrono::steady_clock::now() < deadline)
-			co_await asio::post(executor, asio::use_awaitable);
+			co_await task::yield();
 		const auto selected = coordinator->status();
 		if (selected.acknowledged || selected.selected.knowledge != l::SelectionKnowledge::Known) {
 			coordinator->close();
@@ -254,7 +253,7 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 	while (!coordinator->status().acknowledged && std::chrono::steady_clock::now() < deadline) {
 		const auto expected = std::chrono::steady_clock::now() + 1ms;
 		timer.expires_at(expected);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 		++timing.turns;
 		timing.maximum_lateness_us = std::max<std::int64_t>(
 			timing.maximum_lateness_us,
@@ -266,7 +265,7 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 		   std::chrono::steady_clock::now() < deadline) {
 		const auto expected = std::chrono::steady_clock::now() + 1ms;
 		timer.expires_at(expected);
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 		++timing.turns;
 		timing.maximum_lateness_us = std::max<std::int64_t>(
 			timing.maximum_lateness_us,
@@ -277,7 +276,7 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 		while (!feedback_received->load() && !coordinator->drained() &&
 			   std::chrono::steady_clock::now() < deadline) {
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		{
 			const auto status = coordinator->status();
@@ -313,15 +312,15 @@ asio::awaitable<void> observe(std::shared_ptr<t::Coordinator> coordinator, Timin
 	}
 	// Close wakes the parked candidate after the source observes durable feedback.
 	timer.expires_after(5ms);
-	co_await timer.async_wait(asio::use_awaitable);
+	co_await detent::transport::await_timer(timer);
 	coordinator->close();
 	auto final = cursor();
 	final.revision = final_revision;
 	check(published && coordinator->status().recoverable == final);
 }
-asio::awaitable<void> observe_poll_backoff(std::shared_ptr<t::Coordinator> coordinator,
-										   const std::atomic<bool> &server_completed) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> observe_poll_backoff(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+									  const std::atomic<bool> &server_completed) {
+	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + 15s;
 	std::exception_ptr failure;
 	try {
@@ -343,7 +342,7 @@ asio::awaitable<void> observe_poll_backoff(std::shared_ptr<t::Coordinator> coord
 			}
 			check(!coordinator->drained());
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		check(observed);
 	} catch (...) {
@@ -353,14 +352,14 @@ asio::awaitable<void> observe_poll_backoff(std::shared_ptr<t::Coordinator> coord
 	if (failure)
 		std::rethrow_exception(failure);
 }
-asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinator,
-									   const t::CoordinatorOptions &options) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> observe_pressure(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+								  const t::CoordinatorOptions &options) {
+	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + 60s;
-	auto wait_for = [&](auto predicate) -> asio::awaitable<void> {
+	auto wait_for = [&](auto predicate) -> task::task<void> {
 		while (!predicate() && std::chrono::steady_clock::now() < deadline) {
 			timer.expires_after(1ms);
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		if (!predicate()) {
 			coordinator->close();
@@ -380,7 +379,7 @@ asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinat
 			   coordinator->status().received && coordinator->status().received->revision == 3;
 	});
 	timer.expires_after(30ms);
-	co_await timer.async_wait(asio::use_awaitable);
+	co_await detent::transport::await_timer(timer);
 	check(coordinator->status().acknowledged == expected &&
 		  coordinator->status().selected.descriptor->cursor == expected);
 	check(pinned.cursor().revision == 1);
@@ -392,32 +391,31 @@ asio::awaitable<void> observe_pressure(std::shared_ptr<t::Coordinator> coordinat
 	});
 	coordinator->close();
 }
-asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timing &timing,
-							   bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
-							   const std::atomic<bool> *feedback_received, bool cancel_open = false,
-							   bool transitions = false, bool worker_cancel = false,
-							   bool maintenance_failure = false, bool poll_backoff = false) {
-	using namespace asio::experimental::awaitable_operators;
+task::task<void> exercise(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						  Timing &timing, bool cancel_selected, bool pressure, const t::CoordinatorOptions &options,
+						  const std::atomic<bool> *feedback_received, bool cancel_open = false,
+						  bool transitions = false, bool worker_cancel = false,
+						  bool maintenance_failure = false, bool poll_backoff = false) {
 	if (poll_backoff) {
 		check(feedback_received != nullptr);
-		co_await (coordinator->run() && observe_poll_backoff(coordinator, *feedback_received));
+		co_await task::when_all(coordinator->run(), observe_poll_backoff(scheduler, coordinator, *feedback_received));
 		co_return;
 	}
 	if (worker_cancel) {
-		auto cancel = [&]() -> asio::awaitable<void> {
-			asio::steady_timer timer(co_await asio::this_coro::executor);
+		auto cancel = [&]() -> task::task<void> {
+			asio::steady_timer timer(scheduler.executor());
 			const auto deadline = std::chrono::steady_clock::now() + options.source.timeout;
 			while (!(coordinator->status().worker_pending && coordinator->status().received) &&
 				   std::chrono::steady_clock::now() < deadline) {
 				timer.expires_after(1ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 			const bool accepted = coordinator->status().worker_pending && coordinator->status().received;
 			coordinator->cancel_update();
 			coordinator->close();
 			check(accepted);
 		};
-		co_await (coordinator->run() && cancel());
+		co_await task::when_all(coordinator->run(), cancel());
 		check(!coordinator->status().worker_pending && !coordinator->status().acknowledged);
 		co_return;
 	}
@@ -426,11 +424,12 @@ asio::awaitable<void> exercise(std::shared_ptr<t::Coordinator> coordinator, Timi
 		co_return;
 	}
 	if (pressure) {
-		co_await (coordinator->run() && observe_pressure(coordinator, options));
+		co_await task::when_all(coordinator->run(), observe_pressure(scheduler, coordinator, options));
 		co_return;
 	}
-	co_await (coordinator->run() && observe(coordinator, timing, cancel_selected, feedback_received,
-											options.source.timeout, transitions ? 3 : 1));
+	co_await task::when_all(coordinator->run(), observe(scheduler, coordinator, timing, cancel_selected,
+														feedback_received, options.source.timeout,
+														transitions ? 3 : 1));
 }
 void qualify_relay_sessions(std::shared_ptr<detent::relay::Bundle> bundle,
 							d::RetirementHandle<d::EncodedUpdate> expected,
@@ -633,15 +632,14 @@ int main(int argc, char **argv) {
 		std::exception_ptr server_failure;
 
 		asio::io_context io(1);
-#ifdef DETENT_TEST_RELAY_HTTP
-		task::asio_scheduler relay_scheduler(io.get_executor());
-#endif
+		task::asio_scheduler scheduler(io.get_executor());
 		asio::thread_pool worker(1);
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 		auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
-															io.get_executor(), queue);
+															scheduler, queue);
 		t::CoordinatorOptions options;
+		options.source.scheduler = &scheduler;
 		options.directory = directory;
 		options.image_format = paged ? t::LocalImageFormat::PagedV2 : t::LocalImageFormat::FlatV1;
 		options.delivery_mode = subscription ? t::DeliveryMode::Subscription : t::DeliveryMode::Poll;
@@ -885,9 +883,9 @@ int main(int argc, char **argv) {
 									if (valid && relay_network) {
 										auto offer = relay_bundle->offer({}, true);
 										task::spawn(
-											task::scheduler_ref::of(relay_scheduler),
+											task::scheduler_ref::of(scheduler),
 											relay_network_fixture::qualify(
-												relay_scheduler, relay_bundle, std::move(offer.update),
+												scheduler, relay_bundle, std::move(offer.update),
 												control_account, server_tls, client_tls, worker, count,
 												network_failures ? relay_network_fixture::FailurePoint::Suite
 																 : relay_network_fixture::FailurePoint::None),
@@ -1035,12 +1033,11 @@ int main(int argc, char **argv) {
 			t::detail::CoordinatorAccess::fail_next_maintenance_recovery(*coordinator,
 																		 original_maintenance_failure);
 		Timing timing;
-		auto done = asio::co_spawn(io,
-								   exercise(coordinator, timing, cancel_selected, pressure, options,
-											(subscription || poll_backoff) ? &feedback_received : nullptr,
-											cancel_open, transitions, worker_cancel, maintenance_failure,
-											poll_backoff),
-								   asio::use_future);
+		auto done = spawn_future(scheduler,
+								 exercise(scheduler, coordinator, timing, cancel_selected, pressure, options,
+										  (subscription || poll_backoff) ? &feedback_received : nullptr,
+										  cancel_open, transitions, worker_cancel, maintenance_failure,
+										  poll_backoff));
 		checkpoint("coordinator-running");
 		io.run();
 		checkpoint("coordinator-settled");
@@ -1114,7 +1111,7 @@ int main(int argc, char **argv) {
 		early.reset();
 		check(!weak.expired());
 		io.restart();
-		auto early_done = asio::co_spawn(io, std::move(original), asio::use_future);
+		auto early_done = spawn_future(scheduler, std::move(original));
 		io.run();
 		early_done.get();
 		check(weak.expired() && early_store->drained());
@@ -1139,7 +1136,7 @@ int main(int argc, char **argv) {
 		failed_options.publication_sink.reset();
 		auto failed = t::make_coordinator(failed_options, failed_store, driver, domain, worker);
 		io.restart();
-		auto failed_done = asio::co_spawn(io, failed->run(), asio::use_future);
+		auto failed_done = spawn_future(scheduler, failed->run());
 		io.run();
 		failed_done.get();
 		check(failed->drained() && failed->status().phase == t::CoordinatorPhase::Fenced &&
@@ -1177,7 +1174,7 @@ int main(int argc, char **argv) {
 		unrelated_resident.reset();
 		checkpoint("pressure-startup-running");
 		io.restart();
-		auto pressure_done = asio::co_spawn(io, pressured->run(), asio::use_future);
+		auto pressure_done = spawn_future(scheduler, pressured->run());
 		io.run();
 		pressure_done.get();
 		check(pressured->drained() && pressured->status().phase == t::CoordinatorPhase::Fenced &&
