@@ -9,7 +9,7 @@
   - none set yet
 - Done:
   - The full draft (D1-D9, T1-T6, alternatives, limits, Q1-Q5, S1-S9), rulings R1-R4 kept verbatim (`Detent:a037429`).
-  - Revision folding in the preliminary review: L1 (RD-1) D5 seq_cst publisher and one freer; L2 (RD-3) D10 `pthread_atfork`; L3 (RD-4) D4 rules 1-5 with no older-agent case; L4 (RD-6) lazy attach and directory trust once per store; RD-2, RD-5, RD-7 to RD-11, C1-C4; Q6 added from RD-8. Mapping in the design's "Review findings" table. R1-R4 unchanged.
+  - Revision folding in the preliminary review: L1 (RD-1) D5 seq_cst publisher and one freer; L2 (RD-3) D10 `pthread_atfork`; L3 (RD-4) D4 rules 1-5 with no older-agent case; L4 (RD-6) lazy attach and directory trust once per store; RD-2, RD-5, RD-7 to RD-11, C1-C4; Q6 added from RD-8. Mapping in the design's "Review findings" table. R1-R4 unchanged (`Detent:7ce4e63`).
 - Doing: nothing; stopped for the re-check.
 - Next:
   1. Architect re-check of L1-L4 and C1-C4.
@@ -29,3 +29,4 @@
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, namespace-delivery brief, legacy inventory (`explore/legacy-inventory` at `Detent:5abdf13`), the reader code, spec, bindings and the first-read evidence. Drafted the design; state set to ready for preliminary review.
 - 2026-11-03: Draft committed and pushed as `Detent:a037429` on `design/reader`.
 - 2026-11-03: Preliminary review (APPROVE WITH CONDITIONS) on main at `Detent:55255af`. Worktree `reader-rev` on `design/reader-rev` from it. Read the review, its probe results, namespace-delivery D8 and its review (lead's call: one store directory). Folded in L1-L4, C1-C4 and every RD finding; the review's Q1-Q5 positions change no owner ruling and are recorded with each question; RD-8's open-on-empty-store question added as Q6.
+- 2026-11-03: Revision committed and pushed as `Detent:7ce4e63` on `design/reader-rev`.
