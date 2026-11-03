@@ -80,8 +80,6 @@ ThreadSanitizer found the original ordering bug.
 1. `test_raft_cluster` runs a real three-node cluster in one process: election,
    follower-forwarded writes, patch replication, leader failover, restart and
    rejoin, dead-follower liveness, and correlation-ID uniqueness across restart.
-2. `tests/e2e/` spawns real `detentd` processes, drives them over HTTP, and
-   kills them with real signals.
 
 ---
 

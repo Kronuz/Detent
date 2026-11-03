@@ -484,8 +484,6 @@ Current automated cluster coverage in `tests/detentd/test_raft_cluster.cc` exerc
 - dead-follower liveness (a permanently-gone follower doesn't block the surviving majority),
 - a node's own write right after restarting isn't confused with one of its pre-crash writes.
 
-`tests/e2e/` complements this with a slower harness that spawns real `detentd` subprocesses and kills them with real signals -- run it after any change to `src/detentd/` or the vendored Raft wiring; see `tests/e2e/README.md`.
-
 `src/detentd/CLUSTERING.md` is the full clustering design reference.
 
 ## Cleaning up

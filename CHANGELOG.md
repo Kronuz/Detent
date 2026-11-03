@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Legacy removal (wave 1)
+
+- Removed `tests/e2e`, the classic distributor process harness.
+
 ### Dependency pins (cmake/dependencies.json)
 
 Moved to each library's main head, following the "Updating an application"
