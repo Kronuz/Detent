@@ -282,3 +282,13 @@ The architect's review of http-on-task (`http:88f1275`) finds that task cannot c
 5. reactor's `Session` becomes `task::task`, and each reactor owns one scheduler per loop, exposed as `reactor(i).scheduler()` (Xapiand's `AsioHost` wraps it). This is the first implementation step.
 6. `scheduler_ref`, `work_pool_executor` and the WorkPool executors stay source-compatible, or every consumer migrates in the same wave.
 7. Gate: server CPU per request and p99, not req/s, over head, its A/A copy, the task loop on today's task and on optimized task. The performance gate host is Linux x86-64 (a Linux VM under `quiet strict` with `QUIET_VM` until the bench box exists), with one macOS check. The architect proposes "considerable" as more than 5% CPU per request or 10% p99 after optimization; a 3-5% gap lands as an optimization target; allocations and handlers per request never exceed head's. The definition is the owner's, put to him by the Xapiand lead.
+
+## Resource accounting: one shared implementation (November 2)
+
+The owner ruled that Detent adopts the shared resource primitives in `allocators` (byte accounts and
+charges, reservation books, retirement) and deletes its own copies in `detent_distribution` and
+`detent_local/disk_ledger.hh`. There is one implementation, and it is made fast and robust where it
+lives. The adoption is no longer an optional candidate: its first-read gate (196/200 baseline vs
+195/200 migrated under 1 ms) is a regression to attribute and fix, in `allocators` when the cost is
+there, not a reason to keep Detent's copy. The work rebases `track/resource-adoption`
+(`Detent:52246e2`) onto `main` with `allocators` at its head, the same pin completion declares.

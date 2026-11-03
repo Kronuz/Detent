@@ -95,7 +95,7 @@ the tip in M2, never adopted on the old pins.
 | Candidate | Branch or commit | State on 2026-11-02 |
 | --- | --- | --- |
 | Reader metadata capsule | `track/reader-capsule`, `track/resource-capsule` (`Detent:30fee44`) | Correct; real 5M first-read acceptance fails in three of four rows |
-| Resource adoption | `track/resource-adoption` (`Detent:52246e2`; contains the `33d36bf` integration) | Functional gates pass; first-read gate open (196/200 baseline vs 195/200 migrated under 1 ms, unattributed) |
+| Resource adoption | `track/resource-adoption` (`Detent:52246e2`; contains the `33d36bf` integration) | Adopted by owner ruling ([decision](SHARED_LIBRARY_DECISIONS.md#resource-accounting-one-shared-implementation-november-2)); rebase on `main` with `allocators` at head, then attribute and fix the first-read gap (196/200 vs 195/200 under 1 ms) |
 | Shared HTTP clients | http qualification branch (`http:bd3e8e1`, not on http main) | Blocked on +13.2% caller CPU; built on the removed sync handler API |
 | Bounded MessagePack | `msgpack:f8975e3`, `Detent:4c37ca6` | Functional; production-path cost open |
 | Persistent map | `Kronuz/persistent-map` | Functional; update-cost outlier open |
