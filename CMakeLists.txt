@@ -75,7 +75,7 @@ FetchContent_MakeAvailable(
 ########################################################################
 # Populate only the libraries required by this build profile.
 if(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
-  FetchContent_MakeAvailable(reactor)
+  FetchContent_MakeAvailable(reactor task)
 endif()
 if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
   FetchContent_MakeAvailable(http_lib)

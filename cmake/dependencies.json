@@ -144,6 +144,12 @@
     "source_subdir": "."
   },
   {
+    "name": "task",
+    "repository": "https://github.com/Kronuz/task.git",
+    "revision": "cbfee340f34a95db69b9061d3d4ff339bff5849f",
+    "source_subdir": "."
+  },
+  {
     "name": "term_color",
     "repository": "https://github.com/Kronuz/term-color.git",
     "revision": "534e30905b1a40ae1f18dbde46b039dd4333747b",
