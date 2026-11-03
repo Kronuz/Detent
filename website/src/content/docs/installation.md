@@ -109,9 +109,6 @@ evaluation precedence, CLI overrides, the file source, concurrency stress),
 the distributor (PUT/GET/PATCH, persistence, diffs, multi-node polling,
 fan-out load, a real three-node Raft cluster), the agent's shared-memory
 reader and writer, and the authority, delivery and local-image libraries.
-A separate harness in `tests/e2e/` spawns real `detentd` processes and kills
-them with real signals; run it after changing the distributor or its Raft
-wiring.
 
 ---
 

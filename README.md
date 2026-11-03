@@ -257,7 +257,7 @@ src/
   detent_delivery/     Session transport and coordinator
   detent_cli/          Shared configuration, logging and daemon lifecycle
 
-tests/                 Matching component suites and e2e process harness
+tests/                 Matching component suites
 examples/
 benchmarks/
 diagrams/
@@ -477,7 +477,7 @@ CTest registers component and process tests for the enabled build profiles. Use 
 2. Distributor and HTTP tests cover persistence, polling, partial updates, failover, fan-out and classic Raft replication.
 3. Authority tests cover transactions, durable storage, authenticated consensus, restart and failure recovery, bounded distribution, subscription admission and large-state idling.
 4. Protocol, local-view and delivery tests cover binary validation, mapped generations, original IO settlement, publication reconciliation and exact source feedback.
-5. Process fixtures start real daemons, exercise HTTP and local readers, and stop or kill tracked processes. `tests/e2e/README.md` describes the separate classic distributor harness.
+5. Process fixtures start real daemons, exercise HTTP and local readers, and stop or kill tracked processes.
 
 ## Benchmarks
 

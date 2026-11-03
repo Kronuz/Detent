@@ -125,8 +125,8 @@ replays its whole pre-crash log during catch-up, so without `session_id_`
 a write it originates right after restarting can regenerate an id an
 earlier (pre-crash) write already used. If that old entry is still
 replaying when the new one registers its pending slot, the replay resolves
-the new request with the old (stale) result instead of its own -- found via
-`tests/e2e/`'s chaos scenario, not `test_raft_cluster`'s fixed, fast Raft
+the new request with the old (stale) result instead of its own -- found by a
+kill-and-restart chaos run, not `test_raft_cluster`'s fixed, fast Raft
 timing. `session_id_` is a random value chosen once per process
 construction, making every restart's ids disjoint from every prior one.
 

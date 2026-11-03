@@ -27,9 +27,6 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-Run `tests/e2e/` after any change to `src/detentd/` or the Raft wiring; it
-spawns real processes and kills them with real signals.
-
 ---
 
 ## Expectations for Changes
