@@ -116,12 +116,13 @@ runs there once task's C3 lands. Its threshold for a "considerable" cost gap is 
 at the gate; the aim is to close the gap and keep `task::task` everywhere.
 
 Builds: when the local load is high, the session leases one c7a.4xlarge as a Linux build box
-(`lease up detent-build c7a.4xlarge`; compilers installed with apt) and contributors run Linux
+(`lease up detent-build c7a.8xlarge`, 32 vCPU; compilers installed with apt) and contributors run Linux
 builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
 most 8 jobs each; the helper leases on demand and a reaper releases it after 5 idle minutes, so
 the shared account stays free between batches. Each session runs at most one lease (the owner raised the spend limit and the account's on-demand
-quota is 96 vCPU, 2026-11-03); the helper builds locally when fewer than 16 vCPU are free; metal
-only by agreement with the Xapiand lead. macOS builds and all
+quota is 96 vCPU, 2026-11-03): Detent's build box and Xapiand's `strata-ci-linux` are 32 vCPU each,
+leaving 32 for gate windows; a metal gate (c7i.metal-24xl, 96 vCPU) needs both build boxes down and
+is scheduled with the Xapiand lead, as is the http-on-task gate (T6/T7). macOS builds and all
 timing stay local (or on a dedicated lease). The lease also ends
 itself after 30 idle minutes or 4 hours.
 
