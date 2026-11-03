@@ -88,7 +88,13 @@ void invoke(a::Service &service, Writer &writer, std::string path, std::string b
 	request.method = "POST";
 	request.path = std::move(path);
 	request.headers.emplace_back("Authorization", "Bearer " + token);
-	detent_test::intake(service, request, body);
+	try {
+		detent_test::intake(service, request, body);
+	} catch (const http::RequestRejected &error) {
+		writer.code = error.status(); // what the connection answers
+		writer.body = error.what();
+		return;
+	}
 	detent_test::run_handle(service, request, writer);
 	writer.wire();
 }

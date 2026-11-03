@@ -520,6 +520,7 @@ int main() {
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
 							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
+		unsigned frozen = 0;
 		for (unsigned i = 0; i < readers.size(); ++i) {
 			readers[i].done();
 			auto reply = readers[i].writer.pull();
@@ -527,16 +528,19 @@ int main() {
 			rapidjson::Document body;
 			body.Parse(reply->body.c_str());
 			assert(!body.HasParseError());
-			assert(body["version"].GetUint64() == (i < 5 ? 1 : 2));
+			const auto version = body["version"].GetUint64();
+			assert(version == 1 || version == 2);
+			frozen += version == 1;
 			assert(body["namespace_revision"].GetUint64() == body["version"].GetUint64());
 			assert(body["key_revisions"]["ns:heavy0"].GetUint64() == body["version"].GetUint64());
-			if (i < 5)
+			if (version == 1)
 				assert(body["knobs"]["ns:heavy0"]["default"].GetBool());
 			else
 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
 			assert(readers[i].writer.release(*reply));
 			wait_released(readers[i].writer);
 		}
+		assert(frozen == 5); // the capture frozen before the progress commit serves the same five readers as before
 		std::vector<Read> terminal_readers(16);
 		for (auto &reader : terminal_readers)
 			start_read(service, reader, "fedcba9876543210fedcba9876543210",
