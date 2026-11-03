@@ -5,6 +5,8 @@ on:
     paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
   pull_request:
   workflow_dispatch:
+    inputs:
+      nightly: { type: boolean, default: false }
 permissions:
   contents: read
 concurrency:
@@ -14,6 +16,7 @@ jobs:
   ci:
     uses: Kronuz/cpp-libraries/.github/workflows/cmake.yml@main
     with:
+      nightly: ${{ inputs.nightly || false }}
       # Linux GCC 13 and Clang (x86_64, arm64), macOS (arm64, x86_64), Clang ASan/UBSan with LeakSanitizer, and Clang ThreadSanitizer.
       macos_llvm: true
       cmake_args: -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_BENCHMARKS=OFF
