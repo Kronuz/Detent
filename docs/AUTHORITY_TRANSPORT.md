@@ -54,4 +54,22 @@ The Linux authority now integrates the owned io_uring completion queue with expl
 
 Publisher task and deferred transport deadlines use the same captured outcome deadline. The transport retains one additional second for writing the bounded response after outcome timeout. This prevents the transport timer from discarding the authority's retryable 503 at the instant it becomes ready. Original writes still retire before reply and request credits are released; an admitted command whose outcome remains unknown must be retried with the same identity.
 
-Optional `consensus_limits` can lower `log_entries` from its default 65536 (minimum 64) and `log_bytes` from 64 MiB (minimum 2 MiB). These settings bound retained consensus data and make checkpoint cadence explicit without changing wire or checkpoint formats. All voters must use the same profile. Reducing a bound below already retained recovery data is rejected; drain and checkpoint under the old profile before lowering it.
+Optional `consensus_limits` can lower `log_entries` from its default 65536 (minimum 64) and `log_bytes` from 64 MiB (minimum 2 MiB). These settings control new admission and checkpoint cadence without changing wire or checkpoint formats. All voters must use the same operating profile. Valid historical state stays recoverable within the separate retained-state envelope, so lowering operating limits does not discard acknowledged data.
+
+The optional `retained_state` object sets local recovery and retained-allocation capacity. Omitted fields keep Detent's defaults, independently of reductions to `consensus_limits`:
+
+```json
+"retained_state": {
+  "command_bytes": 1048576,
+  "log_bytes": 67108864,
+  "log_entries": 65536,
+  "batch_bytes": 2097152,
+  "batch_entries": 256
+}
+```
+
+Each field is between 1 and the library ceiling and at least the operating limit it covers (`command_bytes`, `log_bytes`, `log_entries`, and the 2 MiB and 256-entry RPC bounds for `batch_bytes` and `batch_entries`). The envelope must hold previously written command groups, retained logs and replay batches: recovery outside it fails without truncating or rewriting the store, so do not retry with guessed limits.
+
+The replacement pool must fund the application image, the encoded retained suffix and 4096 bytes of publication allowance. Detent checks it with checked arithmetic before journal mutation and refuses to start otherwise, naming the pool, each term, the shortfall and the field to raise. The defaults need 336,931,316 bytes (321.323 MiB), inside the 512 MiB default pool. This provisions capacity without reserving the envelope at startup; a capture reserves operating capacity and grows the same reservation before freezing a larger suffix.
+
+The envelope is local resource configuration. It adds no bytes to transaction groups, application images, journal records, checkpoints or peer fingerprints, and voters need not configure the same values. Historical application decoding uses the retained command bound, while new proposals keep the operating bound.
