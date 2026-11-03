@@ -7,7 +7,8 @@
 - State: designing (ready for preliminary review). Revision 3 adds no new mechanism; the designer recommends a scoped re-check (rechecker) of N1-N6, D2, D10 and D15 rather than a new architect review.
 - Done criteria (set by the lead; contributors tick, never edit):
   - [ ] PLAN M1 done criterion 3 (no `workers`, `should_offload`, `DeferredReply`, `user_data`, `BodyReader` or blocking wait on a reactor thread; every handler a coroutine; body cap from Detent's limits)
-  - [ ] Cross-thread completion uses Asio's `co_spawn` hop and an owner-local channel, with no Detent completion type; T1's bridge rows pass (added per review L1)
+  - [ ] Owner work is a child task that `schedule_on`s to the owner and waits on a `task::event` in existing per-request state, with no Detent completion type; T1 passes with (b) first (added per review L1; retargeted to task in revision 3 by the lead)
+  - [ ] One shape: T12's grep (`asio::awaitable`, `co_spawn`, `use_awaitable`, `awaitable_operators`, `this_coro`, `experimental::channel` in `src include tests benchmarks`) is empty and runs in CI; T13 (no live frames after teardown) passes (added by the lead per the architect's http Q2 ruling)
   - [ ] Every submitted authority command receives its reply with at least 1 s to write it, and the receive window stays T; T11 passes on plain TCP and TLS (added per review L2)
   - [ ] A command that may commit is answered `outcome_unknown` (authority) or the retry reply (classic), never `stopping` or `admission_full`; T6 passes (added per review L3)
   - [ ] Classic GET and health never wait on a commit, in both modes; T2 passes deterministically (added per review L4)
@@ -16,10 +17,10 @@
   - [ ] T1, T4 and T6 pass in separate ASan/UBSan and TSan builds (added per review C6)
 - Done: design draft D1-D12, T1-T10, Q1-Q4, S1-S6 (`Detent:5c58c31`); revision 2 folding L1-L5, C1-C6 and the Q1-Q4 answers (`Detent:8bb0e36`); merge of `Detent:6a31280`; revision 3 retargeting to task and folding N1-N6 (this commit)
 - Doing: nothing
-- Next: the lead's review decision; then S1 (task pin, `OwnerLoop`, T1 with (b) first) and S6 (delivery and HTTPS clients) can start now against task C2 (`task:cbfee34`); S2 when http H1, reactor R, task C3 and http-log L land; then S3-S5, S7 (after Q6), S8, S9, S10
+- Review: scoped rechecker on N1-N6, D2, D10 and D15 (lead's decision: no new mechanism, a revision that folds findings in). Next: S1 (task pin, `OwnerLoop`, T1 with (b) first) and S6 (delivery and HTTPS clients) can start now against task C2 (`task:cbfee34`); S2 when http H1, reactor R, task C3 and http-log L land; then S3-S5, S7 (after Q6), S8, S9, S10
 - Blocked on:
-  - Q6 (owner): where completion's `AsioCompletionDriver` moves to task; blocks S7 and S8. Recommendation: in this wave (option 1).
-  - Q5 (lead): composed-diff GET placement; blocks no step.
+  - Q6 (settled by the lead under the owner's one-shape rule): completion's `AsioCompletionDriver::run` moves to `task::task` in this wave, Detent owning the change in completion and its consumers (completion's test, consensus's test and bench); unblocks S7 and S8 once it lands.
+  - Q5 (settled by the lead): option 1, the composed-diff GET stays on the loop and is measured in M3.
   - The lead: done criterion 2 still names Asio's `co_spawn` hop and channel, which revision 3 replaces (D2); proposed text: "Owner work is a child task that `schedule_on`s to the owner and waits on a `task::event` in existing per-request state, with no Detent completion type; T1 passes with (b) first". The architect's http Q2 ruling also asks for a criterion carrying T12 (no `asio::awaitable`, `co_spawn`, `use_awaitable`, `awaitable_operators`, `this_coro` or `experimental::channel` in `src include tests benchmarks`). PLAN W2 (`PLAN.md:51`) still says `asio::awaitable<void>`.
   - The http designer: `HttpAsioService` must expose stop, close and destroy-roots phases (TH2-R1) for D15.
 - Findings folded in: L1-L5, C1-C6, Q1-Q4 answers (`Detent:8bb0e36`); N1-N6 and the re-check's unclosed limit and L4 notes (this commit)
