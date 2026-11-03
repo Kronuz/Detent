@@ -349,30 +349,30 @@ Service::Service(std::shared_ptr<ServiceRuntime> runtime) : runtime_(std::move(r
 		throw std::invalid_argument("relay service runtime");
 }
 Service::~Service() { runtime_->close(); }
-std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) try {
+// What a request holds from its headers to its settled response: the lane lease, or a health ticket.
+struct Service::Extension final : http::RequestExtension {
+	std::shared_ptr<ServiceRuntime::Impl::Admission> admission;
+	d::StorageLedger::Ticket health;
+};
+std::unique_ptr<http::RequestExtension> Service::create_extension(const http::Request &request) try {
+	auto extension = std::make_unique<Extension>();
 	if (request.path == "/v1/health" && request.method == "GET") {
 		if (!request.header("Transfer-Encoding").empty() ||
 			(!request.header("Content-Length").empty() && request.header("Content-Length") != "0"))
 			reject(400, "{\"error\":\"health_body_forbidden\"}");
-		class Empty final : public http::BodySink {
-			std::shared_ptr<d::StorageLedger> account_;
-			d::StorageLedger::Ticket ticket_;
-
-		  public:
-			Empty(std::shared_ptr<d::StorageLedger> account, d::StorageLedger::Ticket ticket)
-				: account_(std::move(account)), ticket_(std::move(ticket)) {}
-			void write(std::string_view bytes) override {
-				if (!bytes.empty())
-					reject(400, "{\"error\":\"health_body_forbidden\"}");
-			}
-			void end() override {}
-		};
-		auto account = runtime_->impl_->accounts.metadata;
-		auto ticket = account->admit(sizeof(Empty));
-		return std::make_unique<Empty>(std::move(account), std::move(ticket));
+		extension->health = runtime_->impl_->accounts.metadata->admit(sizeof(Extension));
+		return extension;
 	}
-	auto admission = runtime_->impl_->admit(request);
-	request.user_data = admission;
+	extension->admission = runtime_->impl_->admit(request);
+	return extension;
+} catch (const d::StoragePressure &) {
+	reject(503, "{\"error\":\"admission_full\"}");
+} catch (const std::bad_alloc &) {
+	reject(503, "{\"error\":\"admission_full\"}");
+}
+std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) try {
+	if (request.path == "/v1/health" && request.method == "GET")
+		return nullptr;
 	class Sink final : public http::BodySink {
 		std::shared_ptr<d::SubscriptionRequests::Lease> lease_;
 		d::StorageLedger::Ticket ticket_;
@@ -389,6 +389,7 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 		}
 		void end() override { lease_->body().seal_prefix(); }
 	};
+	const auto &admission = request.ext<Extension>().admission;
 	const auto index = ordinal(admission->kind);
 	auto ticket = runtime_->impl_->accounts.requests[index]->admit(sizeof(Sink));
 	return std::make_unique<Sink>(
@@ -399,7 +400,7 @@ std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request)
 } catch (const std::bad_alloc &) {
 	reject(503, "{\"error\":\"admission_full\"}");
 }
-void Service::handle(const http::Request &request, http::ResponseWriter &response) {
+task::task<void> Service::handle(http::Request &request, http::ResponseWriter &response) {
 	auto &p = *runtime_->impl_;
 	if (request.path == "/v1/health" && request.method == "GET") {
 		std::shared_ptr<const d::OwnedBuffer> health;
@@ -411,16 +412,13 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		response.content_type("application/json");
 		response.write(health ? health->view() : std::string_view("{\"ready\":false}"));
 		response.end();
-		return;
+		co_return;
 	}
-	auto admission = request.user_data
-						 ? std::static_pointer_cast<ServiceRuntime::Impl::Admission>(request.user_data)
-						 : p.admit(request);
+	auto admission = request.ext<Extension>().admission;
 	const auto index = ordinal(admission->kind);
 	const auto account = p.accounts.requests[index];
-	const auto bytes = request.user_data ? admission->lease->body().view() : std::string_view(request.body);
-	auto parsed = h::parse_session_request_on_worker(
-		account, admission->kind, bytes,
+	auto parsed = h::parse_session_request(
+		account, admission->kind, admission->lease->body().view(),
 		{p.lanes[index]->admission.body_limit(static_cast<d::SubscriptionRequestKind>(index)), 4096, 30000});
 	const auto &command = parsed->request();
 	auto task = std::allocate_shared<ServiceRuntime::Impl::Task>(
@@ -459,7 +457,7 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 		const auto slot = lane.free.back();
 		lane.free.pop_back();
 		lane.slots[slot] = std::move(task);
-		return;
+		co_return;
 	}
 	task->reply->abandon();
 }
