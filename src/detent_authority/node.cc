@@ -3,6 +3,7 @@
 #include <limits>
 #include <sha256.h>
 #include <stdexcept>
+#include <string>
 
 namespace detent::authority {
 using namespace kronuz::consensus;
@@ -13,22 +14,64 @@ std::shared_ptr<kronuz::journal::IO> checked_io(std::unique_ptr<kronuz::journal:
 	}
 	return std::shared_ptr<kronuz::journal::IO>(std::move(io));
 }
+void validate_retained_state(const NodeOptions &o) {
+	const auto &retained = o.scheduling.retained;
+	struct Bound {
+		const char *name;
+		std::size_t value, ceiling, operating;
+	};
+	for (const auto &bound : {Bound{"command_bytes", retained.command_bytes, ceilings.command_bytes, o.consensus.command_bytes},
+							  Bound{"log_bytes", retained.log_bytes, ceilings.log_bytes, o.consensus.log_bytes},
+							  Bound{"log_entries", retained.log_entries, ceilings.log_entries, o.consensus.log_entries},
+							  Bound{"batch_bytes", retained.batch_bytes, ceilings.rpc_bytes, o.consensus.rpc_bytes},
+							  Bound{"batch_entries", retained.batch_entries, ceilings.rpc_entries, o.consensus.rpc_entries}}) {
+		const std::string field = std::string("retained_state.") + bound.name;
+		if (!bound.value || bound.value > bound.ceiling) {
+			throw std::invalid_argument("authority " + field + " " + std::to_string(bound.value) +
+										" is outside 1 to " + std::to_string(bound.ceiling));
+		}
+		if (bound.value < bound.operating) {
+			throw std::invalid_argument("authority " + field + " " + std::to_string(bound.value) +
+										" is below the operating limit " + std::to_string(bound.operating) +
+										"; raise " + field);
+		}
+	}
+}
+void validate_replacement_funding(const NodeOptions &o) {
+	constexpr std::uint64_t allowance = 4096;
+	const std::uint64_t pool = o.storage.replacement_pool.logical_bytes, image = o.application.image_bytes,
+						suffix = checkpoint_detail::encoded_bound({o.scheduling.retained.log_entries,
+																  o.scheduling.retained.log_bytes});
+	std::uint64_t required = 0;
+	const bool wraps = __builtin_add_overflow(image, suffix, &required) ||
+					   __builtin_add_overflow(required, allowance, &required);
+	if (!wraps && required <= pool) return;
+	// A sum past 64 bits is reported as its saturated lower bound.
+	if (wraps) required = std::numeric_limits<std::uint64_t>::max();
+	const auto shortfall = required - pool;
+	throw std::invalid_argument(
+		"authority runtime cannot fund configured limits: the replacement pool holds " + std::to_string(pool) +
+		" bytes but the application image (" + std::to_string(image) + ") + the encoded retained suffix (" +
+		std::to_string(suffix) + ") + the publication allowance (" + std::to_string(allowance) + ") need " +
+		(wraps ? "more than " : "") + std::to_string(required) + ", short by " + (wraps ? "more than " : "") +
+		std::to_string(shortfall) + (shortfall == 1 ? " byte" : " bytes") +
+		"; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or "
+		"retained_state.log_bytes and log_entries");
+}
 NodeOptions checked(NodeOptions o) {
 	validate_node_options(o);
 	return o;
 }
 } // namespace
 void validate_node_options(const NodeOptions &o) {
-	const auto checkpoint = checkpoint_detail::maximum_size(o.consensus);
-	const auto replacement = o.storage.replacement_pool.logical_bytes;
 	if (o.configuration.cluster != o.context.cluster || !o.waiters || o.waiters > 65536 ||
 		o.consensus.command_bytes < 104 ||
 		o.application.request_bytes > o.consensus.command_bytes - 104 ||
-		o.application.image_bytes > replacement || checkpoint > replacement - o.application.image_bytes ||
-		4096 > replacement - o.application.image_bytes - checkpoint ||
 		o.storage.replacement_pool.entries < 4) {
 		throw std::invalid_argument("authority runtime cannot fund configured limits");
 	}
+	validate_retained_state(o);
+	validate_replacement_funding(o);
 }
 
 Node::Node(std::unique_ptr<kronuz::journal::IO> io, NodeOptions options)

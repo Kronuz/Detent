@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -84,8 +85,99 @@ void submit(Node &node, std::uint64_t request, const Command &c) {
 	}
 	assert(false);
 }
+std::string refusal(const NodeOptions &profile) {
+	try { validate_node_options(profile); }
+	catch (const std::invalid_argument &error) { return error.what(); }
+	return {};
+}
+std::uint64_t funding_requirement(const NodeOptions &profile) {
+	const auto &policy = profile.scheduling.retained;
+	return profile.application.image_bytes + checkpoint_detail::encoded_bound({policy.log_entries, policy.log_bytes}) + 4096;
+}
+void retained_envelope_defaults() {
+	const kronuz::consensus::Limits defaults;
+	const auto &policy = NodeOptions{}.scheduling.retained;
+	assert(policy.command_bytes == defaults.command_bytes && policy.log_bytes == defaults.log_bytes &&
+		   policy.log_entries == defaults.log_entries && policy.batch_bytes == defaults.rpc_bytes &&
+		   policy.batch_entries == defaults.rpc_entries);
+	// The test profile lowers the operating log bound; the envelope stays at the defaults.
+	const auto profile = options();
+	assert(profile.consensus.log_bytes < policy.log_bytes && profile.scheduling.retained == policy);
+	assert(funding_requirement(NodeOptions{}) == 336931316);
+	assert(refusal(profile).empty());
+}
+void retained_funding(const std::filesystem::path &directory) {
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	auto profile = options();
+	const auto required = funding_requirement(profile);
+	const auto suffix = required - profile.application.image_bytes - 4096;
+	assert(suffix == 68491764 && required == 72690164);
+	// The boundary: the pool that funds the image, the envelope's suffix and 4096 bytes starts, one byte less does not.
+	profile.storage.replacement_pool.logical_bytes = required;
+	assert(refusal(profile).empty());
+	{ Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile); }
+	profile.storage.replacement_pool.logical_bytes = required - 1;
+	assert(refusal(profile) ==
+		   "authority runtime cannot fund configured limits: the replacement pool holds 72690163 bytes but "
+		   "the application image (4194304) + the encoded retained suffix (68491764) + the publication "
+		   "allowance (4096) need 72690164, short by 1 byte; raise journal_limits.replacement_bytes, or lower "
+		   "application_limits.image_bytes or retained_state.log_bytes and log_entries");
+	std::filesystem::remove_all(directory);
+	std::filesystem::create_directories(directory);
+	assert(::chmod(directory.c_str(), 0700) == 0);
+	bool refused = false;
+	try { Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile); }
+	catch (const std::invalid_argument &) { refused = true; }
+	assert(refused && std::filesystem::is_empty(directory));
+	// A larger envelope raises the requirement by its extra suffix bytes and entries.
+	profile = options();
+	profile.scheduling.retained.log_bytes *= 2;
+	profile.scheduling.retained.log_entries *= 2;
+	profile.storage.replacement_pool.logical_bytes = funding_requirement(profile);
+	assert(refusal(profile).empty() && funding_requirement(profile) - required == 67108864 + 65536 * 21);
+	--profile.storage.replacement_pool.logical_bytes;
+	assert(refusal(profile).find("short by 1 byte;") != std::string::npos);
+	// A pool that fits the operating suffix alone is refused.
+	profile = options();
+	profile.storage.replacement_pool.logical_bytes = profile.application.image_bytes +
+		checkpoint_detail::maximum_size(profile.consensus) + 4096;
+	assert(profile.storage.replacement_pool.logical_bytes < required && !refusal(profile).empty());
+	// Sums past 64 bits are refused with a lower bound.
+	profile = options();
+	profile.storage.replacement_pool.logical_bytes = UINT64_MAX;
+	profile.application.image_bytes = std::numeric_limits<std::size_t>::max() - 2048;
+	assert(refusal(profile).find("need more than 18446744073709551615, short by more than 0 bytes;") !=
+		   std::string::npos);
+	std::filesystem::remove_all(directory);
+}
+void retained_validation() {
+	auto reduce = [](auto field, std::size_t value) {
+		auto profile = options();
+		profile.scheduling.retained.*field = value;
+		return refusal(profile);
+	};
+	using Policy = kronuz::consensus::RetainedStatePolicy;
+	const auto profile = options();
+	// Each bound is accepted at its operating limit and refused one below, at zero and above its ceiling.
+	struct Case { const char *name; std::size_t Policy::*field; std::size_t operating, ceiling; };
+	for (const auto &bound : {Case{"command_bytes", &Policy::command_bytes, profile.consensus.command_bytes, ceilings.command_bytes},
+							  Case{"log_bytes", &Policy::log_bytes, profile.consensus.log_bytes, ceilings.log_bytes},
+							  Case{"log_entries", &Policy::log_entries, profile.consensus.log_entries, ceilings.log_entries},
+							  Case{"batch_bytes", &Policy::batch_bytes, profile.consensus.rpc_bytes, ceilings.rpc_bytes},
+							  Case{"batch_entries", &Policy::batch_entries, profile.consensus.rpc_entries, ceilings.rpc_entries}}) {
+		const std::string field = std::string("retained_state.") + bound.name;
+		assert(reduce(bound.field, bound.operating).empty());
+		assert(reduce(bound.field, bound.operating - 1) == "authority " + field + " " +
+			   std::to_string(bound.operating - 1) + " is below the operating limit " +
+			   std::to_string(bound.operating) + "; raise " + field);
+		assert(reduce(bound.field, 0) == "authority " + field + " 0 is outside 1 to " + std::to_string(bound.ceiling));
+		assert(reduce(bound.field, bound.ceiling + 1) == "authority " + field + " " +
+			   std::to_string(bound.ceiling + 1) + " is outside 1 to " + std::to_string(bound.ceiling));
+	}
+}
 void retained_application_range(const std::filesystem::path &directory, bool invalid_middle,
-								bool grouped = false, bool backlog = false, bool lowered = false) {
+								bool grouped = false, bool backlog = false, unsigned lowered = 0) {
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() { std::filesystem::remove_all(directory); }
@@ -93,7 +185,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	std::filesystem::create_directories(directory);
 	assert(::chmod(directory.c_str(), 0700) == 0);
 	auto profile = options();
-	if (lowered) {
+	if (lowered == 1) {
 		profile.application.request_bytes = 1024;
 		profile.application.definition_bytes = 1024;
 	}
@@ -122,7 +214,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 				for (unsigned sequence = 1; sequence <= 32; ++sequence)
 					commands.push_back(transaction(sequence, static_cast<int>(sequence)));
 				bytes = encode_batch(commands, profile.application, profile.consensus.command_bytes);
-				if (lowered)
+				if (lowered == 1)
 					assert(bytes.size() > 2048);
 			}
 			entries.push_back({index, 1, EntryKind::Command, std::move(bytes)});
@@ -142,8 +234,34 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		}
 	}
 	// Historical groups written under a larger command limit stay readable after the limit drops.
-	if (lowered)
+	if (lowered == 1)
 		profile.consensus.command_bytes = 2048;
+	// Fewer operating entries than the stored log hold: the envelope still recovers it.
+	if (lowered >= 4) {
+		profile.consensus.log_entries = 4;
+		profile.consensus.control_entries = 1;
+		profile.consensus.rpc_entries = 4;
+	}
+	if (lowered == 5) {
+		// An explicit envelope below the stored history refuses recovery and leaves the store untouched.
+		profile.scheduling.retained.log_entries = 4;
+		profile.scheduling.retained.batch_entries = 4;
+		auto sizes = [&] {
+			std::map<std::string, std::uintmax_t> result;
+			for (const auto &entry : std::filesystem::recursive_directory_iterator(directory))
+				if (entry.is_regular_file()) result[entry.path().string()] = entry.file_size();
+			return result;
+		};
+		const auto before = sizes();
+		bool refused = false;
+		{
+			Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
+			try { node.recover(); }
+			catch (const std::exception &error) { refused = true; std::cerr << "recover: " << error.what() << "\n"; }
+		}
+		assert(refused && sizes() == before);
+		return;
+	}
 	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
 	node.recover();
 	while (!node.worker().ready()) {
@@ -173,7 +291,7 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 		}
 
 		// Retain host output for ownership tests; backlog must permit new ranges.
-		if (backlog)
+		if (backlog || lowered >= 4)
 			node.take_network_actions();
 		if (node.state().applied_index() >= through)
 			break;
@@ -314,12 +432,17 @@ int main(int argc, char **argv) {
 	auto path = std::filesystem::current_path() / ".scratch" / ("authority-node-" + std::to_string(getpid()));
 	std::filesystem::create_directories(path);
 	chmod(path.c_str(), 0700);
+	retained_envelope_defaults();
+	retained_validation();
+	retained_funding(path / "retained-funding");
 	rejected_read_kind(path / "rejected-read");
 	terminal_state_retirement(path / "terminal-state");
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);
 	retained_application_range(path / "grouped-application", false, true);
-	retained_application_range(path / "lowered-grouped-application", false, true, false, true);
+	retained_application_range(path / "lowered-grouped-application", false, true, false, 1);
+	retained_application_range(path / "lowered-count-application", false, false, false, 4);
+	retained_application_range(path / "lowered-envelope-application", false, false, false, 5);
 	retained_application_range(path / "backlogged-application", false, false, true);
 	auto prepare = [](const Command &command) {
 		CommandEncoder encoder(command, options().application);
