@@ -7,7 +7,7 @@
 - State: designing (ready for preliminary review)
 - Done criteria (set by the lead; contributors tick, never edit):
   - none set yet
-- Done: the full draft of docs/design/reader.md (D1-D9, T1-T6, alternatives, limits, Q1-Q5, S1-S9), rulings R1-R4 kept verbatim; commit on `design/reader` (see Log).
+- Done: the full draft of docs/design/reader.md (D1-D9, T1-T6, alternatives, limits, Q1-Q5, S1-S9), rulings R1-R4 kept verbatim (`Detent:a037429`).
 - Doing: nothing; stopped at preliminary review.
 - Next:
   1. Architect preliminary review of docs/design/reader.md; fold findings in by ID.
@@ -24,3 +24,4 @@
 
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, namespace-delivery brief, legacy inventory (`explore/legacy-inventory` at `Detent:5abdf13`), the reader code, spec, bindings and the first-read evidence. Drafted the design; state set to ready for preliminary review.
+- 2026-11-03: Draft committed and pushed as `Detent:a037429` on `design/reader`.
