@@ -34,7 +34,6 @@ class Writer : public http::ResponseWriter {
 	std::vector<std::pair<std::string, std::string>> headers;
 	bool ended = false;
 	std::shared_ptr<http::detail::OwnedStreamExchange> exchange;
-	http::StreamOptions options;
 	std::shared_ptr<std::pmr::memory_resource> resource;
 	std::weak_ptr<void> admission; // what the stream retains until it settles
 
@@ -46,7 +45,6 @@ class Writer : public http::ResponseWriter {
 	void end() override { ended = true; }
 	void set_close() override {}
 	http::OwnedStreamCapability stream(http::StreamOptions requested) override {
-		options = requested;
 		admission = requested.reply.request_retention;
 		auto pool = requested.resource ? requested.resource : resource;
 		exchange = std::allocate_shared<http::detail::OwnedStreamExchange>(
