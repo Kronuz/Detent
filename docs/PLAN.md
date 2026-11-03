@@ -16,7 +16,10 @@ publishers, 250k+ agents, sub-millisecond warm reads.
 
 1. Stay on the tip. Every library pins its dependencies at their heads, and so does Detent. A stale
    pin is fixed in the library that holds it, never overridden by an earlier declaration here.
-2. One implementation per mechanism. No legacy or duplicate APIs, shims or deprecated aliases.
+2. One shape everywhere: one obvious way to do each thing, for every type, mechanism and API
+   (the family's coroutine type is `task::task`). No legacy or duplicate APIs, shims or deprecated
+   aliases. The only exception is a considerable cost gap that cannot be narrowed or closed, brought
+   to the owner with before/after numbers.
 3. Every library consumer is ours: change a library additively, or migrate every caller.
 4. Coordinate with the Xapiand lead (`xapiand-74`) before changing a shared library's API, moving a
    pin wave or removing something. Its plan: `~/code/Kronuz/strata/docs/status/road-to-release.md`;
@@ -28,6 +31,7 @@ publishers, 250k+ agents, sub-millisecond warm reads.
 | Milestone | Content | Exit |
 | --- | --- | --- |
 | M1 On the tip | Every Kronuz pin at its head; Detent on coroutine HTTP handlers with no offload path | Done criteria below |
+| M1b Async drivers | Coroutine drivers for journal and consensus (`task::task<T>`, injectable scheduler/clock/IO, bytes per idle group, a run-to-completion entry), then Detent's owner loops on them; agreed with Xapiand in [SHARED_LIBRARY_DECISIONS.md](SHARED_LIBRARY_DECISIONS.md#coroutine-drivers-for-journal-and-consensus-november-2) | Designs reviewed by the architect and the Xapiand lead; old Worker API deleted |
 | M2 Integration (RC-1) | Re-qualify the parked candidates on the tip, one at a time: resources, shared HTTP clients, bounded MessagePack, persistent map, consensus transport, async HTTP log completion | Each lands or is rejected with evidence |
 | M3 Client performance (RC-2) | First-read repeatability, incremental refresh, daemon startup attribution | Sub-millisecond resident-data first read held |
 | M4 Capacity and restoration (RC-3, RC-4) | Ingestion ladder, sustained 5M, 10M attempt, fresh three-voter restore | Published operating envelope |
@@ -44,7 +48,8 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 | Workstream | Owner | Content |
 | --- | --- | --- |
 | W1 completion pins | lead | Move completion's own metrics and allocators pins to heads in the library; cascade completion through journal and consensus (and cluster where it pins them) |
-| W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission and body limits map onto `in_flight_limit`, `set_max_body()` and `BodyStream`; reactor's new constructors |
+| W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission stays Detent's own (JSON refusals; http's `in_flight_limit` gate is set so it never fires), body caps map onto `set_max_body()` and `BodyStream`; reactor's new constructors |
+| W2a http on task | designer, then developer | http's handlers, routes and `BodyStream` become `task::task`; http-log, prism and Xapiand migrate in the same wave ([decision](SHARED_LIBRARY_DECISIONS.md#one-coroutine-type-http-handlers-on-task-november-2)); W2 then targets the task API |
 | W3 pin waves | developer | Move pins dependency first in waves: leaves; then the completion chain; then reactor, http-parser, http, http-log, cluster with W2 |
 | W4 threadpool and scheduler | Xapiand campaign, then W3 | ThreadPool's family is removed and scheduler runs on WorkPool; Detent takes threadpool, scheduler, logger and stash in one step when `xapiand-74` reports them landed |
 | W5 evidence | lead | Input-class diffs, hot-path A/B with an A/A control, CHANGELOG |
@@ -53,7 +58,7 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 
 ```
 W1 completion -> journal -> consensus pins ─┐
-W2 design -> architect review -> implement ──┼─> W3 final wave + W4 -> full suite, sanitizers, CI -> W5 A/B -> land
+W2a http-on-task design -> review -> http lands -> W2 implement ──┼─> W3 final wave + W4 -> full suite, sanitizers, CI -> W5 A/B -> land
 W4 threadpool/scheduler (Xapiand) ──────────┘
 ```
 
@@ -90,7 +95,7 @@ the tip in M2, never adopted on the old pins.
 | Candidate | Branch or commit | State on 2026-11-02 |
 | --- | --- | --- |
 | Reader metadata capsule | `track/reader-capsule`, `track/resource-capsule` (`Detent:30fee44`) | Correct; real 5M first-read acceptance fails in three of four rows |
-| Resource adoption | `.scratch/` worktrees | Functional gates pass; performance gate open |
+| Resource adoption | `track/resource-adoption` (`Detent:52246e2`; contains the `33d36bf` integration) | Adopted by owner ruling ([decision](SHARED_LIBRARY_DECISIONS.md#resource-accounting-one-shared-implementation-november-2)); rebase on `main` with `allocators` at head, then attribute and fix the first-read gap (196/200 vs 195/200 under 1 ms) |
 | Shared HTTP clients | http qualification branch (`http:bd3e8e1`, not on http main) | Blocked on +13.2% caller CPU; built on the removed sync handler API |
 | Bounded MessagePack | `msgpack:f8975e3`, `Detent:4c37ca6` | Functional; production-path cost open |
 | Persistent map | `Kronuz/persistent-map` | Functional; update-cost outlier open |
@@ -101,3 +106,15 @@ the tip in M2, never adopted on the old pins.
 Pacing follows `pace claude advise`; on 2026-11-02 the week runs ahead (16% used against 7%
 pace), so one token-heavy agent runs at a time and the lead does mechanical library work itself.
 Builds and tests run under `quiet light`, timing under `quiet strict` holds of at most ten minutes.
+
+Timing that decides a gate runs on the shared AWS benchmark account through `lease` (us-east-2,
+on-demand; one lease per session at a time; batches queued and run back to back in one lease, then
+`lease down`). c7a.4xlarge (x86) and c7g.4xlarge (arm64) serve A/B ratios; metal only for gate or
+published numbers, after messaging the Xapiand lead. The Linux x86-64 gate for http on task (T6/T7)
+runs there once task's C3 lands. Its threshold for a "considerable" cost gap is the lead's proposal
+(more than 5% server CPU per request or 10% p99, after optimization) unless the owner rules otherwise
+at the gate; the aim is to close the gap and keep `task::task` everywhere.
+
+Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
+Every 2-hour report states free space; contributors delete build directories when they finish, and
+the lead removes merged worktrees and their build directories at each landing.

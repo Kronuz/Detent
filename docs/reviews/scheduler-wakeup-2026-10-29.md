@@ -111,3 +111,71 @@ the reviewed mutex-placement prototype.
 The lead additionally reports ASan/UBSan 3/3 and separate TSan 2/2 passing for
 the mutex-placement prototype. Those results are not independently replayed by
 this review and do not qualify the generation alternative.
+
+## Re-check: generation implementation
+
+Date: 2026-10-29. Reviewed: the frozen generation implementation over
+`scheduler:2cbea95`, its five-case `test/wakeup.cc`, the baseline header with
+identical hooks, `verify_latest.py`, and the current architecture/API text.
+This ruling supersedes the prototype's implementation verdict while preserving
+its findings above.
+
+### Verdict
+
+**APPROVE WITH CONDITIONS.** C1 and C2 are closed. Scheduler-level C3 is closed.
+C4 and consumer adoption remain open independently. No new implementation
+blocker is identified. Apply the two wording corrections below before landing;
+they need no additional execution or review round.
+
+### Status
+
+1. **C1 closed: notification completion is enforced.** The test waits for
+   producer completion before releasing the paused consumer
+   (`test/wakeup.cc:80`, `85`). Enqueue pauses at `BEFORE_PROPOSE`; shutdown
+   pauses at `LOOP`, after the empty-queue shutdown check. The corrected
+   `latest-baseline-0.log`, `latest-baseline-1.log`, and
+   `latest-baseline-3.log` all report `paused=1 completed=1` and fail their
+   respective execution/join checks. `generation-revert.log` records ten
+   successful runs of all five fixed cases. The retained `initial-*` evidence
+   does not establish the corrected shutdown schedule.
+2. **C2 closed: original consumer trace scope is restored.** The final mutex
+   acquisition follows `LOOP` (`scheduler.h:324`), and queue inspection remains
+   outside it. The `Reentrant` case schedules from that hook; `Reschedule`
+   requires two callback executions. Existing producer-side tracing constraints
+   remain unchanged.
+3. **C3 closed for scheduler qualification.** Inspected logs record native 3/3
+   passing in 4.13 seconds (`generation-native.log`), ASan/UBSan 3/3 in
+   4.94 seconds, and separate TSan 2/2 in 4.56 seconds
+   (`generation-sanitizers.log`). The sanitizer CMake caches confirm separate
+   instrumented builds. The no-notify row asserts the actual `ADDED` branch,
+   zero premature callback executions, and successful shutdown. Because that
+   row also calls `finish(0)`, it does not independently isolate the enqueue
+   generation from the shutdown generation; the source ordering and enqueue
+   rows provide that evidence.
+4. **Generation ordering matches the reviewed design.** Publication precedes
+   the enqueue increment (`scheduler.h:355`); `ending` publication precedes
+   the shutdown increment (line 248). The consumer snapshots before peep
+   (line 284), then checks under the notifier mutex (line 327). All generation
+   operations retain sequential consistency. A no-notify producer either
+   invalidates the snapshot or observes the consumer's already-published
+   deadline. A later notifying producer remains protected by atomic
+   unlock-and-wait. No new lock-order edge is introduced.
+5. **C4 remains open.** `footprint.json` records 9,024 bytes and 64-byte
+   alignment for both measured headers; this is one platform's layout result.
+   The full rebuild requirement and additional RMW cost are disclosed.
+   Producer-latency measurements and Detent qualification with matching stash
+   remain consumer-adoption work. The original GCC readiness symptom remains
+   unattributed.
+
+### Wording corrections and limits
+
+1. Qualify the architecture/agent guidance about unlocked trace callouts as
+   consumer-side queue-inspection and `LOOP` callouts. `ADDED_NOTIFY` continues
+   to run under `mtx`; this change promises no universal trace reentrancy.
+2. State the counter assumption: fewer than 2^64 generation increments occur
+   between a consumer's snapshot and final comparison. Unsigned wrap is
+   defined, but a full cycle inside that interval defeats equality detection.
+
+Not run in this re-check: new compilation, test execution, performance
+measurements, Linux/GCC, or broader shutdown-state-machine qualification.
+Existing admission/countdown races are unchanged and outside this scoped fix.

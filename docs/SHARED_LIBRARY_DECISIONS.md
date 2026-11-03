@@ -247,3 +247,48 @@ This records Detent's proposed contract, not agreement from strata or Xapiand. U
 The [EX-1 reconciliation](RESOURCE_EXTRACTION_ARCHITECTURE.md#validated-architectural-blueprint-ex-1-reconciliation) accepts the coherent published foundation allocators:b7daa52, completion:21809c7 and journal:dbf753f for isolated consumer qualification. Consensus:b7073bbe and every unrelated dependency stay fixed. The saved migration combines generic resource extraction with separate authority funding and transport changes; those hunks are excluded. This stage changes no consensus wire bytes, synced acknowledgements or per-group journal policy. Full C++ rebuilding is required for the shared resource layouts.
 
 CL-2 both-lock activation remains required and separate. Public completion:ca0889d supplies the unified modes, but the inspected public Journal/Worker closure does not forward them. A completion-only upgrade cannot activate both locks. Extend the shared forwarding API while preserving existing defaults, publish and qualify that closure, then select both at mutable consumer entry points; do not introduce a custom IO wrapper or a second locking implementation. Newer library adoption remains tracked rather than implied by foundation adoption.
+
+## Coroutine drivers for journal and consensus (November 2)
+
+Agreed between the Detent and Xapiand leads; Detent owns both designs, Xapiand reviews them for the points below and 7b fit before any code lands. Work starts after Detent's M1 ([plan](PLAN.md)).
+
+1. journal's resumable state machines and consensus's I/O-free `Core` stay the one implementation. A coroutine driver replaces the polling loops and the callback Worker API; the old Worker API is deleted once Detent migrates. Nothing in strata or Xapiand uses journal or consensus today; strata uses completion only through `PosixIO`/`IO`, which this does not touch.
+2. The public type is Kronuz/task's `task::task<T>`, generic over the scheduler (`scheduler_ref`), with an asio adapter for Detent. No `asio::awaitable` in the public API.
+3. Scheduler, clock and IO are injectable (completion's `IO` seam), so strata's deterministic simulator can drive journal and consensus step by step with no real time or threads.
+4. An idle group costs bytes, not resources: no thread, `io_context`, armed timer or coroutine frame per idle group; timers live in a shared wheel per reactor. Each design carries a per-idle-group cost row (Xapiand targets millions of indexes per host, one group per shard in 7b).
+5. A blocking entry point drives the same state machine to completion without an `io_context` on the calling thread (run-to-completion, or `sync_wait` on the task), for Xapiand's device chores on a WorkPool. This is the one implementation driven two ways, not a second API.
+
+Xapiand's per-index turn (an async lease) holds the journal append and the apply in one turn; journal carries no turn log for it.
+
+## One coroutine type: http handlers on task (November 2)
+
+Agreed between the Detent and Xapiand leads after the owner asked why the family carried two coroutine types. `task::task<T>` (Kronuz/task) is the family's one coroutine type; asio stays the reactor, bound through `task_asio.hh`.
+
+1. http's handler type, `Router` routes and `BodyStream` reads become `task::task`-based. http-log, prism, Detent and Xapiand's `SearchService` migrate in the same wave; Xapiand's `task::as_awaitable` bridge is deleted.
+2. Detent owns the http, http-log and prism change; the Xapiand lead reviews the design before code and migrates Xapiand when it lands.
+3. The L3 review's constraints hold on the new API: request, writer and `BodyStream` outlive a destroyed connection frame; a disconnect cancels reads, not writes, and a pipelined byte ends monitoring; the `AdmissionGate` count stays exact on every exit path; a throwing `on_cancel` is contained; a truncated body is an error, not end of file. The L3 probes (`http-wt/l3-http/.scratch/review-l3/`) rerun on the new API.
+4. Gate: end-to-end req/s and p99 latency at 8 and 64 connections within the A/A band of today's head, and coroutine frame allocation per request no worse than asio's. Whether http's internal connection loop also moves to task follows that measurement.
+
+Owner ruling, same day: no mixed shape. http's internal connection loop and connection factories move to `task::task` too. If task measures worse than `asio::awaitable` there, task is made cheaper (frames, the `await_asio` adapter) with the evidence, or the owner gets a case for dropping task everywhere; asio inside with task outside is not an option. The gate numbers decide where to optimize, not which type to keep. Refined: one shape everywhere unless the cost gap is considerable and cannot be narrowed or closed; the task loop is the default, task is optimized first (an inline `await_asio` resume, an inline-start primitive), and an asio loop is allowed only on a case to the owner with before/after numbers.
+
+## task cancellation, inline resume and reactor sessions (November 2)
+
+The architect's review of http-on-task (`http:88f1275`) finds that task cannot cancel a pending operation and that reactor's `Session` and http's public seams still expose `asio::awaitable`. Agreed with the Xapiand lead; Detent owns the task and reactor changes, and the Xapiand lead reviews the task diff once for strata, prospect, residency and Xapiand.
+
+1. `cancel_token` gains a reason (a small integer or enum) and lazy callback registration. Polling stays one atomic load with no allocation. Callback lifetime follows `std::stop_callback`: deregistration waits for a running callback, and no user code runs under the token's lock. This is the one cancellation mechanism; http's `cancelled()`, `cancel_reason()` and `on_cancel()` go (Xapiand's `hreq.on_cancel` at `search_views.cc:3079` moves to a token callback).
+2. `await_asio` takes a token and cancels the pending asio operation. A deadline is a token source (a timer that requests cancellation), not `when_any`.
+3. `await_asio` resumes inline when the completion already runs on the scheduler's thread, inside the scheduler's scope. The inline resume counts as a resume for the per-resume slice, so budget checkpoints still yield, and falls back to post past a small depth bound.
+4. Teardown: the owner of a scheduler destroys the frames still queued after `stop()`, as `asio::awaitable` does, with a Debug assertion or test for zero live frames. Destroying an `io_context` without `stop()` is unsupported. Xapiand relies on frames being destroyed to release shard uses and turn leases.
+5. reactor's `Session` becomes `task::task`, and each reactor owns one scheduler per loop, exposed as `reactor(i).scheduler()` (Xapiand's `AsioHost` wraps it). This is the first implementation step.
+6. `scheduler_ref`, `work_pool_executor` and the WorkPool executors stay source-compatible, or every consumer migrates in the same wave.
+7. Gate: server CPU per request and p99, not req/s, over head, its A/A copy, the task loop on today's task and on optimized task. The performance gate host is Linux x86-64 (a Linux VM under `quiet strict` with `QUIET_VM` until the bench box exists), with one macOS check. The architect proposes "considerable" as more than 5% CPU per request or 10% p99 after optimization; a 3-5% gap lands as an optimization target; allocations and handlers per request never exceed head's. The definition is the owner's, put to him by the Xapiand lead.
+
+## Resource accounting: one shared implementation (November 2)
+
+The owner ruled that Detent adopts the shared resource primitives in `allocators` (byte accounts and
+charges, reservation books, retirement) and deletes its own copies in `detent_distribution` and
+`detent_local/disk_ledger.hh`. There is one implementation, and it is made fast and robust where it
+lives. The adoption is no longer an optional candidate: its first-read gate (196/200 baseline vs
+195/200 migrated under 1 ms) is a regression to attribute and fix, in `allocators` when the cost is
+there, not a reason to keep Detent's copy. The work rebases `track/resource-adoption`
+(`Detent:52246e2`) onto `main` with `allocators` at its head, the same pin completion declares.
