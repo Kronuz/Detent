@@ -14,6 +14,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Builds without NDEBUG count task frames, so the teardown tests and the hosts' own checks can assert
+# that none stays alive (docs/design/http-coroutines.md T13). Set before any dependency is added:
+# every translation unit of a program must agree (task.hh, ODR).
+add_compile_definitions($<$<NOT:$<CONFIG:Release,RelWithDebInfo,MinSizeRel>>:TASK_COUNT_FRAMES=1>)
+
 # A C++20 language mode does not establish standard-library thread support.
 # libc++ 19 gates jthread behind an explicit experimental-library opt-in.
 include(CheckCXXSourceCompiles)
