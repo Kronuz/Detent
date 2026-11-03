@@ -1,5 +1,6 @@
 #include "detent/scope.hh"
 #include "service.hh"
+#include "support/handler_harness.hh"
 #include <consensus/checkpoint.h>
 #include <filesystem>
 #include <http_owned_stream.h>
@@ -94,9 +95,9 @@ void invoke(a::Service &service, Writer &writer, std::string path, std::string b
 	http::Request request;
 	request.method = "POST";
 	request.path = std::move(path);
-	request.body = std::move(body);
 	request.headers.emplace_back("Authorization", "Bearer " + token);
-	service.handle(request, writer);
+	detent_test::intake(service, request, body);
+	detent_test::run_handle(service, request, writer);
 }
 std::pair<std::string, std::string> receive(StreamWriter &writer, std::chrono::seconds timeout = 3s) {
 	std::string head, body;
@@ -326,7 +327,7 @@ int main(int argc, char **argv) {
 				http::Request request;
 				request.method = "GET";
 				request.path = "/v1/health";
-				service->handle(request, writer);
+				detent_test::run_handle(*service, request, writer);
 				check(writer.code == 200);
 				rapidjson::Document result;
 				result.Parse(writer.body.data(), writer.body.size());

@@ -63,10 +63,8 @@ int main(int argc, char** argv) {
 	detentd::Options opts;
 	opts.persist_path = persist;
 	detentd::Distributor app(opts);
-	// A worker pool sized well above num_watchers would defeat the point of
-	// this test (PUT is the only offloaded route, and it is rare); a modest
-	// pool is enough since GETs never touch it (should_offload()==false).
-	http::HttpAsioService service(app, static_cast<std::size_t>(reactors), 8, 4096);
+	// GETs run on the reactor loops and never wait on a commit; PUT hops to the distributor's owner.
+	http::HttpAsioService service(app, static_cast<std::size_t>(reactors), 4096);
 	service.enable_conditional();
 	auto port = temp_port();
 	service.start(port);

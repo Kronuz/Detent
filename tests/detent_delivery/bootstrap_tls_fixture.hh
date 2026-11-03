@@ -46,7 +46,7 @@ inline task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<r::
     r::Service service(runtime);
     asio::ip::tcp::acceptor probe(executor, {asio::ip::address_v4::loopback(), 0});
     const auto endpoint = probe.local_endpoint(); probe.close();
-    http::HttpAsioService listener(service, 2, 2, 8, http::tls_connection_factory_timed(server_tls), 32);
+    http::HttpAsioService listener(service, 2, 8, http::tls_connection_factory(server_tls), 32);
     http::AsioBindOptions bind; bind.address = "127.0.0.1"; listener.set_bind_options(bind);
     listener.start(endpoint.port());
     t::ClientOptions options;

@@ -1,5 +1,6 @@
 #pragma once
 #include "detent_relay/service.hh"
+#include "support/handler_harness.hh"
 #include <rapidjson/document.h>
 #include <sha256.h>
 
@@ -74,7 +75,7 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 		request.headers.emplace_back("Authorization", "Bearer " + token);
 		bool refused = false;
 		try {
-			(void)service->on_request_body(request);
+			(void)service->create_extension(request);
 		} catch (const http::RequestRejected &error) {
 			refused = error.status() == 503 && std::string_view(error.content_type()) == "application/json" &&
 					  std::string_view(error.what()) == "{\"error\":\"admission_full\"}";
@@ -88,10 +89,8 @@ void qualify(std::shared_ptr<r::Bundle> bundle, d::RetirementHandle<d::EncodedUp
 		request.method = "POST";
 		request.path = std::move(path);
 		request.headers.emplace_back("Authorization", "Bearer " + token);
-		auto sink = service->on_request_body(request);
-		sink->write(body);
-		sink->end();
-		service->handle(request, writer);
+		detent_test::intake(*service, request, body);
+		detent_test::run_handle(*service, request, writer);
 	};
 	auto drain = [&](Writer &writer) {
 		std::string body;

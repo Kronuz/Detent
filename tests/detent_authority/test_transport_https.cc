@@ -11,30 +11,30 @@ using namespace std::chrono_literals;
 struct App : http::HttpHandler {
 	std::mutex mutex;
 	std::condition_variable ready;
-	std::unique_ptr<http::DeferredReply> pending;
-	bool should_offload(const http::Request &) const override { return false; }
-	void handle(const http::Request &request, http::ResponseWriter &writer) override {
+	http::OwnedStreamCapability pending;
+	task::task<void> handle(http::Request &request, http::ResponseWriter &writer) override {
 		if (request.path == "/v1/health") {
 			writer.send(200, "healthy");
-			return;
+			co_return;
 		}
 		if (request.path == "/fast") {
 			writer.send(200, "fast");
-			return;
+			co_return;
 		}
-		http::DeferredOptions options;
-		options.deadline = std::chrono::steady_clock::now() + 3s;
+		// The reply leaves later, through the owned stream: the connection keeps reading meanwhile.
+		http::StreamOptions options;
+		options.reply.deadline = std::chrono::steady_clock::now() + 3s;
 		std::lock_guard lock(mutex);
-		pending = writer.defer(std::move(options));
+		pending = writer.stream(std::move(options));
 		ready.notify_one();
 	}
-	std::unique_ptr<http::BodySink> on_request_body(http::Request &request) override {
+	std::unique_ptr<http::RequestExtension> create_extension(const http::Request &request) override {
 		if (request.path == "/reject") {
 			throw http::RequestRejected(503, "{\"error\":\"admission_full\"}", http::RejectionContent::Json);
 		}
 		return {};
 	}
-	std::unique_ptr<http::DeferredReply> take() {
+	http::OwnedStreamCapability take() {
 		std::unique_lock lock(mutex);
 		assert(ready.wait_for(lock, 2s, [&] { return bool(pending); }));
 		return std::move(pending);
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 	asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
 	auto endpoint = reservation.local_endpoint();
 	reservation.close();
-	http::HttpAsioService service(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 4);
+	http::HttpAsioService service(app, 1, 16, http::tls_connection_factory(context, 100ms), 4);
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	service.set_bind_options(bind);
@@ -70,8 +70,11 @@ int main(int argc, char **argv) {
 	asio::write(client, asio::buffer("G", 1));
 	std::this_thread::sleep_for(20ms);
 	http::Response response;
-	response.body = "deferred";
-	assert(reply->complete(std::move(response)) == http::ReplySubmit::Accepted);
+	response.content_type = "text/plain";
+	auto deferred = std::make_shared<const std::string>("deferred");
+	assert(reply->start(response, deferred->size(), true) == http::StreamSubmit::Accepted);
+	assert(reply->publish({deferred, std::string_view(*deferred)}) == http::StreamSubmit::Accepted);
+	assert(reply->finish() == http::StreamSubmit::Accepted);
 	asio::write(client, asio::buffer(std::string(
 							"ET /fast HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")));
 	std::string wire;
@@ -112,20 +115,21 @@ int main(int argc, char **argv) {
 	asio::ip::tcp::socket expired_client(io);
 	expired_client.connect(expired_accept.local_endpoint());
 	auto expired_socket = expired_accept.accept();
-	reactor::Reactor expired_owner(0, 0);
+	reactor::Reactor expired_owner;
 	http::AsioResponseOptions expired_options;
 	bool expired_retired = false;
 	std::exception_ptr expired_failure;
-	auto expired_factory = http::tls_connection_factory_timed(context, 100ms);
-	asio::co_spawn(io,
-				   expired_factory(std::move(expired_socket), &app, &expired_owner, &expired_options,
-								   reactor::SessionContext{std::chrono::steady_clock::now() - 200ms}),
-				   [&](std::exception_ptr failure) {
-					   expired_failure = failure;
-					   expired_retired = true;
-				   });
-	io.restart();
-	io.run();
+	auto expired_factory = http::tls_connection_factory(context, 100ms);
+	task::spawn(task::scheduler_ref::of(expired_owner.scheduler()),
+				expired_factory(std::move(expired_socket), &app, &expired_owner, &expired_options,
+								reactor::SessionContext{std::chrono::steady_clock::now() - 200ms, {}}),
+				[&](std::exception_ptr failure) {
+					expired_failure = failure;
+					expired_retired = true;
+				});
+	expired_owner.run();
+	expired_owner.scheduler().close();
+	expired_owner.scheduler().destroy_roots();
 	assert(expired_retired && !expired_failure);
 	char unexpected_tls_byte = 0;
 	auto expired_bytes = expired_client.read_some(asio::buffer(&unexpected_tls_byte, 1), error);
@@ -133,7 +137,7 @@ int main(int argc, char **argv) {
 	asio::ip::tcp::acceptor capped_reservation(io, {asio::ip::address_v4::loopback(), 0});
 	const auto capped_endpoint = capped_reservation.local_endpoint();
 	capped_reservation.close();
-	http::HttpAsioService capped(app, 1, 0, 16, http::tls_connection_factory(context, 100ms, 1, 1));
+	http::HttpAsioService capped(app, 1, 16, http::tls_connection_factory(context, 100ms, 1, 1));
 	capped.set_bind_options(bind);
 	capped.start(capped_endpoint.port());
 	asio::ssl::stream<asio::ip::tcp::socket> held(io, client_context);
@@ -163,7 +167,7 @@ int main(int argc, char **argv) {
 	asio::ip::tcp::acceptor timed_reservation(io, {asio::ip::address_v4::loopback(), 0});
 	const auto timed_endpoint = timed_reservation.local_endpoint();
 	timed_reservation.close();
-	http::HttpAsioService timed(app, 1, 0, 16, http::tls_connection_factory_timed(context, 100ms), 1);
+	http::HttpAsioService timed(app, 1, 16, http::tls_connection_factory(context, 100ms), 1);
 	timed.set_request_timeout(40ms);
 	timed.set_bind_options(bind);
 	timed.start(timed_endpoint.port());
@@ -212,5 +216,5 @@ int main(int argc, char **argv) {
 	}
 	timed.stop();
 	assert(timed.connection_stats().active == 0);
-	std::cout << "HTTPS deferred reply preserves pipelined plaintext input\n";
+	std::cout << "HTTPS owned-stream reply preserves pipelined plaintext input\n";
 }

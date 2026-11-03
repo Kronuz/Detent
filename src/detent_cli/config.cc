@@ -171,7 +171,7 @@ ConfigFile load_config(const std::vector<std::string>& args, const std::string& 
 		if (field == schema.end()) {
 			for (const auto& removed : kRemoved)
 				if (removed.field == key && filename == std::string(removed.program) + ".json")
-					fail(std::string(removed.field) + " was removed: " + removed.reason);
+					fail(std::string(removed.field) + " was removed: " + std::string(removed.reason));
 			fail("unknown field: " + key);
 		}
 		if (field->second.trusted && !trusted) fail("setting requires a trusted regular configuration file");
