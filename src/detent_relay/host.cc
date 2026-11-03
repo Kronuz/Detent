@@ -1,11 +1,13 @@
 #include "host.hh"
 #include "../detent_cli/logging.hh"
+#include "detent/owner_loop.hh"
 #include "detent/scope.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/directory.hh"
 #include "detent_relay/configuration.hh"
 #include "detent_relay/service.hh"
 #include <asio.hpp>
+#include <cassert>
 #include <charconv>
 #include <fcntl.h>
 #include <future>
@@ -122,7 +124,8 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 }
 } // namespace
 int run_host(const std::filesystem::path &configuration, bool system, const detent_cli::Ready &ready) {
-	asio::io_context owner(1);
+	[[maybe_unused]] const auto frames = task::detail::live_frames();
+	OwnerLoop owner;
 	asio::thread_pool startup(1);
 	auto options = on_worker<HostOptions>(startup, [&] { return load_host_options(configuration, system); });
 	auto root = std::make_shared<d::StorageLedger>(options.heap_bytes);
@@ -154,10 +157,10 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(baseline)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(baseline),
-														owner.get_executor(), queue, true);
+														owner.scheduler(), queue, true);
 	auto scheduler =
 		std::allocate_shared<t::CompletionScheduler>(d::StorageAllocator<t::CompletionScheduler>(baseline),
-													 owner.get_executor(), driver, baseline, records.size());
+													 owner.scheduler(), driver, baseline, records.size());
 	std::vector<RegistryBundle> registry_bindings;
 	std::vector<std::vector<std::string_view>> names;
 	std::vector<SessionBinding, d::StorageAllocator<SessionBinding>> session_bindings{
@@ -185,6 +188,7 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 			names.back().push_back(name);
 		registry_bindings.push_back({bundle_options.configured, principal, names.back()});
 		session_bindings.push_back({record.bundle, principal, bundle_options.configured});
+		configured.source.coordinator.source.scheduler = &owner.scheduler();
 		configured.source.coordinator.completion_port = scheduler->port(index);
 		configured.source.coordinator.publication_sink = record.bundle;
 		configured.source.coordinator.view_limits.retirement_domain = &record.publication_domain;
@@ -248,8 +252,9 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 	listener.set_bind_options(bind);
 	listener.set_request_timeout(std::chrono::seconds(65));
 	listener.start(options.endpoint.port());
-	std::promise<void> stop;
+	std::promise<void> stop, owner_done;
 	auto stopping = stop.get_future();
+	auto owner_drained = owner_done.get_future();
 	bool stop_requested = false, listener_stopped = false, announced = false;
 	std::exception_ptr failure;
 	auto shutdown = [&] {
@@ -261,12 +266,12 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 			record->coordinator->close();
 		stop.set_value();
 	};
-	asio::signal_set signals(owner, SIGINT, SIGTERM);
+	asio::signal_set signals(owner.io(), SIGINT, SIGTERM);
 	signals.async_wait([&](const asio::error_code &error, int) {
 		if (!error)
 			shutdown();
 	});
-	asio::steady_timer tick(owner);
+	asio::steady_timer tick(owner.io());
 	std::size_t bundle_cursor = 0;
 	std::chrono::steady_clock::time_point health_due{};
 	std::function<void()> turn;
@@ -333,11 +338,12 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 				std::all_of(records.begin(), records.end(),
 							[](const auto &record) { return record->coordinator->drained(); })) {
 				signals.cancel();
-				owner.stop();
+				owner.io().stop();
+				owner_done.set_value();
 				return;
 			}
 			if (progress)
-				asio::post(owner, turn);
+				asio::post(owner.io(), turn);
 			else {
 				tick.expires_after(std::chrono::milliseconds(1));
 				tick.async_wait([&](const asio::error_code &error) {
@@ -355,26 +361,32 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 			});
 		}
 	};
-	std::thread owner_thread([&] {
+	// The coordinators run on the owner's scheduler, admitted from the owner thread.
+	asio::post(owner.io(), [&] {
 		try {
-			asio::post(owner, turn);
+			asio::post(owner.io(), turn);
 			for (auto &record : records)
-				asio::co_spawn(owner, record->coordinator->run(), [&](std::exception_ptr error) {
-					if (error) {
-						failure = error;
-						shutdown();
-					}
-				});
+				task::spawn(task::scheduler_ref::of(owner.scheduler()), record->coordinator->run(),
+							[&](std::exception_ptr error) {
+								if (error) {
+									failure = error;
+									shutdown();
+								}
+							});
 		} catch (...) {
 			// Unadmitted run originals cannot participate in graceful drainage.
 			std::terminate();
 		}
-		owner.run();
 	});
 	stopping.get();
 	listener.stop();
-	asio::post(owner, [&] { listener_stopped = true; });
-	owner_thread.join();
+	asio::post(owner.io(), [&] { listener_stopped = true; });
+	// Teardown (D15): once the turn finds everything drained, phases 1-3 on the owner, with its
+	// io_context alive, before anything the coordinators reference is destroyed.
+	owner_drained.get();
+	owner.stop();
+	owner.close();
+	owner.destroy_roots();
 	startup.join();
 	facade.reset();
 	runtime.reset();
@@ -394,6 +406,7 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 		record->cache_domain.close().wait();
 		record->publication_domain.close().wait();
 	}
+	assert(task::detail::live_frames() == frames && "a task frame outlived the relay host (T13)");
 	L_NOTICE("detent-relay: drained; admitted heap peak {} bytes, configured {}", root->peak(),
 			 root->limit());
 	if (failure)
