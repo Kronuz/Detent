@@ -11,6 +11,7 @@
 #include <asio/executor_work_guard.hpp>
 #include <asio/steady_timer.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <cstdio>
@@ -165,9 +166,12 @@ class Async {
 			} catch (...) {
 				error_ = std::current_exception();
 			}
+			finished_.store(true, std::memory_order_release);
 		});
 	}
 	~Async() { join(); }
+	// True once the handler has returned (or thrown); finish() then does not wait.
+	bool finished() const { return finished_.load(std::memory_order_acquire); }
 	void join() {
 		if (thread_.joinable())
 			thread_.join();
@@ -181,6 +185,7 @@ class Async {
   private:
 	std::thread thread_;
 	std::exception_ptr error_;
+	std::atomic<bool> finished_{false};
 };
 
 } // namespace detent_test

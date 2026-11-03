@@ -521,7 +521,18 @@ int main() {
 							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
 		unsigned frozen = 0;
-		for (unsigned i = 0; i < readers.size(); ++i) {
+		// Readers are served in the order the owner gives them credit, not the order they were started.
+		std::vector<bool> served(readers.size());
+		for (unsigned count = 0; count < readers.size(); ++count) {
+			unsigned i = readers.size();
+			for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30); i == readers.size();
+				 std::this_thread::sleep_for(std::chrono::milliseconds(1))) {
+				for (unsigned j = 0; j < readers.size() && i == readers.size(); ++j)
+					if (!served[j] && readers[j].run->finished())
+						i = j;
+				assert(std::chrono::steady_clock::now() < deadline);
+			}
+			served[i] = true;
 			readers[i].done();
 			auto reply = readers[i].writer.pull();
 			assert(reply && reply->status == 200);
