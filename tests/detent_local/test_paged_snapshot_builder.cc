@@ -139,6 +139,34 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 			reachable_bytes += reachable.bytes;
 		}
 		require(reachable_pages == image.root().pages && reachable_bytes == image.root().bytes);
+		{
+			// A registry whose discovery compared every digest is validated without hashing again.
+			std::uint64_t segment_bytes = 0;
+			for (const auto &input : registry->inputs())
+				segment_bytes += input.bytes.size();
+			require(validator.hashed_segment_bytes() == segment_bytes);
+			require(registry->compared_root() && registry->compared_root()->logical == image.root().logical);
+			l::detail::GraphValidator certified(account, lease, registry->inputs(), image.root(), storage, {}, {},
+												registry.get());
+			while (!certified.done()) {
+				l::ValidationBudget budget{quantum, 16};
+				certified.step(budget);
+			}
+			require(certified.hashed_segment_bytes() == 0);
+			const auto first = validator.counts(), second = certified.counts();
+			require(first.bools == second.bools && first.ints == second.ints &&
+					first.overrides == second.overrides && first.strings == second.strings &&
+					first.maximum_overrides == second.maximum_overrides);
+			for (std::size_t i = 0; i < registry->inputs().size(); ++i)
+				require(validator.segment_reachability(i).pages == certified.segment_reachability(i).pages &&
+						validator.segment_reachability(i).bytes == certified.segment_reachability(i).bytes);
+			auto other = image.root();
+			++other.bytes;
+			rejects<std::invalid_argument>([&] {
+				l::detail::GraphValidator mismatched(account, lease, registry->inputs(), other, storage, {}, {},
+													 registry.get());
+			});
+		}
 		rejects<std::out_of_range>([&] { validator.segment_reachability(registry->inputs().size()); });
 		rejects<std::logic_error>([&] { registry->validated_root(); });
 		rejects<std::logic_error>([&] { registry->override_histogram(); });

@@ -30,10 +30,10 @@ struct PageValidator::Impl {
 	std::size_t offset = 0, child = 0, charge = 0;
 	int previous = -1;
 	Phase phase = Phase::Physical;
-	bool failed = false;
+	bool failed = false, compare = true;
 	Impl(std::shared_ptr<const void> lifetime, std::span<const char> source, p::Reference expected,
-		 p::Limits limits)
-		: owner(std::move(lifetime)), bytes(source), reference(expected) {
+		 p::Limits limits, bool compare_digests)
+		: owner(std::move(lifetime)), bytes(source), reference(expected), compare(compare_digests) {
 		require(owner && bytes.size() == reference.length);
 		p::encode_reference(reference);
 		header = p::decode_page_header(bytes, limits);
@@ -49,6 +49,8 @@ struct PageValidator::Impl {
 		offset = 0;
 	}
 	bool hash(SHA256 &digest, std::span<const char> source, ValidationBudget &budget) {
+		if (!compare)
+			return true;
 		const auto count = std::min(source.size() - offset, budget.bytes);
 		if (count)
 			digest.add(source.data() + offset, count);
@@ -59,9 +61,9 @@ struct PageValidator::Impl {
 };
 PageValidator::PageValidator(std::shared_ptr<distribution::StorageLedger> account,
 							 std::shared_ptr<const void> owner, std::span<const char> bytes,
-							 p::Reference reference, p::Limits limits)
+							 p::Reference reference, p::Limits limits, bool compare_digests)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(owner), bytes,
-												   reference, limits)) {}
+												   reference, limits, compare_digests)) {}
 PageValidator::~PageValidator() = default;
 PageValidator::PageValidator(PageValidator &&) noexcept = default;
 void PageValidator::step(ValidationBudget &budget) {
@@ -75,7 +77,7 @@ void PageValidator::step(ValidationBudget &budget) {
 				if (!state.hash(state.physical, state.bytes, budget) || !budget.rows)
 					return;
 				--budget.rows;
-				require(finish(state.physical) == state.reference.physical);
+				require(!state.compare || finish(state.physical) == state.reference.physical);
 				state.next(Impl::Phase::Frame);
 				break;
 			case Impl::Phase::Frame:
@@ -126,7 +128,7 @@ void PageValidator::step(ValidationBudget &budget) {
 				if (!budget.rows)
 					return;
 				--budget.rows;
-				require(finish(state.logical) == state.reference.logical);
+				require(!state.compare || finish(state.logical) == state.reference.logical);
 				state.next(Impl::Phase::Done);
 				break;
 			case Impl::Phase::Done:
