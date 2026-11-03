@@ -113,9 +113,8 @@ task::task<void> supervise(task::asio_scheduler &scheduler, std::shared_ptr<t::C
 																require_prepared, managed_startup_timeout));
 }
 } // namespace
-int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
+static int run_managed_owned(const std::filesystem::path &configuration, const std::filesystem::path &directory,
 				detent::local::StoreOpenMode mode, bool system, const detent_cli::Ready &ready) {
-	[[maybe_unused]] const auto frames = task::detail::live_frames();
 	asio::io_context io(1);
 	task::asio_scheduler scheduler(io.get_executor());
 	asio::thread_pool worker(1);
@@ -207,8 +206,16 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	domain.close().wait();
 	if (failure)
 		std::rethrow_exception(failure);
-	assert(task::detail::live_frames() == frames && "a task frame outlived the managed host (T13)");
 	L_NOTICE("detent-agent: managed delivery drained");
 	return 0;
+}
+int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
+				detent::local::StoreOpenMode mode, bool system, const detent_cli::Ready &ready) {
+	// The io_context may hold a cancelled deadline's handler until it is destroyed, so the check
+	// follows the owned run (T13).
+	[[maybe_unused]] const auto frames = task::detail::live_frames();
+	const int result = run_managed_owned(configuration, directory, mode, system, ready);
+	assert(task::detail::live_frames() == frames && "a task frame outlived the managed host (T13)");
+	return result;
 }
 } // namespace detent_agent

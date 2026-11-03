@@ -123,8 +123,7 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 	return output;
 }
 } // namespace
-int run_host(const std::filesystem::path &configuration, bool system, const detent_cli::Ready &ready) {
-	[[maybe_unused]] const auto frames = task::detail::live_frames();
+static int run_host_owned(const std::filesystem::path &configuration, bool system, const detent_cli::Ready &ready) {
 	OwnerLoop owner;
 	asio::thread_pool startup(1);
 	auto options = on_worker<HostOptions>(startup, [&] { return load_host_options(configuration, system); });
@@ -406,11 +405,18 @@ int run_host(const std::filesystem::path &configuration, bool system, const dete
 		record->cache_domain.close().wait();
 		record->publication_domain.close().wait();
 	}
-	assert(task::detail::live_frames() == frames && "a task frame outlived the relay host (T13)");
 	L_NOTICE("detent-relay: drained; admitted heap peak {} bytes, configured {}", root->peak(),
 			 root->limit());
 	if (failure)
 		std::rethrow_exception(failure);
 	return 0;
+}
+int run_host(const std::filesystem::path &configuration, bool system, const detent_cli::Ready &ready) {
+	// The io_context may hold a cancelled deadline's handler until it is destroyed, so the check
+	// follows the owned run (T13).
+	[[maybe_unused]] const auto frames = task::detail::live_frames();
+	const int result = run_host_owned(configuration, system, ready);
+	assert(task::detail::live_frames() == frames && "a task frame outlived the relay host (T13)");
+	return result;
 }
 } // namespace detent::relay
