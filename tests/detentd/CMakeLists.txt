@@ -1,6 +1,7 @@
 set(DETENTD_TESTS
   test_diff_cache
   test_distributor_basic
+  test_distributor_owner
   test_distributor_client_integration
   test_http_connection_aging
   test_multi_node_poll_source
