@@ -48,7 +48,7 @@ manifest `cmake/dependencies.json`. On 2026-11-02 all 33 Kronuz pins are behind 
 | Workstream | Owner | Content |
 | --- | --- | --- |
 | W1 completion pins | lead | Move completion's own metrics and allocators pins to heads in the library; cascade completion through journal and consensus (and cluster where it pins them) |
-| W2 HTTP coroutines | designer, then developer | Detent's three handlers (`detentd` Distributor, authority Service, relay Service) become `asio::awaitable<void>`; the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking `future.wait_until` on the request path go; admission stays Detent's own (JSON refusals; http's `in_flight_limit` gate is set so it never fires), body caps map onto `set_max_body()` and `BodyStream`; reactor's new constructors |
+| W2 HTTP coroutines | designer, then developer | Detent's handlers, owners and own asio coroutine code move to `task::task` on http's task API ([design](https://github.com/Kronuz/Detent/blob/design/http-coroutines/docs/design/http-coroutines.md), revision 3, steps S1-S10); the worker offload, `should_offload`, `http::DeferredReply`, `Request::user_data` and blocking waits on the request path go; admission stays Detent's own (JSON refusals; http's `in_flight_limit` set so it never fires), body caps map onto `set_max_body()` and `BodyStream`; completion's `AsioCompletionDriver` moves to task in the same wave |
 | W2a http on task | designer, then developer | http's handlers, routes and `BodyStream` become `task::task`; http-log, prism and Xapiand migrate in the same wave ([decision](SHARED_LIBRARY_DECISIONS.md#one-coroutine-type-http-handlers-on-task-november-2)); W2 then targets the task API |
 | W3 pin waves | developer | Move pins dependency first in waves: leaves; then the completion chain; then reactor, http-parser, http, http-log, cluster with W2 |
 | W4 threadpool and scheduler | Xapiand campaign, then W3 | ThreadPool's family is removed and scheduler runs on WorkPool; Detent takes threadpool, scheduler, logger and stash in one step when `xapiand-74` reports them landed |
@@ -114,6 +114,17 @@ published numbers, after messaging the Xapiand lead. The Linux x86-64 gate for h
 runs there once task's C3 lands. Its threshold for a "considerable" cost gap is the lead's proposal
 (more than 5% server CPU per request or 10% p99, after optimization) unless the owner rules otherwise
 at the gate; the aim is to close the gap and keep `task::task` everywhere.
+
+Builds: when the local load is high, the session leases one c7a.4xlarge as a Linux build box
+(`lease up detent-build c7a.8xlarge`, 32 vCPU; compilers installed with apt) and contributors run Linux
+builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
+most 8 jobs each; the helper leases on demand and a reaper releases it after 5 idle minutes, so
+the shared account stays free between batches. Each session runs at most one lease (the owner raised the spend limit and the account's on-demand
+quota is 96 vCPU, 2026-11-03): Detent's build box and Xapiand's `strata-ci-linux` are 32 vCPU each,
+leaving 32 for gate windows; a metal gate (c7i.metal-24xl, 96 vCPU) needs both build boxes down and
+is scheduled with the Xapiand lead, as is the http-on-task gate (T6/T7). macOS builds and all
+timing stay local (or on a dedicated lease). The lease also ends
+itself after 30 idle minutes or 4 hours.
 
 Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
 Every 2-hour report states free space; contributors delete build directories when they finish, and

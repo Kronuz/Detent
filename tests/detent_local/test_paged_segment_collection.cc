@@ -135,7 +135,9 @@ int main() {
 				}
 				if (collector.needs_work()) {
 					if (variant == 13 && attempt == 0 && observed_pack && !pressured) {
-						pressure.emplace(account->admit(account->limit() - account->used()));
+						// Spare room for the retry's own retirement lag; attempt 0 needs ~48 KiB more.
+						constexpr std::size_t spare = 16 * 1024;
+						pressure.emplace(account->admit(account->limit() - account->used() - spare));
 						pressured = true;
 					}
 					l::ValidationBudget budget{97, 1};
