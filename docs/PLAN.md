@@ -118,7 +118,9 @@ at the gate; the aim is to close the gap and keep `task::task` everywhere.
 Builds: when the local load is high, the session leases one c7a.4xlarge as a Linux build box
 (`lease up detent-build c7a.4xlarge`; compilers installed with apt) and contributors run Linux
 builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
-most 8 jobs each; macOS builds and all timing stay local (or on a dedicated lease). The lease ends
+most 8 jobs each; the helper leases on demand and a reaper releases it after 5 idle minutes, so
+the shared 32-vCPU quota stays free between batches (no slot: build locally). macOS builds and all
+timing stay local (or on a dedicated lease). The lease also ends
 itself after 30 idle minutes or 4 hours.
 
 Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
