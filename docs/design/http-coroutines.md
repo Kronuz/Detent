@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-02) Design for workstream W2 of [PLAN.md](../PLAN.md) milestone M1 "on the tip", revision 3: retargets the handlers and the owner hop from `asio::awaitable`, `co_spawn` and channels to http's task API (http `docs/design/task-handlers.md` revision 2) and folds in the re-check's N1-N6 ([reviews/http-coroutines-design.md](../reviews/http-coroutines-design.md), "Re-check, 2026-11-02"). Ledger: [status/http-coroutines.md](../status/http-coroutines.md).
+> Status: DRAFT (2026-11-03) Design for workstream W2 of [PLAN.md](../PLAN.md) milestone M1 "on the tip", revision 3: retargets the handlers and the owner hop from `asio::awaitable`, `co_spawn` and channels to http's task API (http `docs/design/task-handlers.md` revision 2) and folds in the re-check's N1-N6 ([reviews/http-coroutines-design.md](../reviews/http-coroutines-design.md), "Re-check, 2026-11-02"). Ledger: [status/http-coroutines.md](../status/http-coroutines.md).
 
 # HTTP coroutines in Detent
 
@@ -142,21 +142,18 @@ handler starts work that belongs to an owner, it awaits a child task:
 
 ```cpp
 // The handler, on its loop; the reply comes back on the loop.
-Reply reply = co_await owner_submit(owner_, std::move(work));
-
-task::task<Reply> owner_submit(OwnerLoop& owner, Work work) {
-	co_await task::schedule_on{task::scheduler_ref::of(owner.scheduler())};
-	auto pending = owner.accept(std::move(work));      // per-request state the owner already keeps
-	task::deadline backstop(owner.scheduler(), pending->backstop_at, stop_.token());
-	task::cancel_callback wake(backstop.token(), [pending] { pending->done.set(); });
-	co_await pending->done;                             // a task::event
-	co_return pending->settled ? std::move(pending->reply) : truthful_reply(*pending, backstop.token());
-}
+Reply reply = co_await detent::owner_submit<Reply>(
+	owner,
+	[&] { return accept(request); },                        // on the owner: returns the shared per-request state
+	[&](State& s, task::cancel_reason why) { return reply_for(s, why); },  // on the owner: the truthful reply
+	backstop_at, stop_.token());
 ```
 
-The per-request state is the authority's `Task` (settled once on the runtime thread under
-`task->settled`, `service.cc:1333-1365`) and the classic pending entry (D13); each gains a
-`task::event done` and the reply. The owner's completion writes the reply, sets `settled`, then calls
+`owner_submit` (`include/detent/owner_loop.hh`) takes two callables, `accept` and `finish`, and no
+`Pending` type, because each owner keeps its own per-request state: the authority's `Task` (settled once
+on the runtime thread under `task->settled`) and the classic `Write` (D13); each has a `task::event done`
+and the reply, and `finish(state, reason)` builds the truthful reply from the state and the reason the
+wait ended with (`none`, `shutdown`, `deadline`). The owner's completion writes the reply, sets `settled`, then calls
 `done.set()`. The waiter resumes on the owner thread, so only the owner thread touches the reply
 state. The callback only sets the event, from whichever thread requests the token: the backstop's
 timer on the owner, or `begin_shutdown()` (D10).
@@ -399,7 +396,9 @@ schedulers here (a handler's child waits on an owner's event), so one scheduler'
 (task `cancellation.md` D8; TH2-R1). Each process runs, in order:
 
 1. `begin_shutdown()` (D10), so no owner wait outlives the HTTP stop in normal operation.
-2. Phase 1: stop and join every loop: the HTTP service's reactors, then each `OwnerLoop`.
+2. Phase 1: stop and join every loop: the HTTP service's reactors, then each `OwnerLoop`. An owner whose
+   runtime drains on its own loop (the authority) is drained first (`Service::drain()`), and a host with no
+   HTTP reactors (the managed host) has one loop, so its phase 1 is `io.run()` returning.
 3. Phase 2: `close()` on every reactor scheduler and every owner scheduler.
 4. Phase 3: `destroy_roots()` on all of them, with every `io_context` alive.
 5. Phase 4: destroy the HTTP service, then the handler and its owners.

@@ -40,3 +40,26 @@ jobs:
           -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF
       - name: Build
         run: cmake --build build --parallel 4
+  # T12 and T10 of docs/design/http-coroutines.md: one coroutine type, and nothing of the removed path.
+  source-checks:
+    name: source-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: One coroutine type (T12)
+        run: |
+          if git grep -nE 'asio::awaitable|use_awaitable|awaitable_operators|co_spawn|this_coro|experimental::channel' -- src include tests benchmarks; then
+            echo '::error::asio coroutine constructs remain; Detent coroutines are task::task'
+            exit 1
+          fi
+      - name: The removed worker path (T10)
+        run: |
+          if git grep -nE 'should_offload|DeferredReply|DeferredOptions|->defer\(|\.defer\(|user_data|BodyReader' -- src include tests benchmarks; then
+            echo '::error::the offload, deferred-reply or user_data path is back'
+            exit 1
+          fi
+          if git grep -nE -- '--workers|DETENTD_WORKERS' -- src/detentd website docs/USAGE.md; then
+            echo '::error::the removed detentd worker option is documented or parsed again'
+            exit 1
+          fi

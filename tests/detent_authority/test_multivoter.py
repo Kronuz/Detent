@@ -124,8 +124,6 @@ def main() -> None:
                 str(ports[index + 3]),
                 "--runtime-dir",
                 str(directory / f"runtime-{index}"),
-                "--workers",
-                "1",
             ],
             stdout=log,
             stderr=subprocess.STDOUT,
