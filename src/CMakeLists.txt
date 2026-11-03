@@ -32,6 +32,18 @@ target_link_libraries(detent PUBLIC
 target_compile_features(detent PUBLIC cxx_std_20)
 
 add_library(detent::detent ALIAS detent)
+
+########################################################################
+# detent_owner_loop: the loop an owner of serialized work runs on, and
+# the owner-wait shape handlers share (header-only, on task::asio).
+########################################################################
+if(TARGET task::asio)
+  add_library(detent_owner_loop INTERFACE)
+  target_include_directories(detent_owner_loop INTERFACE "${PROJECT_SOURCE_DIR}/include")
+  target_link_libraries(detent_owner_loop INTERFACE task::asio)
+  add_library(detent::owner_loop ALIAS detent_owner_loop)
+endif()
+
 add_subdirectory(detent_distribution)
 if(TARGET http::http)
   add_subdirectory(detent_distribution_http)

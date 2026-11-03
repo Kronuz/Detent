@@ -3,6 +3,9 @@ add_compile_options(-UNDEBUG)
 
 add_subdirectory(detent)
 add_subdirectory(detent_agent)
+if(TARGET detent::owner_loop)
+  add_subdirectory(detent_owner)
+endif()
 
 if(DETENT_BUILD_DISTRIBUTOR)
   add_subdirectory(detentd)
