@@ -23,6 +23,17 @@ p::Digest finish(SHA256 &hash) {
 	std::copy(bytes.begin(), bytes.end(), result.begin());
 	return result;
 }
+// True when the registry's discovery already compared every digest of exactly this graph.
+bool digests_compared(const SegmentRegistry *compared, std::span<const SegmentInput> segments,
+					  const p::Root &root, const p::Limits &limits) {
+	if (!compared)
+		return false;
+	const auto *certified = compared->compared_root();
+	const auto inputs = compared->inputs();
+	require(certified && inputs.data() == segments.data() && inputs.size() == segments.size() &&
+			p::encode_root(*certified, limits) == p::encode_root(root, limits));
+	return true;
+}
 } // namespace
 struct GraphValidator::Impl {
 	enum class Phase { Directory, Zero, Segments, Walk, Finalize, Done };
@@ -68,14 +79,14 @@ struct GraphValidator::Impl {
 	SegmentRegistry *recorded_registry = nullptr;
 	std::size_t recorded_segments = 0, recorded_histogram = 0;
 	Phase phase = Phase::Directory;
-	bool failed = false, started = false, definitions = false;
+	bool failed = false, started = false, definitions = false, compared = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> ledger, std::shared_ptr<const void> lifetime,
 		 std::span<const SegmentInput> source, p::Root root, StorageIdentity identity, p::Limits bounds,
-		 PagedSemanticLimits semantics)
+		 PagedSemanticLimits semantics, bool digests_already_compared)
 		: account(std::move(ledger)), owner(std::move(lifetime)), segments(source), expected(root),
 		  limits(bounds), semantic_limits(semantics), storage(identity),
 		  states(distribution::StorageAllocator<SegmentState>(account)),
-		  namespaces(distribution::StorageAllocator<Namespace>(account)) {
+		  namespaces(distribution::StorageAllocator<Namespace>(account)), compared(digests_already_compared) {
 		require(owner && segments.size() == expected.segments && segments.size() <= limits.segments);
 		p::encode_root(expected, limits);
 		require(std::any_of(storage.begin(), storage.end(), [](char value) { return value != 0; }));
@@ -156,9 +167,10 @@ struct GraphValidator::Impl {
 GraphValidator::GraphValidator(std::shared_ptr<distribution::StorageLedger> account,
 							   std::shared_ptr<const void> owner, std::span<const SegmentInput> segments,
 							   p::Root root, StorageIdentity storage, p::Limits limits,
-							   PagedSemanticLimits semantics)
+							   PagedSemanticLimits semantics, const SegmentRegistry *compared)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(owner),
-												   segments, root, storage, limits, semantics)) {}
+												   segments, root, storage, limits, semantics,
+												   digests_compared(compared, segments, root, limits))) {}
 GraphValidator::~GraphValidator() = default;
 GraphValidator::GraphValidator(GraphValidator &&) noexcept = default;
 void GraphValidator::step(ValidationBudget &budget) {
@@ -199,6 +211,8 @@ void GraphValidator::step(ValidationBudget &budget) {
 				continue;
 			}
 			if (state.phase == Impl::Phase::Segments) {
+				if (state.compared)
+					state.index = state.segments.size();
 				if (state.index == state.segments.size()) {
 					state.phase = Impl::Phase::Walk;
 					continue;
@@ -263,7 +277,8 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!budget.rows)
 					return;
 				--budget.rows;
-				state.page.emplace(state.account, state.owner, frame.bytes, frame.reference, state.limits);
+				state.page.emplace(state.account, state.owner, frame.bytes, frame.reference, state.limits,
+								   !state.compared);
 				frame.phase = Impl::NodePhase::Check;
 				break;
 			case Impl::NodePhase::Check:

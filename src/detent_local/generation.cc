@@ -440,7 +440,8 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 							: std::allocate_shared<Capability>(
 								  distribution::StorageAllocator<Capability>(account), capability);
 					validator.emplace(account, owner, registry->inputs(), root, storage, bounds,
-									  detail::PagedSemanticLimits{limits.strings, limits.overrides});
+									  detail::PagedSemanticLimits{limits.strings, limits.overrides},
+									  registry.get());
 					while (!validator->done()) {
 						auto budget = context.budget;
 						validator->step(budget);

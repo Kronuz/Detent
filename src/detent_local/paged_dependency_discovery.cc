@@ -156,6 +156,8 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 					return;
 				--budget.rows;
 				s.registry->seal();
+				if (!s.inputs->prior)
+					s.registry->certify_digests(s.root);
 				s.phase = Impl::Phase::Done;
 				continue;
 			}

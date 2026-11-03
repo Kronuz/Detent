@@ -136,6 +136,11 @@ target_include_directories(test_local_paged_export PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(test_local_paged_export PRIVATE detent::local_builder detent::local_export)
 add_test(NAME test_local_paged_export COMMAND test_local_paged_export)
 
+add_executable(test_local_paged_hash_once test_paged_hash_once.cc)
+target_include_directories(test_local_paged_hash_once PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_paged_hash_once PRIVATE detent::local_builder)
+add_test(NAME test_local_paged_hash_once COMMAND test_local_paged_hash_once)
+
 add_executable(test_local_paged_progress_recovery test_paged_progress_recovery.cc)
 target_include_directories(test_local_paged_progress_recovery PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_paged_progress_recovery PRIVATE detent::local_builder)

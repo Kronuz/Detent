@@ -37,6 +37,11 @@ void SegmentRegistry::seal() {
 		throw std::logic_error("sealed segment registry");
 	sealed_ = true;
 }
+void SegmentRegistry::certify_digests(const paged::Root &root) {
+	if (!sealed_ || compared_root_)
+		throw std::logic_error("segment registry digests cannot be certified");
+	compared_root_ = root;
+}
 std::span<const SegmentInput> SegmentRegistry::inputs() const {
 	if (!sealed_)
 		throw std::logic_error("unsealed segment registry");

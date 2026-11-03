@@ -23,6 +23,10 @@ class SegmentRegistry final : public distribution::RetirementNode {
 		return identity_;
 	}
 	std::uint64_t physical_bytes() const noexcept { return physical_bytes_; }
+	// Records that a discovery without a prior registry compared every segment checksum and every
+	// page digest reachable from the root, so a later graph validation of it need not repeat them.
+	void certify_digests(const paged::Root &);
+	const paged::Root *compared_root() const noexcept { return compared_root_ ? &*compared_root_ : nullptr; }
 
   protected:
 	bool retire_step() noexcept override;
@@ -32,7 +36,7 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	std::vector<MappingHandle, distribution::StorageAllocator<MappingHandle>> mappings_;
 	std::vector<SegmentInput, distribution::StorageAllocator<SegmentInput>> inputs_;
 	std::vector<SegmentReachability, distribution::StorageAllocator<SegmentReachability>> reachable_;
-	std::optional<paged::Root> validated_root_;
+	std::optional<paged::Root> validated_root_, compared_root_;
 	std::array<std::uint32_t, 257> override_histogram_{};
 	std::shared_ptr<const void> identity_;
 	StorageIdentity storage_;

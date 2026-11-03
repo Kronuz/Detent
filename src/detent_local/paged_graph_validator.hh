@@ -20,12 +20,14 @@ struct PagedSemanticLimits {
 struct SegmentReachability {
 	std::uint64_t pages = 0, bytes = 0;
 };
-// The owner retains the immutable, identity-sorted registry and segment bytes.
+// The owner retains the immutable, identity-sorted registry and segment bytes. A registry whose
+// discovery certified its digests for this root (SegmentRegistry::certify_digests) may be passed as
+// `compared`: segment checksums and page digests are then not recomputed.
 class GraphValidator {
   public:
 	GraphValidator(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> owner,
 				   std::span<const SegmentInput>, paged::Root, StorageIdentity, paged::Limits = {},
-				   PagedSemanticLimits = {});
+				   PagedSemanticLimits = {}, const SegmentRegistry *compared = nullptr);
 	~GraphValidator();
 	GraphValidator(GraphValidator &&) noexcept;
 	GraphValidator(const GraphValidator &) = delete;
