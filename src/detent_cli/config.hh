@@ -19,6 +19,9 @@ std::filesystem::path system_config_dir();
 std::filesystem::path default_runtime_dir(bool system = false);
 std::filesystem::path default_state_dir(bool system = false);
 std::filesystem::path default_agent_state_dir(bool system = false);
+// Options a program no longer has. A flag, an environment variable or a config field that names
+// one fails with an error that says so, instead of "unknown argument".
+void reject_removed_options(const std::string& program, const std::vector<std::string>& args);
 ConfigFile load_config(const std::vector<std::string>& args, const std::string& filename, const ConfigSchema& schema);
 
 } // namespace detent_cli

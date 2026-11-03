@@ -90,7 +90,6 @@ conventional `defaults.json` is skipped.
 | `port` | `8317` | HTTP port |
 | `persist_path` | state directory | Snapshot persistence path |
 | `reactors` | `4` | Network reactor threads |
-| `workers` | `8` | HTTP worker threads |
 | `runtime_dir` | runtime directory | PID and log files |
 | `log_level`, `verbosity`, `color` | | [Logging](/Detent/operations/logging/) |
 
@@ -149,7 +148,6 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 | `DETENTD_PORT` | `detentd` | Port |
 | `DETENTD_PERSIST_PATH` | `detentd` | Persistence path |
 | `DETENTD_REACTORS` | `detentd` | Reactor threads |
-| `DETENTD_WORKERS` | `detentd` | Worker threads |
 | `NO_COLOR` | daemons | Disable automatic color |
 | `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`, `TMPDIR` | all | Base directories |
 

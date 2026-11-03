@@ -88,7 +88,7 @@ struct RunningNode {
 
 	void start() {
 		app = std::make_unique<detentd::Distributor>(options);
-		service = std::make_unique<http::HttpAsioService>(*app, 2, 4, 256);
+		service = std::make_unique<http::HttpAsioService>(*app, 2, 256);
 		service->enable_conditional();
 		reserved_ports().erase(port);
 		service->start(port);
@@ -98,6 +98,7 @@ struct RunningNode {
 	// distinguish) -- destroys the HTTP service and the Distributor (and,
 	// with it, its Raft instance and Bus), freeing the port for restart.
 	void stop() {
+		if (app) app->begin_shutdown(); // ends owner waits before the HTTP service stops (D10)
 		if (service) service->stop();
 		service.reset();
 		app.reset();

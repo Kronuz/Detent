@@ -53,7 +53,8 @@ struct RunningServer {
 	unsigned short port;
 
 	explicit RunningServer(detentd::Options options)
-		: app(std::move(options)), service(app, 2, 4, 256), port(temp_port()) {
+		: app(std::move(options)), service(app, 2, 256), port(temp_port()) {
+		service.set_max_body(detent::kDefaultMaxBytes); // the classic body cap (D5)
 		service.enable_conditional();
 		service.start(port);
 		std::this_thread::sleep_for(50ms); // let the reactor threads bind
@@ -110,26 +111,23 @@ void test_put_get_conditional_and_rejections() {
 }
 
 void test_oversized_put_is_rejected_without_oom() {
-	// Confirms the on_request_body() size cap actually engages: the http
-	// framework's default buffered-body path has no built-in limit (checked
-	// by reading http_request_parser.h), so without this cap an oversized
-	// Content-Length would buffer in full before json_schema's own size
-	// check ever ran. A capped connection gets dropped (the BodySink API has
-	// no polite-rejection signal), which http_put surfaces as a thrown
-	// transport error, not a parsed HTTP response.
+	// The service's body cap (set_max_body) engages at headers-complete: a Content-Length over it is
+	// refused with 413 before any body byte is read. A client whose write fails first sees a reset
+	// instead, so either outcome counts; what must not happen is an accepted 20 MiB body.
 	auto persist = temp_path();
 	detentd::Options opts;
 	opts.persist_path = persist;
 	RunningServer server(opts);
 
 	std::string oversized(20u * 1024 * 1024, 'x'); // 20 MiB > the 16 MiB cap
-	bool threw = false;
+	bool refused = false;
 	try {
-		(void)detent_http::http_put("127.0.0.1", server.port, "/v1/snapshot", oversized, 2s);
+		auto response = detent_http::http_put("127.0.0.1", server.port, "/v1/snapshot", oversized, 2s);
+		refused = response.status == 413;
 	} catch (const std::exception&) {
-		threw = true;
+		refused = true;
 	}
-	assert(threw);
+	assert(refused);
 
 	// The server is still alive and unaffected: a normal PUT right after
 	// still works.

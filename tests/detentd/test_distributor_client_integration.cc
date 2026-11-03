@@ -67,7 +67,7 @@ int main() {
 	detentd::Options opts;
 	opts.persist_path = persist;
 	detentd::Distributor app(opts);
-	http::HttpAsioService service(app, 2, 4, 256);
+	http::HttpAsioService service(app, 2, 256);
 	service.enable_conditional();
 	auto port = temp_port();
 	service.start(port);

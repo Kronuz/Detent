@@ -38,7 +38,7 @@ expect_error() {
         exit 1
     fi
 }
-printf '{"port":%s,"persist_path":"data/snapshot.json","reactors":1,"workers":1}\n' "$port" > "$root/config/detent/detentd.json"
+printf '{"port":%s,"persist_path":"data/snapshot.json","reactors":1}\n' "$port" > "$root/config/detent/detentd.json"
 start_server
 "$curl" -fs -X PUT "http://127.0.0.1:$port/v1/snapshot" -d '{"schema_version":1,"version":1,"knobs":{"search:max_results":{"type":"int","default":500}}}' > /dev/null
 stop_server
@@ -69,14 +69,14 @@ printf '{"typo":1}\n' > "$root/config/detent/detentd.json"
 expect_error
 printf '{}\n' > "$root/config/detent/detentd.json"
 expect_error --port 65536
-expect_error --workers 0
+expect_error --workers 0 # removed: the error names the removal
 expect_error --port
 expect_error --unknown
 expect_error --config "$root/missing.json"
 # Status is read-only and background startup reports readiness/errors.
 export XDG_RUNTIME_DIR="$root/session"
 mkdir -p "$XDG_RUNTIME_DIR"
-printf '{"port":%s,"reactors":1,"workers":1}\n' "$port" > "$root/config/detent/detentd.json"
+printf '{"port":%s,"reactors":1}\n' "$port" > "$root/config/detent/detentd.json"
 expect_error --status
  test ! -e "$root/session/detent/detentd-$port.pid"
 "$distributor" --daemonize
