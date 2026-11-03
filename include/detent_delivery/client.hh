@@ -1,8 +1,8 @@
 #pragma once
 #include "reactor_tls.h"
 #include "response.hh"
+#include "task_asio.hh"
 #include <asio/any_io_executor.hpp>
-#include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 #include <chrono>
 #include <stdexcept>
@@ -35,11 +35,14 @@ struct ClientOptions {
 	std::size_t request_bytes = 256 * 1024;
 	bool compression = true;
 	std::shared_ptr<ConnectionCache> connections;
+	// The loop every operation, timer and socket of a call runs on; required.
+	task::asio_scheduler *scheduler = nullptr;
 };
 // One absolute deadline covers connect, handshake, request and incremental
-// reception. Cancellation reaps original network work and budgeted candidate
-// disposal before returning. No complete response body is accumulated.
-asio::awaitable<ReceivedUpdate> receive(ClientOptions);
+// reception. Cancellation (the token, or the deadline) reaps original network
+// work and budgeted candidate disposal before returning. No complete response
+// body is accumulated.
+task::task<ReceivedUpdate> receive(ClientOptions, task::cancel_token = {});
 struct PublicationFeedback {
 	std::uint64_t window;
 	distribution::Cursor cursor;
@@ -100,17 +103,16 @@ class SessionHandle {
   private:
 	friend struct detail::ProbeAccess;
 	std::shared_ptr<State> state_;
-	friend asio::awaitable<SessionHandle> open_session(ClientOptions, bool);
-	friend asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
-													  std::optional<PublicationFeedback>,
-													  std::chrono::milliseconds);
-	friend asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
+	friend task::task<SessionHandle> open_session(ClientOptions, bool, task::cancel_token);
+	friend task::task<SessionEvent> next_session(ClientOptions, SessionHandle &, std::optional<PublicationFeedback>,
+												 std::chrono::milliseconds, task::cancel_token);
+	friend task::task<void> close_session(ClientOptions, SessionHandle &, task::cancel_token);
 };
-asio::awaitable<SessionHandle> open_session(ClientOptions, bool force_snapshot = false);
-asio::awaitable<SessionEvent> next_session(ClientOptions, SessionHandle &,
-										   std::optional<PublicationFeedback> = {},
-										   std::chrono::milliseconds wait = std::chrono::seconds(30));
+task::task<SessionHandle> open_session(ClientOptions, bool force_snapshot = false, task::cancel_token = {});
+task::task<SessionEvent> next_session(ClientOptions, SessionHandle &, std::optional<PublicationFeedback> = {},
+									  std::chrono::milliseconds wait = std::chrono::seconds(30),
+									  task::cancel_token = {});
 // Invalidates Next immediately. A failed Close may be explicitly retried;
 // authenticated 204/410 settles it and makes subsequent Close calls local no-ops.
-asio::awaitable<void> close_session(ClientOptions, SessionHandle &);
+task::task<void> close_session(ClientOptions, SessionHandle &, task::cancel_token = {});
 } // namespace detent::delivery

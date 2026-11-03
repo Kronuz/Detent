@@ -80,10 +80,10 @@ void run(bool compressed, const std::filesystem::path &certificates = {}) {
         if (!certificates.empty()) {
             std::uint64_t live = 48;
             asio::io_context io;
+            task::asio_scheduler scheduler(io.get_executor());
             auto write_next = [&] { advance(live, live + 3); live += 3; };
-            auto finished = asio::co_spawn(io, bootstrap_tls_fixture::run(bundle, heap, certificates,
-                compressed, write_next), asio::use_future);
-            io.run(); finished.get();
+            detent::transport::run_until_done(io, scheduler, bootstrap_tls_fixture::run(scheduler, bundle, heap,
+                certificates, compressed, write_next));
         } else
 #endif
         {

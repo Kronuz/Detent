@@ -1,7 +1,7 @@
 #include "../../src/detent_delivery/client_probe_internal.hh"
 #include "probe_fixture.hh"
+#include "task_support.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <atomic>
 #include <exception>
 #include <filesystem>
@@ -130,7 +130,7 @@ struct Server {
 		});
 	}
 };
-template <typename Function> asio::awaitable<void> refuses(Function function) {
+template <typename Function> task::task<void> refuses(Function function) {
 	bool rejected = false;
 	try {
 		co_await function();
@@ -139,18 +139,16 @@ template <typename Function> asio::awaitable<void> refuses(Function function) {
 	}
 	check(rejected);
 }
-asio::awaitable<void> exercise(t::ClientOptions options, Server &server, Case scenario) {
+task::task<void> exercise(t::ClientOptions options, Server &server, Case scenario) {
 	auto handle = co_await t::open_session(options, true);
 	const auto baseline = options.limits.storage_account->used();
 	std::exception_ptr failure;
 	try {
 		if (scenario == Case::IdleClose) {
-			asio::steady_timer timer(co_await asio::this_coro::executor);
 			const auto deadline = std::chrono::steady_clock::now() + 5s;
 			while (!server.held.load(std::memory_order_acquire)) {
 				check(std::chrono::steady_clock::now() < deadline);
-				timer.expires_after(1ms);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await pause(*options.scheduler, 1ms);
 			}
 			bool failed = false;
 			try {
@@ -167,7 +165,7 @@ asio::awaitable<void> exercise(t::ClientOptions options, Server &server, Case sc
 		} else if (scenario == Case::Lifecycle) {
 			auto changed = options;
 			changed.endpoint.port(changed.endpoint.port() == 65535 ? 1 : changed.endpoint.port() + 1);
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await p::ProbeAccess::next(changed, handle, {}, 0ms);
 			});
 			const auto event = co_await p::ProbeAccess::next(options, handle, {}, 0ms);
@@ -176,13 +174,13 @@ asio::awaitable<void> exercise(t::ClientOptions options, Server &server, Case sc
 				  offer.digest == digest(std::string(200000, 'x')) &&
 				  options.limits.storage_account->used() == baseline);
 			const t::PublicationFeedback feedback{offer.window, offer.target};
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await t::next_session(options, handle, feedback, 0ms);
 			});
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await p::ProbeAccess::reference(options, handle, feedback, 0ms);
 			});
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await p::ProbeAccess::next(options, handle, t::PublicationFeedback{2, cursor()},
 													0ms);
 			});
@@ -201,14 +199,14 @@ asio::awaitable<void> exercise(t::ClientOptions options, Server &server, Case sc
 			const auto event = co_await p::ProbeAccess::reference(options, handle, {}, 0ms);
 			check(std::get<p::ProbeOffer>(event).digest == digest(semantic()) &&
 				  options.limits.storage_account->used() == baseline);
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await p::ProbeAccess::next(options, handle, t::PublicationFeedback{1, cursor()},
 													0ms);
 			});
 		} else if (scenario == Case::Semantic) {
 			auto event = co_await t::next_session(options, handle, {}, 0ms);
 			auto &offer = std::get<t::SessionOffer>(event);
-			co_await refuses([&]() -> asio::awaitable<void> {
+			co_await refuses([&]() -> task::task<void> {
 				(void)co_await p::ProbeAccess::next(
 					options, handle, t::PublicationFeedback{offer.window, offer.update.target}, 0ms);
 			});
@@ -218,35 +216,35 @@ asio::awaitable<void> exercise(t::ClientOptions options, Server &server, Case sc
 					break;
 			}
 		} else if (scenario == Case::Cancelled) {
-			asio::cancellation_signal cancellation;
+			task::cancel_source cancellation;
 			bool rejected = false;
-			auto attempt = [&]() -> asio::awaitable<void> {
+			std::string reason;
+			auto attempt = [&]() -> task::task<void> {
 				try {
-					(void)co_await asio::co_spawn(
-						co_await asio::this_coro::executor, p::ProbeAccess::next(options, handle, {}, 0ms),
-						asio::bind_cancellation_slot(cancellation.slot(), asio::use_awaitable));
-				} catch (const std::exception &) {
+					(void)co_await p::ProbeAccess::next(options, handle, {}, 0ms, cancellation.token());
+				} catch (const std::exception &error) {
 					rejected = true;
+					reason = error.what();
 				}
 			};
-			auto cancel = [&]() -> asio::awaitable<void> {
-				asio::steady_timer timer(co_await asio::this_coro::executor);
+			auto cancel = [&]() -> task::task<void> {
 				const auto deadline = std::chrono::steady_clock::now() + 5s;
 				while (!server.held.load(std::memory_order_acquire)) {
 					check(std::chrono::steady_clock::now() < deadline);
-					timer.expires_after(1ms);
-					co_await timer.async_wait(asio::use_awaitable);
+					co_await pause(*options.scheduler, 1ms);
 				}
-				co_await refuses([&]() -> asio::awaitable<void> {
+				co_await refuses([&]() -> task::task<void> {
 					(void)co_await p::ProbeAccess::next(options, handle, {}, 0ms);
 				});
 				co_await refuses(
-					[&]() -> asio::awaitable<void> { co_await t::close_session(options, handle); });
-				cancellation.emit(asio::cancellation_type::terminal);
+					[&]() -> task::task<void> { co_await t::close_session(options, handle); });
+				cancellation.request();
 			};
-			using namespace asio::experimental::awaitable_operators;
-			co_await (attempt() && cancel());
-			check(rejected && !handle.valid());
+			const auto began = std::chrono::steady_clock::now();
+			co_await task::when_all(attempt(), cancel());
+			// The caller's token ends the exchange at once, long before the 3 s network deadline.
+			check(rejected && !handle.valid() && reason != "delivery network deadline" &&
+				  std::chrono::steady_clock::now() - began < 2s);
 		} else {
 			if (scenario == Case::Deadline)
 				options.timeout = 500ms;
@@ -302,7 +300,9 @@ int main(int argc, char **argv) {
 					auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 					Server server(server_tls, scenario, compressed, persistent);
 					asio::io_context io(1);
+					task::asio_scheduler scheduler(io.get_executor());
 					t::ClientOptions options;
+					options.scheduler = &scheduler;
 					options.endpoint = server.endpoint;
 					options.hostname = "localhost";
 					options.token = "0123456789abcdef0123456789abcdef";
@@ -314,11 +314,9 @@ int main(int argc, char **argv) {
 					options.limits.storage_account = account;
 					if (persistent)
 						options.connections = t::make_connection_cache(io.get_executor(), 1, account);
-					auto done = asio::co_spawn(io, exercise(options, server, scenario), asio::use_future);
-					io.run();
 					std::exception_ptr failure;
 					try {
-						done.get();
+						detent::transport::run_until_done(io, scheduler, exercise(options, server, scenario));
 					} catch (...) {
 						failure = std::current_exception();
 					}

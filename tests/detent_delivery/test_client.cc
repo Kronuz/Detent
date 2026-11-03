@@ -1,6 +1,8 @@
 #include "detent_delivery/client.hh"
 #include "detent_distribution/messagepack.hh"
+#include "detent_transport/await_io.hh"
 #include <asio.hpp>
+#include <atomic>
 #include <filesystem>
 #include <iostream>
 #include <source_location>
@@ -8,6 +10,7 @@
 namespace d = detent::distribution;
 namespace t = detent::delivery;
 namespace m = d::messagepack;
+namespace transport = detent::transport;
 using namespace std::chrono_literals;
 namespace {
 void check(bool value, std::source_location where = std::source_location::current()) {
@@ -54,6 +57,7 @@ std::string response(bool compressed) {
 struct Server {
 	asio::io_context io;
 	asio::ip::tcp::acceptor acceptor{io, {asio::ip::address_v4::loopback(), 0}};
+	std::atomic<bool> closing{false};
 	std::thread worker;
 	std::exception_ptr failure;
 	Server(std::shared_ptr<asio::ssl::context> context, unsigned mode, bool compressed) {
@@ -85,7 +89,7 @@ struct Server {
 							std::to_string(body.size()) + "\r\n\r\n" + body;
 				}
 
-				if (mode == 2 || mode == 11)
+				if (mode == 2 || mode == 11 || mode == 17)
 					bytes.resize(bytes.find("\r\n\r\n") + 4 + 48);
 				if (mode == 3)
 					bytes.back() ^= 1;
@@ -116,12 +120,18 @@ struct Server {
 				}
 				if (mode == 2)
 					std::this_thread::sleep_for(100ms);
+				// Holds the connection until the client gives up on it.
+				for (unsigned held = 0; mode == 17 && held != 300 && !closing.load(); ++held)
+					std::this_thread::sleep_for(10ms);
 			} catch (...) {
 				failure = std::current_exception();
 			}
 		});
 	}
-	~Server() { worker.join(); }
+	~Server() {
+		closing.store(true);
+		worker.join();
+	}
 };
 
 struct SessionServer {
@@ -212,7 +222,7 @@ struct SessionServer {
 			worker.join();
 	}
 };
-asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
+task::task<void> session_lifecycle(t::ClientOptions options) {
 	auto session = co_await t::open_session(options);
 	check(session.valid());
 	auto event = co_await t::next_session(options, session, {}, 0ms);
@@ -264,7 +274,7 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 		d::WorkBudget work;
 		if (offer.update.snapshot->discard(work))
 			break;
-		co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
+		co_await task::yield();
 	}
 	event = co_await t::next_session(options, session, feedback, 0ms);
 	check(std::holds_alternative<t::SessionIdle>(event) && session.valid());
@@ -283,7 +293,7 @@ asio::awaitable<void> session_lifecycle(t::ClientOptions options) {
 	co_await t::close_session(options, session);
 	co_await t::close_session(options, session);
 }
-asio::awaitable<t::ReceivedUpdate> request(t::ClientOptions options, unsigned mode) {
+task::task<t::ReceivedUpdate> request(t::ClientOptions options, unsigned mode) {
 	if (mode == 14) {
 		(void)co_await t::open_session(std::move(options));
 		co_return t::ReceivedUpdate{};
@@ -305,12 +315,14 @@ int main(int argc, char **argv) {
 								reactor::tls::Role::Client);
 		for (bool cached : {false, true}) {
 			for (bool compressed : {false, true})
-				for (unsigned mode = 0; mode < 17; ++mode) {
+				for (unsigned mode = 0; mode < 18; ++mode) {
 					auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 					{
 						Server server(server_tls, mode == 4 ? 0 : mode, compressed);
 						asio::io_context io;
+						task::asio_scheduler scheduler(io.get_executor());
 						t::ClientOptions options;
+						options.scheduler = &scheduler;
 						options.endpoint = server.acceptor.local_endpoint();
 						options.hostname = mode == 4 ? "wrong.example" : "localhost";
 						options.token = "0123456789abcdef0123456789abcdef";
@@ -318,17 +330,15 @@ int main(int argc, char **argv) {
 						options.configured = cursor();
 						options.compression = compressed;
 						options.limits.storage_account = account;
-						options.timeout = mode == 1 || mode == 2 ? 20ms : 2s;
+						options.timeout = mode == 1 || mode == 2 || mode == 17 ? 20ms : 2s;
 						auto cache =
 							cached ? t::make_connection_cache(io.get_executor(), 1, account) : nullptr;
 						options.connections = cache;
 						const auto began = std::chrono::steady_clock::now();
-						auto pending =
-							asio::co_spawn(io, request(std::move(options), mode), asio::use_future);
-						io.run();
 						bool rejected = false, accepted = false;
 						try {
-							auto received = pending.get();
+							auto received =
+								transport::run_until_done(io, scheduler, request(std::move(options), mode));
 							accepted = true;
 							check((mode == 0 || mode == 12) && received.snapshot &&
 								  received.snapshot->records().size() == 0 && received.target == cursor());
@@ -344,8 +354,10 @@ int main(int argc, char **argv) {
 								t::SessionResetReason::Unavailable,	  t::SessionResetReason::Forbidden};
 							check(mode >= 5 && error.reason() == reasons[mode - 5]);
 							rejected = true;
-						} catch (const t::SourceUnavailableError &) {
-							check(mode == 1 || mode == 2 || mode == 11);
+						} catch (const t::SourceUnavailableError &error) {
+							check(mode == 1 || mode == 2 || mode == 11 || mode == 17);
+							if (mode != 11)
+								check(std::string_view(error.what()) == "delivery network deadline");
 							rejected = true;
 						} catch (const t::SourceTrustError &) {
 							check(mode == 4);
@@ -365,7 +377,7 @@ int main(int argc, char **argv) {
 							if ((mode >= 1 && mode <= 4) || mode >= 11)
 								check(stats.live == 0);
 						}
-						if (mode == 1 || mode == 2)
+						if (mode == 1 || mode == 2 || mode == 17)
 							check(std::chrono::steady_clock::now() - began < 500ms);
 					}
 					check(account->used() == 0);
@@ -377,7 +389,9 @@ int main(int argc, char **argv) {
 				{
 					SessionServer server(server_tls, compressed, persistent);
 					asio::io_context io;
+					task::asio_scheduler scheduler(io.get_executor());
 					t::ClientOptions options;
+					options.scheduler = &scheduler;
 					options.endpoint = server.acceptor.local_endpoint();
 					options.hostname = "localhost";
 					options.token = "0123456789abcdef0123456789abcdef";
@@ -389,14 +403,10 @@ int main(int argc, char **argv) {
 					options.timeout = 2s;
 					if (persistent)
 						options.connections = t::make_connection_cache(io.get_executor(), 1, account);
-					auto pending = asio::co_spawn(io, session_lifecycle(options), asio::use_future);
-					io.run();
-					pending.get();
+					transport::run_until_done(io, scheduler, session_lifecycle(options));
 					if (persistent) {
 						io.restart();
-						auto again = asio::co_spawn(io, session_lifecycle(options), asio::use_future);
-						io.run();
-						again.get();
+						transport::run_until_done(io, scheduler, session_lifecycle(options));
 						const auto stats = t::connection_cache_stats(options.connections);
 						check(stats.connects == 1 && stats.handshakes == 1 && stats.reuses == 13 &&
 							  stats.leased == 0);
