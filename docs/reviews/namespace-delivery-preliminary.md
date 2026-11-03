@@ -111,3 +111,82 @@ The ledger has no done criteria. T6 needs two platforms and must exclude `.lease
 - C2: S2 and S3 keep today's random ids and single directory until L6 closes.
 
 Not run: Detent builds, tests and sanitizers; `detentd`, relay and agent timings; Linux and FreeBSD; real power cuts; benchmarks; AWS leases.
+
+## Re-check (2026-11-03)
+
+- Reviewed: `docs/design/namespace-delivery.md` at `Detent:29a64fc` (docs only; code cited at `Detent:d4abd4a`, `completion:576618d`, `consensus:61149a2`; completion's `posix.h` lines re-read at its current head, unchanged for the cited lines).
+- Scope: L1-L7 and the mechanisms the revision added (outcome records, group budget, H1, `seed_owner_mismatch`). Not a re-review of the design.
+- Probes in `.scratch/namespace-recheck/` on this branch (untracked): `crash_model2.py` (+ `.out`, `wedge_first.py`), `retention_model2.py` (+ `.out`), `t3_wire.py` (+ `.out`). The ND-R2/R4/R5 originals stay in `Detent-wt/namespace-review/.scratch/namespace-review/`.
+
+### Verdicts
+
+| Item | Verdict | Evidence |
+| --- | --- | --- |
+| L1 (ND-R5, ND-R6 at S1) | CLOSED | One directory (D8), `SyncFiles`/`OrderFiles` over read-only or read-write descriptors (D11, W14, S1), platform costs stated (D11, Limit 6), seam tests per platform (S1). `crash_model2.py` has one directory and 0 violations |
+| L2 (ND-R9, T7) | CLOSED | D11 orders barrier, `.tmp-` removal, `change` bump, then ready; T7 adds restart-then-republish and the startup primitives. Model: readiness after the barrier 0 reverted served tables, before it 1. One sentence to add: N6 |
+| L3 (ND-R1) | CLOSED | D3 keeps one group, positions per namespace; T8 has platforms, memory, descriptors, a voter-restart row and an achievable p99 (barrier p99 + 20 ms); S10 gates the group count |
+| L4 (ND-R2, ND-R3) | PARTIAL | Retention: CLOSED, no sawtooth (below). Outcomes: the mechanism closes the refused-write hole, but "a record per entry" is wrong for batched entries (N2), and the Replace at b has no stated source (N3) |
+| L5 (ND-R7) | CLOSED | W4, W5, W6, W7, W8 and D7 cover producers, relays as readers, incarnations and sealed ranges; one gate inconsistency (N5) |
+| L6 (ND-R4) | CLOSED | 0 violations in 643 cases, first publication and repair at an unchanged head, with republish after a crash. New wedge: N1 |
+| L7 (ND-R6) | PARTIAL | Adoption's sync path and the uid health reason land. "`change` is the only seeded file written" is not established: completion's open of an existing file is `O_RDWR` (`posix.h:731`) and the collector and census open `.lease` through it (N4a). The fallback collides with derived ids (N4b) |
+
+### L6: the ND-R4 model, rerun on D8's discipline
+
+`crash_model2.py` models one directory; `.tmp-` files linked to the final name without replacing, then unlinked; reuse verified and put in the sync group; the group order of D11 (owners, payloads, table fsync, rename, directory sync); startup that syncs the directory and removes `.tmp-` names. A process cut at every primitive of the first publication, then restart, then republication of the same input with a power cut at every step.
+
+| Scenario (design variant) | Cases | Durable table names a missing or wrong file |
+| --- | --- | --- |
+| First publication, crash, restart, republish | 643 | **0** |
+| Repair at an unchanged head at ordinal r + 1 (g0 durable and selected), same cuts | 643 | **0**; g0's files are never touched |
+| Control: reused names trusted without verification | 532 | 20 (the ND-R4 interleaving reproduces, so the model has teeth) |
+
+The ordinal makes the repair write new inodes under new names, as D8.2 says. A repair at the old id does not need a model: its names exist and verify against the digest of the file being repaired. Wedge, readiness and the table order are below.
+
+### L1 and L2: the ND-R5 barrier model
+
+With one directory the cross-directory violations (32 of 287 in the review) cannot arise: nothing is created outside the directory the barrier syncs. Readiness: a power cut at the instant of ready reverts the served table in 1 of 643 cases when ready comes before the barrier, in 0 when it comes after (D11). Restart-then-republish is inside the 643 cases above.
+
+### L4: retention, outcomes, ABA
+
+- **No sawtooth.** `retention_model2.py`, k = 1, F = 1 MiB, S = 256, uniform head phase, consumers X ≤ min(W, C) behind. The share getting a Replace is flat in X/C and 0.0% for C = 100 MB and 1 GB with 1 KiB entries (bytes sent over ideal 1.00-1.02). It was 30% at 0.1-0.5 C and 75% at 0.5-1 C as written (`retention_model.out`). A 1 KiB namespace gets entries 99.6% of the time, and a Replace the other 0.4%, when the Replace is cheaper. Retention is the newest W bytes rounded down to a boundary, so every X ≤ W is retained by construction. Disk is W plus one range: 1.00 C plus a range for C ≥ 100 MB; the floor sets it for small namespaces (1.25 MiB for C = 1 KiB).
+- **Granularity cost.** Whole ranges are sent, so a consumer a few entries behind gets up to S − 1 extra: 1.78 times the needed bytes for 64 KiB entries and X below 0.1 C. Bounded, not a sawtooth; see N5 for what it does to T3.
+- **Refused writes.** `state.cc:912-990`, `:943-950`, `:1006-1007` match D3: refusals and `NoChange` leave `namespaces_` untouched (`:1002` runs only under `Applied && changed`), so giving them position 0 and leaving a gap-free counter is consistent with the code. D6's rule that a position gap is a source failure closes the silent-divergence case. T3 mixes 1,000 refused writes in. Not run: an implementation.
+- **ABA.** Preconditions already compare per namespace (`:943-951`); adding the incarnation makes a restored or re-created namespace a `Conflict` for any old precondition. CLOSED on the text. The text does not say how three voters restoring separately agree on the new incarnation (an admin entry in the log would); a question for S5.1, not a finding.
+
+### New findings
+
+**N1. A mismatching reused name wedges the namespace (D8.4; medium, before S7).**
+D8.4 fails the publication when a reused name's bytes differ from the expected digest. Interleaving, `wedge_first.py`: the process dies after `linkat` of `a-segment-g1.owner`; restart issues its directory barrier, which makes the name durable with unsynced data; power is lost; the durable store holds the name at zero length; the republication of the same input derives the same id, finds a mismatch and fails; every retry fails the same way until the head moves. 162 of 643 power-cut cases end in that state (0 violations of the durable-table invariant: it is liveness). A bootstrap of a quiet namespace never gets a first generation.
+Fix, 0 wedges and 0 violations in the model: a mismatching name that the visible table does not reach is an orphan; unlink it and rebuild (or build at the next ordinal). A mismatch on a name the table does reach is corruption, and D10's repair applies.
+
+**N2. A result record per command, not per entry (D6; medium, S5.1).**
+The replicated entry is a batch of up to 64 commands (`state.cc:1019-1030`, `DTABAT02` in `AUTHORITY_ARCHITECTURE.md:34`), each in its own namespace with its own position and up to 128 operation bits. D6 sizes "a result record of at most 24 bytes for every entry". It holds per command; an entry needs up to 64 of them (about 1.5 KiB), and the position index maps to (log index, command offset). Not fatal; say so and fix the bound.
+
+**N3. The Replace at b has no stated source (D6 table, D7, W6; medium, S5.2).**
+A Replace is the namespace's state at the boundary b, an immutable object every voter and relay serves identically. Apply holds the state at head; entries carry new values only, so state at b cannot be rebuilt from head. It must be captured at apply of position b: C bytes written every S positions, which at C = 100 MB, 1 KiB entries and S = 256 is 400 times the entry bytes (arithmetic from D6's parameters, not measured), and a hot 1 GB namespace at 1,000 writes a second is about 4 GB/s. Also unstated: a voter that installed a checkpoint has no state at older boundaries, so voters could answer differently (T4 expects the same answers after a voter restart); and "W plus one range plus 10%" in T4 leaves the Replace out, though it is C more bytes (about 2C at k = 1).
+Fix: say how the object is produced (a snapshot per boundary, at what cost, kept how long), who serves it after an install, and count it in the size bound; or name the Replace at h and give up its sharing across callers.
+
+**N4. Read-only adoption: two holes (D9; medium, S9).**
+- **a.** W14 adds read-only descriptors to the sync primitives only. Completion's existing-file open is `O_RDWR` (`posix.h:731`), and the collector and census open each generation's `.lease` through completion (`disk_store.cc:1269`, `PrimitiveKind::ExclusiveLease`, `operation.h:39`). Opened read-write on an overlayfs layer, a seeded `.lease` copies up (tens of bytes, not the packs), so "`change` the only seeded file written" is false unless S1 also gives the open a read-only mode and D9 says what happens to `.lease` (not seeded, or flocked through a read-only descriptor, which `flock` allows). I did not run an overlayfs copy-up test.
+- **b.** On `seed_owner_mismatch` the agent bootstraps into the same directory. For a quiet namespace the Replace is at the image's own incarnation and position, so D8.1 derives the seeded generation's id and D8.4 finds the seeded files, verifies their bytes (they match) and reuses them: the table then names files `validate_file` refuses (`posix.h:116`). The fallback must build at the next ordinal or a fresh name set; D8.2 says an ordinal bumps for a repair only. It also needs a statement that the store opens at all with foreign-owned files present (`posix.h:453` records `foreign_owner`).
+
+**N5. T3's wire bound fails by design at S = 256 (low).**
+`t3_wire.py`: T3 applies 1,000 changes over 10 namespaces, 100 each. A consumer 100 positions behind gets whole sealed ranges, so it is above twice the projected bytes in 39% of runs (mean 1.81; at 50 behind 19.5%; at 500 behind 0%). Bound T3 as "twice plus one range", or let a range be fetched from an offset.
+
+**N6. Two clarifications (low).**
+- D11 group 3 says "the table replace and the `change` increments, barrier". With a startup that syncs no file, the temporary table must be fsynced before the rename. Mutant (rename, then fsync): the directory barrier at restart makes the renamed name durable with unsynced data, and a power cut reverts the served table (1 of 642 cases, with ready after the barrier). State the order in D11.
+- reader.md A4 says a new incarnation "is a new namespace to the reader" (`reader.md:120`); the design's Reader alignment says a generation switch that reports the new incarnation. Pick one.
+
+### Added mechanisms
+
+- **Outcome records:** sound in principle (apply is deterministic, so every voter writes the same bytes; replay rebuilds records above the checkpoint; compaction waits for durable history). N2 and N3 apply.
+- **Group budget:** consistent with Limit 3. Clamping the oldest windows hits cold namespaces first, as the design says. The default 2 · ΣW is large (the floors alone make ΣW at least 4 GiB at 4,096 namespaces); T4 measures it.
+- **H1:** general enough in shape (an entry, a bounded result record, a horizon the state machine supplies, a byte budget, range reads by non-members). Three things its owners will ask: consensus's `Applied` event carries only `through` (`types.h:184`), so apply output is new interface; compaction is decided on `Persisted` alone (`ARCHITECTURE.md:109`), so "compaction waits" is a new gate in the core; and a voter that installed a snapshot has no history before it. All three belong in the proposal.
+- **`seed_owner_mismatch`:** N4b.
+
+### Remaining before the next step
+
+- Before S5.1: N2. Before S5.2: N3 and the H1 points. Before S7: N1, N6. Before S9: N4. N5 with T3's next edit.
+- S1-S4 are not blocked by anything here.
+
+Not run: Detent builds, tests and sanitizers; benchmarks; Linux, FreeBSD and overlayfs (the copy-up in N4a and the reuse in N4b are read from code, not exercised); real power cuts; `detentd`, relay and agent timings; AWS leases.
