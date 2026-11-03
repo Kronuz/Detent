@@ -318,6 +318,13 @@ task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	auto final = cursor();
 	final.revision = final_revision;
 	check(published && coordinator->status().recoverable == final);
+	// Close ends the network call in flight; it does not wait out the call's own poll.
+	const auto closed = std::chrono::steady_clock::now();
+	while (!coordinator->drained() && std::chrono::steady_clock::now() - closed < 10s) {
+		timer.expires_after(1ms);
+		co_await detent::transport::await_timer(timer);
+	}
+	check(coordinator->drained());
 }
 task::task<void> observe_poll_backoff(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
 									  const std::atomic<bool> &server_completed) {
