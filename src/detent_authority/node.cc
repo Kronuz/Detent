@@ -338,8 +338,9 @@ void Node::advance_application(CommandWorkBudget &budget) {
 			} else {
 				if (!application_->decoder) {
 					if (recorder_) recorder_->begin_batch(state_.context(),entry.index,state_.revision());
+					// Historical groups may exceed today's operating command bound.
 					application_->decoder.emplace(entry.payload, options_.application,
-												  options_.consensus.command_bytes);
+												  options_.scheduling.retained.command_bytes);
 					application_->candidate.emplace(state_, entry.index, entry.term,
 													application_->decoder->count(),recorder_);
 				}

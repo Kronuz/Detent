@@ -85,7 +85,7 @@ void submit(Node &node, std::uint64_t request, const Command &c) {
 	assert(false);
 }
 void retained_application_range(const std::filesystem::path &directory, bool invalid_middle,
-								bool grouped = false, bool backlog = false) {
+								bool grouped = false, bool backlog = false, bool lowered = false) {
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() { std::filesystem::remove_all(directory); }
@@ -93,6 +93,10 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 	std::filesystem::create_directories(directory);
 	assert(::chmod(directory.c_str(), 0700) == 0);
 	auto profile = options();
+	if (lowered) {
+		profile.application.request_bytes = 1024;
+		profile.application.definition_bytes = 1024;
+	}
 	if (backlog) {
 		profile.consensus.log_entries = 64;
 		profile.consensus.rpc_entries = 4;
@@ -118,6 +122,8 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 				for (unsigned sequence = 1; sequence <= 32; ++sequence)
 					commands.push_back(transaction(sequence, static_cast<int>(sequence)));
 				bytes = encode_batch(commands, profile.application, profile.consensus.command_bytes);
+				if (lowered)
+					assert(bytes.size() > 2048);
 			}
 			entries.push_back({index, 1, EntryKind::Command, std::move(bytes)});
 		}
@@ -135,6 +141,9 @@ void retained_application_range(const std::filesystem::path &directory, bool inv
 				encode_storage_batch({HardState{1, 1, through}, LogMutation{1, std::move(entries)}}));
 		}
 	}
+	// Historical groups written under a larger command limit stay readable after the limit drops.
+	if (lowered)
+		profile.consensus.command_bytes = 2048;
 	Node node(std::make_unique<kronuz::journal::PosixIO>(directory), profile);
 	node.recover();
 	while (!node.worker().ready()) {
@@ -310,6 +319,7 @@ int main(int argc, char **argv) {
 	retained_application_range(path / "retained-application", false);
 	retained_application_range(path / "failed-application", true);
 	retained_application_range(path / "grouped-application", false, true);
+	retained_application_range(path / "lowered-grouped-application", false, true, false, true);
 	retained_application_range(path / "backlogged-application", false, false, true);
 	auto prepare = [](const Command &command) {
 		CommandEncoder encoder(command, options().application);
