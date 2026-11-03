@@ -49,11 +49,22 @@ Attribution (counts, no timing): per-phase minor faults, 100 interleaved rounds 
 
 Where it lives: in the layout of header-instantiated allocators code in Detent's binaries, not in an allocator algorithm and not in Detent's use of it. Proposed fixes, none applied: (1) in allocators, move the hot out-of-line paths of `ByteAccount::try_charge`/`ByteCharge` release and the `ChargedAllocator` allocate/deallocate bodies into one non-template function each, so there is one copy in one page range; (2) in Detent, an `-order_file` (or hot-section) for the reader link so the lookup path's text is contiguous. Either needs its own measurement; the gap is about 1 percent of a median first read.
 
+## CI
+
+Main's reference run 40950833416 (Oct 29): `linux-x86_64-gcc` fails; `linux-asan-ubsan`, `macos-arm64`, `linux-arm64-gcc`, `linux-x86_64-clang` and `macos-x86_64` pass; `freebsd-x86_64` and `linux-tsan` are disabled. A rerun of its `macos-arm64` job also passes.
+
+| Run | Commit | asan-ubsan | macos-arm64 | macos-x86_64 | x86_64-gcc | x86_64-clang | arm64-gcc |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 41568242189 | Detent:43e09fe | pass | fail, then fail on rerun | pass | pass | pass | pass |
+| 41573859950 | Detent:f552f29 | pass | pass, pass on rerun | pass | pass | pass | pass |
+
+The `macos-arm64` failure is `test_local_paged_segment_collection` aborting in 0.10-0.15 s with `snapshot invariant failed` (an unnamed `require`). Detent:f552f29 only adds the line number to that message (test fixture); the same product code then passes twice. It does not reproduce on macOS x86_64 (600 runs, 24-way parallel, plus 200 and 200 at 4-way, for the migrated build; the main build was run at 4-way only) nor on Linux ASan/UBSan (227/227) or Linux arm64 gcc. Main's `macos-arm64` job passed twice. So: an intermittent arm64-only failure seen on the migrated branch in 2 of 4 attempts and not on main in 2 of 2; cause unknown. The next failure will name the line.
+
 ## Next
 
-1. CI: record per-job results (below).
-2. The lead decides on the allocators change (1) above.
+1. The lead decides on the allocators change (1) above.
+2. If `macos-arm64` fails again, the message now carries the failing line in `tests/detent_local/test_paged_segment_collection.cc`; start there (the test exercises `RetirementRuntime`, the domain residents drain, and `DiskLedger` counters).
 
 ## Blocked on
 
-Nothing.
+The intermittent `macos-arm64` failure above needs an arm64 macOS host or the line from the next failing run; adoption should not land until it is explained.
