@@ -1,25 +1,26 @@
 #pragma once
+#include "detent_transport/await_io.hh"
 #include "reactor_tls.h"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
-#include <asio/use_future.hpp>
 #include <http_parser.h>
-#include <variant>
 
 namespace detent::transport {
 namespace detail {
-inline asio::awaitable<std::string> fetch_health(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint,
-												 std::string hostname, std::size_t maximum_bytes) {
-	auto executor = co_await asio::this_coro::executor;
+inline task::task<std::string> fetch_health(task::asio_scheduler &scheduler, reactor::tls::Options options,
+											asio::ip::tcp::endpoint endpoint, std::string hostname,
+											std::size_t maximum_bytes, task::cancel_token token) {
 	asio::ssl::context context(asio::ssl::context::tls);
 	reactor::tls::configure(context, options, reactor::tls::Role::Client);
-	asio::ssl::stream<asio::ip::tcp::socket> stream(executor, context);
+	asio::ssl::stream<asio::ip::tcp::socket> stream(scheduler.executor(), context);
 	reactor::tls::bind_hostname(stream.native_handle(), hostname);
-	co_await stream.next_layer().async_connect(endpoint, asio::use_awaitable);
-	co_await stream.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+	co_await await_io<void(asio::error_code)>(
+		[&](auto handler) { stream.next_layer().async_connect(endpoint, std::move(handler)); }, token);
+	co_await await_io<void(asio::error_code)>(
+		[&](auto handler) { stream.async_handshake(asio::ssl::stream_base::client, std::move(handler)); }, token);
 	const std::string request =
 		"GET /v1/health HTTP/1.1\r\nHost: " + hostname + "\r\nConnection: close\r\n\r\n";
-	co_await asio::async_write(stream, asio::buffer(request), asio::use_awaitable);
+	co_await await_io<void(asio::error_code, std::size_t)>(
+		[&](auto handler) { asio::async_write(stream, asio::buffer(request), std::move(handler)); }, token);
 	struct Response {
 		std::string body;
 		std::size_t maximum;
@@ -48,7 +49,8 @@ inline asio::awaitable<std::string> fetch_health(reactor::tls::Options options, 
 	std::array<char, 4096> bytes;
 	std::size_t received = 0;
 	while (!response.complete) {
-		const auto size = co_await stream.async_read_some(asio::buffer(bytes), asio::use_awaitable);
+		const auto size = co_await await_io<void(asio::error_code, std::size_t)>(
+			[&](auto handler) { stream.async_read_some(asio::buffer(bytes), std::move(handler)); }, token);
 		if (!size || size > maximum_bytes - received)
 			throw std::runtime_error("HTTPS response bound");
 		received += size;
@@ -61,33 +63,19 @@ inline asio::awaitable<std::string> fetch_health(reactor::tls::Options options, 
 		throw std::runtime_error("HTTPS health endpoint failed");
 	co_return response.body;
 }
-struct HealthResult {
-	std::variant<std::string, std::exception_ptr> value;
-};
-inline asio::awaitable<HealthResult> health_result(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint,
-												   std::string hostname, std::size_t maximum_bytes) {
+inline task::task<std::string>
+health_before_deadline(task::asio_scheduler &scheduler, reactor::tls::Options options,
+					   asio::ip::tcp::endpoint endpoint, std::string hostname, std::chrono::milliseconds timeout,
+					   std::size_t maximum_bytes) {
+	task::deadline deadline(scheduler, std::chrono::steady_clock::now() + timeout);
 	try {
-		co_return HealthResult{
-			co_await fetch_health(std::move(options), endpoint, std::move(hostname), maximum_bytes)};
+		co_return co_await fetch_health(scheduler, std::move(options), endpoint, std::move(hostname),
+										maximum_bytes, deadline.token());
 	} catch (...) {
-		co_return HealthResult{std::current_exception()};
+		if (deadline.expired())
+			throw std::runtime_error("HTTPS health deadline");
+		throw;
 	}
-}
-inline asio::awaitable<std::string>
-health_before_deadline(reactor::tls::Options options, asio::ip::tcp::endpoint endpoint, std::string hostname,
-					   std::chrono::milliseconds timeout, std::size_t maximum_bytes) {
-	auto executor = co_await asio::this_coro::executor;
-	asio::steady_timer timer(executor, timeout);
-	asio::error_code timer_error;
-	using namespace asio::experimental::awaitable_operators;
-	auto result = co_await (health_result(std::move(options), endpoint, std::move(hostname), maximum_bytes) ||
-							timer.async_wait(asio::redirect_error(asio::use_awaitable, timer_error)));
-	if (result.index() != 0)
-		throw std::runtime_error("HTTPS health deadline");
-	auto reply = std::move(std::get<0>(result).value);
-	if (auto error = std::get_if<std::exception_ptr>(&reply))
-		std::rethrow_exception(*error);
-	co_return std::move(std::get<std::string>(reply));
 }
 } // namespace detail
 // CLI convenience: all network operations have one absolute asynchronous deadline.
@@ -98,12 +86,9 @@ inline std::string https_health(reactor::tls::Options options, asio::ip::tcp::en
 		hostname.find_first_of("\r\n") != std::string::npos)
 		throw std::invalid_argument("HTTPS health options");
 	asio::io_context io;
-	auto response =
-		asio::co_spawn(io,
-					   detail::health_before_deadline(std::move(options), endpoint, std::move(hostname),
-													  timeout, maximum_bytes),
-					   asio::use_future);
-	io.run();
-	return response.get();
+	task::asio_scheduler scheduler(io.get_executor());
+	return run_until_done(io, scheduler,
+						  detail::health_before_deadline(scheduler, std::move(options), endpoint, std::move(hostname),
+														 timeout, maximum_bytes));
 }
 } // namespace detent::transport
