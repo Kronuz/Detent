@@ -2,16 +2,16 @@
 add_compile_options(-UNDEBUG)
 include_directories("${PROJECT_SOURCE_DIR}/tests")
 
-# A test that includes support/allocation_probe.hh defines every global
-# allocation function. ThreadSanitizer's static runtime is linked whole
-# and defines the same set, so under it the test's definitions come first.
-function(detent_use_allocation_probe target)
-  string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type)
-  if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
-     "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type}} ${CMAKE_EXE_LINKER_FLAGS}" MATCHES "fsanitize=thread")
-    target_link_options(${target} PRIVATE LINKER:--allow-multiple-definition)
-  endif()
-endfunction()
+# Under ThreadSanitizer on Linux the runtime owns operator new, so a test that injects
+# allocation failures (support/allocation_probe.hh) is not built there; the
+# plain and ASan/UBSan jobs run it.
+string(TOUPPER "${CMAKE_BUILD_TYPE}" detent_build_type)
+if(NOT APPLE AND
+   "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${detent_build_type}}" MATCHES "fsanitize=[a-z,]*thread")
+  set(DETENT_TSAN ON)
+else()
+  set(DETENT_TSAN OFF)
+endif()
 
 add_subdirectory(detent)
 add_subdirectory(detent_agent)

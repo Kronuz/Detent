@@ -8,20 +8,19 @@ set(DETENT_TESTS
   test_concurrency_stress
   test_json_patch
   test_json_strings
-  test_model_alloc_failure
-  test_client_publication_failure
   test_flat_map
   test_duplicate_precedence)
 
 list(APPEND DETENT_TESTS test_read_view)
+if(NOT DETENT_TSAN)
+  list(APPEND DETENT_TESTS test_model_alloc_failure test_client_publication_failure)
+endif()
 
 foreach(test_name ${DETENT_TESTS})
   add_executable(${test_name} ${test_name}.cc)
   target_link_libraries(${test_name} PRIVATE detent::detent)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
-detent_use_allocation_probe(test_model_alloc_failure)
-detent_use_allocation_probe(test_client_publication_failure)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   add_executable(test_config_acl_policy test_config_acl_policy.cc)

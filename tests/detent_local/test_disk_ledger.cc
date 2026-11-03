@@ -155,6 +155,13 @@ int main() {
 		rejects([&] { excess.settle(too_small, {2, 1, 1}); });
 		check(excess.stats().fenced && excess.stats().reserved == l::DiskUsage{1, 1, 1});
 		l::DiskLedger allocation_free({1000, 1000, 1000});
+		allocations = 0;
+		watching = true;
+		void *volatile probe = ::operator new(32);
+		::operator delete(probe);
+		watching = false;
+		check(allocations > 0);
+		allocations = 0;
 		watching = true;
 		allocation_free.initialize({});
 		for (unsigned turn = 0; turn < 100000; ++turn) {

@@ -1,7 +1,6 @@
 add_executable(test_http_socket_ownership test_socket_ownership.cc)
 target_link_libraries(test_http_socket_ownership PRIVATE detent_http::detent_http)
 add_test(NAME test_http_socket_ownership COMMAND test_http_socket_ownership)
-detent_use_allocation_probe(test_http_socket_ownership)
 set_tests_properties(test_http_socket_ownership PROPERTIES TIMEOUT 10)
 add_executable(test_http_response_framing test_response_framing.cc)
 target_link_libraries(test_http_response_framing PRIVATE detent_http::detent_http)

@@ -1,20 +1,54 @@
-// Replaces every global allocation function with a malloc-backed one that
-// first calls the test's probe. Include it once, in the test's only
-// translation unit, after defining:
+// Lets a test observe every heap allocation. Include it once, in the test's
+// only translation unit, after defining:
 //
 //   namespace detent::test {
 //   struct AllocationProbe {
-//   	static void allocate(std::size_t bytes);	// may throw std::bad_alloc
+//   	static void allocate(std::size_t bytes);
 //   	static void release(void *pointer) noexcept;	// optional
 //   };
 //   }
 //
-// The whole replaceable set is defined, over malloc and free, so every
-// allocation takes one path. Link the test with detent_use_allocation_probe()
-// (tests/CMakeLists.txt) so these definitions win over ThreadSanitizer's.
+// Normally the whole replaceable set of global allocation functions is
+// defined over malloc and free around the probe, and allocate() may throw
+// std::bad_alloc to inject a failure. Under ThreadSanitizer on Linux the
+// runtime owns those functions (clang links its static runtime whole, ahead
+// of the test's objects), so the probe is called from the sanitizer's malloc
+// hook instead: it observes and cannot throw. A test that injects failures
+// is not built there (see DETENT_TSAN in tests/CMakeLists.txt). Apple's
+// ThreadSanitizer is a dylib that the test's operators interpose, so it
+// takes the normal path.
 #pragma once
 
 #include <cstddef>
+
+#if !defined(__APPLE__)
+#if defined(__SANITIZE_THREAD__)
+#define DETENT_TEST_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define DETENT_TEST_TSAN 1
+#endif
+#endif
+#endif
+
+#ifdef DETENT_TEST_TSAN
+
+namespace detent::test::detail {
+template <class Probe = AllocationProbe> void observe_release(const volatile void *pointer) noexcept {
+	if constexpr (requires { Probe::release(const_cast<void *>(pointer)); })
+		Probe::release(const_cast<void *>(pointer));
+}
+} // namespace detent::test::detail
+
+extern "C" void __sanitizer_malloc_hook(const volatile void *, std::size_t bytes) {
+	detent::test::AllocationProbe::allocate(bytes);
+}
+extern "C" void __sanitizer_free_hook(const volatile void *pointer) {
+	detent::test::detail::observe_release(pointer);
+}
+
+#else
+
 #include <cstdlib>
 #include <new>
 
@@ -101,3 +135,5 @@ void operator delete(void *pointer, std::align_val_t, const std::nothrow_t &) no
 void operator delete[](void *pointer, std::align_val_t, const std::nothrow_t &) noexcept {
 	detent::test::detail::release(pointer);
 }
+
+#endif

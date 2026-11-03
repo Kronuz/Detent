@@ -133,6 +133,12 @@ int main() {
 				detent::ErrorCategory::ConversionFailed);
 		allocations = 0;
 		count_allocations = true;
+		void *volatile probe = ::operator new(32);
+		::operator delete(probe);
+		count_allocations = false;
+		require(allocations > 0);
+		allocations = 0;
+		count_allocations = true;
 		for (unsigned i = 0; i != 1000; ++i) {
 			auto view = client->read_view();
 			require(view.get("app:count").value() == std::numeric_limits<std::int64_t>::min());
