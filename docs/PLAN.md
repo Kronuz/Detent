@@ -115,6 +115,12 @@ runs there once task's C3 lands. Its threshold for a "considerable" cost gap is 
 (more than 5% server CPU per request or 10% p99, after optimization) unless the owner rules otherwise
 at the gate; the aim is to close the gap and keep `task::task` everywhere.
 
+Builds: when the local load is high, the session leases one c7a.4xlarge as a Linux build box
+(`lease up detent-build c7a.4xlarge`; compilers installed with apt) and contributors run Linux
+builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
+most 8 jobs each; macOS builds and all timing stay local (or on a dedicated lease). The lease ends
+itself after 30 idle minutes or 4 hours.
+
 Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
 Every 2-hour report states free space; contributors delete build directories when they finish, and
 the lead removes merged worktrees and their build directories at each landing.
