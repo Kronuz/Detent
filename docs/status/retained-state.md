@@ -4,17 +4,17 @@
 
 - Design: `docs/RETAINED_STATE_ARCHITECTURE.md` ("Detent integration"); ruling: the owner adopts both the `retained_state` object and the stricter replacement-pool funding check (`docs/status/salvage-2026-11-03.md`, "Blocked on" 1)
 - Branch / worktree: `phase/retained-state` at `~/code/Kronuz/Detent-wt/retained-state`; head: see `git log`
-- State: in review (sanitizer runs pending)
+- State: in review
 - Done criteria (set by the lead):
-  - [ ] R1 `retained_state` object parsed and validated like the other objects, defaults equal the operating defaults
-  - [ ] R2 funding check refuses with a message naming each term, the shortfall and the field to raise; boundary passes
-  - [ ] R3 the replicated-profile question answered from the code
-  - [ ] R4 docs, mechanism note and CHANGELOG with the upgrade note
-  - [ ] R5 each check has a refusal test with the exact message and a boundary test; revert check per behavior
-  - [ ] R6 existing authority tests pass unchanged; ASan/UBSan and TSan builds of the authority tests
-- Done: code and tests in the first commit; docs, mechanism note, CHANGELOG
-- Doing: local ASan/UBSan run of the authority tests
-- Next: local TSan run, rebase on `github/main`, push, CI
+  - [x] R1 `retained_state` object parsed and validated like the other objects, defaults equal the operating defaults
+  - [x] R2 funding check refuses with a message naming each term, the shortfall and the field to raise; boundary passes
+  - [x] R3 the replicated-profile question answered from the code
+  - [x] R4 docs, mechanism note and CHANGELOG with the upgrade note
+  - [x] R5 each check has a refusal test with the exact message and a boundary test; revert check per behavior
+  - [x] R6 existing authority tests pass unchanged; ASan/UBSan and TSan builds of the authority tests
+- Done: `Detent:46038c2` code and tests; `Detent:db1a389` docs, mechanism note, ledger, CHANGELOG; `Detent:9e3d9f8` evidence
+- Doing: nothing
+- Next: the lead lands after the code review and a green CI run on the rebased head
 - Blocked on: nothing
 - Findings folded in: none yet
 - Design vs code:
@@ -25,6 +25,9 @@
   - Native `test_authority_{state,node,node_completion,service,cluster,cluster_completion,process}`: 7 of 7 pass (35.6 s). Existing cases pass unchanged.
   - CI run 41723121996 at `Detent:db1a389`: linux-x86_64-gcc, linux-x86_64-clang, linux-arm64-gcc, macos-arm64, macos-x86_64, linux-asan-ubsan, linux-tsan and linux-benchmarks green; freebsd and headers are skipped by the workflow.
   - Mutants, each applied to `src/` alone against the new tests (`.scratch/mutants.py`; `.scratch/mutants.log`): M1 old operating-only funding check restored (node and service tests abort), M2 library-ceiling defaults (both abort), M3 retained validation removed (both abort), M4 `log_bytes` member ignored by the parser (service aborts, node passes), M5 wrapping sum (node aborts), M6 Worker handed the default envelope instead of the configured one (node aborts at `lowered-envelope-application`), M7 allowance 4095 (both abort). All seven die; the tree is restored after each.
+  - Local sanitizer builds of the same seven authority tests (Debug `-O1`): ASan+UBSan with `-fno-sanitize-recover=undefined` and leak detection, 7 of 7 pass (34.6 s); TSan, 7 of 7 pass (49.3 s). Build dirs under `.scratch/`, removed after the push.
+  - Replicated-profile question (R3): the retained values are not in `semantic_profile` (ten application limits, `state.cc:183`), the `DTABAT02` header (`state.cc:1064`), the checkpoint format or `profile_fingerprint` (application profile, configuration, operating limits). They stay local; the design agrees.
 
 ## Log
 - 2026-11-03: worktree from `github/main` (`Detent:74e07c9`); first commit with the code and tests.
+- 2026-11-03: native, CI, seven mutants, local ASan/UBSan and TSan green; rebased on `github/main` and pushed.
