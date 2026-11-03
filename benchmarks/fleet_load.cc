@@ -46,11 +46,10 @@ struct Counters {
 	std::atomic<std::uint64_t> source_retries{0}, network_retries{0};
 	std::atomic<std::uint64_t> close_retries{0};
 };
-// A counted FIFO pool of permits; only its owner's loop touches it, and a waiter ends on a grant or its token.
+// A counted FIFO pool of permits; only its owner's loop touches it.
 struct Pool {
 	struct Waiter {
 		task::event ready;
-		bool granted = false;
 	};
 	std::size_t free;
 	std::deque<Waiter *> waiters;
@@ -62,7 +61,6 @@ struct Pool {
 		}
 		auto *waiter = waiters.front();
 		waiters.pop_front();
-		waiter->granted = true;
 		waiter->ready.set();
 	}
 };
@@ -234,24 +232,15 @@ struct Run {
 				co_await task::yield();
 		}
 	}
-	// Waits for a permit of `pool`, or throws operation_aborted when `token` is requested first.
-	static task::task<Permit> acquire(Owner &owner, Pool &pool, task::cancel_token token = {}) {
+	// Waits for a permit of `pool`. Holders end on their slot's token, so a stop drains the waiters in turn.
+	static task::task<Permit> acquire(Owner &owner, Pool &pool) {
 		if (pool.free && pool.waiters.empty()) {
 			--pool.free;
 			co_return Permit(owner, pool);
 		}
-		if (token.requested())
-			throw asio::system_error(asio::error::operation_aborted);
 		Pool::Waiter waiter;
 		pool.waiters.push_back(&waiter);
-		{
-			task::cancel_callback wake(token, [&waiter] { waiter.ready.set(); });
-			co_await waiter.ready;
-		}
-		if (!waiter.granted) {
-			pool.waiters.erase(std::find(pool.waiters.begin(), pool.waiters.end(), &waiter));
-			throw asio::system_error(asio::error::operation_aborted);
-		}
+		co_await waiter.ready;
 		co_return Permit(owner, pool);
 	}
 	// Awaits a timer and returns its error_code (operation_aborted when cancelled).
@@ -370,7 +359,7 @@ struct Run {
 				std::exception_ptr attempt_error;
 				const auto began = Clock::now();
 				try {
-					auto permit = co_await acquire(*slot.owner, slot.owner->permits, slot.cancel.token());
+					auto permit = co_await acquire(*slot.owner, slot.owner->permits);
 					if (stopping.load(std::memory_order_acquire))
 						break;
 					if (goal.load(std::memory_order_acquire) != checkpoint)
