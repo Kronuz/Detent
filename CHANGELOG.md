@@ -5,6 +5,7 @@
 ### Legacy removal (wave 1)
 
 - Removed `tests/e2e`, the classic distributor process harness.
+- Removed the `detent_publish` example, the JSON file-source publisher.
 
 ### Dependency pins (cmake/dependencies.json)
 

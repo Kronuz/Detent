@@ -84,7 +84,7 @@ The variable name is the dependency's `FetchContent` name in upper case, such as
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | Build managed (authority) delivery support into `detent-agent` |
 | `DETENT_BUILD_AUTHORITY` | `OFF` | Build the opt-in durable authority profile of `detentd` |
 | `DETENT_BUILD_TESTS` | `ON` | Build the test suite |
-| `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` and `detent_publish` |
+| `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` |
 | `DETENT_BUILD_BENCHMARKS` | `ON` | Build the benchmarks |
 | `DETENT_BUILD_PYTHON` | `OFF` | Build the pybind11 Python module (needs Python 3 headers) |
 | `DETENT_BUILD_RUST` | `OFF` | Build the `cxx` Rust crate (needs `cargo` and `rustc`) |

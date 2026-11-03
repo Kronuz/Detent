@@ -44,8 +44,7 @@ inline constexpr std::size_t kDefaultMaxBytes = 16u * 1024 * 1024; // 16 MiB
 // Serializes a Snapshot back to a source-snapshot-shaped JSON payload
 // (schema_version/version/published_at/knobs), the exact inverse of
 // parse_source_snapshot. Not part of the read/update hot path -- this exists
-// for reference publisher tooling (see examples/publish_snapshot.cc) and for
-// round-trip tests, since the client itself never needs to re-emit JSON.
+// for round-trip tests, since the client itself never needs to re-emit JSON.
 [[nodiscard]] std::string serialize_snapshot(const Snapshot& snapshot);
 
 } // namespace detent
