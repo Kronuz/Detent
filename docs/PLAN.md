@@ -119,9 +119,9 @@ Builds: when the local load is high, the session leases one c7a.4xlarge as a Lin
 (`lease up detent-build c7a.4xlarge`; compilers installed with apt) and contributors run Linux
 builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
 most 8 jobs each; the helper leases on demand and a reaper releases it after 5 idle minutes, so
-the shared account stays free between batches. At most one AWS machine runs across both campaigns
-(the project's spend limit is about $100): the helper leases only when `lease list` is empty, and
-builds locally otherwise; metal only by agreement with the Xapiand lead. macOS builds and all
+the shared account stays free between batches. Each session runs at most one lease (the owner raised the spend limit and the account's on-demand
+quota is 96 vCPU, 2026-11-03); the helper builds locally when fewer than 16 vCPU are free; metal
+only by agreement with the Xapiand lead. macOS builds and all
 timing stay local (or on a dedicated lease). The lease also ends
 itself after 30 idle minutes or 4 hours.
 
