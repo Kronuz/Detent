@@ -13,6 +13,20 @@ Detent is a C++ runtime-configuration client for namespaced boolean and integer 
 - `detentd` serves full snapshots, accepts partial updates, persists the last accepted snapshot to disk, and optionally replicates writes through `cluster::Raft`.
 - `detent-agent` keeps one warm `detent::Client` and publishes a pre-parsed binary snapshot into shared memory for fast host-local reads by shell scripts or other non-C++ callers.
 
+## How Detent fits together
+
+![Producer, authority, relay, agent and client](docs/diagrams/actors-overview.png)
+
+A knob change moves through five actors:
+
+- **Producer**: your service, writing changes as namespaced transactions with `POST /v2/transactions` over HTTPS.
+- **Authority**: `detentd --authority authority.json` on three machines, one voter each. The voters replicate with Raft over mutual TLS and keep the journal on their own disks. This is the source of truth.
+- **Relay** (optional): `detent-relay`, subscribed to the authority, keeps a durable copy per bundle and serves snapshots and deltas to many agents.
+- **Agent**: `detent-agent`, one per host. It receives snapshots and deltas and publishes immutable local generations on disk.
+- **Client**: your application, through `detent::Client`, mapping the agent's selected generation and reading in memory. `detent get` is the command-line client.
+
+This is the managed profile, the topology the [production contract](docs/PRODUCTION_CONTRACT.md) targets. The classic profile, `detentd` without `--authority`, is a plain HTTP distributor that clients poll for JSON; the code calls it legacy, and it is still built by default. [Detent's actors](docs/ACTORS.md) says what each actor does, how, when and where, including ports, files, build options and restart behavior.
+
 ## Using it in your own application
 
 ### 1. Pull it in (CMake FetchContent)
@@ -139,40 +153,6 @@ snap.knobs["checkout:killswitch_new_path"] =
 auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 ```
 
-## Architecture
-
-Detent has three runtime roles:
-
-1. A publisher that emits JSON snapshots or PATCH payloads.
-2. One or more `detentd` instances that persist and serve the current snapshot.
-3. Readers, either linked directly against `detent` or reading through `detent-agent`.
-
-System sketch:
-
-```text
-publisher
-   |  PUT/PATCH /v1/snapshot
-   v
-+-------------------+      cluster::Raft over cluster::Bus      +-------------------+
-| detentd A         |<----------------------------------------->| detentd B         |
-| persisted state   |                                           | persisted state   |
-+-------------------+                                           +-------------------+
-          ^                                                               ^
-          | GET /v1/snapshot (ETag + optional diff)                       |
-          +----------------------------+----------------------------------+
-                                       |
-                     +-----------------+-----------------+
-                     |                                   |
-                     v                                   v
-             app process with                      detent-agent
-             detent::Client                        shared-memory publisher
-                                                         |
-                                                         v
-                                               shell / non-C++ local readers
-```
-
-`src/detentd/CLUSTERING.md` is the authoritative clustering design document. It covers the current Raft write path, transport, restart safety, locking, and the multi-region plan.
-
 ## Scope vs. the spec
 
 This repository implements the spec's client model and adds a concrete distribution layer:
@@ -288,7 +268,7 @@ bindings/
 
 The core client has no networking dependency. Classic HTTP polling, binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
-Managed agents and relay bundle sources accept `"image_format": "paged-v2"` for incremental immutable local publication; `flat-v1` remains the default. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
+Managed agents and relay bundle sources write `"image_format": "paged-v2"` by default, for incremental immutable local publication; `"flat-v1"` selects one self-contained image. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
 
 | Module | Main target | Purpose |
 | --- | --- | --- |
