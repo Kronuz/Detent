@@ -167,6 +167,11 @@ void test_clustered_writer_without_quorum() {
 	auto waiting = std::async(std::launch::async,
 							  [&] { return detent_http::http_put("127.0.0.1", port, "/v1/snapshot", snapshot(1), 20s); });
 	std::this_thread::sleep_for(500ms); // the write is on the owner, waiting for a quorum that never comes
+	// T2, clustered: the health route on the same (only) reactor answers while the write waits.
+	const auto reading = std::chrono::steady_clock::now();
+	const auto health = detent_http::http_get("127.0.0.1", port, "/v1/health", 2s);
+	assert(health.status == 200 && std::chrono::steady_clock::now() - reading < 1s);
+	assert(waiting.wait_for(0s) == std::future_status::timeout);
 	const auto began = std::chrono::steady_clock::now();
 	app.begin_shutdown();
 	const auto reply = waiting.get();
