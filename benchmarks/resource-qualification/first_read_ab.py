@@ -36,7 +36,7 @@ def run(
         timeout=30,
     )
     value: dict[str, float] = json.loads(result.stdout)
-    if value["records"] != 5_000_000 or value["major_faults"]:
+    if value["records"] != 5_000_000:
         raise RuntimeError(f"unexpected sample {value}")
     return value
 
@@ -75,8 +75,13 @@ def main() -> None:
         }
         for index, (key, expected) in enumerate(cases):
             for arm in orders[(round_index + index) % len(orders)]:
-                run(binary[arm], args.directory, key, expected, env)
-                sample = run(binary[arm], args.directory, key, expected, env)
+                for _ in range(5):
+                    run(binary[arm], args.directory, key, expected, env)
+                    sample = run(binary[arm], args.directory, key, expected, env)
+                    if not sample["major_faults"]:
+                        break
+                else:
+                    raise RuntimeError("major faults persist after warmup")
                 samples.append(
                     dict(
                         sample,
