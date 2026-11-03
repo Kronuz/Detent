@@ -3,8 +3,8 @@
 # namespace-design
 
 - Design: docs/design/namespace-delivery.md; review: docs/reviews/namespace-delivery-preliminary.md (APPROVE WITH CONDITIONS, `Detent:eae3f6c`).
-- Branch / worktree: `design/namespace-delivery` at `~/code/Kronuz/Detent-wt/namespace-design`; base `Detent:d4abd4a`. Revision: `design/namespace-rev` at `~/code/Kronuz/Detent-wt/namespace-rev`; base `Detent:633f6fb`.
-- State: designing (preliminary review folded in; ready for re-check of L3-L7). S1-S4 may start under L1 and L2.
+- Branch / worktree: `design/namespace-delivery` at `~/code/Kronuz/Detent-wt/namespace-design`; base `Detent:d4abd4a`. Revision: `design/namespace-rev` at `~/code/Kronuz/Detent-wt/namespace-rev`; base `Detent:633f6fb`. Second revision: `design/namespace-rev2` at `~/code/Kronuz/Detent-wt/namespace-rev2`; base `Detent:35e4b82`.
+- State: designing (re-check N1-N6 folded in; N3 is a new Replace mechanism, ready for its check). S1-S4 may start under L1 and L2.
 - Lead rulings (2026-11-03):
   - L1: one store directory. D8's per-namespace directories go; the startup barrier stays one directory sync on every platform, so S1 needs no primitive spanning directories. Completion's sync and order primitives accept read-only descriptors (ND-R6).
   - C2: S2 and S3 keep today's random file ids and single directory until L6 closes.
@@ -33,17 +33,17 @@
   - All four: CI green on every job; a how-it-works note per changed mechanism (sync groups, trusted restart and scrub); measured rows only on main.
 - Done: the full draft of docs/design/namespace-delivery.md (D3-D12, strata fit with proposals P1-P3, reader alignment, T1-T8, W1-W12, alternatives, limits, Q1-Q5, S1-S9), owner rulings D1 and D2 kept verbatim; folds in the lead's three mid-task inputs (the owner's compacted blocks, the strata evaluation and its bar, the Xapiand lead's replication directions) (`Detent:bb1d31f`).
 - Done (revision): preliminary review folded in on `design/namespace-rev`: L1 one directory (D8, D11); L3 D3 and T8 under Q5 (d), group count deferred to a new S10; L4 D6 (result records per entry, sliding window with a floor and range-bounded Replace, history on disk as strata proposal H1, merging P1 and P2; P3 out); L5 wire list W4-W8 (producers, one session endpoint per Q4 (c), range boundaries and live tail, incarnations, relays as readers); L6 file ids (layout version, profile and build ordinal in the id, `linkat` from a temporary name, verified reuse); L7 read-only adoption and uid handling (D9); ND-R8, ND-R9, ND-R11; Q1-Q5 record the lead calls; a "Review findings" table (`Detent:c4a1a6e`).
-- Doing: nothing; stopped at re-check.
+- Done (second revision): re-check N1-N6 folded in on `design/namespace-rev2`: N1 orphan names unlinked and rebuilt (D8.4, T7); N2 result records per command (D6); N3 one held Replace per namespace per server, built at head on demand, replacing the Replace at each boundary (D6, D7, W6, T4's bound, alternatives); N4 no `.lease` in an image, a read-only existing-file open in completion, owners checked first and the fallback at the next ordinal (D9, S1, S9); N5 the head piece served from R + 1 (D6, T3, W6); N6 table fsync before rename (D11, T7) and a new incarnation as a generation switch on the same namespace (A4, W7, reader.md A4, the authorized cross-document edit); H1's three asks in "Strata fit" (commit in the log).
+- Doing: nothing; stopped for the check of N3.
 - Next:
-  1. Architect re-check of L3-L7 (L1 and L2 are the lead's ruling and S2's criteria).
-  2. H1 to strata's owner and the Xapiand lead; owner confirms or reverses the lead calls on Q1-Q5.
-  3. reader.md adds the new-incarnation case (Reader alignment A4, W7).
-  4. Lead: S3 criterion 3 sets a 24 h scrub; ND-R8 estimates a one-hour pass at about 0.2% of a core. Tighten if wanted (D10).
+  1. A rechecker on N3 (new mechanism) and on N1 and N4b in the crash model; the lead confirms the rest.
+  2. H1 to the strata architect with its three asks; owner confirms or reverses the lead calls on Q1-Q5.
+  3. Lead: S1's criteria do not list completion's read-only existing-file open that D9 now needs (N4a); S2 criterion 1 says "table and change word, barrier", while D11 now fsyncs the temporary table, renames, syncs the directory, then increments `change` without a sync (N6). Edit the criteria if wanted.
 - Blocked on:
-  - S5.2 on H1 (strata's owner and the Xapiand lead).
+  - S5.2 on H1 (strata architect's review, then build).
   - S6 on S5; Q1 and Q4 are lead calls the owner may reverse.
   - S10 on strata Track C2 D12 built, the shared turn log, and T8 measured on Linux.
-- Findings folded in: ND-R1 to ND-R11, L1-L7, C1-C2 (design's "Review findings" table).
+- Findings folded in: ND-R1 to ND-R11, L1-L7, C1-C2, N1-N6 and the re-check's H1 points (design's "Review findings" table).
 - Design vs code: not applicable (nothing built).
 - Last verified: every new file:line re-read on 2026-11-03 at `Detent:d4abd4a` (`src/` unchanged at `Detent:633f6fb`), `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured.
 
@@ -64,3 +64,4 @@
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, the startup attribution (`explore/agent-startup` at `Detent:e8d4e59`), the reader draft (`Detent:a3bb22f`), ACTORS, RELAY, AUTHORITY_EXPORT, DELIVERY_INTEGRATION_ARCHITECTURE, SCALE_TARGETS, STORAGE_BARRIER_ARCHITECTURE, the legacy inventory and the cited code.
 - 2026-11-03: First draft used state-plus-tombstones history; replaced by the namespace journal (D6) after the lead relayed the owner's one-replication-mechanism rule and the Xapiand lead's directions. Strata evaluated: replication shape adopted, core and segments not used for delivery or the agent store.
 - 2026-11-03: Revision on `design/namespace-rev` from `Detent:633f6fb`: folded L1-L7, ND-R1 to ND-R11 and C1-C2 into the design; status line and review table updated; the review file untouched.
+- 2026-11-03: Second revision on `design/namespace-rev2` from `Detent:35e4b82`: folded the re-check's N1-N6 and H1 points; edited reader.md A4 (the lead's call on the incarnation case); the review file untouched.
