@@ -21,7 +21,7 @@ std::uint64_t legacy(const Identity &identity) {
 std::uint64_t signed_bytes(const Identity &identity) {
 	std::uint64_t value = 14695981039346656037ull;
 	for (char byte : identity) {
-		value ^= static_cast<std::uint64_t>(static_cast<std::int64_t>(byte));
+		value ^= static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<signed char>(byte)));
 		value *= 1099511628211ull;
 	}
 	return value;
