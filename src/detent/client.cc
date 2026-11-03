@@ -140,10 +140,11 @@ Client::Client(InitOptions options)
 }
 
 Client::~Client() {
+	// Join before any member the updater reads (on_update_, the snapshots)
+	// is destroyed: members declared after updater_thread_ go first.
 	if (updater_thread_) {
 		updater_thread_->request_stop();
-		// std::jthread's destructor joins; request_stop() just wakes it sooner
-		// than the next poll_interval tick.
+		updater_thread_->join();
 	}
 }
 
