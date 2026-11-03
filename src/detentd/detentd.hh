@@ -196,7 +196,7 @@ private:
 	[[nodiscard]] detent::Result<std::uint64_t, detent::UpdateError> submit_command(
 		std::string_view body, bool is_patch);
 
-	void compress_into(std::string_view identity, std::string& gzip_out, std::string& zstd_out);
+	static void compress_into(std::string_view identity, std::string& gzip_out, std::string& zstd_out);
 	void write_negotiated(
 		const http::Request& request, http::ResponseWriter& response, int status,
 		const std::string& identity, const std::string& gzip_body, const std::string& zstd_body,
@@ -210,41 +210,18 @@ private:
 	http::Router router_;
 
 	mutable std::shared_mutex snapshot_mutex_;
-	std::string current_bytes_;
-	std::uint64_t current_version_ = 0;
-	bool has_snapshot_ = false;
-	// Cached alongside current_bytes_/current_version_, computed once per
-	// accepted update rather than once per GET: the http library's own
-	// automatic conditional-GET support (enable_conditional()) hashes the
-	// *entire response body on every single request* to derive its ETag,
-	// found by performance review to cost ~577us/request hashing alone at a
-	// 560KB snapshot (~2.8 cores at 5K req/s just to rediscover the same
-	// validator). Setting our own "ETag" header before returning makes the
-	// library skip its own computation entirely (it explicitly checks
-	// has_header("ETag") first) -- see route_get_snapshot().
-	std::string current_etag_;
-	// Pre-compressed forms of current_bytes_, cached alongside it (see
-	// compress_into's comment): empty if not computed/not worth it, in
-	// which case a request negotiating that coding falls back to identity.
-	std::string current_bytes_gzip_;
-	std::string current_bytes_zstd_;
-
-	// The parsed form of current_bytes_, kept so a PATCH request has
-	// something to merge onto and so the NEXT accepted update can diff
-	// against it (diff_snapshots needs two structured Snapshots, not two
-	// byte strings).
-	detent::Snapshot current_snapshot_;
-	// A cached JSON Merge Patch (see json_patch.hh) from
-	// current_diff_base_version_ to the current one, precomputed and
-	// pre-compressed at accept time so the common "one update behind"
-	// poller costs nothing extra per request. A poller further behind
-	// composes from diff_history_ instead (route_get_snapshot); this
-	// single cached entry is a fast path, not the only path.
-	bool has_diff_ = false;
-	std::uint64_t current_diff_base_version_ = 0;
-	std::string current_diff_bytes_;
-	std::string current_diff_bytes_gzip_;
-	std::string current_diff_bytes_zstd_;
+	struct PublishedState {
+		detent::Snapshot snapshot;
+		std::uint64_t version = 0;
+		bool has_snapshot = false;
+		std::string bytes, etag, gzip, zstd;
+		bool has_diff = false;
+		std::uint64_t diff_base_version = 0;
+		std::string diff_bytes, diff_gzip, diff_zstd;
+	};
+	std::unique_ptr<PublishedState> published_ = std::make_unique<PublishedState>();
+	static std::unique_ptr<PublishedState> prepare_publication(detent::Snapshot&& snapshot, std::string bytes);
+	void install_publication(std::unique_ptr<PublishedState>& next) noexcept { published_.swap(next); }
 
 	// One entry per accepted update: the patch from base_version to the
 	// next accepted version, in order. Bounded to max_diff_history_
