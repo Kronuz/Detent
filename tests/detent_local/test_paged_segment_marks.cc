@@ -1,5 +1,6 @@
 #include "paged_disk_fixture.hh"
 #include "paged_segment_marks.hh"
+#include "hashes.hh"
 int main() {
 	const auto root =
 		std::filesystem::current_path() / ".scratch" / ("paged-marks-" + std::to_string(::getpid()));
@@ -36,14 +37,7 @@ int main() {
 	};
 	{
 		auto first = capture();
-		auto slot = [](const l::StorageIdentity &id) {
-			std::uint64_t hash = 14695981039346656037ull;
-			for (unsigned char byte : id) {
-				hash ^= byte;
-				hash *= 1099511628211ull;
-			}
-			return hash & 3;
-		};
+		auto slot = [](const l::StorageIdentity &id) { return fnv1ah64::hash(id.data(), id.size()) & 3; };
 		d::RetirementHandle<l::detail::PagedDependencyCertificate> second;
 		for (unsigned candidate = 0; candidate < 256; ++candidate) {
 			generation.fill('n');

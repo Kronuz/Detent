@@ -5,11 +5,11 @@
 ## Done
 
 1. Docs match the code: `Detent:955e97d` (`docs/DEPENDENCY_UPGRADES.md`, publication atomicity).
+2. One FNV: `PagedSegmentMarks::hash` returns `fnv1ah64::hash` (this branch's FNV commit). `test_local_segment_mark_hash` holds the frozen old loop and four independently computed values; the shared hash equals the old loop on 25,376 identities (22,891 with bytes at or above 0x80), checked before the source switch. A mutant that changes the old loop's prime stops it (`failed: frozen loop matches the independent value`). The hash is the in-memory table slot, not a persisted value. `test_local_paged_segment_marks` and the identity test pass natively (RelWithDebInfo) and under ASan and UBSan (Debug -O1, Apple clang; LeakSanitizer does not run on macOS, the CI Linux jobs run it).
 
 ## Next
 
-1. One FNV: identity test over a fixed vector set, then `PagedSegmentMarks` uses `fnv1ah64::hash`.
-2. Item 1 after the ruling below.
+1. Item 1 after the library owners add `port()` to `reactor::TcpServer` and `http::HttpAsioService`; the retry wrapper `Detent:b1c8422` stays until then.
 
 ## Blocked on
 
@@ -27,4 +27,4 @@ Options:
 
 ## Design vs code
 
-1. `docs/LIBRARY_ADOPTION_ARCHITECTURE.md` item 1 says the hashes target is linked explicitly on local publication; the code links it `PRIVATE` once item 2 lands.
+1. `docs/LIBRARY_ADOPTION_ARCHITECTURE.md` item 1 says the hashes target is linked explicitly on local publication; the code links it `PRIVATE` on `detent_local_publication`, which is built only with the completion module, so reader-only builds do not fetch it.
