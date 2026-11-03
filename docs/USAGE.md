@@ -156,12 +156,11 @@ For persistent distributor settings, put `detentd.json` in the same user or syst
 {
   "port": 8317,
   "persist_path": "state/snapshot.json",
-  "reactors": 4,
-  "workers": 8
+  "reactors": 4
 }
 ```
 
-All fields are optional. A relative `persist_path` is resolved against the config file's directory; omitting it uses the platform state directory above. `--config PATH` selects a file explicitly. User config takes precedence over system config. Flags override `DETENTD_PORT`, `DETENTD_PERSIST_PATH`, `DETENTD_REACTORS`, and `DETENTD_WORKERS`, which override config values.
+All fields are optional. A relative `persist_path` is resolved against the config file's directory; omitting it uses the platform state directory above. `--config PATH` selects a file explicitly. User config takes precedence over system config. Flags override `DETENTD_PORT`, `DETENTD_PERSIST_PATH`, and `DETENTD_REACTORS`, which override config values.
 
 Explicit starts are still supported:
 

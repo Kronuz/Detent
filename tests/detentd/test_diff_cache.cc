@@ -58,7 +58,7 @@ int main() {
 	opts.persist_path = persist;
 	opts.max_diff_history = 5; // small and explicit, not the old hardcoded 64
 	detentd::Distributor app(opts);
-	http::HttpAsioService service(app, 2, 4, 256);
+	http::HttpAsioService service(app, 2, 256);
 	service.enable_conditional();
 	auto port = temp_port();
 	service.start(port);

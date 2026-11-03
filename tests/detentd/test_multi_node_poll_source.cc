@@ -71,7 +71,7 @@ struct Node {
 			asio::ip::tcp::acceptor reservation(io,
 			                                    asio::ip::tcp::endpoint(asio::ip::address_v4::loopback(), 0));
 			port = reservation.local_endpoint().port();
-			service = std::make_unique<http::HttpAsioService>(*app, 2, 4, 256);
+			service = std::make_unique<http::HttpAsioService>(*app, 2, 256);
 			http::AsioBindOptions binding;
 			binding.address = asio::ip::address_v4::loopback().to_string();
 			service->set_bind_options(binding);
@@ -102,6 +102,7 @@ struct Node {
 	}
 
 	void stop() {
+		if (app) app->begin_shutdown(); // ends owner waits before the HTTP service stops (D10)
 		if (service) service->stop();
 		service.reset();
 		app.reset();

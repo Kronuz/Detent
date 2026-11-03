@@ -11,7 +11,7 @@ unset DETENT_DEFAULTS_PATH DETENT_SOURCE_HTTP DETENT_SOURCE_ADDRESS DETENT_SOURC
 export XDG_CONFIG_HOME="$root/config" XDG_RUNTIME_DIR="$root/session" TMPDIR="$root"
 port=$((20000 + $$ % 20000))
 printf '{"source_address":"127.0.0.1:%s","poll_interval_ms":10}\n' "$port" > "$root/config/detent/agent.json"
-"$distributor" "$port" "$root/snapshot.json" --reactors 1 --workers 1 > "$root/distributor.log" 2>&1 &
+"$distributor" "$port" "$root/snapshot.json" --reactors 1 > "$root/distributor.log" 2>&1 &
 server_pid=$!
 stop_agent() {
     if test -f "$root/session/detent/agent.pid"; then

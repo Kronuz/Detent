@@ -4,7 +4,7 @@ title: "detentd"
 
 ```text
 detentd [--daemonize | --status] [--runtime-dir PATH] [--config PATH]
-        [--port N] [--persist-path PATH] [--reactors N] [--workers N]
+        [--port N] [--persist-path PATH] [--reactors N]
         [--cluster TOKEN MCAST_PORT MCAST_GROUP INTERFACE SELF_HOST:PORT PEER_HOST:PORT ...]
         [--raft-timing HEARTBEAT ELECTION_INIT ELECTION_MIN ELECTION_MAX]
 detentd [<port> <persist_path>] ...
@@ -23,7 +23,6 @@ The distributor. Without arguments it listens on port `8317` and persists to
 | `--port N` | `8317` | HTTP port |
 | `--persist-path PATH` | platform state dir | Where the accepted snapshot is persisted |
 | `--reactors N` | `4` | Network reactor threads |
-| `--workers N` | `8` | HTTP worker threads |
 | `--config PATH` | platform config dir | Use this `detentd.json` |
 | `--runtime-dir PATH` | platform runtime dir | Where pid and log files go |
 | `--system` | | System config and state (`/var/lib/detent`, BSD/macOS `/var/db/detent`) |
@@ -64,7 +63,6 @@ node in a cluster should use the same values.
 | `DETENTD_PORT` | `port` |
 | `DETENTD_PERSIST_PATH` | `persist_path` |
 | `DETENTD_REACTORS` | `reactors` |
-| `DETENTD_WORKERS` | `workers` |
 
 ---
 
@@ -77,7 +75,6 @@ node in a cluster should use the same values.
   "port": 8317,
   "persist_path": "state/snapshot.json",
   "reactors": 4,
-  "workers": 8,
   "runtime_dir": "/run/detent",
   "log_level": "info",
   "verbosity": 0,
