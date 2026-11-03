@@ -58,7 +58,24 @@ Main's reference run 40950833416 (Oct 29): `linux-x86_64-gcc` fails; `linux-asan
 | 41568242189 | Detent:43e09fe | pass | fail, then fail on rerun | pass | pass | pass | pass |
 | 41573859950 | Detent:f552f29 | pass | pass, pass on two reruns | pass | pass | pass | pass |
 
-The `macos-arm64` failure is `test_local_paged_segment_collection` aborting in 0.10-0.15 s with `snapshot invariant failed` (an unnamed `require`). Detent:f552f29 only adds the line number to that message (test fixture); the same product code then passes three times. It does not reproduce on macOS x86_64 (600 runs, 24-way parallel, plus 200 and 200 at 4-way, for the migrated build; the main build was run at 4-way only) nor on Linux ASan/UBSan (227/227) or Linux arm64 gcc. Main's `macos-arm64` job passed twice. So: an intermittent arm64-only failure seen on the migrated branch in 2 of 4 attempts and not on main in 2 of 2; cause unknown. The next failure will name the line.
+The `macos-arm64` failure is `test_local_paged_segment_collection` aborting in 0.10-0.15 s with `snapshot invariant failed` (an unnamed `require`). Detent:f552f29 only adds the line number to that message (test fixture); the same product code then passes three times. It does not reproduce on macOS x86_64 (600 runs, 24-way parallel, plus 200 and 200 at 4-way, for the migrated build; the main build was run at 4-way only) nor on Linux ASan/UBSan (227/227) or Linux arm64 gcc. Main's `macos-arm64` job passed twice. So: an intermittent arm64-only failure seen on the migrated branch in 2 of 4 attempts and not on main in 2 of 2; cause below.
+
+## macOS arm64 failure: cause
+
+Pre-existing test race, not an ordering bug in allocators and not introduced by the adoption. Loop runs on the hosted `macos-15` arm64 runner (3 CPUs, 4 drivers x 75 runs of the test binary), branches `diagnostics/arm64-loop-adoption` (this branch's code) and `diagnostics/arm64-loop-main` (main's code, Detent:bd7c76a):
+
+| Code | `test_local_paged_segment_collection` failures | other paged tests (snapshot_builder, recovery, reuse) |
+| --- | ---: | ---: |
+| adoption | 41, 44, 33 of 300 | 0 of 300 |
+| main | 30, 46, 29 of 300 | 0 of 300 |
+
+Every failure is `tests/detent_local/test_paged_segment_collection.cc:211`, `variant 13`, `attempt 1`: `require(!collector.error() ...)` finds the collector failed with pressure (`byte account pressure` on the adoption code, `distribution storage pressure` on main's own ledger). Failure rates are equal within spread (10-15%), so the adoption neither adds nor removes it; the earlier 2-of-4 vs 0-of-2 split was chance.
+
+Cause: variant 13 takes `pressure = account->admit(limit - used)` during attempt 0 (line 139), and that ticket is never released before attempt 1. Attempt 1 then runs in the headroom the dropped certificates freed. The failure records `drained_residents=2` (the `domain.residents() > 2` wait at line 191 is satisfied) with `drained_used` equal to the failing `now_used` in 24 of 33 failures, so the freed headroom (about 756 KB of a 64 MiB account) is not enough for attempt 1's charges; in the rest, attempt 1 charged up to the limit. The test sizes the pressure from `limit - used` sampled while the retirement worker and collector charge concurrently, so how much headroom remains for attempt 1 varies per run. It never reproduced on x86_64 where the test thread usually wins that race; on a 3-CPU arm64 runner it does 10-15% of the time.
+
+Ordering read (allocators:07de45d): the byte counters in `resources.h:169-247` are relaxed, but they are plain counters (a single modification order, no data published through them). The retirement path destroys and frees the node (`ByteCharge::reset`, relaxed `fetch_sub`) and then `admission.fetch_sub(acq_rel)` (`retirement.cc:153-154`), which `residents()` reads with acquire (`retirement.cc:388`), so a charge release is visible once the resident count drops. TSan was not run: the failure is deterministic logic under load and reproduces on main's own ledger, so a data race is not the cause.
+
+Proposed fix (test only, not applied): release `pressure` after attempt 0's error is checked (`pressure.reset()` before `continue` at line 195) so attempt 1 runs with the account's real headroom, or size the pressure as a fixed number of bytes below the limit instead of `limit - used`. Either needs the test to still prove attempt 0 fails under pressure (the line-187 require does). Not applied here: it changes what attempt 1 proves, which is the test owner's call, and I did not get a passing-run capture of attempt 1's need.
 
 ## Next
 
