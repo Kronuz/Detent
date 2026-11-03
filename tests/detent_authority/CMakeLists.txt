@@ -40,8 +40,6 @@ if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME test_authority_daemon COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon.sh $<TARGET_FILE:detentd> ${Python3_EXECUTABLE})
   set_tests_properties(test_authority_daemon PROPERTIES TIMEOUT 90)
-  add_test(NAME test_authority_migration COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_migration.sh $<TARGET_FILE:detent-authority-admin> ${Python3_EXECUTABLE})
-  set_tests_properties(test_authority_migration PROPERTIES TIMEOUT 90)
 endif()
 
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)

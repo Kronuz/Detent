@@ -9,7 +9,7 @@ This implements the restore component of the [system qualification plan](STAGE6_
 
 ## Recovery and backup
 
-Extract the offline runtime from `src/detent_authority/admin.cc` into private `admin_runtime.{hh,cc}`. Separate committed application recovery from the existing single-voter election path. Recovery acquires the storage lock, recovers the durable committed boundary and replays application state without advancing election time. A follower-local checkpoint uses `Node::checkpoint()` after application replay settles. Preserve legacy import/export behavior.
+The private offline runtime in `src/detent_authority/admin_runtime.{hh,cc}` recovers committed application state without an election path. Recovery acquires the storage lock, recovers the durable committed boundary and replays application state without advancing election time. A follower-local checkpoint uses `Node::checkpoint()` after application replay settles.
 
 Add private `authority_backup.{hh,cc}` and an `admin backup CONFIG OUTPUT` command. Stream `ImageEncoder` through bounded chunks into a versioned envelope containing source context, semantic limits, applied index/term, revision, extent and checksum. Validate with `ImageDecoder` before creating target directories. The artifact represents one voter's durable committed cut; it can lag the group's latest commit. Credentials stay outside the artifact. Synchronize the completed file and parent directory through the qualified durability helpers; partial outputs remain invalid artifacts.
 
@@ -57,4 +57,4 @@ Review the complete component against this consolidated matrix:
 
 Include premature active startup, missing/swapped receipts, one lagging voter, restore-token subscriptions, artifact replacement during validation and restart after legitimate post-activation writes as explicit negative or recovery cases.
 
-The private offline runtime is extracted, and export uses follower-local committed recovery. Native three-voter fixtures cover semantic recovery, independent checkpoints and reopening with both synchronous and completion storage; the legacy import/export round trip also passes (3/3, 16.56 seconds). The fixture waits for pending durable protocol work before asserting equality with the live committed cut. Backup envelopes, bounded bootstrap and enforced activation remain unimplemented. Two local VMs also cannot establish three independent failure domains or device-power-loss recovery.
+The private offline runtime uses follower-local committed recovery. Native three-voter fixtures cover semantic recovery, independent checkpoints and reopening with both synchronous and completion storage. The fixture waits for pending durable protocol work before asserting equality with the live committed cut. Backup envelopes, bounded bootstrap and enforced activation remain unimplemented. Two local VMs also cannot establish three independent failure domains or device-power-loss recovery.

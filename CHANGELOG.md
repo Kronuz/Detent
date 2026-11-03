@@ -6,6 +6,9 @@
 
 - Removed `tests/e2e`, the classic distributor process harness.
 - Removed the `detent_publish` example, the JSON file-source publisher.
+- Removed `detent-authority-admin` import and export, `test_authority_migration` and its
+  website page. `admin::Runtime` keeps only offline committed recovery and checkpoint, which
+  `test_authority_cluster` uses.
 
 ### Dependency pins (cmake/dependencies.json)
 

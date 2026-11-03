@@ -82,24 +82,6 @@ Responses carry authority identity and compact outcomes. `applied` and `no_chang
 
 The adapter reserves the maximum 256 KiB body before buffering, with a 16 MiB aggregate reservation, 1,024 request slots and at most 16 admitted requests per producer. One logical transaction per producer can be outstanding. Up to 64 different producers share a Raft entry within its encoded byte limit and a 5 ms grouping window. The Asio transport transfers response authority into an owned deferred capability with a 5-second deadline. Parsing may use the bounded HTTP worker pool, but waiting for Raft does not occupy a worker. Request and accepted reply leases survive until original socket IO settlement; separate ingress and egress reservations default to 16 MiB. Slow readers retain only their selected response, not a historical State root. Owner-side reads encode into a buffer that checks the actual JSON bound before each byte, using only one definition DOM at a time; oversized selections return `reply_bound`. Authentication and body-admission failures close the connection before buffering because the framework's body hook has no early error-response seam.
 
-## Explicit migration
-
-Import only into a new, separate authority directory, with writers stopped until verification completes:
-
-```sh
-detent-authority-admin import authority.json legacy-snapshot.json
-```
-
-The tool validates the bounded legacy document, applies namespace-scoped batches within transaction limits, compares every resulting definition with the source, and publishes an application checkpoint. Import requires a single voter. Legacy version numbers never become authority revisions. A failed import leaves a directory for inspection; it cannot be silently resumed or overwrite an existing authority. The import session consumes one producer slot.
-
-Stop the authority before a rollback export. Supply an explicit legacy version greater than the destination's last accepted version:
-
-```sh
-detent-authority-admin export authority.json rollback-snapshot.json 1000
-```
-
-The storage lock excludes a running daemon. Export replays the selected voter's durable committed cut as a follower without advancing election time, including stores from a three-voter group. That cut can lag the group's latest commit; export does not contact a quorum. It creates a new `0600` output file and refuses to overwrite an existing file. The legacy output uses file and parent `fsync`; the stronger backup durability contract is part of the pending [restore component](RESTORE_ARCHITECTURE.md). Verify and publish through the destination's ordinary interface before switching writers. A lower version will be rejected by the legacy destination.
-
 ## Qualification evidence
 
 The native suite passes 30 tests. Seven authority ASan/UBSan tests pass, including an actual HTTP daemon ACK followed by SIGKILL/restart/retry and a bounded migration/export round trip. The three-Worker fixture uses separate POSIX stores and exercises partition, leader replacement, snapshot catch-up, lost success responses and restart. Process-kill publication tests distinguish acknowledged and uncertain results; they do not simulate power loss.
