@@ -23,7 +23,7 @@
   - S3 (D10 on today's store):
     - [ ] 1. Restart reads `storage.meta`, the table and the roots and `.read` files against their digests, with no pack read and no page hash; a counter proves zero page hashes at startup.
     - [ ] 2. First-touch checks: every page the agent's update path reads from a base generation is hash-checked against its parent reference before use.
-    - [ ] 3. The scrub hashes every pack at `scrub_bytes_per_second`, after start and every 24 h, and a test proves its pace within 10%.
+    - [ ] 3. The scrub hashes every pack at `scrub_bytes_per_second`, continuously at that pace (ND-R8: an hourly pass at 1.51 GB costs about 0.2% of a core), and a test proves its pace within 10%.
     - [ ] 4. T5 over a 100K store: 100 single-byte flips in random pages; restart is ready; first touch fails that read with a source failure and never returns a wrong value; the scrub reports every untouched flip within one pass; reads recover after repair. A corrupt table or `.read` refuses the store.
     - [ ] 5. A mutant that skips the first-touch check fails T5; sanitizers in separate builds.
   - S4 (D12.2):
