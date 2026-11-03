@@ -4,11 +4,14 @@
 #include "detent_local/builder.hh"
 #pragma once
 #include <iostream>
+#include <source_location>
+#include <string>
 namespace d = detent::distribution;
 namespace m = d::messagepack;
-void require(bool value) {
+void require(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("snapshot invariant failed");
+		throw std::runtime_error("snapshot invariant failed at " + std::string(where.file_name()) + ":" +
+								 std::to_string(where.line()));
 }
 d::Cursor cursor() {
 	d::Cursor value;
