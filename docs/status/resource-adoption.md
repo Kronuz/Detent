@@ -56,9 +56,9 @@ Main's reference run 40950833416 (Oct 29): `linux-x86_64-gcc` fails; `linux-asan
 | Run | Commit | asan-ubsan | macos-arm64 | macos-x86_64 | x86_64-gcc | x86_64-clang | arm64-gcc |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 41568242189 | Detent:43e09fe | pass | fail, then fail on rerun | pass | pass | pass | pass |
-| 41573859950 | Detent:f552f29 | pass | pass, pass on rerun | pass | pass | pass | pass |
+| 41573859950 | Detent:f552f29 | pass | pass, pass on two reruns | pass | pass | pass | pass |
 
-The `macos-arm64` failure is `test_local_paged_segment_collection` aborting in 0.10-0.15 s with `snapshot invariant failed` (an unnamed `require`). Detent:f552f29 only adds the line number to that message (test fixture); the same product code then passes twice. It does not reproduce on macOS x86_64 (600 runs, 24-way parallel, plus 200 and 200 at 4-way, for the migrated build; the main build was run at 4-way only) nor on Linux ASan/UBSan (227/227) or Linux arm64 gcc. Main's `macos-arm64` job passed twice. So: an intermittent arm64-only failure seen on the migrated branch in 2 of 4 attempts and not on main in 2 of 2; cause unknown. The next failure will name the line.
+The `macos-arm64` failure is `test_local_paged_segment_collection` aborting in 0.10-0.15 s with `snapshot invariant failed` (an unnamed `require`). Detent:f552f29 only adds the line number to that message (test fixture); the same product code then passes three times. It does not reproduce on macOS x86_64 (600 runs, 24-way parallel, plus 200 and 200 at 4-way, for the migrated build; the main build was run at 4-way only) nor on Linux ASan/UBSan (227/227) or Linux arm64 gcc. Main's `macos-arm64` job passed twice. So: an intermittent arm64-only failure seen on the migrated branch in 2 of 4 attempts and not on main in 2 of 2; cause unknown. The next failure will name the line.
 
 ## Next
 
