@@ -170,7 +170,7 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "5251cf9f24350c65548318b54a4be93389df73d0",
+    "revision": "bf69026e864061d7b8954f9ef050f1d4f81a32d7",
     "source_subdir": "."
   },
   {
