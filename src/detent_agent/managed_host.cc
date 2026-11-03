@@ -4,10 +4,12 @@
 #include "../detent_cli/logging.hh"
 #include "detent_distribution/memory_resource.hh"
 #include "detent_local/directory.hh"
+#include "detent_transport/await_io.hh"
 #include <asio.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
+#include <cassert>
 #include <functional>
 #include <future>
+#include <optional>
 
 namespace detent_agent {
 namespace d = detent::distribution;
@@ -23,9 +25,10 @@ bool may_announce_ready(const t::CoordinatorStatus &state, bool require_prepared
 	return state.selected.knowledge == l::SelectionKnowledge::Known && state.selected.descriptor &&
 		(!require_prepared || state.prepared_ready);
 }
-asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
-							 bool require_prepared, std::chrono::milliseconds preparation_timeout) {
-	asio::steady_timer timer(co_await asio::this_coro::executor);
+task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						 detent_cli::Ready ready, bool require_prepared,
+						 std::chrono::milliseconds preparation_timeout) {
+	asio::steady_timer timer(scheduler.executor());
 	bool announced = false;
 	bool timed_out = false;
 	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
@@ -87,7 +90,7 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 			failures = state.failures;
 		}
 		timer.expires_after(std::chrono::milliseconds(20));
-		co_await timer.async_wait(asio::use_awaitable);
+		co_await detent::transport::await_timer(timer);
 	}
 	if (timed_out)
 		throw std::runtime_error("managed preparation timed out after draining accepted work");
@@ -104,16 +107,17 @@ asio::awaitable<void> monitor(std::shared_ptr<t::Coordinator> coordinator, deten
 }
 } // namespace detail
 namespace {
-asio::awaitable<void> supervise(std::shared_ptr<t::Coordinator> coordinator, detent_cli::Ready ready,
-							   bool require_prepared) {
-	using namespace asio::experimental::awaitable_operators;
-	co_await (coordinator->run() && detail::monitor(coordinator, std::move(ready), require_prepared,
-		managed_startup_timeout));
+task::task<void> supervise(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
+						   detent_cli::Ready ready, bool require_prepared) {
+	co_await task::when_all(coordinator->run(), detail::monitor(scheduler, coordinator, std::move(ready),
+																require_prepared, managed_startup_timeout));
 }
 } // namespace
 int run_managed(const std::filesystem::path &configuration, const std::filesystem::path &directory,
 				detent::local::StoreOpenMode mode, bool system, const detent_cli::Ready &ready) {
+	[[maybe_unused]] const auto frames = task::detail::live_frames();
 	asio::io_context io(1);
+	task::asio_scheduler scheduler(io.get_executor());
 	asio::thread_pool worker(1);
 	// Configuration, TLS files, entropy, census and semantic startup recovery
 	// belong on the configuration worker, before owner admission starts.
@@ -137,8 +141,9 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account),
-														io.get_executor(), queue, true);
+														scheduler, queue, true);
 	const bool require_prepared = options.coordinator.image_format == t::LocalImageFormat::PagedV2;
+	options.coordinator.source.scheduler = &scheduler;
 	auto coordinator = t::prepare_coordinator(std::move(options.coordinator), driver, domain, worker);
 	std::promise<std::shared_ptr<l::DiskStore>> opened;
 	auto opening = opened.get_future();
@@ -166,7 +171,13 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 		if (!error)
 			coordinator->close();
 	});
-	auto done = asio::co_spawn(io, supervise(coordinator, ready, require_prepared), asio::use_future);
+	std::exception_ptr failure;
+	bool supervised = false;
+	task::spawn(task::scheduler_ref::of(scheduler), supervise(scheduler, coordinator, ready, require_prepared),
+				[&](std::exception_ptr error) {
+					failure = error;
+					supervised = true;
+				});
 	// The signal wait must not retain an otherwise drained io_context forever.
 	asio::steady_timer shutdown(io);
 	std::function<void(const asio::error_code &)> watch;
@@ -183,12 +194,11 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	shutdown.expires_after(std::chrono::milliseconds(20));
 	shutdown.async_wait(watch);
 	io.run();
-	std::exception_ptr failure;
-	try {
-		done.get();
-	} catch (...) {
-		failure = std::current_exception();
-	}
+	// Teardown (D15): the loop has stopped, so close the scheduler, then destroy what is still suspended on it.
+	scheduler.close();
+	scheduler.destroy_roots();
+	if (!supervised && !failure)
+		failure = std::make_exception_ptr(std::runtime_error("managed delivery stopped before it drained"));
 	worker.join();
 	coordinator.reset();
 	driver.reset();
@@ -197,6 +207,7 @@ int run_managed(const std::filesystem::path &configuration, const std::filesyste
 	domain.close().wait();
 	if (failure)
 		std::rethrow_exception(failure);
+	assert(task::detail::live_frames() == frames && "a task frame outlived the managed host (T13)");
 	L_NOTICE("detent-agent: managed delivery drained");
 	return 0;
 }
