@@ -569,9 +569,11 @@ int main() {
 				wait_released(reader.writer);
 			} else {
 				// Answered buffered because the wait ended on the stop: a reply that was ready, or the
-				// outcome contract's 503.
+				// outcome contract's 503 (stopping for a read the runtime had not started).
+				const auto &body = reader.writer.body;
 				assert(reader.writer.code == 200 ||
-					   (reader.writer.code == 503 && reader.writer.body.find("outcome_unknown") != std::string::npos));
+					   (reader.writer.code == 503 && (body.find("outcome_unknown") != std::string::npos ||
+													  body.find("\"stopping\"") != std::string::npos)));
 				canceled += reader.writer.code == 503;
 			}
 		}
