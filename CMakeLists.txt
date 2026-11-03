@@ -88,6 +88,8 @@ endif()
 if(DETENT_BUILD_DISTRIBUTOR)
   FetchContent_MakeAvailable(http_lib cluster generation_cache)
 endif()
+# completion's driver runs on task; journal and consensus fetch the same completion.
+set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
 if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
   set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(consensus)
