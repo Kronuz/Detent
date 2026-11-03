@@ -122,6 +122,7 @@ async def run(arguments: argparse.Namespace) -> None:
                 evidence.record(
                     "partition_verified",
                     old_idle_responses=old_health["subscription_idle_responses"],
+                    old_role_after_verification=old_health["role"],
                     counts=dict(writers.counts),
                 )
                 await cohort.close()
