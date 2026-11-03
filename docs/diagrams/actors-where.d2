@@ -1,0 +1,34 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+grid-columns: 3
+horizontal-gap: 24
+
+voter: "Authority (3 machines)" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  direction: down
+  proc: "detentd --authority\nauthority.json"
+  disk: "directory\nmanifest, journal,\ncheckpoints" {shape: cylinder; style.fill: "#E8E2F0"}
+  proc -> disk: "durable before ack"
+}
+
+relay: "Relay (optional)" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  direction: down
+  proc: "detent-relay\nrelay.json"
+  disk: "directory\nper bundle" {shape: cylinder; style.fill: "#E8E2F0"}
+  proc -> disk: "publish"
+}
+
+host: "Each app host" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  grid-columns: 1
+  vertical-gap: 70
+  agent: "detent-agent\nmanaged.json"
+  disk: "generation_dir\nselected,\ngenerations" {shape: cylinder; style.fill: "#E8E2F0"}
+  app: "detent::Client\nor detent get"
+  agent -> disk: "publish"
+  app -> disk: "map"
+}
