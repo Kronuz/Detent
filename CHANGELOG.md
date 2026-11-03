@@ -50,10 +50,26 @@ and `TcpServer` constructors. That rewrite of `detentd`, the authority and
 relay services and `test_transport_https` is workstream W2 (S2 to S5), so
 the three pins move with it.
 
+`src/CMakeLists.txt` no longer declares http-parser at `GIT_TAG main`; the
+manifest pin (`c27615d`) is the only declaration, so every Kronuz dependency
+is pinned at a commit.
+
+### Fixes
+
+- `Client::~Client()` joins the updater thread before `on_update_` and the
+  snapshot state it reads are destroyed. ThreadSanitizer reported the race
+  in `test_file_source`.
+
 ### Tests
 
-- The tests that count or fail allocations share
-  `tests/support/allocation_probe.hh`, which defines the full replaceable
-  set of global allocation functions around a per-test probe, so they link
-  under ThreadSanitizer.
+- `tests/support/allocation_probe.hh` is the one way a test observes heap
+  allocations. It defines the replaceable global allocation functions around
+  a per-test probe, which may throw to inject a failure. Under
+  ThreadSanitizer on Linux the runtime owns those functions, so the header
+  calls the probe from the sanitizer's malloc hook instead, and the three
+  tests that inject failures (`test_model_alloc_failure`,
+  `test_client_publication_failure`, `test_local_directory_ownership`) are
+  not built there.
+- `test_local_paged_collection_crash` runs with `die_after_fork=0` under
+  ThreadSanitizer: it forks a process that has run threads.
 - The `linux-tsan` CI job runs.
