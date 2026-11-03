@@ -55,6 +55,11 @@
 - Q5 (d): each namespace's position is its own counter assigned at apply; S6-S9 build on today's single group; the group count is chosen once strata C2 exists and T8 is measured on Linux.
 - D8 takes the reader's `change` shape (reader D4, RD-5).
 
+## Strata H1 (2026-11-03)
+- Agreed in shape by the Xapiand lead: Xapiand uses H1 for change capture (resume by log index) and for lagging replicas (replay within the horizon, checkpoint install beyond it).
+- Conditions: the journal itself, no parallel delta store; horizon and byte budget explicit, inside D13's node budget; a reader past the horizon gets a typed "too old" answer, never a gap; no reader holds back compaction (a slow reader loses its place).
+- P3 refused by Xapiand, so it stays out. The strata architect reviews H1's design before it is built; S5.2 waits for it.
+
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, the startup attribution (`explore/agent-startup` at `Detent:e8d4e59`), the reader draft (`Detent:a3bb22f`), ACTORS, RELAY, AUTHORITY_EXPORT, DELIVERY_INTEGRATION_ARCHITECTURE, SCALE_TARGETS, STORAGE_BARRIER_ARCHITECTURE, the legacy inventory and the cited code.
 - 2026-11-03: First draft used state-plus-tombstones history; replaced by the namespace journal (D6) after the lead relayed the owner's one-replication-mechanism rule and the Xapiand lead's directions. Strata evaluated: replication shape adopted, core and segments not used for delivery or the agent store.
