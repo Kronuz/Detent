@@ -8,6 +8,9 @@
 //   (c) a completion after the wait ended is clean
 //   (d) a backstop expiry answers the backstop reply
 //   plus a race of completions against a stop, and frames back to their baseline after each case.
+// D15 phase 2 across two loops: a frame destroyed on one loop spawns onto another loop whose roots were
+// already destroyed; close() on every scheduler first makes that spawn a no-op, so no frame lives after
+// phase 3 (DETENT_OWNER_SKIP_CLOSE=1 omits the close() calls to show the case fails without them).
 
 #define TASK_COUNT_FRAMES 1
 
@@ -366,6 +369,44 @@ void completions_race_a_stop(Fixture& f) {
 	CHECK(completed + truthful == n);
 }
 
+// D15 phase 2: `a`'s frame, destroyed in phase 3, spawns a child onto `b` after b's roots were destroyed.
+struct SpawnOnDestroy {
+	detent::OwnerLoop* other;
+	task::event* never;
+	static task::task<void> park(task::event& never) { co_await never; }
+	~SpawnOnDestroy() { task::spawn(task::scheduler_ref::of(other->scheduler()), park(*never)); }
+};
+
+task::task<void> parent(detent::OwnerLoop* other, task::event* never, task::event* gate, Gate* up) {
+	SpawnOnDestroy spawner{other, never};
+	up->open();
+	co_await *gate;
+}
+
+void close_before_destroy_across_loops() {
+	std::fprintf(stderr, "case phase 2: close() across two loops\n");
+	const bool skip_close = std::getenv("DETENT_OWNER_SKIP_CLOSE") != nullptr;
+	const auto frames = task::detail::live_frames();
+	task::event never, gate;  // outlive both loops
+	{
+		detent::OwnerLoop a, b;
+		Gate up;
+		asio::post(a.io(), [&] { task::spawn(task::scheduler_ref::of(a.scheduler()), parent(&b, &never, &gate, &up)); });
+		CHECK(up.wait(give_up));
+		a.stop();
+		b.stop();
+		if (!skip_close) {
+			a.close();
+			b.close();
+		}
+		b.destroy_roots();  // any order across loops is legitimate
+		a.destroy_roots();
+		CHECK(task::detail::live_frames() == frames);
+	}
+	CHECK(task::detail::live_frames() == frames);
+	CHECK(task::detail::orphaned_waiters() == 0);
+}
+
 }  // namespace
 
 int main() {
@@ -379,6 +420,7 @@ int main() {
 	each_case("d: backstop expires", backstop_expires);
 	each_case("d: completed, then the backstop", backstop_after_a_completion_changes_nothing);
 	each_case("race: completions against a stop", completions_race_a_stop);
+	close_before_destroy_across_loops();
 	if (failures.load()) {
 		std::fprintf(stderr, "%d check(s) failed\n", failures.load());
 		return 1;

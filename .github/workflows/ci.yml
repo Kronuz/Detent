@@ -21,3 +21,18 @@ jobs:
       asan_timeout_minutes: 120
       freebsd: false
       tsan: false
+  # Benchmarks default to ON but the matrix above turns them off; this job builds them (no run).
+  benchmarks:
+    name: linux-benchmarks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        env: { CC: clang, CXX: clang++ }
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON
+          -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4

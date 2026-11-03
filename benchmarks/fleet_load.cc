@@ -1,11 +1,14 @@
 #include "fleet_load.hh"
 #include "../src/detent_delivery/client_probe_internal.hh"
+#include "detent/owner_loop.hh"
 #include "detent_delivery/reconnect_backoff.hh"
+#include "detent_transport/await_io.hh"
+#include <algorithm>
 #include <asio.hpp>
-#include <asio/experimental/channel.hpp>
 #include <atomic>
 #include <bit>
 #include <cstdio>
+#include <deque>
 #include <fcntl.h>
 #include <mutex>
 #include <rapidjson/document.h>
@@ -24,7 +27,7 @@ struct Owner;
 struct Slot {
 	Owner *owner = nullptr;
 	std::size_t index = 0;
-	asio::cancellation_signal cancellation;
+	task::cancel_source cancel;
 	asio::steady_timer *bootstrap_wait = nullptr;
 	t::SessionHandle session;
 	std::optional<t::PublicationFeedback> feedback;
@@ -43,28 +46,47 @@ struct Counters {
 	std::atomic<std::uint64_t> source_retries{0}, network_retries{0};
 	std::atomic<std::uint64_t> close_retries{0};
 };
+// A counted FIFO pool of permits; only its owner's loop touches it, and a waiter ends on a grant or its token.
+struct Pool {
+	struct Waiter {
+		task::event ready;
+		bool granted = false;
+	};
+	std::size_t free;
+	std::deque<Waiter *> waiters;
+	explicit Pool(std::size_t count) : free(count) {}
+	void release() {
+		if (waiters.empty()) {
+			++free;
+			return;
+		}
+		auto *waiter = waiters.front();
+		waiters.pop_front();
+		waiter->granted = true;
+		waiter->ready.set();
+	}
+};
 struct Owner {
-	using Channel = asio::experimental::channel<void(asio::error_code, unsigned)>;
 	Run &run;
 	std::size_t index;
-	asio::strand<asio::io_context::executor_type> executor;
-	Channel permits, closes;
+	Pool permits, closes;
 	std::shared_ptr<t::ConnectionCache> connections;
+	OwnerLoop loop;  // last: its destructor ends the frames that use the members above
 	Owner(Run &, std::size_t, std::size_t);
 };
 struct Permit {
 	Owner *owner = nullptr;
-	Owner::Channel *channel = nullptr;
-	explicit Permit(Owner &value, Owner::Channel &pool);
-	Permit(Permit &&other) noexcept : owner(std::exchange(other.owner, nullptr)), channel(other.channel) {}
+	Pool *pool = nullptr;
+	explicit Permit(Owner &value, Pool &source);
+	Permit(Permit &&other) noexcept : owner(std::exchange(other.owner, nullptr)), pool(other.pool) {}
 	Permit(const Permit &) = delete;
 	~Permit();
 };
 struct Run {
 	Options options;
-	asio::io_context io;
-	asio::strand<asio::io_context::executor_type> control{asio::make_strand(io)};
-	asio::steady_timer wake{control};
+	asio::io_context io;  // the control loop, run by the calling thread
+	task::asio_scheduler control{io.get_executor()};
+	asio::steady_timer wake{io};
 	asio::signal_set signals{io, SIGINT, SIGTERM};
 	std::shared_ptr<d::StorageLedger> account;
 	d::StorageLedger::Ticket slots_ticket;
@@ -83,7 +105,7 @@ struct Run {
 	t::ConnectionCacheStats reference_network;
 	Clock::time_point started = Clock::now();
 	std::unique_ptr<FILE, decltype(&std::fclose)> result{nullptr, &std::fclose};
-	asio::posix::stream_descriptor input{control};
+	asio::posix::stream_descriptor input{io};
 	explicit Run(Options value)
 		: options(std::move(value)), account(std::make_shared<d::StorageLedger>(options.heap_bytes)) {
 		std::size_t maximum_names = 0;
@@ -137,6 +159,19 @@ struct Run {
 			throw asio::system_error(input_error);
 		}
 	}
+	// D15: stop and join every owner loop, close them all, then destroy what is still suspended on them.
+	void teardown() noexcept {
+		io.stop();
+		for (auto &owner : owners)
+			owner->loop.stop();
+		for (auto &owner : owners)
+			owner->loop.close();
+		for (auto &owner : owners)
+			owner->loop.destroy_roots();
+		control.close();
+		control.destroy_roots();
+	}
+	~Run() { teardown(); }
 	void fail(std::exception_ptr value) {
 		{
 			std::lock_guard lock(failure_mutex);
@@ -146,7 +181,7 @@ struct Run {
 		stop();
 	}
 	void notify() {
-		asio::post(control, [this] { wake.cancel(); });
+		asio::post(io, [this] { wake.cancel(); });
 	}
 	void stop() {
 		auto unset = INT64_MAX;
@@ -155,27 +190,28 @@ struct Run {
 															.count());
 		if (!stopping.exchange(true, std::memory_order_acq_rel))
 			for (auto &owner : owners)
-				asio::co_spawn(owner->executor, cancel(*owner), [this](std::exception_ptr error) {
-					if (error) {
-						std::lock_guard lock(failure_mutex);
-						if (!failure)
-							failure = error;
-					}
-				});
-		asio::post(control, [this] {
-			protocol_cancellation.emit(asio::cancellation_type::all);
+				task::spawn(task::scheduler_ref::of(owner->loop.scheduler()), cancel(*owner),
+							[this](std::exception_ptr error) {
+								if (error) {
+									std::lock_guard lock(failure_mutex);
+									if (!failure)
+										failure = error;
+								}
+							});
+		asio::post(io, [this] {
+			protocol_cancel.request();
 			asio::error_code ignored;
 			input.cancel(ignored);
 			signals.cancel(ignored);
 			wake.cancel();
 		});
 	}
-	asio::awaitable<void> wake_bootstrap(Owner &owner) {
+	task::task<void> wake_bootstrap(Owner &owner) {
 		for (std::size_t index = owner.index; index < options.subscribers; index += owners.size()) {
 			if (auto *wait = slots[index].bootstrap_wait)
 				wait->cancel();
 			if ((index / owners.size()) % 64 == 63)
-				co_await asio::post(owner.executor, asio::use_awaitable);
+				co_await task::yield();
 		}
 	}
 	void became_ready(Slot &slot) {
@@ -183,33 +219,50 @@ struct Run {
 		if (++counts.ready == options.subscribers) {
 			bootstrap_complete.store(true, std::memory_order_release);
 			for (auto &owner : owners)
-				asio::co_spawn(owner->executor, wake_bootstrap(*owner), [this](std::exception_ptr error) {
-					if (error)
-						fail(error);
-				});
+				task::spawn(task::scheduler_ref::of(owner->loop.scheduler()), wake_bootstrap(*owner),
+							[this](std::exception_ptr error) {
+								if (error)
+									fail(error);
+							});
 		}
 		notify();
 	}
-	asio::awaitable<void> cancel(Owner &owner) {
+	task::task<void> cancel(Owner &owner) {
 		for (std::size_t index = owner.index; index < options.subscribers; index += owners.size()) {
-			slots[index].cancellation.emit(asio::cancellation_type::all);
+			slots[index].cancel.request();
 			if ((index / owners.size()) % 64 == 63)
-				co_await asio::post(owner.executor, asio::use_awaitable);
+				co_await task::yield();
 		}
 	}
-	asio::awaitable<Permit> acquire(Owner &owner) {
-		co_await owner.permits.async_receive(asio::use_awaitable);
-		co_return Permit(owner, owner.permits);
+	// Waits for a permit of `pool`, or throws operation_aborted when `token` is requested first.
+	static task::task<Permit> acquire(Owner &owner, Pool &pool, task::cancel_token token = {}) {
+		if (pool.free && pool.waiters.empty()) {
+			--pool.free;
+			co_return Permit(owner, pool);
+		}
+		if (token.requested())
+			throw asio::system_error(asio::error::operation_aborted);
+		Pool::Waiter waiter;
+		pool.waiters.push_back(&waiter);
+		{
+			task::cancel_callback wake(token, [&waiter] { waiter.ready.set(); });
+			co_await waiter.ready;
+		}
+		if (!waiter.granted) {
+			pool.waiters.erase(std::find(pool.waiters.begin(), pool.waiters.end(), &waiter));
+			throw asio::system_error(asio::error::operation_aborted);
+		}
+		co_return Permit(owner, pool);
 	}
-	asio::awaitable<Permit> acquire_close(Owner &owner) {
-		co_await owner.closes.async_receive(asio::use_awaitable);
-		co_return Permit(owner, owner.closes);
+	// Awaits a timer and returns its error_code (operation_aborted when cancelled).
+	static auto settle(asio::steady_timer &timer, task::cancel_token token = {}) {
+		return task::await_asio<void(asio::error_code)>([&timer](auto handler) { timer.async_wait(std::move(handler)); },
+														std::move(token));
 	}
-	asio::awaitable<void> release(t::ClientOptions source, t::SessionHandle &session) {
-		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
+	task::task<void> release(t::ClientOptions source, t::SessionHandle &session) {
 		source.timeout = std::min(source.timeout, 1000ms);
 		const auto deadline = Clock::now() + 5s;
-		asio::steady_timer retry(co_await asio::this_coro::executor);
+		asio::steady_timer retry(source.scheduler->executor());
 		for (;;) {
 			std::exception_ptr error;
 			try {
@@ -231,14 +284,13 @@ struct Run {
 				std::rethrow_exception(error);
 			++counts.close_retries;
 			retry.expires_after(20ms);
-			co_await retry.async_wait(asio::use_awaitable);
+			co_await transport::await_timer(retry);
 		}
 		session = {};
 	}
-	asio::awaitable<void> close(Slot &slot, t::ClientOptions source) {
-		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
+	task::task<void> close(Slot &slot, t::ClientOptions source) {
 		if (slot.session.identity() != d::Identity{}) {
-			auto permit = co_await acquire_close(*slot.owner);
+			auto permit = co_await acquire(*slot.owner, slot.owner->closes);
 			if (std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now().time_since_epoch())
 					.count() < cleanup_until_ms.load()) {
 				++counts.closes;
@@ -264,21 +316,22 @@ struct Run {
 			   reason != t::SessionResetReason::IdentityChanged &&
 			   reason != t::SessionResetReason::InvalidRequest;
 	}
-	asio::awaitable<void> subscriber(Slot &slot) {
+	task::task<void> subscriber(Slot &slot) {
 		const auto &configured = options.sources[slot.index % options.sources.size()];
 		t::ClientOptions source = configured;
+		source.scheduler = &slot.owner->loop.scheduler();
 		source.connections = slot.owner->connections;
 		if (options.warm_revision) {
 			source.base = source.configured;
 			source.base->revision = *options.warm_revision;
 		}
 		t::ReconnectBackoff backoff(20ms, 1000ms, options.seed ^ slot.index);
-		asio::steady_timer pause(slot.owner->executor);
+		asio::steady_timer pause(slot.owner->loop.io());
 		std::exception_ptr fatal;
 		try {
 			if (options.delay_bootstrap_slot && slot.index == *options.delay_bootstrap_slot) {
 				pause.expires_after(options.bootstrap_delay);
-				co_await pause.async_wait(asio::use_awaitable);
+				co_await transport::await_timer(pause, slot.cancel.token());
 			}
 			while (!stopping.load(std::memory_order_acquire)) {
 				if (slot.ready && !bootstrap_complete.load(std::memory_order_acquire)) {
@@ -288,8 +341,7 @@ struct Run {
 					auto peak = counts.peak_parked.load();
 					while (parked > peak && !counts.peak_parked.compare_exchange_weak(peak, parked)) {
 					}
-					asio::error_code error;
-					co_await pause.async_wait(asio::redirect_error(asio::use_awaitable, error));
+					const auto error = co_await settle(pause, slot.cancel.token());
 					slot.bootstrap_wait = nullptr;
 					--counts.parked;
 					if (error && error != asio::error::operation_aborted)
@@ -314,19 +366,18 @@ struct Run {
 					co_await close(slot, source);
 					source.base = source.configured;
 					source.base->revision = checkpoint;
-					co_await asio::this_coro::reset_cancellation_state(asio::enable_terminal_cancellation());
 				}
 				std::exception_ptr attempt_error;
 				const auto began = Clock::now();
 				try {
-					auto permit = co_await acquire(*slot.owner);
+					auto permit = co_await acquire(*slot.owner, slot.owner->permits, slot.cancel.token());
 					if (stopping.load(std::memory_order_acquire))
 						break;
 					if (goal.load(std::memory_order_acquire) != checkpoint)
 						continue;
 					if (!slot.session.valid()) {
 						slot.session =
-							co_await t::open_session(source, !options.warm_revision || checkpoint != 0);
+							co_await t::open_session(source, !options.warm_revision || checkpoint != 0, slot.cancel.token());
 						if (!slot.opened) {
 							slot.opened = true;
 							++counts.opened;
@@ -338,7 +389,8 @@ struct Run {
 							source, slot.session, slot.feedback,
 							options.warm_revision && !slot.ready
 								? 0ms
-								: std::min({slot.session.maximum_wait(), 30000ms, source.timeout / 2}));
+								: std::min({slot.session.maximum_wait(), 30000ms, source.timeout / 2}),
+							slot.cancel.token());
 						if (const auto *offer = std::get_if<t::detail::ProbeOffer>(&event)) {
 							if (source.base && offer->target.revision < source.base->revision)
 								throw std::runtime_error("fleet cursor regressed");
@@ -403,9 +455,8 @@ struct Run {
 						std::rethrow_exception(attempt_error);
 					++counts.retries;
 					co_await close(slot, source);
-					co_await asio::this_coro::reset_cancellation_state(asio::enable_terminal_cancellation());
 					pause.expires_after(backoff.next());
-					co_await pause.async_wait(asio::use_awaitable);
+					co_await transport::await_timer(pause, slot.cancel.token());
 				}
 			}
 		} catch (...) {
@@ -415,7 +466,6 @@ struct Run {
 			slot.bootstrap_wait = nullptr;
 			--counts.parked;
 		}
-		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 		try {
 			co_await close(slot, std::move(source));
 		} catch (...) {
@@ -432,12 +482,17 @@ struct Run {
 			}
 		}
 	}
-	asio::awaitable<void> protocol() {
+	task::task<void> protocol() {
 		std::string line;
 		std::uint64_t revision = 0;
 		for (;;) {
-			co_await asio::async_read_until(input, asio::dynamic_buffer(line, 256), '\n',
-											asio::use_awaitable);
+			const auto read = co_await task::await_asio<void(asio::error_code, std::size_t)>(
+				[&](auto handler) {
+					asio::async_read_until(input, asio::dynamic_buffer(line, 256), '\n', std::move(handler));
+				},
+				protocol_cancel.token());
+			if (std::get<0>(read))
+				throw asio::system_error(std::get<0>(read));
 			const auto length = line.find('\n');
 			rapidjson::Document command;
 			command.Parse(line.data(), length);
@@ -471,7 +526,8 @@ struct Run {
 			break;
 		}
 		auto source = options.sources.front();
-		source.connections = t::make_connection_cache(control, 1, account);
+		source.scheduler = &control;
+		source.connections = t::make_connection_cache(control.executor(), 1, account);
 		auto reference_connections = source.connections;
 		source.base = source.configured;
 		source.base->revision = revision;
@@ -479,13 +535,14 @@ struct Run {
 		std::exception_ptr fatal;
 		bool validated = false;
 		try {
-			asio::steady_timer retry(control);
+			asio::steady_timer retry(io);
 			while (!stopping.load(std::memory_order_acquire)) {
 				std::exception_ptr error;
 				try {
 					if (!session.valid())
-						session = co_await t::open_session(source, true);
-					auto event = co_await t::detail::ProbeAccess::reference(source, session, {}, 0ms);
+						session = co_await t::open_session(source, true, protocol_cancel.token());
+					auto event =
+						co_await t::detail::ProbeAccess::reference(source, session, {}, 0ms, protocol_cancel.token());
 					if (const auto *offer = std::get_if<t::detail::ProbeOffer>(&event)) {
 						if (offer->kind != d::UpdateKind::Snapshot || offer->target.revision != revision)
 							throw std::runtime_error(
@@ -512,15 +569,13 @@ struct Run {
 							throw;
 					}
 					co_await release(source, session);
-					co_await asio::this_coro::reset_cancellation_state(asio::enable_terminal_cancellation());
 					retry.expires_after(100ms);
-					co_await retry.async_wait(asio::use_awaitable);
+					co_await transport::await_timer(retry, protocol_cancel.token());
 				}
 			}
 		} catch (...) {
 			fatal = std::current_exception();
 		}
-		co_await asio::this_coro::reset_cancellation_state(asio::disable_cancellation());
 		try {
 			co_await release(std::move(source), session);
 		} catch (...) {
@@ -558,16 +613,14 @@ struct Run {
 					static_cast<unsigned long long>(counts.parked.load()));
 		std::fflush(stdout);
 	}
-	asio::cancellation_signal protocol_cancellation;
-	asio::awaitable<void> supervise() {
-		asio::co_spawn(
-			control, protocol(),
-			asio::bind_cancellation_slot(protocol_cancellation.slot(), [this](std::exception_ptr error) {
-				protocol_complete = true;
-				if (error && !(stopping.load(std::memory_order_acquire) && cancelled(error)))
-					fail(error);
-				notify();
-			}));
+	task::cancel_source protocol_cancel;
+	task::task<void> supervise() {
+		task::spawn(task::scheduler_ref::of(control), protocol(), [this](std::exception_ptr error) {
+			protocol_complete = true;
+			if (error && !(stopping.load(std::memory_order_acquire) && cancelled(error)))
+				fail(error);
+			notify();
+		});
 		try {
 			for (std::size_t index = 0; index != options.subscribers; ++index) {
 				if (options.fail_launch_after && index == *options.fail_launch_after)
@@ -577,20 +630,19 @@ struct Run {
 				auto &slot = slots[index];
 				++counts.accepted;
 				try {
-					asio::co_spawn(slot.owner->executor, subscriber(slot),
-								   asio::bind_cancellation_slot(slot.cancellation.slot(),
-																[this](std::exception_ptr error) {
-																	++counts.completed;
-																	if (error)
-																		fail(error);
-																	notify();
-																}));
+					task::spawn(task::scheduler_ref::of(slot.owner->loop.scheduler()), subscriber(slot),
+								[this](std::exception_ptr error) {
+									++counts.completed;
+									if (error)
+										fail(error);
+									notify();
+								});
 				} catch (...) {
 					--counts.accepted;
 					throw;
 				}
 				if (index % 64 == 63)
-					co_await asio::post(control, asio::use_awaitable);
+					co_await task::yield();
 			}
 		} catch (...) {
 			fail(std::current_exception());
@@ -616,15 +668,13 @@ struct Run {
 				sample_at = Clock::now() + 1s;
 			}
 			wake.expires_at(std::min(sample_at, started + options.lifetime));
-			asio::error_code error;
-			co_await wake.async_wait(asio::redirect_error(asio::use_awaitable, error));
+			co_await settle(wake);
 		}
-		protocol_cancellation.emit(asio::cancellation_type::all);
+		protocol_cancel.request();
 		input.cancel();
 		while (counts.completed.load() != counts.accepted.load() || !protocol_complete) {
 			wake.expires_after(1s);
-			asio::error_code error;
-			co_await wake.async_wait(asio::redirect_error(asio::use_awaitable, error));
+			co_await settle(wake);
 		}
 		signals.cancel();
 		if (counts.checked.load() != options.subscribers) {
@@ -757,18 +807,11 @@ struct Run {
 	}
 };
 Owner::Owner(Run &value, std::size_t ordinal, std::size_t capacity)
-	: run(value), index(ordinal), executor(asio::make_strand(value.io)), permits(executor, capacity),
-	  closes(executor, 64 / value.options.workers + (ordinal < 64 % value.options.workers)) {
-	for (std::size_t token = 0; token != capacity; ++token)
-		if (!permits.try_send(asio::error_code{}, 0u))
-			throw std::logic_error("fleet permit initialization");
-	const auto close_capacity = 64 / value.options.workers + (ordinal < 64 % value.options.workers);
-	for (std::size_t token = 0; token != close_capacity; ++token)
-		if (!closes.try_send(asio::error_code{}, 0u))
-			throw std::logic_error("fleet Close permit initialization");
-	connections = t::make_connection_cache(executor, capacity + close_capacity, run.account);
+	: run(value), index(ordinal), permits(capacity),
+	  closes(64 / value.options.workers + (ordinal < 64 % value.options.workers)) {
+	connections = t::make_connection_cache(loop.scheduler().executor(), capacity + closes.free, run.account);
 }
-Permit::Permit(Owner &value, Owner::Channel &pool) : owner(&value), channel(&pool) {
+Permit::Permit(Owner &value, Pool &source) : owner(&value), pool(&source) {
 	const auto active = ++owner->run.counts.exchanges;
 	auto peak = owner->run.counts.peak_exchanges.load();
 	while (active > peak && !owner->run.counts.peak_exchanges.compare_exchange_weak(peak, active)) {
@@ -777,32 +820,22 @@ Permit::Permit(Owner &value, Owner::Channel &pool) : owner(&value), channel(&poo
 Permit::~Permit() {
 	if (owner) {
 		--owner->run.counts.exchanges;
-		if (!channel->try_send(asio::error_code{}, 0u))
-			std::terminate();
+		pool->release();
 	}
 }
 } // namespace
 int run(Options options) {
 	Run state(std::move(options));
-	state.signals.async_wait(asio::bind_executor(state.control, [&state](const asio::error_code &error, int) {
+	state.signals.async_wait([&state](const asio::error_code &error, int) {
 		if (!error)
 			state.stop();
-	}));
-	asio::co_spawn(state.control, state.supervise(), [&state](std::exception_ptr error) {
+	});
+	task::spawn(task::scheduler_ref::of(state.control), state.supervise(), [&state](std::exception_ptr error) {
 		if (error)
 			state.fail(error);
 	});
-	std::vector<std::jthread> workers;
-	workers.reserve(state.options.workers - 1);
-	try {
-		for (std::size_t index = 1; index < state.options.workers; ++index)
-			workers.emplace_back([&state] { state.io.run(); });
-	} catch (...) {
-		state.fail(std::current_exception());
-	}
 	state.io.run();
-	for (auto &worker : workers)
-		worker.join();
+	state.teardown();
 	return state.finish();
 }
 } // namespace detent::fleet
