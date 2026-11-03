@@ -84,6 +84,7 @@ export const sidebar = [
 				'architecture/agent',
 				'architecture/raft',
 				'architecture/authority',
+				'architecture/relay',
 				'architecture/delivery',
 				'architecture/dependencies',
 				'architecture/design-documents',

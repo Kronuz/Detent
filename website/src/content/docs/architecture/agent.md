@@ -5,6 +5,20 @@ title: "Agent and Shared Memory"
 `detent-agent` exists so that a host needs one poller, not one per process, and
 so that processes that can't link C++ still get fast, local reads.
 
+The agent runs one of two profiles. With `--managed managed.json` it receives
+snapshots and deltas from the authority or a [relay](/Detent/architecture/relay/)
+and publishes immutable generations, described in
+[Delivery and Local Images](/Detent/architecture/delivery/). Without it, the
+agent runs the legacy profile this page describes: it polls a classic
+distributor and writes one shared-memory file.
+
+| | Managed | Legacy |
+| --- | --- | --- |
+| Upstream | Authority or relay, TLS, bearer token | Classic `detentd`, plain HTTP |
+| Local state | `generation_dir` (`selected` plus immutable generations) | `snapshot.shm` in the runtime directory |
+| Build | `DETENT_BUILD_MANAGED_AGENT=ON` (default) | Always built |
+| First start | `--initialize-managed` once on an empty directory | Nothing to provision |
+
 ---
 
 ## Design

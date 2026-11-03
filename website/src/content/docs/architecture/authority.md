@@ -80,7 +80,8 @@ the legacy `cluster::Raft`:
 3. A publisher is acknowledged only after a durable majority commits and the
    state machine records the result, never at proposal time.
 4. A storage error fences the member instead of letting it keep voting.
-5. Membership is a fixed list of 3 or 5 voters with stable IDs.
+5. Membership is a single voter, or a fixed odd list of 3, 5 or 7 voters with
+   stable IDs. Production targets three.
 6. Strong reads and result lookups pass through a quorum barrier.
 
 Replication runs over point-to-point, length-delimited TLS connections with a
@@ -113,6 +114,21 @@ committed entries apply in quanta of at most 8 commands, 128 mutations or
 bounded slices. The measured maximum service turn for a 100,000-knob load fell
 from 73.2 ms to 3.7 ms with command quanta, spreading the same total CPU over
 more turns.
+
+---
+
+## Where It Runs
+
+One `detentd --authority authority.json` process per voter, each on its own
+machine and disk. Build with `-DDETENT_BUILD_DISTRIBUTOR=ON
+-DDETENT_BUILD_AUTHORITY=ON`. `authority.json` has no default location; pass
+it with `--authority` or name it as `authority` in `detentd.json`. Its
+`directory`, resolved relative to the file, holds the `manifest`, journal and
+checkpoints. Producers, relays and agents reach the producer listener on
+`publisher_bind` (loopback by default) and `--port` (8317 by default); voters
+reach each other on the `host` and `port` of their `voters` entries. A voter
+with an existing `manifest` recovers and replays its committed entries before
+it admits any request. The source is in `src/detent_authority/`.
 
 ---
 

@@ -12,27 +12,57 @@ distribution can be down for an hour.
 
 ## The Big Picture
 
-```d2 alt="Publishers write to detentd or the authority; clients and agents poll or receive deliveries; applications and shell readers read local snapshots"
+```d2 alt="Producers write transactions to the authority; the optional relay subscribes to it and serves snapshots and deltas to each host's agent, which publishes immutable generations that the app process and detent get map and read; the legacy classic detentd takes PUT and PATCH and serves polled JSON"
 direction: down
-publisher: Publishers {shape: person}
-control: "Control plane" {
-  detentd: "detentd\n(classic, optional Raft)"
-  authority: "detentd --authority\n(durable Raft, TLS)"
-}
+producer: Producers {shape: person}
+authority: "Authority\ndetentd --authority\n(3 voters, durable Raft)" {style.multiple: true}
+relay: "Relay (optional)\ndetent-relay"
+classic: "Classic detentd\n(legacy, optional Raft)" {style.stroke-dash: 4}
 host: "Each host" {
-  client: "App process\n(detent::Client)"
+  label.near: bottom-center
   agent: "detent-agent"
-  shm: "shared memory /\nimmutable generations" {shape: cylinder}
-  shell: "detent get / any language"
+  gens: "immutable generations" {shape: cylinder}
+  client: "App process\n(detent::Client)"
+  shell: "detent get"
+  agent -> gens: publish
+  client -> gens: "map, read"
+  shell -> gens: "map, read"
 }
-publisher -> control.detentd: "PUT / PATCH /v1/snapshot"
-publisher -> control.authority: "POST /v2/transactions"
-control.detentd -> host.client: "GET /v1/snapshot\n(ETag + diffs)"
-control.detentd -> host.agent: "GET /v1/snapshot"
-control.authority -> host.agent: "/v2/distribution\n(snapshot or delta)"
-host.agent -> host.shm: publish
-host.shell -> host.shm: "mmap, read-only"
+producer -> authority: "POST /v2/transactions"
+authority -> relay: "subscription"
+relay -> host.agent: "snapshot or delta"
+authority -> host.agent: "or direct"
+producer -> classic: "PUT / PATCH /v1/snapshot" {style.stroke-dash: 4}
+classic -> host.client: "GET /v1/snapshot" {style.stroke-dash: 4}
 ```
+
+The solid path is the managed profile, the topology Detent's production
+contract targets. The dashed path is the classic profile: `detentd` without
+`--authority`, a plain HTTP distributor that clients poll for JSON. The code
+calls it legacy; it is still built by default and still supported.
+
+---
+
+## The Actors
+
+| Actor | What it does | Runs on | Binary |
+| --- | --- | --- | --- |
+| Producer | Writes knob changes as namespaced transactions | Anywhere that reaches the authority | Your service, or `curl` |
+| Authority | Orders, stores and serves the source of truth | Three machines, one voter each | `detentd --authority authority.json` |
+| Relay | Optional fan-out: one upstream subscription per bundle, many agents | Between the authority and agent hosts | `detent-relay` |
+| Agent | Receives snapshots and deltas, publishes immutable generations | Every application host | `detent-agent --managed managed.json` |
+| Client | Maps the selected generation and reads in memory | Every application host | Your app (`detent::Client`), `detent get` |
+
+Voters, relays and agents are all daemons; "daemon" names no role. Each actor
+has its own page:
+[Authority](/Detent/architecture/authority/),
+[Relay](/Detent/architecture/relay/),
+[Agent](/Detent/architecture/agent/) and
+[Delivery and Local Images](/Detent/architecture/delivery/) for the agent's
+generations, and [Read Path](/Detent/architecture/read-path/) for the client.
+[Detent's actors](https://github.com/Kronuz/Detent/blob/main/docs/ACTORS.md) in
+the repository is the full reference: endpoints, files, build options, default
+directories and restart behavior for every actor.
 
 ---
 
@@ -47,20 +77,23 @@ allocation. See [Read Path](/Detent/architecture/read-path/).
 
 ### Update Plane: the Client's Background Thread
 
-One background thread per client fetches candidates from its source, validates
-them completely, gates them by version, merges them over the baked defaults,
-and publishes the result with one atomic store. Failures are retried with
-jittered backoff and never reach readers. See
+One background thread per client picks up new state from its source. With
+managed delivery, it watches the agent's `selected` descriptor and maps each
+new generation. With a classic source, it fetches candidates, validates them
+completely, gates them by version, merges them over the baked defaults, and
+publishes the result with one atomic store. Failures never reach readers. See
 [Update Path](/Detent/architecture/update-path/).
 
 ### Control Plane: Distribution
 
-`detentd` accepts publishes and serves snapshots. In its classic profile it is
-a small HTTP server with persistence, cached diffs and compression, optionally
-replicated with Raft. In its authority profile it is a durable, authenticated,
-transactional state machine with completion-based storage I/O. See
-[Distributor](/Detent/architecture/distributor/),
-[Raft](/Detent/architecture/raft/) and [Authority](/Detent/architecture/authority/).
+The authority accepts transactions and replicates them durably across its
+voters; relays and agents carry the committed state to every host as
+snapshots and deltas. The classic `detentd` is a small HTTP server with
+persistence, cached diffs and compression, optionally replicated with Raft over
+multicast. See [Authority](/Detent/architecture/authority/),
+[Relay](/Detent/architecture/relay/),
+[Distributor](/Detent/architecture/distributor/) and
+[Raft](/Detent/architecture/raft/).
 
 ---
 
@@ -85,14 +118,15 @@ transactional state machine with completion-based storage I/O. See
 
 1. [Read Path](/Detent/architecture/read-path/) and
    [Update Path](/Detent/architecture/update-path/): the client.
-2. [Distributor](/Detent/architecture/distributor/): the classic server.
+2. [Distributor](/Detent/architecture/distributor/): the classic, legacy server.
 3. [Agent and Shared Memory](/Detent/architecture/agent/): host-local reads.
 4. [Raft Clustering](/Detent/architecture/raft/): the classic replication.
 5. [Durable Authority](/Detent/architecture/authority/): transactions and
    durable consensus.
-6. [Delivery and Local Images](/Detent/architecture/delivery/): managed
+6. [Relay](/Detent/architecture/relay/): optional durable fan-out.
+7. [Delivery and Local Images](/Detent/architecture/delivery/): managed
    distribution and immutable generations.
-7. [Dependencies](/Detent/architecture/dependencies/): the libraries Detent is
+8. [Dependencies](/Detent/architecture/dependencies/): the libraries Detent is
    built from.
-8. [Design Documents](/Detent/architecture/design-documents/): the full
+9. [Design Documents](/Detent/architecture/design-documents/): the full
    engineering record in the repository.

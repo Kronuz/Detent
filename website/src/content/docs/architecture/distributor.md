@@ -2,6 +2,12 @@
 title: "Distributor"
 ---
 
+The classic `detentd` is the legacy profile: `detentd` without `--authority`,
+built by default with `DETENT_BUILD_DISTRIBUTOR=ON`, listening on port 8317 and
+persisting `snapshot.json` in the state directory. It has no authentication or
+TLS. The [durable authority](/Detent/architecture/authority/) and
+[relay](/Detent/architecture/relay/) are the managed replacement.
+
 The classic `detentd` is deliberately small: three handlers over one shared,
 immutable current snapshot, plus persistence, a diff cache and a compression
 cache.

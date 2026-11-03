@@ -93,7 +93,7 @@ state from disk instead of guessing.
 
 ## Status
 
-Managed delivery and the SDK source have component acceptance. Resumable
-subscriptions and snapshot/history handoff are in progress; regional relays and
-incremental page-level publication come next. See the
-[Roadmap](/Detent/roadmap/).
+Managed delivery, subscriptions, the [relay](/Detent/architecture/relay/)
+and incremental `paged-v2` publication (the default image format) are
+implemented with component acceptance. Sustained fleet qualification remains
+open; see the [Roadmap](/Detent/roadmap/).
