@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <poll.h>
 #include <source_location>
 #include <thread>
@@ -551,7 +552,9 @@ int main(int argc, char **argv) {
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
 		const auto started = std::chrono::steady_clock::now();
+		std::mutex checkpoint_mutex;
 		auto checkpoint = [&](std::string_view phase) {
+			std::lock_guard lock(checkpoint_mutex);
 			std::cerr << "coordinator records=" << count << " phase=" << phase << " elapsed_ms="
 				<< std::chrono::duration_cast<std::chrono::milliseconds>(
 					std::chrono::steady_clock::now() - started).count() << '\n';
