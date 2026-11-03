@@ -13,19 +13,12 @@
 #include <rapidjson/writer.h>
 #include <stdexcept>
 #include <sys/resource.h>
+#include "../tests/support/handler_harness.hh"
 #include <thread>
 #include <unistd.h>
 using namespace detent::authority;
 namespace {
-struct Writer : http::ResponseWriter {
-	int code = 0;
-	std::string body;
-	void status(int c) override { code = c; }
-	void set_header(std::string_view, std::string_view) override {}
-	void write(std::string_view s) override { body += s; }
-	void end() override {}
-	void set_close() override {}
-};
+using Writer = detent_test::Writer;
 std::string authority =
 	"\"cluster\":\"63000000000000000000000000000000\",\"group\":\"67000000000000000000000000000000\","
 	"\"epoch\":\"65000000000000000000000000000000\",";
@@ -34,11 +27,8 @@ Writer call(Service &service, std::string path, std::string fields) {
 	r.method = "POST";
 	r.path = std::move(path);
 	r.headers.emplace_back("Authorization", "Bearer 0123456789abcdef0123456789abcdef");
-	auto sink = service.on_request_body(r);
-	sink->write("{" + authority + fields + "}");
-	sink->end();
 	Writer w;
-	service.handle(r, w);
+	detent_test::run_handler(service, r, w, "{" + authority + fields + "}");
 	return w;
 }
 ServiceOptions options(const std::filesystem::path &directory) {
@@ -119,7 +109,7 @@ int main(int argc, char **argv) {
 		probe.path = "/v1/health";
 		probe.method = "GET";
 		Writer health;
-		service.handle(probe, health);
+		detent_test::run_handle(service, probe, health);
 		std::cout << health.body << '\n';
 		const auto shutdown_started = std::chrono::steady_clock::now();
 		owner.reset();

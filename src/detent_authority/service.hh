@@ -1,4 +1,5 @@
 #pragma once
+#include "detent/owner_loop.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
 #include "node.hh"
@@ -12,11 +13,11 @@
 #include <filesystem>
 #include <functional>
 #include <future>
+#include <variant>
 #include <http_handler.h>
 #include <mutex>
 #include <optional>
 #include <set>
-#include <thread>
 
 namespace detent::authority {
 struct Credential {
@@ -52,9 +53,17 @@ class Service final : public http::HttpHandler {
 	explicit Service(ServiceOptions options);
 	~Service() override;
 	void observe_connections(std::shared_ptr<const reactor::ConnectionAdmission> observer);
-	void handle(const http::Request &request, http::ResponseWriter &response) override;
-	bool should_offload(const http::Request &request) const override { return request.path != "/v1/health"; }
+	task::task<void> handle(http::Request &request, http::ResponseWriter &response) override;
+	std::unique_ptr<http::RequestExtension> create_extension(const http::Request &request) override;
 	std::unique_ptr<http::BodySink> on_request_body(http::Request &request) override;
+	// Ends every owner wait with its truthful reply (D10) and stops admitting. Call before the HTTP
+	// service stops.
+	void begin_shutdown() noexcept;
+	// Waits until the runtime has settled every task and left its loop; the owner keeps running.
+	// Call after the HTTP service stops and before the owner's phases.
+	void drain();
+	// The runtime's loop; its D15 phases belong to the process.
+	[[nodiscard]] detent::OwnerLoop &owner() noexcept { return owner_; }
 
   private:
 	struct ReplyAdmission;
@@ -90,6 +99,9 @@ class Service final : public http::HttpHandler {
 		std::vector<std::string> keys;
 		std::uint64_t generation = 0, sequence = 0;
 		std::function<void(Reply)> complete;
+		// A command, read or result waits on `done` on the owner; `outcome` is set once, by complete.
+		task::event done;
+		std::optional<Reply> outcome;
 		std::chrono::steady_clock::time_point deadline;
 		std::chrono::steady_clock::time_point poll_deadline;
 	};
@@ -104,16 +116,29 @@ class Service final : public http::HttpHandler {
 	std::string health_ = "{}";
 	std::shared_ptr<const reactor::ConnectionAdmission> connections_;
 	std::chrono::steady_clock::time_point health_stamp_{};
-	std::thread thread_;
+	task::cancel_source stop_;
+	std::shared_future<void> runtime_done_;
 	std::shared_ptr<Admission> admit(const http::Request &request);
-	void run(std::promise<void> ready);
+	task::task<void> run(std::promise<void> ready);
 	void distribute(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
 	void subscription(const http::Request &, http::ResponseWriter &, std::shared_ptr<Admission>);
+	struct Extension;
+	struct Outcome;
+	struct Prepared;
 	std::shared_ptr<Delivery> distribution_request(const distribution_http::SessionRequest &,
 												   const Admission &);
 	void stream_task(http::ResponseWriter &, const std::shared_ptr<Task> &);
-	std::optional<Reply> execute(const http::Request &request, std::shared_ptr<Admission> admission,
-								 std::function<void(Reply)> complete,
-								 std::chrono::steady_clock::time_point deadline);
+	// Parses and validates a command, read or result on the loop; nothing is queued.
+	Prepared prepare(const http::Request &request, std::shared_ptr<Admission> admission,
+					 std::chrono::steady_clock::time_point deadline);
+	// On the owner: queues a prepared task, or answers it at once (stopping, producer busy).
+	void enqueue(const std::shared_ptr<Task> &task);
+	Outcome reply_for(Task &task, task::cancel_reason why);
+	Reply enveloped(Reply reply) const;
+	// Answers a submitted request through an owned stream that keeps the connection (D8).
+	void write_owned(http::Request &, http::ResponseWriter &, Reply, std::shared_ptr<Admission>,
+					 std::chrono::steady_clock::time_point outcome_deadline);
+	// Declared last: destroyed first, so the loop is joined before anything the runtime uses goes.
+	detent::OwnerLoop owner_;
 };
 } // namespace detent::authority

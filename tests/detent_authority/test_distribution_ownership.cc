@@ -1,5 +1,6 @@
 #include "detent/scope.hh"
 #include "service.hh"
+#include "support/handler_harness.hh"
 #include <consensus/checkpoint.h>
 #include <filesystem>
 #include <http_owned_stream.h>
@@ -16,15 +17,7 @@ void check(bool value, std::source_location where = std::source_location::curren
 	if (!value)
 		throw std::runtime_error("distribution ownership invariant at " + std::to_string(where.line()));
 }
-struct Writer : http::ResponseWriter {
-	unsigned code = 0;
-	std::string body;
-	void status(int value) override { code = value; }
-	void set_header(std::string_view, std::string_view) override {}
-	void write(std::string_view value) override { body.append(value); }
-	void end() override {}
-	void set_close() override {}
-};
+using Writer = detent_test::Writer;
 struct StreamWriter : Writer {
 	std::shared_ptr<http::detail::OwnedStreamExchange> exchange;
 	std::weak_ptr<void> admission;
@@ -94,9 +87,16 @@ void invoke(a::Service &service, Writer &writer, std::string path, std::string b
 	http::Request request;
 	request.method = "POST";
 	request.path = std::move(path);
-	request.body = std::move(body);
 	request.headers.emplace_back("Authorization", "Bearer " + token);
-	service.handle(request, writer);
+	try {
+		detent_test::intake(service, request, body);
+	} catch (const http::RequestRejected &error) {
+		writer.code = error.status(); // what the connection answers
+		writer.body = error.what();
+		return;
+	}
+	detent_test::run_handle(service, request, writer);
+	writer.wire();
 }
 std::pair<std::string, std::string> receive(StreamWriter &writer, std::chrono::seconds timeout = 3s) {
 	std::string head, body;
@@ -326,7 +326,7 @@ int main(int argc, char **argv) {
 				http::Request request;
 				request.method = "GET";
 				request.path = "/v1/health";
-				service->handle(request, writer);
+				detent_test::run_handle(*service, request, writer);
 				check(writer.code == 200);
 				rapidjson::Document result;
 				result.Parse(writer.body.data(), writer.body.size());

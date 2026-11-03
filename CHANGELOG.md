@@ -42,13 +42,30 @@ range of its "Commits not to pin".
 completion (`576618d`), journal (`d6d009e`) and consensus (`666cdfc`) are at
 their heads already.
 
-Not moved: http (`6a07f99`; head `73cfa02`), reactor (`fe8c5ce`; head
-`2fd30c8`) and http-log (`2f066ee`; head `616c80a`). Their heads replace the
-`HttpHandler` virtuals (`handle`, `should_offload`, `on_request_body`,
-`on_error`) with `task::task` coroutine handlers and change the `Reactor`
-and `TcpServer` constructors. That rewrite of `detentd`, the authority and
-relay services and `test_transport_https` is workstream W2 (S2 to S5), so
-the three pins move with it.
+Moved with the W2 rewrite (S2 to S5): http (`6a07f99` to `b18e115`), reactor
+(`fe8c5ce` to `950a375`) and http-log (`2f066ee` to `3b49b60`). Their heads replace the
+`HttpHandler` virtuals with `task::task` coroutine handlers, remove the worker pool and
+change the `Reactor`, `TcpServer` and `HttpAsioService` constructors. The sections acted on:
+http (handlers on `task::task`, `HttpAsioService(handler, reactors, in_flight_limit,
+factory, maximum_connections)`, one `ConnectionFactory`, the body cap through
+`set_max_body`, the four teardown phases), reactor (no worker pool) and http-log
+(`AccessLog::handle` on `task`).
+
+### Behavior changes (W2)
+
+- `detentd` has no worker pool: `--workers`, `DETENTD_WORKERS` and the `workers` config field
+  are removed, and naming one fails with an error that says so.
+- A PUT or PATCH over 16 MiB (and an authority body over `request_bytes`) is answered 413
+  instead of dropping the connection.
+- Classic PUT and PATCH commit on one owner thread and publish an immutable snapshot, so GET
+  and health never wait on a commit; a write refused for lack of a write slot gets 503 with
+  `Retry-After: 1` before any body byte.
+- The authority answers a command, read or result through an owned stream that keeps the
+  connection alive, and a reply over the reply budget is a JSON 503 (`outcome_unknown` for a
+  command, `admission_full` for a read) instead of a closed connection.
+- Authority `GET /v1/health` with a body is answered 400 `health_body_forbidden` instead of a
+  dropped connection.
+- Shutdown answers waiting writers by the outcome contract at once (`begin_shutdown()`).
 
 `src/CMakeLists.txt` no longer declares http-parser at `GIT_TAG main`; the
 manifest pin (`c27615d`) is the only declaration, so every Kronuz dependency

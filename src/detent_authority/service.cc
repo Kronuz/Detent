@@ -1,10 +1,12 @@
 #include "service.hh"
 #include "delivery_export.hh"
+#include "detent/assert_off_loop.hh"
 #include "detent/json_schema.hh"
 #include "detent/json_schema_internal.hh"
 #include "detent/scope.hh"
 #include "detent/validation.hh"
 #include "detent_distribution/memory_resource.hh"
+#include "detent_transport/await_io.hh"
 #include "detent_distribution_http/reply_pump.hh"
 #include "prepared.hh"
 #include "read_reply.hh"
@@ -177,18 +179,6 @@ int result_status(Result r) {
 		return 409;
 	}
 }
-class Sink final : public http::BodySink {
-	std::string &body_;
-	std::size_t cap_;
-
-  public:
-	Sink(std::string &body, std::size_t cap) : body_(body), cap_(cap) {}
-	void write(std::string_view bytes) override {
-		check(body_.size() <= cap_ && bytes.size() <= cap_ - body_.size(), "authority body bound");
-		body_.append(bytes);
-	}
-	void end() override {}
-};
 } // namespace
 ServiceOptions load_service_options(const std::filesystem::path &path) {
 	int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
@@ -562,24 +552,43 @@ Service::Service(ServiceOptions options) : options_(std::move(options)) {
 		grants.digest =
 			distribution::canonical_scope_identity("detent-subscription-grants-v1", 1, grants.names);
 	}
+	detent::assert_off_loop();
 	std::promise<void> ready;
 	auto future = ready.get_future();
-	thread_ = std::thread([this, ready = std::move(ready)]() mutable { run(std::move(ready)); });
+	auto finished = std::make_shared<std::promise<void>>();
+	runtime_done_ = finished->get_future().share();
+	task::spawn(task::scheduler_ref::of(owner_.scheduler()), run(std::move(ready)),
+				[finished](std::exception_ptr) { finished->set_value(); });
 	try {
 		future.get();
 	} catch (...) {
-		thread_.join();
+		drain();
 		throw;
 	}
 }
 Service::~Service() {
+	// N4: stopping_ is set before the runtime may leave its loop; the owner stops only after the
+	// runtime has settled every task, or its join would never see the queue drained.
+	drain();
+	owner_.stop();
+	owner_.close();
+	owner_.destroy_roots();
+}
+void Service::begin_shutdown() noexcept {
 	{
 		std::lock_guard lock(mutex_);
 		stopping_ = true;
 	}
-	if (thread_.joinable()) {
-		thread_.join();
+	stop_.request(task::cancel_reason::shutdown);
+}
+void Service::drain() {
+	detent::assert_off_loop();
+	{
+		std::lock_guard lock(mutex_);
+		stopping_ = true;
 	}
+	if (runtime_done_.valid())
+		runtime_done_.wait();
 }
 void Service::observe_connections(std::shared_ptr<const reactor::ConnectionAdmission> observer) {
 	std::lock_guard lock(mutex_);
@@ -671,36 +680,59 @@ std::shared_ptr<Service::Admission> Service::admit(const http::Request &request)
 	admission->active = true;
 	return admission;
 }
-std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) {
+// What a request holds from its headers to its settled response.
+struct Service::Extension final : http::RequestExtension {
+	std::shared_ptr<Admission> admission;
+};
+struct Service::Prepared {
+	std::optional<Reply> immediate;
+	std::shared_ptr<Task> task;
+};
+// What a command, read or result wait ends with. `buffered` is a reply that must not wait for an
+// owned stream: the wait ended on the stop (N1).
+struct Service::Outcome {
+	Reply reply;
+	bool buffered = false;
+};
+std::unique_ptr<http::RequestExtension> Service::create_extension(const http::Request &request) {
 	if (request.path == "/v1/health" && request.method == "GET") {
-		return std::make_unique<Sink>(request.body, 0);
+		if (!request.header("Transfer-Encoding").empty() ||
+			(!request.header("Content-Length").empty() && request.header("Content-Length") != "0"))
+			throw http::RequestRejected(400, "{\"error\":\"health_body_forbidden\"}",
+										http::RejectionContent::Json);
+		return nullptr;
 	}
-	request.user_data = admit(request);
-	auto admission = std::static_pointer_cast<Admission>(request.user_data);
-	if (admission->subscription) {
-		class SubscriptionSink final : public http::BodySink {
-			std::shared_ptr<SubscriptionRequests::Lease> lease_;
-			std::size_t limit_;
-
-		  public:
-			explicit SubscriptionSink(std::shared_ptr<SubscriptionRequests::Lease> lease, std::size_t limit)
-				: lease_(std::move(lease)), limit_(limit) {}
-			void write(std::string_view bytes) override {
-				if (bytes.size() > limit_ - lease_->body().size())
-					throw http::RequestRejected(413, "{\"error\":\"body_bound\"}",
-												http::RejectionContent::Json);
-				lease_->body().append(bytes);
-			}
-			void end() override { lease_->body().seal_prefix(); }
-		};
-		return std::make_unique<SubscriptionSink>(admission->subscription, admission->bytes);
-	}
-	return std::make_unique<Sink>(request.body, options_.node.application.request_bytes);
+	auto extension = std::make_unique<Extension>();
+	extension->admission = admit(request);
+	return extension;
 }
-std::optional<Service::Reply> Service::execute(const http::Request &request,
-											   std::shared_ptr<Admission> admission,
-											   std::function<void(Reply)> complete,
-											   Clock::time_point deadline) {
+std::unique_ptr<http::BodySink> Service::on_request_body(http::Request &request) {
+	if (request.path == "/v1/health" && request.method == "GET")
+		return nullptr;
+	// Subscription bodies land in their lease; every other body is buffered in Request::body, capped by
+	// the service's set_max_body (request_bytes).
+	auto &admission = request.ext<Extension>().admission;
+	if (!admission->subscription)
+		return nullptr;
+	class SubscriptionSink final : public http::BodySink {
+		std::shared_ptr<SubscriptionRequests::Lease> lease_;
+		std::size_t limit_;
+
+	  public:
+		explicit SubscriptionSink(std::shared_ptr<SubscriptionRequests::Lease> lease, std::size_t limit)
+			: lease_(std::move(lease)), limit_(limit) {}
+		void write(std::string_view bytes) override {
+			if (bytes.size() > limit_ - lease_->body().size())
+				throw http::RequestRejected(413, "{\"error\":\"body_bound\"}",
+											http::RejectionContent::Json);
+			lease_->body().append(bytes);
+		}
+		void end() override { lease_->body().seal_prefix(); }
+	};
+	return std::make_unique<SubscriptionSink>(admission->subscription, admission->bytes);
+}
+Service::Prepared Service::prepare(const http::Request &request, std::shared_ptr<Admission> admission,
+								   Clock::time_point deadline) {
 	check(request.method == "POST", "authority endpoints require POST");
 	auto d = document(request.body, options_.node.application.request_bytes);
 	auto request_fields = [&](const Object &value, std::initializer_list<std::string_view> allowed) {
@@ -719,7 +751,6 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 	};
 	auto task = std::make_shared<Task>();
 	task->admission = std::move(admission);
-	task->complete = std::move(complete);
 	task->command.context = options_.node.context;
 	task->command.producer = task->admission->credential->producer;
 	task->deadline = deadline;
@@ -781,18 +812,32 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 		task->generation = number(field(d, "generation"));
 		task->sequence = number(field(d, "sequence"));
 	} else {
-		return Reply{404, "{\"error\":\"unknown_endpoint\"}"};
+		return {Reply{404, "{\"error\":\"unknown_endpoint\"}"}, nullptr};
 	}
 	if (task->kind == Task::Kind::Command) {
 		(void)encode(task->command, options_.node.application);
 	}
+	return {std::nullopt, std::move(task)};
+}
+// On the owner thread. The runtime completes the task on this thread, through `complete`.
+void Service::enqueue(const std::shared_ptr<Task> &task) {
+	task->complete = [weak = std::weak_ptr<Task>(task)](Reply value) {
+		if (auto held = weak.lock()) {
+			held->outcome = std::move(value);
+			held->done.set();
+		}
+	};
 	{
 		std::lock_guard lock(mutex_);
 		if (stopping_) {
-			return Reply{503, "{\"error\":\"stopping\"}"};
+			task->outcome = Reply{503, "{\"error\":\"stopping\"}"};
+			task->done.set();
+			return;
 		}
 		if (task->kind == Task::Kind::Command && !busy_producers_.insert(task->command.producer).second) {
-			return Reply{429, "{\"error\":\"producer_busy\"}"};
+			task->outcome = Reply{429, "{\"error\":\"producer_busy\"}"};
+			task->done.set();
+			return;
 		}
 		try {
 			queue_.push_back(task);
@@ -803,7 +848,6 @@ std::optional<Service::Reply> Service::execute(const http::Request &request,
 			throw;
 		}
 	}
-	return std::nullopt;
 }
 
 std::shared_ptr<Service::Delivery>
@@ -845,7 +889,7 @@ void Service::stream_task(http::ResponseWriter &response, const std::shared_ptr<
 void Service::distribute(const http::Request &request, http::ResponseWriter &response,
 						 std::shared_ptr<Admission> admission) {
 	check(request.method == "POST", "distribution requires POST");
-	auto parsed = distribution_http::parse_session_request_on_worker(
+	auto parsed = distribution_http::parse_session_request(
 		accounting_->delivery_account, distribution_http::RequestKind::Distribution, request.body,
 		{std::min<std::size_t>(admission->bytes, 1024 * 1024), options_.delivery.namespaces,
 		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
@@ -876,7 +920,7 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 	}
 	const auto kind = distribution_http::classify_session_route(request.path);
 	check(kind.has_value(), "unknown subscription route");
-	auto parsed = distribution_http::parse_session_request_on_worker(
+	auto parsed = distribution_http::parse_session_request(
 		accounting_->delivery_account, *kind, input.view(),
 		{admission->bytes, options_.delivery.namespaces,
 		 static_cast<std::uint64_t>(options_.subscription_wait.count())});
@@ -923,131 +967,143 @@ void Service::subscription(const http::Request &request, http::ResponseWriter &r
 	}
 }
 
-void Service::handle(const http::Request &request, http::ResponseWriter &response) {
-	const auto context = options_.node.context;
-	auto envelope = [context](Reply reply) {
-		if (!reply.enveloped && !reply.body.empty() && reply.body[0] == '{') {
-			reply.body = "{\"authority\":{\"cluster\":\"" + hex(context.cluster) + "\",\"group\":\"" +
-						 hex(context.group) + "\",\"epoch\":\"" + hex(context.epoch) + "\"}," +
-						 reply.body.substr(1);
+Service::Reply Service::enveloped(Reply reply) const {
+	if (!reply.enveloped && !reply.body.empty() && reply.body[0] == '{') {
+		const auto &context = options_.node.context;
+		reply.body = "{\"authority\":{\"cluster\":\"" + hex(context.cluster) + "\",\"group\":\"" +
+					 hex(context.group) + "\",\"epoch\":\"" + hex(context.epoch) + "\"}," + reply.body.substr(1);
+	}
+	reply.enveloped = true;
+	return reply;
+}
+
+// On the owner, when the wait ends. A settled task answers with its own reply; a wait that ended
+// on the stop or the backstop answers that the outcome is unknown. The reply is reserved against
+// reply_bytes here, and the reservation travels with it until the owned stream's write ends (D9).
+Service::Outcome Service::reply_for(Task &task, task::cancel_reason why) {
+	const bool command = task.kind == Task::Kind::Command;
+	Reply value = task.outcome ? std::move(*task.outcome) : Reply{503, "{\"error\":\"outcome_unknown\"}"};
+	value = enveloped(std::move(value));
+	const auto limit = options_.reply_bytes;
+	auto reserve = [&](const Reply &reply, ReplyAdmission &lease) {
+		if (reply.body.size() > limit - 256)
+			return false;
+		if (lease.active) {
+			check(lease.bytes == reply.body.size() + 256, "read reply reservation mismatch");
+			lease.ready = Clock::now();
+			return true;
 		}
-		return reply;
+		lease.bytes = reply.body.size() + 256;
+		std::lock_guard lock(accounting_->mutex);
+		if (lease.bytes > limit - accounting_->reply_bytes)
+			return false;
+		accounting_->reply_bytes += lease.bytes;
+		lease.active = true;
+		return true;
 	};
-	std::shared_ptr<http::DeferredReply> deferred;
-	std::function<void(Reply)> complete;
-	Reply reply;
+	auto lease = std::move(value.reservation);
+	if (!lease) {
+		lease = std::make_shared<ReplyAdmission>();
+		lease->accounting = accounting_;
+	}
+	if (!reserve(value, *lease)) {
+		// Over the reply budget: a command may have committed, a read has nothing to retry against.
+		value = enveloped(Reply{503, command ? "{\"error\":\"outcome_unknown\"}" : "{\"error\":\"admission_full\"}"});
+		lease = std::make_shared<ReplyAdmission>();
+		lease->accounting = accounting_;
+		(void)reserve(value, *lease);
+	}
+	value.reservation = std::move(lease);
+	return {std::move(value), why == task::cancel_reason::shutdown};
+}
+
+void Service::write_owned(http::Request &request, http::ResponseWriter &response, Reply reply,
+						  std::shared_ptr<Admission> admission, Clock::time_point outcome_deadline) {
+	// The reply budget and the admission stay held until the write ends.
+	auto retained = std::make_shared<std::pair<std::shared_ptr<Admission>, std::shared_ptr<ReplyAdmission>>>(
+		std::move(admission), std::move(reply.reservation));
+	http::StreamOptions stream;
+	stream.reply.deadline = std::max(Clock::now(), outcome_deadline) + std::chrono::seconds(1);
+	stream.reply.limits.body_bytes = options_.reply_bytes - 256;
+	stream.reply.request_retention = std::move(retained);
+	stream.chunk_bytes = options_.reply_bytes;
+	stream.maximum_bytes = options_.reply_bytes;
+	auto owned = response.stream(std::move(stream));
+	check(static_cast<bool>(owned), "owned reply streaming unavailable");
+	http::Response metadata;
+	metadata.status = reply.status;
+	metadata.content_type = "application/json";
+	auto body = std::make_shared<const std::string>(std::move(reply.body));
+	if (owned->start(metadata, body->size(), request.keep_alive) != http::StreamSubmit::Accepted ||
+		(!body->empty() && owned->publish({body, std::string_view(*body)}) != http::StreamSubmit::Accepted) ||
+		owned->finish() != http::StreamSubmit::Accepted)
+		owned->abandon();
+}
+
+task::task<void> Service::handle(http::Request &request, http::ResponseWriter &response) {
+	Outcome outcome;
+	std::shared_ptr<Admission> submitted;
+	Clock::time_point outcome_deadline{};
 	try {
 		if (request.path == "/v1/health" && request.method == "GET") {
 			std::lock_guard lock(mutex_);
-			reply = {200, health_};
-			if (!reply.body.empty() && reply.body.back() == '}') {
-				auto age = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - health_stamp_)
-							   .count();
-				reply.body.pop_back();
-				if (reply.body.size() > 1) {
-					reply.body += ',';
+			outcome.reply = {200, health_};
+			auto &body = outcome.reply.body;
+			if (!body.empty() && body.back() == '}') {
+				auto age = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - health_stamp_).count();
+				body.pop_back();
+				if (body.size() > 1) {
+					body += ',';
 				}
-				reply.body += "\"snapshot_age_ms\":" + std::to_string(std::max<std::int64_t>(age, 0)) + "}";
+				body += "\"snapshot_age_ms\":" + std::to_string(std::max<std::int64_t>(age, 0)) + "}";
 			}
+			outcome.buffered = true;
 		} else {
-			auto admission =
-				request.user_data ? std::static_pointer_cast<Admission>(request.user_data) : admit(request);
+			auto admission = request.ext<Extension>().admission;
 			if (admission->subscription) {
 				subscription(request, response, std::move(admission));
-				return;
+				co_return;
 			}
 			if (request.path == "/v2/distribution") {
 				distribute(request, response, std::move(admission));
-				return;
+				co_return;
 			}
-			const auto outcome_deadline = Clock::now() + options_.timeout;
-			http::DeferredOptions deferred_options;
-			// Outcome completion needs a bounded window to write its timeout reply.
-			deferred_options.deadline = outcome_deadline + std::chrono::seconds(1);
-			deferred_options.limits.body_bytes = options_.reply_bytes - 256;
-			deferred_options.request_retention = admission;
-			deferred = response.defer(std::move(deferred_options));
-			if (deferred) {
-				complete = [deferred, accounting = accounting_, limit = options_.reply_bytes,
-							envelope](Reply value) {
-					try {
-						value = envelope(std::move(value));
-						auto lease = std::move(value.reservation);
-						if (!lease) {
-							lease = std::make_shared<ReplyAdmission>();
-							lease->accounting = accounting;
-						}
-						// This endpoint emits only its fixed JSON content type and transport framing.
-						if (value.body.size() > limit - 256) {
-							deferred->abandon();
-							return;
-						}
-						if (lease->active) {
-							check(lease->bytes == value.body.size() + 256, "read reply reservation mismatch");
-							lease->ready = Clock::now();
-						} else {
-							lease->bytes = value.body.size() + 256;
-							std::lock_guard lock(accounting->mutex);
-							if (lease->bytes > limit - accounting->reply_bytes) {
-								deferred->abandon();
-								return;
-							}
-							accounting->reply_bytes += lease->bytes;
-							lease->active = true;
-						}
-						http::Response owned;
-						owned.status = value.status;
-						owned.body = std::move(value.body);
-						owned.content_type = "application/json";
-						if (deferred->complete(std::move(owned), lease) != http::ReplySubmit::Accepted) {
-							deferred->abandon();
-						}
-					} catch (...) {
-						deferred->abandon();
-					}
-				};
-				auto immediate = execute(request, std::move(admission), complete, outcome_deadline);
-				if (immediate) {
-					complete(std::move(*immediate));
-				}
-				return;
-			}
-			// Compatibility for synchronous recording/embedded writers. Production Asio
-			// transfers response authority and never blocks on a per-request future.
-			auto promise = std::make_shared<std::promise<Reply>>();
-			auto future = promise->get_future();
-			auto deadline = outcome_deadline;
-			auto immediate = execute(
-				request, std::move(admission),
-				[promise](Reply value) { promise->set_value(std::move(value)); }, deadline);
-			if (immediate) {
-				reply = std::move(*immediate);
-			} else if (future.wait_until(deadline) == std::future_status::ready) {
-				reply = future.get();
+			outcome_deadline = Clock::now() + options_.timeout;
+			auto prepared = prepare(request, admission, outcome_deadline);
+			if (prepared.immediate) {
+				outcome.reply = std::move(*prepared.immediate);
+				outcome.buffered = true;
 			} else {
-				reply = {503, "{\"error\":\"outcome_unknown\"}"};
+				submitted = std::move(admission);
+				// The child moves to the owner, queues the task there and waits for the runtime's reply, the
+				// stop (D10) or the backstop, one second past the outcome deadline.
+				outcome = co_await detent::owner_submit<Outcome>(
+					owner_,
+					[this, task = std::move(prepared.task)]() {
+						enqueue(task);
+						return task;
+					},
+					[this](Task &task, task::cancel_reason why) { return reply_for(task, why); },
+					outcome_deadline + std::chrono::seconds(1), stop_.token());
 			}
 		}
 	} catch (const http::RequestRejected &error) {
-		reply = {error.status(), error.what()};
+		outcome = {{error.status(), error.what()}, true};
 	} catch (const std::invalid_argument &error) {
 		rapidjson::StringBuffer buffer;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 		writer.String(error.what());
-		reply = {400, "{\"error\":\"invalid_request\",\"detail\":" +
-						  std::string(buffer.GetString(), buffer.GetSize()) + "}"};
+		outcome = {{400, "{\"error\":\"invalid_request\",\"detail\":" +
+							 std::string(buffer.GetString(), buffer.GetSize()) + "}"},
+				   true};
 	} catch (const std::exception &) {
-		reply = {503, "{\"error\":\"outcome_unknown\"}"};
+		outcome = {{503, "{\"error\":\"outcome_unknown\"}"}, true};
 	}
-	if (deferred) {
-		if (complete) {
-			complete(std::move(reply));
-		} else {
-			deferred->abandon();
-		}
-		return;
+	if (submitted && !outcome.buffered) {
+		write_owned(request, response, std::move(outcome.reply), std::move(submitted), outcome_deadline);
+		co_return;
 	}
-	reply = envelope(std::move(reply));
+	auto reply = enveloped(std::move(outcome.reply));
 	response.status(reply.status);
 	response.set_header("Content-Type", "application/json");
 	response.write(reply.body);
@@ -1055,8 +1111,8 @@ void Service::handle(const http::Request &request, http::ResponseWriter &respons
 }
 
 struct Service::Runtime {
-	asio::io_context io{1};
-	task::asio_scheduler scheduler{io.get_executor()};
+	asio::io_context &io;
+	task::asio_scheduler &scheduler;
 	bool active = false;
 	std::exception_ptr failure;
 	kronuz::metrics::DurationHistogram<> owner_turn, owner_cpu, wake_lateness, job_settlement,
@@ -1070,7 +1126,7 @@ struct Service::Runtime {
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
 	std::shared_ptr<kronuz::journal::NativeCompletionQueue> queue;
 	std::shared_ptr<kronuz::journal::AsioCompletionDriver<kronuz::journal::NativeCompletionQueue>> driver;
-	explicit Runtime(const ServiceOptions &options) {
+	Runtime(const ServiceOptions &options, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {
 #ifdef __linux__
 		using Policy = kronuz::journal::LinuxCompletionPolicy;
 		queue = std::make_shared<kronuz::journal::NativeCompletionQueue>(
@@ -1087,7 +1143,7 @@ struct Service::Runtime {
 	}
 
 #else
-	explicit Runtime(const ServiceOptions &) {}
+	Runtime(const ServiceOptions &, detent::OwnerLoop &owner) : io(owner.io()), scheduler(owner.scheduler()) {}
 #endif
 	void dispatch(const std::shared_ptr<Node> &owner) {
 		auto &node = *owner;
@@ -1134,22 +1190,22 @@ struct Service::Runtime {
 		(void)node;
 #endif
 	}
-	asio::awaitable<void> run(Service &service, std::promise<void> ready);
+	task::task<void> run(Service &service, std::promise<void> &ready);
 };
-void Service::run(std::promise<void> ready) {
+// The runtime's frame lives on the owner; a failure after admission fences the service.
+task::task<void> Service::run(std::promise<void> ready) {
 	try {
-		Runtime runtime(options_);
-		asio::co_spawn(runtime.io, runtime.run(*this, std::move(ready)), [this](std::exception_ptr error) {
-			if (error) {
-				std::lock_guard lock(mutex_);
-				stopping_ = true;
-				health_stamp_ = Clock::now();
-				health_ = std::string("{\"mode\":\"") +
-						  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
-						  "\",\"fenced\":true}";
-			}
-		});
-		runtime.io.run();
+		Runtime runtime(options_, owner_);
+		try {
+			co_await runtime.run(*this, ready);
+		} catch (...) {
+			std::lock_guard lock(mutex_);
+			stopping_ = true;
+			health_stamp_ = Clock::now();
+			health_ = std::string("{\"mode\":\"") +
+					  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +
+					  "\",\"fenced\":true}";
+		}
 	} catch (...) {
 		// A backend/runtime failure before admission must settle the constructor.
 		try {
@@ -1158,7 +1214,7 @@ void Service::run(std::promise<void> ready) {
 		}
 	}
 }
-asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void> ready) {
+task::task<void> Service::Runtime::run(Service &service, std::promise<void> &ready) {
 	auto &options_ = service.options_;
 	auto &mutex_ = service.mutex_;
 	auto &stopping_ = service.stopping_;
@@ -1609,7 +1665,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				throw std::runtime_error("authority storage initialization fenced");
 			}
 			timer.expires_after(std::chrono::milliseconds(1));
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 		// Seed the first deadline before Start. Later Tick samples affect future
 		// resets and cannot randomize a deadline that is already in force.
@@ -1622,10 +1678,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			dispatch(owned_node);
 			check(!node.worker().fenced(), "authority recovery application fenced");
 			if (node.state().reclamation_pending()) {
-				co_await asio::post(io, asio::use_awaitable);
+				co_await task::yield();
 			} else {
 				timer.expires_after(std::chrono::milliseconds(1));
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 		}
 		node.attach_change_recorder(history);
@@ -2524,11 +2580,11 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 				completion_cursor < held_completions.size() ||
 				(preparing && (!preparing->proposal || preparing->cancelling))) {
 				scheduled_wakeup = Clock::now();
-				co_await asio::post(io, asio::use_awaitable);
+				co_await task::yield();
 			} else {
 				scheduled_wakeup = Clock::now() + std::chrono::milliseconds(1);
 				timer.expires_at(scheduled_wakeup);
-				co_await timer.async_wait(asio::use_awaitable);
+				co_await detent::transport::await_timer(timer);
 			}
 		}
 	} catch (...) {
@@ -2569,7 +2625,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			const bool drained = !delivering->exporter || delivering->exporter->discard(wire, roots);
 			if (drained && !delivering->pending && delivering->task->delivery->settled.load())
 				break;
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 		if (delivering->task->subscription_offer)
 			subscriptions->settle(*delivering->task->subscription_offer, false);
@@ -2585,7 +2641,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			   reading->capture.reclamation_pending()) {
 			CommandWorkBudget budget;
 			reading->capture.collect(budget);
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 		reading.reset();
 	}
@@ -2594,14 +2650,14 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		ready_reads[read_head] = {};
 		read_head = (read_head + 1) % ready_reads.size();
 		--read_count;
-		co_await asio::post(io, asio::use_awaitable);
+		co_await task::yield();
 	}
 	if (preparing && preparing->encoder) {
 		for (;;) {
 			CommandWorkBudget budget;
 			if (preparing->encoder->discard(budget))
 				break;
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 	}
 	unsigned terminal_callbacks = 0;
@@ -2612,7 +2668,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			complete(task, {503, "{\"error\":\"outcome_unknown\"}"});
 			if (++terminal_callbacks == 8) {
 				terminal_callbacks = 0;
-				co_await asio::post(io, asio::use_awaitable);
+				co_await task::yield();
 			}
 		}
 		preparing.reset();
@@ -2633,10 +2689,10 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			dispatch(owned_node);
 		}
 		if (owned_node && !owned_node->drained() && !active) {
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		} else {
 			timer.expires_after(std::chrono::milliseconds(1));
-			co_await timer.async_wait(asio::use_awaitable);
+			co_await detent::transport::await_timer(timer);
 		}
 	}
 
@@ -2648,7 +2704,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 			tasks.pop_back();
 			if (++terminal_callbacks == 8) {
 				terminal_callbacks = 0;
-				co_await asio::post(io, asio::use_awaitable);
+				co_await task::yield();
 			}
 		}
 		pending.erase(current);
@@ -2666,11 +2722,11 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		if (task->subscription_request)
 			subscriptions->release(*task->subscription_request);
 		while (!task->delivery->settled.load())
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		begin_delivery_retirement(*task);
 		while (task->retirement_remaining) {
 			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 		task.reset();
 	}
@@ -2678,7 +2734,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		while (!subscriptions->drained()) {
 			distribution::WorkBudget work;
 			subscriptions->collect(work, Clock::now());
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 	}
 	std::deque<std::shared_ptr<Task>> remaining_sessions;
@@ -2694,14 +2750,14 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		complete(task, {503, "{\"error\":\"stopping\"}"});
 		task->delivery->reply->abandon();
 		while (!task->delivery->settled.load())
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		begin_delivery_retirement(*task);
 		while (task->retirement_remaining) {
 			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 		queue.pop_front();
-		co_await asio::post(io, asio::use_awaitable);
+		co_await task::yield();
 	}
 	std::deque<std::shared_ptr<Task>> remaining;
 	{
@@ -2713,7 +2769,7 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		remaining.pop_front();
 		if (++terminal_callbacks == 8) {
 			terminal_callbacks = 0;
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 	}
 	while (control_count) {
@@ -2722,19 +2778,19 @@ asio::awaitable<void> Service::Runtime::run(Service &service, std::promise<void>
 		--control_count;
 		task->delivery->reply->abandon();
 		while (!task->delivery->settled.load())
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		begin_delivery_retirement(*task);
 		while (task->retirement_remaining) {
 			task->retirement_remaining -= std::min<std::size_t>(task->retirement_remaining, 8192);
-			co_await asio::post(io, asio::use_awaitable);
+			co_await task::yield();
 		}
 		task.reset();
-		co_await asio::post(io, asio::use_awaitable);
+		co_await task::yield();
 	}
 	while (retired_count) {
 		CommandWorkBudget budget;
 		collect_tasks(budget);
-		co_await asio::post(io, asio::use_awaitable);
+		co_await task::yield();
 	}
 }
 } // namespace detent::authority

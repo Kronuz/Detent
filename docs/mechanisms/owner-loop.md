@@ -57,9 +57,19 @@ the awaiter's scheduler differs. Only the owner thread touches the state, apart 
 
 ## Where it is used
 
-`OwnerLoop` is the relay host's owner (`src/detent_relay/host.cc:127`; the coordinators run on its
-scheduler), each `fleet_load` owner (`benchmarks/fleet_load.cc:72`) and the teardown tests.
-`owner_submit` has no caller in `src` yet; `test_owner_wait` is its only user.
+Every owner is an `OwnerLoop`: the relay host's owner (`src/detent_relay/host.cc`; the coordinators run
+on its scheduler), the classic `Distributor` (`detentd.cc`, `submit_command`: PUT and PATCH hop to it),
+the authority `Service` (`service.cc`, `handle`: commands, reads and results hop to the runtime's
+loop, which is the `Service`'s own `OwnerLoop`), each `fleet_load` owner and the teardown tests.
+
+- Classic: `accept` runs the commit unsliced on the owner (unclustered) or registers a `Write` in `pending_`
+  and calls `raft_->add_command` (clustered); `on_raft_apply` spawns the apply on the owner, which settles
+  the `Write` and sets its `done`. `finish` returns the settled result, or the retry reply when the wait
+  ended on the stop or the 10 s backstop.
+- Authority: `prepare` parses on the handler's loop; `accept` queues the `Task` for the runtime;
+  the runtime's `complete` sets `Task::outcome` and `done`. `finish` (`reply_for`) reserves the reply
+  against `reply_bytes` and returns it with the reservation; a wait that ended on the stop is answered
+  buffered, any other reply leaves through an owned stream (`write_owned`).
 
 ## Properties
 

@@ -17,7 +17,7 @@ token=authority-test-token-000000000000000000000000
 printf '{%s,"directory":"data","credentials":[{"token":"%s","producer":"writer","namespaces":["ns"]}]}\n' "$identity" "$token" > "$root/config.json"
 chmod 600 "$root/config.json"
 start() {
-    "$binary" --authority "$root/config.json" --port "$port" --runtime-dir "$root/runtime" --workers 4 --reactors 1 > "$root/daemon.log" 2>&1 &
+    "$binary" --authority "$root/config.json" --port "$port" --runtime-dir "$root/runtime" --reactors 1 > "$root/daemon.log" 2>&1 &
     pid=$!
     for ((i=0;i<200;i++)); do
         if curl -fsS --max-time 1 "http://127.0.0.1:$port/v1/health" > "$root/health.json" 2>/dev/null; then return; fi
