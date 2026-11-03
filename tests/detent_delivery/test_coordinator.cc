@@ -633,6 +633,9 @@ int main(int argc, char **argv) {
 		std::exception_ptr server_failure;
 
 		asio::io_context io(1);
+#ifdef DETENT_TEST_RELAY_HTTP
+		task::asio_scheduler relay_scheduler(io.get_executor());
+#endif
 		asio::thread_pool worker(1);
 		auto queue = kronuz::io::completion::make_native_queue(
 			kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
@@ -881,11 +884,11 @@ int main(int argc, char **argv) {
 #ifdef DETENT_TEST_RELAY_HTTP
 									if (valid && relay_network) {
 										auto offer = relay_bundle->offer({}, true);
-										asio::co_spawn(
-											io,
+										task::spawn(
+											task::scheduler_ref::of(relay_scheduler),
 											relay_network_fixture::qualify(
-												relay_bundle, std::move(offer.update), control_account,
-												server_tls, client_tls, worker, count,
+												relay_scheduler, relay_bundle, std::move(offer.update),
+												control_account, server_tls, client_tls, worker, count,
 												network_failures ? relay_network_fixture::FailurePoint::Suite
 																 : relay_network_fixture::FailurePoint::None),
 											[&recovered](std::exception_ptr error) {

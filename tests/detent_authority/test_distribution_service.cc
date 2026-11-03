@@ -3,6 +3,7 @@
 #include "service.hh"
 #ifdef DETENT_TEST_MANAGED_DELIVERY
 #include "detent_delivery/client.hh"
+#include "detent_transport/await_io.hh"
 #endif
 #include "consensus/transport/tls.h"
 #include <filesystem>
@@ -230,7 +231,10 @@ int main(int argc, char **argv) {
 			for (bool compressed : {false, true}) {
 				auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 				{
+					asio::io_context client_io;
+					task::asio_scheduler client_scheduler(client_io.get_executor());
 					detent::delivery::ClientOptions receive_options;
+					receive_options.scheduler = &client_scheduler;
 					receive_options.endpoint = endpoint;
 					receive_options.hostname = "localhost";
 					receive_options.token = token;
@@ -239,11 +243,8 @@ int main(int argc, char **argv) {
 					receive_options.namespaces = {"ns"};
 					receive_options.compression = compressed;
 					receive_options.limits.storage_account = account;
-					asio::io_context client_io;
-					auto pending = asio::co_spawn(
-						client_io, detent::delivery::receive(std::move(receive_options)), asio::use_future);
-					client_io.run();
-					auto received = pending.get();
+					auto received = detent::transport::run_until_done(
+						client_io, client_scheduler, detent::delivery::receive(std::move(receive_options)));
 					check(received.snapshot && received.target.revision == 2 &&
 						  received.snapshot->records().size() == 1 &&
 						  received.snapshot->records()[0].key == "ns:a");

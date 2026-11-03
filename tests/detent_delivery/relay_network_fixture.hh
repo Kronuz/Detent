@@ -1,5 +1,6 @@
 #pragma once
 #include "relay_service_fixture.hh"
+#include "task_support.hh"
 #include <http_asio.h>
 #include <http_asio_tls.h>
 #include <http_parser.h>
@@ -7,6 +8,7 @@
 
 namespace relay_network_fixture {
 namespace r = detent::relay;
+namespace transport = detent::transport;
 using relay_service_fixture::hex;
 enum class FailurePoint { None, Launch, OpenBarrier, NextBarrier, Suite };
 struct InjectedFailure final : std::exception {
@@ -15,7 +17,7 @@ struct InjectedFailure final : std::exception {
 struct Load {
 	std::size_t opened = 0, requested = 0, completed = 0, retries = 0, admitted = 0;
 	FailurePoint injection = FailurePoint::None;
-	std::array<asio::cancellation_signal, 500> cancellation;
+	std::array<task::cancel_source, 500> cancellation;
 	std::exception_ptr failure;
 	std::vector<std::int64_t> latency;
 	std::uint64_t bytes = 0;
@@ -44,16 +46,15 @@ struct Response {
 		return 0;
 	}
 };
-asio::awaitable<void> subscriber(t::ClientOptions options, Load &load, std::array<unsigned char, 32> expected,
-								 std::uint64_t length, unsigned index) {
-	const auto executor = co_await asio::this_coro::executor;
-	asio::steady_timer pause(executor);
+task::task<void> subscriber(t::ClientOptions options, Load &load, std::array<unsigned char, 32> expected,
+							std::uint64_t length, unsigned index, task::cancel_token token) {
+	auto &scheduler = *options.scheduler;
 	t::SessionHandle session;
 	for (unsigned retry = 0; !session.valid(); ++retry) {
 		if (load.failure)
 			co_return;
 		try {
-			session = co_await t::open_session(options, true);
+			session = co_await t::open_session(options, true, token);
 		} catch (const asio::system_error &error) {
 			if (retry == 200 ||
 				(error.code() != asio::error::connection_reset && error.code() != asio::error::eof &&
@@ -65,16 +66,14 @@ asio::awaitable<void> subscriber(t::ClientOptions options, Load &load, std::arra
 				throw;
 		}
 		if (!session.valid()) {
-			pause.expires_after(std::chrono::milliseconds(10));
-			co_await pause.async_wait(asio::use_awaitable);
+			co_await pause(scheduler, std::chrono::milliseconds(10));
 		}
 	}
 	++load.opened;
 	if (index == 0 && load.injection == FailurePoint::OpenBarrier)
 		throw InjectedFailure{};
 	while (load.opened != 500 && !load.failure) {
-		pause.expires_after(std::chrono::milliseconds(1));
-		co_await pause.async_wait(asio::use_awaitable);
+		co_await pause(scheduler, std::chrono::milliseconds(1));
 	}
 	if (load.failure)
 		co_return;
@@ -93,21 +92,26 @@ asio::awaitable<void> subscriber(t::ClientOptions options, Load &load, std::arra
 			co_return;
 		bool accepted = false;
 		try {
-			asio::ssl::stream<asio::ip::tcp::socket> socket(executor, *options.tls_context);
+			asio::ssl::stream<asio::ip::tcp::socket> socket(scheduler.executor(), *options.tls_context);
 			socket.set_verify_mode(asio::ssl::verify_peer);
 			socket.set_verify_callback(asio::ssl::host_name_verification(options.hostname));
 			check(SSL_set_tlsext_host_name(socket.native_handle(), options.hostname.c_str()) == 1);
-			co_await socket.next_layer().async_connect(options.endpoint, asio::use_awaitable);
-			co_await socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
-			co_await asio::async_write(socket, asio::buffer(request), asio::use_awaitable);
+			co_await transport::await_io<void(asio::error_code)>(
+				[&](auto handler) { socket.next_layer().async_connect(options.endpoint, std::move(handler)); }, token);
+			co_await transport::await_io<void(asio::error_code)>(
+				[&](auto handler) { socket.async_handshake(asio::ssl::stream_base::client, std::move(handler)); },
+				token);
+			co_await transport::await_io<void(asio::error_code, std::size_t)>(
+				[&](auto handler) { asio::async_write(socket, asio::buffer(request), std::move(handler)); }, token);
 			Response response;
 			http_parser_settings settings{};
 			settings.on_headers_complete = Response::head;
 			settings.on_body = Response::body;
 			settings.on_message_complete = Response::done;
 			std::array<char, 16384> buffer;
-			auto read = [&]() -> asio::awaitable<void> {
-				const auto size = co_await socket.async_read_some(asio::buffer(buffer), asio::use_awaitable);
+			auto read = [&]() -> task::task<void> {
+				const auto size = co_await transport::await_io<void(asio::error_code, std::size_t)>(
+					[&](auto handler) { socket.async_read_some(asio::buffer(buffer), std::move(handler)); }, token);
 				check(http_parser_execute(&response.parser, &settings, buffer.data(), size) == size);
 				check(HTTP_PARSER_ERRNO(&response.parser) == HPE_OK);
 			};
@@ -122,8 +126,7 @@ asio::awaitable<void> subscriber(t::ClientOptions options, Load &load, std::arra
 				if (index == 0 && load.injection == FailurePoint::NextBarrier)
 					throw InjectedFailure{};
 				while (load.requested != 500 && !load.failure) {
-					pause.expires_after(std::chrono::milliseconds(1));
-					co_await pause.async_wait(asio::use_awaitable);
+					co_await pause(scheduler, std::chrono::milliseconds(1));
 				}
 				if (load.failure)
 					co_return;
@@ -148,12 +151,11 @@ asio::awaitable<void> subscriber(t::ClientOptions options, Load &load, std::arra
 			if (retry == 200)
 				throw std::runtime_error("network admission retry bound");
 			++load.retries;
-			pause.expires_after(std::chrono::milliseconds(10));
-			co_await pause.async_wait(asio::use_awaitable);
+			co_await pause(scheduler, std::chrono::milliseconds(10));
 		}
 	}
 	try {
-		co_await t::close_session(options, session);
+		co_await t::close_session(options, session, token);
 	} catch (const asio::system_error &error) {
 		if (error.code() != asio::error::connection_reset && error.code() != asio::error::eof &&
 			error.code() != asio::ssl::error::stream_truncated)
@@ -169,12 +171,12 @@ inline std::int64_t cpu_microseconds(const rusage &usage) {
 	return usage.ru_utime.tv_sec * 1000000 + usage.ru_utime.tv_usec + usage.ru_stime.tv_sec * 1000000 +
 		   usage.ru_stime.tv_usec;
 }
-asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
-							  d::RetirementHandle<d::EncodedUpdate> expected,
-							  std::shared_ptr<d::StorageLedger> account,
-							  std::shared_ptr<asio::ssl::context> server_tls,
-							  std::shared_ptr<asio::ssl::context> client_tls, asio::thread_pool &worker,
-							  std::uint32_t records, FailurePoint injection = FailurePoint::None) {
+task::task<void> qualify(task::asio_scheduler &scheduler, std::shared_ptr<r::Bundle> bundle,
+						 d::RetirementHandle<d::EncodedUpdate> expected,
+						 std::shared_ptr<d::StorageLedger> account,
+						 std::shared_ptr<asio::ssl::context> server_tls,
+						 std::shared_ptr<asio::ssl::context> client_tls, asio::thread_pool &worker,
+						 std::uint32_t records, FailurePoint injection = FailurePoint::None) {
 	struct rlimit descriptors{};
 	if (::getrlimit(RLIMIT_NOFILE, &descriptors) != 0)
 		throw std::runtime_error("network fixture cannot inspect descriptor limit");
@@ -185,10 +187,10 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 		if (::setrlimit(RLIMIT_NOFILE, &descriptors) != 0)
 			throw std::runtime_error("network fixture cannot raise descriptor soft limit to 4096");
 	}
-	const auto executor = co_await asio::this_coro::executor;
+	const auto &executor = scheduler.executor();
 	if (injection == FailurePoint::Suite) {
 		for (auto point : {FailurePoint::Launch, FailurePoint::OpenBarrier, FailurePoint::NextBarrier})
-			co_await qualify(bundle, expected, account, server_tls, client_tls, worker, records, point);
+			co_await qualify(scheduler, bundle, expected, account, server_tls, client_tls, worker, records, point);
 		co_return;
 	}
 	const auto target = expected->target();
@@ -232,11 +234,11 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 	}
 	std::array<unsigned char, 32> digest;
 	hash.getHash(digest.data());
-	asio::steady_timer tick(executor);
 	Load load;
 	load.injection = injection;
 	load.latency.reserve(500);
 	t::ClientOptions options;
+	options.scheduler = &scheduler;
 	options.endpoint = endpoint;
 	options.hostname = "localhost";
 	options.token = token;
@@ -256,13 +258,13 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 		for (unsigned index = 0; index < 500; ++index) {
 			if (index == 17 && injection == FailurePoint::Launch)
 				throw InjectedFailure{};
-			asio::co_spawn(
-				executor, subscriber(options, load, digest, length, index),
-				asio::bind_cancellation_slot(load.cancellation[index].slot(), [&](std::exception_ptr error) {
-					if (error)
-						fail(error);
-					++load.completed;
-				}));
+			task::spawn(task::scheduler_ref::of(scheduler),
+						subscriber(options, load, digest, length, index, load.cancellation[index].token()),
+						[&](std::exception_ptr error) {
+							if (error)
+								fail(error);
+							++load.completed;
+						});
 			++load.admitted;
 		}
 	} catch (...) {
@@ -271,16 +273,12 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 	std::size_t peak_polls = 0;
 	const auto deadline = began + std::chrono::seconds(180);
 	bool cancelling = false;
-	co_await asio::this_coro::throw_if_cancelled(false);
 	while (load.completed != load.admitted) {
 		try {
 			runtime->step(r::Sessions::Clock::now());
 			peak_polls = std::max(peak_polls, runtime->status().requests[1]);
 			if (std::chrono::steady_clock::now() >= deadline && !load.failure)
 				throw std::runtime_error("network fan-out deadline");
-			const auto cancellation = co_await asio::this_coro::cancellation_state;
-			if (cancellation.cancelled() != asio::cancellation_type::none && !load.failure)
-				throw asio::system_error(asio::error::operation_aborted);
 		} catch (...) {
 			fail(std::current_exception());
 		}
@@ -288,14 +286,10 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 			cancelling = true;
 			runtime->close();
 			for (std::size_t index = 0; index < load.admitted; ++index)
-				load.cancellation[index].emit(asio::cancellation_type::all);
+				load.cancellation[index].request();
 		}
 		try {
-			tick.expires_after(std::chrono::milliseconds(1));
-			asio::error_code error;
-			co_await tick.async_wait(asio::redirect_error(asio::use_awaitable, error));
-			if (error)
-				fail(std::make_exception_ptr(asio::system_error(error)));
+			co_await pause(scheduler, std::chrono::milliseconds(1));
 		} catch (...) {
 			// Cleanup cannot unwind across admitted original callbacks.
 			std::terminate();
@@ -317,11 +311,7 @@ asio::awaitable<void> qualify(std::shared_ptr<r::Bundle> bundle,
 	while (!stopped.load() || !runtime->drained()) {
 		runtime->step(r::Sessions::Clock::now());
 		try {
-			tick.expires_after(std::chrono::milliseconds(1));
-			asio::error_code error;
-			co_await tick.async_wait(asio::redirect_error(asio::use_awaitable, error));
-			if (error)
-				fail(std::make_exception_ptr(asio::system_error(error)));
+			co_await pause(scheduler, std::chrono::milliseconds(1));
 		} catch (...) {
 			// Cleanup cannot unwind across admitted original callbacks.
 			std::terminate();
