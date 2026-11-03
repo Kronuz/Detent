@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 			asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
 			const auto endpoint = reservation.local_endpoint();
 			reservation.close();
-			http::HttpAsioService server(authority, 1, 32, http::tls_connection_factory(tls, 2s), 4);
+			http::HttpAsioService server(authority, 1, 4, http::tls_connection_factory(tls, 2s), 4);
 			http::AsioBindOptions bind;
 			bind.address = "127.0.0.1";
 			server.set_bind_options(bind);

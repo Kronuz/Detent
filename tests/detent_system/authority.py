@@ -158,8 +158,6 @@ class Authority:
                 str(self.ports[index + 3]),
                 "--runtime-dir",
                 str(self.directory / f"runtime-{index}"),
-                "--workers",
-                "1",
             ],
         )
 

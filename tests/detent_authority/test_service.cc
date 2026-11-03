@@ -16,6 +16,11 @@ struct Read {
 	http::Request request;
 	Writer writer;
 	std::unique_ptr<detent_test::Async> run;
+	// The handler is back: the request, with its admission, ends here as a connection's does.
+	void done() {
+		run->finish();
+		request.extension.reset();
+	}
 };
 void start_read(Service &service, Read &read, std::string_view token, std::string_view keys) {
 	read.request.method = "POST";
@@ -344,7 +349,7 @@ int main() {
 		};
 		Read first, second;
 		deferred_read(first);
-		first.run->finish();
+		first.done();
 		auto first_body = first.writer.pull();
 		assert(first_body && first_body->status == 200);
 		const auto expected = first_body->body;
@@ -372,18 +377,18 @@ int main() {
 		assert(first.writer.release(*first_body));
 		first_body.reset();
 		wait_released(first.writer);
-		second.run->finish();
+		second.done();
 		auto second_body = second.writer.pull();
 		assert(second_body && second_body->status == 200 && second_body->body == expected);
 		assert(second.writer.release(*second_body));
 		wait_released(second.writer);
 		Read blocked_by, expires;
 		deferred_read(blocked_by);
-		blocked_by.run->finish();
+		blocked_by.done();
 		auto held = blocked_by.writer.pull();
 		assert(held && held->status == 200);
 		deferred_read(expires);
-		expires.run->finish();
+		expires.done();
 		auto expired = expires.writer.pull();
 		assert(expired && expired->status == 503 && expired->body.find("outcome_unknown") != std::string::npos);
 		assert(expires.writer.release(*expired));
@@ -516,7 +521,7 @@ int main() {
 							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
 		for (unsigned i = 0; i < readers.size(); ++i) {
-			readers[i].run->finish();
+			readers[i].done();
 			auto reply = readers[i].writer.pull();
 			assert(reply && reply->status == 200);
 			rapidjson::Document body;
@@ -553,7 +558,7 @@ int main() {
 		service.begin_shutdown();
 		unsigned canceled = 0;
 		for (auto &reader : terminal_readers) {
-			reader.run->finish();
+			reader.done();
 			if (auto reply = reader.writer.pull()) {
 				assert(reply->status == 200);
 				assert(reader.writer.release(*reply));

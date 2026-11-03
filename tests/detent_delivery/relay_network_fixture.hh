@@ -219,7 +219,7 @@ task::task<void> qualify(task::asio_scheduler &scheduler, std::shared_ptr<r::Bun
 	asio::ip::tcp::acceptor probe(executor, {asio::ip::address_v4::loopback(), 0});
 	const auto endpoint = probe.local_endpoint();
 	probe.close();
-	http::HttpAsioService listener(service, 2, 32, http::tls_connection_factory(server_tls), 1024);
+	http::HttpAsioService listener(service, 2, 1024, http::tls_connection_factory(server_tls), 1024);
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	listener.set_bind_options(bind);
