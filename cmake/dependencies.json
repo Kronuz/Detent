@@ -170,13 +170,13 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "bf69026e864061d7b8954f9ef050f1d4f81a32d7",
+    "revision": "576618d05bc4b1af9684a5a1ac77ddc3f6b8de9a",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "836c98b3909c9323c550a3ce94779426ed18b5c1",
+    "revision": "d6d009ed449b5c3954c050b30eec746e8ba82821",
     "source_subdir": "."
   },
   {
@@ -188,7 +188,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "c7bf9419c26e59504b6c62d1451d3d50196aac9e",
+    "revision": "666cdfcd80f1a9662d41d6b16445b5f3494d1cb9",
     "source_subdir": "."
   },
   {
