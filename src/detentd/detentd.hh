@@ -132,6 +132,10 @@ public:
 
 	static constexpr std::size_t kWriteSlots = 1024;
 
+	// True once a committed entry could not be persisted on this node: it keeps serving what it has and
+	// refuses writes, because Raft no longer retries an apply (D13).
+	[[nodiscard]] bool is_fenced() const noexcept { return fenced_.load(std::memory_order_acquire); }
+
 	// Diagnostics for tests; not part of the HTTP surface.
 	[[nodiscard]] std::uint64_t current_version() const;
 	[[nodiscard]] std::uint64_t requests_served() const noexcept { return requests_served_.load(); }
@@ -222,6 +226,7 @@ private:
 
 	std::atomic<std::size_t> write_slots_{0};
 	std::atomic<bool> stopping_{false};
+	std::atomic<bool> fenced_{false};
 	task::cancel_source stop_;
 
 	// Declared before bus_: the Bus' reactor thread spawns applies on the owner, and ~Distributor

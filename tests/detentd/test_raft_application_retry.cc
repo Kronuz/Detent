@@ -1,8 +1,10 @@
 #include "detentd.hh"
 #include <raft.h>
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 #include <unistd.h>
 
 namespace c = cluster;
@@ -56,22 +58,23 @@ int main(int argc, char** argv) {
 			const auto command = c::serialise_string("retry") + 'P' + R"({"schema_version":1,"version":1,"knobs":{}})";
 			const auto data = header + c::serialise_length(0) + c::serialise_length(0) + c::serialise_length(1) +
 				c::serialise_length(1) + c::serialise_length(1) + c::serialise_string(command);
-			bool failed = false;
-			try { raft.on_message(c::RaftMessage::APPEND_ENTRIES, data); }
-			catch (const std::exception&) { failed = true; }
-			check(failed && app.current_version() == 0 && delegate.responses == 0);
-			check(!std::filesystem::exists(options.persist_path));
-			std::filesystem::create_directory(directory.path / "missing");
+			// The apply runs on the distributor's owner and Raft does not retry it: a committed entry that
+			// cannot be persisted fences the node, which keeps serving and refuses writes.
+			raft.on_message(c::RaftMessage::APPEND_ENTRIES, data);
 			const auto heartbeat = header + c::serialise_length(1) + c::serialise_length(1) + c::serialise_length(1);
 			raft.on_message(c::RaftMessage::HEARTBEAT, heartbeat);
-			check(app.current_version() == 1 && app.puts_accepted() == 1 && delegate.attempts == 2 && delegate.responses == 1);
-			raft.on_message(c::RaftMessage::HEARTBEAT, heartbeat);
-			check(app.puts_accepted() == 1 && delegate.attempts == 2 && delegate.responses == 2);
+			for (auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5); !app.is_fenced();) {
+				check(std::chrono::steady_clock::now() < deadline);
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			check(app.current_version() == 0 && app.puts_accepted() == 0 && delegate.attempts == 1);
+			check(!std::filesystem::exists(options.persist_path));
 			raft.stop(); io.poll();
 		}
+		std::filesystem::create_directory(directory.path / "missing");
 		detentd::Distributor recovered(options);
-		check(recovered.current_version() == 1);
-		std::cout << "unchanged Raft commit recovers after genuine persistence failure\n";
+		check(recovered.current_version() == 0 && !recovered.is_fenced());
+		std::cout << "a committed entry that cannot be persisted fences the node\n";
 		return 0;
 	} catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

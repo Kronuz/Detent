@@ -311,9 +311,10 @@ task::task<detent::Result<std::uint64_t, detent::UpdateError>> Distributor::subm
 	// Runs on the owner. Unclustered, the commit happens here and the write is settled before the wait.
 	auto accept = [this, body, is_patch, &retry]() -> std::shared_ptr<Write> {
 		auto write = std::make_shared<Write>();
-		if (stopping_.load(std::memory_order_acquire)) {
+		if (stopping_.load(std::memory_order_acquire) || fenced_.load(std::memory_order_acquire)) {
 			// Nothing was applied: a writer queued behind a long commit is answered at once.
-			write->result = retry("server stopping; retry");
+			write->result = retry(fenced_.load(std::memory_order_acquire) ? "node fenced after a persistence failure; retry elsewhere"
+			                                                              : "server stopping; retry");
 			write->settled = true;
 			write->done.set();
 			return write;
@@ -361,7 +362,16 @@ void Distributor::apply_envelope(const std::string& command) {
 	auto parsed = parse_envelope(command);
 	if (!parsed) return; // malformed; best-effort, drop it
 
-	auto result = parsed->is_patch ? try_accept_patch(parsed->body) : try_accept(parsed->body);
+	// A committed entry that cannot be persisted would diverge this node from the log, and Raft does not
+	// retry an apply: fence the node (it keeps serving what it has) and answer the waiting writer.
+	detent::Result<std::uint64_t, detent::UpdateError> result{detent::UpdateError{detent::UpdateRejectReason::Io, "no result recorded"}};
+	try {
+		result = parsed->is_patch ? try_accept_patch(parsed->body) : try_accept(parsed->body);
+	} catch (...) {
+		fenced_.store(true, std::memory_order_release);
+		result = detent::UpdateError{detent::UpdateRejectReason::Transport,
+		                             "node fenced after a persistence failure; retry elsewhere"};
+	}
 	if (!result) puts_rejected_.fetch_add(1, std::memory_order_relaxed);
 
 	// Only the originating node has a pending entry; every other member just applied the mutation
@@ -576,6 +586,7 @@ task::task<void> Distributor::route_get_health(http::Request&, http::ResponseWri
 	   << "\"puts_accepted\":" << puts_accepted_.load() << ","
 	   << "\"puts_rejected\":" << puts_rejected_.load() << ","
 	   << "\"uptime_seconds\":" << uptime;
+	if (fenced_.load(std::memory_order_acquire)) ss << ",\"fenced\":true";
 	if (options_.cluster) {
 		ss << ",\"clustered\":true"
 		   << ",\"is_leader\":" << (is_leader() ? "true" : "false")
