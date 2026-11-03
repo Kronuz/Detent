@@ -638,3 +638,87 @@ L1 (design), L2, L4, L5 closed. L3 is PARTIAL on one concrete defect (N1) that t
 S4; it is a text fix to D8/D10, not a redesign. C3 and C4 are PARTIAL on small, mechanical items (N2,
 N5). Recommendation: **APPROVE WITH CONDITIONS** for S1, S2 and S3 to start (none depend on N1), with N1
 fixed in the design before S4 starts, N6 answered by S1's T1(b), and N2, N3, N5 folded in the same revision.
+
+## Re-check (revision 3)
+
+Scope: `Detent:bf20f94`, `docs/design/http-coroutines.md` (read, not built), against task `cbfee34`
+(`task.hh`, `task_asio.hh`) and http's `docs/design/task-handlers.md` revision 2 (`http:209ceef`).
+Nothing was built or run: every claim below settled from the code.
+
+### N1-N6
+
+| ID | Verdict | Evidence |
+|---|---|---|
+| N1 | CLOSED | D8 `:295-300` and D10 `:323` answer a stop-token wait through the buffered writer; T1(b) and T6 keep their rows |
+| N2 | CLOSED | D14 `:383-386` and S2 `:570` carry `assert_off_loop` with the reactor pin; S1 `:569` no longer lists it |
+| N3 | CLOSED | D8 `:289-293` passes `request.keep_alive`; S4 `:572` repeats it; T11's second request is in the table at `:55` |
+| N4 | CLOSED | D2 lifetime 2 `:189-191` and S4 `:572`: `stopping_`, then the guard, then the join |
+| N5 | PARTIAL | T10 `:512` scopes the second pattern to `src/detentd website docs/USAGE.md`, which excludes the design, review and status docs. D11 `:343` makes a removed flag fail "with an error that names the removal"; that string lives in `src/detentd/main.cc` and contains `--workers`, so the pattern still matches after S5. Exempt the one rejection line (or its file) in T10, or have the check assert exactly one hit |
+| N6 | CLOSED | S1 `:569` and T1 `:503` make (b) the first test, written and passing before (a), (c), (d), with (f) the mutant. Whether it passes is still S1's to show |
+
+### Retargeted decisions
+
+**D2 (owner hop): holds; every primitive exists with the behavior named.**
+
+1. `schedule_on` (`task.hh:799-804`) posts the frame to the owner's scheduler. The child's
+   continuation scheduler is the handler's; `final_awaiter` posts home when it differs (`:481-491`).
+2. `event` (`:1201-1260`): the awaiter records `current()` and resumes through it; `set()` is
+   idempotent, any-thread, and never resumes inline when a scheduler was recorded.
+3. `deadline` (`:1108-1135`) takes `S&` with `start_timer` (`task_asio.hh:130`), which `asio_scheduler`
+   has. Its source is linked to the parent: a parent already requested yields a born-requested
+   child (`cancel_state::make`), so a stop before the hop is seen, with the parent's reason.
+4. `cancel_callback` (`:1062-1103`) runs `f` at once when the token is already requested, so
+   "register, then await" has no lost wake-up: `done` is set before the await and `await_ready` is true.
+   A request racing the registration is covered by `add` failing and the immediate invoke. The
+   waiter resumes on the owner (its recorded scheduler), which is also where the completion runs, so
+   `settled` and `reply` need no lock.
+5. Lifetime: the event lives in `pending`, held by the owner map, the lambda in the callback and the
+   frame. The callback's destructor waits for a running `f` on another thread, so `begin_shutdown()`
+   cannot touch a freed event. The frame's locals (`deadline`, `cancel_callback`) die at `co_return`
+   on the owner thread, before the hop home, so the deadline is not destroyed off-loop in
+   normal operation; on a forced teardown it is destroyed after the owner joined, and `~deadline`
+   only disarms (`:1128`), with the timer's queued expiry holding the state. An event destroyed with
+   a waiter marks it orphaned (Debug counter) but the waiter's frame destroys itself first (unlinks).
+6. A `post` after `close()` is dropped (`task_asio.hh:68-71`); a dropped `schedule_on` leaves the
+   child to the parent root's `destroy_roots()`. No leak path beyond D15's.
+
+Citation nits (non-blocking): the rethrow in the child is `task.hh:505`/`:515`, not `:495` (that line
+stores `unhandled_exception`); `:1195-1199` is the class comment, `set()` is `:1219`.
+
+**D10 (`cancel_source` per service, `begin_shutdown()`): holds.** `cancel_source::request(reason)`
+exists (`:1039`), first request wins, callbacks run on the requesting thread. The per-hop deadline's
+parent is `stop_.token()`, so shutdown reaches the wait through the link and the reason is
+`shutdown`, distinct from `deadline` for `truthful_reply`. Detent never reads
+`request.cancel_token()`, so http's first-reason rule (task-handlers D5) cannot swallow it. The
+ordering (`stopping_` set, then `request`) leaves no window in which a hop is accepted and unseen:
+a hop starting after both is refused (`service.cc:791-793`); a hop that raced the request has its
+token born requested.
+
+**D15 (four phases): PARTIAL. The calls Detent needs are not exposed by http's design.**
+Detent's `OwnerLoop` can run all four phases (`asio_scheduler::close()`/`destroy_roots()` exist,
+`task_asio.hh:104-118`, with `assert(!runs_here())` and a stopped-loop requirement). But
+task-handlers rev2 puts every phase inside `TcpServer::stop()`/`~UdpServer` (the disposition at
+`task-handlers-rev2-design.md:385`), and its `HttpAsioService` "adds nothing"
+(`task-handlers.md:72`): no separate stop, close or destroy-roots call exists in D1 or R2. D15 step
+2-4 across the HTTP reactors and the owners therefore cannot be written as designed. Detent's
+Limits note this only as a request (`design:476-480`, dependency 2). Consequence if http keeps
+the single `stop()`: phase 3 runs on the reactors while an owner thread still runs, and a handler
+child suspended on an owner (a stop path that skipped `begin_shutdown()`) is destroyed with its
+parent root while the owner may touch its event. In normal operation D10 ends every owner wait
+first, so T13's zero-live-frames row passes; the forced path is the exposed one. Two ways out for
+the lead to rule on: (a) http exposes `stop()`, `close()`, `destroy_roots()` on `HttpAsioService`
+(the design's current ask); (b) Detent stops and joins the owners first, after `begin_shutdown()`
+has answered every waiter, and says in D15 that the HTTP stop then owns all of its own phases.
+(b) needs no http change but makes a late hop onto a joined owner a stated refusal.
+
+### New findings
+
+None in the fix text. One line outside the scope: D11's rejection message vs T10 (above, N5).
+
+### Verdict
+
+N1-N4 and N6 CLOSED; N5 PARTIAL (T10 matches the rejection message); D2 and D10 hold against task's
+API; D15 is PARTIAL until http exposes the phases or D15 takes option (b).
+
+Not run: builds, suites, sanitizers, probes (none needed; the task claims settled from `task.hh`
+and `task_asio.hh`), benchmarks; no mutant reverts (the branch has no tests).
