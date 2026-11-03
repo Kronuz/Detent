@@ -199,7 +199,7 @@ d::RetirementHandle<ParsedSessionRequest> parse_session_request(d::RetirementDom
 	return result;
 }
 d::StorageOwner<ParsedSessionRequest>
-parse_session_request_on_worker(std::shared_ptr<d::StorageLedger> account, RequestKind kind,
+parse_session_request(std::shared_ptr<d::StorageLedger> account, RequestKind kind,
 								std::string_view bytes, RequestLimits limits) {
 	auto result = d::make_storage_owner<ParsedSessionRequest>(account, std::malloc, std::free, account, kind,
 															  nullptr, limits);

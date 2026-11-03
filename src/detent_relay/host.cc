@@ -243,9 +243,8 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 		return true;
 	});
 	auto facade = std::make_unique<Service>(runtime);
-	http::HttpAsioService listener(*facade, 2, 2, options.connections,
-								   http::tls_connection_factory_timed(options.tls_context),
-								   options.connections);
+	http::HttpAsioService listener(*facade, 2, options.connections,
+								   http::tls_connection_factory(options.tls_context), options.connections);
 	http::AsioBindOptions bind;
 	bind.address = options.endpoint.address().to_string();
 	listener.set_bind_options(bind);
@@ -380,11 +379,14 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 	stopping.get();
 	listener.stop();
 	asio::post(owner.io(), [&] { listener_stopped = true; });
-	// Teardown (D15): once the turn finds everything drained, phases 1-3 on the owner, with its
-	// io_context alive, before anything the coordinators reference is destroyed.
+	// Teardown (D15): the listener's loops are stopped; once the turn finds everything drained
+	// the owner stops (phase 1), both close their schedulers (phase 2) and destroy their roots
+	// with every io_context alive (phase 3), before anything the tasks reference is destroyed.
 	owner_drained.get();
 	owner.stop();
+	listener.close();
 	owner.close();
+	listener.destroy_roots();
 	owner.destroy_roots();
 	startup.join();
 	facade.reset();

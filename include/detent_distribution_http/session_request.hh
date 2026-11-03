@@ -44,6 +44,6 @@ parse_session_request(distribution::RetirementDomain &, RequestKind,
 					  std::shared_ptr<const distribution::OwnedBuffer>, RequestLimits = {});
 // Worker-only ownership: parsing and arena destruction stay off the owner loop.
 distribution::StorageOwner<ParsedSessionRequest>
-	parse_session_request_on_worker(std::shared_ptr<distribution::StorageLedger>, RequestKind,
+	parse_session_request(std::shared_ptr<distribution::StorageLedger>, RequestKind,
 									std::string_view, RequestLimits = {});
 } // namespace detent::distribution_http

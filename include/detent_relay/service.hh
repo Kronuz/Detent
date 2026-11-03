@@ -36,12 +36,13 @@ class Service final : public http::HttpHandler {
   public:
 	explicit Service(std::shared_ptr<ServiceRuntime>);
 	~Service() override;
+	std::unique_ptr<http::RequestExtension> create_extension(const http::Request &) override;
 	std::unique_ptr<http::BodySink> on_request_body(http::Request &) override;
-	void handle(const http::Request &, http::ResponseWriter &) override;
-	bool should_offload(const http::Request &request) const override { return request.path != "/v1/health"; }
+	task::task<void> handle(http::Request &, http::ResponseWriter &) override;
 	void on_error(std::exception_ptr, const http::Request &, http::ResponseWriter &) override;
 
   private:
+	struct Extension;
 	std::shared_ptr<ServiceRuntime> runtime_;
 };
 } // namespace detent::relay

@@ -108,7 +108,7 @@ int main() {
 			}
 			check(pressure_account->used() == 0);
 			{
-				auto worker_result = h::parse_session_request_on_worker(account, h::RequestKind::Open, open);
+				auto worker_result = h::parse_session_request(account, h::RequestKind::Open, open);
 				open.clear();
 				check(worker_result->request().namespaces.size() == 4096);
 				check(!worker_result->request().namespaces.front().empty());
