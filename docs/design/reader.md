@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-03) Designing, preliminary review folded in (ready for re-check of L1-L4). R1-R4 are the owner's rulings; everything after them is the designer's draft, revised on `design/reader-rev` against [the preliminary review](../reviews/reader-design-preliminary.md).
+> Status: DRAFT (2026-11-03) Designing; the preliminary review and its re-check are folded in (L2, N1, N2 and the D3 corrections on `design/reader-rev2`). R1-R4 are the owner's rulings; everything after them is the designer's draft, revised against [the preliminary review and re-check](../reviews/reader-design-preliminary.md).
 
 # Reader
 
@@ -10,7 +10,7 @@ One reader core with a C ABI over the agent's mapped generations. C++, Rust and 
 
 | Review | State |
 | --- | --- |
-| Architect, preliminary | [APPROVE WITH CONDITIONS](../reviews/reader-design-preliminary.md); L1-L4 and C1-C4 folded in (see "Review findings") |
+| Architect, preliminary | [APPROVE WITH CONDITIONS](../reviews/reader-design-preliminary.md); L1-L4 and C1-C4 folded in; re-check 2026-11-03: L1, L3, L4 closed, L2 partial, N1 and N2 new, all folded in (see "Review findings") |
 
 Applications read knobs the way the `detent` CLI does: map the agent's selected generation, look up the knob, evaluate it. One reader core with a C ABI serves every language; C++, Rust and Python wrappers are thin. The legacy inventory (`docs/status/legacy-removal-inventory.md`, branch `explore/legacy-inventory`) maps what it replaces.
 
@@ -126,9 +126,13 @@ The store is namespace delivery's (`namespace-delivery.md` D8): one store direct
 The core implements the existing page seam, `PagedPageAccess::resolve` (`src/detent_local/paged_page_access.hh:10-17`), replacing the mutex, hash map and LRU in `lazy_page_access.cc:47-177`:
 
 1. **Segments.** Per generation, an open-addressed table of `2 × root.segments` atomic pointers keyed by segment identity, fixed at attach. Each points to a segment object holding the mapping and its verified bitmap; an attach that keeps a segment of the namespace's previous generation points to the same object. A hit is one acquire load and a compare. A miss opens and maps the segment with today's checks (`:89-113`) and publishes it with a compare-and-swap; a losing thread unmaps its copy. Segment objects are counted at attach and freed by the D5 freer, never per lookup.
-2. **Verified pages.** Each segment object carries one bit per 80-byte granule of its extent. Every page begins with an 80-byte header (`include/detent_local/paged_layout.hh:8`), so no two pages share a granule. A segment holds at most 1 MiB (`paged_layout.hh:7`), so its bitmap is at most 13,108 bits, about 1.6 KiB, allocated when the segment is mapped. A hit is one acquire load of a 64-bit word and a bit test; a miss verifies the page as today (`lazy_page_access.cc:159-167`) and sets the bit with a release `fetch_or`. Two threads verifying one page both set the bit.
+2. **Verified pages.** Each segment object carries one bit per 80-byte granule of its extent, indexed by `offset / 80`. A reference is accepted only with `offset % 8 == 0`, a length of 80 to 65,536 bytes and `offset + length` inside the segment (`src/detent_local/paged_layout.cc:25-30`), and the validators that prepared the generation (R3) reject two references covering one 8-byte cell (`src/detent_local/paged_graph_validator.cc:254-261`). Pages are therefore disjoint and at least 80 bytes long, so they start at least 80 bytes apart and never share a granule. A segment holds at most 1 MiB (`paged_layout.hh:7`), so its bitmap is at most 13,108 bits, about 1.6 KiB, allocated when the segment is mapped. A hit is one acquire load of a 64-bit word and a bit test; a miss verifies the page as today (`lazy_page_access.cc:159-167`) and sets the bit with a release `fetch_or`. Two threads verifying one page both set the bit.
 
-A page is verified once per mapping, never again on a capacity miss (Q3), and the bit binds segment identity, not a table slot. A hit no longer compares the reference's digests with the verified ones (today, `:155-156`): a reference reaches `resolve` only from a verified parent, so a second digest for one offset could only come from the publisher, whom Limit 5 already trusts. A hit still bounds the page by the reference's length. The bitmaps total 1/640 of mapped bytes, about 2.4 MiB with all 1.51 GB of the 5M store mapped (estimate from namespace-delivery ND-R8's size), shared between views and counted against the mapped-bytes cap (Q5, T4). They replace `verification_cache_bytes` (`include/detent_local/view.hh:36`).
+A page is verified once per mapping, never again on a capacity miss (Q3), and the bit binds segment identity, not a table slot. Segment identity means immutable bytes: the agent never rewrites or replaces a payload under one identity. That is what lets a kept segment object, and its bits, serve the next generation without today's per-generation re-open and device and inode check (`lazy_page_access.cc:108-110`). The revision-dependent checks at verification (`:162-165`) are monotone under A4, so a bit set under one revision never admits a page a later view would reject.
+
+A hit no longer compares the reference's digests with the ones that verified the page (today, `:155-156`). In a generation that passed the validators every page is referenced once, so the compare cannot fail; a second digest for one offset needs a reference the validators reject or a payload rewritten under its identity, both publisher actions. What is lost is narrow and stated in Limit 5. A hit still bounds the page by the reference's length.
+
+A segment miss that would pass the mapped-bytes cap maps nothing and returns the fallback with `DETENT_NO_MEMORY` for that lookup; it does not set `failed`, since nothing failed verification, and once the cap is reached later misses refuse before any syscall. Today the same miss throws (`:102-104`) and the catch-all marks the whole generation failed (`:173-175`); the core keeps answering from the segments it holds. Nothing is evicted: segment objects leave only through the D5 freer. The bitmaps total 1/640 of mapped bytes, about 2.4 MiB with all 1.51 GB of the 5M store mapped (estimate from namespace-delivery ND-R8's size), shared between views and counted against the mapped-bytes cap (Q5, T4). They replace `verification_cache_bytes` (`include/detent_local/view.hh:36`).
 
 The `failed` flag stays one atomic (`:67`), per namespace generation. Once the pages on a path are verified and their segments mapped, a lookup makes no syscall, takes no lock and allocates nothing. First touch still pays syscalls and SHA-256 on the caller's thread; T2 bounds it.
 
@@ -140,14 +144,14 @@ The `change` file is namespace delivery's (D8); the reader needs this shape of i
 - Word 1 + *slot* is a namespace's sequence. The table entry carries the slot, assigned when the namespace first appears and never reused while the store exists. The agent increments it after every `selected` replacement that changes that namespace's entry.
 - The file grows by extension, never shrinks, and is never truncated, unlinked or replaced while the store exists.
 
-Each lookup loads its namespace's sequence (acquire) through the slot pointer in its view entry and compares it with the sequence the entry was built from. A publish in another namespace never moves it, so a process re-attaches only what it reads and what moved. On a mismatch, the lookup tries one compare-and-swap on the handle's `refreshing` flag. The winner re-reads the table, re-attaches each attached namespace whose generation id changed, builds a view that shares the rest, publishes it (D5), reclaims what it can, and answers from the new view. Every other thread keeps reading the installed view without waiting. A failed attach keeps the installed view and remembers the sequence it failed at; the next attempt waits for the sequence to move or for `detent_refresh`, which runs the same check from a thread the application picks (Q1). A lookup in a namespace absent from the view loads the store word: unchanged since the view's table, it returns `DETENT_UNAVAILABLE` (or `DETENT_NOT_OPENED` outside the handle's list); moved, the winner re-reads the table and attaches it if present (D2).
+Each lookup loads its namespace's sequence (acquire) through the slot pointer in its view entry and compares it with the sequence the entry was built from. A publish in another namespace never moves it, so a process re-attaches only what it reads and what moved. On a mismatch, the lookup tries one compare-and-swap on the handle's `refreshing` flag. The winner re-reads the table, re-attaches each attached namespace whose generation id changed, builds a view that shares the rest, publishes it (D5), reclaims what it can, and answers from the new view. Every other thread keeps reading the installed view without waiting. A publish refused by a pinned slot is D5's. A failed attach frees what it built, keeps the installed view and remembers the sequence it failed at; the next attempt waits for the sequence to move or for `detent_refresh`, which runs the same check from a thread the application picks (Q1). A lookup in a namespace absent from the view loads the store word: unchanged since the view's table, it returns `DETENT_UNAVAILABLE` (or `DETENT_NOT_OPENED` outside the handle's list); moved, the winner re-reads the table and attaches it if present (D2).
 
 The protocol (RD-4):
 
 1. **Load before read.** The winner loads the store word and the namespace's sequence before reading `selected`, and records those values in the view. A publish landing between the load and the read leaves the view a step behind its own sequence, so the next lookup refreshes again; recording a value loaded after the read would hide that publish until the next one.
 2. **Startup bump.** The agent increments the store word and every namespace's sequence once at startup, after its startup barrier and before it reports ready (namespace-delivery ND-R9). A crash between a `selected` rename and its increments then hides nothing; a winner that finds an unchanged generation id keeps that namespace's generation.
 3. **One writer, atomic increments.** Increments are release `fetch_add`s on the agent's shared read-write mapping of the file, after the rename. The agent holds the store's `owner.lock` exclusively while it writes the store, so there is one writer; the atomic increments keep a second writer from losing one regardless. Today's store takes no exclusive lock: the only `LOCK_EX` is the daemon's pid lock (`src/detent_cli/daemon.cc:39,63`), so S5 adds it.
-4. **Checks before mapping.** `change` is opened `O_RDONLY | O_NOFOLLOW | O_CLOEXEC` from the trusted store directory and gets the record checks: owner `publisher_uid`, no group or other write, a mode-only ACL (as `lazy_page_access.cc:100`). Its size must be a multiple of 8 and cover word 0 and every slot the table names; the reader maps that size read-only. A slot past the mapping is remapped by the winner only.
+4. **Checks before mapping.** `change` is opened `O_RDONLY | O_NOFOLLOW | O_CLOEXEC` from the trusted store directory and gets the record checks: owner `publisher_uid`, no group or other write, a mode-only ACL (as `lazy_page_access.cc:100`). Its size must be a multiple of 8 and cover word 0 and every slot the table names; the reader maps that size read-only. A slot past the mapping is remapped by the winner only. Each mapping is a reference-counted member of every view built over it, freed by the D5 freer with the last such view, so a remap never unmaps under a reader and slot pointers stay valid for their view's life.
 5. **No fallback.** The project has no legacy agent: the agent creates `change` with the store, before the first `selected`, and always writes it. A store with `selected` and no valid `change` is refused at open with `DETENT_SOURCE_FAILURE`; a store with neither has no generation yet (Q6).
 
 ### D5. Retiring a generation while readers hold it
@@ -162,16 +166,23 @@ if (current.load(seq_cst) != s) { slot.count[stripe].fetch_sub(1, release); retr
 /* ... look up through slot.view ... */
 slot.count[stripe].fetch_sub(1, release);
 
-// Publisher: only the holder of `refreshing`.
-auto s = current.load(relaxed);                     // only the holder stores it
+// Publisher: only the holder of `refreshing`, taken by compare_exchange(false, true, acquire)
+// and cleared by store(false, release). free_view(p) unmaps, closes and sets p = nullptr.
+auto s = current.load(relaxed);                     // the last holder stored it before its release
 auto &next = ring[(s + 1) % 4];
-if (next.view && sum_seq_cst(next.count) != 0) { ++refused; return; }  // retry at next change
-free_view(next.view); next.view = built;
+if (next.view) {
+  if (sum_seq_cst(next.count) != 0) { ++refused; back_off(); return; }  // nothing attached yet
+  free_view(next.view);
+}
+auto built = attach(...);                           // on failure: frees what it built, returns
+next.view = built;
 current.store(s + 1, seq_cst);
-for (each retired slot k with a view) if (sum_seq_cst(ring[k].count) == 0) free_view(ring[k].view);
+for (each slot k != (s + 1) % 4 with a view) if (sum_seq_cst(ring[k].count) == 0) free_view(ring[k].view);
 ```
 
 Either the reader's recheck sees the new sequence and it backs off without touching the view, or the publisher's later scan sees its increment and keeps the view. Sequences never repeat, so a reader that pinned a reused slot fails its recheck. With `current.store(release)` and acquire scans, a store-buffer interleaving frees a view in use, on x86 too; the review's model (`d5_model`) shows the seq_cst protocol clean under ASan, UBSan and TSan.
+
+**Refusal.** The winner checks the next slot before it attaches, so a refused publish has built nothing to free. It does not advance the view's recorded sequences, so the stale view keeps mismatching and the publish retries once the parked reader resumes. To keep a stall (Limit 3) from costing an attempt on every lookup, a refusal sets a retry time on the handle, 1 ms doubling to 200 ms and reset by a successful publish; a mismatched lookup before that time answers from the installed view without trying `refreshing`. Only that path reads the clock (`CLOCK_MONOTONIC_COARSE` or `mach_absolute_time`, no syscall); `detent_refresh` ignores the retry time.
 
 **One freer.** Only the holder of `refreshing` frees a slot: the lookup that won it, or `detent_refresh`, which takes it too and returns `DETENT_OK` without work if another thread holds it. `detent_close` runs alone (D1 item 7) and frees every slot. Freeing unmaps segments no live view shares and closes the lease descriptor, which drops its shared `flock` (`prepared_reader.cc:114`). At most four views live per handle.
 
@@ -208,9 +219,9 @@ Each returns the value, or the caller's default on any error, and exposes the st
 
 ### D10. Fork
 
-Pre-forking servers inherit handles, so a handle is fork-safe (RD-3 option (a)). The first `detent_open` registers `pthread_atfork` handlers once (`pthread_once`); live handles sit on a global list under a mutex that open and close take. The prepare handler takes that mutex and the parent handler releases it. The child handler, before releasing it, zeroes every counter of every slot of every handle and clears each `refreshing` flag. That is sound because the child runs one thread, the one that forked, and that thread is not inside a lookup (D1 item 8). Counts left by parent threads would otherwise pin their slots forever, and a held `refreshing` would stop every switch: the review's model publishes 3 of 10 and 0 of 10 in those two cases (`d5_model fork`).
+Pre-forking servers inherit handles, so a handle is fork-safe (RD-3 option (a)). The first `detent_open` registers `pthread_atfork` handlers once (`pthread_once`); live handles sit on a global list under a mutex that open and close take. The prepare handler takes that mutex, then each live handle's `refreshing` (acquire), waiting out any attach or publish in progress, which holds it for under a millisecond to a few. The parent handler releases each `refreshing` (release), then the mutex. The child handler zeroes every counter of every slot of every handle, then releases each `refreshing` and the mutex. No child therefore sees a half-finished publish, freed pointer or half-built view, and the zeroing is sound because the child runs one thread, the one that forked, which is not inside a lookup (D1 item 8). Counts left by parent threads would otherwise pin their slots forever, and a held `refreshing` would stop every switch: the review's model publishes 3 of 10 and 0 of 10 in those two cases (`d5_model fork`); a fork during a publish parked after `free_view` aborted with a use-after-free when the child only cleared `refreshing`, and publishes 10 of 10 with these handlers (re-check, `fork-midfree`).
 
-A view a parent thread was building at the fork is unreachable in the child and leaks there: the memory and descriptors of one attach at most. The child's lease descriptors share the parent's open file descriptions, so the agent sees a generation in use until both processes close it, which is correct.
+The child's lease descriptors share the parent's open file descriptions, so the agent sees a generation in use until both processes close it, which is correct.
 
 ## Gate rows
 
@@ -221,7 +232,7 @@ A view a parent thread was building at the fork is unreachable in the child and 
 | T3 Switch | 16 threads read for 60 s while the helper publishes 1,000 generations, each setting `t:rev` to its revision. Every thread sees non-decreasing values and only `DETENT_OK`; live views never exceed four; descriptors and mappings return to their pre-open counts after close. Injected: a reader parked between its `current` load and its increment across four publishes, and one parked mid-lookup; each resumes with no freed view read, and refused publishes are counted. TSan, and ASan with UBSan, clean. | `ctest -R reader_switch --repeat until-fail:20` under each sanitizer preset, with the core's test-only park hooks (`DETENT_READER_TEST_HOOKS`, never in a release build). |
 | T4 Memory | Core heap at most 1.5 MiB plus the verified bitmaps after open and 1M scattered lookups at 5M; bitmaps at most mapped bytes / 640, reported. Private dirty memory delta at most 4 MiB plus the bitmaps. Mapped virtual size reported, not gated. | The T1 probe prints live heap and bitmap bytes from the allocation probe, then `Private_Dirty` from `/proc/self/smaps_rollup` (Linux) or `phys_footprint` (macOS). |
 | T5 Identity | Same stdout and exit status as today's `detent get` | A 2,000-knob store written by the helper with fixed inputs (default bools, global rollouts, forced and rollout switch overrides, integers including `INT64_MIN` and `INT64_MAX`), every key across hash, switch and `--default` combinations, plus missing, wrong-type and invalid names. Expected output recorded once from the binary at the commit before S7 (`tests/detent_reader/get_identity.tsv`). At scale: core against `ReadView::try_eval` on 1M sampled 5M keys. |
-| T6 No threads, fork | Thread count unchanged across open, lookups, refresh and close. A child forked while a parent thread is parked mid-lookup and another holds `refreshing` sees every one of 10 publishes and passes T3's checks. | `/proc/self/task` (Linux), `task_threads` (macOS), in the T3 test; the fork case uses T3's park hooks. |
+| T6 No threads, fork | Thread count unchanged across open, lookups, refresh and close. A child forked while a parent thread is parked mid-lookup, while another holds `refreshing` idle, and while a third is parked inside a publish after `free_view` (the fork-midfree case), sees every one of 10 publishes and passes T3's checks; the parent finishes its parked publish. | `/proc/self/task` (Linux), `task_threads` (macOS), in the T3 test; the fork cases use T3's park hooks, including one after `free_view`. |
 
 ## Alternatives considered
 
@@ -252,17 +263,16 @@ D5 is SRCU's shape with a bounded ring: a stalled reader freezes freshness (Limi
 2. **Silent:** if `change` is replaced, a reader keeps its old mapping and keeps answering from the old generation. D4's agent invariant prevents it; `detent_refresh` also re-stats the file and remaps it.
 3. **Silent:** one reader descheduled inside a lookup blocks publication as soon as the ring wraps to its slot, not when all four are pinned: after at most three more publishes the handle stays on the view before it until that reader resumes (`d5_model stall`: 3 of 10 publishes, then 10 of 10 after resuming). Refused publishes are counted (S1, S6).
 4. **Silent:** with R1, a misspelled name returns the caller's default unless the caller reads the status. This reverses the spec's fail-fast rule (`justknobs-implementation-spec.md:339`), which needs rewriting with the R1 ruling.
-5. The publisher's account can rewrite a mapped page after verification, or truncate a mapped file and raise `SIGBUS` in every reader; the reader cannot see either. Unchanged from today.
+5. The publisher's account can rewrite a mapped page after verification, or truncate a mapped file and raise `SIGBUS` in every reader; the reader cannot see either. This is slightly weaker than today: a rewritten reference in a verified parent to a page already verified is no longer observed, since D3 drops the digest compare on a hit (`lazy_page_access.cc:155-156`). Today's compare caught only that case, and a consistent forgery of the child passed it anyway.
 6. **Silent:** a page verified once and corrupted on disk later is served unchecked by a long-lived handle until namespace delivery's scrub finds it (namespace-delivery ND-R8). Verify-once-per-page makes this the stated behavior rather than a cache accident.
 7. Lookups are not async-signal-safe (D1 item 8).
-8. In a forked child, one attach in progress in a parent thread leaks its memory and descriptors (D10).
-9. Rust and Python consumers link the C++ runtime through `libdetent_reader`.
+8. Rust and Python consumers link the C++ runtime through `libdetent_reader`.
 
 Documents this design changes once built: `docs/ACTORS.md:131-145` (refresh thread, baked defaults, `Client`), spec sections 5, 8 and 11, `docs/FAST_CLIENT_ARCHITECTURE.md` (first read measured from `Client` construction), and `docs/PREPARED_ACTIVATION_ARCHITECTURE.md` (`reader_validation: "full"` goes with R3).
 
 ## Open questions for the owner
 
-The review's positions are recorded with each; none changes R1-R4.
+The review's positions are recorded with each; none changes R1-R4. The lead took (a) on Q1-Q6 under "move fast" (`docs/status/reader-design.md`); the owner may reverse any.
 
 **Q1. Who pays the attach after a publish?** (a) The first lookup that sees the change, with `detent_refresh` to pay it earlier from a chosen thread. (b) Only `detent_refresh`; lookups never do I/O, but an application that never calls it never moves. *Recommendation: (a)*, the only option that keeps a library-only consumer fresh with no thread; with D2's lazy attach the paying lookup attaches one namespace. Review: (a).
 
@@ -282,7 +292,10 @@ The review's positions are recorded with each; none changes R1-R4.
 | --- | --- |
 | RD-1, L1 | D5: seq_cst `current` store and counter scans, the publisher written out, one freer; T3 |
 | RD-2 | Limit 3 reworded; refused publishes counted (S1, S6, T3); alternatives note |
-| RD-3, L2 | D10 (option (a), `pthread_atfork`); T6; Limit 8 |
+| RD-3, L2 | D10 (option (a), `pthread_atfork`); the prepare handler takes each handle's `refreshing`, the child only zeroes counters (re-check L2); T6 adds the fork-midfree case |
+| N1 (re-check) | D5: `free_view` clears the slot, the next slot is checked before attaching so a refusal builds nothing, recorded sequences do not advance on refusal and a backoff paces retries, `refreshing` orderings stated; D4 frees a failed attach |
+| N2 (re-check) | D4 rule 4: the `change` mapping is a member of every view built over it |
+| D3 corrections (re-check) | D3: granules argued from the reference and overlap checks; immutable segment identity; cap misses; Limit 5 |
 | RD-4, L3 | D4 rules 1-5; rule 5 has no older-agent case |
 | RD-5 | D4's per-namespace sequences; alternatives; Q4; agreement with namespace delivery before S5 |
 | RD-6, L4 | D2: lazy attach, directory trust once per store; T2 for 1 and 1,000 namespaces |
@@ -305,14 +318,7 @@ Each step lands alone with CI green. S1 through S9 all land before legacy step H
 | S3 | D3 inside `LazyPageAccess`, with a 16-thread TSan test; today's readers lose the per-page mutex and the LRU | Nothing |
 | S4 | D9 test helper, C++ and C | Nothing |
 | S5 | D4's `change` file in the agent: per-namespace sequences, startup bump, exclusive `owner.lock`, with a test | Q4; RD-5 agreed with namespace delivery |
-| S6 | `libdetent_reader`: D1, D2, D5, D10, the C++ header; T3, T6 and the syscall tests; `reader_bench` | S2, S3, S4; S5 for switching; Q6 for open's behavior on an empty store |
+| S6 | `libdetent_reader`: D1, D2, D5, D10, the C++ header; T3, T6 and the syscall tests; `reader_bench`. Attach takes the store's directory descriptor as a parameter: today `PreparedReader::open` opens the directory itself (`prepared_reader.cc:96`) | S2, S3, S4; S5 for switching; Q6 for open's behavior on an empty store |
 | S7 | D8, `detent get` on the core; T5. Lands before or after legacy G, which removes the shared-memory path beside it | S6, Q5 |
 | S8 | Python extension over the C ABI, replacing pybind11 | S6, Q2 |
 | S9 | Rust crate over the C ABI, replacing cxx | S6, Q2 |
-
-What I want from the re-check:
-
-1. D5's publisher and single freer against `d5_model`.
-2. D10's child handler against the fork cases.
-3. D4 rules 1-5 and the per-namespace sequences.
-4. D3's bitmap: whether dropping the digest compare on a hit keeps today's guarantee under R3.
