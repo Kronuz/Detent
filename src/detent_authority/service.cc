@@ -216,7 +216,8 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 	auto d = document(bytes, 1024 * 1024);
 	fields(d, {"cluster", "group", "epoch", "directory", "credentials", "node", "voters", "peer_tls",
 			   "publisher_tls", "publisher_bind", "publisher_name", "storage_backend", "consensus_limits",
-			   "delivery_limits", "subscription_limits", "application_limits", "journal_limits"});
+			   "delivery_limits", "subscription_limits", "application_limits", "journal_limits",
+			   "retained_state"});
 	ServiceOptions o;
 	if (d.HasMember("application_limits")) {
 		const auto &limits = field(d, "application_limits");
@@ -240,6 +241,23 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		set("definition_bytes", application.definition_bytes);
 		set("overrides", application.overrides);
 		set("results", application.results);
+	}
+	if (d.HasMember("retained_state")) {
+		const auto &limits = field(d, "retained_state");
+		fields(limits, {"command_bytes", "log_bytes", "log_entries", "batch_bytes", "batch_entries"});
+		auto set = [&](const char *key, std::size_t &target) {
+			if (!limits.HasMember(key))
+				return;
+			const auto value = number(field(limits, key));
+			check(value <= std::numeric_limits<std::size_t>::max(), "retained-state limit width");
+			target = static_cast<std::size_t>(value);
+		};
+		auto &retained = o.node.scheduling.retained;
+		set("command_bytes", retained.command_bytes);
+		set("log_bytes", retained.log_bytes);
+		set("log_entries", retained.log_entries);
+		set("batch_bytes", retained.batch_bytes);
+		set("batch_entries", retained.batch_entries);
 	}
 	if (d.HasMember("journal_limits")) {
 		const auto &limits = field(d, "journal_limits");

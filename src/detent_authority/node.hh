@@ -14,7 +14,14 @@ struct NodeOptions {
 	kronuz::consensus::FixedConfiguration configuration;
 	kronuz::consensus::Limits consensus;
 	kronuz::consensus::Timing timing;
-	kronuz::consensus::WorkerLimits scheduling;
+	// Retained-state envelope: the operating defaults, independent of reductions to `consensus`.
+	kronuz::consensus::WorkerLimits scheduling = [] {
+		kronuz::consensus::WorkerLimits result;
+		const kronuz::consensus::Limits defaults;
+		result.retained = {defaults.command_bytes, defaults.log_bytes, defaults.log_entries,
+						   defaults.rpc_bytes, defaults.rpc_entries};
+		return result;
+	}();
 	kronuz::journal::AdmissionLimits storage{
 		{1024ull * 1024 * 1024, 65536}, {8ull * 1024 * 1024, 3}, {512ull * 1024 * 1024, 4}, 64, 3};
 	std::size_t waiters = 1024;

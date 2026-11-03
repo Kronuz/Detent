@@ -112,6 +112,99 @@ int main() {
 			}
 			assert(accepted == (std::string_view(flag) == "true" || std::string_view(flag) == "false"));
 		}
+		// Loads a configuration with extra top-level members; returns the refusal message, or empty.
+		auto refusal = [&](const std::string &extra, ServiceOptions *loaded = nullptr) {
+			{
+				std::ofstream file(config);
+				file << "{" << authority << "\"directory\":\"retained-state\",\"credentials\":[{"
+					 << "\"token\":\"0123456789abcdef0123456789abcdef\",\"producer\":\"agent\","
+					 << "\"namespaces\":[\"ns\"]}]" << extra << "}";
+			}
+			assert(::chmod(config.c_str(), 0600) == 0);
+			try {
+				auto options = load_service_options(config);
+				if (loaded) *loaded = std::move(options);
+				return std::string();
+			} catch (const std::invalid_argument &error) {
+				return std::string(error.what());
+			}
+		};
+		{
+			// A configuration without the object keeps today's envelope: the operating defaults.
+			const kronuz::consensus::Limits defaults;
+			for (const auto *extra : {"", ",\"retained_state\":{}"}) {
+				ServiceOptions loaded;
+				assert(refusal(extra, &loaded).empty());
+				const auto &retained = loaded.node.scheduling.retained;
+				assert(retained.command_bytes == defaults.command_bytes && retained.log_bytes == defaults.log_bytes &&
+					   retained.log_entries == defaults.log_entries && retained.batch_bytes == defaults.rpc_bytes &&
+					   retained.batch_entries == defaults.rpc_entries);
+			}
+			ServiceOptions loaded;
+			assert(refusal(R"(,"retained_state":{"command_bytes":2097152,"log_bytes":100663296,)"
+						   R"("log_entries":131072,"batch_bytes":4194304,"batch_entries":512})",
+						   &loaded).empty());
+			const auto &retained = loaded.node.scheduling.retained;
+			assert(retained.command_bytes == 2097152 && retained.log_bytes == 100663296 &&
+				   retained.log_entries == 131072 && retained.batch_bytes == 4194304 && retained.batch_entries == 512);
+			// Lowering the operating limits leaves the envelope alone.
+			assert(refusal(R"(,"consensus_limits":{"log_entries":64,"log_bytes":2097152})", &loaded).empty());
+			assert(loaded.node.consensus.log_bytes == 2097152 &&
+				   loaded.node.scheduling.retained.log_bytes == defaults.log_bytes &&
+				   loaded.node.scheduling.retained.log_entries == defaults.log_entries);
+			// Each bound sits at its equality boundary with the operating limit, and one below is refused.
+			assert(refusal(R"(,"retained_state":{"log_bytes":67108864})").empty());
+			assert(refusal(R"(,"retained_state":{"log_bytes":67108863})") ==
+				   "authority retained_state.log_bytes 67108863 is below the operating limit 67108864; "
+				   "raise retained_state.log_bytes");
+			assert(refusal(R"(,"retained_state":{"log_entries":65535})") ==
+				   "authority retained_state.log_entries 65535 is below the operating limit 65536; "
+				   "raise retained_state.log_entries");
+			assert(refusal(R"(,"retained_state":{"command_bytes":1048575})") ==
+				   "authority retained_state.command_bytes 1048575 is below the operating limit 1048576; "
+				   "raise retained_state.command_bytes");
+			assert(refusal(R"(,"retained_state":{"batch_bytes":2097151})") ==
+				   "authority retained_state.batch_bytes 2097151 is below the operating limit 2097152; "
+				   "raise retained_state.batch_bytes");
+			assert(refusal(R"(,"retained_state":{"batch_entries":255})") ==
+				   "authority retained_state.batch_entries 255 is below the operating limit 256; "
+				   "raise retained_state.batch_entries");
+			assert(refusal(R"(,"retained_state":{"log_bytes":0})") ==
+				   "authority retained_state.log_bytes 0 is outside 1 to 17179869184");
+			assert(refusal(R"(,"retained_state":{"log_bytes":17179869185})") ==
+				   "authority retained_state.log_bytes 17179869185 is outside 1 to 17179869184");
+			for (const auto *invalid :
+				 {R"({"unknown":1})", R"({"log_bytes":-1})", R"({"log_bytes":"1"})", R"({"log_bytes":1.5})",
+				  R"({"log_bytes":67108864,"log_bytes":67108864})", "null", "[]", "1"}) {
+				assert(!refusal(std::string(",\"retained_state\":") + invalid).empty());
+			}
+		}
+		{
+			// The replacement pool funds the application image, the retained suffix and 4096 bytes.
+			const std::string pool = R"(,"journal_limits":{"replacement_bytes":)";
+			const Limits application;
+			const auto suffix = kronuz::consensus::checkpoint_detail::encoded_bound(
+				{kronuz::consensus::Limits{}.log_entries, kronuz::consensus::Limits{}.log_bytes});
+			const std::uint64_t required = application.image_bytes + suffix + 4096;
+			assert(required == 336931316);
+			assert(refusal(pool + std::to_string(required) + "}").empty());
+			assert(refusal(pool + std::to_string(required - 1) + "}") ==
+				   "authority runtime cannot fund configured limits: the replacement pool holds 336931315 bytes "
+				   "but the application image (" + std::to_string(application.image_bytes) +
+				   ") + the encoded retained suffix (" + std::to_string(suffix) +
+				   ") + the publication allowance (4096) need 336931316, short by 1 byte; raise "
+				   "journal_limits.replacement_bytes, or lower application_limits.image_bytes or "
+				   "retained_state.log_bytes and log_entries");
+			// Lowering the operating limits does not lower the requirement.
+			assert(refusal(R"(,"consensus_limits":{"log_entries":64,"log_bytes":2097152})" + pool +
+						   std::to_string(required - 1) + "}").find("short by 1 byte;") != std::string::npos);
+			// A larger envelope raises it.
+			const auto large = refusal(R"(,"retained_state":{"log_bytes":134217728})" + pool +
+									   std::to_string(required) + "}");
+			assert(large.find("short by 67108864 bytes;") != std::string::npos);
+			assert(refusal(R"(,"retained_state":{"log_bytes":134217728})" + pool +
+						   std::to_string(required + 67108864) + "}").empty());
+		}
 		for (const auto *capacity : {
 			 R"({"keys":5000000,"state_bytes":268435456,"image_bytes":402653184})",
 			 R"({"keys":10000000,"state_bytes":268435456,"image_bytes":402653184})"}) {
