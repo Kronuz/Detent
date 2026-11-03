@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+# A listener port released after selection can be taken by a parallel test. Rerun the whole
+# fixture with fresh ports (three attempts) only when a daemon reports a bind collision.
+if [[ -z "${DETENT_FIXTURE_ATTEMPT:-}" ]]; then
+    mkdir -p .scratch
+    errors=$(mktemp "$PWD/.scratch/managed-attempt.XXXXXX")
+    for attempt in 1 2 3; do
+        status=0
+        DETENT_FIXTURE_ATTEMPT=$attempt bash "$0" "$@" 2> "$errors" || status=$?
+        cat "$errors" >&2
+        if [[ "$status" == 0 ]]; then rm -f "$errors"; exit 0; fi
+        if (( attempt == 3 )) || ! grep -q 'bind: Address already in use' "$errors"; then rm -f "$errors"; exit "$status"; fi
+        retained=$(sed -n 's/^Failed managed fixture retained at //p' "$errors")
+        if [[ -n "$retained" ]]; then rm -rf "$retained"; fi
+        printf 'Retrying managed fixture with fresh ports after a bind collision\n' >&2
+    done
+fi
 trap 'printf "Managed fixture failed at line %s\n" "$LINENO" >&2' ERR
 authority=$1
 agent=$2
