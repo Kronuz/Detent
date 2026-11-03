@@ -85,11 +85,8 @@ async def run(arguments: argparse.Namespace) -> None:
                 )
                 authority.excluded.add(old)
                 await mesh.isolate(old)
-                new = await authority.leader()
-                if old == new:
-                    raise RuntimeError(
-                        "isolated member remained the fixture writer route"
-                    )
+                # CheckQuorum steps an isolated leader down after election_max, so the
+                # stale leader is observed leading now, and only reachable afterwards.
                 code, old_health = await authority.request(old, "/v1/health")
                 if (
                     code != 200
@@ -99,17 +96,26 @@ async def run(arguments: argparse.Namespace) -> None:
                     raise RuntimeError(
                         "fixture did not preserve the reachable stale leader"
                     )
+                new = await authority.leader()
+                if old == new:
+                    raise RuntimeError(
+                        "isolated member remained the fixture writer route"
+                    )
+                code, elected_health = await authority.request(old, "/v1/health")
+                if code != 200 or elected_health.get("fenced"):
+                    raise RuntimeError("old leader unreachable after the election")
                 evidence.record(
                     "majority_elected",
                     old_leader=old,
                     new_leader=new,
                     old_https_role=old_health["role"],
+                    old_role_at_election=elected_health["role"],
                 )
                 await writers.phase("mutate", time.monotonic() + 5)
                 await writers.phase("verify")
                 await cohort.verify(writers)
                 code, old_health = await authority.request(old, "/v1/health")
-                if code != 200 or old_health.get("role") != 2:
+                if code != 200 or old_health.get("fenced"):
                     raise RuntimeError(
                         "old leader did not remain reachable through verification"
                     )

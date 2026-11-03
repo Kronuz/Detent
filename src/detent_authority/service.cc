@@ -398,8 +398,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		}
 		check(peers.listen.port(), "local voter missing");
 		o.peers = std::move(peers);
-		// Production elections must cover durable vote/term barriers as well as
-		// network latency. The Core defaults are intended for small fixtures.
+		// Production elections cover durable vote/term barriers and network latency.
 		o.node.timing.heartbeat = 100;
 		o.node.timing.rpc_timeout = 500;
 		o.node.timing.election_min = 1000;

@@ -59,6 +59,8 @@ ServiceOptions options(const std::filesystem::path &directory) {
 	o.node.configuration.configuration = o.node.context.group;
 	o.node.configuration.local = 1;
 	o.node.configuration.voters = {1};
+	// Core's default timing is the production profile (1-2 s elections); the fixture elects in ~100 ms.
+	o.node.timing = {.heartbeat = 20, .rpc_timeout = 40, .election_min = 100, .election_max = 200};
 	o.credentials.push_back({"0123456789abcdef0123456789abcdef", "writer", {"ns"}});
 	o.timeout = std::chrono::milliseconds(3000);
 	return o;
