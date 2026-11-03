@@ -48,4 +48,5 @@ come from the state read under the lock.
 `tests/detentd/test_publication_atomic.cc` sweeps allocation failures across PUT and PATCH,
 refuses the stream, a write, a flush and the rename, and reenters the Distributor from the
 writer. It covers recovery from the persisted file and history limits of zero, one and the
-default.
+default. It injects the failures through `tests/support/allocation_probe.hh`, so it is not built under
+ThreadSanitizer on Linux.

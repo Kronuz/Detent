@@ -260,20 +260,18 @@ void allocation_failures(const std::filesystem::path& directory, const std::stri
 	throw std::runtime_error("allocation sweep did not finish");
 }
 } // namespace
-void* operator new(std::size_t size) {
-	if (fail_after >= 0 && fail_after-- == 0) {
-		fail_after = -1;
-		injected = true;
-		throw std::bad_alloc();
+namespace detent::test {
+struct AllocationProbe {
+	static void allocate(std::size_t) {
+		if (fail_after >= 0 && fail_after-- == 0) {
+			fail_after = -1;
+			injected = true;
+			throw std::bad_alloc();
+		}
 	}
-	if (auto pointer = std::malloc(size ? size : 1)) return pointer;
-	throw std::bad_alloc();
-}
-void* operator new[](std::size_t size) { return ::operator new(size); }
-void operator delete(void* pointer) noexcept { std::free(pointer); }
-void operator delete[](void* pointer) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::size_t) noexcept { std::free(pointer); }
-void operator delete[](void* pointer, std::size_t) noexcept { std::free(pointer); }
+};
+} // namespace detent::test
+#include "support/allocation_probe.hh"
 int main(int argc, char** argv) {
 	try {
 		check(argc == 2);
