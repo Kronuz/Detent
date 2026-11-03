@@ -3,8 +3,8 @@
 # namespace-design
 
 - Design: docs/design/namespace-delivery.md; review: docs/reviews/namespace-delivery-preliminary.md (APPROVE WITH CONDITIONS, `Detent:eae3f6c`).
-- Branch / worktree: `design/namespace-delivery` at `~/code/Kronuz/Detent-wt/namespace-design`; base `Detent:d4abd4a`.
-- State: reviewed; S1-S4 may start under L1 and L2; D3, D6, D8, D9 and the wire list revise (L3-L7) before S5-S9.
+- Branch / worktree: `design/namespace-delivery` at `~/code/Kronuz/Detent-wt/namespace-design`; base `Detent:d4abd4a`. Revision: `design/namespace-rev` at `~/code/Kronuz/Detent-wt/namespace-rev`; base `Detent:633f6fb`.
+- State: designing (preliminary review folded in; ready for re-check of L3-L7). S1-S4 may start under L1 and L2.
 - Lead rulings (2026-11-03):
   - L1: one store directory. D8's per-namespace directories go; the startup barrier stays one directory sync on every platform, so S1 needs no primitive spanning directories. Completion's sync and order primitives accept read-only descriptors (ND-R6).
   - C2: S2 and S3 keep today's random file ids and single directory until L6 closes.
@@ -32,19 +32,20 @@
     - [ ] 3. A test proves a corrupted pack is still caught downstream (by S3's first touch or scrub), so dropping the re-validation leaves no silent gap.
   - All four: CI green on every job; a how-it-works note per changed mechanism (sync groups, trusted restart and scrub); measured rows only on main.
 - Done: the full draft of docs/design/namespace-delivery.md (D3-D12, strata fit with proposals P1-P3, reader alignment, T1-T8, W1-W12, alternatives, limits, Q1-Q5, S1-S9), owner rulings D1 and D2 kept verbatim; folds in the lead's three mid-task inputs (the owner's compacted blocks, the strata evaluation and its bar, the Xapiand lead's replication directions) (`Detent:bb1d31f`).
-- Doing: nothing; stopped at preliminary review.
+- Done (revision): preliminary review folded in on `design/namespace-rev`: L1 one directory (D8, D11); L3 D3 and T8 under Q5 (d), group count deferred to a new S10; L4 D6 (result records per entry, sliding window with a floor and range-bounded Replace, history on disk as strata proposal H1, merging P1 and P2; P3 out); L5 wire list W4-W8 (producers, one session endpoint per Q4 (c), range boundaries and live tail, incarnations, relays as readers); L6 file ids (layout version, profile and build ordinal in the id, `linkat` from a temporary name, verified reuse); L7 read-only adoption and uid handling (D9); ND-R8, ND-R9, ND-R11; Q1-Q5 record the lead calls; a "Review findings" table (commit in the log).
+- Doing: nothing; stopped at re-check.
 - Next:
-  1. Architect preliminary review; fold findings in by ID.
-  2. Owner answers to Q1-Q5; P1-P3 agreed or refused by strata's owner and the Xapiand lead.
-  3. S1-S4 can start once approved (no open question blocks them).
+  1. Architect re-check of L3-L7 (L1 and L2 are the lead's ruling and S2's criteria).
+  2. H1 to strata's owner and the Xapiand lead; owner confirms or reverses the lead calls on Q1-Q5.
+  3. reader.md adds the new-incarnation case (Reader alignment A4, W7).
+  4. Lead: S3 criterion 3 sets a 24 h scrub; ND-R8 estimates a one-hour pass at about 0.2% of a core. Tighten if wanted (D10).
 - Blocked on:
-  - S5 on Q5 and Q2 (owner, with the Xapiand lead) and P1 (consensus/journal owners).
-  - S6 on Q1 and Q4 (owner) and P2.
-  - S9 on Q3 (owner).
-  - P3 (compacted blocks) on whether Xapiand wants it; Detent-only otherwise, so out.
-- Findings folded in: none.
+  - S5.2 on H1 (strata's owner and the Xapiand lead).
+  - S6 on S5; Q1 and Q4 are lead calls the owner may reverse.
+  - S10 on strata Track C2 D12 built, the shared turn log, and T8 measured on Linux.
+- Findings folded in: ND-R1 to ND-R11, L1-L7, C1-C2 (design's "Review findings" table).
 - Design vs code: not applicable (nothing built).
-- Last verified: every file:line re-read on 2026-11-03 at `Detent:d4abd4a`, `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured.
+- Last verified: every new file:line re-read on 2026-11-03 at `Detent:d4abd4a` (`src/` unchanged at `Detent:633f6fb`), `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured.
 
 
 ## Lead calls under "move fast" (2026-11-03; the owner may reverse any)
@@ -57,3 +58,4 @@
 ## Log
 - 2026-11-03: Worktree created from `github/main` at `Detent:d4abd4a`. Read the brief, the startup attribution (`explore/agent-startup` at `Detent:e8d4e59`), the reader draft (`Detent:a3bb22f`), ACTORS, RELAY, AUTHORITY_EXPORT, DELIVERY_INTEGRATION_ARCHITECTURE, SCALE_TARGETS, STORAGE_BARRIER_ARCHITECTURE, the legacy inventory and the cited code.
 - 2026-11-03: First draft used state-plus-tombstones history; replaced by the namespace journal (D6) after the lead relayed the owner's one-replication-mechanism rule and the Xapiand lead's directions. Strata evaluated: replication shape adopted, core and segments not used for delivery or the agent store.
+- 2026-11-03: Revision on `design/namespace-rev` from `Detent:633f6fb`: folded L1-L7, ND-R1 to ND-R11 and C1-C2 into the design; status line and review table updated; the review file untouched.
