@@ -164,13 +164,13 @@
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "21809c7ae35d19ee7707692e2d8bae6d8a7a92a8",
+    "revision": "e2c64747dfe85635fa6b20e180266d22bf35fe5a",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "dbf753f60d1a74c9a036bf797406aeeb4b7998cc",
+    "revision": "c38f708aedcc447ad56c445c60c950e094813aa5",
     "source_subdir": "."
   },
   {
