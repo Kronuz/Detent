@@ -95,7 +95,7 @@ the tip in M2, never adopted on the old pins.
 | Candidate | Branch or commit | State on 2026-11-02 |
 | --- | --- | --- |
 | Reader metadata capsule | `track/reader-capsule`, `track/resource-capsule` (`Detent:30fee44`) | Correct; real 5M first-read acceptance fails in three of four rows |
-| Resource adoption | `.scratch/` worktrees | Functional gates pass; performance gate open |
+| Resource adoption | `track/resource-adoption` (`Detent:52246e2`; contains the `33d36bf` integration) | Functional gates pass; first-read gate open (196/200 baseline vs 195/200 migrated under 1 ms, unattributed) |
 | Shared HTTP clients | http qualification branch (`http:bd3e8e1`, not on http main) | Blocked on +13.2% caller CPU; built on the removed sync handler API |
 | Bounded MessagePack | `msgpack:f8975e3`, `Detent:4c37ca6` | Functional; production-path cost open |
 | Persistent map | `Kronuz/persistent-map` | Functional; update-cost outlier open |
@@ -111,4 +111,10 @@ Timing that decides a gate runs on the shared AWS benchmark account through `lea
 on-demand; one lease per session at a time; batches queued and run back to back in one lease, then
 `lease down`). c7a.4xlarge (x86) and c7g.4xlarge (arm64) serve A/B ratios; metal only for gate or
 published numbers, after messaging the Xapiand lead. The Linux x86-64 gate for http on task (T6/T7)
-runs there once task's C3 lands.
+runs there once task's C3 lands. Its threshold for a "considerable" cost gap is the lead's proposal
+(more than 5% server CPU per request or 10% p99, after optimization) unless the owner rules otherwise
+at the gate; the aim is to close the gap and keep `task::task` everywhere.
+
+Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
+Every 2-hour report states free space; contributors delete build directories when they finish, and
+the lead removes merged worktrees and their build directories at each landing.
