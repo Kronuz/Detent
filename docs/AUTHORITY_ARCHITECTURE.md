@@ -15,7 +15,7 @@ The component contains the authority state machine, owned durable Worker integra
 
 Producers register explicitly. Open compares the previous generation and binds a retry nonce; Close fences the current generation. Keep the bounded producer registry after closure. Transactions use contiguous sequence numbers, with a high-water mark and the last 256 fixed-size results in the current generation. Retained same-content retries return their original outcome; changed contents conflict. Evicted results return ResultUnavailable and never execute again. Older and closed generations stay fenced. There is no wall-clock expiry.
 
-Initial application limits are 500,000 live knobs, 4,096 namespace records, 1,024 producers, 128 operations per transaction, 256 KiB canonical requests, 16 KiB definitions and 256 overrides. Live logical bytes and maximum image bytes have separate limits. Empty namespaces retain their last revision and consume a namespace slot. Credentials remain outside images. Startup must fund the maximum application image and receiver-local bundle in the Store replacement pool.
+Initial application limits are 500,000 live knobs, 4,096 namespace records, 1,024 producers, 128 operations per transaction, 256 KiB canonical requests, 16 KiB definitions and 256 overrides. Live logical bytes and maximum image bytes have separate limits. Empty namespaces retain their last revision and consume a namespace slot. Credentials remain outside images. Startup must fund the maximum application image, the encoded retained suffix and a 4096-byte publication allowance in the Store replacement pool, and refuses to start otherwise, naming each term and the shortfall ([retained-state envelope](mechanisms/authority-retained-state.md)).
 
 The internal command codec uses a versioned canonical semantic representation, including authority identities and preconditions. Replicated batch framing (`DTABAT02`) binds all ten semantic limits before any command is applied, so differently configured replicas or pre-checkpoint recovery fail closed rather than changing acknowledged outcomes. Mutation order and override insertion order do not change SHA-256 identity. This internal codec does not select the public Protobuf/MessagePack/JSON transport comparison.
 
@@ -56,6 +56,20 @@ Create a configuration owned by the service user or root, with mode `0600` (or c
   }]
 }
 ```
+
+Optional objects tune the limits below; each rejects unknown, duplicate and malformed members, and an omitted member keeps its default. `application_limits` and `journal_limits` are in [runtime capacity profiles](CAPACITY_RUNTIME.md), `consensus_limits` in [authority transport](AUTHORITY_TRANSPORT.md). `retained_state` sets the local recovery and retained-allocation envelope:
+
+```json
+"retained_state": {
+  "command_bytes": 1048576,
+  "log_bytes": 67108864,
+  "log_entries": 65536,
+  "batch_bytes": 2097152,
+  "batch_entries": 256
+}
+```
+
+The values shown are the defaults. Each must be at least the operating limit it covers and at most the library ceiling; the envelope is not part of the replicated semantic profile, so it never changes peer admission or batch framing. The replacement pool (`journal_limits.replacement_bytes`, default 512 MiB) must fund the application image, the encoded `log_bytes`/`log_entries` suffix and 4096 bytes; the defaults need 336,931,316 bytes. A node whose pool falls short refuses to start with `authority runtime cannot fund configured limits: the replacement pool holds N bytes but the application image (A) + the encoded retained suffix (S) + the publication allowance (4096) need R, short by D bytes; raise journal_limits.replacement_bytes, or lower application_limits.image_bytes or retained_state.log_bytes and log_entries`.
 
 ```sh
 detentd --authority authority.json

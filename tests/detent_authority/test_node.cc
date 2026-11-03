@@ -96,7 +96,7 @@ std::uint64_t funding_requirement(const NodeOptions &profile) {
 }
 void retained_envelope_defaults() {
 	const kronuz::consensus::Limits defaults;
-	const auto &policy = NodeOptions{}.scheduling.retained;
+	const auto policy = NodeOptions{}.scheduling.retained;
 	assert(policy.command_bytes == defaults.command_bytes && policy.log_bytes == defaults.log_bytes &&
 		   policy.log_entries == defaults.log_entries && policy.batch_bytes == defaults.rpc_bytes &&
 		   policy.batch_entries == defaults.rpc_entries);

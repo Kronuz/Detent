@@ -6,8 +6,8 @@
 applies the group. The decoder takes a byte bound for the encoded group.
 
 The bound is `options_.scheduling.retained.command_bytes`, the `RetainedStatePolicy` command
-bound of the consensus worker. It defaults to the library ceiling (1 MiB), independent of
-`options_.consensus.command_bytes`. A node that lowers the operating command bound still reads
+bound of the consensus worker. It defaults to the operating default (1 MiB) and is set apart
+from `options_.consensus.command_bytes` ([retained-state envelope](authority-retained-state.md)). A node that lowers the operating command bound still reads
 groups its journal accepted under a larger bound; new proposals stay under the operating bound
 (`propose` and `propose_prepared` check `consensus.command_bytes`).
 

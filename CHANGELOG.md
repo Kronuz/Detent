@@ -6,6 +6,47 @@
 
 - Removed `tests/e2e`, the classic distributor process harness.
 
+### Authority: retained-state envelope and replacement-pool funding
+
+- New optional `retained_state` object in `authority.json`: `command_bytes`,
+  `log_bytes`, `log_entries`, `batch_bytes` and `batch_entries`. It bounds the
+  history a node recovers, receives and checkpoints, apart from the operating
+  limits. Omitted fields default to the operating defaults (1 MiB, 64 MiB,
+  65,536 entries, 2 MiB, 256 entries), so a configuration without the object
+  recovers exactly what it did. Each field is between 1 and the library
+  ceiling and at least the operating limit it covers. The values are local:
+  they are not part of the replicated profile, the journal, checkpoints or the
+  peer fingerprint.
+- Lowering `consensus_limits` no longer lowers the envelope. A node that lowers
+  its operating log bounds still recovers history written under the larger ones.
+- Startup funding now counts the retained suffix. The replacement pool
+  (`journal_limits.replacement_bytes`, 512 MiB by default) must hold the
+  application image, the encoded retained suffix and 4096 bytes. The default
+  needs 336,931,316 bytes. A node that falls short refuses to start with
+  `authority runtime cannot fund configured limits: the replacement pool holds
+  N bytes but the application image (A) + the encoded retained suffix (S) +
+  the publication allowance (4096) need R, short by D bytes; raise
+  journal_limits.replacement_bytes, or lower application_limits.image_bytes or
+  retained_state.log_bytes and log_entries`.
+
+Upgrade note. Three kinds of configuration are refused that were accepted
+before, and neither changes any data:
+
+1. A configuration that lowered `consensus_limits` and sized
+   `journal_limits.replacement_bytes` for the lowered log. The requirement now
+   uses the default envelope (64 MiB, 65,536 entries). Raise
+   `journal_limits.replacement_bytes` by the shortfall the error names, or set
+   `retained_state.log_bytes` and `log_entries` to the lowered values once the
+   store holds no larger history (recovery outside an explicit envelope fails
+   without truncating the store).
+2. A configuration with a `retained_state` field below its operating limit,
+   zero, or above the library ceiling. Remove the field or move it into range.
+3. Code that builds `NodeOptions` with operating `consensus` limits above the
+   defaults: set `scheduling.retained` to at least the same values.
+
+A configuration with the default `consensus_limits` and a replacement pool that
+funded the previous check is accepted unchanged: the requirement is the same.
+
 ### Dependency pins (cmake/dependencies.json)
 
 Moved to each library's main head, following the "Updating an application"

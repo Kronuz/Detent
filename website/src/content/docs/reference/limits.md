@@ -65,4 +65,6 @@ generations are sized dynamically.
 
 See the [Authority API limits](/Detent/reference/http-api/authority/#limits).
 Consensus limits default to 65,536 retained log entries and 64 MiB of retained
-log bytes, configurable downward through `consensus_limits`.
+log bytes, configurable downward through `consensus_limits`. The retained-state
+envelope that recovery and checkpoints use keeps its own limits, set by
+`retained_state`, and does not shrink with `consensus_limits`.

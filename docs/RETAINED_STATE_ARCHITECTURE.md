@@ -1,6 +1,6 @@
 # Validated Architectural Blueprint: retained-state resources
 
-**Status:** Shared library implementation published and qualified; Detent integration qualification and production adoption pending. This is the remaining consensus resource gate in [library adoption](LIBRARY_ADOPTION_ARCHITECTURE.md).
+**Status:** Shared library implementation published and qualified. Detent's configuration object, startup funding check and historical decoder bound are implemented on `phase/retained-state` (see [Detent integration](#detent-integration)); the library resource adoption and production qualification remain pending. This is the remaining consensus resource gate in [library adoption](LIBRARY_ADOPTION_ARCHITECTURE.md).
 
 Lowering operating limits must preserve valid historical state while keeping recovery, live admission, checkpoint funding and delivery inside one explicit resource envelope. Consensus uses one implementation and unchanged storage/wire bytes. Published corrections `c2cbf2e` and `ef30b4f` cover shared checkpoint-entry validation and delivery subtraction; they do not close this component.
 
@@ -50,7 +50,17 @@ Journal adds `Store::grow_replacement(id, minimum_bundle_cap)`, backed by one ad
 
 This closes the race where the retained suffix grows while application preparation runs. Funding failure or a backend artifact bound produces pressure before freezing, while protocol progress and cancellation remain available. Do not reserve the roughly 17 GB ceiling for every checkpoint. Arbitrarily undersized storage quotas cannot guarantee checkpoint completion.
 
-Detent retains its configured `maximum_size(o.consensus)` funding check and supplies one stable funded retained-state envelope after qualifying library defaults. This restores an allocation/reservation contract; it does not establish a whole-process RSS ceiling.
+Detent supplies one stable funded retained-state envelope and checks it at startup ([Detent integration](#detent-integration)). This restores an allocation/reservation contract; it does not establish a whole-process RSS ceiling.
+
+## Detent integration
+
+`NodeOptions::scheduling.retained` carries the `RetainedStatePolicy`. Its default is the operating default of each bound (command 1 MiB, log 64 MiB and 65,536 entries, batch 2 MiB and 256 entries), not the library ceilings: the ceilings imply a 16 GiB suffix that no replacement pool funds. The default is independent of `consensus_limits`, which can only lower the operating log bounds, so every journal the configuration language can write fits the default envelope. Lowering `consensus_limits` leaves recovery, delivery and checkpoint decoding at the envelope.
+
+The optional `retained_state` object in `authority.json` sets `command_bytes`, `log_bytes`, `log_entries`, `batch_bytes` and `batch_entries`. Each is an unsigned integer between 1 and the library ceiling and at least the operating limit it covers; a smaller envelope than the stored history refuses recovery without truncating the store.
+
+Startup funds the checkpoint of a full envelope. The replacement pool must hold the application image, the encoded bound of the retained suffix (`checkpoint_detail::encoded_bound({log_entries, log_bytes})`) and the 4096-byte publication allowance, with checked arithmetic and before any journal mutation. Because validation keeps the envelope at or above the operating limits, this requirement covers the operating suffix, so Detent no longer checks `maximum_size(o.consensus)` separately. The default needs 336,931,316 bytes with the default 256 MiB application image, inside the default 512 MiB replacement pool. The check provisions capacity; it does not reserve the envelope. Captures still reserve operating capacity and grow the reservation before freezing a larger suffix.
+
+The envelope is local resource configuration. It adds no bytes to batches, images, journal records or checkpoints, and it is not in the replicated semantic profile: `semantic_profile`, the `DTABAT02` batch header and the peer fingerprint carry the application limits and the operating consensus limits only. The [mechanism note](mechanisms/authority-retained-state.md) lists the checks and their tests.
 
 ## Qualification
 

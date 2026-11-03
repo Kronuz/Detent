@@ -38,8 +38,19 @@ TLS, storage and migration. For a walkthrough, start with the
 | `publisher_bind` | no | Publisher listen address, loopback by default |
 | `publisher_name` | no | Certificate name `--status` verifies, `localhost` by default |
 | `consensus_limits` | no | `log_entries` (64–65,536) and `log_bytes` (2–64 MiB) |
+| `retained_state` | no | Local recovery envelope: `command_bytes` (1 MiB), `log_bytes` (64 MiB), `log_entries` (65,536), `batch_bytes` (2 MiB), `batch_entries` (256). Each is at least its operating limit; see below |
+| `journal_limits` | no | `hard_bytes`, `hard_entries`, `control_bytes`, `control_entries`, `replacement_bytes` (512 MiB), `replacement_entries` |
 | `delivery_limits` | no | `heap_bytes` (default 128 MiB) and `wire_bytes` (default 256 MiB) |
 | `storage_backend` | no | `auto`, or `native`/`fallback` on Linux |
+
+The replacement pool (`journal_limits.replacement_bytes`) must hold the
+application image, the encoded retained log (`retained_state.log_bytes` and
+`log_entries`) and 4096 bytes: 336,931,316 bytes with the defaults. A node that
+falls short refuses to start and names each term and the shortfall, for example
+`the replacement pool holds 72690163 bytes but the application image (4194304)
++ the encoded retained suffix (68491764) + the publication allowance (4096)
+need 72690164, short by 1 byte`. Lowering `consensus_limits` does not lower
+this requirement.
 
 Each credential:
 
