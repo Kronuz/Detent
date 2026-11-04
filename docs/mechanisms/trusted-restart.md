@@ -1,8 +1,8 @@
-> Status: DRAFT (2026-11-03) How a cold start trusts a prepared generation, checks pages on first touch and scrubs packs. Workstream: namespace-s3. Design: [namespace-delivery.md](../design/namespace-delivery.md) D10. Written from the code on `namespace/s3`; not yet reviewed.
+> Status: DRAFT (2026-11-04) How a cold start trusts a prepared generation, checks pages on first touch, scrubs packs and repairs a damaged generation. Workstreams: namespace-s3, namespace-s3b. Design: [namespace-delivery.md](../design/namespace-delivery.md) D10. Written from the code on `namespace/s3b`; not yet reviewed.
 
 # Trusted restart, first touch and the scrub
 
-A generation is verified once, by the build that writes it. A cold start (no prior generation, no admission) over a generation that has a live record maps its packs without reading or hashing them. Every later read of a page from such a pack checks the page against its parent's reference the first time. A paced scrub hashes whole packs against their owner records. Code: `src/detent_local/trusted_restart.cc`, `live_record.cc`, `verified_pages.hh`, `paged_navigation.hh`, `pack_scrub.cc`; wired in `generation.cc` and `paged_publication_artifacts.cc`.
+A generation is verified once, by the build that writes it. A cold start (no prior generation, no admission) over a generation that has a live record maps its packs without reading or hashing them. Every later read of a page from such a pack checks the page against its parent's reference the first time. A paced scrub hashes whole pack files against their owner records, and a damaged generation is replaced by a repair publication. Code: `src/detent_local/trusted_restart.cc`, `live_record.cc`, `verified_pages.hh`, `paged_navigation.hh`, `pack_scrub.cc`; wired in `generation.cc` and `paged_publication_artifacts.cc`.
 
 ```text
 build (publication)                          cold start (RecoveryEngine::recover)
@@ -73,26 +73,52 @@ A successor's warm validation reads only changed pages of its base, through the 
 
 ## The scrub
 
-`PackScrub` (`pack_scrub.hh`) takes the registry's inputs (owner record checksum and mapped bytes per pack) and hashes them in order at `bytes_per_second`: a credit of `rate * elapsed` bytes accrues (capped at one second, so a stalled caller is not repaid in a burst), the hash advances in slices up to the credit, and a pack whose SHA-256 differs from its owner record is listed in `failures()`. A pass over B bytes takes B / rate seconds. The caller picks the clock and the cadence; the class starts no thread. `test_testing_pack_scrub` checks the pace against a fake clock exactly and against the wall clock within 10%.
+`PackScrub` (`pack_scrub.hh`) takes the registry's inputs (owner record checksum, length and verified-page bits per pack) and the store directory, and hashes the pack files in order at `bytes_per_second`: a credit of `rate * elapsed` bytes accrues (capped at one second, so a stalled caller is not repaid in a burst), the hash advances in slices up to the credit, and a pack whose SHA-256 differs from its owner record is listed in `failures()`. A pass over B bytes takes B / rate seconds. The caller picks the clock and the cadence; the class starts no thread. `test_testing_pack_scrub` checks the pace against a fake clock exactly and against the wall clock within 10%.
+
+**It reads the file, not the mapping.** Each pack is opened through the directory (`openat`, `O_NOFOLLOW`, `O_NONBLOCK`), its length is compared with the owner record's, and it is read with `pread` in slices: `F_NOCACHE` on macOS keeps the pass out of the unified cache, and `posix_fadvise(POSIX_FADV_DONTNEED)` after each slice does the same on Linux. The agent's mapping is `MAP_PRIVATE`, so on macOS it never shows a later write, and neither platform re-reads media for pages the mapping keeps resident; the file read sees what the kernel serves for the file now. A pack that is missing, a directory, resized or unreadable is reported like one whose hash differs. `test_testing_trusted_restart scrub-disk` rewrites 40 bytes after the packs were mapped (the security reviewer's probe) and the scrub reports exactly those packs.
+
+**A report withdraws the verified pages.** A pack the scrub reports clears its `VerifiedPages` bits (`SegmentInput::pages`), so the next read of each page checks it again against its parent reference and fails with `SourceFailure` if the page is damaged; the packs nobody damaged keep their bits. A first touch racing the clear can leave its own page set; the next pass reports the pack again.
 
 The scrub reports at pack granularity.
 
-**In the agent.** `Coordinator::Impl::scrub_loop` is a third sibling task beside the disk and candidate loops (`task::when_all`), on the owner executor with its own timer, no thread. Every 20 ms it pins the selected generation's registry (`ScrubSource`, a retained handle), starts a pass when the generation changes or the last pass ends, and steps the scrub by at most 2 MiB. The loop reads `base->generation` only after the recovery worker has set `ready`. A pack that differs from its owner record sets `CoordinatorStatus::scrub` (`passes`, `bytes_hashed`, `damaged_packs`, `source_failure`), counts one coordinator failure with a scrub error, and the agent's monitor logs it as a warning. `scrub_bytes_per_second` (managed configuration, default 524,288, 0 disables) sets the pace. What a damaged pack triggers beyond that report is open (ledger, "Blocked on").
+**In the agent.** `Coordinator::Impl::scrub_loop` is a third sibling task beside the disk and candidate loops (`task::when_all`), on the owner executor with its own timer, no thread. Every 20 ms it pins the selected generation's registry (`ScrubSource`, a retained handle), starts a pass when the generation changes or the last pass ends, and steps the scrub by at most 2 MiB. The loop reads `base->generation` only after the recovery worker has set `ready`. A pack that differs from its owner record sets `CoordinatorStatus::scrub` (`passes`, `bytes_hashed`, `damaged_packs`, `source_failure`), counts one coordinator failure with a scrub error, requests a repair (below), and the agent's monitor logs it as a warning. `scrub_bytes_per_second` (managed configuration, default 524,288, 0 disables) sets the pace.
 
-## Under option (a): what an operator sees
+## Repair of a damaged pack
 
-Until a repair is built (ledger, "Blocked on"), the damaged-pack path is: the scrub warns (agent log; the relay's `/v1/health` bundle fields `scrub_damaged_packs` and `scrub_source_failure`), reads of damaged pages fail with `SourceFailure`, and the operator bootstraps a fresh store. Between the report and the bootstrap:
+A store has one generation today, so "a namespace fails alone" means the coordinator keeps running and readers keep serving what they can read; a damaged page fails the reads that reach it with `SourceFailure` and nothing else. Code: `coordinator.cc` (`request_repair`, the candidate loop, `bind_base`), `paged_snapshot_plan.cc`, `paged_plan.cc`, `disk_store.cc` (`begin_paged`, `capture`), `paged_segment_collection.cc`, `bundle.cc`.
 
-- **A delta whose path crosses a damaged page fails every round.** The coordinator counts the failure and retries the same base; nothing sets `force_snapshot` for a first-touch failure, so every later delta that changes a key under that page fails too, and the agent stays at its old revision for every namespace (one generation today) while readers keep serving that valid but stale revision.
-- **A compaction that picks a damaged pack fails each `compaction_interval`** and costs that round.
-- **A Replace at a new cursor heals it by accident.** The publication is durable and clean (a snapshot shares no pack with its base), the recovery after it reads the damaged prior and fails first touch, `settle_failure` fences the store, and the restart trusts the clean generation.
+```text
+scrub report ----+                                       +--> Replace at the selected cursor or later
+first-touch      +--> request_repair --> pending ------> | force_snapshot, session reopened (poll: no base)
+failure (update) +                                       +--> PagedSnapshotPlanBuilder(repair): intent Repair
+                                                              begin_paged --> fresh packs, selected replaced
+   recovery: no prior (admission and capture) --> full walk of the new generation
+   bind_base: pending off, completed + 1, request_collection --> collector removes the damaged packs
+```
+
+**Trigger.** `Coordinator::Impl::request_repair` sets `diagnostic.repair.pending` (`CoordinatorStatus::repair`: `requested`, `completed`, `pending`). Two things call it: the scrub loop when a completed pass found a damaged pack (it also ends a network wait in progress, `repair_woke`, which is not counted as a failure), and the candidate loop when building an update throws `ReadSourceFailure` (a first-touch failure in a delta, progress or compaction plan). While a repair is pending the round skips compaction, sets `force_snapshot`, closes a session that was not opened for a Replace and opens the next one with `force_snapshot`, and in poll mode sends no base. The state is the coordinator's, not durable: a restart during a pending repair finds the damage again at the first scrub pass.
+
+**Build.** The upstream sends a snapshot. When its cursor is the selected one the repair is in place: the relay sink's staging is skipped, because the cache already holds the revision. `build_paged` passes `repair` to `PagedSnapshotPlanBuilder`, which picks intent `Repair` when the target has the base's identity, in place of `Maintenance` (the equality check against the base, which would throw on a damaged page or find nothing changed and publish nothing). A `Repair` plan needs the base's identity and profile and a revision at or after the base's (`PagedPlanState`); `begin_paged` accepts it at an unchanged cursor. A snapshot shares no pack with its base, so the generation is built from the incoming snapshot alone and reads nothing of the damaged one; `test_testing_trusted_restart heal` checks that every pack of the repaired generation is new.
+
+**Recovery without the prior.** The recovery after a publication is warm by default: it validates the new generation against the prior (`core.verified_paged`), reading pages of the base. For a `Repair` plan `MappedRecoveryAdmission::populate` gets no prior and `ManagedRecovery::capture` hands the recovery none while a repair publication is pending, so the admission is cold and the engine walks and hashes the whole new generation (`RecoveryEngine::recover`, the non-warm path). A first-touch failure on the damaged base cannot occur there. `bind_base` then confirms the generation, clears `pending`, counts `completed`, calls `PublicationSink::selected_repaired` (the relay `Bundle` swaps its head and keeps its cache) when the repair was in place, and asks the store for a collection.
+
+**Collection.** The collector proves a candidate pack by reading it and comparing its SHA-256 with the owner record; a damaged pack failed that proof and was kept forever. `PagedSegmentRead` takes `tolerate_mismatch` for the collector's candidates only: the owner record, the file's ownership, mode, link count, length and identity are proved as before, and a payload whose hash differs is reported by `damaged()` and removed. The dependency walk still refuses a mismatching pack. A reader that still holds a lease on the damaged generation keeps it and its packs until it lets go; the collection that was requested then has already run, so the next one (disk pressure, or the host) removes them.
+
+**What a reader sees.** The agent never fences for this. A reader process maps `selected` itself: before the repair it serves what it can read and gets `SourceFailure` for the damaged pages; after the repair its next open maps the new generation. `test_delivery_repair heal` runs a reader that mapped the damaged generation through the whole repair: no read returned a wrong value and none that worked stopped working.
+
+**Limits.**
+
+- A forward Replace that arrives with no repair pending (history lost) is a snapshot too, and its recovery still validates warm against a prior that may be damaged and not yet reported: that recovery fails first touch and `settle_failure` fences the store. The restart trusts the published generation, which is clean.
+- A page that a reader verified before it was damaged is served from that reader's mapping until the reader remaps; the agent's own bits are withdrawn when the scrub reports.
+- The relay's snapshot stage reads the head; if the head is damaged that stage fails first touch and is not yet a repair trigger.
+- S7 adds ordinal r + 1 to the generation id; the coordinator state above stays.
 
 ## Limits
 
 - Corruption nobody reads stays undetected until the scrub reaches it (design Limit 1). A page verified before it was damaged stays verified for the mapping's life.
 - Padding between pages is covered only by the scrub (no page digest includes it).
 - Trust ends at the live counts (above) and at `.owner` records, which a writer of the store can forge as it can forge any file there.
-- Only the cold start with no admission trusts; the recovery that follows a publication walks the new generation, or validates it warm after a delta (the changed pages only, carrying the prior's mappings and their first-touch bits), exactly as before S3 (design S4). A refused update can leave the new revision selected: a republication builds from the incoming snapshot, then the recovery after it fails first touch on a damaged base page with a source failure (`test_testing_trusted_restart_t5`).
+- Only the cold start with no admission trusts; the recovery that follows a publication walks the new generation, or validates it warm after a delta (the changed pages only, carrying the prior's mappings and their first-touch bits), exactly as before S3 (design S4). A refused update can leave the new revision selected: a republication builds from the incoming snapshot, then the recovery after it fails first touch on a damaged base page with a source failure (`test_testing_trusted_restart_t5`); a repair publishes the same way but recovers without the base, so it does not.
 
 ## Design vs code
 

@@ -119,15 +119,15 @@ struct Coordinator::Impl {
 		if (options.completion_port && !options.completion_port->uses(driver))
 			throw std::invalid_argument("coordinator completion port driver mismatch");
 	}
-	// Asks for a Replace and a repair publication of the selected generation; a pending network wait ends so
-	// the loop can ask. Idempotent while pending. The scrub passes wake, a first-touch failure does not.
+	// Asks for a Replace and a repair publication of the selected generation; a network wait in progress ends so
+	// the loop can ask. Idempotent while pending, so later reports do not cancel the Replace being received.
 	void request_repair(bool wake) noexcept {
 		if (!paged_writer)
 			return;
-		if (!diagnostic.repair.pending) {
-			diagnostic.repair.pending = true;
-			++diagnostic.repair.requested;
-		}
+		if (diagnostic.repair.pending)
+			return;
+		diagnostic.repair.pending = true;
+		++diagnostic.repair.requested;
 		if (wake && diagnostic.phase == CoordinatorPhase::Receiving) {
 			repair_woke = true;
 			network_cancel.request();
@@ -1317,6 +1317,9 @@ void detail::CoordinatorAccess::fail_next_compaction_admission(Coordinator &coor
 void detail::CoordinatorAccess::request_compaction(Coordinator &coordinator) {
 	coordinator.impl_->compaction_requested = true;
 	coordinator.impl_->notify_candidate();
+}
+void detail::CoordinatorAccess::request_repair(Coordinator &coordinator) {
+	coordinator.impl_->request_repair(true);
 }
 std::uint64_t detail::CoordinatorAccess::completed_compactions(const Coordinator &coordinator) {
 	return coordinator.impl_->completed_compactions;

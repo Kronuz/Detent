@@ -16,9 +16,29 @@
 - A paced scrub task hashes the selected generation's packs against their owner records at
   `scrub_bytes_per_second` (managed configuration; default 524,288; 0 disables). A damaged pack
   is reported in the coordinator status, the agent's log and the relay's `/v1/health` bundles
-  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`). Repair is not built.
+  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`).
 - Removed the coordinator's "republish a missing `.read`" path and `PagedPlanBuilder::Republish`;
   `migrate_flat_head` now acts only on a flat (layout 1) base.
+
+### Repair of a damaged generation (namespace S3b)
+
+- A scrub report of a damaged pack, or a first-touch failure in the update path, makes the
+  coordinator ask upstream for a Replace and publish it as a repair: a fresh generation at the
+  selected cursor or later, built without the equality check (so unchanged content still
+  publishes), recovered without reading the damaged generation, and sharing no pack with it.
+  Reads of the damaged pages fail with `SourceFailure` until it is selected; nothing is fenced.
+  The agent no longer needs a bootstrap to recover from a damaged pack, and a delta that crosses a
+  damaged page no longer fails every round. `CoordinatorStatus::repair` reports `requested`,
+  `completed` and `pending`.
+- The collector removes a pack whose checksum differs from its owner record once no generation
+  reaches it (the owner record, the file's ownership and its identity are still proved); the
+  coordinator asks for a collection when a repair completes.
+- The scrub hashes the pack files (pread, uncached: `F_NOCACHE` on macOS, `posix_fadvise` on
+  Linux) instead of the agent's private mapping, so damage that lands after the packs were mapped
+  is found; a pack that is missing, resized or unreadable is reported too. A mismatch withdraws
+  the pack's verified-page bits, so later reads verify their pages again.
+- The relay's `Bundle` takes a repair at its own cursor (`PublicationSink::selected_repaired`)
+  without rebuilding its cache.
 
 ### Legacy removal (wave 2)
 
