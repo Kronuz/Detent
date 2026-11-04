@@ -94,6 +94,15 @@ int positive_int(const std::string& value, int maximum, const std::string& field
 	return number;
 }
 
+int port_number(const std::string& value) {
+	int number = 0;
+	auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), number);
+	if (error != std::errc{} || end != value.data() + value.size() || number < 0 || number > 65535) {
+		throw std::runtime_error("port must be an integer between 0 and 65535 (0 binds a free port)");
+	}
+	return number;
+}
+
 double positive_seconds(const std::string& value) {
 	std::size_t used = 0;
 	auto seconds = std::stod(value, &used);
@@ -112,7 +121,7 @@ int run(const std::vector<std::string>& input_args) {
 		{"verbosity", {"--verbosity", NonnegativeInt}},
 		{"color", {"--color", String}},
 		{"runtime_dir", {"--runtime-dir", Path}},
-		{"port", {"--port", PositiveInt}},
+		{"port", {"--port", NonnegativeInt}},
 		{"persist_path", {"--persist-path", Path}},
 		{"authority", {"--authority", Path}},
 		{"reactors", {"--reactors", PositiveInt}},
@@ -174,7 +183,7 @@ int run(const std::vector<std::string>& input_args) {
 	if (settings.contains("--authority") && (options.cluster || settings.contains("--persist-path"))) { throw std::runtime_error("authority mode uses its separate directory and cannot join legacy multicast"); }
 	if (options.cluster) options.cluster->raft_config = raft_timing;
 	auto port = static_cast<unsigned short>(settings.contains("--port")
-		? positive_int(settings.at("--port"), 65535, "port") : detent_cli::kDefaultPort);
+		? port_number(settings.at("--port")) : detent_cli::kDefaultPort);
 	auto reactors = settings.contains("--reactors") ? positive_int(settings.at("--reactors"), 65535, "reactors") : 4;
 	if (settings.contains("--persist-path")) {
 		options.persist_path = settings.at("--persist-path");
@@ -323,8 +332,8 @@ int run(const std::vector<std::string>& input_args) {
 		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = authority_bind; service.set_bind_options(bind); }
 		service.start(port);
 		ready();
-		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", authority_bind, port); }
-		else { L_INFO("detentd: listening on :{}, persisting to {}", port, options.persist_path.string()); }
+		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port()); }
+		else { L_INFO("detentd: listening on :{}, persisting to {}", service.port(), options.persist_path.string()); }
 
 		while (!g_stop.load()) {
 			std::this_thread::sleep_for(std::chrono::milliseconds{200});

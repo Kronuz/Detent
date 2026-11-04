@@ -321,7 +321,7 @@ static int run_host_owned(const std::filesystem::path &configuration, bool syste
 				ready();
 				announced = true;
 				L_INFO("detent-relay: {} durable bundles ready on {}:{}", records.size(),
-					   options.endpoint.address().to_string(), options.endpoint.port());
+					   options.endpoint.address().to_string(), listener.port());
 			}
 			if (now >= health_due) {
 				try {

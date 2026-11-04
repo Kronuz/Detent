@@ -44,11 +44,10 @@ inline task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<r::
     const std::array bindings{r::SessionBinding{bundle, credential.authorization.principal, target}};
     auto runtime = std::make_shared<r::ServiceRuntime>(accounts, registry, bindings);
     r::Service service(runtime);
-    asio::ip::tcp::acceptor probe(executor, {asio::ip::address_v4::loopback(), 0});
-    const auto endpoint = probe.local_endpoint(); probe.close();
     http::HttpAsioService listener(service, 2, 32, http::tls_connection_factory(server_tls), 32);
     http::AsioBindOptions bind; bind.address = "127.0.0.1"; listener.set_bind_options(bind);
-    listener.start(endpoint.port());
+    listener.start(0);
+    const asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), listener.port()};
     t::ClientOptions options;
     options.scheduler = &scheduler;
     options.endpoint = endpoint; options.hostname = "localhost"; options.token = token;

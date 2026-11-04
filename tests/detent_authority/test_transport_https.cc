@@ -49,14 +49,12 @@ int main(int argc, char **argv) {
 		*context, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
 		reactor::tls::Role::Server);
 	asio::io_context io;
-	asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
-	auto endpoint = reservation.local_endpoint();
-	reservation.close();
 	http::HttpAsioService service(app, 1, 16, http::tls_connection_factory(context, 100ms), 4);
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	service.set_bind_options(bind);
-	service.start(endpoint.port());
+	service.start(0);
+	const asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), service.port()};
 	asio::ssl::context client_context(asio::ssl::context::tls);
 	reactor::tls::configure(client_context, {"", "", (cert / "ca.pem").string()},
 									 reactor::tls::Role::Client);
@@ -134,12 +132,10 @@ int main(int argc, char **argv) {
 	char unexpected_tls_byte = 0;
 	auto expired_bytes = expired_client.read_some(asio::buffer(&unexpected_tls_byte, 1), error);
 	assert(expired_bytes == 0 && error && "queue delay expires before TLS handshake allocation or output");
-	asio::ip::tcp::acceptor capped_reservation(io, {asio::ip::address_v4::loopback(), 0});
-	const auto capped_endpoint = capped_reservation.local_endpoint();
-	capped_reservation.close();
 	http::HttpAsioService capped(app, 1, 16, http::tls_connection_factory(context, 100ms, 1, 1));
 	capped.set_bind_options(bind);
-	capped.start(capped_endpoint.port());
+	capped.start(0);
+	const asio::ip::tcp::endpoint capped_endpoint{asio::ip::address_v4::loopback(), capped.port()};
 	asio::ssl::stream<asio::ip::tcp::socket> held(io, client_context);
 	reactor::tls::bind_hostname(held.native_handle(), "localhost");
 	held.next_layer().connect(capped_endpoint, error);
@@ -164,13 +160,11 @@ int main(int argc, char **argv) {
 	}
 	assert(refunded);
 	capped.stop();
-	asio::ip::tcp::acceptor timed_reservation(io, {asio::ip::address_v4::loopback(), 0});
-	const auto timed_endpoint = timed_reservation.local_endpoint();
-	timed_reservation.close();
 	http::HttpAsioService timed(app, 1, 16, http::tls_connection_factory(context, 100ms), 1);
 	timed.set_request_timeout(40ms);
 	timed.set_bind_options(bind);
-	timed.start(timed_endpoint.port());
+	timed.start(0);
+	const asio::ip::tcp::endpoint timed_endpoint{asio::ip::address_v4::loopback(), timed.port()};
 	for (const auto &prefix : std::vector<std::string>{
 			 "", "GET /fast HTTP/1.1\r\nH",
 			 "POST /fast HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1000\r\n\r\nx"}) {

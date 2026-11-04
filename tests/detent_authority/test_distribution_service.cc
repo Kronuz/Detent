@@ -144,14 +144,12 @@ int main(int argc, char **argv) {
 				*tls, {(cert / "one.pem").string(), (cert / "one.key").string(), (cert / "ca.pem").string()},
 				reactor::tls::Role::Server);
 			asio::io_context io;
-			asio::ip::tcp::acceptor reservation(io, {asio::ip::address_v4::loopback(), 0});
-			const auto endpoint = reservation.local_endpoint();
-			reservation.close();
 			http::HttpAsioService server(authority, 1, 4, http::tls_connection_factory(tls, 2s), 4);
 			http::AsioBindOptions bind;
 			bind.address = "127.0.0.1";
 			server.set_bind_options(bind);
-			server.start(endpoint.port());
+			server.start(0);
+	const asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), server.port()};
 			auto call = [&](std::string_view path, const std::string &fields) {
 				return request(endpoint, cert, path, "{" + identity + fields + "}", token);
 			};

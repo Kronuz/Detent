@@ -216,15 +216,13 @@ task::task<void> qualify(task::asio_scheduler &scheduler, std::shared_ptr<r::Bun
 	auto runtime = std::allocate_shared<r::ServiceRuntime>(
 		d::StorageAllocator<r::ServiceRuntime>(accounts.metadata), accounts, registry, bindings);
 	r::Service service(runtime);
-	asio::ip::tcp::acceptor probe(executor, {asio::ip::address_v4::loopback(), 0});
-	const auto endpoint = probe.local_endpoint();
-	probe.close();
 	http::HttpAsioService listener(service, 2, 1024, http::tls_connection_factory(server_tls), 1024);
 	http::AsioBindOptions bind;
 	bind.address = "127.0.0.1";
 	listener.set_bind_options(bind);
 	listener.set_request_timeout(std::chrono::seconds(65));
-	listener.start(endpoint.port());
+	listener.start(0);
+	const asio::ip::tcp::endpoint endpoint{asio::ip::address_v4::loopback(), listener.port()};
 	class SHA256 hash;
 	std::uint64_t length = 0;
 	for (std::size_t ordinal = 0; ordinal < expected->fragments(); ++ordinal) {

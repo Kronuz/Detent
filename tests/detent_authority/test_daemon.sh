@@ -10,8 +10,9 @@ cleanup() {
     rm -rf "$root"
 }
 trap cleanup EXIT
-# The OS chooses an available test port; this is unrelated to the default port.
-port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
+source "$(dirname "$0")/../support/bound_port.sh"
+# The daemon binds port 0 and reports its port; a restart reuses it.
+port=0
 identity='"cluster":"63000000000000000000000000000000","group":"67000000000000000000000000000000","epoch":"65000000000000000000000000000000"'
 token=authority-test-token-000000000000000000000000
 printf '{%s,"directory":"data","credentials":[{"token":"%s","producer":"writer","namespaces":["ns"]}]}\n' "$identity" "$token" > "$root/config.json"
@@ -19,6 +20,7 @@ chmod 600 "$root/config.json"
 start() {
     "$binary" --authority "$root/config.json" --port "$port" --runtime-dir "$root/runtime" --reactors 1 > "$root/daemon.log" 2>&1 &
     pid=$!
+    port=$(bound_port "$root/daemon.log" "$pid")
     for ((i=0;i<200;i++)); do
         if curl -fsS --max-time 1 "http://127.0.0.1:$port/v1/health" > "$root/health.json" 2>/dev/null; then return; fi
         if ! kill -0 "$pid" 2>/dev/null; then cat "$root/daemon.log"; return 1; fi

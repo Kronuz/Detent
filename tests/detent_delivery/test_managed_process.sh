@@ -1,21 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# A listener port released after selection can be taken by a parallel test. Rerun the whole
-# fixture with fresh ports (three attempts) only when a daemon reports a bind collision.
-if [[ -z "${DETENT_FIXTURE_ATTEMPT:-}" ]]; then
-    mkdir -p .scratch
-    errors=$(mktemp "$PWD/.scratch/managed-attempt.XXXXXX")
-    for attempt in 1 2 3; do
-        status=0
-        DETENT_FIXTURE_ATTEMPT=$attempt bash "$0" "$@" 2> "$errors" || status=$?
-        cat "$errors" >&2
-        if [[ "$status" == 0 ]]; then rm -f "$errors"; exit 0; fi
-        if (( attempt == 3 )) || ! grep -q 'bind: Address already in use' "$errors"; then rm -f "$errors"; exit "$status"; fi
-        retained=$(sed -n 's/^Failed managed fixture retained at //p' "$errors")
-        if [[ -n "$retained" ]]; then rm -rf "$retained"; fi
-        printf 'Retrying managed fixture with fresh ports after a bind collision\n' >&2
-    done
-fi
+source "$(dirname "$0")/../support/bound_port.sh"
 trap 'printf "Managed fixture failed at line %s\n" "$LINENO" >&2' ERR
 authority=$1
 agent=$2
@@ -69,23 +54,21 @@ wait_relay_ready() {
     cat "$root/relay-status.json" "$root/relay-status-error.txt" "$1" >&2
     return 1
 }
-port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
 identity='"cluster":"63000000000000000000000000000000","group":"67000000000000000000000000000000","epoch":"65000000000000000000000000000000"'
 writer_token=managed-writer-test-000000000000000000000000
 reader_token=managed-reader-test-000000000000000000000000
 printf '{%s,"directory":"authority-data","publisher_tls":{"certificate":"%s/one.pem","key":"%s/one.key","ca":"%s/ca.pem"},"credentials":[{"token":"%s","producer":"writer","namespaces":["ns","other"]},{"token":"%s","producer":"agent","principal":"agent-reader","publish":false,"namespaces":["ns"]}]}\n' \
     "$identity" "$certificates" "$certificates" "$certificates" "$writer_token" "$reader_token" > "$root/authority.json"
-printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":%s,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s","image_format":"%s"}\n' \
-    "$identity" "$reader_token" "$port" "$certificates" "$delivery_mode" "$image_format" > "$root/managed.json"
+printf '{%s,"principal":"agent-reader","namespaces":["ns"],"token":"%s","port":0,"ca":"%s/ca.pem","poll_interval_ms":10,"delivery_mode":"%s","image_format":"%s"}\n' \
+    "$identity" "$reader_token" "$certificates" "$delivery_mode" "$image_format" > "$root/managed.json"
 chmod 600 "$root/authority.json" "$root/managed.json"
 if [[ -n "$relay" ]]; then
-    relay_port=$("$interpreter" -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')
     relay_token=managed-relay-test-000000000000000000000000
     cp "$root/managed.json" "$root/upstream.json"
-    printf '{"connections":64,"service_limits":{"opens":4,"polls":16,"closes":4,"sessions":64,"per_principal":64,"bootstrap_transfers":12,"catchup_transfers":4},"port":%s,"certificate":"%s/one.pem","private_key":"%s/one.key","ca":"%s/ca.pem","bundles":[{"source":"upstream.json","directory":"relay-generations","mode":"fresh"}],"credentials":[{"token":"%s","principal":"agent-reader","bundles":[0]}]}\n' \
-        "$relay_port" "$certificates" "$certificates" "$certificates" "$relay_token" > "$root/relay.json"
+    printf '{"connections":64,"service_limits":{"opens":4,"polls":16,"closes":4,"sessions":64,"per_principal":64,"bootstrap_transfers":12,"catchup_transfers":4},"port":0,"certificate":"%s/one.pem","private_key":"%s/one.key","ca":"%s/ca.pem","bundles":[{"source":"upstream.json","directory":"relay-generations","mode":"fresh"}],"credentials":[{"token":"%s","principal":"agent-reader","bundles":[0]}]}\n' \
+        "$certificates" "$certificates" "$certificates" "$relay_token" > "$root/relay.json"
     chmod 600 "$root/relay.json"
-    "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["port"]=int(sys.argv[2]); data["token"]=sys.argv[3]; open(p,"w").write(json.dumps(data))' "$root/managed.json" "$relay_port" "$relay_token"
+    "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["token"]=sys.argv[2]; open(p,"w").write(json.dumps(data))' "$root/managed.json" "$relay_token"
     if [[ "$isolated" == isolated ]]; then
         cp "$root/upstream.json" "$root/upstream-empty.json"
         "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["namespaces"]=[]; open(p,"w").write(json.dumps(data))' "$root/upstream-empty.json"
@@ -126,12 +109,23 @@ if [[ "$isolated" == isolated ]]; then
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data.update(managed_path="managed-empty.json",generation_dir="generations-empty",runtime_dir="run-empty",generation_scope=sys.argv[2]); open(p,"w").write(json.dumps(data))' "$root/agent-empty.json" "$empty_scope"
 fi
 printf '{"schema_version":1,"knobs":{"ns:feature":{"type":"int","default":7}}}\n' > "$root/defaults.json"
+set_port() {
+    local value=$1 name
+    shift
+    for name in "$@"; do
+        if [[ -f "$root/$name" ]]; then
+            "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["port"]=int(sys.argv[2]); open(p,"w").write(json.dumps(data))' "$root/$name" "$value"
+        fi
+    done
+}
 post() {
     curl -fsS --max-time 10 --cacert "$certificates/ca.pem" --resolve "localhost:$port:127.0.0.1" \
         -H "Authorization: Bearer $writer_token" -H 'Content-Type: application/json' --data "$2" "https://localhost:$port$1"
 }
-"$authority" --authority "$root/authority.json" --port "$port" --runtime-dir "$root/authority-run" > "$root/authority.log" 2>&1 &
+"$authority" --authority "$root/authority.json" --port 0 --runtime-dir "$root/authority-run" > "$root/authority.log" 2>&1 &
 authority_pid=$!
+port=$(bound_port "$root/authority.log" "$authority_pid")
+set_port "$port" managed.json managed-empty.json upstream.json upstream-empty.json
 for ((attempt=0;attempt<200;attempt++)); do
     if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" > "$root/open.json" 2>/dev/null; then break; fi
     sleep 0.05
@@ -142,6 +136,8 @@ first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.ar
 if [[ -n "$relay" ]]; then
     "$relay" --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay.log" 2>&1 &
     relay_pid=$!
+    relay_port=$(bound_port "$root/relay.log" "$relay_pid")
+    set_port "$relay_port" managed.json managed-empty.json relay.json
     wait_relay_ready "$root/relay.log"
     "$interpreter" -c 'import json,sys; data=json.loads(next(line for line in open(sys.argv[1]) if line.startswith("{"))); native=data["disk_native_submitted"]; fallback=data["disk_fallback_submitted"]; peak=data["disk_maximum_outstanding"]; assert native+fallback > 0 and peak == 1; print(f"Relay disk originals: native={native}, fallback={fallback}, maximum_outstanding={peak}")' "$root/relay-status.json"
     if [[ "$isolated" == isolated ]]; then

@@ -87,7 +87,7 @@ HostOptions load_host_options(const std::filesystem::path &configuration, bool s
 	const auto base = std::filesystem::absolute(configuration).parent_path();
 	if (object.HasMember("address"))
 		result.endpoint.address(asio::ip::make_address(text(object["address"], 253)));
-	result.endpoint.port(number(object, "port", 8318, 1, 65535));
+	result.endpoint.port(number(object, "port", 8318, 0, 65535));
 	if (object.HasMember("hostname"))
 		result.hostname = text(object["hostname"], 253);
 	require(result.hostname.find_first_of("\r\n") == std::string::npos, "invalid relay TLS hostname");

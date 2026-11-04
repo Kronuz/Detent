@@ -180,8 +180,10 @@ int main(int argc, char **argv) {
 		source["delivery_mode"].SetString("subscription");
 		write(directory / "source.json", source);
 		check(load().bundles[0].source.delivery_mode_explicit);
-		host.AddMember("port", 0, host.GetAllocator());
+		host.AddMember("port", 65536, host.GetAllocator());
 		rejected();
+		host["port"].SetInt(0); // binds a free port
+		check(load().endpoint.port() == 0);
 		host.RemoveMember("port");
 		host.AddMember("credentials", rapidjson::Value(rapidjson::kArrayType), host.GetAllocator());
 		rejected();

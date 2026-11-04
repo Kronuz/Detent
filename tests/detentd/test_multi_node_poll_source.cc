@@ -65,28 +65,13 @@ struct Node {
 		persist = temp_path(".json");
 		options.persist_path = persist;
 		app = std::make_unique<detentd::Distributor>(options);
-		const auto deadline = std::chrono::steady_clock::now() + 3s;
-		for (;;) {
-			asio::io_context io;
-			asio::ip::tcp::acceptor reservation(io,
-			                                    asio::ip::tcp::endpoint(asio::ip::address_v4::loopback(), 0));
-			port = reservation.local_endpoint().port();
-			service = std::make_unique<http::HttpAsioService>(*app, 2, 256);
-			http::AsioBindOptions binding;
-			binding.address = asio::ip::address_v4::loopback().to_string();
-			service->set_bind_options(binding);
-			service->enable_conditional();
-			reservation.close();
-			try {
-				service->start(port);
-				break;
-			} catch (const asio::system_error &error) {
-				service.reset();
-				if (error.code() != asio::error::address_in_use ||
-				    std::chrono::steady_clock::now() >= deadline)
-					throw;
-			}
-		}
+		service = std::make_unique<http::HttpAsioService>(*app, 2, 256);
+		http::AsioBindOptions binding;
+		binding.address = asio::ip::address_v4::loopback().to_string();
+		service->set_bind_options(binding);
+		service->enable_conditional();
+		service->start(0);
+		port = service->port();
 		std::this_thread::sleep_for(50ms);
 		wait_for_server_ready(port, 3s);
 
