@@ -1,6 +1,6 @@
 # Post-W2 follow-ups, 2026-11-03
 
-**State:** branch `phase/post-w2` from `Detent:d0a5cd8` (W2 landed, CI run 41745722515). Pins moved except cluster and consensus (blocked), fixtures converted except those that cannot start on port 0, CR2 probes ported with mutants. Native suite subset 83/83; sanitizers are left to CI.
+**State:** branch `phase/post-w2` at `Detent:393c96a`, CI run 41757189321 green on every job (freebsd and headers skipped by the matrix). Pins moved except cluster and consensus (blocked), fixtures converted except those that cannot start on port 0, CR2 probes ported with mutants.
 
 ## Done
 
