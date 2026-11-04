@@ -68,3 +68,9 @@ Nothing. The owner authorized the scheduler, logger and http-log pushes; each wa
 `python3 -I tools/check_pins.py`: 33 libraries, 43 shared declarations, 0 mismatches. All 33
 manifest pins equal their library heads. cluster is at its head `cluster:e4fc57d`; `legacy/wave2`
 drops it and generation_cache.
+
+## Final CI
+
+Run 41796189324 (workflow_dispatch on `Detent:db67185`, branch `m1/pins-to-head`): conclusion
+success. Every job green, including pin-check, linux-asan-ubsan and linux-tsan; freebsd and headers
+are skipped by the workflow. No flakes hit.
