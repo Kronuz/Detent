@@ -2,8 +2,12 @@
 #include "paged_disk_fixture.hh"
 #include <completion/native_completion.h>
 namespace c = kronuz::io::completion;
-unsigned drive(const std::shared_ptr<l::DiskStore> &store) {
-	unsigned syncs = 0, turns = 0;
+struct Syncs {
+	unsigned files = 0, barriers = 0;
+};
+Syncs drive(const std::shared_ptr<l::DiskStore> &store) {
+	Syncs syncs;
+	unsigned turns = 0;
 	while (store->operation() || store->needs_work()) {
 		auto job = store->operation();
 		if (!job) {
@@ -11,8 +15,14 @@ unsigned drive(const std::shared_ptr<l::DiskStore> &store) {
 			continue;
 		}
 		require(++turns < 100000);
-		if (job->request().kind == c::Kind::Sync)
-			++syncs;
+		const auto &request = job->request();
+		if (request.kind == c::Kind::Sync || request.kind == c::Kind::SyncFiles)
+			++syncs.files;
+		if (request.kind == c::Kind::DirectorySync)
+			++syncs.barriers;
+		// The census reads records and never opens a file for writing.
+		require(request.kind != c::Kind::OpenInto || request.read_only);
+		require(request.kind != c::Kind::Open && request.kind != c::Kind::Create);
 		job->submitted();
 		require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
 		store->advance();
@@ -76,7 +86,12 @@ int main() {
 		}
 		const auto syncs = drive(store);
 		if (changed == 0) {
-			require(store->status() == l::StoreStatus::Ready && syncs == 6);
+			// No per-file sync (storage.meta, selected, the lease, the image, an owner and a pack were six):
+			// one directory barrier, then ready.
+			require(store->status() == l::StoreStatus::Ready && syncs.files == 0 && syncs.barriers == 1);
+			const auto census = store->sync_stats();
+			require(census.startup.files == 0 && census.startup.groups == 0 && census.startup.directory_syncs == 1 &&
+					census.startup.device_flushes == 1 && census.total == census.startup);
 			require(store->selection().descriptor == image.descriptor());
 			l::DiskUsage observed;
 			for (const auto &entry : std::filesystem::directory_iterator(root)) {

@@ -21,6 +21,9 @@ struct DiskStoreOptions {
 	std::size_t gc_scan_slice = 256;
 	unsigned artifact_mode = 0600;
 	ViewLimits recovery_limits;
+	// A publication writes its files in sync groups of at most this many open descriptors; each group
+	// is one SyncFiles (on macOS one device flush). Descriptors are the bound, not the file count.
+	std::size_t sync_group_files = 128;
 };
 namespace detail {
 struct StoreCore;

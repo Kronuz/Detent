@@ -137,8 +137,7 @@ class StartupOperation final : public c::Operation {
 					} catch (...) {
 						remember(std::current_exception());
 					}
-					prepare(data_->failure ? Phase::Close : Phase::Sync,
-							data_->failure ? c::Kind::CloseFile : c::Kind::Sync);
+					prepare(Phase::Close, c::Kind::CloseFile);
 				} else
 					prepare_reader();
 			} else {
@@ -164,21 +163,6 @@ class StartupOperation final : public c::Operation {
 						prepare(Phase::Close, c::Kind::CloseFile);
 					else
 						drain_inventory();
-				} else if (phase == Phase::Open && !record_length_) {
-					prepare(Phase::ObservedHeld, c::Kind::InspectFile);
-				} else if (phase == Phase::ObservedHeld || phase == Phase::ObservedNamed) {
-					if (!result.inspection || !safe(*result.inspection, *data_->core) ||
-						result.inspection->footprint.logical_bytes !=
-							data_->observed.footprint.logical_bytes ||
-						result.inspection->device != data_->observed.device ||
-						result.inspection->inode != data_->observed.inode)
-						throw std::runtime_error("selected file changed during validation");
-					if (phase == Phase::ObservedHeld)
-						prepare(Phase::ObservedNamed, c::Kind::InspectEntry);
-					else
-						prepare(Phase::Sync, c::Kind::Sync);
-				} else if (phase == Phase::Sync) {
-					prepare(Phase::Close, c::Kind::CloseFile);
 				} else if (phase == Phase::Open) {
 					data_->reader.start(data_->observed_name(), record_length_, data_->core->owner,
 										data_->core->session->directory_identity());
@@ -219,18 +203,7 @@ class StartupOperation final : public c::Operation {
 	}
 
   private:
-	enum class Phase {
-		Inventory,
-		Open,
-		Read,
-		ObservedHeld,
-		ObservedNamed,
-		Sync,
-		Close,
-		CreateMetadata,
-		Barrier,
-		Done
-	};
+	enum class Phase { Inventory, Open, Read, Close, CreateMetadata, Barrier, Done };
 	void remember(std::exception_ptr failure) noexcept {
 		if (!data_->failure)
 			data_->failure = failure;
@@ -253,11 +226,12 @@ class StartupOperation final : public c::Operation {
 		++request_.token.step;
 		token_ = request_.token;
 		request_.kind = kind;
-		if (kind == c::Kind::OpenInto || kind == c::Kind::CloseFile || kind == c::Kind::InspectFile ||
-			kind == c::Kind::Sync)
+		if (kind == c::Kind::OpenInto || kind == c::Kind::CloseFile)
 			request_.file = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
-		if (kind == c::Kind::OpenInto || kind == c::Kind::InspectEntry)
+		if (kind == c::Kind::OpenInto) {
 			request_.source = data_->observed_name();
+			request_.read_only = true;
+		}
 	}
 	void prepare_reader() {
 		phase_ = Phase::Read;
@@ -299,9 +273,6 @@ class StartupOperation final : public c::Operation {
 			if (!safe(entry, core) || entry.footprint.logical_bytes != core.verified->length)
 				throw std::runtime_error("selected image differs from verified recovery");
 			data.selected_image_seen = true;
-			record_length_ = 0;
-			data.observed = entry;
-			prepare(Phase::Open, c::Kind::OpenInto);
 			return;
 		} else if (const auto parsed = detail::parse_generation_name(name);
 				   parsed && parsed->kind == detail::GenerationFile::Lease) {
@@ -310,8 +281,6 @@ class StartupOperation final : public c::Operation {
 				data.upgrade_blocked = true;
 			if (core.verified && parsed->generation == core.verified->generation) {
 				data.selected_lease_seen = true;
-				record_length_ = 0;
-				read = true;
 				if (entry.footprint.logical_bytes != 0) {
 					record_length_ = generation_ownership_bytes;
 					read = true;
@@ -339,9 +308,6 @@ class StartupOperation final : public c::Operation {
 							entry.device != identity.device || entry.inode != identity.inode)
 							throw std::runtime_error("selected segment differs from verified recovery");
 						++data.segment_packs_seen;
-						record_length_ = 0;
-						data.observed = entry;
-						prepare(Phase::Open, c::Kind::OpenInto);
 						return;
 					}
 				}
@@ -486,18 +452,30 @@ class RetiredPreparations final : public distribution::RetirementNode {
 		return children.empty();
 	}
 };
+// Publishes a generation in D11's grouped order: the first group (segment owners and the generation
+// lease), a barrier, the second group (payloads, image, live, read and descriptor), a barrier, then
+// Replace of `selected` and its directory barrier. A group is written in windows of at most
+// `sync_group_files` open descriptors: each file is created and written unsynced, the window is
+// one SyncFiles, then its files are closed. The descriptor reaches `selected` only after its group's
+// barrier, so the table is durable before the rename can be.
 class PublicationOperation final : public c::Operation {
   public:
-	explicit PublicationOperation(std::shared_ptr<PublicationData> data) : data_(std::move(data)) {
+	explicit PublicationOperation(std::shared_ptr<PublicationData> data)
+		: data_(std::move(data)),
+		  staged_(c::OwnedAllocator<std::shared_ptr<c::File>>(data_->core->session->allocation_context())) {
 		auto &core = *data_->core;
 		const auto &context = core.session->allocation_context();
+		window_ = std::max<std::size_t>(1, core.options.sync_group_files);
 		if (data_->artifacts) {
 			paged_children_ = core.factory->make<RetiredPreparations>(context);
 			paged_children_->children.reserve(data_->artifacts->artifacts().size());
 			dependencies_ = std::allocate_shared<detail::PagedDependencyCheck>(
 				c::OwnedAllocator<detail::PagedDependencyCheck>(context), *core.factory, core.session,
 				data_->artifacts, core.owner);
-		}
+			group_end_ = data_->artifacts->first_group();
+		} else
+			group_end_ = 1; // the lease first, then the image and the descriptor
+		staged_.reserve(std::min(window_, child_count()));
 		for (std::size_t i = 0; i < child_count(); ++i) {
 			std::string_view bytes;
 			if (data_->artifacts)
@@ -510,7 +488,7 @@ class PublicationOperation final : public c::Operation {
 				bytes = {data_->record.data(), data_->record.size()};
 			auto preparation = c::make_image_preparation(
 				context, core.session->backend(), data_, core.session->next_operation(), child_name(i), data_,
-				bytes, bytes.size(), core.session->backend()->make_closed_file());
+				bytes, bytes.size(), core.session->backend()->make_closed_file(), c::PreparationFilePolicy::Stage);
 			if (paged_children_)
 				paged_children_->children.push_back(std::move(preparation));
 			else
@@ -537,8 +515,9 @@ class PublicationOperation final : public c::Operation {
 		if (phase_ != Phase::Preflight && phase_ != Phase::Dependencies) {
 			data_->core->ledger.accepted(data_->permit);
 			started_ = true;
-			if (phase_ == Phase::Prepare)
-				child_started_ = true;
+			if (phase_ == Phase::Prepare || phase_ == Phase::SyncGroup || phase_ == Phase::CloseGroup ||
+				phase_ == Phase::Abort)
+				window_open_ = true;
 			if (phase_ == Phase::Replace) {
 				// An accepted Replace can change the name even if its result fails.
 				data_->core->selection = {SelectionKnowledge::Uncertain, {}};
@@ -569,29 +548,33 @@ class PublicationOperation final : public c::Operation {
 			}
 			if (phase_ != Phase::Preflight && phase_ != Phase::Dependencies)
 				data_->core->ledger.completed(data_->permit);
+			if (phase_ == Phase::Abort) {
+				// The primary failure stands; a close that fails here has nothing left to undo.
+				if (++close_index_ < staged_.size())
+					prepare_close();
+				else
+					fence();
+				return true;
+			}
 			if (phase_ == Phase::Prepare) {
 				child(index_)->complete(std::move(result));
 				if (!child(index_)->done())
 					return true;
 				if (child(index_)->error())
 					std::rethrow_exception(child(index_)->error());
-				if (index_ + 1 == child_count())
-					prepared_ = child(index_)->prepared();
-				++sealed_;
-				child_started_ = false;
-				if (cancelled_ || data_->core->closing) {
-					cancel_healthy();
-					return true;
+				staged_.push_back(child(index_)->staged_file());
+				++index_;
+				if (index_ == group_end_ || staged_.size() == window_) {
+					phase_ = Phase::SyncGroup;
+					prepare(c::Kind::SyncFiles);
 				}
-				if (++index_ < child_count())
-					return true;
-				check_final_credit();
-				phase_ = Phase::Replace;
-				prepare(c::Kind::Replace);
 				return true;
 			}
-			if (result.error)
+			if (result.error) {
+				if (phase_ == Phase::CloseGroup)
+					++close_index_; // a failed close consumes its handle
 				std::rethrow_exception(result.error);
+			}
 			if (phase_ == Phase::Preflight) {
 				if (result.inspection) {
 					data_->failure =
@@ -606,6 +589,32 @@ class PublicationOperation final : public c::Operation {
 					index_ = 0;
 					phase_ = Phase::Prepare;
 				}
+			} else if (phase_ == Phase::SyncGroup) {
+				close_index_ = 0;
+				phase_ = Phase::CloseGroup;
+				prepare_close();
+			} else if (phase_ == Phase::CloseGroup) {
+				if (++close_index_ < staged_.size()) {
+					prepare_close();
+					return true;
+				}
+				sealed_ += staged_.size();
+				staged_.clear();
+				close_index_ = 0;
+				window_open_ = false;
+				if (cancelled_ || data_->core->closing) {
+					cancel_healthy();
+					return true;
+				}
+				if (index_ < child_count()) {
+					if (index_ == group_end_)
+						group_end_ = child_count();
+					phase_ = Phase::Prepare;
+					return true;
+				}
+				check_final_credit();
+				phase_ = Phase::Replace;
+				prepare(c::Kind::Replace);
 			} else if (phase_ == Phase::Replace) {
 				phase_ = Phase::Barrier;
 				prepare(c::Kind::DirectorySync);
@@ -623,9 +632,7 @@ class PublicationOperation final : public c::Operation {
 				finish(DiskPublicationStatus::Published);
 			}
 		} catch (...) {
-			data_->failure = std::current_exception();
-			data_->core->fence(data_->failure);
-			finish(DiskPublicationStatus::Fenced);
+			fail(std::current_exception());
 		}
 		return true;
 	}
@@ -640,7 +647,8 @@ class PublicationOperation final : public c::Operation {
 	}
 	void cancel() noexcept {
 		cancelled_ = true;
-		if (submitted_ || done() || phase_ == Phase::Barrier || child_started_)
+		// A window is atomic: its files are created, synced and closed before the cancel is seen.
+		if (submitted_ || done() || phase_ == Phase::Barrier || window_open_)
 			return;
 		try {
 			if (phase_ == Phase::Dependencies) {
@@ -652,16 +660,15 @@ class PublicationOperation final : public c::Operation {
 			}
 			cancel_healthy();
 		} catch (...) {
-			data_->failure = std::current_exception();
-			data_->core->fence(data_->failure);
-			finish(DiskPublicationStatus::Fenced);
+			fail(std::current_exception());
 		}
 	}
 	DiskPublicationStatus status() const noexcept { return data_->status; }
 	std::exception_ptr error() const noexcept { return data_->failure; }
 
   private:
-	enum class Phase { Dependencies, Preflight, Prepare, Replace, Barrier, Done };
+	enum class Phase { Dependencies, Preflight, Prepare, SyncGroup, CloseGroup, Abort, Replace, Barrier, Done };
+	using Staged = std::vector<std::shared_ptr<c::File>, c::OwnedAllocator<std::shared_ptr<c::File>>>;
 	std::size_t child_count() const {
 		return data_->artifacts ? data_->artifacts->artifacts().size() : children_.size();
 	}
@@ -683,15 +690,36 @@ class PublicationOperation final : public c::Operation {
 		request_.kind = kind;
 		if (kind == c::Kind::InspectEntry)
 			request_.source = child_name(index_);
+		if (kind == c::Kind::SyncFiles)
+			request_.files = staged_;
 		if (kind == c::Kind::Replace) {
-			request_.source = prepared_->name();
+			request_.source = child_name(child_count() - 1);
 			request_.destination = "selected";
 		}
+	}
+	void prepare_close() {
+		prepare(c::Kind::CloseFile);
+		request_.file = staged_[close_index_];
 	}
 	void check_final_credit() const {
 		const auto used = data_->core->ledger.stats().used;
 		if (old_selected_ && (used.bytes < descriptor_bytes || !used.entries))
 			throw std::logic_error("selected descriptor credit exceeds retained census");
+	}
+	// Closes the window's files that are still open, then fences with the primary failure.
+	void fail(std::exception_ptr failure) noexcept {
+		if (!data_->failure)
+			data_->failure = failure;
+		if (close_index_ < staged_.size()) {
+			phase_ = Phase::Abort;
+			prepare_close();
+			return;
+		}
+		fence();
+	}
+	void fence() noexcept {
+		data_->core->fence(data_->failure);
+		finish(DiskPublicationStatus::Fenced);
 	}
 	void cancel_healthy() {
 		// No child can subsequently create a file. Preserve exactly the sealed prefix.
@@ -732,13 +760,14 @@ class PublicationOperation final : public c::Operation {
 	std::array<std::shared_ptr<c::ImagePreparation>, 3> children_;
 	distribution::RetirementHandle<RetiredPreparations> paged_children_;
 	std::shared_ptr<detail::PagedDependencyCheck> dependencies_;
-	std::optional<c::PreparedImage> prepared_;
+	// The current window: written and open, awaiting the group sync and the close.
+	Staged staged_;
 	c::Request request_;
 	c::Token token_;
 	SyncCounters sync_at_admit_;
 	Phase phase_ = Phase::Preflight;
-	std::size_t index_ = 0, sealed_ = 0;
-	bool submitted_ = false, started_ = false, child_started_ = false, cancelled_ = false,
+	std::size_t index_ = 0, sealed_ = 0, group_end_ = 0, window_ = 1, close_index_ = 0;
+	bool submitted_ = false, started_ = false, window_open_ = false, cancelled_ = false,
 		 old_selected_ = false;
 };
 } // namespace

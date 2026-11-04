@@ -1,0 +1,53 @@
+> Status: CURRENT (2026-11-04) Ledger for namespace steps S1 (completion `SyncFiles` and `OrderFiles`) and S2 (D11 on today's store): WIP checkpoint, handed to the next lead.
+
+# namespace-s1-s2
+
+- Design: docs/design/namespace-delivery.md D11 and S1, S2; criteria: docs/status/namespace-design.md (S1, S2, verbatim there; ticked only here, with evidence). Mechanism note: docs/mechanisms/sync-groups.md (draft; its 25-flush figure at 5M is expected, not measured). Timing note to write: docs/perf/sync-groups.md. Measured start: docs/perf/cold-bootstrap-5m.md (Round 2).
+- Branch / worktree: Detent `namespace/s1-s2` in `.claude/worktrees/agent-af2c08dd24001ec58`, base `Detent:32aa0c8`; completion worktree `~/code/Kronuz/completion-wt/s2-stage` (branch `namespace/s2-stage`, now also on completion main).
+- State: S1 done and verified. S2 code written and building; its tests ran once (results below); no mutants, sanitizer runs, timings or Detent CI yet.
+- Found on arrival: S1's primitives were already built and landed (`completion:0490a5a` SyncFiles and OrderFiles, `completion:df6394a` read-only opens, `sync_primitives_test`, mutants s1-s8, `docs/mechanisms/sync-files.md`; completion CI green at `completion:9acfba3`) and Detent's pin already pointed at it (`Detent:b42d781`). S1 needed verification. What S2 needed beyond it is one policy, `PreparationFilePolicy::Stage` (create and write, no sync, file left open for a group sync), now `completion:560c288` on completion main.
+
+## Done criteria
+
+S1:
+- [x] 1, 1a, 2, 3: primitives, read-only opens, per-platform recorded sequences (`test/sync_primitives_test.cc`), docs (`docs/mechanisms/sync-files.md`). Local macOS x86_64 `ctest` 20/20 in `completion-wt/s2-stage/build-rel-test`.
+- [x] 4: mutants s1-s8 plus my t1, t2 green on ubuntu-24.04, macos-15, macos-15-intel (completion mutants run 41925127096, 24 mutants). Completion CI run 41925122896 green on all 9 jobs at `completion:560c288` (includes linux-asan-ubsan and linux-tsan; FreeBSD green). Local ASan+UBSan 18/18 (macOS, separate build). Pin moved to `completion:560c288` in `cmake/dependencies.json` on this branch; Detent CI with it has NOT run.
+
+S2 (none ticked; evidence still owed):
+- [ ] 1 grouped order. Code: `PublicationOperation` (`src/detent_local/disk_store.cc`), artifacts reordered (`paged_publication_artifacts.cc`: owners then lease, `first_group()`, then packs, image, live, read, descriptor). Revert check "rename before fsync fails T7" not run.
+- [ ] 2 census. Code: per-file syncs and the opens made only to sync them are gone; reads are read-only opens; one `DirectorySync`, then `ready()`. `test_paged_store_startup` updated (0 file syncs, 1 barrier, read-only opens, startup counters); pass not confirmed after the edit.
+- [ ] 3 counters. `DiskStore::sync_stats()`; agent log line "publication synced ..."; relay status JSON `sync_*`, `publication_*`. Agent and relay targets not built since; harness exposure untested.
+- [ ] 4 T7. `tests/detent_local/test_publication_power_cut.cc` (model of what a power cut keeps, driven by the primitives and the sync seam; cut at every event for windows 1, 2, 128; four power-cut variants plus process kill; restart-then-republish cycles for window 2; owner-before-payload and lease-before-files invariants; ready-only-after-barrier check; counters checked against the seam). Compiles; first run hung in `domain.close().wait()` (builder/plan outliving the domain, fixed); the rerun (`.scratch/run3.log`) had not started when I stopped. Expect test bugs first.
+- [ ] 5 timings 10K, 100K (and 5M by the lead's ask): nothing run. "Before" tree built: `~/code/Kronuz/Detent-wt/s2-before` (`Detent:7a4425a`, main plus counters; `build-rel` has detentd, detent-agent, detent-relay, detent_system_mixed_oracle).
+
+Linux (D11's open point), measured in the VM (ext4 on virtio, `commit=30`, host cache off), 128 files of 1 MiB, 9 rounds, medians (`completion_sync_probe`, `.scratch/vm_probe.out`): sync plus directory flush per file (the old shape) 866 ms; fsync each then one directory sync 741 ms; `IO::sync_files` (writeback hint on all, then fsync each) 167 ms; concurrent fsync threads 153 ms; fdatasync each 789 ms; one syncfs 130 ms. The existing hint-then-fsync loop is 5.2 times faster than the old shape and within 9% of concurrent threads (ranges overlap): concurrent fsyncs are not needed. The 1445-file run failed on the VM's 1024-descriptor limit, which is itself why a publication is written in windows; `.scratch/vm_probe.sh` now raises `ulimit -n`, to rerun.
+
+## Design vs code
+
+1. D11 syncs each group with one `SyncFiles` over the store's directory. `SyncFiles` takes open descriptors, so the code writes a group in windows of at most `DiskStoreOptions::sync_group_files` (128) open files, one `SyncFiles` per window: windows + 1 flushes per publication on macOS (25 at 5M, expected), not one per group.
+2. D11's "new table written under a temporary name" is today's descriptor `generation-<id>.descriptor` renamed over `selected`; no `.tmp-` names until S7.
+3. The code puts the segment owners and the generation lease in group A (the blueprint's order); reused packs keep the dependency check and are not synced again.
+4. The census no longer opens selected packs, the image or a zero-length legacy lease (they were opened only to be synced); it stats them by name against the recovered mapping, as before, and reads the records it verifies through a read-only open.
+5. The reclaim operation's per-lease `Sync` and the segment collection's barriers are unchanged (S2 covers publication and the census).
+6. `device_flushes` is derived from completed requests by platform contract, not read from syscalls; the power-cut test checks it against the sync seam on the test platform.
+7. A cancel during a publication is acted on at a window boundary (before: per file), so the ledger's sealed prefix stays exact.
+
+## Done
+- `Detent:7a4425a` counters (its own commit so the "before" tree could be built with them). `completion:560c288` on completion main. The S2 commit follows in `git log`.
+
+## Next
+Run from the worktree root; helper scripts are in `.scratch/` (untracked): `build.sh LOG TARGETS...`, `run.sh LOG MINUTES CMD...`, `tests1.sh TEST...`, each under a `quiet light` hold. `build-rel` was configured with `-DFETCHCONTENT_SOURCE_DIR_COMPLETION=~/code/Kronuz/completion-wt/s2-stage`; reconfigure without it now that the pin is `completion:560c288`.
+1. Run `.scratch/tests1.sh test_local_paged_publication_artifacts test_local_paged_store_startup test_local_disk_store test_local_paged_publication_faults test_local_publication test_local_paged_disk_store test_local_publication_power_cut` (binaries in `build-rel/tests/detent_local`). Passed before the last edits: artifacts, faults, paged_disk_store, publication. `test_local_disk_store` failed at line 780 (fault range 20 exceeded the new primitive count) and at the crash boundaries (a `DirectorySync` occurrence 3 that no longer exists); both fixed in the tree and rebuilt (build4), result unknown. `test_local_publication_power_cut [stride]` needs its first full run.
+2. Build and run the rest: `ninja -C build-rel`, `ctest`, and the Python system tests that touch the agent; grep tests for `Kind::Sync` and `syncs ==` expectations.
+3. T7 revert checks and mutants (one source edit each, rebuild the power-cut test, expect failure): the second group's `SyncFiles` with an empty file list (`prepare(SyncFiles)` when `group_end_ == child_count()`); the descriptor left out of the sync list (rename before fsync); the startup barrier removed (`finish_inventory` calls `ready()` directly). Record each here.
+4. Sanitizers in separate builds (ASan+UBSan, TSan) on the power-cut, disk_store and artifacts tests; completion TSan locally: `ctest --test-dir build-tsan` in `completion-wt/s2-stage` (built or queued).
+5. Push `namespace/s1-s2` and dispatch CI (`gh workflow run ci.yml --ref namespace/s1-s2`; the branch name is not a push trigger); fix red jobs.
+6. Timings under `quiet exclusive` with `.scratch/cold-bootstrap-5m/coldboot.py SOURCE OUT RECORDS BUILD TREE [sample] [restart]` (untracked; adapted from the explorer's, restart phase added, untested). After: BUILD `build-rel`, TREE the worktree. Before: BUILD `~/code/Kronuz/Detent-wt/s2-before/build-rel`, TREE `~/code/Kronuz/Detent-wt/s2-before`. Sources `~/code/Kronuz/Detent/.scratch/capacity-trials/{10000-r3,100000-r3,5000000-flat-r1}`; copy a `tls-fixture` directory (from `~/code/Kronuz/Detent/build/tests/detent_authority/`) into each build's `tests/detent_authority/`. Build the targets first: `ninja -C build-rel detentd detent-agent detent-relay detent_system_mixed_oracle`. Flushes per publication come from the agent log line "publication synced N files in N groups ..." and the relay status JSON; expected 25 at 5M after, about 5,775 before.
+7. Rerun the 1445-file VM probe (`.scratch/vm_hold.sh`, which takes `QUIET_VM=65515 quiet strict`; push `vm_probe.sh` with `.scratch/vm.sh push` first). Write docs/perf/sync-groups.md with the numbers and add the ext4 result to completion `docs/PLATFORM_FINDINGS.md`.
+8. Tick the criteria with evidence, finish `docs/mechanisms/sync-groups.md`, then the architect review (durability).
+
+## Blocked on
+Nothing.
+
+## Log
+- 2026-11-04: Read the design, the explorer's prototype and the code. Branched `namespace/s1-s2` from `github/main` at `Detent:32aa0c8`. Counters committed (`Detent:7a4425a`); "before" tree built from it. Completion Stage policy pushed to completion main (`completion:560c288`, CI and mutants green). Grouped publication, census and tests written; VM ext4 measurement at 128 files taken. Checkpoint requested by the coordinator (credits); handed over.
