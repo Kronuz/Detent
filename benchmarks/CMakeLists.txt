@@ -85,3 +85,10 @@ if(TARGET detent::delivery_config)
   add_executable(detent_fleet_load detent_fleet_load.cc fleet_load.cc)
   target_link_libraries(detent_fleet_load PRIVATE detent::delivery_config)
 endif()
+
+# T1 and T4 (reader.md): warm lookups through libdetent_reader beside a pinned ReadView.
+if(TARGET detent::testing_store)
+  add_executable(reader_bench reader_bench.cc)
+  target_include_directories(reader_bench PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(reader_bench PRIVATE detent::reader detent::local_view detent::testing_store)
+endif()
