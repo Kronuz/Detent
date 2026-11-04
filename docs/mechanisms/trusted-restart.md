@@ -49,6 +49,10 @@ Rows are strictly ascending by segment id, so they are the registry's order. A r
 - A corrupt `selected`, root image or lease refuses the store exactly as before: those are checked first.
 - The refusal applies to the agent's cold start (`RecoveryContext::trusted_start`, set by `ManagedRecovery::capture`). The full verified recovery stays for the recovery that follows a publication and for tools (`recover_generation`).
 
+## Fuzzing
+
+`tests/detent_testing/live_record_fuzz.cc` is a libFuzzer driver for `decode_live_record` (`build_live_fuzz.sh` builds it with ASan and UBSan). It decodes each input raw, then mutates a valid record and repairs the trailing digest so the structural checks behind it run, and requires that a record that decodes encodes back to the same bytes. A 181 s run executed 1,185,596 inputs with no finding.
+
 ## What startup does and does not do
 
 Reads and hashes: `selected`, the lease, `storage.meta`, the 320-byte root (hashed against the descriptor), `.read` (its own digest), `.live` (its own digest), and per segment an `.owner` record and a stat. Per segment it opens the pack, checks owner, mode, link count and length, and `mmap`s it; it reads none of the pack. A counter proves it: `RecoveryMetrics::segment_hash_bytes` is 0, `root_hash_bytes` is 320, and `paged::page_digests()` (a process-wide count of page physical and logical digests) does not move (`test_testing_trusted_restart`).

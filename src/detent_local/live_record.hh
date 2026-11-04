@@ -17,7 +17,6 @@ struct LiveRow {
 	std::uint64_t length = 0;
 	std::array<char, 32> checksum{};
 	SegmentReachability live;
-	bool operator==(const LiveRow &) const = default;
 };
 struct LiveRecord {
 	StorageIdentity storage{};
