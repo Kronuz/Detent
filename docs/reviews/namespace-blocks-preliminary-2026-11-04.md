@@ -209,3 +209,109 @@ I looked for a crash point where a durable `layout` reaches a missing or unsynce
 ### Not run
 
 Detent builds, tests and sanitizers (the branch changes docs only); `detentd`, relay or agent timings; T9; Linux; real crashes or power cuts (the crash matrix is a model of the document's order); a real consensus `LogFull` (the probe replays `core.h:728`); the 5M corpus; any benchmark; `quiet exclusive`. The original `seal.py`, `cut.py`, `b1.py` and `oracle.py` were not rerun unchanged: each is superseded by its adapted version above, and `b1.py` tests a call the design dropped.
+
+## Architect pass: the roll-up (NR-4), 2026-11-04
+
+- Date: 2026-11-04.
+- Reviewed: `docs/design/namespace-delivery.md` D6 "Roll-up", "Squash", "Cut", "Files", "Commit", "Recovery", "Checkpoints and the gate", "Install", "Bounds" and the `files` paragraph (`:130-190`), D7 (`:196`), D11 (`:255-263`), Limit 8 (`:381`), at `Detent:245e67e` (the fold is `Detent:59a024e`); `docs/design/namespace-delivery-blocks-model.py` (`files`, `layout`); `.scratch/blocks-fold/files.out`, `layout2.out`; `completion:ab0f551` `docs/PLATFORM_FINDINGS.md` §1 and `docs/mechanisms/sync-files.md`.
+- Checked against: NR-4 above; P1 and the owner's principle (a client pays only for what it is missing; time, CPU, disk and writes count, not only bytes); NB-8 and NB-C4; D11's per-platform costs.
+- Checked by: probes in `.scratch/rollup-arch/` of this worktree, all `python3 -I` under `quiet light` at `nice -n 19` (the design's model is imported unchanged, never edited):
+  - `crash3.py`, `crash3.out`: crash matrix of the roll-up, adapted from `.scratch/blocks-recheck/crash.py` (same disk model: unsynced bytes lost, directory operations pending until a directory sync, any subset surviving a crash). 4 namespaces, 24 seals, roll-ups at period seals and on a random L trigger, outputs superseding blocks and bases, a checkpoint persisted after every seal (the journal compacted at once, the worst case), a table every 4th seal, a background collector with the design's rule (`:164`). 400 seeds per variant, plus a determinism check of the seal ordinal across a restart.
+  - `shapes.py`, `shapes.out`, `shapes2.py`, `shapes2.out`: the design's `files` workload (4,096 namespaces of 1,220 keys, Zipf 0.8 / 1.0 / 1.3, 2,048 transactions a seal, 800 seals) with the design's `Group` and `settle`, adding seven layouts (below). Unlike the model, they sample files and dead bytes at every seal, before the collector, and record the largest single sync group.
+  - `wire.py`, `wire.out`: the design's `layout` simulation (α = 1; moderate, hot-heavy, 0.30 C key set) with stores also 2, 8, 16 and 32 seals behind, for the roll-up as designed, a roll-up at every seal, earlier roll-ups on repeats (`dup-2`, `dup-1.5`), and level-0 merged at answer time (`serve-merge`). `wire2.py`: the same at a roll-up period of 64. It was still queued behind the host's load when this pass was committed; `wire2.out` lands beside it when it runs, and the re-check reads it.
+  - The design's numbers reproduce: `shapes.out`'s `design` rows give 2.95 / 2.51 / 1.84 times the raw changes against `files.out`'s 2.95 / 2.51 / 1.84.
+  - Not run: any build, test or benchmark; `completion_sync_probe` or any fsync timing (the sync figures below are estimates from first principles and completion's published measurements); Linux; real crashes.
+
+### Verdict
+
+**APPROVE WITH CONDITIONS: the roll-up is the right replacement for packing (a third of the writes, no copy-forward, no second collector) and its commit order holds under the crash matrix, but its table and collector are tied to "every 16th seal" while the period is policy, its seal ordinal is undefined, and its file count costs one flush per file on Linux, which the design does not state.**
+
+What holds, and reproduces:
+
+- The commit order (`:162-164`): `crash3.out`, 0 of 400 scenarios violate either invariant (a durable table reaches only present, synced files; at a persisted checkpoint every level-0 section of the layout is in a present seal file, the chain above W is complete, and every block and base is present or rebuildable). Mutants die: a roll-up output never fsynced (400 of 400), the table published before the outputs it reaches are durable (400 of 400), a collector that unlinks superseded files above W (242 of 400).
+- Writes and dead bytes: 1.84-2.95 times the raw changes against 3.21-5.38 for any shape that copies live sections forward (`shapes.out`, `packcf`). Dead bytes sampled at every seal: at most 1.3-2.0%, mean 0.2% (`design` rows).
+- Determinism of the outputs: every roll-up input is a replicated quantity (sections, |st(s)| at the seal, the policy), and an output's name fixes its bytes (block [a, b] of N is each key's last write in [a, b]; base p is st(p)), so a rebuilt or re-fetched output can be checked by digest.
+
+What the conditions fix: RU-1 (the seal ordinal), RU-2 (the table at a period seal), RU-4 and RU-5 (files and flushes), RU-6 (the wire claim), RU-7 (wording).
+
+### Findings
+
+**RU-1. The roll-up seal ordinal is not defined (D6 "Roll-up", "Files", "Install").**
+A namespace rolls up "at every 16th seal" (`:130`), but a seal is named by its log index (`seal-<index>`, `:154`) and nothing counts seals: not apply's state, the checkpoint, the seal file or the table. A voter that counts from its own restart rolls up at other seals than its peers: `crash3.out`, ordinal counted from the restart, 297 of 400 restarts differ; restored from the checkpoint, 0 of 400. An installed voter has the same problem. Fix: apply's state carries the seal ordinal beside the seal trigger's counters, so the checkpoint and the snapshot carry it; each seal file and the table carry the ordinal; a period change takes effect at the next period seal.
+
+**RU-2. The table and the collector assume the period is 16; the period is policy (`:106,130` against `:156,163-164`).**
+"Files" and "Commit" put the table "at every 16th seal" and let the collector unlink "every seal file at or below W", on the premise that the roll-up at W consumed them all. The roll-up period is a policy integer that "set limits" can change. With the period at 32 and the table still at every 16th seal, a table lands where some namespaces have not rolled up, and the collector unlinks seal files holding their level-0 sections under a persisted checkpoint whose journal is compacted: `crash3.out` `period-change`, 400 of 400 lose a section. Either fix alone closes it: the table only at period seals (`table-at-rollup`, 0 of 400), or a collector that unlinks a seal file only when the table's layout reaches none of its sections (`period-change+consumed`, 0 of 400). Do both: the first is the rule, the second makes the collector check what it deletes instead of assuming it. The earlier draft (`.scratch/blocks-fold/files.md`) said "a roll-up seal W"; the committed text lost it.
+
+**RU-3. The outputs need not gate the checkpoint (note, a relaxation).**
+`crash3.out` `outputs-after-checkpoint` survives (0 of 400): roll-up outputs written and synced after the checkpoint is persisted break nothing, because their inputs (seal files above W, blocks the table reaches) stay until a durable table no longer reaches them, and recovery rebuilds a missing output (`:166`). What outputs need is to be durable before the table that reaches them (`table-before-outputs` dies 400 of 400). So the gate can be the seal file alone. The ~2,000-3,900 output syncs then leave the checkpoint's path, can be paced across the period before the next table, and an output superseded before any table (an L-triggered roll-up merged at the next one) never needs a sync. Optional. If taken, T4(5) adds a crash between the checkpoint and the table, with outputs missing.
+
+**RU-4. The file count costs one device flush per file on Linux; the design implies one per group (D6 "Files", `:162,190`; D11 `:259`; Limit 8).**
+The roll-up creates 1,908 / 3,398 / 3,900 files per period seal at Zipf 1.3 / 1.0 / 0.8 (largest single group 1,946 / 3,460 / 3,943; `shapes.out`), averaging 0.9 to 1.2 KB each: 2.3 to 3.5 MB per roll-up spread over that many inodes. Between tables 13,300-16,000 files are on disk; "about 12,000" is the count after the collector. `:162` writes them "as one D11 sync group", which reads as one flush. That holds on macOS only. Completion's `SyncFiles` on Linux is `sync_file_range` on every file, then `fsync` on each, then the directory (`sync-files.md`, "N+1 flushes, nothing amortized (unmeasured)"), and D11 and Limit 8 say so for publication. On ext4 the first fsync commits the jbd2 transaction holding every create (one flush with FUA). Each later fsync finds its transaction already committed and issues its own cache flush (`ext4_sync_file`, `needs_barrier`), so a roll-up sends about 3,900 flush commands.
+
+Estimates per roll-up (first principles, not measured):
+- ext4: completion's own 9-file batch is 9.5 ms in a VM whose flush reaches the host's `F_FULLFSYNC`, about 1 ms a file, so about 4 s per roll-up, a quarter of a 16 s period at T8's rate. On bare-metal NVMe with a volatile cache, at 50-500 µs per empty flush, 0.2-2 s. On a device without a volatile cache (power-loss protection, and likely cloud block volumes; unverified), the kernel drops the flushes and it is about 0.1-0.3 s of syscalls.
+- APFS: `fsync` each, then one `F_FULLFSYNC`. Completion's 9-file batches (46 ms on x86, 12 ms on M1, against 214 and 45 ms for a full flush each) put a plain fsync at roughly 0.8-2.4 ms for 200 KB files; at 0.2-1 ms for 1 KB files that is 0.8-4 s per roll-up.
+- The same 2.3-3.5 MB written as one file with one sync would take about 10 ms. The per-file cost is two to three orders of magnitude above the byte cost.
+- A full relay mirrors it (D7, `:196`): about 3,900 new names to fetch per roll-up, beside the per-seal sections.
+
+What to measure (T4(7), before S5.2 fixes the shape): `completion_sync_probe` with N = 256, 1,024 and 4,096 files of 1 KiB, `sync_file_range` then fsync each, concurrent fsync threads and `syncfs`, on ext4 on bare-metal NVMe, on a cloud volume, and on APFS (x86 and arm64). Record the wall per group and the flush count from the block layer (`/sys/block/*/stat` flush column, or `blktrace`). Fix: `:162` and `:190` state the per-roll-up file and flush count per platform, and RU-5 picks a shape.
+
+**RU-5. A shape with fewer files: the shared roll-up file does not die whole; a bounded carry and a staggered, longer period do (probe 3).**
+`shapes.out` and `shapes2.out`, 4,096 namespaces, Zipf 0.8 / 1.0 / 1.3:
+
+| Shape | Written / raw changes | Files per seal (largest group) | Dead share, every seal: max |
+| --- | --- | --- | --- |
+| Design: own file per output, period 16 | 2.95 / 2.51 / 1.84 | 245 / 214 / 122 (3,943 / 3,460 / 1,946) | 2.0 / 1.8 / 1.3% |
+| One file per roll-up for all its outputs | 2.95 / 2.51 / 1.84 | 1.2-1.5 (2) | 32 / 27 / 18% |
+| The same, copying live members of files under half live | 5.38 / 4.52 / 3.21 | 1.2-1.5 (2) | 7.7 / 5.7 / 4.3% |
+| Outputs under 4 KiB in a shared file, copy-forward at half | 4.89 / 3.89 / 2.43 | 9.0 / 8.0 / 6.3 (162 / 117 / 73) | 5.0 / 3.8 / 2.5% |
+| Staggered: N rolls up when (seal + N) mod 16 = 0 | 2.93 / 2.49 / 1.84 | 245 / 214 / 122 (255 / 230 / 139) | 2.3 / 1.9 / 1.5% |
+| Carry, at most 2 periods: an output under 4 KiB of a namespace touched this period stays one section of the period's seal file | 2.71 / 2.36 / 1.78 | 86 / 85 / 65 (2,635 / 2,000 / 1,300) | 2.8 / 2.2 / 1.6% |
+| Carry without the 2-period bound | 4.19 / 3.18 / 2.07 | 16 / 37 / 48 | 3.0 / 2.3 / 1.6% |
+| Staggered, period 64 | 2.03 / 1.85 / 1.52 | 66 / 67 / 55 (71 / 75 / 67) | 2.6 / 2.4 / 2.0% |
+
+The brief's shape, one file for all outputs of one roll-up, fails because those outputs do not die together. The ratio ladder keeps a namespace's older rungs for many periods, and a namespace that is not touched does not roll up, so its block pins the file: 18-32% dead. Copying the live members forward brings back packing's writes. The file count of the design is mostly cold namespaces writing a block of a few records each period. Three shapes keep the writes and the near-zero dead share:
+
+1. **Stagger** (same writes, same files, bursts of 139-255 instead of 1,946-3,943). Seal files still die whole, 15 seals later; the table and collector follow RU-2's consumption check. It removes the burst, not the flushes.
+2. **Bounded carry** (1.9-2.9 times fewer files, 2-8% fewer bytes written, dead at most 2.8%). A namespace whose rolled-up level-0 is under m bytes (4 KiB here; 16 KiB gives the same, `carry1-16KiB`) is written back as one section of the period's seal file, at most twice in a row, then rolls out. Seal files still die whole, one period later. Unbounded, the carry re-copies a slowly growing section every period and writes more (`carry-4KiB`, 4.19 times).
+3. **Period 64, staggered** (the most efficient: 1.52-2.03 times written, 55-67 files a seal, no burst above 75). Level-0 then holds up to 64 seals, bounded by L through the L trigger, which raises the wire cost of repeats (RU-6; `wire2.py` measures it, not yet run).
+
+Each is placement by replicated policy alone (the namespace id, m, the period), so NR-2.3 holds. My recommendation: stagger plus the bounded carry, with the period left at 16 until RU-6's choice and T4(7)'s Linux numbers decide whether 64 pays. None of them is required for correctness. The condition is that the design picks one or states why the per-file count stands, with T4(7)'s numbers.
+
+**RU-6. The hot-key wire cost of level-0 is bounded, but the stated worst understates it (probe 4).**
+Level-0 sections repeat a key once per section that wrote it, at most period sections, and their bytes stay below L plus one seal (the L trigger). So the excess over the deduplicated answer is at most about α · |st(s)| / 4, and answers stay below the copy (`wire.out`, worst sent / copy 0.59 hot-heavy, 0.99 moderate). The ratio to the missing bytes is what grows. With stores 2-32 seals behind, which the design's sample (1 to 182 days) never takes, `wire.out` gives:
+
+| α = 1 | Sent / missing, mean (worst) | Roll-ups per 1,000 seals | Written per day |
+| --- | --- | --- | --- |
+| Hot-heavy, design | 1.54 (3.21) | 62 | 3.59 C |
+| Hot-heavy, roll-up every seal | 1.29 (1.99) | 1,000 | 9.82 C |
+| Hot-heavy, also roll up at 2x repeats | 1.39 (3.07) | 125 | 4.33 C |
+| Hot-heavy, also at 1.5x repeats | 1.43 (2.51) | 184 | 5.01 C |
+| Hot-heavy, level-0 merged at answer time | 1.32 (2.31) | 62 | 3.59 C |
+| Moderate, design | 1.31 (1.96) | 62 | 0.68 C |
+| Moderate, level-0 merged at answer time | 1.22 (1.56) | 62 | 0.68 C |
+
+The 0.30 C key set does not move (1.36-1.37 mean, 2.87 worst in every variant): its excess is the ladder, not level-0.
+
+So the worst is 3.21 times, not 2.17 (`:188`). Rolling up earlier on repeats buys little (worst 3.07 or 2.51) for 21-40% more writes and two to three times the files of hot namespaces. Merging the level-0 sections at answer time recovers most of what a per-seal roll-up gave, with no extra write or file. It is a k-way merge of at most period sections, below L plus one seal, recent and in the page cache. It departs from "nothing is merged per answer" (`:140`), but the merge is per namespace and starting section (at most period variants, each below L), not per R, so the server can hold the merged suffixes in memory and rebuild them at each seal. The trade is server CPU and memory against wire bytes, under P1, and it is the lead's or the owner's call. Options: (a) keep sections whole and restate the bound (3.21 worst at 2-32 seals behind); (b) merge level-0 at answer time, the suffixes cached per seal; (c) roll up on repeats (not recommended: the writes and files cost more than it saves). Recommendation: (b). It also makes period 64 (RU-5.3) affordable on the wire.
+
+**RU-7. Wording (no mechanism).**
+1. `:190` "leaves no dead bytes" and the ledger's "no dead bytes" (`:464`): measured after the collector; at every seal, at most 1.3-2.0%. Say "under 2%".
+2. `:190` "about 11,500 to 12,200 files on disk": 13,300-16,000 between tables.
+3. `:162` "as one D11 sync group": add "one flush on macOS; on Linux one flush per file" (RU-4).
+4. `:188` "puts the hot-heavy worst at 2.17 times": 3.21 for stores 2-32 seals behind (RU-6), and T4(8) samples those ages.
+5. `:130` "level-0 holds at most 16 seals of changes": with a carry (RU-5.2) it holds at most the period or m bytes; state whichever shape is chosen.
+
+### Conditions
+
+- RU-C1 (RU-1): the seal ordinal is in apply's state, the checkpoint, the snapshot, each seal file and the table; T4(1) restarts and installs a voter mid-period and compares seal files byte for byte.
+- RU-C2 (RU-2): the table is published only at period seals, and the collector unlinks a seal file only when the table reaches none of its sections; T4(5) changes the period mid-run in the crash matrix.
+- RU-C3 (RU-4, RU-5): `:162,190` state files and flushes per roll-up per platform; the design adopts stagger plus a bounded carry (or period 64), or keeps one file per output with T4(7)'s Linux and APFS sync measurements as the reason; T4(7) runs `completion_sync_probe` at 256-4,096 files of 1 KiB on ext4 (bare-metal NVMe and a cloud volume) and APFS.
+- RU-C4 (RU-6): the owner or lead picks (a), (b) or (c); the design restates the hot-key worst at stores 2-32 seals behind, and T4(8) samples those ages.
+- RU-C5 (RU-7): the five wording fixes.
+
+No blocking items. RU-2 loses data only through a policy change, which needs the "set limits" entry that S5.2 has yet to build, so RU-C2 lands in the text before S5.2's code does. RU-3 is optional.
+
+### Not run
+
+Any build, test, sanitizer or benchmark; `completion_sync_probe` or any timing of fsync, `F_FULLFSYNC` or `syncfs` (RU-4's figures are estimates); `wire2.py` (period 64 on the wire; queued, not finished at commit); Linux; real crashes or power cuts (the crash matrix models the document's order, not code); relay fetch counts beyond arithmetic; `quiet exclusive`. The model's ring is the current seal only, so its stores 2 seals behind would be ring hits in a group whose ring covers them; the 8-32-seal stores are not.
