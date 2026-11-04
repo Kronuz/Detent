@@ -27,5 +27,5 @@
 
 Nothing blocks the guide. Docs that disagree with `main`, for the lead:
 
-1. `website/src/content/docs/architecture/agent.md` ("Agent and Shared Memory") and `docs/ACTORS.md` describe the shared-memory agent that step G removes; G's branch rewrites them.
+1. Resolved by step G: `website/src/content/docs/architecture/agent.md` and `docs/ACTORS.md` no longer describe the shared-memory agent, and the guide says it has been removed.
 2. `docs/design/namespace-delivery.md` D10 says a restart is O(namespaces) and opens packs on first use; the code maps every pack at restart, O(segments) (recorded in `docs/status/namespace-s3.md`, "Design vs code").

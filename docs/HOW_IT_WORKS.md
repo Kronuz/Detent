@@ -18,7 +18,7 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 | A `selected` table with one entry and one `change` slot per namespace | Designed (namespace delivery D8, step S7) | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
-| Removal of the unmanaged agent and its shared-memory copy | Built on branch `legacy/wave2-g` (legacy wave 2, step G), not on `main` | [status/legacy-wave2.md](status/legacy-wave2.md) |
+| Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](status/legacy-wave2.md) |
 | Removal of the Client's file and poll sources | In progress (legacy wave 2, step H) | [status/legacy-wave2.md](status/legacy-wave2.md) |
 
 ## 1. The actors
@@ -33,7 +33,7 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 
 **Applications** read knobs from that directory through `libdetent_reader`, one reader core with a C ABI; in the design, C++, Rust and Python wrap it and `detent get` calls it ([reader.md](design/reader.md) D1). Until reader step S6 lands, applications read through `detent::Client` with `make_local_read_source` (`include/detent_local/client_source.hh:31`), over the same files.
 
-**Legacy wave 2 removes the unmanaged agent.** It kept one `detent::Client` in its own memory, polled a file or the classic HTTP distributor, and copied the whole snapshot into a shared-memory region capped at 4 MiB (`src/detent_agent/agent.hh`, `src/detent_agent/shm_format.hh:80`). That is a second copy of data the managed store already gives every process through file mappings, it had no path to authority data, and the classic distributor it polled is already removed. The owner ruled to drop it (decision 7 of the wave 2 ledger on `legacy/wave2-g`). Step G deletes it on branch `legacy/wave2-g`; until that lands, `main` still builds it.
+**Legacy wave 2 removed the unmanaged agent.** It kept one `detent::Client` in its own memory, polled a file or the classic HTTP distributor, and copied the whole snapshot into a shared-memory region capped at 4 MiB (formerly `src/detent_agent/agent.hh` and `src/detent_agent/shm_format.hh`). That is a second copy of data the managed store already gives every process through file mappings, it had no path to authority data, and the classic distributor it polled is already removed. The owner ruled to drop it (decision 7 of the wave 2 ledger). Step G deleted it, and `detent-agent` and `detent get` now exit with `no source configured` when no managed source is set.
 
 ## 2. The store on disk
 
