@@ -56,13 +56,12 @@ int main() {
 		if (variant == 11) {
 			l::StorageIdentity bad{};
 			bad.fill('y');
-			const l::detail::SegmentNames broken(bad);
-			write(directory / broken.owner_name(),
+			write(directory / l::detail::SegmentNames(bad).owner_name(),
 				  l::encode_segment_ownership(
 					  {storage, bad, bytes.size(), l::paged::physical_commitment(bytes)}));
 			auto corrupt = bytes;
 			corrupt.back() ^= 1;
-			write(directory / broken.payload_name(), corrupt);
+			write(directory / l::detail::SegmentNames(bad).payload_name(), corrupt);
 		}
 		if (variant == 13) {
 			auto root = image.root();
@@ -212,9 +211,18 @@ int main() {
 			} else {
 				require(!collector.error() && !std::filesystem::exists(directory / names.payload_name()) &&
 						!std::filesystem::exists(directory / names.owner_name()));
+				// A pack whose checksum differs from its owner record is ours and unreachable: it goes too.
+				const std::size_t packs = variant == 11 ? 2 : 1;
+				if (variant == 11) {
+					l::StorageIdentity bad{};
+					bad.fill('y');
+					require(!std::filesystem::exists(directory / l::detail::SegmentNames(bad).payload_name()) &&
+							!std::filesystem::exists(directory / l::detail::SegmentNames(bad).owner_name()));
+				}
 				require(core->ledger.stats().used.bytes ==
-							usage.bytes - (variant == 9 ? 0 : bytes.size()) - l::segment_ownership_bytes &&
-						core->ledger.stats().used.entries == usage.entries - (variant == 9 ? 1 : 2));
+							usage.bytes - (variant == 9 ? 0 : bytes.size()) * packs -
+								l::segment_ownership_bytes * packs &&
+						core->ledger.stats().used.entries == usage.entries - (variant == 9 ? 1 : 2 * packs));
 			}
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames protected_names(segment.ownership.segment);
