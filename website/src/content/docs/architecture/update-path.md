@@ -66,7 +66,7 @@ whole update. See [Snapshot Format](/Detent/reference/snapshot-format/#strictnes
 
 Transport failures and invalid updates back off with full jitter, using the
 [random](https://github.com/Kronuz/random) library, so a fleet of clients that
-lost the same distributor doesn't reconnect in lockstep. Staleness is measured
+lost the same source doesn't reconnect in lockstep. Staleness is measured
 on `steady_clock`, so an NTP step can't make it negative or hide an outage.
 
 ---

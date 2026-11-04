@@ -6,10 +6,7 @@ Five actors move a knob change from the service that writes it to the process th
 
 ![Producer, authority, relay, agent and client](diagrams/actors-overview.png)
 
-Detent has two delivery profiles:
-
-1. **Managed.** Producer, authority, relay, agent and client, as drawn above. This is the topology the [production operating contract](PRODUCTION_CONTRACT.md) targets: one regional authority of three voters, durable relays and one agent per host.
-2. **Classic.** `detentd` without `--authority` is a plain HTTP distributor that clients poll for JSON. The code and the service guide call it the legacy profile. It is still built by default and still supported; see [The classic profile](#the-classic-profile).
+Detent delivers knobs through the managed topology: producer, authority, relay, agent and client, as drawn above. The [production operating contract](PRODUCTION_CONTRACT.md) targets it: one regional authority of three voters, durable relays and one agent per host.
 
 ## Terms
 
@@ -23,7 +20,6 @@ Each role has one name in this page, and the names match the code.
 | Relay | Optional fan-out between the authority and agents | `detent-relay` |
 | Agent | The per-host process that writes local generations | `detent-agent` |
 | Client | An application process reading knobs in memory | Your app, linking `detent::Client` |
-| Distributor | The classic, legacy HTTP server | `detentd` |
 
 A **generation** is one immutable, complete copy of the knob state on disk. An agent or relay *publishes* a generation by writing it and then atomically replacing a small descriptor file named `selected`. "Daemon" names no role: voters, relays and agents are all daemons. The configuration keys `publisher_tls`, `publisher_bind` and `publisher_name` belong to the authority's producer listener, and `publisher_user` names the account trusted to publish generations; neither is a separate actor.
 
@@ -34,7 +30,7 @@ A **generation** is one immutable, complete copy of the knob state on disk. An a
 | Actor | Runs on | Binary | CMake option | Configuration | Durable state | Source |
 | --- | --- | --- | --- | --- | --- | --- |
 | Producer | Anywhere that reaches the authority | Yours | None | Yours | Its unacknowledged requests | None |
-| Authority | Three machines, one voter each | `detentd` | `DETENT_BUILD_DISTRIBUTOR=ON` and `DETENT_BUILD_AUTHORITY=ON` | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detentd/main.cc` |
+| Authority | Three machines, one voter each | `detentd` | `DETENT_BUILD_AUTHORITY=ON` (the default) | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detentd/main.cc` |
 | Relay | Between the authority and agent hosts | `detent-relay` | `DETENT_BUILD_RELAY=ON` | `relay.json` | One directory per bundle | `src/detent_relay/` |
 | Agent | Every application host | `detent-agent` | Always built; managed delivery needs `DETENT_BUILD_MANAGED_AGENT=ON` | `agent.json` (public), `managed.json` (private) | `generation_dir` | `src/detent_agent/`, `src/detent_delivery/`, `src/detent_local/` |
 | Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | `InitOptions` in code; `agent.json` for `detent get` | None | `src/detent/`, `src/detent_local/` |
@@ -71,7 +67,7 @@ The configuration either omits `voters` (a single voter, for development) or lis
 3. Steady state: the leader commits groups of transactions; checkpoints start once the retained log reaches half its configured limits, and old journal segments go after a checkpoint is published.
 4. A voter that falls behind catches up from the leader's log, or from a snapshot when the log has been compacted.
 
-**Where.** The authority tier: one machine per voter, each with its own disk. Build `detentd` with `-DDETENT_BUILD_DISTRIBUTOR=ON -DDETENT_BUILD_AUTHORITY=ON`; without `DETENT_BUILD_AUTHORITY`, `--authority` fails at startup. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detentd.json`. The PID file is `detentd-<port>.pid` in the runtime directory. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
+**Where.** The authority tier: one machine per voter, each with its own disk. `DETENT_BUILD_AUTHORITY` (on by default) builds `detentd`. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detentd.json`. The PID file is `detentd-<port>.pid` in the runtime directory. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
 
 ## Relay
 
@@ -124,7 +120,7 @@ Each update carries a cursor (authority identity, scope and revision). The agent
 
 **Where.** Every application host. `detent-agent` is always built; `--managed` needs `DETENT_BUILD_MANAGED_AGENT=ON`, which is the default. The public `agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
 
-Without `--managed`, `detent-agent` runs the legacy profile instead: it polls a classic distributor and writes `snapshot.shm`. See [The classic profile](#the-classic-profile).
+Without `--managed`, `detent-agent` polls an HTTP source and writes `snapshot.shm`. See [The classic client path](#the-classic-client-path).
 
 ## Client
 
@@ -170,8 +166,7 @@ Agents keep their last durable generation while anything upstream is down, and c
 
 | Option | Default | Builds |
 | --- | --- | --- |
-| `DETENT_BUILD_DISTRIBUTOR` | `ON` | `detentd` (classic distributor; also needed for the authority) |
-| `DETENT_BUILD_AUTHORITY` | `OFF` | `--authority` in `detentd`; needs `DETENT_BUILD_DISTRIBUTOR` |
+| `DETENT_BUILD_AUTHORITY` | `ON` | `detentd`, the durable authority daemon |
 | `DETENT_BUILD_RELAY` | `OFF` | `detent-relay`; needs OpenSSL 3.0 |
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | `--managed` support in `detent-agent` |
 | `DETENT_BUILD_TESTS`, `DETENT_BUILD_EXAMPLES`, `DETENT_BUILD_BENCHMARKS` | `ON` | Tests, examples, benchmarks |
@@ -194,13 +189,6 @@ cmake --build build -j
 
 `agent.json` and `detentd.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.
 
-## The classic profile
+## The classic client path
 
-The classic profile is the original, simpler path. The code calls it legacy (`detentd` refuses to mix `--authority` with "legacy multicast", and `detent-agent` describes itself as a "managed or legacy" daemon). It has no authentication or TLS.
-
-1. **Distributor.** `detentd` without `--authority` serves `PUT`, `PATCH` and `GET /v1/snapshot` and `GET /v1/health` on port 8317. It writes the whole snapshot to `persist_path` (`snapshot.json` in the state directory) on every accepted write and reloads it at startup. `--cluster` joins a classic Raft group over `cluster::Bus` UDP multicast; see `src/detentd/CLUSTERING.md`.
-2. **Producer.** Anything that sends `PUT` or `PATCH /v1/snapshot`.
-3. **Client.** `detent::Client` with `detent_http::make_http_poll_source()` polls `GET /v1/snapshot` with `If-None-Match` and `X-Detent-Base-Version`, and gets `304`, a diff or the full body.
-4. **Legacy agent.** `detent-agent` with `source_address` runs one polling client and copies each accepted snapshot into `snapshot.shm` under a seqlock. `detent get` without a generation directory maps that file and starts a user agent on demand.
-
-The managed and classic profiles share the `detentd` binary and its default port, so one process runs one profile.
+`detent::Client` with `detent_http::make_http_poll_source()` polls `GET /v1/snapshot` with `If-None-Match` and `X-Detent-Base-Version`, and gets `304`, a diff or the full body. `detent-agent` with `source_address` runs one polling client and copies each accepted snapshot into `snapshot.shm` under a seqlock. `detent get` without a generation directory maps that file and starts a user agent on demand. No Detent daemon serves `/v1/snapshot`.

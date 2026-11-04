@@ -12,7 +12,8 @@ detent-agent --help | -h
 ```
 
 The host-local agent. In **legacy** mode it runs one `detent::Client` against a
-distributor or file and republishes every accepted snapshot into shared memory.
+snapshot file or an HTTP endpoint and republishes every accepted snapshot into
+shared memory.
 In **managed** mode it receives authenticated deliveries from the durable
 authority and publishes immutable generations on disk.
 
@@ -22,12 +23,13 @@ authority and publishes immutable generations on disk.
 
 | Option | Meaning |
 | --- | --- |
-| `--source-address HOST:PORT` | Poll this distributor's `/v1/snapshot` (alias: `--source-http`) |
+| `--source-address HOST:PORT` | Poll `GET /v1/snapshot` on this endpoint (alias: `--source-http`) |
 | `--source-path PATH` | Poll this snapshot file instead |
 | `--defaults PATH` | Typed fallback knobs |
 | `--poll-interval-ms N` | Poll interval; default `200` |
 
-With neither source nor defaults, the agent polls `127.0.0.1:8317`. With only
+With neither source nor defaults, the agent polls `GET /v1/snapshot` on
+`127.0.0.1:8317`. With only
 defaults, it serves them without any network connection. A source flag replaces
 the configured source as a whole.
 
@@ -74,7 +76,7 @@ revision and count independently of whether the process is running.
 
 | Variable | Meaning |
 | --- | --- |
-| `DETENT_SOURCE_ADDRESS` | `host:port` of the distributor |
+| `DETENT_SOURCE_ADDRESS` | `host:port` of the HTTP snapshot endpoint |
 | `DETENT_SOURCE_HTTP` | Legacy alias for `DETENT_SOURCE_ADDRESS` |
 | `DETENT_SOURCE_PATH` | Snapshot file path |
 | `DETENT_DEFAULTS_PATH` | Defaults file |

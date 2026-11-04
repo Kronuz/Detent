@@ -99,7 +99,7 @@ exactly.
 
 ## Whole-Definition Replacement
 
-When a live snapshot or a `PATCH` contains a knob, its definition replaces the
+When a live snapshot, a patch or a transaction contains a knob, its definition replaces the
 previous one **entirely**. There is no field-level merge:
 
 ```json
@@ -107,7 +107,7 @@ previous one **entirely**. There is no field-level merge:
 { "type": "bool", "default": false, "rollout_pct": 10,
   "overrides": { "employees": true } }
 
-// PATCH body for this knob
+// New definition for this knob
 { "type": "bool", "default": false, "rollout_pct": 20 }
 
 // Result: the employees override is gone

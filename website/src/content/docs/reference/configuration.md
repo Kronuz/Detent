@@ -29,7 +29,7 @@ resolved against the file's own directory. Unknown fields are rejected.
 | FreeBSD | `$XDG_CONFIG_HOME/detent`, else `~/.config/detent` | `/usr/local/etc/detent` |
 | macOS | `~/Library/Application Support/Detent` | `/Library/Application Support/Detent` |
 
-### Distributor State
+### Service State
 
 | Platform | User | System |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 ```json
 {
-  "source_address": "127.0.0.1:8317",
+  "source_path": "/var/lib/myapp/live_knobs.json",
   "poll_interval_ms": 200,
   "defaults_path": "defaults.json",
   "runtime_dir": "/run/detent",
@@ -70,7 +70,7 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 | Field | Meaning |
 | --- | --- |
-| `source_address` | Distributor `host:port` (legacy alias: `source_http`) |
+| `source_address` | `host:port` of an HTTP endpoint serving `GET /v1/snapshot` (alias: `source_http`) |
 | `source_path` | Snapshot file; exclusive with `source_address` |
 | `defaults_path` | Optional fallback knobs; `defaults.json` beside the config is found automatically |
 | `poll_interval_ms` | Poll interval, default `200` |
@@ -88,7 +88,7 @@ conventional `defaults.json` is skipped.
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `port` | `8317` | HTTP port |
-| `persist_path` | state directory | Snapshot persistence path |
+| `authority` | none | The [authority configuration](/Detent/operations/authority/) file `detentd` serves |
 | `reactors` | `4` | Network reactor threads |
 | `runtime_dir` | runtime directory | PID and log files |
 | `log_level`, `verbosity`, `color` | | [Logging](/Detent/operations/logging/) |
@@ -139,14 +139,13 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 | Variable | Used by | Meaning |
 | --- | --- | --- |
-| `DETENT_SOURCE_ADDRESS` | agent, `detent` | Distributor `host:port` |
+| `DETENT_SOURCE_ADDRESS` | agent, `detent` | HTTP snapshot endpoint `host:port` |
 | `DETENT_SOURCE_HTTP` | agent, `detent` | Legacy alias of `DETENT_SOURCE_ADDRESS` |
 | `DETENT_SOURCE_PATH` | agent, `detent` | Snapshot file |
 | `DETENT_DEFAULTS_PATH` | agent, `detent` | Defaults file |
 | `DETENT_POLL_INTERVAL_MS` | agent, `detent` | Poll interval |
 | `DETENT_RUNTIME_DIR` | agent, `detent` | Runtime directory |
 | `DETENTD_PORT` | `detentd` | Port |
-| `DETENTD_PERSIST_PATH` | `detentd` | Persistence path |
 | `DETENTD_REACTORS` | `detentd` | Reactor threads |
 | `NO_COLOR` | daemons | Disable automatic color |
 | `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_RUNTIME_DIR`, `TMPDIR` | all | Base directories |
@@ -159,7 +158,7 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 | --- | --- | --- |
 | `agent.json`, `detentd.json` | root | readable by the service account |
 | `managed.json`, `authority.json` | root or service account | `0600`, or controlled `0640` |
-| Distributor and authority state | service account | `0700` |
+| Authority state | service account | `0700` |
 | System agent runtime directory | service account | `0755`, with `0644` pid and snapshot |
 | Managed generation artifacts | service account | `0644` by default for system agents |
 

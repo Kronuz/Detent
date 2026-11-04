@@ -2,21 +2,18 @@
 title: "Durable Authority"
 ---
 
-The classic distributor accepts whole snapshots with client-chosen versions.
-That's simple, but it has limits: two publishers can't safely edit at the same
-time, anyone who can reach the port can publish, and the clustered profile
-keeps its Raft votes in memory.
+The **durable authority** is what `detentd` runs. Publishers open
+authenticated sessions and submit atomic, per-namespace **transactions** with
+compare-and-set preconditions; the authority assigns revisions and commits them
+through durable Raft consensus to local storage. The preconditions keep
+concurrent publishers from overwriting each other, and only a configured
+credential can publish.
 
-The **durable authority** is an opt-in profile of `detentd` that fixes all
-three. Publishers open authenticated sessions and submit atomic, per-namespace
-**transactions** with compare-and-set preconditions; the authority assigns
-revisions and commits them through durable Raft consensus to local storage.
-
-:::hint[Opt-in and still being qualified]{.caution}
+:::hint[Still being qualified]{.caution}
 The authority is complete as a component and has passed native, sanitizer and
 three-platform qualification, but sustained fleet-scale qualification is still
-open. It doesn't serve the legacy `/v1/snapshot` endpoint; agents receive its
-data through [managed delivery](/Detent/guides/managed-delivery/). See the
+open. It doesn't serve `/v1/snapshot`; agents receive its data through
+[managed delivery](/Detent/guides/managed-delivery/). See the
 [Roadmap](/Detent/roadmap/) for its exact status.
 :::
 
@@ -24,7 +21,7 @@ data through [managed delivery](/Detent/guides/managed-delivery/). See the
 
 ## Build It
 
-The authority is off by default:
+The authority builds by default; `DETENT_BUILD_AUTHORITY` controls it:
 
 ```sh
 cmake -B build -DDETENT_BUILD_AUTHORITY=ON
@@ -70,7 +67,8 @@ detentd --authority authority.json
 ```
 
 It listens on `127.0.0.1:8317` by default; `--port` changes the port.
-`--daemonize` and `--status` work as for the classic distributor.
+`--daemonize` runs it in the background and `--status` queries it; see
+[`detentd`](/Detent/reference/cli/detentd/).
 
 ---
 

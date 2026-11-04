@@ -51,8 +51,8 @@ no reader ever observes a half-applied change.
 
 ## Version
 
-Every published snapshot carries a positive integer `version`. A client or
-distributor only accepts a version greater than the one it already has, so
+Every published snapshot carries a positive integer `version`. A client only
+accepts a version greater than the one it already has, so
 reordered, repeated or replayed updates are harmless: they are counted as stale
 and ignored.
 
@@ -75,15 +75,15 @@ baked defaults for every knob your code reads.
 
 A source is where live snapshots come from. A client consumes exactly one
 source: nothing (baked defaults only), a local file that it polls, or an HTTP
-distributor. The managed agent adds a fourth, durable immutable generations
-delivered from an authenticated authority.
+endpoint that serves `GET /v1/snapshot`. The managed agent adds a fourth,
+durable immutable generations delivered from an authenticated authority.
 
-## Distributor
+## Authority
 
-The distributor, `detentd`, is the server that publishers write to and clients
-poll. It validates each publish, persists it, keeps a short history of diffs
-so clients can download just what changed, and optionally replicates itself
-across nodes with Raft.
+The durable authority, `detentd --authority`, is the server that publishers
+write to. It authenticates each publisher, applies atomic, per-namespace
+transactions, commits them through durable Raft consensus, and delivers the
+result to managed agents.
 
 ## Agent
 

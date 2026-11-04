@@ -20,7 +20,7 @@ target_link_libraries(my_app PRIVATE detent::detent)
 ```
 
 `detent::detent` has no networking dependencies. Link `detent_http::detent_http`
-as well only if the process polls a distributor directly.
+as well only if the process polls an HTTP endpoint directly.
 
 ---
 
@@ -144,7 +144,8 @@ destroyed.
 ## 6. Add a Live Source
 
 So far the process only knows its baked defaults. To receive updates without a
-restart, give the client one source, either a file it polls or a distributor:
+restart, give the client one source, either a file or an HTTP endpoint it
+polls:
 
 ```cpp
 opts.source_path = "/var/lib/myapp/live_knobs.json";
@@ -154,7 +155,7 @@ opts.poll_interval = std::chrono::milliseconds{200};
 ```cpp
 #include "detent_http/http_source.hh"
 
-opts.source_poll = detent_http::make_http_poll_source("distributor-host", 8317);
+opts.source_poll = detent_http::make_http_poll_source("knobs-host", 8317);
 ```
 
 [Live Updates](/Detent/guides/live-updates/) covers both in detail.

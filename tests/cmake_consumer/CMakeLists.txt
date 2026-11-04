@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(detent_consumer_check LANGUAGES CXX)
 set(DETENT_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." CACHE PATH "Detent source under test")
-foreach(option TESTS EXAMPLES BENCHMARKS DISTRIBUTOR MANAGED_AGENT AUTHORITY RELAY PYTHON RUST)
+foreach(option TESTS EXAMPLES BENCHMARKS MANAGED_AGENT AUTHORITY RELAY PYTHON RUST)
   set(DETENT_BUILD_${option} OFF CACHE BOOL "" FORCE)
 endforeach()
 include(FetchContent)

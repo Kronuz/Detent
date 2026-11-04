@@ -2,25 +2,25 @@
 title: "Durable Authority"
 ---
 
-Operating the opt-in durable authority: identities, credentials, multi-voter
-TLS, storage and migration. For a walkthrough, start with the
+Operating the durable authority: identities, credentials, multi-voter
+TLS, storage and service management. For a walkthrough, start with the
 [Durable Authority guide](/Detent/guides/durable-authority/).
 
 ---
 
 ## What You Get
 
-| | Classic distributor | Durable authority |
-| --- | --- | --- |
-| Publish unit | Whole snapshot or patch | Atomic per-namespace transaction |
-| Versions | Chosen by the publisher | Assigned by the authority |
-| Concurrency control | Version must increase | Compare-and-set on keys and namespaces |
-| Retries | Not idempotent | Exactly-once results per session sequence |
-| Authentication | None | Bearer tokens, namespace authorization |
-| Transport security | None | Publisher TLS; mutual TLS between voters |
-| Consensus state | In memory | Durable terms, votes and log |
-| Applying a change | Copies the whole map | Copies the affected tree paths only |
-| Distribution | `GET /v1/snapshot` | Authenticated snapshots and deltas to managed agents |
+| Property | Durable authority |
+| --- | --- |
+| Publish unit | Atomic per-namespace transaction |
+| Versions | Assigned by the authority |
+| Concurrency control | Compare-and-set on keys and namespaces |
+| Retries | Exactly-once results per session sequence |
+| Authentication | Bearer tokens, namespace authorization |
+| Transport security | Publisher TLS; mutual TLS between voters |
+| Consensus state | Durable terms, votes and log |
+| Applying a change | Copies the affected tree paths only |
+| Distribution | Authenticated snapshots and deltas to managed agents |
 
 ---
 
@@ -114,10 +114,9 @@ and filesystem-level qualification on specific hardware hasn't been done.
 
 ## Service Management
 
-Run `detentd --authority CONFIG` in the foreground under the same service
-manager conventions as the classic distributor. Use a private state directory
-owned by the service account, separate from any classic snapshot, and never
-mix an authority with classic multicast peers.
+Run `detentd --authority CONFIG` in the foreground under the service manager;
+see [System Services](/Detent/operations/services/). Use a private state
+directory owned by the service account.
 
 ```sh
 detentd --status --authority /etc/detent/authority.json

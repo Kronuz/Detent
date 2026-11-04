@@ -9,7 +9,7 @@ A client consumes at most one live source. Each kind is selected by a different
 | --- | --- | --- |
 | None (baked defaults only) | none | `detent::detent` |
 | Snapshot file | `source_path` | `detent::detent` |
-| HTTP distributor | `source_poll` = `make_http_poll_source(...)` | `detent_http::detent_http` |
+| HTTP endpoint serving `GET /v1/snapshot` | `source_poll` = `make_http_poll_source(...)` | `detent_http::detent_http` |
 | Any custom poller | `source_poll` = your function | `detent::detent` |
 | Managed generations | `read_source` = `make_local_read_source(...)` | `detent::local_client` |
 
@@ -61,7 +61,7 @@ detent::InitOptions::SourcePoll make_http_poll_source(
    only balances at connect time.
 3. The multi-node overload picks one node at random at construction, sticks to
    it, and moves to the next node in the list when a request fails, trying up
-   to `nodes.size()` nodes per poll. Any node of a Raft cluster can serve reads.
+   to `nodes.size()` nodes per poll.
 
 Each poll sends `If-None-Match`, `X-Detent-Base-Version` and `Accept-Encoding:
 zstd, gzip`, and handles `304`, full snapshots and merge-patch diffs. Responses

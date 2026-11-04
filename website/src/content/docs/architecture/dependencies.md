@@ -10,22 +10,19 @@ repositories. Everything is fetched with CMake `FetchContent`.
 
 ## Detent's Own Targets
 
-```d2 alt="detent is the core; detent_http, detentd_lib and detent_agent_lib build on it; detentd and detent-agent are executables over their libraries"
+```d2 alt="detent is the core; detent_http and detent_agent_lib build on it; detent-agent is an executable over its library"
 direction: down
 detent: "detent\n(core client)"
 http: "detent_http\n(poll source)"
-dlib: "detentd_lib"
 alib: "detent_agent_lib"
 local: "detent::local_client\n(managed generations)"
 detentd: "detentd" {shape: hexagon}
+detentd -> detent
 agent: "detent-agent" {shape: hexagon}
 reader: "detent" {shape: hexagon}
 http -> detent
-dlib -> detent
-dlib -> http
 alib -> detent
 local -> detent
-detentd -> dlib
 agent -> alib
 agent -> http: "--source-address"
 reader -> alib
@@ -36,7 +33,6 @@ reader -> local
 | --- | --- | --- |
 | `detent` | the core libraries below | Client, schema, evaluation, overrides, file source |
 | `detent_http` | `detent`, `compressors` | Plain POSIX-socket HTTP poller; no Asio |
-| `detentd_lib` | `detent`, `detent_http`, `http`, `cluster` | Distributor logic, linkable by tests |
 | `detent_agent_lib` | `detent` | Shared-memory agent logic, linkable by tests |
 | `detent::local_client` | `detent`, local view | Managed generation reader |
 
@@ -57,10 +53,9 @@ the daemon libraries directly instead of spawning subprocesses.
 | [compressors](https://github.com/Kronuz/compressors) | zstd and gzip encoding and decoding |
 | [RapidJSON](https://github.com/Tencent/rapidjson) | Strict JSON parsing, pinned to a post-1.1.0 commit |
 | [http](https://github.com/Kronuz/http) + [reactor](https://github.com/Kronuz/reactor), [http-parser](https://github.com/Kronuz/http-parser), [radix-router](https://github.com/Kronuz/radix-router) | `detentd`'s HTTP server |
-| [cluster](https://github.com/Kronuz/cluster) | Legacy Raft over multicast; durable consensus, journal and completion I/O |
-| [generation-cache](https://github.com/Kronuz/generation-cache) | Cached composed diffs |
+| [consensus](https://github.com/Kronuz/consensus) | Durable Raft for the authority, with journal and completion I/O |
 | [logger](https://github.com/Kronuz/logger) | Daemon logging |
-| [Asio](https://think-async.com/Asio/) | Networking, pulled in by `http` and `cluster` |
+| [Asio](https://think-async.com/Asio/) | Networking, pulled in by `http` and `consensus` |
 | [OpenSSL](https://www.openssl.org/) 3.0+ | TLS for the authority and managed delivery |
 
 RapidJSON is pinned to commit `24b5e7a8`, because the 1.1.0 release doesn't

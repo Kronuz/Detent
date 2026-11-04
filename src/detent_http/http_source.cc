@@ -62,10 +62,9 @@ detent::InitOptions::SourcePoll make_http_poll_source(
 
 	// after_version (Client's own last-accepted version) is sent as
 	// X-Detent-Base-Version: a hint, not a request the server is obligated
-	// to honor -- detentd answers with its cached diff only if that's
+	// to honor -- a server answers with a diff only if that's
 	// EXACTLY the version its diff was computed against, and falls back to
-	// the full body otherwise (see detentd.hh's current_diff_bytes_
-	// comment). This is a pure bandwidth optimization layered onto the
+	// the full body otherwise. This is a pure bandwidth optimization layered onto the
 	// existing ETag-conditional GET, not a replacement for it: the 304 path
 	// below is unaffected either way.
 	return [path = std::move(path), state](std::uint64_t after_version) -> std::optional<detent::InitOptions::SourcePayload> {

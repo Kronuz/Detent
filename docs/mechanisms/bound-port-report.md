@@ -15,4 +15,4 @@ How a daemon started on port 0 tells its caller which port it got, and how the f
 
 1. The pid file and log file of `detentd` are named by the requested port (`detentd-0.pid` for port 0), and `--status` probes the port it is given. A fixture that needs `--status` passes the bound port.
 2. A restart on the bound port rebinds a port the kernel released moments earlier; another process that binds port 0 in that window can take it. The fixtures that restart (`test_daemon.sh`, `test_managed_process.sh`) do not retry.
-3. Fixtures whose daemons name each other in their configs (the three-voter authority in `test_multivoter.py` and `tests/detent_system/`, the Raft fixtures in `test_raft_cluster.cc`) cannot start on port 0: every peer address is needed before the first start. They keep their held reservations.
+3. Fixtures whose daemons name each other in their configs (the three-voter authority in `test_multivoter.py` and `tests/detent_system/`) cannot start on port 0: every peer address is needed before the first start. They keep their held reservations.

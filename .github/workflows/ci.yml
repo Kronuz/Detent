@@ -74,7 +74,7 @@ jobs:
         env: { CC: clang, CXX: clang++ }
         run: >-
           cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDETENT_READ_COUNTERS=ON
-          -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_DISTRIBUTOR=OFF
+          -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_AUTHORITY=OFF
           -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
       - name: Build
         run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_view test_local_reader

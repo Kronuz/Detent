@@ -64,7 +64,7 @@ the specification's `jk_*`-style metric names, such as
 
 ## Daemon Health
 
-1. `GET /v1/health` on the [distributor and authority](/Detent/reference/http-api/health/).
+1. `GET /v1/health` on the [authority](/Detent/reference/http-api/health/).
 2. `detentd --status` and `detent-agent --status` from the command line.
 3. Daemon logs, described in [Logging](/Detent/operations/logging/).
 

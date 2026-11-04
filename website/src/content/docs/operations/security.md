@@ -2,33 +2,8 @@
 title: "Security"
 ---
 
-Detent's security model is simple to state: the **classic** profile trusts its
-network, and the **durable authority** doesn't.
-
----
-
-## Classic Distributor and Agents
-
-:::hint[No authentication, no encryption]{.warning}
-`detentd`'s classic HTTP API and its multicast Raft transport have no
-authentication, authorization or TLS. Anyone who can reach the port can
-publish a snapshot and change every knob.
-:::
-
-Deploy it behind one of:
-
-1. A firewall or security group that only admits publishers and pollers.
-2. An authenticating TLS reverse proxy for publishers, with the distributor
-   bound to a private interface.
-3. The durable authority instead.
-
-Things the classic profile does protect against:
-
-1. **Malformed and oversized input.** Bodies over 16 MiB are rejected before
-   buffering; JSON nesting is bounded; parsing is strict.
-2. **Partial updates.** A snapshot is validated completely before it's
-   accepted.
-3. **Replays.** Stale and duplicate versions are rejected.
+The durable authority authenticates publishers and voters, bounds every
+admission layer, and fences storage. Host-local reads trust the host.
 
 ## Host-Local Reads
 
@@ -37,6 +12,9 @@ Things the classic profile does protect against:
    writable by the service account. Every local user can read every knob.
 3. Readers map the snapshot read-only and bounds-check every offset and length
    against the payload size before dereferencing.
+4. A **file source** accepts any valid snapshot in its file, so whoever can
+   replace the file can publish to that host. Keep it writable only by the
+   publisher.
 
 Never put secrets in knobs.
 

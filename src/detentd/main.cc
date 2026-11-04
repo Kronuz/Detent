@@ -1,88 +1,57 @@
-// The distributor executable: wires Distributor into http::HttpAsioService
-// and runs until stopped.
+// detentd: the durable authority daemon. Wires detent::authority::Service into
+// http::HttpAsioService and runs until stopped.
 //
 // Usage:
-//   detentd <port> <persist_path>
-//       [--reactors N]
-//       [--cluster <token> <multicast_port> <multicast_group> <interface>
-//                  <self_host:port> <peer_host:port> [<peer_host:port> ...]]
-//
-// Example (three same-host replicas forming a Raft cluster over loopback
-// multicast, each told its OWN advertised HTTP endpoint plus every peer's):
-//   detentd 8081 /tmp/jk-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083
-//   detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083
-//   detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082
-#include "detentd.hh"
-#include <http_log.h>
-#ifdef DETENT_WITH_AUTHORITY
+//   detentd --authority CONFIG [--daemonize] [--port N] [--reactors N]
+//           [--runtime-dir PATH] [--system] [--config PATH]
+//   detentd --status [--authority CONFIG] [--port N]
 #include "../detent_authority/service.hh"
 #include "../detent_authority/transport/https_client.hh"
-#include <http_asio_tls.h>
-#endif
-#include "../detent_cli/logging.hh"
-#include "../detent_cli/daemon.hh"
-#include "detent_http/http_client.hh"
 #include "../detent_cli/config.hh"
+#include "../detent_cli/daemon.hh"
+#include "../detent_cli/logging.hh"
+#include <http_asio.h>
+#include <http_asio_tls.h>
 #include <unistd.h>
 
-#include <http_asio.h>
-
 #include <atomic>
-#include <functional>
-#include <chrono>
 #include <charconv>
-#include <cmath>
-#include <filesystem>
-#include <optional>
-#include <stdexcept>
-#include <vector>
+#include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <functional>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 std::atomic<bool> g_stop{false};
-// The authority publisher's connection cap and in-flight limit.
+// The publisher's connection cap and in-flight limit.
 constexpr std::size_t kPublisherConnections = 1024;
 void handle_signal(int) { g_stop.store(true); }
 
 const char* kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never|truecolor|256|16\n"
-	"usage: detentd [--daemonize | --status] [--runtime-dir PATH] [<port> <persist_path>] [--config PATH]\n"
-	"                [--authority PATH] (opt-in durable loopback authority mode)\n"
-	"                [--port N] [--persist-path PATH] [--reactors N]\n"
-	"                [--cluster <token> <multicast_port> <multicast_group>\n"
-	"                           <interface> <self_host:port> <peer_host:port> ...]\n"
-	"                [--raft-timing <heartbeat_timeout> <election_init>\n"
-	"                               <election_min> <election_max>]\n"
+	"usage: detentd --authority CONFIG [--daemonize] [--runtime-dir PATH] [--config PATH]\n"
+	"               [--port N] [--reactors N] [--system]\n"
+	"       detentd --status [--authority CONFIG] [--runtime-dir PATH] [--port N]\n"
 	"\n"
-	"detentd: the HTTP distribution-layer daemon -- serves GET/PUT/PATCH\n"
-	"/v1/snapshot to clients, persists to <persist_path>, and optionally\n"
-	"forms a Raft cluster with peer detentd instances over UDP multicast:\n"
-	"only the elected leader accepts writes (a follower answers with the\n"
-	"leader's address instead), and a write isn't reported accepted until a\n"
-	"quorum of the cluster has it.\n"
+	"detentd: the durable authority daemon. It serves the authority configured in\n"
+	"CONFIG (bounded namespace transactions, producer sessions, snapshot and delta\n"
+	"delivery) and replicates through Raft when CONFIG lists peers.\n"
 	"\n"
-	"With no arguments: port 8317, snapshot.json in the user state directory.\n"
-	"--system selects system config and /var/lib/detent (BSD/macOS: /var/db/detent).\n"
+	"With no --port: port 8317 (0 binds a free port and logs it).\n"
+	"--system selects the system config and runtime directories.\n"
 	"Config: detentd.json in the same platform directories as agent.json.\n"
-	"Fields: port, persist_path, reactors, runtime_dir, log_level, verbosity, color. Paths are config-relative.\n"
-	"Flags/positional arguments override DETENTD_PORT, DETENTD_PERSIST_PATH,\n"
-	"DETENTD_REACTORS, which override config.\n"
-	"Linux/FreeBSD state: $XDG_STATE_HOME/detent or ~/.local/state/detent.\n"
-	"macOS state: ~/Library/Application Support/Detent/state.\n"
+	"Fields: authority, port, reactors, runtime_dir, log_level, verbosity, color. Paths are config-relative.\n"
+	"Flags override DETENTD_PORT, DETENTD_REACTORS, DETENTD_RUNTIME_DIR, which override config.\n"
 	"\n"
-	"--raft-timing overrides cluster::Raft's default timing (1.0/4.0/10.0/\n"
-	"30.0 seconds) -- e.g. for a fast end-to-end test harness; every node\n"
-	"in one cluster should use the same values.\n"
-	"\n"
-	"example (three same-host replicas, each told its OWN advertised\n"
-	"endpoint plus every peer's):\n"
-	"  detentd 8081 /tmp/jk-a.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8081 127.0.0.1:8082 127.0.0.1:8083\n"
-	"  detentd 8082 /tmp/jk-b.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8082 127.0.0.1:8081 127.0.0.1:8083\n"
-	"  detentd 8083 /tmp/jk-c.json --cluster demo 23864 239.255.0.1 127.0.0.1 127.0.0.1:8083 127.0.0.1:8081 127.0.0.1:8082\n";
+	"--status probes the local instance over plain HTTP, or over HTTPS with CA and name\n"
+	"verification when CONFIG's publisher uses TLS, and prints its pid and health.\n";
 
 int positive_int(const std::string& value, int maximum, const std::string& field) {
 	int number = 0;
@@ -102,13 +71,17 @@ int port_number(const std::string& value) {
 	return number;
 }
 
-double positive_seconds(const std::string& value) {
-	std::size_t used = 0;
-	auto seconds = std::stod(value, &used);
-	if (used != value.size() || !std::isfinite(seconds) || seconds <= 0) {
-		throw std::runtime_error("Raft timing must be a positive number of seconds");
+std::string probe_health(const std::optional<detent::authority::ServiceOptions>& authority, unsigned short port) {
+	auto address = authority ? authority->publisher_bind : asio::ip::make_address(detent_cli::kLoopbackHost);
+	if (address.is_unspecified()) address = address.is_v4()
+		? asio::ip::address(asio::ip::address_v4::loopback())
+		: asio::ip::address(asio::ip::address_v6::loopback());
+	const asio::ip::tcp::endpoint endpoint{address, port};
+	if (authority && authority->publisher_tls) {
+		return detent::transport::https_health(
+			{"", "", authority->publisher_tls->certificate_authority}, endpoint, authority->publisher_name);
 	}
-	return seconds;
+	return detent::transport::http_health(endpoint, address.to_string());
 }
 
 int run(const std::vector<std::string>& input_args) {
@@ -121,7 +94,6 @@ int run(const std::vector<std::string>& input_args) {
 		{"color", {"--color", String}},
 		{"runtime_dir", {"--runtime-dir", Path}},
 		{"port", {"--port", NonnegativeInt}},
-		{"persist_path", {"--persist-path", Path}},
 		{"authority", {"--authority", Path}},
 		{"reactors", {"--reactors", PositiveInt}},
 	});
@@ -130,21 +102,12 @@ int run(const std::vector<std::string>& input_args) {
 	for (const auto& [flag, env] : {
 		std::pair{"--runtime-dir", "DETENTD_RUNTIME_DIR"},
 		std::pair{"--port", "DETENTD_PORT"},
-		std::pair{"--persist-path", "DETENTD_PERSIST_PATH"},
 		std::pair{"--reactors", "DETENTD_REACTORS"},
 	}) {
 		if (const char* value = std::getenv(env); value && *value) settings[flag] = value;
 	}
-	detentd::Options options;
-	cluster::RaftConfig raft_timing;
 	bool system = false, detach = false, status = false;
 	std::size_t i = 0;
-	if (!args.empty() && !args[0].starts_with("-")) {
-		if (args.size() < 2 || args[1].starts_with("--")) throw std::runtime_error("positional syntax requires both port and persist_path");
-		settings["--port"] = args[0];
-		settings["--persist-path"] = args[1];
-		i = 2;
-	}
 	auto next = [&](const std::string& flag) {
 		if (i == args.size() || args[i].starts_with("--")) throw std::runtime_error(flag + " requires a value");
 		return args[i++];
@@ -159,73 +122,27 @@ int run(const std::vector<std::string>& input_args) {
 			status = true;
 		} else if (arg == "--config") {
 			(void)next(arg); // already loaded above
-		} else if (arg == "--authority" || arg == "--port" || arg == "--persist-path" || arg == "--reactors" || arg == "--runtime-dir") {
+		} else if (arg == "--authority" || arg == "--port" || arg == "--reactors" || arg == "--runtime-dir") {
 			settings[arg] = next(arg);
-		} else if (arg == "--raft-timing") {
-			raft_timing.heartbeat_timeout = positive_seconds(next(arg));
-			raft_timing.election_init = positive_seconds(next(arg));
-			raft_timing.election_min = positive_seconds(next(arg));
-			raft_timing.election_max = positive_seconds(next(arg));
-		} else if (arg == "--cluster") {
-			detentd::Options::Cluster cluster;
-			cluster.token = next(arg);
-			cluster.multicast_port = static_cast<unsigned short>(positive_int(next(arg), 65535, "multicast port"));
-			cluster.multicast_group = next(arg);
-			cluster.multicast_interface = next(arg);
-			cluster.self_address = next(arg);
-			while (i < args.size() && !args[i].starts_with("--")) cluster.peers.emplace_back(args[i++]);
-			options.cluster = std::move(cluster);
 		} else {
 			throw std::runtime_error("unknown argument: " + arg);
 		}
 	}
-	if (settings.contains("--authority") && (options.cluster || settings.contains("--persist-path"))) { throw std::runtime_error("authority mode uses its separate directory and cannot join legacy multicast"); }
-	if (options.cluster) options.cluster->raft_config = raft_timing;
 	auto port = static_cast<unsigned short>(settings.contains("--port")
 		? port_number(settings.at("--port")) : detent_cli::kDefaultPort);
 	auto reactors = settings.contains("--reactors") ? positive_int(settings.at("--reactors"), 65535, "reactors") : 4;
-	if (settings.contains("--persist-path")) {
-		options.persist_path = settings.at("--persist-path");
-	} else {
-		auto dir = detent_cli::default_state_dir(system);
-		options.persist_path = dir / "snapshot.json";
-	}
 	if (system && detach) throw std::runtime_error("system services must run in the foreground");
 	if (status && detach) throw std::runtime_error("--status and --daemonize are mutually exclusive");
+	if (!status && !settings.contains("--authority")) throw std::runtime_error("--authority CONFIG is required");
 	auto runtime = settings.contains("--runtime-dir") ? std::filesystem::path(settings.at("--runtime-dir")) : detent_cli::default_runtime_dir(system);
 	auto pid_path = runtime / ("detentd-" + std::to_string(port) + ".pid");
-#ifdef DETENT_WITH_AUTHORITY
 	std::optional<detent::authority::ServiceOptions> authority_configuration;
 	if (settings.contains("--authority")) {
 		authority_configuration = detent::authority::load_service_options(settings.at("--authority"));
 	}
-#else
-	if (settings.contains("--authority")) throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
-#endif
 	if (status) {
 		try {
-			std::string body;
-#ifdef DETENT_WITH_AUTHORITY
-			if (authority_configuration && authority_configuration->publisher_tls) {
-				auto address = authority_configuration->publisher_bind;
-				if (address.is_unspecified()) address = address.is_v4()
-					? asio::ip::address(asio::ip::address_v4::loopback())
-					: asio::ip::address(asio::ip::address_v6::loopback());
-				body = detent::transport::https_health(
-					{"", "", authority_configuration->publisher_tls->certificate_authority},
-					{address, port}, authority_configuration->publisher_name);
-			} else
-#endif
-			{
-			std::string probe_host = detent_cli::kLoopbackHost;
-#ifdef DETENT_WITH_AUTHORITY
-			if (authority_configuration) probe_host = authority_configuration->publisher_bind.to_string();
-#endif
-			detent_http::HttpConnection connection(probe_host, port, std::chrono::milliseconds(2000));
-			auto response = connection.get("/v1/health");
-			if (response.status != 200) throw std::runtime_error("health endpoint failed");
-			body = std::move(response.body);
-			}
+			auto body = probe_health(authority_configuration, port);
 			if (auto pid = detent_cli::locked_pid(pid_path)) std::printf("running (pid %d)\n", *pid);
 			std::printf("%s\n", body.c_str());
 			return 0;
@@ -234,126 +151,67 @@ int run(const std::vector<std::string>& input_args) {
 			return 1;
 		}
 	}
-	if (options.persist_path.empty()) throw std::runtime_error("persist_path must not be empty");
 	return detent_cli::run_daemon(detach, runtime / ("detentd-" + std::to_string(port) + ".log"), [&](const detent_cli::Ready& ready) {
 		detent_cli::ProcessLock process_lock(pid_path, system);
 		if (!process_lock.acquired()) { std::printf("detentd: already running\n"); return 0; }
-		if (!options.persist_path.parent_path().empty()) std::filesystem::create_directories(options.persist_path.parent_path());
 
-	detent_logging::Session logging(logging_settings);
-	options.on_accept = [](std::uint64_t version) { L_DEBUG("detentd: accepted snapshot version {}", version); };
-	options.on_reject = [](detent::UpdateRejectReason reason) {
-		static constexpr const char* names[] = {"I/O", "transport", "parse", "schema", "version", "oversize", "checksum"};
-		L_WARNING("detentd: rejected publish ({})", names[static_cast<unsigned>(reason)]);
-	};
-	options.on_commit = [](std::uint64_t version, std::chrono::nanoseconds took) {
-		L_DEBUG("detentd: committed snapshot version {} in {} us", version,
-			std::chrono::duration_cast<std::chrono::microseconds>(took).count());
-	};
-	try {
-		std::unique_ptr<http::HttpHandler> app;
-		// The handler's owner loop and the call that ends its owner waits, for D15's teardown.
-		detent::OwnerLoop* owner = nullptr;
-		std::function<void()> begin_shutdown;
-		std::function<void()> drain = [] {}; // the authority settles its runtime before the owner stops
-		std::size_t body_cap = detent::kDefaultMaxBytes;
-
-#ifdef DETENT_WITH_AUTHORITY
-		http::HttpAsioService::ConnectionFactory connection;
-		std::chrono::milliseconds authority_network_timeout{0};
-#endif
-		std::string authority_mode;
-		std::string authority_bind;
-		bool publisher_https = false;
-		if (settings.contains("--authority")) {
-#ifdef DETENT_WITH_AUTHORITY
+		detent_logging::Session logging(logging_settings);
+		try {
 			auto authority_options = std::move(*authority_configuration);
-			authority_network_timeout = authority_options.timeout;
-			authority_bind = authority_options.publisher_bind.to_string();
-			authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
-			if (authority_options.publisher_tls) {
-				publisher_https = true;
+			const auto authority_network_timeout = authority_options.timeout;
+			const auto authority_bind = authority_options.publisher_bind.to_string();
+			const char* authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
+			const bool publisher_https = authority_options.publisher_tls.has_value();
+			http::HttpAsioService::ConnectionFactory connection;
+			if (publisher_https) {
 				auto context = std::make_shared<asio::ssl::context>(asio::ssl::context::tls);
-				reactor::tls::configure(*context, *authority_options.publisher_tls,
-					reactor::tls::Role::Server);
+				reactor::tls::configure(*context, *authority_options.publisher_tls, reactor::tls::Role::Server);
 				connection = http::tls_connection_factory(std::move(context));
 			}
-			body_cap = authority_options.node.application.request_bytes;
-			auto authority = std::make_unique<detent::authority::Service>(std::move(authority_options));
-			owner = &authority->owner();
-			begin_shutdown = [raw = authority.get()] { raw->begin_shutdown(); };
-			drain = [raw = authority.get()] { raw->drain(); };
-			app = std::move(authority);
-#else
-			throw std::runtime_error("authority mode requires DETENT_BUILD_AUTHORITY=ON and reviewed cluster sources");
-#endif
-		 }
-		else {
-			auto distributor = std::make_unique<detentd::Distributor>(options);
-			owner = &distributor->owner();
-			begin_shutdown = [raw = distributor.get()] { raw->begin_shutdown(); };
-			app = std::move(distributor);
-		}
-		std::unique_ptr<http_log::AccessLog> access;
-		auto* handler = app.get();
-		if (!settings.contains("--authority")) {
-			http_log::Options log_options;
-			log_options.metadata_only = true;
-			access = std::make_unique<http_log::AccessLog>(*app, std::move(log_options));
-			handler = access.get();
-		}
-#ifdef DETENT_WITH_AUTHORITY
-		// One value for the in-flight limit and the connection cap, so http's gate never refuses a
-		// request before Detent's own admission does (D4).
-		const std::size_t connections = settings.contains("--authority") ? kPublisherConnections : 0;
-		http::HttpAsioService service(*handler, reactors, connections, std::move(connection), connections);
-		service.set_request_timeout(authority_network_timeout);
-		if (settings.contains("--authority")) {
-			static_cast<detent::authority::Service&>(*app).observe_connections(service.connection_observer());
-		}
-#else
-		http::HttpAsioService service(*handler, reactors, /*in_flight_limit=*/0);
-#endif
-		service.set_max_body(body_cap);
-		service.enable_conditional(); // GET /v1/snapshot's automatic ETag / 304 short-circuit
+			const std::size_t body_cap = authority_options.node.application.request_bytes;
+			detent::authority::Service authority(std::move(authority_options));
+			// One value for the in-flight limit and the connection cap, so http's gate never refuses a
+			// request before Detent's own admission does (D4).
+			http::HttpAsioService service(authority, reactors, kPublisherConnections, std::move(connection),
+				kPublisherConnections);
+			service.set_request_timeout(authority_network_timeout);
+			authority.observe_connections(service.connection_observer());
+			service.set_max_body(body_cap);
+			service.enable_conditional();
 
-		std::signal(SIGINT, handle_signal);
-		std::signal(SIGTERM, handle_signal);
-		// Belt-and-suspenders alongside the MSG_NOSIGNAL/SO_NOSIGPIPE guards on
-		// detent_http's own send() calls (src/detent_http/http_client.cc): any
-		// write to a socket whose peer has already reset the connection -- ours
-		// or a future one in a dependency we don't control -- must not be able
-		// to take the whole distributor down via the default SIGPIPE
-		// disposition (process termination). EPIPE from write()'s return value
-		// is the correct, already-handled failure path.
-		std::signal(SIGPIPE, SIG_IGN);
+			std::signal(SIGINT, handle_signal);
+			std::signal(SIGTERM, handle_signal);
+			// A write to a socket whose peer has reset must fail with EPIPE, not kill the daemon.
+			std::signal(SIGPIPE, SIG_IGN);
 
-		if (settings.contains("--authority")) { http::AsioBindOptions bind; bind.address = authority_bind; service.set_bind_options(bind); }
-		service.start(port);
-		ready();
-		if (settings.contains("--authority")) { L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode, publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port()); }
-		else { L_INFO("detentd: listening on :{}, persisting to {}", service.port(), options.persist_path.string()); }
+			http::AsioBindOptions bind;
+			bind.address = authority_bind;
+			service.set_bind_options(bind);
+			service.start(port);
+			ready();
+			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
+				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
 
-		while (!g_stop.load()) {
-			std::this_thread::sleep_for(std::chrono::milliseconds{200});
+			while (!g_stop.load()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds{200});
+			}
+
+			// Teardown (D15): end the owner waits, stop the loops, then close and destroy the roots
+			// of every scheduler with every io_context alive; destruction follows in reverse.
+			L_NOTICE("detentd: shutting down");
+			authority.begin_shutdown();
+			service.stop();
+			authority.drain();
+			authority.owner().stop();
+			service.close();
+			authority.owner().close();
+			service.destroy_roots();
+			authority.owner().destroy_roots();
+			return 0;
+		} catch (const std::exception& e) {
+			L_ERR("detentd: {}", e.what());
+			throw;
 		}
-
-		// Teardown (D15): end the owner waits, stop the loops, then close and destroy the roots
-		// of every scheduler with every io_context alive; destruction follows in reverse.
-		L_NOTICE("detentd: shutting down");
-		begin_shutdown();
-		service.stop();
-		drain();
-		owner->stop();
-		service.close();
-		owner->close();
-		service.destroy_roots();
-		owner->destroy_roots();
-		return 0;
-	} catch (const std::exception& e) {
-		L_ERR("detentd: {}", e.what());
-		throw;
-	}
 	});
 }
 

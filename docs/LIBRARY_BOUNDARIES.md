@@ -134,13 +134,12 @@ Two smaller candidates stay in Detent until a second consumer shows up:
 ### Who depends on what after the split
 
 ```text
-Detent ──> consensus ──> journal ──> completion        durable authority (--authority)
-   └─────> cluster ──> reactor, varint                 classic clustering (--cluster)
+Detent ──> consensus ──> journal ──> completion        durable authority
 
 consensus does not depend on cluster; Xapiand depends only on cluster
 ```
 
-Detent keeps both dependencies. `src/detentd/` (`detentd.cc`, `raft_delegate.*`, `main.cc`) uses `cluster::Bus` and `cluster::Raft` for classic `--cluster` mode, and `src/detent_authority/` uses consensus and journal. If the authority later replaces classic clustering, Detent drops `cluster` entirely. That retirement is a separate product decision, not part of this plan.
+Detent depends on consensus and journal through `src/detent_authority/`, and does not depend on `cluster`.
 
 Nothing in `consensus`, `journal` or `completion` includes `bus.h`, `raft.h` or `length.h`. The only tie is the namespace: the durable code lives in `cluster::consensus` while journal already uses `kronuz::journal`. The split renames it to `kronuz::consensus` (about 90 references in Detent).
 
@@ -258,7 +257,7 @@ Decisions made while splitting:
 4. **Compatibility debris removed.** `journal/`'s eight forwarding headers are deleted; callers include `completion/` headers directly (Detent's `<journal/posix.h>`, `<journal/native_completion.h>`, and `<journal/asio_completion.h>` lines changed accordingly). The test that needed `consensus` (`completion_asio_test`) moved to `consensus`.
 5. **READMEs.** Commands, names, and paths are corrected; the rewrite of qualification logs into library documentation remains step 9.
 
-Detent: the top-level `CMakeLists.txt` fetches `cluster` only for the distributor's classic mode, `consensus` for the authority, and `completion` otherwise, each new one pinned. The authority links `consensus::consensus` instead of reaching `consensus/` through `cluster`'s include root; `terminal_retirement_bench` links `reactor::reactor`, since it uses Asio directly; about 90 references move from `cluster::consensus` to `kronuz::consensus`.
+Detent: the top-level `CMakeLists.txt` fetches `consensus` for the authority and `completion` otherwise, each new one pinned. The authority links `consensus::consensus` instead of reaching `consensus/` through `cluster`'s include root; `terminal_retirement_bench` links `reactor::reactor`, since it uses Asio directly; about 90 references move from `cluster::consensus` to `kronuz::consensus`.
 
 Acceptance:
 

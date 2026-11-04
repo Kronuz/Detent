@@ -2,8 +2,8 @@
 
 # OwnerLoop and owner work as a child task
 
-An owner is the one thread that serializes some state: the relay's coordinators, a Distributor's
-commits, the authority runtime. Owners do blocking file I/O, so they are not `reactor::Reactor`s
+An owner is the one thread that serializes some state: the relay's coordinators and the authority
+runtime. Owners do blocking file I/O, so they are not `reactor::Reactor`s
 and `reactor::inside_run()` stays false on them. A request handler runs on an HTTP reactor's
 loop and must never block it. It hands the owner a piece of work as a child task and suspends on
 an event until the owner finishes, a shutdown is requested, or a backstop deadline passes.
@@ -58,14 +58,9 @@ the awaiter's scheduler differs. Only the owner thread touches the state, apart 
 ## Where it is used
 
 Every owner is an `OwnerLoop`: the relay host's owner (`src/detent_relay/host.cc`; the coordinators run
-on its scheduler), the classic `Distributor` (`detentd.cc`, `submit_command`: PUT and PATCH hop to it),
-the authority `Service` (`service.cc`, `handle`: commands, reads and results hop to the runtime's
+on its scheduler), the authority `Service` (`service.cc`, `handle`: commands, reads and results hop to the runtime's
 loop, which is the `Service`'s own `OwnerLoop`), each `fleet_load` owner and the teardown tests.
 
-- Classic: `accept` runs the commit unsliced on the owner (unclustered) or registers a `Write` in `pending_`
-  and calls `raft_->add_command` (clustered); `on_raft_apply` spawns the apply on the owner, which settles
-  the `Write` and sets its `done`. `finish` returns the settled result, or the retry reply when the wait
-  ended on the stop or the 10 s backstop.
 - Authority: `prepare` parses on the handler's loop; `accept` queues the `Task` for the runtime;
   the runtime's `complete` sets `Task::outcome` and `done`. `finish` (`reply_for`) reserves the reply
   against `reply_bytes` and returns it with the reservation; a wait that ended on the stop is answered

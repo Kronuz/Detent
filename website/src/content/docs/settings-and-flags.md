@@ -3,8 +3,9 @@ title: "Settings and Flags"
 ---
 
 The two everyday uses of Detent are changing a number and flipping a switch.
-These examples continue from the [Quick-start](/Detent/quickstart/), with
-`detentd` running and the snapshot at version 2.
+These examples continue from the [Quick-start](/Detent/quickstart/), in the
+same directory, with the `publish` helper defined and the snapshot at
+version 2.
 
 ---
 
@@ -13,9 +14,8 @@ These examples continue from the [Quick-start](/Detent/quickstart/), with
 Int knobs hold any signed 64-bit integer. Use them for limits, batch sizes,
 timeouts in milliseconds, or anything else you'd otherwise hard-code:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 3,
@@ -24,6 +24,7 @@ PATCH /v1/snapshot
     "search:timeout_ms": { "type": "int", "default": 250 }
   }
 }
+EOF
 ```
 
 ```sh
@@ -34,8 +35,8 @@ detent get search:timeout_ms
 # 250
 ```
 
-`PATCH` only touches the knobs it mentions; every other knob in the snapshot is
-preserved. A `PUT` replaces the entire snapshot instead.
+The file is the whole live snapshot. Each publish lists every knob you want
+live, so the examples below repeat the knobs from earlier steps.
 
 In C++, read int knobs with `get`, or with `get_as<T>` for a checked
 conversion that fails instead of truncating:
@@ -53,16 +54,18 @@ if (!timeout) log(timeout.error().what());
 
 Bool knobs are feature flags and kill switches. Turn a new checkout path on:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 4,
   "knobs": {
+    "search:max_results": { "type": "int", "default": 500 },
+    "search:timeout_ms": { "type": "int", "default": 250 },
     "checkout:new_path": { "type": "bool", "default": true }
   }
 }
+EOF
 ```
 
 ```sh
@@ -73,16 +76,18 @@ detent get checkout:new_path
 
 And off again, if anything goes wrong:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 5,
   "knobs": {
+    "search:max_results": { "type": "int", "default": 500 },
+    "search:timeout_ms": { "type": "int", "default": 250 },
     "checkout:new_path": { "type": "bool", "default": false }
   }
 }
+EOF
 ```
 
 ```sh
@@ -113,18 +118,19 @@ full lifecycle.
 
 ## Remove a Knob from the Live Snapshot
 
-In a `PATCH`, `null` deletes a knob from the live snapshot:
+Leave a knob out of the next snapshot to remove it from the live snapshot:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 6,
   "knobs": {
-    "search:timeout_ms": null
+    "search:max_results": { "type": "int", "default": 500 },
+    "checkout:new_path": { "type": "bool", "default": false }
   }
 }
+EOF
 ```
 
 A client whose baked defaults contain `search:timeout_ms` falls back to that

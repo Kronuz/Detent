@@ -37,10 +37,10 @@ template: splash
 <div class="kz-os-panel" data-os="linux">
 
 ```sh title="Quick-start Instructions"
-brew install Kronuz/tap/detent && detentd --daemonize
-curl -X PUT localhost:8317/v1/snapshot -d '{"schema_version":1,
-  "version":1,"knobs":{"app:on":{"type":"bool","default":true}}}'
-detent get app:on  # => true
+brew install Kronuz/tap/detent
+echo '{"schema_version":1,"version":1,
+  "knobs":{"app:on":{"type":"bool","default":true}}}' > knobs.json
+detent get app:on --source-path "$PWD/knobs.json"  # => true
 ```
 
 </div>
@@ -63,8 +63,8 @@ detent get app:on  # => true
 	</div>
 	<div class="kz-feature">
 		<h2>⚖️ Replicated</h2>
-		<p>Run the distributor as a <em>Raft</em> cluster, or opt into the <em>durable authority</em> with authenticated, transactional publishing.</p>
-		<a href="/Detent/guides/clustering/">Clustering →</a>
+		<p>Run the <em>durable authority</em> on three voters with authenticated, transactional publishing and Raft consensus.</p>
+		<a href="/Detent/guides/durable-authority/">Durable authority →</a>
 	</div>
 </div>
 

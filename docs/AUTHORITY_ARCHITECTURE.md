@@ -2,7 +2,7 @@
 
 **Status:** Complete bounded authority component, with consolidated Architect source GO and native/sanitizer qualification. This component follows cluster `99d01be` and Detent `5778aeb`; additive Worker provenance accessors are cluster `a44c991`. Authenticated multi-node transport and completion-based IO follow the [next validated blueprint](ASYNC_AUTHORITY_ARCHITECTURE.md).
 
-The component contains the authority state machine, owned durable Worker integration and an opt-in loopback single-voter daemon profile. The existing legacy distributor stays available. Authenticated multi-node sockets are the next service component.
+The component contains the authority state machine, owned durable Worker integration and an opt-in loopback single-voter daemon profile. Authenticated multi-node sockets are the next service component.
 
 ## Validated Architectural Blueprint
 
@@ -39,7 +39,7 @@ Automatic checkpoints begin after retained entries or retained command payload b
 
 ## Loopback daemon profile
 
-Build with `-DDETENT_BUILD_AUTHORITY=ON` and reviewed sibling sources supplied through `-DFETCHCONTENT_SOURCE_DIR_CLUSTER=/path/to/cluster` and `-DFETCHCONTENT_SOURCE_DIR_SHA256=/path/to/sha256`. The profile defaults off while its shared library changes are local. The application-only library and state tests build independently of the distributor.
+Build with `-DDETENT_BUILD_AUTHORITY=ON` and reviewed sibling sources supplied through `-DFETCHCONTENT_SOURCE_DIR_CLUSTER=/path/to/cluster` and `-DFETCHCONTENT_SOURCE_DIR_SHA256=/path/to/sha256`. The application-only library and state tests build independently of the daemon.
 
 Create a configuration owned by the service user or root, with mode `0600` (or controlled group-readable `0640`). The state directory is resolved relative to this configuration; its parent must already exist. Use independent, nonzero 128-bit identities and a randomly generated bearer token. These illustrative values belong only in tests:
 

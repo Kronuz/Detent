@@ -29,7 +29,7 @@ return old_checkout(cart);
 }
 ```
 
-The safe default means a host that has never heard from a distributor, or one
+The safe default means a host that has never heard from its source, or one
 that's partitioned from it, takes the old path. Shipping the read without the
 default is what makes a missing knob possible, and Detent treats a missing knob
 as an error, not as `false`.
@@ -38,21 +38,14 @@ as an error, not as `false`.
 
 ## 2. Roll Out
 
-Turn it on for employees first, then a small slice of users:
+Turn it on for employees first, then a small slice of users. Publish this
+definition for `checkout:killswitch_new_path`, as an operation in a
+[durable authority](/Detent/guides/durable-authority/) transaction or in the
+next version of a live snapshot file:
 
-```rest
-PATCH /v1/snapshot
-
-{
-  "schema_version": 1,
-  "version": 20,
-  "knobs": {
-    "checkout:killswitch_new_path": {
-      "type": "bool", "default": false, "rollout_pct": 1,
-      "overrides": { "employees": true }
-    }
-  }
-}
+```json
+{ "type": "bool", "default": false, "rollout_pct": 1,
+  "overrides": { "employees": true } }
 ```
 
 ```cpp
@@ -69,16 +62,8 @@ Ramp the percentage in steps while you watch error rates and latency. See
 If anything looks wrong, publish the safe state. Leaving out `rollout_pct` and
 `overrides` removes them:
 
-```rest
-PATCH /v1/snapshot
-
-{
-  "schema_version": 1,
-  "version": 21,
-  "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false }
-  }
-}
+```json
+{ "type": "bool", "default": false }
 ```
 
 Every process takes the old path within one poll interval, with no restart.
@@ -98,16 +83,8 @@ old path still works.
 Once the new path is at 100% and has been healthy long enough, publish it as
 the default so hash-less callers get it too:
 
-```rest
-PATCH /v1/snapshot
-
-{
-  "schema_version": 1,
-  "version": 22,
-  "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": true }
-  }
-}
+```json
+{ "type": "bool", "default": true }
 ```
 
 ---
@@ -118,7 +95,8 @@ Knobs are debt. When the old path is no longer needed:
 
 1. Make the new path unconditional in code and delete the knob read.
 2. Deploy that everywhere.
-3. Delete the live definition with a `PATCH` that maps the knob to `null`.
+3. Delete the live definition: a `null` value in an authority transaction, or
+   a snapshot file that leaves the knob out.
 4. Remove the baked default.
 
 Doing it in that order means no running binary ever reads a knob that no longer

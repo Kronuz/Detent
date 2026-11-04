@@ -2,7 +2,7 @@
 title: "Testing"
 ---
 
-Tests shouldn't depend on whatever a live distributor happens to say. Detent
+Tests shouldn't depend on whatever a live source happens to say. Detent
 gives you three tools for deterministic knobs: in-memory test clients, CLI
 overrides, and defaults-only clients.
 

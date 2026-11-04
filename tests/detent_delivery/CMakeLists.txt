@@ -104,7 +104,7 @@ add_executable(test_relay_registry test_relay_registry.cc)
 target_link_libraries(test_relay_registry PRIVATE detent::relay)
 add_test(NAME test_relay_registry COMMAND test_relay_registry)
 set_tests_properties(test_relay_registry PROPERTIES TIMEOUT 30)
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
+if(DETENT_BUILD_AUTHORITY AND DETENT_BUILD_MANAGED_AGENT)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME test_managed_delivery_process COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_managed_process.sh
     $<TARGET_FILE:detentd> $<TARGET_FILE:detent-agent> $<TARGET_FILE:detent-reader> ${Python3_EXECUTABLE}

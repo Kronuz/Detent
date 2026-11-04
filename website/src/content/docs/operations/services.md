@@ -11,14 +11,14 @@ for systemd, launchd and FreeBSD rc.d in `packaging/`, installed to
 
 ## Layout
 
-| Platform | Configuration | Agent runtime | Distributor state | Logs |
+| Platform | Configuration | Agent runtime | Service state | Logs |
 | --- | --- | --- | --- | --- |
 | Linux | `/etc/detent` | `/run/detent` | `/var/lib/detent` | systemd journal |
 | FreeBSD | `/usr/local/etc/detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 | macOS | `/Library/Application Support/Detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 
 1. Configuration is root-owned and readable by the service account.
-2. Distributor state is owned by the service account, mode `0700`.
+2. Service state is owned by the service account, mode `0700`.
 3. The agent's runtime directory is service-owned, mode `0755`, with `0644`
    pid and snapshot files, so every local user can check status and read
    knobs, and only the service account can change them.
@@ -27,13 +27,14 @@ The units pass explicit configuration files, so create them first. An empty
 object is a valid configuration that uses every default:
 
 ```sh
-echo '{}' | sudo tee /etc/detent/detentd.json /etc/detent/agent.json
+echo '{"authority": "/etc/detent/authority.json"}' | sudo tee /etc/detent/detentd.json
+echo '{}' | sudo tee /etc/detent/agent.json
 ```
 
-For an agent on a host without a local distributor:
+For an agent that serves a snapshot file another process replaces:
 
 ```json title="/etc/detent/agent.json"
-{"source_address": "distributor.internal:8317"}
+{"source_path": "/var/lib/myapp/live_knobs.json"}
 ```
 
 :::hint[Knobs are not secrets]{.warning}
