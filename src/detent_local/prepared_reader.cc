@@ -28,16 +28,30 @@ int open_record(int directory, std::string_view name) {
 	std::copy(name.begin(), name.end(), terminated.begin());
 	return ::openat(directory, terminated.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 }
+// A file a publish or collection unlinked after it was opened: a race to retry, not a bad store.
+bool unlinked(int fd) {
+	struct stat info{};
+	return fd >= 0 && ::fstat(fd, &info) == 0 && info.st_nlink == 0;
+}
+// check_generation_file, except that a file unlinked under it reports false to retry.
+bool checked_or_unlinked(int fd, uid_t owner, std::uint64_t length) {
+	try {
+		check_generation_file(fd, owner, length);
+		return true;
+	} catch (const std::runtime_error &) {
+		if (unlinked(fd))
+			return false;
+		throw;
+	}
+}
 template <std::size_t N> std::array<char, N> record(int directory, std::string_view name, uid_t owner) {
 	// A publish replaces `selected` by rename: a read that opened the replaced file opens it again.
 	for (unsigned attempt = 0; attempt != 3; ++attempt) {
 		RecoveryFile file(open_record(directory, name));
 		if (file.fd < 0 && errno == ENOENT && (name == "selected" || name.ends_with(".read")))
 			throw GenerationUnavailable("publisher has not prepared a selected generation");
-		struct stat info{};
-		if (file.fd >= 0 && ::fstat(file.fd, &info) == 0 && info.st_nlink == 0)
+		if (!checked_or_unlinked(file.fd, owner, N))
 			continue;
-		check_generation_file(file.fd, owner, N);
 		require(internal::mode_only_acl(file.fd));
 		std::array<char, N> bytes{};
 		read_generation_record(file.fd, bytes);
@@ -115,9 +129,8 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		RecoveryFile lease(open_record(directory, lease_name.view()));
 		if (lease.fd < 0 && errno == ENOENT)
 			continue;
-		if (struct stat opened{}; ::fstat(lease.fd, &opened) == 0 && opened.st_nlink == 0)
+		if (!checked_or_unlinked(lease.fd, publisher, generation_ownership_bytes))
 			continue; // collected between the open and the check
-		check_generation_file(lease.fd, publisher, generation_ownership_bytes);
 		require(internal::mode_only_acl(lease.fd));
 		int locked;
 		do {

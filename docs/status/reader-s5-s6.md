@@ -4,7 +4,7 @@
 
 - Branches / worktree: `reader/s5` from `Detent:ff0167d`; `reader/s6` cut from `reader/s5`. Worktree `~/code/Kronuz/Detent/.claude/worktrees/agent-a1fbf8344cbf48ecb`.
 - Lead calls in force: Q1-Q6 all (a) (`docs/status/reader-design.md`); R1-R4 verbatim.
-- State: S5 landed on main (`Detent:d4dbbad`, then `Detent:d1e9ee6` dropped the S6 note from it); CI run 41817708223 green. S6 on `reader/s6` from `Detent:d1e9ee6`: built, tests green locally, mutant group A done; sanitizers, mutant group B and CI in progress.
+- State: S5 landed (`Detent:d4dbbad`, `Detent:d1e9ee6`). S6 handed off on `reader/s6` (head in Next item 1), based on `Detent:3e8bdbc`, 44 commits behind main. Local release suites, mutants, ASan/UBSan and TSan green; CI not yet green (Next).
 
 ## Done criteria (from the brief and the design's S5/S6 rows, T3, T6)
 
@@ -21,16 +21,19 @@ S6:
 - [x] D1 C ABI, D2 lazy attach, D4 switch, D5 ring and one freer, D10 fork handlers, C++ header.
 - [x] Attach takes the store's directory descriptor.
 - [x] Q6 (a): open succeeds on an empty store, lookups return the fallback with `DETENT_UNAVAILABLE`, open retried at most once per 200 ms.
-- [ ] T3 (switch under 16 readers; injected parks; refusals counted; resources back after close).
+- [x] T3 (switch under 16 readers; injected parks; refusals counted; resources back after close).
 - [x] T6 (thread count unchanged; the three fork cases).
 - [x] T1 syscall and allocation tests (macOS locally; Linux seccomp in CI).
-- [ ] `reader_bench` builds and runs (the lead measures).
-- [ ] Values-based tests, a dying mutant per claim, a revert check per fix, ASan/UBSan and TSan, how-it-works note.
+- [x] `reader_bench` builds and runs (the lead measures).
+- [x] Values-based tests, a dying mutant per claim, a revert check per fix, ASan/UBSan and TSan, how-it-works note.
 - [ ] CI green on `reader/s6`.
 
 ## Done
 
-- `Detent:410cfe9` Add the change file to the agent's store (`src/detent_local/change_file.{hh,cc}`, `disk_store.cc`, `inventory.cc`, `store_core.hh`; test `tests/detent_testing/test_change_file.cc`; note `docs/mechanisms/change-file.md`).
+- `Detent:410cfe9` Add the change file to the agent's store (`src/detent_local/change_file.{hh,cc}`, `disk_store.cc`, `inventory.cc`, `store_core.hh`; test `tests/detent_testing/test_change_file.cc`; note `docs/mechanisms/change-file.md`). Rebased and landed as `Detent:b547256`, `Detent:97da162` (reader-pressure budget 1056 → 1072), `Detent:d4dbbad` (owner.lock wording, rulings).
+- `Detent:8c0910d` Split prepared attach from its retirement domain (`PageTable`, `PreparedReader::attach(int directory, ...)`, FIX-2).
+- `Detent:8f6da7f` Add libdetent_reader, the lock-free reader core (`include/detent/reader.{h,hh}`, `src/detent_reader/`, `tests/detent_reader/`, `docs/mechanisms/reader-core.md`, FIX-1).
+- `Detent:9445d8e` Add reader_bench for reader T1 and T4.
 
 ## Proof
 
@@ -43,11 +46,33 @@ S5, `test_local_change_file` (values, not counts):
 - ASan/UBSan (`.scratch/build-asan`) and TSan (`.scratch/build-tsan`), separate builds: the same 4 S5 targets 5/5 pass in each.
 - Wide local run (`^test_(local|delivery|testing|managed|system_managed|prepared|agent|reconnect)`, 140 tests, -j4): 139 pass, 1 skipped (`test_local_trusted_paths`), 1 fail: `test_delivery_coordinator_reader-pressure` ("pinned reader pressure deadline"). Its disk budget of 1056 bytes fits a fixed set of images; `change` adds 16 bytes to the fresh store, so the budget becomes 1072 (`tests/detent_delivery/test_coordinator.cc:586`). The rerun with 1072 was killed by the stop and is unverified.
 
-## Next (S6)
+S6 (`reader/s6`, rebased on `Detent:3e8bdbc`):
+- `test_reader_core`: values for every C entry point and the C++ header (`get`, `eval` with hash and switch, `read`, `revision`, `refresh`, moves); D2 (open attaches nothing: `attached == 0`, first lookup 1); a namespace list refuses outside names; a hidden `.read` keeps the installed view and is remembered until the word moves or a refresh; the failure-memo race (FIX-1); Q6: an absent store opens, a complete store renamed into place right after a failed try still answers unavailable, and answers 8 after 250 ms; an untrusted directory is `DETENT_UNTRUSTED`; `selected` without `change` is `DETENT_SOURCE_FAILURE`.
+- `test_reader_switch` (T3/T6): 16 readers, non-decreasing values bounded by the publisher's ceiling, only `DETENT_OK`, live views at most 4, descriptors and file mappings back to their pre-open counts after close, thread count unchanged; parks: BeforePin across four publishes (retries on the newest view), the recheck window (`Freeing`: the reader pins the new slot, the freed slot has 0 pins), Pinned across six publishes (3 refused, counted; the pinned view answers); forks: a parked reader, an idle `refreshing` holder and a publish parked after `free_view`, each child seeing 10 of 10 publishes.
+- `test_reader_syscalls`: T1 on the release library (macOS `TASK_EVENTS_INFO` delta, Linux seccomp in CI).
+- Local release run on the rebased tree, wide set plus reader tests: 141 of 142 pass, 1 skipped (`test_local_trusted_paths`, as on main). Local T3 at 20 s / 1000 generations: pass in 311 s (a GenerationWriter publish costs about 0.3 s here, mostly fsync).
+- ASan/UBSan (`.scratch/build-asan`): the 13-test S6 set passes; switch phases at 10 s / 100 generations: T3 21,243,996 lookup pairs, 0 refused, 0 unavailable, max live views 2. UBSan caught a test bug (`detent_status(99)` is outside the enum's range; now 15).
+- TSan (`.scratch/build-tsan`): switch, parks and forks pass; T3 7,085,644 lookup pairs, 0 refused, max live views 3. TSan's own thread, started on the first `pthread_create`, is excluded by creating and joining one thread before the baseline.
+- Mutants (all KILLED): D5-1 pin without the recheck (line 302, the `Freeing` case); D5-2 publish without the next-slot check (line 298); D5-3 publish frees no old slot (line 283); D10-1 child keeps the parent's counts (line 388); D10-2 child keeps `refreshing` held (line 388); D10-3 prepare does not take `refreshing` (line 441); D2-1 open attaches (line 60); D4-1 stale lookup never switches (line 112); Q6-1 no open throttle, both checks (the renamed store answers ok); FIX-1 reverted (line 177); FIX-2 reverted (T3 monitor gets status 5, line 227); D4-2 reader accepts any `change` owner: killed by `test_local_change_file` (S5 M4), since the reader tests cannot make a foreign-owned file without root.
+- `reader_bench`: `--generate 1000` and a 1,000-call, 2-thread run of both readers complete and print 0 allocations in the timed loop (functional only; the lead measures).
 
-1. ASan/UBSan and TSan runs of the S6 suite; mutant group B (D5, FIX-2) on the ASan build.
-2. `reader_bench` smoke run (functional only).
-3. Squash the S6 WIP commits, push `reader/s6`, dispatch CI, watch to green.
+## Next
+
+S6 criteria: D1, D2, D4, D5, D10 and the C++ header, attach by directory descriptor, Q6 (a), T3, T6, T1 syscalls, `reader_bench`, proof (values, mutants, reverts, sanitizers, note) are met locally; CI green on `reader/s6` is not.
+
+1. The head commit "Retry generation-file checks unlinked under them" (after `Detent:8768732`) fixes the last CI failure and has not been through CI. CI history on `reader/s6`:
+   - 41863064265 (`Detent:9445d8e`): linux-x86_64-clang T3 `refresh status 5` (a lease collected between open and check), macos-x86_64 line 255 (thread count). Fixed by `Detent:70f648f` and `Detent:f92535f`.
+   - 41883147271 (`Detent:70f648f`): linux-x86_64-gcc and macos-x86_64 line 255, the thread count right after joining 17 threads (joined threads stay listed briefly). Fixed by `Detent:f92535f` (`threads_settle`, 5 s).
+   - 41903549136 (`Detent:f92535f`): macos-arm64 compile error (`std::exception_ptr` without `<exception>`); linux-x86_64-gcc T3 `refresh status 5: invalid local generation descriptor`. Fixed by `Detent:8768732`, which also names the refused property.
+   - 41921276663 (`Detent:8768732`): every job green except linux-x86_64-clang, T3 line 237, `refresh status 5: invalid local generation descriptor: link count (links 0, size 176)`: `selected` replaced between `record()`'s nlink pre-check and `check_generation_file`'s own `fstat`. linux-tsan was still running when handed off. The head commit retries any check failure on a file now unlinked (`checked_or_unlinked` in `prepared_reader.cc`, for records and the lease).
+2. Merge main (44 commits ahead of the base) and CI the merged tree:
+   `git -C <worktree> fetch github && git -C <worktree> rebase github/main` (S6 touches `src/detent_local/{lazy_page_access,prepared_reader,generation_file_access}`, `include/detent*`, `src/detent_reader`, `tests/detent_reader`, `benchmarks/`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`), then `git push --force-with-lease github reader/s6`, `gh workflow run ci.yml --ref reader/s6`, `gh run watch <id> --interval 60 --exit-status`.
+3. If T3 still reports `refresh status 5`, its message now names the check (`last_failure()` in the hooked build): look for another open-then-check on a file a publish or collection can unlink, and route it through `checked_or_unlinked`.
+4. FIX-2's revert mutant must be rerun against the final shape (`.scratch/mutants-s6b-fix2.json`: replace `if (!checked_or_unlinked(file.fd, owner, N))\n\t\t\tcontinue;` with `check_generation_file(file.fd, owner, N);`, run `test_reader_switch switch` at 10 s / 300); the earlier form died at line 227.
+5. The T3 gate (`ctest -R reader_switch --repeat until-fail:20` under each sanitizer at the test's defaults, 60 s / 1,000 generations) is the lead's run.
+6. Review: the code review is the lead's to launch; a security review is worth it (`prepared_reader.cc` reads untrusted store files, and `change` is a new trusted file).
+
+Local commands: builds `quiet light NAME MINUTES "what" -- <script>`; `.scratch/reader.sh BUILD OUT SECONDS PUBLISHES` (reader tests), `.scratch/san6.sh asan|tsan` (S6 set under a sanitizer, needs `.scratch/build-<flavor>`), `.scratch/phases.py BUILD 10 100 400` (switch, parks, forks one by one), `python3 .scratch/mutants.py BUILD SPEC.json`.
 
 ## Next (S5, done)
 
