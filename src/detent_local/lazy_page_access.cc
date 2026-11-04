@@ -45,7 +45,7 @@ struct LazyPageAccess::State {
 		StorageIdentity identity;
 		Mapping mapping;
 		std::span<const char> bytes;
-		std::vector<Word, d::StorageAllocator<Word>> verified;
+		mutable std::vector<Word, d::StorageAllocator<Word>> verified;
 		Segment(const StorageIdentity &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
 		    : identity(id), mapping(std::move(held)), bytes(mapping->bytes()),
 		      verified((bytes.size() / granule_bytes + 64) / 64, d::StorageAllocator<Word>(account)) {}
@@ -59,7 +59,7 @@ struct LazyPageAccess::State {
 	ViewLimits limits;
 	d::RetirementFactory factory;
 	std::shared_ptr<d::StorageLedger> heap, mapping_account;
-	std::vector<Slot, d::StorageAllocator<Slot>> slots;
+	mutable std::vector<Slot, d::StorageAllocator<Slot>> slots;
 	mutable std::atomic<std::uint64_t> mapped_bytes{0}, published{0}, verifications{0};
 	mutable std::atomic<bool> failed{false};
 	std::size_t retired = 0;
@@ -91,15 +91,27 @@ struct LazyPageAccess::State {
 			}
 		return false;
 	}
-	void check_capacity(std::uint64_t segments, std::uint64_t bytes, std::size_t length) const {
+	const char *excess(std::uint64_t segments, std::uint64_t bytes, std::size_t length) const noexcept {
 		if (segments > root.segments)
-			throw ReadSourceFailure("local generation exceeds its pack count");
+			return "local generation exceeds its pack count";
 		if (bytes > limits.bytes - p::root_bytes || length > limits.bytes - p::root_bytes - bytes)
-			throw ReadSourceFailure("local generation exceeds its physical extent");
+			return "local generation exceeds its physical extent";
+		return nullptr;
 	}
-	Mapping open_mapping(const StorageIdentity &identity) const {
-		check_capacity(published.load(std::memory_order_relaxed) + 1, mapped_bytes.load(std::memory_order_relaxed),
-		               0);
+	// Refuses a new segment past the pack count or the mapped-bytes cap before mapping it. The
+	// counts include segments published since this thread's probe, so one of those is not new.
+	const Segment *admit(const StorageIdentity &identity, std::size_t probe, std::size_t length) const {
+		const auto refusal = excess(published.load(std::memory_order_relaxed) + 1,
+		                            mapped_bytes.load(std::memory_order_relaxed), length);
+		if (!refusal)
+			return nullptr;
+		if (auto raced = find(identity, probe))
+			return raced;
+		throw ReadSourceFailure(refusal);
+	}
+	Mapping open_mapping(const StorageIdentity &identity, std::size_t probe, const Segment *&raced) const {
+		if ((raced = admit(identity, probe, 0)))
+			return {};
 		const SegmentNames names(identity);
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		struct stat held{};
@@ -110,8 +122,8 @@ struct LazyPageAccess::State {
 		check_generation_file(payload.fd, publisher, length);
 		if (!internal::mode_only_acl(payload.fd))
 			throw ReadSourceFailure("segment payload has an unsafe ACL");
-		check_capacity(published.load(std::memory_order_relaxed) + 1, mapped_bytes.load(std::memory_order_relaxed),
-		               length);
+		if ((raced = admit(identity, probe, length)))
+			return {};
 		auto mapped =
 		    factory.make<SegmentMapping>(mapping_account, payload.fd, publisher, SegmentExtent{length});
 		struct stat named{};
@@ -123,21 +135,29 @@ struct LazyPageAccess::State {
 	}
 	// Slots publish with a release compare-and-swap and are read with acquire loads, so a reader
 	// sees a segment's mapping, extent and zeroed bitmap; relaxed here is a data race on them.
-	const Segment &segment(const StorageIdentity &identity) const {
+	// Probes from `probe`; sets `probe` to the first empty slot when the identity is absent.
+	const Segment *find(const StorageIdentity &identity, std::size_t &probe) const {
 		const auto mask = slots.size() - 1;
-		auto start = identity_hash(identity) & mask;
-		for (auto probe = start, n = std::size_t(0); n != slots.size(); probe = (probe + 1) & mask, ++n) {
+		for (std::size_t n = 0; n != slots.size(); probe = (probe + 1) & mask, ++n) {
 			const auto found = slots[probe].load(std::memory_order_acquire);
-			if (!found)
-				return publish(identity, probe);
-			if (found->identity == identity)
-				return *found;
+			if (!found || found->identity == identity)
+				return found;
 		}
 		throw ReadSourceFailure("local generation exceeds its pack count");
 	}
+	const Segment &segment(const StorageIdentity &identity) const {
+		auto probe = identity_hash(identity) & (slots.size() - 1);
+		if (auto found = find(identity, probe))
+			return *found;
+		return publish(identity, probe);
+	}
 	const Segment &publish(const StorageIdentity &identity, std::size_t probe) const {
 		d::StorageAllocator<Segment> allocator(heap);
-		auto mapping = open_mapping(identity);
+		window(LazyPageWindow::Miss);
+		const Segment *raced = nullptr;
+		auto mapping = open_mapping(identity, probe, raced);
+		if (raced)
+			return *raced;
 		auto mine = allocator.allocate(1);
 		try {
 			std::construct_at(mine, identity, std::move(mapping), heap);
@@ -152,8 +172,9 @@ struct LazyPageAccess::State {
 			if (slots[probe].compare_exchange_strong(found, mine, std::memory_order_release,
 			                                         std::memory_order_acquire)) {
 				const auto length = mine->bytes.size();
-				check_capacity(published.fetch_add(1, std::memory_order_relaxed) + 1,
-				               mapped_bytes.fetch_add(length, std::memory_order_relaxed), length);
+				if (auto refusal = excess(published.fetch_add(1, std::memory_order_relaxed) + 1,
+				                          mapped_bytes.fetch_add(length, std::memory_order_relaxed), length))
+					throw ReadSourceFailure(refusal);
 				return *mine;
 			}
 			if (found->identity == identity) {

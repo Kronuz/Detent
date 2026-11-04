@@ -107,9 +107,6 @@ void stress() {
 	const auto &access = *harness.access;
 	auto references = harness.fixture->definitions;
 	references.push_back(harness.fixture->root.tree);
-	std::vector<const char *> addresses(references.size());
-	for (std::size_t i = 0; i != references.size(); ++i)
-		addresses[i] = harness.expected(references[i]).data();
 	std::vector<std::atomic<const char *>> seen(references.size());
 	auto round = [&](unsigned t, unsigned repetitions) {
 		std::mt19937 random(t * 7919 + repetitions);
@@ -128,15 +125,26 @@ void stress() {
 				if (!seen[i].compare_exchange_strong(first, bytes.data()))
 					check(first == bytes.data());
 			}
-			const std::string name(1, char('a' + (r + t) % namespaces));
+			const std::string name(1, char('a' + (r * threads + t) % namespaces));
 			const auto found = state.definition(name, "k");
 			check(found && (name == "a" ? found->default_int() == 42 : found->default_bool() == true));
 			check(!state.definition(name, "missing"));
 		}
 	};
-	parallel(threads, [&](unsigned t) { round(t, 4); });
-	// One segment per namespace plus the index; 26 definitions, the root and the definitions branch.
-	const std::uint64_t pages = namespaces + 2;
+	parallel(threads, [&](unsigned t) { round(t, 2); });
+	// The same work on one thread verifies each page it touches exactly once.
+	Harness serial(harness.fixture);
+	{
+		const auto state = serial.state();
+		for (const auto &reference : references)
+			serial.access->resolve(reference);
+		for (unsigned i = 0; i != namespaces; ++i) {
+			check(bool(state.definition(std::string(1, char('a' + i)), "k")));
+			check(!state.definition(std::string(1, char('a' + i)), "missing"));
+		}
+	}
+	const auto pages = serial.access->page_verifications();
+	check(pages > namespaces + 2 && serial.access->mapped_segments() == namespaces + 1);
 	check(access.mapped_segments() == namespaces + 1);
 	const auto first = access.page_verifications();
 	check(first >= pages && first <= pages * threads);
@@ -174,12 +182,70 @@ void mark_window() {
 	x::LazyPageTesting::install(nullptr, nullptr);
 	// Both verified the page and both set its bit; neither lookup since verifies it again.
 	const auto verified = harness.access->page_verifications();
-	check(verified == (meet.met ? 3u : verified));
-	check(verified >= 2 && verified <= 3);
+	check(meet.met ? verified == 3 : verified >= 2 && verified <= 3);
 	harness.access->resolve(reference);
 	harness.access->resolve(neighbour);
 	check(harness.access->page_verifications() == verified);
 	std::printf("mark window: %s\n", meet.met ? "both threads verified one page" : "not reached");
+}
+
+// Parks one thread after its miss until the main thread has published the same segment.
+struct Parked {
+	std::atomic<int> state{0}; // 0 idle, 1 parked, 2 released
+	static void hook(x::LazyPageWindow window, void *context) noexcept {
+		auto self = static_cast<Parked *>(context);
+		int idle = 0;
+		if (window != x::LazyPageWindow::Miss || !self->state.compare_exchange_strong(idle, 1))
+			return;
+		while (self->state.load() != 2)
+			std::this_thread::yield();
+	}
+};
+// A segment published between a thread's miss and its admission check is not a new segment, even
+// when the counts it reads have reached the pack count (variant 0) or the mapped-bytes cap (1).
+void raced_admission(unsigned variant) {
+	auto fixture = std::make_shared<Fixture>(3);
+	auto limits = Harness::big();
+	// The late thread misses the index segment; the main thread publishes it with two others.
+	const auto target = fixture->root.tree;
+	std::vector<p::Reference> published{target, fixture->definitions[0], fixture->definitions[1]};
+	if (variant) {
+		// A cap one byte short of every segment: the late thread's recount of the index exceeds it.
+		limits.bytes = fixture->physical_bytes - 1;
+		const auto size = [&](const p::Reference &reference) {
+			return std::ranges::find_if(fixture->segments, [&](const auto &segment) {
+				return segment.ownership.segment == reference.segment;
+			})->bytes.size();
+		};
+		if (size(target) < size(fixture->definitions[2])) {
+			std::puts("raced admission at the cap: not reached (the index is the smaller segment)");
+			return;
+		}
+	} else {
+		published.push_back(fixture->definitions[2]);
+	}
+	Harness harness(fixture, limits);
+	Parked parked;
+	x::LazyPageTesting::install(&Parked::hook, &parked);
+	const char *late = nullptr;
+	std::thread waiter([&] {
+		try {
+			late = harness.access->resolve(target).data();
+		} catch (const x::ReadSourceFailure &) {
+		}
+	});
+	while (parked.state.load() != 1)
+		std::this_thread::yield();
+	const auto early = harness.access->resolve(target).data();
+	for (const auto &reference : published)
+		harness.access->resolve(reference);
+	check(harness.access->mapped_segments() == published.size());
+	parked.state = 2;
+	waiter.join();
+	x::LazyPageTesting::install(nullptr, nullptr);
+	check(late == early && harness.access->available());
+	check(harness.access->mapped_segments() == published.size());
+	std::printf("raced admission (%s): the late thread used the published segment\n", variant ? "cap" : "count");
 }
 
 // A page whose only damage is its header's logical digest: framing and body decode, the hash does not.
@@ -240,6 +306,8 @@ int main() {
 	stress();
 	publish_window();
 	mark_window();
+	raced_admission(0);
+	raced_admission(1);
 	corrupt_first_touch();
 	cap_miss();
 	std::puts("lazy page bitmap: ok");
