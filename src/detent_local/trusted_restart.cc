@@ -32,7 +32,7 @@ int open_record(int directory, std::string_view name, uid_t owner, std::uint64_t
 	return fd;
 }
 } // namespace
-std::optional<TrustedGeneration>
+TrustedGeneration
 TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, const paged::Root &root,
 					 StorageIdentity storage, paged::Limits bounds, const ViewLimits &limits,
 					 distribution::RetirementFactory factory, std::shared_ptr<distribution::StorageLedger> heap,
@@ -40,12 +40,8 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 	std::uint64_t live_size = 0;
 	const GenerationName live_name(descriptor.generation, GenerationFile::Live);
 	RecoveryFile live_file(open_record(directory, live_name.view(), owner, live_record_size(root.segments), live_size));
-	if (live_file.fd < 0) {
-		if (errno == ENOENT)
-			return {};
-		require(false);
-	}
-	// From here the generation claims a trusted restart: a missing or wrong record refuses the store.
+	// A missing or wrong record refuses the store; it is repaired like a corrupt one.
+	require(live_file.fd >= 0);
 	std::uint64_t read_size = 0;
 	const GenerationName read_name(descriptor.generation, GenerationFile::ReaderMetadata);
 	RecoveryFile read_file(open_record(directory, read_name.view(), owner, reader_metadata_bytes, read_size));

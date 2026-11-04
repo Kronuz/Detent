@@ -69,13 +69,14 @@ struct Session {
 	std::shared_ptr<x::RecoveryMetrics> metrics = std::make_shared<x::RecoveryMetrics>();
 	std::optional<l::RecoveredGeneration> generation;
 	std::uint64_t digests_before = 0;
-	void recover(const fs::path &directory) {
+	void recover(const fs::path &directory, bool trusted_start = true) {
 		l::ViewLimits limits;
 		limits.retirement_domain = &domain;
 		limits.mapping_account = mappings;
 		limits.bytes = 1ull << 30;
 		x::RecoveryContext context{domain.factory(), heap, mappings, limits, {}, {}};
 		context.metrics = metrics;
+		context.trusted_start = trusted_start;
 		digests_before = l::paged::page_digests();
 		generation.emplace(x::RecoveryEngine::recover(directory, context));
 	}
@@ -149,7 +150,7 @@ void oracle(const fs::path &store, const fs::path &scratch, int revision) {
 	copy_store(store, scratch);
 	fs::remove(live_path(scratch));
 	Session full;
-	full.recover(scratch);
+	full.recover(scratch, false);
 	CHECK(!full.metrics->trusted && full.metrics->segment_hash_bytes > 0 && full.digests() > 0);
 	const auto &a = trusted.registry(), &b = full.registry();
 	CHECK(a.inputs().size() == b.inputs().size() && a.physical_bytes() == b.physical_bytes());
@@ -248,15 +249,21 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		}
 		CHECK(refused);
 	}
-	std::cout << "after the refused update: selected revision " << selected(store).cursor.revision << "\n";
+	// The refused update may have reached a durable generation that shares pages it never read, so the
+	// selected revision is the old one or the new; either way no damaged page is served.
+	const int after = int(selected(store).cursor.revision);
+	CHECK(after == revision || after == revision + 1);
+	{
+		Session session;
+		session.recover(store);
+		const auto reads = read_all(session, after);
+		CHECK(!reads.wrong && !reads.other && reads.source_failures > 0);
+	}
 	repair();
 	{
 		Session session;
 		session.recover(store);
-		const auto reads = read_all(session, revision);
-		std::cout << "after repair: revision " << selected(store).cursor.revision << ", " << reads.ok << " ok, "
-				  << reads.source_failures << " source failures, " << reads.wrong << " wrong, " << reads.other
-				  << " other\n";
+		const auto reads = read_all(session, after);
 		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
 		x::PackScrub scrub(1'000'000'000);
 		const auto t0 = x::PackScrub::Clock::now();
@@ -265,17 +272,13 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		CHECK(scrub.passes() == 1 && scrub.failures().empty());
 	}
 	{
+		// The agent's own restart over the repaired store is ready and serves the same revision.
 		detent::testing::GenerationWriter writer(store);
-		CHECK(writer.publish_json(json(revision + 1)) == std::uint64_t(revision + 1));
-		Session session;
-		session.recover(store);
-		CHECK(session.metrics->trusted);
-		const auto reads = read_all(session, revision + 1);
-		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
+		CHECK(writer.revision() == std::uint64_t(after));
 	}
 	(void)root;
 }
-// A damaged table or record refuses the store; a missing live record falls back to the full recovery.
+// A damaged table or record, or a missing one, refuses the store.
 void refusals(const fs::path &store, const fs::path &scratch) {
 	auto attempt = [&](const char *what, auto &&mutate, bool refused) {
 		copy_store(store, scratch);
@@ -295,7 +298,24 @@ void refusals(const fs::path &store, const fs::path &scratch) {
 	attempt("flip in .live row", [&] { flip(live_path(scratch), x::live_header_bytes + 30); }, true);
 	attempt("flip in .live digest", [&] { flip(live_path(scratch), live_size - 1); }, true);
 	attempt("truncated .live", [&] { fs::resize_file(live_path(scratch), live_size - 72); }, true);
-	attempt("missing .live", [&] { fs::remove(live_path(scratch)); }, false);
+	attempt("missing .live", [&] { fs::remove(live_path(scratch)); }, true);
+	attempt("missing .read", [&] { fs::remove(read_path(scratch)); }, true);
+	// The agent's store refuses a generation without a live record, and a fresh publication repairs it.
+	copy_store(store, scratch);
+	fs::remove(live_path(scratch));
+	CHECK(throws([&] { detent::testing::GenerationWriter refused(scratch); }));
+	fs::remove_all(scratch);
+	{
+		detent::testing::GenerationWriter repaired(scratch);
+		CHECK(repaired.publish_json(json(1)) == 1);
+	}
+	{
+		Session session;
+		session.recover(scratch);
+		CHECK(session.metrics->trusted);
+		const auto reads = read_all(session, 1);
+		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
+	}
 	// A live record of another generation is refused even though its own digest holds.
 	attempt("live record swapped from an older generation",
 			[&] {

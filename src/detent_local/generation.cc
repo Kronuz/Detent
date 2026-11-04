@@ -355,7 +355,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				distribution::RetirementHandle<detail::SegmentRegistry> registry;
 				// A cold start over a generation with a live record trusts what its build verified.
 				std::optional<detail::TrustedGeneration> trusted;
-				if (!context.admission && !prior)
+				if (context.trusted_start && !context.admission && !prior)
 					trusted = detail::TrustedRestart::open(dir->fd, directory_info.st_uid, descriptor, root, storage,
 														   bounds, limits, factory, account, mapping_account,
 														   context.metrics.get());

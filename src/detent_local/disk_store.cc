@@ -1793,6 +1793,7 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
+	paged.trusted_start = true;
 	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.identity,
 			core.directory_identity};
 }

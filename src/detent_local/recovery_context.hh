@@ -18,6 +18,8 @@ struct RecoveryContext {
 	std::optional<GenerationSelection> selection;
 	std::optional<unsigned> layout_version;
 	std::shared_ptr<RecoveryMetrics> metrics;
+	// The agent's cold start: trust the generation's live record, and refuse a generation without one.
+	bool trusted_start = false;
 };
 class RecoveryEngine {
   public:
