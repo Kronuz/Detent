@@ -74,3 +74,18 @@ drops it and generation_cache.
 Run 41796189324 (workflow_dispatch on `Detent:db67185`, branch `m1/pins-to-head`): conclusion
 success. Every job green, including pin-check, linux-asan-ubsan and linux-tsan; freebsd and headers
 are skipped by the workflow. No flakes hit.
+
+## W5 evidence (branch `m1/w5-evidence`, from `Detent:f7267d5`)
+
+**State (2026-11-04):** in progress. Old is `Detent:bf20f94` ("Settle Q5 and Q6", 2026-11-02 18:06), the
+last main commit before `Detent:85253b5`, the first to move a pin (task). Its manifest has 38 entries; none
+of the 33 Kronuz pins was at its head. Old and new are built in separate trees (`.scratch/old-wt`,
+`.scratch/build-old`, `.scratch/build-new`), Release, same compiler and flags, system lz4 and zstd for both.
+The identity drivers are in `tools/w5/`; results go in `docs/perf/m1-w5-evidence.md`.
+
+**Done:** drivers written (compressors, http-parser, strict-stox, enum-reflection, random, Detent snapshot
+JSON and `--just-knob`, distribution frames and local images, the logger transcript, a raw HTTP replay).
+
+**Next:** run the identity classes, A/B the hot paths, CHANGELOG, DEPENDENCIES docs, CI.
+
+**Blocked on:** nothing.

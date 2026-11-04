@@ -1,0 +1,23 @@
+d::RetirementHandle<d::EncodedUpdate> stage_delta(d::RetirementDomain &domain,
+												  d::RetirementDomain &input_domain,
+												  std::shared_ptr<d::StorageLedger> input_account,
+												  std::uint64_t base, std::uint64_t target) {
+	const auto wire = delta(false, base, target);
+	d::Limits limits;
+	limits.storage_account = input_account;
+	d::DeltaDecoder decoder(cursor(base), {"app"}, limits);
+	auto input = std::span(wire.data(), wire.size());
+	while (!input.empty()) {
+		d::WorkBudget budget;
+		decoder.feed(input, budget);
+	}
+	auto stage = domain.make<d::UpdateStage>(
+		domain, d::make_delta_source(decoder.finish(), 1, input_domain, domain.storage_account()),
+		cursor(42).cluster);
+	while (!stage->done()) {
+		d::WorkBudget budget;
+		stage->step(budget);
+	}
+	return stage->take();
+}
+
