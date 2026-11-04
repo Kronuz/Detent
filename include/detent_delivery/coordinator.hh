@@ -73,6 +73,7 @@ struct CoordinatorStatus {
 	// Publication sink, image builder, then decoded input.
 	std::array<CleanupProgress, 3> cleanup;
 	ScrubStatus scrub;
+	local::SyncStats sync;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive

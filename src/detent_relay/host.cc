@@ -111,6 +111,15 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 		field(",\"scrub_passes\":", delivery.scrub.passes);
 		field(",\"scrub_damaged_packs\":", delivery.scrub.damaged_packs);
 		field(",\"scrub_source_failure\":", delivery.scrub.source_failure);
+		field(",\"sync_files\":", delivery.sync.total.files);
+		field(",\"sync_groups\":", delivery.sync.total.groups);
+		field(",\"sync_directory_syncs\":", delivery.sync.total.directory_syncs);
+		field(",\"sync_device_flushes\":", delivery.sync.total.device_flushes);
+		field(",\"startup_device_flushes\":", delivery.sync.startup.device_flushes);
+		field(",\"publication_files\":", delivery.sync.publication.files);
+		field(",\"publication_groups\":", delivery.sync.publication.groups);
+		field(",\"publication_directory_syncs\":", delivery.sync.publication.directory_syncs);
+		field(",\"publication_device_flushes\":", delivery.sync.publication.device_flushes);
 		if (delivery.last_quorum_open)
 			field(",\"quorum_open_age_ms\":",
 				  std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -

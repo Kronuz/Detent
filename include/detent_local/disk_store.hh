@@ -3,6 +3,7 @@
 #include "disk_ledger.hh"
 #include "identity_reset.hh"
 #include "storage_session.hh"
+#include "sync_counters.hh"
 
 namespace detent::local {
 enum class StoreOpenMode { FreshEmpty, ExistingManaged, UpgradeLegacy };
@@ -41,6 +42,7 @@ class DiskStore {
 	DiskStore(const DiskStore &) = delete;
 	StoreStatus status() const noexcept;
 	DiskStats stats() const noexcept;
+	SyncStats sync_stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;

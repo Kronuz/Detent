@@ -1271,8 +1271,10 @@ bool Coordinator::drained() const noexcept {
 }
 CoordinatorStatus Coordinator::status() const noexcept {
 	auto status = impl_->diagnostic;
-	if (impl_->store)
+	if (impl_->store) {
 		status.selected = impl_->store->selection();
+		status.sync = impl_->store->sync_stats();
+	}
 	status.prepared_ready = impl_->confirmed_prepared.has_value() && !impl_->closing &&
 		status.phase != CoordinatorPhase::Fenced && status.phase != CoordinatorPhase::Closed &&
 		status.phase != CoordinatorPhase::Closing && status.selected.knowledge == l::SelectionKnowledge::Known &&
