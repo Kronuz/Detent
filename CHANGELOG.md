@@ -68,54 +68,114 @@ before, and neither changes any data:
 A configuration with the default `consensus_limits` and a replacement pool that
 funded the previous check is accepted unchanged: the requirement is the same.
 
-### Dependency pins (cmake/dependencies.json)
+### M1: dependency pins at the libraries' heads (cmake/dependencies.json)
 
-Moved to each library's main head, following the "Updating an application"
-steps of cpp-libraries' `docs/UPGRADING-2026-10.md`. No pin falls inside a
-range of its "Commits not to pin".
+Every Kronuz pin moved to its library's main head, following "Updating an application (for agents)" in
+cpp-libraries' `docs/UPGRADING-2026-10.md`, dependency first. No pin falls inside a range of its
+"Commits not to pin". Old is `Detent:bf20f94`, the last main commit before the first pin moved
+(`Detent:85253b5`, 2026-11-02); new is the manifest of `Detent:f7267d5` (2026-11-04). The input-class
+diffs, the hot-path A/B and the rerun commands are in
+[docs/perf/m1-w5-evidence.md](docs/perf/m1-w5-evidence.md).
 
-| Library | Old | New |
-|---|---|---|
-| atomic-shared-ptr | `b7bf5ef` | `9af0aa7` |
-| char-classify | `306ecd9` | `57613ed` |
-| cluster | `f053a82` | `428d57d` |
-| compressors | `ed590c8` | `5c54128` |
-| constexpr-phf | `1a03523` | `1d82461` |
-| enum-reflection | `9b5ecea` | `653fb34` |
-| endian | `f6269f0` | `a24942e` |
-| flat-map | `a9a52b0` | `9fe0bd9` |
-| generation-cache | `01af1b2` | `38a2d39` |
-| hashes | `7ab0c23` | `e3bf5b6` |
-| http-parser | `178f873` | `c27615d` |
-| logger | `8c5afcd` | `d63fec3` |
-| lru-cache | `7dd23eb` | `df0ebc8` |
-| metrics | `c975765` | `db490b4` |
-| radix-router | `d035744` | `74ab7ce` |
-| random | `6487253` | `e040c2b` |
-| repr | `0fe9a1e` | `87450b4` |
-| scheduler | `fb464cb` | `1e5ccc9` |
-| sha256 | `2bb34f0` | `f4a3463` |
-| split | `aa9857a` | `40af1a2` |
-| stash | `fa1936e` | `d2e8e59` |
-| static-string | `eb1efcb` | `46561fa` |
-| strict-stox | `21b7941` | `1f9190c` |
-| strings | `b42d3c4` | `1be3848` |
-| task | `6558c2e` | `d080786` |
-| term-color | `534e309` | `94df6e5` |
-| threadpool | `628679a` | `3f1fbcf` |
-| varint | `21af82a` | `ac6003e` |
+| Library | Old pin | New pin | Note |
+|---|---|---|---|
+| atomic-shared-ptr | `b7bf5ef` | `61299bd` |  |
+| char-classify | `306ecd9` | `25decb5` |  |
+| cluster | `f053a82` | `e4fc57d` | dropped by legacy wave 2 (was e4fc57d at f7267d5) |
+| completion | `5251cf9` | `9acfba3` |  |
+| compressors | `ed590c8` | `5566260` |  |
+| consensus | `b7073bb` | `cef08eb` |  |
+| constexpr-phf | `1a03523` | `4b669b6` |  |
+| endian | `f6269f0` | `6b223e2` |  |
+| enum-reflection | `9b5ecea` | `a7202ad` |  |
+| flat-map | `a9a52b0` | `06fc29e` |  |
+| generation-cache | `01af1b2` | `3d45c49` | dropped by legacy wave 2 (was 3d45c49 at f7267d5) |
+| hashes | `7ab0c23` | `03ab2d6` |  |
+| http | `6a07f99` | `c813531` |  |
+| http-log | `2f066ee` | `4e4b79f` | dropped by legacy wave 2 (was 4e4b79f at f7267d5) |
+| http-parser | `178f873` | `fcdad32` |  |
+| journal | `57e6250` | `bfad97f` |  |
+| logger | `8c5afcd` | `f61d8df` |  |
+| lru-cache | `7dd23eb` | `-` | removed |
+| metrics | `c975765` | `9db73de` |  |
+| radix-router | `d035744` | `e67543d` |  |
+| random | `6487253` | `f8b9348` |  |
+| reactor | `fe8c5ce` | `ab69cf2` |  |
+| repr | `0fe9a1e` | `d2eb895` |  |
+| scheduler | `fb464cb` | `d57e8fc` |  |
+| sha256 | `2bb34f0` | `f24692f` |  |
+| split | `aa9857a` | `d48a28e` |  |
+| stash | `fa1936e` | `b7d8876` |  |
+| static-string | `eb1efcb` | `7eaa8f9` |  |
+| strict-stox | `21b7941` | `b846098` |  |
+| strings | `b42d3c4` | `6799a6e` |  |
+| task | `-` | `bdafa5f` | added |
+| term-color | `534e309` | `76a400b` |  |
+| threadpool | `628679a` | `63e03a5` |  |
+| varint | `21af82a` | `1c3e526` |  |
 
-completion (`576618d`), journal (`d6d009e`) and consensus (`666cdfc`) are at
-their heads already.
+`task` is new (the one coroutine type). `lru-cache` left with the verification cache limit. `cluster`,
+`generation-cache` and `http-log` left with the classic distributor (legacy wave 2); their rows show the
+pin they had at `Detent:f7267d5`. `tools/check_pins.py` (CI job `pin-check`) fails when a shared
+dependency's pin differs from the pin of a library that declares it.
 
-Moved with the W2 rewrite (S2 to S5): http (`6a07f99` to `b18e115`), reactor
-(`fe8c5ce` to `950a375`) and http-log (`2f066ee` to `3b49b60`). Their heads replace the
-`HttpHandler` virtuals with `task::task` coroutine handlers, remove the worker pool and
-change the `Reactor`, `TcpServer` and `HttpAsioService` constructors. The sections acted on:
-http (handlers on `task::task`, `HttpAsioService(handler, reactors, in_flight_limit,
-factory, maximum_connections)`, one `ConnectionFactory`, the body cap through
-`set_max_body`, the four teardown phases), reactor (no worker pool) and http-log
-(`AccessLog::handle` on `task`).
+Sections of the guide acted on:
+
+- **http**, **reactor**, **http-log** (code change): handlers, routes and `BodyStream` are `task::task`;
+  `HttpAsioService(handler, reactors, in_flight_limit, factory, maximum_connections)`; `reactor::TcpServer`
+  takes `(reactors, admission_limit, session)` and there is no worker pool; `AccessLog::handle` is a
+  coroutine. Detent's handlers, owners and its own asio coroutine code moved to `task::task` (W2); CI
+  fails if an asio coroutine construct returns.
+- **scheduler** (code change): no task calls `shared_from_this()` on a scheduler task.
+- **completion**, **journal**, **consensus**: completion's read-only opens are pure virtuals of `IO`; the
+  `IO` subclasses in journal's test helpers and in Detent's tests implement them.
+- **hashes** and **crc32c**: Detent includes no `crc32c.hh`; journal fetches `crc32c`.
+- **http-parser**, **compressors**, **strict-stox**, **enum-reflection**, **random**, **logger**: read for
+  their "Detect" lines; Detent's inputs for each were diffed through the old and the new build (below).
+- **allocators**, **metrics**, **generation-cache**, **btree**: checked against "Commits not to pin" only.
+
+Results that changed (old build against new, same inputs):
+
+- **http-parser strictness** (`http-parser:21c8f30`, `ab8377c`, `62ac7f3`, `0aeec14`, `e2f23b9`,
+  `5cb4409`). Detent does not set `lenient_http_headers`, so a request with a bare LF, an obs-fold line,
+  a `Transfer-Encoding` other than exactly `chunked`, a missing or odd HTTP version, or a
+  `Content-Length` in a trailer is now rejected: `detentd` closes the connection without a response
+  where it answered before (200, or 400 for the three that reached the body parser). In lenient mode the
+  parser reports what it reported before. Requests that were well formed are answered byte for byte as
+  before.
+- **compressors** (`compressors:f157dab`, `8f57675`, `533bee4`): a damaged LZ4 stream throws
+  `LZ4CorruptVolume` (a subclass of `LZ4Exception`) where it threw `LZ4Exception`; one crafted LZ4 record
+  that aborted the process now throws; a zstd frame that claims 1 TiB throws `ZstdCorruptVolume` where
+  it hung or threw `bad_alloc`; a zlib preset dictionary throws `DeflateException`. Valid streams:
+  compressed bytes, decoded bytes and XXH32 digests are identical.
+- **strict-stox** (`strict-stox:7d7f5dd`, `a1b03fb`): a `--just-knob` integer of 64 bytes or more
+  (`000...007`) is accepted where it was refused. Every shorter input gives the same value, `errno` and
+  `idx`.
+- **enum-reflection** (`enum-reflection:7d394c5`, `2a5da3a`): a string forged to share a member's 64-bit
+  hash is a miss. Every member name, case variant and near miss answers as before.
+- **random**: the sequence differs (a new generator; there is no seed API). Ranges stay inclusive and in
+  range, and draws stay uniform.
+- **logger**: lines logged after `Logging::finish()` are written at the call (`logger:a48bce8`, which the
+  old pin of 2026-10-17 predates) where they were lost. Every other byte of the scripted run is identical.
+- **http** (http's CONNECT handling): the 404 answer to `CONNECT` carries `Connection: close`.
+- Unchanged: the snapshot JSON (parse, merge, serialize, diff, patch), the distribution wire frames
+  (raw and zstd), the local images, and the persisted `snapshot.json`. At 5M knobs the prepared reader
+  metadata differs only in the generation id and the digests that cover it; the root image and the 1,441
+  packs are reused.
+
+Owner decisions taken:
+
+- **One coroutine type** (November 2, `docs/SHARED_LIBRARY_DECISIONS.md`, W2a): http handlers, routes and
+  `BodyStream` are `task::task`; no mixed shape (http's connection loop moves to task too).
+- **Pushes to library mains**: the library commits in `docs/status/m1-pins.md` (completion, hashes, reactor,
+  repr, sha256, term-color, enum-reflection, strings, cluster, http-parser, http, journal, consensus), each
+  CI-green before the next; the owner authorized the scheduler, logger and http-log pushes explicitly.
+- **Post-W2 ports**: `detentd --port 0` and the relay's `"port": 0` bind a free port and log it
+  (`docs/mechanisms/bound-port-report.md`); system fixtures start on port 0.
+
+Open for the owner: the http-parser strictness above changes what clients of `detentd` see for
+malformed requests (connection closed, no response). Setting `lenient_http_headers` restores the old
+answers.
 
 ### Behavior changes (W2)
 

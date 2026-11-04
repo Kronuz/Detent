@@ -1,5 +1,14 @@
 # Pending library upgrades
 
+## M1: every Kronuz pin at its library's head, November 4
+
+All 30 Kronuz pins in `cmake/dependencies.json` equal their library's default-branch head (the manifest had 33 on 2026-11-02, all behind; legacy wave 2 dropped cluster, generation-cache and http-log with the classic distributor, and lru-cache left with the verification cache). The sections below this one describe the October qualification passes against the old pins and are history; the pins they discuss have moved.
+
+- **What moved and what it changed:** [CHANGELOG, "M1: dependency pins at the libraries' heads"](../CHANGELOG.md) has the old and new pin of every library, the sections of cpp-libraries' upgrade guide acted on, the results that changed and the owner decisions.
+- **Evidence:** [docs/perf/m1-w5-evidence.md](perf/m1-w5-evidence.md) has the input-class diffs through the old build (`Detent:bf20f94`) and the new build, the hot-path A/B with an A/A control, and the commands to rerun both. The drivers are in `tools/w5/`.
+- **Procedure:** pins moved in waves, leaves first (`docs/status/m1-pins.md`): leaves, the completion chain, enum-reflection, strings, cluster, http-parser, consensus, http, then scheduler, logger and http-log. Each library commit has its own CI run; Detent's CI is green on every job, including `pin-check`, ASan/UBSan and TSan.
+- **Rule from here:** a pin moves only to a commit outside every "Commits not to pin" range, and a library that declares a shared dependency is re-pinned in the library first, so `pin-check` stays green.
+
 ## Xapiand log colors and HTTP access logging, October 20
 
 The shared daemon initialization enables the pinned logger's existing severity tint by default, with no tint option or logger upgrade. The `--color` depth modes and aliases match Xapiand's `src/main.cc`; method/status colors come from the existing shared `http-log` palettes rather than a Detent copy. Live comparison uses installed Xapiand 0.40.0 and source revision `855f752`. Forced color survives redirection; automatic mode respects `NO_COLOR`.
