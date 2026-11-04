@@ -44,6 +44,9 @@ struct Key {
 };
 Key decode_key(std::string_view);
 Digest physical_commitment(std::span<const char>);
+// Page digests computed by this process (physical and logical, builders included); tests read deltas.
+std::uint64_t page_digests() noexcept;
+void count_page_digest() noexcept;
 // Commits semantics and ordered child hashes, excluding segment placement.
 Digest logical_commitment(PageKind, std::string_view prefix, std::span<const Child>,
 						  std::span<const char> body);

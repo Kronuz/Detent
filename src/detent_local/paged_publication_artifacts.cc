@@ -1,8 +1,12 @@
 #include "paged_publication_artifacts.hh"
+#include "live_record.hh"
 #include "names.hh"
 #include "reader_metadata.hh"
 #include "segment_names.hh"
+#include <algorithm>
+#include <cstring>
 #include <limits>
+#include <vector>
 namespace detent::local::detail {
 namespace d = distribution;
 PagedPublicationArtifacts::PagedPublicationArtifacts(std::shared_ptr<d::StorageLedger> account)
@@ -32,11 +36,12 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		if (artifacts_.get_allocator() != Allocator(plan.bytes()->account()))
 			throw std::invalid_argument("paged artifact account mismatch");
 		const auto segments = plan.segments();
-		if (segments.size() > (std::numeric_limits<std::size_t>::max() - 4) / 2)
+		if (segments.size() > (std::numeric_limits<std::size_t>::max() - 5) / 2)
 			throw std::length_error("paged publication artifact count exceeded");
-		artifacts_.reserve(2 * segments.size() + 4);
+		artifacts_.reserve(2 * segments.size() + 5);
 		const auto registry = plan.registry();
 		reused_.reserve(registry ? registry->inputs().size() : 0);
+		LiveRecord live;
 		for (std::size_t i = 0; registry && i < registry->inputs().size(); ++i) {
 			if (plan.base_reachability(i).pages) {
 				const auto &mapping = registry->mapping(i);
@@ -44,6 +49,8 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 					throw std::length_error("paged target physical size overflow");
 				physical_bytes_ += mapping->ownership().length;
 				reused_.push_back({mapping->ownership(), mapping->identity()});
+				live.rows.push_back({mapping->ownership().segment, mapping->ownership().length,
+									 mapping->ownership().checksum, plan.base_reachability(i)});
 			}
 		}
 		for (std::size_t i = 0; i < segments.size(); ++i) {
@@ -56,6 +63,8 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			if (segment.ownership.length > UINT64_MAX - physical_bytes_)
 				throw std::length_error("paged target physical size overflow");
 			physical_bytes_ += segment.ownership.length;
+			live.rows.push_back({segment.ownership.segment, segment.ownership.length,
+								 segment.ownership.checksum, plan.new_reachability(i)});
 			append(names.owner_name(), encode_segment_ownership(segment.ownership), {});
 			append(names.payload_name(), {}, segment.bytes);
 		}
@@ -71,6 +80,20 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		                                              descriptor.checksum, plan.counts(), physical_bytes_});
 		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
 		metadata_buffer->append({metadata.data(), metadata.size()});
+		// The live record binds to the reader metadata's own digest, so a swapped pair is refused.
+		live.storage = plan.storage_identity();
+		live.generation = descriptor.generation;
+		live.root_checksum = descriptor.checksum;
+		std::copy(metadata.end() - live_digest_bytes, metadata.end(), live.read_digest.begin());
+		std::copy(plan.override_histogram().begin(), plan.override_histogram().end(), live.histogram.begin());
+		std::sort(live.rows.begin(), live.rows.end(), [](const LiveRow &a, const LiveRow &b) {
+			return std::memcmp(a.segment.data(), b.segment.data(), 16) < 0;
+		});
+		std::vector<char> live_bytes(live_record_size(live.rows.size()));
+		encode_live_record(live, live_bytes);
+		auto live_buffer = d::make_owned_buffer(plan.bytes()->account(), live_bytes.size());
+		live_buffer->append({live_bytes.data(), live_bytes.size()});
+		append(GenerationName(descriptor.generation, GenerationFile::Live).view(), {}, std::move(live_buffer));
 		append(GenerationName(descriptor.generation, GenerationFile::ReaderMetadata).view(), {},
 		       std::move(metadata_buffer));
 		append(GenerationName(descriptor.generation, GenerationFile::Descriptor).view(),

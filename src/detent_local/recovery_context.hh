@@ -6,7 +6,7 @@ struct RecoveryMetrics {
 	std::uint64_t root_mapping_installs = 0, segment_mapping_installs = 0;
 	std::uint64_t definitions_validated = 0, old_definition_headers = 0;
 	std::uint64_t sampled_heap_peak = 0, sampled_mapping_peak = 0;
-	bool warm = false, progress = false;
+	bool warm = false, progress = false, trusted = false;
 };
 struct RecoveryContext {
 	distribution::RetirementFactory factory;

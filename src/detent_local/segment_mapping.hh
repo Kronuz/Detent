@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/retirement.hh"
 #include "detent_local/ownership.hh"
+#include "verified_pages.hh"
 #include <optional>
 #include <stdexcept>
 #include <sys/types.h>
@@ -33,6 +34,14 @@ class SegmentMapping final : public distribution::RetirementNode {
 	}
 	const std::shared_ptr<distribution::StorageLedger> &storage_account() const noexcept { return account_; }
 	SegmentFileIdentity identity() const noexcept { return identity_; }
+	// A mapping whose pages no hash has compared yet carries the verified-page bits that gate every read
+	// through the first-touch accessor; a mapping the recovery walk compared carries none.
+	void require_first_touch(const std::shared_ptr<distribution::StorageLedger> &heap) {
+		if (!mapped_ || first_touch_)
+			throw std::logic_error("first-touch bits need one installed mapping");
+		first_touch_.emplace(length_, heap);
+	}
+	const VerifiedPages *first_touch() const noexcept { return first_touch_ ? &*first_touch_ : nullptr; }
 
   protected:
 	bool retire_step() noexcept override;
@@ -44,6 +53,7 @@ class SegmentMapping final : public distribution::RetirementNode {
 	std::size_t length_;
 	SegmentFileIdentity identity_;
 	distribution::StorageLedger::Ticket ticket_;
+	std::optional<VerifiedPages> first_touch_;
 	char *address_ = nullptr;
 	bool mapped_ = false, retry_ = false;
 	void install_checked(int, SegmentFileIdentity);
