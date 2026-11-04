@@ -41,6 +41,18 @@ struct FakeIO final : c::IO {
 	std::unique_ptr<c::File> open_existing(std::string_view) override {
 		throw std::logic_error("unexpected open");
 	}
+	std::unique_ptr<c::File> open_existing_read_only(std::string_view) override {
+		throw std::logic_error("unexpected open");
+	}
+	std::unique_ptr<c::File> open_reclaim_candidate_read_only(std::string_view) override {
+		throw std::logic_error("unexpected open");
+	}
+	void open_existing_read_only_into(std::string_view, c::File &) override {
+		throw std::logic_error("unexpected open");
+	}
+	bool open_reclaim_candidate_read_only_into(std::string_view, c::File &) override {
+		throw std::logic_error("unexpected open");
+	}
 	std::unique_ptr<c::File> create_exclusive(std::string_view) override {
 		throw std::logic_error("unexpected create");
 	}
