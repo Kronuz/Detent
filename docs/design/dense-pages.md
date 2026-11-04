@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-04) Designing (ready for preliminary review). G1 and G2 are the lead's constraints; everything else is the designer's draft, with numbers from [the model](dense-pages-model.py) run on the 5M trial store.
+> Status: DRAFT (2026-11-04) Designing (ready for preliminary review). G1 and G2 are the lead's constraints; everything else is the designer's draft, with numbers projected (not measured) by [the model](dense-pages-model.py) from the 5M trial store's records.
 
 # Dense pages
 
@@ -8,7 +8,7 @@ Many trie nodes per verified page, one header and one digest per page, in place 
 - Base: `Detent:bea5c43`. Line citations are at that commit unless another is named: reader S6 at `Detent:f92535f` (`reader/s6`), S3b at `Detent:d4692ba` (`namespace/s3b`).
 - Depends on: [reader.md](reader.md) D3, the verified-page bitmap, whose hit path D4 changes; [namespace-delivery.md](namespace-delivery.md) D8, derived file ids, which T8 needs, and D10, first touch, the scrub and repair. Q1 and Q2 block nothing in S1.
 - Changes: reader.md D3's hit path, which gains a compare again, and its Limit 5 (D4); namespace-delivery D10's scrub only under Q1 (b) or (c), and its T9 cut point and W6 frame only under Q2 (b); the page sections of `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md` and `docs/mechanisms/recovery-digest-once.md` (S5).
-- Model: [dense-pages-model.py](dense-pages-model.py). Every count and byte figure below is the model's, exact for the corpus; every time is an estimate and says so. The lead measures the gate rows.
+- Model: [dense-pages-model.py](dense-pages-model.py). Every count and byte figure below is projected, not measured: the model's, exact for the r12 corpus, until a C++ build reproduces it. Every time is an estimate and says so. The lead measures the gate rows.
 
 | Review | State |
 | --- | --- |
@@ -179,7 +179,7 @@ The page, graph and warm validators (`paged_page_validator.cc`, `paged_graph_val
 
 ## Projected 5M totals
 
-Counts and bytes are the model's, exact for the r12 corpus; every time is an estimate except the measured build CPU, which is the cold-bootstrap note's (`docs/perf/cold-bootstrap-5m.md` at `Detent:d995e86`).
+Counts and bytes are projected, not measured: the model's, exact for the r12 corpus. Every time is an estimate except the measured build CPU, which is the cold-bootstrap note's (`docs/perf/cold-bootstrap-5m.md` at `Detent:d995e86`).
 
 | At 5M | Today | Dense pages, 4 KiB |
 | --- | --- | --- |
@@ -263,14 +263,102 @@ Neither blocks S1 or S2; the format does not depend on either answer.
 
 *Recommendation: (a) for S1 to S5, then (b) as its own design* once the lead has measured the records' wire bytes at 5M (the note's open item 3) and T6's build: on these numbers (b) saves each cold agent its build for about 13% more bytes. (c) waits for a repair or copy cost that needs it. The full-copy wire format is the owner's call.
 
-## First steps
+## Build plan
 
-The format switches once (G1), so S1 to S5 land as one series with CI green at each step; S1 and S2 can start now.
+This plan is written to be executed without the designer. Every count and byte figure in it is projected (the model's, for the r12 corpus), not measured: a step meets a count or byte figure when the C++ build reproduces it exactly, and the lead measures every time.
 
-| Step | Change | Needs |
+**Shape.** The work is one series on one branch under `phase*/` or `design/` (CI runs on both: `.github/workflows/ci.yml:4`), with one commit or more per step and CI green at every step. The format switches once (G1), so S1 to S5 land on `main` together, after S5 and the series' reviews: the code reviewer on the series, and the security reviewer on S1's decoder and S3's walk (T10). S2's and S4's tests can be written beside S1 against its interfaces.
+
+**The oracle.** The oracle is `docs/design/dense-pages-model.py`, run as `/usr/local/bin/python3 -I` (3.15.2 here) under a light hold.
+
+- `synthetic OUT` writes the synthetic corpus.
+- `extract STORE OUT` writes a store's records.
+- `bytes CORPUS 4096 --rule=height` prints the pages, page bytes, segments, segment bytes, page-digest input and root digest that a correct full build reproduces.
+- `churn CORPUS 4096 U I D --rule=height --out=AFTER` writes a delta's result and prints the pages and bytes that the delta writes.
+- `check DIR` runs the model's self-check.
+
+Take each root digest from a fresh `bytes` run, never from a sweep log: the node tags changed after the 5M sweep (D2), which moves every digest but no count.
+
+**Landing order against the work in flight.**
+
+| Work | What it shares with this series | Order |
 | --- | --- | --- |
-| S1 | Codec and packer: DTPAGE03 and DTROOT03 encode, decode and D4's first touch in `paged_layout`; the packer as a pure function from postorder trie events to sealed pages (D5); T1(1) and the model-oracle tests (the synthetic and 100K corpora give the model's root digest and page count); T10's fuzz target | Nothing |
-| S2 | Full build and validation: the page, segment and snapshot builders emit DTPAGE03 through the packer; the page, graph and warm validators (D9); DTPAGE02's build path deleted. T1(2), T2, T3 and T6 become measurable | S1 |
-| S3 | Reading: `PageTable::resolve` and `checked_page_bytes` take D4's first touch and hit compare; `PagedReadState::lookup` walks in-page nodes; T5 by the lead | S2; S6 landed (same files) |
-| S4 | Deltas and relocation: the overlay and assembler repack changed paths (D7); relocation patches placement only (D8). T1(3), T4, T7 | S2 |
-| S5 | Refusal and removal: a DTPAGE02 store refused (T9); the logical commitment, the two-digest `Reference` and its domain strings deleted; `docs/HOW_IT_WORKS.md`'s page section, `docs/mechanisms/verified-page-bitmap.md` and `docs/mechanisms/recovery-digest-once.md` updated; a how-it-works note for the packer | S2 to S4 |
+| Reader S6 (`reader/s6`, `Detent:f92535f`) | `PageTable::resolve` (`lazy_page_access.cc:204-242` there) and `PagedReadState::lookup` (`paged_read_state.cc:38-105`) | S6 lands first. S3 is written against S6's `resolve` (D10) |
+| S3b (`namespace/s3b`, `Detent:d4692ba`) | The scrub, `.live` and trusted restart, and their byte-flip tests: `test_testing_trusted_restart` (`tests/detent_testing/test_trusted_restart.cc` there) and `tests/detent_local/test_paged_hash_once.cc` | S3b lands first, and its tests pass on DTPAGE03 before the series lands. Its open repair ruling does not depend on the page format |
+| Namespace S1 and S2 (completion's file syncs and D11's grouped publication syncs, `namespace-delivery.md:427-436`) | Publication and syncs, not the codec | Either order: the later one rebases. The lead records T6's wall on a `main` that has both |
+| Namespace S7 (derived ids) | Segment and generation names | Independent. T8 runs once both have landed |
+
+**S1. Codec and packer.** Depends on nothing.
+
+- Files:
+  - `include/detent_local/paged_layout.hh` and `src/detent_local/paged_layout.cc` (D2, D3): DTPAGE03 and DTROOT03 encode and decode, D1's one digest, the 65-byte `Reference`, and D4's first-touch structure check as a function.
+  - A new `src/detent_local/paged_packer.{hh,cc}` (D5): a pure function from the cursor's postorder events (`paged_trie_cursor.cc:155-170`) to sealed pages, in seal order.
+  - `tests/detent_local/test_paged_layout.cc` and a new `tests/detent_local/test_paged_packer.cc`.
+  - A libFuzzer target over D4's first touch and the walk, built the way `tests/detent_testing/live_record_fuzz.cc` is.
+- Done:
+  - T1(1) passes on the synthetic corpus and on the 100K store's records, including a 256-way branch, a body at today's bound, a page sealed alone and a store holding only a watermark.
+  - For both corpora, the page count, page bytes and root digest equal a fresh `bytes` run's.
+  - A test kills each of these mutants: sealing one child too many; largest-first in place of shallowest-first; sealing clusters of 64 bytes in place of only those above 68; and the height byte left out of the digest.
+  - T10's fuzzing runs for one CPU-hour (for example 4 jobs for 15 minutes) with zero findings, and CI replays its corpus.
+
+**S2. Full build and validation.** Depends on S1.
+
+- Files:
+  - `paged_page_builder.cc`, `paged_segment_builder.cc` and `paged_snapshot_builder.cc` (all in `src/detent_local`) emit through the packer: seal order, 8-byte offsets, 1 MiB segments.
+  - `paged_page_validator.cc`, `paged_graph_validator.cc` and `paged_warm_validator.cc` check D4's structure and D9's canonicity.
+  - Recovery's discovery takes D10's digest count, and every consumer in D1.2 reads the root page's digest.
+  - The root check becomes D3's (it replaces `paged_layout.cc:74`), and DTPAGE02's build path is deleted.
+- Done:
+  - T1(2) and T1(4) pass.
+  - For the 100K store, the segment count and segment bytes equal the model's.
+  - At 5M, from the r12 records:
+    - T2: 162,367 pages, 315,432,480 page bytes, and 302 segments of 315,759,038 bytes.
+    - T3: 5 pages at the median, and 6 at p99 and at most.
+    - T6's hash input: 622,748,454 bytes in 162,669 digests, from `bytes_hashed` and `paged::page_digests()`.
+  - `test_paged_hash_once.cc` refuses each flip inside a page and inside placement.
+  - A test kills each of these mutants: the canonicity check removed, the height check removed, and pages written out of seal order (a two-segment build's placement offsets must follow seal order).
+
+**S3. Reading.** Depends on S2, and on reader S6 having landed.
+
+- Files:
+  - `lazy_page_access.cc`: in `resolve`, D4's first touch replaces `verify_page` and the one-leaf check, and the hit compare is added.
+  - `paged_navigation.hh` (`checked_page_bytes`).
+  - `paged_read_state.cc`: the walk through in-page nodes.
+  - `verified_pages.hh`: the granule's comment.
+- Done:
+  - The reader suites and `test_testing_trusted_restart` pass on DTPAGE03: a damaged read fails, and none returns a wrong value.
+  - A test redirects a placement entry to another verified page and gets a source failure. With the hit compare removed (the mutant), the test fails.
+  - First touch counts one digest per page (`pages_verified`, `bytes_hashed`).
+  - T5 is the lead's, after landing.
+
+**S4. Deltas and relocation.** Depends on S2.
+
+- Files: `paged_trie_overlay.{hh,cc}`, `paged_overlay_assembler.cc`, `paged_delta_leaves.cc`, `paged_reuse.cc` and `paged_contextual_reuse.cc` (D7, D8).
+- Done:
+  - T1(3) passes: 1,000 seeded rounds of 1 to 500 changes, each against a full rebuild.
+  - T4 at 5M:
+    - One update writes 5 pages of 15,691 bytes.
+    - 9,800 updates, 100 inserts and 100 deletes write 16,616 pages of 42,821,363 bytes, 99 of them (220,903 bytes) off every changed path.
+  - T7 passes.
+  - A test kills each of these mutants:
+    - Skipping the off-path seals fails T1(3) and T4.
+    - A relocation that rehashes fails T7's zero-digest count.
+    - Rewriting a dirty page whose digest is unchanged fails a test that a delta with no net change writes no page.
+
+**S5. Refusal, removal and notes.** Depends on S2 to S4.
+
+- Files:
+  - The cold-start path that decodes the root: it refuses a DTPAGE02 or DTROOT02 store, and the agent then takes a full copy (T9).
+  - Deleted: the logical commitment and its domain strings (`paged_layout.cc:147`, `:189`), the two-digest `Reference` and `Child`, and `PageKind::Overflow` (`paged_layout.hh:9`).
+  - Updated: `docs/HOW_IT_WORKS.md`'s page section, `docs/mechanisms/verified-page-bitmap.md` and `docs/mechanisms/recovery-digest-once.md`.
+  - A new `docs/mechanisms/dense-pages.md`.
+- Done:
+  - T9 passes.
+  - A search of the tree finds no logical digest field, no `detent.local.logical.v2` string and no `Overflow` page kind.
+  - The code review and the security reviewer's decoder-safety review (T10) clear.
+
+**After landing (the lead).**
+
+- T5, and T6's CPU and wall, on `main` under quiet holds.
+- T8, once namespace S7 has landed.
+- The calls on Q1 and Q2.
