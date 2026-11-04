@@ -199,6 +199,20 @@ int main() {
 			rejected = true;
 		}
 		check(rejected && store->selection().descriptor == base.descriptor());
+		// A repair at the base's own cursor is not "unchanged": it keeps the Repair intent and skips the equality
+		// check, so it also builds when the incoming state differs from the base (the base is not read).
+		for (const auto conflicting : {false, true}) {
+			generation.fill('r');
+			l::detail::PagedSnapshotPlanBuilder repair(input(heap, 42, false, conflicting ? 26 : 25), base,
+													   context.directory, context.storage, generation,
+													   domain.factory(), heap, options.recovery_limits, true);
+			finish(repair);
+			check(!repair.unchanged());
+			auto plan = repair.take();
+			check(plan.intent() == l::detail::PagedPlanIntent::Repair && plan.selected_base() == base.descriptor() &&
+				  plan.descriptor().cursor == base.descriptor().cursor &&
+				  plan.descriptor().generation != base.descriptor().generation && !plan.registry());
+		}
 		l::detail::PagedSnapshotPlanBuilder forward(input(heap, 43), base, context.directory, context.storage,
 													generation, domain.factory(), heap,
 													options.recovery_limits);
@@ -219,6 +233,17 @@ int main() {
 			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory,
 														  context.storage, generation, domain.factory(), heap,
 														  options.recovery_limits);
+			finish(backwards);
+		} catch (const std::invalid_argument &) {
+			rejected = true;
+		}
+		check(rejected && store->selection().descriptor == wanted);
+		// A repair never goes back either: its target is the base's cursor or later.
+		rejected = false;
+		try {
+			l::detail::PagedSnapshotPlanBuilder backwards(input(heap, 42), newer, context.directory,
+														  context.storage, generation, domain.factory(), heap,
+														  options.recovery_limits, true);
 			finish(backwards);
 		} catch (const std::invalid_argument &) {
 			rejected = true;
