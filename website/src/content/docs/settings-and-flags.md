@@ -4,8 +4,8 @@ title: "Settings and Flags"
 
 The two everyday uses of Detent are changing a number and flipping a switch.
 These examples continue from the [Quick-start](/Detent/quickstart/), in the
-same directory, with the `publish` helper defined and the snapshot at
-version 2.
+same shell and directory, with the authority and the agent running and the
+`publish` helper defined.
 
 ---
 
@@ -15,19 +15,8 @@ Int knobs hold any signed 64-bit integer. Use them for limits, batch sizes,
 timeouts in milliseconds, or anything else you'd otherwise hard-code:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 3,
-  "knobs": {
-    "search:max_results": { "type": "int", "default": 500 },
-    "search:timeout_ms": { "type": "int", "default": 250 }
-  }
-}
-EOF
-```
-
-```sh
+publish search:max_results '{"type":"int","default":500}'
+publish search:timeout_ms '{"type":"int","default":250}'
 sleep 1
 detent get search:max_results
 # 500
@@ -35,8 +24,8 @@ detent get search:timeout_ms
 # 250
 ```
 
-The file is the whole live snapshot. Each publish lists every knob you want
-live, so the examples below repeat the knobs from earlier steps.
+Each transaction replaces the whole definition of the key it names and leaves
+every other knob alone, so a publish only lists the knob it changes.
 
 In C++, read int knobs with `get`, or with `get_as<T>` for a checked
 conversion that fails instead of truncating:
@@ -55,20 +44,7 @@ if (!timeout) log(timeout.error().what());
 Bool knobs are feature flags and kill switches. Turn a new checkout path on:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 4,
-  "knobs": {
-    "search:max_results": { "type": "int", "default": 500 },
-    "search:timeout_ms": { "type": "int", "default": 250 },
-    "checkout:new_path": { "type": "bool", "default": true }
-  }
-}
-EOF
-```
-
-```sh
+publish checkout:new_path '{"type":"bool","default":true}'
 sleep 1
 detent get checkout:new_path
 # true
@@ -77,20 +53,7 @@ detent get checkout:new_path
 And off again, if anything goes wrong:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 5,
-  "knobs": {
-    "search:max_results": { "type": "int", "default": 500 },
-    "search:timeout_ms": { "type": "int", "default": 250 },
-    "checkout:new_path": { "type": "bool", "default": false }
-  }
-}
-EOF
-```
-
-```sh
+publish checkout:new_path '{"type":"bool","default":false}'
 sleep 1
 detent get checkout:new_path
 # false
@@ -109,28 +72,22 @@ if (client.eval_or_panic("checkout:new_path")) {
 :::hint[Name kill switches for what they protect]{.tip}
 A common convention is `killswitch_*` for a bool that guards a risky path,
 with a safe default of `false` in your baked defaults. When something breaks,
-flipping it is one publish away, and every process picks it up within one poll
-interval. The [Kill Switches](/Detent/guides/kill-switches/) guide covers the
-full lifecycle.
+flipping it is one publish away, and every managed agent delivers it to the
+readers on its host. The [Kill Switches](/Detent/guides/kill-switches/) guide
+covers the full lifecycle.
 :::
 
 ---
 
-## Remove a Knob from the Live Snapshot
+## Remove a Knob
 
-Leave a knob out of the next snapshot to remove it from the live snapshot:
+A `null` value deletes the key from its namespace:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 6,
-  "knobs": {
-    "search:max_results": { "type": "int", "default": 500 },
-    "checkout:new_path": { "type": "bool", "default": false }
-  }
-}
-EOF
+publish search:timeout_ms null
+sleep 1
+detent get search:timeout_ms
+# ERR MissingKnob: search:timeout_ms (scoped lookup failed)
 ```
 
 A client whose baked defaults contain `search:timeout_ms` falls back to that
