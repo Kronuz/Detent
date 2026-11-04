@@ -132,8 +132,6 @@ FetchContent_Declare(detent
 FetchContent_MakeAvailable(detent)
 
 target_link_libraries(my_app PRIVATE detent::detent)
-# Only if you want the HTTP poll source:
-target_link_libraries(my_app PRIVATE detent_http::detent_http)
 ```
 
 `add_subdirectory()` of a local checkout works the same way. See

@@ -5,9 +5,6 @@ direction: down
 detent: "detent\n(core lib)" {
   tooltip: RCU client, JSON schema, hashing, overrides, file source
 }
-detent_http: "detent_http" {
-  tooltip: HTTP polling client -- plain POSIX sockets, no reactor
-}
 detent_agent_lib: "detent_agent_lib" {
   tooltip: Shared-memory agent reader and writer logic
 }
@@ -22,7 +19,6 @@ kronuz: Kronuz cpp-libraries used directly by detent {
   atomic_shared_ptr: atomic-shared-ptr {tooltip: "Lock-free RCU snapshot swap -- the whole read-path fast path depends on this"}
   random: random {tooltip: "Randomized source retry and backoff jitter"}
   sha256: sha256 {tooltip: "Rollout hashing per the JustKnobs spec (stable bucket assignment)"}
-  compressors: compressors {tooltip: "zstd/gzip codecs -- lets detent_http negotiate Accept-Encoding on its own, no HTTP-framework weight"}
 }
 
 thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
@@ -35,12 +31,8 @@ detent -> kronuz.atomic_shared_ptr
 detent -> kronuz.random
 detent -> kronuz.sha256
 
-detent_http -> detent: "reuses Client + snapshot model"
-detent_http -> kronuz.compressors: "Accept-Encoding: zstd, gzip on its own GETs"
-
 detentd_exe -> detent
 detentd_exe -> thirdparty.http: "serves the authority endpoints"
 
 detent_agent_lib -> detent: "one warm in-process snapshot per agent"
 detent_agent_exe -> detent_agent_lib
-detent_agent_exe -> detent_http: "classic --source-address mode" {style.stroke-dash: 4}

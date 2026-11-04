@@ -79,8 +79,7 @@ struct InitOptions {
 	};
 
 	// A generic pluggable source, the extension seam Section 10 describes for
-	// "any publisher that emits valid snapshots" -- e.g. detent_http's
-	// make_http_poll_source(). Mutually exclusive with source_path (Section
+	// "any publisher that emits valid snapshots". Mutually exclusive with source_path (Section
 	// 11's "combining X with Y is a startup error", generalized): the client
 	// consumes exactly one KnobSource stream per instance (Section 3).
 	//

@@ -70,8 +70,7 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 | Field | Meaning |
 | --- | --- |
-| `source_address` | `host:port` of an HTTP endpoint serving `GET /v1/snapshot` (alias: `source_http`) |
-| `source_path` | Snapshot file; exclusive with `source_address` |
+| `source_path` | Snapshot file |
 | `defaults_path` | Optional fallback knobs; `defaults.json` beside the config is found automatically |
 | `poll_interval_ms` | Poll interval, default `200` |
 | `runtime_dir` | Runtime directory |
@@ -139,8 +138,6 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 | Variable | Used by | Meaning |
 | --- | --- | --- |
-| `DETENT_SOURCE_ADDRESS` | agent, `detent` | HTTP snapshot endpoint `host:port` |
-| `DETENT_SOURCE_HTTP` | agent, `detent` | Legacy alias of `DETENT_SOURCE_ADDRESS` |
 | `DETENT_SOURCE_PATH` | agent, `detent` | Snapshot file |
 | `DETENT_DEFAULTS_PATH` | agent, `detent` | Defaults file |
 | `DETENT_POLL_INTERVAL_MS` | agent, `detent` | Poll interval |

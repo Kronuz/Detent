@@ -4,7 +4,7 @@ title: "detent"
 
 ```text
 detent get NAME [--hash VAL] [--switch VAL] [--default VAL]
-                [--config PATH] [--defaults PATH] [--source-address HOST:PORT]
+                [--config PATH] [--defaults PATH]
                 [--source-path PATH] [--runtime-dir PATH] [--system]
                 [--generation-dir PATH] [--managed PRIVATE_CONFIG]
 detent help | --help
@@ -25,7 +25,6 @@ locally; it doesn't send a request to the agent.
 | `--default VAL` | Fallback printed if the knob can't be read; publishes nothing |
 | `--config PATH` | Use this `agent.json` |
 | `--defaults PATH` | Typed defaults for a newly started agent |
-| `--source-address HOST:PORT` | HTTP endpoint serving `GET /v1/snapshot` for a newly started agent (alias: `--source-http`) |
 | `--source-path PATH` | Snapshot file for a newly started agent |
 | `--runtime-dir PATH` | Runtime directory holding the agent's pid, log and snapshot |
 | `--system` | Attach to the system agent; never start one |
@@ -70,6 +69,6 @@ detent get checkout:nope --default false
 
 ## Environment
 
-`DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_PATH`, `DETENT_DEFAULTS_PATH`,
+`DETENT_SOURCE_PATH`, `DETENT_DEFAULTS_PATH`,
 `DETENT_POLL_INTERVAL_MS` and `DETENT_RUNTIME_DIR` configure a newly started
 agent; see [`detent-agent`](/Detent/reference/cli/detent-agent/#environment).

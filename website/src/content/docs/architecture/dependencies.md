@@ -10,21 +10,18 @@ repositories. Everything is fetched with CMake `FetchContent`.
 
 ## Detent's Own Targets
 
-```d2 alt="detent is the core; detent_http and detent_agent_lib build on it; detent-agent is an executable over its library"
+```d2 alt="detent is the core; detent_agent_lib builds on it; detent-agent is an executable over its library"
 direction: down
 detent: "detent\n(core client)"
-http: "detent_http\n(poll source)"
 alib: "detent_agent_lib"
 local: "detent::local_client\n(managed generations)"
 detentd: "detentd" {shape: hexagon}
 detentd -> detent
 agent: "detent-agent" {shape: hexagon}
 reader: "detent" {shape: hexagon}
-http -> detent
 alib -> detent
 local -> detent
 agent -> alib
-agent -> http: "--source-address"
 reader -> alib
 reader -> local
 ```
@@ -32,7 +29,6 @@ reader -> local
 | Target | Depends on | Purpose |
 | --- | --- | --- |
 | `detent` | the core libraries below | Client, schema, evaluation, overrides, file source |
-| `detent_http` | `detent`, `compressors` | Plain POSIX-socket HTTP poller; no Asio |
 | `detent_agent_lib` | `detent` | Shared-memory agent logic, linkable by tests |
 | `detent::local_client` | `detent`, local view | Managed generation reader |
 

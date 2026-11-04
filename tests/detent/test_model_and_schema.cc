@@ -149,8 +149,7 @@ void test_schema_violations_reject_whole_input() {
 	}
 	// Byte-size cap enforced by parse_source_snapshot itself, not only by
 	// a server's ingest sink -- an arbitrary
-	// InitOptions::source_poll implementation or a raw HTTP response body
-	// had no cap at this layer before this fix.
+	// InitOptions::source_poll implementation would otherwise have no cap.
 	{
 		std::string oversized = R"({"schema_version":1,"version":1,"knobs":{})";
 		oversized.append(std::string(64, ' ')); // pad past a tiny max_bytes

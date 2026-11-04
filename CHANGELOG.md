@@ -41,6 +41,18 @@
 - `kLoopbackHost` moved from `detent_http/address.hh` to
   `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
 
+### Legacy removal (wave 2, step F)
+
+- Removed the `detent_http` library (`detent_http::detent_http`,
+  `make_http_poll_source()`, the blocking HTTP client) and its two tests. No
+  Detent daemon serves `GET /v1/snapshot`, so nothing polled it.
+- `detent-agent` and `detent get` no longer take `--source-address`,
+  `--source-http`, `DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_HTTP` or the
+  `source_address` and `source_http` config fields; each is now an unknown
+  argument or field. With no defaults and no source, the agent no longer
+  polls `127.0.0.1:8317`.
+- `InitOptions::source_poll` stays as the custom-poller seam.
+
 ### Legacy removal (wave 1)
 
 - Removed `tests/e2e`, the classic distributor process harness.

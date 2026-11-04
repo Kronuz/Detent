@@ -13,7 +13,7 @@ these docs are collected here.
 
 | Area | Status |
 | --- | --- |
-| Client library: reads, evaluation, file and HTTP sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
+| Client library: reads, evaluation and file sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
 | Host-local agent and `detent get` | **Done** |
 | Python and Rust bindings | **Basic**: file source only |
 | Durable authority | **Component accepted**; fleet-scale qualification open |
@@ -69,9 +69,9 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
    (`--just-knob name=value`) and a config-path flag.
 2. An opt-in environment switch that freezes baked defaults for tests.
 3. Filesystem notifications for the file source instead of metadata polling.
-4. Python: HTTP source, `read_view()`, `check()`, category-specific exceptions,
+4. Python: `read_view()`, `check()`, category-specific exceptions,
    type stubs.
-5. Rust: HTTP source, views, structured errors, test guards.
+5. Rust: views, structured errors, test guards.
 6. Go and Java bindings, and a documented stable reader ABI for the shared
    snapshot.
 7. A change-notification API for applications that want to react to updates.

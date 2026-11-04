@@ -161,22 +161,22 @@ An absolute `XDG_CONFIG_HOME` overrides the native user location on macOS too. T
 
 ```json
 {
-  "source_address": "127.0.0.1:8317",
+  "source_path": "/var/lib/detent/live.json",
   "poll_interval_ms": 200
 }
 ```
 
-Then use plain `detent get NAME` from any directory. `source_address` is a `host:port` address; the transport is HTTP and the endpoint is `/v1/snapshot`. `source_path` selects a local live snapshot file instead. These source settings are mutually exclusive.
+Then use plain `detent get NAME` from any directory. `source_path` names the live snapshot file the agent polls.
 
 ### Optional local defaults and runtime files
 
 A live snapshot already contains knob types and values. `defaults.json` is optional and supplies local fallback knobs before the first source update or when a live snapshot omits a knob. Place it beside `agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped. The agent does not create an empty defaults file.
 
-For local-only reads, use `--defaults PATH` or place `defaults.json` in the standard config directory. With defaults present and no source configured, the agent serves local defaults without attempting a network connection. To combine defaults with live updates, configure `source_address` as well.
+For local-only reads, use `--defaults PATH` or place `defaults.json` in the standard config directory. With defaults present and no source configured, the agent serves local defaults without attempting a network connection. To combine defaults with live updates, configure `source_path` as well.
 
 Runtime files (`agent.pid`, `agent.log`, `snapshot.shm`) go in `$XDG_RUNTIME_DIR/detent` when an absolute XDG runtime directory is set. Otherwise the agent uses a private `detent-<uid>` directory under the system temporary directory (`TMPDIR` when set, normally `/tmp` on Linux/FreeBSD and a per-user temporary directory on macOS). It creates the runtime directory with mode `0700`. `runtime_dir` in config or `--runtime-dir PATH` overrides it.
 
-Flags override environment variables, which override config. The optional variables are `DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_PATH`, `DETENT_DEFAULTS_PATH`, `DETENT_POLL_INTERVAL_MS`, and `DETENT_RUNTIME_DIR`. `--source-http`, `DETENT_SOURCE_HTTP`, and config's `source_http` remain aliases for the address setting. A source flag replaces the configured source as a whole. Startup settings configure a new daemon; stop the running daemon to apply changed settings. Keep the same runtime directory for `get`, `status`, and `stop`.
+Flags override environment variables, which override config. The optional variables are `DETENT_SOURCE_PATH`, `DETENT_DEFAULTS_PATH`, `DETENT_POLL_INTERVAL_MS`, and `DETENT_RUNTIME_DIR`. Startup settings configure a new daemon; stop the running daemon to apply changed settings. Keep the same runtime directory for `get`, `status`, and `stop`.
 
 Startup errors are reported to the caller. Daemon output is saved in `agent.log` in the runtime directory.
 
@@ -215,7 +215,7 @@ The opt-in `detentd --authority CONFIG` profile uses a separate durable store an
 
 ### Managed authority delivery
 
-The managed profile connects the agent to the authenticated authority endpoint and publishes durable immutable generations. Legacy `source_address` delivery remains available. Select the managed profile with `detent-agent --managed managed.json --generation-dir ./agent-state`; readers use the public generation directory and never open its credential configuration.
+The managed profile connects the agent to the authenticated authority endpoint and publishes durable immutable generations. Select the managed profile with `detent-agent --managed managed.json --generation-dir ./agent-state`; readers use the public generation directory and never open its credential configuration.
 
 Provision `managed.json` as a regular, single-link file owned by root or the service account, with mode `0600` or controlled group-readable `0640`. Its required fields are:
 

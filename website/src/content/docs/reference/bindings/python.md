@@ -70,7 +70,7 @@ except detent.DetentError as e:
 Reads are in-memory and non-blocking.
 
 :::hint[Not yet in the Python binding]{.unimplemented}
-1. The HTTP source and managed generation source.
+1. The managed generation source.
 2. `read_view()`, `get_as`, and the `_or_panic` helpers.
 3. A `check()` alias for `eval()`.
 4. Category-specific exceptions: `KeyError` for `MissingKnob`, `ValueError`

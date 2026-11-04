@@ -74,7 +74,7 @@ allocation. See [Read Path](/Detent/architecture/read-path/).
 
 One background thread per client picks up new state from its source. With
 managed delivery, it watches the agent's `selected` descriptor and maps each
-new generation. With a file or HTTP source, it fetches candidates, validates them
+new generation. With a file source, it fetches candidates, validates them
 completely, gates them by version, merges them over the baked defaults, and
 publishes the result with one atomic store. Failures never reach readers. See
 [Update Path](/Detent/architecture/update-path/).

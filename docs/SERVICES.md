@@ -22,10 +22,10 @@ The agent configuration may be empty:
 {}
 ```
 
-To poll an HTTP endpoint that serves `GET /v1/snapshot`, the agent configuration is:
+To poll a snapshot file, the agent configuration is:
 
 ```json
-{"source_address": "snapshots.example:8317"}
+{"source_path": "/var/lib/detent/live.json"}
 ```
 
 An agent may use optional `defaults.json` beside its config to serve fallback values before its source delivers a snapshot.

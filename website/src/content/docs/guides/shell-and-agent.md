@@ -82,10 +82,6 @@ Then plain `detent get NAME` works from any directory. You can also pass
 `--source-path PATH` or set `DETENT_SOURCE_PATH`; flags override environment
 variables, which override the config file.
 
-To poll an HTTP endpoint that serves `GET /v1/snapshot` instead, use
-`source_address` / `--source-address HOST:PORT`. The two are mutually
-exclusive.
-
 ### Local Defaults
 
 An optional `defaults.json` next to `agent.json` gives the agent typed fallback

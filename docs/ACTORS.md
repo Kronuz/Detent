@@ -120,7 +120,7 @@ Each update carries a cursor (authority identity, scope and revision). The agent
 
 **Where.** Every application host. `detent-agent` is always built; `--managed` needs `DETENT_BUILD_MANAGED_AGENT=ON`, which is the default. The public `agent.json` (in `~/.config/detent` on Linux and FreeBSD, `~/Library/Application Support/Detent` on macOS, or the system directory with `--system`) can name `managed_path` and `generation_dir`. The private `managed.json` holds the token and has no default path. `generation_dir` defaults to `agent` under the user state directory, or `/var/lib/detent-agent` (Linux) and `/var/db/detent-agent` (macOS, FreeBSD) for system services. `agent.pid` and `agent.log` live in the runtime directory.
 
-Without `--managed`, `detent-agent` polls an HTTP source and writes `snapshot.shm`. See [The classic client path](#the-classic-client-path).
+Without `--managed`, `detent-agent` polls a snapshot file and writes `snapshot.shm`. See [The file-source agent path](#the-file-source-agent-path).
 
 ## Client
 
@@ -172,7 +172,7 @@ Agents keep their last durable generation while anything upstream is down, and c
 | `DETENT_BUILD_TESTS`, `DETENT_BUILD_EXAMPLES`, `DETENT_BUILD_BENCHMARKS` | `ON` | Tests, examples, benchmarks |
 | `DETENT_BUILD_PYTHON`, `DETENT_BUILD_RUST` | `OFF` | Language bindings |
 
-`detent-agent`, `detent`, `detent::detent`, `detent_http` and `detent::local_client` have no option; they are always built. A build with every actor:
+`detent-agent`, `detent`, `detent::detent` and `detent::local_client` have no option; they are always built. A build with every actor:
 
 ```sh
 cmake -B build -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON
@@ -189,6 +189,6 @@ cmake --build build -j
 
 `agent.json` and `detentd.json` are looked up in the user configuration directory first and in the system one when the user file is absent. Keep durable directories out of the runtime directory, which is cleared at boot. [System services](SERVICES.md) covers service accounts and the systemd, launchd and rc.d templates.
 
-## The classic client path
+## The file-source agent path
 
-`detent::Client` with `detent_http::make_http_poll_source()` polls `GET /v1/snapshot` with `If-None-Match` and `X-Detent-Base-Version`, and gets `304`, a diff or the full body. `detent-agent` with `source_address` runs one polling client and copies each accepted snapshot into `snapshot.shm` under a seqlock. `detent get` without a generation directory maps that file and starts a user agent on demand. No Detent daemon serves `/v1/snapshot`.
+`detent-agent` with `source_path` runs one polling client and copies each accepted snapshot into `snapshot.shm` under a seqlock. `detent get` without a generation directory maps that file and starts a user agent on demand.
