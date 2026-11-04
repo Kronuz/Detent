@@ -1,13 +1,9 @@
-[int] int [0,999999]
-  old: outside=0 reaches_low=0 reaches_high=1 uniform=yes
-  new: outside=0 reaches_low=0 reaches_high=0 uniform=yes
 
-  int: outside=0 reaches_low=0 -> outside=0 reaches_low=0: 1
 
 class                       cases  different
-int                            11          1
+int                            11          0
 int-values                      5          0
 real                            4          0
 string                          5          0
 time                            6          0
-total                          31          1
+total                          31          0

@@ -75,17 +75,42 @@ Run 41796189324 (workflow_dispatch on `Detent:db67185`, branch `m1/pins-to-head`
 success. Every job green, including pin-check, linux-asan-ubsan and linux-tsan; freebsd and headers
 are skipped by the workflow. No flakes hit.
 
-## W5 evidence (branch `m1/w5-evidence`, from `Detent:f7267d5`)
+## W5 evidence (branch `m1/w5-evidence`, rebased on `Detent:9a5a8c3`)
 
-**State (2026-11-04):** in progress. Old is `Detent:bf20f94` ("Settle Q5 and Q6", 2026-11-02 18:06), the
-last main commit before `Detent:85253b5`, the first to move a pin (task). Its manifest has 38 entries; none
-of the 33 Kronuz pins was at its head. Old and new are built in separate trees (`.scratch/old-wt`,
-`.scratch/build-old`, `.scratch/build-new`), Release, same compiler and flags, system lz4 and zstd for both.
-The identity drivers are in `tools/w5/`; results go in `docs/perf/m1-w5-evidence.md`.
+Done criteria 5 to 8 of `docs/PLAN.md` "M1: on the tip". Evidence note: `docs/perf/m1-w5-evidence.md`.
 
-**Done:** drivers written (compressors, http-parser, strict-stox, enum-reflection, random, Detent snapshot
-JSON and `--just-knob`, distribution frames and local images, the logger transcript, a raw HTTP replay).
+**State (2026-11-04):** measured and written; CI on the pushed branch is the last step. Two results are
+reported, not fixed: a managed first-read loss and the http-parser strictness (below).
 
-**Next:** run the identity classes, A/B the hot paths, CHANGELOG, DEPENDENCIES docs, CI.
+Old is `Detent:bf20f94` (2026-11-02 18:06), the last main commit before `Detent:85253b5`, the first to move a
+pin; new is the branch tip (`Detent:9a5a8c3` plus `tools/w5` and docs). Both built Release in separate trees
+(`.scratch/old-wt`, `.scratch/build-old`, `.scratch/build-new`), same flags, system lz4 and zstd.
 
-**Blocked on:** nothing.
+**Done**
+
+1. Identity drivers (`tools/w5/`, `Detent:ccb3dba`, `Detent:cec54dc`, `Detent:27a2e65`): compressors, http-parser,
+   strict-stox, enum-reflection, random, Detent snapshot JSON and `--just-knob`, distribution frames and local
+   images, the logger transcript, a raw HTTP replay of the classic daemon. Results per class in the note; every
+   difference has a library commit as its cause.
+2. Hot-path A/B with an A/A control under `quiet exclusive` (read bench, authority update, durable ack, reply
+   encoder, three-voter writers, managed first read on the 5M store). All inside the A/A band except the first read.
+3. CHANGELOG, DEPENDENCIES.md, DEPENDENCY_UPGRADES.md (`Detent:5111b5b`) and the website's dependencies,
+   installation and roadmap pages (`Detent:d6f3480`).
+
+**Next:** CI on the pushed branch; the owner's call on the two items below.
+
+**Blocked on** (owner decisions, nothing fixed here)
+
+1. Managed first read is 2.6% slower on the new build (25 rounds, A/A 0.996; median 1,087.0 us old, 1,116.7 us new;
+   147 against 103 of 1,000 reads under 1 ms), and the old build does not reach the sub-millisecond target on this
+   host either. Options: bisect the intermediate main commits to attribute it (the arms differ by W2, the reader's
+   S1 to S4 and the pins), or accept it. A bisect needs a build per step.
+2. `detentd` now closes the connection without a response for requests http-parser's strict mode rejects (bare LF,
+   obs-fold, `Transfer-Encoding` other than `chunked`, missing or odd version, `Content-Length` in a trailer); the
+   old build answered. Options: keep strict (the guide's default), or set `lenient_http_headers` for the HTTP server.
+   This narrows what clients can send, so it is the owner's.
+
+**Design vs code:** no mechanism was added or changed; the drivers and scripts are test tooling.
+
+**Process notes:** the `quiet` queue held the builds for hours behind other agents' holds; one two-second
+benchmark was started outside a hold (noted in the evidence note).

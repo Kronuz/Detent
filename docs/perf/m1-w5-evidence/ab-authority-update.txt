@@ -1,0 +1,15 @@
+row                                old        new  old/new      range    A/A  n  verdict
+load_ms                      687228500  676373000    1.017  0.98-1.14  1.018  8    noise
+load_cpu_ms                  686848000  675758000    1.018  0.98-1.14  1.018  8    noise
+legacy_patch_median_ms         7970534    8142104    0.973  0.94-1.05  0.989  8    noise
+authority_update_median_ms     25741.5    26369.5    0.924  0.81-1.18  0.930  8    noise
+legacy_cpu_ms_per_update      15575690   15752833    0.986  0.91-1.01  1.000  8    noise
+authority_cpu_ms_per_update    26726.5    27949.5    0.902  0.81-1.09  0.938  8    noise
+capture_us                      7845.0     6101.0    1.184  1.00-1.33  0.921  8    noise
+encode_ms                     42708500   42981500    0.998  0.95-1.06  0.988  8    noise
+max_encode_turn_ms              383000     413000    0.965  0.68-1.00  0.944  8    noise
+
+runs: old 8, new 8, A/A 8; a ratio above 1 means new is faster
+geomean 0.994 over 9 rows (min 0.902 authority_cpu_ms_per_update; max 1.184 capture_us)
+per-run geomean: min 0.926, median 0.997, max 1.056 over 8 runs
+A/A geomean 0.971
