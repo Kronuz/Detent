@@ -57,14 +57,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-15]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with: { python-version: '3.13' }
       - name: Configure
+        # libc++ 19 keeps std::jthread behind -fexperimental-library (README, Homebrew formula).
         run: >-
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          ${{ runner.os == 'macOS' && '-DCMAKE_CXX_FLAGS=-fexperimental-library' || '' }}
           -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON -DDETENT_BUILD_TESTS=ON
           -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON
           -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF

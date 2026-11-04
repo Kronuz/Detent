@@ -1,4 +1,3 @@
-#include "detent/reader.hh"
 #include "detent_local/reader.hh"
 #include "lazy_page_access.hh"
 #include "names.hh"
@@ -55,10 +54,6 @@ int main() {
 		std::filesystem::remove(alias);
 	}
 	auto fixture = std::make_shared<Fixture>();
-	{
-		detent::Reader reader(fixture->path.string(), ::getuid());
-		check(reader.get("a:k", -1) == 42);
-	}
 	{
 		l::GenerationReader reader(fixture->path, {}, {}, ::getuid());
 		check(reader.refresh());

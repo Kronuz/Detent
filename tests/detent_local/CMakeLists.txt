@@ -315,7 +315,7 @@ add_test(NAME test_local_reader_metadata COMMAND test_local_reader_metadata)
 
 add_executable(test_local_lazy_page_access test_lazy_page_access.cc)
 target_include_directories(test_local_lazy_page_access PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(test_local_lazy_page_access PRIVATE detent::local_builder detent::reader)
+target_link_libraries(test_local_lazy_page_access PRIVATE detent::local_builder)
 add_test(NAME test_local_lazy_page_access COMMAND test_local_lazy_page_access)
 
 add_executable(test_local_lazy_page_bitmap test_lazy_page_bitmap.cc)
