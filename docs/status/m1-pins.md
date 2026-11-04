@@ -114,3 +114,7 @@ pin; new is the branch tip (`Detent:9a5a8c3` plus `tools/w5` and docs). Both bui
 
 **Process notes:** the `quiet` queue held the builds for hours behind other agents' holds; one two-second
 benchmark was started outside a hold (noted in the evidence note).
+
+**CI:** run 41835299429 (workflow_dispatch on `m1/w5-evidence` at `Detent:c8d4956`). When I stopped: source-checks, pin-check
+and plan green; freebsd and headers skipped by the matrix; linux x86_64 gcc and clang, arm64 gcc, macOS arm64 and x86_64,
+ASan/UBSan, TSan, benchmarks and read-counters still running. The lead watches it to a terminal state.
