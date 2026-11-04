@@ -1,0 +1,25 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+grid-rows: 2
+vertical-gap: 80
+
+upstream: "Upstream" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  direction: left
+  authority: "Authority\ndetentd, Raft voters" {style.multiple: true}
+  relay: "Relay\ndetent-relay"
+  authority -> relay: "subscribe"
+}
+host: "One host" {
+  label.near: top-right
+  style.fill: "#F4F1EA"
+  direction: right
+  app: "Application\nlibdetent_reader"
+  agent: "detent-agent\n(managed)"
+  store: "Store directory" {shape: cylinder; style.fill: "#E8E2F0"}
+  agent -> store: "writes"
+  store -> app: "mapped, read"
+}
+
+upstream.relay -> host.agent
