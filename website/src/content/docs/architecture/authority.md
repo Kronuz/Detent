@@ -2,10 +2,10 @@
 title: "Durable Authority"
 ---
 
-The authority is Detent's answer to the classic distributor's limits at scale:
-whole-map copies on every write, publisher-chosen versions, volatile consensus
-and an unauthenticated network surface. It's a separate, opt-in profile; the
-classic distributor remains available and unchanged.
+The authority is Detent's server: bounded namespace transactions, publisher
+identity from credentials, durable consensus and an authenticated network
+surface. Each write copies only the affected paths, and the authority, not the
+publisher, chooses revisions.
 
 ---
 
@@ -35,12 +35,12 @@ copies only the affected tree path and shares everything else, so applying a
 one-knob change to 500,000 knobs allocates about 27 tree nodes instead of
 copying the whole map:
 
-| Knobs | Legacy patch | Authority update | CPU per update |
+| Knobs | Whole-snapshot patch | Authority update | CPU per update |
 | ---: | ---: | ---: | ---: |
 | 100,000 | 133.7 ms | 0.0127 ms | 0.0141 ms |
 | 500,000 | 668.6 ms | 0.0113 ms | 0.0114 ms |
 
-Application-only measurements, without I/O, HTTP or replication; 21 legacy and
+Application-only measurements, without I/O, HTTP or replication; 21 whole-snapshot and
 1,000 authority samples on an Intel Mac, October 2026.
 
 1. **Transactions are atomic per namespace.** Preconditions compare against the
@@ -120,8 +120,7 @@ more turns.
 ## Where It Runs
 
 One `detentd --authority authority.json` process per voter, each on its own
-machine and disk. Build with `-DDETENT_BUILD_DISTRIBUTOR=ON
--DDETENT_BUILD_AUTHORITY=ON`. `authority.json` has no default location; pass
+machine and disk. `DETENT_BUILD_AUTHORITY` (on by default) builds it. `authority.json` has no default location; pass
 it with `--authority` or name it as `authority` in `detentd.json`. Its
 `directory`, resolved relative to the file, holds the `manifest`, journal and
 checkpoints. Producers, relays and agents reach the producer listener on

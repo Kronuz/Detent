@@ -23,8 +23,7 @@ flags, kill switches and live settings. It features:
   * Fail-fast on missing knobs, with baked defaults shipped alongside code.
 
 ##### Distribution:
-  * A small HTTP distributor with ETags, cached diffs and zstd/gzip.
-  * Optional Raft replication.
+  * Live updates from a snapshot file or an HTTP endpoint.
   * A host-local shared-memory agent and `detent get` for any language.
 
 ##### Durable authority:

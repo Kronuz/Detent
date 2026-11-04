@@ -13,9 +13,8 @@ sensitive customer segment, or ramp beta users faster than production users.
 Add an `overrides` object to a bool definition. Each entry maps a group name to
 either a forced boolean or its own `rollout_pct`:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 11,
@@ -33,6 +32,7 @@ PATCH /v1/snapshot
     }
   }
 }
+EOF
 ```
 
 Your application supplies the caller's group as the *switch value*:
@@ -93,9 +93,8 @@ A publish replaces a knob's **whole** definition, overrides included. To change
 the `beta` percentage, send the complete definition with every group you want to
 keep:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 12,
@@ -113,9 +112,10 @@ PATCH /v1/snapshot
     }
   }
 }
+EOF
 ```
 
-Leaving `production` out of that body would delete its override.
+Leaving `production` out of that definition would delete its override.
 
 :::hint[Int knobs have no group overrides]{.info}
 Group overrides and rollouts are bool-only. The int read API accepts a switch

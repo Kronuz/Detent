@@ -86,7 +86,7 @@ struct InitOptions {
 	//
 	// Called repeatedly on the single background updater thread with the
 	// currently accepted version (so a source that can serve a diff-since-
-	// that-version -- e.g. detentd's cached patch, see detentd.hh -- has
+	// that-version has
 	// what it needs to decide whether to). Contract:
 	//   - returns a SourcePayload  -> a candidate update to validate/apply;
 	//                                 `is_patch` says which grammar it is

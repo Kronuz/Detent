@@ -56,7 +56,7 @@ That produces, under `build/src/`:
 
 | Binary | What it is |
 | --- | --- |
-| `detentd` | The HTTP distributor, optionally clustered, or the durable authority |
+| `detentd` | The durable authority daemon |
 | `detent-agent` | The host-local agent daemon |
 | `detent` | The shell reader: `detent get NAME` |
 
@@ -79,9 +79,8 @@ The variable name is the dependency's `FetchContent` name in upper case, such as
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `DETENT_BUILD_DISTRIBUTOR` | `ON` | Build `detentd` and its HTTP/reactor/cluster dependency chain |
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | Build managed (authority) delivery support into `detent-agent` |
-| `DETENT_BUILD_AUTHORITY` | `OFF` | Build the opt-in durable authority profile of `detentd` |
+| `DETENT_BUILD_AUTHORITY` | `ON` | Build `detentd`, the durable authority daemon, with its HTTP, reactor and consensus dependencies |
 | `DETENT_BUILD_TESTS` | `ON` | Build the test suite |
 | `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` |
 | `DETENT_BUILD_BENCHMARKS` | `ON` | Build the benchmarks |
@@ -92,7 +91,7 @@ A library-only build, for an application that only needs `detent::Client` with
 baked defaults or a file source, can skip the network stack entirely:
 
 ```sh
-cmake -B build -DDETENT_BUILD_DISTRIBUTOR=OFF -DDETENT_BUILD_MANAGED_AGENT=OFF
+cmake -B build -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_MANAGED_AGENT=OFF
 ```
 
 ---
@@ -105,8 +104,7 @@ ctest --test-dir build --output-on-failure
 
 The suite covers the core client (schema validation, golden hash vectors,
 evaluation precedence, CLI overrides, the file source, concurrency stress),
-the distributor (PUT/GET/PATCH, persistence, diffs, multi-node polling,
-fan-out load, a real three-node Raft cluster), the agent's shared-memory
+the agent's shared-memory
 reader and writer, and the authority, delivery and local-image libraries.
 
 ---

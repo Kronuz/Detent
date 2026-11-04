@@ -11,14 +11,14 @@ daemon per host.
 
 ## How It Works
 
-```d2 alt="detent-agent polls the distributor once for the whole host and publishes a pre-parsed snapshot into a shared-memory file; every detent get maps that file read-only"
+```d2 alt="detent-agent polls the source once for the whole host and publishes a pre-parsed snapshot into a shared-memory file; every detent get maps that file read-only"
 direction: down
-detentd: "detentd\n(remote or local)"
+source: "Source\n(file or HTTP)"
 agent: "detent-agent\n(one warm client)"
 shm: "snapshot.shm\n(pre-parsed binary,\nseqlock-guarded)" {shape: cylinder}
 a: "detent get NAME\n(shell script)"
 b: "detent get NAME\n(any language)"
-detentd -> agent: "GET /v1/snapshot\n(one poller per host)"
+source -> agent: "poll\n(one poller per host)"
 agent -> shm: "publish on every\naccepted update"
 shm -> a: "mmap read-only"
 shm -> b: "mmap read-only"
@@ -42,8 +42,9 @@ detent get payments:new_processor --hash user-2 --switch employees
 # true
 ```
 
-The first `get` starts the agent automatically if it isn't running, connects it
-to `127.0.0.1:8317`, and waits up to two seconds for the first snapshot.
+The first `get` starts the agent automatically if it isn't running, with the
+source from its flags, environment or `agent.json`, and waits up to two seconds
+for the first snapshot.
 
 | Exit status | Meaning |
 | --- | --- |
@@ -61,10 +62,9 @@ fi
 
 ---
 
-## Pointing the Agent Elsewhere
+## Pointing the Agent at a Source
 
-For a distributor that isn't on `127.0.0.1:8317`, write `agent.json` in your
-config directory:
+To give the agent a fixed source, write `agent.json` in your config directory:
 
 | Platform | User config directory |
 | --- | --- |
@@ -73,17 +73,18 @@ config directory:
 
 ```json title="agent.json"
 {
-  "source_address": "distributor.internal:8317",
+  "source_path": "/var/lib/myapp/live_knobs.json",
   "poll_interval_ms": 200
 }
 ```
 
 Then plain `detent get NAME` works from any directory. You can also pass
-`--source-address HOST:PORT` or set `DETENT_SOURCE_ADDRESS`; flags override
-environment variables, which override the config file.
+`--source-path PATH` or set `DETENT_SOURCE_PATH`; flags override environment
+variables, which override the config file.
 
-To serve a local snapshot file instead of a distributor, use `source_path` /
-`--source-path`. The two are mutually exclusive.
+To poll an HTTP endpoint that serves `GET /v1/snapshot` instead, use
+`source_address` / `--source-address HOST:PORT`. The two are mutually
+exclusive.
 
 ### Local Defaults
 
@@ -97,7 +98,7 @@ detent get search:max_results --defaults ./defaults.json
 ```
 
 :::hint[Startup settings apply to a new agent]{.caution}
-Flags like `--source-address` and `--defaults` configure an agent when `get`
+Flags like `--source-path` and `--defaults` configure an agent when `get`
 starts one. If an agent is already running, stop it to apply changed settings.
 :::
 

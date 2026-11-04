@@ -2,22 +2,17 @@
 title: "Quick-start"
 ---
 
-This guide takes you through installing Detent, starting a distributor, and
-publishing and reading your first knobs. **DON'T PANIC**, it takes just a few
-minutes.
+This guide takes you through installing Detent, publishing a snapshot file, and
+reading your first knobs. **DON'T PANIC**, it takes just a few minutes.
 
 ---
 
-## Installing and Running
+## Installing
 
 ### Using Homebrew under macOS
 
 ```sh
-# Install with Homebrew:
 brew install Kronuz/tap/detent
-
-# Run the distributor in the foreground with verbose output:
-detentd -v
 ```
 
 ### Building from Source
@@ -28,32 +23,30 @@ cd Detent
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 sudo cmake --install build
-
-# Run the distributor in the foreground with verbose output:
-detentd -v
 ```
-
-`detentd` listens on port `8317` and keeps its snapshot in your user state
-directory. Leave it running and open a second terminal; or start it in the
-background with `detentd --daemonize` instead.
 
 You can check the [Installation](/Detent/installation/) section for compiler
 requirements, build options and platform notes.
-
-:::hint[Turn up the logs]{.tip}
-`-v` shows every accepted publish as it happens, and `detent-agent -vv` also
-shows the agent's source metrics. See [Logging](/Detent/operations/logging/).
-:::
 
 ---
 
 ## Publishing
 
+The simplest live source is a JSON snapshot file. Make a working directory and
+a small helper that replaces the file atomically:
+
+```sh
+mkdir -p ~/detent-quickstart && cd ~/detent-quickstart
+publish() { cat > knobs.json.tmp && mv knobs.json.tmp knobs.json; }
+```
+
+`mv` within one directory is a `rename()`, so a reader sees the old file or the
+new one, never a half-written file.
+
 Publish a first snapshot containing one integer knob:
 
-```rest
-PUT /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 1,
@@ -61,16 +54,11 @@ PUT /v1/snapshot
     "search:max_results": { "type": "int", "default": 25 }
   }
 }
+EOF
 ```
 
-The distributor answers with the version it accepted:
-
-```json
-{"accepted_version":1}
-```
-
-Every publish carries a `version`, and every new publish needs a **higher**
-one. A stale or repeated version is rejected with `409 Conflict`.
+Every snapshot carries a `version`, and every update needs a **higher** one. A
+reader ignores a stale or repeated version and keeps the snapshot it has.
 
 ---
 
@@ -79,18 +67,17 @@ one. A stale or repeated version is rejected with `409 Conflict`.
 Read the knob from the shell:
 
 ```sh
-detent get search:max_results
+detent get search:max_results --source-path "$PWD/knobs.json"
 # 25
 ```
 
-The first `get` starts a local `detent-agent` automatically and points it at
-`127.0.0.1:8317`. No configuration is needed.
+The first `get` starts a local `detent-agent` that polls `knobs.json`. Later
+reads attach to that agent, so they don't need the flag.
 
 Now change the value without restarting anything:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 2,
@@ -98,6 +85,7 @@ PATCH /v1/snapshot
     "search:max_results": { "type": "int", "default": 100 }
   }
 }
+EOF
 ```
 
 ```sh
@@ -110,9 +98,15 @@ The agent polls every 200 ms by default, so the new value shows up almost
 immediately. Your applications would see it the same way: the next read after
 the update lands returns the new value, with no restart and no redeploy.
 
+:::hint[Publishing for a fleet]{.info}
+A snapshot file serves one host. To publish to many hosts, with authenticated
+publishers and atomic transactions, run the
+[durable authority](/Detent/guides/durable-authority/).
+:::
+
 ---
 
-The next pages walk through each idea in turn:
+The next pages walk through each idea in turn, in the same shell and directory:
 
 1. [Basic Concepts](/Detent/basics/): knobs, snapshots, versions and defaults.
 2. [Settings and Flags](/Detent/settings-and-flags/): numeric settings and on/off switches.

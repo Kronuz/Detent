@@ -1,6 +1,6 @@
 // Partial-update primitives (see json_patch.hh): parse_snapshot_patch,
 // apply_patch, diff_snapshots, serialize_patch, and the round trip between
-// them -- the machinery behind detentd's PATCH /v1/snapshot and its
+// them -- the machinery behind partial updates and the
 // diff-since-last-version poll response.
 #include <cassert>
 #include <cstdio>

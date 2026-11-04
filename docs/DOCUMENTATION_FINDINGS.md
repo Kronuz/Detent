@@ -64,10 +64,9 @@ Proven useful in other configuration systems (Xapiand's own tooling, LaunchDarkl
 6. **More value types**: string, float, JSON; and group overrides for int knobs.
 7. **Targeting rules** beyond exact group names (attribute predicates, segments), and **scheduled changes** (apply at a time, or ramp on a schedule).
 8. **Change notification API** for applications. `on_update` exists but is documented as the agent's hook, is exclusive with `read_source`, and isn't called for the initial snapshot.
-9. **Optional bearer-token check on the classic distributor**, a cheap improvement for deployments that can't adopt the authority yet.
-10. **Packaging**: Homebrew tap and container image (Xapiand ships both and its docs lead with them), Debian/RPM, FreeBSD port.
-11. **CI** on Linux/macOS/FreeBSD with sanitizers, once 1.1 is fixed. The website's header shows the Pages build badge only, because there is no CI workflow to point at.
-12. **Versioned schema for the authority health document**, so dashboards can depend on it.
+9. **Packaging**: Homebrew tap and container image (Xapiand ships both and its docs lead with them), Debian/RPM, FreeBSD port.
+10. **CI** on Linux/macOS/FreeBSD with sanitizers, once 1.1 is fixed. The website's header shows the Pages build badge only, because there is no CI workflow to point at.
+11. **Versioned schema for the authority health document**, so dashboards can depend on it.
 
 ## 7. Keeping the website in sync
 

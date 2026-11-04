@@ -66,7 +66,7 @@ Implements `std::error::Error` and `Display`; the message starts with the error
 category, e.g. `MissingKnob: ...`.
 
 :::hint[Not yet in the Rust binding]{.unimplemented}
-1. The HTTP distributor source and managed generation source.
+1. The HTTP source and managed generation source.
 2. `read_view()`, a generic `get_as::<T>()`, and panicking helpers.
 3. A structured error enum mirroring `ErrorCategory` instead of a string.
 4. A process-wide adapter and a `TestKnobs`-style guard for tests.

@@ -34,8 +34,7 @@ struct HttpResponse {
 	std::string body;
 	std::optional<std::string> etag;
 	// True when the response's Content-Type is application/merge-patch+json
-	// -- detentd's diff-since-last-version response (see detentd.hh's
-	// current_diff_bytes_ comment) instead of a full snapshot. Callers
+	// -- a diff-since-last-version response instead of a full snapshot. Callers
 	// (make_http_poll_source) surface this straight through to
 	// detent::InitOptions::SourcePayload::is_patch; detent::Client is the
 	// one place that actually parses/applies either shape.
@@ -63,7 +62,7 @@ struct HttpResponse {
 
 // Same transport, PATCH instead of PUT: for a publisher that wants to send
 // only the one or few knobs that changed (see json_patch.hh) instead of a
-// full snapshot -- detentd's PATCH /v1/snapshot ingest.
+// full snapshot.
 [[nodiscard]] HttpResponse http_patch(
 	const std::string& host,
 	std::uint16_t port,
@@ -98,10 +97,10 @@ public:
 	HttpConnection& operator=(const HttpConnection&) = delete;
 
 	// `base_version`, if given, is sent as X-Detent-Base-Version: a hint to
-	// a detentd server that this caller's own last-accepted version is
+	// a server that this caller's own last-accepted version is
 	// exactly that one, so a body-changed response MAY come back as a
-	// small diff (HttpResponse::is_patch) instead of a full snapshot --
-	// see detentd.hh's current_diff_bytes_ comment. Purely a bandwidth
+	// small diff (HttpResponse::is_patch) instead of a full snapshot.
+	// Purely a bandwidth
 	// optimization: omitting it (or a version the server doesn't have a
 	// cached diff for) just gets the full body, same as before this existed.
 	[[nodiscard]] HttpResponse get(

@@ -25,13 +25,6 @@ target_link_libraries(detent_update_bench PRIVATE detent::detent)
 add_executable(detent_agent_shm_bench detent_agent_shm_bench.cc)
 target_link_libraries(detent_agent_shm_bench PRIVATE detent_agent_lib detent::detent)
 
-if(DETENT_BUILD_DISTRIBUTOR)
-  add_executable(detentd_publication_bench container-alternative/publication_bench.cc)
-  target_link_libraries(detentd_publication_bench PRIVATE detentd_lib)
-  add_executable(detentd_fanout_bench detentd_fanout_bench.cc)
-  target_link_libraries(detentd_fanout_bench PRIVATE detentd_lib detent_http::detent_http)
-endif()
-
 add_executable(detent_scale_bench detent_scale_bench.cc)
 target_link_libraries(detent_scale_bench PRIVATE detent_agent_lib)
 
@@ -41,7 +34,7 @@ target_link_libraries(detent_authority_bench PRIVATE detent::authority)
 add_executable(detent_command_work_bench command_work_bench.cc)
 target_link_libraries(detent_command_work_bench PRIVATE detent::authority)
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_durable_bench detent_authority_durable_bench.cc)
   target_link_libraries(detent_authority_durable_bench PRIVATE detent::authority_node)
 endif()
@@ -49,12 +42,12 @@ endif()
 add_executable(detent_credential_scan_bench credential_scan_bench.cc)
 target_link_libraries(detent_credential_scan_bench PRIVATE sha256)
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_read_response_bench read_response_bench.cc)
   target_link_libraries(detent_authority_read_response_bench PRIVATE detent_authority_service)
 endif()
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_executable(detent_authority_terminal_retirement_bench terminal_retirement_bench.cc)
   target_link_libraries(detent_authority_terminal_retirement_bench PRIVATE detent::authority_node reactor::reactor)  # Asio
 endif()

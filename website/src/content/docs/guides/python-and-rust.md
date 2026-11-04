@@ -83,7 +83,7 @@ Reads return `Result<T, detent::DetentError>`. See the
 The bindings expose the core client with a file source only. Not yet available
 from Python or Rust:
 
-1. The HTTP distributor source. Use a file source, or read through
+1. The HTTP source. Use a file source, or read through
    [`detent get`](/Detent/guides/shell-and-agent/) and the host agent.
 2. Pinned read views (`read_view()`) and the managed generation source.
 3. Checked integer conversion (`get_as`) and the `_or_panic` helpers.

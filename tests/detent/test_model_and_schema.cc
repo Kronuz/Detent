@@ -148,7 +148,7 @@ void test_schema_violations_reject_whole_input() {
 		assert(!parse_defaults(deep).has_value());
 	}
 	// Byte-size cap enforced by parse_source_snapshot itself, not only by
-	// detentd's own PUT-ingest CappedBodySink -- an arbitrary
+	// a server's ingest sink -- an arbitrary
 	// InitOptions::source_poll implementation or a raw HTTP response body
 	// had no cap at this layer before this fix.
 	{

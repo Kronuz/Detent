@@ -9,12 +9,12 @@ The agent runs one of two profiles. With `--managed managed.json` it receives
 snapshots and deltas from the authority or a [relay](/Detent/architecture/relay/)
 and publishes immutable generations, described in
 [Delivery and Local Images](/Detent/architecture/delivery/). Without it, the
-agent runs the legacy profile this page describes: it polls a classic
-distributor and writes one shared-memory file.
+agent runs the legacy profile this page describes: it polls a snapshot file
+or an HTTP endpoint and writes one shared-memory file.
 
 | | Managed | Legacy |
 | --- | --- | --- |
-| Upstream | Authority or relay, TLS, bearer token | Classic `detentd`, plain HTTP |
+| Upstream | Authority or relay, TLS, bearer token | Snapshot file, or `GET /v1/snapshot` over plain HTTP |
 | Local state | `generation_dir` (`selected` plus immutable generations) | `snapshot.shm` in the runtime directory |
 | Build | `DETENT_BUILD_MANAGED_AGENT=ON` (default) | Always built |
 | First start | `--initialize-managed` once on an empty directory | Nothing to provision |
@@ -25,7 +25,7 @@ distributor and writes one shared-memory file.
 
 ```d2 alt="detent-agent runs one Client whose on_update hook serializes each accepted snapshot into a seqlock-guarded shared-memory file that readers map read-only"
 direction: down
-source: "detentd or file"
+source: "file or HTTP"
 agent: "detent-agent\n(one detent::Client)"
 writer: "ShmWriter\n(on_update hook)"
 shm: "snapshot.shm\n(flat binary, seqlock)" {shape: cylinder}

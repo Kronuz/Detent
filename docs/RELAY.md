@@ -8,7 +8,7 @@ Authority → Relay → Agents → Local application readers
             cache     generations
 ```
 
-Build the optional daemon with `-DDETENT_BUILD_RELAY=ON`. A relay-only build can disable `DETENT_BUILD_DISTRIBUTOR` and `DETENT_BUILD_AUTHORITY`; it uses the standalone completion module and does not link authority state or consensus. Normal managed agents require `DETENT_BUILD_MANAGED_AGENT=ON`.
+Build the optional daemon with `-DDETENT_BUILD_RELAY=ON`. A relay-only build can disable `DETENT_BUILD_AUTHORITY`; it uses the standalone completion module and does not link authority state or consensus. Normal managed agents require `DETENT_BUILD_MANAGED_AGENT=ON`.
 
 ## Private configuration
 

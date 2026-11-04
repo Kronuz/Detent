@@ -30,7 +30,6 @@ export const sidebar = [
 				'guides/kill-switches',
 				'guides/testing',
 				'guides/python-and-rust',
-				'guides/clustering',
 				'guides/durable-authority',
 				'guides/managed-delivery',
 				'guides/durable-relay',
@@ -53,7 +52,7 @@ export const sidebar = [
 			]),
 			group('HTTP API', [
 				overview('/reference/http-api'),
-				...pages('reference/http-api/snapshot', 'reference/http-api/health', 'reference/http-api/authority'),
+				...pages('reference/http-api/health', 'reference/http-api/authority'),
 			]),
 			...pages('reference/configuration', 'reference/observability', 'reference/limits'),
 		],
@@ -65,7 +64,6 @@ export const sidebar = [
 			...pages(
 				'operations/services',
 				'operations/logging',
-				'operations/clustering',
 				'operations/authority',
 				'operations/security',
 				'operations/upgrading',
@@ -80,9 +78,7 @@ export const sidebar = [
 			...pages(
 				'architecture/read-path',
 				'architecture/update-path',
-				'architecture/distributor',
 				'architecture/agent',
-				'architecture/raft',
 				'architecture/authority',
 				'architecture/relay',
 				'architecture/delivery',

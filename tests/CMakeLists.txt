@@ -19,10 +19,6 @@ if(TARGET detent::owner_loop)
   add_subdirectory(detent_owner)
 endif()
 
-if(DETENT_BUILD_DISTRIBUTOR)
-  add_subdirectory(detentd)
-endif()
-
 add_subdirectory(detent_authority)
 add_subdirectory(detent_distribution)
 if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)

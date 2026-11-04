@@ -10,7 +10,7 @@ Authority → Relay → Agents → Application readers
             cache     generations
 ```
 
-Build with `-DDETENT_BUILD_RELAY=ON`. A relay-only build can disable distributor and authority targets; the relay does not link authority state or consensus. Hosting has Stage 5B component acceptance; incremental publication and sustained fleet qualification remain separate [roadmap](/Detent/roadmap/) gates.
+Build with `-DDETENT_BUILD_RELAY=ON`. A relay-only build can disable the authority target; the relay does not link authority state or consensus. Hosting has Stage 5B component acceptance; incremental publication and sustained fleet qualification remain separate [roadmap](/Detent/roadmap/) gates.
 
 ## Configuration and services
 

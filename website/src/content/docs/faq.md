@@ -4,12 +4,10 @@ title: "FAQ"
 
 ### How fast does a change reach my processes?
 
-Within one poll interval of the distributor accepting it, while the source is
+Within one poll interval of the source changing, while the source is
 healthy: 200 ms by default for the agent and for clients that keep the default.
-On a single machine, 1,000 pollers at 200 ms converge with p99 around
-200–215 ms.
 
-### What happens if the distributor is down?
+### What happens if the source is down?
 
 Every client keeps serving its last known good snapshot, and keeps retrying in
 the background with jittered backoff. Reads are unaffected; only freshness
@@ -36,30 +34,30 @@ buckets.
 
 ### Do I need the agent?
 
-No. A C++ process can poll the distributor or a file directly. The agent is for
+No. A C++ process can poll a file or an HTTP endpoint directly. The agent is for
 shell scripts, programs in other languages, and hosts where you'd rather have
 one poller than one per process.
 
 ### Can two people publish at the same time?
 
-To a classic distributor, only if they coordinate versions; the second
-publisher to use a version gets `409` and must retry. The
-[durable authority](/Detent/guides/durable-authority/) supports concurrent
-publishers properly, with server-assigned revisions and compare-and-set.
+Yes, through the [durable authority](/Detent/guides/durable-authority/). It
+assigns revisions itself, and compare-and-set preconditions keep one publisher
+from overwriting another's change. A snapshot file has no such protection: its
+writers must coordinate versions themselves.
 
-### Is the distributor secure?
+### Is the authority secure?
 
-The classic distributor has no authentication or TLS; keep it on a trusted
-network or behind an authenticating proxy. The durable authority authenticates
-publishers and peers. See [Security](/Detent/operations/security/).
+The durable authority authenticates publishers with bearer tokens, serves them
+over TLS when it isn't bound to loopback, and authenticates voters with mutual
+TLS. See [Security](/Detent/operations/security/).
 
 ### Is Detent JustKnobs?
 
 No. Detent started as an independent implementation of the publicly observable
 behavior of Meta's JustKnobs, and keeps its client semantics: namespaced bool
 and int knobs, per-group overrides, fail-fast missing knobs, and asynchronous
-whole-snapshot replacement. It's not a Meta product, and the distributor, agent,
-authority and delivery system are Detent's own design.
+whole-snapshot replacement. It's not a Meta product, and the agent, authority
+and delivery system are Detent's own design.
 
 ### How does Detent relate to Xapiand?
 

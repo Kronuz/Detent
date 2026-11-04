@@ -16,14 +16,12 @@ are the defaults.
 | `rollout_pct` | 0–100 |
 | Int knob range | signed 64-bit |
 
-## Client and Classic Distributor
+## Client
 
 | Limit | Value | Configurable |
 | --- | --- | --- |
 | Knobs per snapshot | 100,000 | `InitOptions::max_knobs` |
-| Snapshot or request size | 16 MiB | no |
-| Retained diff history | 64 versions | no |
-| Minimum compressed body | 256 bytes | no |
+| Snapshot size | 16 MiB | no |
 | Poll interval | must be positive | `poll_interval` |
 
 ## Agent

@@ -7,18 +7,18 @@ target_link_libraries(detent_authority_export PUBLIC detent::authority detent::d
 add_library(detent::authority_export ALIAS detent_authority_export)
 
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_library(detent_authority_node node.cc)
   target_link_libraries(detent_authority_node PUBLIC detent::authority consensus::consensus)
   add_library(detent::authority_node ALIAS detent_authority_node)
 endif()
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_library(detent_authority_service service.cc)
   target_link_libraries(detent_authority_service PUBLIC detent::authority_node detent::authority_export detent::distribution_http)
 endif()
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   add_library(detent_authority_transport INTERFACE)
   target_include_directories(detent_authority_transport INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
   target_link_libraries(detent_authority_transport INTERFACE detent::authority_node consensus::transport http::http task::asio completion::asio)

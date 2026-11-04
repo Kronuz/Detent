@@ -99,36 +99,6 @@ add_library(detent_cli detent_cli/config.cc detent_cli/daemon.cc)
 target_link_libraries(detent_cli PUBLIC detent::detent)
 
 ########################################################################
-# detentd: the distribution-layer daemon (Section 10's "any publisher that
-# emits valid snapshots" extension seam, made concrete). Pulls the Kronuz
-# service stack: reactor (event-driven TCP, thread-per-core) + http
-# (the HTTP/1.1 framework, radix routing, conditional-GET/ETag) + cluster
-# (UDP multicast bus, for cross-replica gossip). detentd.hh stays private
-# (colocated with detentd.cc, not under include/) -- nothing outside this
-# directory ever includes it, unlike detent/detent_http's public headers.
-########################################################################
-if(DETENT_BUILD_DISTRIBUTOR)
-  add_library(detentd_lib detentd/detentd.cc detentd/raft_delegate.cc)
-
-  target_include_directories(detentd_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detentd")
-
-  target_link_libraries(detentd_lib PUBLIC
-    detent::detent
-    detent_http::detent_http
-    http::http
-    cluster::cluster
-    generation_cache::generation_cache
-    reactor::tls
-    logger::logger)
-  target_compile_definitions(detentd_lib PUBLIC REACTOR_TRACE_HEADER="logger.h")
-
-  target_compile_features(detentd_lib PUBLIC cxx_std_20)
-
-  add_executable(detentd detentd/main.cc)
-  target_link_libraries(detentd PRIVATE detentd_lib detent_cli detent_logging http_log::http_log task::asio)
-endif()
-
-########################################################################
 # detent_agent: the host-local daemon + its own CLI in one binary (see
 # README's "detent-agent" section). Shares one warm detent::Client across
 # every local reader via a shared-memory snapshot (ShmWriter/ShmReader),
@@ -164,9 +134,6 @@ if(DETENT_BUILD_RELAY)
   install(TARGETS detent-relay RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 install(TARGETS detent-agent RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-if(DETENT_BUILD_DISTRIBUTOR)
-  install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/packaging/ DESTINATION ${CMAKE_INSTALL_DATADIR}/detent USE_SOURCE_PERMISSIONS)
 install(FILES ${PROJECT_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/detent)
 
@@ -180,7 +147,10 @@ install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # Authority application semantics remain independent of transport and consensus.
 add_subdirectory(detent_authority)
 
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
-  target_compile_definitions(detentd PRIVATE DETENT_WITH_AUTHORITY=1)
-  target_link_libraries(detentd PRIVATE detent_authority_service)
+# detentd: the durable authority daemon (detentd/main.cc; its lifecycle is detent_cli's).
+if(DETENT_BUILD_AUTHORITY)
+  add_executable(detentd detentd/main.cc)
+  target_compile_definitions(detentd PRIVATE REACTOR_TRACE_HEADER="logger.h")
+  target_link_libraries(detentd PRIVATE detent_authority_service detent_cli detent_logging http::http reactor::tls logger::logger task::asio)
+  install(TARGETS detentd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

@@ -84,19 +84,9 @@ application errors.
 
 ---
 
-## Distributor Errors
+## Authority Errors
 
-`detentd` answers a rejected publish with a JSON body and a status code:
-
-```json
-{"error":"stale or duplicate version"}
-```
-
-| Status | Reason |
-| --- | --- |
-| `400 Bad Request` | Parse, schema, I/O or checksum failure, e.g. `{"error":"invalid knob name: bad name"}` |
-| `409 Conflict` | Stale or duplicate version |
-| `413 Payload Too Large` | Too many knobs, or a body over 16 MiB |
-| `500 Internal Server Error` | The snapshot couldn't be persisted; nothing changed |
-| `503 Service Unavailable` | Clustered write that reached no quorum decision in time |
-| `404 Not Found` | `GET /v1/snapshot` before the first publish |
+The durable authority reports each transaction's outcome, such as `applied` or
+`conflict`, in its response. Some failures return a status code and a JSON
+body instead, such as `503` with `{"error":"outcome_unknown"}`. The
+[Authority API](/Detent/reference/http-api/authority/#outcomes) documents both.

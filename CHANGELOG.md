@@ -8,6 +8,20 @@
 - Removed the `detent-authority-admin` import/export tool, its
   `test_authority_migration` test and its website pages. The offline
   recovery runtime that `test_authority_cluster` used is now a test helper.
+- Removed the classic distributor and classic Raft: `detentd.cc`, `raft_delegate`,
+  `CLUSTERING.md`, `tests/detentd`, `detentd_fanout_bench`, the
+  `publication_bench` probe and `test_agent_http`. `detentd` is the durable
+  authority daemon only: `--authority CONFIG` is required, and `--persist-path`,
+  `--cluster`, `--raft-timing` and the positional `<port> <persist_path>` form
+  are gone. `detentd --status` probes the authority's health endpoint over plain
+  HTTP, or over HTTPS when the publisher uses TLS.
+- `DETENT_BUILD_DISTRIBUTOR` is removed. `DETENT_BUILD_AUTHORITY` is on by
+  default and builds `detentd`, the authority libraries that need consensus,
+  and their tests and benchmarks.
+- The `cluster`, `generation_cache` and `http_log` pins are removed from
+  `cmake/dependencies.json`.
+- `kLoopbackHost` moved from `detent_http/address.hh` to
+  `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
 
 ### Legacy removal (wave 1)
 

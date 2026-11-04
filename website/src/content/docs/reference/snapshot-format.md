@@ -2,8 +2,8 @@
 title: "Snapshot Format"
 ---
 
-Defaults files, live snapshots, `PUT` bodies, `PATCH` bodies and diff responses
-all share one JSON schema, `schema_version: 1`, parsed strictly.
+Defaults files, live snapshots and patches all share one JSON schema,
+`schema_version: 1`, parsed strictly.
 
 ---
 
@@ -55,7 +55,8 @@ error.
 
 ## Patch
 
-A `PATCH /v1/snapshot` body, and a diff returned by the distributor, use the
+A patch, which a [custom source](/Detent/reference/cpp-api/sources/#custom-sources)
+returns with `is_patch = true` or an HTTP endpoint returns as a diff, uses the
 snapshot shape with two differences:
 
 1. It contains only the knobs that changed.
@@ -107,5 +108,5 @@ The durable authority and managed agents use a narrow, versioned MessagePack
 schema for snapshots, exact-base deltas and progress records, inside bounded
 raw or zstd frames. It carries the same definitions plus per-namespace and
 per-key revisions. It's an internal protocol between Detent components, not a
-publishing format; publishers still speak JSON. See
+publishing format; publishers speak JSON. See
 [Delivery and Local Images](/Detent/architecture/delivery/).

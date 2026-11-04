@@ -108,6 +108,44 @@ int main(int argc, char **argv) {
 		timed_out = true;
 	}
 	assert(timed_out && std::chrono::steady_clock::now() - began < 500ms);
+	// The plain probe reads one 200 body, and rejects other statuses, oversized bodies and silent peers.
+	const auto plain = [](const std::string &reply, std::size_t bound) {
+		asio::io_context server_io;
+		asio::ip::tcp::acceptor acceptor(server_io, {asio::ip::address_v4::loopback(), 0});
+		std::thread server([&] {
+			asio::ip::tcp::socket socket(server_io);
+			acceptor.accept(socket);
+			asio::streambuf request;
+			asio::read_until(socket, request, "\r\n\r\n");
+			asio::error_code ignored;
+			asio::write(socket, asio::buffer(reply), ignored);
+		});
+		struct Join {
+			std::thread &thread;
+			~Join() { thread.join(); }
+		} join{server};
+		return detent::transport::http_health(acceptor.local_endpoint(), "localhost", 2s, bound);
+	};
+	assert(plain("HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\nhealthy", 65536) == "healthy");
+	for (const auto &[reply, bound] : std::vector<std::pair<std::string, std::size_t>>{
+			 {"HTTP/1.1 503 Unavailable\r\nContent-Length: 2\r\nConnection: close\r\n\r\nno", 65536},
+			 {"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n" + std::string(100, 'x'), 16}}) {
+		bool rejected = false;
+		try {
+			plain(reply, bound);
+		} catch (const std::exception &) {
+			rejected = true;
+		}
+		assert(rejected);
+	}
+	timed_out = false;
+	const auto plain_began = std::chrono::steady_clock::now();
+	try {
+		detent::transport::http_health(silent.local_endpoint(), "localhost", 20ms);
+	} catch (const std::exception &) {
+		timed_out = true;
+	}
+	assert(timed_out && std::chrono::steady_clock::now() - plain_began < 500ms);
 	service.stop();
 	asio::ip::tcp::acceptor expired_accept(io, {asio::ip::address_v4::loopback(), 0});
 	asio::ip::tcp::socket expired_client(io);

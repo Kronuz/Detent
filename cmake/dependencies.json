@@ -18,12 +18,6 @@
     "source_subdir": "."
   },
   {
-    "name": "cluster",
-    "repository": "https://github.com/Kronuz/cluster.git",
-    "revision": "e4fc57dc2d136f88e88340efed2e01ba4361be2e",
-    "source_subdir": "."
-  },
-  {
     "name": "compressors",
     "repository": "https://github.com/Kronuz/compressors.git",
     "revision": "5566260a30bbd2d77d5cfa890bfe33f503a2add6",
@@ -63,12 +57,6 @@
     "name": "enum_reflection",
     "repository": "https://github.com/Kronuz/enum-reflection.git",
     "revision": "a7202ada8d27e7eb2d4713fbfd3b43eaa347fc91",
-    "source_subdir": "."
-  },
-  {
-    "name": "generation_cache",
-    "repository": "https://github.com/Kronuz/generation-cache.git",
-    "revision": "3d45c49ac4bbeacbe8720d867885e91ba7222051",
     "source_subdir": "."
   },
   {
@@ -202,12 +190,6 @@
     "repository": "https://github.com/facebook/zstd.git",
     "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
     "source_subdir": "build/cmake"
-  },
-  {
-    "name": "http_log",
-    "repository": "https://github.com/Kronuz/http-log.git",
-    "revision": "4e4b79f565b1c6c38948b98cd4c1af6cdc1cf054",
-    "source_subdir": "."
   },
   {
     "name": "repr",

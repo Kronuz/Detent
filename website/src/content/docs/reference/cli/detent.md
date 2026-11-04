@@ -25,7 +25,7 @@ locally; it doesn't send a request to the agent.
 | `--default VAL` | Fallback printed if the knob can't be read; publishes nothing |
 | `--config PATH` | Use this `agent.json` |
 | `--defaults PATH` | Typed defaults for a newly started agent |
-| `--source-address HOST:PORT` | Distributor for a newly started agent (alias: `--source-http`) |
+| `--source-address HOST:PORT` | HTTP endpoint serving `GET /v1/snapshot` for a newly started agent (alias: `--source-http`) |
 | `--source-path PATH` | Snapshot file for a newly started agent |
 | `--runtime-dir PATH` | Runtime directory holding the agent's pid, log and snapshot |
 | `--system` | Attach to the system agent; never start one |

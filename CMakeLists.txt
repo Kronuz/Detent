@@ -40,10 +40,9 @@ endif()
 
 option(DETENT_BUILD_TESTS "Build detent test suite" ON)
 option(DETENT_BUILD_EXAMPLES "Build detent examples" ON)
-option(DETENT_BUILD_DISTRIBUTOR "Build the detent distributor server (pulls Asio + the Kronuz http/reactor/cluster stack)" ON)
 option(DETENT_BUILD_RELAY "Build the optional durable relay daemon" OFF)
 option(DETENT_BUILD_MANAGED_AGENT "Build managed binary authority delivery support" ON)
-option(DETENT_BUILD_AUTHORITY "Build the opt-in durable authority against reviewed cluster sources" OFF)
+option(DETENT_BUILD_AUTHORITY "Build detentd, the durable authority daemon (pulls Asio, the Kronuz http/reactor stack and consensus)" ON)
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
 option(DETENT_BUILD_PYTHON "Build the Python binding (pybind11, requires Python3 dev headers)" OFF)
 option(DETENT_BUILD_RUST "Build the Rust binding (cxx, requires cargo/rustc)" OFF)
@@ -84,28 +83,22 @@ FetchContent_MakeAvailable(
 # detent core library
 ########################################################################
 # Populate only the libraries required by this build profile.
-if(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+if(DETENT_BUILD_AUTHORITY OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(reactor task)
 endif()
-if(DETENT_BUILD_RELAY AND NOT DETENT_BUILD_DISTRIBUTOR)
+if(DETENT_BUILD_AUTHORITY OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(http_lib)
-endif()
-if(DETENT_BUILD_DISTRIBUTOR)
-  FetchContent_MakeAvailable(http_lib cluster generation_cache)
 endif()
 # completion's driver runs on task; journal and consensus fetch the same completion.
 set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
-if(DETENT_BUILD_DISTRIBUTOR AND DETENT_BUILD_AUTHORITY)
+if(DETENT_BUILD_AUTHORITY)
   set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(consensus)
-elseif(DETENT_BUILD_DISTRIBUTOR OR DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
+elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   FetchContent_MakeAvailable(completion)
 endif()
 
 FetchContent_MakeAvailable(detent_logger)
-if(DETENT_BUILD_DISTRIBUTOR)
-  FetchContent_MakeAvailable(http_log)
-endif()
 
 add_subdirectory(src)
 

@@ -8,7 +8,7 @@ Detent installs three programs.
 | --- | --- |
 | [`detent`](/Detent/reference/cli/detent/) | Read a knob from the shell, auto-starting the user agent when needed |
 | [`detent-agent`](/Detent/reference/cli/detent-agent/) | The host-local agent daemon |
-| [`detentd`](/Detent/reference/cli/detentd/) | The distributor, or the durable authority |
+| [`detentd`](/Detent/reference/cli/detentd/) | The durable authority daemon |
 
 ---
 

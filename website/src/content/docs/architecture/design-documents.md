@@ -32,7 +32,6 @@ gates, measurements and audit findings in more depth than this site.
 | [LOCAL_IMAGE_FORMAT.md](https://github.com/Kronuz/Detent/blob/main/docs/LOCAL_IMAGE_FORMAT.md) | The generation image and descriptor formats |
 | [DISK_LIFECYCLE_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/DISK_LIFECYCLE_ARCHITECTURE.md) | Durable ownership, census and lease-protected GC |
 | [COMPLETION_ALLOCATION_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/COMPLETION_ALLOCATION_ARCHITECTURE.md) | Physical admission through completion controls |
-| [src/detentd/CLUSTERING.md](https://github.com/Kronuz/Detent/blob/main/src/detentd/CLUSTERING.md) | The classic Raft clustering design |
 
 ## Status and Evidence
 

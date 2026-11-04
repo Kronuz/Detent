@@ -14,8 +14,6 @@ these docs are collected here.
 | Area | Status |
 | --- | --- |
 | Client library: reads, evaluation, file and HTTP sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
-| Classic distributor: PUT/PATCH/GET, persistence, diffs, compression | **Done** |
-| Classic Raft clustering | **Done at small scale**: real 3-node tests and an end-to-end chaos harness |
 | Host-local agent and `detent get` | **Done** |
 | Python and Rust bindings | **Basic**: file source only |
 | Durable authority | **Component accepted**; fleet-scale qualification open |
@@ -83,9 +81,7 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
 1. Resumable subscriptions with snapshot/history handoff and durable publication feedback have Stage 5A component acceptance. Native, sanitizer and focused supported-platform checks establish component behavior; sustained fleet capacity remains a Stage 6 qualification target.
 2. Regional relays for fan-out have Stage 5B component acceptance; sustained fleet qualification remains in Stage 6.
 3. Incremental page publication, warm recovery, shared-segment reclamation, migration and bounded maintenance have private-component source GO and affected native/platform/sanitizer qualification. Opt-in agent/relay format configuration is under assembled-process qualification; sustained pressure and fleet capacity remain in Stage 6.
-4. Multi-region replication for the classic distributor.
-5. Classic `/v1/snapshot` serving from the authority, or a migration path for
-   unmanaged agents.
+4. A path for unmanaged agents and clients to receive authority data.
 
 ## Operations and Observability
 

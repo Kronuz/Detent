@@ -1,4 +1,4 @@
-# Selected classic-profile targets and their direct dependencies.
+# Selected targets and their direct dependencies.
 # Managed authority and generation targets are documented separately.
 direction: down
 
@@ -8,13 +8,12 @@ detent: "detent\n(core lib)" {
 detent_http: "detent_http" {
   tooltip: HTTP polling client -- plain POSIX sockets, no reactor
 }
-detentd_lib: "detentd_lib" {
-  tooltip: HTTP distributor daemon logic
-}
 detent_agent_lib: "detent_agent_lib" {
   tooltip: Shared-memory agent reader and writer logic
 }
-detentd_exe: "detentd (exe)"
+detentd_exe: "detentd (exe)" {
+  tooltip: Durable authority daemon
+}
 detent_agent_exe: "detent-agent (exe)"
 
 kronuz: Kronuz cpp-libraries used directly by detent {
@@ -27,8 +26,7 @@ kronuz: Kronuz cpp-libraries used directly by detent {
 }
 
 thirdparty: Third-party (see 09_thirdparty_deps.d2 for their own deps) {
-  http: "http" {tooltip: "HTTP server framework for /v1/snapshot and /v1/health"}
-  cluster: "cluster" {tooltip: "Raft replication over configured UDP peers"}
+  http: "http" {tooltip: "HTTP server framework for the authority endpoints"}
 }
 
 detent -> kronuz.char_classify
@@ -40,11 +38,8 @@ detent -> kronuz.sha256
 detent_http -> detent: "reuses Client + snapshot model"
 detent_http -> kronuz.compressors: "Accept-Encoding: zstd, gzip on its own GETs"
 
-detentd_lib -> detent
-detentd_lib -> detent_http: "polls upstream/peers over HTTP"
-detentd_lib -> thirdparty.http: "serves GET/PUT/PATCH /v1/snapshot"
-detentd_lib -> thirdparty.cluster: "replicates committed snapshots through Raft"
-detentd_exe -> detentd_lib
+detentd_exe -> detent
+detentd_exe -> thirdparty.http: "serves the authority endpoints"
 
 detent_agent_lib -> detent: "one warm in-process snapshot per agent"
 detent_agent_exe -> detent_agent_lib

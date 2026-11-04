@@ -11,11 +11,12 @@ dashboards, and roll back instantly if something looks wrong.
 ## Start Small
 
 Add `rollout_pct` to a bool definition to enable it for that percentage of
-hash buckets:
+hash buckets. These examples continue in the [Quick-start](/Detent/quickstart/)
+directory; to keep them short, each snapshot holds only the knob this page is
+about:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 7,
@@ -25,6 +26,7 @@ PATCH /v1/snapshot
     }
   }
 }
+EOF
 ```
 
 Each read passes the entity's stable identifier as the *hash value*:
@@ -79,9 +81,8 @@ A percentage describes hash buckets, not a quota. With a small population, a
 
 Publish higher percentages as you gain confidence:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 8,
@@ -91,11 +92,11 @@ PATCH /v1/snapshot
     }
   }
 }
+EOF
 ```
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 9,
@@ -105,6 +106,7 @@ PATCH /v1/snapshot
     }
   }
 }
+EOF
 ```
 
 ```sh
@@ -126,9 +128,8 @@ A read *without* a hash value skips the rollout entirely and returns the knob's
 To finish the rollout for every caller, hashed or not, publish the knob with
 the new default and no rollout:
 
-```rest
-PATCH /v1/snapshot
-
+```sh
+publish <<'EOF'
 {
   "schema_version": 1,
   "version": 10,
@@ -136,6 +137,7 @@ PATCH /v1/snapshot
     "payments:new_processor": { "type": "bool", "default": true }
   }
 }
+EOF
 ```
 
 To roll back everyone, publish `"default": false` without `rollout_pct`

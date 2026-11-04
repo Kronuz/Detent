@@ -17,15 +17,6 @@ add_test(NAME test_agent_cli COMMAND ${CMAKE_COMMAND}
   -DAGENT=$<TARGET_FILE:detent-agent> -DREADER=$<TARGET_FILE:detent-reader> -P ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_cli.cmake)
 set_tests_properties(test_agent_cli PROPERTIES TIMEOUT 60)
 
-if(DETENT_BUILD_DISTRIBUTOR)
-  find_program(DETENT_TEST_CURL curl)
-  if(DETENT_TEST_CURL)
-    add_test(NAME test_agent_http COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_agent_http.sh
-      $<TARGET_FILE:detent-agent> $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/agent-http ${DETENT_TEST_CURL})
-    set_tests_properties(test_agent_http PROPERTIES TIMEOUT 30)
-  endif()
-endif()
-
 add_test(NAME test_system_agent COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/test_system_agent.sh
   $<TARGET_FILE:detent-agent> ${CMAKE_CURRENT_BINARY_DIR}/system-agent)
 set_tests_properties(test_system_agent PROPERTIES TIMEOUT 15)
