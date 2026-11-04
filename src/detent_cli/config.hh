@@ -8,6 +8,7 @@
 namespace detent_cli {
 
 inline constexpr int kDefaultPort = 8317;
+inline constexpr char kLoopbackHost[] = "127.0.0.1";
 using Config = std::map<std::string, std::string>;
 enum class FieldKind { String, Path, PositiveInt, NonnegativeInt, PositiveUint64, NonnegativeUint64, StringOrUint64 };
 struct ConfigField { std::string flag; FieldKind kind; bool trusted = false; };
