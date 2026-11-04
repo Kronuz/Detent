@@ -63,6 +63,17 @@ jobs:
             echo '::error::the removed detentd worker option is documented or parsed again'
             exit 1
           fi
+  # M1: a shared dependency is pinned in the manifest as in each library it pins.
+  pin-check:
+    name: pin-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Manifest pins equal the libraries' own
+        run: python3 tools/check_pins.py
+      - name: Checker tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
   # The read counters compile out by default; this job builds them in and checks their values.
   read-counters:
     name: linux-read-counters
