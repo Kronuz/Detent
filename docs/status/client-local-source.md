@@ -8,7 +8,7 @@
 - Done criteria (set by the lead; contributors tick, never edit):
   - none set yet
 - Done:
-  - Draft D1-D6, T1-T6, Q1-Q2, B1-B6 (commit below).
+  - Draft D1-D6, T1-T6, Q1-Q2, B1-B6 (`Detent:38afcb5`).
 - Next:
   1. Preliminary architect review.
   2. Owner answers Q1 (does H delete `detent::Client`) and Q2 (what replaces `health()`).
