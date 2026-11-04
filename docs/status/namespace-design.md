@@ -90,3 +90,7 @@ Revised by the blocks fold (2026-11-04), for the lead to confirm:
 1. B1 becomes persisted blocks served whole: the block holding R + 1 trimmed to revisions above R, then every younger block as stored. On the review's numbers (NB-6) B1 read 1.51 times its answer on average (11.6 at worst) with a merge and a cache entry per R; whole blocks send 1.25 times (1.45) with no merge, shared across R. The owner's original picture; T3's bound (at most the changes counted per transaction) still holds.
 2. B2 is restated: the cut is by cost over the whole-block answer against |st(s)|, so a store cut by it pays at most 1/α of its answer at the cut (model: 0.98 to 1.02 at α = 1); the disk rule becomes a separate cap at 2α · |st(s)|, which fired in none of the model's runs. The old "up to 1/α" was about 4/α (NB-3).
 3. B3 keeps size-only seals for blocks and adds log progress (8,192 entries or 8 MiB), so a group with few positioned entries still checkpoints (NB-1).
+
+## Lead calls, 2026-11-04 (after the blocks re-check)
+
+1. B1 revised: persisted blocks served whole replace derived per-R blocks (NB-C3, the reviewer's numbers: 1.25x wire with no merge against 1.51x mean and 11.6x worst server reads). This matches the owner's original picture.
