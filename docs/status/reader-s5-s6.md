@@ -51,9 +51,9 @@ S5, `test_local_change_file` (values, not counts):
 
 ## Design vs code
 
-- S5, the slots: today's store has one table entry (the 176-byte `selected` descriptor, one generation holding every namespace), so `change` has the store word and one sequence, slot 0. Per-namespace slots need namespace-delivery's table (its S7), which carries each entry's slot. `ChangeWriter` takes any slot set and grows by extension, and its test exercises five slots, but the agent bumps slot 0 only.
-- S5, `owner.lock`: the design says today's store takes no exclusive lock. It does: `make_owned_storage_session` takes completion's owner lock, `flock(owner.lock, LOCK_EX | LOCK_NB)` (`legacy_file` mode at the pinned completion), for the store's whole life. S5 adds no lock; its test proves the existing one excludes a second store and an outside `flock`.
-- S5, accounting: `change` exists before the census, so the census and disk ledger count it like `owner.lock` (a fresh census is two entries and 16 bytes; fresh bootstrap reserves three entries).
+- S5, the slots: today's store has one table entry (the 176-byte `selected` descriptor, one generation holding every namespace), so `change` has the store word and one sequence, slot 0. Per-namespace slots need namespace-delivery's table (its S7), which carries each entry's slot. `ChangeWriter` takes any slot set and grows by extension, and its test exercises five slots, but the agent bumps slot 0 only. Lead ruling: slot 0 only until namespace-delivery S7.
+- S5, `owner.lock`: the design says today's store takes no exclusive lock. It does: `make_owned_storage_session` takes completion's owner lock, `flock(owner.lock, LOCK_EX | LOCK_NB)` (`legacy_file` mode at the pinned completion), for the store's whole life. S5 adds no lock; its test proves the existing one excludes a second store and an outside `flock`. Lead ruling: the existing lock is the exclusive lock; `reader.md` D4 rule 3 and the S5 row now say so.
+- S5, accounting: `change` exists before the census, so the census and disk ledger count it like `owner.lock` (a fresh census is two entries and 16 bytes; fresh bootstrap reserves three entries). Lead ruling: a fresh store at `{80,3,0}` is accepted.
 - S5, the legacy `ImagePublisher` over a raw IO (tests only) writes `selected` without `change`; production publication goes through `DiskStore`.
 
 ## Blocked on
