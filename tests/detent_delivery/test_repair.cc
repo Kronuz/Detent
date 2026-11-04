@@ -463,6 +463,36 @@ struct Watcher {
 	~Watcher() { finish(); }
 };
 
+// The relay bundle behind a count of what the coordinator hands the sink.
+class CountingSink final : public t::PublicationSink {
+  public:
+	explicit CountingSink(std::shared_ptr<detent::relay::Bundle> value) : bundle(std::move(value)) {}
+	void authenticated() noexcept override { bundle->authenticated(); }
+	void begin_stage(const t::ReceivedUpdate &update) override {
+		++stages;
+		bundle->begin_stage(update);
+	}
+	bool stage_step(d::WorkBudget &budget) override { return bundle->stage_step(budget); }
+	void bind_candidate(const l::Descriptor &descriptor, l::DirectoryIdentity identity) noexcept override {
+		bundle->bind_candidate(descriptor, identity);
+	}
+	bool release_stage(d::WorkBudget &budget) noexcept override { return bundle->release_stage(budget); }
+	void selected(const l::RecoveredGeneration &generation) override {
+		++selects;
+		bundle->selected(generation);
+	}
+	void selected_equivalent(const l::RecoveredGeneration &generation, const x::StateEquivalenceProof &proof) override {
+		bundle->selected_equivalent(generation, proof);
+	}
+	void selected_repaired(const l::RecoveredGeneration &generation) override {
+		++repairs;
+		bundle->selected_repaired(generation);
+	}
+	void fence() noexcept override { bundle->fence(); }
+	std::shared_ptr<detent::relay::Bundle> bundle;
+	unsigned stages = 0, selects = 0, repairs = 0;
+};
+
 struct Options {
 	std::uint64_t scrub_rate = 1'000'000'000;
 	bool relay = false;
@@ -524,6 +554,7 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 	auto cache_account = std::make_shared<d::StorageLedger>(root, 64ull * 1024 * 1024);
 	std::optional<d::RetirementDomain> cache_domain;
 	std::shared_ptr<detent::relay::Bundle> bundle;
+	std::shared_ptr<CountingSink> counting;
 	if (options.relay) {
 		cache_domain.emplace(runtime.domain(cache_account, 64 + 500));
 		detent::relay::BundleOptions bundle_options;
@@ -531,13 +562,14 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 		bundle_options.namespaces = namespaces;
 		bundle_options.incarnation.fill('r');
 		bundle = detent::relay::make_bundle(bundle_options, *cache_domain);
-		config.publication_sink = bundle;
+		counting = std::make_shared<CountingSink>(bundle);
+		config.publication_sink = counting;
 	}
 	auto coordinator = t::make_coordinator(config, store, driver, domain, worker);
 	auto observing = [&]() -> task::task<void> {
 		co_await task::when_all(coordinator->run(), [&]() -> task::task<void> {
 			try {
-				co_await observe(scheduler, coordinator, store, bundle);
+				co_await observe(scheduler, coordinator, store, bundle, counting);
 			} catch (...) {
 				coordinator->close();
 				throw;
@@ -551,6 +583,7 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 	worker.join();
 	check(!server.failed);
 	check(coordinator->drained() && store->drained());
+	counting.reset();
 	bundle.reset();
 	if (cache_domain)
 		cache_domain->close().wait();
@@ -573,7 +606,7 @@ void seed(const fs::path &certificates, const fs::path &store) {
 	fs::permissions(store, fs::perms::owner_all);
 	Server server(certificates);
 	run_phase(certificates, store, server, {.scrub_rate = 0, .fresh = true},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto) -> task::task<void> {
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
 				  check(co_await until(scheduler, 60s, [&] {
 					  const auto status = coordinator->status();
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
@@ -621,7 +654,7 @@ void heal(const fs::path &certificates, const fs::path &root) {
 	check(watcher.failed_first > 0 && watcher.ok_first > 0);
 	Server server(certificates);
 	t::CoordinatorStatus final_status;
-	run_phase(certificates, store, server, {}, [&](task::asio_scheduler &scheduler, auto coordinator, auto disk, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {}, [&](task::asio_scheduler &scheduler, auto coordinator, auto disk, auto, auto) -> task::task<void> {
 		check(explain(co_await until(scheduler, 90s, [&] { return coordinator->status().repair.completed >= 1; }), coordinator, server));
 		auto status = coordinator->status();
 		check(settled(status) && status.repair.requested >= 1 && !status.repair.pending);
@@ -637,8 +670,9 @@ void heal(const fs::path &certificates, const fs::path &root) {
 			fresh += !old_packs.count(pack);
 		check(fresh >= 10 && now.size() == old_packs.size() + fresh);
 		// Nothing reaches the damaged packs: the collector removes them.
-		disk->request_collection();
+		// (A reader's lease can outlast the first request, so ask again until they are gone.)
 		check(co_await until(scheduler, 60s, [&] {
+			disk->request_collection();
 			return std::none_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); });
 		}));
 		// The scrub runs clean over the repaired generation.
@@ -671,7 +705,7 @@ void delta(const fs::path &certificates, const fs::path &root) {
 	Server server(certificates);
 	server.resume = Server::Resume::Delta;
 	t::CoordinatorStatus final_status;
-	run_phase(certificates, store, server, {.scrub_rate = 0}, [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto) -> task::task<void> {
+	run_phase(certificates, store, server, {.scrub_rate = 0}, [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
 		check(explain(co_await until(scheduler, 90s, [&] { return coordinator->status().repair.completed >= 1; }), coordinator, server));
 		check(co_await until(scheduler, 30s, [&] {
 			const auto status = coordinator->status();
@@ -699,13 +733,14 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 	Server server(certificates);
 	server.resume = Server::Resume::Snapshot;
 	run_phase(certificates, store, server, {.scrub_rate = 0, .relay = relay},
-			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto bundle) -> task::task<void> {
+			  [&](task::asio_scheduler &scheduler, auto coordinator, auto, auto bundle, auto counting) -> task::task<void> {
 		// The ordinary same-cursor snapshot is checked against the state and dropped: nothing is published.
 		check(explain(co_await until(scheduler, 60s, [&] { return server.snapshots >= 1 && coordinator->status().acknowledged == cursor(); }), coordinator, server));
 		auto status = coordinator->status();
 		check(status.selected.descriptor == before && status.repair.requested == 0);
 		if (bundle)
 			check(bundle->status().ready);
+		const auto stages = counting ? counting->stages : 0, selects = counting ? counting->selects : 0;
 		// A repair request publishes the same content as a fresh generation at the same cursor.
 		t::detail::CoordinatorAccess::request_repair(*coordinator);
 		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 1; }), coordinator, server));
@@ -718,6 +753,9 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 			check(relay_status.ready && !relay_status.fenced);
 			auto offer = bundle->offer({}, true);
 			check(offer.decision == d::CacheDecision::Update || offer.decision == d::CacheDecision::Busy);
+			// The repair at the selected cursor reached the sink as a repair, and the relay's cache was not
+			// asked to stage or select anything.
+			check(counting->repairs == 1 && counting->stages == stages && counting->selects == selects);
 		}
 	});
 	Reader reader(store);

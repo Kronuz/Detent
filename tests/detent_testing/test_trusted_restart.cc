@@ -339,11 +339,21 @@ void scrub_disk(const fs::path &store, int revision) {
 		::close(fd);
 		rewritten.insert(pack);
 	}
-	// Until the scrub reports, verified pages stay verified: the reads hash nothing.
-	const auto idle = l::paged::page_digests();
-	(void)read_all(session, revision);
-	CHECK(l::paged::page_digests() == idle);
+	// Until the scrub reports, every verified page stays verified. (Where a private mapping shows a later write,
+	// as on Linux, reading now could return the rewritten bytes: the limit the withdrawal below closes.)
+	auto verified = [&](bool damaged) {
+		std::size_t bits = 0;
+		for (const auto &input : session.registry().inputs()) {
+			const auto path = store / x::SegmentNames(input.ownership.segment).payload_name();
+			for (std::size_t at = 0; input.pages && at < input.bytes.size(); at += x::VerifiedPages::granule_bytes)
+				bits += (rewritten.count(path) != 0) == damaged && input.pages->test(at);
+		}
+		return bits;
+	};
+	const auto damaged_before = verified(true), untouched_before = verified(false);
+	CHECK(damaged_before > 0 && untouched_before > 0);
 	CHECK(scrub_reports(session, store) == rewritten);
+	CHECK(verified(true) == 0 && verified(false) == untouched_before);
 	const auto withdrawn = l::paged::page_digests();
 	const auto after = read_all(session, revision);
 	CHECK(!after.wrong && !after.other);
@@ -351,15 +361,6 @@ void scrub_disk(const fs::path &store, int revision) {
 	std::cout << "SR3/SR4: " << rewritten.size() << " packs rewritten, reported from the files; after the report "
 			  << after.ok << " ok, " << after.source_failures << " source failures, " << after.wrong
 			  << " wrong; " << (l::paged::page_digests() - withdrawn) << " page digests to verify again\n";
-	// The packs nobody damaged keep serving without a hash.
-	std::size_t untouched_bits = 0, cleared_bits = 0;
-	const auto inputs = session.registry().inputs();
-	for (const auto &input : inputs) {
-		const auto path = store / x::SegmentNames(input.ownership.segment).payload_name();
-		for (std::size_t at = 0; input.pages && at < input.bytes.size(); at += x::VerifiedPages::granule_bytes)
-			(rewritten.count(path) ? cleared_bits : untouched_bits) += input.pages->test(at);
-	}
-	CHECK(untouched_bits > 0);
 	for (const auto &[pack, bytes] : original) {
 		const int fd = ::open(pack.c_str(), O_RDWR | O_CLOEXEC);
 		CHECK(fd >= 0 && ::pwrite(fd, bytes.data(), bytes.size(), 0) == ssize_t(bytes.size()));
