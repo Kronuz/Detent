@@ -91,11 +91,20 @@ static void wait_for_row(const char* text) {
 	}
 }
 
-static void settle() {
-	for (int i = 0; i < 5000 && Logging::pending_count() > 0; ++i) {
-		std::this_thread::sleep_for(1ms);
+template <typename L>
+static void settle_with() {
+	if constexpr (requires { L::pending_count(); }) {
+		for (int i = 0; i < 5000 && L::pending_count() > 0; ++i) {
+			std::this_thread::sleep_for(1ms);
+		}
+		std::this_thread::sleep_for(4ms);
+	} else {
+		std::this_thread::sleep_for(60ms);  // a logger without pending_count(): wait out the LOG thread
 	}
-	std::this_thread::sleep_for(4ms);
+}
+
+static void settle() {
+	settle_with<Logging>();
 }
 
 static void flush_step(const char* name) {

@@ -162,6 +162,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=18317)
     args = parser.parse_args()
+    args.detentd = args.detentd.resolve()
+    args.out = args.out.resolve()
     if args.out.exists():
         shutil.rmtree(args.out)
     args.out.mkdir(parents=True)

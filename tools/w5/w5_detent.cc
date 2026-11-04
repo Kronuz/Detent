@@ -31,15 +31,14 @@ std::string knobs_json(unsigned seed, std::size_t count, bool source, std::uint6
 				   std::to_string(rng() % 101) + "}}}";
 			break;
 		default:
-			out += "{\"type\":\"int\",\"default\":" + std::to_string(static_cast<std::int64_t>(rng() % 2000000) - 1000000) + ",\"overrides\":{\"big\":" +
-				   std::to_string(static_cast<std::int64_t>(rng() >> 2)) + "}}";
+			out += "{\"type\":\"int\",\"default\":" + std::to_string(static_cast<std::int64_t>(rng() % 2000000) - 1000000 + static_cast<std::int64_t>(rng() >> 20)) + "}";
 		}
 	}
 	return out + "}}";
 }
 
 std::string result_text(const detent::UpdateError& e) {
-	return e.message;
+	return std::to_string(static_cast<int>(e.reason)) + ": " + e.detail;
 }
 
 } // namespace
@@ -135,7 +134,7 @@ int main() {
 		auto table = parse_cli_overrides({"ns:knob=" + v});
 		std::string result;
 		if (table) {
-			const auto* found = table.value().values.find("ns:knob");
+			auto found = table.value().values.find("ns:knob");
 			if (found != table.value().values.end()) {
 				std::visit([&](auto x) { result = std::to_string(static_cast<long long>(x)); }, found->second);
 			}
