@@ -7,7 +7,7 @@ Detent is a C++ runtime-configuration client for namespaced boolean and integer 
 ## What this is
 
 - The steady-state read path is process-local and allocation-free: one atomic snapshot load, one lookup, and scalar evaluation. It does not touch the network, disk, or a mutex.
-- One background updater thread consumes either a file source or an HTTP poll source, validates off the read path, merges over baked defaults, and atomically publishes a new immutable snapshot.
+- One background updater thread consumes a file source or a custom poll function, validates off the read path, merges over baked defaults, and atomically publishes a new immutable snapshot.
 - Bool knobs support exact-match group overrides and stable SHA-256 percentage rollouts. Integer knobs do not support per-group overrides in v1.
 - Missing knobs are errors. CLI overrides (`name=value`) shadow both baked defaults and live data.
 - `detentd` is the durable authority: bounded namespace transactions, publisher credentials, and Raft consensus over mutual TLS with a journal on each voter.
@@ -39,8 +39,6 @@ FetchContent_Declare(detent
 FetchContent_MakeAvailable(detent)
 
 target_link_libraries(my_app PRIVATE detent::detent)
-# Only if you want the HTTP poll source:
-target_link_libraries(my_app PRIVATE detent_http::detent_http)
 ```
 
 For reproducible builds, replace `main` with the commit you have qualified. A local checkout can also be included with `add_subdirectory()`.
@@ -94,23 +92,13 @@ One `Client`, three source shapes:
 
 - **None:** baked defaults only.
 - **Local file:** set `source_path`, and Detent polls the file for changes.
-- **HTTP poll source:** set `source_poll` with `detent_http::make_http_poll_source()`.
+- **Custom poll:** set `source_poll` to your own function.
 
 File source:
 
 ```cpp
 opts.source_path = "/var/lib/myapp/live_knobs.json";
 opts.poll_interval = std::chrono::milliseconds{200};
-```
-
-HTTP source:
-
-```cpp
-#include "detent_http/http_source.hh"
-
-opts.source_poll =
-    detent_http::make_http_poll_source("distributor-host", 8317);
-opts.poll_interval = std::chrono::milliseconds{1000};
 ```
 
 `source_path` and `source_poll` are mutually exclusive.
@@ -144,7 +132,6 @@ auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 This repository implements the spec's client model and adds a concrete distribution layer:
 
 - `detent`: core client, schema validation, rollout hashing, overrides, publication, health.
-- `detent_http`: client-side HTTP poll source.
 - `detentd`: the durable authority daemon.
 - `detent-agent`: host-local shared-memory publisher for non-C++ readers.
 - Python and Rust bindings that wrap the same C++ core.
@@ -161,19 +148,14 @@ detent
   |-- strict-stox
   `-- random
 
-detent_http
-  |-- detent
-  `-- compressors   # Accept-Encoding: zstd, gzip on its own GET requests
-
 detent_agent_lib
   `-- detent
 
 detent-agent (exe)
-  |-- detent_agent_lib
-  `-- detent_http   # for --source-http
+  `-- detent_agent_lib
 ```
 
-`detent` has no networking dependencies. `detent_http` is plain POSIX-socket client code plus one codec library (no Asio/HTTP-framework weight) so it can request compressed responses. `detentd` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent`'s library stays local-only; only the CLI executable links `detent_http` for `--source-http`.
+`detent` has no networking dependencies. `detentd` pulls the HTTP framework plus `consensus` for durable Raft. `detent-agent`'s library stays local-only.
 
 ## Dependencies
 
@@ -186,7 +168,7 @@ All dependencies are fetched with CMake `FetchContent`.
 | [`char-classify`](https://github.com/Kronuz/char-classify) | Knob-name validation |
 | [`strict-stox`](https://github.com/Kronuz/strict-stox) | Strict integer parsing |
 | [`random`](https://github.com/Kronuz/random) | Full-jitter reconnect backoff |
-| [`compressors`](https://github.com/Kronuz/compressors) | zstd/gzip: `detent_http` client-side decode |
+| [`compressors`](https://github.com/Kronuz/compressors) | zstd/gzip: distribution frame codecs |
 | [RapidJSON](https://github.com/Tencent/rapidjson) | Strict JSON parsing |
 | [`http`](https://github.com/Kronuz/http) (+ `reactor`, `http-parser`, `radix-router`) | `detentd`'s HTTP service |
 | [`consensus`](https://github.com/Kronuz/consensus) | `detentd`'s durable Raft, with journal and completion I/O |
@@ -199,7 +181,6 @@ RapidJSON runs in strict mode here. Unknown fields and malformed snapshots are r
 ```text
 include/
   detent/              Core client and evaluation API
-  detent_http/         Classic HTTP polling source
   detent_distribution/ Binary protocol, storage and shared sessions
   detent_distribution_http/ Optional server grammar and owned replies
   detent_relay/        Durable cache and session adapters
@@ -209,7 +190,6 @@ include/
 
 src/
   detent/              Core implementation
-  detent_http/         Classic HTTP polling
   detentd/             Authority daemon host
   detent_agent/        Agent host, shared memory and managed configuration
   detent_authority/    Durable authority, transactions and distribution
@@ -229,14 +209,13 @@ bindings/
 
 ## What the source modules build
 
-The core client has no networking dependency. Classic HTTP polling, binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
+The core client has no networking dependency. Binary distribution, immutable local views, durable publication and managed TLS delivery are separate targets, so consumers can select the source and storage profile they need. Authority implementation targets remain internal to the daemon and its tests.
 
 Managed agents and relay bundle sources write `"image_format": "paged-v2"` by default, for incremental immutable local publication; `"flat-v1"` selects one self-contained image. Both formats remain readable by the current SDK, and existing flat heads migrate before paged updates. See [writer preference and maintenance](docs/LOCAL_IMAGE_FORMAT.md#writer-preference-and-maintenance) for compaction controls, disk coexistence and reader compatibility.
 
 | Module | Main target | Purpose |
 | --- | --- | --- |
 | Core client | `detent::detent` | Local lookup, evaluation, defaults and file updates |
-| Classic HTTP source | `detent_http::detent_http` | Optional JSON polling source |
 | Binary protocol | `detent::distribution` | Canonical codecs, bounded storage, staged frames and shared session lifecycle |
 | Distribution server transport | `detent::distribution_http` | Optional strict request parsing and owned HTTP replies |
 | Relay HTTP runtime | `detent::relay_http` | Bounded authenticated intake and shared-frame replies |
@@ -310,10 +289,10 @@ kill -TERM "$(./build/src/detent-agent --status | awk '/^running/ {gsub(/[^0-9]/
 `get` starts the agent automatically. Defaults and environment variables are optional. For persistent settings, put `agent.json` in the platform's user config directory (`~/.config/detent` on Linux/FreeBSD, `~/Library/Application Support/Detent` on macOS):
 
 ```json
-{"source_address": "127.0.0.1:8317", "poll_interval_ms": 200}
+{"source_path": "/var/lib/myapp/live_knobs.json", "poll_interval_ms": 200}
 ```
 
-`--config PATH` selects another config file. `--source-address HOST:PORT` and `DETENT_SOURCE_ADDRESS` override the configured address. The transport is HTTP; `--source-http` and `DETENT_SOURCE_HTTP` remain aliases.
+`--config PATH` selects another config file. `--source-path PATH` and `DETENT_SOURCE_PATH` override the configured snapshot file.
 
 Optional `defaults.json` beside the config supplies local fallback knobs. `--defaults PATH` selects another file. Without defaults, the first read waits up to two seconds for a source snapshot; `--default VALUE` provides a per-read fallback. With only defaults configured, the agent serves local-only reads.
 
@@ -439,7 +418,5 @@ Daemon diagnostics: see [Logging](docs/LOGGING.md) for verbosity, terminal color
 Large-state architecture and implementation gates: see the [Validated Architectural Blueprint](docs/VALIDATED_ARCHITECTURE.md) and [Scaling Detent](docs/SCALING.md), including the measured 100,000/500,000-knob baseline and the Xapiand compatibility plan. The blueprint is a source-reviewed, conditional architecture approval; consensus correctness, durability, and fleet capacity still require the specified validation gates.
 
 The [production operating contract](docs/PRODUCTION_CONTRACT.md) states topology, retry retention, staleness, restore and upgrade boundaries. Current work and reproduced regression evidence are tracked in the [implementation record](docs/IMPLEMENTATION.md).
-
-The HTTP polling source includes `<exception>` directly for its captured `std::exception_ptr` and `std::current_exception()`. This keeps builds independent of transitive standard-library includes, including Clang 23 with libc++.
 
 The durable authority profile provides bounded namespace transactions, producer retry sessions, authenticated multi-voter consensus and completion-based persistence. Managed agents recover immutable local generations and can use polling or publication-aware subscriptions. Startup recovery precedes live admission. See [the authority architecture](docs/AUTHORITY_ARCHITECTURE.md), [managed delivery](docs/DELIVERY_INTEGRATION_ARCHITECTURE.md) and [implementation status](docs/IMPLEMENTATION.md) for APIs, qualification and the remaining relay, incremental publication and fleet work.

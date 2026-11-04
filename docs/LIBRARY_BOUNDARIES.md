@@ -85,7 +85,7 @@ These files contain no knob concepts and depend only on library types.
 | Component | Location | Lines | What it is |
 | --- | --- | ---: | --- |
 | Authority peer transport | `src/detent_authority/transport/` | 1,267 | Raft over TLS: peer hello, `DTC1` codec, control and bulk lanes, snapshot writes, RPC timing. Uses only `consensus::` and `journal::` types |
-| HTTP clients (three) | `detent_http/http_client.*`, `detent_delivery/client.*` + `response.*`, `transport/https_client.hh` | ~1,770 | A blocking keep-alive poller, an Asio coroutine TLS streaming client, and a TLS status probe |
+| HTTP clients (two) | `detent_delivery/client.*` + `response.*`, `transport/https_client.hh` | ~1,300 | An Asio coroutine TLS streaming client and a TLS status probe |
 | TLS plumbing | `detent_transport/tls.hh`, `transport/tls.hh`, `transport/session.hh` | 382 | Context setup, chain and pin verification, deadline-bound sessions. `http` has its own `http_asio_tls.h` |
 | Persistent map | `src/detent_authority/persistent_map.hh` | 215 | Immutable AVL tree with path copying and budgeted collection; no includes |
 | Bounded MessagePack | `include/detent_distribution/messagepack.hh` | 312 | Narrow, allocation-bounded tuple encoder and decoder; no includes |
@@ -188,7 +188,7 @@ Each step lands and qualifies independently, in this order, so every intermediat
 3. **Consensus transport.** Move `src/detent_authority/transport/` (except `https_client.hh`) into `consensus/transport/` as an optional target that needs `reactor` and OpenSSL. Rename `detent::transport` to `kronuz::consensus::transport`. The `DTHL0001` and `DTC1` wire tags stay byte-identical; rename them only with a versioned format change.
 4. **Remove legacy APIs.** Drop the "legacy" halves of `completion/image.h` and similar dual paths, since Detent is the only consumer.
 5. **`ledger`.** Extract the shared core: a capacity, a move-only permit, explicit settlement, pressure, and the retirement runtime. Keep `journal::Admission`, `DiskLedger` and `StorageLedger` as thin domain wrappers over it. Behavior and tests must not change.
-6. **HTTP client and TLS.** Add the client half to `http` with two front ends: a blocking keep-alive client (today's `detent_http`) and an Asio coroutine client with absolute deadlines and streaming bodies (today's `detent_delivery` transport). Move TLS context and session handling into `reactor`, and have `http_asio_tls.h` and `consensus/transport` use it. Detent keeps only request and response semantics.
+6. **HTTP client and TLS.** Add the client half to `http` as an Asio coroutine client with absolute deadlines and streaming bodies (today's `detent_delivery` transport). Move TLS context and session handling into `reactor`, and have `http_asio_tls.h` and `consensus/transport` use it. Detent keeps only request and response semantics.
 7. **`persistent-map` and `msgpack`.** Move the files with their tests; Detent includes them as dependencies.
 8. **Pin revisions.** Every `FetchContent_Declare` in Detent, `cluster` and the new libraries uses a tested commit instead of `main`. This is already open in `docs/DOCUMENTATION_FINDINGS.md`.
 9. **Rewrite the library READMEs.** Each one says what the library is, shows a minimal example, and states its guarantees and limits. Qualification evidence moves to Detent's `docs/` (or a `CHANGELOG`), and no library README names Detent.
@@ -224,7 +224,6 @@ The source directories separate application roles and optional dependency closur
 | `detent_delivery` | Receiving updates, source selection, authenticated sessions and local-publication coordination | Detent delivery semantics; separate generic HTTP client mechanics |
 | `detent_distribution` | Snapshot/delta schemas, cursors, encoding, framing and subscription admission | Detent protocol; extract generic codecs and resource primitives |
 | `detent_distribution_http` | HTTP binding shared by authority and relay, including reply pumping and session headers | Protocol-specific HTTP metadata; evaluate generic pumping separately |
-| `detent_http` | Optional blocking HTTP polling source for the classic SDK/agent path | Source adapter; consolidate generic client mechanics into `http` |
 | `detent_local` | Flat/paged local images, readers, validation, atomic publication, leases and collection | Knob layouts and ownership rules; reuse lower-level I/O and residency where their contracts fit |
 | `detent_relay` | Scoped fanout from upstream delivery through durable local bundles | Relay authorization, bundle routing and serving policy |
 

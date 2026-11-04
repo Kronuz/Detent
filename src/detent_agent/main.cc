@@ -6,7 +6,6 @@
 #ifndef DETENT_READER
 #include "agent.hh"
 #include "../detent_cli/logging.hh"
-#include "detent_http/http_source.hh"
 #ifdef DETENT_WITH_MANAGED_AGENT
 #include "managed_host.hh"
 #endif
@@ -111,32 +110,8 @@ detent::InitOptions build_client_options(const std::vector<std::string>& args) {
 	detent::InitOptions opts;
 	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH")) opts.defaults_path = *defaults;
 
-	// Source selection overrides the whole lower-priority source, so an HTTP
-	// flag can replace a file source from config without an artificial conflict.
-	auto source_path = arg_value(args, "--source-path");
-	auto source_http = arg_value(args, "--source-address");
-	if (!source_http) source_http = arg_value(args, "--source-http");
-	if (!source_path && !source_http) {
-		if (const char* v = std::getenv("DETENT_SOURCE_PATH"); v && *v) source_path = v;
-		if (const char* v = std::getenv("DETENT_SOURCE_ADDRESS"); v && *v) source_http = v;
-		else if (const char* v = std::getenv("DETENT_SOURCE_HTTP"); v && *v) source_http = v;
-		if (!source_path && !source_http) {
-			if (auto it = g_config.find("--source-path"); it != g_config.end()) source_path = it->second;
-			if (auto it = g_config.find("--source-address"); it != g_config.end()) source_http = it->second;
-		}
-	}
-	if (!source_path && !source_http && opts.defaults_path.empty()) source_http = std::string(detent_cli::kLoopbackHost) + ":" + std::to_string(detent_cli::kDefaultPort);
-	if (source_path && source_http) throw std::runtime_error("--source-path and --source-address are mutually exclusive");
-	if (source_path) {
-		opts.source_path = *source_path;
-	} else if (source_http) {
-		auto colon = source_http->rfind(':');
-		if (colon == std::string::npos || colon == 0) throw std::runtime_error("--source-address needs host:port");
-		auto host = source_http->substr(0, colon);
-		auto port = static_cast<std::uint16_t>(positive_int(source_http->substr(colon + 1), 65535, "source_address port"));
-		opts.source_poll = detent_http::make_http_poll_source(host, port);
-		opts.source_id = "http";
-	}
+	auto source_path = setting(args, "--source-path", "DETENT_SOURCE_PATH");
+	if (source_path) opts.source_path = *source_path;
 	if (auto poll_ms = setting(args, "--poll-interval-ms", "DETENT_POLL_INTERVAL_MS")) {
 		opts.poll_interval = std::chrono::milliseconds{positive_int(*poll_ms, std::numeric_limits<int>::max(), "poll_interval_ms")};
 	}
@@ -287,8 +262,6 @@ void validate_get_args(const std::vector<std::string> &args) {
 										"--config",
 										"--defaults",
 										"--source-path",
-										"--source-address",
-										"--source-http",
 										"--poll-interval-ms",
 										"--runtime-dir",
 										"--managed",
@@ -486,7 +459,7 @@ int cmd_get(const std::vector<std::string>& args) {
 				std::printf("%s\n", default_val->c_str());
 				return 0;
 			}
-			std::fprintf(stderr, "detent-agent: no snapshot received from source within 2s; check that the configured distributor is running and has a published snapshot\n");
+			std::fprintf(stderr, "detent-agent: no snapshot received from source within 2s; check that the configured source file exists and holds a snapshot\n");
 			return 1;
 		}
 	}
@@ -509,7 +482,7 @@ int cmd_get(const std::vector<std::string>& args) {
 
 #ifdef DETENT_READER
 const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--default VAL]\n"
-					 "                  [--config PATH] [--defaults PATH] [--source-address HOST:PORT]\n"
+					 "                  [--config PATH] [--defaults PATH]\n"
 					 "                  [--source-path PATH] [--runtime-dir PATH] [--system]\n"
 					 "                  [--generation-dir PATH] [--managed PRIVATE_CONFIG]\n"
 					 "       detent help | --help\n"
@@ -526,7 +499,7 @@ const char *kUsage =
 	"\n"
 	"usage:\n"
 	"  detent-agent [--daemonize] [--defaults PATH] [--source-path PATH]\n"
-	"                      [--source-address HOST:PORT] [--poll-interval-ms N]\n"
+	"                      [--poll-interval-ms N]\n"
 	"  detent-agent --managed PRIVATE_CONFIG [--generation-dir PATH]\n"
 	"               [--initialize-managed | --upgrade-managed]\n"
 	"  detent-agent --status\n"
@@ -541,13 +514,12 @@ const char *kUsage =
 	"System fallback: /etc/detent (FreeBSD: /usr/local/etc/detent; macOS: /Library/Application "
 	"Support/Detent).\n"
 	"JSON fields:\n"
-	"source_address, source_path, defaults_path, runtime_dir, poll_interval_ms.\n"
+	"source_path, defaults_path, runtime_dir, poll_interval_ms.\n"
 	"managed_path and generation_dir select durable authority delivery.\n"
 	"--generation-cluster/--generation-group/--generation-epoch/--generation-scope\n"
 	"bind reader identity; supply all four as lowercase hexadecimal values.\n"
 	"Paths in config are relative to the config file. Defaults are optional;\n"
 	"defaults.json beside agent.json is discovered automatically if present.\n"
-	"--source-http is a legacy alias for --source-address (HTTP transport).\n"
 	"Flags override environment variables, which override config settings.\n"
 	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
 	"Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
@@ -558,8 +530,6 @@ const char *kUsage =
 	"  DETENT_RUNTIME_DIR       shm/pid/log directory\n"
 	"                           (default $XDG_RUNTIME_DIR/detent, else $TMPDIR/detent-<uid>)\n"
 	"  DETENT_DEFAULTS_PATH     optional baked defaults file\n"
-	"  DETENT_SOURCE_ADDRESS    host:port (default 127.0.0.1:8317 without defaults)\n"
-	"  DETENT_SOURCE_HTTP       legacy alias for DETENT_SOURCE_ADDRESS\n"
 	"  DETENT_SOURCE_PATH       local snapshot file path\n"
 	"  DETENT_POLL_INTERVAL_MS\n";
 
@@ -597,8 +567,8 @@ int main(int argc, char** argv) {
 			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet" ||
 				arg == "--initialize-managed" || arg == "--upgrade-managed")
 				continue;
-			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" || arg == "--source-address" ||
-				arg == "--source-http" || arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
+			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" ||
+				arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
 				arg == "--publisher-user" || arg == "--reader-validation" ||
 				arg == "--generation-cluster" || arg == "--generation-group" || arg == "--generation-epoch" ||
@@ -637,8 +607,7 @@ int main(int argc, char** argv) {
 			expected.scope = detent::distribution::parse_identity_hex<32>(*identity[3]);
 			g_generation_identity = expected;
 		}
-		if (g_managed_config && (arg_value(args, "--source-path") || arg_value(args, "--source-address") ||
-								 arg_value(args, "--source-http")))
+		if (g_managed_config && arg_value(args, "--source-path"))
 			throw std::runtime_error("--managed and legacy source flags are mutually exclusive");
 #ifndef DETENT_READER
 		if (has_flag(args, "--status")) {

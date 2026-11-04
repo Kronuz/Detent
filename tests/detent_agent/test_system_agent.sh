@@ -11,7 +11,7 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
-unset DETENT_RUNTIME_DIR DETENT_DEFAULTS_PATH DETENT_SOURCE_ADDRESS DETENT_SOURCE_HTTP DETENT_SOURCE_PATH
+unset DETENT_RUNTIME_DIR DETENT_DEFAULTS_PATH DETENT_SOURCE_PATH
 printf '{"schema_version":1,"knobs":{"test:value":{"type":"int","default":17}}}\n' > "$root/defaults.json"
 printf '{"defaults_path":"defaults.json","runtime_dir":"run"}\n' > "$root/agent.json"
 "$agent" --system --config "$root/agent.json" > "$root/output.log" 2>&1 &

@@ -67,29 +67,6 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   add_library(detent::delivery_config ALIAS detent_delivery_config)
 endif()
 
-########################################################################
-# detent_http: optional client-side HTTP polling source (POSIX sockets
-# only, no Asio) -- plugs into InitOptions::source_poll. Kept as a SEPARATE
-# target from detent itself so a consumer who only wants the file source
-# never pulls socket/networking code in at all (AGENTS.md's "keep them
-# small": don't grow a dependency into a library that currently has none).
-# compressors is the one deliberate exception: it lets this client actually
-# request the zstd/gzip encodings detentd already serves (see
-# http_client.cc's Accept-Encoding) instead of always polling uncompressed
-# JSON -- still no Asio/http-framework/cluster weight, just one codec lib.
-########################################################################
-add_library(detent_http
-  detent_http/http_client.cc
-  detent_http/http_source.cc)
-
-target_include_directories(detent_http PUBLIC
-  "${PROJECT_SOURCE_DIR}/include")
-
-target_link_libraries(detent_http PUBLIC detent::detent compressors::compressors)
-target_compile_features(detent_http PUBLIC cxx_std_20)
-
-add_library(detent_http::detent_http ALIAS detent_http)
-
 # Shared CLI-only configuration and platform paths; no networking.
 add_library(detent_logging detent_cli/logging.cc)
 target_link_libraries(detent_logging PUBLIC logger::logger)
@@ -114,7 +91,7 @@ target_link_libraries(detent_agent_lib PUBLIC detent::detent)
 target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
 
 add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
-target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_http::detent_http detent_cli detent_logging)
+target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_cli detent_logging)
 if(DETENT_BUILD_MANAGED_AGENT)
   add_library(detent_managed_agent detent_agent/managed_host.cc)
   target_link_libraries(detent_managed_agent PUBLIC detent::delivery_config PRIVATE logger::logger)

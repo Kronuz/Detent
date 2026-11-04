@@ -1,6 +1,6 @@
 // Compressors through the old and the new pins: valid streams (compressed bytes and decoded bytes), damaged
-// streams (truncated, flipped, garbage, crafted lengths) and XXH32 digests. Detent decodes zstd and gzip in
-// detent_http/http_client.cc and links zstd for its distribution frames; this exercises the same entry points.
+// streams (truncated, flipped, garbage, crafted lengths) and XXH32 digests. Detent links zstd for its
+// distribution frames; this exercises the same entry points.
 #include "common.hh"
 
 #include <compressor_deflate.h>
