@@ -100,3 +100,4 @@ CI:
 - Step F, merged head `Detent:3a7a822` (main `Detent:5475baf` merged in): run 41886875818, every job green (macos-arm64 after waiting on runner capacity).
 - Step G, head `Detent:4f49f4b`: run 41891107195, every job green (pin-check, source-checks, read-counters, benchmarks, gcc, clang, arm64-gcc, ASan/UBSan, TSan, macos-x86_64, macos-arm64). Main has since moved to `Detent:dba0ef8`; G is not rebased on it.
 - Step G after F landed (main `Detent:5092933`): merged main into `legacy/wave2-g` (`Detent:7ad45ff`; the merge brought docs only, no source change) and updated the unmanaged-agent lines of `docs/HOW_IT_WORKS.md`, `website/.../architecture/how-it-works.md` and `docs/status/how-it-works.md` to say it has been removed.
+- Step G on merged main, head `Detent:8ec47f3`: run 41898318055, every job green (macos-arm64 and macos-x86_64 included).
