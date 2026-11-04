@@ -1019,10 +1019,8 @@ def verify_main(corpus: Corpus, capacity: int, rule: str, sample: int) -> None:
 class DensePaths:
     walk: dict[int, int]
     both: dict[int, int]
-    touch: list[int]  # bytes hashed by one lookup whose pages are all cold, sorted
-    bottom: list[
-        int
-    ]  # bytes hashed by the first touch of the definition's page, sorted
+    touch: list[int]  # bytes one lookup hashes when its pages are all cold, sorted
+    bottom: list[int]  # bytes the first touch of the definition's page hashes, sorted
 
 
 def dense_paths(
