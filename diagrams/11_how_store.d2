@@ -1,0 +1,18 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+
+dir: "Store directory" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  grid-rows: 2
+  grid-columns: 3
+  horizontal-gap: 110
+  vertical-gap: 60
+  selected: "selected\ncurrent generation"
+  gen: "generation-<id>\n.image .read .live"
+  packs: "segment-<id>.pack\npages, up to 1 MiB" {style.multiple: true; style.fill: "#E8E2F0"}
+  change: "change\nsequence words"
+  meta: "storage.meta\nhost identity"
+  selected -> gen
+  gen -> packs
+}

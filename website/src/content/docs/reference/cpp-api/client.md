@@ -38,7 +38,7 @@ The destructor stops and joins the updater thread.
 | `defaults_path` | `std::filesystem::path` | empty | Baked defaults file; empty starts with no knobs |
 | `cli_overrides` | `std::vector<std::string>` | empty | `"name=value"` pairs; see [Testing](/Detent/guides/testing/#cli-overrides) |
 | `source_path` | `std::optional<path>` | none | Poll this snapshot file |
-| `source_poll` | `std::optional<SourcePoll>` | none | A generic polling source, e.g. `make_http_poll_source()` |
+| `source_poll` | `std::optional<SourcePoll>` | none | A generic polling function |
 | `read_source` | `std::optional<ReadSourceFactory>` | none | A scoped read source, e.g. managed generations |
 | `source_id` | `std::string` | `"file"` | Label for the source in diagnostics |
 | `poll_interval` | `std::chrono::milliseconds` | `200ms` | Base poll cadence; must be positive |

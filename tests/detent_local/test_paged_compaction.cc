@@ -84,6 +84,7 @@ void run(std::size_t choice) {
 			write(directory / names.payload_name(), *segment.bytes);
 			write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
 		}
+		trusted_records::derive(directory);
 		l::DiskStoreOptions options;
 		options.limits = {64 * l::paged::segment_bytes, 1000, 10};
 		options.recovery_limits.retirement_domain = &domain;

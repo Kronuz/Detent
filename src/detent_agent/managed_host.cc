@@ -33,7 +33,7 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	bool timed_out = false;
 	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
 	std::optional<d::Cursor> reported;
-	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0;
+	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0, damaged_packs = 0;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
@@ -68,6 +68,12 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 		if (state.quorum_refresh_failures != refresh_failures) {
 			L_WARNING("detent-agent: managed quorum refresh failures {}", state.quorum_refresh_failures);
 			refresh_failures = state.quorum_refresh_failures;
+		}
+		if (state.scrub.damaged_packs != damaged_packs) {
+			L_WARNING("detent-agent: managed scrub found {} damaged packs in the selected generation after {} "
+					  "passes; reads of their pages fail with a source failure",
+					  state.scrub.damaged_packs, state.scrub.passes);
+			damaged_packs = state.scrub.damaged_packs;
 		}
 		if (state.last_quorum_open != quorum_open) {
 			L_DEBUG("detent-agent: managed quorum Open succeeded at endpoint {}",

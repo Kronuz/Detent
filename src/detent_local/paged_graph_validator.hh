@@ -4,9 +4,12 @@
 
 namespace detent::local::detail {
 class SegmentRegistry;
+class VerifiedPages;
 struct SegmentInput {
 	SegmentOwnership ownership;
 	std::span<const char> bytes;
+	// Non-null while no hash has compared this segment's pages: reads then verify a page on first touch.
+	const VerifiedPages *pages = nullptr;
 };
 struct PagedStateCounts {
 	std::uint32_t bools = 0, ints = 0;

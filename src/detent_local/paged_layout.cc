@@ -1,3 +1,4 @@
+#include <atomic>
 #include "detent_local/read_counters.hh"
 #include "detent_local/paged_layout.hh"
 #include "detent/validation.hh"
@@ -111,7 +112,13 @@ Key decode_key(std::string_view bytes) {
 			std::all_of(local.begin(), local.end(), detent::detail::is_name_char));
 	return {PageKind::Definition, name_space, local};
 }
+namespace {
+std::atomic<std::uint64_t> digest_count{0};
+} // namespace
+std::uint64_t page_digests() noexcept { return digest_count.load(std::memory_order_relaxed); }
+void count_page_digest() noexcept { digest_count.fetch_add(1, std::memory_order_relaxed); }
 Digest physical_commitment(std::span<const char> bytes) {
+	count_page_digest();
 	SHA256 hash;
 	hash.add(bytes.data(), bytes.size());
 	std::array<unsigned char, 32> value{};
@@ -123,6 +130,7 @@ Digest physical_commitment(std::span<const char> bytes) {
 Digest logical_commitment(PageKind kind, std::string_view prefix, std::span<const Child> children,
 						  std::span<const char> body) {
 	require(prefix.size() <= 512 && children.size() <= 256 && body.size() <= page_bytes);
+	count_page_digest();
 	PageHeader framing{kind,
 					   static_cast<std::uint32_t>(page_header_bytes + prefix.size() +
 												  child_bytes * children.size() + body.size()),

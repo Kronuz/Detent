@@ -1,0 +1,25 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+direction: right
+
+# Each page shows its kind and its compressed prefix; edge labels are the child label bytes.
+root: "Root\n320 B"
+segA: "segment A" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  head: "Branch\n(no prefix)"
+  w: "Namespace\npayments NUL"
+  ns: "Branch\npayments NUL"
+}
+segB: "segment B" {
+  label.near: top-left
+  style.fill: "#F4F1EA"
+  d1: "Definition\new_checkout NUL"
+  d2: "Definition\netry_limit NUL"
+}
+
+root -> segA.head
+segA.head -> segA.ns: "K"
+segA.head -> segA.w: "W"
+segA.ns -> segB.d1: "n"
+segA.ns -> segB.d2: "r"

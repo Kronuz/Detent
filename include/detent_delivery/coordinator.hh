@@ -29,6 +29,8 @@ struct CoordinatorOptions {
 	std::uint64_t reconnect_seed = 0;
 	LocalImageFormat image_format = LocalImageFormat::PagedV2;
 	std::chrono::milliseconds compaction_interval{60000};
+	// Pack scrub pace in bytes hashed per second, 0 to disable (namespace delivery D10.2).
+	std::uint64_t scrub_bytes_per_second = 512 * 1024;
 	std::vector<asio::ip::tcp::endpoint> authority_endpoints;
 	std::chrono::milliseconds quorum_refresh{30000};
 };
@@ -49,6 +51,11 @@ struct CleanupProgress {
 	std::chrono::steady_clock::time_point last_resume{}, finished{};
 	std::uint64_t turns = 0, charged_bytes = 0, maximum_gap_ns = 0;
 };
+struct ScrubStatus {
+	std::uint64_t passes = 0, bytes_hashed = 0, damaged_packs = 0;
+	// A pack of the selected generation differs from its owner record; reads of its pages fail first touch.
+	bool source_failure = false;
+};
 struct CoordinatorStatus {
 	CoordinatorPhase phase = CoordinatorPhase::Starting;
 	local::SelectionSnapshot selected;
@@ -65,6 +72,7 @@ struct CoordinatorStatus {
 		recovery_started_at{};
 	// Publication sink, image builder, then decoded input.
 	std::array<CleanupProgress, 3> cleanup;
+	ScrubStatus scrub;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive

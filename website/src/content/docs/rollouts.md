@@ -12,21 +12,10 @@ dashboards, and roll back instantly if something looks wrong.
 
 Add `rollout_pct` to a bool definition to enable it for that percentage of
 hash buckets. These examples continue in the [Quick-start](/Detent/quickstart/)
-directory; to keep them short, each snapshot holds only the knob this page is
-about:
+shell and directory, with the `publish` helper defined:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 7,
-  "knobs": {
-    "payments:new_processor": {
-      "type": "bool", "default": false, "rollout_pct": 10
-    }
-  }
-}
-EOF
+publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":10}'
 ```
 
 Each read passes the entity's stable identifier as the *hash value*:
@@ -82,37 +71,14 @@ A percentage describes hash buckets, not a quota. With a small population, a
 Publish higher percentages as you gain confidence:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 8,
-  "knobs": {
-    "payments:new_processor": {
-      "type": "bool", "default": false, "rollout_pct": 50
-    }
-  }
-}
-EOF
-```
-
-```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 9,
-  "knobs": {
-    "payments:new_processor": {
-      "type": "bool", "default": false, "rollout_pct": 100
-    }
-  }
-}
-EOF
-```
-
-```sh
+publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":50}'
+# Check your dashboards before advancing.
+publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":100}'
 sleep 1
 detent get payments:new_processor --hash user-1
 # true
+detent get payments:new_processor
+# false
 ```
 
 :::hint[No hash, no rollout]{.caution}
@@ -129,15 +95,10 @@ To finish the rollout for every caller, hashed or not, publish the knob with
 the new default and no rollout:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 10,
-  "knobs": {
-    "payments:new_processor": { "type": "bool", "default": true }
-  }
-}
-EOF
+publish payments:new_processor '{"type":"bool","default":true}'
+sleep 1
+detent get payments:new_processor
+# true
 ```
 
 To roll back everyone, publish `"default": false` without `rollout_pct`

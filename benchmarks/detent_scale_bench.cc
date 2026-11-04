@@ -2,7 +2,6 @@
 // Usage: detent_scale_bench [knobs=100000] [iterations=3]
 #include "detent/json_schema.hh"
 #include "detent/json_patch.hh"
-#include "shm_writer.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -61,11 +60,9 @@ int main(int argc, char** argv) {
 			auto applied = detent::apply_patch(snapshot, patch, count);
 			if (!applied || applied.value().knobs.size() != count) throw std::runtime_error("patch failed");
 		});
-		std::vector<std::uint8_t> image;
-		auto image_ms = median_ms(repeats, [&] { image = detent_agent::serialize_for_shm(snapshot); });
 		auto default_parse = detent::parse_source_snapshot(json, "scale");
-		std::printf("{\"knobs\":%zu,\"iterations\":%zu,\"json_bytes\":%zu,\"image_bytes\":%zu,\"single_knob_patch_bytes\":%zu,\"serialize_ms\":%.3f,\"parse_ms\":%.3f,\"single_knob_patch_ms\":%.3f,\"image_ms\":%.3f,\"fits_default_json_limits\":%s,\"fits_legacy_4mib_image\":%s}\n",
-			count, repeats, json.size(), image.size(), detent::serialize_patch(patch).size(), serialize_ms, parse_ms, patch_ms, image_ms,
-			default_parse ? "true" : "false", image.size() <= 4u * 1024 * 1024 ? "true" : "false");
+		std::printf("{\"knobs\":%zu,\"iterations\":%zu,\"json_bytes\":%zu,\"single_knob_patch_bytes\":%zu,\"serialize_ms\":%.3f,\"parse_ms\":%.3f,\"single_knob_patch_ms\":%.3f,\"fits_default_json_limits\":%s}\n",
+			count, repeats, json.size(), detent::serialize_patch(patch).size(), serialize_ms, parse_ms, patch_ms,
+			default_parse ? "true" : "false");
 	} catch (const std::exception& e) { std::fprintf(stderr, "%s\n", e.what()); return 1; }
 }

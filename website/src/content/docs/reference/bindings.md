@@ -21,7 +21,6 @@ snapshot it fetches itself.
 
 :::hint[More languages]{.unimplemented}
 There are no Go or Java bindings yet, and no direct reader for the agent's
-shared-memory layout outside C++. The shared-memory format is an internal,
-versioned layout; a documented, stable reader ABI would let other languages map
-it directly.
+generation images outside C++. A documented, stable reader ABI would let other
+languages map them directly.
 :::

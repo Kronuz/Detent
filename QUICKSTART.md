@@ -1,62 +1,148 @@
 # Quick start
 
-Change settings and roll out features against a running distributor. Run the examples in order from the repository root.
+Run a durable authority and a managed agent on loopback, publish knobs, and read them from the shell. Run the examples in order, in one terminal, starting from the repository root. The authority listens only on 127.0.0.1, and every file the guide writes stays inside `build/quickstart`.
 
-## Build and start the distributor
-
-```sh
-cmake -B build
-cmake --build build -j
-export PATH="$PWD/build/src:$PATH"
-detentd
-```
-
-Leave `detentd` running and open another terminal in the repository root:
+## Build
 
 ```sh
+cmake -B build -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF
+cmake --build build -j 4
 export PATH="$PWD/build/src:$PATH"
 ```
 
-The distributor listens on port `8317`. These examples assume a fresh snapshot; if it already has data, use versions greater than its current version. If an agent is already running with another source, inspect it with `detent-agent --status` and send SIGTERM to its PID before the first read.
+This builds `detentd` (the authority), `detent-agent` (the managed agent) and `detent` (the shell reader) in `build/src`.
+
+## Make development certificates and credentials
+
+The agent verifies the authority's TLS certificate, so the authority needs one. The repository's test fixture makes a throwaway CA and `localhost` leaf certificates with OpenSSL, valid for one day:
+
+```sh
+mkdir -p build/quickstart && cd build/quickstart
+OPENSSL_CONF=../../tests/detent_authority/tls_ambient.cnf \
+  cmake -DOUTPUT="$PWD/certs" -DOPENSSL=openssl \
+  -P ../../tests/detent_authority/tls_certificates.cmake
+```
+
+Use these certificates for local development only. Then pick an authority identity and two tokens, one for the publisher and one for the agent. Identities are 32 hexadecimal characters; tokens are at least 32 characters:
+
+```sh
+IDENTITY="\"cluster\":\"$(openssl rand -hex 16)\",\"group\":\"$(openssl rand -hex 16)\",\"epoch\":\"$(openssl rand -hex 16)\""
+WRITER_TOKEN=$(openssl rand -hex 24)
+READER_TOKEN=$(openssl rand -hex 24)
+```
+
+## Start the authority
+
+```sh
+cat > authority.json <<EOF
+{
+  $IDENTITY,
+  "directory": "authority-data",
+  "publisher_tls": {
+    "certificate": "certs/one.pem", "key": "certs/one.key", "ca": "certs/ca.pem"
+  },
+  "credentials": [
+    { "token": "$WRITER_TOKEN", "producer": "writer",
+      "namespaces": ["search", "checkout", "payments"] },
+    { "token": "$READER_TOKEN", "producer": "agent", "principal": "agent-reader",
+      "publish": false, "namespaces": ["search", "checkout", "payments"] }
+  ]
+}
+EOF
+chmod 600 authority.json
+detentd --authority authority.json --runtime-dir run --daemonize
+```
+
+With no `voters`, the authority is a single voter. It listens on 127.0.0.1 port 8317 and keeps its durable store in `authority-data`. The `writer` credential may publish to the three namespaces; the `agent` credential may only read them, as principal `agent-reader`.
+
+## Open a publishing session
+
+Every request carries the writer's token and the authority identity. Define a helper, then open a session:
+
+```sh
+api() {
+  curl --fail-with-body -sS -w '\n' --cacert certs/ca.pem \
+    -H "Authorization: Bearer $WRITER_TOKEN" -H 'Content-Type: application/json' \
+    --data "{$IDENTITY,$2}" "https://localhost:8317/v2/$1"
+}
+until api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'; do sleep 1; done
+```
+
+`--daemonize` returns once the authority listens, and the single voter elects itself leader shortly after. Until then the open returns `outcome_unknown`, and the loop retries the same request; the nonce marks each retry as the same open. A start looks like this, with the identity elided:
+
+```text
+curl: (22) The requested URL returned error: 503
+{"authority":{...},"error":"outcome_unknown"}
+curl: (22) The requested URL returned error: 503
+{"authority":{...},"error":"outcome_unknown"}
+{"authority":{...},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0}
+```
+
+The reply's `"generation":1` is this producer's session. Each transaction in it carries the next `sequence` number. A second helper publishes one knob definition per transaction, in the namespace before the colon:
+
+```sh
+sequence=0
+publish() {
+  sequence=$((sequence + 1))
+  api transactions "\"generation\":1,\"sequence\":$sequence,\"namespace\":\"${1%%:*}\",\"operations\":[{\"key\":\"$1\",\"value\":$2}]"
+}
+```
+
+## Start the managed agent
+
+```sh
+cat > managed.json <<EOF
+{
+  $IDENTITY,
+  "principal": "agent-reader",
+  "namespaces": ["search", "checkout", "payments"],
+  "token": "$READER_TOKEN",
+  "ca": "certs/ca.pem"
+}
+EOF
+chmod 600 managed.json
+detent-agent --managed managed.json --generation-dir agent-state --runtime-dir run \
+  --initialize-managed --daemonize
+export DETENT_GENERATION_DIR="$PWD/agent-state"
+```
+
+The agent connects to `localhost:8317` over TLS, checks the certificate against `certs/ca.pem`, and publishes immutable generations in `agent-state`. `--initialize-managed` creates that store on the first start; later starts leave it out. `detent get` reads the newest generation from `DETENT_GENERATION_DIR` and never opens `managed.json`.
 
 ## 1. Change a numeric setting
 
-Publish a result limit and read it:
-
 ```sh
-curl --fail-with-body -sS -X PUT localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":1,"knobs":{"search:max_results":{"type":"int","default":25}}}'
+publish search:max_results '{"type":"int","default":25}'
+sleep 1
 detent get search:max_results
 # 25
 ```
 
-The first `get` starts the local agent automatically and connects it to the distributor. No agent configuration is needed.
+Each transaction replies with its outcome and the authority's new revision:
 
-Change the limit without restarting the agent or your application:
+```text
+{"authority":{...},"status":"applied","revision":1,"namespace_revision":1,"generation":1,"sequence":1}
+```
+
+Change the limit without restarting anything:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":2,"knobs":{"search:max_results":{"type":"int","default":100}}}'
+publish search:max_results '{"type":"int","default":100}'
 sleep 1
 detent get search:max_results
 # 100
 ```
 
-Every publish needs a higher version. PATCH preserves unrelated knobs and replaces each supplied knob definition as a whole. The agent picks up updates on its next poll (200 ms by default); `sleep 1` lets the examples wait for propagation before reading.
+A transaction replaces the whole definition of each key it names and leaves every other knob alone. `sleep 1` gives the agent time to deliver the update before the read.
 
 ## 2. Toggle a feature
 
-Enable a new checkout path, then disable it if needed:
-
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":3,"knobs":{"checkout:new_path":{"type":"bool","default":true}}}'
+publish checkout:new_path '{"type":"bool","default":true}'
 sleep 1
 detent get checkout:new_path
 # true
 
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":4,"knobs":{"checkout:new_path":{"type":"bool","default":false}}}'
+publish checkout:new_path '{"type":"bool","default":false}'
 sleep 1
 detent get checkout:new_path
 # false
@@ -67,8 +153,7 @@ detent get checkout:new_path
 Start with 10% of users:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":5,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":10}}}'
+publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":10}'
 sleep 1
 detent get payments:new_processor --hash user-1
 # false
@@ -76,40 +161,29 @@ detent get payments:new_processor --hash user-42
 # true
 ```
 
-Use a stable user or account ID as `--hash`. The same ID keeps its assignment across reads and restarts. Increasing the percentage keeps previously included users enabled; small populations need not split exactly 10/90.
+Use a stable user or account ID as `--hash`. The same ID keeps its assignment across reads and restarts. Raising the percentage keeps included users enabled; small populations need not split exactly 10/90.
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":6,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":50}}}'
-# Check your application before advancing.
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":7,"knobs":{"payments:new_processor":{"type":"bool","default":false,"rollout_pct":100}}}'
+publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":100}'
 sleep 1
 detent get payments:new_processor --hash user-1
 # true
-
-# Roll back everyone, removing the rollout gate.
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot \
-  -d '{"schema_version":1,"version":8,"knobs":{"payments:new_processor":{"type":"bool","default":false}}}'
+detent get payments:new_processor
+# false
 ```
 
-At 100%, every read with `--hash` returns `true`. Reads without a hash use the knob's default, which remains `false` in this example.
+At 100%, every read with `--hash` returns `true`. A read without a hash skips the rollout and returns the knob's default, `false` here.
 
 ## 4. Use different rollout percentages for different groups
 
 Force employees on, exclude a group, and ramp beta users separately from production users:
 
 ```sh
-curl --fail-with-body -sS -X PATCH localhost:8317/v1/snapshot -d '{
-  "schema_version":1,"version":9,"knobs":{
-    "payments:new_processor":{
-      "type":"bool","default":false,"rollout_pct":10,
-      "overrides":{
-        "employees":true,"excluded":false,
-        "beta":{"rollout_pct":50},
-        "production":{"rollout_pct":5}
-      }
-    }
+publish payments:new_processor '{
+  "type": "bool", "default": false, "rollout_pct": 10,
+  "overrides": {
+    "employees": true, "excluded": false,
+    "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}
   }
 }'
 sleep 1
@@ -121,9 +195,11 @@ detent get payments:new_processor --hash user-1 --switch employees
 # true
 detent get payments:new_processor --hash user-1 --switch excluded
 # false
+detent get payments:new_processor --hash user-1 --switch unknown
+# false
 ```
 
-Your application supplies the group with `--switch`. A matching boolean forces its value; a matching rollout compares the same user bucket against that group's percentage. An unknown group uses the knob-wide rollout. Without `--hash`, group rollouts use the knob's default. When publishing a changed percentage, include the complete knob definition to preserve its other groups.
+Your application supplies the group with `--switch`. A matching boolean forces its value; a matching rollout compares the same user bucket against that group's percentage. An unknown group uses the knob-wide rollout. When changing one group's percentage, publish the complete definition so the other groups stay.
 
 ## 5. Supply a fallback for a missing knob
 
@@ -132,14 +208,34 @@ detent get checkout:unpublished_feature --default false
 # false
 ```
 
-This fallback applies only to this read; it does not publish or change a knob.
+The fallback applies only to this read; it publishes nothing.
+
+## 6. Remove a knob
+
+A `null` value deletes the key:
+
+```sh
+publish search:max_results null
+sleep 1
+detent get search:max_results
+# ERR MissingKnob: search:max_results (scoped lookup failed)
+```
 
 ## Stop
 
-Press Ctrl-C in the distributor's terminal to stop `detentd`. Use `detent-agent --status` to inspect the agent, and send SIGTERM to its reported PID when finished. System services use their service manager for shutdown.
+```sh
+detent-agent --status --generation-dir agent-state --runtime-dir run
+# running (pid 97274)
+# durable revision=8 knob_count=2
+kill "$(cat run/agent.pid)" "$(cat run/detentd-8317.pid)"
+cd ../.. && rm -rf build/quickstart
+```
+
+The durable store and the generations live in `build/quickstart`, so removing it resets the tutorial. System services use their service manager instead; see [System services](docs/SERVICES.md).
 
 ## Next steps
 
-1. [Usage guide](docs/USAGE.md): group overrides, configuration, and library examples.
-2. [System services](docs/SERVICES.md): Linux, FreeBSD, and macOS deployment.
-3. [README](README.md): architecture, bindings, and validation.
+1. [Usage guide](docs/USAGE.md): managed agent configuration, `agent.json`, and library examples.
+2. [Authority guide](docs/AUTHORITY_ARCHITECTURE.md): credentials, sessions, retries and namespace compare-and-set.
+3. [System services](docs/SERVICES.md): Linux, FreeBSD, and macOS deployment.
+4. [README](README.md): architecture, bindings, and validation.

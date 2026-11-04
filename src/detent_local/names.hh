@@ -6,7 +6,7 @@
 #include <string_view>
 
 namespace detent::local::detail {
-enum class GenerationFile { Lease, Image, Descriptor, ReaderMetadata };
+enum class GenerationFile { Lease, Image, Descriptor, ReaderMetadata, Live };
 struct NamedGeneration {
 	GenerationId generation;
 	GenerationFile kind;
@@ -21,6 +21,8 @@ inline std::string_view suffix(GenerationFile kind) {
 		return ".descriptor";
 	case GenerationFile::ReaderMetadata:
 		return ".read";
+	case GenerationFile::Live:
+		return ".live";
 	}
 	throw std::invalid_argument("unsupported generation file kind");
 }
@@ -57,6 +59,8 @@ inline std::optional<NamedGeneration> parse_generation_name(std::string_view nam
 		kind = GenerationFile::Descriptor;
 	else if (ending == ".read")
 		kind = GenerationFile::ReaderMetadata;
+	else if (ending == ".live")
+		kind = GenerationFile::Live;
 	else
 		return {};
 	NamedGeneration parsed{{}, kind};

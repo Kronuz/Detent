@@ -74,8 +74,7 @@ on `steady_clock`, so an NTP step can't make it negative or hide an outage.
 ## The `on_update` Hook
 
 `InitOptions::on_update` is called on the updater thread right after each
-accepted snapshot is published. The agent uses it to serialize every accepted
-snapshot into shared memory. It must be fast and must not throw.
+accepted snapshot is published. It must be fast and must not throw.
 
 ---
 

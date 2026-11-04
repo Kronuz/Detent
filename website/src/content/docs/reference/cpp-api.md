@@ -20,11 +20,10 @@ targets C++20 and lives in the `detent` namespace.
 | | `detent/testing.hh` | `TestKnobs`, `TestGuard` |
 | | `detent/overrides.hh` | `OverrideTable`, `parse_cli_overrides()` |
 | | `detent/validation.hh` | `is_valid_knob_name()`, `is_valid_group_key()` |
-| `detent_http::detent_http` | `detent_http/http_source.hh` | `make_http_poll_source()` |
 | `detent::local_client` | `detent_local/client_source.hh` | `make_local_read_source()` for managed generations |
 
-`detent::detent` has no networking dependency. Only link `detent_http` or
-`detent::local_client` when you use those sources.
+`detent::detent` has no networking dependency. Only link
+`detent::local_client` when you use managed generations.
 
 ---
 
@@ -32,7 +31,7 @@ targets C++20 and lives in the `detent` namespace.
 
 1. [Client](/Detent/reference/cpp-api/client/): construction, reads, views,
    health and metrics.
-2. [Sources](/Detent/reference/cpp-api/sources/): file, HTTP, generic and
+2. [Sources](/Detent/reference/cpp-api/sources/): file, generic and
    managed-generation sources.
 3. [Global Access and Testing](/Detent/reference/cpp-api/global-and-testing/):
    the `detent::global` adapter, `TestKnobs`, and CLI overrides.

@@ -83,13 +83,13 @@ Reads return `Result<T, detent::DetentError>`. See the
 The bindings expose the core client with a file source only. Not yet available
 from Python or Rust:
 
-1. The HTTP source. Use a file source, or read through
-   [`detent get`](/Detent/guides/shell-and-agent/) and the host agent.
-2. Pinned read views (`read_view()`) and the managed generation source.
-3. Checked integer conversion (`get_as`) and the `_or_panic` helpers.
-4. The Python `check()` alias and the per-error-category exception mapping
+1. Pinned read views (`read_view()`) and the managed generation source. Read
+   through [`detent get`](/Detent/guides/shell-and-agent/) and the host agent
+   for managed delivery.
+2. Checked integer conversion (`get_as`) and the `_or_panic` helpers.
+3. The Python `check()` alias and the per-error-category exception mapping
    (`KeyError` for a missing knob, `ValueError` for a wrong type or invalid
    name, `OverflowError` for a failed conversion) that the original
    specification describes.
-5. Packaging: there is no wheel on PyPI and no crate on crates.io.
+4. Packaging: there is no wheel on PyPI and no crate on crates.io.
 :::

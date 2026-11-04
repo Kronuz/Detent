@@ -16,14 +16,11 @@ The read path is the part that matters most: it runs in your request handlers.
 | Benchmark | What it measures | Command | Result |
 | --- | --- | --- | --- |
 | `detent_read_bench` | Steady-state `Client` read throughput, 4 threads | `detent_read_bench 4 2000000` | 6.71M ops/s (149.1 ns/op) |
-| `detent_agent_shm_bench` | Shared-memory agent read throughput, 4 threads | `detent_agent_shm_bench 4 2000000` | 36.2M ops/s (27.6 ns/op) |
 | `detent_hash_bench` | `stable_bucket()` alone (SHA-256 rollout hash) | `detent_hash_bench 5000000` | 5.05M calls/s (198.2 ns/call) |
 
 Measured on one 14-core arm64 development machine, Release build.
 
-The shared-memory read is about 5.4× faster in this benchmark; it evaluates
-directly against a pre-parsed binary layout with no shared-pointer reference
-counting. Rollout reads pay for one SHA-256 of the knob name plus
+Rollout reads pay for one SHA-256 of the knob name plus
 hash value; plain bool and int reads don't hash at all.
 
 :::hint[Reading the per-op numbers]{.info}

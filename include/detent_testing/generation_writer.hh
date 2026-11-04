@@ -4,8 +4,11 @@
 #include "detent/model.hh"
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace detent::testing {
 class GenerationWriter {
@@ -20,6 +23,15 @@ class GenerationWriter {
 	std::uint64_t publish(const Snapshot &knobs);
 	// Same, from the defaults-file JSON the authority parses ({"schema_version":1,"knobs":{...}}).
 	std::uint64_t publish_json(std::string_view json);
+	// Maintenance publications on the current head, through the agent's own delta and compaction builders.
+	// `publish_delta` applies one transaction to one namespace: each upsert sets an int knob and each name in
+	// `removals` deletes one (all names are "namespace:name"); `scope` is every namespace of the store, sorted.
+	// It returns the new revision.
+	std::uint64_t publish_delta(const std::vector<std::string> &scope, std::string_view name_space,
+								const std::map<std::string, std::int64_t> &upserts,
+								const std::vector<std::string> &removals);
+	// Rewrites up to `packs` packs of the head in place of themselves (the revision does not change).
+	void compact(std::size_t packs);
 	std::uint64_t revision() const noexcept;
 	const std::filesystem::path &store() const noexcept;
 

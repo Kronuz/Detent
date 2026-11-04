@@ -12,7 +12,7 @@ Required before release, but correctness and storage blockers take precedence. E
 4. **Existing blueprint:** [Kronuz/Detent/blob/main/docs/HTTP_CLIENT_EXTRACTION_ARCHITECTURE.md](https://github.com/Kronuz/Detent/blob/main/docs/HTTP_CLIENT_EXTRACTION_ARCHITECTURE.md).
 5. **Shared-library rules:** [Kronuz/cpp-libraries/blob/main/AGENTS.md](https://github.com/Kronuz/cpp-libraries/blob/main/AGENTS.md).
 
-**Inspect first:** Consumer `src/detent_http/http_client.cc`, `src/detent_delivery/client.cc`, `response.cc` and `include/detent_transport/https_client.hh`; shared HTTP response parsing and client targets. Existing evidence: `benchmarks/http-client-preliminary-20261019.json`.
+**Inspect first:** Consumers `src/detent_delivery/client.cc`, `response.cc` and `include/detent_transport/https_client.hh`; shared HTTP response parsing and client targets. Existing evidence: `benchmarks/http-client-preliminary-20261019.json`.
 
 **Existing local candidate:** `.scratch/library-adoption-20261017/detent-http-client-extraction` relative to the consumer checkout, if available. Inspect both tracked and uncommitted work. A fresh clone will not contain this scratch worktree; use the linked committed blueprint and evidence to recover the migration, and do not assume it is already on main.
 
