@@ -81,6 +81,8 @@ PagedPlanState::PagedPlanState(std::shared_ptr<d::StorageLedger> account,
 			  descriptor_.profile != prior.profile)) ||
 			(intent == PagedPlanIntent::Maintenance &&
 			 (descriptor_.cursor != prior.cursor || descriptor_.profile != prior.profile)) ||
+			(intent == PagedPlanIntent::Repair &&
+			 (!same || descriptor_.cursor.revision < prior.cursor.revision || descriptor_.profile != prior.profile)) ||
 			(intent == PagedPlanIntent::TrustedReset && same))
 			throw std::invalid_argument("snapshot target intent mismatch");
 	}

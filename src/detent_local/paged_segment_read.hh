@@ -8,12 +8,15 @@ class SegmentProofError final : public std::runtime_error {
   public:
 	using std::runtime_error::runtime_error;
 };
-// Verifies a complete named pack; callers drive budgeted CPU work between IO originals.
+// Verifies a complete named pack; callers drive budgeted CPU work between IO originals. The owner record, the
+// file's safety and its stable identity are always proved; with `tolerate_mismatch` a payload whose checksum
+// differs from the record is read to the end and reported by damaged() instead of refused, which lets the
+// collector remove a pack that is ours but damaged.
 class PagedSegmentRead final : public kronuz::io::completion::Operation {
   public:
 	PagedSegmentRead(distribution::RetirementFactory, std::shared_ptr<StorageSession>,
 					 std::shared_ptr<distribution::StorageLedger>, StorageIdentity storage,
-					 StorageIdentity segment, std::uint64_t trusted_owner);
+					 StorageIdentity segment, std::uint64_t trusted_owner, bool tolerate_mismatch = false);
 	~PagedSegmentRead();
 	const kronuz::io::completion::Request &request() const override;
 	void submitted() override;
@@ -24,6 +27,7 @@ class PagedSegmentRead final : public kronuz::io::completion::Operation {
 	bool needs_work() const noexcept;
 	void step(ValidationBudget &);
 	bool ready() const noexcept;
+	bool damaged() const noexcept;
 	const SegmentOwnership &ownership() const;
 	std::shared_ptr<const distribution::OwnedBuffer> bytes() const;
 	SegmentFileIdentity identity() const;

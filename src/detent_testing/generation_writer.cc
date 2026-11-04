@@ -168,9 +168,10 @@ struct GenerationWriter::Impl {
 		}
 		unwrap(disk->error());
 	}
-	std::uint64_t publish(const Snapshot &knobs) {
+	std::uint64_t publish(const Snapshot &knobs, bool repair = false) {
 		auto next = cursor;
-		++next.revision;
+		if (!repair)
+			++next.revision;
 		std::vector<std::string> namespaces;
 		const auto wire = encode(knobs, next, namespaces);
 		d::Limits limits;
@@ -189,7 +190,7 @@ struct GenerationWriter::Impl {
 		for (auto &byte : generation)
 			byte = static_cast<char>(random());
 		l::detail::PagedSnapshotPlanBuilder builder(snapshot, actual, disk->directory_identity(), identity,
-		                                            generation, domain.factory(), heap, options.recovery_limits);
+		                                            generation, domain.factory(), heap, options.recovery_limits, repair);
 		while (!builder.done()) {
 			l::ValidationBudget budget;
 			builder.step(budget);
@@ -327,6 +328,16 @@ std::uint64_t GenerationWriter::publish_json(std::string_view json) {
 	if (!parsed)
 		throw std::invalid_argument("invalid knob definitions");
 	return impl_->publish(parsed.value());
+}
+std::uint64_t GenerationWriter::repair_json(std::string_view json) {
+	auto parsed = parse_defaults(json, "test");
+	if (!parsed)
+		throw std::invalid_argument("invalid knob definitions");
+	return impl_->publish(parsed.value(), true);
+}
+void GenerationWriter::collect() {
+	impl_->disk->request_collection();
+	impl_->drive();
 }
 std::uint64_t GenerationWriter::publish_delta(const std::vector<std::string> &scope, std::string_view name_space,
                                               const std::map<std::string, std::int64_t> &upserts,

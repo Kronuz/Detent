@@ -480,7 +480,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 						request_.file = std::shared_ptr<c::File>(pin_, &s.controls->scratch_file());
 					} else {
 						s.pack.emplace(s.factory, s.session, s.core->account, s.core->identity, s.sought,
-									   s.core->owner);
+									   s.core->owner, true);
 						s.phase = Phase::Candidate;
 					}
 				}

@@ -1574,7 +1574,9 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 				   (base &&
 					(!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
 					 (plan.maintenance() ? descriptor.cursor != base->cursor
-										 : descriptor.cursor.revision <= base->cursor.revision))))
+					  : intent == detail::PagedPlanIntent::Repair
+						  ? descriptor.cursor.revision < base->cursor.revision
+						  : descriptor.cursor.revision <= base->cursor.revision))))
 			throw std::invalid_argument("managed paged publication requires authorized intent");
 		if (plan.directory_identity() != core.directory_identity ||
 			plan.storage_identity() != core.identity || plan.bytes()->account() != core.account ||
@@ -1594,7 +1596,9 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
-		recovery->populate(plan, core.verified_paged, core.options.recovery_limits);
+		// A repair recovers without the base it replaces, which may be damaged.
+		recovery->populate(plan, intent == detail::PagedPlanIntent::Repair ? decltype(core.verified_paged){} : core.verified_paged,
+						   core.options.recovery_limits);
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
@@ -1802,11 +1806,13 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
+	const bool repairing =
+		core.pending_paged_recovery && core.pending_paged_recovery->plan().intent() == detail::PagedPlanIntent::Repair;
 	RecoveryContext paged{*core.factory,
 						  core.account,
 						  core.options.recovery_limits.mapping_account,
 						  core.options.recovery_limits,
-						  core.verified_paged,
+						  repairing ? decltype(core.verified_paged){} : core.verified_paged,
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};

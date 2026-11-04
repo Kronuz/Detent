@@ -6,7 +6,9 @@
 #include <sha256.h>
 #include <vector>
 namespace detent::local::detail {
-enum class PagedPlanIntent { Fresh, Forward, TrustedReset, Maintenance };
+// Repair publishes a snapshot of the base's identity at its cursor or later in place of a base that may be
+// damaged: no equality check against the base, and a recovery that never reads it.
+enum class PagedPlanIntent { Fresh, Forward, TrustedReset, Maintenance, Repair };
 class PagedPlanState final : public distribution::RetirementNode {
   public:
 	struct Forward {};

@@ -20,6 +20,12 @@ class VerifiedPages {
 	void set(std::size_t offset) const noexcept {
 		words_[offset / granule_bytes / 64].fetch_or(mask(offset), std::memory_order_release);
 	}
+	// Withdraws every verified page, so the next read of each re-verifies it. A first touch racing the
+	// clear can leave its own page set; the scrub's next pass over the pack reports the damage again.
+	void clear() const noexcept {
+		for (auto &word : words_)
+			word.store(0, std::memory_order_release);
+	}
 
   private:
 	static std::uint64_t mask(std::size_t offset) noexcept {

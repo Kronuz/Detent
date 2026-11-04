@@ -1,4 +1,5 @@
 #include "paged_limits.hh"
+#include "paged_page_access.hh"
 #include "detent_delivery/coordinator.hh"
 #include "candidate_flat_validator.hh"
 #include "coordinator_internal.hh"
@@ -58,6 +59,8 @@ struct PagedCandidateResult : d::RetirementNode {
 	std::optional<l::detail::PagedPlan> plan;
 	std::optional<l::detail::StateEquivalenceProof> unchanged;
 	std::shared_ptr<const l::detail::StateEquivalenceProof> maintenance;
+	// A repair plan replaces the selected generation; in place when it keeps the selected cursor.
+	bool repair = false, repair_in_place = false;
 	std::optional<l::Descriptor> descriptor;
 	std::optional<l::Descriptor> selected_base;
 	std::exception_ptr failure;
@@ -103,6 +106,8 @@ struct Coordinator::Impl {
 	d::RetirementHandle<l::detail::LeasedPagedRoot> scrub_root;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
 	bool closing = false, running = false, settled = false, publication_started = false;
+	// The candidate loop asks upstream for a Replace while a repair is pending (diagnostic.repair.pending).
+	bool force_snapshot = false, repair_woke = false;
 	std::chrono::steady_clock::time_point publication_retry{};
 	Impl(CoordinatorOptions config, std::shared_ptr<l::DiskStore> disk,
 		 std::shared_ptr<NativeDriver> completion, d::RetirementDomain &retirement, asio::thread_pool &pool)
@@ -113,6 +118,21 @@ struct Coordinator::Impl {
 		  base(domain.make<RecoveryResult>(options)) {
 		if (options.completion_port && !options.completion_port->uses(driver))
 			throw std::invalid_argument("coordinator completion port driver mismatch");
+	}
+	// Asks for a Replace and a repair publication of the selected generation; a pending network wait ends so
+	// the loop can ask. Idempotent while pending. The scrub passes wake, a first-touch failure does not.
+	void request_repair(bool wake) noexcept {
+		if (!paged_writer)
+			return;
+		if (!diagnostic.repair.pending) {
+			diagnostic.repair.pending = true;
+			++diagnostic.repair.requested;
+		}
+		if (wake && diagnostic.phase == CoordinatorPhase::Receiving) {
+			repair_woke = true;
+			network_cancel.request();
+		}
+		notify_candidate();
 	}
 	void stop_construction() noexcept {
 		if (construction) {
@@ -310,7 +330,7 @@ struct Coordinator::Impl {
 	}
 
 	task::task<void> build_paged(const ReceivedUpdate *update, bool compact = false,
-									  bool force = false) {
+									  bool force = false, bool repair = false) {
 		auto result = domain.make<PagedCandidateResult>();
 		result->compaction = compact;
 		std::optional<ReceivedUpdate> source;
@@ -326,7 +346,7 @@ struct Coordinator::Impl {
 		limits.retirement_domain = nullptr;
 		asio::post(worker, [result, source = std::move(source), actual = std::move(actual), generation,
 							directory = context.directory, storage = context.storage,
-							prior = context.paged.prior, compact, force, factory, heap, limits]() mutable {
+							prior = context.paged.prior, compact, force, repair, factory, heap, limits]() mutable {
 			try {
 				if (!source && compact) {
 					if (!actual || !prior || prior->descriptor() != actual->descriptor())
@@ -374,7 +394,7 @@ struct Coordinator::Impl {
 					result->descriptor = result->plan->descriptor();
 				} else if (source->snapshot) {
 					l::detail::PagedSnapshotPlanBuilder candidate(source->snapshot, actual, directory,
-																  storage, generation, factory, heap, limits);
+																  storage, generation, factory, heap, limits, repair);
 					while (!candidate.done()) {
 						result->control.step();
 						l::ValidationBudget budget;
@@ -386,6 +406,9 @@ struct Coordinator::Impl {
 					} else {
 						result->plan.emplace(candidate.take());
 						result->descriptor = result->plan->descriptor();
+						result->repair = result->plan->intent() == l::detail::PagedPlanIntent::Repair;
+						result->repair_in_place = result->repair && actual &&
+												  result->descriptor->cursor == actual->descriptor().cursor;
 					}
 				} else {
 					if (!actual || !l::detail::StateCursor::logical_commitment(*actual))
@@ -459,7 +482,7 @@ struct Coordinator::Impl {
 				throw std::runtime_error("unexpected managed recovery for absent selection");
 			diagnostic.recoverable.reset();
 		}
-		bool equivalent = false;
+		bool equivalent = false, repaired = false;
 		if (pending_paged_confirmation) {
 			if (!paged_candidate)
 				throw std::invalid_argument("paged recovered selection differs from candidate");
@@ -468,6 +491,13 @@ struct Coordinator::Impl {
 				equivalent = bool(paged_candidate->maintenance);
 				if (equivalent && paged_candidate->compaction)
 					++completed_compactions;
+				if (paged_candidate->repair) {
+					repaired = paged_candidate->repair_in_place;
+					diagnostic.repair.pending = false;
+					++diagnostic.repair.completed;
+					// The damaged generation is now unreachable: collect its files.
+					store->request_collection();
+				}
 			} else if (actual.descriptor != paged_candidate->selected_base)
 				throw std::invalid_argument("paged rejection changed actual selection");
 			pending_paged_confirmation = false;
@@ -482,6 +512,8 @@ struct Coordinator::Impl {
 			if (equivalent)
 				options.publication_sink->selected_equivalent(*base->generation,
 															  *paged_candidate->maintenance);
+			else if (repaired)
+				options.publication_sink->selected_repaired(*base->generation);
 			else
 				options.publication_sink->selected(*base->generation);
 		}
@@ -539,7 +571,7 @@ struct Coordinator::Impl {
 
 	task::task<void> compact_head() {
 		const auto now = std::chrono::steady_clock::now();
-		if (!paged_writer ||
+		if (!paged_writer || diagnostic.repair.pending ||
 			(!compaction_requested && (options.compaction_interval == std::chrono::milliseconds::zero() ||
 									   now < next_compaction_check)) ||
 			!base->generation || !l::detail::StateCursor::logical_commitment(*base->generation))
@@ -641,12 +673,12 @@ struct Coordinator::Impl {
 				auto root = l::detail::ScrubSource::root(*base->generation);
 				if (root && root.get() != scrub_root.get()) {
 					scrub_root = std::move(root);
-					scrubber->begin(scrub_root->registry()->inputs(), now);
+					scrubber->begin(scrub_root->registry()->inputs(), now, options.directory);
 					reported_passes = scrubber->passes();
 					diagnostic.scrub.damaged_packs = 0;
 					diagnostic.scrub.source_failure = false;
 				} else if (scrub_root && !scrubber->running())
-					scrubber->begin(scrub_root->registry()->inputs(), now);
+					scrubber->begin(scrub_root->registry()->inputs(), now, options.directory);
 				if (scrub_root) {
 					scrubber->step(now, per_tick);
 					diagnostic.scrub.passes = scrubber->passes();
@@ -660,6 +692,7 @@ struct Coordinator::Impl {
 							++diagnostic.failures;
 							diagnostic.error = std::make_exception_ptr(std::runtime_error(
 								"scrub: a pack of the selected generation differs from its owner record"));
+							request_repair(true);
 						}
 					}
 				}
@@ -843,7 +876,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 	};
 	bool revalidating = false;
 	std::optional<PublicationFeedback> feedback;
-	bool force_snapshot = false;
+	bool session_forced = false;
 	ReconnectBackoff reconnect(options.poll_interval, options.reconnect_maximum, options.reconnect_seed);
 	std::exception_ptr fatal;
 	try {
@@ -876,6 +909,15 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				co_await compact_head();
 				if (cancelled())
 					throw asio::system_error(asio::error::operation_aborted);
+				if (diagnostic.repair.pending) {
+					// A repair needs a Replace: a session that was not opened for one is closed and reopened.
+					force_snapshot = true;
+					if (session.valid() && !session_forced) {
+						co_await release_session(session_source(), session, sources.pooled());
+						session = {};
+						feedback.reset();
+					}
+				}
 				if (session.valid() && sources.refresh_due(std::chrono::steady_clock::now())) {
 					revalidating = true;
 					co_await release_session(session_source(), session, sources.pooled());
@@ -889,11 +931,14 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					actual.descriptor && actual.descriptor->cursor.same_identity(request.configured)
 						? std::optional(actual.descriptor->cursor)
 						: std::nullopt;
+				if (diagnostic.repair.pending && options.delivery_mode == DeliveryMode::Poll)
+					request.base.reset();
 				diagnostic.phase = CoordinatorPhase::Receiving;
 				if (options.delivery_mode == DeliveryMode::Subscription) {
 					if (!session.valid()) {
 						network_attempt = true;
 						session = co_await open_session(request, force_snapshot, network_cancel.token());
+						session_forced = force_snapshot;
 						opening_endpoint = request.endpoint;
 						const auto opened = std::chrono::steady_clock::now();
 						sources.opened(opened);
@@ -960,8 +1005,12 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					throw asio::system_error(asio::error::operation_aborted);
 				diagnostic.received = update->target;
 				diagnostic.validated = update->target;
+				// A repair at the selected cursor replaces the selected generation by an equal one: the sink keeps
+				// its cache and receives selected_repaired.
+				const bool repair_in_place = diagnostic.repair.pending && paged_writer && update->snapshot &&
+											 actual.descriptor && update->target == actual.descriptor->cursor;
 				if (!cancelled()) {
-					if (options.publication_sink) {
+					if (options.publication_sink && !repair_in_place) {
 						options.publication_sink->begin_stage(*update);
 						while (!cancelled()) {
 							d::WorkBudget budget;
@@ -975,7 +1024,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					diagnostic.phase = CoordinatorPhase::Building;
 					auto account = store->storage_account();
 					if (paged_writer)
-						co_await build_paged(&*update);
+						co_await build_paged(&*update, false, false, diagnostic.repair.pending);
 					else {
 						if (update->snapshot)
 							builder = d::make_storage_owner<l::ImageBuilder>(account, std::malloc, std::free,
@@ -998,9 +1047,10 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					if (!cancelled()) {
 						const auto candidate =
 							paged_candidate ? *paged_candidate->descriptor : builder->descriptor();
-						if (options.publication_sink)
+						if (options.publication_sink && !repair_in_place)
 							options.publication_sink->bind_candidate(candidate, store->directory_identity());
-						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor) {
+						if (actual.descriptor && candidate.cursor == actual.descriptor->cursor &&
+							!(paged_candidate && paged_candidate->repair)) {
 							if (!paged_candidate)
 								co_await compare_candidate();
 							else if (!paged_candidate->unchanged)
@@ -1032,10 +1082,25 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 				failure = std::current_exception();
 				if (options.publication_sink && fatal_source_reset(error.reason()))
 					options.publication_sink->fence();
+			} catch (const l::detail::ReadSourceFailure &) {
+				// A page of the selected generation failed first touch: ask for a Replace to repair it.
+				failure = std::current_exception();
+				request_repair(false);
 			} catch (...) {
 				failure = std::current_exception();
 			}
-			if (failure && !cancelled()) {
+			// The network wait that the scrub's repair request ended is not a failure.
+			bool woken = false;
+			if (failure && std::exchange(repair_woke, false)) {
+				try {
+					std::rethrow_exception(failure);
+				} catch (const asio::system_error &error) {
+					woken = error.code() == asio::error::operation_aborted;
+				} catch (...) {
+				}
+			}
+			repair_woke = false;
+			if (failure && !cancelled() && !woken) {
 				++diagnostic.failures;
 				diagnostic.error = failure;
 			}
@@ -1119,7 +1184,7 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					feedback.reset();
 				}
 			}
-			if (!closing && (options.delivery_mode == DeliveryMode::Poll || !session.valid())) {
+			if (!closing && !woken && (options.delivery_mode == DeliveryMode::Poll || !session.valid())) {
 				if (sources.pooled() && unavailable && !round_complete)
 					co_await task::yield();
 				else
