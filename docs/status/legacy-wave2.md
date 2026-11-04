@@ -94,3 +94,8 @@ Evidence (G):
 Blocked on (G):
 
 1. The hands-on tutorial is written around publishing a snapshot file and reading it with `detent get --source-path`: `website/.../quickstart.md`, `settings-and-flags.md`, `rollouts.md`, `group-overrides.md`, `next.md`, the `index.mdx` hero snippet and `QUICKSTART.md` (which still drives the removed classic `PUT /v1/snapshot` distributor from step E). Neither the file source nor a one-line replacement exists any more, and the only live path is an authority with credentials plus a TLS-verified managed agent. What the tutorial should run on is a product decision (for example a documented loopback authority and agent recipe, or a direct `detent get --snapshot FILE` mode); I did not invent one and the pages are unchanged. The Client's own `source_path` and `source_poll` docs (README, `cpp-api`, `live-updates`, `cpp-application`, `sources`) wait for step H.
+
+CI:
+
+- Step F, merged head `Detent:3a7a822` (main `Detent:5475baf` merged in): run 41886875818, every job green (macos-arm64 after waiting on runner capacity).
+- Step G, head `Detent:4f49f4b`: run 41891107195, every job green (pin-check, source-checks, read-counters, benchmarks, gcc, clang, arm64-gcc, ASan/UBSan, TSan, macos-x86_64, macos-arm64). Main has since moved to `Detent:dba0ef8`; G is not rebased on it.
