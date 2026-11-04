@@ -34,7 +34,8 @@ def command(
                     break
                 if len(output) + len(chunk) > maximum_bytes:
                     raise ValueError(
-                        f"metadata command output exceeds {maximum_bytes // 1024} KiB"
+                        f"metadata command output exceeds {maximum_bytes // 1024} KiB: "
+                        f"{bytes(output[:240]).decode(errors='replace')!r}"
                     )
                 output.extend(chunk)
         process.wait(timeout=max(0.001, deadline - time.monotonic()))
