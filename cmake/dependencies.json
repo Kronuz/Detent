@@ -80,7 +80,7 @@
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "b18e11580a84a61dbf7593598d7dd88c601eafac",
+    "revision": "67622cc6845608b108255bac403c53bddc70ec80",
     "source_subdir": "."
   },
   {
@@ -110,7 +110,7 @@
   {
     "name": "reactor",
     "repository": "https://github.com/Kronuz/reactor.git",
-    "revision": "950a375b10f22778b817a8c06190431be08a4a31",
+    "revision": "a59e9f8808e46b7d030aa2a936564038843100f4",
     "source_subdir": "."
   },
   {
@@ -146,7 +146,7 @@
   {
     "name": "task",
     "repository": "https://github.com/Kronuz/task.git",
-    "revision": "d0807866aaace4bf916273a4bc0bee63f541978f",
+    "revision": "bdafa5f1ca96a2d34b1c5eb0bbb04e4b3ddb88c0",
     "source_subdir": "."
   },
   {
@@ -206,7 +206,7 @@
   {
     "name": "http_log",
     "repository": "https://github.com/Kronuz/http-log.git",
-    "revision": "3b49b600a3714971f70cfb2cd6391c2eb5cb4639",
+    "revision": "a6a6ab2640c753b4f2631206cabef7f317bb3a84",
     "source_subdir": "."
   },
   {
