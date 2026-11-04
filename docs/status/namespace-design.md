@@ -1,10 +1,10 @@
-> Status: CURRENT (2026-11-03) Ledger for the namespace delivery design workstream.
+> Status: CURRENT (2026-11-04) Ledger for the namespace delivery design workstream.
 
 # namespace-design
 
 - Design: docs/design/namespace-delivery.md; review: docs/reviews/namespace-delivery-preliminary.md (APPROVE WITH CONDITIONS, `Detent:eae3f6c`).
 - Branch / worktree: `design/namespace-delivery` at `~/code/Kronuz/Detent-wt/namespace-design`; base `Detent:d4abd4a`. Revision: `design/namespace-rev` at `~/code/Kronuz/Detent-wt/namespace-rev`; base `Detent:633f6fb`. Second revision: `design/namespace-rev2` at `~/code/Kronuz/Detent-wt/namespace-rev2`; base `Detent:35e4b82`. Third revision: `design/namespace-rev3` at `~/code/Kronuz/Detent-wt/namespace-rev3`; base `Detent:e9ae326`. Blocks revision: `design/compacted-blocks` in the agent worktree `.claude/worktrees/agent-a297f0637e0378f0f`; base `Detent:9b24fb3`.
-- State: designing (ready for preliminary review): D6 and D7 rewritten for the owner's ruling of 2026-11-03 (P1, compacted blocks, cut by cost); N7 and N8 superseded, so their check is moot. S1-S4 may start under L1 and L2.
+- State: designing (ready for preliminary review): the architect's REJECT of the blocks revision (`docs/reviews/namespace-blocks-preliminary-2026-11-04.md`) folded in: NB-L1 to NB-L4 and NB-C1 to NB-C6; B1 re-decided as persisted blocks served whole. S1-S4 may start under L1 and L2.
 - Lead rulings (2026-11-03):
   - L1: one store directory. D8's per-namespace directories go; the startup barrier stays one directory sync on every platform, so S1 needs no primitive spanning directories. Completion's sync and order primitives accept read-only descriptors (ND-R6).
   - C2: S2 and S3 keep today's random file ids and single directory until L6 closes.
@@ -37,18 +37,19 @@
 - Done (second revision): re-check N1-N6 folded in on `design/namespace-rev2`: N1 orphan names unlinked and rebuilt (D8.4, T7); N2 result records per command (D6); N3 one held Replace per namespace per server, built at head on demand, replacing the Replace at each boundary (D6, D7, W6, T4's bound, alternatives); N4 no `.lease` in an image, a read-only existing-file open in completion, owners checked first and the fallback at the next ordinal (D9, S1, S9); N5 the head piece served from R + 1 (D6, T3, W6); N6 table fsync before rename (D11, T7) and a new incarnation as a generation switch on the same namespace (A4, W7, reader.md A4, the authorized cross-document edit); H1's three asks in "Strata fit" (`Detent:6ac5ae2`).
 - Done (third revision): re-check 2 folded in on `design/namespace-rev3`: N7 Replace builds queue into cycles through the one distribution capture, capped by `replace_cycle_bytes`, pinned memory at most one cycle's writes, a 4,096-namespace bootstrap in ⌈ΣC / `replace_cycle_bytes`⌉ cycles (D6); N8 an open cycle pins the horizon at its capture until its answers are composed, rebuild bound per effective window (D6, Limit 3); N9 T4 bound of W plus S − 1 entries plus records and index; N10 foreign table and files never read, bootstrap at ordinal 1 with a fresh table, foreign `change` replaced as D8's one exception (D8, D9); N11's six clarifications (D6 "Replace", "Holding", "Selection", relay horizon, T4, T6) (`Detent:22f54a3`).
 - Done (blocks revision): the owner's ruling folded in on `design/compacted-blocks`: P1 ("a client pays only for what it is missing") with a table of how each decision serves it; D6 rewritten as three tiers (ring, compacted blocks, base) with seals at half the ring, squash by ratio 4 and a merge limit, a cut by cost and by disk with α from T9, derived-block answers, the proof of trimmed and merged blocks, model numbers, checkpoints at a durable seal, recovery that refills the ring; D7 relays mirror blocks, base and ring; H1 withdrawn and the Strata fit rows on segments marked open; T3, T4 rewritten, T9 added; Q2 recorded as the owner's ruling; Limits, Alternatives, W3, W6-W8, S5, S7, S8 and the findings table updated. Wording forced elsewhere: D8 (the absent-key tombstone as a no-op; "a build from a full copy"), D9 and D10 ("full copy" for "Replace"), T6, A4. The arithmetic is `docs/design/namespace-delivery-blocks-model.py`, committed with the revision.
+- Done (blocks fold): the blocks review folded in on `design/compacted-blocks`. D6: seals on changes or log progress (8,192 entries or 8 MiB), counted from the entries, empty seals as checkpoint points (NB-L1); every layout input canonical or replicated: canonical sizes, the policy in `Limits` changed by the "set limits" entry and carried in each seal file, apply's own accumulator feeding seals instead of the ring, the first base at the enabling or restore entry (NB-L2); squash with a deduplicating pass past L, the cut by cost over whole-block answers against |st(s)| and a separate disk cap at 2α (NB-L3); one seal file per group seal, block and base files at 1 MiB and more, the `layout` table, the commit, collector, recovery and install on D8's rules, the gate as a durable tiling (NB-L4, NB-C4); lazy ring eviction (NB-C5). D3: positions start at the stored revision (NB-C1). D7: relays adopt the upstream's layout (NB-C5). T3, T4 (crash matrix, liveness, capture failure, shapes, disk with caches and base rewrite), T9, W3, W6, W8, Limits 2 and 5, alternatives, S5 and the findings log updated. The model script is now a key-level simulation (`seal` and `layout`), sealing by size alone (NB-C6). Commit: see the log.
 - Doing: nothing; stopped at ready for preliminary review.
 - Next:
-  1. The architect's preliminary review of the blocks revision (D6's proof, the checkpoint-at-seal gate, the cut).
+  1. The architect's re-check of the blocks fold (NB-L1 to NB-L4, NB-C1 to NB-C6), and a look at D6's files and commit, which are new.
   2. The lead runs T9 to set α from time (agent apply per record against full-copy build, 5M corpus); the design's α stays 1 until then.
-  3. The owner confirms or reverses the lead calls on Q1, Q3, Q4, Q5.
+  3. The owner confirms or reverses the lead calls on Q1, Q3, Q4, Q5, and the revised B1-B3 below.
 - Blocked on:
   - α on T9 (the lead measures; designers run no benchmarks).
   - S6 on S5; Q1 and Q4 are lead calls the owner may reverse.
   - S10 on strata Track C2 D12 built, the shared turn log, and T8 measured on Linux.
-- Findings folded in: ND-R1 to ND-R11, L1-L7, C1-C2, N1-N11 and the re-check's H1 points (design's "Review findings" table).
+- Findings folded in: ND-R1 to ND-R11, L1-L7, C1-C2, N1-N11, the re-check's H1 points, NB-L1 to NB-L4 and NB-C1 to NB-C6 (design's "Review findings" table).
 - Design vs code: not applicable (nothing built).
-- Last verified: the blocks revision's file:line re-read on 2026-11-03 at `Detent:9b24fb3` and `consensus` main; earlier: every new file:line re-read on 2026-11-03 at `Detent:d4abd4a` (`src/` unchanged at `Detent:633f6fb`), `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured.
+- Last verified: the blocks fold's file:line re-read on 2026-11-04 at `Detent:bd52cc3` (`src/` unchanged since `Detent:9b24fb3`) and `consensus:61149a2`; earlier: the blocks revision at `Detent:9b24fb3`, and every new file:line on 2026-11-03 at `Detent:d4abd4a` (`src/` unchanged at `Detent:633f6fb`), `completion:576618d`, `consensus:61149a2`, `strata:9d52824`; nothing built, run or measured; the model is a simulation of stated shapes.
 
 
 ## Lead calls under "move fast" (2026-11-03; the owner may reverse any)
@@ -76,9 +77,16 @@
 - 2026-11-03: Second revision on `design/namespace-rev2` from `Detent:35e4b82`: folded the re-check's N1-N6 and H1 points; edited reader.md A4 (the lead's call on the incarnation case); the review file untouched.
 - 2026-11-03: Third revision on `design/namespace-rev3` from `Detent:e9ae326`: folded re-check 2's N7-N11; the review file untouched.
 - 2026-11-03: Blocks revision on `design/compacted-blocks` from `Detent:9b24fb3`: owner ruling (P1, compacted blocks, ring as hot path, cut by cost and time parity) folded into D6, D7, Strata fit, T3, T4, T9, Q2, Limits, Alternatives, S5-S8; model script added; the review file untouched; nothing built, run or measured beyond the arithmetic model.
+- 2026-11-04: Blocks fold on `design/compacted-blocks` from `Detent:bd52cc3`: folded the blocks review's NB-L1 to NB-L4 and NB-C1 to NB-C6, re-decided B1 as whole blocks, replaced the model with a key-level simulation (run under `nice -n 19`; output in `.scratch/blocks-fold/layout.out`); the review file untouched.
 
 ## Lead calls, 2026-11-04 (owner: "move fast"; the owner may reverse each)
 
 1. B1: an answer below the ring is one block derived for [R + 1, s] and cached per (namespace, incarnation, R, s), not the persisted blocks served whole: each changed key once, one request; images share R.
 2. B2: the disk rule stays beside the cost cut (blocks above the base at most α · base), accepting that a store cut by it pays up to 1/α of its answer.
 3. B3: seals trigger on size only; age squashing follows positions. Revisit if T9 shows quiet namespaces holding an unsealed ring too long.
+
+Revised by the blocks fold (2026-11-04), for the lead to confirm:
+
+1. B1 becomes persisted blocks served whole: the block holding R + 1 trimmed to revisions above R, then every younger block as stored. On the review's numbers (NB-6) B1 read 1.51 times its answer on average (11.6 at worst) with a merge and a cache entry per R; whole blocks send 1.25 times (1.45) with no merge, shared across R. The owner's original picture; T3's bound (at most the changes counted per transaction) still holds.
+2. B2 is restated: the cut is by cost over the whole-block answer against |st(s)|, so a store cut by it pays at most 1/α of its answer at the cut (model: 0.98 to 1.02 at α = 1); the disk rule becomes a separate cap at 2α · |st(s)|, which fired in none of the model's runs. The old "up to 1/α" was about 4/α (NB-3).
+3. B3 keeps size-only seals for blocks and adds log progress (8,192 entries or 8 MiB), so a group with few positioned entries still checkpoints (NB-1).
