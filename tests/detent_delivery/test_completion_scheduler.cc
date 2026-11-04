@@ -17,6 +17,10 @@ struct FakeIO final : j::IO {
 	std::vector<std::string> calls;
 	std::unique_ptr<j::OwnerLock> acquire_owner(bool) override { return {}; }
 	std::unique_ptr<j::File> open_existing(std::string_view) override { return {}; }
+	std::unique_ptr<j::File> open_existing_read_only(std::string_view) override { return {}; }
+	std::unique_ptr<j::File> open_reclaim_candidate_read_only(std::string_view) override { return {}; }
+	void open_existing_read_only_into(std::string_view, j::File &) override {}
+	bool open_reclaim_candidate_read_only_into(std::string_view, j::File &) override { return false; }
 	std::unique_ptr<j::File> create_exclusive(std::string_view) override { return {}; }
 	void replace(std::string_view, std::string_view) override {}
 	void remove(std::string_view name) override { calls.emplace_back(name); }
