@@ -34,9 +34,12 @@ std::string uniform(std::uint64_t lo, std::uint64_t hi, std::size_t draws) {
 	}
 	// 15 degrees of freedom: chi-square above 50 is a failure at p < 1e-5.
 	char b[160];
-	std::snprintf(b, sizeof b, "outside=%llu reaches_low=%d reaches_high=%d uniform=%s",
-				  static_cast<unsigned long long>(outside), mn == lo, mx == hi, chi < 50 ? "yes" : "NO");
-	return b;
+	std::snprintf(b, sizeof b, "outside=%llu uniform=%s", static_cast<unsigned long long>(outside), chi < 50 ? "yes" : "NO");
+	std::string out = b;
+	if (hi - lo < 4096) {  // a wide range does not reach its ends in a few hundred thousand draws
+		out += std::string(" reaches_low=") + (mn == lo ? "yes" : "no") + " reaches_high=" + (mx == hi ? "yes" : "no");
+	}
+	return out;
 }
 
 } // namespace
@@ -60,7 +63,7 @@ int main() {
 			mn = std::min(mn, t);
 			mx = std::max(mx, t);
 		}
-		w5::line("time [0," + std::to_string(ms) + "]ms", "in_range=" + std::string(mn >= 0 && mx <= ms ? "yes" : "NO") + " reaches_high=" + (mx == ms ? "yes" : "no"));
+		w5::line("time [0," + std::to_string(ms) + "]ms", "in_range=" + std::string(mn >= 0 && mx <= ms ? "yes" : "NO") + (ms <= 1000 ? std::string(" reaches_high=") + (mx == ms ? "yes" : "no") : std::string()));
 	}
 	for (auto [lo, hi] : std::vector<std::pair<double, double>>{{0, 1}, {-1, 1}, {10, 20}, {0, 1e9}}) {
 		double mn = 1e300, mx = -1e300;

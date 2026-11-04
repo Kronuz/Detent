@@ -1,0 +1,17 @@
+[just-knob] just-knob len=101 000000000000000000000000...(101) h=d34477c9d82b86e6
+  old: error: invalid override value for ns:knob: 000000000000000000000000000000000000000000000000000000000000000000000000000000000000...(137)
+  new: ok 7
+[just-knob] just-knob len=102 -00000000000000000000000...(102) h=7c7c5442ee673ddd
+  old: error: invalid override value for ns:knob: -00000000000000000000000000000000000000000000000000000000000000000000000000000000000...(138)
+  new: ok -7
+
+  just-knob: error: invalid -> ok -7: 6
+  just-knob: error: invalid -> ok 7: 5
+
+class                       cases  different
+eval                            1          0
+just-knob                      45         11
+malformed                      23          0
+malformed-defaults             23          0
+snapshot                       20          0
+total                         112         11

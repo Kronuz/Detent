@@ -18,5 +18,9 @@ done
 rm -rf "$out/store"
 "$build/w5_store" "$out/store" > "$out/w5_store.txt" 2> "$out/w5_store.err" || "$build/w5/w5_store" "$out/store" > "$out/w5_store.txt" 2> "$out/w5_store.err"
 echo "== w5_store exit $? files $(find "$out/store" -type f | wc -l)"
-python3 -I "$here/http_replay.py" --detentd "$build/src/detentd" --out "$out/replay" --port "$port"
-echo "== http_replay exit $?"
+if "$build/src/detentd" --help 2>&1 | grep -q -- "--persist-path"; then
+	python3 -I "$here/http_replay.py" --detentd "$build/src/detentd" --out "$out/replay" --port "$port"
+	echo "== http_replay exit $?"
+else
+	echo "== http_replay skipped: this detentd has no classic profile"
+fi

@@ -97,8 +97,10 @@ inline std::string isolated(const std::function<std::string()>& fn, unsigned sec
 	return out;
 }
 
+// One case per line: the case id, a tab, the result. compare.py keys on the id, so a case that exists in one
+// build only (a new enum member) is reported instead of shifting every later line.
 inline void line(const std::string& id, const std::string& result) {
-	std::printf("%s %s\n", id.c_str(), result.c_str());
+	std::printf("%s\t%s\n", id.c_str(), result.c_str());
 }
 
 } // namespace w5

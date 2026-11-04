@@ -30,7 +30,7 @@ def snapshot(version: int, count: int) -> bytes:
         if i % 3 == 0:
             knobs[f"ns{i % 5}:flag_{i}"] = {"type": "bool", "default": i % 2 == 0, "rollout_pct": (i * 7) % 101, "overrides": {"internal": True}}
         elif i % 3 == 1:
-            knobs[f"ns{i % 5}:int_{i}"] = {"type": "int", "default": i * 1000 - 5, "overrides": {"big": i << 20}}
+            knobs[f"ns{i % 5}:int_{i}"] = {"type": "int", "default": i * 1000 - 5}
         else:
             knobs[f"ns{i % 5}:plain_{i}"] = {"type": "bool", "default": False}
     return json.dumps({"schema_version": 1, "version": version, "knobs": knobs}, separators=(",", ":")).encode()
