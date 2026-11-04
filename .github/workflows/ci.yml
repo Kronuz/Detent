@@ -63,3 +63,20 @@ jobs:
             echo '::error::the removed detentd worker option is documented or parsed again'
             exit 1
           fi
+  # The read counters compile out by default; this job builds them in and checks their values.
+  read-counters:
+    name: linux-read-counters
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        env: { CC: clang, CXX: clang++ }
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDETENT_READ_COUNTERS=ON
+          -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_DISTRIBUTOR=OFF
+          -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4 --target test_local_read_counters test_local_lazy_page_access test_local_view test_local_reader
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -R '^test_local_(read_counters|lazy_page_access|view|reader)$'

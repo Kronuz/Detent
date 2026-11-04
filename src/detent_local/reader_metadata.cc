@@ -1,3 +1,4 @@
+#include "detent_local/read_counters.hh"
 #include "reader_metadata.hh"
 #include <algorithm>
 #include <limits>
@@ -86,6 +87,7 @@ ReaderMetadata decode_reader_metadata(std::span<const char> bytes) {
 	        read_integer(bytes, 8, 4) == 1 && read_integer(bytes, 12, 4) == reader_metadata_bytes &&
 	        read_integer(bytes, 116, 4) == 1 &&
 	        std::all_of(bytes.begin() + 120, bytes.begin() + 160, [](char byte) { return byte == 0; }));
+	DETENT_COUNT(bytes_hashed, 160);
 	const auto digest = checksum(bytes.first(160));
 	require(std::equal(digest.begin(), digest.end(), bytes.begin() + 160));
 	ReaderMetadata value;

@@ -1,3 +1,4 @@
+#include "detent_local/read_counters.hh"
 #include "lazy_page_access.hh"
 #include "detent_local/paged_definition.hh"
 #include "generation_file_access.hh"
@@ -90,6 +91,7 @@ struct LazyPageAccess::State {
 		if (maps.size() >= root.segments)
 			throw ReadSourceFailure("local generation exceeds its pack count");
 		const SegmentNames names(identity);
+		DETENT_COUNT(segment_opens, 1);
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		struct stat held{};
 		if (payload.fd < 0 || ::fstat(payload.fd, &held) != 0 || held.st_size < p::page_header_bytes ||
@@ -158,6 +160,7 @@ struct LazyPageAccess::State {
 			}
 			const auto bounds = paged_limits(limits, p::root_bytes);
 			p::verify_page(bytes, reference, bounds);
+			DETENT_COUNT(pages_verified, 1);
 			const auto header = p::decode_page_header(bytes, bounds);
 			if (header.kind == p::PageKind::Definition)
 				p::validate_definition(bytes.last(header.body), root.cursor.revision, limits.overrides);

@@ -1,3 +1,4 @@
+#include "detent_local/read_counters.hh"
 #include "detent_local/ownership.hh"
 #include "detent_local/layout.hh"
 #include "detent_local/paged_layout.hh"
@@ -26,6 +27,7 @@ void validate(std::span<const char> bytes, std::string_view magic, std::size_t l
 	require(bytes.size() == length);
 	require(std::equal(magic.begin(), magic.end(), bytes.begin()) && read_integer(bytes, 8, 4) == 1 &&
 			read_integer(bytes, 12, 4) == length);
+	DETENT_COUNT(bytes_hashed, length - 32);
 	SHA256 hash;
 	hash.add(bytes.data(), length - 32);
 	unsigned char digest[32];

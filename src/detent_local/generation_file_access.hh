@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_local/read_counters.hh"
 #include "detent/config_trust_internal.hh"
 #include "detent_local/generation.hh"
 #include "generation_mapping.hh"
@@ -20,6 +21,7 @@ inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
 		throw std::runtime_error("invalid local generation descriptor");
 }
 inline void read_generation_record(int fd, std::span<char> bytes) {
+	DETENT_COUNT(table_bytes, bytes.size());
 	for (std::size_t offset = 0; offset < bytes.size();) {
 		const auto count = ::pread(fd, bytes.data() + offset, bytes.size() - offset, offset);
 		if (count < 0 && errno == EINTR)
@@ -30,6 +32,7 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 	}
 }
 inline int open_publisher_directory(const std::filesystem::path &path, uid_t owner) {
+	DETENT_COUNT(directory_trust, 1);
 	if (path.empty() || path.native().find('\0') != std::string::npos)
 		throw std::invalid_argument("invalid publisher directory path");
 	const auto absolute = path.is_absolute() ? path : std::filesystem::current_path() / path;

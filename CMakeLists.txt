@@ -47,6 +47,11 @@ option(DETENT_BUILD_AUTHORITY "Build the opt-in durable authority against review
 option(DETENT_BUILD_BENCHMARKS "Build the standalone benchmarks/ executables" ON)
 option(DETENT_BUILD_PYTHON "Build the Python binding (pybind11, requires Python3 dev headers)" OFF)
 option(DETENT_BUILD_RUST "Build the Rust binding (cxx, requires cargo/rustc)" OFF)
+# Counts first-read and lookup work (include/detent_local/read_counters.hh); off, it compiles to nothing.
+option(DETENT_READ_COUNTERS "Count directory trust, record opens, table bytes, segment opens, pages verified and bytes hashed" OFF)
+if(DETENT_READ_COUNTERS)
+  add_compile_definitions(DETENT_READ_COUNTERS=1)
+endif()
 
 # Must precede any add_subdirectory() that calls add_test() (detentd/,
 # tests/): CMake only wires a subdirectory's CTestTestfile.cmake into the

@@ -1,4 +1,5 @@
 #pragma once
+#include "detent_local/read_counters.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -104,6 +105,7 @@ class ReaderBenchmark {
 			lookup(*queries[index]);
 		std::vector<std::int64_t> latency(calls_);
 		const auto before = usage();
+		const auto counted = detent::local::counters::snapshot();
 		const auto begin = std::chrono::steady_clock::now();
 		for (std::size_t index = 0; index != calls_; ++index) {
 			const auto &query = *queries[hot ? 0 : index % queries.size()];
@@ -114,6 +116,7 @@ class ReaderBenchmark {
 		}
 		const auto end = std::chrono::steady_clock::now();
 		const auto after = usage();
+		const auto counts = detent::local::counters::snapshot() - counted;
 		std::sort(latency.begin(), latency.end());
 		auto percentile = [&](unsigned percent) {
 			return latency[(calls_ / 100 * percent + (calls_ % 100 * percent + 99) / 100) - 1];
@@ -128,7 +131,15 @@ class ReaderBenchmark {
 			<< ",\"p50_ns\":" << percentile(50) << ",\"p95_ns\":" << percentile(95)
 			<< ",\"p99_ns\":" << percentile(99) << ",\"maximum_ns\":" << latency.back()
 			<< ",\"process_minor_faults\":" << after.ru_minflt - before.ru_minflt
-			<< ",\"process_major_faults\":" << after.ru_majflt - before.ru_majflt << "}\n";
+			<< ",\"process_major_faults\":" << after.ru_majflt - before.ru_majflt;
+		if (detent::local::counters::enabled)
+			std::cout << ",\"counters\":{\"directory_trust\":" << counts.directory_trust
+				<< ",\"record_opens\":" << counts.record_opens << ",\"table_bytes\":" << counts.table_bytes
+				<< ",\"segment_opens\":" << counts.segment_opens
+				<< ",\"pages_verified\":" << counts.pages_verified
+				<< ",\"bytes_hashed\":" << counts.bytes_hashed
+				<< ",\"pages_verified_per_lookup\":" << double(counts.pages_verified) / calls_ << "}";
+		std::cout << "}\n";
 	}
 	std::uint64_t calls_ = 0, capacity_ = 0, seen_ = 0;
 	std::mt19937_64 random_{0x524541444552};

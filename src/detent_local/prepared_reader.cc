@@ -1,3 +1,4 @@
+#include "detent_local/read_counters.hh"
 #include "prepared_reader.hh"
 #include "generation_file_access.hh"
 #include "lazy_page_access.hh"
@@ -21,6 +22,7 @@ void require(bool value) {
 		throw ReadSourceFailure("invalid daemon-prepared generation");
 }
 int open_record(int directory, std::string_view name) {
+	DETENT_COUNT(record_opens, 1);
 	require(name.size() <= 64 && name.find('\0') == std::string_view::npos);
 	std::array<char, 65> terminated{};
 	std::copy(name.begin(), name.end(), terminated.begin());
@@ -38,6 +40,7 @@ template <std::size_t N> std::array<char, N> record(int directory, std::string_v
 	return bytes;
 }
 paged::Digest checksum(std::span<const char> bytes) {
+	DETENT_COUNT(bytes_hashed, bytes.size());
 	SHA256 hash;
 	hash.add(bytes.data(), bytes.size());
 	std::array<unsigned char, 32> digest{};

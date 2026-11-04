@@ -1,3 +1,4 @@
+#include "detent_local/read_counters.hh"
 #include "detent_local/paged_layout.hh"
 #include "detent/validation.hh"
 #include <algorithm>
@@ -160,9 +161,11 @@ Digest logical_commitment(PageKind kind, std::string_view prefix, std::span<cons
 }
 void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {
 	validate(reference);
+	DETENT_COUNT(bytes_hashed, bytes.size());
 	require(bytes.size() == reference.length && physical_commitment(bytes) == reference.physical);
 	const auto header = decode_page_header(bytes, limits);
 	require(header.logical == reference.logical);
+	DETENT_COUNT(bytes_hashed, 44 + header.prefix + 33 * header.children + header.body);
 	const auto prefix = bytes.subspan(page_header_bytes, header.prefix);
 	std::array<Child, 256> children{};
 	for (std::uint32_t i = 0; i < header.children; ++i)
