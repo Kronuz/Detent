@@ -21,7 +21,7 @@ You lead Detent until the owner takes it back. Five branches are in flight, an u
 
 | Branch | Head | State | Ledger |
 | --- | --- | --- | --- |
-| `reader/s6` | `Detent:8768732` | Built, CI run 41921276663; `test_reader_switch` flakes under load | `docs/status/reader-s5-s6.md` |
+| `reader/s6` | `Detent:3d8559a` | Built; the T3 `selected` race fixed at `Detent:47470ea`; CI run 41933091120 not yet watched | `docs/status/reader-s5-s6.md` |
 | `legacy/wave2-h` | `Detent:aac6cb6` | Built on top of S6, CI run 41926685309 | `docs/status/legacy-wave2.md` |
 | `namespace/s3b` | `Detent:d4692ba` | CI green; architect APPROVE WITH CONDITIONS; fix round not started | `docs/status/namespace-s3b.md` |
 | `namespace/s1-s2` | `Detent:76bb6cf` | S1 done; S2 written (WIP), evidence owed | `docs/status/namespace-s1-s2.md` |
@@ -54,9 +54,10 @@ Long CPU runs cost no agent credits, so a run an agent actually needs goes in th
 
 ### 1. Reader S6
 
-1. Read the soak results. Reproduce the `refresh status 5: invalid local generation descriptor` failure (`tests/detent_reader/test_reader_switch.cc:237`), find whether it is the test or the reader, fix it with a test that fails without the fix.
-2. Finish the ledger's "Next (S6)": sanitizer runs, mutant group B, the `reader_bench` smoke run.
-3. Merge `main`, dispatch CI, land when every job is green.
+1. Watch CI run 41933091120. The `refresh status 5: invalid local generation descriptor: link count` failure (`tests/detent_reader/test_reader_switch.cc:237`) was a publish renaming `selected` between two `fstat` calls; `Detent:47470ea` retries a check that fails on a now-unlinked file. The overnight soak builds the worktree's head, so it tests that fix.
+2. Finish the ledger's Next: rerun the FIX-2 revert mutant against its final form, and the T3 gate (`--repeat until-fail:20` under each sanitizer, queued or by hand).
+3. A security review of `src/detent_reader/prepared_reader.cc` (it reads untrusted store files) before landing.
+4. Merge `main` into the branch (do not rebase or force-push), dispatch CI, land when every job is green.
 
 ### 2. Legacy H
 
