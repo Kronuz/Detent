@@ -115,6 +115,8 @@ AttachedGeneration PreparedReader::attach(int directory, uid_t publisher, ViewLi
 		RecoveryFile lease(open_record(directory, lease_name.view()));
 		if (lease.fd < 0 && errno == ENOENT)
 			continue;
+		if (struct stat opened{}; ::fstat(lease.fd, &opened) == 0 && opened.st_nlink == 0)
+			continue; // collected between the open and the check
 		check_generation_file(lease.fd, publisher, generation_ownership_bytes);
 		require(internal::mode_only_acl(lease.fd));
 		int locked;

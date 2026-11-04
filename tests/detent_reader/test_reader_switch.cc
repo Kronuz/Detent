@@ -223,7 +223,7 @@ void switching(const std::filesystem::path &root) {
 				if (const auto status = detent_refresh(r.handle); status == DETENT_UNAVAILABLE)
 					++unavailable;
 				else if (status != DETENT_OK) {
-					std::fprintf(stderr, "refresh status %d\n", int(status));
+					std::fprintf(stderr, "refresh status %d: %s\n", int(status), t::last_failure());
 					CHECK(false);
 				}
 				++refreshes;
@@ -253,7 +253,12 @@ void switching(const std::filesystem::path &root) {
 		          << max_live.load() << ", " << publishes << " generations in " << elapsed << " s\n";
 		CHECK(stats.live_views <= 4 && stats.generations >= 1 && stats.generations <= 4);
 		CHECK(threads() == before);
-		CHECK(descriptors() > fds && mappings(store) > maps);
+		const auto held_fds = descriptors(), held_maps = mappings(store);
+		if (held_fds <= fds || held_maps <= maps)
+			std::fprintf(stderr, "held: descriptors %zu (before %zu), mappings %zu (before %zu)\n", held_fds, fds,
+			             held_maps, maps);
+		CHECK(held_fds > fds);
+		CHECK(held_maps > maps);
 	}
 	CHECK(threads() == before && descriptors() == fds && mappings(store) == maps);
 	::munmap(shared, sizeof(Shared));

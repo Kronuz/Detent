@@ -21,4 +21,6 @@ struct Stats {
 	std::uint64_t pins[4] = {}; // each ring slot's pin count
 };
 Stats stats(detent_reader *) noexcept;
+// What the calling thread's last failed refresh raised.
+const char *last_failure() noexcept;
 } // namespace detent::reader::testing

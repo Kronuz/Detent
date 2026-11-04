@@ -45,6 +45,7 @@ inline void window(Window at) noexcept {
 		window_hook(at, window_context);
 }
 #define DETENT_WINDOW(at) window(Window::at)
+thread_local std::string failure_text;
 #else
 #define DETENT_WINDOW(at) ((void)0)
 #endif
@@ -433,6 +434,17 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 		}
 	} catch (...) {
 		const auto status = classify(std::current_exception());
+#ifdef DETENT_READER_TEST_HOOKS
+		try {
+			std::rethrow_exception(std::current_exception());
+		} catch (const std::exception &error) {
+			failure_text = error.what();
+		} catch (const Failure &failure) {
+			failure_text = "status " + std::to_string(int(failure.status));
+		} catch (...) {
+			failure_text = "unknown";
+		}
+#endif
 		delete built;
 		delete fresh;
 		delete new_change;
@@ -749,6 +761,7 @@ void install(void (*hook)(Window, void *) noexcept, void *context) noexcept {
 	window_context = context;
 	window_hook = hook;
 }
+const char *last_failure() noexcept { return failure_text.c_str(); }
 Stats stats(detent_reader *handle) noexcept {
 	constexpr auto relaxed = std::memory_order_relaxed;
 	Stats stats{handle->live_views(), handle->publishes.load(relaxed), handle->refused.load(relaxed),
