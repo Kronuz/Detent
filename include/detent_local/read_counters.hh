@@ -21,6 +21,8 @@ struct Snapshot {
 	std::uint64_t segment_opens = 0;   // segment payload files opened for mapping
 	std::uint64_t pages_verified = 0;  // pages checked by SHA-256 at first touch
 	std::uint64_t bytes_hashed = 0;    // bytes fed to SHA-256 on the read path
+	std::uint64_t namespaces_attached = 0; // reader core: namespace generations attached
+	std::uint64_t refused_publishes = 0;   // reader core: publishes refused by a pinned slot
 	bool operator==(const Snapshot &) const = default;
 };
 inline constexpr bool enabled =
@@ -32,7 +34,7 @@ inline constexpr bool enabled =
 #ifdef DETENT_READ_COUNTERS
 struct Cells {
 	std::atomic<std::uint64_t> directory_trust{0}, record_opens{0}, table_bytes{0}, segment_opens{0},
-	    pages_verified{0}, bytes_hashed{0};
+	    pages_verified{0}, bytes_hashed{0}, namespaces_attached{0}, refused_publishes{0};
 };
 inline Cells &cells() noexcept {
 	static Cells value;
@@ -42,7 +44,8 @@ inline Snapshot snapshot() noexcept {
 	auto &c = cells();
 	constexpr auto order = std::memory_order_relaxed;
 	return {c.directory_trust.load(order), c.record_opens.load(order), c.table_bytes.load(order),
-	        c.segment_opens.load(order),   c.pages_verified.load(order), c.bytes_hashed.load(order)};
+	        c.segment_opens.load(order),   c.pages_verified.load(order), c.bytes_hashed.load(order),
+	        c.namespaces_attached.load(order), c.refused_publishes.load(order)};
 }
 inline void reset() noexcept {
 	auto &c = cells();
@@ -53,6 +56,8 @@ inline void reset() noexcept {
 	c.segment_opens.store(0, order);
 	c.pages_verified.store(0, order);
 	c.bytes_hashed.store(0, order);
+	c.namespaces_attached.store(0, order);
+	c.refused_publishes.store(0, order);
 }
 #else
 inline Snapshot snapshot() noexcept { return {}; }
@@ -61,6 +66,7 @@ inline void reset() noexcept {}
 inline Snapshot operator-(const Snapshot &a, const Snapshot &b) noexcept {
 	return {a.directory_trust - b.directory_trust, a.record_opens - b.record_opens,
 	        a.table_bytes - b.table_bytes,         a.segment_opens - b.segment_opens,
-	        a.pages_verified - b.pages_verified,   a.bytes_hashed - b.bytes_hashed};
+	        a.pages_verified - b.pages_verified,   a.bytes_hashed - b.bytes_hashed,
+	        a.namespaces_attached - b.namespaces_attached, a.refused_publishes - b.refused_publishes};
 }
 } // namespace detent::local::counters
