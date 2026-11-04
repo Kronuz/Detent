@@ -1,0 +1,5 @@
+a: 147/1000 first reads below 1 ms; median 1087.0 us; max 2087.4 us
+b: 103/1000 first reads below 1 ms; median 1116.7 us; max 2660.8 us
+aa: 148/1000 first reads below 1 ms; median 1089.7 us; max 2047.0 us
+binaries old probe ca6339d59fdcd2cd6a50b5c25eb4c2a95e95c0ec87b7900c09af59fcacd1960c new probe d4f02109a641738b08ea5d650554a60b13f732d5cf097049fa4ebaffeaab87f3
+wall seconds 54

@@ -1,0 +1,12 @@
+65 cases; 55 identical; differing: bare-lf-request-line, bare-lf-header, bare-lf-all, obs-fold, te-gzip, te-chunked-twice, cl-trailer, version-1.2, no-version, connect
+  bare-lf-request-line: old [HTTP/1.1 200 OK] new [<closed>]
+  bare-lf-header: old [HTTP/1.1 200 OK] new [<closed>]
+  bare-lf-all: old [HTTP/1.1 200 OK] new [<closed>]
+  obs-fold: old [HTTP/1.1 200 OK] new [<closed>]
+  te-gzip: old [HTTP/1.1 400 Bad Request] new [<closed>]
+  te-chunked-twice: old [HTTP/1.1 400 Bad Request] new [<closed>]
+  cl-trailer: old [HTTP/1.1 400 Bad Request] new [<closed>]
+  version-1.2: old [HTTP/1.1 200 OK] new [<closed>]
+  no-version: old [HTTP/1.1 200 OK] new [<closed>]
+  connect: old [HTTP/1.1 404 Not Found] new [HTTP/1.1 404 Not Found]
+persisted snapshot.json byte-identical: True

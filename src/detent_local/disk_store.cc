@@ -26,6 +26,11 @@ namespace detent::local {
 namespace c = kronuz::io::completion;
 
 namespace {
+// Today's store has one table entry, the selected generation, at change slot 0 (reader.md D4).
+constexpr std::array<std::uint32_t, 1> store_slots{0};
+// A fresh directory holds the owner lock and the empty change file before storage.meta.
+constexpr DiskUsage fresh_census{detail::change_bytes(store_slots.size()), 2, 0};
+constexpr DiskUsage fresh_bootstrap{storage_identity_bytes + fresh_census.bytes, fresh_census.entries + 1, 0};
 bool safe(const c::EntryInspection &entry, const detail::StoreCore &core) noexcept {
 	return entry.footprint.kind == c::EntryKind::Regular && entry.links == 1 && entry.owner == core.owner &&
 		   entry.device == core.session->directory_identity().device && !(entry.permissions & 0022);
@@ -269,6 +274,12 @@ class StartupOperation final : public c::Operation {
 			data.owner_seen = true;
 			return;
 		}
+		if (name == detail::change_name) {
+			if (!safe(entry, core) || entry.footprint.logical_bytes < detail::change_bytes(0) ||
+			    entry.footprint.logical_bytes % 8)
+				throw std::runtime_error("unsafe change file");
+			return;
+		}
 		if (core.options.mode == StoreOpenMode::FreshEmpty)
 			throw std::runtime_error("fresh storage directory contains existing entries");
 		bool read = false;
@@ -395,10 +406,10 @@ class StartupOperation final : public c::Operation {
 		}
 		if (core.options.mode == StoreOpenMode::ExistingManaged)
 			throw std::runtime_error("managed storage identity missing");
-		if (core.options.mode == StoreOpenMode::FreshEmpty && usage != DiskUsage{0, 1, 0})
+		if (core.options.mode == StoreOpenMode::FreshEmpty && usage != fresh_census)
 			throw std::runtime_error("fresh storage census is not empty");
 		if (core.options.mode == StoreOpenMode::UpgradeLegacy &&
-			(data.upgrade_blocked || (!data.selected && !data.anchors && usage != DiskUsage{0, 1, 0})))
+			(data.upgrade_blocked || (!data.selected && !data.anchors && usage != fresh_census)))
 			throw std::runtime_error("legacy storage identity creation lacks trustworthy evidence");
 		if (cancelled_ || core.closing) {
 			core.bootstrap->usage = {};
@@ -411,6 +422,9 @@ class StartupOperation final : public c::Operation {
 		phase_ = Phase::CreateMetadata;
 	}
 	void ready() noexcept {
+		// Reader.md D4 rule 2: after the barrier, before ready, so a crash between a rename and its
+		// increments hides nothing.
+		data_->core->change->bump_all();
 		data_->core->selection = {data_->selected ? SelectionKnowledge::Known : SelectionKnowledge::Absent,
 								  data_->selected};
 		data_->core->status = data_->core->closing ? StoreStatus::Closing : StoreStatus::Ready;
@@ -593,6 +607,7 @@ class PublicationOperation final : public c::Operation {
 			} else if (phase_ == Phase::Barrier) {
 				// Durability lives here, independent of coordinator acknowledgement.
 				data_->core->selection = {SelectionKnowledge::Known, data_->descriptor};
+				data_->core->change->publish(store_slots);
 				data_->core->ledger.settle(data_->permit, peak(),
 										   old_selected_ ? DiskUsage{descriptor_bytes, 1, 0} : DiskUsage{});
 				if (data_->artifacts) {
@@ -1712,7 +1727,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	if (options.census_work_limit > (std::numeric_limits<std::uint64_t>::max() - 4096) / 1024)
 		throw std::length_error("managed work exceeds retained cleanup identity space");
 	if (options.mode == StoreOpenMode::FreshEmpty &&
-		(options.limits.bytes < storage_identity_bytes || options.limits.entries < 2))
+		(options.limits.bytes < fresh_bootstrap.bytes || options.limits.entries < fresh_bootstrap.entries))
 		throw DiskPressure("fresh root bootstrap exceeds disk quota");
 	auto account = domain.storage_account();
 	auto &legacy_domain = resources::domain(options.recovery_limits);
@@ -1733,7 +1748,7 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 		distribution::StorageAllocator<detail::BootstrapCommitment>(account));
 	core->bootstrap->caller = std::move(admission);
 	if (options.mode == StoreOpenMode::FreshEmpty)
-		core->bootstrap->usage = {storage_identity_bytes, 2, 0};
+		core->bootstrap->usage = fresh_bootstrap;
 	auto store = std::allocate_shared<DiskStore>(distribution::StorageAllocator<DiskStore>(account),
 												 DiskStore::FactoryTag{}, core);
 	core->session = make_owned_storage_session(
@@ -1743,6 +1758,8 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 	if (!posix || ::fstat(posix->native_directory_handle(), &info) != 0)
 		throw std::system_error(errno, std::generic_category(), "managed store directory inspection");
 	core->owner = info.st_uid;
+	core->change = std::make_unique<detail::ChangeWriter>(posix->native_directory_handle(), store_slots.size(),
+	                                                      info.st_uid, options.artifact_mode);
 	core->directory_identity = core->session->directory_identity();
 	core->controls = make_collector_controls(core->session);
 	const auto &context = core->session->allocation_context();

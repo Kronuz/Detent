@@ -126,7 +126,7 @@ post() {
 authority_pid=$!
 port=$(bound_port "$root/authority.log" "$authority_pid")
 set_port "$port" managed.json managed-empty.json upstream.json upstream-empty.json
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"61000000000000000000000000000000\"}" > "$root/open.json" 2>/dev/null; then break; fi
     sleep 0.05
 done
@@ -143,7 +143,7 @@ if [[ -n "$relay" ]]; then
     if [[ "$isolated" == isolated ]]; then
         "$agent" --config "$root/agent-empty.json" --initialize-managed > "$root/agent-empty.log" 2>&1 &
         empty_agent_pid=$!
-        for ((attempt=0;attempt<200;attempt++)); do
+        deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
             if "$agent" --status --config "$root/agent-empty.json" 2>/dev/null | grep -q "durable revision=$first_revision "; then break; fi
             sleep 0.02
         done
@@ -160,7 +160,7 @@ fi
 agent_pid=$!
 wait_value() {
     local actual=
-    for ((attempt=0;attempt<200;attempt++)); do
+    deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
         if actual=$("$reader" get ns:feature --system --config "$root/agent.json" 2>"$root/reader-get.log"); then
             if [[ "$actual" == "$1" ]]; then return; fi
         fi
@@ -173,7 +173,7 @@ wait_value() {
     return 1
 }
 wait_ready() {
-    for ((attempt=0;attempt<200;attempt++)); do
+    deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
         if grep -q 'managed local store ready' "$1"; then return; fi
         sleep 0.02
     done
@@ -203,7 +203,7 @@ if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format
 cp "$root/generations/storage.meta" "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 progress_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/progress.json")
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$progress_revision "; then break; fi
     sleep 0.02
 done
@@ -211,7 +211,7 @@ done
 [[ $("$reader" get other:hidden --system --config "$root/agent.json" --default absent) == absent ]]
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":null,\"expected_revision\":$first_revision}]}" > "$root/deleted.json"
 deleted_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/deleted.json")
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if "$agent" --status --config "$root/agent.json" > "$root/deleted-status.txt" &&
         grep -Fq "durable revision=$deleted_revision knob_count=0" "$root/deleted-status.txt"; then break; fi
     sleep 0.02
@@ -219,7 +219,7 @@ done
 grep -Fq "durable revision=$deleted_revision knob_count=0" "$root/deleted-status.txt"
 wait_value 7
 if [[ "$isolated" == isolated ]]; then
-    for ((attempt=0;attempt<200;attempt++)); do
+    deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
         if "$agent" --status --config "$root/agent-empty.json" | grep -q "durable revision=$deleted_revision "; then break; fi
         sleep 0.02
     done
@@ -246,7 +246,7 @@ check_format "$root/generations" "$image_format"
 if [[ "$transition_to_flat" == true ]]; then
     post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":100},\"expected_revision\":$progress_revision}]}" > "$root/flat-forward.json"
     flat_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/flat-forward.json")
-    for ((attempt=0;attempt<200;attempt++)); do
+    deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
         if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "; then break; fi
         sleep 0.02
     done
@@ -296,13 +296,13 @@ cp "$root/managed.json" "$root/managed-good.json"
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["token"]="invalid-reader-token-000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/managed.json"
 "$agent" --config "$root/agent.json" > "$root/agent-unauthorized.log" 2>&1 &
 agent_pid=$!
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"; then break; fi
     sleep 0.02
 done
 grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
 [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
     sleep 0.02
 done
@@ -322,7 +322,7 @@ identity=${identity/65000000000000000000000000000000/660000000000000000000000000
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["generation_epoch"]="66000000000000000000000000000000"; open(p,"w").write(json.dumps(data))' "$root/agent.json"
 "$authority" --authority "$root/authority.json" --port "$port" --runtime-dir "$root/authority-run" > "$root/authority-reset.log" 2>&1 &
 authority_pid=$!
-for ((attempt=0;attempt<200;attempt++)); do
+deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if post /v2/open "{$identity,\"expected_generation\":0,\"nonce\":\"62000000000000000000000000000000\"}" > "$root/reset-open.json" 2>/dev/null; then break; fi
     sleep 0.05
 done

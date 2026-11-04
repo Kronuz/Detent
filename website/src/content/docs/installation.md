@@ -68,11 +68,11 @@ To develop Detent and one of its sibling libraries together, point CMake at a
 local checkout instead of the fetched copy:
 
 ```sh
-cmake -B build -DFETCHCONTENT_SOURCE_DIR_CLUSTER=$PWD/../cluster
+cmake -B build -DFETCHCONTENT_SOURCE_DIR_REACTOR=$PWD/../reactor
 ```
 
 The variable name is the dependency's `FetchContent` name in upper case, such as
-`CLUSTER`, `HTTP_LIB`, `REACTOR` or `SHA256`.
+`CONSENSUS`, `HTTP_LIB`, `REACTOR` or `SHA256`.
 :::
 
 ### Build Options

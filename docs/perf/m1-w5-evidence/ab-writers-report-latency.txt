@@ -1,0 +1,7 @@
+row                       old    new  old/new      range    A/A  n  verdict
+command_latency_mean_s  0.597  0.572    1.042  0.82-1.09  1.008  5    noise
+
+runs: old 5, new 5, A/A 5; a ratio above 1 means new is faster
+geomean 1.042 over 1 rows (min 1.042 command_latency_mean_s; max 1.042 command_latency_mean_s)
+per-run geomean: min 0.822, median 1.042, max 1.087 over 5 runs
+A/A geomean 1.008

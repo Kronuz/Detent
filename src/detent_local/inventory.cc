@@ -153,7 +153,7 @@ void InventoryOperation::observe(const c::EntryInspection &entry) {
 	const bool unsafe = entry.footprint.kind != c::EntryKind::Regular || entry.links != 1 ||
 						entry.owner != state_->trusted_owner || (entry.permissions & 0022);
 	const bool foreign =
-		!parsed && !segment && name != "owner.lock" && name != "storage.meta" && name != "selected";
+		!parsed && !segment && name != "owner.lock" && name != "change" && name != "storage.meta" && name != "selected";
 	if (unsafe || foreign) {
 		add(report.quarantined, 1);
 		if (report.sample_count < report.samples.size()) {

@@ -395,7 +395,7 @@ void publication_admission(d::RetirementRuntime &runtime, const std::shared_ptr<
 			} catch (const std::bad_alloc &) {
 			}
 			check(admitted == (available == capacity));
-			check(census(directory) == l::DiskUsage{64, 2, 0});
+			check(census(directory) == l::DiskUsage{80, 3, 0});
 			if (admitted)
 				store->cancel_publication();
 			check(store->stats().reserved == l::DiskUsage{});
@@ -414,7 +414,7 @@ void publication_admission(d::RetirementRuntime &runtime, const std::shared_ptr<
 		auto domain = runtime.domain(account, 1);
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 		drive(store);
-		check(store->status() == l::StoreStatus::Ready && store->stats().used == l::DiskUsage{64, 2, 0});
+		check(store->status() == l::StoreStatus::Ready && store->stats().used == l::DiskUsage{80, 3, 0});
 		const auto baseline = account->used();
 		bool rejected = false;
 		try {
@@ -422,7 +422,7 @@ void publication_admission(d::RetirementRuntime &runtime, const std::shared_ptr<
 		} catch (const l::DiskPressure &) {
 			rejected = true;
 		}
-		check(rejected && account->used() == baseline && census(directory) == l::DiskUsage{64, 2, 0});
+		check(rejected && account->used() == baseline && census(directory) == l::DiskUsage{80, 3, 0});
 		store->close();
 		store.reset();
 		domain.close().wait();
@@ -722,7 +722,7 @@ void detached_native_publication(d::RetirementRuntime &runtime,
 		check(queue->submit(job));
 		job.reset();
 	}
-	check(census(directory) == l::DiskUsage{64 + 128, 3, 1});
+	check(census(directory) == l::DiskUsage{64 + 16 + 128, 4, 1});
 	check(!std::filesystem::exists(directory /
 								   (l::generation_name(builder->descriptor().generation) + ".image")));
 	check(store->stats().used == census(directory) && store->stats().reserved == l::DiskUsage{});
@@ -996,7 +996,7 @@ void batch_reclamation(d::RetirementRuntime &runtime, const std::shared_ptr<d::S
 	const auto wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - wall_start).count();
 	const auto cpu = double(std::clock() - cpu_start) / CLOCKS_PER_SEC;
 	check(store->status() == l::StoreStatus::Ready && store->stats().used == census(directory));
-	check(store->stats().used.generations == 1 && store->stats().used.entries == foreign_count + 5);
+	check(store->stats().used.generations == 1 && store->stats().used.entries == foreign_count + 6);
 	check(scans == 1 && held_count == 0 && peak <= 8 && read_bytes == 8 * (128 + 192));
 	if (!foreign_count)
 		check(peak == 8 && barriers == 2);
@@ -1172,7 +1172,7 @@ int main(int argc, char **argv) {
 		}
 		l::DiskStoreOptions options;
 		options.mode = l::StoreOpenMode::FreshEmpty;
-		options.limits = {64, 2, 0};
+		options.limits = {80, 3, 0};
 		for (unsigned dimension = 0; dimension < 2; ++dimension) {
 			auto domain = runtime.domain(account, 1);
 			auto invalid = options;
@@ -1193,11 +1193,11 @@ int main(int argc, char **argv) {
 			auto domain = runtime.domain(account, 1);
 			auto store = l::make_disk_store(domain, root, std::make_shared<int>(1), options);
 			check(store->status() == l::StoreStatus::Starting);
-			check(!store->stats().initialized && store->stats().reserved == l::DiskUsage{64, 2, 0});
+			check(!store->stats().initialized && store->stats().reserved == l::DiskUsage{80, 3, 0});
 			auto pressure = account->admit(account->limit() - account->used());
 			drive(store);
 			check(store->status() == l::StoreStatus::Ready && !store->error());
-			check(store->stats().used == l::DiskUsage{64, 2, 0} && store->stats().reserved == l::DiskUsage{});
+			check(store->stats().used == l::DiskUsage{80, 3, 0} && store->stats().reserved == l::DiskUsage{});
 			check(store->selection().knowledge == l::SelectionKnowledge::Absent);
 			check(std::filesystem::file_size(root / "storage.meta") == 64);
 			store->close();
@@ -1214,7 +1214,7 @@ int main(int argc, char **argv) {
 			auto pressure = account->admit(account->limit() - account->used());
 			drive(store);
 			check(store->status() == l::StoreStatus::Ready);
-			check(store->stats().used == l::DiskUsage{64, 2, 0});
+			check(store->stats().used == l::DiskUsage{80, 3, 0});
 			store->close();
 			store.reset();
 			domain.close().wait();
@@ -1262,7 +1262,7 @@ int main(int argc, char **argv) {
 				store->advance();
 				drive(store);
 				check(store->status() == l::StoreStatus::Ready && store->stats().used == census(root));
-				check(store->stats().used.generations == 1 && store->stats().used.entries == 5);
+				check(store->stats().used.generations == 1 && store->stats().used.entries == 6);
 				const auto after = store->stats().used;
 				store->request_collection();
 				store->advance();

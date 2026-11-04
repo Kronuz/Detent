@@ -1,0 +1,7 @@
+row                 old        new  old/new      range    A/A  n  verdict
+read_wall_ns  129059299  129370732    1.001  0.98-1.01  1.002  5    noise
+
+runs: old 5, new 5, A/A 5; a ratio above 1 means new is faster
+geomean 1.001 over 1 rows (min 1.001 read_wall_ns; max 1.001 read_wall_ns)
+per-run geomean: min 0.982, median 1.001, max 1.013 over 5 runs
+A/A geomean 1.002
