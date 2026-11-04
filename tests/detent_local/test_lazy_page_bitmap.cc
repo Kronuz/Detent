@@ -288,6 +288,75 @@ void corrupt_first_touch() {
 	}
 }
 
+// Every page reachable from the root, read from the builder's bytes.
+std::vector<p::Reference> all_pages(const Fixture &fixture) {
+	std::vector<p::Reference> pages;
+	auto walk = [&](const p::Reference &reference, auto &self) -> void {
+		pages.push_back(reference);
+		for (const auto &segment : fixture.segments) {
+			if (segment.ownership.segment != reference.segment)
+				continue;
+			const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
+			const auto header = p::decode_page_header(bytes);
+			if (header.kind == p::PageKind::Branch)
+				for (unsigned i = 0; i != header.children; ++i)
+					self(p::decode_child(bytes.subspan(p::page_header_bytes + header.prefix + i * p::child_bytes,
+					                                   p::child_bytes))
+					         .reference,
+					     self);
+		}
+	};
+	walk(fixture.root.tree, walk);
+	return pages;
+}
+void flip(const Fixture &fixture, const p::Reference &reference, std::size_t at) {
+	const x::SegmentNames names(reference.segment);
+	const int fd = ::open((fixture.path / names.payload.data()).c_str(), O_RDWR | O_CLOEXEC);
+	check(fd >= 0);
+	char byte = 0;
+	check(::pread(fd, &byte, 1, reference.offset + at) == 1);
+	byte ^= 1;
+	check(::pwrite(fd, &byte, 1, reference.offset + at) == 1);
+	check(::close(fd) == 0);
+}
+// A damaged page whose segment neighbours are already verified is still refused on first touch,
+// damaged at its first byte, its logical digest, its last header byte and its last body byte.
+void neighbour_corruption() {
+	auto fixture = std::make_shared<Fixture>(5);
+	const auto pages = all_pages(*fixture);
+	unsigned cases = 0;
+	for (const auto &target : pages)
+		for (const std::size_t at : {std::size_t(0), std::size_t(40), std::size_t(79), std::size_t(target.length - 1)}) {
+			flip(*fixture, target, at);
+			{
+				Harness harness(fixture);
+				for (const auto &other : pages)
+					if (!(other == target))
+						harness.access->resolve(other);
+				std::atomic<unsigned> refusals{0};
+				parallel(threads, [&](unsigned) {
+					if (refused(*harness.access, target))
+						refusals.fetch_add(1);
+				});
+				check(refusals == threads && !harness.access->available());
+			}
+			flip(*fixture, target, at);
+			++cases;
+		}
+	check(cases == pages.size() * 4);
+	std::printf("neighbour corruption: %u cases refused\n", cases);
+}
+// A forged physical digest on a never-verified page is refused and fails the generation.
+void forged_unverified() {
+	auto fixture = std::make_shared<Fixture>(3);
+	Harness harness(fixture);
+	check(!harness.access->resolve(fixture->definitions[0]).empty());
+	auto forged = fixture->definitions[2];
+	forged.physical[0] ^= 1;
+	check(refused(*harness.access, forged));
+	check(!harness.access->available());
+}
+
 // A miss at the mapped-bytes cap throws and fails the generation, as before D3.
 void cap_miss() {
 	auto fixture = std::make_shared<Fixture>(3);
@@ -303,7 +372,7 @@ void cap_miss() {
 } // namespace
 
 int main(int argc, char **argv) {
-	// An argument runs one case: stress, publish, mark, raced, corrupt or cap.
+	// An argument runs one case: stress, publish, mark, raced, corrupt, cap, neighbour or forged.
 	const std::string_view only = argc > 1 ? argv[1] : "";
 	auto run = [&](std::string_view name, auto body) {
 		if (only.empty() || only == name)
@@ -318,5 +387,7 @@ int main(int argc, char **argv) {
 	});
 	run("corrupt", corrupt_first_touch);
 	run("cap", cap_miss);
+	run("neighbour", neighbour_corruption);
+	run("forged", forged_unverified);
 	std::puts("lazy page bitmap: ok");
 }

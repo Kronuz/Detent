@@ -101,9 +101,11 @@ struct LazyPageAccess::State {
 	}
 	// Refuses a new segment past the pack count or the mapped-bytes cap before mapping it. The
 	// counts include segments published since this thread's probe, so one of those is not new.
+	// Acquire pairs with the winner's release increments, so a counted segment's slot is visible
+	// to the re-probe below.
 	const Segment *admit(const StorageIdentity &identity, std::size_t probe, std::size_t length) const {
-		const auto refusal = excess(published.load(std::memory_order_relaxed) + 1,
-		                            mapped_bytes.load(std::memory_order_relaxed), length);
+		const auto refusal = excess(published.load(std::memory_order_acquire) + 1,
+		                            mapped_bytes.load(std::memory_order_acquire), length);
 		if (!refusal)
 			return nullptr;
 		if (auto raced = find(identity, probe))
@@ -174,8 +176,9 @@ struct LazyPageAccess::State {
 			if (slots[probe].compare_exchange_strong(found, mine, std::memory_order_release,
 			                                         std::memory_order_acquire)) {
 				const auto length = mine->bytes.size();
-				if (auto refusal = excess(published.fetch_add(1, std::memory_order_relaxed) + 1,
-				                          mapped_bytes.fetch_add(length, std::memory_order_relaxed), length))
+				// Release orders the slot store before the counts admit() reads.
+				if (auto refusal = excess(published.fetch_add(1, std::memory_order_release) + 1,
+				                          mapped_bytes.fetch_add(length, std::memory_order_release), length))
 					throw ReadSourceFailure(refusal);
 				return *mine;
 			}

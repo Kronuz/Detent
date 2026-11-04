@@ -8,7 +8,7 @@ Inputs folded in: the D3 re-check on main (`Detent:b55023b`, "Re-check" in `docs
 
 ## State
 
-Ready for code review. Code head `Detent:c5056c1`: CI green on every job (run 41752136575: linux-x86_64-gcc, linux-arm64-gcc, linux-x86_64-clang, linux-asan-ubsan, linux-tsan, macos-arm64, macos-x86_64, linux-benchmarks; headers and freebsd skipped by the workflow). Later commits are docs-only.
+Review fix round (CR1, CR2 of `docs/reviews/reader-s3.md` on `review/reader-s3`, `Detent:2eb248f`) done, rebased onto main `Detent:6e55794`; CI by dispatch on the head. Before the rebase, the code head (then `c5056c1`) was green on every job in run 41752136575. Rebased hashes: `19cda59` is `2ceeff9`, `043058c` is `a16569c`, `c5056c1` is `6d0d090`.
 
 ## Done
 
@@ -18,6 +18,8 @@ Ready for code review. Code head `Detent:c5056c1`: CI green on every job (run 41
 3. `Detent:c5056c1`: the bitmap test takes a case name, so each mutant is shown to die in its own case.
 
 4. Lead's ruling on the two owner calls (greenfield; Q5 drops the heap ledger): `ViewLimits::verification_cache_bytes` and the `lru_cache` entry in `cmake/dependencies.json` are removed, with the docs that named the verification cache.
+
+5. Review fix round. CR1: the admission counters are incremented with release after the winning CAS and loaded with acquire in `admit`, so a thread that sees a segment counted also sees its slot on the re-probe. No mutant shows the relaxed version failing here: TSan reports races on plain data and does not model stale atomic values, and x86-64 keeps loads and stores in order, so the window exists only on weak hardware (ARM) or in the C++ model. CR2: `neighbour` (each of the 13 pages of a 5-namespace fixture, damaged at bytes 0, 40, 79 and its last, with every other page verified first; 52 cases, all refused by 16 threads) and `forged` (a flipped physical digest on a never-verified definition is refused and fails the generation). Skipped verification kills each: 2 of 2 runs (ASan build). TSan and ASan+UBSan: the full bitmap test 10 of 10 clean in each, the lazy page test clean in each.
 
 ## Proof (macOS x86_64, Apple clang, local builds under `quiet light`)
 
@@ -63,4 +65,4 @@ No regression; the parent's per-generation mutex serializes eight threads. The f
 
 ## Blocked on
 
-Nothing. Waiting for the code review's findings.
+Nothing. Nothing.
