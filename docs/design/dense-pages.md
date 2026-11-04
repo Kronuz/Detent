@@ -22,7 +22,7 @@ Many trie nodes per verified page, one header and one digest per page, in place 
 
 ## Abstract
 
-Today every trie node is its own page: an 80-byte header, and a 96-byte reference per child that carries two 32-byte digests (`include/detent_local/paged_layout.hh:7-37`). At 5M records that is 7,000,007 pages, and headers and references are 83% of the 1.48 GB of page bytes. Dense pages hold a connected piece of the trie, up to 4 KiB: nodes in preorder linked by 2-byte in-page slots, and one 68-byte entry per edge that leaves the page. Each page has one SHA-256 digest over everything except where its children are stored. That digest is the only one a reference carries, and the root page's digest commits to the whole state. Pages are sealed bottom-up by a rule that reads only the subtree below each node, so a page's bytes, placement aside, depend only on the records under it: two full builds give the same pages (and, with namespace-delivery D8's derived ids, the same files), and a delta writes exactly the pages a full build of its result has and its base lacks. On the 5M store the model gives 162,367 pages and 63.1 bytes per record against 7,000,007 and 295.8, 5 pages per lookup at the median and 6 at p99 against 12, 0.62 GB of SHA-256 input at a full build against 3.77 GB, and packs of 31.7 MB at zstd-1 against 530 MB. The price is scattered deltas, which write 1.7 to 1.9 times today's bytes (D6).
+Today every trie node is its own page: an 80-byte header, and a 96-byte reference per child that carries two 32-byte digests (`include/detent_local/paged_layout.hh:7-37`). At 5M records that is 7,000,007 pages, and headers and references are 83% of the 1.48 GB of page bytes. Dense pages hold a connected piece of the trie, up to 4 KiB: nodes in preorder linked by 2-byte in-page slots, and one 68-byte entry per edge that leaves the page. Each page has one SHA-256 digest over everything except where its children are stored. That digest is the only one a reference carries, and the root page's digest commits to the whole state. Pages are sealed bottom-up by a rule that reads only the subtree below each node, so a page's bytes, placement aside, depend only on the records under it: two full builds give the same pages (and, with namespace-delivery D8's derived ids, the same files), and a delta writes exactly the pages a full build of its result has and its base lacks. On the 5M store the model gives 162,367 pages and 63.1 bytes per record against 7,000,007 and 295.8, 5 pages per lookup at the median and 6 at p99 against 12, 0.62 GB of SHA-256 input at a full build against 3.77 GB, and packs of 31.7 MB at zstd-1 against 530 MB. The prices are scattered deltas, which write 1.7 to 1.9 times today's bytes, and the first touch of a definition's page, which hashes 2,360 bytes at the median where today's hashes 270 (D6).
 
 ## What one node per page costs
 
@@ -120,15 +120,15 @@ The rule is the model's best of three on the 5M store ("Alternatives considered"
 
 At 5M under the height rule (`pack CORPUS 2048 4096 8192 16384 32768 65536 --rule=height`):
 
-| Capacity | Pages | Page bytes per record | Segments | Pages per lookup, median / p99 | Cold lookup hashes, median / p99 |
-| --- | --- | --- | --- | --- | --- |
-| Today | 7,000,007 | 295.8 | 1,441 | 12 / 12 | 11,095 / 11,609 B |
-| 2 KiB | 372,497 | 68.6 | 329 | 6 / 8 | 6,216 / 7,623 B |
-| 4 KiB | 162,367 | 63.1 | 302 | 5 / 6 | 13,151 / 13,958 B |
-| 8 KiB | 99,348 | 61.4 | 294 | 4 / 6 | 22,741 / 29,501 B |
-| 16 KiB | 48,655 | 60.1 | 288 | 5 / 6 | 54,768 / 75,616 B |
-| 32 KiB | 16,225 | 59.2 | 286 | 5 / 6 | 123,271 / 153,164 B |
-| 64 KiB | 12,625 | 60.5 | 294 | 5 / 6 | 230,674 / 300,566 B |
+| Capacity | Pages | Page bytes per record | Segments | Pages per lookup, median / p99 | Cold lookup hashes, median / p99 | Definition page first touch, median / p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Today | 7,000,007 | 295.8 | 1,441 | 12 / 12 | 11,095 / 11,609 B | 270 / 272 B |
+| 2 KiB | 372,497 | 68.6 | 329 | 6 / 8 | 6,216 / 7,623 B | 988 / 1,964 B |
+| 4 KiB | 162,367 | 63.1 | 302 | 5 / 6 | 13,151 / 13,958 B | 2,360 / 3,641 B |
+| 8 KiB | 99,348 | 61.4 | 294 | 4 / 6 | 22,741 / 29,501 B | 7,145 / 7,747 B |
+| 16 KiB | 48,655 | 60.1 | 288 | 5 / 6 | 54,768 / 75,616 B | 9,563 / 16,265 B |
+| 32 KiB | 16,225 | 59.2 | 286 | 5 / 6 | 123,271 / 153,164 B | 23,185 / 29,366 B |
+| 64 KiB | 12,625 | 60.5 | 294 | 5 / 6 | 230,674 / 300,566 B | 23,573 / 60,160 B |
 
 Bytes written per delta, the mean over seeded trials of same-size updates to definitions and their namespaces' watermarks (`delta CORPUS 2048 4096 8192 16384 65536 --rule=height`; 2,000 trials of one key, 200 and 50 of 100, 10 of 10,000):
 
@@ -145,7 +145,7 @@ Bytes written per delta, the mean over seeded trials of same-size updates to def
 
 1. **Above it,** the bytes fall at most 6.2% more (32 KiB), and the pages per lookup stay 5 and 6 at the median and p99; 8 KiB saves one page at the median, not at p99. Each doubling roughly doubles what a cold lookup hashes and what a changed key writes: at 8 KiB 1.7 and 1.9 times 4 KiB's, at 64 KiB 17.5 and 16 times, and 64 KiB's p99 cold lookup, about 1.24 ms of SHA-256 (estimate), misses reader T2's 1 ms on its own.
 2. **Below it,** 2 KiB writes what today writes per scattered delta, but costs 8.8% more bytes, 2.3 times the pages and digests, and 8 pages at p99.
-3. **At 4 KiB** a cold lookup hashes 13,151 bytes at the median against today's 11,095, about 56 µs against 53 (estimates), in 5 digests where today computes 24.
+3. **At 4 KiB** a cold lookup hashes 13,151 bytes at the median against today's 11,095, about 56 µs against 53 (estimates), in 5 digests where today computes 24. Once the pages above it are verified, a lookup's first touch is its definition's page: 2,360 bytes hashed at the median and 3,641 at p99, about 10 and 15 µs, against today's leaf page, 270 bytes in two digests at 1.7 µs (estimates). That page verifies 31 records on average, so verifying the whole store hashes 306,989,416 bytes against today's 2,265,001,764.
 
 The price is write amplification on scattered changes. A uniform delta writes 1.7 to 1.9 times today's bytes (14,811 against 7,936 for one key, 42.8 MB against 25.5 MB for 10,000), because a changed key rewrites up to 4 KiB per page on its path where today it rewrites 12 small pages. Clustered changes share pages and write 0.2 to 0.6 times today's. The generation is 4.7 times smaller, so the 10,000-key delta rewrites 13.6% of 315 MB where today it rewrites 1.7% of 1.48 GB.
 
@@ -190,6 +190,8 @@ Counts and bytes are the model's, exact for the r12 corpus; every time is an est
 | SHA-256 input at a full build | 3,774,996,569 B in 14,001,455 digests, about 19.7 s (estimate) | 622,748,454 B in 162,669 digests, about 2.6 s (estimate) |
 | Pages per lookup, median / p99 | 12 / 12 | 5 / 6 |
 | Cold lookup hashes, median / p99 | 11,095 / 11,609 B, about 53 / 55 µs (estimate) | 13,151 / 13,958 B, about 56 / 59 µs (estimate) |
+| First touch of a definition's page, median / p99 | 270 / 272 B, about 1.7 µs (estimate) | 2,360 / 3,641 B, about 10 / 15 µs (estimate) |
+| Bytes hashed to verify every page | 2,265,001,764 | 306,989,416 |
 | Bytes written per delta of 1 / 100 / 10,000 keys, uniform | 7,936 / 468,916 / 25,504,788 | 14,811 / 900,581 / 42,812,457 |
 | Bytes written per delta of 100 / 10,000 keys, clustered | 37,851 / 2,916,424 | 21,904 / 595,962 |
 | Agent CPU for a cold build | 125 s (r12 binaries, measured) | at most about 108 s (estimate: 17 s less SHA-256; encoding and writing 1.19 GB fewer bytes not estimated) |
@@ -240,7 +242,7 @@ DTPAGE03 and DTROOT03 (D2, D3). The generation id's layout version (namespace-de
 ## Limits
 
 1. A changed key rewrites every page on its path, whole (D7; D6's table gives the bytes).
-2. A first touch hashes and checks a whole page to read one leaf: up to 4 KiB, or 65,524 bytes for a page sealed alone around a body at today's bound.
+2. A first touch hashes and checks a whole page to read one leaf: at 4 KiB a definition's page hashes 2,360 bytes at the median, against today's 270 (D6). A definition at the semantic limit of 33,816 bytes (`docs/HOW_IT_WORKS.md:89`) is a page alone of at most 34,086 bytes; the format's bound is 65,524.
 3. Pages are canonical after deltas, files are not (D5).
 4. A hit reads its page's header for D4's compare.
 5. A branch whose children are many and small makes a page above C, at most 18,445 bytes (a 202-byte prefix and 256 children of at most 68 bytes each, with the header); none occurs in this corpus.
