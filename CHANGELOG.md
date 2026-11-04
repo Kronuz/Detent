@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Legacy removal (wave 2)
+
+- Removed the `detent_publish` example.
+
 ### Legacy removal (wave 1)
 
 - Removed `tests/e2e`, the classic distributor process harness.
