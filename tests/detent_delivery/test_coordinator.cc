@@ -583,7 +583,7 @@ int main(int argc, char **argv) {
 			disk_options.recovery_limits.mapping_account = mapping;
 			disk_options.recovery_limits.retirement_domain = &domain;
 		}
-		disk_options.limits = {pressure ? 1056ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
+		disk_options.limits = {pressure ? 1072ull : 512ull * 1024 * 1024, paged ? 4096u : 100u, 10};
 		std::optional<l::ReadView> pinned_flat;
 		if (migration) {
 			const auto reply = response(count);
