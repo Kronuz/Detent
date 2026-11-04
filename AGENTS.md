@@ -1,5 +1,9 @@
 # AGENTS.md: working in Detent
 
+## Current lead handoff
+
+The campaign's state, landing order and open owner questions are in [docs/handoffs/detent-codex-2026-11.md](docs/handoffs/detent-codex-2026-11.md). Long CPU runs that need no agent go in the shared run queue it describes (`.scratch/overnight/queue/`).
+
 ## Shared library decisions
 
 strata and Xapiand share Kronuz libraries with Detent (`consensus`, `journal`, `completion`,
