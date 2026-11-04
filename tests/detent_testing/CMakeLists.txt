@@ -1,0 +1,6 @@
+if(TARGET detent::testing_store)
+  add_executable(test_testing_generation_writer test_generation_writer.cc)
+  target_include_directories(test_testing_generation_writer PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(test_testing_generation_writer PRIVATE detent::testing_store detent::local_publication)
+  add_test(NAME test_testing_generation_writer COMMAND test_testing_generation_writer)
+endif()

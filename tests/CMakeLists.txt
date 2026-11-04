@@ -29,6 +29,7 @@ if(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
   add_subdirectory(detent_delivery)
 endif()
 add_subdirectory(detent_local)
+add_subdirectory(detent_testing)
 add_subdirectory(detent_http)
 
 add_subdirectory(detent_system)
