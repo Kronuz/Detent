@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstring>
+#include <exception>
 #include <iterator>
 #include <limits>
 #include <mutex>
