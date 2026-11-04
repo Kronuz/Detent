@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-04) Designing, ready for preliminary review. Refines [reader.md](reader.md) D7, S8 and S9 for legacy wave 2 step H; changes Step H option B in `docs/status/legacy-wave2.md` (branch `legacy/wave2-f`).
+> Status: CURRENT (2026-11-04) APPROVED by the owner on 2026-11-04, who ruled Q1 (a) and Q2 (a) (see "Owner rulings"). Refines [reader.md](reader.md) D7, S8 and S9 for legacy wave 2 step H; changes Step H option B in `docs/status/legacy-wave2.md` (branch `legacy/wave2-f`).
 
 # Client local source in the bindings
 
@@ -7,6 +7,13 @@ Python and Rust read managed generations through the reader core, the same `dete
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-04. Ledger: `docs/status/client-local-source.md`.
 - Base: `Detent:3e8bdbc` (main). Reader core citations are at `reader/s6`, `Detent:70f648f`; Step H at `legacy/wave2-f`, `Detent:d18d6f5`.
 - Depends on: reader.md R1 (defaults per call), R2 (no overrides), R4 (explicit handles), D1 (the C ABI), D9 (the test writer), and the lead's (a) calls on its Q2 and Q6. Needs reader S6 on main.
+
+## Owner rulings
+
+Ruled 2026-11-04, verbatim: "Delete Detent::Client and health() if they're legacy."
+
+- **Q1 (a).** Step H deletes `detent::Client`; `Reader` is the one read API in C++, Python and Rust.
+- **Q2 (a).** `health()` is dropped; `revision(namespace)` and `lookup`'s status are the diagnostics.
 
 ## Abstract
 
@@ -70,16 +77,29 @@ Python opens in `tp_new`, with no `__init__` and no subclassing, so the handle n
 | `get(name, switch_val=)` | `get(name, fallback)` | The spec ignores switch for integers (reader.md D1 item 3) |
 | `except DetentError` around `eval`/`get`; Rust `?` | `lookup(name).status`; Rust `lookup(..)?` | reader Q2 (a) |
 | `except DetentError` around construction | `except ReaderError as e: e.status` | D2 |
-| `health()` | `revision(namespace)`; the rest is Q2 below | No core equivalent |
-| C++ `InitOptions{.read_source = make_local_read_source(opts)}`, `make_managed_read_source(dir, uid)` | `detent::Reader(dir, uid, namespaces)` | Q1 |
+| `health()` | `revision(namespace)` and `lookup(name).status` | Q2 (a), owner |
+| C++ `InitOptions{.read_source = make_local_read_source(opts)}`, `make_managed_read_source(dir, uid)` | `detent::Reader(dir, uid, namespaces)` | Q1 (a), owner |
 | C++ `auto_refresh = false` with `LocalReadSource::refresh()` | `Reader::refresh()`; there is never a thread | reader.md D5 |
 
 ### D6. What the C++ side must provide
 
 1. **`libdetent_reader` as a shared library exporting only `detent_*`**, every C++ symbol hidden (a version script on Linux, an exported-symbols list on macOS), its C++ dependencies linked in. Today it is `add_library(detent_reader core.cc)` with `detent::local_view` PRIVATE (`src/detent_reader/CMakeLists.txt:3-6`), static by default; cargo cannot follow CMake's link interface, which is why `build.rs` hand-lists eight include directories and three archives (`bindings/rust/build.rs:26-48`). With the shared library `build.rs` is a link search, `dylib=detent_reader` and an rpath, and cargo compiles no C++. The Python extension links the same file.
 2. **`libdetent_testing` as a shared, test-only library** under `DETENT_BUILD_TESTS`, exporting only `detent_testing_*`. It is never installed. Today it is a default-static library (`src/detent_testing/CMakeLists.txt:4`).
-3. **Nothing new in the ABI** for the surface above. A health call is Q2.
-4. **Step H deletes** `Client`, `InitOptions` and the source plumbing behind it (`ReadSource`, `ReadSourceFactory`, `ClientReadView`, `EvaluationView`), `LocalReadSource`, `ClientSourceOptions`, both factories, `OverrideTable`, `detent::global`, `TestKnobs` and `Client(Snapshot)`, provided Q1 is (a).
+3. **Nothing new in the ABI** for the surface above; Q2 (a) adds no health call.
+4. **Step H deletes** (Q1 (a)), with the callers each deletion leaves (grep of `src`, `include`, `tests`, `examples`, `benchmarks`, `tools`, `bindings` at `Detent:3e8bdbc`):
+
+| Deleted | Files | Callers H ports to `Reader` or deletes |
+| --- | --- | --- |
+| `Client`, `InitOptions` (`source_path`, `SourcePayload`, `source_poll`, `source_id`, `on_update`, `read_source`), `HealthSnapshot`, `Metrics`, `Client(Snapshot)` | `include/detent/client.hh`, `src/detent/client.cc` | `examples/demo.cc`, `tests/cmake_consumer/main.cc`, `tools/w5/w5_detent.cc`, `benchmarks/container-alternative/model_lookup.cc`, `benchmarks/detent_read_bench.cc`, `src/detent_agent/main.cc` (`detent get`, reader S7), `src/detent_agent/agent.hh` (legacy G), the test table below |
+| `ReadSource`, `ReadSourceFactory`, `ReadSourceStatus`, `ClientReadView`, `EvaluationView` | `include/detent/read_view.hh`, `src/detent/read_view.cc` | Only `client.hh` and `client_source.hh` |
+| `LocalReadSource`, `ClientSourceOptions`, `make_local_read_source`, `make_managed_read_source` | `include/detent_local/client_source.hh`, `src/detent_local/client_source.cc` | `main.cc`, `test_client_source`, `test_lazy_page_access`, three system probes |
+| `detent::global`, `TestKnobs`, `TestGuard`, the test slot | `include/detent/global.hh`, `src/detent/global.cc`, `include/detent/testing.hh`, `src/detent/testing.cc`, `include/detent/detail/test_hook.hh`, `src/detent/test_hook.cc` | `tests/detent/test_testing_guard.cc` |
+| `SnapshotRef` | `include/detent/snapshot_ref.hh` | `tests/detent/test_concurrency_stress.cc` |
+| Override precedence and the baked-defaults evaluator (reader.md D6) | `include/detent/detail/evaluation.hh` | `tests/detent_local/test_evaluation.cc` keeps its `evaluate` cases and drops the `detail::evaluate` comparison |
+| `OverrideTable` as a read layer (R2) | `include/detent/overrides.hh`, `src/detent/overrides.cc` | Also used by `test_duplicate_precedence`, `test_model_alloc_failure`, `benchmarks/btree-repair/actual_type_sweep.cc`, `w5_detent.cc`: H checks each, and deletes the file only if none needs it outside the Client |
+| The pybind11 module and the cxx shim | `bindings/python/detent_python.cc` (rewritten in B3), `bindings/rust/src/shim.hh`, `bindings/rust/src/shim.cc` | B3, B4 |
+
+`json_patch.hh` stays: the authority benches and tests use it.
 
 ## Test plan
 
@@ -97,31 +117,31 @@ Binding tests, both rewritten:
 | T5 Mutants | Each fails a test: a binding that ignores the fallback on error; one that drops `hash`; one that maps `UNTRUSTED` to `OK` | Applied one at a time in the developer's ledger |
 | T6 CI | A new `bindings` job (Linux x86_64, macOS arm64) builds with `DETENT_BUILD_PYTHON=ON DETENT_BUILD_RUST=ON` and runs T1-T4. No workflow builds the bindings today: `ci.yml` has no Python binding, `cargo` or `pybind` step, and both options default `OFF` (`CMakeLists.txt:47-48`) | Run on the branch first, with `--repeat until-fail:5` |
 
-C++ Client tests under H, if Q1 is (a):
+C++ Client tests under H (Q1 (a)):
 
 | Tests | Fate |
 | --- | --- |
-| `test_file_source`, `test_client_publication_failure`, `test_overrides`, `test_read_view`, `test_client_source` | Deleted with the code they test. Evaluation stays covered by `test_local_evaluation` and `test_reader_core`, switching by `test_reader_switch` |
+| `test_file_source`, `test_client_publication_failure`, `test_overrides`, `test_read_view`, `test_client_source`, `test_testing_guard`, `test_concurrency_stress`; `test_eval_semantics` once its cases are rows of `scenarios.json` | Deleted with the code they test. Evaluation stays covered by `test_local_evaluation` and `test_reader_core`, switching by `test_reader_switch` |
 | `test_model_and_schema` | Kept; its one `source_poll` mention is a comment (`:152`) |
 | `test_lazy_page_access` (`:60-66`), `local_oracle`, `mixed_oracle`, `prepared_client_probe` | Ported from `Client` plus `LocalReadSource` to `detent::Reader` |
 | `detent_read_bench` | Replaced by `reader_bench` (reader S6) |
 
 ## Limits
 
-1. **Silent:** a misspelled knob returns the fallback in every language unless the caller reads `lookup`'s status (reader.md Limit 4, made universal here by Q2 (a)).
+1. **Silent:** a misspelled knob returns the fallback in every language unless the caller reads `lookup`'s status (reader.md Limit 4, made universal here by reader Q2 (a)).
 2. Python lookups are serialized by the GIL on GIL builds. Only free-threaded builds get the core's parallel lookups.
 3. Rust and Python processes load the C++ runtime through `libdetent_reader` (reader.md Limit 8). Wheels and crates.io packaging are out of scope.
 4. Until namespace delivery's table lands, the store has one table entry, slot 0 in `change` (`docs/status/reader-s5-s6.md`, "Design vs code"), so T1 cannot see per-namespace revisions differ.
 
-## Open questions for the owner
+## Owner questions (ruled)
 
-**Q1. Does step H delete `detent::Client`?** (a) Yes: `detent::Reader` is the one read API in C++, Python and Rust, and `make_local_read_source` goes with the Client (reader.md First steps). (b) Keep `Client` as a C++ wrapper over a `Reader`, a second name for the same thing. (c) Keep `Client` with `read_source` and bind it, which keeps pybind11 and cxx, the defaults and override layers R1 and R2 remove, and the refresh thread, and rewrites both bindings again at S8 and S9. *Recommendation: (a).* Removing the C++ `Client` narrows a documented public API (`website/.../reference/cpp-api/client.md`), so it is the owner's call. The bindings take D1's shape under all three options.
+**Q1. Does step H delete `detent::Client`?** (a) Yes: `detent::Reader` is the one read API in C++, Python and Rust, and `make_local_read_source` goes with the Client (reader.md First steps). (b) Keep `Client` as a C++ wrapper over a `Reader`, a second name for the same thing. (c) Keep `Client` with `read_source` and bind it, which keeps pybind11 and cxx, the defaults and override layers R1 and R2 remove, and the refresh thread, and rewrites both bindings again at S8 and S9. *Recommendation: (a).* Removing the C++ `Client` narrows a documented public API (`website/.../reference/cpp-api/client.md`), so it is the owner's call. The bindings take D1's shape under all three options. **Ruled (a)**, 2026-11-04: "Delete Detent::Client and health() if they're legacy."
 
-**Q2. What replaces `health()`?** Today it returns initialized, connected, accepted version, staleness and knob counts (`detent_python.cc:92-106`, spec section 12). (a) Drop it: `revision(namespace)` and `lookup`'s status are the diagnostics. (b) Add `detent_health(handle, namespace, detent_health *)` to the C ABI, with the last refresh status, the revision and the attached generation's age. A new function needs no ABI version bump. *Recommendation: (a)* for S8 and S9, with (b) as a reader-core addition if operators need staleness. Dropping it removes user-visible behavior, so the call is the owner's.
+**Q2. What replaces `health()`?** Today it returns initialized, connected, accepted version, staleness and knob counts (`detent_python.cc:92-106`, spec section 12). (a) Drop it: `revision(namespace)` and `lookup`'s status are the diagnostics. (b) Add `detent_health(handle, namespace, detent_health *)` to the C ABI, with the last refresh status, the revision and the attached generation's age. A new function needs no ABI version bump. *Recommendation: (a)* for S8 and S9, with (b) as a reader-core addition if operators need staleness. Dropping it removes user-visible behavior, so the call is the owner's. **Ruled (a)**, 2026-11-04: "Delete Detent::Client and health() if they're legacy."
 
 ## First steps
 
-None of these waits on Q1 or Q2. All of them wait on reader S6 reaching main.
+Q1 and Q2 are ruled. All steps wait on reader S6 reaching main.
 
 | Step | Change |
 | --- | --- |
@@ -130,10 +150,9 @@ None of these waits on Q1 or Q2. All of them wait on reader S6 reaching main.
 | B3 | reader S8: the Python C extension (`METH_FASTCALL`, D1-D3), with pybind11 dropped (`bindings/python/CMakeLists.txt:7-11`), and T1-T5 in Python |
 | B4 | reader S9: the Rust crate with hand-written `extern "C"`, with `cxx` and `cxx-build` dropped (`bindings/rust/Cargo.toml:12,15`), and T1-T5 in Rust |
 | B5 | T6's CI job |
-| B6 | H, once Q1 is answered: D6 item 4 and the C++ test table above |
+| B6 | H: D6 item 4 and the C++ test table above |
 
 ## Review asks
 
 1. D3: no `close()` in Python, against the idiom, to remove the race.
 2. D6 item 1: a C-only shared library, or one combined static archive.
-3. Q1: reader.md deletes `Client` in H; Step H option B keeps it. Which governs.
