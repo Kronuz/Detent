@@ -5,9 +5,23 @@
 #include <sha256.h>
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
+#include <atomic>
+#include <cstdio>
+#include <cstdlib>
 
 namespace detent::distribution {
 namespace {
+// Exploration probe (explore/cold-bootstrap): fragment bytes in and decoded, printed at exit.
+struct WireProbe {
+	std::atomic<std::uint64_t> fragments{0}, encoded{0}, decoded{0}, compressed{0};
+	bool on = std::getenv("DETENT_PROBE_WIRE") != nullptr;
+	~WireProbe() {
+		if (on)
+			std::fprintf(stderr, "wire-probe fragments=%llu encoded=%llu decoded=%llu compressed_fragments=%llu\n",
+						 (unsigned long long)fragments.load(), (unsigned long long)encoded.load(),
+						 (unsigned long long)decoded.load(), (unsigned long long)compressed.load());
+	}
+} wire_probe;
 constexpr std::string_view magic = "DTDIST01";
 void require(bool value, const char *message) {
 	if (!value)
@@ -158,6 +172,10 @@ struct FragmentDecoder::Impl {
 			payload->seal();
 			current.body = std::move(payload);
 		}
+		wire_probe.fragments += 1;
+		wire_probe.encoded += encoded_size + frame_header_bytes;
+		wire_probe.decoded += decoded_size;
+		wire_probe.compressed += compressed ? 1 : 0;
 		next_offset += decoded_size;
 		final = current.final;
 		output = std::move(current);

@@ -78,3 +78,58 @@ Crossover: 500 MB / 277 s = 1.8 MB/s, about 15 Mbit/s. Above that link speed, sh
 2. Counters for the finer phases: `DETENT_READ_COUNTERS` covers bytes hashed and pages verified, but nothing times decode, sort or encode.
 3. The wire bytes of the 5M record copy measured, not scaled.
 4. The prototype: D11's single barrier per publication behind a switch, A/B against main at 100K and 5M.
+
+## Round 2: sampled 5M on main, wire bytes, single-barrier prototype
+
+Detent:5475baf plus two prototype probes, release build, `quiet exclusive` for 5M (runs A1, B1, A2 in that order, all sampled with `sample` at 5 ms on both relay and agent) and `quiet strict` for 100K (A1 B1 A2 B2 A3 B3 interleaved). A is main's sync; B is the prototype on the agent only (`DETENT_STAGED_SYNC=detent-agent`). Probes print at exit with `DETENT_PROBE_SYNC` / `DETENT_PROBE_WIRE`.
+
+### Prototype
+
+`docs/perf/cold-bootstrap-5m-completion.patch` (applied to the fetched completion sources; not a branch of completion). Each pack and owner file is an image preparation (`completion/image.h`: create, write, `Sync`, `DirectorySync`, close), and on macOS `Sync` is `F_FULLFSYNC` (`posix.h:168-171`) and `DirectorySync` is `fsync` of the directory plus `F_FULLFSYNC` (`posix.h:625-633`): two device flushes per file. With the switch on, a file sync stages (`fsync`, no device flush) and the preparation skips its directory barrier; the publication's own `DirectorySync` (`image.h:392`) is then the one device flush that makes every staged file and entry durable, which is the shape `files_sync_devices` already uses (`posix.h:189-236`).
+
+### Results
+
+| | 100K A (3 runs) | 100K B (3 runs) | 5M A1 / A2 | 5M B1 |
+| --- | --- | --- | --- | --- |
+| Cohort start to agent selected | 14.10 / 13.87 / 14.10 s | 11.47 / 11.42 / 11.42 s | 699.1 / 701.5 s | 574.0 s |
+| Agent starts working (CPU > 3 s) | n/a | n/a | 473.9 / 471.9 s | 470.9 s |
+| Agent phase (selected minus start) | ~4.9 s | ~2.3 s | 225.2 / 229.6 s | 103.1 s |
+| Agent `F_FULLFSYNC` per publication | 130 | 1 | 5,778 | 1 |
+| Relay `F_FULLFSYNC` (unchanged) | 130 | 130 | 5,778 | 5,778 |
+| Relay CPU / agent CPU | 2.7 / 1.5 s | 2.6 / 1.35 s | 139.4 / 73.1 s | 135.5 / 68.5 s |
+
+- A/A spread: 100K 0.23 s (1.7%); 5M 2.4 s (0.35%). B spread at 100K 0.05 s.
+- B/A, total: 100K 11.44 / 14.02 = 0.816 (-2.6 s, -18%); 5M 574.0 / 700.3 = 0.820 (-126 s, -18%). Agent phase at 5M: 103 / 227 = 0.45 (-55%).
+- 5,778 = 2 flushes x 2,889 images (1,441 packs, 1,441 owners, the rest generation files).
+- Identity: every run, A and B, at each scale has the same root logical digest (100K `f4993127...ac569`, 5M `5b4b5934...7e2f2`), the same record, page and byte counts (5M: 5,000,000 records, 7,000,007 pages, 1,479,001,197 bytes, revision 39,064), and the same multisets of page logical digests and of page prefix+body hashes (`.scratch/identity.py`). Pack bytes are not compared because segment ids are random per run.
+- The relay has the same 5,778 flushes; applying the switch there should save about the same again (estimate, about 126 s from the relay profile below; not run).
+
+### Profile, 5M A1 (samples at about 5.9 ms each over about 700 s)
+
+| Thread | Agent | Relay |
+| --- | --- | --- |
+| I/O thread in `fcntl` (file `F_FULLFSYNC` + directory flush) | 11,289 + 9,186 = 20,475 (about 120 s) | 11,303 + 9,990 = 21,293 (about 126 s) |
+| Builder thread, non-idle | 9,096 (about 53 s) | 16,004 (about 94 s) |
+| of which portable SHA-256 (`kronuz::sha256::detail::compress_portable`) | 5,861 (about 34 s, 64%) | 10,707 (about 63 s, 67%) |
+| of which re-validating its own build (PageValidator, GraphValidator, DependencyDiscovery) | 2,943 (about 17 s) | 7,722 (about 45 s) |
+
+So the idle windows are syncs, by profile: the agent's 120 s of `fcntl` is what B removed (126 s). The builder is single-threaded on both tiers and two thirds of it is SHA-256 in the portable path; this host (i9-9980HK) has no SHA extensions, so the share is host-specific.
+
+### Wire bytes of the record full copy
+
+| | 100K | 5M |
+| --- | --- | --- |
+| Fragments | 75 | 3,988 |
+| As sent (zstd-3 fragments plus 96-byte headers) | 542,302 B (5.4 B/record) | 25,646,713 B (5.1 B/record) |
+| Raw (decoded) | 4,894,345 B (48.9 B/record) | 261,337,255 B (52.3 B/record) |
+| `nettop`, agent bytes in | 565,767 B | 26,628,188 B (B1) |
+
+Every fragment is compressed; the relay receives exactly the same bytes from the authority. Raw is 52 B per record, as the design's model assumes; this corpus compresses about 10x because its records are mostly defaults with regular names. The earlier 28 MB estimate holds (25.6 MB measured), so the shipping-files crossover above stands: about 500 MB more per cold agent.
+
+### Revised top costs at 5M on main (700 s)
+
+1. Device flushes: 5,778 `F_FULLFSYNC` per publication per tier, about 120 s on the agent and 126 s on the relay. The prototype removes the agent's (-126 s, -18% of total); the relay's is the same change.
+2. Single-threaded build with portable SHA-256: 34 s of the agent's 53 s and 63 s of the relay's 94 s builder time is hashing, 17 s and 45 s of it re-validating the tier's own build (D10).
+3. Serial tiers: the agent starts at about 472 s, when the relay publishes.
+
+Worth finishing: yes. The single barrier is a completion-level change (a staged-sync image preparation and a group flush at publication), byte-identical in content, and it needs a crash-consistency test before it lands (a power-cut between staging and the publication flush must leave the previous selection intact).
