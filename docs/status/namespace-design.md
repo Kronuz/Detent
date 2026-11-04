@@ -76,3 +76,9 @@
 - 2026-11-03: Second revision on `design/namespace-rev2` from `Detent:35e4b82`: folded the re-check's N1-N6 and H1 points; edited reader.md A4 (the lead's call on the incarnation case); the review file untouched.
 - 2026-11-03: Third revision on `design/namespace-rev3` from `Detent:e9ae326`: folded re-check 2's N7-N11; the review file untouched.
 - 2026-11-03: Blocks revision on `design/compacted-blocks` from `Detent:9b24fb3`: owner ruling (P1, compacted blocks, ring as hot path, cut by cost and time parity) folded into D6, D7, Strata fit, T3, T4, T9, Q2, Limits, Alternatives, S5-S8; model script added; the review file untouched; nothing built, run or measured beyond the arithmetic model.
+
+## Lead calls, 2026-11-04 (owner: "move fast"; the owner may reverse each)
+
+1. B1: an answer below the ring is one block derived for [R + 1, s] and cached per (namespace, incarnation, R, s), not the persisted blocks served whole: each changed key once, one request; images share R.
+2. B2: the disk rule stays beside the cost cut (blocks above the base at most α · base), accepting that a store cut by it pays up to 1/α of its answer.
+3. B3: seals trigger on size only; age squashing follows positions. Revisit if T9 shows quiet namespaces holding an unsealed ring too long.
