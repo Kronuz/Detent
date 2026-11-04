@@ -18,6 +18,7 @@
 - Runs: the `sh` fences of `QUICKSTART.md` (after the build fence) extracted and run with `sh -v`, then with `zsh -v`; the website pages' fences in reading order (quickstart, the hero, settings-and-flags, rollouts, group-overrides, next) run with `sh -v`. Every read printed the value the page states. The only failures were the expected ones: the first `/v2/open` returned `503 outcome_unknown` twice before `applied` (the `until` loop retries it), and reads of deleted knobs printed `ERR MissingKnob: ... (scoped lookup failed)`. Both daemons stopped on `kill`; `pgrep` found no `detentd` or `detent-agent` afterwards; `build/quickstart` removed by the guide's last line.
 - Rollout buckets behind the examples, from SHA-256 over `payments:new_processor\0<id>`: `user-1` 10, `user-2` 93, `user-42` 2.
 - Local site build (`npm ci`, `npm run build` under `quiet light`): 63 pages; the home and quick-start pages checked in headless Chrome screenshots of `astro preview`.
+- CI: `pages.yml` dispatched on `Detent:f1fcb56`, run 41905491096: `build` green; `deploy` refused, as expected, by the `github-pages` environment's branch policy ("Branch "docs/quickstart-managed" is not allowed to deploy to github-pages"). `ci.yml` ignores `docs/**`, `website/**` and `**/*.md` (`.github/workflows/ci.yml:5`), so it does not run for this branch.
 
 ## Next
 
