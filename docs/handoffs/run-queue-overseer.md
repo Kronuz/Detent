@@ -2,7 +2,7 @@
 
 # Overseeing the run queue
 
-Two `nohup` scripts on this host run long CPU jobs that need no agent: the fixed Detent run and a shared queue that runs after it. Your job is to keep them moving, report each result to the lead (the Detent lead, per [detent-codex-2026-11.md](detent-codex-2026-11.md)), and stop them cleanly when they are empty. You change no code and land nothing.
+Two `nohup` scripts on this host run long CPU jobs that need no agent: the fixed Detent run and a shared queue that runs beside it (both take quiet holds, so they never oversubscribe the host). Your job is to keep them moving, report each result to the lead (the Detent lead, per [detent-codex-2026-11.md](detent-codex-2026-11.md)), and stop them cleanly when they are empty. You change no code and land nothing.
 
 ## Where things are
 
@@ -19,7 +19,7 @@ Everything is under `~/code/Kronuz/Detent/.scratch/overnight/`:
 2. `quiet list` and `quiet check`: a step that has not advanced is usually waiting for a hold; `quiet list` shows who holds it and until when. Report free disk (`df -h ~`) each time, and say so plainly when it is below 20 GiB.
 3. For each new nonzero `rc` in `SUMMARY`, read the last 40 lines of its log and report the failure in one or two lines: step, exit code, the error line, and whether it looks like the code under test or the harness.
 4. When `run.sh` writes `done`, report its results to the lead:
-   - The S6 soak: failures out of the 12 single runs and the 32 runs four at a time.
+   - The S6 soak: `run.sh`'s runs 1 to 4 used the pre-fix binary (2 of 4 failed with `link count (links 0, size 176)`, the T3 race); the binary was rebuilt at 15:18 with `Detent:47470ea`, so later runs and the queued `detent-s6-soak-fixed` job test the fix. Report failures in each separately.
    - The S1/S2 tests and sanitizers: which ones failed.
    - The cold-bootstrap pairs: time and flush count per run, before against after.
    - The VM probe numbers.
