@@ -8,31 +8,31 @@
   {
     "name": "atomic_shared_ptr",
     "repository": "https://github.com/Kronuz/atomic-shared-ptr.git",
-    "revision": "9af0aa765fea19b4c7d05d6663ad3a7bff7c5530",
+    "revision": "61299bdaa3b90c0b57dc8043ded66648b0055fcc",
     "source_subdir": "."
   },
   {
     "name": "char_classify",
     "repository": "https://github.com/Kronuz/char-classify.git",
-    "revision": "57613ed349bb4fa273806b78341a53f676089505",
+    "revision": "25decb57ef5869e4677c42bf9a00ea25b58d35c0",
     "source_subdir": "."
   },
   {
     "name": "cluster",
     "repository": "https://github.com/Kronuz/cluster.git",
-    "revision": "68256da12aa889cbcf3003d1ecf5f3ef250ef032",
+    "revision": "e4fc57dc2d136f88e88340efed2e01ba4361be2e",
     "source_subdir": "."
   },
   {
     "name": "compressors",
     "repository": "https://github.com/Kronuz/compressors.git",
-    "revision": "5c5412871af96294ea617aebee2d1f99820d74c8",
+    "revision": "5566260a30bbd2d77d5cfa890bfe33f503a2add6",
     "source_subdir": "."
   },
   {
     "name": "constexpr_phf",
     "repository": "https://github.com/Kronuz/constexpr-phf.git",
-    "revision": "1d82461008c897ab004652d5c43e60ccfa7012cb",
+    "revision": "4b669b6c065e209f503e5f3ec839a0634dd13edf",
     "source_subdir": "."
   },
   {
@@ -44,61 +44,61 @@
   {
     "name": "detent_logger",
     "repository": "https://github.com/Kronuz/logger.git",
-    "revision": "d63fec32c82dc01eb41e9c36c5f0314ab031726d",
+    "revision": "761285d654b260b74b187eb865c5bc7e9200b4a9",
     "source_subdir": "."
   },
   {
     "name": "endian",
     "repository": "https://github.com/Kronuz/endian.git",
-    "revision": "a24942eabaad0b1c8e0b3404b4ae5a10b624b4c3",
+    "revision": "6b223e2ed87fc398b4320c85d78a08a8fcb66a32",
     "source_subdir": "."
   },
   {
     "name": "flat_map",
     "repository": "https://github.com/Kronuz/flat-map.git",
-    "revision": "9fe0bd963d7976514a7fa0b69c09ea53c1e621ae",
+    "revision": "06fc29e16c6b244693e12ed979cb8c823f027f66",
     "source_subdir": "."
   },
   {
     "name": "enum_reflection",
     "repository": "https://github.com/Kronuz/enum-reflection.git",
-    "revision": "653fb34844e63517da14659cc8f063643bf4a085",
+    "revision": "a7202ada8d27e7eb2d4713fbfd3b43eaa347fc91",
     "source_subdir": "."
   },
   {
     "name": "generation_cache",
     "repository": "https://github.com/Kronuz/generation-cache.git",
-    "revision": "38a2d399d1862f914330c144dd4e35178cc8fbe9",
+    "revision": "3d45c49ac4bbeacbe8720d867885e91ba7222051",
     "source_subdir": "."
   },
   {
     "name": "hashes",
     "repository": "https://github.com/Kronuz/hashes.git",
-    "revision": "e3bf5b6167775f26dd14f89f210f687b0253241b",
+    "revision": "03ab2d69f7e1b0af6039733e0e06cc1e0118a45e",
     "source_subdir": "."
   },
   {
     "name": "http_lib",
     "repository": "https://github.com/Kronuz/http.git",
-    "revision": "67622cc6845608b108255bac403c53bddc70ec80",
+    "revision": "c813531cf893ce079e2737dff6274b2025f9b151",
     "source_subdir": "."
   },
   {
     "name": "http_parser",
     "repository": "https://github.com/Kronuz/http-parser.git",
-    "revision": "c27615d24d40a2becfb42d40c5060a9803d6a75c",
+    "revision": "fcdad32fa8d8950da2dc3c237f3f91ad1b5eb211",
     "source_subdir": "."
   },
   {
     "name": "radix_router",
     "repository": "https://github.com/Kronuz/radix-router.git",
-    "revision": "74ab7ce7cc06d447369733c4b5faa1eecfbdd822",
+    "revision": "e67543d615e223e066c782a52ec4e49150ada9c1",
     "source_subdir": "."
   },
   {
     "name": "random_lib",
     "repository": "https://github.com/Kronuz/random.git",
-    "revision": "e040c2b383a1a19147cfcb0d14947d38d098e534",
+    "revision": "f8b93484f0a7cdc6e411f5e3907fb9dbe5def900",
     "source_subdir": "."
   },
   {
@@ -110,37 +110,37 @@
   {
     "name": "reactor",
     "repository": "https://github.com/Kronuz/reactor.git",
-    "revision": "a59e9f8808e46b7d030aa2a936564038843100f4",
+    "revision": "ab69cf26e556f7108fb800d89c324648779e2549",
     "source_subdir": "."
   },
   {
     "name": "scheduler",
     "repository": "https://github.com/Kronuz/scheduler.git",
-    "revision": "1e5ccc9c6dfc62611751dae2143467ef00305fc3",
+    "revision": "f08085859e916b2b08570cb6b735fbf2e6677262",
     "source_subdir": "."
   },
   {
     "name": "sha256",
     "repository": "https://github.com/Kronuz/sha256.git",
-    "revision": "f4a3463310853ebc26133acd3a793a7019ce3000",
+    "revision": "f24692f0e8375d7069fa28f692305801f351de9e",
     "source_subdir": "."
   },
   {
     "name": "stash",
     "repository": "https://github.com/Kronuz/stash.git",
-    "revision": "d2e8e59315cb55adba937dae3a86193b2a8ff90c",
+    "revision": "b7d887678a2149e38fd4bc9ec4491e414d76a81f",
     "source_subdir": "."
   },
   {
     "name": "static_string",
     "repository": "https://github.com/Kronuz/static-string.git",
-    "revision": "46561fad9f26f9b2b613568fe1a3dbcb016d4aba",
+    "revision": "7eaa8f9d3cfc373ff25d620672a6f6f83b94ce3f",
     "source_subdir": "."
   },
   {
     "name": "strict_stox",
     "repository": "https://github.com/Kronuz/strict-stox.git",
-    "revision": "1f9190ca19bbb5291456c54f3ff34982e0083113",
+    "revision": "b846098218696c4f148c7bcb12f5b41c489554d3",
     "source_subdir": "."
   },
   {
@@ -152,43 +152,43 @@
   {
     "name": "term_color",
     "repository": "https://github.com/Kronuz/term-color.git",
-    "revision": "94df6e5e1cadebbba45cd1f5fbb679407550be56",
+    "revision": "76a400be217eec6043510d5a812e368eb1898153",
     "source_subdir": "."
   },
   {
     "name": "threadpool",
     "repository": "https://github.com/Kronuz/threadpool.git",
-    "revision": "3f1fbcfecdc00f89b165f5cef7fbf2e6ff640eaf",
+    "revision": "63e03a5deca9c91f08755d900c61885dd5e75822",
     "source_subdir": "."
   },
   {
     "name": "varint",
     "repository": "https://github.com/Kronuz/varint.git",
-    "revision": "ac6003e1ca12a2e52f6cf086d8a328d17672a558",
+    "revision": "1c3e526a9b99612038ed3573215a7560f0b2cd20",
     "source_subdir": "."
   },
   {
     "name": "completion",
     "repository": "https://github.com/Kronuz/completion.git",
-    "revision": "576618d05bc4b1af9684a5a1ac77ddc3f6b8de9a",
+    "revision": "9acfba342b2f27f78c1a77111fb3f1905dbdfb5b",
     "source_subdir": "."
   },
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "d6d009ed449b5c3954c050b30eec746e8ba82821",
+    "revision": "bfad97f3d101dc69530fa782795138769099a0e0",
     "source_subdir": "."
   },
   {
     "name": "metrics",
     "repository": "https://github.com/Kronuz/metrics.git",
-    "revision": "db490b484f48e8cd8593802c6acf8db18392d3d1",
+    "revision": "9db73de5c5401061ad5ee4829c8f13416754d8a3",
     "source_subdir": "."
   },
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "d048373c27dd15c6604cdf91ea86e227973f850c",
+    "revision": "cef08eb5bd8f0af72131629564ef88cf365a616f",
     "source_subdir": "."
   },
   {
@@ -212,19 +212,19 @@
   {
     "name": "repr",
     "repository": "https://github.com/Kronuz/repr.git",
-    "revision": "87450b43c6ff113a321e06d811d9b7a4857c9351",
+    "revision": "d2eb8955d92be7229b371d493d4bab7b148c4d9b",
     "source_subdir": "."
   },
   {
     "name": "split",
     "repository": "https://github.com/Kronuz/split.git",
-    "revision": "40af1a2089df42a3a622e6c3cd539b1e0f0da73f",
+    "revision": "d48a28e50a915f772f254a6641cda100029bb31f",
     "source_subdir": "."
   },
   {
     "name": "strings",
     "repository": "https://github.com/Kronuz/strings.git",
-    "revision": "1be38483a333d13544fbf6b0937409295c8ea3e0",
+    "revision": "6799a6e8a1741367bda269546d3f3999d0f1d80f",
     "source_subdir": "."
   }
 ]
