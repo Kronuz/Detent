@@ -20,10 +20,9 @@
 #include <http_asio_tls.h>
 #endif
 #include "../detent_cli/logging.hh"
-#include "../detent_cli/config.hh"
 #include "../detent_cli/daemon.hh"
 #include "detent_http/http_client.hh"
-#include "detent_http/address.hh"
+#include "../detent_cli/config.hh"
 #include <unistd.h>
 
 #include <http_asio.h>
@@ -218,7 +217,7 @@ int run(const std::vector<std::string>& input_args) {
 			} else
 #endif
 			{
-			std::string probe_host = detent_http::kLoopbackHost;
+			std::string probe_host = detent_cli::kLoopbackHost;
 #ifdef DETENT_WITH_AUTHORITY
 			if (authority_configuration) probe_host = authority_configuration->publisher_bind.to_string();
 #endif

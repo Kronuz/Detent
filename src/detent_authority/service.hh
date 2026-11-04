@@ -1,4 +1,5 @@
 #pragma once
+#include "../detent_cli/config.hh"
 #include "detent/owner_loop.hh"
 #include "detent_distribution/protocol.hh"
 #include "detent_distribution_http/session_request.hh"
@@ -9,7 +10,6 @@
 #include <chrono>
 #include <connection_admission.h>
 #include <deque>
-#include <detent_http/address.hh>
 #include <filesystem>
 #include <functional>
 #include <future>
@@ -33,7 +33,7 @@ struct ServiceOptions {
 	std::vector<Credential> credentials;
 	std::optional<kronuz::consensus::transport::PeerOptions> peers;
 	std::optional<reactor::tls::Options> publisher_tls;
-	asio::ip::address publisher_bind = asio::ip::make_address(detent_http::kLoopbackHost);
+	asio::ip::address publisher_bind = asio::ip::make_address(detent_cli::kLoopbackHost);
 	std::string publisher_name = "localhost";
 	// Linux queue setup policy; namespace/open composites may still use bounded fallback.
 	std::string storage_backend = "auto";
