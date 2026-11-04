@@ -38,6 +38,23 @@
       "internal_employees": true
      }
     },
+    "payments:zero": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 0
+    },
+    "payments:full": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 100
+    },
+    "payments:group": {
+     "type": "bool",
+     "default": true,
+     "overrides": {
+      "blocked": false
+     }
+    },
     "other:hidden": {
      "type": "int",
      "default": 1
@@ -73,6 +90,23 @@
      "rollout_pct": 10,
      "overrides": {
       "internal_employees": true
+     }
+    },
+    "payments:zero": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 0
+    },
+    "payments:full": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 100
+    },
+    "payments:group": {
+     "type": "bool",
+     "default": true,
+     "overrides": {
+      "blocked": false
      }
     },
     "other:hidden": {
@@ -279,6 +313,54 @@
    "hash": "user-2",
    "switch": "internal_employees",
    "status": "ok",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:zero",
+   "fallback": true,
+   "hash": "user-42",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:full",
+   "fallback": false,
+   "hash": "user-1",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:full",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:group",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:group",
+   "fallback": true,
+   "hash": "user-1",
+   "switch": "blocked",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:group",
+   "fallback": false,
+   "hash": "user-1",
+   "switch": "nobody",
    "value": true
   },
   {

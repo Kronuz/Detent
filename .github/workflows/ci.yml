@@ -48,6 +48,30 @@ jobs:
           -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF
       - name: Build
         run: cmake --build build --parallel 4
+  # T6 of docs/design/client-local-source.md: the Python and Rust bindings over libdetent_reader, against real
+  # stores written by the shared test writer. Both options default OFF, so no other job builds them.
+  bindings:
+    name: bindings-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.13' }
+      - name: Configure
+        run: >-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON -DDETENT_BUILD_TESTS=ON
+          -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON
+          -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_EXAMPLES=OFF
+      - name: Build
+        run: cmake --build build --parallel 4 --target detent_python detent_rust detent_testing_shared test_reader_scenarios
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --repeat until-fail:3 -R 'test_reader_scenarios|test_reader_exports|test_testing_exports|detent_python_test|detent_rust_test'
   # T12 and T10 of docs/design/http-coroutines.md: one coroutine type, and nothing of the removed path.
   source-checks:
     name: source-checks

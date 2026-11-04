@@ -2,14 +2,11 @@
 name = "detent-rust"
 version = "0.1.0"
 edition = "2021"
-description = "Rust binding for Detent (Section 5 API surface: eval/get with Section 8 semantics), via cxx over detent::Client."
+description = "Rust binding for Detent: a Reader over libdetent_reader's C ABI."
 
 [lib]
 name = "detent"
 path = "src/lib.rs"
 
-[dependencies]
-cxx = "1.0"
-
-[build-dependencies]
-cxx-build = "1.0"
+[dev-dependencies]
+serde_json = "1"
