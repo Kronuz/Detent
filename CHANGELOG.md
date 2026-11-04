@@ -5,6 +5,9 @@
 ### Legacy removal (wave 2)
 
 - Removed the `detent_publish` example.
+- Removed the `detent-authority-admin` import/export tool, its
+  `test_authority_migration` test and its website pages. The offline
+  recovery runtime that `test_authority_cluster` used is now a test helper.
 
 ### Legacy removal (wave 1)
 

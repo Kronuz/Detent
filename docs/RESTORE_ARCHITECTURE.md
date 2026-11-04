@@ -1,7 +1,7 @@
 # Validated Architectural Blueprint: fresh three-voter restore
 
 **Date:** 2026-10-16
-**Status:** Lead Software Architect design GO. Implementation and executable qualification remain pending. Compilation and load qualification resumed after the benchmark hold.
+**Status:** Lead Software Architect design GO. Implementation and executable qualification remain pending. Compilation and load qualification resumed after the benchmark hold. The `detent-authority-admin` tool and its `admin_runtime` no longer exist, so the `admin` commands and offline runtime below need a new host before implementation.
 
 Restore validated definitions through bounded, ordinary replicated transactions into a quarantined new three-voter group. Each voter creates its own durable consensus state. Activate the group only after complete semantic comparison and independent offline checkpoints on all three members.
 

@@ -2,14 +2,13 @@
 title: "Command Line"
 ---
 
-Detent installs three programs, plus an admin tool in authority builds.
+Detent installs three programs.
 
 | Program | Role |
 | --- | --- |
 | [`detent`](/Detent/reference/cli/detent/) | Read a knob from the shell, auto-starting the user agent when needed |
 | [`detent-agent`](/Detent/reference/cli/detent-agent/) | The host-local agent daemon |
 | [`detentd`](/Detent/reference/cli/detentd/) | The distributor, or the durable authority |
-| [`detent-authority-admin`](/Detent/reference/cli/detent-authority-admin/) | Import into, and export from, an authority |
 
 ---
 

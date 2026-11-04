@@ -1,5 +1,5 @@
-#include "admin_runtime.hh"
 #include "node.hh"
+#include "offline_runtime.hh"
 #include "read_reply.hh"
 #include <array>
 #include <cassert>
@@ -377,7 +377,7 @@ int main(int argc, char **argv) {
 		profile.node = group.options(i);
 		profile.directory = group.root / std::to_string(i);
 		{
-			admin::Runtime offline(profile);
+			OfflineRuntime offline(profile);
 			offline.recover_committed();
 			assert(offline.node.worker().role() == Role::Follower);
 			assert(offline.node.worker().committed() == committed);
@@ -386,7 +386,7 @@ int main(int argc, char **argv) {
 			assert(offline.node.worker().base_index() == committed);
 			assert(offline.node.worker().role() == Role::Follower);
 		}
-		admin::Runtime restored(profile);
+		OfflineRuntime restored(profile);
 		restored.recover_committed();
 		assert(restored.node.worker().base_index() == committed);
 		assert(restored.node.state().snapshot().knobs == expected.knobs);

@@ -60,8 +60,7 @@ That produces, under `build/src/`:
 | `detent-agent` | The host-local agent daemon |
 | `detent` | The shell reader: `detent get NAME` |
 
-Authority builds add `build/src/detent_authority/detent-authority-admin`, the
-import/export tool. You also get the static libraries, examples in `build/examples/`, benchmarks in
+You also get the static libraries, examples in `build/examples/`, benchmarks in
 `build/benchmarks/`, and the test suite.
 
 :::hint[Building against local library checkouts]{.tip}

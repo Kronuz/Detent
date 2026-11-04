@@ -125,11 +125,3 @@ detentd --status --authority /etc/detent/authority.json
 
 With publisher TLS, `--status` checks the HTTPS endpoint with CA and name
 verification and a two-second deadline.
-
----
-
-## Migration
-
-See [`detent-authority-admin`](/Detent/reference/cli/detent-authority-admin/)
-for importing a classic snapshot into a new authority and exporting back for
-rollback.

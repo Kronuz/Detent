@@ -177,26 +177,3 @@ between peers, and TLS for publishers:
 Every voter shares the cluster, group, epoch and voter list; each sets its own
 `node`. See [Operations: Durable Authority](/Detent/operations/authority/) for
 certificates, pins, timing and the full field list.
-
----
-
-## Migrate from a Classic Distributor
-
-Import a legacy snapshot into a **new**, empty authority directory, with
-publishers stopped until you've verified the result:
-
-```sh
-detent-authority-admin import authority.json legacy-snapshot.json
-```
-
-The tool validates the snapshot, applies it in namespace-scoped batches,
-compares every resulting definition against the source, and writes a
-checkpoint. A failed import leaves the directory for inspection; it never
-resumes silently or overwrites an existing authority.
-
-To roll back, stop the authority and export to a legacy snapshot with an
-explicit version higher than the destination's current one:
-
-```sh
-detent-authority-admin export authority.json rollback-snapshot.json 1000
-```
