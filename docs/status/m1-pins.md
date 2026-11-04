@@ -8,8 +8,10 @@ Branch `m1/pins-to-head`, cut from `m1/pin-check` (`Detent:1098592`). Follows
 Stopped at W4 contention: all 33 manifest pins equal their library heads, but `tools/check_pins.py`
 still reports 9 mismatches, all through scheduler (see Blocked on). Detent configures, builds and
 passes the native suite (237 tests, 100% passed, 1 skipped: `test_local_trusted_paths`, run 3e2e95b
-RelWithDebInfo, `build-m1`). The local ASan/UBSan and TSan builds are not run; CI (run below) has
-those jobs.
+RelWithDebInfo). Local ASan/UBSan and TSan builds were not run; CI run 41791987741 (dispatched on
+`Detent:3e2e95b`) ran them: linux-x86_64-gcc and clang, linux-arm64-gcc, macos-arm64, macos-x86_64,
+linux-asan-ubsan, linux-tsan, linux-benchmarks, linux-read-counters and source-checks all green;
+freebsd and headers skipped by the workflow; pin-check red with the 9 mismatches. No flakes hit.
 
 ## Waves
 
