@@ -46,7 +46,7 @@ targets, not demonstrated capacity.
 
 The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/RELEASE_PLAN.md) tracks the remaining gates. It includes updated-library qualification and extraction of shared HTTP clients, bounded MessagePack, the persistent map and resource primitives. Final system qualification uses the resulting pinned library closure.
 
-1. **Qualify dependency updates** against the existing immutable pins before adopting them.
+1. **Qualify dependency updates** against the existing immutable pins before adopting them. The M1 move to every library's head is done and recorded in the changelog.
 2. **Tagged releases** with a changelog, and a version reported by the binaries.
 3. **Continuous integration** on Linux, macOS and FreeBSD, including the
    sanitizer runs.
