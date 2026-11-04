@@ -51,6 +51,7 @@ Evidence (F):
 - Configure and build, Release, every target: clean. Full ctest: 218 of 219 pass on first run; the failure was my new test leaving a bad `agent.json` in place for the next check. Fixed, then `test_agent_cli` and `test_system_agent` pass on the rebuilt binaries. `test_local_trusted_paths` is skipped (not applicable on this host), as before.
 - Mutant: adding `--source-address` back to the agent's accepted flags makes `test_agent_cli` fail (the agent starts instead of rejecting the flag; timeout at `test_agent_cli.cmake:34`). Reverted.
 - Sanitizers: none run locally (no threaded or memory code added); the hosted ASan/UBSan and TSan jobs cover them.
+- Hosted CI, dispatched on `Detent:3cf9201` (run 41867110024; the branch name does not trigger CI on push): pin-check, source-checks, linux-read-counters, linux-benchmarks, linux-x86_64-gcc and clang, linux-arm64-gcc, ASan/UBSan and macos-x86_64 green. linux-tsan failed once on `test_local_paged_publication_artifacts` ("invalid paged artifact operation accepted", 0.26 s; code F does not touch) and passed on rerun. macos-arm64 was cancelled by the first attempt and its rerun was still queued after more than an hour when the developer stopped: the one job not yet seen green.
 
 ## Step H: the Client and the bindings (blocked, nothing changed)
 
