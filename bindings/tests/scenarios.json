@@ -1,0 +1,336 @@
+{
+ "comment": "Shared by the C++, Python and Rust reader tests. The runner publishes publishes[0], opens a Reader over `namespaces`, runs the cases with after=1, publishes publishes[1], then runs after=2. eval and get check the returned value (the fallback on any error); lookup checks the status name (detent_status_name) and the value; revision checks the namespace revision or null.",
+ "namespaces": [
+  "checkout",
+  "search",
+  "t",
+  "payments"
+ ],
+ "publishes": [
+  {
+   "schema_version": 1,
+   "knobs": {
+    "checkout:killswitch_new_path": {
+     "type": "bool",
+     "default": false
+    },
+    "checkout:enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "search:max_results": {
+     "type": "int",
+     "default": 25
+    },
+    "t:max": {
+     "type": "int",
+     "default": 9223372036854775807
+    },
+    "t:min": {
+     "type": "int",
+     "default": -9223372036854775808
+    },
+    "payments:new_processor": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 10,
+     "overrides": {
+      "internal_employees": true
+     }
+    },
+    "other:hidden": {
+     "type": "int",
+     "default": 1
+    }
+   }
+  },
+  {
+   "schema_version": 1,
+   "knobs": {
+    "checkout:killswitch_new_path": {
+     "type": "bool",
+     "default": true
+    },
+    "checkout:enabled": {
+     "type": "bool",
+     "default": true
+    },
+    "search:max_results": {
+     "type": "int",
+     "default": 100
+    },
+    "t:max": {
+     "type": "int",
+     "default": 9223372036854775807
+    },
+    "t:min": {
+     "type": "int",
+     "default": -9223372036854775808
+    },
+    "payments:new_processor": {
+     "type": "bool",
+     "default": false,
+     "rollout_pct": 10,
+     "overrides": {
+      "internal_employees": true
+     }
+    },
+    "other:hidden": {
+     "type": "int",
+     "default": 1
+    }
+   }
+  }
+ ],
+ "cases": [
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "checkout:killswitch_new_path",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "checkout:enabled",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:max_results",
+   "fallback": -1,
+   "value": 25
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "t:max",
+   "fallback": 0,
+   "value": 9223372036854775807
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "t:min",
+   "fallback": 0,
+   "value": -9223372036854775808
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "checkout:killswitch_new_path",
+   "status": "ok",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "search:max_results",
+   "status": "ok",
+   "value": 25
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "t:min",
+   "status": "ok",
+   "value": -9223372036854775808
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "checkout:nope",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "checkout:nope",
+   "fallback": false,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "search:nope",
+   "fallback": -7,
+   "value": -7
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "checkout:nope",
+   "status": "missing",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "search:max_results",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "checkout:enabled",
+   "fallback": -3,
+   "value": -3
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "no-colon",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "no-colon",
+   "status": "invalid_name",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "ns:has space",
+   "status": "invalid_name",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "other:hidden",
+   "fallback": true,
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "get",
+   "name": "other:hidden",
+   "fallback": -5,
+   "value": -5
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "other:hidden",
+   "status": "not_opened",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "hash": "user-1",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:new_processor",
+   "fallback": false,
+   "hash": "user-42",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:new_processor",
+   "fallback": false,
+   "hash": "user-2",
+   "switch": "internal_employees",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "eval",
+   "name": "payments:new_processor",
+   "fallback": true,
+   "hash": "user-2",
+   "switch": "other_group",
+   "value": false
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "payments:new_processor",
+   "hash": "user-42",
+   "status": "ok",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "lookup",
+   "name": "payments:new_processor",
+   "hash": "user-2",
+   "switch": "internal_employees",
+   "status": "ok",
+   "value": true
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "checkout",
+   "value": 1
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "other",
+   "value": null
+  },
+  {
+   "after": 1,
+   "op": "revision",
+   "namespace": "bad namespace",
+   "value": null
+  },
+  {
+   "after": 2,
+   "op": "eval",
+   "name": "checkout:killswitch_new_path",
+   "fallback": false,
+   "value": true
+  },
+  {
+   "after": 2,
+   "op": "get",
+   "name": "search:max_results",
+   "fallback": -1,
+   "value": 100
+  },
+  {
+   "after": 2,
+   "op": "get",
+   "name": "t:max",
+   "fallback": 0,
+   "value": 9223372036854775807
+  },
+  {
+   "after": 2,
+   "op": "revision",
+   "namespace": "checkout",
+   "value": 2
+  },
+  {
+   "after": 2,
+   "op": "revision",
+   "namespace": "search",
+   "value": 2
+  }
+ ]
+}

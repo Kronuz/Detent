@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(detent LANGUAGES CXX)
 
+# Static dependencies are linked into the shared reader and test-writer libraries.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Default to Release, not CMake's usual empty (unoptimized, unstripped)
 # build type: an empty CMAKE_BUILD_TYPE emits ~5x larger binaries on this
 # codebase (measured: detent-agent 1.15MB -> 242KB Release+stripped) purely
@@ -99,6 +102,15 @@ elseif(DETENT_BUILD_MANAGED_AGENT OR DETENT_BUILD_RELAY)
 endif()
 
 FetchContent_MakeAvailable(detent_logger)
+
+# Limits a shared library to the symbols named in <prefix>.map (GNU ld and lld) or <prefix>.txt (Apple ld).
+function(detent_export_only target prefix)
+  if(APPLE)
+    target_link_options(${target} PRIVATE "LINKER:-exported_symbols_list,${prefix}.txt")
+  else()
+    target_link_options(${target} PRIVATE "LINKER:--version-script=${prefix}.map")
+  endif()
+endfunction()
 
 add_subdirectory(src)
 

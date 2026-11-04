@@ -1,0 +1,1 @@
+{ global: detent_testing_*; local: *; };
