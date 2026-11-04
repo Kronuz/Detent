@@ -11,23 +11,24 @@ daemon per host.
 
 ## How It Works
 
-```d2 alt="detent-agent polls the source once for the whole host and publishes a pre-parsed snapshot into a shared-memory file; every detent get maps that file read-only"
+```d2 alt="detent-agent receives deliveries from the authority once for the whole host and publishes immutable generations on disk; every detent get maps the selected generation read-only"
 direction: down
-source: "Source\n(file or HTTP)"
-agent: "detent-agent\n(one warm client)"
-shm: "snapshot.shm\n(pre-parsed binary,\nseqlock-guarded)" {shape: cylinder}
+source: "Authority or relay"
+agent: "detent-agent\n(managed delivery)"
+store: "generation_dir\n(immutable images,\nselected descriptor)" {shape: cylinder}
 a: "detent get NAME\n(shell script)"
 b: "detent get NAME\n(any language)"
-source -> agent: "poll\n(one poller per host)"
-agent -> shm: "publish on every\naccepted update"
-shm -> a: "mmap read-only"
-shm -> b: "mmap read-only"
+source -> agent: "TLS delivery\n(one connection per host)"
+agent -> store: "publish on every\naccepted update"
+store -> a: "mmap read-only"
+store -> b: "mmap read-only"
 ```
 
-The agent runs one ordinary `detent::Client`. On every accepted update it
-serializes the snapshot into a flat binary layout in a memory-mapped file.
-`detent get` maps that file read-only and evaluates directly against it: no
-socket, no request to the daemon, no JSON parsing.
+The agent receives snapshots and deltas over verified TLS, builds a new
+immutable image for each, and selects it atomically. `detent get` maps the
+selected image read-only and evaluates directly against it: no socket, no
+request to the daemon, no JSON parsing. A generation stays readable with the
+agent stopped.
 
 ---
 
@@ -42,9 +43,10 @@ detent get payments:new_processor --hash user-2 --switch employees
 # true
 ```
 
-The first `get` starts the agent automatically if it isn't running, with the
-source from its flags, environment or `agent.json`, and waits up to two seconds
-for the first snapshot.
+With `--managed PRIVATE_CONFIG` (or `managed_path` in `agent.json`), the first
+`get` starts the agent if no generation is present and waits for the first one.
+With neither `--managed` nor `--generation-dir` configured, `get` fails with
+`no source configured`; `--default` doesn't mask that.
 
 | Exit status | Meaning |
 | --- | --- |
@@ -62,9 +64,9 @@ fi
 
 ---
 
-## Pointing the Agent at a Source
+## Pointing the Agent at the Authority
 
-To give the agent a fixed source, write `agent.json` in your config directory:
+Write `agent.json` in your config directory:
 
 | Platform | User config directory |
 | --- | --- |
@@ -73,29 +75,30 @@ To give the agent a fixed source, write `agent.json` in your config directory:
 
 ```json title="agent.json"
 {
-  "source_path": "/var/lib/myapp/live_knobs.json",
-  "poll_interval_ms": 200
+  "managed_path": "managed.json",
+  "generation_dir": "agent-state"
 }
 ```
 
 Then plain `detent get NAME` works from any directory. You can also pass
-`--source-path PATH` or set `DETENT_SOURCE_PATH`; flags override environment
-variables, which override the config file.
+`--managed PATH` and `--generation-dir PATH`, or set `DETENT_MANAGED_CONFIG`
+and `DETENT_GENERATION_DIR`; flags override environment variables, which
+override the config file. [Managed Delivery](/Detent/guides/managed-delivery/)
+covers `managed.json`.
 
 ### Local Defaults
 
-An optional `defaults.json` next to `agent.json` gives the agent typed fallback
-knobs before the first update arrives, and for knobs the live snapshot doesn't
-contain. With defaults and **no** source configured, the agent serves the
-defaults without any network connection at all:
+An optional `defaults.json` next to `agent.json` gives `detent get` typed
+fallback knobs while no generation has arrived, and for knobs a generation
+doesn't contain:
 
 ```sh
 detent get search:max_results --defaults ./defaults.json
 ```
 
 :::hint[Startup settings apply to a new agent]{.caution}
-Flags like `--source-path` and `--defaults` configure an agent when `get`
-starts one. If an agent is already running, stop it to apply changed settings.
+Flags like `--managed` configure an agent when `get` starts one. If an agent is
+already running, stop it to apply changed settings.
 :::
 
 ---
@@ -103,19 +106,19 @@ starts one. If an agent is already running, stop it to apply changed settings.
 ## Managing the Agent
 
 ```sh
-detent-agent --status
+detent-agent --status --managed managed.json
 # running (pid 65214)
-# OK version=3 knob_count=2
+# durable revision=3 knob_count=2
 ```
 
-`--status` never starts anything. Stop an unmanaged agent with SIGTERM:
+`--status` never starts anything. Stop a user agent with SIGTERM:
 
 ```sh
-kill -TERM "$(detent-agent --status | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
+kill -TERM "$(detent-agent --status --managed managed.json | awk '/^running/ {gsub(/[^0-9]/, "", $3); print $3}')"
 ```
 
-The agent keeps its runtime files (`agent.pid`, `agent.log`, `snapshot.shm`)
-in `$XDG_RUNTIME_DIR/detent`, or a private `detent-<uid>` directory under the
+The agent keeps its runtime files (`agent.pid`, `agent.log`) in
+`$XDG_RUNTIME_DIR/detent`, or a private `detent-<uid>` directory under the
 system temporary directory, created with mode `0700`. Use the same
 `--runtime-dir` for `get` and `--status` if you override it.
 
@@ -127,20 +130,7 @@ which attaches to the managed agent and never starts a private one:
 detent get search:max_results --system
 ```
 
----
-
-## Performance
-
-| Benchmark | Result |
-| --- | --- |
-| `detent_read_bench 4 2000000` (in-process `Client`) | 6.71M ops/s (149.1 ns/op) |
-| `detent_agent_shm_bench 4 2000000` (shared-memory reader) | 36.2M ops/s (27.6 ns/op) |
-
-The shared-memory lookup itself is faster than an in-process client read. A
-`detent get` from a shell still pays for starting a process, which dominates its
-wall time.
-
 :::hint[Knob values are visible to local users]{.warning}
-A system agent's shared-memory file is world-readable (`0644`) so every local
-account can read knobs. Never put secrets in knobs.
+Any local account that can read the generation directory can read every
+published knob. Never put secrets in knobs.
 :::

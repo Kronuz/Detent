@@ -41,6 +41,30 @@
 - `kLoopbackHost` moved from `detent_http/address.hh` to
   `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
 
+### Legacy removal (wave 2, step G)
+
+- Removed the shared-memory agent and the unmanaged `detent-agent` path:
+  `agent.cc`, `shm_writer`, `shm_reader`, `shm_format.hh`, the `detent_agent_lib`
+  target, `snapshot.shm`, `test_agent_basic`, `test_snapshot_canonical`,
+  `test_shm_concurrency_stress`, `test_system_agent` and the
+  `detent_agent_shm_bench` benchmark. `detent_scale_bench` no longer reports the
+  shared-memory image.
+- `detent-agent` runs the managed profile only, and `detent get` reads durable
+  generations only. With no source configured (no `--managed`, `managed_path`,
+  `--generation-dir` or `generation_dir`) both exit 1 with `no source configured`,
+  whatever `--default` or `--defaults` say.
+- `--source-path`, `--poll-interval-ms`, `DETENT_SOURCE_PATH`,
+  `DETENT_POLL_INTERVAL_MS` and the `source_path` and `poll_interval_ms` fields of
+  `agent.json` are gone; each is now an unknown argument or field. `--defaults`
+  stays a `detent get` option (it is no longer forwarded to a started agent).
+- `detent-agent --status` prints `durable revision=N knob_count=M` instead of
+  `OK version=N knob_count=M`, and prints it whenever a generation directory is
+  set.
+- Roadmap item 4 (a path for unmanaged agents and clients to receive authority
+  data) is dropped.
+- The systemd `detentd` unit and the Homebrew caveats and test no longer call
+  `detentd` a distributor.
+
 ### Legacy removal (wave 2, step F)
 
 - Removed the `detent_http` library (`detent_http::detent_http`,

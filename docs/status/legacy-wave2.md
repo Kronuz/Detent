@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) ledger of legacy removal wave 2, steps B to F; H is blocked.
+> Status: CURRENT (2026-11-04) ledger of legacy removal wave 2, steps B to G; H waits on the owner (see Step H).
 
 # legacy-wave2
 
@@ -8,7 +8,7 @@
 - Done: - Rebased by the lead on `Detent:f7267d5` (M1 pins at head); the one conflict, `cmake/dependencies.json`, resolved as main's pins minus `cluster`, `generation_cache` and `http_log`; `tools/check_pins.py`: 30 libraries, 36 shared declarations, 0 mismatches.
 - Hosted CI on the rebased head `Detent:8340b53`: run 41812264929, every job green (ASan/UBSan and TSan included); before the rebase, run 41808138967 on `Detent:3f08e98`, every job green.
 - Not done before the developer stopped at the spend limit: the leftover-reference grep across docs and website. It's a follow-up, not a landing condition.
-- Next: G (the shm agent and unmanaged `detent-agent`; waits on the owner decisions below), H (Client and the bindings; blocked, see Step H), I (flat-v1).
+- Next: H (Client and the bindings; waits on the owner's answer to the binding design's Q1 and on reader S6, see Step H), I (flat-v1). F and G are built; see their sections.
 - Blocked on: nothing blocks this wave. Product decisions for the owner, found by the website sweep:
   1. With no configuration the agent polls `127.0.0.1:8317` (`src/detent_agent/main.cc:128`), which no Detent daemon serves. Step G removes or changes it.
   2. Roadmap item 4 reads "a path for unmanaged agents and clients to receive authority data". Keep or drop it?
@@ -21,6 +21,9 @@
 3. `kLoopbackHost` lives in `src/detent_cli/config.hh` next to `kDefaultPort`.
 4. `--status` without `--authority` probes `127.0.0.1` over plain HTTP; with `--authority` it probes `publisher_bind`, over HTTPS when the publisher uses TLS. See `docs/mechanisms/status-probe.md`.
 5. `test_authority_cluster` used `admin::Runtime` for its offline recover-and-checkpoint check; the class is now `OfflineRuntime` in `tests/detent_authority/offline_runtime.hh`, trimmed to what the test calls.
+6. Owner ruling: "Starting with no source configured is a hard error: "no source configured", nonzero exit. The owner accepted either that or an empty snapshot with a warning; the lead chose the hard error." Tested in `test_agent_cli`.
+7. Owner ruling: "Drop the unmanaged agent and remove the legacy pieces with it. Step G removes the shm agent and the unmanaged `detent-agent` path. Roadmap item 4 is dropped."
+8. Owner ruling: "Step H takes option B: remove both legacy Client sources, `source_poll` and `source_path`." Order: G, then H (C++ side on `legacy/wave2-h`, stacked on G); the Python and Rust binding rewrite and the Client tests that depend on it wait for the `design/client-local-source` design.
 
 ## Design vs code
 
@@ -55,6 +58,8 @@ Evidence (F):
 
 ## Step H: the Client and the bindings (blocked, nothing changed)
 
+Update after the owner ruling (decision 8): the lead stopped H after G. The binding design (`design/client-local-source`, `Detent:38afcb5`) makes both bindings wrap `libdetent_reader`'s C ABI with a `Reader` type (reader.md S8 and S9), and asks the owner whether H deletes `detent::Client` altogether (its Q1). What H removes depends on that answer, and the bindings (B1 to B5) wait on reader S6. No H code is on any branch.
+
 No brief for H is in the repository, so this is read from the code. The Client has three source shapes in `InitOptions`: `source_path` (file), `source_poll` (a user function returning full snapshots or merge-patches) and `read_source` (managed generations); `read_source` is already documented as the only non-legacy one (`client.hh`: "Mutually exclusive with legacy file/poll sources"). Removing the legacy two narrows a documented public API (`website/.../reference/cpp-api/sources.md`, the spec's section 10 extension seam), which is the owner's call, and the file source cannot go before step G settles the unmanaged agent.
 
 Who uses them today (grep over `src`, `include`, `tests`, `bindings`, `examples`, `benchmarks`, `tools`):
@@ -69,3 +74,23 @@ Options for the owner:
 - C. Keep both and stop calling them legacy.
 
 Recommendation: decide G first. If the unmanaged agent goes, B is the greenfield shape and H becomes its own design task with a designer for the binding API; if it stays, A, which is mechanical.
+
+## Step G: the shared-memory agent and the unmanaged `detent-agent`
+
+- Branch / worktree: `legacy/wave2-g`, stacked on `legacy/wave2-f` (merged with main `Detent:5475baf`), at `.claude/worktrees/agent-a6c13d9faa82afd4d`.
+- Removed: `src/detent_agent/{agent,shm_writer,shm_reader}.{cc,hh}`, `shm_format.hh`, the `detent_agent_lib` target, `snapshot.shm`, the tests `test_agent_basic`, `test_snapshot_canonical`, `test_shm_concurrency_stress` and `test_system_agent`, and `benchmarks/detent_agent_shm_bench.cc`. `detent_scale_bench` keeps its JSON measurements and drops the shared-memory image fields.
+- `detent-agent` is the managed profile only: `run_agent` throws `no source configured; pass --managed PRIVATE_CONFIG or set managed_path` (exit 1) before it forks or creates a runtime directory. `detent get` throws `no source configured; ...` when neither a generation directory nor `--managed` is set, whatever `--default` or `--defaults` say (decision 6). `detent-agent --status` prints `running`/`not running` and, when a generation directory is set, the durable revision and count.
+- `--source-path`, `--poll-interval-ms`, `DETENT_SOURCE_PATH`, `DETENT_POLL_INTERVAL_MS` and the `source_path` and `poll_interval_ms` config fields are removed. `--defaults` is a `detent get` option only; `launch_agent` no longer forwards it to the agent. `DETENT_MANAGED_CONFIG` and `DETENT_GENERATION_DIR` are listed in the usage text.
+- Step E leftovers: the systemd `detentd` unit description, the Homebrew caveats and formula test (now checks the `no source configured` error for `detent get` and `detent-agent`), diagrams `01_overview` (was the classic publisher, distributor, client flow), `07_agent` and `08_detent_deps` (re-rendered), `docs/SERVICES.md`, `docs/USAGE.md`, `docs/ACTORS.md`, README and the website reference, architecture and guide pages that described the shared-memory agent or `source_path`. Roadmap item 4 is dropped (decision 7).
+- New tests (`tests/detent_agent/test_agent_cli.cmake`): `no source configured` for `detent get` (plain, with `--default`, with `--defaults`, with `--system`) and for `detent-agent` (plain, `--daemonize`, `--system`, `--initialize-managed`), with no runtime directory created; `--status` with nothing configured; the three removed flags and three removed config fields are rejected by both binaries; a configured but empty generation directory answers from `--defaults` or `--default`.
+- Historical records left as written because they describe what was measured or reviewed when the agent existed: `docs/AUDIT.md`, `docs/VALIDATED_ARCHITECTURE.md`, `docs/SHARED_MEMORY_PADDING.md`, `docs/design/reader.md`, `docs/DELIVERY_INTEGRATION_ARCHITECTURE.md`, `docs/READER_CAPACITY_ARCHITECTURE.md`, `docs/CONTAINER_SELECTION_ARCHITECTURE.md`, `docs/reviews`, `docs/measurements`, `docs/perf` and the JSON records under `benchmarks/`.
+
+Evidence (G):
+
+- Release configure and build of every target: clean. Full ctest: 215 of 216 pass; `test_local_trusted_paths` is skipped on this host (as before). The one failure on the first run, `test_reader_capacity`, wrote `poll_interval_ms` into a config as a neutral field; it now uses `verbosity`, and passes.
+- Mutant: dropping the `no source configured` check from `run_agent` makes `test_agent_cli` fail at its `detent-agent` with no arguments check (the agent goes on to read a missing managed credential). Reverted.
+- Sanitizers: none run locally (the change removes code and adds no threaded or memory code); the hosted ASan/UBSan and TSan jobs cover them.
+
+Blocked on (G):
+
+1. The hands-on tutorial is written around publishing a snapshot file and reading it with `detent get --source-path`: `website/.../quickstart.md`, `settings-and-flags.md`, `rollouts.md`, `group-overrides.md`, `next.md`, the `index.mdx` hero snippet and `QUICKSTART.md` (which still drives the removed classic `PUT /v1/snapshot` distributor from step E). Neither the file source nor a one-line replacement exists any more, and the only live path is an authority with credentials plus a TLS-verified managed agent. What the tutorial should run on is a product decision (for example a documented loopback authority and agent recipe, or a direct `detent get --snapshot FILE` mode); I did not invent one and the pages are unchanged. The Client's own `source_path` and `source_poll` docs (README, `cpp-api`, `live-updates`, `cpp-application`, `sources`) wait for step H.

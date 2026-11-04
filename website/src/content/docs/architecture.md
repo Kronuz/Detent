@@ -109,7 +109,7 @@ snapshots and deltas. See [Authority](/Detent/architecture/authority/) and
 
 1. [Read Path](/Detent/architecture/read-path/) and
    [Update Path](/Detent/architecture/update-path/): the client.
-2. [Agent and Shared Memory](/Detent/architecture/agent/): host-local reads.
+2. [Agent](/Detent/architecture/agent/): host-local reads.
 3. [Durable Authority](/Detent/architecture/authority/): transactions and
    durable consensus.
 4. [Relay](/Detent/architecture/relay/): optional durable fan-out.

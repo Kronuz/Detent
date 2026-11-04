@@ -5,8 +5,8 @@ direction: down
 detent: "detent\n(core lib)" {
   tooltip: RCU client, JSON schema, hashing, overrides, file source
 }
-detent_agent_lib: "detent_agent_lib" {
-  tooltip: Shared-memory agent reader and writer logic
+delivery_config: "delivery_config" {
+  tooltip: Managed delivery over TLS and local publication
 }
 detentd_exe: "detentd (exe)" {
   tooltip: Durable authority daemon
@@ -34,5 +34,5 @@ detent -> kronuz.sha256
 detentd_exe -> detent
 detentd_exe -> thirdparty.http: "serves the authority endpoints"
 
-detent_agent_lib -> detent: "one warm in-process snapshot per agent"
-detent_agent_exe -> detent_agent_lib
+delivery_config -> detent
+detent_agent_exe -> delivery_config

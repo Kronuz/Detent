@@ -4,7 +4,6 @@
 // Configuration: flags override environment variables, then agent.json.
 // Baked defaults are optional; source-only agents start with an empty snapshot.
 #ifndef DETENT_READER
-#include "agent.hh"
 #include "../detent_cli/logging.hh"
 #ifdef DETENT_WITH_MANAGED_AGENT
 #include "managed_host.hh"
@@ -17,7 +16,6 @@
 #include "../detent_cli/config.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/reader.hh"
-#include "shm_reader.hh"
 #ifdef DETENT_READER
 #include "detent/client.hh"
 #include "detent_local/client_source.hh"
@@ -67,7 +65,6 @@ std::filesystem::path runtime_dir() {
 	return detent_agent::default_runtime_dir(g_system);
 }
 
-std::filesystem::path shm_path() { return runtime_dir() / "snapshot.shm"; }
 std::filesystem::path pid_path() { return runtime_dir() / "agent.pid"; }
 
 std::optional<std::string> arg_value(const std::vector<std::string>& args, const std::string& flag) {
@@ -96,131 +93,42 @@ bool prepared_reader(const std::vector<std::string> &args) {
 	return validation == "prepared";
 }
 
-#ifndef DETENT_READER
-int positive_int(const std::string& value, int maximum, const std::string& field) {
-	int number = 0;
-	auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), number);
-	if (error != std::errc{} || end != value.data() + value.size() || number <= 0 || number > maximum) {
-		throw std::runtime_error(field + " must be an integer between 1 and " + std::to_string(maximum));
-	}
-	return number;
-}
-
-detent::InitOptions build_client_options(const std::vector<std::string>& args) {
-	detent::InitOptions opts;
-	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH")) opts.defaults_path = *defaults;
-
-	auto source_path = setting(args, "--source-path", "DETENT_SOURCE_PATH");
-	if (source_path) opts.source_path = *source_path;
-	if (auto poll_ms = setting(args, "--poll-interval-ms", "DETENT_POLL_INTERVAL_MS")) {
-		opts.poll_interval = std::chrono::milliseconds{positive_int(*poll_ms, std::numeric_limits<int>::max(), "poll_interval_ms")};
-	}
-	return opts;
-}
-
-#endif
-
 std::optional<pid_t> locked_pid() { return detent_cli::locked_pid(pid_path()); }
 
 #ifndef DETENT_READER
-detent_agent::Agent* g_agent = nullptr;
-
-void handle_signal(int) {
-	if (g_agent) g_agent->stop();
-}
-
-void install_signal_handlers() {
-	::signal(SIGINT, handle_signal);
-	::signal(SIGTERM, handle_signal);
-}
-
-int run_foreground(detent_agent::Options options, const detent_cli::Ready& ready) {
-	detent_logging::Session logging(g_logging_settings);
-	bool have_source = options.client_options.source_path || options.client_options.source_poll;
-	options.on_publish = [](const detent::Snapshot& snap, bool published) {
-		if (published) { L_DEBUG("detent-agent: published snapshot version {}, {} knobs", snap.version, snap.knobs.size()); }
-		else { L_ERR("detent-agent: snapshot version {} exceeds shared-memory capacity", snap.version); }
-	};
-	options.on_metrics = [have_source, connected = false, first = true, failures_seen = std::uint64_t{0}, swaps_seen = std::uint64_t{0}, warned = false](const detent::Metrics& metrics) mutable {
-		const bool source_connected = metrics.source_connected.load(std::memory_order_relaxed);
-		const auto failures = metrics.refresh_failures.load(std::memory_order_relaxed);
-		const auto swaps = metrics.snapshot_swaps.load(std::memory_order_relaxed);
-		if (have_source && (first || source_connected != connected)) {
-			if (source_connected) { L_NOTICE("detent-agent: source connected"); }
-			else { L_WARNING("detent-agent: source unavailable; serving last published snapshot"); }
-		}
-		if (swaps != swaps_seen) warned = false;
-		if (failures > failures_seen) {
-			L(warned ? LOG_DEBUG : LOG_WARNING, "detent-agent: source refresh failed; total failures {}", failures);
-			warned = true;
-		}
-		failures_seen = failures;
-		swaps_seen = swaps;
-		L(MAX_LOG_PRIORITY, "detent-agent: source connected {}, snapshot swaps {}, refresh failures {}", source_connected, swaps, failures);
-		first = false;
-		connected = source_connected;
-	};
-	try {
-		detent_agent::Agent agent(std::move(options));
-		g_agent = &agent;
-		install_signal_handlers();
-		L_INFO("detent-agent: started (pid {}), runtime {}", ::getpid(), runtime_dir().string());
-		ready();
-		agent.serve();
-		L_NOTICE("detent-agent: shutting down");
-		g_agent = nullptr;
-		return 0;
-	} catch (const std::exception& e) {
-		g_agent = nullptr;
-		L_ERR("detent-agent: {}", e.what());
-		throw;
-	}
-}
-
-int run_agent(const std::vector<std::string>& args) {
+int run_agent(const std::vector<std::string> &args) {
 	const bool detach = has_flag(args, "--daemonize");
 	if (g_system && detach) throw std::runtime_error("system services must run in the foreground");
 	if (has_flag(args, "--initialize-managed") && has_flag(args, "--upgrade-managed"))
 		throw std::runtime_error("managed initialization and upgrade are mutually exclusive");
-	if (g_managed_config) {
+	if (!g_managed_config)
+		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or set managed_path");
 #ifdef DETENT_WITH_MANAGED_AGENT
-		return detent_cli::run_daemon(
-			detach, runtime_dir() / "agent.log", [&](const detent_cli::Ready &ready) {
-				detent_cli::ProcessLock lock(pid_path(), g_system);
-				if (!lock.acquired())
-					return 0;
-				detent_logging::Session logging(g_logging_settings);
-				return detent_agent::run_managed(
-					*g_managed_config, *g_generation_dir,
-					has_flag(args, "--initialize-managed") ? detent::local::StoreOpenMode::FreshEmpty
-					: has_flag(args, "--upgrade-managed")  ? detent::local::StoreOpenMode::UpgradeLegacy
-														   : detent::local::StoreOpenMode::ExistingManaged,
-					g_system, ready);
-			}, detent_agent::managed_startup_timeout);
+	return detent_cli::run_daemon(
+		detach, runtime_dir() / "agent.log", [&](const detent_cli::Ready &ready) {
+			detent_cli::ProcessLock lock(pid_path(), g_system);
+			if (!lock.acquired())
+				return 0;
+			detent_logging::Session logging(g_logging_settings);
+			return detent_agent::run_managed(
+				*g_managed_config, *g_generation_dir,
+				has_flag(args, "--initialize-managed") ? detent::local::StoreOpenMode::FreshEmpty
+				: has_flag(args, "--upgrade-managed")  ? detent::local::StoreOpenMode::UpgradeLegacy
+													   : detent::local::StoreOpenMode::ExistingManaged,
+				g_system, ready);
+		}, detent_agent::managed_startup_timeout);
 #else
-		throw std::runtime_error("managed agent support is disabled in this build");
+	throw std::runtime_error("managed agent support is disabled in this build");
 #endif
-	}
-	if (has_flag(args, "--initialize-managed") || has_flag(args, "--upgrade-managed") || g_generation_dir)
-		throw std::runtime_error("managed generation settings require --managed");
-	auto options = detent_agent::Options{shm_path(), build_client_options(args), g_system};
-	return detent_cli::run_daemon(detach, runtime_dir() / "agent.log", [&](const detent_cli::Ready& ready) {
-		detent_cli::ProcessLock lock(pid_path(), g_system);
-		if (!lock.acquired()) {
-			if (!has_flag(args, "--quiet")) std::printf("detent-agent: already running\n");
-			return 0;
-		}
-		return run_foreground(std::move(options), ready);
-	});
 }
 
 int cmd_status(const std::vector<std::string> &args) {
 	auto pid = locked_pid();
+	if (pid)
+		std::printf("running (pid %d)\n", *pid);
+	else
+		std::printf("not running\n");
 	if (g_generation_dir) {
-		if (pid)
-			std::printf("running (pid %d)\n", *pid);
-		else
-			std::printf("not running\n");
 		try {
 			const bool prepared = prepared_reader(args);
 			detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
@@ -233,21 +141,8 @@ int cmd_status(const std::vector<std::string> &args) {
 		} catch (const std::exception &error) {
 			std::printf("local generation unavailable: %s\n", error.what());
 		}
-		return pid ? 0 : 1;
 	}
-	if (!pid) {
-		std::printf("not running\n");
-		return 1;
-	}
-	std::printf("running (pid %d)\n", *pid);
-
-	// No socket ping: read the same shm the daemon publishes to, directly.
-	auto reader = detent_agent::ShmReader::open(shm_path());
-	if (reader) {
-		auto st = reader->status();
-		std::printf("OK version=%llu knob_count=%u\n", (unsigned long long)st.accepted_version, st.knob_count);
-	}
-	return 0;
+	return pid ? 0 : 1;
 }
 
 #endif
@@ -261,8 +156,6 @@ void validate_get_args(const std::vector<std::string> &args) {
 										"--default",
 										"--config",
 										"--defaults",
-										"--source-path",
-										"--poll-interval-ms",
 										"--runtime-dir",
 										"--managed",
 										"--generation-dir",
@@ -307,7 +200,7 @@ void launch_agent(const std::vector<std::string> &args) {
 					  : std::string("detent-agent");
 	std::vector<std::string> start_args{daemon, "--daemonize", "--quiet"};
 	for (std::size_t i = 1; i < args.size(); ++i) {
-		if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default") {
+		if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default" || args[i] == "--defaults") {
 			++i;
 			continue;
 		}
@@ -407,86 +300,22 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 	return 1;
 }
 
-int cmd_get(const std::vector<std::string>& args) {
-	if (g_generation_dir)
-		return cmd_managed_get(args);
-	std::string name = args[0];
-	auto hash_val = arg_value(args, "--hash");
-	auto switch_val = arg_value(args, "--switch");
-	auto default_val = arg_value(args, "--default");
-
-	auto reader = detent_agent::ShmReader::open(shm_path());
-	if (!reader || !locked_pid()) {
-		if (g_system) {
-			if (default_val) { std::printf("%s\n", default_val->c_str()); return 0; }
-			throw std::runtime_error("system agent is not running; start it through its service manager");
-		}
-		try {
-			launch_agent(args);
-		} catch (const std::exception& e) {
-			if (default_val) {
-				std::printf("%s\n", default_val->c_str());
-				return 0;
-			}
-			std::fprintf(stderr, "detent-agent: cannot auto-start: %s\n", e.what());
-			return 1;
-		}
-		for (int i = 0; i < 20; ++i) {
-			reader = detent_agent::ShmReader::open(shm_path());
-			if (reader && locked_pid()) break;
-			std::this_thread::sleep_for(100ms);
-		}
-	}
-
-	if (!reader) {
-		if (default_val) {
-			std::printf("%s\n", default_val->c_str());
-			return 0;
-		}
-		std::fprintf(stderr, "detent-agent: no daemon publish found\n");
-		return 1;
-	}
-
-	if (reader->status().accepted_version == 0 && reader->status().knob_count == 0) {
-		for (int i = 0; i < 20; ++i) {
-			if (!locked_pid()) break;
-			auto status = reader->status();
-			if (status.accepted_version > 0 || status.knob_count > 0) break;
-			std::this_thread::sleep_for(100ms);
-		}
-		if (reader->status().accepted_version == 0 && reader->status().knob_count == 0) {
-			if (default_val) {
-				std::printf("%s\n", default_val->c_str());
-				return 0;
-			}
-			std::fprintf(stderr, "detent-agent: no snapshot received from source within 2s; check that the configured source file exists and holds a snapshot\n");
-			return 1;
-		}
-	}
-
-	detent::KnobError error{detent::ErrorCategory::Uninitialized, "", ""};
-	auto result = try_read(*reader, name, hash_val, switch_val, &error);
-	if (result) {
-		std::printf("%s\n", result->c_str());
-		return 0;
-	}
-	if (default_val) {
-		std::printf("%s\n", default_val->c_str());
-		return 0;
-	}
-	std::fprintf(stderr, "ERR %s\n", error.what().c_str());
-	return 1;
+int cmd_get(const std::vector<std::string> &args) {
+	if (!g_generation_dir)
+		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or --generation-dir PATH");
+	return cmd_managed_get(args);
 }
 
 #endif
 
 #ifdef DETENT_READER
 const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--default VAL]\n"
-					 "                  [--config PATH] [--defaults PATH]\n"
-					 "                  [--source-path PATH] [--runtime-dir PATH] [--system]\n"
+					 "                  [--config PATH] [--defaults PATH] [--runtime-dir PATH] [--system]\n"
 					 "                  [--generation-dir PATH] [--managed PRIVATE_CONFIG]\n"
 					 "       detent help | --help\n"
-					 "User reads auto-start detent-agent; system reads attach to the managed service.\n"
+					 "A user read starts the managed detent-agent when no durable generation is present;\n"
+					 "system reads attach to the managed service. Without --managed or --generation-dir\n"
+					 "(or managed_path or generation_dir in the config) the read fails: no source configured.\n"
 					 "Config: agent.json in the standard Detent config directory.\n"
 					 "Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
 					 "Reader capacity: --reader-records N, --reader-image-bytes N, --reader-heap-bytes N,\n"
@@ -495,16 +324,15 @@ const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--defa
 #else
 const char *kUsage =
 	"Logging: --log-level LEVEL, -v/-vv, --verbosity 0..2, --color auto|always|never|truecolor|256|16\n"
-	"detent-agent: host-local managed or legacy configuration daemon\n"
+	"detent-agent: host-local managed configuration agent\n"
 	"\n"
 	"usage:\n"
-	"  detent-agent [--daemonize] [--defaults PATH] [--source-path PATH]\n"
-	"                      [--poll-interval-ms N]\n"
-	"  detent-agent --managed PRIVATE_CONFIG [--generation-dir PATH]\n"
+	"  detent-agent --managed PRIVATE_CONFIG [--daemonize] [--generation-dir PATH]\n"
 	"               [--initialize-managed | --upgrade-managed]\n"
 	"  detent-agent --status\n"
 	"  detent-agent --help | -h\n"
 	"\n"
+	"Without --managed (or managed_path in the config) it fails: no source configured.\n"
 	"Runs in the foreground unless --daemonize is supplied.\n"
 	"Use signals or the service manager to stop/restart.\n"
 	"Use detent get NAME to read or auto-start a user agent.\n"
@@ -514,24 +342,23 @@ const char *kUsage =
 	"System fallback: /etc/detent (FreeBSD: /usr/local/etc/detent; macOS: /Library/Application "
 	"Support/Detent).\n"
 	"JSON fields:\n"
-	"source_path, defaults_path, runtime_dir, poll_interval_ms.\n"
+	"defaults_path, runtime_dir, managed_path, generation_dir, publisher_user.\n"
 	"managed_path and generation_dir select durable authority delivery.\n"
 	"--generation-cluster/--generation-group/--generation-epoch/--generation-scope\n"
 	"bind reader identity; supply all four as lowercase hexadecimal values.\n"
-	"Paths in config are relative to the config file. Defaults are optional;\n"
-	"defaults.json beside agent.json is discovered automatically if present.\n"
+	"Paths in config are relative to the config file. defaults.json beside agent.json\n"
+	"is discovered automatically by detent get.\n"
 	"Flags override environment variables, which override config settings.\n"
 	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
 	"Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"
 	"--runtime-dir PATH selects the runtime directory for any command.\n"
 	"--system uses system config and /run/detent (BSD/macOS: /var/run/detent).\n"
-	"System agents run in the foreground; get does not start unmanaged services.\n"
+	"System agents run in the foreground; get does not start them.\n"
 	"environment variables (optional):\n"
-	"  DETENT_RUNTIME_DIR       shm/pid/log directory\n"
+	"  DETENT_RUNTIME_DIR       pid/log directory\n"
 	"                           (default $XDG_RUNTIME_DIR/detent, else $TMPDIR/detent-<uid>)\n"
-	"  DETENT_DEFAULTS_PATH     optional baked defaults file\n"
-	"  DETENT_SOURCE_PATH       local snapshot file path\n"
-	"  DETENT_POLL_INTERVAL_MS\n";
+	"  DETENT_MANAGED_CONFIG    private managed configuration\n"
+	"  DETENT_GENERATION_DIR    durable generation directory\n";
 
 #endif
 
@@ -567,8 +394,7 @@ int main(int argc, char** argv) {
 			if (arg == "--system" || arg == "--daemonize" || arg == "--status" || arg == "--quiet" ||
 				arg == "--initialize-managed" || arg == "--upgrade-managed")
 				continue;
-			if (detent_agent::is_reader_option(arg) || arg == "--defaults" || arg == "--source-path" ||
-				arg == "--poll-interval-ms" || arg == "--runtime-dir" ||
+			if (detent_agent::is_reader_option(arg) || arg == "--runtime-dir" ||
 				arg == "--config" || arg == "--managed" || arg == "--generation-dir" ||
 				arg == "--publisher-user" || arg == "--reader-validation" ||
 				arg == "--generation-cluster" || arg == "--generation-group" || arg == "--generation-epoch" ||
@@ -607,8 +433,6 @@ int main(int argc, char** argv) {
 			expected.scope = detent::distribution::parse_identity_hex<32>(*identity[3]);
 			g_generation_identity = expected;
 		}
-		if (g_managed_config && arg_value(args, "--source-path"))
-			throw std::runtime_error("--managed and legacy source flags are mutually exclusive");
 #ifndef DETENT_READER
 		if (has_flag(args, "--status")) {
 			if (has_flag(args, "--daemonize")) throw std::runtime_error("--status and --daemonize are mutually exclusive");

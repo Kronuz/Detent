@@ -49,7 +49,6 @@ Config load_config(const std::vector<std::string>& args) {
 											{"verbosity", {"--verbosity", NonnegativeInt}},
 											{"color", {"--color", String}},
 											{"defaults_path", {"--defaults", Path}},
-											{"source_path", {"--source-path", Path}},
 											{"runtime_dir", {"--runtime-dir", Path}},
 											{"managed_path", {"--managed", Path}},
 											{"generation_dir", {"--generation-dir", Path}},
@@ -59,7 +58,6 @@ Config load_config(const std::vector<std::string>& args) {
 											{"generation_group", {"--generation-group", String}},
 											{"generation_epoch", {"--generation-epoch", String}},
 											{"generation_scope", {"--generation-scope", String}},
-											{"poll_interval_ms", {"--poll-interval-ms", PositiveInt}},
 										};
 	for (auto field : reader_fields) {
 		std::string suffix(field);

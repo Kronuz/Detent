@@ -104,8 +104,7 @@ ctest --test-dir build --output-on-failure
 
 The suite covers the core client (schema validation, golden hash vectors,
 evaluation precedence, CLI overrides, the file source, concurrency stress),
-the agent's shared-memory
-reader and writer, and the authority, delivery and local-image libraries.
+the agent's command line, and the authority, delivery and local-image libraries.
 
 ---
 

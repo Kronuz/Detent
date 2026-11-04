@@ -76,22 +76,11 @@ add_library(detent_cli detent_cli/config.cc detent_cli/daemon.cc)
 target_link_libraries(detent_cli PUBLIC detent::detent)
 
 ########################################################################
-# detent_agent: the host-local daemon + its own CLI in one binary (see
-# README's "detent-agent" section). Shares one warm detent::Client across
-# every local reader via a shared-memory snapshot (ShmWriter/ShmReader),
-# instead of each local process running its own updater thread against
-# detentd or going through a socket round trip. Private headers, same
-# reasoning as detentd.hh above.
+# detent-agent: the host-local managed agent (see README's "detent-agent"
+# section). detent (the reader) shares its configuration and capacity code.
 ########################################################################
-add_library(detent_agent_lib detent_agent/agent.cc detent_agent/shm_writer.cc detent_agent/shm_reader.cc)
-
-target_include_directories(detent_agent_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/detent_agent")
-
-target_link_libraries(detent_agent_lib PUBLIC detent::detent)
-target_compile_features(detent_agent_lib PUBLIC cxx_std_20)
-
 add_executable(detent-agent detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
-target_link_libraries(detent-agent PRIVATE detent_agent_lib detent_cli detent_logging)
+target_link_libraries(detent-agent PRIVATE detent_cli detent_logging)
 if(DETENT_BUILD_MANAGED_AGENT)
   add_library(detent_managed_agent detent_agent/managed_host.cc)
   target_link_libraries(detent_managed_agent PUBLIC detent::delivery_config PRIVATE logger::logger)
@@ -117,7 +106,7 @@ install(FILES ${PROJECT_SOURCE_DIR}/docs/SERVICES.md DESTINATION ${CMAKE_INSTALL
 add_executable(detent-reader detent_agent/main.cc detent_agent/config.cc detent_agent/reader_capacity.cc)
 set_target_properties(detent-reader PROPERTIES OUTPUT_NAME detent)
 target_compile_definitions(detent-reader PRIVATE DETENT_READER=1)
-target_link_libraries(detent-reader PRIVATE detent_agent_lib detent_cli)
+target_link_libraries(detent-reader PRIVATE detent_cli)
 target_link_libraries(detent-reader PRIVATE detent::local_client)
 install(TARGETS detent-reader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

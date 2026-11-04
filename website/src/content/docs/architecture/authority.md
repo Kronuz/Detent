@@ -71,8 +71,7 @@ There's no wall-clock expiry anywhere in the protocol.
 
 ## Durable Consensus
 
-The authority uses a strict consensus module that lives alongside, not inside,
-the legacy `cluster::Raft`:
+The authority uses a strict consensus module:
 
 1. Terms and votes are persisted before granting a vote or sending a
    higher-term message.

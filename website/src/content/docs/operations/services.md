@@ -19,26 +19,22 @@ for systemd, launchd and FreeBSD rc.d in `packaging/`, installed to
 
 1. Configuration is root-owned and readable by the service account.
 2. Service state is owned by the service account, mode `0700`.
-3. The agent's runtime directory is service-owned, mode `0755`, with `0644`
-   pid and snapshot files, so every local user can check status and read
-   knobs, and only the service account can change them.
+3. The agent's runtime directory is service-owned, mode `0755`, with a `0644`
+   pid file, so every local user can check status, and only the service account
+   can change it.
 
-The units pass explicit configuration files, so create them first. An empty
-object is a valid configuration that uses every default:
+The units pass explicit configuration files, so create them first. Create the authority and agent configurations:
 
 ```sh
 echo '{"authority": "/etc/detent/authority.json"}' | sudo tee /etc/detent/detentd.json
-echo '{}' | sudo tee /etc/detent/agent.json
+echo '{"managed_path": "/etc/detent/managed.json"}' | sudo tee /etc/detent/agent.json
 ```
 
-For an agent that serves a snapshot file another process replaces:
-
-```json title="/etc/detent/agent.json"
-{"source_path": "/var/lib/myapp/live_knobs.json"}
-```
+The agent exits with `no source configured` unless `managed_path` (or
+`--managed`) names the private [managed configuration](/Detent/guides/managed-delivery/).
 
 :::hint[Knobs are not secrets]{.warning}
-Anything published through a system agent is readable by every local account.
+Anything published through a system agent is readable by every local account that can read its generation directory.
 Never put credentials, tokens or personal data in knobs.
 :::
 
