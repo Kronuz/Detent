@@ -27,7 +27,7 @@ void SegmentRegistry::append(MappingHandle mapping) {
 		(!inputs_.empty() &&
 		 std::memcmp(inputs_.back().ownership.segment.data(), mapping->ownership().segment.data(), 16) >= 0))
 		throw std::invalid_argument("invalid segment registry entry");
-	inputs_.push_back({mapping->ownership(), mapping->bytes()});
+	inputs_.push_back({mapping->ownership(), mapping->bytes(), mapping->first_touch()});
 	reachable_.push_back({});
 	physical_bytes_ += mapping->ownership().length;
 	mappings_.push_back(std::move(mapping));
@@ -41,6 +41,14 @@ void SegmentRegistry::certify_digests(const paged::Root &root) {
 	if (!sealed_ || compared_root_)
 		throw std::logic_error("segment registry digests cannot be certified");
 	compared_root_ = root;
+}
+void SegmentRegistry::adopt_derived(const paged::Root &root, std::span<const SegmentReachability> live,
+									std::span<const std::uint32_t, 257> histogram) {
+	if (!sealed_ || validated_root_ || live.size() != reachable_.size() || root.segments != reachable_.size())
+		throw std::logic_error("segment registry cannot adopt derived state");
+	std::copy(live.begin(), live.end(), reachable_.begin());
+	std::copy(histogram.begin(), histogram.end(), override_histogram_.begin());
+	validated_root_ = root;
 }
 std::span<const SegmentInput> SegmentRegistry::inputs() const {
 	if (!sealed_)

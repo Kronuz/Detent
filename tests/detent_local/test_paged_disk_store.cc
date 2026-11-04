@@ -119,7 +119,11 @@ int main() {
 			std::vector<std::uint64_t> lengths;
 			for (const auto &segment : plan->segments())
 				lengths.push_back(segment.bytes->size());
-			const auto peak = l::DiskLedger::paged_peak(lengths);
+			std::size_t reached = lengths.size();
+			if (const auto base = plan->registry())
+				for (std::size_t i = 0; i < base->inputs().size(); ++i)
+					reached += plan->base_reachability(i).pages != 0;
+			const auto peak = l::DiskLedger::paged_peak(lengths, l::detail::live_record_size(reached));
 			if (scenario == 3)
 				options.limits.bytes = census(root).bytes + peak.bytes - 1;
 			if (scenario == 6) {

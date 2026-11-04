@@ -5,6 +5,7 @@
 #include "detent_local/record_reader.hh"
 #include "leased_paged_root.hh"
 #include "managed_recovery.hh"
+#include "live_record.hh"
 #include "names.hh"
 #include "paged_certificate.hh"
 #include "paged_dependency_check.hh"
@@ -737,7 +738,7 @@ struct ReclaimSlot {
 	GenerationId generation{};
 	GenerationOwnership proof;
 	std::optional<std::pair<distribution::Cursor, distribution::Profile>> image_scope;
-	std::array<std::optional<c::EntryInspection>, 4> entries;
+	std::array<std::optional<c::EntryInspection>, 5> entries;
 	bool open = false, valid = false;
 };
 struct ReclaimData {
@@ -771,7 +772,7 @@ class ReclaimOperation final : public c::Operation {
 		if (phase_ == Phase::ReadLease || phase_ == Phase::ReadDescriptor || phase_ == Phase::ReadMetadata)
 			data_->reader.submitted();
 		if (phase_ == Phase::RemoveImage || phase_ == Phase::RemoveDescriptor ||
-		    phase_ == Phase::RemoveLease || phase_ == Phase::RemoveMetadata)
+		    phase_ == Phase::RemoveLease || phase_ == Phase::RemoveMetadata || phase_ == Phase::RemoveLive)
 			destructive_ = true;
 		submitted_ = true;
 	}
@@ -941,8 +942,18 @@ class ReclaimOperation final : public c::Operation {
 					if (part == 2)
 						named(Phase::InspectMetadata, c::Kind::InspectEntry, 3);
 					else
-						accept_slot();
+						named(Phase::InspectLive, c::Kind::InspectEntry, 4);
 				}
+			} else if (phase == Phase::InspectLive) {
+				// The record is removed without being read; it only has to be a bounded, safe, owned file.
+				if (result.inspection &&
+					(!safe(*result.inspection, *data_->core) ||
+					 result.inspection->footprint.logical_bytes > detail::live_record_size(1u << 20))) {
+					close_slot();
+					return true;
+				}
+				slot().entries[4] = result.inspection;
+				accept_slot();
 			} else if (phase == Phase::OpenImage) {
 				prepare(Phase::ImageHeld, c::Kind::InspectFile);
 			} else if (phase == Phase::ImageHeld || phase == Phase::ImageNamed) {
@@ -979,7 +990,7 @@ class ReclaimOperation final : public c::Operation {
 				} else if (slot().valid && !reading_metadata_)
 					named(Phase::InspectMetadata, c::Kind::InspectEntry, 3);
 				else if (slot().valid)
-					accept_slot();
+					named(Phase::InspectLive, c::Kind::InspectEntry, 4);
 				else
 					close_slot();
 			} else if (phase == Phase::CloseSlot) {
@@ -1000,7 +1011,7 @@ class ReclaimOperation final : public c::Operation {
 					cleanup();
 					return true;
 				}
-				if (++payload_part_ == 4) {
+				if (++payload_part_ == 5) {
 					payload_part_ = 0;
 					++index_;
 				}
@@ -1012,10 +1023,12 @@ class ReclaimOperation final : public c::Operation {
 					remove_payload();
 				}
 			} else if (phase == Phase::RemoveImage || phase == Phase::RemoveDescriptor ||
-			           phase == Phase::RemoveLease || phase == Phase::RemoveMetadata) {
+			           phase == Phase::RemoveLease || phase == Phase::RemoveMetadata ||
+			           phase == Phase::RemoveLive) {
 				const auto part = phase == Phase::RemoveImage        ? 1u
 				                  : phase == Phase::RemoveDescriptor ? 2u
 				                  : phase == Phase::RemoveMetadata   ? 3u
+				                  : phase == Phase::RemoveLive       ? 4u
 				                                                     : 0u;
 				data_->deleted.bytes += slot().entries[part]->footprint.logical_bytes;
 				++data_->deleted.entries;
@@ -1023,7 +1036,7 @@ class ReclaimOperation final : public c::Operation {
 					++data_->deleted.generations;
 				if (part) {
 					payload_part_ = part + 1;
-					if (payload_part_ == 4) {
+					if (payload_part_ == 5) {
 						++index_;
 						payload_part_ = 1;
 					}
@@ -1123,6 +1136,7 @@ class ReclaimOperation final : public c::Operation {
 		OpenDescriptor,
 		ReadDescriptor,
 		InspectMetadata,
+		InspectLive,
 		OpenMetadata,
 		ReadMetadata,
 		CloseScratch,
@@ -1132,6 +1146,7 @@ class ReclaimOperation final : public c::Operation {
 		RemoveImage,
 		RemoveDescriptor,
 		RemoveMetadata,
+		RemoveLive,
 		PayloadBarrier,
 		RemoveLease,
 		LeaseBarrier,
@@ -1290,7 +1305,8 @@ class ReclaimOperation final : public c::Operation {
 		const auto kind = part == 0   ? detail::GenerationFile::Lease
 		                  : part == 1 ? detail::GenerationFile::Image
 		                  : part == 2 ? detail::GenerationFile::Descriptor
-		                              : detail::GenerationFile::ReaderMetadata;
+		                  : part == 3 ? detail::GenerationFile::ReaderMetadata
+		                              : detail::GenerationFile::Live;
 		const detail::GenerationName name(slot().generation, kind);
 		data_->name_size = name.view().size();
 		std::copy(name.view().begin(), name.view().end(), data_->name.begin());
@@ -1364,7 +1380,8 @@ class ReclaimOperation final : public c::Operation {
 				if (slot().entries[payload_part_]) {
 					const auto phase = payload_part_ == 1   ? Phase::RemoveImage
 					                   : payload_part_ == 2 ? Phase::RemoveDescriptor
-					                                        : Phase::RemoveMetadata;
+					                   : payload_part_ == 3 ? Phase::RemoveMetadata
+					                                        : Phase::RemoveLive;
 					named(phase, c::Kind::Remove, payload_part_);
 					return;
 				}
@@ -1793,6 +1810,7 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
+	paged.trusted_start = true;
 	return {*core.legacy_recovery, std::move(paged), store.impl_->core, core.identity,
 			core.directory_identity};
 }

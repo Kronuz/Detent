@@ -4,6 +4,7 @@
 #include "paged_segment_builder.hh"
 #include "prepared_reader.hh"
 #include "segment_names.hh"
+#include "trusted_records.hh"
 #include <algorithm>
 #include <cstring>
 #include <fcntl.h>
@@ -143,6 +144,7 @@ struct Fixture {
 		x::ReaderMetadata metadata{storage, generation, checksum, proof.counts(), physical_bytes};
 		write_file(path / x::GenerationName(generation, ".read").view(), x::encode_reader_metadata(metadata));
 		write_file(path / "selected", l::encode_descriptor(descriptor));
+		trusted_records::derive(path);
 	}
 	~Fixture() {
 		if (directory >= 0)

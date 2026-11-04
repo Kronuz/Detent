@@ -5,6 +5,7 @@
 #include "paged_limits.hh"
 #include "segment_mapping.hh"
 #include "segment_names.hh"
+#include "verified_pages.hh"
 #include <atomic>
 #include <bit>
 #include <cstring>
@@ -21,9 +22,6 @@ void window(LazyPageWindow at) noexcept {
 	if (auto hook = window_hook.load(std::memory_order_relaxed))
 		hook(at, window_context.load(std::memory_order_relaxed));
 }
-// One bit per 80-byte granule: validated pages are disjoint (the validators' cell marks),
-// start 8-aligned and span at least one header, so distinct pages own distinct granules.
-constexpr std::size_t granule_bytes = p::page_header_bytes;
 std::size_t slot_count(std::uint64_t segments) {
 	return std::bit_ceil(std::max<std::size_t>(2, std::size_t(std::min<std::uint64_t>(segments, 1u << 20)) * 2));
 }
@@ -40,16 +38,15 @@ void LazyPageTesting::install(void (*hook)(LazyPageWindow, void *) noexcept, voi
 }
 struct LazyPageAccess::State {
 	using Mapping = d::RetirementHandle<SegmentMapping>;
-	using Word = std::atomic<std::uint64_t>;
 	// A mapped segment and its verified-page bitmap; immutable once published except for the bits.
 	struct Segment {
 		StorageIdentity identity;
 		Mapping mapping;
 		std::span<const char> bytes;
-		mutable std::vector<Word, d::StorageAllocator<Word>> verified;
+		VerifiedPages verified;
 		Segment(const StorageIdentity &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
 		    : identity(id), mapping(std::move(held)), bytes(mapping->bytes()),
-		      verified((bytes.size() / granule_bytes + 64) / 64, d::StorageAllocator<Word>(account)) {}
+		      verified(bytes.size(), account) {}
 	};
 	using Slot = std::atomic<Segment *>;
 	std::shared_ptr<const void> lease;
@@ -200,12 +197,8 @@ struct LazyPageAccess::State {
 			    reference.length > extent.size() - reference.offset)
 				throw ReadSourceFailure("local page exceeds its segment");
 			const auto bytes = extent.subspan(reference.offset, reference.length);
-			const auto granule = reference.offset / granule_bytes;
-			auto &word = mapped.verified[granule / 64];
-			const auto bit = std::uint64_t(1) << (granule % 64);
-			// Release on the set pairs with acquire on the test, so a hit happens after a completed
-			// verification. The bytes are immutable while mapped, so this orders no data today.
-			if (word.load(std::memory_order_acquire) & bit)
+			// A hit happens after a completed verification; the bytes are immutable while mapped.
+			if (mapped.verified.test(reference.offset))
 				return bytes;
 			const auto bounds = paged_limits(limits, p::root_bytes);
 			p::verify_page(bytes, reference, bounds);
@@ -218,7 +211,7 @@ struct LazyPageAccess::State {
 				throw ReadSourceFailure("local namespace exceeds selected revision");
 			verifications.fetch_add(1, std::memory_order_relaxed);
 			window(LazyPageWindow::Mark);
-			word.fetch_or(bit, std::memory_order_release);
+			mapped.verified.set(reference.offset);
 			return bytes;
 		} catch (const d::StoragePressure &) {
 			throw ReadSourceFailure("local reader admission exhausted");

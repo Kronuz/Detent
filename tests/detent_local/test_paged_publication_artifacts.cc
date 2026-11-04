@@ -72,9 +72,9 @@ int main() {
 				} else {
 					artifacts->populate(*plan);
 					const auto rows = artifacts->artifacts();
-					require(rows.size() == (progress ? 4 : 6));
+					require(rows.size() == (progress ? 5 : 7));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
-					const auto &lease = rows[rows.size() - 4];
+					const auto &lease = rows[rows.size() - 5];
 					const auto ownership =
 						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
 					require(ownership.layout_version == 2 && ownership.storage == storage &&
@@ -82,7 +82,9 @@ int main() {
 					std::vector<std::uint64_t> lengths;
 					for (const auto &segment : plan->segments())
 						lengths.push_back(segment.bytes->size());
-					require(artifacts->usage() == l::DiskLedger::paged_peak(lengths));
+					require(artifacts->usage() ==
+							l::DiskLedger::paged_peak(
+								lengths, l::detail::live_record_size(artifacts->reused().size() + lengths.size())));
 					const auto &record = rows[rows.size() - 2];
 					const auto metadata =
 					    l::detail::decode_reader_metadata({record.bytes().data(), record.bytes().size()});
