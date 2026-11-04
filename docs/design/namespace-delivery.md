@@ -222,8 +222,8 @@ The bar: Detent uses strata only where its needs map onto strata's existing conc
 
 | Question | Finding | Evidence |
 | --- | --- | --- |
-| Strata segments as delta blocks | Open, pending strata's measurement. A delete or replace sets a live bit in an older segment (`index.hh:1745-1756`), so a segment alone carries no position range; the Xapiand lead notes that a segment's changing delete state can ship as a per-segment bitmap delta in a manifest-relative install. Strata parks its own "pay only for what you are missing" evaluation for later. Detent's blocks are chosen on their own numbers (D6) | `strata/include/strata/core/index.hh:1745-1756`; `docs/ARCHITECTURE.md:98-106`; `merge_policy.hh:16-60` |
-| Relays shipping segments for (R, h] | Open, pending the same measurement of manifest-relative installs. Physical segment files differ between replicas (`REPLICATION.md:86-99`); Detent's relays ship blocks, which are byte-identical by construction (D7) | `REPLICATION.md:86-99` |
+| Strata segments as delta blocks | Deferred: the owner holds strata's evaluation, and Detent needs no number from it to land D6. A delete or replace sets a live bit in an older segment (`index.hh:1745-1756`), so a segment alone carries no position range; the Xapiand lead notes that a segment's changing delete state can ship as a per-segment bitmap delta in a manifest-relative install. Strata parks its own "pay only for what you are missing" evaluation for later. Detent's blocks are chosen on their own numbers (D6) | `strata/include/strata/core/index.hh:1745-1756`; `docs/ARCHITECTURE.md:98-106`; `merge_policy.hh:16-60` |
+| Relays shipping segments for (R, h] | Deferred with the row above. Physical segment files differ between replicas (`REPLICATION.md:86-99`); Detent's relays ship blocks, which are byte-identical by construction (D7) | `REPLICATION.md:86-99` |
 | Agent store as one merged strata segment per namespace | Not now. A point read is a fuse filter, a block-tree term dictionary and a stored block (LZ4, zstd or raw), unmeasured against the 268.5 ns target; reads go through an index or view in one process (`get` returns `std::optional<std::string>`); the agent needs read-only attach from other processes without allocation, and page sharing between generations for publication proportional to the change | `format.hh:102-114`; `index.hh:1197-1209`; `docs/design/shared-reader.md` |
 | Many groups per node | Designed, not built: coalesced heartbeats and quiescence (Track C2, D12), forced checkpoints and snapshot pacing (D13) | `docs/design/track-c.md:18,627,669` |
 | Maturity | Phase 3; the README says not for production storage until the key-value rows pass their gate; `strata::group` is designed, and the tree holds only `strata/core` | `docs/STATUS.md`; `README.md:112-116` |
@@ -236,7 +236,7 @@ The bar: Detent uses strata only where its needs map onto strata's existing conc
 
 What changes for the Xapiand agreement: Detent asks nothing of strata or consensus, so the agreed H1 shape (retained journal history with a horizon and a byte budget, typed "too old", no reader holding compaction) has no Detent consumer. Its condition "the journal itself, no parallel delta store" is superseded for Detent by the owner's ruling: blocks are delivery history derived from apply, not a second replication path; voters still replicate only through consensus and the journal. A smaller H1 (an apply-output interface and a compaction gate in `strata::group`) is strata's to take up for Xapiand's change capture if it wants one; nothing in Detent waits for it.
 
-**Recommendation:** adopt strata's replication shape (one group, journal, deterministic apply, checkpoint and install), keep Detent's state machine and paged agent store, and do not use the strata core or segments in delivery until strata's measurement of segment deltas says otherwise.
+**Recommendation:** adopt strata's replication shape (one group, journal, deterministic apply, checkpoint and install), keep Detent's state machine and paged agent store, and do not use the strata core or segments in delivery unless a resumed strata evaluation shows segment deltas beat D6's blocks.
 
 ## Reader alignment
 
@@ -304,7 +304,7 @@ Targets come from the attribution and are fixed after the first screen. The lead
 
 **Fresh random ids.** They rule out reuse (`coordinator.cc:211`) but lose byte identity between an image and an agent's build. Derived ids with no-replace publication and verified reuse keep both (D8).
 
-**Strata segments for history, relay caching or the agent store.** Open for the first two, pending strata's measurement; not now for the store. See "Strata fit".
+**Strata segments for history, relay caching or the agent store.** Deferred for the first two (strata's evaluation is on hold); not now for the store. See "Strata fit".
 
 **A `selected` file per namespace.** A reader following all namespaces would open one file per namespace on its first read. Not selected.
 
