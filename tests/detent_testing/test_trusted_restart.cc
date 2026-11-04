@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <fcntl.h>
 #include <fstream>
+#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <random>
@@ -33,7 +34,9 @@ void check(bool value, int line) {
 }
 #define CHECK(value) check(value, __LINE__)
 
-constexpr int knobs = 99990; // plus 10 more at revision 2: the parser caps a file at 100,000 knobs
+// 99,990 knobs plus 10 more at revision 2 (the parser caps a file at 100,000); sanitizer builds shrink it.
+const int knobs = std::getenv("DETENT_TRUSTED_RESTART_KNOBS") ? std::atoi(std::getenv("DETENT_TRUSTED_RESTART_KNOBS"))
+																: 99990;
 // The value of knob i at a revision, or nothing when the revision lacks it.
 std::optional<std::int64_t> expected(int revision, int i) {
 	if (revision >= 3 && i % 3333 == 0)
@@ -330,7 +333,7 @@ void refusals(const fs::path &store, const fs::path &scratch) {
 			true);
 }
 } // namespace
-int main() {
+int main(int argc, char **argv) {
 	const auto root = fs::current_path() / ".scratch" / ("trusted-restart-" + std::to_string(::getpid()));
 	fs::remove_all(root);
 	struct Cleanup {
@@ -338,15 +341,20 @@ int main() {
 		~Cleanup() { fs::remove_all(path); }
 	} cleanup{root};
 	const auto store = root / "store";
+	const std::string mode = argc > 1 ? argv[1] : "all";
+	CHECK(mode == "all" || mode == "oracle" || mode == "refusals" || mode == "t5");
 	{
 		detent::testing::GenerationWriter writer(store);
-		for (int revision = 1; revision <= 3; ++revision) {
+		for (int revision = 1; revision <= (mode == "refusals" ? 1 : 3); ++revision) {
 			CHECK(writer.publish_json(json(revision)) == std::uint64_t(revision));
-			oracle(store, root / "copy", revision);
+			if (mode == "all" || mode == "oracle")
+				oracle(store, root / "copy", revision);
 		}
 	}
-	refusals(store, root / "copy");
-	t5(store, root, 3);
+	if (mode == "all" || mode == "refusals")
+		refusals(store, root / "copy");
+	if (mode == "all" || mode == "t5")
+		t5(store, root, 3);
 	std::cout << "ok\n";
 	return 0;
 }
