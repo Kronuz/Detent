@@ -61,7 +61,7 @@
 ## Owner ruling (2026-11-03)
 - P1: a client pays only for what it is missing. An agent with a store of any age gets the blocks it lacks; a full copy only for a client with no store or one so far behind that the copy is cheaper.
 - Mechanism: compacted blocks per namespace (last write per key, tombstones), sealed by size, squashed coarser with age and size; the in-memory ring (4,096 transactions, 16 MiB) and the relay's exact edges stay the hot path; history cut by cost (α · base, α from time parity), with a cap on blocks per answer. Q2 superseded.
-- Strata parks its own evaluation of the same principle; the segment rows in "Strata fit" are open pending strata's measurement (Xapiand lead's note: per-segment delete bitmaps in a manifest-relative install).
+- Strata parks its own evaluation of the same principle; the segment rows in "Strata fit" are deferred: the owner holds strata's evaluation, and D6 decides on its own model (Xapiand lead's note: per-segment delete bitmaps in a manifest-relative install).
 
 ## Strata H1 (2026-11-03; withdrawn by the blocks revision)
 - Withdrawn: Detent needs no apply-output interface in consensus (its recorder exists), no compaction gate (the checkpoint is taken at a durable seal) and no journal reads by non-members. The Xapiand lead held the agreement below pending the revised D6.
