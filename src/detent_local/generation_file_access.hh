@@ -9,16 +9,23 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <sys/stat.h>
 #include <vector>
 
 namespace detent::local::detail {
 inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
 	struct stat info{};
-	if (fd < 0 || ::fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != owner ||
-	    info.st_nlink != 1 || (info.st_mode & 0022) || info.st_size < 0 ||
-	    std::uint64_t(info.st_size) != length)
-		throw std::runtime_error("invalid local generation descriptor");
+	const char *refused = fd < 0 || ::fstat(fd, &info) != 0 ? "unreadable"
+	                      : !S_ISREG(info.st_mode)           ? "not a regular file"
+	                      : info.st_uid != owner             ? "owner"
+	                      : info.st_nlink != 1               ? "link count"
+	                      : (info.st_mode & 0022)            ? "group or other write"
+	                      : info.st_size < 0 || std::uint64_t(info.st_size) != length ? "size"
+	                                                                                   : nullptr;
+	if (refused)
+		throw std::runtime_error(std::string("invalid local generation descriptor: ") + refused + " (links " +
+		                         std::to_string(info.st_nlink) + ", size " + std::to_string(info.st_size) + ")");
 }
 inline void read_generation_record(int fd, std::span<char> bytes) {
 	DETENT_COUNT(table_bytes, bytes.size());
@@ -27,7 +34,7 @@ inline void read_generation_record(int fd, std::span<char> bytes) {
 		if (count < 0 && errno == EINTR)
 			continue;
 		if (count <= 0)
-			throw std::runtime_error("invalid local generation descriptor");
+			throw std::runtime_error("invalid local generation descriptor: short read");
 		offset += static_cast<std::size_t>(count);
 	}
 }
