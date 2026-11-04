@@ -6,8 +6,8 @@
 #include <sys/types.h>
 
 namespace detent::local::detail {
-enum class LazyPageWindow { Publish, Mark };
-// Qualification hook: runs before a segment's publish and before a page's verified bit is set.
+enum class LazyPageWindow { Miss, Publish, Mark };
+// Qualification hook: runs after a segment miss, before its publish and before a page's bit is set.
 // Install before any lookup, never concurrently with one.
 struct LazyPageTesting {
 	static void install(void (*)(LazyPageWindow, void *) noexcept, void *) noexcept;
