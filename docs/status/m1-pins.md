@@ -79,7 +79,7 @@ are skipped by the workflow. No flakes hit.
 
 Done criteria 5 to 8 of `docs/PLAN.md` "M1: on the tip". Evidence note: `docs/perf/m1-w5-evidence.md`.
 
-**State (2026-11-04):** measured and written; CI on the pushed branch is the last step. Two results are
+**State (2026-11-04):** measured and written (new = `Detent:9a5a8c3` plus the branch; main has since added `Detent:b547256`, not measured); CI on the pushed branch is the last step. Two results are
 reported, not fixed: a managed first-read loss and the http-parser strictness (below).
 
 Old is `Detent:bf20f94` (2026-11-02 18:06), the last main commit before `Detent:85253b5`, the first to move a
@@ -88,14 +88,14 @@ pin; new is the branch tip (`Detent:9a5a8c3` plus `tools/w5` and docs). Both bui
 
 **Done**
 
-1. Identity drivers (`tools/w5/`, `Detent:ccb3dba`, `Detent:cec54dc`, `Detent:27a2e65`): compressors, http-parser,
+1. Identity drivers (`tools/w5/`, `Detent:39aa307`, `Detent:781bc01`, `Detent:db68fba`): compressors, http-parser,
    strict-stox, enum-reflection, random, Detent snapshot JSON and `--just-knob`, distribution frames and local
    images, the logger transcript, a raw HTTP replay of the classic daemon. Results per class in the note; every
    difference has a library commit as its cause.
 2. Hot-path A/B with an A/A control under `quiet exclusive` (read bench, authority update, durable ack, reply
    encoder, three-voter writers, managed first read on the 5M store). All inside the A/A band except the first read.
-3. CHANGELOG, DEPENDENCIES.md, DEPENDENCY_UPGRADES.md (`Detent:5111b5b`) and the website's dependencies,
-   installation and roadmap pages (`Detent:d6f3480`).
+3. CHANGELOG, DEPENDENCIES.md, DEPENDENCY_UPGRADES.md (`Detent:502e2d9`) and the website's dependencies,
+   installation and roadmap pages (`Detent:f8c747d`).
 
 **Next:** CI on the pushed branch; the owner's call on the two items below.
 

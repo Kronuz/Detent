@@ -16,7 +16,7 @@ Everything else is identical or inside the A/A band. Nothing was fixed on this b
 | | Commit | What it is |
 |---|---|---|
 | old | `Detent:bf20f94` (2026-11-02 18:06) | The last main commit before `Detent:85253b5`, the first to move a pin. Manifest: 33 Kronuz pins, all behind their heads. |
-| new | the tip of `m1/w5-evidence` = `Detent:9a5a8c3` plus `tools/w5` and docs | Main after legacy wave 2 removed the classic distributor. Every Kronuz pin at its library's head (`Detent:f7267d5`, pins unchanged since). |
+| new | `Detent:9a5a8c3` plus `tools/w5` and docs (the measured tree; the branch was later rebased on a main that adds `Detent:b547256`, the agent store's change file, which is not measured) | Main after legacy wave 2 removed the classic distributor. Every Kronuz pin at its library's head (`Detent:f7267d5`, pins unchanged since). |
 
 The two arms differ by more than the pins. Between them main took the W2 coroutine rewrite (`task::task`
 handlers), the authority on task and its owner loop, the retained-state envelope, the reader's S1 to S4
