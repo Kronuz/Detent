@@ -1,5 +1,6 @@
 #pragma once
 #include "paged_root_prefix.hh"
+#include "change_file.hh"
 #include "detent_local/collector.hh"
 #include "detent_local/disk_store.hh"
 #include "leased_paged_root.hh"
@@ -26,6 +27,7 @@ struct StoreCore {
 	std::shared_ptr<BootstrapCommitment> bootstrap;
 	std::shared_ptr<StorageSession> session;
 	std::shared_ptr<CollectorControls> controls;
+	std::unique_ptr<ChangeWriter> change;
 	StorageIdentity identity{};
 	DirectoryIdentity directory_identity{};
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
