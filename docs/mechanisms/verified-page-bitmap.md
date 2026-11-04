@@ -21,7 +21,8 @@ A lookup checks the generation's sticky `failed` flag, finds the segment, bounds
 - `slots` is an open-addressed array of atomic `Segment *`, sized at construction to the power of two at or above `2 × root.segments` (at least 2) and charged to the heap ledger. Slots go from null to a segment and never back while lookups run, so linear probing needs no tombstones: a probe ends at the matching identity or at the first null slot.
 - A miss maps the segment with today's checks (open with `O_NOFOLLOW`, extent, owner and mode, mode-only ACL, the mapped-bytes cap, the name's device and inode after mapping), builds a `Segment` (identity, mapping handle, byte span, zeroed bitmap) and publishes it with a release compare-and-swap at the first null slot. A thread that loses to the same identity destroys its copy, whose mapping goes to the retirement domain, and uses the winner's. A thread that loses to another identity probes on.
 - Lookups load slots with acquire, so a reader sees the segment's fields as constructed. With relaxed orderings these field reads race with construction.
-- The winner counts the segment and its bytes after publishing and refuses past `root.segments` or the mapped-bytes cap. A miss at the cap throws `ReadSourceFailure`, and the catch-all marks the generation failed, as before this change. A pre-check before the mapping refuses the serial case before any mapping is made.
+- Before mapping, a miss checks the pack count and the mapped-bytes cap against the published totals plus itself. Those totals include segments published after this thread's probe, so a refusal first probes again from the same slot: a segment another thread published meanwhile is used, not refused. Only a new segment past a limit is refused, before it is mapped.
+- The winner of a publish adds the segment and its bytes to the totals and refuses past `root.segments` or the cap; this catches two new segments admitted at once. A refusal at the cap throws `ReadSourceFailure` and the catch-all marks the generation failed, as before this change.
 - A full table (only reachable past the segment count) refuses the same way.
 
 ## Verified bits
@@ -39,4 +40,4 @@ A lookup checks the generation's sticky `failed` flag, finds the segment, bounds
 ## Diagnostics and test hooks
 
 - `mapped_segments()` is the number of published segments; `page_verifications()` is the number of completed verifications.
-- `LazyPageTesting::install` sets a hook that runs before a segment's publish (`Publish`) and before a verified bit is set (`Mark`). Tests use it to hold two threads at one window. It is installed before lookups and costs one relaxed load on a miss.
+- `LazyPageTesting::install` sets a hook that runs after a segment miss (`Miss`), before a segment's publish (`Publish`) and before a verified bit is set (`Mark`). Tests use it to hold two threads at one window. It is installed before lookups and costs one relaxed load on a miss.

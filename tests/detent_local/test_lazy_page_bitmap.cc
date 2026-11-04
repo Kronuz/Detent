@@ -302,13 +302,21 @@ void cap_miss() {
 }
 } // namespace
 
-int main() {
-	stress();
-	publish_window();
-	mark_window();
-	raced_admission(0);
-	raced_admission(1);
-	corrupt_first_touch();
-	cap_miss();
+int main(int argc, char **argv) {
+	// An argument runs one case: stress, publish, mark, raced, corrupt or cap.
+	const std::string_view only = argc > 1 ? argv[1] : "";
+	auto run = [&](std::string_view name, auto body) {
+		if (only.empty() || only == name)
+			body();
+	};
+	run("stress", stress);
+	run("publish", publish_window);
+	run("mark", mark_window);
+	run("raced", [] {
+		raced_admission(0);
+		raced_admission(1);
+	});
+	run("corrupt", corrupt_first_touch);
+	run("cap", cap_miss);
 	std::puts("lazy page bitmap: ok");
 }
