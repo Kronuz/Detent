@@ -119,7 +119,8 @@ Act on the default unless the owner rules otherwise; note each in its ledger.
 1. Flakes 3 to 5 and 8 in `docs/status/http-coroutines.md`; flake 8 is the TSan failure of `test_local_paged_publication_artifacts`.
 2. T9 and T4(7) measurements; the period-64 wire run.
 3. Legacy step I (flat-v1 removal).
-4. H's leftovers: Python on a free-threaded build, fork in the Rust tests, the unused `atomic-shared-ptr` link.
+4. Pin wave (per the Xapiand lead, 2026-11-04, no Detent API change): strata main has cold-tier items 5 and 5b and manifest-log steps 1 and 2; journal main has the framing (`journal:5bbeedc`). Take them in one pin commit after the branches above land, CI green.
+5. H's leftovers: Python on a free-threaded build, fork in the Rust tests, the unused `atomic-shared-ptr` link.
 
 ## Housekeeping
 
