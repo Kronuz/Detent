@@ -104,6 +104,8 @@ class StartupOperation final : public c::Operation {
 		if (!submitted_ || result.token != request().token)
 			return false;
 		submitted_ = false;
+		if (!result.error)
+			data_->session->sync_performed(request());
 		try {
 			if (phase_ == Phase::Inventory) {
 				const auto &old = inventory_->request();
@@ -444,6 +446,7 @@ class StartupOperation final : public c::Operation {
 		// Reader.md D4 rule 2: after the barrier, before ready, so a crash between a rename and its
 		// increments hides nothing.
 		data_->core->change->bump_all();
+		data_->core->startup_sync = data_->session->sync_counters();
 		data_->core->selection = {data_->selected ? SelectionKnowledge::Known : SelectionKnowledge::Absent,
 								  data_->selected};
 		data_->core->status = data_->core->closing ? StoreStatus::Closing : StoreStatus::Ready;
@@ -566,6 +569,8 @@ class PublicationOperation final : public c::Operation {
 		if (!submitted_ || result.token != request().token)
 			return false;
 		submitted_ = false;
+		if (!result.error)
+			data_->session->sync_performed(request());
 		try {
 			if (phase_ == Phase::Dependencies) {
 				dependencies_->complete(std::move(result));
@@ -650,6 +655,7 @@ class PublicationOperation final : public c::Operation {
 		old_selected_ = data_->core->selection.knowledge == SelectionKnowledge::Known;
 		data_->permit = data_->core->ledger.reserve(peak());
 		data_->core->active_generation = data_->descriptor.generation;
+		sync_at_admit_ = data_->session->sync_counters();
 	}
 	void cancel() noexcept {
 		cancelled_ = true;
@@ -735,6 +741,8 @@ class PublicationOperation final : public c::Operation {
 	}
 	void finish(DiskPublicationStatus status) noexcept {
 		data_->status = status;
+		if (status == DiskPublicationStatus::Published)
+			data_->core->publication_sync = data_->session->sync_counters() - sync_at_admit_;
 		if (status != DiskPublicationStatus::Fenced)
 			data_->core->active_generation.reset();
 		phase_ = Phase::Done;
@@ -746,6 +754,7 @@ class PublicationOperation final : public c::Operation {
 	std::optional<c::PreparedImage> prepared_;
 	c::Request request_;
 	c::Token token_;
+	SyncCounters sync_at_admit_;
 	Phase phase_ = Phase::Preflight;
 	std::size_t index_ = 0, sealed_ = 0;
 	bool submitted_ = false, started_ = false, child_started_ = false, cancelled_ = false,
@@ -799,6 +808,8 @@ class ReclaimOperation final : public c::Operation {
 		if (!submitted_ || result.token != request_.token)
 			return false;
 		submitted_ = false;
+		if (!result.error)
+			data_->session->sync_performed(request_);
 		try {
 			const auto phase = phase_;
 			if (phase == Phase::Scan && !result.error)
@@ -1481,6 +1492,10 @@ DiskStats DiskStore::stats() const noexcept {
 	if (!stats.initialized)
 		stats.peak = stats.reserved;
 	return stats;
+}
+SyncStats DiskStore::sync_stats() const noexcept {
+	const auto &core = *impl_->core;
+	return {core.session->sync_counters(), core.startup_sync, core.publication_sync};
 }
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
