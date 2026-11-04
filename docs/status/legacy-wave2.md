@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) ledger of legacy removal wave 2, steps B to G; H waits on the owner (see Step H).
+> Status: CURRENT (2026-11-04) ledger of legacy removal wave 2, steps B to H.
 
 # legacy-wave2
 
@@ -8,7 +8,7 @@
 - Done: - Rebased by the lead on `Detent:f7267d5` (M1 pins at head); the one conflict, `cmake/dependencies.json`, resolved as main's pins minus `cluster`, `generation_cache` and `http_log`; `tools/check_pins.py`: 30 libraries, 36 shared declarations, 0 mismatches.
 - Hosted CI on the rebased head `Detent:8340b53`: run 41812264929, every job green (ASan/UBSan and TSan included); before the rebase, run 41808138967 on `Detent:3f08e98`, every job green.
 - Not done before the developer stopped at the spend limit: the leftover-reference grep across docs and website. It's a follow-up, not a landing condition.
-- Next: H (Client and the bindings; waits on the owner's answer to the binding design's Q1 and on reader S6, see Step H), I (flat-v1). F and G are built; see their sections.
+- Next: I (flat-v1). F and G have landed; H is built on `legacy/wave2-h`; see their sections.
 - Blocked on: nothing blocks this wave. Product decisions for the owner, found by the website sweep:
   1. With no configuration the agent polls `127.0.0.1:8317` (`src/detent_agent/main.cc:128`), which no Detent daemon serves. Step G removes or changes it.
   2. Roadmap item 4 reads "a path for unmanaged agents and clients to receive authority data". Keep or drop it?
@@ -56,24 +56,33 @@ Evidence (F):
 - Sanitizers: none run locally (no threaded or memory code added); the hosted ASan/UBSan and TSan jobs cover them.
 - Hosted CI, dispatched on `Detent:3cf9201` (run 41867110024; the branch name does not trigger CI on push): pin-check, source-checks, linux-read-counters, linux-benchmarks, linux-x86_64-gcc and clang, linux-arm64-gcc, ASan/UBSan and macos-x86_64 green. linux-tsan failed once on `test_local_paged_publication_artifacts` ("invalid paged artifact operation accepted", 0.26 s; code F does not touch) and passed on rerun. macos-arm64 was cancelled by the first attempt and its rerun was still queued after more than an hour when the developer stopped: the one job not yet seen green.
 
-## Step H: the Client and the bindings (blocked, nothing changed)
+## Step H: the Client and the bindings
 
-Update after the owner ruling (decision 8): the lead stopped H after G. The binding design (`design/client-local-source`, `Detent:38afcb5`) makes both bindings wrap `libdetent_reader`'s C ABI with a `Reader` type (reader.md S8 and S9), and asks the owner whether H deletes `detent::Client` altogether (its Q1). What H removes depends on that answer, and the bindings (B1 to B5) wait on reader S6. No H code is on any branch.
+- Branch / worktree: `legacy/wave2-h`, stacked on `reader/s6` (merged with main and with S6 as they moved), at `.claude/worktrees/agent-a6c13d9faa82afd4d`. Rulings: decision 8, and the owner's "Delete Detent::Client and health() if they're legacy" (Q1 (a), Q2 (a) of `docs/design/client-local-source.md`).
+- B1: `libdetent_reader` and `libdetent_testing` have shared twins (`detent_reader_shared`, `detent_testing_shared`) that export only `detent_*` and `detent_testing_*` (a version script, or an exported-symbols list on Apple); `test_reader_exports` and `test_testing_exports` read the symbol table. The static targets stay for the C++ tests and the `detent` reader. Static dependencies build position-independent (`CMAKE_POSITION_INDEPENDENT_CODE`, set once after `project()`).
+- B2: `bindings/tests/scenarios.json` (41 cases: values including INT64_MIN and MAX, the fallback on each error, hash and switch pairs, rollout 0 and 100, group precedence, a namespace outside the handle, revisions across two publishes) and its C++ runner `test_reader_scenarios`.
+- B3: the Python module is a C extension (`bindings/python/detent_python.cc`, `METH_FASTCALL`, `Py_MOD_GIL_NOT_USED`, no subclassing, no `close()`); `Status`, `ReaderError` and `Lookup` are small Python types the module builds at import. `bindings/python/tests/test_detent.py`: T1 scenarios, T2 store states, T3 eight threads against 100 publishes, T4 descriptors, threads and fork, and the Python-only argument checks.
+- B4: the Rust crate (`bindings/rust`) declares the C ABI by hand; `build.rs` is a link search, `dylib=detent_reader` and an rpath, and cargo compiles no C++. `tests/integration.rs` (T1 to T3) and `tests/lifetime.rs` (T4, a process of its own so descriptor counts are exact). `serde_json` is the only dev-dependency.
+- B5: the `bindings` job in `ci.yml` (ubuntu-24.04 and macos-14): builds `detent_python detent_rust detent_testing_shared test_reader_scenarios` and runs `ctest --repeat until-fail:3` over the scenario, export and binding tests.
+- B6: deleted `detent::Client`, `InitOptions`, `health()`, `Metrics`, the read views, `LocalReadSource` and both factories, `ClientSourceOptions`, `detent::global`, `TestKnobs`, `OverrideTable` (nothing outside the Client needed it: the three other users only included it), `SnapshotRef`, the first evaluator, `detail/file.hh`, and the nine tests that covered only them. `KnobError::what()` moves to `src/detent/errors.cc`. `tests/detent/test_duplicate_precedence` and `test_model_alloc_failure` drop their override-table cases; `actual_type_sweep` declares its own variant.
+- Ports: `test_lazy_page_access` (a `detent::Reader` check), `local_oracle` and `mixed_oracle` (`GenerationReader` and `ReadView`; the mixed oracle's benchmark now compares `Reader` with a pinned view, path label `reader`), `prepared_client_probe` (`detent::Reader`), `test_evaluation` (the removed evaluator is now a reference written in the test), `w5_detent` (rollout buckets from `stable_bucket`; the `--just-knob` parser rows were `w5_stox`'s corpus already), `detent_demo` (opens a `Reader`), `tests/cmake_consumer`.
+- Benchmarks: `detent_read_bench` and `detent_model_lookup` are deleted; `reader_bench` (S6) replaces the first. `detent_update_bench` and `merge_over_defaults` are deleted too: the merge over baked defaults was the Client's. `bench_rows.sh` loses its `read` kind.
+- Docs: the website (`reference/cpp-api/reader.md` added; `client.md`, `sources.md`, `global-and-testing.md`, `guides/live-updates.md` and diagram `06_adapters` deleted), README, USAGE, ACTORS, SCALING (the stale `/v1/snapshot` line) and `basics.md` (same), CHANGELOG. A docs agent did the sweep; I checked its grep.
 
-No brief for H is in the repository, so this is read from the code. The Client has three source shapes in `InitOptions`: `source_path` (file), `source_poll` (a user function returning full snapshots or merge-patches) and `read_source` (managed generations); `read_source` is already documented as the only non-legacy one (`client.hh`: "Mutually exclusive with legacy file/poll sources"). Removing the legacy two narrows a documented public API (`website/.../reference/cpp-api/sources.md`, the spec's section 10 extension seam), which is the owner's call, and the file source cannot go before step G settles the unmanaged agent.
+Design vs code (H):
 
-Who uses them today (grep over `src`, `include`, `tests`, `bindings`, `examples`, `benchmarks`, `tools`):
+1. `detent get` is not on the reader core (reader.md D8, S7). It reads the durable generation through `GenerationReader` and `ReadView`, because the core has no open options for generation identity binding (`--generation-cluster` and the three other flags) or for the reader capacity limits, and `test_managed_process` exercises both. What changes versus before: no `--defaults` (R1), so a knob the generation does not hold is an error or `--default VALUE`. Moving `get` to the core is S7's remaining work and needs those two options in the ABI first; **owner call**, because dropping identity binding from `get` would narrow a check.
+2. The design lists `detent_demo`, `model_lookup` and the probes; it does not list `detent_update_bench` and `merge_over_defaults`. Both go with the baked-defaults layer.
+3. `test_eval_semantics` is deleted; its rollout-boundary and group-precedence cases are rows of `scenarios.json`, and `test_evaluation` keeps the exhaustive small-domain comparison.
+4. The core's lookups cannot report WRONG_TYPE through `Reader.lookup` (it reads the knob's own kind), so wrong-type rows check the returned fallback only.
+5. `test_managed_process.sh` passes `--default 7` to `detent get` where a deleted knob used to fall back to a baked 7; nothing else in the script changed meaning.
+6. `atomic-shared-ptr` is still linked by `detent` (`src/CMakeLists.txt`) though no source uses it now; left for the pin owner.
 
-1. `source_path`: `detent-agent` (unmanaged mode), the Python and Rust bindings (file source only), `test_file_source`, `test_read_view`, `test_agent_cli`, `detent_read_bench`, and two `tests/detent_system` fixtures.
-2. `source_poll` (with `SourcePayload`, `is_patch`, the patch merge in `Client::run_generic_source`): no production code since F; `test_client_publication_failure`, `test_read_view`, `test_file_source`, `test_model_and_schema` and `detent_read_bench` use it as an injectable source.
+Evidence (H):
 
-Options for the owner:
-
-- A. Remove `source_poll` only (`SourcePoll`, `SourcePayload`, `is_patch`, `run_generic_source`, the patch path in the Client and `source_id`). Keeps the file source, the unmanaged agent and the bindings. About 5 test and bench files move to a file or `read_source` fake; independent of G.
-- B. Remove both legacy sources: the Client becomes defaults, CLI overrides and `read_source`. Needs G to remove the unmanaged agent first, a Python and Rust binding of `make_local_read_source` (new API design; the bindings are file-only today), and rewrites of most `tests/detent` suites. Largest, and it removes the file source the roadmap lists as Done.
-- C. Keep both and stop calling them legacy.
-
-Recommendation: decide G first. If the unmanaged agent goes, B is the greenfield shape and H becomes its own design task with a designer for the binding API; if it stays, A, which is mechanical.
+- Release configure and build of every target with `DETENT_BUILD_PYTHON=ON DETENT_BUILD_RUST=ON`: clean (one link error found and fixed on the way: `KnobError::what()` lived in `client.cc`). Full ctest, 216 tests: the bindings (`detent_python_test`, `detent_rust_test`), the scenario and export tests, `test_agent_cli`, `test_reader_capacity`, the managed-process and system suites pass. First full run at `-j4` also showed `test_system_*` failing because `evidence.py` refuses a `git diff HEAD` over 4 MiB with the deletions uncommitted (it passes, 10 of 10, once committed) and `test_reader_switch` failing once with `refresh status 5: invalid local generation descriptor` (`test_reader_switch.cc:237`) in the 16-reader publish storm under that load; alone it passes in 260 s. That is S6's test over S6's code; the lead should watch it.
+- Mutants (T5, `.scratch/mutants.py`): a binding that ignores the fallback (Python `eval` and Rust `get` pass a fixed fallback to the core), one that drops `hash` (Python `eval`, Rust `lookup`), one that maps UNTRUSTED to OK (both): all six KILLED. A first "start the output from false" mutant survived in both languages because the core writes the fallback itself; it was equivalent and replaced.
+- Sanitizers: hosted ASan/UBSan and TSan jobs; nothing threaded or memory-owning was added beyond the extension's one handle.
 
 ## Step G: the shared-memory agent and the unmanaged `detent-agent`
 
