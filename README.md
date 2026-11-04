@@ -292,7 +292,6 @@ Managed agents and relay bundle sources write `"image_format": "paged-v2"` by de
 | Binary | Built from | Links | What it is |
 |---|---|---|---|
 | `detent_demo` | `examples/demo.cc` | `detent` | Baked-defaults-only example |
-| `detent_publish` | `examples/publish_snapshot.cc` | `detent` | Atomic file publisher |
 | `detentd` | `src/detentd/main.cc` | `detentd_lib` -> `detent`, `detent_http`, `http::http`, `cluster::cluster` | HTTP distributor with optional Raft clustering |
 | `detent-relay` | `src/detent_relay/main.cc` | Relay host, private configuration and bounded TLS distribution | Optional durable fan-out daemon; Stage 5B qualification |
 | `detent-agent` | `src/detent_agent/main.cc` | Agent, CLI and optional managed delivery libraries | Host-local daemon |

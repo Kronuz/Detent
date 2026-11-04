@@ -68,20 +68,6 @@ JSON and keeps the old snapshot, so it fails safe, but a partial write still
 delays the update until the next change.
 :::
 
-The repository includes a reference publisher that does this correctly. Each
-run reads the current file, applies changes, bumps the version and atomically
-replaces the file:
-
-```sh
-build/examples/detent_publish live.json search:max_results=50 checkout:new_path=true
-# published live.json: version=1, 2 live knob(s)
-build/examples/detent_publish live.json --rollout payments:new_processor=10 \
-    --override payments:new_processor:employees=true
-# published live.json: version=2, 3 live knob(s)
-build/examples/detent_publish live.json --clear search:max_results
-# published live.json: version=3, 2 live knob(s)
-```
-
 ---
 
 ## A Distributor Source
