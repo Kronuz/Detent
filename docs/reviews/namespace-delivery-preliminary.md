@@ -190,3 +190,92 @@ Fix: say how the object is produced (a snapshot per boundary, at what cost, kept
 - S1-S4 are not blocked by anything here.
 
 Not run: Detent builds, tests and sanitizers; benchmarks; Linux, FreeBSD and overlayfs (the copy-up in N4a and the reuse in N4b are read from code, not exercised); real power cuts; `detentd`, relay and agent timings; AWS leases.
+
+## Re-check 2 (2026-11-03)
+
+- Reviewed: `docs/design/namespace-delivery.md` at `Detent:57c67bc` (docs only; code cited at `Detent:d4abd4a`, `completion:576618d`).
+- Scope: N3 (the one held Replace), N1, N4b, and a text spot-check of N2, N4a, N5 and N6. Not a re-review of the design.
+- Probes in `.scratch/namespace-recheck2/` on branch `review/namespace-recheck2` (untracked), Python only, with `.out` files: `replace_model.py` (one namespace, one server: window, held Replace, build in flight, install horizon, oracle state per position), `rate_model.py`, `bound_model.py`, `det_model.py`, `crash_model3.py` (D8.4 as written), `crash_model4.py` (D9 ownership fallback); `crash_model2.py` is the previous round's model, unchanged. `quiet check` showed light holds and a load of 11, so `quiet light` queued; the models take 0.3-17 s each and ran at `nice -n 19` instead.
+
+### Verdicts
+
+| Item | Verdict | Evidence |
+| --- | --- | --- |
+| N1 | CLOSED | D8.4 as written: 0 wedges and 0 durable-table violations in 1,286 power-cut cases (first publication, and an ordinary build after g0); a mismatch on a name the table reaches stops for repair and never unlinks (36 cases, 0 unlinks, 0 missing reached files) |
+| N3 | PARTIAL | Exact (R, h] at every lag, identical bytes, the install case and the p race hold. Open: a clamped window breaks the rebuild bound and can livelock the build (N8); the build conflicts with the one-capture rule (N7); T4's +10% bound fails at S = 256 (N9); four text gaps (N11) |
+| N4b | PARTIAL | Crash model: 0 violations, 0 foreign opens and always completes at ordinal 1, including a crash at every primitive of the bootstrap. As written the text contradicts itself: the ordinal is read from a table that is never opened (N10) |
+| N2 | CLOSED (text) | D6: up to 64 records, about 1.5 KiB, position index to (log index, command offset); 64 x 24 B = 1,536 B |
+| N4a | CLOSED (text) | D9: no `.lease` in the image, created at adoption; a read-only existing-file open in S1; `change` is the one seeded file written, copied up once. Holds while seeded files are the agent's own; N10 covers the foreign case |
+| N5 | CLOSED (text) | D6 "Ranges": the piece before the first boundary starts at R + 1, then whole sealed ranges, then the tail, so every byte sent is a change after R and T3's twice-the-changes bound holds |
+| N6 | CLOSED | D11 fsyncs the temporary table before the rename. `crash_model2.py --rename-first`: 1 revert of a served table in 642 cases; design order: 0 in 643. `reader.md:120` (A4) now says what Reader alignment A4 says |
+
+### N1: D8.4 as written
+
+`crash_model3.py` adds the rule to the previous round's model: a reused name that mismatches is an orphan when the visible table does not reach it (unlink, link ours), corruption when it does (stop, D10's repair). Process cut at every primitive, restart, republish, power cut at every step, then restart and republish again.
+
+| Scenario | Mode | Cases | Violations | Wedges | Reached names unlinked |
+| --- | --- | --- | --- | --- | --- |
+| First publication | old D8.4 (fail) | 643 | 0 | **162** | 0 |
+| First publication | D8.4 as written | 643 | **0** | **0** | 0 |
+| Ordinary build after durable g0 | old D8.4 | 643 | 0 | 162 | 0 |
+| Ordinary build after durable g0 | D8.4 as written | 643 | **0** | **0** | 0 |
+| g0 selected, one of 3 files corrupted, ids equal g0's | D8.4 as written | 36 | **0** | 0 | **0** (6 stops for repair) |
+| Same, control: unlink on any mismatch | unlink_any | 744 | **107** | 0 | 236 |
+
+The control has teeth: unlinking a reached name leaves the durable table naming a missing file after the next startup barrier. The reach check reads the visible table, which is the agent's own in every row above; N10 covers a foreign one.
+
+### N3: the held Replace, modelled
+
+`replace_model.py`: one namespace, 4,000 entries of 1-3 keys (about 0.7 KB each, 15% deletes), S = 32 and a floor F of 128 KiB or 1 KiB (scaled down so the window slides in a short run; the logic does not depend on scale), `tau` = entries a build takes while apply moves on. About 1,300 consumers per row at lags from 1 to 2,000 positions, each holding the true state at R; an answer composed at the moment it is sent must equal the true state at its head.
+
+- **Exactness at every lag.** With the rules as written (p from the copy's own counter, a held Replace usable while p + 1 is retained, entries after p from history): 1,327 of 1,327 exact with no build delay, 0 inexact with a build taking 25 entries (the rest wait for the build, never get a wrong answer), at both F. Entries only, never a Replace, for every consumer within min(W, C) (0 violations of T4's rule). Replace share is the lag mix's, not a property.
+- **The race at p.** The Replace carries its copy's own counter, so there is no gap or overlap at p. Control, p read separately and off by one entry later: 174 and 286 of the answers inexact (a gap). Off by one earlier (an overlap): exact, because no operation is relative, as long as entry p is still readable. The one real hazard is an entry trimmed between the decision and the read; see N8.
+- **Snapshot install.** After an install the horizon is the install position. With "usable while p + 1 is retained (above the horizon)": 0 inexact in 1,327 answers with a Replace held 10 entries before the install. With "while p + 1 is in the nominal newest-W window", which is how D6 reads: 25 and 17 inexact (a Replace at p, entries p + 1 to the horizon missing). Entries only above the horizon and a Replace below it is right; N11 asks for the wording.
+- **Identical bytes.** `det_model.py`: the Replace of a voter that applied every entry, of a voter that installed a snapshot at position 400 (different insertion order) and applied the rest, and a relay's copy are identical at p = 500 and 800 when a record's revision is the namespace position; the control with a voter-local number after an install differs at p = 500. This needs the install to carry each record's namespace position, which `ImageEncoder` writes today (`state.cc:1663`).
+- **Rate: at most one build per W bytes.** `rate_model.py`, a consumer needing a Replace every 3 entries: window = W gives min 1.00 W of writes between builds (1.00 at the floor, 0.98 with a build taking 25 entries, the dip from C changing). That holds only while the window is W. Under the group budget's clamp the interval is the clamped window: with W/16, 189 builds in 6,000 entries against 50 unclamped, about 3 builds per nominal W, each encoding C (N8).
+
+### New findings
+
+**N7. The build is a second concurrent capture (D6 "Replace"; medium, S5.2).**
+`DELIVERY_INTEGRATION_ARCHITECTURE.md:41` and `state.hh:156` say to retain at most one capture through its whole retirement lifecycle: a capture holds the whole record and namespace roots and the definition retirement arena, so reclamation is deferred until it is released. D6 builds "off the apply executor from a copy of apply's state", per namespace, and "concurrent requests share one build" per namespace. A bootstrap wave across 4,096 namespaces is 4,096 builds, each a capture (the copy at `state.cc:1022` is per entry and short-lived; this one lives for an encode of C bytes). The namespace's records themselves are cheap to reach (`PersistentMap::cursor_from`, `persistent_map.hh:181`, a prefix seek, not a scan), so the cost is the pinned lifecycle, not the extraction. Not measured.
+Fix: one capture serves every build queued in a cycle, each namespace at its own position read from that capture; or state a bound on concurrent builds and amend the invariant.
+
+**N8. A clamped window breaks the rebuild bound and can livelock a build (D6 "Replace", "Group horizon"; medium, S5.2).**
+A build in flight does not pin the entries after its copy. When the group budget clamps a namespace's window to less than the entries written during one build, the Replace is trimmed before it can be served and the next request starts another. `rate_model.py`: clamped to W/16 with a build of 60 entries, 99 builds, all 99 trimmed before use, 2,000 of 2,000 requests waiting; at 25 entries, 4 of 188 trimmed and 1,693 of 2,000 waiting. Unclamped: 0 trimmed. Limit 3 allows exactly this clamp.
+Fix: a build pins the entries after its position until its response is served (a pin bounded by build time times write rate), and say that the rebuild bound is per effective window; or exempt a namespace with a build in flight from clamping.
+
+**N9. T4's +10% bound fails at S = 256 (T4; low).**
+Retention rounds down to a range start, so history is W plus up to (S - 1) entries, not W plus the largest entry. `bound_model.py`: C = 1 KiB to 500 KiB at the 1 MiB floor, 1 KiB entries: +24.9%; C = 100 MB with 64 KiB entries: +15.9%; C = 100 MB or more with 1 KiB entries: 0.2% or less. The floor-bound namespaces are the common ones. If the result records and position index count in "bytes", 100-byte entries add a further 24 B per command plus the index entry.
+Fix: bound by W + S entries (or W + 10% + one range), or round to the range nearest W.
+
+**N10. The foreign-owner fallback contradicts itself (D9.2; medium, S9).**
+`crash_model4.py`: a seeded store whose files are all foreign, in a directory the agent owns; fstatat checks (no open), bootstrap in place, the collector unlinking foreign names unopened. A process cut at every primitive of startup, bootstrap and collector, restart, power cut at every step, then run to the end: 1,141 cases.
+
+| Ordinal source | Cases | Durable-table violations | Cases that open a foreign file | Never completes |
+| --- | --- | --- | --- | --- |
+| Constant 1, nothing read | 1,141 | 0 | **0** | 0 |
+| Read from the seeded entry (D9.2 as written) | 1,141 | 0 | **1,141** | 0 |
+| Control: ordinal 0 (derived names collide with the seeded files) | 283 | 0 | 283 | 283 |
+| Control: collector unlinks every foreign name at start | 64 | 35 | 0 | 64 |
+
+So the discipline is sound at ordinal 1 and the collector must run after the first publication and only on names the table does not reach. But "builds each namespace at the seeded entry's ordinal plus one" needs the entry, which lives in a table D9.2 says is never opened because it is foreign. Three gaps follow:
+1. **Ordinal.** Use the constant (an image is built at ordinal 0, T6), or state that the table is read-only readable; and say what a fallback agent that is itself a second fallback does (its own table, agent-owned, is read normally).
+2. **Reach check.** D8.4's "the table does not reach it" cannot read a foreign table. State that a foreign table reaches nothing in the agent's ordinal space (true at ordinal 1 against an image at 0).
+3. **`change`.** The seeded `change` is foreign, so the agent cannot map it and must create a new one, which breaks D8's "never unlinked or replaced"; a reader that mapped the seeded file stops seeing updates, and the new file's words restart low. Say how readers re-attach, or have the foreign-`change` case refuse like a foreign directory.
+
+A refused foreign directory (D9.1) issues no primitive, so there is nothing to cut; the common uid mismatch (an image layer owned by root, the agent not) lands there and leaves the agent not ready rather than on the 722 s path. That matches the text; say so in the health reason's documentation.
+
+**N11. Clarifications for the held Replace (low).**
+1. Write the validity rule as "p + 1 is retained, above the horizon", not "in the window" (install case above).
+2. Say that p is the copy's own counter, taken at an entry boundary, and the Replace carries it.
+3. Say where a held Replace lives and when it is dropped. In memory, ΣC over thousands of namespaces breaks T8's 64 MiB; on disk, "the group at most its budget plus the held Replaces" is ΣC again, the size of the store.
+4. A relay that takes a Replace at the upstream's p ahead of its own head has a hole in its mirrored window: its horizon for that namespace moves to p, like an install.
+5. Selection sends the Replace when the entries exceed C, even when the held Replace sits at the window's edge: a consumer C + e behind gets C + W (about 2C at k = 1) for a Replace plus entries, against C + e of entries alone. Exact, bounded by twice; compare the two costs if it matters.
+6. T4's identity row needs both servers to hold a Replace at one p, which on-demand builds at each head do not give: the test must ask at a quiet moment or fetch one from the other.
+
+### Remaining before the next step
+
+- Before S5.2: N7, N8, N9, N11 and the H1 points. Before S9: N10.
+- Nothing here blocks S1-S4 or S5.1.
+
+Not run: Detent builds, tests and sanitizers; any C++ (the capture lifetime in N7, the encode time of a Replace and the overlayfs behavior are read from code and docs, not exercised); benchmarks; Linux, FreeBSD and overlayfs; real power cuts; `detentd`, relay and agent timings; AWS leases. The models run on a scaled-down namespace (S = 32, F = 128 KiB or 1 KiB); the S = 256 arithmetic in N9 is analytic with one simulated check. `quiet light` was queued behind other holds; the Python runs were `nice -n 19`.
