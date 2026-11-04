@@ -35,10 +35,17 @@ def main() -> int:
     parser.add_argument("old", type=Path)
     parser.add_argument("new", type=Path)
     parser.add_argument("--show", type=int, default=3, help="examples shown per class")
-    parser.add_argument("--ignore", action="append", default=[], help="id prefix to leave out (expected to differ)")
-    parser.add_argument("--signature", help="regex with one group: the part of a result that names the outcome")
+    parser.add_argument(
+        "--ignore", action="append", default=[], help="id prefix to leave out (expected to differ)"
+    )
+    parser.add_argument(
+        "--signature", help="regex with one group: the part of a result that names the outcome"
+    )
     parser.add_argument("--ids", action="store_true", help="print every differing id")
-    parser.add_argument("--strip", help="regex removed from every result before comparing (output only one build can produce)")
+    parser.add_argument(
+        "--strip",
+        help="regex removed from every result before comparing (output only one build can produce)",
+    )
     args = parser.parse_args()
     old, new = read(args.old, args.ignore), read(args.new, args.ignore)
     if args.strip:
@@ -64,12 +71,20 @@ def main() -> int:
         if a == b:
             continue
         different[kind] += 1
-        changes[(kind, "(absent)" if a is None else signature(a), "(absent)" if b is None else signature(b))] += 1
+        changes[
+            (
+                kind,
+                "(absent)" if a is None else signature(a),
+                "(absent)" if b is None else signature(b),
+            )
+        ] += 1
         if args.ids:
             print(f"differs: {key}")
         if shown[kind] < args.show:
             shown[kind] += 1
-            print(f"[{kind}] {key}\n  old: {(a if a is not None else '(absent)')[:240]}\n  new: {(b if b is not None else '(absent)')[:240]}")
+            print(
+                f"[{kind}] {key}\n  old: {(a if a is not None else '(absent)')[:240]}\n  new: {(b if b is not None else '(absent)')[:240]}"
+            )
     print()
     for (kind, a, b), count in sorted(changes.items()):
         print(f"  {kind}: {a} -> {b}: {count}")

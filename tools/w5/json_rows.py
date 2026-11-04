@@ -22,8 +22,8 @@ def main() -> int:
     parser.add_argument("--keep")
     args = parser.parse_args()
     objects = []
-    for line in sys.stdin.read().splitlines():
-        line = line.strip()
+    for raw in sys.stdin.read().splitlines():
+        line = raw.strip()
         if line.startswith("{"):
             objects.append(json.loads(line))
     if not objects:
@@ -32,7 +32,11 @@ def main() -> int:
     keep = re.compile(args.keep) if args.keep else None
     rows = 0
     for name in objects[0]:
-        values = [o[name] for o in objects if isinstance(o.get(name), (int, float)) and not isinstance(o.get(name), bool)]
+        values = [
+            o[name]
+            for o in objects
+            if isinstance(o.get(name), (int, float)) and not isinstance(o.get(name), bool)
+        ]
         unit = next((u for u in ("ms", "us", "ns") if f"_{u}" in name), None)
         if not values or unit is None or (keep and not keep.search(name)):
             continue

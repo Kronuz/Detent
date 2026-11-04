@@ -30,15 +30,28 @@ def snapshot(version: int, count: int) -> bytes:
     knobs: dict[str, object] = {}
     for i in range(count):
         if i % 3 == 0:
-            knobs[f"ns{i % 5}:flag_{i}"] = {"type": "bool", "default": i % 2 == 0, "rollout_pct": (i * 7) % 101, "overrides": {"internal": True}}
+            knobs[f"ns{i % 5}:flag_{i}"] = {
+                "type": "bool",
+                "default": i % 2 == 0,
+                "rollout_pct": (i * 7) % 101,
+                "overrides": {"internal": True},
+            }
         elif i % 3 == 1:
             knobs[f"ns{i % 5}:int_{i}"] = {"type": "int", "default": i * 1000 + version}
         else:
             knobs[f"ns{i % 5}:plain_{i}"] = {"type": "bool", "default": False}
-    return json.dumps({"schema_version": 1, "version": version, "knobs": knobs}, separators=(",", ":")).encode()
+    return json.dumps(
+        {"schema_version": 1, "version": version, "knobs": knobs}, separators=(",", ":")
+    ).encode()
 
 
-def timed(connection: http.client.HTTPConnection, method: str, path: str, body: bytes | None = None, headers: dict[str, str] | None = None) -> tuple[float, int, int]:
+def timed(
+    connection: http.client.HTTPConnection,
+    method: str,
+    path: str,
+    body: bytes | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[float, int, int]:
     start = time.perf_counter()
     connection.request(method, path, body=body, headers=headers or {})
     response = connection.getresponse()
@@ -64,8 +77,21 @@ def main() -> int:
     state = Path(tempfile.mkdtemp(prefix="w5-daemon-", dir=args.scratch))
     log = (state / "daemon.log").open("wb")
     daemon = subprocess.Popen(
-        [str(args.detentd), "--port", str(args.port), "--persist-path", str(state / "snapshot.json"), "--reactors", "4", "--color", "never"],
-        stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=state,
+        [
+            str(args.detentd),
+            "--port",
+            str(args.port),
+            "--persist-path",
+            str(state / "snapshot.json"),
+            "--reactors",
+            "4",
+            "--color",
+            "never",
+        ],
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        cwd=state,
     )
     try:
         for _ in range(100):
@@ -81,13 +107,20 @@ def main() -> int:
         bodies = [snapshot(v, args.knobs) for v in range(1, args.puts + 2)]
         puts: list[float] = []
         for body in bodies[: args.puts]:
-            micros, status, _ = timed(connection, "PUT", "/v1/snapshot", body, {"Content-Type": "application/json"})
+            micros, status, _ = timed(
+                connection, "PUT", "/v1/snapshot", body, {"Content-Type": "application/json"}
+            )
             if status != 200:
                 print(f"PUT answered {status}", file=sys.stderr)
                 return 2
             puts.append(micros)
         rows = {"put": puts[10:]}
-        for name, headers in (("get-identity", {}), ("get-zstd", {"Accept-Encoding": "zstd"}), ("get-304", {"If-None-Match": f'"{args.puts}"'}), ("health", None)):
+        for name, headers in (
+            ("get-identity", {}),
+            ("get-zstd", {"Accept-Encoding": "zstd"}),
+            ("get-304", {"If-None-Match": f'"{args.puts}"'}),
+            ("health", None),
+        ):
             path = "/v1/health" if headers is None else "/v1/snapshot"
             values: list[float] = []
             sizes = set()
@@ -126,7 +159,9 @@ def main() -> int:
         for name, values in rows.items():
             print(f"{name}-p50 {statistics.median(values):.1f} us")
             print(f"{name}-p99 {percentile(values, 0.99):.1f} us")
-        print(f"concurrent-{args.clients}-clients-per-request {elapsed * 1e6 / (args.clients * args.gets):.1f} us")
+        print(
+            f"concurrent-{args.clients}-clients-per-request {elapsed * 1e6 / (args.clients * args.gets):.1f} us"
+        )
         return 0
     finally:
         daemon.terminate()

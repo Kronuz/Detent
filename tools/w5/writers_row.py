@@ -29,18 +29,42 @@ def main() -> int:
     out = Path(tempfile.mkdtemp(prefix="w5-writers-", dir=".scratch")) / "run"
     try:
         result = subprocess.run(
-            [sys.executable, str(args.source / "tests/detent_system/run_writers.py"), "--scenario", str(args.source / "tests/detent_system/presets/smoke.json"),
-             "--binary", str(args.build / "src/detentd"), "--build", str(args.build), "--certificates", str(args.build / "tests/detent_authority/tls-fixture"),
-             "--output", str(out), "--seed", "17", "--duration", str(args.duration)],
-            capture_output=True, text=True, check=False)
+            [
+                sys.executable,
+                str(args.source / "tests/detent_system/run_writers.py"),
+                "--scenario",
+                str(args.source / "tests/detent_system/presets/smoke.json"),
+                "--binary",
+                str(args.build / "src/detentd"),
+                "--build",
+                str(args.build),
+                "--certificates",
+                str(args.build / "tests/detent_authority/tls-fixture"),
+                "--output",
+                str(out),
+                "--seed",
+                "17",
+                "--duration",
+                str(args.duration),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if result.returncode:
             print(result.stderr[-600:], file=sys.stderr)
             return 2
-        verified = next(e for e in map(json.loads, (out / "events.jsonl").read_text().splitlines()) if e.get("kind") == "verified")
+        verified = next(
+            e
+            for e in map(json.loads, (out / "events.jsonl").read_text().splitlines())
+            if e.get("kind") == "verified"
+        )
         completed = verified["http_final"]["completed"] - verified["http_initial"]["completed"]
         seconds = verified["sustained_seconds"]
         print(f"http_requests_per_s {completed / seconds:.3f}")
-        print(f"command_latency_mean_s {verified['command_latency_total_seconds'] / max(1, completed):.5f}")
+        print(
+            f"command_latency_mean_s {verified['command_latency_total_seconds'] / max(1, completed):.5f}"
+        )
         return 0
     finally:
         shutil.rmtree(out.parent, ignore_errors=True)

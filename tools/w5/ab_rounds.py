@@ -38,14 +38,23 @@ def main() -> int:
         order = order[shift:] + order[:shift]
         for arm in order:
             begin = time.monotonic()
-            result = subprocess.run(commands[arm], capture_output=True, text=True, timeout=args.timeout, check=False)
+            result = subprocess.run(
+                commands[arm], capture_output=True, text=True, timeout=args.timeout, check=False
+            )
             timings.append(f"round {n} {arm} {time.monotonic() - begin:.1f}s")
             if result.returncode:
-                print(f"{arm} round {n} exited {result.returncode}: {result.stderr[-400:]}", file=sys.stderr)
+                print(
+                    f"{arm} round {n} exited {result.returncode}: {result.stderr[-400:]}",
+                    file=sys.stderr,
+                )
                 return 2
-            (args.out / arm / f"run-{n:03d}.txt").write_text(result.stdout if result.stdout.strip() else result.stderr)
+            (args.out / arm / f"run-{n:03d}.txt").write_text(
+                result.stdout if result.stdout.strip() else result.stderr
+            )
         print(f"round {n}/{args.rounds} done", file=sys.stderr, flush=True)
-    (args.out / "timings.txt").write_text("\n".join(timings) + f"\ntotal {time.monotonic() - started:.1f}s\n")
+    (args.out / "timings.txt").write_text(
+        "\n".join(timings) + f"\ntotal {time.monotonic() - started:.1f}s\n"
+    )
     return 0
 
 

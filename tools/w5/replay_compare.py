@@ -35,7 +35,9 @@ def main() -> int:
     old_dir, new_dir = Path(sys.argv[1]), Path(sys.argv[2])
     old, new = load(old_dir / "responses.txt"), load(new_dir / "responses.txt")
     differing = [k for k in old if mask(old[k]) != mask(new.get(k, ""))]
-    print(f"{len(old)} cases; {len(old) - len(differing)} identical; differing: {', '.join(differing) or 'none'}")
+    print(
+        f"{len(old)} cases; {len(old) - len(differing)} identical; differing: {', '.join(differing) or 'none'}"
+    )
     for k in differing:
         first = lambda s: s.split("\r\n")[0].split("\n")[0][:80]  # noqa: E731
         print(f"  {k}: old [{first(old[k])}] new [{first(new[k])}]")

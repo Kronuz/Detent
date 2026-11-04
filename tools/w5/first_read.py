@@ -38,7 +38,9 @@ def sha256(path: Path) -> str:
 
 
 def clean_env() -> dict[str, str]:
-    return {k: v for k, v in os.environ.items() if not k.startswith(("DETENT_", "DYLD_", "LD_PRELOAD"))}
+    return {
+        k: v for k, v in os.environ.items() if not k.startswith(("DETENT_", "DYLD_", "LD_PRELOAD"))
+    }
 
 
 def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> None:
@@ -58,17 +60,35 @@ def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> N
         managed["port"] = unavailable.getsockname()[1]
         (arm / "managed.json").write_text(json.dumps(managed, indent=2) + "\n")
         (arm / "managed.json").chmod(0o600)
-        (arm / "agent.json").write_text(json.dumps({"managed_path": "managed.json", "generation_dir": "generations", "runtime_dir": "runtime"}) + "\n")
+        (arm / "agent.json").write_text(
+            json.dumps(
+                {
+                    "managed_path": "managed.json",
+                    "generation_dir": "generations",
+                    "runtime_dir": "runtime",
+                }
+            )
+            + "\n"
+        )
         before = {p.name for p in (arm / "generations").iterdir()}
         log = arm / "agent.log"
         started = time.monotonic()
         with log.open("wb") as stream:
-            process = subprocess.Popen([str(build / AGENT), "--config", str(arm / "agent.json")], stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.STDOUT, env=clean_env())
+            process = subprocess.Popen(
+                [str(build / AGENT), "--config", str(arm / "agent.json")],
+                stdin=subprocess.DEVNULL,
+                stdout=stream,
+                stderr=subprocess.STDOUT,
+                env=clean_env(),
+            )
             try:
                 while time.monotonic() - started < 400:
                     if process.poll() is not None:
                         raise SystemExit(f"agent exited early; see {log}")
-                    if b"managed local store ready, selected generation" in log.read_bytes()[-65536:]:
+                    if (
+                        b"managed local store ready, selected generation"
+                        in log.read_bytes()[-65536:]
+                    ):
                         break
                     time.sleep(0.1)
                 else:
@@ -86,21 +106,32 @@ def prepare_arm(name: str, build: Path, source: Path, ca: Path, work: Path) -> N
     print(f"{name}: ready in {ready:.1f} s; new files {added}")
     with (work / "prepared.txt").open("a") as out:
         out.write(f"{name} ready {ready:.1f}s\n")
-        for n in sorted(added) + ["selected"]:
+        for n in [*sorted(added), "selected"]:
             p = arm / "generations" / n
             if p.is_file():
                 out.write(f"{name} {n} {p.stat().st_size} {sha256(p)}\n")
 
 
 def read_once(build: Path, directory: Path, key: str, expected: int) -> dict[str, float]:
-    result = subprocess.run([str(build / PROBE), "--read", str(directory), key, str(expected)], capture_output=True, text=True, timeout=60, env=clean_env())
+    result = subprocess.run(
+        [str(build / PROBE), "--read", str(directory), key, str(expected)],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=60,
+        env=clean_env(),
+    )
     if result.returncode:
         raise RuntimeError(f"probe failed: {result.stderr[:300]}")
     return json.loads(result.stdout)
 
 
 def measure(old: Path, new: Path, work: Path, cases: list[dict], rounds: int) -> None:
-    arms = {"a": (old, work / "old" / "generations"), "b": (new, work / "new" / "generations"), "aa": (old, work / "old" / "generations")}
+    arms = {
+        "a": (old, work / "old" / "generations"),
+        "b": (new, work / "new" / "generations"),
+        "aa": (old, work / "old" / "generations"),
+    }
     series = work / "series"
     for tag in arms:
         (series / tag).mkdir(parents=True, exist_ok=True)
@@ -120,10 +151,14 @@ def measure(old: Path, new: Path, work: Path, cases: list[dict], rounds: int) ->
                 micros = sample["first_live_ns"] / 1000
                 rows[tag].append(micros)
                 lines[tag].append(f"case{index:02d} {micros:.3f} us")
-                samples.write(json.dumps({"arm": tag, "round": round_number, "case": index, **sample}) + "\n")
+                samples.write(
+                    json.dumps({"arm": tag, "round": round_number, "case": index, **sample}) + "\n"
+                )
         for tag in arms:
             (series / tag / f"run-{round_number:03d}.txt").write_text("\n".join(lines[tag]) + "\n")
-        print(f"round {round_number}/{rounds} done at {time.monotonic() - started:.0f} s", flush=True)
+        print(
+            f"round {round_number}/{rounds} done at {time.monotonic() - started:.0f} s", flush=True
+        )
     samples.close()
     with (work / "summary.txt").open("w") as out:
         for tag, values in rows.items():
@@ -140,14 +175,18 @@ def cross(old: Path, new: Path, work: Path, cases: list[dict]) -> None:
     for probe, store in ((new, "old"), (old, "new"), (old, "old"), (new, "new")):
         bad = 0
         for case in cases[:10]:
-            sample = read_once(probe, work / store / "generations", case["key"], case["expected_int"])
+            sample = read_once(
+                probe, work / store / "generations", case["key"], case["expected_int"]
+            )
             bad += not sample
         which = "new" if probe == new else "old"
         print(f"{which} probe on the {store} store: 10 reads, {bad} failures")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("action", choices=("prepare", "measure", "cross"))
     parser.add_argument("--old", type=Path, required=True)
     parser.add_argument("--new", type=Path, required=True)
