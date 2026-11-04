@@ -104,6 +104,16 @@ std::size_t threads() {
 	return count;
 #endif
 }
+// Joined threads can stay listed briefly while the kernel finishes their exit; a thread the core
+// started never leaves, so waiting for the count to settle keeps the check exact.
+bool threads_settle(std::size_t expected) {
+	for (auto deadline = std::chrono::steady_clock::now() + 5s; threads() != expected;) {
+		if (std::chrono::steady_clock::now() >= deadline)
+			return false;
+		std::this_thread::sleep_for(1ms);
+	}
+	return true;
+}
 std::size_t descriptors() {
 	std::size_t count = 0;
 	for (int fd = 0; fd != 4096; ++fd)
@@ -252,7 +262,7 @@ void switching(const std::filesystem::path &root) {
 		          << stats.refused << " refused, " << refreshes.load() << " refreshes (" << unavailable.load() << " unavailable), max live views "
 		          << max_live.load() << ", " << publishes << " generations in " << elapsed << " s\n";
 		CHECK(stats.live_views <= 4 && stats.generations >= 1 && stats.generations <= 4);
-		CHECK(threads() == before);
+		CHECK(threads_settle(before));
 		const auto held_fds = descriptors(), held_maps = mappings(store);
 		if (held_fds <= fds || held_maps <= maps)
 			std::fprintf(stderr, "held: descriptors %zu (before %zu), mappings %zu (before %zu)\n", held_fds, fds,
@@ -260,7 +270,7 @@ void switching(const std::filesystem::path &root) {
 		CHECK(held_fds > fds);
 		CHECK(held_maps > maps);
 	}
-	CHECK(threads() == before && descriptors() == fds && mappings(store) == maps);
+	CHECK(threads_settle(before) && descriptors() == fds && mappings(store) == maps);
 	::munmap(shared, sizeof(Shared));
 }
 
