@@ -5,19 +5,24 @@ Status: DRAFT (2026-11-04). Numbers for docs/design/namespace-delivery.md D6.
   seal    The seal trigger against consensus's LogFull for log mixes with few
           positioned entries (the review's NB-1 cases), as designed and as the
           old positioned-only trigger.
-  layout  Key-level seal, squash and cut over one namespace of 40,000 keys
-          (the 5M corpus at 1/125, 52 B per record, 34 B per tombstone): the
-          churn models in days, and the review's key-set, bulk-load and
-          mass-delete shapes in positions. Answers are persisted blocks served
-          whole, the block holding R + 1 trimmed to revisions above R.
+  layout  Key-level seal, roll-up, squash and cut over one namespace: 40,000
+          keys (the 5M corpus at 1/125, 52 B per record, 34 B per tombstone)
+          for the churn models in days and the review's key-set, bulk-load
+          and mass-delete shapes, and 1,200 keys for small namespaces. Answers
+          are persisted blocks served whole, the block holding R + 1 trimmed
+          to revisions above R.
+  files   Seal files, roll-ups and tables over a group of namespaces, against
+          the seal-file packing the roll-up replaces: bytes written, files
+          created, and dead bytes held.
 
-Run: python3 -I docs/design/namespace-delivery-blocks-model.py [seal|layout]
+Run: python3 -I docs/design/namespace-delivery-blocks-model.py [seal|layout|files]
 """
 
 from __future__ import annotations
 
 import random
 import sys
+from bisect import bisect_left
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -98,6 +103,8 @@ RECORD, TOMBSTONE = 52, 34
 C = KEYS * RECORD
 SEAL = 64  # positions per seal here; D6 seals every 2,048 group transactions (16 at this scale)
 RATIO = 4
+ROLLUP = 16  # seals between per-namespace roll-ups of level-0 sections
+KEYS_5M = 5_000_000
 Recs = dict[int, tuple[int, bool]]  # key -> (position of its last write, is a delete)
 
 
@@ -116,8 +123,13 @@ class Block:
 @dataclass
 class Namespace:
     alpha: float
-    cap: float = 2.0  # hard disk cap: blocks above the base at most cap * alpha * live
+    cap: float = 2.0  # disk cap: blocks above the base at most cap * alpha * live
+    seal_every: int = SEAL
+    rollup: int = ROLLUP
     pos: int = 0
+    seals: int = 0
+    level0: list[Block] = field(default_factory=list)  # sections of seal files
+    over_cap: float = 0.0  # worst blocks above the base / (cap * alpha * live)
     live: dict[int, int] = field(default_factory=dict)
     last: Recs = field(default_factory=dict)
     unsealed: Recs = field(default_factory=dict)
@@ -143,15 +155,24 @@ class Namespace:
         else:
             self.live[key] = self.pos
         self.last[key] = self.unsealed[key] = (self.pos, delete)
-        if self.pos % SEAL == 0:
+        if self.pos % self.seal_every == 0:
             self.seal()
 
     def seal(self) -> None:
         recs, self.unsealed = self.unsealed, {}
-        block = Block(self.pos - SEAL + 1, self.pos, recs, nbytes(recs))
-        self.blocks.append(block)
-        self.written += block.size
+        size = nbytes(recs)
+        self.level0.append(Block(self.pos - self.seal_every + 1, self.pos, recs, size))
+        self.written += size
+        self.seals += 1
         limit = self.budget() / 4
+        if self.seals % self.rollup and sum(b.size for b in self.level0) < limit:
+            return  # roll up every `rollup` seals, or once level-0 reaches L
+        merged: Recs = {}
+        for b in self.level0:
+            merged.update(b.recs)
+        self.blocks.append(Block(self.level0[0].a, self.pos, merged, nbytes(merged)))
+        self.level0 = []
+        fresh = {id(self.blocks[-1])}
         while len(self.blocks) >= 2:
             older, younger = self.blocks[-2], self.blocks[-1]
             if older.size >= RATIO * younger.size:
@@ -162,7 +183,10 @@ class Namespace:
             if size > limit and size > max(older.size, younger.size):
                 break  # past the limit, only a merge that grows nothing proceeds
             self.blocks[-2:] = [Block(older.a, younger.b, recs, size)]
-            self.written += size
+            fresh.add(id(self.blocks[-1]))
+        self.written += sum(b.size for b in self.blocks if id(b) in fresh)
+        before = self.disk()
+        cut = False
         while len(self.blocks) >= 2:  # the newest block is never cut
             younger = sum(b.size for b in self.blocks[1:])
             if younger >= self.budget():
@@ -172,7 +196,7 @@ class Namespace:
             else:
                 break
             self.cuts[rule] += 1
-            before = self.disk()
+            cut = True
             oldest = self.blocks.pop(0)
             for k, (p, t) in oldest.recs.items():
                 if t:
@@ -180,18 +204,21 @@ class Namespace:
                 else:
                     self.base[k] = p
             self.base_p = oldest.b
+        if cut:  # one base written per roll-up
             self.written += len(self.base) * RECORD
             self.peak_cut = max(self.peak_cut, before + len(self.base) * RECORD)
+        held = sum(b.size for b in self.blocks)
+        self.over_cap = max(self.over_cap, held / max(self.cap * self.budget(), 1))
         self.peak = max(self.peak, self.disk())
 
     def disk(self) -> int:
-        return len(self.base) * RECORD + sum(b.size for b in self.blocks)
+        return len(self.base) * RECORD + sum(b.size for b in self.blocks + self.level0)
 
     def answers(self, r: int) -> tuple[int, int, int]:
         """(exact missing bytes, whole-block answer bytes, server bytes read) for a store at r."""
         exact = sum(TOMBSTONE if t else RECORD for p, t in self.last.values() if p > r)
         sent = read = 0
-        for b in self.blocks:
+        for b in self.blocks + self.level0:
             if b.b <= r:
                 continue
             read += b.size
@@ -221,10 +248,16 @@ class Report:
 
 
 def simulate(
-    alpha: float, initial: int, steps: int, gen: Gen, ages: list[int], samples: int = 20
+    alpha: float,
+    initial: int,
+    steps: int,
+    gen: Gen,
+    ages: list[int],
+    samples: int = 20,
+    seal_every: int = SEAL,
 ) -> tuple[Namespace, Report]:
     rng = random.Random(1)
-    ns = Namespace(alpha)
+    ns = Namespace(alpha, seal_every=seal_every)
     for k in range(initial):
         ns.live[k] = 0
     ns.base = dict(ns.live)
@@ -237,7 +270,10 @@ def simulate(
             copy = len(ns.live) * RECORD
             stores = [ns.pos - age for age in ages]
             if ns.base_p:
-                stores += [ns.base_p - 1, ns.base_p - 4 * SEAL]  # just below the cut
+                stores += [
+                    ns.base_p - 1,
+                    ns.base_p - 4 * ns.seal_every,
+                ]  # just below the cut
             for r in stores:
                 if r < 0:
                     continue
@@ -288,6 +324,10 @@ def churn_gen(c: Churn) -> Gen:
     return gen
 
 
+def keyset_of(keys: int, frac: float) -> Gen:
+    return lambda ns, rng: (rng.randrange(int(keys * frac)), False)
+
+
 def keyset(frac: float) -> Gen:
     return lambda ns, rng: (rng.randrange(int(KEYS * frac)), False)
 
@@ -304,23 +344,29 @@ def bulk() -> Gen:
     return gen
 
 
-def mass_delete(ns: Namespace, rng: random.Random) -> tuple[int, bool]:
-    if ns.pos < int(0.9 * KEYS):
-        return ns.pos, True
-    return KEYS - 1 - rng.randrange(KEYS // 10), False
+def mass_delete(keys: int) -> Gen:
+    def gen(ns: Namespace, rng: random.Random) -> tuple[int, bool]:
+        if ns.pos < int(0.9 * keys):
+            return ns.pos, True
+        return keys - 1 - rng.randrange(keys // 10), False
+
+    return gen
 
 
-def line(name: str, ns: Namespace, rep: Report, unit: float, label: str) -> None:
+def line(
+    name: str, ns: Namespace, rep: Report, unit: float, label: str, c: int = C
+) -> None:
     per = unit if label == "days" else 10_000  # a day's positions, or 10,000
     mean = sum(rep.over) / len(rep.over) if rep.over else 0.0
     rmean = sum(rep.read) / len(rep.read) if rep.read else 0.0
     print(
         f"  {name}: cut reaches back {min(rep.reach) / unit:,.1f}-{max(rep.reach) / unit:,.1f} {label}; "
-        f"cuts by cost {ns.cuts['cost']}, by cap {ns.cuts['cap']}"
+        f"cuts by cost {ns.cuts['cost']}, by cap {ns.cuts['cap']}; "
+        f"worst blocks / cap {ns.over_cap:.2f}"
     )
     print(
-        f"     disk peak {ns.peak / C:.2f} C, during a cut {ns.peak_cut / C:.2f} C; "
-        f"written {ns.written / C:.1f} C, {ns.written * per / ns.pos / C:.2f} C per {'day' if label == 'days' else '10,000 positions'}"
+        f"     disk peak {ns.peak / c:.2f} C, during a cut {ns.peak_cut / c:.2f} C; "
+        f"written {ns.written / c:.1f} C, {ns.written * per / ns.pos / c:.2f} C per {'day' if label == 'days' else '10,000 positions'}"
     )
     print(
         f"     above the cut: sent {mean:.2f}x missing on average, worst {max(rep.over, default=0):.2f}x; "
@@ -344,8 +390,257 @@ def layout_main() -> None:
         line(f"uniform key set of {frac:.2f} C, alpha 1", ns, rep, 1, "positions")
     ns, rep = simulate(1.0, 0, 120_000, bulk(), [1200, 6000, 12000, 30000])
     line("bulk load from an empty base, alpha 1", ns, rep, 1, "positions")
-    ns, rep = simulate(1.0, KEYS, 200_000, mass_delete, [500, 1000, 2000, 4000, 20_000])
+    ages = [500, 1000, 2000, 4000, 20_000]
+    ns, rep = simulate(1.0, KEYS, 200_000, mass_delete(KEYS), ages)
     line("mass delete of 90% of the keys, alpha 1", ns, rep, 1, "positions")
+    small = 1200  # the 5M corpus over 4,096 namespaces
+    for every in (60, 600):
+        ages = [100, 300, 1000, 3000]
+        ns, rep = simulate(
+            1.0, small, 60_000, mass_delete(small), ages, seal_every=every
+        )
+        line(
+            f"{small:,} keys, seals of {every} positions, 90% deleted, alpha 1",
+            ns,
+            rep,
+            1,
+            "positions",
+            small * RECORD,
+        )
+        ns, rep = simulate(
+            1.0, small, 60_000, keyset_of(small, 1.0), ages, seal_every=every
+        )
+        line(
+            f"{small:,} keys, seals of {every} positions, uniform rewrites, alpha 1",
+            ns,
+            rep,
+            1,
+            "positions",
+            small * RECORD,
+        )
+
+
+# --- files -----------------------------------------------------------------
+
+MIB = 1 << 20
+TABLE_EVERY = (
+    16  # seals between `layout` tables, about one checkpoint interval at T8's rate
+)
+
+
+@dataclass
+class Sec:
+    keys: frozenset[int]
+    size: int
+    file: int
+    ns: int
+
+
+@dataclass
+class Group:
+    """Many namespaces under one seal sequence, with the physical placement of blocks in files."""
+
+    rollup: int  # 0: the packing; k: level-0 only in seal files, rolled up every k seals or at L
+    sizes: list[int]
+    zipf: float
+    next_file: int = 0
+    files: dict[int, list[int]] = field(
+        default_factory=dict
+    )  # file -> [bytes, live bytes, is a seal file]
+    members: dict[int, set[int]] = field(default_factory=dict)  # file -> section ids
+    secs: dict[int, Sec] = field(default_factory=dict)
+    next_sec: int = 0
+    written: dict[str, int] = field(
+        default_factory=lambda: dict.fromkeys(("level-0", "merge", "base", "copy"), 0)
+    )
+    created: int = 0
+    samples: list[tuple[int, int, int]] = field(
+        default_factory=list
+    )  # (files, bytes, live bytes)
+
+    def new_file(self, seal_file: bool) -> int:
+        self.next_file += 1
+        self.files[self.next_file] = [0, 0, int(seal_file)]
+        self.members[self.next_file] = set()
+        self.created += 1
+        return self.next_file
+
+    def place(self, keys: frozenset[int], file: int, ns: int) -> int:
+        self.next_sec += 1
+        size = len(keys) * RECORD
+        self.secs[self.next_sec] = Sec(keys, size, file, ns)
+        self.files[file][0] += size
+        self.files[file][1] += size
+        self.members[file].add(self.next_sec)
+        return self.next_sec
+
+    def drop(self, sid: int) -> None:
+        sec = self.secs.pop(sid)
+        self.files[sec.file][1] -= sec.size
+        self.members[sec.file].discard(sid)
+
+    def output(self, keys: frozenset[int], seal_file: int, kind: str, ns: int) -> int:
+        """Packing keeps outputs under 1 MiB in the seal file; the roll-up gives every output its own file."""
+        self.written[kind] += len(keys) * RECORD
+        if not self.rollup and len(keys) * RECORD < MIB:
+            return self.place(keys, seal_file, ns)
+        return self.place(keys, self.new_file(False), ns)
+
+
+def settle(
+    g: Group, ns: int, items: list[int | frozenset[int]], base: int, sf: int
+) -> tuple[list[int], int]:
+    """Squash and cut one namespace in memory, then write only the blocks and base that result."""
+
+    def keys(x: int | frozenset[int]) -> frozenset[int]:
+        return g.secs[x].keys if isinstance(x, int) else x
+
+    budget = (
+        g.sizes[ns] * RECORD
+    )  # alpha 1 and no deletes: |st(s)| is the namespace's size
+    dropped: list[int] = []
+    while len(items) >= 2:
+        older, younger = items[-2], items[-1]
+        if len(keys(older)) >= RATIO * len(keys(younger)):
+            break
+        merged = keys(older) | keys(younger)
+        if len(merged) * RECORD > budget / 4 and len(merged) > max(
+            len(keys(older)), len(keys(younger))
+        ):
+            break
+        dropped += [x for x in (older, younger) if isinstance(x, int)]
+        items[-2:] = [merged]
+    base_keys: frozenset[int] | None = None
+    while len(items) >= 2 and sum(len(keys(x)) for x in items[1:]) * RECORD >= budget:
+        oldest = items.pop(0)
+        base_keys = (keys(base) if base_keys is None else base_keys) | keys(oldest)
+        if isinstance(oldest, int):
+            dropped.append(oldest)
+    out = [x if isinstance(x, int) else g.output(x, sf, "merge", ns) for x in items]
+    if base_keys is not None:
+        dropped.append(base)
+        base = g.output(base_keys, sf, "base", ns)
+    for sid in dropped:
+        g.drop(sid)
+    return out, base
+
+
+def files_run(
+    rollup: int, sizes: list[int], zipf: float, seals: int = 800, txs: int = 2048
+) -> Group:
+    rng = random.Random(1)
+    g = Group(rollup, sizes, zipf)
+    n = len(sizes)
+    weights = [1 / (r + 1) ** zipf for r in range(n)]
+    cum: list[float] = []
+    total = 0.0
+    for w in weights:
+        total += w
+        cum.append(total)
+    first = g.new_file(True)
+    bases = [
+        g.output(frozenset(range(k)), first, "base", i) for i, k in enumerate(sizes)
+    ]
+    g.written["base"] = g.created = 0  # the first bases are not churn
+    ladders: list[list[int]] = [[] for _ in range(n)]
+    level0: list[list[int]] = [[] for _ in range(n)]
+    for seal in range(1, seals + 1):
+        touched: dict[int, set[int]] = {}
+        for _ in range(txs):
+            ns = min(bisect_left(cum, rng.random() * total), n - 1)
+            k = sizes[ns]
+            key = (
+                rng.randrange(max(1, k // 100))
+                if rng.random() < 0.8
+                else rng.randrange(k)
+            )
+            touched.setdefault(ns, set()).add(key)
+        sf = g.new_file(True)
+        for ns, keys in touched.items():
+            g.written["level-0"] += len(keys) * RECORD
+            level0[ns].append(g.place(frozenset(keys), sf, ns))
+        due = sorted(touched)
+        if rollup:
+            due = [
+                i
+                for i in range(n)
+                if level0[i]
+                and (
+                    seal % rollup == 0
+                    or sum(g.secs[sid].size for sid in level0[i])
+                    >= sizes[i] * RECORD / 4
+                )
+            ]
+        for ns in due:
+            items: list[int | frozenset[int]] = list(ladders[ns])
+            if rollup:
+                items.append(
+                    frozenset().union(*(g.secs[sid].keys for sid in level0[ns]))
+                )
+                for sid in level0[ns]:
+                    g.drop(sid)
+            else:
+                items.extend(level0[ns])
+            level0[ns] = []
+            ladders[ns], bases[ns] = settle(g, ns, items, bases[ns], sf)
+        if not rollup:  # copy live sections forward out of seal files under half live
+            for f, (size, live, is_seal) in list(g.files.items()):
+                if f == sf or not is_seal or not live or 2 * live >= size:
+                    continue
+                for sid in list(g.members[f]):
+                    sec = g.secs[sid]
+                    g.drop(sid)
+                    g.written["copy"] += sec.size
+                    new = g.place(sec.keys, sf, sec.ns)
+                    for lst in (ladders[sec.ns], level0[sec.ns]):
+                        if sid in lst:
+                            lst[lst.index(sid)] = new
+                    if bases[sec.ns] == sid:
+                        bases[sec.ns] = new
+        if seal % TABLE_EVERY == 0:
+            for f in [
+                f for f, (size, live, _) in g.files.items() if not live and f != sf
+            ]:
+                del g.files[f]
+                del g.members[f]
+            if seal > seals // 2:
+                g.samples.append(
+                    (
+                        len(g.files),
+                        sum(v[0] for v in g.files.values()),
+                        sum(v[1] for v in g.files.values()),
+                    )
+                )
+    return g
+
+
+def files_main() -> None:
+    populations = (
+        ("4,096 namespaces of 1,220 keys", [KEYS_5M // 4096] * 4096),
+        ("64 namespaces of 78,125 keys", [KEYS_5M // 64] * 64),
+    )
+    seals = 800
+    raw = seals * 2048 * RECORD
+    for label, sizes in populations:
+        for zipf in (0.8, 1.0, 1.3):
+            for rollup in (0, 16, 64):
+                g = files_run(rollup, sizes, zipf, seals)
+                w = g.written
+                total = sum(w.values())
+                files, disk, live = max(g.samples, key=lambda x: x[1])
+                dead = max((d - lv) / d for _, d, lv in g.samples)
+                name = f"roll-up every {rollup} seals" if rollup else "packing"
+                print(f"{label}, zipf {zipf}, {name}:")
+                print(
+                    f"   written {total / raw:.2f}x the raw changes: level-0 {w['level-0'] / raw:.2f}, "
+                    f"merges {w['merge'] / raw:.2f}, base rewrites {w['base'] / raw:.2f}, "
+                    f"copied forward {w['copy'] / raw:.2f}"
+                )
+                print(
+                    f"   files created per seal {g.created / seals:.1f}; "
+                    f"peak on disk {disk / MIB:.0f} MiB in {files:,} files, {live / MIB:.0f} MiB live; "
+                    f"worst dead share {dead:.0%}"
+                )
 
 
 if __name__ == "__main__":
@@ -354,3 +649,5 @@ if __name__ == "__main__":
         seal_main()
     if which in ("layout", "all"):
         layout_main()
+    if which in ("files", "all"):
+        files_main()
