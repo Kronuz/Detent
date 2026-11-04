@@ -1,4 +1,5 @@
 #include "detent_local/view.hh"
+#include "evaluation.hh"
 #include "detent/hashing.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
@@ -386,28 +387,6 @@ ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std:
 		return {};
 	if (!definition->boolean())
 		return error(ErrorCategory::WrongType, key);
-	const auto fallback = definition->default_bool();
-	auto ramp = [&](std::uint64_t pct) {
-		if (!hash)
-			return fallback;
-		auto name = definition->qualified_key();
-		std::array<char, 200> qualified;
-		if (name.empty()) {
-			std::copy(ns.begin(), ns.end(), qualified.begin());
-			qualified[ns.size()] = ':';
-			std::copy(key.begin(), key.end(), qualified.begin() + ns.size() + 1);
-			name = {qualified.data(), ns.size() + key.size() + 1};
-		}
-		return stable_bucket(name, *hash) < pct;
-	};
-	if (switch_value) {
-		if (const auto override = definition->override_for(*switch_value)) {
-			if (const auto *rollout = std::get_if<GroupRollout>(&*override))
-				return ramp(rollout->rollout_pct);
-			return std::get<bool>(*override);
-		}
-	}
-	const auto rollout = definition->rollout();
-	return rollout ? ramp(*rollout) : fallback;
+	return evaluate(*definition, ns, key, hash, switch_value);
 }
 } // namespace detent::local
