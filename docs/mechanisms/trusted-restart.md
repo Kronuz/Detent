@@ -45,9 +45,9 @@ Rows are strictly ascending by segment id, so they are the registry's order. A r
 
 **Missing or damaged.**
 
-- Present and wrong (digest, binding, shape, size, an unsafe file, a missing `.read`, `.read` differing from the root or limits): the store is refused (`recover` throws).
-- Absent: the full verified recovery runs, as for any generation published before `.live` existed. This is the one place the behavior differs from "refuse"; it keeps an upgraded store working at its old restart cost, and an attacker who deletes the file gains nothing (every digest is then checked). Whether absence should refuse is the owner's call (ledger, "Design vs code").
+- Missing, or present and wrong (digest, binding, shape, size, an unsafe file, a missing `.read`, `.read` differing from the root or limits): the store is refused (`recover` throws). There is no second restart path; a refused store is repaired the way a corrupt one is, by a fresh copy (lead ruling 2026-11-04). The test suite's hand-installed stores derive both records once (`tests/detent_local/trusted_records.hh`).
 - A corrupt `selected`, root image or lease refuses the store exactly as before: those are checked first.
+- The refusal applies to the agent's cold start (`RecoveryContext::trusted_start`, set by `ManagedRecovery::capture`). The full verified recovery stays for the recovery that follows a publication and for tools (`recover_generation`).
 
 ## What startup does and does not do
 
@@ -63,14 +63,16 @@ A successor's warm validation reads only changed pages of its base, through the 
 
 `PackScrub` (`pack_scrub.hh`) takes the registry's inputs (owner record checksum and mapped bytes per pack) and hashes them in order at `bytes_per_second`: a credit of `rate * elapsed` bytes accrues (capped at one second, so a stalled caller is not repaid in a burst), the hash advances in slices up to the credit, and a pack whose SHA-256 differs from its owner record is listed in `failures()`. A pass over B bytes takes B / rate seconds. The caller picks the clock and the cadence; the class starts no thread. `test_testing_pack_scrub` checks the pace against a fake clock exactly and against the wall clock within 10%.
 
-The scrub reports at pack granularity. It is not yet driven by the agent: nothing calls `begin` on a timer or exposes `failures()` in health (ledger, "Next").
+The scrub reports at pack granularity.
+
+**In the agent.** `Coordinator::Impl::scrub_loop` is a third sibling task beside the disk and candidate loops (`task::when_all`), on the owner executor with its own timer, no thread. Every 20 ms it pins the selected generation's registry (`ScrubSource`, a retained handle), starts a pass when the generation changes or the last pass ends, and steps the scrub by at most 2 MiB. The loop reads `base->generation` only after the recovery worker has set `ready`. A pack that differs from its owner record sets `CoordinatorStatus::scrub` (`passes`, `bytes_hashed`, `damaged_packs`, `source_failure`), counts one coordinator failure with a scrub error, and the agent's monitor logs it as a warning. `scrub_bytes_per_second` (managed configuration, default 524,288, 0 disables) sets the pace. What a damaged pack triggers beyond that report is open (ledger, "Blocked on").
 
 ## Limits
 
 - Corruption nobody reads stays undetected until the scrub reaches it (design Limit 1). A page verified before it was damaged stays verified for the mapping's life.
 - Padding between pages is covered only by the scrub (no page digest includes it).
 - Trust ends at the live counts (above) and at `.owner` records, which a writer of the store can forge as it can forge any file there.
-- Only the cold start with no admission trusts; the recovery that follows a publication still walks the new generation (design S4).
+- Only the cold start with no admission trusts; the recovery that follows a publication still walks the new generation (design S4). A refused update can leave the new revision selected: a republication builds from the incoming snapshot, then the recovery after it fails first touch on a damaged base page with a source failure (`test_testing_trusted_restart_t5`).
 
 ## Design vs code
 
