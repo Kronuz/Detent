@@ -21,12 +21,12 @@ says what runs on `main` today and marks what is designed but not built.
 | Paged store: packs, `.read`, `.live`, `selected`, `change`, `storage.meta` | On `main`; one generation holds every namespace, so `change` has one slot | [change-file.md](https://github.com/Kronuz/Detent/blob/main/docs/mechanisms/change-file.md), [trusted-restart.md](https://github.com/Kronuz/Detent/blob/main/docs/mechanisms/trusted-restart.md) |
 | Trusted restart, first-touch checks, the paced scrub | On `main` (namespace step S3) | [status/namespace-s3.md](https://github.com/Kronuz/Detent/blob/main/docs/status/namespace-s3.md) |
 | Damaged-pack repair | In progress (step S3b) | [status/namespace-s3.md](https://github.com/Kronuz/Detent/blob/main/docs/status/namespace-s3.md), "Blocked on" |
-| `libdetent_reader`, the lock-free reader core | Built on branch `reader/s6`, not on `main` (reader step S6) | [design/reader.md](https://github.com/Kronuz/Detent/blob/main/docs/design/reader.md), [status/reader-s5-s6.md](https://github.com/Kronuz/Detent/blob/main/docs/status/reader-s5-s6.md) |
+| `libdetent_reader`, the lock-free reader core, and the Python and Rust bindings over it | On `main` (reader step S6, legacy wave 2 step H) | [design/reader.md](https://github.com/Kronuz/Detent/blob/main/docs/design/reader.md), [status/reader-s5-s6.md](https://github.com/Kronuz/Detent/blob/main/docs/status/reader-s5-s6.md) |
 | A `selected` table with one entry and one `change` slot per namespace | Designed (namespace delivery D8, step S7) | [design/namespace-delivery.md](https://github.com/Kronuz/Detent/blob/main/docs/design/namespace-delivery.md) |
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](https://github.com/Kronuz/Detent/blob/main/docs/design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](https://github.com/Kronuz/Detent/blob/main/docs/design/namespace-delivery.md) |
 | Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
-| Removal of the Client's file and poll sources | In progress (legacy wave 2, step H) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
+| Removal of `detent::Client`, its file and poll sources, and `health()` | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](https://github.com/Kronuz/Detent/blob/main/docs/status/legacy-wave2.md) |
 
 ---
 
@@ -76,22 +76,13 @@ and holds `owner.lock` exclusively for the store's whole life
 ([change-file.md](https://github.com/Kronuz/Detent/blob/main/docs/mechanisms/change-file.md)).
 
 **Applications** read knobs from that directory through `libdetent_reader`, one
-reader core with a C ABI; in the design, C++, Rust and Python wrap it and
-`detent get` calls it
+reader core with a C ABI (`include/detent/reader.h`). C++ (`detent::Reader`,
+`include/detent/reader.hh`), Python and Rust wrap it
 ([reader.md](https://github.com/Kronuz/Detent/blob/main/docs/design/reader.md)
-D1). Until reader step S6 lands, applications read through `detent::Client` with
-`make_local_read_source` (`include/detent_local/client_source.hh:31`), over the
-same files.
-
-**Legacy wave 2 removed the unmanaged agent.** It kept one `detent::Client` in
-its own memory, polled a file or the classic HTTP distributor, and copied the
-whole snapshot into a shared-memory region capped at 4 MiB
-(formerly `src/detent_agent/agent.hh` and `src/detent_agent/shm_format.hh`). That is a
-second copy of data the managed store already gives every process through file
-mappings, it had no path to authority data, and the classic distributor it
-polled is already removed. The owner ruled to drop it (decision 7 of the wave 2
-ledger). Step G deleted it, and `detent-agent` and `detent get` now exit with
-`no source configured` when no managed source is set.
+D1, [client-local-source.md](https://github.com/Kronuz/Detent/blob/main/docs/design/client-local-source.md)
+D1). `detent get` reads the same files through the local generation reader.
+`detent-agent` and `detent get` exit with `no source configured` when no
+managed source is set.
 
 ---
 
@@ -306,14 +297,9 @@ counters; the last reader out lets the one freer unmap them
 ([reader.md](https://github.com/Kronuz/Detent/blob/main/docs/design/reader.md)
 D4, D5).
 
-**Today on `main`.** `detent::Client` with `make_local_read_source` reads the
-same files. Page access already uses the lock-free segment table and
-verified-page bitmap
-([verified-page-bitmap.md](https://github.com/Kronuz/Detent/blob/main/docs/mechanisms/verified-page-bitmap.md)),
-but a background thread polls `selected` every 200 ms
-(`include/detent_local/client_source.hh:10`) instead of the one sequence load,
-and one generation holds every namespace, so a switch re-attaches the whole
-store.
+**Today on `main`.** One generation holds every namespace, at `change` slot 0,
+so a switch re-attaches the whole store
+([reader-core.md](https://github.com/Kronuz/Detent/blob/main/docs/mechanisms/reader-core.md)).
 
 ---
 

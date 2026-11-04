@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One hot-path A/B: old against new, interleaved, with an A/A control, then the ab_compare.py report.
 #   tools/w5/run_ab.sh KIND ROUNDS OUT_DIR [OLD_BUILD NEW_BUILD]
-# KIND is a bench_rows.sh kind (read, authority-update, authority-durable, authority-read). Run it under
+# KIND is a bench_rows.sh kind (authority-update, authority-durable, authority-read). Run it under
 # `quiet exclusive NAME 10 "what" -- tools/w5/run_ab.sh ...`.
 set -uo pipefail
 kind=${1:?kind}

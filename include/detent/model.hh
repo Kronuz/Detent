@@ -47,7 +47,7 @@ using KnobDef = std::variant<BoolDef, IntDef>;
 
 // Immutable, fully validated map plus the metadata a diagnostics endpoint
 // wants. Snapshot instances are never mutated after construction; the
-// updater builds a brand new one and publishes it via SnapshotRef.
+// writer builds a brand new one.
 struct Snapshot {
 	std::uint64_t version = 0;              // 0 == baked-default startup snapshot
 	std::optional<std::string> published_at; // RFC 3339 UTC, source-provided

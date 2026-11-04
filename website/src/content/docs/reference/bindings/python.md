@@ -6,75 +6,92 @@ title: "Python API"
 import detent
 ```
 
-The `detent` extension module is built with pybind11 when
-`DETENT_BUILD_PYTHON=ON`.
+The `detent` extension module is a C extension over `libdetent_reader`, built
+when `DETENT_BUILD_PYTHON=ON`. It declares `Py_MOD_GIL_NOT_USED`, so it runs
+on free-threaded builds without a lock.
 
 ---
 
-## `detent.Client`
+## `detent.Reader`
 
 ```python
-detent.Client(
-    defaults_path: str,
-    source_path: str | None = None,
-    cli_overrides: list[str] = [],
-    poll_interval_ms: int = 200,
-)
+detent.Reader(store: str | bytes | os.PathLike, publisher_uid: int, namespaces=())
 ```
 
-Constructs a client with the given baked defaults and, optionally, a file
-source. Raises `detent.DetentError` for missing or invalid defaults and invalid
-CLI overrides.
+Opens the agent's store directory. `publisher_uid` is the uid the agent runs
+as; `namespaces` is an iterable of `str` that limits the reader, and empty
+means all of them. A store that doesn't exist yet opens, and lookups return the
+fallback with `Status.UNAVAILABLE`.
 
-### `eval`
+Opening is the only call that raises: `detent.ReaderError` for a failed open,
+`TypeError` or `OverflowError` for a bad argument. Importing the module raises
+`ImportError` when the library's ABI version differs from the extension's.
+
+There is no `close()`: the handle closes when the object is deallocated, and
+every lookup holds a reference to it, so a close can never overlap a lookup.
+The type can't be subclassed.
+
+### Lookups
 
 ```python
-Client.eval(name: str, hash_val: str | None = None, switch_val: str | None = None) -> bool
+Reader.eval(name: str, fallback: bool, hash: str | None = None, switch_value: str | None = None) -> bool
+Reader.get(name: str, fallback: int) -> int
+Reader.lookup(name: str, hash: str | None = None, switch_value: str | None = None) -> Lookup
 ```
 
-Evaluates a bool knob with the [standard precedence](/Detent/reference/evaluation/).
+`eval` and `get` return `fallback` on any error. A non-`bool` fallback to
+`eval`, a non-`int` or `bool` fallback to `get`, or a non-`str` name raises
+`TypeError`; an integer outside int64 raises `OverflowError`. Lookups keep the
+GIL.
 
-### `get`
+### Freshness
 
 ```python
-Client.get(name: str, switch_val: str | None = None) -> int
+Reader.refresh() -> Status
+Reader.revision(namespace: str) -> int | None
 ```
 
-Reads an int knob. `switch_val` is accepted for symmetry and ignored.
+`refresh()` attaches a new publish now rather than on the next lookup, and
+releases the GIL while it works. `revision` returns the namespace's attached
+revision, or `None`.
 
-### `health`
+---
+
+## `detent.Lookup`
+
+`lookup()` returns a `Lookup` with `.status` (a `Status`) and `.value` (a
+`bool` or `int`, or `None` unless the status is `OK`). It's truthy when the
+status is `OK`.
 
 ```python
-Client.health() -> dict
-```
-
-```python
-{'initialized': True, 'source_connected': True, 'accepted_version': 7,
- 'staleness_seconds': 0.4, 'bool_knobs': 2, 'int_knobs': 1, 'cli_overrides': 0}
+result = reader.lookup("search:max_results")
+if not result:
+    print(result.status.name)   # e.g. MISSING, UNAVAILABLE
 ```
 
 ---
 
-## `detent.DetentError`
+## `detent.Status`
 
-Raised for every construction and read failure. The message starts with the
-error category:
+An `IntEnum` with the C ABI's values: `OK`, `MISSING`, `WRONG_TYPE`,
+`INVALID_NAME`, `NOT_OPENED`, `SOURCE_FAILURE`, `UNAVAILABLE`, `UNTRUSTED`,
+`INVALID_ARGUMENT`, `NO_MEMORY`, `IO`. A value newer than the binding maps to a
+member named `UNKNOWN_<n>` that keeps the integer. The
+[Reader reference](/Detent/reference/cpp-api/reader/#lookups) says what each
+one means.
+
+---
+
+## `detent.ReaderError`
 
 ```python
 try:
-    client.get("search:nope")
-except detent.DetentError as e:
-    print(e)   # MissingKnob: search:nope (not present in current snapshot)
+    reader = detent.Reader(store, uid)
+except detent.ReaderError as e:
+    print(e.status.name, e)   # UNTRUSTED detent_open: untrusted
 ```
 
-Reads are in-memory and non-blocking.
-
 :::hint[Not yet in the Python binding]{.unimplemented}
-1. The managed generation source.
-2. `read_view()`, `get_as`, and the `_or_panic` helpers.
-3. A `check()` alias for `eval()`.
-4. Category-specific exceptions: `KeyError` for `MissingKnob`, `ValueError`
-   for `WrongType` and `InvalidName`, `SystemError` for `Uninitialized`, and
-   `OverflowError` for conversions.
-5. Type stubs (`.pyi`) and a published wheel.
+1. Type stubs (`.pyi`).
+2. A published wheel.
 :::

@@ -2,73 +2,98 @@
 title: "Rust API"
 ---
 
-The `detent` crate in `bindings/rust/` wraps the C++ client with `cxx`. It's
-built when `DETENT_BUILD_RUST=ON`.
+The `detent` library in `bindings/rust/` (package `detent-rust`) declares
+`libdetent_reader`'s C ABI with `extern "C"` and links the shared library CMake
+builds; cargo compiles no C++. Build CMake first with `DETENT_BUILD_RUST=ON`,
+which also runs `cargo build`; set `DETENT_BUILD_DIR` when the build directory
+isn't `<repo>/build`.
 
 ---
 
-## `detent::Client`
+## `detent::Reader`
 
 ```rust
-impl Client {
-    pub fn new(
-        defaults_path: &str,
-        source_path: Option<&str>,
-        cli_overrides: Vec<String>,
-        poll_interval_ms: i32,
-    ) -> Result<Self, DetentError>;
+impl Reader {
+    pub fn open(
+        store: impl AsRef<Path>,
+        publisher_uid: u32,
+        namespaces: &[&str],
+    ) -> Result<Reader, ReaderError>;
 
     pub fn eval(
         &self,
         name: &str,
-        hash_val: Option<&str>,
-        switch_val: Option<&str>,
-    ) -> Result<bool, DetentError>;
+        fallback: bool,
+        hash: Option<&str>,
+        switch_value: Option<&str>,
+    ) -> bool;
 
-    pub fn get(&self, name: &str, switch_val: Option<&str>) -> Result<i64, DetentError>;
+    pub fn get(&self, name: &str, fallback: i64) -> i64;
 
-    pub fn health(&self) -> HealthInfo;
+    pub fn lookup(
+        &self,
+        name: &str,
+        hash: Option<&str>,
+        switch_value: Option<&str>,
+    ) -> Result<Value, Status>;
+
+    pub fn refresh(&self) -> Result<(), Status>;
+
+    pub fn revision(&self, namespace: &str) -> Option<u64>;
 }
 ```
 
+`open` takes the agent's store directory, the uid the agent runs as, and the
+namespaces to limit the reader to (empty means all, including later ones). The
+path is passed as raw bytes, so non-UTF-8 paths work. A store that doesn't
+exist yet opens, and lookups return the fallback with `Status::Unavailable`.
+
+`eval` and `get` return `fallback` on any error; `lookup` returns the status
+instead. `Reader` is `Send + Sync` and not `Clone`: share one through `Arc`.
+The handle closes on `Drop`, which can't overlap a lookup because lookups
+borrow `&self`.
+
 ```rust
-let client = detent::Client::new("/etc/myapp/just_knobs.json", None, vec![], 200)?;
-if client.eval("checkout:killswitch_new_path", None, None)? {
-    new_checkout();
+let reader = detent::Reader::open("agent-state", agent_uid, &[])?;
+if reader.eval("checkout:killswitch_new_path", false, None, None) {
+    disable_new_checkout();
 }
+let max = reader.get("search:max_results", 25);
+let on = reader.eval("payments:new_processor", false, Some("user-42"), None);
 ```
 
 ---
 
-## `HealthInfo`
+## `Value` and `Status`
 
 ```rust
-pub struct HealthInfo {
-    pub initialized: bool,
-    pub source_connected: bool,
-    pub accepted_version: u64,
-    pub staleness_seconds: f64,
-    pub bool_knobs: usize,
-    pub int_knobs: usize,
-    pub cli_overrides: usize,
+pub enum Value { Bool(bool), Int(i64) }
+
+#[non_exhaustive]
+pub enum Status {
+    Missing, WrongType, InvalidName, NotOpened, SourceFailure,
+    Unavailable, Untrusted, InvalidArgument, NoMemory, Io,
+    Unknown(u32),
 }
 ```
 
+`Status::name()` returns the core's name for the status (`"missing"`,
+`"untrusted"`). `Unknown` keeps a status newer than the binding. The
+[Reader reference](/Detent/reference/cpp-api/reader/#lookups) says what each
+one means.
+
 ---
 
-## `DetentError`
+## `ReaderError`
 
 ```rust
-pub struct DetentError(pub String);
+pub struct ReaderError { pub status: Status }
 ```
 
-Implements `std::error::Error` and `Display`; the message starts with the error
-category, e.g. `MissingKnob: ...`.
+The only error `open` returns. It implements `std::error::Error` and displays
+as `detent_open: <status name>`. An ABI version mismatch is
+`Status::InvalidArgument`.
 
 :::hint[Not yet in the Rust binding]{.unimplemented}
-1. The managed generation source.
-2. `read_view()`, a generic `get_as::<T>()`, and panicking helpers.
-3. A structured error enum mirroring `ErrorCategory` instead of a string.
-4. A process-wide adapter and a `TestKnobs`-style guard for tests.
-5. A crate published to crates.io.
+A crate published to crates.io.
 :::

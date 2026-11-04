@@ -10,11 +10,11 @@ admission layer, and fences storage. Host-local reads trust the host.
 1. A **user** agent's runtime directory is private (`0700`).
 2. A **system** agent's snapshot is world-readable (`0644`) by design, and only
    writable by the service account. Every local user can read every knob.
-3. Readers map the snapshot read-only and bounds-check every offset and length
-   against the payload size before dereferencing.
-4. A **file source** accepts any valid snapshot in its file, so whoever can
-   replace the file can publish to that host. Keep it writable only by the
-   publisher.
+3. Readers map the generation read-only and bounds-check every offset and
+   length against the payload size before dereferencing.
+4. A reader trusts only files owned by the `publisher_uid` it opens with, the
+   uid the agent runs as, and refuses group- or world-writable files and
+   ancestors; it never infers trust from the directory's owner.
 
 Never put secrets in knobs.
 

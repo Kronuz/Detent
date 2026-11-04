@@ -2,7 +2,6 @@
 // DETENT_READER excludes daemon and HTTP code from the reader binary.
 //
 // Configuration: flags override environment variables, then agent.json.
-// Baked defaults are optional; source-only agents start with an empty snapshot.
 #ifndef DETENT_READER
 #include "../detent_cli/logging.hh"
 #ifdef DETENT_WITH_MANAGED_AGENT
@@ -16,10 +15,6 @@
 #include "../detent_cli/config.hh"
 #include "detent_local/generation.hh"
 #include "detent_local/reader.hh"
-#ifdef DETENT_READER
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
-#endif
 
 #include <fcntl.h>
 #include <signal.h>
@@ -155,7 +150,6 @@ void validate_get_args(const std::vector<std::string> &args) {
 										"--switch",
 										"--default",
 										"--config",
-										"--defaults",
 										"--runtime-dir",
 										"--managed",
 										"--generation-dir",
@@ -176,23 +170,6 @@ void validate_get_args(const std::vector<std::string> &args) {
 	}
 }
 
-// Detects the knob's type through bool evaluation before trying an int read.
-template <class Reader>
-std::optional<std::string>
-try_read(const Reader &reader, const std::string &name, const std::optional<std::string> &hash_val,
-		 const std::optional<std::string> &switch_val, detent::KnobError *out_error) {
-	auto b = reader.eval(name, hash_val, switch_val);
-	if (b) return b.value() ? "true" : "false";
-	if (b.error().category != detent::ErrorCategory::WrongType) {
-		if (out_error) *out_error = b.error();
-		return std::nullopt;
-	}
-	auto i = reader.get(name, switch_val);
-	if (i) return std::to_string(i.value());
-	if (out_error) *out_error = i.error();
-	return std::nullopt;
-}
-
 void launch_agent(const std::vector<std::string> &args) {
 	std::filesystem::path executable(g_executable);
 	auto daemon = executable.has_parent_path()
@@ -200,7 +177,7 @@ void launch_agent(const std::vector<std::string> &args) {
 					  : std::string("detent-agent");
 	std::vector<std::string> start_args{daemon, "--daemonize", "--quiet"};
 	for (std::size_t i = 1; i < args.size(); ++i) {
-		if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default" || args[i] == "--defaults") {
+		if (args[i] == "--hash" || args[i] == "--switch" || args[i] == "--default") {
 			++i;
 			continue;
 		}
@@ -227,35 +204,47 @@ void launch_agent(const std::vector<std::string> &args) {
 		throw std::runtime_error("detent-agent startup failed");
 }
 
-int cmd_managed_get(const std::vector<std::string> &args) {
+// Detects the knob's type through bool evaluation before trying an int read.
+std::optional<std::string> try_read(const detent::local::ReadView &view, const std::string &name,
+                                    const std::optional<std::string> &hash_val,
+                                    const std::optional<std::string> &switch_val, detent::KnobError *out_error) {
+	const auto colon = name.find(':');
+	const std::string_view name_space = std::string_view(name).substr(0, colon);
+	const std::string_view key = colon == std::string::npos ? std::string_view{} : std::string_view(name).substr(colon + 1);
+	auto view_of = [](const std::optional<std::string> &text) -> std::optional<std::string_view> {
+		if (text) return std::string_view(*text);
+		return std::nullopt;
+	};
+	auto b = view.eval(name_space, key, view_of(hash_val), view_of(switch_val));
+	if (b) return b.value() ? "true" : "false";
+	if (b.error().category != detent::ErrorCategory::WrongType) {
+		if (out_error) *out_error = b.error();
+		return std::nullopt;
+	}
+	auto i = view.get(name_space, key);
+	if (i) return std::to_string(i.value());
+	if (out_error) *out_error = i.error();
+	return std::nullopt;
+}
+
+// Reads one knob from the agent's durable generation. When none is present and `--managed` names an
+// agent, a user read starts it and waits for the first one. Knobs the generation does not hold are an
+// error, or the per-read `--default`.
+int cmd_get(const std::vector<std::string> &args) {
+	if (!g_generation_dir)
+		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or --generation-dir PATH");
 	const bool prepared = prepared_reader(args);
 	detent_agent::ReaderCapacity capacity([&](const auto &flag, const char *env) { return setting(args, flag, env); }, prepared);
-	auto fallback = arg_value(args, "--default");
-	detent::InitOptions options;
-	if (auto defaults = setting(args, "--defaults", "DETENT_DEFAULTS_PATH"))
-		options.defaults_path = *defaults;
-	detent::local::ClientSourceOptions local;
-	local.directory = *g_generation_dir;
-	local.limits = capacity.limits();
-	local.auto_refresh = false;
-	local.identity = g_generation_identity;
-	if (prepared)
-		local.prepared_publisher = detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system);
-	std::shared_ptr<detent::local::LocalReadSource> source;
-	options.read_source = [&](std::shared_ptr<const detent::Snapshot> defaults,
-							  std::shared_ptr<const detent::OverrideTable> overrides) {
-		source = std::make_shared<detent::local::LocalReadSource>(local, std::move(defaults),
-																  std::move(overrides));
-		return source;
-	};
-	std::unique_ptr<detent::Client> client;
+	const auto fallback = arg_value(args, "--default");
+	detent::local::GenerationReader generations(
+		*g_generation_dir, capacity.limits(), g_generation_identity,
+		prepared ? std::optional(detent_agent::publisher_uid(setting(args, "--publisher-user", nullptr), g_system)) : std::nullopt);
 	bool available = false;
 	bool validation_failed = false;
 	const auto deadline = std::chrono::steady_clock::now() + detent_agent::managed_startup_timeout;
 	auto attempt = [&] {
 		try {
-			if (!client) client = std::make_unique<detent::Client>(options);
-			if (!prepared) source->refresh();
+			generations.refresh();
 			available = true;
 		} catch (const detent::local::GenerationUnavailable &) {
 		} catch (const std::exception &) {
@@ -279,17 +268,13 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 				std::fprintf(stderr, "detent: managed agent startup: %s\n", error.what());
 		}
 	}
-	if (!available) {
-		detent::InitOptions baked;
-		baked.defaults_path = options.defaults_path;
-		client = std::make_unique<detent::Client>(std::move(baked));
-	}
-	auto view = client->read_view();
 	detent::KnobError error{detent::ErrorCategory::Uninitialized, "", ""};
-	auto result = try_read(view, args[0], arg_value(args, "--hash"), arg_value(args, "--switch"), &error);
-	if (result) {
-		std::printf("%s\n", result->c_str());
-		return 0;
+	if (available) {
+		const auto view = generations.read_view();
+		if (auto result = try_read(view, args[0], arg_value(args, "--hash"), arg_value(args, "--switch"), &error)) {
+			std::printf("%s\n", result->c_str());
+			return 0;
+		}
 	}
 	if (fallback && error.category != detent::ErrorCategory::SourceFailure) {
 		std::printf("%s\n", fallback->c_str());
@@ -300,17 +285,11 @@ int cmd_managed_get(const std::vector<std::string> &args) {
 	return 1;
 }
 
-int cmd_get(const std::vector<std::string> &args) {
-	if (!g_generation_dir)
-		throw std::runtime_error("no source configured; pass --managed PRIVATE_CONFIG or --generation-dir PATH");
-	return cmd_managed_get(args);
-}
-
 #endif
 
 #ifdef DETENT_READER
 const char *kUsage = "usage: detent get NAME [--hash VAL] [--switch VAL] [--default VAL]\n"
-					 "                  [--config PATH] [--defaults PATH] [--runtime-dir PATH] [--system]\n"
+					 "                  [--config PATH] [--runtime-dir PATH] [--system]\n"
 					 "                  [--generation-dir PATH] [--managed PRIVATE_CONFIG]\n"
 					 "       detent help | --help\n"
 					 "A user read starts the managed detent-agent when no durable generation is present;\n"
@@ -342,12 +321,11 @@ const char *kUsage =
 	"System fallback: /etc/detent (FreeBSD: /usr/local/etc/detent; macOS: /Library/Application "
 	"Support/Detent).\n"
 	"JSON fields:\n"
-	"defaults_path, runtime_dir, managed_path, generation_dir, publisher_user.\n"
+	"runtime_dir, managed_path, generation_dir, publisher_user.\n"
 	"managed_path and generation_dir select durable authority delivery.\n"
 	"--generation-cluster/--generation-group/--generation-epoch/--generation-scope\n"
 	"bind reader identity; supply all four as lowercase hexadecimal values.\n"
-	"Paths in config are relative to the config file. defaults.json beside agent.json\n"
-	"is discovered automatically by detent get.\n"
+	"Paths in config are relative to the config file.\n"
 	"Flags override environment variables, which override config settings.\n"
 	"reader_* settings configure status reads; see USAGE.md for limits and trust policy.\n"
 	"Managed readers: --publisher-user USER_OR_UID, --reader-validation prepared|full.\n"

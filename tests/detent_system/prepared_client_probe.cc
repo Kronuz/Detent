@@ -1,5 +1,4 @@
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
+#include "detent/reader.hh"
 #include "names.hh"
 #include "prepared_reader.hh"
 #include <charconv>
@@ -69,12 +68,10 @@ void read(char **argv, std::uint64_t iterations) {
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
 		throw std::runtime_error("getrusage failed");
 	const auto start = std::chrono::steady_clock::now();
-	detent::InitOptions options;
-	options.read_source = l::make_managed_read_source(argv[2], ::getuid());
-	detent::Client client(std::move(options));
+	detent::Reader reader(argv[2], ::getuid());
 	const auto attached = std::chrono::steady_clock::now();
-	const auto value = client.get(argv[3]);
-	if (!value || value.value() != expected)
+	const auto value = reader.lookup(argv[3]);
+	if (!value || value.value.integer != expected)
 		throw std::runtime_error("first live value differs");
 	const auto stop = std::chrono::steady_clock::now();
 	if (::getrusage(RUSAGE_SELF, &after) != 0)
@@ -82,11 +79,11 @@ void read(char **argv, std::uint64_t iterations) {
     double steady_ns = 0;
     if (iterations) {
         for (unsigned i = 0; i != 1000; ++i)
-            if (client.get(argv[3]).value() != expected)
+            if (reader.get(argv[3], expected + 1) != expected)
                 throw std::runtime_error("warmup live value differs");
         const auto begin = std::chrono::steady_clock::now();
         for (std::uint64_t i = 0; i != iterations; ++i)
-            if (client.get(argv[3]).value() != expected)
+            if (reader.get(argv[3], expected + 1) != expected)
                 throw std::runtime_error("steady live value differs");
         steady_ns = double(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                std::chrono::steady_clock::now() - begin).count()) / double(iterations);
@@ -103,7 +100,7 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"minor_faults\":" << after.ru_minflt - before.ru_minflt
 	          << ",\"major_faults\":" << after.ru_majflt - before.ru_majflt
 	          << ",\"steady_mean_ns\":" << steady_ns
-	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
+	          << "}\n";
 }
 } // namespace
 int main(int argc, char **argv) {

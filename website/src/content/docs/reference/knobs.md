@@ -12,11 +12,11 @@ definitions that are always replaced whole.
 | Type | Value | Refinements | Read with |
 | --- | --- | --- | --- |
 | `bool` | `true` or `false` | `rollout_pct`, `overrides` | `eval` |
-| `int` | Signed 64-bit integer | none | `get`, `get_as<T>` |
+| `int` | Signed 64-bit integer | none | `get` |
 
 There are no string, float, list or JSON knobs. A knob's type is fixed by its
-definition; reading a bool with `get` or an int with `eval` is a `WrongType`
-error.
+definition; reading a bool with `get` or an int with `eval` returns the
+caller's fallback with the status `WRONG_TYPE`.
 
 :::hint[String and structured knobs]{.unimplemented}
 Many configuration systems also offer string, number and JSON values, and
@@ -113,6 +113,3 @@ previous one **entirely**. There is no field-level merge:
 // Result: the employees override is gone
 { "type": "bool", "default": false, "rollout_pct": 20 }
 ```
-
-The same rule applies when a live snapshot is merged over baked defaults: a
-knob present in the live snapshot replaces its baked definition as a whole.

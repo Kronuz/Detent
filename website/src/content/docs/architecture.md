@@ -21,7 +21,7 @@ host: "Each host" {
   label.near: bottom-center
   agent: "detent-agent"
   gens: "immutable generations" {shape: cylinder}
-  client: "App process\n(detent::Client)"
+  client: "App process\n(detent::Reader)"
   shell: "detent get"
   agent -> gens: publish
   client -> gens: "map, read"
@@ -46,7 +46,7 @@ targets.
 | Authority | Orders, stores and serves the source of truth | Three machines, one voter each | `detentd --authority authority.json` |
 | Relay | Optional fan-out: one upstream subscription per bundle, many agents | Between the authority and agent hosts | `detent-relay` |
 | Agent | Receives snapshots and deltas, publishes immutable generations | Every application host | `detent-agent --managed managed.json` |
-| Client | Maps the selected generation and reads in memory | Every application host | Your app (`detent::Client`), `detent get` |
+| Reader | Maps the selected generation and reads in memory | Every application host | Your app (`detent::Reader`), `detent get` |
 
 Voters, relays and agents are all daemons; "daemon" names no role. Each actor
 has its own page:
@@ -54,7 +54,7 @@ has its own page:
 [Relay](/Detent/architecture/relay/),
 [Agent](/Detent/architecture/agent/) and
 [Delivery and Local Images](/Detent/architecture/delivery/) for the agent's
-generations, and [Read Path](/Detent/architecture/read-path/) for the client.
+generations, and [Read Path](/Detent/architecture/read-path/) for the reader.
 [Detent's actors](https://github.com/Kronuz/Detent/blob/main/docs/ACTORS.md) in
 the repository is the full reference: endpoints, files, build options, default
 directories and restart behavior for every actor.
@@ -65,18 +65,17 @@ directories and restart behavior for every actor.
 
 ### Data Plane: Reads
 
-The read path runs inside your process and does nothing but memory access:
-validate the name, check the CLI override table, load the current snapshot
-pointer, look up the knob, and evaluate it. No network, disk, lock or
-allocation. See [Read Path](/Detent/architecture/read-path/).
+The read path runs inside your process and, once warm, does nothing but
+memory access: validate the name, pin the installed view, load the change
+sequence, walk the mapped generation, and evaluate. No network, syscall, lock
+or allocation. See [Read Path](/Detent/architecture/read-path/).
 
-### Update Plane: the Client's Background Thread
+### Update Plane: the Generation Switch
 
-One background thread per client picks up new state from its source. With
-managed delivery, it watches the agent's `selected` descriptor and maps each
-new generation. With a file source, it fetches candidates, validates them
-completely, gates them by version, merges them over the baked defaults, and
-publishes the result with one atomic store. Failures never reach readers. See
+The reader starts no thread. When the agent publishes a generation, the lookup
+that sees the moved change sequence attaches it and publishes a new view;
+every other thread keeps reading the installed one. A failed attach keeps the
+installed view, so failures never reach readers. See
 [Update Path](/Detent/architecture/update-path/).
 
 ### Control Plane: Distribution
@@ -92,10 +91,11 @@ snapshots and deltas. See [Authority](/Detent/architecture/authority/) and
 
 1. **Reads never wait on distribution.** A distribution failure degrades
    freshness, never availability.
-2. **Immutable snapshots, atomic swaps.** Readers see one complete,
+2. **Immutable generations, atomic switches.** Readers see one complete,
    validated configuration or the previous one, never a mixture.
-3. **Fail fast on programmer errors.** A missing knob is a bug, so it's loud;
-   an unreachable source is an outage, so it's quiet and observable.
+3. **A fallback on every read.** Every lookup returns the caller's fallback on
+   any error, and `lookup` reports the status, so a missing knob is visible
+   to code that asks and never crashes code that doesn't.
 4. **Whole-definition replacement.** A knob is an atomic unit; there's no
    field-level merge to reason about.
 5. **Everything is bounded.** Request bodies, snapshot sizes, queues, history,
@@ -108,7 +108,7 @@ snapshots and deltas. See [Authority](/Detent/architecture/authority/) and
 ## Where to Read More
 
 1. [Read Path](/Detent/architecture/read-path/) and
-   [Update Path](/Detent/architecture/update-path/): the client.
+   [Update Path](/Detent/architecture/update-path/): the reader.
 2. [Agent](/Detent/architecture/agent/): host-local reads.
 3. [Durable Authority](/Detent/architecture/authority/): transactions and
    durable consensus.

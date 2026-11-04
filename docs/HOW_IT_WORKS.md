@@ -14,12 +14,12 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 | Paged store: packs, `.read`, `.live`, `selected`, `change`, `storage.meta` | On `main`; one generation holds every namespace, so `change` has one slot | [change-file.md](mechanisms/change-file.md), [trusted-restart.md](mechanisms/trusted-restart.md) |
 | Trusted restart, first-touch checks, the paced scrub | On `main` (namespace step S3) | [status/namespace-s3.md](status/namespace-s3.md) |
 | Damaged-pack repair | In progress (step S3b) | [status/namespace-s3.md](status/namespace-s3.md), "Blocked on" |
-| `libdetent_reader`, the lock-free reader core | Built on branch `reader/s6`, not on `main` (reader step S6) | [design/reader.md](design/reader.md), [status/reader-s5-s6.md](status/reader-s5-s6.md) |
+| `libdetent_reader`, the lock-free reader core, and `Reader` in C++, Python and Rust | Built (reader steps S6, S8, S9) | [design/reader.md](design/reader.md), [design/client-local-source.md](design/client-local-source.md), [status/reader-s5-s6.md](status/reader-s5-s6.md) |
 | A `selected` table with one entry and one `change` slot per namespace | Designed (namespace delivery D8, step S7) | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Compacted blocks of history | Designed (namespace delivery D6, `Detent:814b605`), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | `detent-image` and seeded stores | Designed (namespace delivery D9, step S9), not built | [design/namespace-delivery.md](design/namespace-delivery.md) |
 | Removal of the unmanaged agent and its shared-memory copy | Removed (legacy wave 2, step G) | [status/legacy-wave2.md](status/legacy-wave2.md) |
-| Removal of the Client's file and poll sources | In progress (legacy wave 2, step H) | [status/legacy-wave2.md](status/legacy-wave2.md) |
+| Removal of `detent::Client` and its file, poll and local sources | Removed (legacy wave 2, step H) | [status/legacy-wave2.md](status/legacy-wave2.md) |
 
 ## 1. The actors
 
@@ -31,9 +31,9 @@ This page follows that path in seven steps: the actors, the store on disk, the t
 
 **The agent** is one managed `detent-agent` per host, started with `--managed managed.json --generation-dir DIR`. It is the only writer of its store directory and holds `owner.lock` exclusively for the store's whole life ([change-file.md](mechanisms/change-file.md)).
 
-**Applications** read knobs from that directory through `libdetent_reader`, one reader core with a C ABI; in the design, C++, Rust and Python wrap it and `detent get` calls it ([reader.md](design/reader.md) D1). Until reader step S6 lands, applications read through `detent::Client` with `make_local_read_source` (`include/detent_local/client_source.hh:31`), over the same files.
+**Applications** read knobs from that directory through `libdetent_reader`, one reader core with a C ABI (`include/detent/reader.h`). `detent::Reader` wraps it in C++, and the Python and Rust bindings bind the same ABI ([reader.md](design/reader.md) D1, [client-local-source.md](design/client-local-source.md) D1). Every lookup takes the caller's fallback and returns it on any error. `detent get` reads the same files through the agent's `GenerationReader` (`src/detent_agent/main.cc`).
 
-**Legacy wave 2 removed the unmanaged agent.** It kept one `detent::Client` in its own memory, polled a file or the classic HTTP distributor, and copied the whole snapshot into a shared-memory region capped at 4 MiB (formerly `src/detent_agent/agent.hh` and `src/detent_agent/shm_format.hh`). That is a second copy of data the managed store already gives every process through file mappings, it had no path to authority data, and the classic distributor it polled is already removed. The owner ruled to drop it (decision 7 of the wave 2 ledger). Step G deleted it, and `detent-agent` and `detent get` now exit with `no source configured` when no managed source is set.
+**The managed agent is the only source.** `detent-agent` and `detent get` exit with `no source configured` when no managed source or generation directory is set.
 
 ## 2. The store on disk
 
@@ -111,8 +111,6 @@ The reader core works in four steps ([reader.md](design/reader.md) D2-D5). It is
 **Warm lookup.** One acquire load of the namespace's sequence word in `change`, compared with the sequence the view was built from, and an increment on one of 64 per-stripe counters that pins the view. Then the walk: per page, one bit test and the bytes. No syscall, no lock and no allocation ([reader.md](design/reader.md) D3, D5).
 
 **Generation switch.** When the sequence word moved, one lookup wins a flag, rereads `selected`, re-attaches only the namespaces whose generation changed, and publishes a new view; every other thread keeps reading the old view without waiting. A segment kept by the new generation keeps its mapping and its verified bits. Old views retire through a ring of four slots with per-stripe reader counters; the last reader out lets the one freer unmap them ([reader.md](design/reader.md) D4, D5).
-
-**Today on `main`.** `detent::Client` with `make_local_read_source` reads the same files. Page access already uses the lock-free segment table and verified-page bitmap ([verified-page-bitmap.md](mechanisms/verified-page-bitmap.md)), but a background thread polls `selected` every 200 ms (`include/detent_local/client_source.hh:10`) instead of the one sequence load, and one generation holds every namespace, so a switch re-attaches the whole store.
 
 ## 5. Updating
 

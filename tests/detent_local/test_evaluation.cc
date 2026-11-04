@@ -1,4 +1,5 @@
-#include "detent/detail/evaluation.hh"
+#include "detent/hashing.hh"
+#include "detent/model.hh"
 #include "detent_local/paged_definition.hh"
 #include "evaluation.hh"
 #include <iostream>
@@ -13,6 +14,22 @@ void check(bool value, int line) {
 		throw std::runtime_error("evaluation invariant at line " + std::to_string(line));
 }
 #define CHECK(value) check(value, __LINE__)
+// The reference semantics, written out independently of the shared evaluator: a matching group override
+// (forced, or a group rollout that needs a hash), then the global rollout, then the default.
+bool reference(const d::BoolDef &definition, std::string_view name, std::optional<std::string_view> hash,
+               std::optional<std::string_view> group) {
+	if (group) {
+		const auto override = definition.overrides.find(*group);
+		if (override != definition.overrides.end()) {
+			if (const auto *forced = std::get_if<bool>(&override->second))
+				return *forced;
+			return hash ? d::stable_bucket(name, *hash) < std::get<d::GroupRollout>(override->second).rollout_pct
+			            : definition.default_value;
+		}
+	}
+	return definition.rollout_pct && hash ? d::stable_bucket(name, *hash) < *definition.rollout_pct
+	                                      : definition.default_value;
+}
 // Evaluates through the one shared evaluator over a definition encoded as the paged format stores it.
 bool lifted(const d::BoolDef &def, std::string_view ns, std::string_view key,
             std::optional<std::string_view> hash, std::optional<std::string_view> group) {
@@ -59,7 +76,7 @@ int main() {
 		ramped += bucket < 50;
 	}
 	CHECK(ramped > 100 && ramped < 300);
-	// Oracle: the first evaluator (detail::evaluate over BoolDef) on the full small domain.
+	// Oracle: the reference semantics above on the full small domain.
 	std::vector<std::optional<std::string>> hashes{std::nullopt}, groups{std::nullopt, "g", "other"};
 	for (unsigned i = 0; i != 25; ++i)
 		hashes.push_back("h" + std::to_string(i));
@@ -79,7 +96,7 @@ int main() {
 							h = *hash;
 						if (group)
 							g = *group;
-						CHECK(lifted(def, "ns", "k", h, g) == d::detail::evaluate(def, "ns:k", h, g));
+						CHECK(lifted(def, "ns", "k", h, g) == reference(def, "ns:k", h, g));
 						++cases;
 					}
 	std::cout << cases << " cases\n";

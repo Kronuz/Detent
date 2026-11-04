@@ -29,11 +29,9 @@ it resets the tutorial.
 ## Read Knobs from Your Application
 
 1. [Using Detent in a C++ Application](/Detent/guides/cpp-application/): link
-   the library, ship baked defaults, and read knobs.
-2. [Live Updates](/Detent/guides/live-updates/): point clients at a file or
-   an HTTP endpoint.
-3. [Python and Rust](/Detent/guides/python-and-rust/): the language bindings.
-4. [Shell Scripts and the Agent](/Detent/guides/shell-and-agent/): read knobs
+   the library, open one reader, and read knobs.
+2. [Python and Rust](/Detent/guides/python-and-rust/): the language bindings.
+3. [Shell Scripts and the Agent](/Detent/guides/shell-and-agent/): read knobs
    from any process on the host.
 
 ## Run It for Real

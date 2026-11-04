@@ -35,12 +35,6 @@ inline constexpr std::size_t kDefaultMaxBytes = 16u * 1024 * 1024; // 16 MiB
 	std::size_t max_knobs = kDefaultMaxKnobs,
 	std::size_t max_bytes = kDefaultMaxBytes);
 
-// Section 4 merge contract: every accepted source snapshot is a complete
-// live overlay over the baked defaults. A key present in `live` replaces the
-// *entire* definition from `defaults`; a key absent from `live` retains its
-// baked definition untouched. No field-wise merge.
-[[nodiscard]] Snapshot merge_over_defaults(const Snapshot& defaults, const Snapshot& live);
-
 // Serializes a Snapshot back to a source-snapshot-shaped JSON payload
 // (schema_version/version/published_at/knobs), the exact inverse of
 // parse_source_snapshot. Not part of the read/update hot path -- this exists

@@ -2,8 +2,10 @@
 
 Detailed examples for two deployment shapes, then the durable authority profile:
 
-1. One process reading baked defaults only.
-2. One managed `detent-agent` serving host-local non-C++ readers.
+1. An application reading the managed agent's generations through `detent::Reader` (C++, Python or Rust).
+2. Shell scripts and other callers reading through `detent get`.
+
+Both read what a managed `detent-agent` publishes; [managed authority delivery](#managed-authority-delivery) provisions it.
 
 Build once before any scenario:
 
@@ -16,74 +18,36 @@ That produces `build/src/detentd`, `build/src/detent-agent`, `build/src/detent`,
 
 ---
 
-## Scenario 1: static config, no network
+## Scenario 1: an application reading the agent's generations
 
-Use this when a process only needs baked defaults and only picks up changes on restart.
-
-`defaults.json`:
-
-```json
-{
-  "schema_version": 1,
-  "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false },
-    "search:max_results": { "type": "int", "default": 25 }
-  }
-}
-```
-
-Minimal process:
+Use this when a process reads knobs in memory. The process opens the agent's generation directory with the uid the agent runs as, and passes each knob's fallback on every call:
 
 ```cpp
-#include "detent/client.hh"
+#include "detent/reader.hh"
 #include <cstdio>
+#include <unistd.h>
 
 int main() {
-    detent::InitOptions opts;
-    opts.defaults_path = "defaults.json";
-    detent::Client client(std::move(opts));
+    // A user agent publishes as you; a system agent as `detent` (`_detent` on macOS).
+    detent::Reader reader("agent-state", ::getuid());  // throws detent::ReaderError only here
 
     std::printf("search:max_results = %lld\n",
-                (long long)client.get_or_panic("search:max_results"));
+                (long long)reader.get("search:max_results", 25));
     std::printf("checkout:killswitch_new_path = %s\n",
-                client.eval_or_panic("checkout:killswitch_new_path")
-                    ? "true"
-                    : "false");
+                reader.eval("checkout:killswitch_new_path", false) ? "true" : "false");
 }
 ```
 
-Expected output:
+Before the agent publishes, the program prints the fallbacks:
 
 ```text
 search:max_results = 25
 checkout:killswitch_new_path = false
 ```
 
-With no `source_path` and no `source_poll`, the client does one synchronous startup parse and then serves reads from the published in-memory snapshot.
+A store that does not exist yet opens, and every lookup returns its fallback with `DETENT_UNAVAILABLE` until a generation appears. Lookups never throw; `reader.lookup(name)` returns the status beside the value (`DETENT_MISSING`, `DETENT_WRONG_TYPE`, `DETENT_UNTRUSTED`, and so on), and `reader.revision(namespace)` the attached revision. A lookup sees a new generation on its own; `reader.refresh()` attaches it earlier, from a thread the caller picks. The reader starts no thread. [`examples/demo.cc`](../examples/demo.cc) is the complete program.
 
-### Scoped reads and managed generation sources
-
-`Client::read_view()` pins one immutable evaluation view. Use it when several reads must observe the same local generation; it remains valid across refreshes and after client destruction. Existing file/default clients support this API too.
-
-The managed reader library can consume an already provisioned immutable-generation directory. Link `detent::local_client` and configure its worker refresh:
-
-```cpp
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
-
-detent::InitOptions options;
-// Optional: options.defaults_path = "defaults.json";
-options.read_source = detent::local::make_local_read_source(
-    detent::local::ClientSourceOptions{.directory = generation_directory});
-detent::Client client(std::move(options));
-auto view = client.read_view();
-auto maximum = view.get("search:max_results");
-auto enabled = view.eval("checkout:new_path", "host-42", "beta");
-```
-
-The source performs filesystem work on one configuration thread; successful scoped acquisition and lookup need no merged snapshot allocation. CLI overrides win over live definitions, and missing live keys fall back to baked defaults. Type and conversion errors do not fall back. Failed refresh preserves the prior view, and `client.health()` reports source connectivity. Local-source clients use `read_view()` instead of `current_snapshot()`, which rejects eager conversion with `logic_error`. Scoped reads do not increment their parent client's metrics. Destroy automatically refreshing sources outside an event-loop turn because destruction joins their worker.
-
-The opt-in managed agent publishes immutable generations for this SDK source. Its configuration and startup modes are described below; the complete managed-agent/SDK component has Architect acceptance and platform/sanitizer qualification. See the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) for current implementation and acceptance gates.
+Link `detent::reader`. Python's `detent.Reader(store, publisher_uid, namespaces=())` and Rust's `detent::Reader::open(store, publisher_uid, &[..])` have the same shape over the same C ABI (`include/detent/reader.h`).
 
 ### Gradual rollouts and per-group overrides
 
@@ -104,28 +68,27 @@ Bool knobs can combine a rollout percentage with named overrides. Overrides acce
 ```
 
 ```cpp
-client.eval_or_panic("payments:new_processor");                               // false
-client.eval_or_panic("payments:new_processor", "user-1");                     // false
-client.eval_or_panic("payments:new_processor", "user-42");                    // true
-client.eval_or_panic("payments:new_processor", "user-2", "internal_employees"); // true
+reader.eval("payments:new_processor", false);                                 // false
+reader.eval("payments:new_processor", false, "user-1");                       // false
+reader.eval("payments:new_processor", false, "user-42");                      // true
+reader.eval("payments:new_processor", false, "user-2", "internal_employees"); // true
 ```
 
 Evaluation order is:
 
-1. CLI override.
-2. Exact-match `switch_val` override.
-3. `rollout_pct` gate, when `hash_val` is present.
-4. Baked or live default.
+1. Exact-match `switch_value` override.
+2. `rollout_pct` gate, when `hash` is present.
+3. The knob's default.
 
-The rollout bucket is stable for the same `(knob_name, hash_val)` pair across processes and restarts.
+The rollout bucket is stable for the same `(knob_name, hash)` pair across processes and restarts.
 
 Shell reads of a rollout use the same `--hash` and `--switch` parameters; see Scenario 2.
 
 ---
 
-## Scenario 2: host-local reads for non-C++ callers
+## Scenario 2: host-local reads from the shell
 
-Use this when local shell scripts or non-C++ programs need fast reads without each one connecting to the authority.
+Use this when shell scripts or programs without a binding need reads without each one connecting to the authority.
 
 A managed `detent-agent` receives authenticated deliveries from a durable authority and publishes immutable generations on disk; `detent get` maps the newest generation read-only. [Managed authority delivery](#managed-authority-delivery) below provisions `managed.json` and the generation directory. With them in place:
 
@@ -137,7 +100,7 @@ A managed `detent-agent` receives authenticated deliveries from a durable author
 ./build/src/detent-agent --status --managed managed.json
 ```
 
-`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies a fallback for that read, and `--defaults PATH` supplies baked typed defaults for knobs the generation omits.
+`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies the fallback for that read: it prints for a knob the generation does not hold, a wrong type, or no generation, but not for a generation that fails verification.
 
 With no `--managed` and no `--generation-dir` (or `managed_path` and `generation_dir` in `agent.json`), both `detent get` and `detent-agent` exit with `no source configured`.
 
@@ -162,13 +125,11 @@ An absolute `XDG_CONFIG_HOME` overrides the native user location on macOS too. T
 
 Then use plain `detent get NAME` from any directory.
 
-### Optional local defaults and runtime files
-
-A delivered generation already contains knob types and values. `defaults.json` is optional and supplies local fallback knobs when no generation is present yet or a generation omits a knob. Place it beside `agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped.
+### Runtime files
 
 Runtime files (`agent.pid`, `agent.log`) go in `$XDG_RUNTIME_DIR/detent` when an absolute XDG runtime directory is set. Otherwise the agent uses a private `detent-<uid>` directory under the system temporary directory (`TMPDIR` when set, normally `/tmp` on Linux/FreeBSD and a per-user temporary directory on macOS). It creates the runtime directory with mode `0700`. `runtime_dir` in config or `--runtime-dir PATH` overrides it.
 
-Flags override environment variables, which override config. The optional variables are `DETENT_MANAGED_CONFIG`, `DETENT_GENERATION_DIR`, `DETENT_DEFAULTS_PATH`, and `DETENT_RUNTIME_DIR`. Startup settings configure a new daemon; stop the running daemon to apply changed settings. Keep the same runtime directory for `get`, `status`, and `stop`.
+Flags override environment variables, which override config. The optional variables are `DETENT_MANAGED_CONFIG`, `DETENT_GENERATION_DIR`, and `DETENT_RUNTIME_DIR`. Startup settings configure a new daemon; stop the running daemon to apply changed settings. Keep the same runtime directory for `get`, `status`, and `stop`.
 
 Startup errors are reported to the caller. Daemon output is saved in `agent.log` in the runtime directory.
 
@@ -221,9 +182,9 @@ Initialize an empty directory explicitly once. Missing directory components are 
 
 Later starts omit `--initialize-managed` and require an existing managed store. `--upgrade-managed` explicitly adopts a compatible legacy generation directory. Neither mode silently recovers by discarding unreadable state. `--daemonize` backgrounds user operation; supervised system services run in the foreground.
 
-A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). The SDK source accepts the corresponding expected cursor identity. Distribute this public identity separately from the private token.
+A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). Distribute this public identity separately from the private token.
 
-`detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults, while invalid live types remain errors. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
+`detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. A knob the generation does not hold is an error unless `--default VALUE` is given. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
 
 Optional bounds default to 256 MiB managed heap, 512 MiB mapped virtual space, 1 GiB named disk space, 4,096 disk entries, and 1,024 generations. Configure them with `heap_bytes`, `mapping_bytes`, `disk_bytes`, `disk_entries`, and `disk_generations`. These accounts exclude immutable configuration/startup parsing, Asio/TLS internals, thread stacks, and operating-system memory. `poll_interval_ms` defaults to 200 and `timeout_ms` to 60,000; `compression` defaults to true. Unknown or duplicate fields are rejected. `artifact_mode` accepts decimal `384`, `416`, or `420` (octal `0600`, `0640`, or `0644`); user mode defaults to `0600`, system mode to `0644`.
 
@@ -251,7 +212,7 @@ Managed reads default to `reader_validation: "prepared"`. The daemon validates a
 
 The trusted `publisher_user` setting accepts an account name or numeric UID. Its default is the effective user for per-user operation, `detent` for Linux/FreeBSD system services, and `_detent` for macOS system services. `--publisher-user` and `--reader-validation` override these settings and have no environment-variable aliases. Numeric UIDs avoid account-name resolution on the read path. Publisher directories require protected ancestry; root-controlled aliases such as macOS `/var` are supported. User-controlled aliases are refused.
 
-C++ applications select the same prepared path with `detent::local::make_managed_read_source(directory, publisher_uid, limits, identity)`. Limits default to `ViewLimits::prepared()` and identity is optional. Keep the resulting `Client` alive across lookups: it retains mapped pages, polls the protected selection for new generations, and gives existing read views a stable leased generation. Each client currently owns its source; shared source contexts remain a separate qualification item.
+Applications read the same prepared path through `detent::Reader`, whose one trust input is the publisher uid passed to it. Keep one reader per process for its lifetime: it holds the mapped pages and the leased generation, and lookups reattach when the agent publishes.
 
 Public `agent.json` can configure managed `detent get` and `detent-agent --status` independently of the daemon's private delivery credentials. Each setting also accepts a flag and environment variable: `reader_image_bytes`, for example, becomes `--reader-image-bytes` and `DETENT_READER_IMAGE_BYTES`. Flags override the environment, which overrides the file.
 
@@ -268,7 +229,7 @@ Public `agent.json` can configure managed `detent get` and `detent-agent --statu
 | `reader_mapping_bytes` | 512 MiB | Positive host allocation width |
 | `reader_owners` | 16,384 | Positive host-width resident ownership count, subject to domain admission |
 
-Prepared reads use format-wide corpus limits and shared process resource budgets unless explicitly configured. Actual allocations and mappings require ledger admission. Explicit settings create command-owned heap, retirement and mapping resources; clients, sources and views close before those resources drain. The retirement runner retains its separate 1 MiB baseline budget. Full validation retains bounded defaults of 500,000 records, 4,096 namespaces, 256 MiB image bytes and 128 MiB strings unless explicitly configured.
+Prepared reads use format-wide corpus limits and shared process resource budgets unless explicitly configured. Actual allocations and mappings require ledger admission. Explicit settings create command-owned heap, retirement and mapping resources; views close before those resources drain. The retirement runner retains its separate 1 MiB baseline budget. Full validation retains bounded defaults of 500,000 records, 4,096 namespaces, 256 MiB image bytes and 128 MiB strings unless explicitly configured.
 
 A file supplying `publisher_user`, `reader_validation` or any reader-capacity field must be a regular file owned by root or the effective user, without group/other write permission, an extended ACL that adds access rules, or a final symlink. The loader checks the descriptor it reads and rejects a changed file extent. World-readable mode `0644` is allowed when its ACL is safe. On macOS and FreeBSD, nontrivial ACLs are refused; on Linux, the POSIX ACL effective mask is reflected in the group mode bits. Credentials belong in the separate private managed configuration. The bounded legacy configuration path keeps its existing symlink behavior when no reader settings are present.
 

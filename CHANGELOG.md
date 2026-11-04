@@ -41,6 +41,28 @@
 - `kLoopbackHost` moved from `detent_http/address.hh` to
   `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
 
+### Legacy removal (wave 2, step H)
+
+- Removed `detent::Client` and everything that existed to feed it: `InitOptions`
+  (`source_path`, `source_poll`, `SourcePayload`, `on_update`, `read_source`, CLI
+  overrides, baked defaults), `health()`, `ClientReadView`, `make_local_read_source`,
+  `make_managed_read_source`, `detent::global`, `TestKnobs`, `OverrideTable`,
+  `SnapshotRef` and the file and poll sources. `detent::Reader` over the reader core
+  is the one read API in C++, Python and Rust.
+- The Python module is a C extension over `libdetent_reader`, and the Rust crate
+  calls the same C ABI; pybind11, `cxx` and `cxx-build` are gone. Both expose
+  `Reader(store, publisher_uid, namespaces)` with `eval`, `get`, `lookup`, `refresh`
+  and `revision`; every lookup returns the caller's fallback on any error, and only
+  opening raises.
+- `libdetent_reader` and `libdetent_testing` build as shared libraries that export
+  only their `detent_*` C symbols (`test_reader_exports`, `test_testing_exports`).
+  Static dependencies build position-independent.
+- `detent get` no longer takes `--defaults`; `defaults_path` in `agent.json` and
+  `DETENT_DEFAULTS_PATH` are rejected. Use `--default VALUE` for a per-read fallback.
+- `detent_read_bench` and `detent_model_lookup` are removed; `reader_bench` measures
+  reads. `detent_demo` opens a `Reader` over an agent's store.
+- CI has a `bindings` job that builds and tests both bindings on Linux and macOS.
+
 ### Legacy removal (wave 2, step G)
 
 - Removed the shared-memory agent and the unmanaged `detent-agent` path:

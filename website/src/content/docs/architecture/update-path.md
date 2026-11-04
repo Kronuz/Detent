@@ -2,87 +2,69 @@
 title: "Update Path"
 ---
 
-The update path runs on one background thread per client. Its job is to turn
-untrusted bytes from a source into a new immutable snapshot, or to change
-nothing at all.
+The update path is how a new configuration reaches a running reader. The agent
+validates and publishes; the reader only notices and attaches. A reader starts
+no thread: the lookup that sees a change does the work, or
+`refresh()` does it earlier from a thread the application picks.
 
 ---
 
-## The Loop
+## The Switch
 
-```d2 alt="The updater polls the source, parses strictly, checks the version, merges over defaults and atomically publishes; stale or invalid candidates and transport errors go to jittered backoff and retry"
+```d2 alt="The agent publishes a generation, replaces selected and moves the change sequence; the next lookup sees the moved sequence, one thread attaches the new generation and publishes a view, and the old view is freed once its readers drain"
 direction: down
-poll: "poll source\n(file metadata or HTTP)"
-parse: "parse + validate\n(strict RapidJSON)"
-gate: "version > accepted?" {shape: diamond}
-merge: "merge over baked defaults\n(whole-definition replace)"
-publish: "SnapshotRef::store()\n(one release store)"
-notify: "on_update hook\n(optional)"
-backoff: "full-jitter backoff"
-poll -> parse: "bytes"
-poll -> backoff: "transport error"
-parse -> gate
-parse -> backoff: "invalid"
-gate -> merge: yes
-gate -> poll: "no: count stale"
-merge -> publish -> notify
-notify -> poll: "next interval"
-backoff -> poll: retry
+publish: "agent publishes a generation\nand replaces selected"
+bump: "agent moves the\nchange sequence"
+see: "a lookup sees the\nmoved sequence"
+win: "refreshing flag\n(compare-and-swap)" {shape: diamond}
+attach: "attach the new generation\n(checked records, lease)"
+view: "publish a new view"
+old: "answer from the\ninstalled view"
+free: "free old views\nwhose counters drain"
+publish -> bump -> see -> win
+win -> attach: "won"
+win -> old: "lost"
+attach -> view -> free
 ```
 
+1. **Publish.** The agent writes a new immutable generation, then atomically
+   replaces the `selected` descriptor, then moves the entry's sequence in the
+   `change` file. The store has one entry, the selected generation, serving
+   every namespace.
+2. **Notice.** Each lookup loads that sequence from the mapped `change` file.
+3. **Attach.** One thread wins `refreshing`, re-reads `selected`, attaches the
+   generation if its id changed and publishes a new view. Everyone else keeps
+   reading the installed view.
+4. **Retire.** A handle keeps at most four views. An old view is freed only
+   once its counters sum to zero, so no reader ever reads freed memory.
+
 ---
 
-## Full Snapshots and Patches
+## Failures Keep the Installed View
 
-A source returns either a full snapshot or a patch (`is_patch`). The client
-keeps two snapshots:
+A generation that fails verification, a refused directory or a lease that
+can't be taken frees what the attempt built and keeps the installed view.
+Lookups keep answering from it until the sequence moves again or `refresh()`
+runs. A revision that goes backwards within one incarnation is refused.
 
-1. **`live_snapshot_`**: the last accepted live data, *before* merging with
-   defaults. Only the updater thread touches it.
-2. **`current_`**: the merged snapshot that readers load.
-
-A patch is always applied onto `live_snapshot_`, the client's own last
-accepted state, never onto whatever base the source claims to have used. Then
-the result is re-merged over the baked defaults. That's what makes deleting a
-live knob correct: it falls back to its baked definition instead of vanishing,
-and only the unmerged live snapshot can tell "overlaid" from "baked".
-
-It also means a source's patch support is purely a bandwidth optimization. The
-worst a confused source can cause is a rejected, stale update, exactly like a
-full snapshot with an old version.
+A namespace with no generation yet answers each call's fallback with the
+status `UNAVAILABLE`. A store that doesn't exist yet opens; the reader retries
+it at most once per 200 ms.
 
 ---
 
 ## Validation
 
-Validation happens completely, off the read path, before anything is
-published: JSON well-formedness, UTF-8, the schema, unknown fields, duplicate
-keys, name rules, ranges, knob count and byte size. One bad knob rejects the
-whole update. See [Snapshot Format](/Detent/reference/snapshot-format/#strictness).
+Validation happens in the agent, completely, before a generation is selected:
+the delivery's authentication, framing and schema, then the generation's
+records and digests. The reader checks ownership, mode and ACLs of the store
+and every record it opens, and verifies each page against its digest on first
+touch. See [Delivery and Local Images](/Detent/architecture/delivery/) and
+[Snapshot Format](/Detent/reference/snapshot-format/#strictness).
 
 ---
 
-## Backoff and Staleness
+## Fork
 
-Transport failures and invalid updates back off with full jitter, using the
-[random](https://github.com/Kronuz/random) library, so a fleet of clients that
-lost the same source doesn't reconnect in lockstep. Staleness is measured
-on `steady_clock`, so an NTP step can't make it negative or hide an outage.
-
----
-
-## The `on_update` Hook
-
-`InitOptions::on_update` is called on the updater thread right after each
-accepted snapshot is published. It must be fast and must not throw.
-
----
-
-## Cost at Scale
-
-Building a new snapshot copies the knob map. That's negligible for typical
-configurations (35 µs for 100 knobs) but grows with size: applying a one-knob
-patch to 500,000 knobs takes about 780 ms. The
-[durable authority](/Detent/architecture/authority/) and
-[managed delivery](/Detent/architecture/delivery/) replace whole-map copies with
-persistent trees and exact-base deltas.
+Pre-forking servers inherit handles. A child forked while another thread is
+mid-lookup or mid-refresh keeps a working handle and sees the next publish.

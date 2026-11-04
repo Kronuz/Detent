@@ -2,64 +2,69 @@
 title: "Errors and Failures"
 ---
 
-Detent separates **read errors**, which a caller sees on a single read, from
-**update rejections**, which the background updater handles without ever
-disturbing readers.
+A `detent::Reader` fails loudly in one place, opening. Every lookup after that
+returns the caller's fallback on any error, and `lookup` reports the status
+that explains it. Distribution failures stay in the agent and never disturb
+readers.
 
 ---
 
-## Read Errors
+## Opening
 
-Every read returns `Result<T, KnobError>`. `KnobError` has a `category`, the
-knob `name`, a human-readable `detail`, and `what()` to format all three.
+`detent::Reader(store, publisher_uid, namespaces)` throws `detent::ReaderError`
+when the open fails; `status()` gives the `detent_status` and `what()` reads
+`detent_open: <status name>`. Python raises `detent.ReaderError` with `.status`,
+and Rust's `Reader::open` returns `Err(ReaderError { status })`.
 
-| Category | Cause |
+A store that doesn't exist yet opens: lookups return the fallback with
+`UNAVAILABLE` until a generation appears. An untrusted directory, such as one
+that is group- or world-writable or not owned by `publisher_uid`, is
+`UNTRUSTED`.
+
+---
+
+## Lookup Statuses
+
+`eval` and `get` return the fallback for any status but `OK`; `lookup` returns
+the status with the value. The C names are `DETENT_<NAME>` in
+`include/detent/reader.h`.
+
+| Status | Cause |
 | --- | --- |
-| `Uninitialized` | Reading through `detent::global` before `init()` |
-| `InvalidName` | The name doesn't follow the [naming rule](/Detent/reference/knobs/#knob-names) |
-| `MissingKnob` | No CLI override, and the name is in neither the live snapshot nor the baked defaults |
-| `WrongType` | `eval` on an int knob or override, or `get` on a bool |
-| `ConversionFailed` | `get_as<T>` on a value that doesn't fit `T` |
+| `OK` | The value was read |
+| `MISSING` | The generation doesn't hold the knob |
+| `WRONG_TYPE` | `eval` on an int knob, or `get` on a bool |
+| `INVALID_NAME` | The name doesn't follow the [naming rule](/Detent/reference/knobs/#knob-names) |
+| `NOT_OPENED` | The namespace is outside the handle's list |
+| `SOURCE_FAILURE` | The generation failed verification |
+| `UNAVAILABLE` | No prepared generation for this namespace yet |
+| `UNTRUSTED` | Ownership, mode, ACL or ancestry refused |
+| `INVALID_ARGUMENT` | A malformed argument |
+| `NO_MEMORY` | An allocation, or the reader's memory budget, refused |
+| `IO` | A system call failed |
 
-The `_or_panic` helpers abort the process on any of these, with a message that
-names the knob and category.
+Any value other than `OK`, known or not, is an error: a newer library may add
+statuses. Python maps an unknown one to an `UNKNOWN_<n>` member of `Status`,
+and Rust to `Status::Unknown(n)`.
 
-### Why There's No Call-Site Default
-
-Detent's C++ API deliberately has no `eval(name, /*fallback=*/false)`. A
-fallback at the call site hides the two most common configuration bugs, a typo
-in the knob name and a knob that was never published, behind a value that looks
-plausible. Instead:
-
-1. Put the safe default in your **baked defaults**, next to the code.
-2. Use the `_or_panic` helpers for knob names written in your code, so a typo
-   surfaces the first time the line runs, in tests or canary, not as a silent
-   behavior change in production.
-3. Use the `Result` forms where aborting isn't acceptable, such as in a library
-   that runs inside someone else's process, and handle the error explicitly.
-
-Shell scripts are the exception: `detent get --default VALUE` exists because a
-script has no baked defaults file of its own.
+:::hint[A fallback can hide a typo]{.caution}
+A misspelled knob name returns the fallback silently. Check `lookup`'s status
+in tests and canaries for the names your code reads, so a typo or a knob that
+was never published shows up as `MISSING` before it ships.
+:::
 
 Lookup failures are never cached. If a knob is missing now and published a
-second later, the next read finds it.
+second later, the next read after the agent publishes finds it.
 
 ---
 
-## Update Rejections
+## The Shell
 
-When a candidate update fails, the client keeps serving its last known good
-snapshot and records the reason:
-
-| Reason | Cause |
-| --- | --- |
-| `Io` | The source file couldn't be read |
-| `Transport` | The source couldn't be reached, or a cluster had no quorum decision in time |
-| `Parse` | Invalid JSON or encoding |
-| `Schema` | Valid JSON that violates the [snapshot schema](/Detent/reference/snapshot-format/) |
-| `Version` | Missing, non-positive, stale or duplicate version |
-| `Oversize` | Too many knobs or too many bytes |
-| `Checksum` | A payload failed its integrity check |
+`detent get` prints the value and exits `0`, or prints `ERR <reason>` to stderr
+and exits `1`. `--default VALUE` prints `VALUE` instead for a missing knob, a
+wrong type or no generation yet; it doesn't mask a generation that fails
+verification, or `no source configured`. See
+[detent](/Detent/reference/cli/detent/).
 
 ---
 
@@ -67,20 +72,16 @@ snapshot and records the reason:
 
 | Failure | Behavior | State afterwards |
 | --- | --- | --- |
-| Defaults missing or invalid | The `Client` constructor throws; abort startup | No client |
-| Invalid CLI override | The constructor throws, naming the offending pair | No client |
-| Source unavailable at startup | Serve baked defaults as version `0`; retry in the background | Degraded, usable |
-| Malformed update | Reject the whole update; count and log the category | Last known good |
-| Stale or duplicate version | Ignore; count as stale | Last known good |
-| Source disconnects | Reconnect with full-jitter backoff; staleness grows | Last known good |
-| Missing knob read | Return `MissingKnob` (or abort with `_or_panic`) | Unchanged |
-| Wrong-type read | Return `WrongType` (or abort) | Unchanged |
+| Untrusted store directory | The open throws `UNTRUSTED` | No reader |
+| No generation yet | Lookups return the fallback with `UNAVAILABLE` | Usable, retried at most once per 200 ms |
+| A new generation fails to attach | Keep answering from the installed view | Last known good |
+| The agent loses the authority | The agent retries; readers keep the selected generation | Last known good |
+| Missing knob read | Return the fallback with `MISSING` | Unchanged |
+| Wrong-type read | Return the fallback with `WRONG_TYPE` | Unchanged |
 
 The guiding rule: distribution is control-plane work, serving is data-plane
-work. A distribution failure never adds I/O to a read and never erases a
-known-good configuration. Operators see the problem through
-[staleness and failure counters](/Detent/reference/observability/), not through
-application errors.
+work. A distribution failure never adds I/O to a warm read and never erases a
+known-good configuration.
 
 ---
 

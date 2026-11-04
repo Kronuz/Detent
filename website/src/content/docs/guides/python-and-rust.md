@@ -2,9 +2,9 @@
 title: "Python and Rust"
 ---
 
-The Python and Rust bindings wrap the same C++ `detent::Client`, so reads have
-the same semantics, the same stable rollout buckets and the same fail-fast
-errors as C++.
+The Python and Rust bindings call the same reader core as C++'s
+`detent::Reader`, so lookups have the same fallbacks, the same stable rollout
+buckets and the same statuses in all three languages.
 
 ---
 
@@ -17,8 +17,9 @@ cmake -B build -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON
 cmake --build build -j
 ```
 
-The Python module needs the Python 3 development headers (it's built with
-pybind11). The Rust crate needs `cargo` and `rustc` (it's built with `cxx`).
+The Python module needs the Python 3 development headers; it lands in
+`build/bindings/python/`. The Rust crate needs `cargo` and `rustc`, and links
+the shared `libdetent_reader` from the same build directory.
 
 ---
 
@@ -27,69 +28,54 @@ pybind11). The Rust crate needs `cargo` and `rustc` (it's built with `cxx`).
 ```python
 import detent
 
-client = detent.Client(
-    "/etc/myapp/just_knobs.json",
-    source_path="/var/lib/myapp/live.json",
-    cli_overrides=["search:max_results=999"],
-    poll_interval_ms=200,
-)
+reader = detent.Reader("agent-state", agent_uid)
 
-client.eval("payments:new_processor", hash_val="user-42")
-client.eval("checkout:new_flow", switch_val="beta_testers")
-client.get("search:max_results")
-client.health()
-# {'initialized': True, 'source_connected': True, 'accepted_version': 7,
-#  'staleness_seconds': 0.4, 'bool_knobs': 2, 'int_knobs': 1, 'cli_overrides': 1}
+reader.eval("checkout:killswitch_new_path", False)
+reader.eval("payments:new_processor", False, hash="user-42")
+reader.eval("checkout:new_flow", False, switch_value="beta_testers")
+reader.get("search:max_results", 25)
 ```
 
-Every failure, from a bad defaults file at construction to a missing or
-wrong-typed knob on read, raises `detent.DetentError`:
+Every lookup returns its fallback on any error. `lookup()` says why:
 
 ```python
-try:
-    client.get("search:nope")
-except detent.DetentError as e:
-    print(e)   # MissingKnob: search:nope ...
+result = reader.lookup("search:nope")
+result.status   # <Status.MISSING: 1>
+result.value    # None
 ```
 
-See the [Python API reference](/Detent/reference/bindings/python/).
+A failed open raises `detent.ReaderError`, with the reason in `.status`. See the
+[Python API reference](/Detent/reference/bindings/python/).
 
 ---
 
 ## Rust
 
 ```rust
-let client = detent::Client::new(
-    "/etc/myapp/just_knobs.json",
-    Some("/var/lib/myapp/live.json"),
-    vec![],
-    200,
-)?;
+let reader = detent::Reader::open("agent-state", agent_uid, &[])?;
 
-let on = client.eval("payments:new_processor", Some("user-42"), None)?;
-let beta = client.eval("checkout:new_flow", None, Some("beta_testers"))?;
-let max = client.get("search:max_results", None)?;
-let health = client.health();
+let on = reader.eval("payments:new_processor", false, Some("user-42"), None);
+let beta = reader.eval("checkout:new_flow", false, None, Some("beta_testers"));
+let max = reader.get("search:max_results", 25);
+
+match reader.lookup("search:nope", None, None) {
+    Ok(value) => println!("{value:?}"),
+    Err(status) => println!("fallback: {}", status.name()),
+}
 ```
 
-Reads return `Result<T, detent::DetentError>`. See the
-[Rust API reference](/Detent/reference/bindings/rust/).
+See the [Rust API reference](/Detent/reference/bindings/rust/).
 
 ---
 
-## What the Bindings Don't Do Yet
+## Testing
+
+The bindings' tests publish real generations with the test writer's C face
+(`detent_testing/generation_writer.h`) and run the shared cases in
+`bindings/tests/scenarios.json`. [Testing](/Detent/guides/testing/) covers the
+writer.
 
 :::hint[Binding gaps]{.unimplemented}
-The bindings expose the core client with a file source only. Not yet available
-from Python or Rust:
-
-1. Pinned read views (`read_view()`) and the managed generation source. Read
-   through [`detent get`](/Detent/guides/shell-and-agent/) and the host agent
-   for managed delivery.
-2. Checked integer conversion (`get_as`) and the `_or_panic` helpers.
-3. The Python `check()` alias and the per-error-category exception mapping
-   (`KeyError` for a missing knob, `ValueError` for a wrong type or invalid
-   name, `OverflowError` for a failed conversion) that the original
-   specification describes.
-4. Packaging: there is no wheel on PyPI and no crate on crates.io.
+1. Python type stubs (`.pyi`).
+2. Packaging: there is no wheel on PyPI and no crate on crates.io.
 :::

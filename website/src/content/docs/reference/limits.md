@@ -16,13 +16,12 @@ are the defaults.
 | `rollout_pct` | 0–100 |
 | Int knob range | signed 64-bit |
 
-## Client
+## Reader
 
-| Limit | Value | Configurable |
-| --- | --- | --- |
-| Knobs per snapshot | 100,000 | `InitOptions::max_knobs` |
-| Snapshot size | 16 MiB | no |
-| Poll interval | must be positive | `poll_interval` |
+| Limit | Value |
+| --- | --- |
+| Live views per handle | 4 |
+| Retry of a store that doesn't exist yet | at most once per 200 ms |
 
 ## Agent
 

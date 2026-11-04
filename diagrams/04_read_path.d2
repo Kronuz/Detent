@@ -1,36 +1,36 @@
-# Section 6: the read path. One flow, top to bottom -- no branching
-# except the two entry points (eval/get) which converge immediately.
+# The read path through libdetent_reader. One flow, top to bottom: the
+# three entry points converge, and any error returns the caller's fallback.
 direction: down
 
-app: "client.eval() / client.get()" {
+app: "reader.eval() / get() / lookup()" {
   shape: rectangle
 }
 
-validate: validate_name() {
+validate: "validate ns:key\n(and the handle's namespaces)" {
   shape: rectangle
 }
 
-override: CLI override lookup\n(one null-check,\nunset = free) {
+pin: "pin the view\n(one stripe counter)" {
   shape: rectangle
 }
 
-overrides_store: OverrideTable\n(immutable post-init) {
+sequence: "load the namespace's\nchange sequence\n(one acquire)" {
+  shape: rectangle
+}
+
+change: change file\n(mapped read-only) {
   shape: cylinder
 }
 
-load: SnapshotRef::load()\n(one atomic acquire) {
+attach: "attach the newer\ngeneration\n(one winner)" {
   shape: rectangle
 }
 
-snap_store: SnapshotRef {
-  shape: cylinder
-}
-
-lookup: flat_map lookup {
+walk: "trie walk\n(verified pages,\none bit test each)" {
   shape: rectangle
 }
 
-precedence: type-check + precedence\n(group > rollout > default) {
+evaluate: "type check + evaluate\n(switch > rollout > default)" {
   shape: rectangle
 }
 
@@ -38,7 +38,15 @@ hashing: stable_bucket()\n(SHA-256) {
   shape: rectangle
 }
 
-app -> validate -> override -> load -> lookup -> precedence
-override -> overrides_store: "read"
-load -> snap_store: "read"
-precedence -> hashing: "only if\nrollout_pct set"
+fallback: "caller's fallback\n(+ status from lookup())" {
+  shape: page
+}
+
+app -> validate -> pin -> sequence -> walk -> evaluate
+sequence -> change: "read"
+sequence -> attach: "moved"
+attach -> walk
+evaluate -> hashing: "only if\nrollout_pct set"
+evaluate -> fallback: "any error" {
+  style.stroke-dash: 4
+}

@@ -3,9 +3,6 @@ target_include_directories(detent_local_view PUBLIC "${PROJECT_SOURCE_DIR}/inclu
 target_sources(detent_local_view PRIVATE reader_metadata.cc lazy_page_access.cc prepared_reader.cc pack_scrub.cc live_record.cc trusted_restart.cc)
 target_compile_features(detent_local_view PUBLIC cxx_std_20)
 add_library(detent::local_view ALIAS detent_local_view)
-add_library(detent_local_client client_source.cc)
-target_link_libraries(detent_local_client PUBLIC detent::local_view)
-add_library(detent::local_client ALIAS detent_local_client)
 
 target_link_libraries(detent_local_view PUBLIC detent::detent detent::resources)
 add_library(detent_local_builder paged_snapshot_plan.cc sparse_plan_finalizer.cc paged_compaction_plan.cc paged_maintenance_plan.cc candidate_paged_validator.cc candidate_flat_validator.cc borrowed_snapshot_source.cc builder.cc paged_delta_plan.cc paged_overlay_assembler.cc paged_delta_leaves.cc paged_leaf_body.cc paged_trie_overlay.cc paged_plan.cc paged_reuse.cc paged_page_builder.cc paged_segment_builder.cc paged_trie_cursor.cc paged_snapshot_builder.cc)

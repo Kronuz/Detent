@@ -4,21 +4,24 @@ title: "FAQ"
 
 ### How fast does a change reach my processes?
 
-Within one poll interval of the source changing, while the source is
-healthy: 200 ms by default for the agent and for clients that keep the default.
+Within one agent poll interval of the authority committing it, while the
+authority is reachable: `poll_interval_ms`, 200 ms by default in poll mode, or a
+long poll in [subscription mode](/Detent/guides/managed-delivery/). Once the
+agent publishes the generation, a reader's next lookup sees it.
 
 ### What happens if the source is down?
 
-Every client keeps serving its last known good snapshot, and keeps retrying in
-the background with jittered backoff. Reads are unaffected; only freshness
-suffers, which you'll see in `staleness_seconds`. Processes that start during
-the outage serve their baked defaults.
+The agent keeps its last durable generation and retries with jittered
+backoff. Readers keep answering from that generation; only freshness suffers.
+A process that starts on a host with no generation yet gets each read's
+fallback, with the status `UNAVAILABLE`.
 
-### Why does reading a missing knob fail instead of returning `false`?
+### What does reading a missing knob return?
 
-Because a missing knob is almost always a bug, a typo or a knob that was never
-published, and `false` or `0` would hide it. Put a safe default in your baked
-defaults instead. See [Errors and Failures](/Detent/reference/errors/).
+The fallback the caller passes, never an error. A missing knob is almost always
+a bug, a typo or a knob that was never published, so `lookup` reports it as
+`MISSING`; check that status where a silent fallback would hide a mistake. See
+[Errors and Failures](/Detent/reference/errors/).
 
 ### Can I store strings or JSON in a knob?
 
@@ -34,16 +37,14 @@ buckets.
 
 ### Do I need the agent?
 
-No. A C++ process can poll a file or an HTTP endpoint directly. The agent is for
-shell scripts, programs in other languages, and hosts where you'd rather have
-one poller than one per process.
+Yes. The agent is the one process on a host that talks to the authority; every
+reader, in C++, Python, Rust or the shell, reads the generations it publishes.
 
 ### Can two people publish at the same time?
 
 Yes, through the [durable authority](/Detent/guides/durable-authority/). It
 assigns revisions itself, and compare-and-set preconditions keep one publisher
-from overwriting another's change. A snapshot file has no such protection: its
-writers must coordinate versions themselves.
+from overwriting another's change.
 
 ### Is the authority secure?
 
@@ -54,9 +55,9 @@ TLS. See [Security](/Detent/operations/security/).
 ### Is Detent JustKnobs?
 
 No. Detent started as an independent implementation of the publicly observable
-behavior of Meta's JustKnobs, and keeps its client semantics: namespaced bool
-and int knobs, per-group overrides, fail-fast missing knobs, and asynchronous
-whole-snapshot replacement. It's not a Meta product, and the agent, authority
+behavior of Meta's JustKnobs, and keeps its knob model: namespaced bool and int
+knobs, percentage rollouts, per-group overrides, and whole-snapshot
+replacement. It's not a Meta product, and the agent, authority
 and delivery system are Detent's own design.
 
 ### How does Detent relate to Xapiand?

@@ -1,12 +1,10 @@
-// Detent's own surfaces over the old and the new pins: snapshot JSON (parse, merge, serialize, diff, patch),
-// knob evaluation (rollout buckets from sha256 and endian) and the `--just-knob` integer parser (strict-stox),
-// so snapshot JSON bytes and evaluated values can be compared between builds.
+// Detent's own surfaces over the old and the new pins: snapshot JSON (parse, merge, serialize, diff, patch) and
+// rollout buckets (sha256 and endian), so snapshot JSON bytes and bucket values can be compared between builds.
 #include "common.hh"
 
-#include "detent/client.hh"
+#include "detent/hashing.hh"
 #include "detent/json_patch.hh"
 #include "detent/json_schema.hh"
-#include "detent/overrides.hh"
 
 #include <random>
 #include <string>
@@ -92,61 +90,20 @@ int main() {
 		auto d = parse_defaults(text, "defaults");
 		w5::line("malformed-defaults " + name, d ? "ACCEPTED" : "rejected: " + result_text(d.error()));
 	}
-	// 3. Evaluation: rollout buckets and group overrides over many hash values.
+	// 3. Rollout buckets over many (name, hash value) pairs.
 	{
-		auto parsed = parse_source_snapshot(knobs_json(1, 300, true, 1), "src");
-		if (!parsed) return 2;
-		Client client(Snapshot(parsed.value()));
 		std::uint64_t acc = 0xcbf29ce484222325ULL;
-		std::size_t trues = 0, total = 0, ints = 0;
+		std::size_t below_half = 0, total = 0;
 		for (std::size_t i = 0; i < 300; ++i) {
 			std::string name = "ns" + std::to_string(i % 7) + ":knob_" + std::to_string(i);
 			for (int u = 0; u < 200; ++u) {
-				std::string user = "user-" + std::to_string(u);
-				for (const char* sw : {(const char*)nullptr, "internal", "beta", "big", "other"}) {
-					std::optional<std::string_view> group;
-					if (sw) group = sw;
-					auto b = client.eval(name, user, group);
-					auto n = client.get(name, group);
-					char code = b ? (b.value() ? '1' : '0') : 'E';
-					acc = w5::fnv(&code, 1, acc);
-					++total;
-					trues += b && b.value();
-					if (n) {
-						auto v = n.value();
-						acc = w5::fnv(&v, sizeof v, acc);
-						++ints;
-					}
-				}
+				const auto bucket = stable_bucket(name, "user-" + std::to_string(u));
+				acc = w5::fnv(&bucket, sizeof bucket, acc);
+				below_half += bucket < 50;
+				++total;
 			}
 		}
-		w5::line("eval", "total=" + std::to_string(total) + " trues=" + std::to_string(trues) + " ints=" + std::to_string(ints) + " digest=" + w5::hex(acc));
+		w5::line("buckets", "total=" + std::to_string(total) + " below50=" + std::to_string(below_half) + " digest=" + w5::hex(acc));
 	}
-	// 4. --just-knob values: strict_stoll through the real parser.
-	std::vector<std::string> values = {"0", "-1", "+1", "42", "9223372036854775807", "9223372036854775808", "-9223372036854775808", "-9223372036854775809", "", " 5", "5 ", "5x", "0x10", "1.0", "true", "false", "True", "TRUE", "-", "+"};
-	for (std::size_t n : {62u, 63u, 64u, 65u, 100u, 300u}) {
-		values.push_back(std::string(n, '0') + "7");
-		values.push_back("-" + std::string(n, '0') + "7");
-		values.push_back("7" + std::string(n, '0'));
-		values.push_back("7 " + std::string(n, ' '));
-	}
-	for (const auto& v : values) {
-		auto table = parse_cli_overrides({"ns:knob=" + v});
-		std::string result;
-		if (table) {
-			auto found = table.value().values.find("ns:knob");
-			if (found != table.value().values.end()) {
-				std::visit([&](auto x) { result = std::to_string(static_cast<long long>(x)); }, found->second);
-			}
-			result = "ok " + result;
-		} else {
-			result = "error: " + w5::show(table.error(), 120);
-		}
-		w5::line("just-knob len=" + std::to_string(v.size()) + " " + w5::show(v, 24) + " h=" + w5::hex(w5::fnv(v)), result);
-	}
-	w5::line("just-knob duplicate", [] {
-		auto t = parse_cli_overrides({"a:b=1", "a:b=2"});
-		return t ? std::string("ok") : "error: " + t.error();
-	}());
 	return 0;
 }

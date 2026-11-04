@@ -1,5 +1,7 @@
 #pragma once
+#include "detent/reader.hh"
 #include "detent_local/read_counters.hh"
+#include "detent_local/view.hh"
 #include <algorithm>
 #include <charconv>
 #include <chrono>
@@ -11,6 +13,34 @@
 #include <random>
 #include <sys/resource.h>
 #include <vector>
+
+// The two paths measured side by side: the reader core, and a pinned view of one generation. Each says
+// whether a lookup returned the expected value; the core's fallback is the opposite value, so a failed
+// lookup cannot pass.
+struct CoreApi {
+	const detent::Reader &reader;
+	bool integer_is(std::string_view key, std::int64_t expected) const { return reader.get(key, ~expected) == expected; }
+	bool boolean_is(std::string_view key, std::optional<std::string_view> hash, bool expected) const {
+		return reader.eval(key, !expected, hash) == expected;
+	}
+};
+struct PinnedApi {
+	const detent::local::ReadView &view;
+	static std::pair<std::string_view, std::string_view> split(std::string_view key) {
+		const auto colon = key.find(':');
+		return {key.substr(0, colon), key.substr(colon + 1)};
+	}
+	bool integer_is(std::string_view key, std::int64_t expected) const {
+		const auto [name_space, name] = split(key);
+		const auto result = view.get(name_space, name);
+		return result && result.value() == expected;
+	}
+	bool boolean_is(std::string_view key, std::optional<std::string_view> hash, bool expected) const {
+		const auto [name_space, name] = split(key);
+		const auto result = view.eval(name_space, name, hash);
+		return result && result.value() == expected;
+	}
+};
 
 class ReaderBenchmark {
   public:
@@ -41,7 +71,9 @@ class ReaderBenchmark {
 		else
 			queries_[slot] = std::move(query);
 	}
-	template <class Client, class View> void run(const Client &client, const View &view) const {
+	void run(const detent::Reader &reader, const detent::local::ReadView &view) const {
+		const CoreApi core{reader};
+		const PinnedApi pinned{view};
 		if (!enabled())
 			return;
 		for (unsigned kind = 0; kind != 3; ++kind) {
@@ -54,11 +86,11 @@ class ReaderBenchmark {
 			for (bool hot : {true, false}) {
 				for (unsigned repetition = 0; repetition != 4; ++repetition) {
 					if (repetition % 2) {
-						measure(view, selected, kind, hot, "pinned-view", repetition);
-						measure(client, selected, kind, hot, "client", repetition);
+						measure(pinned, selected, kind, hot, "pinned-view", repetition);
+						measure(core, selected, kind, hot, "reader", repetition);
 					} else {
-						measure(client, selected, kind, hot, "client", repetition);
-						measure(view, selected, kind, hot, "pinned-view", repetition);
+						measure(core, selected, kind, hot, "reader", repetition);
+						measure(pinned, selected, kind, hot, "pinned-view", repetition);
 					}
 				}
 			}
@@ -85,19 +117,13 @@ class ReaderBenchmark {
 			throw std::invalid_argument("benchmark requires positive lookup and query counts");
 		return value;
 	}
-	template <class Reader>
-	void measure(const Reader &reader, const std::vector<const Query *> &queries,
+	template <class Api>
+	void measure(const Api &api, const std::vector<const Query *> &queries,
 				 unsigned kind, bool hot, const char *path, unsigned repetition) const {
 		auto lookup = [&](const Query &query) {
-			bool correct;
-			if (!kind) {
-				const auto result = reader.get(query.key);
-				correct = result && result.value() == query.value;
-			} else {
-				const auto result = kind == 1 ? reader.eval(query.key)
-					: reader.eval(query.key, std::string_view("cohort-A"));
-				correct = result && result.value() == (kind == 1 ? bool(query.value) : query.rollout);
-			}
+			const bool correct = !kind ? api.integer_is(query.key, query.value)
+				: kind == 1 ? api.boolean_is(query.key, std::nullopt, bool(query.value))
+				            : api.boolean_is(query.key, std::string_view("cohort-A"), query.rollout);
 			if (!correct)
 				throw std::runtime_error("reader benchmark result mismatch: " + query.key);
 		};

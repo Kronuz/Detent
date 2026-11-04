@@ -15,15 +15,10 @@ agent: Host agent\n(detent-agent) {
   shape: rectangle
 }
 
-reader: App process or\n`detent get` {
+reader: App process (detent::Reader)\nor `detent get` {
   shape: rectangle
-}
-
-defaults: Baked defaults\n(just_knobs.json) {
-  shape: page
 }
 
 publisher -> authority: "POST /v2/transactions\n(atomic, per-namespace)"
 authority -> agent: "managed delivery\n(snapshot or delta over TLS)"
 agent -> reader: "immutable local\ngenerations"
-defaults -> reader: "baked fallback\nfor missing knobs"

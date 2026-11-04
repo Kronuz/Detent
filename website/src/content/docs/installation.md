@@ -84,11 +84,11 @@ The variable name is the dependency's `FetchContent` name in upper case, such as
 | `DETENT_BUILD_TESTS` | `ON` | Build the test suite |
 | `DETENT_BUILD_EXAMPLES` | `ON` | Build `detent_demo` |
 | `DETENT_BUILD_BENCHMARKS` | `ON` | Build the benchmarks |
-| `DETENT_BUILD_PYTHON` | `OFF` | Build the pybind11 Python module (needs Python 3 headers) |
-| `DETENT_BUILD_RUST` | `OFF` | Build the `cxx` Rust crate (needs `cargo` and `rustc`) |
+| `DETENT_BUILD_PYTHON` | `OFF` | Build the Python binding, a C extension over `libdetent_reader` (needs Python 3 development headers) |
+| `DETENT_BUILD_RUST` | `OFF` | Build the Rust binding over `libdetent_reader` (needs `cargo` and `rustc`) |
 
-A library-only build, for an application that only needs `detent::Client` with
-baked defaults or a file source, can skip the network stack entirely:
+A reader-only build, for an application that only links `detent::reader` to
+read a managed agent's generations, can skip the network stack entirely:
 
 ```sh
 cmake -B build -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_MANAGED_AGENT=OFF
@@ -102,9 +102,9 @@ cmake -B build -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_MANAGED_AGENT=OFF
 ctest --test-dir build --output-on-failure
 ```
 
-The suite covers the core client (schema validation, golden hash vectors,
-evaluation precedence, CLI overrides, the file source, concurrency stress),
-the agent's command line, and the authority, delivery and local-image libraries.
+The suite covers the core library (schema validation, golden hash vectors),
+the reader core and the scenario table its bindings share, the agent's command
+line, and the authority, delivery and local-image libraries.
 
 ---
 

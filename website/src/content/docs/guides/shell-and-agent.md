@@ -54,7 +54,8 @@ With neither `--managed` nor `--generation-dir` configured, `get` fails with
 | `1` | The knob couldn't be read; the reason is printed, e.g. `ERR MissingKnob: checkout:nope (not present in current snapshot)` |
 
 For scripts that must keep going, `--default` supplies a fallback for that one
-read:
+read. It answers for a missing knob, a wrong type or no generation yet, but not
+for a generation that fails verification:
 
 ```sh
 if [ "$(detent get checkout:new_path --default false)" = true ]; then
@@ -85,16 +86,6 @@ Then plain `detent get NAME` works from any directory. You can also pass
 and `DETENT_GENERATION_DIR`; flags override environment variables, which
 override the config file. [Managed Delivery](/Detent/guides/managed-delivery/)
 covers `managed.json`.
-
-### Local Defaults
-
-An optional `defaults.json` next to `agent.json` gives `detent get` typed
-fallback knobs while no generation has arrived, and for knobs a generation
-doesn't contain:
-
-```sh
-detent get search:max_results --defaults ./defaults.json
-```
 
 :::hint[Startup settings apply to a new agent]{.caution}
 Flags like `--managed` configure an agent when `get` starts one. If an agent is

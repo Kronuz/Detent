@@ -51,7 +51,7 @@ Idempotency belongs in replicated state. Store the client/request ID, request di
 
 Start with one consensus group and fixed membership of three or five voters. Hundreds of publishers are clients, not voters. Agents and relays do not vote. Namespace ownership is the partition boundary when write load eventually requires multiple groups. Cross-group atomic transactions are excluded from that partitioned mode until a transaction coordinator exists; requests must fail explicitly rather than appear partially atomic.
 
-The `/v1/snapshot` JSON endpoint remains useful for bootstrap and administration. It cannot provide safe independent concurrent publication using client-assigned versions alone. A versioned transaction API supplies server-assigned revisions and expected-value semantics without changing the meaning of the existing endpoint.
+Publishers write through `POST /v2/transactions`, which assigns revisions and checks expected values; no endpoint accepts a client-assigned version. Managed agents receive committed state through `POST /v2/distribution`, publish it as immutable local generations, and applications map those generations through `libdetent_reader`.
 
 ## Durable consensus and Xapiand compatibility
 

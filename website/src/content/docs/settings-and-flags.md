@@ -27,14 +27,14 @@ detent get search:timeout_ms
 Each transaction replaces the whole definition of the key it names and leaves
 every other knob alone, so a publish only lists the knob it changes.
 
-In C++, read int knobs with `get`, or with `get_as<T>` for a checked
-conversion that fails instead of truncating:
+In C++, read int knobs with `get`, passing the value to use when the knob
+can't be read; `lookup` also says why:
 
 ```cpp
-std::int64_t max_results = client.get_or_panic("search:max_results");
+std::int64_t max_results = reader.get("search:max_results", 25);
 
-auto timeout = client.get_as<std::uint32_t>("search:timeout_ms");
-if (!timeout) log(timeout.error().what());
+auto timeout = reader.lookup("search:timeout_ms");
+if (!timeout) log(detent_status_name(timeout.status));
 ```
 
 ---
@@ -62,7 +62,7 @@ detent get checkout:new_path
 In C++, the same read is `eval`:
 
 ```cpp
-if (client.eval_or_panic("checkout:new_path")) {
+if (reader.eval("checkout:new_path", false)) {
     new_checkout();
 } else {
     old_checkout();
@@ -71,7 +71,7 @@ if (client.eval_or_panic("checkout:new_path")) {
 
 :::hint[Name kill switches for what they protect]{.tip}
 A common convention is `killswitch_*` for a bool that guards a risky path,
-with a safe default of `false` in your baked defaults. When something breaks,
+with a safe fallback of `false` at every read. When something breaks,
 flipping it is one publish away, and every managed agent delivers it to the
 readers on its host. The [Kill Switches](/Detent/guides/kill-switches/) guide
 covers the full lifecycle.
@@ -90,8 +90,7 @@ detent get search:timeout_ms
 # ERR MissingKnob: search:timeout_ms (scoped lookup failed)
 ```
 
-A client whose baked defaults contain `search:timeout_ms` falls back to that
-baked value. A client without one now gets a `MissingKnob` error for it, so
+A reader returns each call's fallback for it, with the status `MISSING`, so
 remove knob reads from code before removing their definitions.
 
 ---
@@ -106,6 +105,5 @@ detent get checkout:unpublished_feature --default false
 # false
 ```
 
-This doesn't publish or create anything. It's a per-call fallback for scripts
-that must keep going. The C++ library deliberately has no equivalent; see
-[Errors and Failures](/Detent/reference/errors/) for why.
+This doesn't publish or create anything. It's the shell's form of the fallback
+every library read takes; see [Errors and Failures](/Detent/reference/errors/).

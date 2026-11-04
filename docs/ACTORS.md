@@ -19,7 +19,7 @@ Each role has one name in this page, and the names match the code.
 | Voter | One member of the authority, on its own machine and disk | `detentd --authority` |
 | Relay | Optional fan-out between the authority and agents | `detent-relay` |
 | Agent | The per-host process that writes local generations | `detent-agent` |
-| Client | An application process reading knobs in memory | Your app, linking `detent::Client` |
+| Client | An application process reading knobs in memory | Your app, through `detent::Reader` or a binding |
 
 A **generation** is one immutable, complete copy of the knob state on disk. An agent or relay *publishes* a generation by writing it and then atomically replacing a small descriptor file named `selected`. "Daemon" names no role: voters, relays and agents are all daemons. The configuration keys `publisher_tls`, `publisher_bind` and `publisher_name` belong to the authority's producer listener, and `publisher_user` names the account trusted to publish generations; neither is a separate actor.
 
@@ -33,7 +33,7 @@ A **generation** is one immutable, complete copy of the knob state on disk. An a
 | Authority | Three machines, one voter each | `detentd` | `DETENT_BUILD_AUTHORITY=ON` (the default) | `authority.json`, passed with `--authority` | The `directory` named in `authority.json` | `src/detent_authority/`, `src/detentd/main.cc` |
 | Relay | Between the authority and agent hosts | `detent-relay` | `DETENT_BUILD_RELAY=ON` | `relay.json` | One directory per bundle | `src/detent_relay/` |
 | Agent | Every application host | `detent-agent` | Always built; managed delivery needs `DETENT_BUILD_MANAGED_AGENT=ON` | `agent.json` (public), `managed.json` (private) | `generation_dir` | `src/detent_agent/`, `src/detent_delivery/`, `src/detent_local/` |
-| Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | `InitOptions` in code; `agent.json` for `detent get` | None | `src/detent/`, `src/detent_local/` |
+| Client | Every application host, beside the agent | Your app; `detent` for `detent get` | Always built | The store directory and publisher uid in code; `agent.json` for `detent get` | None | `src/detent_reader/`, `src/detent_local/` |
 
 ## Producer
 
@@ -126,7 +126,7 @@ Without `--managed` (or `managed_path`), `detent-agent` exits with `no source co
 
 **What.** The client is the application process. It reads knobs in memory: no network, disk or lock on a read.
 
-**How.** A C++ application sets `InitOptions::read_source` to `detent::local::make_managed_read_source(generation_dir, publisher_uid)` from `detent::local_client`. The client checks that the generation comes from `publisher_uid` in a directory whose ancestry only trusted accounts can change, takes a shared lock on the selected generation's `.lease`, maps the image read-only and reads from the mapping. A background thread looks at `selected` every 200 ms and swaps to a newer generation; a read view in use keeps its generation until it is released. Baked defaults (`just_knobs.json`) cover keys the generation lacks.
+**How.** An application opens `detent::Reader(generation_dir, publisher_uid)` from `detent::reader` (`libdetent_reader`; Python and Rust bind the same C ABI). The reader checks that the generation comes from `publisher_uid` in a directory whose ancestry only trusted accounts can change, takes a shared lock on the selected generation's `.lease`, maps the image read-only and reads from the mapping. Each lookup loads one sequence from the mapped `change` file; when it moves, that lookup attaches the newer generation, and lookups already in flight finish on the old one. The reader starts no thread. Every lookup takes the caller's fallback and returns it for a key the generation lacks or any other error; `lookup()` reports why ([reader core](mechanisms/reader-core.md)).
 
 `detent get NAME` is the command-line client. With `--generation-dir` or a configured `generation_dir`, it reads the selected generation directly, even while the agent is stopped. A user-mode read starts a missing agent when a managed configuration is present; `--system` never starts one.
 
@@ -134,11 +134,11 @@ Without `--managed` (or `managed_path`), `detent-agent` exits with `no source co
 
 **When.**
 
-1. Startup: attach to the selected generation; with none yet, read baked defaults.
-2. Steady state: reads are memory lookups; refresh happens on the background thread.
-3. Agent restart: the client keeps its mapped generation and picks up the next one when `selected` changes.
+1. Startup: open the store; the first lookup in a namespace attaches the selected generation. With none yet, lookups return their fallbacks with `DETENT_UNAVAILABLE`.
+2. Steady state: reads are memory lookups; a lookup that sees the `change` sequence move attaches the new generation, and `refresh()` does it from a thread the application picks.
+3. Agent restart: the client keeps its mapped generation and picks up the next one when the agent publishes.
 
-**Where.** The same host as its agent. Link `detent::detent` and `detent::local_client`; both are always built. The `detent` binary is the CMake target `detent-reader`.
+**Where.** The same host as its agent. Link `detent::reader`; it is always built. The `detent` binary is the CMake target `detent-reader`.
 
 ## From a write to a read
 
@@ -149,7 +149,7 @@ Without `--managed` (or `managed_path`), `detent-agent` exits with `no source co
 3. Once a majority has the entry on disk, the leader applies it, assigns the revision and answers the producer.
 4. The relay, subscribed to the leader, receives a delta and publishes its own durable generation.
 5. The agent receives the delta from the relay (or straight from the leader without a relay), writes a new generation and replaces `selected`.
-6. The client's refresh thread sees the new `selected`, maps the generation and serves reads from it.
+6. The client's next lookup sees the `change` sequence move, maps the new generation and serves reads from it.
 
 ## Restart and first contact
 
@@ -158,7 +158,7 @@ Without `--managed` (or `managed_path`), `detent-agent` exits with `no source co
 | Authority voter | No `manifest`: creates a new store | Recovers the journal and checkpoint, replays committed entries, then admits requests |
 | Relay bundle | `"mode": "fresh"` provisions it | Recovers the last durable selection; ready after every bundle authenticates upstream |
 | Agent | `--initialize-managed` once; first update is a snapshot | Recovers `selected`; asks for a delta from its cursor |
-| Client | Reads baked defaults | Re-attaches to `selected` |
+| Client | Returns each call's fallback with `DETENT_UNAVAILABLE` | Re-attaches to `selected` |
 
 Agents keep their last durable generation while anything upstream is down, and clients keep reading it. The data gets older; reads keep working.
 
@@ -172,7 +172,7 @@ Agents keep their last durable generation while anything upstream is down, and c
 | `DETENT_BUILD_TESTS`, `DETENT_BUILD_EXAMPLES`, `DETENT_BUILD_BENCHMARKS` | `ON` | Tests, examples, benchmarks |
 | `DETENT_BUILD_PYTHON`, `DETENT_BUILD_RUST` | `OFF` | Language bindings |
 
-`detent-agent`, `detent`, `detent::detent` and `detent::local_client` have no option; they are always built. A build with every actor:
+`detent-agent`, `detent`, `detent::detent` and `detent::reader` have no option; they are always built. A build with every actor:
 
 ```sh
 cmake -B build -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON

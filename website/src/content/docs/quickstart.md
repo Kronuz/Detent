@@ -188,7 +188,7 @@ no restart and no redeploy.
 
 The next pages walk through each idea in turn, in the same shell and directory:
 
-1. [Basic Concepts](/Detent/basics/): knobs, snapshots, versions and defaults.
+1. [Basic Concepts](/Detent/basics/): knobs, snapshots, versions and fallbacks.
 2. [Settings and Flags](/Detent/settings-and-flags/): numeric settings and on/off switches.
 3. [Gradual Rollouts](/Detent/rollouts/): percentage ramps with stable buckets.
 4. [Group Overrides](/Detent/group-overrides/): forcing or ramping specific groups.

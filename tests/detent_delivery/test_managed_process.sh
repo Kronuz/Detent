@@ -101,14 +101,13 @@ for name in ("authority.json", "relay.json"):
 PYTHON
 fi
 scope=$("$interpreter" -c 'import hashlib,sys; principal=b"agent-reader"; namespace=b"ns"; wire=b"detent-authorized-scope-v1"+len(principal).to_bytes(8,"big")+principal+int(sys.argv[1]).to_bytes(8,"big")+(1).to_bytes(8,"big")+len(namespace).to_bytes(8,"big")+namespace; print(hashlib.sha256(wire).hexdigest())' "$policy_epoch")
-printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","defaults_path":"defaults.json","generation_cluster":"63000000000000000000000000000000","generation_group":"67000000000000000000000000000000","generation_epoch":"65000000000000000000000000000000","generation_scope":"%s"}\n' "$scope" > "$root/agent.json"
+printf '{"managed_path":"managed.json","generation_dir":"generations","runtime_dir":"run","generation_cluster":"63000000000000000000000000000000","generation_group":"67000000000000000000000000000000","generation_epoch":"65000000000000000000000000000000","generation_scope":"%s"}\n' "$scope" > "$root/agent.json"
 "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data["reader_validation"]="full"; open(p,"w").write(json.dumps(data))' "$root/agent.json"
 if [[ "$isolated" == isolated ]]; then
     empty_scope=$("$interpreter" -c 'import hashlib,sys; p=b"agent-reader"; print(hashlib.sha256(b"detent-authorized-scope-v1"+len(p).to_bytes(8,"big")+p+int(sys.argv[1]).to_bytes(8,"big")+(0).to_bytes(8,"big")).hexdigest())' "$policy_epoch")
     cp "$root/agent.json" "$root/agent-empty.json"
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data.update(managed_path="managed-empty.json",generation_dir="generations-empty",runtime_dir="run-empty",generation_scope=sys.argv[2]); open(p,"w").write(json.dumps(data))' "$root/agent-empty.json" "$empty_scope"
 fi
-printf '{"schema_version":1,"knobs":{"ns:feature":{"type":"int","default":7}}}\n' > "$root/defaults.json"
 set_port() {
     local value=$1 name
     shift
@@ -148,7 +147,7 @@ if [[ -n "$relay" ]]; then
             sleep 0.02
         done
         "$agent" --status --config "$root/agent-empty.json" | grep -q "durable revision=$first_revision "
-        [[ $("$reader" get ns:feature --system --config "$root/agent-empty.json") == 7 ]]
+        [[ $("$reader" get ns:feature --default 7 --system --config "$root/agent-empty.json") == 7 ]]
         denied=$(curl -sS --max-time 5 --cacert "$certificates/ca.pem" --resolve "localhost:$relay_port:127.0.0.1" \
             -o "$root/cross-bundle.json" -w '%{http_code}' -H "Authorization: Bearer $relay_token" \
             --data "{\"version\":1,$identity,\"scope\":\"$empty_scope\",\"namespaces\":[],\"coding\":\"raw\",\"profile\":1}" \
@@ -161,7 +160,7 @@ agent_pid=$!
 wait_value() {
     local actual=
     deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
-        if actual=$("$reader" get ns:feature --system --config "$root/agent.json" 2>"$root/reader-get.log"); then
+        if actual=$("$reader" get ns:feature --default 7 --system --config "$root/agent.json" 2>"$root/reader-get.log"); then
             if [[ "$actual" == "$1" ]]; then return; fi
         fi
         if ! kill -0 "$agent_pid" 2>/dev/null; then cat "$root/agent.log"; return 1; fi
@@ -193,12 +192,12 @@ wait_value 42
 # Reader limits are independent of private delivery credentials.
 "$interpreter" -c 'import json,sys; d=json.load(open(sys.argv[1])); d.pop("managed_path",None); d["reader_image_bytes"]=1; open(sys.argv[2],"w").write(json.dumps(d))' "$root/agent.json" "$root/reader-limits.json"
 chmod 644 "$root/reader-limits.json"
-[[ $("$reader" get ns:feature --system --config "$root/reader-limits.json") == 7 ]]
-[[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --system --config "$root/reader-limits.json") == 42 ]]
-[[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
+[[ $("$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json") == 7 ]]
+[[ $(DETENT_READER_IMAGE_BYTES=3221225472 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json") == 42 ]]
+[[ $(DETENT_READER_IMAGE_BYTES=1 "$reader" get ns:feature --default 7 --system --config "$root/reader-limits.json" --reader-image-bytes 3221225472) == 42 ]]
 check_format "$root/generations" "$image_format"
 if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
-[[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
+[[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
 cp "$root/generations/storage.meta" "$root/storage-before"
 post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 progress_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/progress.json")
@@ -223,11 +222,11 @@ if [[ "$isolated" == isolated ]]; then
         sleep 0.02
     done
     "$agent" --status --config "$root/agent-empty.json" | grep -q "durable revision=$deleted_revision "
-    [[ $("$reader" get ns:feature --system --config "$root/agent-empty.json") == 7 ]]
+    [[ $("$reader" get ns:feature --default 7 --system --config "$root/agent-empty.json") == 7 ]]
     kill -TERM "$empty_agent_pid"; wait "$empty_agent_pid"; empty_agent_pid=
 fi
 kill -KILL "$agent_pid"; wait "$agent_pid" 2>/dev/null || true; agent_pid=
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
+[[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json") == 7 ]]
 if "$agent" --status --config "$root/agent.json" > "$root/stopped.txt"; then exit 1; fi
 grep -q 'durable revision=' "$root/stopped.txt"
 if "$agent" --status --config "$root/agent.json" --reader-image-bytes 1 > "$root/reader-low-status.txt"; then exit 1; fi
@@ -251,7 +250,7 @@ if [[ "$transition_to_flat" == true ]]; then
     done
     "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "
     check_format "$root/generations" flat-v1
-    [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
+    [[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json") == 7 ]]
     image_format=flat-v1
 fi
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
@@ -286,7 +285,7 @@ if [[ -n "$relay" ]]; then
     if wait "$relay_pid"; then exit 1; fi
     relay_pid=
     cmp "$root/relay-selected-before" "$root/relay-generations/selected"
-    [[ $("$reader" get ns:feature --system --config "$root/agent.json") == 84 ]]
+    [[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json") == 84 ]]
     printf 'TLS authority to relay to agent to reader, progress, deletion defaults, relay restart and upstream revocation passed\n'
     exit 0
 fi
@@ -300,7 +299,7 @@ deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     sleep 0.02
 done
 grep -Eq 'managed delivery failures|distribution session reset' "$root/agent-unauthorized.log"
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 7 ]]
+[[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json") == 7 ]]
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
     sleep 0.02
@@ -333,7 +332,7 @@ wait_ready "$root/agent-reset.log"
 wait_value 84
 cmp "$root/storage-before" "$root/generations/storage.meta"
 kill -TERM "$agent_pid"; wait "$agent_pid"; agent_pid=
-[[ $("$reader" get ns:feature --system --config "$root/agent.json") == 84 ]]
+[[ $("$reader" get ns:feature --default 7 --system --config "$root/agent.json") == 84 ]]
 "$agent" --config "$root/agent.json" > "$root/agent-reset-restart.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-reset-restart.log"

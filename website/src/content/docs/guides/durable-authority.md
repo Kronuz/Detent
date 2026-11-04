@@ -12,7 +12,7 @@ credential can publish.
 :::hint[Still being qualified]{.caution}
 The authority is complete as a component and has passed native, sanitizer and
 three-platform qualification, but sustained fleet-scale qualification is still
-open. It doesn't serve `/v1/snapshot`; agents receive its data through
+open. Agents receive its data through
 [managed delivery](/Detent/guides/managed-delivery/). See the
 [Roadmap](/Detent/roadmap/) for its exact status.
 :::

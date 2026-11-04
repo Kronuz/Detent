@@ -2,8 +2,9 @@
 title: "Snapshot Format"
 ---
 
-Defaults files, live snapshots and patches all share one JSON schema,
-`schema_version: 1`, parsed strictly.
+Knob-definition files, snapshots and patches all share one JSON schema,
+`schema_version: 1`, parsed strictly by `detent/json_schema.hh` and
+`detent/json_patch.hh` in the `detent::detent` target.
 
 ---
 
@@ -30,17 +31,18 @@ Defaults files, live snapshots and patches all share one JSON schema,
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `schema_version` | yes | Exactly `1` |
-| `version` | yes | Positive 64-bit integer; must exceed the receiver's accepted version |
+| `version` | yes | Positive 64-bit integer |
 | `published_at` | no | RFC 3339 UTC timestamp, informational |
 | `knobs` | yes | Object mapping [knob names](/Detent/reference/knobs/) to definitions |
 
 ---
 
-## Defaults File
+## Knob-Definition File
 
-A baked defaults file has the same shape **without** `version` and
-`published_at`. It is always version `0`; including either field is a schema
-error.
+A knob-definition file has the same shape **without** `version` and
+`published_at`; including either field is a schema error. `parse_defaults`
+reads it, and the test writer's `GenerationWriter::publish_json` publishes one
+as a real generation (see [Testing](/Detent/guides/testing/)).
 
 ```json
 {
@@ -55,9 +57,7 @@ error.
 
 ## Patch
 
-A patch, which a [custom source](/Detent/reference/cpp-api/sources/#custom-sources)
-returns with `is_patch = true` or an HTTP endpoint returns as a diff, uses the
-snapshot shape with two differences:
+A patch uses the snapshot shape with two differences:
 
 1. It contains only the knobs that changed.
 2. A knob mapped to `null` is deleted from the live snapshot.
@@ -74,12 +74,7 @@ snapshot shape with two differences:
 ```
 
 This follows JSON Merge Patch (RFC 7396) at knob granularity: each knob is
-replaced or deleted as a unit. A client always applies a patch onto **its own**
-last accepted live snapshot, never onto whatever base the sender claims, so a
-confused sender can at worst cause a rejected update, never a wrong merge.
-
-Deleting a knob that also has a baked default makes readers fall back to the
-baked definition.
+replaced or deleted as a unit.
 
 ---
 
@@ -94,11 +89,11 @@ The parser rejects the whole document, never part of it, when it finds:
 5. An invalid knob name or group name.
 6. `rollout_pct` outside `0`–`100`, or a group override that is neither a
    boolean nor `{"rollout_pct": N}`.
-7. More knobs than the receiver's `max_knobs` (default 100,000).
+7. More knobs than the caller's `max_knobs` (default 100,000).
 8. A document larger than 16 MiB, or nested too deeply.
 
-A rejected update is counted and logged by category, and the receiver keeps
-its last known good snapshot.
+The parser returns an `UpdateError` naming the category; nothing is
+published.
 
 ---
 

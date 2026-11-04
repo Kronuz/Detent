@@ -1,7 +1,7 @@
 // Allocation-denial sweep over Detent's four actual model tables.
 // usage: actual_sweep KIND(knobs|patch|group|cli) OP(insert|erase|copy|destroy) short|long [maxn]
 #include <detent/model.hh>
-#include <detent/overrides.hh>
+#include <variant>
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -68,6 +68,7 @@ template <> struct Traits<GroupOverride> {
 	using Map = MAPT<std::string, GroupOverride, std::less<>>;
 	static GroupOverride make(unsigned i) { return (i & 1) ? GroupOverride(GroupRollout{std::uint8_t(i % 100)}) : GroupOverride(bool(i & 2)); }
 };
+using OverrideValue = std::variant<bool, std::int64_t>;
 template <> struct Traits<OverrideValue> {
 	using Map = MAPT<std::string, OverrideValue, std::less<>>;
 	static OverrideValue make(unsigned i) { return (i & 1) ? OverrideValue(std::int64_t(i)) : OverrideValue(bool(i & 2)); }

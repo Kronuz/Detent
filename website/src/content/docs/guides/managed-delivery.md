@@ -3,20 +3,20 @@ title: "Managed Delivery"
 ---
 
 Managed delivery connects `detent-agent` to the
-[durable authority](/Detent/guides/durable-authority/). Instead of polling a JSON
-snapshot, the agent receives a compact binary snapshot or delta over
-authenticated TLS, and publishes it as a durable, **immutable generation** on
-local disk. Readers pin a generation and evaluate against it directly.
+[durable authority](/Detent/guides/durable-authority/). The agent receives a
+compact binary snapshot or delta over authenticated TLS, and publishes it as a
+durable, **immutable generation** on local disk. Readers map a generation and
+evaluate against it directly.
 
-```d2 alt="The authority delivers authenticated snapshots and deltas to the managed agent, which publishes immutable generations to a local directory; detent get and SDK clients read the selected generation"
+```d2 alt="The authority delivers authenticated snapshots and deltas to the managed agent, which publishes immutable generations to a local directory; detent get and readers read the selected generation"
 direction: right
 authority: "detentd --authority\n(/v2/distribution)"
 agent: "detent-agent --managed\n(private credential)"
 dir: "generation directory\n(selected + immutable\ngeneration images)" {shape: cylinder}
-readers: "detent get / SDK\n(public, read-only)"
+readers: "detent get / detent::Reader\n(public, read-only)"
 authority -> agent: "TLS, bearer token,\nsnapshot or exact-base delta"
 agent -> dir: "publish new generation,\nthen atomically select it"
-readers -> dir: "pin + read"
+readers -> dir: "map + read"
 ```
 
 Generations survive agent and host restarts, so a host can serve its last
@@ -106,29 +106,23 @@ the private token.
 
 ## 5. Read from C++
 
-The C++ SDK can read the same generations with no network code at all. Link
-`detent::local_client`:
+The C++ reader reads the same generations with no network code at all. Link
+`detent::reader` and open the generation directory with the uid the agent runs
+as:
 
 ```cpp
-#include "detent/client.hh"
-#include "detent_local/client_source.hh"
+#include "detent/reader.hh"
 
-detent::InitOptions options;
-options.defaults_path = "defaults.json";  // optional
-options.read_source = detent::local::make_local_read_source(
-    detent::local::ClientSourceOptions{.directory = generation_directory});
-detent::Client client(std::move(options));
+detent::Reader reader(generation_directory, agent_uid);
 
-auto view = client.read_view();
-auto maximum = view.get("search:max_results");
-auto enabled = view.eval("checkout:new_path", "host-42", "beta");
+std::int64_t maximum = reader.get("search:max_results", 25);
+bool enabled = reader.eval("checkout:new_path", false, "host-42", "beta");
 ```
 
-Refresh work runs on one background thread; acquiring a view and looking up
-knobs allocate nothing. CLI overrides still win, missing live keys still fall
-back to baked defaults, and a failed refresh keeps the previous view.
-Local-source clients use `read_view()`; `current_snapshot()` throws
-`std::logic_error` because there's no eager snapshot to return.
+The reader starts no thread: a lookup sees a new generation on its own, and a
+warm lookup allocates nothing. Every lookup returns its fallback on any error,
+and a failed attach keeps the previous generation. See
+[Reader](/Detent/reference/cpp-api/reader/).
 
 ---
 

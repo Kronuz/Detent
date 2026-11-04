@@ -1,19 +1,13 @@
 set(DETENT_TESTS
   test_model_and_schema
   test_hash_golden
-  test_eval_semantics
-  test_overrides
-  test_file_source
-  test_testing_guard
-  test_concurrency_stress
   test_json_patch
   test_json_strings
   test_flat_map
   test_duplicate_precedence)
 
-list(APPEND DETENT_TESTS test_read_view)
 if(NOT DETENT_TSAN)
-  list(APPEND DETENT_TESTS test_model_alloc_failure test_client_publication_failure)
+  list(APPEND DETENT_TESTS test_model_alloc_failure)
 endif()
 
 foreach(test_name ${DETENT_TESTS})

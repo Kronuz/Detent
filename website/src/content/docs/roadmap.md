@@ -13,11 +13,11 @@ these docs are collected here.
 
 | Area | Status |
 | --- | --- |
-| Client library: reads, evaluation and file sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
+| Reader library: `detent::Reader` over the `libdetent_reader` C ABI | **Done**, covered by golden vectors, the shared scenario table, and generation-switch and fork tests |
 | Host-local agent and `detent get` | **Done** |
-| Python and Rust bindings | **Basic**: file source only |
+| Python and Rust bindings | **Basic**: `Reader` over the same C ABI, run against the shared scenario table |
 | Durable authority | **Component accepted**; fleet-scale qualification open |
-| Managed delivery and SDK source | **Component accepted** |
+| Managed delivery | **Component accepted** |
 | Resumable subscriptions, relays, incremental publication | **Component accepted** (Stage 5) |
 | Sustained system, fleet and failure qualification | **Active** (Stage 6); sustained capacity remains unqualified |
 | Updated libraries and remaining reusable-library extraction | **In progress**; required before the initial release |
@@ -63,18 +63,12 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
 4. Rule-based targeting beyond exact group names, such as attribute matching
    or segments.
 
-## Client and Bindings
+## Reader and Bindings
 
-1. A shipped command-line flag parser for CLI overrides
-   (`--just-knob name=value`) and a config-path flag.
-2. An opt-in environment switch that freezes baked defaults for tests.
-3. Filesystem notifications for the file source instead of metadata polling.
-4. Python: `read_view()`, `check()`, category-specific exceptions,
-   type stubs.
-5. Rust: views, structured errors, test guards.
-6. Go and Java bindings, and a documented stable reader ABI for the shared
-   snapshot.
-7. A change-notification API for applications that want to react to updates.
+1. Python type stubs.
+2. Python wheels and crates.io packages.
+3. Go and Java bindings over the `libdetent_reader` C ABI.
+4. A change-notification API for applications that want to react to updates.
 
 ## Distribution
 

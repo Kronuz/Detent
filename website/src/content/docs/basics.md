@@ -44,39 +44,35 @@ definition; there is no field-by-field merge.
 ## Snapshot
 
 A snapshot is a complete, immutable, validated map from knob names to
-definitions, stamped with a version number. Readers always see exactly one
-snapshot at a time. The background updater builds a brand-new snapshot for
-every accepted update and publishes it with a single atomic pointer swap, so
-no reader ever observes a half-applied change.
+definitions, stamped with a version number. The agent publishes each accepted
+snapshot as a new immutable generation on disk, and a reader switches to it on
+its next lookup, so no reader ever observes a half-applied change.
 
 ## Version
 
-Every published snapshot carries a positive integer `version`. A client only
-accepts a version greater than the one it already has, so
-reordered, repeated or replayed updates are harmless: they are counted as stale
-and ignored.
+Every published snapshot carries a positive integer `version`, and each
+namespace's generation carries its revision. A reader refuses a revision that
+goes backwards, so reordered, repeated or replayed updates are harmless.
 
-## Baked Defaults
+## Fallback
 
-Baked defaults are a snapshot file shipped *with* your binary, conventionally
-named `just_knobs.json` or `defaults.json`. They are loaded at startup as
-version `0`, before any live data arrives, and they remain the fallback for any
-knob that the live snapshot doesn't mention. They are also where new knob names
-are introduced.
+Every read passes its own fallback: the value the caller gets when the knob
+can't be read. There is no defaults file; the safe value lives next to the code
+that reads the knob.
 
-:::hint[Missing knobs are errors]{.caution}
-Detent never invents a value for a knob it doesn't know. Reading a name that is
-in neither the live snapshot nor the baked defaults returns a `MissingKnob`
-error (or aborts, with the `_or_panic` helpers). Put a safe default in your
-baked defaults for every knob your code reads.
+:::hint[Missing knobs return the fallback]{.caution}
+Detent never invents a value for a knob it doesn't know. Reading a name that
+the generation doesn't hold returns the caller's fallback, and `lookup` reports
+the status, `MISSING`. A misspelled name is silent unless you check that
+status.
 :::
 
 ## Source
 
-A source is where live snapshots come from. A client consumes exactly one
-source: nothing (baked defaults only), a local file that it polls, or an HTTP
-endpoint that serves `GET /v1/snapshot`. The managed agent adds a fourth,
-durable immutable generations delivered from an authenticated authority.
+A source is where live snapshots come from. Readers have one: the managed
+agent's store directory, where `detent-agent` publishes durable immutable
+generations delivered from an authenticated authority. A reader opens the store
+with the uid the agent runs as and maps the generations read-only.
 
 ## Authority
 
@@ -92,13 +88,8 @@ deliveries from the authority and publishes immutable generations on disk. Shell
 scripts and programs in any language read knobs from them with `detent get`
 without talking to the network or to the daemon.
 
-## Override
+## Group Override
 
-There are two kinds of override, and they are easy to confuse:
-
-1. **Group overrides** live in a bool knob's definition and apply when the
-   caller passes a matching group, the `switch_val`. They are published like
-   any other part of a definition.
-2. **CLI overrides** are `name=value` pairs given to one process at startup.
-   They shadow both the baked defaults and every live snapshot for that process
-   only, which makes them ideal for local debugging and tests.
+A group override lives in a bool knob's definition and applies when the caller
+passes a matching group, the `switch_value`. It is published like any other
+part of a definition.

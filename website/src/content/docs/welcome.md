@@ -10,9 +10,10 @@ system services, and how the whole thing works underneath.
 ## So what is Detent, exactly?
 
 Detent is **a runtime-configuration system for namespaced boolean and integer
-knobs**. Applications read knobs synchronously from an in-memory snapshot; a
-background thread keeps that snapshot fresh from a file, an HTTP endpoint, or
-a durable authority, and swaps each validated update in atomically.
+knobs**. Applications read knobs synchronously from immutable generations that
+a host-local agent receives from a durable authority and publishes on disk;
+each read sees one whole validated generation, and a new one replaces it
+atomically.
 
 A *detent* is the mechanism that makes a rotary knob click into discrete,
 stable positions. That's the idea: your process always sees a complete,
@@ -20,8 +21,9 @@ validated configuration, never something half-turned.
 
 Detent has three moving parts:
 
-1. **`detent::Client`**, the library your application links. It owns the
-   read path, the evaluation rules and the background updater.
+1. **`detent::Reader`**, the library your application links (C++, with Python
+   and Rust bindings over the same C ABI). It owns the read path and the
+   evaluation rules, and starts no thread.
 2. **`detentd`**, the durable authority. Publishers open authenticated
    sessions and submit atomic, per-namespace transactions; it commits them
    through durable Raft consensus and delivers them to managed agents.

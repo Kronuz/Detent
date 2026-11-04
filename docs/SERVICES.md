@@ -22,7 +22,7 @@ The agent configuration names the private managed configuration; without it the 
 {"managed_path": "/etc/detent/managed.json"}
 ```
 
-Readers may use optional `defaults.json` beside the config to serve fallback values before the agent has published a generation.
+Before the agent has published a generation, `detent get --default VALUE` prints its fallback, and an application's `Reader` returns each call's fallback with `DETENT_UNAVAILABLE`.
 
 ## Linux: systemd
 

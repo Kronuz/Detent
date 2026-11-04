@@ -38,7 +38,7 @@ detent get payments:new_processor --hash user-1 --switch excluded
 ```
 
 ```cpp
-bool enabled = client.eval_or_panic("payments:new_processor", user_id, user_group);
+bool enabled = reader.eval("payments:new_processor", false, user_id, user_group);
 ```
 
 ---
@@ -47,13 +47,12 @@ bool enabled = client.eval_or_panic("payments:new_processor", user_id, user_grou
 
 For a bool knob, Detent checks, in order:
 
-1. A CLI override for this knob in this process, if any.
-2. An override whose group name **exactly** matches the switch value:
+1. An override whose group name **exactly** matches the switch value:
    - A boolean override returns that value.
    - A rollout override compares the caller's bucket against the group's
      percentage. Without a hash value, it returns the knob's `default`.
-3. The knob-wide `rollout_pct`, when a hash value is present.
-4. The knob's `default`.
+2. The knob-wide `rollout_pct`, when a hash value is present.
+3. The knob's `default`.
 
 A group that isn't listed falls through to the knob-wide rollout:
 

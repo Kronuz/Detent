@@ -10,25 +10,28 @@ repositories. Everything is fetched with CMake `FetchContent`.
 
 ## Detent's Own Targets
 
-```d2 alt="detent is the core; the managed delivery and local client targets build on it; detent-agent and detent are executables over them"
+```d2 alt="detent is the core; the managed delivery and local view targets build on it, and the reader core on the local view; detent-agent and detent are executables over them"
 direction: down
-detent: "detent\n(core client)"
+detent: "detent\n(model, schema, hash)"
 delivery: "detent::delivery_config\n(managed delivery)"
-local: "detent::local_client\n(managed generations)"
+local: "detent::local_view\n(managed generations)"
+core: "detent::reader\n(libdetent_reader)"
 detentd: "detentd" {shape: hexagon}
 detentd -> detent
 agent: "detent-agent" {shape: hexagon}
 reader: "detent" {shape: hexagon}
 delivery -> detent
 local -> detent
+core -> local
 agent -> delivery
 reader -> local
 ```
 
 | Target | Depends on | Purpose |
 | --- | --- | --- |
-| `detent` | the core libraries below | Client, schema, evaluation, overrides, file source |
-| `detent::local_client` | `detent`, local view | Managed generation reader |
+| `detent` | the core libraries below | The model, the JSON schema and the rollout hash |
+| `detent::local_view` | `detent` | Mapped, verified managed generations |
+| `detent::reader` | local view | `libdetent_reader`, the reader core behind `detent::Reader` and the bindings |
 
 `detent` deliberately has no networking dependency, and the test suites link
 the daemon libraries directly instead of spawning subprocesses.
@@ -39,7 +42,7 @@ the daemon libraries directly instead of spawning subprocesses.
 
 | Library | Role in Detent |
 | --- | --- |
-| [atomic-shared-ptr](https://github.com/Kronuz/atomic-shared-ptr) | Lock-free snapshot publication |
+| [atomic-shared-ptr](https://github.com/Kronuz/atomic-shared-ptr) | Linked by `detent`; no Detent source uses it |
 | [sha256](https://github.com/Kronuz/sha256) + [endian](https://github.com/Kronuz/endian) | Stable rollout bucket |
 | [char-classify](https://github.com/Kronuz/char-classify) | Knob-name validation |
 | [strict-stox](https://github.com/Kronuz/strict-stox) | Strict integer parsing |

@@ -1,44 +1,37 @@
-// Worked example: init from a baked-defaults file plus a live file source,
-// evaluate a kill switch and an int knob, then print a health snapshot.
-// Build via CMake: cmake -B build && cmake --build build && ./build/examples/detent_demo
-#include "detent/client.hh"
+// Worked example: open a reader over a managed agent's store, read a kill switch and an int knob with
+// per-call fallbacks, and show what a lookup reports when a knob is unavailable.
+//
+//   cmake -B build && cmake --build build && ./build/examples/detent_demo STORE_DIR AGENT_UID
+//
+// STORE_DIR is the agent's generation directory (detent-agent --generation-dir), AGENT_UID the uid the
+// agent runs as: trust is never inferred from the directory's owner. The reader never raises on a lookup;
+// it returns the fallback you pass, and lookup() also says why.
+#include "detent/reader.hh"
 
 #include <cstdio>
-#include <fstream>
+#include <cstdlib>
 
-int main() {
-	auto defaults_path = std::filesystem::temp_directory_path() / "detent_demo_defaults.json";
-	{
-		std::ofstream out(defaults_path, std::ios::binary);
-		out << R"({
-			"schema_version": 1,
-			"knobs": {
-				"checkout:killswitch_new_path": { "type": "bool", "default": false },
-				"search:max_results": { "type": "int", "default": 25 }
-			}
-		})";
+int main(int argc, char **argv) {
+	if (argc != 3) {
+		std::fprintf(stderr, "usage: %s STORE_DIR AGENT_UID\n", argv[0]);
+		return 2;
 	}
+	try {
+		detent::Reader reader(argv[1], static_cast<std::uint32_t>(std::strtoul(argv[2], nullptr, 10)));
 
-	detent::InitOptions opts;
-	opts.defaults_path = defaults_path;
-	// No live source configured in this demo -- reads run entirely off the
-	// version-0 baked defaults.
+		bool killswitch = reader.eval("checkout:killswitch_new_path", false);
+		std::int64_t max_results = reader.get("search:max_results", 25);
+		std::printf("killswitch_new_path = %s\n", killswitch ? "true" : "false");
+		std::printf("max_results = %lld\n", static_cast<long long>(max_results));
 
-	detent::Client client(std::move(opts));
-
-	bool killswitch = client.eval_or_panic("checkout:killswitch_new_path");
-	std::int64_t max_results = client.get_or_panic("search:max_results");
-	std::printf("killswitch_new_path = %s\n", killswitch ? "true" : "false");
-	std::printf("max_results = %lld\n", static_cast<long long>(max_results));
-
-	auto health = client.health();
-	std::printf(
-		"health: initialized=%d source_connected=%d accepted_version=%llu "
-		"bool_knobs=%zu int_knobs=%zu cli_overrides=%zu\n",
-		health.initialized, health.source_connected,
-		static_cast<unsigned long long>(health.accepted_version),
-		health.bool_knobs, health.int_knobs, health.cli_overrides);
-
-	std::filesystem::remove(defaults_path);
+		// The status behind a fallback: missing knob, wrong type, no generation yet, and so on.
+		const auto result = reader.lookup("search:max_results");
+		std::printf("lookup: %s\n", detent_status_name(result.status));
+		if (const auto revision = reader.revision("search"))
+			std::printf("search revision = %llu\n", static_cast<unsigned long long>(*revision));
+	} catch (const detent::ReaderError &error) {
+		std::fprintf(stderr, "%s\n", error.what());
+		return 1;
+	}
 	return 0;
 }

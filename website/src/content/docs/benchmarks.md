@@ -15,7 +15,6 @@ The read path is the part that matters most: it runs in your request handlers.
 
 | Benchmark | What it measures | Command | Result |
 | --- | --- | --- | --- |
-| `detent_read_bench` | Steady-state `Client` read throughput, 4 threads | `detent_read_bench 4 2000000` | 6.71M ops/s (149.1 ns/op) |
 | `detent_hash_bench` | `stable_bucket()` alone (SHA-256 rollout hash) | `detent_hash_bench 5000000` | 5.05M calls/s (198.2 ns/call) |
 
 Measured on one 14-core arm64 development machine, Release build.
@@ -23,11 +22,8 @@ Measured on one 14-core arm64 development machine, Release build.
 Rollout reads pay for one SHA-256 of the knob name plus
 hash value; plain bool and int reads don't hash at all.
 
-:::hint[Reading the per-op numbers]{.info}
-At ~150 ns per read, a service doing 100,000 knob reads per second spends about
-0.015 of one core on them. That's an arithmetic projection from the benchmark,
-not a measured service cost.
-:::
+The lookup benchmark is `reader_bench` (`benchmarks/reader_bench.cc`), warm
+lookup latency through `libdetent_reader`; its header comment gives the usage.
 
 ---
 
@@ -35,9 +31,9 @@ not a measured service cost.
 
 | Benchmark | What it measures | Command | Result |
 | --- | --- | --- | --- |
-| `detent_update_bench` | Parse + validate + merge for a 100-knob snapshot | `detent_update_bench 200000 100` | 28.6K updates/s (35.0 µs/update) |
 
-Updates run on the background thread, never on the read path.
+This is JSON work, off the read path; managed delivery carries MessagePack
+into immutable generations.
 
 ### At Scale
 

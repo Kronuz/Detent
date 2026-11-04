@@ -14,7 +14,6 @@
 #include "detent/json_patch.hh"
 #include "detent/json_schema.hh"
 #include "detent/model.hh"
-#include "detent/overrides.hh"
 
 namespace {
 long budget = -1, live = 0;
@@ -84,10 +83,6 @@ std::optional<KnobDef> make<std::optional<KnobDef>>(unsigned i) {
 template <>
 GroupOverride make<GroupOverride>(unsigned i) {
 	return (i & 1) ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(i % 100)}) : GroupOverride(bool(i & 2));
-}
-template <>
-OverrideValue make<OverrideValue>(unsigned i) {
-	return (i & 1) ? OverrideValue(std::int64_t(i)) : OverrideValue(bool(i & 2));
 }
 
 [[noreturn]] void fail(const char* what, const char* op, unsigned n, long b) {
@@ -272,7 +267,6 @@ int main() {
 		sweep_all<decltype(Snapshot::knobs)>(24);
 		sweep_all<decltype(SnapshotPatch::knobs)>(24);
 		sweep_all<decltype(BoolDef::overrides)>(24);
-		sweep_all<decltype(OverrideTable::values)>(24);
 		sweep_lifecycle();
 	}
 	std::puts("PASS model allocation failure sweep");

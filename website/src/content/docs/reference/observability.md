@@ -7,57 +7,45 @@ fresh?* and *are reads succeeding?*
 
 ---
 
-## Client Health
+## Reader Diagnostics
+
+A `detent::Reader` keeps no counters and exports nothing; two calls answer both
+questions:
 
 ```cpp
-detent::HealthSnapshot h = client.health();
+auto revision = reader.revision("checkout");   // std::optional<std::uint64_t>
+auto result = reader.lookup("checkout:new_path");
+if (!result) log(detent_status_name(result.status));
 ```
 
-```json
-{ "initialized": true, "source_connected": true,
-  "accepted_version": 42, "staleness_seconds": 1.8,
-  "bool_knobs": 812, "int_knobs": 64, "cli_overrides": 1 }
-```
+1. **Freshness.** `revision(namespace)` is the revision of the namespace's
+   attached generation, or empty when none is attached yet. Compare it with
+   the revision the authority committed.
+2. **Read health.** `lookup(name).status` says why a read returned its
+   fallback: `MISSING`, `WRONG_TYPE`, `UNAVAILABLE`, `SOURCE_FAILURE` and the
+   rest in [Errors and Failures](/Detent/reference/errors/#lookup-statuses).
 
-`staleness_seconds` is the monotonic time since the last successful update, or
-since construction before the first. It's the single most useful signal: a
-distribution outage shows up here long before anyone notices a stale flag.
-
-## Client Metrics
-
-`client.metrics()` returns process-wide atomic counters:
-
-| Counter | Meaning |
-| --- | --- |
-| `reads_ok` | Successful reads |
-| `reads_missing` | `MissingKnob` reads |
-| `reads_wrong_type` | `WrongType` reads |
-| `reads_conversion_failed` | `get_as` conversion failures |
-| `snapshot_swaps` | Accepted updates published |
-| `refresh_failures` | Failed source polls or rejected updates |
-| `stale_updates` | Duplicate or older versions ignored |
-| `source_connected` | Current source state |
-
-Labels are deliberately absent: no knob name, hash value, switch value, path or
-version ever becomes a metric dimension, so cardinality stays bounded and user
-identifiers never leak into monitoring.
+Python returns `revision()` as an `int` or `None` and `lookup()` as a `Lookup`
+with `.status` and `.value`; Rust returns `Option<u64>` and
+`Result<Value, Status>`.
 
 ## Suggested Alerts
 
-1. **Staleness.** `staleness_seconds` above `refresh_alert_after` (5 minutes by
-   default). Tighten it for services whose kill switches must work within
-   seconds.
-2. **Refresh failures.** `refresh_failures` increasing with no `snapshot_swaps`
-   following.
-3. **Missing reads.** `reads_missing` above zero, unless your process already
-   aborts on them through `_or_panic`.
+1. **Staleness.** A namespace's `revision` behind the authority's committed
+   revision for longer than your kill switches can tolerate.
+2. **Unavailable reads.** `UNAVAILABLE` or `SOURCE_FAILURE` from `lookup` after
+   startup: the host's agent has no usable generation.
+3. **Missing reads.** `MISSING` for a name your code reads: a typo, or a knob
+   that was never published.
+
+Knob names, hash values, switch values and knob values belong in none of these
+signals' labels, so cardinality stays bounded and user identifiers never leak
+into monitoring.
 
 :::hint[Metrics exporter]{.unimplemented}
-Detent keeps these counters but doesn't export them. There's no Prometheus or
-OpenMetrics endpoint on the daemons, and no exporter for application clients;
-the specification's `jk_*`-style metric names, such as
-`jk_snapshot_staleness_seconds`, are a natural mapping for one. For now, read
-`health()` and `metrics()` and publish them through your own metrics library.
+There's no Prometheus or OpenMetrics endpoint on the daemons, and no exporter
+for applications. Read `revision()` and `lookup()` statuses and publish them
+through your own metrics library.
 :::
 
 ---

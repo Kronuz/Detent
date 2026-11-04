@@ -225,9 +225,8 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
                          std::size_t max_bytes, bool is_source) {
 	// Every caller of parse_common (parse_defaults, parse_source_snapshot)
 	// used to rely on the *caller* enforcing a byte cap -- true for
-	// detentd's own PUT ingest (CappedBodySink) and the file source's own
-	// read, but not for an arbitrary InitOptions::source_poll
-	// implementation, so an untrusted source could still drive unbounded
+	// detentd's own ingest (CappedBodySink), but not for an arbitrary
+	// caller, so an untrusted source could still drive unbounded
 	// parsing/allocation through that path. Enforce it here,
 	// once, so every caller gets it whether or not it remembers to.
 	if (json_text.size() > max_bytes) {
@@ -364,23 +363,6 @@ Result<Snapshot, UpdateError> parse_defaults(std::string_view json_text, std::st
 Result<Snapshot, UpdateError> parse_source_snapshot(std::string_view json_text, std::string source_id,
                                                      std::size_t max_knobs, std::size_t max_bytes) {
 	return parse_common(json_text, std::move(source_id), max_knobs, max_bytes, /*is_source=*/true);
-}
-
-Snapshot merge_over_defaults(const Snapshot& defaults, const Snapshot& live) {
-	Snapshot merged;
-	merged.version = live.version;
-	merged.published_at = live.published_at;
-	merged.source_id = live.source_id;
-	// Linear merge of the two sorted tables: the baked defaults, with every
-	// live definition replacing the whole definition (never field-wise).
-	std::size_t count = 0;
-	flat_map_merge(defaults.knobs, live.knobs, [&](const auto&) { ++count; }, [&](const auto&) { ++count; },
-	               [&](const auto&, const auto&) { ++count; });
-	merged.knobs.reserve(count);
-	flat_map_merge(
-		defaults.knobs, live.knobs, [&](const auto& e) { merged.knobs.emplace(e); },
-		[&](const auto& e) { merged.knobs.emplace(e); }, [&](const auto&, const auto& e) { merged.knobs.emplace(e); });
-	return merged;
 }
 
 std::string serialize_snapshot(const Snapshot& snapshot) {
