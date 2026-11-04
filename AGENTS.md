@@ -2,7 +2,7 @@
 
 ## Current lead handoff
 
-The campaign's state, landing order and open owner questions are in [docs/handoffs/detent-codex-2026-11.md](docs/handoffs/detent-codex-2026-11.md). Long CPU runs that need no agent go in the shared run queue it describes (`.scratch/overnight/queue/`).
+The campaign's state, landing order and open owner questions are in [docs/handoffs/detent-codex-2026-11.md](docs/handoffs/detent-codex-2026-11.md). Long CPU runs that need no agent go in the shared run queue it describes (`.scratch/overnight/queue/`); [docs/handoffs/run-queue-overseer.md](docs/handoffs/run-queue-overseer.md) is the brief for whoever watches it.
 
 ## Shared library decisions
 
