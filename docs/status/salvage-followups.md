@@ -6,6 +6,7 @@
 
 1. Docs match the code: `Detent:955e97d` (`docs/DEPENDENCY_UPGRADES.md`, publication atomicity).
 2. One FNV: `PagedSegmentMarks::hash` returns `fnv1ah64::hash` (this branch's FNV commit). `test_local_segment_mark_hash` holds the frozen old loop and four independently computed values; the shared hash equals the old loop on 25,376 identities (22,891 with bytes at or above 0x80), checked before the source switch. A mutant that changes the old loop's prime stops it (`failed: frozen loop matches the independent value`). The hash is the in-memory table slot, not a persisted value. `test_local_paged_segment_marks` and the identity test pass natively (RelWithDebInfo) and under ASan and UBSan (Debug -O1, Apple clang; LeakSanitizer does not run on macOS, the CI Linux jobs run it).
+3. CI run 41737319246 at `Detent:0c1aa47` is green on all jobs (freebsd and headers are skipped by the matrix). `macos-x86_64` failed twice on `test_system_managed_poll` and `test_system_managed_authority_failover` ("managed agent 0 did not converge", at 50 to 58 s of a 180 s limit) and passed on the third attempt of the same commit; the other ten jobs passed on the first attempt. The hash change is value-identical, and `linux-arm64-gcc` failed once on the first push because the new test's signed-byte control used plain `char` (fixed in `Detent:0c1aa47`).
 
 ## Next
 
