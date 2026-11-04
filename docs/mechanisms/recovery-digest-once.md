@@ -49,9 +49,24 @@ span being validated; any mismatch throws `std::invalid_argument`. When it passe
 Without `compared`, `GraphValidator` compares everything, as before. The warm path
 (`WarmGraphValidator`, a prior registry) is unchanged.
 
-The skip is sound because the second pass walks the same root over the same registry inputs, whose
-segments are read-only shared mappings of files that a recovery holds under the generation lease, so the
-bytes it reads are the bytes the first pass compared.
+Only `DependencyDiscovery` can certify a registry (`certify_digests` is private to it), and
+`record_reachability`, which recovery calls once validation ends, clears the certificate, so it never
+outlives the recovery that earned it.
+
+## Assumption: pack files do not change during recovery
+
+The skip is sound only if the pack bytes the second pass reads are the bytes the first pass compared.
+Segments are `MAP_PRIVATE` read-only mappings (`segment_mapping.cc:54`); the generation lease does not
+stop another writer from changing the file, and the open checks (`trusted_file`, the final `fstatat`
+loop) test owner, mode, size and inode, not content. So recovery now assumes pack files are not modified
+between discovery and validation, about 100 s apart on a 5M store.
+
+The cost, measured by the code review (`docs/reviews/hash-once.md`): with one mapped byte changed between
+the two passes, 167 of 880 flips are accepted, where main refused all 880. Queries after recovery already
+read the mapping without re-hashing, so the same assumption holds for the rest of the process's life; the
+direction is to trust a prepared generation and catch later corruption on first touch and by the scrub
+(namespace-delivery design D10). A pack that is corrupt before recovery starts is still rejected, as the
+byte-flip tests show.
 
 ## Where a corrupt pack is rejected
 

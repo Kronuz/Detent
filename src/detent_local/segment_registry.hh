@@ -23,15 +23,16 @@ class SegmentRegistry final : public distribution::RetirementNode {
 		return identity_;
 	}
 	std::uint64_t physical_bytes() const noexcept { return physical_bytes_; }
-	// Records that a discovery without a prior registry compared every segment checksum and every
-	// page digest reachable from the root, so a later graph validation of it need not repeat them.
-	void certify_digests(const paged::Root &);
+	// Non-null from a prior-free discovery until the graph validation that used it records reachability.
 	const paged::Root *compared_root() const noexcept { return compared_root_ ? &*compared_root_ : nullptr; }
 
   protected:
 	bool retire_step() noexcept override;
 
   private:
+	// Records that a discovery without a prior registry compared every segment checksum and every page
+	// digest reachable from the root, so the graph validation of this recovery need not repeat them.
+	void certify_digests(const paged::Root &);
 	using MappingHandle = distribution::RetirementHandle<SegmentMapping>;
 	std::vector<MappingHandle, distribution::StorageAllocator<MappingHandle>> mappings_;
 	std::vector<SegmentInput, distribution::StorageAllocator<SegmentInput>> inputs_;
@@ -43,6 +44,7 @@ class SegmentRegistry final : public distribution::RetirementNode {
 	paged::Limits limits_;
 	std::uint64_t physical_bytes_ = 0;
 	bool sealed_ = false;
+	friend class DependencyDiscovery;
 	friend class GraphValidator;
 	friend class WarmGraphValidator;
 };

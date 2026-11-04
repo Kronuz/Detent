@@ -176,6 +176,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 				break;
 		}
 		require(registry->validated_root().logical == image.root().logical);
+		require(!registry->compared_root());
 		std::uint64_t definitions = 0, overrides = 0;
 		std::uint32_t maximum = 0;
 		const auto histogram = registry->override_histogram();

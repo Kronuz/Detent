@@ -386,6 +386,7 @@ bool GraphValidator::record_reachability(SegmentRegistry &registry, ValidationBu
 	const auto inputs = registry.inputs();
 	require(registry.storage_ == state.storage && inputs.data() == state.segments.data() &&
 			inputs.size() == state.segments.size());
+	registry.compared_root_.reset();
 	if (registry.validated_root_) {
 		require(p::encode_root(*registry.validated_root_, state.limits) == p::encode_root(state.expected, state.limits));
 		return true;

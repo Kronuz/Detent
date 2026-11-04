@@ -14,7 +14,7 @@
 - Doing: nothing
 - Next: code review; the same carrier could serve `paged_segment_collection.cc` and `candidate_paged_validator.cc` (separate step)
 - Blocked on: nothing
-- Findings folded in: none yet
+- Findings folded in: CR1 (mechanism note states the unchanged-pack-files assumption, `MAP_PRIVATE`, and the 167/880 probe result), CR2 (`certify_digests` private to `DependencyDiscovery`; `record_reachability` clears the certificate; `compared` argument kept, it is inert without a certificate)
 - Design vs code: no design; the lead's brief said "hash each pack once". Three distinct digests exist per pack (segment checksum, page physical, page logical), each with its own comparison, so the floor with every comparison kept is three passes, down from six. Collapsing further changes what is checked (an owner-record-independent chain from `selected`), which belongs to the owner.
 - Last verified (2026-11-03): native Release `ctest -R "local|recovery|managed"` 85/85 pass, 1 skipped (trusted paths); mutants M1 (discovery segment hash skipped), M2 (discovery page digests skipped), M3 (graph skips always), M4 (certificate root unchecked) each fail `test_local_paged_hash_once` or `test_local_paged_snapshot_builder`; ASan/UBSan and TSan (macOS AppleClang, no LSan) clean; CI run 41748094042: all jobs green after a rerun of `linux-x86_64-clang`, whose first attempt aborted in `test_local_paged_publication_artifacts` (an expected `StoragePressure` was not thrown; passes 60/60 locally, unrelated to hashing, flake not attributed)
 
