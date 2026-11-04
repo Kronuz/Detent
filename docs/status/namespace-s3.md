@@ -33,22 +33,37 @@ Two shapes close G1, both formats (the architect's):
 
 Not built: neither shape, nor any change to recovery, the plans or the census. The lead rules; the architect should review the record's format (durability, crash order against the table, the reader's `.read`).
 
-## Done
-- Read D10, D8, T5, the attribution, the hash-once note and the recovery, registry, plan and census code. No code yet.
+## Lead ruling (2026-11-03)
+Shape A: `generation-<id>.live`, a digest-bound sibling published with the generation's files before the table that reaches it; not a `.read` v2. B rejected. G2: all raw-span read sites go through one first-touch accessor on the reader's verified-page bitmap (no second bitmap). G3 closed by G1 plus G2. The `.live` format and crash order go to the architect at landing.
 
-## Doing
-- The scrub (criterion 3) as a library component with a deterministic-clock test and a real-clock pace test.
+## Done (commit `Detent:80028ff` on `namespace/s3`, built Release, not rebased)
+- `PackScrub` (`pack_scrub.{hh,cc}`): paced pack hashing against owner checksums. `test_testing_pack_scrub` passes: fake clock exact, wall clock 2.396 MB/s for 2.4 MB/s (0.15% off, bound 10%), 100 flips in a real store reported as exactly the damaged packs.
+- `.live` record (`live_record.{hh,cc}`), written by `PagedPublicationArtifacts::populate` between `.image` and `.read`; collector part 4 removes it (`disk_store.cc`); `GenerationFile::Live` in `names.hh`.
+- `TrustedRestart::open` (`trusted_restart.cc`) wired into `RecoveryEngine::recover` for a cold start with no admission and no prior; absent `.live` falls back to the full recovery (a call for the owner: refuse instead?).
+- First touch: `VerifiedPages` extracted from `LazyPageAccess` (shared, one bitmap class); `SegmentMapping::require_first_touch`; `SegmentInput::pages`; `checked_page_bytes` verifies with `paged::verify_page`; `PagedReadState::lookup` (a ninth raw-span site, not in the lead's eight) now goes through it.
+- `paged::page_digests()` counter.
+- `test_testing_trusted_restart` (99,990 to 100,000 knobs, three revisions) results so far: trusted equals full recovery in registry, reachability, histogram and counts at all three revisions; startup: 0 segment hash bytes, 320 root bytes, 0 page digests; first touch 238K page digests, 0 on a second pass; refusals: flips in `selected`, `.read`, `.read` digest, `.live` histogram, row and digest, a truncated `.live`, and a `.live` of another generation all refuse the store; a missing `.live` opens via the full path. T5: 100 flips, restart ready, 99,270 reads correct, 730 SourceFailure, 0 wrong values.
+
+## Doing / failing
+- The test aborts at its post-repair check (`test_trusted_restart.cc:249`): after `GenerationWriter(store).publish_json` over the damaged base throws, and the packs are restored, reads at revision 3 are not all correct. Unknown yet whether the refused publish left a revision-4 generation selected or something else; diagnostic prints were added (uncommitted edit to the test, not yet run). This is the update-path first-touch evidence for criterion 2, so it is not ticked.
 
 ## Next
-1. The scrub, its tests and its mechanism note.
-2. On the lead's ruling for G1-G3: trusted restart, first touch, T5, the restart timing.
+1. Run the diagnostic build; fix the update-path finding (if a refused publish can leave a selected generation, that is a real bug to chase before anything else).
+2. Revert check (skip the first-touch check, T5 must fail) and one mutant per claim; ASan+UBSan and TSan in separate builds.
+3. Rebase onto `github/main` (`Detent:9a5a8c3`), run the full suite locally for fallout from the extra generation file (disk-store, collector and ledger tests may assert exact entry counts or restart rejection of corrupt packs), push, CI.
+4. Restart timing at 10K and 100K under `quiet strict`, before (main) and after; counters.
+5. Wire the scrub into the agent (where its ticks run is open) and report `failures()` in health.
+6. Mechanism note `docs/mechanisms/trusted-restart.md` is a draft written from the code; re-check it against the final code.
 
 ## Blocked on
-- G1-G3 above, for criteria 1, 2, 4, 5 (the lead, then the architect for the record's format).
+- Nothing now. Open calls for the lead: missing `.live` falls back to the full recovery instead of refusing (upgraded stores keep working); the scrub is a component, not yet driven by the agent.
 
 ## Design vs code
-- D10 says restart is O(namespaces) with packs opened on first use; the agent's code needs a registry and per-segment reachability that only the walk produces (G1).
-- D10.2 puts the scrub in the agent; the agent's store runs as completion-driven state machines (`disk_store.cc`). Where the scrub's ticks run is open (see Next).
+- D10 says the table binds the `.read` digest; today's descriptor does not, so `.live` binds to the `.read` file's own digest and `.read` binds to the root (the descriptor's checksum). Same chain, different carrier.
+- D10 puts the manifest digest in `.read` (W12); the lead's ruling moved it into `.live` (rows are the manifest, with the trailing digest).
+- Restart is O(segments), not O(namespaces): per segment one `.owner` read, one stat and one `mmap` (no pack read, no hash), as the census already did.
+- The lead's eight raw-span read sites are nine: `PagedReadState::lookup` too.
 
 ## Log
-- 2026-11-03: Branch `namespace/s3` from `github/main` (`Detent:ff0167d`). Host load 20-28 on 16 CPUs, so no build yet.
+- 2026-11-03: Branch `namespace/s3` from `github/main` (`Detent:ff0167d`). Host contention delayed every build by 20 to 60 minutes.
+- 2026-11-04: Lead ruled shape A; implemented as above. Main moved to `Detent:9a5a8c3`.

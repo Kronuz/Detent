@@ -37,7 +37,7 @@ void check(bool value, int line) {
 }
 #define CHECK(value) check(value, __LINE__)
 
-constexpr int knobs = 100000;
+constexpr int knobs = 99990; // plus 10 more at revision 2: the parser caps a file at 100,000 knobs
 // The value of knob i at a revision, or nothing when the revision lacks it.
 std::optional<std::int64_t> expected(int revision, int i) {
 	if (revision >= 3 && i % 3333 == 0)
@@ -239,13 +239,24 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 	{
 		// The update path refuses to build on a damaged base, with the same source failure.
 		detent::testing::GenerationWriter writer(store);
-		CHECK(throws([&] { writer.publish_json(json(revision + 1)); }));
+		bool refused = false;
+		try {
+			writer.publish_json(json(revision + 1));
+		} catch (const std::exception &error) {
+			refused = true;
+			std::cout << "update over a damaged base: " << error.what() << "\n";
+		}
+		CHECK(refused);
 	}
+	std::cout << "after the refused update: selected revision " << selected(store).cursor.revision << "\n";
 	repair();
 	{
 		Session session;
 		session.recover(store);
 		const auto reads = read_all(session, revision);
+		std::cout << "after repair: revision " << selected(store).cursor.revision << ", " << reads.ok << " ok, "
+				  << reads.source_failures << " source failures, " << reads.wrong << " wrong, " << reads.other
+				  << " other\n";
 		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
 		x::PackScrub scrub(1'000'000'000);
 		const auto t0 = x::PackScrub::Clock::now();
