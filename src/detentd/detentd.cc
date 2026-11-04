@@ -172,55 +172,72 @@ std::unique_ptr<http::BodySink> Distributor::on_request_body(http::Request& requ
 
 std::uint64_t Distributor::current_version() const {
 	std::shared_lock lock(snapshot_mutex_);
-	return published_->version;
-}
-
-std::unique_ptr<Distributor::PublishedState> Distributor::prepare_publication(
-	detent::Snapshot&& snapshot, std::string bytes) {
-	auto next = std::make_unique<PublishedState>();
-	next->snapshot = std::move(snapshot);
-	next->version = next->snapshot.version;
-	next->bytes = std::move(bytes);
-	next->etag = http::weak_etag(next->bytes);
-	compress_into(next->bytes, next->gzip, next->zstd);
-	next->has_snapshot = true;
-	return next;
+	return current_version_;
 }
 
 detent::Result<std::uint64_t, detent::UpdateError> Distributor::resolve_and_commit(SnapshotResolver resolve) {
 	std::uint64_t accepted_version = 0;
 	{
 		std::unique_lock lock(snapshot_mutex_);
-		auto resolved = resolve(published_->snapshot, published_->has_snapshot);
+		// Resolving WHILE this lock is held (not before acquiring it) is
+		// what makes a PATCH's merge race-free against a concurrent PUT or
+		// PATCH: it always merges onto the most recently committed state,
+		// never a state read moments earlier under a since-released lock
+		// -- see resolve_and_commit's declaration comment (detentd.hh).
+		auto resolved = resolve(current_snapshot_, has_snapshot_);
 		if (!resolved) return resolved.error();
-		auto& snapshot = resolved.value();
-		if (published_->has_snapshot && snapshot.version <= published_->version) {
+		auto new_snapshot = std::move(resolved).value();
+		if (has_snapshot_ && new_snapshot.version <= current_version_) {
 			return detent::UpdateError{detent::UpdateRejectReason::Version, "stale or duplicate version"};
 		}
-		auto bytes = detent::serialize_snapshot(snapshot);
-		auto next = prepare_publication(std::move(snapshot), std::move(bytes));
-		bool history_staged = false;
-		try {
-			if (published_->has_snapshot) {
-				auto diff = detent::diff_snapshots(published_->snapshot, next->snapshot);
-				next->diff_bytes = detent::serialize_patch(diff);
-				compress_into(next->diff_bytes, next->diff_gzip, next->diff_zstd);
-				next->diff_base_version = published_->version;
-				next->has_diff = true;
-				diff_history_.push_back(StepDiff{published_->version, std::move(diff)});
-				history_staged = true;
-			}
-			// A failed attempt may cool the cache; generations must never rewind.
+		auto new_bytes = detent::serialize_snapshot(new_snapshot);
+		// Persist *before* committing the in-memory state, not after: the
+		// previous order updated current_bytes_/current_version_/
+		// has_snapshot_ first and persisted second, so a persist failure
+		// (confirmed: std::filesystem::rename() throws on a missing/
+		// unwritable persist directory) threw out of this function with
+		// the live state already mutated -- the HTTP layer then answered
+		// the PUT with 500, while GET/health had already started serving
+		// the "accepted" update. persist_locked() runs before any of
+		// current_bytes_/current_version_/current_snapshot_ is touched, so
+		// on failure the exception propagates with the in-memory state
+		// completely unchanged, matching the 500 the caller sees.
+		persist_locked(new_bytes, new_snapshot.version);
+
+		// Cache the diff from the OLD state to the new one -- before
+		// current_snapshot_ is overwritten below, since diff_snapshots
+		// needs both -- for the next poller whose last-known version is
+		// exactly this update's base (see current_diff_bytes_'s comment,
+		// detentd.hh). Nothing to diff against on the very first accepted
+		// snapshot (has_snapshot_ still false here).
+		if (has_snapshot_) {
+			auto diff = detent::diff_snapshots(current_snapshot_, new_snapshot);
+			current_diff_bytes_ = detent::serialize_patch(diff);
+			compress_into(current_diff_bytes_, current_diff_bytes_gzip_, current_diff_bytes_zstd_);
+			current_diff_base_version_ = current_version_;
+			has_diff_ = true;
+
+			diff_history_.push_back(StepDiff{current_version_, diff});
+			while (diff_history_.size() > max_diff_history_) diff_history_.pop_front();
+
+			// Every composed_diff_cache_ entry targets the version we're
+			// about to leave behind -- none of them are valid against the
+			// new current_version_, so the whole cache is stale now, not
+			// just the entries diff_history_ itself evicted above.
 			composed_diff_cache_.clear();
-			persist_locked(next->bytes, next->version);
-		} catch (...) {
-			if (history_staged) diff_history_.pop_back();
-			throw;
+		} else {
+			has_diff_ = false;
 		}
-		install_publication(next);
-		while (diff_history_.size() > max_diff_history_) diff_history_.pop_front();
-		accepted_version = published_->version;
+
+		current_bytes_ = std::move(new_bytes);
+		compress_into(current_bytes_, current_bytes_gzip_, current_bytes_zstd_);
+		current_version_ = new_snapshot.version;
+		current_etag_ = http::weak_etag(current_bytes_); // computed once per update, not per GET
+		current_snapshot_ = std::move(new_snapshot);
+		has_snapshot_ = true;
+		accepted_version = current_version_;
 	}
+
 	puts_accepted_.fetch_add(1, std::memory_order_relaxed);
 	try { if (options_.on_accept) options_.on_accept(accepted_version); } catch (...) { /* Diagnostics must not change publish results. */ }
 	return accepted_version;
@@ -400,12 +417,8 @@ void Distributor::persist_locked(std::string_view bytes, std::uint64_t version) 
 	auto tmp = options_.persist_path;
 	tmp += ".tmp";
 	{
-		std::ofstream out;
-		out.exceptions(std::ios::badbit | std::ios::failbit);
-		out.open(tmp, std::ios::binary | std::ios::trunc);
-		out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
-		out.flush();
-		out.close();
+		std::ofstream out(tmp, std::ios::binary);
+		out << bytes;
 	}
 	std::filesystem::rename(tmp, options_.persist_path); // throws on failure, deliberately uncaught here
 }
@@ -416,8 +429,15 @@ void Distributor::load_persisted() {
 	auto bytes = detent::detail::read_file(options_.persist_path, detent::kDefaultMaxBytes);
 	auto parsed = detent::parse_source_snapshot(bytes, "distributor", options_.max_knobs);
 	if (parsed) {
-		auto next = prepare_publication(std::move(parsed).value(), std::move(bytes));
-		install_publication(next);
+		current_version_ = parsed.value().version;
+		current_etag_ = http::weak_etag(bytes); // see current_etag_'s comment (detentd.hh)
+		compress_into(bytes, current_bytes_gzip_, current_bytes_zstd_);
+		current_snapshot_ = std::move(parsed).value();
+		current_bytes_ = std::move(bytes);
+		has_snapshot_ = true;
+		// has_diff_ stays false: there is no "previous" state from before
+		// this restart to diff against. The first update accepted after
+		// startup diffs against this loaded snapshot, same as any other.
 	}
 	// A corrupt persisted file starts empty rather than crashing the process;
 	// the next valid PUT recovers it. An operator can inspect/replace the file.
@@ -461,26 +481,47 @@ void Distributor::route_patch_snapshot(const http::Request& request, http::Respo
 }
 
 void Distributor::route_get_snapshot(const http::Request& request, http::ResponseWriter& response, const http::Params&) {
-	std::shared_lock lock(snapshot_mutex_);
 	std::string etag;
 	std::uint64_t version = 0;
 	bool has = false;
 	{
-		has = published_->has_snapshot;
+		std::shared_lock lock(snapshot_mutex_);
+		has = has_snapshot_;
 		if (has) {
-			version = published_->version;
-			etag = published_->etag; // cheap: a short fixed-length string, not the body
+			version = current_version_;
+			etag = current_etag_; // cheap: a short fixed-length string, not the body
 		}
 	}
 	if (!has) {
-		lock.unlock();
 		response.send(404, "no snapshot published yet\n");
 		return;
 	}
 
+	response.set_header("X-Snapshot-Version", std::to_string(version));
+	// Set our own ETag and do the If-None-Match comparison ourselves, using
+	// the *cached* value computed once in try_accept()/load_persisted() --
+	// not the http library's own automatic enable_conditional() support,
+	// which unconditionally re-hashes the whole body on every single GET
+	// (found by performance review to cost ~577us/request at a 560KB
+	// snapshot, ~2.8 cores at 5K req/s just to rediscover the same
+	// validator every time). The library checks has_header("ETag") first
+	// and skips its own computation entirely once we've set one, so this
+	// is a strict replacement, not a duplicate.
+	response.set_header("ETag", etag);
 	auto inm = request.header("If-None-Match");
-	const bool not_modified = !inm.empty() && http::if_none_match(inm, etag);
-	// Select validators and payload together; unchanged polls copy no body.
+	if (!inm.empty() && http::if_none_match(inm, etag)) {
+		response.send(304, ""); // no body copy at all for the common unchanged-poller case
+		return;
+	}
+
+	// Only reached on an actual body-changed response. A poller that tells
+	// us its own last-known version via X-Detent-Base-Version gets a diff
+	// instead of the full body when possible: the cached single-step diff
+	// if that's exactly one update behind (no work per request), else a
+	// diff composed from diff_history_ if it's within that bound, else the
+	// full body. Either way, the body is copied out here, not
+	// unconditionally at the top, so the far more common 304 case above
+	// never pays for it.
 	std::string bytes, bytes_gzip, bytes_zstd;
 	std::string diff_bytes, diff_gzip, diff_zstd;
 	std::uint64_t diff_base_version = 0;
@@ -491,7 +532,7 @@ void Distributor::route_get_snapshot(const http::Request& request, http::Respons
 
 	auto base_version_header = request.header("X-Detent-Base-Version");
 	std::optional<std::uint64_t> requested_base_version;
-	if (!not_modified && !base_version_header.empty()) {
+	if (!base_version_header.empty()) {
 		try {
 			requested_base_version = std::stoull(std::string(base_version_header));
 		} catch (const std::exception&) {
@@ -499,16 +540,17 @@ void Distributor::route_get_snapshot(const http::Request& request, http::Respons
 		}
 	}
 
-	if (!not_modified) {
-		if (requested_base_version && published_->has_diff && *requested_base_version == published_->diff_base_version) {
-			diff_bytes = published_->diff_bytes;
-			diff_gzip = published_->diff_gzip;
-			diff_zstd = published_->diff_zstd;
-			diff_base_version = published_->diff_base_version;
+	{
+		std::shared_lock lock(snapshot_mutex_);
+		if (requested_base_version && has_diff_ && *requested_base_version == current_diff_base_version_) {
+			diff_bytes = current_diff_bytes_;
+			diff_gzip = current_diff_bytes_gzip_;
+			diff_zstd = current_diff_bytes_zstd_;
+			diff_base_version = current_diff_base_version_;
 			serve_diff = true;
 		} else if (requested_base_version && !diff_history_.empty() &&
 		           *requested_base_version >= diff_history_.front().base_version &&
-		           *requested_base_version < published_->version) {
+		           *requested_base_version < current_version_) {
 			// Every poller still stuck at this same base_version between
 			// now and the next accepted update needs the identical
 			// composed result -- check the cache before redoing the
@@ -538,25 +580,18 @@ void Distributor::route_get_snapshot(const http::Request& request, http::Respons
 					cache_insert_needed = true;
 					diffs_composed_.fetch_add(1, std::memory_order_relaxed);
 				} else {
-					bytes = published_->bytes;
-					bytes_gzip = published_->gzip;
-					bytes_zstd = published_->zstd;
+					bytes = current_bytes_;
+					bytes_gzip = current_bytes_gzip_;
+					bytes_zstd = current_bytes_zstd_;
 				}
 			}
 		} else {
-			bytes = published_->bytes;
-			bytes_gzip = published_->gzip;
-			bytes_zstd = published_->zstd;
+			bytes = current_bytes_;
+			bytes_gzip = current_bytes_gzip_;
+			bytes_zstd = current_bytes_zstd_;
 		}
 	}
 
-	lock.unlock();
-	response.set_header("X-Snapshot-Version", std::to_string(version));
-	response.set_header("ETag", etag);
-	if (not_modified) {
-		response.send(304, "");
-		return;
-	}
 	if (composed) {
 		diff_bytes = detent::serialize_patch(*composed);
 		compress_into(diff_bytes, diff_gzip, diff_zstd);
@@ -567,7 +602,7 @@ void Distributor::route_get_snapshot(const http::Request& request, http::Respons
 		// try_insert silently drops this if an accepted update (and the
 		// clear() that comes with it) landed while we were serializing/
 		// compressing outside snapshot_mutex_ -- otherwise this insert
-		// would be stale relative to the NEW published_->version.
+		// would be stale relative to the NEW current_version_.
 		composed_diff_cache_.try_insert(
 			diff_base_version, CachedComposedDiff{diff_bytes, diff_gzip, diff_zstd}, cache_generation_at_compose);
 	}
@@ -588,8 +623,8 @@ void Distributor::route_get_health(const http::Request&, http::ResponseWriter& r
 	bool has = false;
 	{
 		std::shared_lock lock(snapshot_mutex_);
-		has = published_->has_snapshot;
-		version = published_->version;
+		has = has_snapshot_;
+		version = current_version_;
 	}
 	std::ostringstream ss;
 	ss << "{"

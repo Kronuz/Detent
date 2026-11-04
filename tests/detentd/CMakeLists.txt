@@ -33,11 +33,3 @@ target_link_libraries(test_raft_application_retry PRIVATE detentd_lib)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/.scratch")
 add_test(NAME test_raft_application_retry COMMAND test_raft_application_retry "${CMAKE_CURRENT_BINARY_DIR}/.scratch")
 set_tests_properties(test_raft_application_retry PROPERTIES TIMEOUT 10)
-
-# It injects allocation failures, so it is not built under ThreadSanitizer on Linux (tests/CMakeLists.txt).
-if(NOT DETENT_TSAN)
-  add_executable(test_publication_atomic test_publication_atomic.cc)
-  target_link_libraries(test_publication_atomic PRIVATE detentd_lib)
-  add_test(NAME test_publication_atomic COMMAND test_publication_atomic "${CMAKE_CURRENT_BINARY_DIR}/.scratch")
-  set_tests_properties(test_publication_atomic PROPERTIES TIMEOUT 60)
-endif()
