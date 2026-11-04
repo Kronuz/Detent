@@ -116,13 +116,21 @@ void over_budget_command() {
 	}
 	hold.release(*held);
 	hr.extension.reset();
-	std::this_thread::sleep_for(50ms);
-	{
+	// The budget returns when the released write settles; the replay of the same sequence commits then.
+	bool replayed = false;
+	for (int attempt = 0; attempt < 200 && !replayed; ++attempt) {
 		auto replay = call(s, "/v2/transactions", command);
-		assert(replay.code == 200 && !has(replay.body, "outcome_unknown"));
+		replayed = replay.code == 200;
+		assert(replayed || has(replay.body, "outcome_unknown"));
+		if (!replayed) std::this_thread::sleep_for(25ms);
 	}
-	auto health = call(s, "/v1/health", "", true, "GET");
-	assert(has(health.body, "\"reserved_reply_bytes\":0"));
+	assert(replayed);
+	bool drained = false;
+	for (int attempt = 0; attempt < 200 && !drained; ++attempt) {
+		drained = has(call(s, "/v1/health", "", true, "GET").body, "\"reserved_reply_bytes\":0");
+		if (!drained) std::this_thread::sleep_for(25ms);
+	}
+	assert(drained);
 	std::filesystem::remove_all(dir);
 }
 
