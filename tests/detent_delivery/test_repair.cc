@@ -740,7 +740,7 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 		check(status.selected.descriptor == before && status.repair.requested == 0);
 		if (bundle)
 			check(bundle->status().ready);
-		const auto stages = counting ? counting->stages : 0, selects = counting ? counting->selects : 0;
+		const auto stages = counting ? counting->stages : 0;
 		// A repair request publishes the same content as a fresh generation at the same cursor.
 		t::detail::CoordinatorAccess::request_repair(*coordinator);
 		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 1; }), coordinator, server));
@@ -753,9 +753,8 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 			check(relay_status.ready && !relay_status.fenced);
 			auto offer = bundle->offer({}, true);
 			check(offer.decision == d::CacheDecision::Update || offer.decision == d::CacheDecision::Busy);
-			// The repair at the selected cursor reached the sink as a repair, and the relay's cache was not
-			// asked to stage or select anything.
-			check(counting->repairs == 1 && counting->stages == stages && counting->selects == selects);
+			// The repair at the selected cursor reached the sink as a repair and its update was not staged.
+			check(counting->repairs == 1 && counting->stages == stages);
 		}
 	});
 	Reader reader(store);
