@@ -8,7 +8,7 @@
 - Done: - Rebased by the lead on `Detent:f7267d5` (M1 pins at head); the one conflict, `cmake/dependencies.json`, resolved as main's pins minus `cluster`, `generation_cache` and `http_log`; `tools/check_pins.py`: 30 libraries, 36 shared declarations, 0 mismatches.
 - Hosted CI on the rebased head `Detent:8340b53`: run 41812264929, every job green (ASan/UBSan and TSan included); before the rebase, run 41808138967 on `Detent:3f08e98`, every job green.
 - Not done before the developer stopped at the spend limit: the leftover-reference grep across docs and website. It's a follow-up, not a landing condition.
-- Next: F (the `detent_http` library), G (the shm agent and unmanaged `detent-agent`), H (Client and the bindings), I (flat-v1).
+- Next: G (the shm agent and unmanaged `detent-agent`; waits on the owner decisions below), H (Client and the bindings; blocked, see Step H), I (flat-v1).
 - Blocked on: nothing blocks this wave. Product decisions for the owner, found by the website sweep:
   1. With no configuration the agent polls `127.0.0.1:8317` (`src/detent_agent/main.cc:128`), which no Detent daemon serves. Step G removes or changes it.
   2. Roadmap item 4 reads "a path for unmanaged agents and clients to receive authority data". Keep or drop it?
@@ -51,3 +51,20 @@ Evidence (F):
 - Configure and build, Release, every target: clean. Full ctest: 218 of 219 pass on first run; the failure was my new test leaving a bad `agent.json` in place for the next check. Fixed, then `test_agent_cli` and `test_system_agent` pass on the rebuilt binaries. `test_local_trusted_paths` is skipped (not applicable on this host), as before.
 - Mutant: adding `--source-address` back to the agent's accepted flags makes `test_agent_cli` fail (the agent starts instead of rejecting the flag; timeout at `test_agent_cli.cmake:34`). Reverted.
 - Sanitizers: none run locally (no threaded or memory code added); the hosted ASan/UBSan and TSan jobs cover them.
+
+## Step H: the Client and the bindings (blocked, nothing changed)
+
+No brief for H is in the repository, so this is read from the code. The Client has three source shapes in `InitOptions`: `source_path` (file), `source_poll` (a user function returning full snapshots or merge-patches) and `read_source` (managed generations); `read_source` is already documented as the only non-legacy one (`client.hh`: "Mutually exclusive with legacy file/poll sources"). Removing the legacy two narrows a documented public API (`website/.../reference/cpp-api/sources.md`, the spec's section 10 extension seam), which is the owner's call, and the file source cannot go before step G settles the unmanaged agent.
+
+Who uses them today (grep over `src`, `include`, `tests`, `bindings`, `examples`, `benchmarks`, `tools`):
+
+1. `source_path`: `detent-agent` (unmanaged mode), the Python and Rust bindings (file source only), `test_file_source`, `test_read_view`, `test_agent_cli`, `detent_read_bench`, and two `tests/detent_system` fixtures.
+2. `source_poll` (with `SourcePayload`, `is_patch`, the patch merge in `Client::run_generic_source`): no production code since F; `test_client_publication_failure`, `test_read_view`, `test_file_source`, `test_model_and_schema` and `detent_read_bench` use it as an injectable source.
+
+Options for the owner:
+
+- A. Remove `source_poll` only (`SourcePoll`, `SourcePayload`, `is_patch`, `run_generic_source`, the patch path in the Client and `source_id`). Keeps the file source, the unmanaged agent and the bindings. About 5 test and bench files move to a file or `read_source` fake; independent of G.
+- B. Remove both legacy sources: the Client becomes defaults, CLI overrides and `read_source`. Needs G to remove the unmanaged agent first, a Python and Rust binding of `make_local_read_source` (new API design; the bindings are file-only today), and rewrites of most `tests/detent` suites. Largest, and it removes the file source the roadmap lists as Done.
+- C. Keep both and stop calling them legacy.
+
+Recommendation: decide G first. If the unmanaged agent goes, B is the greenfield shape and H becomes its own design task with a designer for the binding API; if it stays, A, which is mechanical.
