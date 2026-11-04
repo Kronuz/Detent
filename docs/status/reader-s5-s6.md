@@ -60,7 +60,7 @@ S6 (`reader/s6`, rebased on `Detent:3e8bdbc`):
 
 S6 criteria: D1, D2, D4, D5, D10 and the C++ header, attach by directory descriptor, Q6 (a), T3, T6, T1 syscalls, `reader_bench`, proof (values, mutants, reverts, sanitizers, note) are met locally; CI green on `reader/s6` is not.
 
-1. The head commit "Retry generation-file checks unlinked under them" (after `Detent:8768732`) fixes the last CI failure and has not been through CI. CI history on `reader/s6`:
+1. `Detent:47470ea` "Retry generation-file checks unlinked under them" fixes the last CI failure; its CI run 41933091120 was dispatched at hand-off and not watched to the end. CI history on `reader/s6`:
    - 41863064265 (`Detent:9445d8e`): linux-x86_64-clang T3 `refresh status 5` (a lease collected between open and check), macos-x86_64 line 255 (thread count). Fixed by `Detent:70f648f` and `Detent:f92535f`.
    - 41883147271 (`Detent:70f648f`): linux-x86_64-gcc and macos-x86_64 line 255, the thread count right after joining 17 threads (joined threads stay listed briefly). Fixed by `Detent:f92535f` (`threads_settle`, 5 s).
    - 41903549136 (`Detent:f92535f`): macos-arm64 compile error (`std::exception_ptr` without `<exception>`); linux-x86_64-gcc T3 `refresh status 5: invalid local generation descriptor`. Fixed by `Detent:8768732`, which also names the refused property.
