@@ -4,7 +4,9 @@
 #include "coordinator_internal.hh"
 #include "detent_delivery/reconnect_backoff.hh"
 #include "managed_recovery.hh"
+#include "pack_scrub.hh"
 #include "paged_compaction_plan.hh"
+#include "scrub_source.hh"
 #include "paged_delta_plan.hh"
 #include "paged_maintenance_plan.hh"
 #include "paged_reuse.hh"
@@ -96,7 +98,9 @@ struct Coordinator::Impl {
 	std::uint64_t completed_compactions = 0;
 	std::chrono::steady_clock::time_point next_compaction_check{};
 	task::cancel_source network_cancel;
-	std::optional<asio::steady_timer> candidate_wake, disk_wake;
+	std::optional<asio::steady_timer> candidate_wake, disk_wake, scrub_wake;
+	std::optional<l::detail::PackScrub> scrubber;
+	d::RetirementHandle<l::detail::LeasedPagedRoot> scrub_root;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
 	bool closing = false, running = false, settled = false, publication_started = false;
 	std::chrono::steady_clock::time_point publication_retry{};
@@ -624,6 +628,55 @@ struct Coordinator::Impl {
 		diagnostic.phase = CoordinatorPhase::Publishing;
 		notify_candidate();
 	}
+	// One owner-executor task, paced by its own timer: the scrub hashes the selected generation's packs
+	// at options.scrub_bytes_per_second and starts the next pass as one ends.
+	task::task<void> scrub_loop() {
+		try {
+			co_await scrub_loop_body();
+		} catch (...) {
+			std::terminate();
+		}
+	}
+	task::task<void> scrub_loop_body() {
+		if (!options.scrub_bytes_per_second)
+			co_return;
+		constexpr auto tick = std::chrono::milliseconds(20);
+		constexpr std::uint64_t per_tick = 2 * 1024 * 1024;
+		scrubber.emplace(options.scrub_bytes_per_second);
+		std::size_t reported = 0;
+		while (!closing) {
+			const auto now = std::chrono::steady_clock::now();
+			// The recovery worker rewrites base->generation until `ready`; the loop never reads it before.
+			if (diagnostic.initialized && base->ready.load(std::memory_order_acquire) && base->generation) {
+				auto root = l::detail::ScrubSource::root(*base->generation);
+				if (root && root.get() != scrub_root.get()) {
+					scrub_root = std::move(root);
+					scrubber->begin(scrub_root->registry()->inputs(), now);
+					reported = 0;
+				} else if (scrub_root && !scrubber->running())
+					scrubber->begin(scrub_root->registry()->inputs(), now);
+				if (scrub_root) {
+					scrubber->step(now, per_tick);
+					diagnostic.scrub.passes = scrubber->passes();
+					diagnostic.scrub.bytes_hashed = scrubber->bytes_hashed();
+					if (scrubber->failures().size() != reported) {
+						reported = scrubber->failures().size();
+						diagnostic.scrub.damaged_packs = reported;
+						diagnostic.scrub.source_failure = true;
+						++diagnostic.failures;
+						diagnostic.error = std::make_exception_ptr(
+							std::runtime_error("scrub: a pack of the selected generation differs from its owner record"));
+					}
+				}
+			}
+			scrub_wake->expires_after(tick);
+			const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
+				[&](auto handler) { scrub_wake->async_wait(std::move(handler)); });
+			if (error && error != asio::error::operation_aborted)
+				throw asio::system_error(error);
+		}
+		scrub_root.reset();
+	}
 	task::task<void> disk_loop() {
 		try {
 			co_await disk_loop_body();
@@ -700,6 +753,8 @@ struct Coordinator::Impl {
 		network_cancel.request();
 		notify_candidate();
 		notify_disk();
+		if (scrub_wake)
+			scrub_wake->cancel();
 		if (store)
 			store->close();
 	}
@@ -1165,7 +1220,9 @@ task::task<void> Coordinator::run_owned(std::shared_ptr<Coordinator> owner) {
 		const auto &executor = owner->impl_->options.source.scheduler->executor();
 		owner->impl_->candidate_wake.emplace(executor);
 		owner->impl_->disk_wake.emplace(executor);
-		co_await task::when_all(owner->impl_->disk_loop(), owner->impl_->candidate_loop());
+		owner->impl_->scrub_wake.emplace(executor);
+		co_await task::when_all(owner->impl_->disk_loop(), owner->impl_->candidate_loop(),
+								owner->impl_->scrub_loop());
 		owner->impl_->settled = true;
 		owner->impl_->diagnostic.phase =
 			owner->impl_->terminal_fenced ? CoordinatorPhase::Fenced : CoordinatorPhase::Closed;

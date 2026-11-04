@@ -140,7 +140,6 @@ int main(int argc, char **argv) {
 		(std::string_view(argv[2]) == "--worker-confirmation" ? 3 : 1));
 	auto fixture = std::make_shared<prepared_test::Fixture>();
 	prepared_test::write_file(fixture->path / "owner.lock", {});
-	check(std::filesystem::remove(fixture->path / (l::generation_name(fixture->generation) + ".read")));
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	d::RetirementRuntime runtime(account, 2);
 	auto domain = runtime.domain(account, 512);
@@ -181,7 +180,8 @@ int main(int argc, char **argv) {
 			check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
 			selected = l::read_generation_selection(fixture->path).descriptor;
 		}
-		check(selected && selected->generation != fixture->generation &&
+		// A store with its records is ready as it stands; only the replacement modes publish a new generation.
+		check(selected && (selected->generation != fixture->generation) == bool(replacement) &&
 		      selected->cursor == fixture->root.cursor);
 		auto prepared = x::PreparedReader::open(fixture->path, ::getuid(), options.view_limits);
 		check(prepared.descriptor == *selected && prepared.view.get("a", "k").value() == 42);

@@ -2,6 +2,7 @@
 #include "paged_snapshot_builder.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <sys/stat.h>
@@ -30,4 +31,9 @@ inline void install(const std::filesystem::path &directory, const l::detail::Pag
 		write(directory / names.payload_name(), {s.bytes->data(), s.bytes->size()});
 	}
 	write(directory / "selected", l::encode_descriptor(image.descriptor()));
+	// The agent's cold start requires the records a publication writes.
+	try {
+		trusted_records::derive(directory);
+	} catch (const std::exception &) {
+	}
 }

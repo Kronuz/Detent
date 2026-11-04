@@ -79,6 +79,8 @@ int main() {
 		rejects<std::exception>(
 		    [&] { x::PreparedReader::metadata_ready(fixture->path, actual, ::getuid()); });
 		check(std::filesystem::remove(old_metadata));
+		// The agent's cold start requires the generation's .read; the checks above ran without it.
+		prepared_test::write_file(old_metadata, x::encode_reader_metadata(x::PreparedReader::describe(actual)));
 		auto store = l::make_disk_store(domain, fixture->path, std::make_shared<int>(1), options);
 		drive(store);
 		check(store->status() == l::StoreStatus::Ready);

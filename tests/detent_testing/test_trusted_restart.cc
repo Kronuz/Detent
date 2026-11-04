@@ -10,6 +10,7 @@
 #include "pack_scrub.hh"
 #include "recovery_context.hh"
 #include "segment_names.hh"
+#include "trusted_records.hh"
 #include <algorithm>
 #include <fcntl.h>
 #include <fstream>
@@ -24,11 +25,6 @@ namespace l = detent::local;
 namespace x = l::detail;
 namespace fs = std::filesystem;
 
-namespace detent::local::detail {
-struct RecoveredTesting {
-	static const LeasedPagedRoot &root(const RecoveredGeneration &g) { return *g.paged_; }
-};
-} // namespace detent::local::detail
 
 namespace {
 void check(bool value, int line) {
@@ -257,7 +253,11 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		Session session;
 		session.recover(store);
 		const auto reads = read_all(session, after);
-		CHECK(!reads.wrong && !reads.other && reads.source_failures > 0);
+		std::cout << "after the refused update (revision " << after << "): " << reads.ok << " ok, "
+				  << reads.source_failures << " source failures, " << reads.wrong << " wrong, " << reads.other
+				  << " other\n";
+		// A republication builds from the incoming snapshot, so the new revision carries no damaged page.
+		CHECK(!reads.wrong && !reads.other && (after != revision || reads.source_failures > 0));
 	}
 	repair();
 	{

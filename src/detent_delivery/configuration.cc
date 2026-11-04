@@ -123,6 +123,7 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 					"delivery_mode",
 					"image_format",
 					"compaction_interval_ms",
+					"scrub_bytes_per_second",
 					"timeout_ms",
 					"compression",
 					"reset_from",
@@ -147,6 +148,9 @@ ManagedOptions load_managed_options(const std::filesystem::path &configuration,
 	require(interval == 0 || interval >= 1000,
 			"managed compaction interval must be zero or at least 1000 ms");
 	result.coordinator.compaction_interval = std::chrono::milliseconds(interval);
+	// 0 disables the scrub; the default is 512 KiB/s, about 25 minutes per GiB of packs.
+	result.coordinator.scrub_bytes_per_second = number(
+		object, "scrub_bytes_per_second", result.coordinator.scrub_bytes_per_second, 0, 1024ull * 1024 * 1024);
 	auto &source = result.coordinator.source;
 	source.configured.cluster = identity<16>(field(object, "cluster"));
 	source.configured.group = identity<16>(field(object, "group"));

@@ -13,8 +13,9 @@ class PackScrub {
 	explicit PackScrub(std::uint64_t bytes_per_second, std::size_t slice_bytes = 64 * 1024);
 	// Starts a pass over `packs` and discards any pass in progress; the allowance starts at zero.
 	void begin(std::span<const SegmentInput> packs, Clock::time_point now);
-	// Hashes what the pace allows up to `now`; returns the bytes hashed by this call.
-	std::uint64_t step(Clock::time_point now);
+	// Hashes what the pace allows up to `now`, at most `limit` bytes; returns the bytes hashed. Unspent
+	// allowance carries to the next call.
+	std::uint64_t step(Clock::time_point now, std::uint64_t limit = UINT64_MAX);
 	bool running() const noexcept { return running_; }
 	// Completed passes, bytes hashed over all passes, and the packs whose checksum differed, in pack order.
 	std::uint64_t passes() const noexcept { return passes_; }
@@ -26,7 +27,7 @@ class PackScrub {
 	std::size_t slice_;
 	std::span<const SegmentInput> packs_;
 	std::size_t next_ = 0, offset_ = 0;
-	SHA256 hash_;
+	class SHA256 hash_;
 	double credit_ = 0;
 	Clock::time_point last_;
 	std::uint64_t passes_ = 0, hashed_ = 0;

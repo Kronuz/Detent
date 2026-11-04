@@ -19,7 +19,7 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
 	if (!running_)
 		++passes_;
 }
-std::uint64_t PackScrub::step(Clock::time_point now) {
+std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 	if (!running_)
 		return 0;
 	if (now > last_) {
@@ -32,8 +32,10 @@ std::uint64_t PackScrub::step(Clock::time_point now) {
 	while (running_) {
 		const auto &pack = packs_[next_];
 		const auto remaining = pack.bytes.size() - offset_;
+		if (done >= limit)
+			break;
 		const auto allowed = std::uint64_t(credit_);
-		const auto count = std::min<std::uint64_t>({remaining, slice_, allowed});
+		const auto count = std::min<std::uint64_t>({remaining, slice_, allowed, limit - done});
 		if (!count && remaining)
 			break;
 		if (count) {
