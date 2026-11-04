@@ -17,9 +17,14 @@ Modes:
   delta CORPUS [SIZE...]    Bytes written and hashed per delta of 1, 100 and 10,000 changed keys,
                             today against dense, and the share of the generation reused.
   churn CORPUS SIZE [U I D] U updates, I inserts, D deletes: both full builds diffed by page
-                            digest, each written page classed as on a changed path or not.
+                            digest, each written page classed as on a changed path or not;
+                            --out=PATH writes the changed corpus.
   verify CORPUS SIZE [N]    Encode in memory and look N keys up through the encoded bytes with
                             first-touch digests and hit compares, as a reader would.
+  synthetic OUT             Write the synthetic corpus: four namespaces of 5,000 definitions,
+                            and one whose 200 leaves share a branch, a page above 4 KiB.
+  check DIR                 The model's self-check on the synthetic corpus, writing two corpora
+                            in DIR: every mode runs, keys round-trip, builds are identical.
 
 Options after the mode's arguments: --rule=largest,density,height (sealing rules, D5);
 --namespace=NAME (that namespace alone); --shape=hex (local names replaced by hashed hex).
@@ -33,6 +38,7 @@ Needs Python 3.14 (compression.zstd). Run from the repository root under a light
 from __future__ import annotations
 
 import hashlib
+import itertools
 import mmap
 import random
 import struct
@@ -66,7 +72,8 @@ PLACEMENT = (
 )
 EXTERNAL = CONTENT + PLACEMENT
 MAX_PAGE = 64 * 1024
-TAG_BRANCH, TAG_DEFINITION, TAG_NAMESPACE = 0, 1, 2
+# Node tags are today's PageKind values (paged_layout.hh:9); zero is never a tag.
+TAG_BRANCH, TAG_DEFINITION, TAG_NAMESPACE = 1, 2, 3
 
 # docs/reviews/reader-design-preliminary.md:54: two SHA-256 passes over a page took 2.2 us at
 # 200 B, 35 us at 4 KiB and 0.54 ms at 64 KiB (Kronuz/sha256, software only), so one pass is
@@ -493,10 +500,10 @@ def build_today(corpus: Corpus, digests: bool = False) -> TodayTrie:
 
 def today_paths(
     corpus: Corpus, trie: TodayTrie
-) -> tuple[dict[int, int], dict[int, int], list[int]]:
-    """Pages per definition walk, per definition and watermark walk, and the bytes a lookup
-    hashes when every page on both walks is cold. K and W differ at byte 0, so both walks share
-    exactly the root."""
+) -> tuple[dict[int, int], dict[int, int], list[int], list[int]]:
+    """Pages per definition walk, per definition and watermark walk, the bytes a lookup hashes
+    when every page on both walks is cold, and the bytes the first touch of the definition's own
+    page hashes. K and W differ at byte 0, so both walks share exactly the root."""
     n = len(trie.size)
     assert trie.root_labels == b"KW", trie.root_labels
     depth = array("H", bytes(2 * n))
@@ -510,6 +517,7 @@ def today_paths(
     walk: dict[int, int] = {}
     both: dict[int, int] = {}
     touch = array("Q")
+    bottom = array("Q")
     root_verify = trie.verify[n - 1]
     for i in range(corpus.count):
         if corpus.kinds[i] != KIND_DEFINITION:
@@ -519,7 +527,8 @@ def today_paths(
         pages = depth[leaf] + depth[w] - 1
         both[pages] = both.get(pages, 0) + 1
         touch.append(path[leaf] + path[w] - root_verify)
-    return walk, both, sorted(touch)
+        bottom.append(trie.verify[leaf])
+    return walk, both, sorted(touch), sorted(bottom)
 
 
 def today_main(corpus: Corpus) -> None:
@@ -543,10 +552,11 @@ def today_main(corpus: Corpus) -> None:
     print(
         f"  (estimate {sha_us(hashed, 2 * pages + segments) / 1e6:.1f} s of one core)"
     )
-    walk, both, touch = today_paths(corpus, trie)
+    walk, both, touch, bottom = today_paths(corpus, trie)
     w50, w99 = histogram_quantile(walk, 0.5), histogram_quantile(walk, 0.99)
     b50, b99 = histogram_quantile(both, 0.5), histogram_quantile(both, 0.99)
     t50, t99 = quantile(touch, 0.5), quantile(touch, 0.99)
+    f50, f99 = quantile(bottom, 0.5), quantile(bottom, 0.99)
     print(f"  pages per definition walk: median {w50}, p99 {w99}, max {max(walk)}")
     print(
         f"  pages per lookup (definition and watermark walks): median {b50}, p99 {b99}, max {max(both)}"
@@ -554,8 +564,12 @@ def today_main(corpus: Corpus) -> None:
     print(
         f"  cold lookup hashes: median {t50:,} B, p99 {t99:,} B (estimate {sha_us(t50, 2 * b50):.0f} us"
     )
+    print(f"  and {sha_us(t99, 2 * b99):.0f} us)")
     print(
-        f"  and {sha_us(t99, 2 * b99):.0f} us); built in {time.monotonic() - started:.0f} s"
+        f"  definition page first touch: median {f50:,} B, p99 {f99:,} B (estimate {sha_us(f50, 2):.1f} us"
+    )
+    print(
+        f"  and {sha_us(f99, 2):.1f} us); built in {time.monotonic() - started:.0f} s"
     )
 
 
@@ -726,7 +740,7 @@ def pack_dense(
         )
         cluster = Cluster(total, keys, height, ranges, externals, node)
         # Still over budget with every child worth sealing sealed: the node is a page of its own,
-        # above the capacity and below 64 KiB (at most 256 children of at most 64 bytes each).
+        # above the capacity and below 64 KiB (at most 256 children of at most 68 bytes each).
         return Sealed(seal(cluster)) if total > budget else cluster
 
     root = build_trie(corpus.count, corpus.key, on_leaf, on_branch)
@@ -1006,6 +1020,9 @@ class DensePaths:
     walk: dict[int, int]
     both: dict[int, int]
     touch: list[int]  # bytes hashed by one lookup whose pages are all cold, sorted
+    bottom: list[
+        int
+    ]  # bytes hashed by the first touch of the definition's page, sorted
 
 
 def dense_paths(
@@ -1039,6 +1056,7 @@ def dense_paths(
     walk: dict[int, int] = {}
     both: dict[int, int] = {}
     touch = array("Q")
+    bottom = array("Q")
     for i in range(corpus.count):
         if corpus.kinds[i] != KIND_DEFINITION:
             continue
@@ -1049,7 +1067,8 @@ def dense_paths(
         count = depth[p] + depth[wp] - top_depth[p]
         both[count] = both.get(count, 0) + 1
         touch.append(path[p] + path[wp] - top_bytes[p])
-    return DensePaths(walk, both, sorted(touch))
+        bottom.append(hashed[p])
+    return DensePaths(walk, both, sorted(touch), sorted(bottom))
 
 
 def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
@@ -1103,9 +1122,14 @@ def pack_main(corpus: Corpus, capacities: list[int], rules: list[str]) -> None:
             print(
                 f"  cold lookup hashes: median {t50:,} B, p99 {t99:,} B (estimate {sha_us(t50, b50):.0f} us"
             )
+            f50, f99 = quantile(paths.bottom, 0.5), quantile(paths.bottom, 0.99)
             print(
-                f"  and {sha_us(t99, b99):.0f} us); height {pages[packing.root].height}; {time.monotonic() - started:.0f} s"
+                f"  and {sha_us(t99, b99):.0f} us); definition page first touch: median {f50:,} B,"
             )
+            print(
+                f"  p99 {f99:,} B (estimate {sha_us(f50):.1f} us and {sha_us(f99):.1f} us); height"
+            )
+            print(f"  {pages[packing.root].height}; {time.monotonic() - started:.0f} s")
             sys.stdout.flush()
 
 
@@ -1226,10 +1250,10 @@ def delta_main(corpus: Corpus, capacities: list[int], rule: str) -> None:
 
 def mutate(
     corpus: Corpus, rng: random.Random, updates: int, inserts: int, deletes: int
-) -> tuple[Corpus, set[bytes]]:
+) -> tuple[CorpusWriter, set[bytes]]:
     """Same-size updates with a new revision, fresh keys inserted beside existing ones, keys
-    removed, and every touched namespace's watermark advanced. Returns the new corpus and the
-    keys whose records changed or appeared, with a deleted key's neighbours, whose paths hold
+    removed, and every touched namespace's watermark advanced. Returns the new corpus's writer and
+    the keys whose records changed or appeared, with a deleted key's neighbours, whose paths hold
     the pages its removal changes."""
     definitions = [i for i in range(corpus.count) if corpus.kinds[i] == KIND_DEFINITION]
     chosen = rng.sample(definitions, updates + deletes + inserts)
@@ -1266,16 +1290,25 @@ def mutate(
     for key in sorted(records):
         kind, body = records[key]
         writer.add(key, kind, body)
-    return writer.corpus(), changed
+    return writer, changed
 
 
 def churn_main(
-    corpus: Corpus, capacity: int, rule: str, updates: int, inserts: int, deletes: int
+    corpus: Corpus,
+    capacity: int,
+    rule: str,
+    updates: int,
+    inserts: int,
+    deletes: int,
+    out: Path | None = None,
 ) -> None:
     started = time.monotonic()
-    after, changed = mutate(
+    writer, changed = mutate(
         corpus, random.Random(0x434855524E), updates, inserts, deletes
     )
+    after = writer.corpus()
+    if out is not None:  # the changed corpus, a delta's oracle (T1, T4)
+        writer.write(out)
     old_today, new_today = (
         build_today(corpus, digests=True),
         build_today(after, digests=True),
@@ -1299,8 +1332,10 @@ def churn_main(
             while q >= 0 and q not in on_path:
                 on_path.add(q)
                 q = pages[q].parent
-    # Pages written off every changed path are sealing decisions that moved (D5).
+    # Pages written off every changed path are sealing decisions that moved (D5): clean
+    # clusters a dirty node now seals, so their parents lie on a changed path.
     off_path = fresh_pages - on_path
+    assert all(pages[p].parent in on_path for p in off_path)
     total = sum(p.length for p in pages)
     dense_bytes = sum(pages[p].length for p in fresh_pages)
     freed = sum(n for d, n in old.digests.items() if d not in new.digests)
@@ -1322,6 +1357,89 @@ def churn_main(
     )
 
 
+# --- the synthetic corpus and the self-check ----------------------------------------------------
+
+
+def synthetic_corpus() -> CorpusWriter:
+    """Four namespaces of 5,000 definitions with 24- and 73-byte bodies, and one namespace whose
+    200 small leaves share one branch, a page above capacity at 4 KiB (D5)."""
+    rng = random.Random(7)
+    records: dict[bytes, tuple[int, bytes]] = {}
+    revision = 1
+    for ns in (b"load0", b"load1", b"load2", b"load3"):
+        for n in range(5000):
+            revision += 1
+            size = 73 if n % 2 else 24
+            body = revision.to_bytes(8, "big") + bytes(
+                rng.randrange(256) for _ in range(size - 8)
+            )
+            records[b"K" + ns + b"\0key" + str(n).encode() + b"\0"] = (
+                KIND_DEFINITION,
+                body,
+            )
+        records[b"W" + ns + b"\0"] = (KIND_NAMESPACE, revision.to_bytes(8, "big"))
+    for c in range(33, 233):
+        records[b"Kwide\0a" + bytes([c]) + b"\0"] = (KIND_DEFINITION, bytes(24))
+    records[b"Wwide\0"] = (KIND_NAMESPACE, bytes(8))
+    writer = CorpusWriter()
+    for key in sorted(records):
+        writer.add(key, *records[key])
+    return writer
+
+
+def check_main(directory: Path) -> None:
+    """Runs every mode on the synthetic corpus and checks the packings, the encoded round trip,
+    identical builds, a delta's changed corpus and the corpus file format."""
+    directory.mkdir(parents=True, exist_ok=True)
+    writer = synthetic_corpus()
+    corpus = writer.corpus()
+    print(f"synthetic corpus: {corpus.count:,} records")
+    trie = build_today(corpus)
+    assert len(trie.size) == corpus.count + trie.branches
+    assert trie.child_count == len(trie.size) - 1
+    today_main(corpus)
+    roots: set[bytes] = set()
+    for capacity in (512, 4096, 65536):
+        for rule in ("largest", "density", "height"):
+            verify_main(corpus, capacity, rule, corpus.count)
+            packing = pack_dense(corpus, capacity, rule)
+            covered = sorted((lo, hi) for lo, hi, _ in packing.leaf_runs)
+            assert covered[0][0] == 0 and covered[-1][1] == corpus.count
+            assert all(a[1] == b[0] for a, b in itertools.pairwise(covered))
+            assert packing.pages[packing.root].keys == corpus.count
+            assert sum(1 for p in packing.pages if p.parent < 0) == 1
+            if capacity == 4096:
+                assert any(p.length > capacity for p in packing.pages)
+        first, second = (
+            Encoder(memory=True, compress=False),
+            Encoder(memory=True, compress=False),
+        )
+        a = pack_dense(corpus, capacity, "height", first)
+        b = pack_dense(corpus, capacity, "height", second)
+        assert a.pages[a.root].digest == b.pages[b.root].digest
+        assert first.memory == second.memory, "two builds must give identical segments"
+        roots.add(a.pages[a.root].digest)
+    assert len(roots) == 3, "capacities pack differently, so their roots differ"
+    alone = reshape(corpus, b"load1", "hex")
+    assert alone.count == 5001 and alone.kinds.count(KIND_NAMESPACE) == 1
+    verify_main(alone, 4096, "height", alone.count)
+    pack_main(corpus, [4096], ["largest", "density", "height"])
+    bytes_main(corpus, 4096, "height", None)
+    delta_main(corpus, [4096, 65536], "height")
+    churn_main(corpus, 4096, "height", 0, 0, 0)
+    after_path = directory / "synthetic-after.bin"
+    churn_main(corpus, 4096, "height", 100, 10, 10, after_path)
+    after = read_corpus(after_path)
+    assert after.count == corpus.count and after.keys != corpus.keys
+    verify_main(after, 4096, "height", after.count)
+    corpus_path = directory / "synthetic.bin"
+    writer.write(corpus_path)
+    again = read_corpus(corpus_path)
+    assert again.keys == corpus.keys and again.bodies == corpus.bodies
+    assert list(again.watermark) == list(corpus.watermark)
+    print("check: ok")
+
+
 # --- main --------------------------------------------------------------------------------------
 
 
@@ -1331,6 +1449,12 @@ def main(argv: list[str]) -> None:
     mode = argv[1]
     if mode == "extract":
         extract_main(Path(argv[2]), Path(argv[3]))
+        return
+    if mode == "synthetic":
+        synthetic_corpus().write(Path(argv[2]))
+        return
+    if mode == "check":
+        check_main(Path(argv[2]))
         return
     started = time.monotonic()
     options: dict[str, str] = {}
@@ -1375,7 +1499,10 @@ def main(argv: list[str]) -> None:
         delta_main(corpus, [int(x) for x in rest] or [4096, 16384, 65536], rule_list[0])
     elif mode == "churn":
         counts = [int(x) for x in rest[1:4]] if len(rest) >= 4 else [9_800, 100, 100]
-        churn_main(corpus, int(rest[0]), rule_list[0], counts[0], counts[1], counts[2])
+        out = Path(options["out"]) if "out" in options else None
+        churn_main(
+            corpus, int(rest[0]), rule_list[0], counts[0], counts[1], counts[2], out
+        )
     else:
         raise SystemExit(__doc__)
 
