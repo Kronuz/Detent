@@ -493,6 +493,10 @@ The pinned [worker maintenance path](https://github.com/Kronuz/consensus/blob/b7
 
 Raw control evidence is `.scratch/capacity-trials/5000000-restore-r10/events.jsonl`; the [capacity report](../benchmarks/system-capacity-5m-20261024.json) identifies the corpus and preceding controls. The R10 control is deliberately stopped after repeated export errors; its incomplete bootstrap is not performance qualification.
 
+### lru-cache removed, November 3
+
+Detent no longer depends on lru-cache. The lazy page reader's verified-page bitmap (reader design D3, `docs/mechanisms/verified-page-bitmap.md`) replaces the checked-page cache, and `cmake/dependencies.json` no longer lists the library.
+
 ### LRU allocator support for checked client pages, October 25
 
 The fast-client candidate adds [Kronuz/lru-cache](https://github.com/Kronuz/lru-cache) at `lru-cache:827ba676761b621c167e397985e9cfb54f4b3003`. Its existing cache engine accepts an explicit allocator through an additive constructor; the existing constructor delegates with its default allocator. This lets checked-page cache nodes and buckets share the client's storage admission rather than introducing a second cache implementation. Page mappings remain independently retained when verification entries are evicted.

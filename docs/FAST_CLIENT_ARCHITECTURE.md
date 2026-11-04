@@ -15,7 +15,7 @@ Use the existing selected descriptor, independent generation lease and 320-byte 
 ```text
 Trusted publisher files → selected descriptor + independently leased root
   → verified root commitment → checked lookup path → borrowed definition
-  → retained mappings and verification cache for subsequent reads
+  → retained mappings and verified-page bits for subsequent reads
 ```
 
 The references already contain physical and logical hashes. `paged::verify_page()` verifies both. File ownership authenticates the configured publisher under the protected-directory contract; hashes detect corruption along the accessed path. A persisted boolean saying that data was validated is not that proof.

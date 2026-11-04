@@ -17,6 +17,8 @@ Ready for code review. Code head `Detent:c5056c1`: CI green on every job (run 41
 
 3. `Detent:c5056c1`: the bitmap test takes a case name, so each mutant is shown to die in its own case.
 
+4. Lead's ruling on the two owner calls (greenfield; Q5 drops the heap ledger): `ViewLimits::verification_cache_bytes` and the `lru_cache` entry in `cmake/dependencies.json` are removed, with the docs that named the verification cache.
+
 ## Proof (macOS x86_64, Apple clang, local builds under `quiet light`)
 
 1. **16-thread stress** (`stress` in `tests/detent_local/test_lazy_page_bitmap.cc`): 16 threads, 26 namespaces (27 segments), each resolve checked byte for byte against the builder's bytes (the sequential model), one mapping address per segment across threads, trie walks for every namespace; then 64 warm rounds per thread. The verification count after first touch lies between the serial run's count (55 pages) and 16 times it, and the warm phase adds none. Coverage, 10 TSan runs: 85 to 111 verifications, 30 to 56 concurrent duplicate verifications per run (the race the bitmap allows).
@@ -61,7 +63,4 @@ No regression; the parent's per-generation mutex serializes eight threads. The f
 
 ## Blocked on
 
-Owner decisions, not blocking the branch:
-
-1. `ViewLimits::verification_cache_bytes` (`include/detent_local/view.hh:36`) is now read by nothing. Removing a public field narrows the API. Options: (a) remove it in S3; (b) keep it until legacy step H deletes the view API; (c) mark it deprecated now. Recommendation: (b), with D3's note that the bitmaps replace it.
-2. `cmake/dependencies.json:231` still declares `lru_cache`; nothing fetches or links it now. Removing the entry is a pin-tooling change; recommendation: drop it with (1).
+Nothing. Waiting for the code review's findings.

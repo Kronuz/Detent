@@ -33,7 +33,6 @@ struct ViewLimits {
 	// Mapped virtual bytes are counted separately from managed heap capacity.
 	std::shared_ptr<distribution::StorageLedger> mapping_account;
 	std::uint64_t pages = paged::Limits{}.pages, segments = paged::Limits{}.segments;
-	std::size_t verification_cache_bytes = 1024 * 1024;
 };
 class ImageValidator;
 class ReadView {

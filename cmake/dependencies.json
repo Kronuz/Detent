@@ -226,11 +226,5 @@
     "repository": "https://github.com/Kronuz/strings.git",
     "revision": "1be38483a333d13544fbf6b0937409295c8ea3e0",
     "source_subdir": "."
-  },
-  {
-    "name": "lru_cache",
-    "repository": "https://github.com/Kronuz/lru-cache.git",
-    "revision": "df0ebc885c3e72e139a35dd4e34f5c731f02b4bd",
-    "source_subdir": "."
   }
 ]
