@@ -44,7 +44,7 @@
   {
     "name": "detent_logger",
     "repository": "https://github.com/Kronuz/logger.git",
-    "revision": "761285d654b260b74b187eb865c5bc7e9200b4a9",
+    "revision": "f61d8df44ee524c49820ad42e630042103d3fb92",
     "source_subdir": "."
   },
   {
@@ -116,7 +116,7 @@
   {
     "name": "scheduler",
     "repository": "https://github.com/Kronuz/scheduler.git",
-    "revision": "f08085859e916b2b08570cb6b735fbf2e6677262",
+    "revision": "d57e8fc051097d84500b4036b85daadd00c00b14",
     "source_subdir": "."
   },
   {
@@ -206,7 +206,7 @@
   {
     "name": "http_log",
     "repository": "https://github.com/Kronuz/http-log.git",
-    "revision": "9a67eceafb78481b60c1d6f295c174dac467cb02",
+    "revision": "4e4b79f565b1c6c38948b98cd4c1af6cdc1cf054",
     "source_subdir": "."
   },
   {

@@ -5,8 +5,8 @@ Branch `m1/pins-to-head`, cut from `m1/pin-check` (`Detent:1098592`). Follows
 
 ## State
 
-Stopped at W4 contention: all 33 manifest pins equal their library heads, but `tools/check_pins.py`
-still reports 9 mismatches, all through scheduler (see Blocked on). Detent configures, builds and
+All 33 manifest pins equal their library heads and `tools/check_pins.py` reports 0 mismatches.
+The first CI run (below) predates the scheduler, logger and http-log repins and had pin-check red. Detent configures, builds and
 passes the native suite (237 tests, 100% passed, 1 skipped: `test_local_trusted_paths`, run 3e2e95b
 RelWithDebInfo). Local ASan/UBSan and TSan builds were not run; CI run 41791987741 (dispatched on
 `Detent:3e2e95b`) ran them: linux-x86_64-gcc and clang, linux-arm64-gcc, macos-arm64, macos-x86_64,
@@ -56,13 +56,15 @@ freebsd and headers skipped by the workflow; pin-check red with the 9 mismatches
 
 ## Blocked on
 
-- scheduler (`scheduler:f080858`) pins stash 8fa5d2a, threadpool eb4751a, random e040c2b. Bumping it
-  is W4's (Xapiand campaign); the push was refused by the permission classifier and not retried.
-  The logger (pins scheduler 1e5ccc9) and http-log (pins logger 801105c) follow.
-  `check_pins.py` still reports: scheduler (stash, threadpool, random), detent_logger (scheduler,
-  term_color), http_log (http_lib, detent_logger, repr, strings). The fix is one commit each, in
-  that order, with scheduler first; repin scheduler with `.scratch/repin.py`-style edits (three
-  GIT_TAGs in `scheduler/CMakeLists.txt`). The Xapiand campaign's mains for these four libraries
-  showed no open PR and no branch newer than 2026-06 besides merged ones; the refusal came from the
-  permission system, not from a visible conflict.
-- cluster is pinned at its head `cluster:e4fc57d`; `legacy/wave2` drops it and generation_cache.
+Nothing. The owner authorized the scheduler, logger and http-log pushes; each was fetched first
+(main had not moved) and CI was green on every job before the next.
+
+| Library | Commit | What | CI run | Result |
+|---|---|---|---|---|
+| scheduler | `scheduler:d57e8fc` | stash -> b7d8876, threadpool -> 63e03a5, random -> f8b9348 | 41794834516 | green |
+| logger | `logger:f61d8df` | scheduler -> d57e8fc, term-color -> 76a400b | 41795153407 | green |
+| http-log | `http-log:4e4b79f` | http -> c813531, logger -> f61d8df, repr -> d2eb895, strings -> 6799a6e | 41795709745 | green |
+
+`python3 -I tools/check_pins.py`: 33 libraries, 43 shared declarations, 0 mismatches. All 33
+manifest pins equal their library heads. cluster is at its head `cluster:e4fc57d`; `legacy/wave2`
+drops it and generation_cache.
