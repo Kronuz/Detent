@@ -10,6 +10,7 @@
 #include "recovery_context.hh"
 #include "resources.hh"
 #include "segment_names.hh"
+#include "trusted_restart.hh"
 #include "warm_recovery_eligibility.hh"
 #include "warm_registry_merge.hh"
 #include <algorithm>
@@ -352,7 +353,15 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				std::optional<detail::WarmGraphValidator> warm_validator;
 				std::optional<detail::DependencyDiscovery> discovery;
 				distribution::RetirementHandle<detail::SegmentRegistry> registry;
-				if (progress) {
+				// A cold start over a generation with a live record trusts what its build verified.
+				std::optional<detail::TrustedGeneration> trusted;
+				if (!context.admission && !prior)
+					trusted = detail::TrustedRestart::open(dir->fd, directory_info.st_uid, descriptor, root, storage,
+														   bounds, limits, factory, account, mapping_account,
+														   context.metrics.get());
+				if (trusted) {
+					registry = trusted->registry;
+				} else if (progress) {
 					registry = prior->registry();
 					const auto counts = prior->counts();
 					require(counts.strings <= limits.strings &&
@@ -433,7 +442,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 											dir, root_lease, registry, descriptor, identity, storage, root);
 				using Capability = distribution::RetirementHandle<detail::LeasedPagedRoot>;
 				std::optional<detail::GraphValidator> validator;
-				if (!warm) {
+				if (!warm && !trusted) {
 					std::shared_ptr<const void> owner =
 						context.admission
 							? context.admission->capability_owner()
@@ -489,7 +498,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				if (progress)
 					capability->seal_progress(*prior);
 				else
-					capability->seal(warm ? warm_validator->counts() : validator->counts());
+					capability->seal(trusted ? trusted->counts : warm ? warm_validator->counts() : validator->counts());
 				if (context.metrics) {
 					if (discovery)
 						context.metrics->segment_hash_bytes += discovery->hashed_segment_bytes();

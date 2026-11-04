@@ -76,7 +76,7 @@ struct DependencyDiscovery::Impl {
 			});
 		if (found == inputs.mappings.end() || (*found)->ownership().segment != id)
 			return {};
-		return SegmentInput{(*found)->ownership(), (*found)->bytes()};
+		return SegmentInput{(*found)->ownership(), (*found)->bytes(), (*found)->first_touch()};
 	}
 	static bool frontier(const void *owner, const p::Reference &reference) {
 		const auto &inputs = *static_cast<const Inputs *>(owner);

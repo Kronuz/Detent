@@ -18,6 +18,7 @@ class PagedSnapshotSource;
 class RecoveryEngine;
 class StateCursor;
 class PreparedReader;
+struct RecoveredTesting; // test-only probe of a recovered generation
 } // namespace detail
 using GenerationId = std::array<char, 16>;
 struct Descriptor {
@@ -77,6 +78,7 @@ class RecoveredGeneration {
 	friend class detail::StateCursor;
 	friend class GenerationReader;
 	friend class detail::PreparedReader;
+	friend struct detail::RecoveredTesting;
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
 												  std::optional<distribution::Cursor>);
 	friend RecoveredGeneration recover_generation(const std::filesystem::path &, ViewLimits,
