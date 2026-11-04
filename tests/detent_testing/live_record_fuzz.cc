@@ -13,7 +13,6 @@ namespace x = detent::local::detail;
 namespace {
 x::LiveRecord seed_record() {
 	x::LiveRecord record;
-	record.storage.fill('s');
 	record.generation.fill('g');
 	record.root_checksum.fill('r');
 	record.read_digest.fill('d');

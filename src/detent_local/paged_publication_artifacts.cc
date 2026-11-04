@@ -81,7 +81,6 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		auto metadata_buffer = d::make_owned_buffer(plan.bytes()->account(), metadata.size());
 		metadata_buffer->append({metadata.data(), metadata.size()});
 		// The live record binds to the reader metadata's own digest, so a swapped pair is refused.
-		live.storage = plan.storage_identity();
 		live.generation = descriptor.generation;
 		live.root_checksum = descriptor.checksum;
 		std::copy(metadata.end() - live_digest_bytes, metadata.end(), live.read_digest.begin());

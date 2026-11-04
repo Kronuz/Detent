@@ -18,8 +18,8 @@ struct LiveRow {
 	std::array<char, 32> checksum{};
 	SegmentReachability live;
 };
+// Bytes 16-31 of the record are reserved and zero: the record holds nothing host-specific.
 struct LiveRecord {
-	StorageIdentity storage{};
 	GenerationId generation{};
 	paged::Digest root_checksum{}, read_digest{};
 	std::array<std::uint32_t, 257> histogram{};

@@ -106,6 +106,36 @@ void failures_in_order() {
 	scrub.begin({}, t0);
 	CHECK(!scrub.running() && scrub.passes() == 2);
 }
+// Damage is reported once per pass, never accumulated, and a new pack set starts clean (architect probe P1).
+void failures_per_pass() {
+	auto packs = synthetic(2, 4096, 5);
+	packs[1].bytes[100] ^= 1;
+	const auto both = inputs(packs);
+	const auto good_only = std::vector<x::SegmentInput>{both[0]};
+	x::PackScrub scrub(1'000'000'000);
+	auto at = Clock::now();
+	for (std::uint64_t pass = 1; pass <= 3; ++pass) {
+		scrub.begin(both, at);
+		CHECK(scrub.failures().empty());
+		at += 1s;
+		scrub.step(at);
+		CHECK(scrub.passes() == pass && scrub.failures().size() == 1 &&
+			  scrub.failures()[0] == packs[1].ownership.segment);
+	}
+	scrub.begin(good_only, at);
+	CHECK(scrub.failures().empty());
+	at += 1s;
+	scrub.step(at);
+	CHECK(scrub.passes() == 4 && scrub.failures().empty());
+	// A pass cut short by a new begin reports nothing from the abandoned pass.
+	x::PackScrub slow(100'000);
+	slow.begin(both, at);
+	slow.step(at + 1s);
+	CHECK(slow.passes() == 1 && slow.failures().size() == 1);
+	slow.begin(both, at);
+	slow.step(at + 10ms);
+	CHECK(slow.running() && slow.failures().empty());
+}
 // The wall-clock pace stays within 10% of the configured rate over a whole pass.
 void real_clock() {
 	auto packs = synthetic(4, 1'500'000, 3);
@@ -192,6 +222,7 @@ int main() {
 	} cleanup{root};
 	fake_clock();
 	failures_in_order();
+	failures_per_pass();
 	real_clock();
 	real_store(root);
 	std::cout << "ok\n";

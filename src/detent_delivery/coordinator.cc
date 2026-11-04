@@ -359,17 +359,6 @@ struct Coordinator::Impl {
 						result->descriptor = result->plan->descriptor();
 					}
 
-				} else if (!source && actual && l::detail::StateCursor::logical_commitment(*actual)) {
-					l::detail::PagedPlanBuilder candidate(l::detail::PagedPlanBuilder::Republish{},
-						*actual, generation, factory, heap);
-					while (!candidate.done()) {
-						result->control.step();
-						l::ValidationBudget budget;
-						candidate.step(budget);
-					}
-					result->maintenance = candidate.evidence();
-					result->plan.emplace(candidate.take());
-					result->descriptor = result->plan->descriptor();
 				} else if (!source) {
 					if (!actual)
 						throw std::invalid_argument("migration requires actual recovered base");
@@ -529,8 +518,9 @@ struct Coordinator::Impl {
 		}
 	}
 	task::task<void> migrate_flat_head() {
+		// Only a flat (layout 1) base migrates; a paged base is already in the writer's format.
 		if (!paged_writer || !base->generation ||
-			base->prepared ||
+			l::detail::StateCursor::logical_commitment(*base->generation) ||
 			!base->generation->descriptor().cursor.same_identity(options.source.configured))
 			co_return;
 		diagnostic.phase = CoordinatorPhase::Building;
@@ -643,7 +633,7 @@ struct Coordinator::Impl {
 		constexpr auto tick = std::chrono::milliseconds(20);
 		constexpr std::uint64_t per_tick = 2 * 1024 * 1024;
 		scrubber.emplace(options.scrub_bytes_per_second);
-		std::size_t reported = 0;
+		std::uint64_t reported_passes = 0;
 		while (!closing) {
 			const auto now = std::chrono::steady_clock::now();
 			// The recovery worker rewrites base->generation until `ready`; the loop never reads it before.
@@ -652,20 +642,25 @@ struct Coordinator::Impl {
 				if (root && root.get() != scrub_root.get()) {
 					scrub_root = std::move(root);
 					scrubber->begin(scrub_root->registry()->inputs(), now);
-					reported = 0;
+					reported_passes = scrubber->passes();
+					diagnostic.scrub.damaged_packs = 0;
+					diagnostic.scrub.source_failure = false;
 				} else if (scrub_root && !scrubber->running())
 					scrubber->begin(scrub_root->registry()->inputs(), now);
 				if (scrub_root) {
 					scrubber->step(now, per_tick);
 					diagnostic.scrub.passes = scrubber->passes();
 					diagnostic.scrub.bytes_hashed = scrubber->bytes_hashed();
-					if (scrubber->failures().size() != reported) {
-						reported = scrubber->failures().size();
-						diagnostic.scrub.damaged_packs = reported;
-						diagnostic.scrub.source_failure = true;
-						++diagnostic.failures;
-						diagnostic.error = std::make_exception_ptr(
-							std::runtime_error("scrub: a pack of the selected generation differs from its owner record"));
+					// One report per completed pass: the packs that pass found, not a running total.
+					if (scrubber->passes() != reported_passes) {
+						reported_passes = scrubber->passes();
+						diagnostic.scrub.damaged_packs = scrubber->failures().size();
+						diagnostic.scrub.source_failure = !scrubber->failures().empty();
+						if (diagnostic.scrub.source_failure) {
+							++diagnostic.failures;
+							diagnostic.error = std::make_exception_ptr(std::runtime_error(
+								"scrub: a pack of the selected generation differs from its owner record"));
+						}
 					}
 				}
 			}

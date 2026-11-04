@@ -52,8 +52,12 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 			// The first-touch accessor checks a page's digests the first time any read reaches it.
 			const auto found = find_segment(segments, reference.segment);
 			if (found == segments.size())
-				throw std::logic_error("validated page dependency missing");
-			bytes = checked_page_bytes(segments[found], reference);
+				throw ReadSourceFailure("local page names a segment outside its generation");
+			try {
+				bytes = checked_page_bytes(segments[found], reference);
+			} catch (const std::invalid_argument &) {
+				throw ReadSourceFailure("local page exceeds its segment");
+			}
 		}
 		const auto prefix = read_integer(bytes, 20, 4);
 		const auto kind = static_cast<paged::PageKind>(read_integer(bytes, 12, 4));

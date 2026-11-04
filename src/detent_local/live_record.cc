@@ -25,13 +25,11 @@ std::array<char, 32> digest(std::span<const char> bytes) {
 } // namespace
 void encode_live_record(const LiveRecord &record, std::span<char> out) {
 	require(out.size() == live_record_size(record.rows.size()) && record.rows.size() <= UINT32_MAX &&
-			nonzero(record.storage) && nonzero(record.generation) && nonzero(record.root_checksum) &&
-			nonzero(record.read_digest));
+			nonzero(record.generation) && nonzero(record.root_checksum) && nonzero(record.read_digest));
 	std::fill(out.begin(), out.end(), char(0));
 	std::copy(magic.begin(), magic.end(), out.begin());
 	write_integer(out, 8, 1, 4);
 	write_integer(out, 12, out.size(), 4);
-	std::copy(record.storage.begin(), record.storage.end(), out.begin() + 16);
 	std::copy(record.generation.begin(), record.generation.end(), out.begin() + 32);
 	std::copy(record.root_checksum.begin(), record.root_checksum.end(), out.begin() + 48);
 	std::copy(record.read_digest.begin(), record.read_digest.end(), out.begin() + 80);
@@ -57,17 +55,16 @@ LiveRecord decode_live_record(std::span<const char> bytes, std::uint64_t maximum
 			read_integer(bytes, 8, 4) == 1 && read_integer(bytes, 12, 4) == bytes.size());
 	const auto rows = read_integer(bytes, 112, 4);
 	require(rows <= maximum_rows && bytes.size() == live_record_size(rows) && read_integer(bytes, 116, 4) == 0 &&
+			std::all_of(bytes.begin() + 16, bytes.begin() + 32, [](char byte) { return byte == 0; }) &&
 			std::all_of(bytes.begin() + 1148, bytes.begin() + live_header_bytes,
 						[](char byte) { return byte == 0; }));
 	const auto sum = digest(bytes.first(bytes.size() - live_digest_bytes));
 	require(std::equal(sum.begin(), sum.end(), bytes.end() - live_digest_bytes));
 	LiveRecord record;
-	std::copy_n(bytes.begin() + 16, 16, record.storage.begin());
 	std::copy_n(bytes.begin() + 32, 16, record.generation.begin());
 	std::copy_n(bytes.begin() + 48, 32, record.root_checksum.begin());
 	std::copy_n(bytes.begin() + 80, 32, record.read_digest.begin());
-	require(nonzero(record.storage) && nonzero(record.generation) && nonzero(record.root_checksum) &&
-			nonzero(record.read_digest));
+	require(nonzero(record.generation) && nonzero(record.root_checksum) && nonzero(record.read_digest));
 	for (std::size_t i = 0; i < record.histogram.size(); ++i)
 		record.histogram[i] = static_cast<std::uint32_t>(read_integer(bytes, 120 + i * 4, 4));
 	record.rows.resize(rows);

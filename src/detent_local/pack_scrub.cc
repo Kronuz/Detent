@@ -15,6 +15,8 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
 	credit_ = 0;
 	last_ = now;
 	hash_.reset();
+	found_.clear();
+	completed_.clear();
 	running_ = !packs.empty();
 	if (!running_)
 		++passes_;
@@ -50,12 +52,14 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 		unsigned char digest[32];
 		hash_.getHash(digest);
 		if (std::memcmp(digest, pack.ownership.checksum.data(), 32) != 0)
-			failures_.push_back(pack.ownership.segment);
+			found_.push_back(pack.ownership.segment);
 		hash_.reset();
 		offset_ = 0;
 		if (++next_ == packs_.size()) {
 			running_ = false;
 			++passes_;
+			completed_ = std::move(found_);
+			found_.clear();
 		}
 	}
 	return done;

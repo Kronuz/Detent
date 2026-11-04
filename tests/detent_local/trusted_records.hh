@@ -54,7 +54,6 @@ inline void derive(const std::filesystem::path &directory) {
 		const auto &registry = *root.registry();
 		const auto metadata = x::encode_reader_metadata(x::PreparedReader::describe(generation));
 		x::LiveRecord live;
-		live.storage = root.storage_identity();
 		live.generation = generation.descriptor().generation;
 		live.root_checksum = generation.descriptor().checksum;
 		std::copy(metadata.end() - x::live_digest_bytes, metadata.end(), live.read_digest.begin());

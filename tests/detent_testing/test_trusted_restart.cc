@@ -19,6 +19,7 @@
 #include <map>
 #include <random>
 #include <set>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace d = detent::distribution;
@@ -39,6 +40,14 @@ const int knobs = std::getenv("DETENT_TRUSTED_RESTART_KNOBS") ? std::atoi(std::g
 																: 99990;
 // The value of knob i at a revision, or nothing when the revision lacks it.
 std::optional<std::int64_t> expected(int revision, int i) {
+	if (revision == 100) { // after the delta of delta_changes
+		const auto value = expected(3, i);
+		if (!value || i % 10 != 3)
+			return value;
+		if (i % 500 == 3)
+			return {};
+		return i % 50 == 3 ? std::optional(*value + 1000) : value;
+	}
 	if (revision >= 3 && i % 3333 == 0)
 		return {};
 	if (i >= knobs + 10)
@@ -135,6 +144,17 @@ Reads read_all(const Session &session, int revision) {
 			++reads.other;
 	}
 	return reads;
+}
+// Decodes the record, lets `change` edit it, re-encodes it with a valid digest and writes it back.
+template <class F> void rewrite_live(const fs::path &path, F &&change) {
+	std::ifstream in(path, std::ios::binary);
+	std::vector<char> bytes{std::istreambuf_iterator<char>(in), {}};
+	in.close();
+	auto record = x::decode_live_record(bytes, 1u << 20);
+	change(record);
+	std::vector<char> out(x::live_record_size(record.rows.size()));
+	x::encode_live_record(record, out);
+	std::ofstream(path, std::ios::binary | std::ios::trunc).write(out.data(), out.size());
 }
 void copy_store(const fs::path &from, const fs::path &to) {
 	fs::remove_all(to);
@@ -321,16 +341,158 @@ void refusals(const fs::path &store, const fs::path &scratch) {
 	}
 	// A live record of another generation is refused even though its own digest holds.
 	attempt("live record swapped from an older generation",
+			[&] { rewrite_live(live_path(scratch), [](x::LiveRecord &record) { record.generation[0] ^= 1; }); }, true);
+	// A digest-valid record whose derived state disagrees with the root or `.read` is refused (security review SR1).
+	attempt("live pages inflated (sum differs from root.pages)",
+			[&] { rewrite_live(live_path(scratch), [](x::LiveRecord &record) { record.rows[0].live.pages += 1000; }); },
+			true);
+	attempt("live bytes shifted (sum differs from root.bytes)",
 			[&] {
-				std::ifstream in(live_path(scratch), std::ios::binary);
-				std::vector<char> bytes{std::istreambuf_iterator<char>(in), {}};
-				auto record = x::decode_live_record(bytes, 1u << 20);
-				record.generation[0] ^= 1;
-				std::vector<char> out(bytes.size());
-				x::encode_live_record(record, out);
-				std::ofstream(live_path(scratch), std::ios::binary | std::ios::trunc).write(out.data(), out.size());
+				rewrite_live(live_path(scratch), [](x::LiveRecord &record) { --record.rows[0].live.bytes; });
 			},
 			true);
+	attempt("histogram forged (records and a bucket)",
+			[&] {
+				rewrite_live(live_path(scratch), [](x::LiveRecord &record) {
+					record.histogram[0] += 7;
+					record.histogram[200] += 1;
+				});
+			},
+			true);
+	attempt("histogram moved to a bucket (override count differs from .read)",
+			[&] {
+				rewrite_live(live_path(scratch), [](x::LiveRecord &record) {
+					--record.histogram[0];
+					++record.histogram[3];
+				});
+			},
+			true);
+	// A FIFO where the record belongs is refused at once; a blocking open would hang the start.
+	attempt("live record replaced by a FIFO",
+			[&] {
+				fs::remove(live_path(scratch));
+				CHECK(::mkfifo(live_path(scratch).c_str(), 0600) == 0);
+				::alarm(60);
+			},
+			true);
+	::alarm(0);
+}
+// Security review SR2: a digest-valid `.live` whose rows are not the set the root reaches. Two shapes over a
+// store of one value changed between two revisions, so the packs of both are on disk with equal lengths.
+std::string small_json(int bump) {
+	std::string out = R"({"schema_version":1,"knobs":{)";
+	for (int i = 0; i < 30000; ++i)
+		out += (i ? "," : "") + std::string("\"n") + std::to_string(i % 10) + ":k" + std::to_string(i) +
+			   R"(":{"type":"int","default":)" + std::to_string(i * 3 + 1 + (i == 7 ? bump : 0)) + "}";
+	return out + "}}";
+}
+void stale_rows(const fs::path &root) {
+	const auto store = root / "stale";
+	std::vector<char> first_live;
+	{
+		detent::testing::GenerationWriter writer(store);
+		CHECK(writer.publish_json(small_json(0)) == 1);
+		std::ifstream in(live_path(store), std::ios::binary);
+		first_live.assign(std::istreambuf_iterator<char>(in), {});
+		CHECK(writer.publish_json(small_json(1)) == 2);
+	}
+	const auto first = x::decode_live_record(first_live, 1u << 20);
+	const auto scratch = root / "stale-copy";
+	auto prepare = [&] {
+		copy_store(store, scratch);
+		for (const auto &row : first.rows)
+			CHECK(fs::exists(scratch / x::SegmentNames(row.segment).payload_name()));
+	};
+	auto reads_of = [&](const char *what) {
+		Session session;
+		session.recover(scratch);
+		std::uint64_t ok = 0, failed = 0;
+		for (int i = 0; i < 30000; ++i) {
+			const auto got = session.generation->view().get("n" + std::to_string(i % 10), "k" + std::to_string(i));
+			if (got.has_value())
+				++ok;
+			else if (got.error().category == detent::ErrorCategory::SourceFailure)
+				++failed;
+			else
+				CHECK(false);
+		}
+		std::cout << what << ": opened, " << ok << " ok, " << failed << " source failures\n";
+		return failed;
+	};
+	// Shape 1: the second revision's header over the first revision's rows. The tree's segment is not a row.
+	prepare();
+	rewrite_live(live_path(scratch), [&](x::LiveRecord &record) { record.rows = first.rows; });
+	{
+		Session session;
+		CHECK(throws([&] { session.recover(scratch); }));
+		std::cout << "current header over the first revision's rows: refused\n";
+	}
+	// Shape 2: the second revision's rows with one non-tree row swapped for a first-revision row of equal length.
+	prepare();
+	std::ifstream image(scratch / std::string(x::GenerationName(selected(scratch).generation, x::GenerationFile::Image).view()),
+						std::ios::binary);
+	std::vector<char> root_bytes{std::istreambuf_iterator<char>(image), {}};
+	const auto tree = l::paged::decode_root(root_bytes).tree.segment;
+	bool swapped = false;
+	rewrite_live(live_path(scratch), [&](x::LiveRecord &record) {
+		for (auto &row : record.rows)
+			if (row.segment != tree && !swapped)
+				for (const auto &old : first.rows)
+					if (old.length == row.length && !swapped) {
+						row.segment = old.segment;
+						row.checksum = old.checksum;
+						swapped = true;
+					}
+		std::sort(record.rows.begin(), record.rows.end(), [](const x::LiveRow &a, const x::LiveRow &b) {
+			return std::memcmp(a.segment.data(), b.segment.data(), 16) < 0;
+		});
+	});
+	CHECK(swapped);
+	CHECK(reads_of("rows with a swapped non-tree segment") > 0);
+}
+// The knobs after the delta of `delta_changes`: namespace n3 loses every 500th knob and bumps every 50th.
+void delta_changes(std::map<std::string, std::int64_t> &upserts, std::vector<std::string> &removals) {
+	for (int i = 3; i < knobs + 10; i += 10) {
+		const auto value = expected(3, i);
+		if (!value)
+			continue;
+		if (i % 500 == 3)
+			removals.push_back("n3:k" + std::to_string(i));
+		else if (i % 50 == 3)
+			upserts["n3:k" + std::to_string(i)] = *value + 1000;
+	}
+}
+void run_mode(const std::string &mode, const fs::path &root) {
+	const auto store = root / "store";
+	{
+		detent::testing::GenerationWriter writer(store);
+		for (int revision = 1; revision <= (mode == "refusals" ? 1 : 3); ++revision) {
+			CHECK(writer.publish_json(json(revision)) == std::uint64_t(revision));
+			if (mode == "oracle")
+				oracle(store, root / "copy", revision);
+		}
+		if (mode == "oracle") {
+			// The reused-row branch of the publication at scale: a delta and a compaction over the 100K store,
+			// each compared with the walk of the generation it wrote (architect finding A4/C3).
+			std::map<std::string, std::int64_t> upserts;
+			std::vector<std::string> removals;
+			delta_changes(upserts, removals);
+			std::vector<std::string> scope;
+			for (int ns = 0; ns < 10; ++ns)
+				scope.push_back("n" + std::to_string(ns));
+			CHECK(writer.publish_delta(scope, "n3", upserts, removals) == 4);
+			oracle(store, root / "copy", 100);
+			writer.compact(3);
+			CHECK(writer.revision() == 4);
+			oracle(store, root / "copy", 100);
+		}
+	}
+	if (mode == "refusals") {
+		refusals(store, root / "copy");
+		stale_rows(root);
+	}
+	if (mode == "t5")
+		t5(store, root, 3);
 }
 } // namespace
 int main(int argc, char **argv) {
@@ -340,21 +502,11 @@ int main(int argc, char **argv) {
 		fs::path path;
 		~Cleanup() { fs::remove_all(path); }
 	} cleanup{root};
-	const auto store = root / "store";
 	const std::string mode = argc > 1 ? argv[1] : "all";
 	CHECK(mode == "all" || mode == "oracle" || mode == "refusals" || mode == "t5");
-	{
-		detent::testing::GenerationWriter writer(store);
-		for (int revision = 1; revision <= (mode == "refusals" ? 1 : 3); ++revision) {
-			CHECK(writer.publish_json(json(revision)) == std::uint64_t(revision));
-			if (mode == "all" || mode == "oracle")
-				oracle(store, root / "copy", revision);
-		}
-	}
-	if (mode == "all" || mode == "refusals")
-		refusals(store, root / "copy");
-	if (mode == "all" || mode == "t5")
-		t5(store, root, 3);
+	for (const auto *each : {"oracle", "refusals", "t5"})
+		if (mode == "all" || mode == each)
+			run_mode(each, root / each);
 	std::cout << "ok\n";
 	return 0;
 }
