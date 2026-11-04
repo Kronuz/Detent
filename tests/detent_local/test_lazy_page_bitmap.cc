@@ -32,7 +32,7 @@ struct Harness {
 	explicit Harness(std::shared_ptr<Fixture> shared, l::ViewLimits limits = big())
 	    : fixture(std::move(shared)), runtime(fixture->heap), domain(runtime.domain(fixture->heap)),
 	      access(domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->storage,
-	                                            fixture->root, limits, domain.factory(), fixture->heap,
+	                                            fixture->root, limits, fixture->heap,
 	                                            mappings)) {}
 	~Harness() {
 		access.reset();

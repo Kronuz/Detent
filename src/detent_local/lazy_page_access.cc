@@ -3,11 +3,12 @@
 #include "detent_local/paged_definition.hh"
 #include "generation_file_access.hh"
 #include "paged_limits.hh"
-#include "segment_mapping.hh"
+#include "generation_mapping.hh"
 #include "segment_names.hh"
 #include <atomic>
 #include <bit>
 #include <cstring>
+#include <sys/mman.h>
 #include <system_error>
 #include <vector>
 
@@ -38,8 +39,19 @@ void LazyPageTesting::install(void (*hook)(LazyPageWindow, void *) noexcept, voi
 	window_context.store(context, std::memory_order_relaxed);
 	window_hook.store(hook, std::memory_order_relaxed);
 }
-struct LazyPageAccess::State {
-	using Mapping = d::RetirementHandle<SegmentMapping>;
+// A read-only private mapping of one segment, charged to the mapped-bytes account.
+struct Mapping {
+	std::span<const char> bytes;
+	d::StorageLedger::Ticket ticket;
+	Mapping() = default;
+	Mapping(Mapping &&other) noexcept
+	    : bytes(std::exchange(other.bytes, {})), ticket(std::move(other.ticket)) {}
+	~Mapping() {
+		if (!bytes.empty())
+			::munmap(const_cast<char *>(bytes.data()), bytes.size());
+	}
+};
+struct PageTable::State {
 	using Word = std::atomic<std::uint64_t>;
 	// A mapped segment and its verified-page bitmap; immutable once published except for the bits.
 	struct Segment {
@@ -48,30 +60,26 @@ struct LazyPageAccess::State {
 		std::span<const char> bytes;
 		mutable std::vector<Word, d::StorageAllocator<Word>> verified;
 		Segment(const StorageIdentity &id, Mapping held, const std::shared_ptr<d::StorageLedger> &account)
-		    : identity(id), mapping(std::move(held)), bytes(mapping->bytes()),
+		    : identity(id), mapping(std::move(held)), bytes(mapping.bytes),
 		      verified((bytes.size() / granule_bytes + 64) / 64, d::StorageAllocator<Word>(account)) {}
 	};
 	using Slot = std::atomic<Segment *>;
-	std::shared_ptr<const void> lease;
 	int directory;
 	uid_t publisher;
 	StorageIdentity storage;
 	p::Root root;
 	ViewLimits limits;
-	d::RetirementFactory factory;
 	std::shared_ptr<d::StorageLedger> heap, mapping_account;
 	mutable std::vector<Slot, d::StorageAllocator<Slot>> slots;
 	mutable std::atomic<std::uint64_t> mapped_bytes{0}, published{0}, verifications{0};
 	mutable std::atomic<bool> failed{false};
 	std::size_t retired = 0;
-	State(std::shared_ptr<const void> owner, int fd, uid_t uid, StorageIdentity identity, p::Root selected,
-	      ViewLimits bounds, d::RetirementFactory allocator, std::shared_ptr<d::StorageLedger> account,
-	      std::shared_ptr<d::StorageLedger> mappings)
-	    : lease(std::move(owner)), directory(fd), publisher(uid), storage(identity), root(selected),
-	      limits(bounds), factory(std::move(allocator)), heap(std::move(account)),
-	      mapping_account(std::move(mappings)),
+	State(int fd, uid_t uid, StorageIdentity identity, p::Root selected, ViewLimits bounds,
+	      std::shared_ptr<d::StorageLedger> account, std::shared_ptr<d::StorageLedger> mappings)
+	    : directory(fd), publisher(uid), storage(identity), root(selected), limits(bounds),
+	      heap(std::move(account)), mapping_account(std::move(mappings)),
 	      slots(slot_count(root.segments), d::StorageAllocator<Slot>(heap)) {
-		if (!lease || directory < 0 || !heap || !mapping_account || !factory.uses_account(heap))
+		if (directory < 0 || !heap || !mapping_account)
 			throw std::invalid_argument("lazy reader requires pinned resources");
 		p::encode_root(root, paged_limits(limits, p::root_bytes));
 	}
@@ -128,12 +136,15 @@ struct LazyPageAccess::State {
 			throw ReadSourceFailure("segment payload has an unsafe ACL");
 		if ((raced = admit(identity, probe, length)))
 			return {};
-		auto mapped =
-		    factory.make<SegmentMapping>(mapping_account, payload.fd, publisher, SegmentExtent{length});
+		Mapping mapped;
+		mapped.ticket = mapping_account->admit(rounded_mapping_bytes(length));
+		const auto address = ::mmap(nullptr, length, PROT_READ, MAP_PRIVATE, payload.fd, 0);
+		if (address == MAP_FAILED)
+			throw std::runtime_error("immutable segment mmap failed");
+		mapped.bytes = {static_cast<const char *>(address), length};
 		struct stat named{};
 		if (::fstatat(directory, names.payload.data(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
-		    std::uint64_t(named.st_dev) != mapped->identity().device ||
-		    std::uint64_t(named.st_ino) != mapped->identity().inode)
+		    named.st_dev != held.st_dev || named.st_ino != held.st_ino)
 			throw ReadSourceFailure("segment payload changed during attachment");
 		return mapped;
 	}
@@ -230,29 +241,42 @@ struct LazyPageAccess::State {
 		}
 	}
 };
-LazyPageAccess::LazyPageAccess(std::shared_ptr<const void> owner, int fd, uid_t publisher,
-                               StorageIdentity storage, p::Root root, ViewLimits limits,
-                               d::RetirementFactory factory, std::shared_ptr<d::StorageLedger> heap,
-                               std::shared_ptr<d::StorageLedger> mappings)
-    : state_(d::make_storage_owner<State>(heap, std::malloc, std::free, std::move(owner), fd, publisher,
-	                                      storage, root, limits, std::move(factory), heap,
-	                                      std::move(mappings))) {}
-LazyPageAccess::~LazyPageAccess() = default;
-std::span<const char> LazyPageAccess::resolve(const p::Reference &reference) const {
-	return state_->resolve(reference);
-}
-std::uint32_t LazyPageAccess::maximum_overrides() const noexcept { return state_->limits.overrides; }
-bool LazyPageAccess::available() const noexcept { return !state_->failed.load(std::memory_order_relaxed); }
-std::size_t LazyPageAccess::mapped_segments() const {
-	return state_->published.load(std::memory_order_relaxed);
-}
-std::uint64_t LazyPageAccess::page_verifications() const noexcept {
+PageTable::PageTable(int fd, uid_t publisher, StorageIdentity storage, p::Root root, ViewLimits limits,
+                     std::shared_ptr<d::StorageLedger> heap, std::shared_ptr<d::StorageLedger> mappings)
+    : state_(d::make_storage_owner<State>(heap, std::malloc, std::free, fd, publisher, storage, root, limits,
+                                          heap, std::move(mappings))) {}
+PageTable::~PageTable() = default;
+PageTable::PageTable(PageTable &&) noexcept = default;
+std::span<const char> PageTable::resolve(const p::Reference &reference) const { return state_->resolve(reference); }
+std::uint32_t PageTable::maximum_overrides() const noexcept { return state_->limits.overrides; }
+bool PageTable::available() const noexcept { return !state_->failed.load(std::memory_order_relaxed); }
+std::size_t PageTable::mapped_segments() const { return state_->published.load(std::memory_order_relaxed); }
+std::uint64_t PageTable::page_verifications() const noexcept {
 	return state_->verifications.load(std::memory_order_relaxed);
 }
+bool PageTable::release_one() noexcept { return state_ && state_->release_one(); }
+
+LazyPageAccess::LazyPageAccess(std::shared_ptr<const void> owner, int fd, uid_t publisher,
+                               StorageIdentity storage, p::Root root, ViewLimits limits,
+                               std::shared_ptr<d::StorageLedger> heap, std::shared_ptr<d::StorageLedger> mappings)
+    : lease_(std::move(owner)) {
+	if (!lease_)
+		throw std::invalid_argument("lazy reader requires pinned resources");
+	table_.emplace(fd, publisher, storage, root, limits, std::move(heap), std::move(mappings));
+}
+LazyPageAccess::~LazyPageAccess() = default;
+std::span<const char> LazyPageAccess::resolve(const p::Reference &reference) const {
+	return table_->resolve(reference);
+}
+std::uint32_t LazyPageAccess::maximum_overrides() const noexcept { return table_->maximum_overrides(); }
+bool LazyPageAccess::available() const noexcept { return table_->available(); }
+std::size_t LazyPageAccess::mapped_segments() const { return table_->mapped_segments(); }
+std::uint64_t LazyPageAccess::page_verifications() const noexcept { return table_->page_verifications(); }
 bool LazyPageAccess::retire_step() noexcept {
 	for (std::size_t i = 0; i != ValidationBudget{}.rows; ++i)
-		if (!state_->release_one()) {
-			state_.reset();
+		if (!table_->release_one()) {
+			table_.reset();
+			lease_.reset();
 			return true;
 		}
 	return false;

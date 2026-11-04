@@ -123,7 +123,7 @@ int main() {
 	auto mappings = std::make_shared<d::StorageLedger>(8 * p::segment_bytes);
 	auto access =
 	    domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->storage,
-		                               fixture->root, limits, domain.factory(), fixture->heap, mappings);
+		                               fixture->root, limits, fixture->heap, mappings);
 	auto leaf_reader = [&](std::string_view prefix, std::uint64_t ordinal) {
 		std::array<char, 8> watermark{};
 		l::write_integer(watermark, 0, 9, 8);
@@ -157,7 +157,7 @@ int main() {
 		root.records = 0;
 		auto reader =
 		    domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->storage, root,
-			                               limits, domain.factory(), fixture->heap, mappings);
+			                               limits, fixture->heap, mappings);
 		using Owner = d::RetirementHandle<x::LazyPageAccess>;
 		auto owner = std::make_shared<Owner>(std::move(reader));
 		return x::PagedReadState{root, {}, std::shared_ptr<const x::PagedPageAccess>(owner, owner->get())};
