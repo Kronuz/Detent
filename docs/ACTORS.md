@@ -71,7 +71,7 @@ The configuration either omits `voters` (a single voter, for development) or lis
 3. Steady state: the leader commits groups of transactions; checkpoints start once the retained log reaches half its configured limits, and old journal segments go after a checkpoint is published.
 4. A voter that falls behind catches up from the leader's log, or from a snapshot when the log has been compacted.
 
-**Where.** The authority tier: one machine per voter, each with its own disk. Build `detentd` with `-DDETENT_BUILD_DISTRIBUTOR=ON -DDETENT_BUILD_AUTHORITY=ON`; without `DETENT_BUILD_AUTHORITY`, `--authority` fails at startup. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detentd.json`. The PID file is `detentd-<port>.pid` in the runtime directory. The same build adds `detent-authority-admin` for offline `import` and `export`. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
+**Where.** The authority tier: one machine per voter, each with its own disk. Build `detentd` with `-DDETENT_BUILD_DISTRIBUTOR=ON -DDETENT_BUILD_AUTHORITY=ON`; without `DETENT_BUILD_AUTHORITY`, `--authority` fails at startup. `authority.json` has no default location: pass `--authority PATH`, or set `"authority"` in `detentd.json`. The PID file is `detentd-<port>.pid` in the runtime directory. See [authority architecture](AUTHORITY_ARCHITECTURE.md) and [authority transport](AUTHORITY_TRANSPORT.md).
 
 ## Relay
 
@@ -171,7 +171,7 @@ Agents keep their last durable generation while anything upstream is down, and c
 | Option | Default | Builds |
 | --- | --- | --- |
 | `DETENT_BUILD_DISTRIBUTOR` | `ON` | `detentd` (classic distributor; also needed for the authority) |
-| `DETENT_BUILD_AUTHORITY` | `OFF` | `--authority` in `detentd`, and `detent-authority-admin`; needs `DETENT_BUILD_DISTRIBUTOR` |
+| `DETENT_BUILD_AUTHORITY` | `OFF` | `--authority` in `detentd`; needs `DETENT_BUILD_DISTRIBUTOR` |
 | `DETENT_BUILD_RELAY` | `OFF` | `detent-relay`; needs OpenSSL 3.0 |
 | `DETENT_BUILD_MANAGED_AGENT` | `ON` | `--managed` support in `detent-agent` |
 | `DETENT_BUILD_TESTS`, `DETENT_BUILD_EXAMPLES`, `DETENT_BUILD_BENCHMARKS` | `ON` | Tests, examples, benchmarks |

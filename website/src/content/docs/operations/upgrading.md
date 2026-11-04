@@ -41,16 +41,6 @@ compatible legacy generation directory explicitly.
 
 ---
 
-## Classic Distributor to Authority
-
-Moving publishers from `/v1/snapshot` to the authority is an explicit,
-reversible migration with
-[`detent-authority-admin`](/Detent/reference/cli/detent-authority-admin/):
-import into a new directory, verify, switch writers; export with a higher legacy
-version to roll back.
-
----
-
 ## C++ ABI
 
 Detent is consumed from source. Public structs such as `InitOptions` and
