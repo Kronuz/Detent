@@ -8,7 +8,7 @@ Inputs folded in: the D3 re-check on main (`Detent:b55023b`, "Re-check" in `docs
 
 ## State
 
-Review fix round (CR1, CR2 of `docs/reviews/reader-s3.md` on `review/reader-s3`, `Detent:2eb248f`) done, rebased onto main `Detent:6e55794`; CI by dispatch on the head. Before the rebase, the code head (then `c5056c1`) was green on every job in run 41752136575. Rebased hashes: `19cda59` is `2ceeff9`, `043058c` is `a16569c`, `c5056c1` is `6d0d090`.
+Review fix round (CR1, CR2 of `docs/reviews/reader-s3.md` on `review/reader-s3`, `Detent:2eb248f`) done, rebased onto main `Detent:6e55794`. Code head `Detent:e0a209a`: CI run 41755940771 (dispatch) green on every job, linux-arm64-gcc, linux-tsan and linux-asan-ubsan included; headers and freebsd skipped by the workflow. Waiting for the re-check. Before the rebase, the code head (then `c5056c1`) was green on every job in run 41752136575. Rebased hashes: `19cda59` is `2ceeff9`, `043058c` is `a16569c`, `c5056c1` is `6d0d090`.
 
 ## Done
 
