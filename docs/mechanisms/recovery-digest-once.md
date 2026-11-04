@@ -50,8 +50,8 @@ Without `compared`, `GraphValidator` compares everything, as before. The warm pa
 (`WarmGraphValidator`, a prior registry) is unchanged.
 
 The skip is sound because the second pass walks the same root over the same registry inputs, whose
-pages are read-only mappings held under the generation lease, so the bytes it reads are the bytes
-the first pass compared.
+segments are read-only shared mappings of files that a recovery holds under the generation lease, so the
+bytes it reads are the bytes the first pass compared.
 
 ## Where a corrupt pack is rejected
 
