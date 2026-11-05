@@ -54,6 +54,21 @@
       "risk": "high",
       "status": "active",
       "tasks": {
+        "deltas": {
+          "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
+          "branch": "quest/dense-pages--deltas",
+          "files": [
+            "src/detent_local/paged_overlay*",
+            "src/detent_local/paged_reuse*",
+            "src/detent_local/paged_delta*",
+            "src/detent_local/paged_compaction*",
+            "src/detent_local/sparse_finalizer*",
+            "tests/detent_local/test_dense_delta*",
+            "tests/detent_local/test_paged_delta*",
+            "tests/detent_local/test_paged_compaction*"
+          ],
+          "worktree": "../Detent-wt/dense-pages--deltas"
+        },
         "reads": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
           "branch": "quest/dense-pages--reads",
@@ -76,7 +91,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-05T15:01:50",
+      "updated": "2026-11-05T15:01:51",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
