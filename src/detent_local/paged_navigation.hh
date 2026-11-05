@@ -24,8 +24,12 @@ inline std::span<const char> checked_page_bytes(const SegmentInput &segment,
 		reference.length > segment.bytes.size() - reference.offset)
 		throw std::invalid_argument("invalid paged segment reference");
 	const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
+	const auto header = paged::decode_page_header(bytes, paged_format_limits());
+	if (header.length != reference.length || header.keys != reference.keys ||
+		header.height != reference.height || header.digest != reference.digest)
+		throw ReadSourceFailure("local page reference differs from reached header");
 	if (segment.pages && !segment.pages->test(reference.offset)) {
-		// First touch: the page's digests against its parent's reference, once per mapping.
+		// First touch compares the page commitment once per exact mapping start.
 		try {
 			paged::verify_page(bytes, reference, paged_format_limits());
 		} catch (const std::exception &) {
