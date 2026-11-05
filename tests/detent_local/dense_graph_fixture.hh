@@ -37,33 +37,23 @@ struct Fixture {
 	std::vector<Page> pages;
 	std::vector<char> bytes;
 	std::array<l::detail::SegmentInput, 1> inputs;
-	l::StorageIdentity storage{};
+	l::StorageIdentity storage{}, segment = [] {
+		l::StorageIdentity id;
+		id.fill('s');
+		return id;
+	}();
 	p::Root root;
 	void refresh() {
 		l::SegmentOwnership ownership;
 		ownership.storage = storage;
-		ownership.segment.fill('s');
+		ownership.segment = segment;
 		ownership.length = bytes.size();
 		ownership.checksum = p::pack_commitment(bytes);
 		inputs[0] = {ownership, bytes};
 	}
 };
-inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
-	auto result = std::make_shared<Fixture>();
-	result->storage.fill('x');
-	std::array<char, 202> key{};
-	for (std::size_t i = 0; i < definitions; ++i) {
-		const auto name = "ns:k" + std::to_string(100000 + i);
-		const auto length = p::encode_definition_key(key, name);
-		detent::IntDef value{static_cast<std::int64_t>(i)};
-		std::vector<char> body(p::definition_size(value));
-		p::encode_definition(body, value, 8);
-		result->rows.push_back({std::string(key.data(), length), std::move(body)});
-	}
-	const auto length = p::encode_namespace_key(key, "ns");
-	std::vector<char> watermark(8);
-	l::write_integer(watermark, 0, 9, 8);
-	result->rows.push_back({std::string(key.data(), length), std::move(watermark)});
+inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_t definitions,
+                                     std::size_t namespaces) {
 	std::sort(result->rows.begin(), result->rows.end(),
 	          [](const Row &a, const Row &b) { return a.key < b.key; });
 	auto read = [](const void *input, std::uint64_t ordinal, std::span<char> out) {
@@ -81,7 +71,7 @@ inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 		if (packer.ready()) {
 			const auto page = packer.page();
 			auto reference = page.summary;
-			reference.segment.fill('s');
+			reference.segment = result->segment;
 			result->bytes.resize((result->bytes.size() + 7) & ~std::size_t(7));
 			reference.offset = result->bytes.size();
 			result->bytes.insert(result->bytes.end(), page.bytes->data(),
@@ -113,7 +103,7 @@ inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 	result->root.pages = result->pages.size();
 	result->root.segments = 1;
 	result->root.records = definitions;
-	result->root.namespaces = 1;
+	result->root.namespaces = namespaces;
 	result->root.cursor.cluster.fill('c');
 	result->root.cursor.group.fill('g');
 	result->root.cursor.restore_epoch.fill('e');
@@ -122,4 +112,23 @@ inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 	result->refresh();
 	return result;
 }
+inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
+	auto result = std::make_shared<Fixture>();
+	result->storage.fill('x');
+	std::array<char, 202> key{};
+	for (std::size_t i = 0; i < definitions; ++i) {
+		const auto name = "ns:k" + std::to_string(100000 + i);
+		const auto length = p::encode_definition_key(key, name);
+		detent::IntDef value{static_cast<std::int64_t>(i)};
+		std::vector<char> body(p::definition_size(value));
+		p::encode_definition(body, value, 8);
+		result->rows.push_back({std::string(key.data(), length), std::move(body)});
+	}
+	const auto length = p::encode_namespace_key(key, "ns");
+	std::vector<char> watermark(8);
+	l::write_integer(watermark, 0, 9, 8);
+	result->rows.push_back({std::string(key.data(), length), std::move(watermark)});
+	return seal(std::move(result), definitions, 1);
+}
+
 } // namespace dense_graph_test
