@@ -180,7 +180,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		auto view = factory.make<ReadView::Root>(
 		    access_owner, PagedReadState{root, {}, std::move(page_access)}, metadata.counts.bools,
 		    metadata.counts.ints, metadata.counts.overrides, metadata.counts.strings);
-		return {ReadView(std::move(view)), descriptor, directory_identity, root.logical};
+		return {ReadView(std::move(view)), descriptor, directory_identity, paged::state_commitment(root)};
 	}
 	throw GenerationUnavailable("selected generation changed during attachment");
 }
