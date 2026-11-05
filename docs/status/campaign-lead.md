@@ -47,7 +47,7 @@ The handoff's defaults apply: read-time bounds and failure containment, cold rec
 
 ## Monitoring
 
-The lead keeps the sidebar, this ledger and the status index current. A local `blockers --watch 10` process watches host contention. The tool catalog offers no session scheduling tool; recurring host snapshots can record CI, holds and disk locally, while agent reports are read by the active lead. No unattended continuation is claimed from a notification alone.
+The lead keeps the sidebar, this ledger and the status index current. A local `blockers --watch 10` process watches host contention. The tool catalog offers no session scheduling tool. `.scratch/campaign-monitor.sh` records host, branch and CI snapshots and sends a sidebar notification at odd hours, minute 17, for at most four days. Its stop file is `.scratch/campaign-monitor/STOP`. The active lead reads contributor ledgers for the narrative report; a notification alone does not continue campaign work.
 
 ## Log
 
