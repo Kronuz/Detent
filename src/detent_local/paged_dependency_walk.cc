@@ -113,19 +113,14 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 				if (!s.page->discard(budget))
 					return;
 				s.page.reset();
-				require(frame.header.prefix <= 202 - frame.context);
-				frame.context += frame.header.prefix;
-				frame.children = frame.header.children;
+				frame.children = frame.header.externals;
 				frame.checked = true;
 			}
 			if (frame.children) {
 				if (!s.admit(p::child_bytes + 1, budget))
 					return;
-				require(frame.context < 202);
-				auto child = p::decode_child(frame.bytes.subspan(p::page_header_bytes + frame.header.prefix +
-																	 (--frame.children) * p::child_bytes,
-																 p::child_bytes));
-				s.push(child.reference, frame.context + 1);
+				const auto child = p::decode_external(frame.bytes, --frame.children, s.limits);
+				s.push(child, 0);
 			} else {
 				if (!budget.rows)
 					return;

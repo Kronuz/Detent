@@ -128,6 +128,7 @@ void DependencyDiscovery::step(ValidationBudget &budget) {
 				--budget.rows;
 				unsigned char digest[32];
 				s.hash.getHash(digest);
+				p::count_hash(p::HashKind::Pack, 1, bytes.size());
 				require(std::memcmp(digest, s.pending->ownership().checksum.data(), 32) == 0);
 				s.position = s.find(s.pending->ownership().segment) - s.inputs->mappings.begin();
 				s.moving = s.inputs->mappings.size();
