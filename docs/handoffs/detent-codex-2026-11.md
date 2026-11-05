@@ -22,7 +22,7 @@ You lead Detent until the owner takes it back. Five branches are in flight, an u
 | Branch | Head | State | Ledger |
 | --- | --- | --- | --- |
 | `reader/s6` | `Detent:3d8559a` | Built; the T3 `selected` race fixed at `Detent:47470ea`; CI run 41933091120 not yet watched | `docs/status/reader-s5-s6.md` |
-| `legacy/wave2-h` | `Detent:aac6cb6` | Built on top of S6, CI run 41926685309 | `docs/status/legacy-wave2.md` |
+| `legacy/wave2-h` | `Detent:aac6cb6` | Built on top of S6; CI run 41926685309 failed only `test_reader_switch` on linux gcc x86_64 and arm64, the S6 race fixed at `Detent:47470ea`, which H does not have yet | `docs/status/legacy-wave2.md` |
 | `namespace/s3b` | `Detent:d4692ba` | CI green; architect APPROVE WITH CONDITIONS; fix round not started | `docs/status/namespace-s3b.md` |
 | `namespace/s1-s2` | `Detent:76bb6cf` | S1 done; S2 written (WIP), evidence owed | `docs/status/namespace-s1-s2.md` |
 | `design/dense-pages` | `Detent:57bc17e` | Merged to `main` (`Detent:ea81f1d`); awaiting preliminary architect review | `docs/status/dense-pages.md` |
