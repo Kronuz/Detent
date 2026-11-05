@@ -121,6 +121,12 @@ int main() {
 	auto old = nonempty;
 	old[7] = '2';
 	rejects([&] { p::decode_root(old); });
+    l::write_integer(old, 8, 2, 4);
+    try { p::decode_root(old); require(false); } catch (const p::UnsupportedFormat &) {}
+    old[7] = '4';
+    try { p::decode_root(old); require(false); }
+    catch (const p::UnsupportedFormat &) { require(false); }
+    catch (const std::invalid_argument &) {}
 	old = page;
 	old[7] = '2';
 	rejects([&] { p::verify_page(old, ref); });

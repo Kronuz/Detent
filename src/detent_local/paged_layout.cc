@@ -356,6 +356,9 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	return bytes;
 }
 Root decode_root(std::span<const char> bytes, Limits limits) {
+    if (bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT02" &&
+        read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 12, 4) == root_bytes)
+        throw UnsupportedFormat();
 	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
 			read_integer(bytes, 8, 4) == 3 && read_integer(bytes, 12, 4) == root_bytes &&
 			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(225)));
