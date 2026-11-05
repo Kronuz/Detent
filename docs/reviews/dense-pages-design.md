@@ -80,3 +80,49 @@ Keep the whole-pack checksum, Q1(a), throughout S1–S5. Keep record full copies
 6. **DP-6:** Pass the quantitative reader gate before merging the sole-format switch.
 
 **APPROVE WITH REQUIRED CHANGES.** No implementation or format freeze is approved by this preliminary review.
+
+## Contract correction check
+
+- Date: 2026-11-04.
+- Reviewed: `phase/dense-pages` at `Detent:d379f69`, the design/model/ledger changes since `Detent:d5fa05d`, and the original review above in full. Citations below refer to the candidate unless stated otherwise.
+- Scope: DP-1 through DP-3's corrected foundations, including the explicit path identity and empty-state domain; DP-4 through DP-6 checked for contradictions with those foundations and the accepted owner defaults.
+- Checked by: source inspection and contract composition. Existing C++ reference/root, contextual-reuse and graph/warm-validation code supplies interface evidence; it still implements version 2.
+- Not run: model execution, builds, tests, revert checks, mutants, sanitizers, fuzzing, corpus regeneration, benchmarks, VMs or remote hosts. `quiet check` returns 1 under Xapiand's exclusive hold until 01:21. The queued proof job is inspected, not executed by this review.
+
+### Verdict
+
+**APPROVE WITH CONDITIONS for continued implementation.** DP-1 through DP-3's design contracts are clear. No builds-on blocker remains in this revision. S1 codec and packer work may start against them while model proof is queued. K1's execution evidence and all implementation, freeze and landing approvals remain pending.
+
+Whole-pack checksums and record full copies remain the S1–S5 defaults. This check completes the corrected-contract portion of the preliminary review; it establishes no measured improvement.
+
+### Status per finding
+
+1. **DP-1: Design contract closed; allocator proof open.** D7 defines one entering trie path plus equal digest/length/keys/height, and assigns each retained extent once (`docs/design/dense-pages.md:164`). The model preserves those paths at cluster creation and seal, then compares occurrences and rejects duplicate base ownership (`docs/design/dense-pages-model.py:671`, `:700`, `:754`, `:1419`). Digest novelty is reported separately (`:1373`).
+
+   This composes across the inline/sealed boundary. A cluster inline in the base has no base page extent at its top-node path and must be written when sealed. For a retained page, equal covered content at the same entering path fixes the prefixes, slots and external-child paths. Its retained descendants therefore occupy their corresponding base paths recursively. Equal content at another path supplies no ownership claim. Physical disjointness still applies to the entire reachable graph, including skipped descendants; the existing cold validator marks every extent cell (`src/detent_local/paged_graph_validator.cc:265`). The boundary fixture asserts an equal-content write beside a retained occurrence (`docs/design/dense-pages-model.py:1526`), but neither execution nor an actual digest-global reuse revert check is present.
+
+2. **DP-2: Design contract closed; byte fixtures and lifecycle proof open.** D3 fixes every reference field, DTROOT03's version/length, both retained zero ranges and the complete reserved tail [225,320). It defines absence as exactly 65 zero bytes and derives the empty commitment from the exact non-NUL ASCII domain (`docs/design/dense-pages.md:84`). The root counts and absent tree must agree; empty keeps its cursor/profile. The nonempty inequalities also admit the one-watermark case: keys, height, pages and segments are 1, with length and page bytes 79. The retained root offsets agree with the current encoder (`src/detent_local/paged_layout.cc:259`). Empty packing and the commitment function exist in the model (`docs/design/dense-pages-model.py:759`, `:1446`); it has no DTROOT03 encoder. Exact root/reference bytes and empty restart/delete-last/add-first cases remain K2 work.
+
+3. **DP-3: Design contract closed; validator proof open.** D4 binds reference length/keys/height to the reached header on first touch and hits; D9 requires the same in graph validation (`docs/design/dense-pages.md:97`, `:102`, `:174`). Replay uses a normal sealed child's `(length - 64, height - 1)` cluster, excludes self-sealed pages above C from inline candidates, and rejects zero heights and arithmetic overflow. Together with the child's own canonical validation, these supply the induction premise.
+
+   A warm skip inherits D7's corresponding-path identity and requires the same extent, digest and validated summaries under the retained base lifetime. Preserve the existing context's descriptor/directory/storage checks as well as its entering prefix (`src/detent_local/paged_contextual_reuse.cc:38`; `src/detent_local/paged_warm_validator.cc:339`). An equal digest in a new parent cannot supply that proof. The model's false-summary probes pass altered arguments directly to `PageReader.page` (`docs/design/dense-pages-model.py:1483`); they do not forge an external entry, recompute a parent digest or exercise a competing seal choice. Those checks remain K4/K6 work.
+
+4. **DP-4: Design obligation recorded; read-path proof open.** The execution contract carries the accepted S3b bounded-read/SourceFailure default through every visit, requires exact page starts and bounds traversal progress (`docs/design/dense-pages.md:378`). D4 and Limit 3 retain the residual for framing-valid body mutations (`:102`, `:254`). This is consistent with unauthenticated placement and avoids claiming hit-path body integrity. The separate verified-mapping mutation tests remain K8/K9/K13 obligations.
+
+5. **DP-5: Design obligations recorded; execution proof open.** The lead-set K1–K15 cover the corrected contracts (`docs/status/dense-pages.md:29`). The design separates placement-free identity from T8's derived-id dependency, defines page/pack/metadata accounting, preserves resumable admission/cancellation/yields, and fixes the explicit churn inputs (`docs/design/dense-pages.md:217`, `:379`). These obligations support implementation. The ledger's earlier “final model” checks at `docs/status/dense-pages.md:22` do not verify this reviewed head; its correction-evidence block explicitly leaves execution queued (`:59`). Exact T4 targets require corrected output before acceptance.
+
+6. **DP-6: Design obligation recorded; quantitative gate open.** T5 now gates merging the complete candidate, using the accepted preceding S6/main and S3b baselines, the named reader platform and the inherited numerical thresholds (`docs/design/dense-pages.md:383`). A miss blocks merge pending investigation/retest or an explicit owner decision. T6's CPU/wall estimate remains informational. No reader acceptance evidence is supplied by this revision.
+
+### Allowed next scopes
+
+1. **S1 may start now:** implement the version-3 codec, state-commitment function, resumable packer and their fixtures against these settled contracts. Queue execution under the host holds. The queued model result is an acceptance obligation, not a prerequisite to starting this work.
+2. **S2 and S4 may build on the S1 interfaces:** implement bound summaries, canonical replay, contextual warm skips, occurrence-aware allocation and relocation. Preserve one physical owner per reachable extent and the complete base context when skipping descendants.
+3. **S3 follows the landed S6 interfaces and S2:** carry the selected S3b behavior into the dense walk. S5 and the sole-format switch land only after the series' required proof, reader gate, decoder-safety review, architect landing review and final-head CI clear.
+
+### Blocking items and proof still required
+
+There is no additional builds-on design blocker. All K1–K15 remain unticked in the reviewed ledger. In particular, approval still needs:
+
+1. **Current model evidence:** read the queued job's recorded head, model hash and exit/results for contracts, synthetic self-check, Ruff and strict Pyrefly. Its command list contains those checks only (`.scratch/dense-contracts/proof-job.py:11`). Run the repeated-content fixture with digest-global reuse restored and show that it fails. Preserve corrected corpus/model identities and explicit one-update/mixed-churn raw output before treating T4 counts as exact.
+2. **C++ contract proof:** exact root/reference/reserved-byte and empty lifecycle fixtures; incremental allocator values, page occurrences and extent ownership against full rebuilds, including both sealing-boundary directions and nested reused descendants; checksum-correct false keys/heights with a recomputed parent digest through cold and warm validation. The false-height case must alter a competing sealing choice and fail with cross-page binding removed. Include encoded zero/overflow heights and oversize self-sealed children, with live checks and the required revert checks/mutants.
+3. **Series acceptance:** the bounded resource/mutation tests, separate sanitizer trees, decoder fuzzing, S3b regressions, actual 100K/5M results beside projections, quantitative premerge T5, required independent clearances and final-head hosted CI. A passing queued Python job supplies none of these C++ or reader results.
