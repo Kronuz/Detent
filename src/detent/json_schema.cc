@@ -23,9 +23,8 @@ namespace internal {
 // cap enforced upstream in detentd -- reliably overruns the thread stack
 // and crashes the whole process (reproduced: SIGBUS on macOS, would be
 // SIGSEGV on Linux). The same parser is also the *client's* snapshot-
-// ingest path (parse_source_snapshot, fed by detent_http from whatever a
-// distributor -- or, with no TLS, anything impersonating one -- returns),
-// so an unbounded-depth payload can crash every consuming application
+// ingest path (parse_source_snapshot, fed by the file source or a custom
+// poll function), so an unbounded-depth payload can crash every consuming application
 // process too, not just detentd. A cheap linear pre-scan for max bracket
 // nesting, rejecting before rapidjson ever sees the bytes, is the primary
 // defense (bounds memory/CPU, not just the stack); Parse<kParseIterativeFlag>
@@ -228,9 +227,8 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	// used to rely on the *caller* enforcing a byte cap -- true for
 	// detentd's own PUT ingest (CappedBodySink) and the file source's own
 	// read, but not for an arbitrary InitOptions::source_poll
-	// implementation or a raw HttpConnection response body, so an
-	// untrusted/spoofed source (there is no TLS/auth) could still drive
-	// unbounded parsing/allocation through those paths. Enforce it here,
+	// implementation, so an untrusted source could still drive unbounded
+	// parsing/allocation through that path. Enforce it here,
 	// once, so every caller gets it whether or not it remembers to.
 	if (json_text.size() > max_bytes) {
 		return fail(UpdateRejectReason::Oversize, "input exceeds max_bytes");

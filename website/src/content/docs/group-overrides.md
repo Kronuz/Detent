@@ -14,25 +14,13 @@ Add an `overrides` object to a bool definition. Each entry maps a group name to
 either a forced boolean or its own `rollout_pct`:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 11,
-  "knobs": {
-    "payments:new_processor": {
-      "type": "bool",
-      "default": false,
-      "rollout_pct": 10,
-      "overrides": {
-        "employees": true,
-        "excluded": false,
-        "beta": { "rollout_pct": 50 },
-        "production": { "rollout_pct": 5 }
-      }
-    }
+publish payments:new_processor '{
+  "type": "bool", "default": false, "rollout_pct": 10,
+  "overrides": {
+    "employees": true, "excluded": false,
+    "beta": {"rollout_pct": 50}, "production": {"rollout_pct": 5}
   }
-}
-EOF
+}'
 ```
 
 Your application supplies the caller's group as the *switch value*:
@@ -94,28 +82,23 @@ the `beta` percentage, send the complete definition with every group you want to
 keep:
 
 ```sh
-publish <<'EOF'
-{
-  "schema_version": 1,
-  "version": 12,
-  "knobs": {
-    "payments:new_processor": {
-      "type": "bool",
-      "default": false,
-      "rollout_pct": 10,
-      "overrides": {
-        "employees": true,
-        "excluded": false,
-        "beta": { "rollout_pct": 100 },
-        "production": { "rollout_pct": 5 }
-      }
-    }
+detent get payments:new_processor --hash user-2 --switch beta
+# false
+publish payments:new_processor '{
+  "type": "bool", "default": false, "rollout_pct": 10,
+  "overrides": {
+    "employees": true, "excluded": false,
+    "beta": {"rollout_pct": 100}, "production": {"rollout_pct": 5}
   }
-}
-EOF
+}'
+sleep 1
+detent get payments:new_processor --hash user-2 --switch beta
+# true
 ```
 
-Leaving `production` out of that definition would delete its override.
+`user-2` falls outside the old 50% for this knob, so it reads `false` in `beta`
+before the publish and `true` after. Leaving `production` out of that
+definition would delete its override.
 
 :::hint[Int knobs have no group overrides]{.info}
 Group overrides and rollouts are bool-only. The int read API accepts a switch

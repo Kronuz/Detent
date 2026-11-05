@@ -22,7 +22,7 @@ class Workload:
 
 def workloads() -> list[Workload]:
     cases: list[Workload] = []
-    for program in ("detent_read_bench", "detent_agent_shm_bench"):
+    for program in ("detent_read_bench",):
         for threads in (1, 4, 8):
             cases.append(
                 Workload(f"{program}-{threads}", program, (str(threads), "2000000"))

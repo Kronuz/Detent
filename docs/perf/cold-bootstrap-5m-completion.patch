@@ -1,0 +1,100 @@
+--- posix.h.orig	2026-11-04 12:20:21
++++ posix.h	2026-11-04 12:21:12
+@@ -21,6 +21,7 @@
+  */
+ 
+ #pragma once
++#include "sync_probe.h"
+ 
+ #include "io.h"
+ #include "allocation.h"
+@@ -149,7 +150,7 @@
+ #ifdef __APPLE__
+ 	FcntlCall fcntl_call = &default_fcntl;
+ 	int stat(int fd, struct stat* status) const { return ::fstat(fd, status); }
+-	int full_sync(int fd) const { return fcntl_call(fd, F_FULLFSYNC); }
++	int full_sync(int fd) const;
+ 	// F_BARRIERFSYNC; the stronger full flush only where the filesystem lacks the call. Any
+ 	// other error (EIO, ...) is the barrier's own failure and is returned, never retried.
+ 	int barrier(int fd) const {
+@@ -165,9 +166,20 @@
+ 	int writeback(int fd) const { return writeback_call(fd); }
+ #endif
+ };
++
++#ifdef __APPLE__
++inline int SyncCalls::full_sync(int fd) const { ++::kronuz::io::completion::detail::sync_probe.full; return fcntl_call(fd, F_FULLFSYNC); }
++#endif
+ inline void file_sync(int fd) {
+ 	int result;
+ #ifdef __APPLE__
++	if (::kronuz::io::completion::detail::sync_probe.staged_mode) {
++		++::kronuz::io::completion::detail::sync_probe.staged;
++		do { result = ::fsync(fd); } while (result < 0 && errno == EINTR);
++		if (result < 0) { system_failure("durably sync journal file"); }
++		return;
++	}
++	++::kronuz::io::completion::detail::sync_probe.full;
+ 	do { result = ::fcntl(fd, F_FULLFSYNC); } while (result < 0 && errno == EINTR);
+ #else
+ 	do { result = ::fsync(fd); } while (result < 0 && errno == EINTR);
+@@ -629,6 +641,7 @@
+ 		// Directory fsync establishes namespace ordering; fullsync then asks the storage
+ 		// device to flush its cache, through the owner file when held, else the directory.
+ 		const int owner = owner_fd_.load();
++		++::kronuz::io::completion::detail::sync_probe.directory;
+ 		do { result = sync_calls_.full_sync(owner >= 0 ? owner : directory_); } while (result < 0 && errno == EINTR);
+ 		if (result < 0) { detail::system_failure("durably sync journal file"); }
+ #endif
+--- image.h.orig	2026-11-04 12:20:21
++++ image.h	2026-11-04 12:20:41
+@@ -23,6 +23,7 @@
+ #pragma once
+ #include "allocation.h"
+ #include "api.h"
++#include "sync_probe.h"
+ #include <algorithm>
+ #include <limits>
+ #include <system_error>
+@@ -237,6 +238,13 @@
+ 					phase_ = 2;
+ 			} else if (phase_ == 2) {
+ 				phase_ = 3;
++				if (detail::sync_probe.staged_mode) {
++					if (managed)
++						close_or_finish();
++					else
++						terminal();
++					return true;
++				}
+ 			} else {
+ 				if (managed)
+ 					close_or_finish();
+--- /dev/null	2026-11-04 12:30:54
++++ sync_probe.h	2026-11-04 12:20:41
+@@ -0,0 +1,25 @@
++#pragma once
++#include <atomic>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <stdlib.h>
++
++namespace kronuz::io::completion::detail {
++// Exploration probe (Detent explore/cold-bootstrap): counts device flushes; with
++// DETENT_STAGED_SYNC naming this program, a file sync stages (fsync) and image
++// preparations skip their directory barrier, leaving the flush to the publication.
++struct SyncProbe {
++	std::atomic<unsigned long long> full{0}, staged{0}, directory{0};
++	bool staged_mode = [] {
++		const char *v = std::getenv("DETENT_STAGED_SYNC");
++		return v && std::strcmp(v, getprogname()) == 0;
++	}();
++	~SyncProbe() {
++		if (std::getenv("DETENT_PROBE_SYNC"))
++			std::fprintf(stderr, "sync-probe %s full=%llu staged=%llu directory=%llu staged_mode=%d\n", getprogname(),
++						 full.load(), staged.load(), directory.load(), int(staged_mode));
++	}
++};
++inline SyncProbe sync_probe;
++} // namespace kronuz::io::completion::detail

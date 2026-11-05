@@ -48,9 +48,10 @@ class Detent < Formula
 
   def caveats
     <<~EOS
-      Start a distributor in the background and read a knob:
-        detentd --daemonize
-        detent get NAME
+      Start an authority and a managed agent in the background, then read a knob:
+        detentd --authority AUTHORITY_CONFIG --daemonize
+        detent-agent --managed PRIVATE_CONFIG --daemonize
+        detent get NAME --managed PRIVATE_CONFIG
 
       Service templates for launchd are in:
         #{opt_pkgshare}/launchd
@@ -58,16 +59,9 @@ class Detent < Formula
   end
 
   test do
-    (testpath/"defaults.json").write <<~JSON
-      {"schema_version": 1, "knobs": {"app:on": {"type": "bool", "default": true}}}
-    JSON
-    runtime = testpath/"runtime"
-    assert_equal "true\n",
-                 shell_output("#{bin}/detent get app:on --defaults #{testpath}/defaults.json " \
-                              "--runtime-dir #{runtime}")
-  ensure
-    status = Utils.safe_popen_read(bin/"detent-agent", "--status", "--runtime-dir", runtime.to_s)
-    pid = status[/running \(pid (\d+)\)/, 1]
-    Process.kill("TERM", pid.to_i) if pid
+    assert_match "no source configured",
+                 shell_output("#{bin}/detent get app:on --runtime-dir #{testpath}/runtime 2>&1", 1)
+    assert_match "no source configured",
+                 shell_output("#{bin}/detent-agent --runtime-dir #{testpath}/runtime 2>&1", 1)
   end
 end

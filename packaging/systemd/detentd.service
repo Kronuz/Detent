@@ -1,5 +1,5 @@
 [Unit]
-Description=Detent configuration distributor
+Description=Detent durable authority
 After=network.target
 
 [Service]

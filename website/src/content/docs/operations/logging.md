@@ -50,7 +50,6 @@ detentd --color truecolor -v >detent.log 2>&1
 
 1. Startup and shutdown of the daemons.
 2. Agent source transitions: connected, unavailable, and refresh failures. Repeated failures drop to debug until a newer snapshot arrives.
-3. Shared-memory capacity failures.
 
 Hash values, switch values and knob values are never logged.
 

@@ -1,4 +1,23 @@
-# Active qualification work
+> Status: CURRENT (2026-11-04) Live campaign execution is below; earlier qualification evidence remains in the dated section that follows.
+
+# Active campaign
+
+The [lead ledger](campaign-lead.md) records evidence and decisions under the [November handoff](../handoffs/detent-codex-2026-11.md). The next landing is reader S6.
+
+| Workstream | Branch | Worktree | Owner | State | Next | Updated |
+| --- | --- | --- | --- | --- | --- | --- |
+| Reader S6 | `reader/s6` | `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Reader contributor | Recovery | Concurrent failure, final proof, security review, merged-head CI | 2026-11-04 |
+| Sync groups | `namespace/s1-s2` | `.claude/worktrees/agent-af2c08dd24001ec58` | Sync contributor | Recovery | Power-cut failure, mutants, queued evidence, architect review | 2026-11-04 |
+| Dense pages design | `main` | Main, review file only | Independent architect | Preliminary review | Builds-on findings and numbered implementation criteria | 2026-11-04 |
+
+## Queued
+
+1. Namespace S3b fix round on `namespace/s3b`; its existing worktree is `.claude/worktrees/agent-a70bf4a502ea488db`.
+2. Reader proof audit and security review when the contributor identifies its final reviewable head.
+3. Dense-page S1 implementation after the preliminary review settles its foundations.
+4. Legacy H integration after S6 lands, then the remaining handoff follow-ups.
+
+## Earlier qualification evidence (2026-10-29)
 
 **Updated:** 2026-10-29. Detent remains in Stage 6, release qualification. No new supported operating ceiling is declared.
 
@@ -34,9 +53,9 @@ The [extraction checklist](../EXTRACTION_CHECKLIST.md) preserves the remaining r
 4. Keep the complete product suite, permission review and real-process reader checks green before pushing the reader component.
 5. Continue the original release gates after the diagnostic component; do not replace capacity, recovery, extraction or deployment qualification with a profiling result.
 
-## Session quota policy
+## Historical session quota policy (2026-10-29)
 
-Work proceeds serially. Reuse existing binaries and captured evidence before building or measuring again. Use at most one agent at a time, only for a narrow independent review or a measured task that earns its cost. Give that call a small token and experiment budget; do not repeat broad repository surveys. Full suites run at component boundaries, with focused checks for subsequent isolated fixes. Preserve interrupted work and ledgers before resuming it.
+The October session uses serial work and at most one agent. Current execution follows the November handoff and the campaign plan above. Existing binaries and captured evidence remain preferable to duplicate runs; full suites run at component boundaries, with focused checks for isolated fixes.
 
 The authority multi-process fixture requires all nodes to answer health checks before the workload and retries initial startup only after an exited daemon explicitly reports a bind collision (three attempts maximum). A real occupied-port injection exercises recovery and completes snapshot catch-up, failover and restart checks. Main run 40675654919 passes all six required jobs. The isolated public-pin HTTP consumer also passes six required jobs in run 40675608079; this establishes functional qualification for that closure, while its cost gate remains open.
 

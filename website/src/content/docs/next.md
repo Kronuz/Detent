@@ -2,22 +2,27 @@
 title: "Next Steps"
 ---
 
-You've published knobs, read them from the shell, ramped a rollout and
-overridden groups. Here's where to go next, depending on what you're building.
+You've run an authority and a managed agent, published knobs, read them from
+the shell, ramped a rollout and overridden groups. Here's where to go next,
+depending on what you're building.
 
 ---
 
-## Stop the Quick-start Agent
+## Stop the Quick-start Daemons
 
-The agent that `detent get` started keeps running in the background; inspect
-it and stop it with:
+The authority and the agent keep running in the background. Check the agent,
+stop both, and remove the tutorial directory:
 
 ```sh
-detent-agent --status
-# running (pid 65214)
-# OK version=12 knob_count=1
-kill -TERM <pid>
+detent-agent --status --generation-dir agent-state --runtime-dir run
+# running (pid 98461)
+# durable revision=13 knob_count=3
+kill "$(cat run/agent.pid)" "$(cat run/detentd-8317.pid)"
+cd ../.. && rm -rf build/quickstart
 ```
+
+The durable store and the generations live in `build/quickstart`, so removing
+it resets the tutorial.
 
 ---
 
@@ -38,6 +43,8 @@ kill -TERM <pid>
    protect.
 3. [Durable Authority](/Detent/guides/durable-authority/): authenticated,
    transactional publishing with durable consensus.
+4. [Managed Delivery](/Detent/guides/managed-delivery/): the agent's
+   credential, configuration, startup and resource bounds.
 
 ## Understand It
 

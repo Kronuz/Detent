@@ -76,6 +76,7 @@ export const sidebar = [
 		[
 			overview('/architecture'),
 			...pages(
+				'architecture/how-it-works',
 				'architecture/read-path',
 				'architecture/update-path',
 				'architecture/agent',

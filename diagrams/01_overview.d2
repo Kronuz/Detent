@@ -1,17 +1,21 @@
-# The top-level flow, deliberately minimal: three actors, no internals.
-# See 02_distributor_internals.d2, 03_gossip.d2, 04_read_path.d2, and
-# 05_update_path.d2 for what's inside each box.
+# The top-level flow, deliberately minimal: four actors, no internals.
+# See 04_read_path.d2, 05_update_path.d2 and 07_agent.d2 for what's inside
+# each box.
 direction: down
 
 publisher: Publisher {
   shape: person
 }
 
-distributor: Distributor\n(detentd) {
+authority: Authority\n(detentd) {
   shape: rectangle
 }
 
-client: App process\n(detent::Client) {
+agent: Host agent\n(detent-agent) {
+  shape: rectangle
+}
+
+reader: App process or\n`detent get` {
   shape: rectangle
 }
 
@@ -19,6 +23,7 @@ defaults: Baked defaults\n(just_knobs.json) {
   shape: page
 }
 
-publisher -> distributor: "PUT /v1/snapshot\n(publish a new version)"
-distributor -> client: "GET /v1/snapshot\n(conditional poll,\nevery poll_interval)"
-defaults -> client: "loaded at init()\nas version 0"
+publisher -> authority: "POST /v2/transactions\n(atomic, per-namespace)"
+authority -> agent: "managed delivery\n(snapshot or delta over TLS)"
+agent -> reader: "immutable local\ngenerations"
+defaults -> reader: "baked fallback\nfor missing knobs"

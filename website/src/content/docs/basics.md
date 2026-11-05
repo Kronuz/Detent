@@ -87,10 +87,10 @@ result to managed agents.
 
 ## Agent
 
-The agent, `detent-agent`, is a host-local daemon that runs one warm client and
-republishes every accepted snapshot into a shared-memory file. Shell scripts and
-programs in any language read knobs from that file with `detent get` without
-talking to the network or to the daemon.
+The agent, `detent-agent`, is a host-local daemon that receives authenticated
+deliveries from the authority and publishes immutable generations on disk. Shell
+scripts and programs in any language read knobs from them with `detent get`
+without talking to the network or to the daemon.
 
 ## Override
 
