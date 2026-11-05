@@ -22,6 +22,10 @@ struct AttachedGeneration {
 	AttachedGeneration &operator=(AttachedGeneration &&) = delete;
 	~AttachedGeneration();
 };
+// Qualification hook after opening a record and before its ownership check, on this thread.
+struct PreparedReaderTesting {
+	static void install(void (*)(std::string_view, void *), void *) noexcept;
+};
 class PreparedReader {
   public:
 	static GenerationSelection selection(const std::filesystem::path &, uid_t publisher);

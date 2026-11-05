@@ -4,7 +4,7 @@
 
 - Branches / worktree: `reader/s5` from `Detent:ff0167d`; `reader/s6` cut from `reader/s5`. Worktree `~/code/Kronuz/Detent/.claude/worktrees/agent-a1fbf8344cbf48ecb`.
 - Lead calls in force: Q1-Q6 all (a) (`docs/status/reader-design.md`); R1-R4 verbatim.
-- State: S5 landed (`Detent:d4dbbad`, `Detent:d1e9ee6`). S6 handed off on `reader/s6` (head in Next item 1), based on `Detent:3e8bdbc`, 44 commits behind main. Local release suites, mutants, ASan/UBSan and TSan green; CI not yet green (Next).
+- State: S5 landed (`Detent:d4dbbad`, `Detent:d1e9ee6`). S6 rework on `reader/s6`; current main merged at `Detent:a08386d`. Final merged-tree proof is pending the shared host hold and queued runs. The fixed soak has an unresolved fork-reply timeout; CI is not green.
 
 ## Done criteria (from the brief and the design's S5/S6 rows, T3, T6)
 
@@ -60,17 +60,12 @@ S6 (`reader/s6`, rebased on `Detent:3e8bdbc`):
 
 S6 criteria: D1, D2, D4, D5, D10 and the C++ header, attach by directory descriptor, Q6 (a), T3, T6, T1 syscalls, `reader_bench`, proof (values, mutants, reverts, sanitizers, note) are met locally; CI green on `reader/s6` is not.
 
-1. `Detent:47470ea` "Retry generation-file checks unlinked under them" fixes the last CI failure; its CI run 41933091120 was dispatched at hand-off and not watched to the end. CI history on `reader/s6`:
-   - 41863064265 (`Detent:9445d8e`): linux-x86_64-clang T3 `refresh status 5` (a lease collected between open and check), macos-x86_64 line 255 (thread count). Fixed by `Detent:70f648f` and `Detent:f92535f`.
-   - 41883147271 (`Detent:70f648f`): linux-x86_64-gcc and macos-x86_64 line 255, the thread count right after joining 17 threads (joined threads stay listed briefly). Fixed by `Detent:f92535f` (`threads_settle`, 5 s).
-   - 41903549136 (`Detent:f92535f`): macos-arm64 compile error (`std::exception_ptr` without `<exception>`); linux-x86_64-gcc T3 `refresh status 5: invalid local generation descriptor`. Fixed by `Detent:8768732`, which also names the refused property.
-   - 41921276663 (`Detent:8768732`): every job green except linux-x86_64-clang, T3 line 237, `refresh status 5: invalid local generation descriptor: link count (links 0, size 176)`: `selected` replaced between `record()`'s nlink pre-check and `check_generation_file`'s own `fstat`. linux-tsan was still running when handed off. The head commit retries any check failure on a file now unlinked (`checked_or_unlinked` in `prepared_reader.cc`, for records and the lease).
-2. Merge main (44 commits ahead of the base) and CI the merged tree:
-   `git -C <worktree> fetch github && git -C <worktree> rebase github/main` (S6 touches `src/detent_local/{lazy_page_access,prepared_reader,generation_file_access}`, `include/detent*`, `src/detent_reader`, `tests/detent_reader`, `benchmarks/`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`), then `git push --force-with-lease github reader/s6`, `gh workflow run ci.yml --ref reader/s6`, `gh run watch <id> --interval 60 --exit-status`.
-3. If T3 still reports `refresh status 5`, its message now names the check (`last_failure()` in the hooked build): look for another open-then-check on a file a publish or collection can unlink, and route it through `checked_or_unlinked`.
-4. FIX-2's revert mutant must be rerun against the final shape (`.scratch/mutants-s6b-fix2.json`: replace `if (!checked_or_unlinked(file.fd, owner, N))\n\t\t\tcontinue;` with `check_generation_file(file.fd, owner, N);`, run `test_reader_switch switch` at 10 s / 300); the earlier form died at line 227.
-5. The T3 gate (`ctest -R reader_switch --repeat until-fail:20` under each sanitizer at the test's defaults, 60 s / 1,000 generations) is the lead's run.
-6. Review: the code review is the lead's to launch; a security review is worth it (`prepared_reader.cc` reads untrusted store files, and `change` is a new trusted file).
+1. Read CI [41973979278](https://github.com/Kronuz/Detent/actions/runs/41973979278), dispatched on merged head `Detent:a08386d`. Earlier CI 41933091120 is **cancelled**: linux-tsan cancelled, all other executed jobs successful; freebsd and headers skipped by plan. It is not green evidence.
+2. Build and run the new deterministic `replaced_selected` case in `test_reader_core`, then the final-form FIX-2 revert (`.scratch/s6-final-fix2.json`). This replaces `checked_or_unlinked` with `check_generation_file` for records. Rebuild the restored source and require the test to pass again. None of this new proof has run yet.
+3. Investigate the fixed-head concurrent soak failure: `.scratch/overnight/done/detent-s6-soak-fixed/x4-1-4.log` in the main worktree records T3 passing 792,825,041 lookup pairs and 1,000 generations in 796.448 s, then a fork child reply timeout at `test_reader_switch.cc:390`. Alone: 0/12 failed; concurrent: 1/24 failed. The failure is after T3, and its cause is unverified. New diagnostics identify fork scenario, PID, expected revision and poll result; they preserve the 30-second deadline. No surviving process from that run was found at recovery.
+4. Run T3 under each separate sanitizer build at defaults (60 s / 1,000 generations), `ctest -R reader_switch --repeat until-fail:20`. Queue bounded individual repetitions under light holds of at most 30 minutes, and stop that flavor on failure. Full criteria are unchanged.
+5. Run the merged-tree reader suite and dispatch CI on the final code. Current local compilation is blocked by Xapiand's exclusive hold through 2026-11-05 01:21 PST. The shared run queue handles runs after that hold.
+6. Request the independent proof audit and security review from the lead once the required proof is complete. The code review and landing are the lead's. Do not rebase or force-push.
 
 Local commands: builds `quiet light NAME MINUTES "what" -- <script>`; `.scratch/reader.sh BUILD OUT SECONDS PUBLISHES` (reader tests), `.scratch/san6.sh asan|tsan` (S6 set under a sanitizer, needs `.scratch/build-<flavor>`), `.scratch/phases.py BUILD 10 100 400` (switch, parks, forks one by one), `python3 .scratch/mutants.py BUILD SPEC.json`.
 
@@ -109,3 +104,5 @@ Local commands: builds `quiet light NAME MINUTES "what" -- <script>`; `.scratch/
 ## Log
 
 - 2026-11-03: Read the design, namespace-delivery D8/D9, the S1-S4 ledger, the store, census, publication and prepared reader. `reader/s5` from `Detent:ff0167d`.
+
+- 2026-11-04: Recovered the branch and raw fixed-head soak evidence. Merged current main at `Detent:a08386d`, retaining main's `VerifiedPages` mechanism and HTTP removal. Pushed the branch and dispatched CI 41973979278. Added deterministic replacement proof and fork timeout diagnostics; unbuilt while the host is exclusively held.

@@ -58,4 +58,6 @@ The first open registers `pthread_atfork` handlers. Live handles sit on a list u
 
 ## Test seams
 
+`PreparedReaderTesting` provides a thread-local hook after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.
+
 Built only into `detent_reader_hooked` (`DETENT_READER_TEST_HOOKS`): park windows `BeforePin`, `Pinned`, `Refreshing`, `AfterFree`, `Attaching`, and per-handle stats (live views, publishes, refused, attached, generations, `current`).

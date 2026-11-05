@@ -50,6 +50,26 @@ std::int64_t get(detent_reader *h, std::string_view name, detent_status expect, 
 		                         detent_status_name(expect));
 	return out;
 }
+void replaced_selected(const std::filesystem::path &root) {
+	const auto store = root / "replaced-selected";
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(1)) == 1);
+	x::PreparedReaderTesting::install([](std::string_view name, void *context) {
+		if (name != "selected")
+			return;
+		x::PreparedReaderTesting::install(nullptr, nullptr);
+		auto &writer = *static_cast<detent::testing::GenerationWriter *>(context);
+		CHECK(writer.publish_json(knobs(2)) == 2);
+	}, &writer);
+	struct Reset {
+		~Reset() { x::PreparedReaderTesting::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
+}
 void values(const std::filesystem::path &root) {
 	const auto store = root / "values";
 	detent::testing::GenerationWriter writer(store);
@@ -281,6 +301,7 @@ int main() {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
+	replaced_selected(root);
 	values(root);
 	wrapper(root);
 	opens(root);

@@ -345,9 +345,10 @@ void parks(const std::filesystem::path &root) {
 struct Child {
 	pid_t pid;
 	int to_child, from_child;
+	const char *scenario;
 	std::int64_t current; // the child's `current` at fork, before it does anything
 };
-Child fork_child(detent_reader *handle) {
+Child fork_child(detent_reader *handle, const char *scenario) {
 	int down[2], up[2];
 	CHECK(::pipe(down) == 0 && ::pipe(up) == 0);
 	const pid_t pid = ::fork();
@@ -378,7 +379,7 @@ Child fork_child(detent_reader *handle) {
 	}
 	::close(down[0]);
 	::close(up[1]);
-	Child child{pid, down[1], up[0], -1};
+	Child child{pid, down[1], up[0], scenario, -1};
 	pollfd ready{child.from_child, POLLIN, 0};
 	CHECK(::poll(&ready, 1, 30000) == 1);
 	CHECK(::read(child.from_child, &child.current, sizeof child.current) == sizeof child.current);
@@ -387,7 +388,12 @@ Child fork_child(detent_reader *handle) {
 std::int64_t ask(Child &child, std::int64_t expected) {
 	CHECK(::write(child.to_child, &expected, sizeof expected) == sizeof expected);
 	pollfd ready{child.from_child, POLLIN, 0};
-	CHECK(::poll(&ready, 1, 30000) == 1);
+	const int result = ::poll(&ready, 1, 30000);
+	if (result != 1)
+		std::fprintf(stderr, "fork reply: case %s, child %d, expected %lld, poll %d, errno %d, events %d\n",
+		             child.scenario, int(child.pid), static_cast<long long>(expected), result, errno,
+		             int(ready.revents));
+	CHECK(result == 1);
 	std::int64_t reply[2];
 	CHECK(::read(child.from_child, reply, sizeof reply) == sizeof reply);
 	CHECK(reply[1] <= 4);
@@ -427,7 +433,7 @@ void forks(const std::filesystem::path &root) {
 		std::int64_t seen = 0;
 		auto reader = parked(park, t::Window::Pinned, [&] { seen = get(r.handle); });
 		const auto current = t::stats(r.handle).current;
-		auto child = fork_child(r.handle);
+		auto child = fork_child(r.handle, "pinned");
 		CHECK(child.current == std::int64_t(current));
 		CHECK(ten(writer, rev, child) == 10);
 		finish(child);
@@ -444,7 +450,7 @@ void forks(const std::filesystem::path &root) {
 			std::this_thread::sleep_for(50ms);
 			release(park);
 		});
-		auto child = fork_child(r.handle);
+		auto child = fork_child(r.handle, "refreshing");
 		releaser.join();
 		holder.join();
 		CHECK(ten(writer, rev, child) == 10);
@@ -477,7 +483,7 @@ void forks(const std::filesystem::path &root) {
 			std::this_thread::sleep_for(50ms);
 			release(freed);
 		});
-		auto child = fork_child(r.handle);
+		auto child = fork_child(r.handle, "midfree");
 		releaser.join();
 		publisher.join();
 		CHECK(t::stats(r.handle).current == current + 1 && get(r.handle) == rev);
