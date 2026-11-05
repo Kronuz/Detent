@@ -58,6 +58,10 @@ void relocate_slots(std::span<char> bytes, std::size_t base, std::size_t externa
 } // namespace
 struct PagedPacker::Impl {
 	enum class Phase {
+		InjectBegin,
+		InjectScan,
+		InjectCopy,
+		Reference,
 		Idle,
 		Input,
 		Choose,
@@ -79,6 +83,17 @@ struct PagedPacker::Impl {
 	d::StorageOwner<Cluster> current;
 	TrieEvent event{};
 	std::span<const char> body;
+	std::span<const char> injected_page;
+	std::string_view injected_path;
+	p::Reference injected_reference;
+	struct InjectFrame {
+		p::NodeView node;
+		std::size_t child = 0;
+	};
+	std::array<InjectFrame, 203> injected_frames{};
+	std::size_t injected_start = 0, injected_position = 0, injected_depth = 0,
+				injected_first_external = SIZE_MAX;
+	bool injected_visit = true;
 	std::shared_ptr<d::OwnedBuffer> output;
 	Cluster *sealing = nullptr;
 	p::Reference summary, root;
@@ -194,6 +209,26 @@ void PagedPacker::push(TrieEvent event, std::span<const char> body) {
 	s.body = body;
 	s.phase = Impl::Phase::Input;
 }
+void PagedPacker::push_cluster(std::span<const char> page, std::size_t node_offset,
+							   std::string_view path) {
+	auto &s = *impl_;
+	s.active();
+	if (s.phase != Impl::Phase::Idle)
+		throw std::logic_error("dense packer event still pending");
+	s.injected_page = page;
+	s.injected_path = path;
+	s.injected_start = node_offset;
+	s.phase = Impl::Phase::InjectBegin;
+}
+void PagedPacker::push_reference(const p::Reference &reference, std::string_view path) {
+	auto &s = *impl_;
+	s.active();
+	if (s.phase != Impl::Phase::Idle)
+		throw std::logic_error("dense packer event still pending");
+	s.injected_reference = reference;
+	s.injected_path = path;
+	s.phase = Impl::Phase::Reference;
+}
 void PagedPacker::finish() {
 	auto &s = *impl_;
 	s.active();
@@ -207,6 +242,128 @@ void PagedPacker::step(ValidationBudget &budget) {
 		s.active();
 		for (;;) {
 			switch (s.phase) {
+			case Impl::Phase::Reference:
+				if (!s.grant(sizeof(Cluster) + s.injected_path.size(), budget))
+					return;
+				p::encode_reference(s.injected_reference);
+				require(s.injected_reference.length > p::page_capacity &&
+						s.injected_path.size() <= 202 &&
+						s.injected_reference.keys <=
+							std::uint64_t(s.limits.records) + s.limits.namespaces - s.input_keys);
+				s.current =
+					d::make_storage_owner<Cluster>(s.account, std::malloc, std::free, s.account);
+				s.current->reference = s.injected_reference;
+				s.current->keys = s.injected_reference.keys;
+				s.current->path_size = s.injected_path.size();
+				std::copy(s.injected_path.begin(), s.injected_path.end(), s.current->path.begin());
+				s.input_keys += s.current->keys;
+				s.phase = Impl::Phase::Complete;
+				break;
+			case Impl::Phase::InjectBegin:
+				if (!s.grant(sizeof(Cluster) + s.injected_path.size(), budget))
+					return;
+				p::decode_page_header(s.injected_page, s.limits);
+				require(s.injected_path.size() <= 202 && s.injected_start >= p::page_header_bytes);
+				s.current =
+					d::make_storage_owner<Cluster>(s.account, std::malloc, std::free, s.account);
+				s.current->path_size = s.injected_path.size();
+				std::copy(s.injected_path.begin(), s.injected_path.end(), s.current->path.begin());
+				s.injected_position = s.injected_start;
+				s.injected_depth = 0;
+				s.injected_first_external = SIZE_MAX;
+				s.injected_visit = true;
+				s.phase = Impl::Phase::InjectScan;
+				break;
+			case Impl::Phase::InjectScan: {
+				auto &cluster = *s.current;
+				if (s.injected_visit) {
+					const auto node =
+						p::decode_node(s.injected_page, s.injected_position, s.limits);
+					if (!s.grant(node.end - s.injected_position + sizeof(Impl::InjectFrame),
+								 budget))
+						return;
+					require(cluster.count < UINT16_MAX);
+					++cluster.count;
+					s.injected_position = node.end;
+					if (node.kind == p::PageKind::Branch) {
+						require(s.injected_depth < s.injected_frames.size());
+						s.injected_frames[s.injected_depth++] = {node, 0};
+					} else {
+						require(cluster.keys <
+								std::uint64_t(s.limits.records) + s.limits.namespaces);
+						++cluster.keys;
+					}
+					s.injected_visit = false;
+				}
+				while (s.injected_depth) {
+					auto &frame = s.injected_frames[s.injected_depth - 1];
+					if (frame.child == frame.node.labels.size()) {
+						--s.injected_depth;
+						continue;
+					}
+					const auto slot = frame.node.slot(frame.child);
+					if (slot & 0x8000) {
+						if (!s.grant(p::child_bytes, budget))
+							return;
+						const auto index = slot & 0x7fff;
+						if (s.injected_first_external == SIZE_MAX)
+							s.injected_first_external = index;
+						require(index == s.injected_first_external + cluster.external.size());
+						const auto reference = p::decode_external(s.injected_page, index, s.limits);
+						require(reference.keys <= std::uint64_t(s.limits.records) +
+													  s.limits.namespaces - cluster.keys &&
+								reference.height < 255);
+						cluster.keys += reference.keys;
+						cluster.height = std::max(cluster.height, unsigned(reference.height));
+						cluster.external.push_back(reference);
+						++frame.child;
+					} else {
+						require(slot == s.injected_position);
+						++frame.child;
+						s.injected_visit = true;
+						break;
+					}
+				}
+				if (!s.injected_visit)
+					s.phase = Impl::Phase::InjectCopy;
+				break;
+			}
+			case Impl::Phase::InjectCopy: {
+				auto &cluster = *s.current;
+				const auto size = s.injected_position - s.injected_start;
+				require(size + cluster.external.size() * p::child_bytes <=
+							p::page_capacity - p::page_header_bytes &&
+						cluster.keys <=
+							std::uint64_t(s.limits.records) + s.limits.namespaces - s.input_keys);
+				if (!s.grant(2 * size, budget))
+					return;
+				cluster.nodes.assign(s.injected_page.begin() + s.injected_start,
+									 s.injected_page.begin() + s.injected_position);
+				std::size_t at = 0;
+				while (at < cluster.nodes.size()) {
+					const auto prefix = static_cast<unsigned char>(cluster.nodes[at + 1]);
+					if (cluster.nodes[at] == static_cast<char>(p::PageKind::Branch)) {
+						const std::size_t count =
+							static_cast<unsigned char>(cluster.nodes[at + 2]) + 1;
+						const auto slots = at + 3 + prefix + count;
+						for (std::size_t j = 0; j < count; ++j) {
+							const auto old = read_integer(cluster.nodes, slots + 2 * j, 2);
+							const auto rebased =
+								old & 0x8000
+									? (0x8000 | ((old & 0x7fff) - s.injected_first_external))
+									: old - s.injected_start;
+							write_integer(cluster.nodes, slots + 2 * j, rebased, 2);
+						}
+						at += 3 + prefix + 3 * count;
+					} else
+						at += 4 + prefix + read_integer(cluster.nodes, at + 2, 2);
+				}
+				require(at == cluster.nodes.size());
+				s.input_keys += cluster.keys;
+				s.phase = Impl::Phase::Complete;
+				break;
+			}
+
 			case Impl::Phase::Idle:
 			case Impl::Phase::Ready:
 			case Impl::Phase::Done:
@@ -216,7 +373,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 							 budget))
 					return;
 				const auto &e = s.event;
-				require(e.prefix.size() <= 202 && e.key.size() <= 202 &&
+				require(e.prefix.size() <= 202 && e.prefix.size() <= s.limits.prefix_bytes && e.key.size() <= 202 &&
 						e.prefix.size() <= e.key.size() && e.key.ends_with(e.prefix) && e.keys &&
 						e.keys <= std::uint64_t(s.limits.records) + s.limits.namespaces);
 				if (e.kind == p::PageKind::Branch) {
@@ -245,7 +402,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 						(e.kind == p::PageKind::Definition || e.kind == p::PageKind::Namespace) &&
 						e.children.empty() && e.keys == 1 && !s.body.empty() &&
 						(e.kind != p::PageKind::Namespace || s.body.size() == 8) &&
-						s.body.size() <= p::page_bytes - 80 - e.prefix.size() &&
+						s.body.size() <= p::maximum_leaf_body_bytes - e.prefix.size() &&
 						s.input_keys < std::uint64_t(s.limits.records) + s.limits.namespaces);
 					++s.input_keys;
 					s.total = 4 + e.prefix.size() + s.body.size();
@@ -292,6 +449,8 @@ void PagedPacker::step(ValidationBudget &budget) {
 				s.frontier.push_back(std::move(s.current));
 				s.event = {};
 				s.body = {};
+				s.injected_page = {};
+				s.injected_path = {};
 				s.phase = Impl::Phase::Idle;
 				return;
 			case Impl::Phase::Finish:
@@ -399,7 +558,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 				if (!s.grant(32, budget))
 					return;
 				s.hash.getHash(reinterpret_cast<unsigned char *>(s.summary.digest.data()));
-				p::count_page_digest();
+				p::count_hash(p::HashKind::Page, 1, end - 32);
 				std::copy(s.summary.digest.begin(), s.summary.digest.end(),
 						  s.output->mutable_bytes().begin() + 32);
 				s.output->seal();

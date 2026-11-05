@@ -66,7 +66,7 @@ Digest finish(SHA256 &hash) {
 	hash.getHash(reinterpret_cast<unsigned char *>(result.data()));
 	return result;
 }
-std::atomic<std::uint64_t> digest_count{0};
+std::array<std::atomic<std::uint64_t>, 6> hash_counters{};
 } // namespace
 std::size_t encode_namespace_key(std::span<char> out, std::string_view name) {
 	require(!name.empty() && name.size() <= 198 &&
@@ -105,12 +105,38 @@ Key decode_key(std::string_view bytes) {
 			std::all_of(local.begin(), local.end(), detent::detail::is_name_char));
 	return {PageKind::Definition, name_space, local};
 }
-std::uint64_t page_digests() noexcept { return digest_count.load(std::memory_order_relaxed); }
-void count_page_digest() noexcept { digest_count.fetch_add(1, std::memory_order_relaxed); }
+HashCounts hash_counts() noexcept {
+	constexpr auto order = std::memory_order_relaxed;
+	return {hash_counters[0].load(order), hash_counters[1].load(order),
+			hash_counters[2].load(order), hash_counters[3].load(order),
+			hash_counters[4].load(order), hash_counters[5].load(order)};
+}
+void reset_hash_counts() noexcept {
+	for (auto &counter : hash_counters)
+		counter.store(0, std::memory_order_relaxed);
+}
+void count_hash(HashKind kind, std::uint64_t calls, std::uint64_t bytes) noexcept {
+	const auto index = static_cast<unsigned>(kind) * 2;
+	hash_counters[index].fetch_add(calls, std::memory_order_relaxed);
+	hash_counters[index + 1].fetch_add(bytes, std::memory_order_relaxed);
+}
+std::uint64_t page_digests() noexcept { return hash_counts().page_calls; }
+namespace {
+Digest hash_buffer(std::span<const char> bytes, HashKind kind) {
+	SHA256 hash;
+	hash.add(bytes.data(), bytes.size());
+	count_hash(kind, 1, bytes.size());
+	return finish(hash);
+}
+} // namespace
+Digest pack_commitment(std::span<const char> bytes) { return hash_buffer(bytes, HashKind::Pack); }
+Digest metadata_commitment(std::span<const char> bytes) {
+	return hash_buffer(bytes, HashKind::Metadata);
+}
 Digest page_commitment(std::span<const char> bytes, Limits limits) {
 	const auto h = decode_page_header(bytes, limits);
-	count_page_digest();
 	const auto end = bytes.size() - placement_bytes * h.externals;
+	count_hash(HashKind::Page, 1, end - 32);
 	DETENT_COUNT(bytes_hashed, end - 32);
 	SHA256 hash;
 	hash.add(bytes.data(), 32);
@@ -121,6 +147,7 @@ Digest empty_commitment() {
 	SHA256 hash;
 	constexpr std::string_view domain = "detent.local.empty.v3";
 	hash.add(domain.data(), domain.size());
+	count_hash(HashKind::Metadata, 1, domain.size());
 	return finish(hash);
 }
 Digest state_commitment(const Root &root) {
@@ -241,18 +268,17 @@ NodeView decode_node(std::span<const char> bytes, std::size_t offset, Limits lim
 	require((kind == PageKind::Definition || kind == PageKind::Namespace) && end - offset >= 4);
 	const auto body = read_integer(bytes, offset + 2, 2);
 	require(body && (kind != PageKind::Namespace || body == 8) &&
-			body <= page_bytes - 80 - prefix && prefix <= end - offset - 4 &&
+			body <= maximum_leaf_body_bytes - prefix && prefix <= end - offset - 4 &&
 			body <= end - offset - 4 - prefix);
 	return {kind, {bytes.data() + offset + 4, prefix}, bytes.subspan(offset + 4 + prefix, body), {},
 			{},	  offset + 4 + prefix + body};
 }
-void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {
+void verify_page_structure(std::span<const char> bytes, const Reference &reference, Limits limits) {
 	validate(reference);
 	require(reference != Reference{});
 	const auto h = decode_page_header(bytes, limits);
 	require(h.length == reference.length && h.keys == reference.keys &&
-			h.height == reference.height && h.digest == reference.digest &&
-			page_commitment(bytes, limits) == reference.digest);
+			h.height == reference.height && h.digest == reference.digest);
 	struct Frame {
 		NodeView node;
 		std::size_t child = 0, depth = 0;
@@ -302,6 +328,10 @@ void verify_page(std::span<const char> bytes, const Reference &reference, Limits
 	}
 	require(position == bytes.size() - child_bytes * h.externals && nodes == h.nodes &&
 			external == h.externals && keys == h.keys && height == h.height);
+}
+void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {
+	verify_page_structure(bytes, reference, limits);
+	require(page_commitment(bytes, limits) == reference.digest);
 }
 std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	validate(root, limits);
