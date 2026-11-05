@@ -5,6 +5,8 @@
     "dense-pages": {
       "accepted": {},
       "after": [],
+      "base": "7d339feb174ae1ed8139398f6fd0d5e3f55e7e31",
+      "branch": "quest/dense-pages",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -50,9 +52,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-05T15:01:33"
+      "updated": "2026-11-05T15:01:34",
+      "worktree": "../Detent-wt/dense-pages"
     }
   },
   "version": 2
