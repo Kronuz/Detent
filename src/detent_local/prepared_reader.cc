@@ -28,7 +28,7 @@ int open_record(int directory, std::string_view name) {
 	require(name.size() <= 64 && name.find('\0') == std::string_view::npos);
 	std::array<char, 65> terminated{};
 	std::copy(name.begin(), name.end(), terminated.begin());
-	return ::openat(directory, terminated.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	return ::openat(directory, terminated.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 }
 // A file a publish or collection unlinked after it was opened: a race to retry, not a bad store.
 bool unlinked(int fd) {

@@ -70,6 +70,42 @@ void replaced_selected(const std::filesystem::path &root) {
 	std::uint64_t revision = 0;
 	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
 }
+void replaced_change(const std::filesystem::path &root) {
+	const auto store = root / "replaced-change";
+	{
+		detent::testing::GenerationWriter writer(store);
+		CHECK(writer.publish_json(knobs(1)) == 1);
+	}
+	struct Race {
+		std::filesystem::path store;
+		unsigned calls = 0;
+	} race{store};
+	t::install([](t::Window at, void *context) noexcept {
+		if (at != t::Window::ChangeMapped)
+			return;
+		auto &race = *static_cast<Race *>(context);
+		if (race.calls++ == 0) {
+			const auto change = race.store / "change";
+			const auto old = race.store / "old-change";
+			std::filesystem::rename(change, old);
+			std::filesystem::copy_file(old, change);
+		}
+	}, &race);
+	struct Reset {
+		~Reset() { t::install(nullptr, nullptr); }
+	} reset;
+	Opened r(store);
+	CHECK(r.status == DETENT_OK && race.calls == 1);
+	CHECK(detent_refresh(r.handle) == DETENT_OK && race.calls == 2);
+	t::install(nullptr, nullptr);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 1);
+	// The next publisher writes inode B; a reader still mapped to A cannot see its sequence move.
+	detent::testing::GenerationWriter writer(store);
+	CHECK(writer.publish_json(knobs(2)) == 2);
+	CHECK(get(r.handle, "t:rev", DETENT_OK) == 2);
+	std::uint64_t revision = 0;
+	CHECK(detent_revision(r.handle, S("t"), &revision) == DETENT_OK && revision == 2);
+}
 void values(const std::filesystem::path &root) {
 	const auto store = root / "values";
 	detent::testing::GenerationWriter writer(store);
@@ -302,6 +338,7 @@ int main() {
 		~Cleanup() { std::filesystem::remove_all(path); }
 	} cleanup{root};
 	replaced_selected(root);
+	replaced_change(root);
 	values(root);
 	wrapper(root);
 	opens(root);

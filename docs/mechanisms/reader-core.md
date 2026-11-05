@@ -56,6 +56,12 @@ The first open registers `pthread_atfork` handlers. Live handles sit on a list u
 
 `GenerationUnavailable` is `DETENT_UNAVAILABLE`; `bad_alloc` and ledger pressure `DETENT_NO_MEMORY`; `system_error` `DETENT_IO`; a refused directory `DETENT_UNTRUSTED`; everything else from a record, page or `change` check `DETENT_SOURCE_FAILURE`.
 
+## File admission and replacement
+
+Required regular files (`change`, selected records, leases and packs) open with `O_NONBLOCK` before their descriptor-based shape, ownership, link, extent and ACL checks. A FIFO therefore reaches the regular-file refusal without waiting for a peer. Regular files retain their ordinary reads and mappings; `test_reader_files` checks their value alongside six refused shapes at each of the four entry points, with a two-second alarm per child.
+
+`ChangeMapping` retains the device and inode from the descriptor it validates and maps. Explicit refresh compares the pathname with this identity. A replacement between mapping inode A and installing its view cannot label A as inode B. `test_reader_core` replaces the file in that window, requires an explicit refresh to remap it, and checks value and revision 2 after the next publication.
+
 ## Test seams
 
 `PreparedReaderTesting` provides a thread-local hook after a record open and before its trust check. The replacement regression publishes revision 2 in that window while opening revision 1, then requires the C reader to answer value 2 and revision 2. A check that rejects the now-unlinked descriptor without retrying fails this test.

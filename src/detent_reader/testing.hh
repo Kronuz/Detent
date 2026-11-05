@@ -6,6 +6,7 @@
 
 namespace detent::reader::testing {
 enum class Window {
+	ChangeMapped, // change was mapped, before the core records its identity
 	BeforePin,  // a lookup loaded `current`, before its increment
 	Pinned,     // a lookup holds its slot, before it reads the view
 	Refreshing, // a thread took `refreshing`, before any work

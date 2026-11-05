@@ -4,6 +4,11 @@ if(TARGET detent::testing_store)
   target_link_libraries(test_reader_core PRIVATE detent_reader_hooked detent::testing_store detent::local_publication)
   add_test(NAME test_reader_core COMMAND test_reader_core)
 
+  add_executable(test_reader_files test_reader_files.cc)
+  target_link_libraries(test_reader_files PRIVATE detent::reader detent::testing_store)
+  add_test(NAME test_reader_files COMMAND test_reader_files)
+  set_tests_properties(test_reader_files PROPERTIES TIMEOUT 90)
+
   # T3 and T6 (reader.md): switching under 16 readers for 60 s, the injected parks and the fork cases.
   add_executable(test_reader_switch test_reader_switch.cc)
   target_link_libraries(test_reader_switch PRIVATE detent_reader_hooked detent::testing_store)

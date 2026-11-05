@@ -109,7 +109,6 @@ struct Generation {
 // One mapping of `change`, a member of every view built over it (reader.md D4 rule 4).
 struct Change {
 	x::ChangeMapping mapping;
-	std::uint64_t device = 0, inode = 0;
 	std::size_t views = 0;
 };
 // Today's store table has one entry, the selected generation, serving every namespace at slot 0.
@@ -325,10 +324,8 @@ void open_store(detent_reader &handle, Change *&change) {
 			throw Failure{DETENT_SOURCE_FAILURE};
 		throw l::GenerationUnavailable("store has no change file yet");
 	}
-	struct stat info{};
-	if (::fstatat(handle.directory, x::change_name, &info, AT_SYMLINK_NOFOLLOW) != 0)
-		throw Failure{DETENT_SOURCE_FAILURE};
-	change = new Change{std::move(mapping), std::uint64_t(info.st_dev), std::uint64_t(info.st_ino), 0};
+	DETENT_WINDOW(ChangeMapped);
+	change = new Change{std::move(mapping), 0};
 }
 
 // The publisher half of D5. Only the holder of `refreshing` runs it. `want` attaches the whole-store
@@ -369,7 +366,7 @@ Outcome refresh_locked(detent_reader &handle, bool want, bool force) noexcept {
 				// Limit 2: detent_refresh re-stats `change` and remaps a replaced file.
 				struct stat info{};
 				if (::fstatat(handle.directory, x::change_name, &info, AT_SYMLINK_NOFOLLOW) != 0 ||
-				    std::uint64_t(info.st_dev) != change->device || std::uint64_t(info.st_ino) != change->inode)
+				    std::uint64_t(info.st_dev) != change->mapping.device() || std::uint64_t(info.st_ino) != change->mapping.inode())
 					open_store(handle, new_change);
 			} else
 				open_store(handle, new_change);

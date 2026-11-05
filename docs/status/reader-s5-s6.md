@@ -1,10 +1,10 @@
-> Status: CURRENT (2026-11-04) Ledger for reader steps S5 and S6. Workstream: reader-s5-s6. Design: [reader.md](../design/reader.md) "First steps"; [namespace-delivery.md](../design/namespace-delivery.md) D8/D9 for the `change` shape.
+> Status: CURRENT (2026-11-05) Ledger for reader steps S5 and S6. Workstream: reader-s5-s6. Design: [reader.md](../design/reader.md) "First steps"; [namespace-delivery.md](../design/namespace-delivery.md) D8/D9 for the `change` shape.
 
 # reader-s5-s6
 
 - Branches / worktree: `reader/s5` from `Detent:ff0167d`; `reader/s6` cut from `reader/s5`. Worktree `~/code/Kronuz/Detent/.claude/worktrees/agent-a1fbf8344cbf48ecb`.
 - Lead calls in force: Q1-Q6 all (a) (`docs/status/reader-design.md`); R1-R4 verbatim.
-- State: S5 landed (`Detent:d4dbbad`, `Detent:d1e9ee6`). S6 rework on `reader/s6`; current main merged at `Detent:a08386d`. Final merged-tree proof is pending the shared host hold and queued runs. The fixed soak has an unresolved fork-reply timeout; CI is not green.
+- State: S5 landed (`Detent:d4dbbad`, `Detent:d1e9ee6`). S6 rework on `reader/s6`; current main merged at `Detent:a08386d`. Overnight proof at `Detent:78195dd` passed the deterministic FIX-2 revert, 24 fork trials and all 20 default trials in each sanitizer. The [security review](../reviews/reader-s6-security.md) rejects the candidate for FIFO admission (SR1) and an unresolved fork timeout; mapped-change identity (SR2) also needs closure. SR1/SR2 fixes pass targeted local regressions; final-head proof and CI remain pending.
 
 ## Done criteria (from the brief and the design's S5/S6 rows, T3, T6)
 
@@ -55,6 +55,13 @@ S6 (`reader/s6`, rebased on `Detent:3e8bdbc`):
 - TSan (`.scratch/build-tsan`): switch, parks and forks pass; T3 7,085,644 lookup pairs, 0 refused, max live views 3. TSan's own thread, started on the first `pthread_create`, is excluded by creating and joining one thread before the baseline.
 - Mutants (all KILLED): D5-1 pin without the recheck (line 302, the `Freeing` case); D5-2 publish without the next-slot check (line 298); D5-3 publish frees no old slot (line 283); D10-1 child keeps the parent's counts (line 388); D10-2 child keeps `refreshing` held (line 388); D10-3 prepare does not take `refreshing` (line 441); D2-1 open attaches (line 60); D4-1 stale lookup never switches (line 112); Q6-1 no open throttle, both checks (the renamed store answers ok); FIX-1 reverted (line 177); FIX-2 reverted (T3 monitor gets status 5, line 227); D4-2 reader accepts any `change` owner: killed by `test_local_change_file` (S5 M4), since the reader tests cannot make a foreign-owned file without root.
 - `reader_bench`: `--generate 1000` and a 1,000-call, 2-thread run of both readers complete and print 0 allocations in the timed loop (functional only; the lead measures).
+
+## Security fix round, 2026-11-05
+
+1. SR1 before fix: `.scratch/sr1-before.log`, built on code `Detent:31ac047` plus the new regression, reports `SIGALRM` for each FIFO at `change`, `selected`, lease and pack; the other 24 cases pass. Each child has a two-second alarm. The fixed regression passes all 28 cases, including value 7 from ordinary files. Read-only opens now use `O_NONBLOCK` while preserving every trust check.
+2. SR2 before fix: `.scratch/sr2-before.log` dies at `test_reader_core.cc:99`, the explicit-refresh remap check, after deterministic replacement between mapping and identity capture. Mapping identity now comes from the mapped descriptor; the core no longer captures it through a second pathname lookup. The fixed test observes remapping, then value 2 and revision 2 from the next publication.
+3. Fixed targeted run: `.scratch/sr-fixes.log`, release `test_reader_core`, `test_reader_files`, `test_reader_syscalls`, passes 3/3 in 19.20 s. Build output: `.scratch/sr-fixes-build.log`. New fixes still need separate sanitizer runs and final CI.
+4. Earlier queued proof: main worktree `.scratch/overnight/done/detent-s6-final-proof.{log,rc}` and `detent-s6-t3-gate.{log,rc}` both exit 0 at ledger head `Detent:78195dd`, code `Detent:31ac047`. Per-command logs remain in `.scratch/s6-final-proof/`. FIX-2 reverted: killed with rc -6 at core line 68; restored baseline passed. Six rounds of four fork trials passed; 20 ASan/UBSan and 20 TSan default 60-second/1,000-publication trials passed in separate dependency builds. These results do not attribute or close the earlier fork-reply timeout.
 
 ## Next
 

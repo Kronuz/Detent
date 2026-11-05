@@ -122,7 +122,7 @@ struct PageTable::State {
 			return {};
 		const SegmentNames names(identity);
 		DETENT_COUNT(segment_opens, 1);
-		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW));
 		struct stat held{};
 		if (payload.fd < 0 || ::fstat(payload.fd, &held) != 0 || held.st_size < p::page_header_bytes ||
 		    std::uint64_t(held.st_size) > p::segment_bytes)

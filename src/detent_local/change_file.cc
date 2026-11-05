@@ -98,7 +98,7 @@ std::uint64_t ChangeWriter::word(std::size_t index) const noexcept {
 }
 
 ChangeMapping::Open ChangeMapping::open(int directory, uid_t publisher, ChangeMapping &out) {
-	const int fd = ::openat(directory, change_name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+	const int fd = ::openat(directory, change_name, O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0) {
 		if (errno == ENOENT)
 			return Open::Absent;
@@ -118,6 +118,8 @@ ChangeMapping::Open ChangeMapping::open(int directory, uid_t publisher, ChangeMa
 	ChangeMapping mapped;
 	mapped.words_ = static_cast<const ChangeWord *>(address);
 	mapped.count_ = words;
+	mapped.device_ = std::uint64_t(info.st_dev);
+	mapped.inode_ = std::uint64_t(info.st_ino);
 	out = std::move(mapped);
 	return Open::Mapped;
 }
@@ -126,12 +128,15 @@ ChangeMapping::~ChangeMapping() {
 		::munmap(const_cast<ChangeWord *>(words_), count_ * 8);
 }
 ChangeMapping::ChangeMapping(ChangeMapping &&other) noexcept
-    : words_(std::exchange(other.words_, nullptr)), count_(std::exchange(other.count_, 0)) {}
+    : words_(std::exchange(other.words_, nullptr)), count_(std::exchange(other.count_, 0)),
+      device_(std::exchange(other.device_, 0)), inode_(std::exchange(other.inode_, 0)) {}
 ChangeMapping &ChangeMapping::operator=(ChangeMapping &&other) noexcept {
 	if (this != &other) {
 		this->~ChangeMapping();
 		words_ = std::exchange(other.words_, nullptr);
 		count_ = std::exchange(other.count_, 0);
+		device_ = std::exchange(other.device_, 0);
+		inode_ = std::exchange(other.inode_, 0);
 	}
 	return *this;
 }
