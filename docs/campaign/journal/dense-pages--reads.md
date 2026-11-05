@@ -44,3 +44,14 @@ jobs pass the expanded task SHA. Lead corrected the tool and task source globs.
 Pending integration: Detent:f444c98 provides the warm fixture's local_builder
 link and shared disk fixture ownership3. Production ownership3 routing is the
 lead's integration work. Fresh composed fixture execution follows that merge.
+
+Added a deterministic malformed-page stream in `test_dense_reads`: raw and
+checksum-correct mutations exercise first-touch and already-verified lookups,
+resumable PageValidator and GraphValidator with bounded progress. Default CI
+replays 64 seeded samples; `--fuzz CPU_SECONDS SEED` runs the same checks against
+measured process CPU time, with assertions independent of NDEBUG.
+
+Baseline `261105-150600-3eceff` failed building compressors before composed tests:
+missing CMAKE_OSX_SYSROOT inserts SDK C headers ahead of LLVM libc++ wrappers.
+The same configuration at main is queued as `261105-150836-e99580`. Subsequent
+jobs explicitly set the SDK sysroot; no dependency/source patch is needed.

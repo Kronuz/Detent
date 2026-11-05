@@ -8,9 +8,20 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
+#include <sys/resource.h>
 #include <unistd.h>
 using namespace dense_graph_test;
 namespace {
+template <class Action> void rejects_corruption(Action action) {
+  try {
+    action();
+  } catch (const std::invalid_argument &) {
+    return;
+  } catch (const l::detail::ReadSourceFailure &) {
+    return;
+  }
+  throw std::runtime_error("corrupt dense graph accepted");
+}
 bool same_counts(const l::detail::PagedStateCounts &a,
                  const l::detail::PagedStateCounts &b) {
   return a.bools == b.bools && a.ints == b.ints && a.overrides == b.overrides &&
@@ -100,12 +111,84 @@ void warm_skips() {
     std::copy(root.tree.digest.begin(), root.tree.digest.end(),
               bytes->begin() + 32);
     added[0].ownership.checksum = p::pack_commitment(*bytes);
-    rejects<std::invalid_argument>([&] {
+    rejects_corruption([&] {
       x::WarmGraphValidator warm(account, recovered, bytes, added, root);
       bounded(warm);
     });
   }
   check(!account->used());
+}
+
+void fuzz_sample(std::uint64_t &seed) {
+  namespace x = l::detail;
+  auto random = [&] {
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+    return seed;
+  };
+  static const auto original = fixture(256);
+  auto source = std::make_shared<Fixture>(*original);
+  const auto selected = random() % source->pages.size();
+  const auto reference = source->pages[selected].reference;
+  auto page = std::span<char>(source->bytes)
+                  .subspan(reference.offset, reference.length);
+  const auto flips = 1 + random() % 4;
+  for (unsigned i = 0; i != flips; ++i)
+    page[random() % page.size()] ^= static_cast<char>(1 + random() % 255);
+  if (random() & 1) {
+    try {
+      const auto digest = p::page_commitment(page);
+      std::copy(digest.begin(), digest.end(), page.begin() + 32);
+      if (reference == source->root.tree)
+        source->root.tree.digest = digest;
+    } catch (const std::invalid_argument &) {
+    }
+  }
+  source->refresh();
+  auto tolerate_corruption = [](auto action) {
+    try {
+      action();
+    } catch (const std::invalid_argument &) {
+    } catch (const x::ReadSourceFailure &) {
+    }
+  };
+  // Exercise both first-touch verification and traversal after certified
+  // starts.
+  for (bool warmed : {false, true}) {
+    x::VerifiedPages verified(source->bytes.size(), source->account);
+    if (warmed)
+      for (const auto &entry : source->pages)
+        verified.set(entry.reference.offset);
+    source->inputs[0].pages = &verified;
+    x::PagedReadState state{source->root, source->inputs};
+    for (unsigned i = 0; i != 3; ++i) {
+      const auto &row = source->rows[random() % source->rows.size()];
+      tolerate_corruption(
+          [&] { state.lookup(row.key, p::decode_key(row.key).kind); });
+    }
+    source->inputs[0].pages = nullptr;
+  }
+  tolerate_corruption([&] {
+    auto expected = reference;
+    const auto header = p::decode_page_header(page);
+    expected.digest = header.digest;
+    expected.keys = header.keys;
+    expected.height = header.height;
+    x::PageValidator validator(source->account, source, page, expected);
+    bounded(validator);
+  });
+  tolerate_corruption([&] {
+    x::GraphValidator validator(source->account, source, source->inputs,
+                                source->root, source->storage);
+    bounded(validator);
+  });
+}
+double cpu_seconds() {
+  rusage usage{};
+  check(::getrusage(RUSAGE_SELF, &usage) == 0);
+  return usage.ru_utime.tv_sec + usage.ru_stime.tv_sec +
+         (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1000000.0;
 }
 l::detail::PagedReadState read_state(const std::shared_ptr<Fixture> &source,
                                      const l::detail::VerifiedPages &verified) {
@@ -210,8 +293,26 @@ void mapped_mutation(unsigned variant) {
 }
 
 } // namespace
-int main() {
+int main(int argc, char **argv) {
+  if (argc == 4 && std::string_view(argv[1]) == "--fuzz") {
+    const auto seconds = std::stoul(argv[2]);
+    std::uint64_t seed = std::stoull(argv[3]);
+    check(seed != 0);
+    const auto begin = cpu_seconds();
+    std::size_t samples = 0;
+    do {
+      fuzz_sample(seed);
+      ++samples;
+    } while (cpu_seconds() - begin < seconds);
+    std::cout << samples << " bounded dense reader/page/graph fuzz samples, "
+              << cpu_seconds() - begin << " CPU seconds\n";
+    return 0;
+  }
+  check(argc == 1);
   warm_skips();
+  std::uint64_t seed = 0x83ac7f91;
+  for (unsigned sample = 0; sample != 64; ++sample)
+    fuzz_sample(seed);
   {
     auto account = std::make_shared<d::StorageLedger>(1024);
     l::detail::VerifiedPages verified(160, account);
