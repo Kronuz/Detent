@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_local/storage_session.hh"
 #include "paged_certificate.hh"
+#include "live_record.hh"
 namespace detent::local::detail {
 // Reads an explicitly named root and retains its shared lease through marking.
 class PagedNamedRoot final : public kronuz::io::completion::Operation {
@@ -23,6 +24,8 @@ class PagedNamedRoot final : public kronuz::io::completion::Operation {
 	DirectoryIdentity directory_identity() const;
 	StorageIdentity storage_identity() const;
 	distribution::RetirementHandle<PagedDependencyCertificate> certificate() const;
+	void read_live(std::shared_ptr<distribution::StorageLedger>, std::size_t maximum_segments);
+	std::span<const LiveRow> live_dependencies() const;
 	std::exception_ptr error() const noexcept;
 	void close() noexcept;
 

@@ -59,7 +59,16 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 				throw ReadSourceFailure("local page exceeds its segment");
 			}
 		}
+		if (bytes.size() < paged::page_header_bytes)
+			throw ReadSourceFailure("local page header is truncated");
 		const auto prefix = read_integer(bytes, 20, 4);
+		const auto children = read_integer(bytes, 24, 4);
+		const auto body = read_integer(bytes, 28, 4);
+		const auto payload = bytes.size() - paged::page_header_bytes;
+		if (read_integer(bytes, 16, 4) != bytes.size() || prefix > payload ||
+			children > (payload - prefix) / paged::child_bytes ||
+			body != payload - prefix - children * paged::child_bytes)
+			throw ReadSourceFailure("local page fields exceed its bounds");
 		const auto kind = static_cast<paged::PageKind>(read_integer(bytes, 12, 4));
 		if (access && kind != paged::PageKind::Branch) {
 			std::array<char, 202> actual{};
@@ -83,12 +92,11 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 				return {};
 			if (kind != expected)
 				throw ReadSourceFailure("local page has an unexpected key type");
-			return bytes.last(read_integer(bytes, 28, 4));
+			return bytes.last(body);
 		}
 		if (cursor == key.size())
 			return {};
 		const auto label = static_cast<unsigned char>(key[cursor++]);
-		const auto children = read_integer(bytes, 24, 4);
 		const auto begin = paged::page_header_bytes + prefix;
 		std::size_t low = 0, high = children;
 		while (low < high) {

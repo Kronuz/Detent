@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <stdexcept>
+#include <system_error>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -27,9 +28,17 @@ void PackScrub::close_file() noexcept {
 void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now,
 					  const std::filesystem::path &directory) {
 	close_file();
+	found_.clear();
+	completed_.clear();
 	if (directory_ >= 0)
 		::close(directory_);
 	directory_ = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	if (directory_ < 0)
+		directory_ = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	if (directory_ < 0) {
+		running_ = false;
+		throw std::system_error(errno, std::generic_category(), "open scrub directory");
+	}
 	packs_ = packs;
 	next_ = offset_ = 0;
 	credit_ = 0;
@@ -91,7 +100,7 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 	std::uint64_t done = 0;
 	while (running_) {
 		const auto &pack = packs_[next_];
-		if (file_ < 0 && offset_ == 0 && !open_file()) {
+		if (file_ < 0 && offset_ == 0 && !open_file() && !open_file()) {
 			damaged();
 			next_pack();
 			continue;
@@ -104,7 +113,9 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
 		if (!count && remaining)
 			break;
 		if (count) {
-			const auto got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
+			auto got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
+			if (got != static_cast<ssize_t>(count))
+				got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
 			if (got != static_cast<ssize_t>(count)) {
 				damaged();
 				next_pack();

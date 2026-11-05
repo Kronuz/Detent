@@ -32,6 +32,19 @@
   - The collector's proof of a candidate pack no longer includes the payload checksum for the packs it removes (see findings).
 - Last verified: 2026-11-04, `Detent:ea74c9f` (CI run 41911978746 green; local final tree: the 20 touched tests pass).
 
+## Architect fix round criteria
+
+The lead sets these criteria on 2026-11-04. The earlier criteria above remain intact.
+
+1. [ ] K1 Close L1 using `leaseclean` attribution, conservative marking of a failed leased root, a visible failure, and a test that collects other unreachable packs while retaining a damaged leased root's packs. Retry after lease release with one request and no test retry loop.
+2. [ ] K2 Follow handoff Q1's default yes: read-time header bounds and broad `std::exception` to `SourceFailure` mapping, except `bad_alloc` and `StoragePressure`, in `try_get` and `try_eval`. Deterministic mapped child-count and body-length mutations never crash or throw.
+3. [ ] K3 Follow handoff Q2's default yes: recover every snapshot cold while deltas and compactions stay warm. Update `t5` and prove recovery against a damaged prior.
+4. [ ] K4 Close C3: retry failed opens and reads once, do not mark the whole pack set damaged on directory-open failure, and move scrub I/O off the coordinator thread.
+5. [ ] K5 Close C4: document same-cursor repair semantics and clear pending repair, or record its stall, when a non-`Repair` publication replaces the selected generation.
+6. [ ] K6 Confirm each fix with the original reviewer probes and a revert or mutant check; CI, including sanitizers, is green on the merged head. Keep the mechanism note and this ledger current.
+
+Implementation is in progress. `main` merges cleanly at `Detent:1e1a78b`. The host has an exclusive Xapiand measurement hold until 01:21; no local compilation or test has run in this round.
+
 ## Log
 - 2026-11-04: Branch `namespace/s3b` from `github/main` (`Detent:5475baf`); read the ledger, A7, SR3, SR4, D10.3 and the "Under option (a)" note.
 - 2026-11-04: Built SR3/SR4 (`PackScrub` reads files, `VerifiedPages::clear`), the `Repair` plan intent, the recovery without the prior, the collector rule, the coordinator trigger and the relay head. Local macOS x86-64 RelWithDebInfo with relay: 185 tests, all pass except `test_local_paged_segment_collection`, whose variant 11 (a damaged unreachable pack) expected the old behavior; updated to expect its removal (`Detent:61cae79`).

@@ -260,9 +260,13 @@ void unreadable_packs(const std::filesystem::path &dir) {
 	CHECK(scrub.passes() == 1 && scrub.failures().size() == 4);
 	for (std::size_t i = 0; i != 4; ++i)
 		CHECK(scrub.failures()[i] == packs[i + 1].ownership.segment);
-	scrub.begin(list, t0, dir / "missing");
-	scrub.step(t0 + 1s);
-	CHECK(scrub.passes() == 2 && scrub.failures().size() == packs.size());
+	bool refused = false;
+	try {
+		scrub.begin(list, t0, dir / "missing");
+	} catch (const std::system_error &) {
+		refused = true;
+	}
+	CHECK(refused && !scrub.running() && scrub.passes() == 1 && scrub.failures().empty());
 }
 // A pack file replaced by one with the same bytes is clean and keeps its verified pages; a pack that
 // mismatches or is gone withdraws them (SR4).

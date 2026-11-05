@@ -27,6 +27,7 @@ class PagedPlanState final : public distribution::RetirementNode {
 	PagedPlanState(std::shared_ptr<distribution::StorageLedger>, RecoveredGeneration,
 				   distribution::RetirementHandle<PagedImageOwner>, StorageIdentity);
 	bool maintenance() const;
+	bool snapshot() const noexcept { return bool(replacement_); }
 	PagedPlanIntent intent() const;
 	std::optional<Descriptor> selected_base() const;
 	const Descriptor &descriptor() const;
@@ -82,6 +83,7 @@ class PagedPlan {
 	PagedPlan(const PagedPlan &) = delete;
 	const Descriptor &descriptor() const { return checked_state().descriptor(); }
 	bool maintenance() const { return checked_state().maintenance(); }
+	bool snapshot() const { return checked_state().snapshot(); }
 	PagedPlanIntent intent() const { return checked_state().intent(); }
 	std::optional<Descriptor> selected_base() const { return checked_state().selected_base(); }
 	const paged::Root &root() const { return checked_state().root(); }

@@ -648,6 +648,21 @@ void heal(const fs::path &certificates, const fs::path &root) {
 	damage.apply();
 	const auto old_packs = packs_in(store);
 	const auto before = l::read_generation_selection(store).descriptor;
+	l::StorageIdentity orphan_id{};
+	orphan_id.fill('z');
+	const x::SegmentNames orphan(orphan_id);
+	{
+		std::ifstream input(store / "storage.meta", std::ios::binary);
+		const std::vector<char> metadata{std::istreambuf_iterator<char>(input), {}};
+		const std::string bytes(257, 'x');
+		const auto owner = l::encode_segment_ownership({l::decode_storage_identity(metadata), orphan_id,
+			bytes.size(), l::paged::physical_commitment(bytes)});
+		std::ofstream payload(store / orphan.payload_name(), std::ios::binary);
+		payload.write(bytes.data(), bytes.size());
+		std::ofstream record(store / orphan.owner_name(), std::ios::binary);
+		record.write(owner.data(), owner.size());
+		check(bool(payload) && bool(record));
+	}
 	Watcher watcher(store, 1);
 	std::cout << "heal: reader before the repair: " << watcher.ok_first << " ok, " << watcher.failed_first
 			  << " source failures\n";
@@ -660,6 +675,10 @@ void heal(const fs::path &certificates, const fs::path &root) {
 		check(settled(status) && status.repair.requested >= 1 && !status.repair.pending);
 		// The reader that mapped the damaged generation served throughout.
 		check(watcher.rounds > 0 && !watcher.regressed && !watcher.wrong);
+		// The damaged root's lease keeps its packs, while an unrelated orphan is reclaimed.
+		check(co_await until(scheduler, 60s, [&] { return !fs::exists(store / orphan.payload_name()); }));
+		check(bool(disk->collection_error()));
+		check(std::all_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); }));
 		watcher.finish();
 		const auto repaired = status.selected.descriptor;
 		check(repaired && repaired->generation != before.generation && repaired->cursor == before.cursor);
@@ -669,10 +688,9 @@ void heal(const fs::path &certificates, const fs::path &root) {
 		for (const auto &pack : now)
 			fresh += !old_packs.count(pack);
 		check(fresh >= 10 && now.size() == old_packs.size() + fresh);
-		// Nothing reaches the damaged packs: the collector removes them.
-		// (A reader's lease can outlast the first request, so ask again until they are gone.)
+		// One request after the reader releases its lease reclaims the damaged packs.
+		disk->request_collection();
 		check(co_await until(scheduler, 60s, [&] {
-			disk->request_collection();
 			return std::none_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); });
 		}));
 		// The scrub runs clean over the repaired generation.

@@ -22,6 +22,13 @@ struct PagedNamedRoot::State final : d::RetirementNode {
 		Reheld,
 		Renamed,
 		CloseRoot,
+		OpenLive,
+		LiveNamed,
+		LiveHeld,
+		LiveRead,
+		LiveReheld,
+		LiveRenamed,
+		CloseLive,
 		Ready,
 		CloseLease,
 		Done
@@ -32,7 +39,7 @@ struct PagedNamedRoot::State final : d::RetirementNode {
 	StorageIdentity storage;
 	GenerationId generation;
 	std::uint64_t trusted_owner;
-	GenerationName lease_name, image_name;
+	GenerationName lease_name, image_name, live_name;
 	RecordReader reader;
 	std::array<char, paged::root_bytes> bytes{};
 	std::optional<c::EntryInspection> initial, lease_identity;
@@ -41,6 +48,11 @@ struct PagedNamedRoot::State final : d::RetirementNode {
 	Descriptor descriptor;
 	c::Token token;
 	std::size_t offset = 0, extent = paged::root_bytes;
+	std::shared_ptr<d::StorageLedger> live_account;
+	d::StorageLedger::Ticket live_charge;
+	std::vector<char> live_bytes;
+	std::optional<LiveRecord> live;
+	std::optional<c::EntryInspection> live_identity;
 	Phase phase = Phase::OpenLease;
 	std::exception_ptr failure;
 	bool submitted = false, lease_open = false, image_open = false, closing = false, legacy_anchor = false;
@@ -49,7 +61,8 @@ struct PagedNamedRoot::State final : d::RetirementNode {
 		: session(std::move(session)), lease(this->session->backend()->make_closed_file()),
 		  image(this->session->backend()->make_closed_file()), cached(std::move(cached)), storage(storage),
 		  generation(generation), trusted_owner(owner), lease_name(generation, GenerationFile::Lease),
-		  image_name(generation, GenerationFile::Image), token(this->session->next_operation()) {}
+		  image_name(generation, GenerationFile::Image), live_name(generation, GenerationFile::Live),
+		  token(this->session->next_operation()) {}
 	bool safe(const c::EntryInspection &entry) const noexcept {
 		return entry.footprint.kind == c::EntryKind::Regular && entry.links == 1 &&
 			   entry.owner == trusted_owner && !(entry.permissions & 0022) &&
@@ -133,6 +146,22 @@ d::RetirementHandle<PagedDependencyCertificate> PagedNamedRoot::certificate() co
 	descriptor();
 	return state_->cached;
 }
+void PagedNamedRoot::read_live(std::shared_ptr<d::StorageLedger> account, std::size_t maximum_segments) {
+	if (!ready() || !paged() || in_flight() || state_->root.segments > maximum_segments)
+		throw std::logic_error("named live record unavailable");
+	auto &s = *state_;
+	s.live_account = std::move(account);
+	s.live_charge = s.live_account->admit(live_record_size(s.root.segments) + s.root.segments * sizeof(LiveRow));
+	s.live_bytes.resize(live_record_size(s.root.segments));
+	s.offset = 0;
+	s.phase = State::Phase::OpenLive;
+	prepare(c::Kind::OpenInto);
+}
+std::span<const LiveRow> PagedNamedRoot::live_dependencies() const {
+	if (!ready() || !state_->live)
+		throw std::logic_error("named live dependencies unavailable");
+	return state_->live->rows;
+}
 void PagedNamedRoot::prepare(c::Kind kind) {
 	if (state_->token.step == UINT64_MAX)
 		throw std::overflow_error("named root tokens exhausted");
@@ -147,9 +176,12 @@ void PagedNamedRoot::prepare(c::Kind kind) {
 					   phase == State::Phase::VerifyLeaseNamed;
 	request_.file = std::shared_ptr<c::File>(pin_, lease ? state_->lease.get() : state_->image.get());
 	request_.source = lease ? state_->lease_name.view() : state_->image_name.view();
+	if (phase == State::Phase::OpenLive || phase == State::Phase::LiveNamed ||
+		phase == State::Phase::LiveRenamed)
+		request_.source = state_->live_name.view();
 	if (kind == c::Kind::Read) {
 		request_.offset = state_->offset;
-		request_.destination_bytes =
+		request_.destination_bytes = phase == State::Phase::LiveRead ? std::span<char>(state_->live_bytes).subspan(state_->offset) :
 			std::span<char>(state_->bytes).first(state_->extent).subspan(state_->offset);
 	}
 }
@@ -199,9 +231,9 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 		const auto phase = state_->phase;
 		if (phase == Phase::OpenLease && !result.error)
 			state_->lease_open = true;
-		if (phase == Phase::OpenRoot && !result.error)
+		if ((phase == Phase::OpenRoot || phase == Phase::OpenLive) && !result.error)
 			state_->image_open = true;
-		if (phase == Phase::CloseRoot)
+		if (phase == Phase::CloseRoot || phase == Phase::CloseLive)
 			state_->image_open = false;
 		if (phase == Phase::CloseLease)
 			state_->lease_open = false;
@@ -244,7 +276,59 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 			cleanup();
 			return true;
 		}
-		if (phase == Phase::OpenLease) {
+		if (phase == Phase::OpenLive) {
+			state_->phase = Phase::LiveNamed;
+			prepare(c::Kind::InspectEntry);
+		} else if (phase == Phase::LiveNamed || phase == Phase::LiveHeld ||
+				   phase == Phase::LiveReheld || phase == Phase::LiveRenamed) {
+			if (!result.inspection)
+				throw std::runtime_error("missing named live record");
+			const auto &entry = *result.inspection;
+			if (entry.footprint.kind != c::EntryKind::Regular || entry.owner != state_->trusted_owner ||
+				entry.links != 1 || (entry.permissions & 0022) ||
+				entry.device != state_->session->directory_identity().device ||
+				entry.footprint.logical_bytes != state_->live_bytes.size())
+				throw std::runtime_error("unsafe named live record");
+			if (phase == Phase::LiveNamed) {
+				state_->live_identity = entry;
+				state_->phase = Phase::LiveHeld;
+				prepare(c::Kind::InspectFile);
+			} else {
+				if (entry != *state_->live_identity)
+					throw std::runtime_error("named live record changed");
+				if (phase == Phase::LiveHeld) {
+					state_->phase = Phase::LiveRead;
+					prepare(c::Kind::Read);
+				} else if (phase == Phase::LiveReheld) {
+					state_->phase = Phase::LiveRenamed;
+					prepare(c::Kind::InspectEntry);
+				} else {
+					state_->live.emplace(decode_live_record(state_->live_bytes, state_->root.segments));
+					const auto &live = *state_->live;
+					if (live.generation != state_->generation || live.root_checksum != state_->descriptor.checksum ||
+						live.rows.size() != state_->root.segments ||
+						(state_->root.pages && std::none_of(live.rows.begin(), live.rows.end(), [&](const auto &row) {
+							return row.segment == state_->root.tree.segment;
+						})))
+						throw std::runtime_error("named live record binding mismatch");
+					state_->phase = Phase::CloseLive;
+					prepare(c::Kind::CloseFile);
+				}
+			}
+		} else if (phase == Phase::LiveRead) {
+			if (!result.count || result.count > state_->live_bytes.size() - state_->offset)
+				throw std::runtime_error("invalid named live read");
+			state_->offset += result.count;
+			if (state_->offset != state_->live_bytes.size())
+				prepare(c::Kind::Read);
+			else {
+				state_->phase = Phase::LiveReheld;
+				prepare(c::Kind::InspectFile);
+			}
+		} else if (phase == Phase::CloseLive) {
+			state_->phase = Phase::Ready;
+			request_ = {};
+		} else if (phase == Phase::OpenLease) {
 			state_->phase = Phase::Lock;
 			prepare(c::Kind::SharedLease);
 		} else if (phase == Phase::Lock) {

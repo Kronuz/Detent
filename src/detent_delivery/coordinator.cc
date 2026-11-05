@@ -72,6 +72,15 @@ struct CandidateComparisonResult : d::RetirementNode {
 	std::exception_ptr failure;
 	std::atomic<bool> ready{false};
 };
+struct ScrubResult : d::RetirementNode {
+	explicit ScrubResult(const CoordinatorOptions &options)
+		: scrub(options.scrub_bytes_per_second), directory(options.directory) {}
+	l::detail::PackScrub scrub;
+	const std::filesystem::path directory;
+	d::RetirementHandle<l::detail::LeasedPagedRoot> root;
+	std::exception_ptr failure;
+	std::atomic<bool> ready{true};
+};
 } // namespace
 struct Coordinator::Impl {
 	CoordinatorOptions options;
@@ -102,8 +111,7 @@ struct Coordinator::Impl {
 	std::chrono::steady_clock::time_point next_compaction_check{};
 	task::cancel_source network_cancel;
 	std::optional<asio::steady_timer> candidate_wake, disk_wake, scrub_wake;
-	std::optional<l::detail::PackScrub> scrubber;
-	d::RetirementHandle<l::detail::LeasedPagedRoot> scrub_root;
+	d::RetirementHandle<ScrubResult> scrub_result;
 	std::uint64_t cancellation = 0, candidate_cancellation = 0;
 	bool closing = false, running = false, settled = false, publication_started = false;
 	// The candidate loop asks upstream for a Replace while a repair is pending (diagnostic.repair.pending).
@@ -493,9 +501,11 @@ struct Coordinator::Impl {
 					++completed_compactions;
 				if (paged_candidate->repair) {
 					repaired = paged_candidate->repair_in_place;
-					diagnostic.repair.pending = false;
 					++diagnostic.repair.completed;
-					// The damaged generation is now unreachable: collect its files.
+				}
+				if (diagnostic.repair.pending) {
+					diagnostic.repair.pending = false;
+					// Any confirmed replacement retires the generation that requested repair.
 					store->request_collection();
 				}
 			} else if (actual.descriptor != paged_candidate->selected_base)
@@ -650,8 +660,7 @@ struct Coordinator::Impl {
 		diagnostic.phase = CoordinatorPhase::Publishing;
 		notify_candidate();
 	}
-	// One owner-executor task, paced by its own timer: the scrub hashes the selected generation's packs
-	// at options.scrub_bytes_per_second and starts the next pass as one ends.
+	// The worker reads and hashes packs; the owner reports each completed slice.
 	task::task<void> scrub_loop() {
 		try {
 			co_await scrub_loop_body();
@@ -664,30 +673,55 @@ struct Coordinator::Impl {
 			co_return;
 		constexpr auto tick = std::chrono::milliseconds(20);
 		constexpr std::uint64_t per_tick = 2 * 1024 * 1024;
-		scrubber.emplace(options.scrub_bytes_per_second);
+		scrub_result = domain.make<ScrubResult>(options);
 		std::uint64_t reported_passes = 0;
 		while (!closing) {
 			const auto now = std::chrono::steady_clock::now();
 			// The recovery worker rewrites base->generation until `ready`; the loop never reads it before.
 			if (diagnostic.initialized && base->ready.load(std::memory_order_acquire) && base->generation) {
 				auto root = l::detail::ScrubSource::root(*base->generation);
-				if (root && root.get() != scrub_root.get()) {
-					scrub_root = std::move(root);
-					scrubber->begin(scrub_root->registry()->inputs(), now, options.directory);
-					reported_passes = scrubber->passes();
+				auto result = scrub_result;
+				const bool changed = root && root.get() != result->root.get();
+				if (changed) {
+					result->root = std::move(root);
 					diagnostic.scrub.damaged_packs = 0;
 					diagnostic.scrub.source_failure = false;
-				} else if (scrub_root && !scrubber->running())
-					scrubber->begin(scrub_root->registry()->inputs(), now, options.directory);
-				if (scrub_root) {
-					scrubber->step(now, per_tick);
-					diagnostic.scrub.passes = scrubber->passes();
-					diagnostic.scrub.bytes_hashed = scrubber->bytes_hashed();
+				}
+				if (result->root) {
+					const bool begin = changed || !result->scrub.running();
+					if (begin)
+						reported_passes = result->scrub.passes();
+					result->failure = {};
+					result->ready.store(false, std::memory_order_relaxed);
+					asio::post(worker, [result, begin, now] {
+						try {
+							if (begin)
+								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);
+							result->scrub.step(now, per_tick);
+						} catch (...) {
+							result->failure = std::current_exception();
+						}
+						result->ready.store(true, std::memory_order_release);
+					});
+					while (!result->ready.load(std::memory_order_acquire)) {
+						scrub_wake->expires_after(std::chrono::milliseconds(1));
+						const auto error = co_await task::await_asio<void(asio::error_code)>(
+							[&](auto handler) { scrub_wake->async_wait(std::move(handler)); });
+						if (error && error != asio::error::operation_aborted)
+							throw asio::system_error(error);
+					}
+					auto &scrubber = result->scrub;
+					diagnostic.scrub.passes = scrubber.passes();
+					diagnostic.scrub.bytes_hashed = scrubber.bytes_hashed();
+					if (result->failure) {
+						++diagnostic.failures;
+						diagnostic.error = result->failure;
+					}
 					// One report per completed pass: the packs that pass found, not a running total.
-					if (scrubber->passes() != reported_passes) {
-						reported_passes = scrubber->passes();
-						diagnostic.scrub.damaged_packs = scrubber->failures().size();
-						diagnostic.scrub.source_failure = !scrubber->failures().empty();
+					if (scrubber.passes() != reported_passes) {
+						reported_passes = scrubber.passes();
+						diagnostic.scrub.damaged_packs = scrubber.failures().size();
+						diagnostic.scrub.source_failure = !scrubber.failures().empty();
 						if (diagnostic.scrub.source_failure) {
 							++diagnostic.failures;
 							diagnostic.error = std::make_exception_ptr(std::runtime_error(
@@ -703,7 +737,7 @@ struct Coordinator::Impl {
 			if (error && error != asio::error::operation_aborted)
 				throw asio::system_error(error);
 		}
-		scrub_root.reset();
+		scrub_result.reset();
 	}
 	task::task<void> disk_loop() {
 		try {

@@ -29,7 +29,7 @@ int main() {
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 	d::RetirementRuntime runtime(baseline, 1);
 	auto domain = runtime.domain(account, 256);
-	for (unsigned variant = 0; variant < 14; ++variant) {
+	for (unsigned variant = 0; variant < 15; ++variant) {
 		std::filesystem::remove_all(directory);
 		install(directory, image, storage);
 		l::StorageIdentity orphan{};
@@ -116,6 +116,12 @@ int main() {
 			auto corrupt = std::string(image.bytes()->view());
 			corrupt[56] ^= 1;
 			write(directory / (l::generation_name(generation) + ".image"), corrupt);
+		}
+		if (variant == 14) {
+			const auto &segment = image.segments().front();
+			auto corrupt = std::string(segment.bytes->view());
+			corrupt.back() ^= 1;
+			write(directory / l::detail::SegmentNames(segment.ownership.segment).payload_name(), corrupt);
 		}
 		l::detail::PagedSegmentCollection collector(domain.factory(), core);
 		std::optional<d::StorageLedger::Ticket> pressure;
@@ -209,7 +215,7 @@ int main() {
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);
 			} else {
-				require(!collector.error() && !std::filesystem::exists(directory / names.payload_name()) &&
+				require(bool(collector.error()) == (variant == 14) && !std::filesystem::exists(directory / names.payload_name()) &&
 						!std::filesystem::exists(directory / names.owner_name()));
 				// A pack whose checksum differs from its owner record is ours and unreachable: it goes too.
 				const std::size_t packs = variant == 11 ? 2 : 1;

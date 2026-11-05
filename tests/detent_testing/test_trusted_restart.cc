@@ -21,6 +21,7 @@
 #include <random>
 #include <set>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 namespace d = detent::distribution;
@@ -272,30 +273,21 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		CHECK(scrub_reports(session, store) == damaged);
 	}
 	{
-		// The update path refuses to build on a damaged base, with the same source failure.
+		// A snapshot recovers cold even when its unreported prior is damaged.
 		detent::testing::GenerationWriter writer(store);
-		bool refused = false;
-		try {
-			writer.publish_json(json(revision + 1));
-		} catch (const std::exception &error) {
-			refused = true;
-			std::cout << "update over a damaged base: " << error.what() << "\n";
-		}
-		CHECK(refused);
+		writer.publish_json(json(revision + 1));
 	}
-	// The refused update may have reached a durable generation that shares pages it never read, so the
-	// selected revision is the old one or the new; either way no damaged page is served.
 	const int after = int(selected(store).cursor.revision);
-	CHECK(after == revision || after == revision + 1);
+	CHECK(after == revision + 1);
 	{
 		Session session;
 		session.recover(store);
 		const auto reads = read_all(session, after);
-		std::cout << "after the refused update (revision " << after << "): " << reads.ok << " ok, "
+		std::cout << "after the snapshot (revision " << after << "): " << reads.ok << " ok, "
 				  << reads.source_failures << " source failures, " << reads.wrong << " wrong, " << reads.other
 				  << " other\n";
 		// A republication builds from the incoming snapshot, so the new revision carries no damaged page.
-		CHECK(!reads.wrong && !reads.other && (after != revision || reads.source_failures > 0));
+		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && !reads.source_failures);
 	}
 	repair();
 	{
@@ -620,6 +612,55 @@ void delta_changes(std::map<std::string, std::int64_t> &upserts, std::vector<std
 			upserts["n3:k" + std::to_string(i)] = *value + 1000;
 	}
 }
+void mapped_mutations(const fs::path &store) {
+	for (const std::string mutation : {"children", "body", "kind", "evaluate"}) {
+		Session session;
+		session.recover(store);
+		CHECK(read_all(session, 3).ok == knobs + 10);
+		std::span<const char> page;
+		for (const auto &input : session.registry().inputs()) {
+			for (std::size_t offset = 0; input.pages && offset + l::paged::page_header_bytes <= input.bytes.size(); offset += 8) {
+				const auto bytes = input.bytes.subspan(offset);
+				if (std::memcmp(bytes.data(), "DTPAGE02", 8) || !input.pages->test(offset))
+					continue;
+				const auto header = l::paged::decode_page_header(bytes.first(l::read_integer(bytes, 16, 4)));
+				const auto kind = mutation == "children" ? l::paged::PageKind::Branch : l::paged::PageKind::Definition;
+				if (header.kind == kind) {
+					page = bytes.first(header.length);
+					break;
+				}
+			}
+			if (!page.empty())
+				break;
+		}
+		CHECK(!page.empty());
+		const auto size = std::size_t(::getpagesize());
+		auto *base = reinterpret_cast<char *>(reinterpret_cast<std::uintptr_t>(page.data()) & ~(size - 1));
+		CHECK(::mprotect(base, (page.data() + page.size() - base + size - 1) / size * size,
+						 PROT_READ | PROT_WRITE) == 0);
+		auto *bytes = const_cast<char *>(page.data());
+		if (mutation == "children" || mutation == "body")
+			std::fill_n(bytes + (mutation == "children" ? 24 : 28), 4, '\xff');
+		else {
+			const auto body = page.size() - l::read_integer(page, 28, 4);
+			bytes[body + 8] = mutation == "kind" ? 0 : 1;
+			if (mutation == "evaluate")
+				bytes[body + 15] = 1;
+		}
+		std::size_t get_failures = 0, eval_failures = 0;
+		for (int i = 0; i < knobs + 10; ++i) {
+			if (!expected(3, i))
+				continue;
+			const auto got = session.generation->view().try_get(name_space(i), key(i));
+			const auto evaluated = session.generation->view().try_eval(name_space(i), key(i), {}, "x");
+			CHECK(got && evaluated);
+			get_failures += !got->has_value() && got->error().category == detent::ErrorCategory::SourceFailure;
+			eval_failures += !evaluated->has_value() && evaluated->error().category == detent::ErrorCategory::SourceFailure;
+		}
+		CHECK(eval_failures > 0 && (mutation == "evaluate" || get_failures > 0));
+		std::cout << "mapped " << mutation << ": " << get_failures << " get, " << eval_failures << " eval source failures\n";
+	}
+}
 void run_mode(const std::string &mode, const fs::path &root) {
 	const auto store = root / "store";
 	{
@@ -653,6 +694,8 @@ void run_mode(const std::string &mode, const fs::path &root) {
 		t5(store, root, 3);
 	if (mode == "scrub-disk")
 		scrub_disk(store, 3);
+	if (mode == "mapped")
+		mapped_mutations(store);
 	if (mode == "heal") {
 		repair_unchanged(store, 3);
 		heal(store, 3);
@@ -668,8 +711,8 @@ int main(int argc, char **argv) {
 	} cleanup{root};
 	const std::string mode = argc > 1 ? argv[1] : "all";
 	CHECK(mode == "all" || mode == "oracle" || mode == "refusals" || mode == "t5" || mode == "scrub-disk" ||
-		  mode == "heal");
-	for (const auto *each : {"oracle", "refusals", "t5", "scrub-disk", "heal"})
+		  mode == "heal" || mode == "mapped");
+	for (const auto *each : {"oracle", "refusals", "t5", "scrub-disk", "heal", "mapped"})
 		if (mode == "all" || mode == each)
 			run_mode(each, root / each);
 	std::cout << "ok\n";

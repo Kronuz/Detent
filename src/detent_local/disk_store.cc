@@ -1596,8 +1596,8 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
-		// A repair recovers without the base it replaces, which may be damaged.
-		recovery->populate(plan, intent == detail::PagedPlanIntent::Repair ? decltype(core.verified_paged){} : core.verified_paged,
+		// A snapshot shares no packs with its base, which may be damaged.
+		recovery->populate(plan, plan.snapshot() ? decltype(core.verified_paged){} : core.verified_paged,
 						   core.options.recovery_limits);
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
@@ -1806,13 +1806,12 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
-	const bool repairing =
-		core.pending_paged_recovery && core.pending_paged_recovery->plan().intent() == detail::PagedPlanIntent::Repair;
+	const bool snapshot = core.pending_paged_recovery && core.pending_paged_recovery->plan().snapshot();
 	RecoveryContext paged{*core.factory,
 						  core.account,
 						  core.options.recovery_limits.mapping_account,
 						  core.options.recovery_limits,
-						  repairing ? decltype(core.verified_paged){} : core.verified_paged,
+						  snapshot ? decltype(core.verified_paged){} : core.verified_paged,
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};
