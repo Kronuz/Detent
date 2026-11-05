@@ -1469,7 +1469,8 @@ DiskStats DiskStore::stats() const noexcept {
 }
 SyncStats DiskStore::sync_stats() const noexcept {
 	const auto &core = *impl_->core;
-	return {core.session->sync_counters(), core.startup_sync, core.publication_sync};
+	return {core.session ? core.session->sync_counters() : core.closed_sync, core.startup_sync,
+			core.publication_sync};
 }
 SelectionSnapshot DiskStore::selection() const noexcept { return impl_->core->selection; }
 DirectoryIdentity DiskStore::directory_identity() const noexcept { return impl_->core->directory_identity; }
@@ -1548,6 +1549,7 @@ void DiskStore::advance() {
 		impl_->core->verified_paged.reset();
 		impl_->core->factory.reset();
 		impl_->core->controls.reset();
+		impl_->core->closed_sync = impl_->core->session->sync_counters();
 		impl_->core->session.reset();
 		impl_->core->status = StoreStatus::Closed;
 	}
