@@ -1,8 +1,29 @@
-> Status: CURRENT (2026-11-02) Campaign plan after the handover from Codex; the release exits stay in [RELEASE_PLAN.md](RELEASE_PLAN.md).
+> Status: CURRENT (2026-11-04) Campaign plan under the [November handoff](handoffs/detent-codex-2026-11.md); live execution is in [the lead ledger](status/campaign-lead.md).
 
 # Detent campaign plan
 
-Lead: the Claude Code session that took Detent over from Codex session `01a0f5d7` on 2026-11-02.
+Lead: the current Detent campaign. The owner authorizes execution of the November handoff through completion, including its branch pushes, CI dispatches and gated landings.
+
+## Current execution
+
+The [November handoff](handoffs/detent-codex-2026-11.md) defines the current scope and takes precedence over older process and scheduling notes below. The release milestones remain the larger product goal.
+
+| Order | Work | Landing requirement |
+| --- | --- | --- |
+| 1 | Reader S6 | Explain the concurrent soak failure; finish mutants and sanitizer gates; independent security review; merged-head CI green |
+| 2 | Legacy H | Merge landed S6, rebuild mutated sources, prove binding and cache fixes; all CI jobs green |
+| 3 | Namespace S3b repair | Close leased-generation collection, read bounds and exception containment, cold snapshot recovery, scrub and documentation conditions; rerun review probes and revert checks; CI green |
+| 4 | Namespace S1/S2 grouped syncs | Resolve power-cut failure; mutants, sanitizers, bootstrap pairs and ext4 evidence; architect review and CI green |
+| 5 | Dense pages | Preliminary architect review; S1-S5 implementation and proof; 100K/5M measured gate, decoder-safety and architect landing reviews; CI green |
+
+S3b and S1/S2 may land in either order. Work with available inputs proceeds on isolated branches while upstream gates close. The status index records the queue and active ownership.
+
+1. No AWS calls or leases. Use local VMs and hosted CI.
+2. Honor existing host holds. Builds and tests use `quiet light`, at most four jobs, with holds at most 30 minutes. Published measurements use `quiet exclusive`.
+3. Use the `github` remote and the Kronuz account. Merge current `main` into a candidate, dispatch `ci.yml` explicitly, and land with `git merge --no-ff` only after the required evidence, reviews and executed CI jobs pass. Never force-push shared branches.
+4. Follow the handoff's owner defaults. Keep the Homebrew tap pinned until the owner authorizes its update. Do not tag or publish a release under the handoff's branch-landing authorization.
+5. Independent reviewers use fresh contexts. Contributors own their worktrees; the lead owns `main`, this plan and the indexes. Use the current campaign review tiers and retain every numbered done criterion.
+6. Long CPU jobs use the shared run queue. Never restart the failed overnight script from its beginning or overwrite a running script.
 
 ## Goal
 
@@ -103,29 +124,8 @@ the tip in M2, never adopted on the old pins.
 
 ## Process
 
-Pacing follows `pace claude advise`; on 2026-11-02 the week runs ahead (16% used against 7%
-pace), so one token-heavy agent runs at a time and the lead does mechanical library work itself.
-Builds and tests run under `quiet light`, timing under `quiet strict` holds of at most ten minutes.
+Use `pace codex advise N` for this campaign's active contributors and reviewers. No Codex quota snapshot is available at takeover; record that limit rather than infer spare quota from another harness.
 
-Timing that decides a gate runs on the shared AWS benchmark account through `lease` (us-east-2,
-on-demand; one lease per session at a time; batches queued and run back to back in one lease, then
-`lease down`). c7a.4xlarge (x86) and c7g.4xlarge (arm64) serve A/B ratios; metal only for gate or
-published numbers, after messaging the Xapiand lead. The Linux x86-64 gate for http on task (T6/T7)
-runs there once task's C3 lands. Its threshold for a "considerable" cost gap is the lead's proposal
-(more than 5% server CPU per request or 10% p99, after optimization) unless the owner rules otherwise
-at the gate; the aim is to close the gap and keep `task::task` everywhere.
+Local builds, tests and VM work honor the shared host's holds. Hosted CI supplies the platform matrix. The shared queue runs bounded CPU jobs whose results have a named reader. Every two-hour report includes free disk, host load, holds, CI and the next landing's remaining steps.
 
-Builds: when the local load is high, the session leases one c7a.4xlarge as a Linux build box
-(`lease up detent-build c7a.8xlarge`, 32 vCPU; compilers installed with apt) and contributors run Linux
-builds and sanitizer suites there through `~/.scratch/detent-lease/remote.sh WORKTREE CMD`, at
-most 8 jobs each; the helper leases on demand and a reaper releases it after 5 idle minutes, so
-the shared account stays free between batches. Each session runs at most one lease (the owner raised the spend limit and the account's on-demand
-quota is 96 vCPU, 2026-11-03): Detent's build box and Xapiand's `strata-ci-linux` are 32 vCPU each,
-leaving 32 for gate windows; a metal gate (c7i.metal-24xl, 96 vCPU) needs both build boxes down and
-is scheduled with the Xapiand lead, as is the http-on-task gate (T6/T7). macOS builds and all
-timing stay local (or on a dedicated lease). The lease also ends
-itself after 30 idle minutes or 4 hours.
-
-Disk: the machine's disk refills (99% used on 2026-11-02 after ~60 GiB was freed a month earlier).
-Every 2-hour report states free space; contributors delete build directories when they finish, and
-the lead removes merged worktrees and their build directories at each landing.
+Cleanup follows each landing after checking worktree status, branch ancestry and build-directory consumers. Release qualification retains its existing performance thresholds; no relaxed operating ceiling follows from a component landing.

@@ -292,3 +292,9 @@ lives. The adoption is no longer an optional candidate: its first-read gate (196
 195/200 migrated under 1 ms) is a regression to attribute and fix, in `allocators` when the cost is
 there, not a reason to keep Detent's copy. The work rebases `track/resource-adoption`
 (`Detent:52246e2`) onto `main` with `allocators` at its head, the same pin completion declares.
+
+## Grouped file sync dependency closure (November 4)
+
+Detent's `namespace/s1-s2` candidate requires completion's staged-file policy at `completion:560c288`. Its current journal pin, `journal:bfad97f`, declares `completion:9acfba3`, so the candidate fails the dependency-consistency check in CI run 41974346242. Journal's remote main, `journal:5bbeedc`, declares the same older completion revision; taking that head alone does not close the mismatch. Detent main retains the consistent older closure.
+
+The Detent lead requests a minimal coordinated declaration update and green journal CI from the Xapiand lead, including the consensus closure if its declaration changes. The request is queued through the peer campaign's agent inbox. No shared-library source, pin checker or production Detent pin changes under this record. Agreement or objections belong here before taking the qualified closure.
