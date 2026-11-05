@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Ledger for the dense paged-trie format design.
+> Status: CURRENT (2026-11-04) Dense-only implementation; complementary pieces run in parallel and whole-feature proof gates landing.
 
 # dense-pages
 
@@ -12,12 +12,13 @@
   3. The draft checked against the code it changes: D3's root check (`paged_layout.cc:74`), S3b's repair marked open, and namespace-delivery's D8, D9 and D11 named as such (`Detent:8e1399b`).
   4. The definition-page first touch in the figures, D6 and Limit 2 (`Detent:3afb8ba`).
   5. The build plan in place of the first steps: S1 to S5 with files, done criteria, mutants and the numbers to hit, the landing order against reader S6, S3b and namespace S1, S2 and S7, and every count marked projected (this commit).
-- Doing: complete full builds, validation, reads, deltas, relocation and format replacement in complementary developer workstreams. Existing design reviews supply the contracts; reviews assess the integrated feature.
+- Doing: full snapshot/segment construction consumes the resumable packer. Native full-build corpus tooling checks actual generations and separate page/pack/metadata hash totals. Readers/validators and deltas/relocation run on complementary branches.
 - Next:
-  1. Read the queued bounded proof result for the contract/model correction, resolve any failure, and obtain lead confirmation of DP-1 through DP-6. Do not tick K1 on draft contracts alone.
-  2. Execute S1 to S5 on one implementation branch after the foundational contracts settle. Dispatch hosted CI explicitly; branch pushes alone do not trigger it.
-  3. The 5M mixed-churn rerun with the off-path assertion (`.scratch/dense/run3.sh`) did not run: it was stopped at wrap-up. S4's T4 run at 5M covers it. The assertion passes in `check`'s synthetic churn.
-- Blocked on: no external prerequisite. Keep whole-pack checksums and record full copies. Reader S6, legacy removal, damaged-pack repair and grouped-sync campaigns are parked; Dense pages targets the APIs on current main.
+  1. Compose native builders with peer reader/validator and delta checkpoints; reproduce the 100K and 5M model pages and hash boundaries with actual `PagedSnapshotBuilder` output.
+  2. Finish whole-feature value, decoder, resource, sanitizer and quantitative reader proof; execute the bounded decoder fuzz hour and retain raw results.
+  3. Run whole-feature code/security/optimization reviews, fix findings, obtain the architect's merge ruling and final composed-head CI.
+- Scope: the owner's Dense-only plan at `Detent:785fb34` supersedes S6/S3b-first landing and per-step reviews/CI. Existing main APIs are the integration baseline; unrelated campaigns are outside this work.
+- Blocked on: no design blocker. Individual compile gaps are exchanged directly with the peer owning them; no legacy-format compatibility path is retained.
 - Findings folded in: DP-1 corresponding-path occurrence reuse with single extent ownership; DP-2 exact reference/root and derived empty commitment; DP-3 summary/header equality and proved warm skips; DP-4 accepted S3b bounded reads and SourceFailure; DP-5 separate counters/resource/proof contracts; DP-6 T5 before merge. Review confirmation and implementation evidence remain open.
 - Last verified (2026-11-04):
   - Ruff format, ruff check and pyrefly strict are clean on the model.
@@ -64,3 +65,14 @@ The sole deliverable is a complete, measured and optimized Dense pages implement
 4. **Execution status.** Ruff formatting and `git diff --check` completed. Model execution, Ruff lint and strict Pyrefly are queued, not passed. Bounded job: main `.scratch/overnight/queue/detent-dense-contracts.sh`; results appear in `done/detent-dense-contracts.log` and `.rc`, with detail in this worktree's `.scratch/dense-contracts/proof.log`. The job times out at 27 minutes and uses one 30-minute light hold. Read its result before S1 implementation.
 5. **Exact projections.** Existing density/hop figures remain projections. Historical one-update/mixed-churn T4 counts are explicitly pending corrected occurrence-oracle output. Before accepting exact targets, save full U/I/D command, corpus SHA-256, model commit and raw output. No local build, test or timing ran during the exclusive hold.
 6. **Next contributor.** Implement S1 on this series only after the lead confirms the foundational contracts and the queued proof passes. K1 through K15 are unchanged. Keep independent review files untouched; execute S2 to S5 and the premerge reader/proof gates before landing the sole-format switch.
+
+## Dense-only implementation, 2026-11-05
+
+1. `Detent:8b041fa`: exact codec/root/reference fixtures, synthetic and real 100K packer identity, 256-way/max-body/repeated-content cases, admitted resumable clusters, cancellation and quota tests. Debug and separate ASan+UBSan targets passed 3/3. Four sealing/digest mutants failed and the original passed. Decoder smoke: 678,914 inputs in 91 seconds, zero findings; 143 corpus seeds replay in CTest. Raw evidence: `.scratch/dense-s1/`.
+2. Model SHA-256 `96dfd0a7aad2af1f8bd8dead7f85729ddd5e6aeac4ba03ce49ce1b7ea3906bd1`, Python 3.15.2: the queued job passed Ruff, strict Pyrefly, contracts and synthetic self-check. Lead DP-1 probes at main `.scratch/lead-dense-model/` passed original/restored and rejected digest-global physical ownership and digest-set write filtering. This is model evidence, not incremental C++ allocator proof.
+3. Fresh projections and exact C++ packer pages: synthetic 20,205 records, 913 pages, 1,266,995 page bytes, root `30a019eb55b13776fcda2fa164dae35e64ffd8b1aa9dffc8ed4a66a8160997bf`; real 100,004 records, 3,245 pages, 6,209,298 page bytes, root `7c0f7d1b4a8d6e036895fc120a38a5deca5ec25b8778866b48dd636070d23464`. Retained peaks at the S1 fixture boundary: 123,988 and 122,605 bytes. Synthetic wide keys are raw structural inputs; production `TrieCursor` checks typed keys on the real corpus. Full generation counts remain pending native integration.
+4. `Detent:384d84f`: structural-only verification, exact hash categories, clean open-cluster and intrinsically sealed-reference injection, sealed-page segment input. Targeted Debug codec/packer tests passed, including one-byte injection budgets. Native full-build target and corpus adapter are in progress. No complete-product build, final-head CI, whole-feature review or reader acceptance is claimed.
+
+## Parked for Campaign 2.0 (2026-11-05)
+
+The owner requests migration before further feature work. The contributor reached a usage limit mid-step; the lead preserves its current files without claiming final integration passed. Full-build implementation and native 100K model identity exist; builder/segment fixtures, global composed builds, 5M measurements and final feature checks remain. Worktree: `.claude/worktrees/dense-pages-series`, branch `phase/dense-pages`. No live command or hold remains at 14:54 PST. Resume full-build integration from this checkpoint under the new quest journal.

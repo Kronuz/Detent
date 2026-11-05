@@ -51,6 +51,9 @@ struct GraphValidator::Impl {
 	struct Frame {
 		p::Reference reference;
 		p::PageHeader header;
+		p::NodeView node;
+		std::size_t node_offset = p::page_header_bytes, prefix_offset = 0;
+		bool page_root = true;
 		std::span<const char> bytes;
 		std::size_t segment = 0, bit = 0, end = 0, restore = 0, child = 0;
 		std::uint64_t keys = 0;
@@ -106,29 +109,40 @@ struct GraphValidator::Impl {
 		--budget.rows;
 		return true;
 	}
-	void push(const p::Reference &reference) {
+	void push(const p::Reference &reference, std::span<const char> existing = {},
+			  std::size_t node_offset = p::page_header_bytes) {
 		require(depth < frames.size());
 		const auto segment = find_segment(segments, reference.segment);
 		require(segment < segments.size());
-		const auto bytes = checked_page_bytes(segments[segment], reference);
-		require(pages < expected.pages && reference.length <= expected.bytes - extent_bytes);
+		const auto bytes = existing.empty() ? checked_page_bytes(segments[segment], reference) : existing;
+		const bool page_root = existing.empty();
+		if (page_root)
+			require(pages < expected.pages && reference.length <= expected.bytes - extent_bytes);
 		auto &frame = frames[depth++];
 		frame = {};
 		frame.reference = reference;
 		frame.segment = segment;
 		frame.bytes = bytes;
 		frame.restore = key_size;
-		frame.bit = reference.offset / 8;
-		frame.end = (std::size_t(reference.offset) + reference.length + 7) / 8;
-		++pages;
-		extent_bytes += reference.length;
-		++states[frame.segment].cells;
-		states[frame.segment].extents += reference.length;
+		frame.node_offset = node_offset;
+		frame.page_root = page_root;
+		if (page_root) {
+			frame.bit = reference.offset / 8;
+			frame.end = (std::size_t(reference.offset) + reference.length + 7) / 8;
+			++pages;
+			extent_bytes += reference.length;
+			++states[frame.segment].cells;
+			states[frame.segment].extents += reference.length;
+		} else {
+			frame.node = p::decode_node(bytes, node_offset, limits);
+			require(frame.node.prefix.size() <= key.size() - key_size);
+			frame.phase = NodePhase::Prefix;
+		}
 	}
 	void leaf(Frame &frame) {
 		const auto parsed = p::decode_key({key.data(), key_size});
-		require(parsed.kind == frame.header.kind);
-		const auto body = frame.bytes.last(frame.header.body);
+		require(parsed.kind == frame.node.kind);
+		const auto body = frame.node.body;
 		if (parsed.kind == p::PageKind::Namespace) {
 			require(!definitions && namespaces.size() < expected.namespaces);
 			require(parsed.name_space.size() <= semantic_limits.strings - strings);
@@ -227,6 +241,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (state.offset != input.bytes.size() || !budget.rows)
 					return;
 				--budget.rows;
+				p::count_hash(p::HashKind::Pack, 1, input.bytes.size());
 				require(finish(state.segment_hash) == input.ownership.checksum);
 				state.segment_hash = SHA256{};
 				state.offset = 0;
@@ -287,27 +302,27 @@ void GraphValidator::step(ValidationBudget &budget) {
 					return;
 				frame.header = state.page->header();
 				state.page.reset();
-				require(frame.header.kind != p::PageKind::Overflow &&
-						frame.header.prefix <= state.key.size() - state.key_size);
+				frame.node = p::decode_node(frame.bytes, frame.node_offset, state.limits);
+				require(frame.node.prefix.size() <= state.key.size() - state.key_size);
 				frame.phase = Impl::NodePhase::Prefix;
 				state.offset = 0;
 				break;
 			case Impl::NodePhase::Prefix: {
-				const auto count = std::min<std::size_t>(frame.header.prefix - state.offset, budget.bytes);
-				std::copy_n(frame.bytes.begin() + p::page_header_bytes + state.offset, count,
+				const auto count = std::min<std::size_t>(frame.node.prefix.size() - frame.prefix_offset, budget.bytes);
+				std::copy_n(frame.node.prefix.begin() + frame.prefix_offset, count,
 							state.key.begin() + state.key_size);
-				state.offset += count;
+				frame.prefix_offset += count;
 				state.key_size += count;
 				budget.bytes -= count;
-				if (state.offset != frame.header.prefix)
+				if (frame.prefix_offset != frame.node.prefix.size())
 					return;
-				frame.child = frame.header.children;
-				frame.phase = frame.header.kind == p::PageKind::Branch ? Impl::NodePhase::Children
+				frame.child = frame.node.labels.size();
+				frame.phase = frame.node.kind == p::PageKind::Branch ? Impl::NodePhase::Children
 																	   : Impl::NodePhase::Leaf;
 				break;
 			}
 			case Impl::NodePhase::Leaf:
-				if (!state.admit(frame.header.body + state.key_size, budget))
+				if (!state.admit(frame.node.body.size() + state.key_size, budget))
 					return;
 				state.leaf(frame);
 				break;
@@ -319,13 +334,17 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!state.admit(p::child_bytes + 1, budget))
 					return;
 				{
-					const auto child = p::decode_child(frame.bytes.subspan(
-						p::page_header_bytes + frame.header.prefix + (--frame.child) * p::child_bytes,
-						p::child_bytes));
+					const auto child = --frame.child;
+					const auto slot = frame.node.slot(child);
 					require(state.key_size < state.key.size());
 					const auto restore = state.key_size;
-					state.key[state.key_size++] = static_cast<char>(child.label);
-					state.push(child.reference);
+					state.key[state.key_size++] = frame.node.labels[child];
+					if (slot & 0x8000)
+						state.push(p::decode_external(frame.bytes, slot & 0x7fff, state.limits));
+					else {
+						require(slot >= frame.node.end && slot > frame.node_offset);
+						state.push(frame.reference, frame.bytes, slot);
+					}
 					state.frames[state.depth - 1].restore = restore;
 				}
 				break;
@@ -333,12 +352,12 @@ void GraphValidator::step(ValidationBudget &budget) {
 				if (!budget.rows)
 					return;
 				--budget.rows;
-				require(frame.keys == frame.header.keys);
+				require(!frame.page_root || frame.keys == frame.reference.keys);
 				state.key_size = frame.restore;
 				--state.depth;
 				if (state.depth) {
 					auto &parent = state.frames[state.depth - 1];
-					require(frame.keys <= parent.header.keys - parent.keys);
+					require(frame.keys <= state.expected.tree.keys - parent.keys);
 					parent.keys += frame.keys;
 				}
 				break;

@@ -2,6 +2,8 @@
 
 # Dense pages
 
+> Execution scope (2026-11-05): the owner's Dense-only plan at `Detent:785fb34` supersedes the S6/S3b-first landing table and per-step review/CI sequence below. Complementary implementation runs in parallel against current main APIs. Whole-feature code, security and optimization reviews precede the architect's final merge ruling; the composed feature must pass CI.
+
 Many trie nodes per verified page, one header and one digest per page, in place of one node per page.
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-04. Ledger: `docs/status/dense-pages.md`.
