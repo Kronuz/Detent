@@ -3,8 +3,8 @@
 # dense-pages
 
 - Design: docs/design/dense-pages.md; model: docs/design/dense-pages-model.py. Preliminary review: [dense-pages-design.md](../reviews/dense-pages-design.md), APPROVE WITH REQUIRED CHANGES (2026-11-04).
-- Branch / worktree: `design/dense-pages` at `.claude/worktrees/agent-a7d1b230a685025e4`; base `Detent:bea5c43`.
-- State: designing (required changes DP-1 through DP-6)
+- Branch / worktree: `phase/dense-pages` at `.claude/worktrees/dense-pages-series`; base `Detent:d5fa05d`.
+- State: design contract corrections drafted; model execution queued behind exclusive host hold. No C++ dense implementation exists.
 - Done criteria: K1 through K15 below are set by the lead. Contributors attach evidence and tick them; they do not weaken or remove them.
 - Done:
   1. The model and this ledger (`Detent:b6932c2`). The model's rebuild of today's trie matches the r12 store exactly (7,000,007 pages, 1,479,001,197 page bytes, 1,441 segments and 1,509,994,805 pack bytes in postorder).
@@ -12,13 +12,13 @@
   3. The draft checked against the code it changes: D3's root check (`paged_layout.cc:74`), S3b's repair marked open, and namespace-delivery's D8, D9 and D11 named as such (`Detent:8e1399b`).
   4. The definition-page first touch in the figures, D6 and Limit 2 (`Detent:3afb8ba`).
   5. The build plan in place of the first steps: S1 to S5 with files, done criteria, mutants and the numbers to hit, the landing order against reader S6, S3b and namespace S1, S2 and S7, and every count marked projected (this commit).
-- Doing: preliminary findings assigned for design correction; no format implementation is approved yet.
+- Doing: DP-1 through DP-6 contract resolutions are explicit in the design. The occurrence-aware model and tiny empty/repeated-content/summary-binding probes require execution; no format implementation is approved yet.
 - Next:
-  1. Close the builds-on contracts DP-1 (occurrence-aware reuse), DP-2 (empty root) and DP-3 (external summary binding); incorporate DP-4 through DP-6.
+  1. Read the queued bounded proof result for the contract/model correction, resolve any failure, and obtain lead confirmation of DP-1 through DP-6. Do not tick K1 on draft contracts alone.
   2. Execute S1 to S5 on one implementation branch after the foundational contracts settle. Dispatch hosted CI explicitly; branch pushes alone do not trigger it.
   3. The 5M mixed-churn rerun with the off-path assertion (`.scratch/dense/run3.sh`) did not run: it was stopped at wrap-up. S4's T4 run at 5M covers it. The assertion passes in `check`'s synthetic churn.
-- Blocked on: nothing. Q1 (the pack checksum pass) is the lead's or the architect's call; Q2 (the full-copy wire format) is the owner's. Neither blocks S1 to S5.
-- Findings folded in: none yet; the preliminary review is complete and its required changes remain open.
+- Blocked on: host exclusive Xapiand measurement until 01:21 for local execution. Keep whole-pack checksums and record full copies for S1 to S5, per accepted defaults and preliminary review.
+- Findings folded in: DP-1 corresponding-path occurrence reuse with single extent ownership; DP-2 exact reference/root and derived empty commitment; DP-3 summary/header equality and proved warm skips; DP-4 accepted S3b bounded reads and SourceFailure; DP-5 separate counters/resource/proof contracts; DP-6 T5 before merge. Review confirmation and implementation evidence remain open.
 - Last verified (2026-11-04):
   - Ruff format, ruff check and pyrefly strict are clean on the model.
   - `dense-pages-model.py check .scratch/dense/check2` passes on the final model ("check: ok", exit 0), under the light hold dense-check2.
@@ -50,3 +50,12 @@
 - 2026-11-04: third sweep, partial. The definition-page first touch at 4 KiB is 2,360 B at the median and 3,641 B at p99, against today's 270 and 272; it is in D6 and Limit 2. Node tags moved to today's page kinds (branch 1, definition 2, namespace 3), which changes every digest and no count. The mixed-churn rerun was stopped at wrap-up.
 - 2026-11-04: wrap-up for hand-off to the implementing lead. The build plan replaces the first steps, and every count is marked projected. The final `check` passes. State: designing (ready for preliminary review).
 - 2026-11-04: Preliminary review requires DP-1 through DP-6. Lead sets K1 through K15 without relaxing the draft's proof obligations. Exact model targets remain projections pending contract corrections and C++ reproduction.
+
+## Contract correction evidence and handoff
+
+1. **Design versus code.** Only the Python projection model and design are changed. Production C++ still uses DTPAGE02/DTROOT02. The model compares two full builds; it does not execute incremental allocation or certify C++ reuse, decoder safety, cancellation or read latency.
+2. **Occurrence mechanism.** Each modeled page retains the trie path before its top-node prefix. Reuse requires matching path and digest/length/keys/height; no base extent can satisfy two target occurrences. Digest novelty is a separate diagnostic. The model also preserves paths in today's comparison, rather than collapsing its repeated nodes by digest.
+3. **Tiny probes.** `contracts DIR` covers empty packing/commitment, adding/removing a watermark-only state, repeated oversized equal-content leaves, identical-build occurrence reuse, cold/warm false keys and heights, and growing a sibling to seal a clean cluster beside an equal retained page. These are model probes; initially-empty/restart/delete-last/add-first exact C++ root fixtures remain K2 work. Competing false-height canonicity fixtures remain K6 work.
+4. **Execution status.** Ruff formatting and `git diff --check` completed. Model execution, Ruff lint and strict Pyrefly are queued, not passed. Bounded job: main `.scratch/overnight/queue/detent-dense-contracts.sh`; results appear in `done/detent-dense-contracts.log` and `.rc`, with detail in this worktree's `.scratch/dense-contracts/proof.log`. The job times out at 27 minutes and uses one 30-minute light hold. Read its result before S1 implementation.
+5. **Exact projections.** Existing density/hop figures remain projections. Historical one-update/mixed-churn T4 counts are explicitly pending corrected occurrence-oracle output. Before accepting exact targets, save full U/I/D command, corpus SHA-256, model commit and raw output. No local build, test or timing ran during the exclusive hold.
+6. **Next contributor.** Implement S1 on this series only after the lead confirms the foundational contracts and the queued proof passes. K1 through K15 are unchanged. Keep independent review files untouched; execute S2 to S5 and the premerge reader/proof gates before landing the sole-format switch.
