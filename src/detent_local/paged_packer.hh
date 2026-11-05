@@ -19,6 +19,9 @@ class PagedPacker {
 	PagedPacker(const PagedPacker &) = delete;
 	// Borrowed event/body spans stay immutable until accepted() becomes true.
 	void push(TrieEvent, std::span<const char> body = {});
+	// Base bytes and path stay immutable until accepted(); summaries come from validated input.
+	void push_cluster(std::span<const char> page, std::size_t node_offset, std::string_view path);
+	void push_reference(const paged::Reference &, std::string_view path);
 	void finish();
 	void step(ValidationBudget &);
 	bool accepted() const noexcept;

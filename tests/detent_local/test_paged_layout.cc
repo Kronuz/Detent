@@ -175,6 +175,15 @@ int main() {
 	l::write_integer(moved, moved.size() - 4, 88, 4);
 	require(p::page_commitment(moved) == parent_ref.digest);
 	p::verify_page(moved, parent_ref);
+	p::reset_hash_counts();
+	p::verify_page_structure(parent, parent_ref);
+	require(p::hash_counts() == p::HashCounts{});
+	p::verify_page(parent, parent_ref);
+	require(p::hash_counts() == p::HashCounts{1, parent.size() - 32 - 40, 0, 0, 0, 0});
+	p::pack_commitment(parent);
+	p::metadata_commitment(parent);
+	require(p::hash_counts() ==
+			p::HashCounts{1, parent.size() - 32 - 40, 1, parent.size(), 1, parent.size()});
 	std::array<char, 202> key{};
 	auto n = p::encode_definition_key(key, "ns:knob");
 	require(p::decode_key({key.data(), n}).local_name == "knob");
