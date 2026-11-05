@@ -398,7 +398,7 @@ class StartupOperation final : public c::Operation {
 			if (data.selected && data.selected_owned &&
 				data.selected_ownership != GenerationOwnership{core.identity, data.selected->generation,
 															   data.selected->length, data.selected->checksum,
-															   core.verified_paged ? 2u : 1u})
+															   core.verified_paged ? paged::format_version : 1u})
 				throw std::runtime_error("selected generation ownership differs from storage identity");
 			core.bootstrap->usage = {};
 			prepare(Phase::Barrier, c::Kind::DirectorySync);
@@ -927,7 +927,7 @@ class ReclaimOperation final : public c::Operation {
 				if (part == 1) {
 					if (result.inspection && result.inspection->footprint.logical_bytes) {
 						data_->prefix_length = std::min<std::uint64_t>(
-							slot().proof.layout_version == 2 ? paged::root_bytes : header_bytes,
+							slot().proof.layout_version == paged::format_version ? paged::root_bytes : header_bytes,
 							result.inspection->footprint.logical_bytes);
 						data_->prefix_offset = 0;
 						slot().valid = true;
@@ -1192,7 +1192,7 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
-		if (slot().proof.layout_version == 2) {
+		if (slot().proof.layout_version == paged::format_version) {
 			slot().image_scope = detail::validate_paged_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes) {
 				if (paged::physical_commitment(bytes) != slot().proof.image_checksum)
@@ -1269,7 +1269,7 @@ class ReclaimOperation final : public c::Operation {
 			throw std::runtime_error("partial descriptor has unconfigured identity");
 	}
 	void validate_metadata_prefix(std::span<const char> bytes) {
-        if (slot().proof.layout_version != 2)
+        if (slot().proof.layout_version != paged::format_version)
             throw std::runtime_error("reader metadata requires a paged generation");
         detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
                                                        slot().proof.image_checksum, {}, paged::root_bytes});
@@ -1598,7 +1598,7 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
-			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), 2, artifacts);
+			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), paged::format_version, artifacts);
 		auto operation = std::allocate_shared<PublicationOperation>(
 			c::OwnedAllocator<PublicationOperation>(context), data);
 		operation->admit();

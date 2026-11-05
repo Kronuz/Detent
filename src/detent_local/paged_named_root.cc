@@ -119,7 +119,7 @@ bool PagedNamedRoot::legacy_anchor() const {
 bool PagedNamedRoot::paged() const {
 	if (!ready())
 		throw std::logic_error("named generation unavailable");
-	return state_->ownership.layout_version == 2;
+	return state_->ownership.layout_version == paged::format_version;
 }
 DirectoryIdentity PagedNamedRoot::directory_identity() const {
 	descriptor();
@@ -230,10 +230,10 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 			state_->ownership = ownership;
 			if (state_->ownership.storage != state_->storage ||
 				state_->ownership.generation != state_->generation ||
-				(state_->ownership.layout_version == 2 &&
+				(state_->ownership.layout_version == paged::format_version &&
 				 state_->ownership.image_length != paged::root_bytes))
 				throw std::invalid_argument("unsupported named paged root ownership");
-			state_->extent = state_->ownership.layout_version == 2 ? paged::root_bytes : header_bytes;
+			state_->extent = state_->ownership.layout_version == paged::format_version ? paged::root_bytes : header_bytes;
 			state_->phase = Phase::OpenRoot;
 			prepare(c::Kind::OpenInto);
 			return true;
