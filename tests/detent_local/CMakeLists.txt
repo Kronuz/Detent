@@ -78,7 +78,7 @@ target_include_directories(test_local_applied_builder PRIVATE "${PROJECT_SOURCE_
 target_link_libraries(test_local_applied_builder PRIVATE detent::local_builder)
 add_test(NAME test_local_applied_builder COMMAND test_local_applied_builder)
 add_executable(test_local_paged_layout test_paged_layout.cc)
-target_link_libraries(test_local_paged_layout PRIVATE detent::local_view)
+target_link_libraries(test_local_paged_layout PRIVATE detent::local_codec)
 add_test(NAME test_local_paged_layout COMMAND test_local_paged_layout)
 add_executable(test_local_paged_page_builder test_paged_page_builder.cc)
 target_include_directories(test_local_paged_page_builder PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
@@ -349,3 +349,12 @@ add_executable(test_local_evaluation test_evaluation.cc)
 target_include_directories(test_local_evaluation PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
 target_link_libraries(test_local_evaluation PRIVATE detent::local_view)
 add_test(NAME test_local_evaluation COMMAND test_local_evaluation)
+
+add_executable(test_local_paged_packer test_paged_packer.cc)
+target_link_libraries(test_local_paged_packer PRIVATE detent::local_packer)
+add_test(NAME test_local_paged_packer COMMAND test_local_paged_packer)
+
+add_executable(test_local_paged_codec_replay test_paged_codec_replay.cc paged_codec_fuzz.cc)
+target_link_libraries(test_local_paged_codec_replay PRIVATE detent::local_codec)
+add_test(NAME test_local_paged_codec_replay COMMAND test_local_paged_codec_replay
+  "${CMAKE_CURRENT_SOURCE_DIR}/paged_codec_corpus")

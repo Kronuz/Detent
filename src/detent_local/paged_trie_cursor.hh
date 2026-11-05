@@ -11,7 +11,7 @@ struct TrieEvent {
 	paged::PageKind kind;
 	std::uint64_t ordinal = 0, keys = 0;
 	std::string_view key, prefix;
-	std::span<const paged::Child> children;
+	std::span<const std::uint8_t> children;
 };
 class TrieCursor {
   public:
@@ -24,9 +24,8 @@ class TrieCursor {
 	bool ready() const noexcept;
 	TrieEvent event() const;
 	// Event spans remain stable until the emitted node is committed.
-	bool commit(const paged::Reference &, ValidationBudget &);
+	bool commit(ValidationBudget &);
 	bool done() const noexcept;
-	paged::Reference root() const;
 	bool discard(ValidationBudget &);
 
   private:

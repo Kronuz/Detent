@@ -4,7 +4,7 @@
 
 - Design: docs/design/dense-pages.md; model: docs/design/dense-pages-model.py. Preliminary review: [dense-pages-design.md](../reviews/dense-pages-design.md), APPROVE WITH REQUIRED CHANGES (2026-11-04).
 - Branch / worktree: `phase/dense-pages` at `.claude/worktrees/dense-pages-series`; base `Detent:d5fa05d`.
-- State: design contract corrections drafted; model execution queued behind exclusive host hold. No C++ dense implementation exists.
+- State: codec and resumable packer implemented; complete feature integration in progress. The owner narrows the campaign to Dense pages on 2026-11-05.
 - Done criteria: K1 through K15 below are set by the lead. Contributors attach evidence and tick them; they do not weaken or remove them.
 - Done:
   1. The model and this ledger (`Detent:b6932c2`). The model's rebuild of today's trie matches the r12 store exactly (7,000,007 pages, 1,479,001,197 page bytes, 1,441 segments and 1,509,994,805 pack bytes in postorder).
@@ -12,17 +12,21 @@
   3. The draft checked against the code it changes: D3's root check (`paged_layout.cc:74`), S3b's repair marked open, and namespace-delivery's D8, D9 and D11 named as such (`Detent:8e1399b`).
   4. The definition-page first touch in the figures, D6 and Limit 2 (`Detent:3afb8ba`).
   5. The build plan in place of the first steps: S1 to S5 with files, done criteria, mutants and the numbers to hit, the landing order against reader S6, S3b and namespace S1, S2 and S7, and every count marked projected (this commit).
-- Doing: DP-1 through DP-6 contract resolutions are explicit in the design. The occurrence-aware model and tiny empty/repeated-content/summary-binding probes require execution; no format implementation is approved yet.
+- Doing: complete full builds, validation, reads, deltas, relocation and format replacement in complementary developer workstreams. Existing design reviews supply the contracts; reviews assess the integrated feature.
 - Next:
   1. Read the queued bounded proof result for the contract/model correction, resolve any failure, and obtain lead confirmation of DP-1 through DP-6. Do not tick K1 on draft contracts alone.
   2. Execute S1 to S5 on one implementation branch after the foundational contracts settle. Dispatch hosted CI explicitly; branch pushes alone do not trigger it.
   3. The 5M mixed-churn rerun with the off-path assertion (`.scratch/dense/run3.sh`) did not run: it was stopped at wrap-up. S4's T4 run at 5M covers it. The assertion passes in `check`'s synthetic churn.
-- Blocked on: host exclusive Xapiand measurement until 01:21 for local execution. Keep whole-pack checksums and record full copies for S1 to S5, per accepted defaults and preliminary review.
+- Blocked on: no external prerequisite. Keep whole-pack checksums and record full copies. Reader S6, legacy removal, damaged-pack repair and grouped-sync campaigns are parked; Dense pages targets the APIs on current main.
 - Findings folded in: DP-1 corresponding-path occurrence reuse with single extent ownership; DP-2 exact reference/root and derived empty commitment; DP-3 summary/header equality and proved warm skips; DP-4 accepted S3b bounded reads and SourceFailure; DP-5 separate counters/resource/proof contracts; DP-6 T5 before merge. Review confirmation and implementation evidence remain open.
 - Last verified (2026-11-04):
   - Ruff format, ruff check and pyrefly strict are clean on the model.
   - `dense-pages-model.py check .scratch/dense/check2` passes on the final model ("check: ok", exit 0), under the light hold dense-check2.
   - CI does not run for this branch: `.github/workflows/ci.yml:5` ignores `docs/**`.
+
+## Owner workflow (2026-11-05)
+
+The sole deliverable is a complete, measured and optimized Dense pages implementation. Developers implement complementary pieces concurrently, then code, decoder-safety and optimization reviews assess the complete feature. Developers address findings, and the architect gives the final merge ruling. No per-step review or proof-auditor gate is required. Earlier S6/S3b landing dependencies and per-step review requirements below are superseded by this ruling; feature-level correctness, resource safety, compatibility refusal and measured acceptance remain required.
 
 ## Implementation done criteria
 
@@ -50,6 +54,7 @@
 - 2026-11-04: third sweep, partial. The definition-page first touch at 4 KiB is 2,360 B at the median and 3,641 B at p99, against today's 270 and 272; it is in D6 and Limit 2. Node tags moved to today's page kinds (branch 1, definition 2, namespace 3), which changes every digest and no count. The mixed-churn rerun was stopped at wrap-up.
 - 2026-11-04: wrap-up for hand-off to the implementing lead. The build plan replaces the first steps, and every count is marked projected. The final `check` passes. State: designing (ready for preliminary review).
 - 2026-11-04: Preliminary review requires DP-1 through DP-6. Lead sets K1 through K15 without relaxing the draft's proof obligations. Exact model targets remain projections pending contract corrections and C++ reproduction.
+- 2026-11-05: Owner limits scope to Dense pages and replaces per-step reviews with integrated feature reviews followed by the architect's merge ruling. Recovered S1 Debug and ASan/UBSan fixtures pass 3/3. Synthetic and 100K C++ pages, bytes, placement and root match the model (100K: 3,245 pages, 6,209,298 bytes). Full product integration is incomplete; earlier stale design-only state does not describe the working tree.
 
 ## Contract correction evidence and handoff
 
