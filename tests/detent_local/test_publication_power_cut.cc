@@ -1,14 +1,5 @@
-// T7 on today's store: a power cut at every primitive of a publication and of the startup barrier,
-// and restart-then-republish cycles. The store runs on a real directory; every primitive it issues
-// and every sync call completion makes (through PosixIO::replace_sync_calls) updates a model of what
-// the disk holds, and each prefix of that history is turned back into a directory and opened:
-//   - a power cut keeps only what a directory sync and a file sync made durable; the entries a cut
-//     did not make durable are either gone or present with the data that was durable, and the data
-//     not made durable is either lost or zeros;
-//   - a process kill keeps everything the store did, and the restart's startup barrier makes it
-//     durable before the store serves it.
-// Every opened store must start, select the generation before or after the publication, and recover
-// that generation completely: every file its table reaches exists and verifies.
+// Replay every publication cut from completion's sync seam, then recover and republish.
+// A selected generation must recover completely, and readiness must preserve it across a cut.
 #include "applied_delta_fixture.hh"
 #include "detent_local/disk_store.hh"
 #include "paged_disk_fixture.hh"
@@ -17,9 +8,14 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <map>
+#include <source_location>
 namespace c = kronuz::io::completion;
 
 namespace {
+void check(bool value, std::source_location where = std::source_location::current()) {
+	if (!value)
+		throw std::runtime_error("power-cut invariant at line " + std::to_string(where.line()));
+}
 struct Inode {
 	std::string content;                 // as written, volatile
 	std::size_t durable = 0, staged = 0; // bytes a sync made durable, or (macOS) staged for the device flush
@@ -68,7 +64,7 @@ void device_flushed() {
 }
 int record_fsync(int fd) {
 	struct stat status{};
-	require(::fstat(fd, &status) == 0);
+	check(::fstat(fd, &status) == 0);
 	const std::pair<dev_t, ino_t> key{status.st_dev, status.st_ino};
 	if (key == g_directory) {
 		directory_synced();
@@ -83,7 +79,7 @@ int record_fsync(int fd) {
 }
 #ifdef __APPLE__
 int record_fcntl(int fd, int command) {
-	require(command == F_FULLFSYNC || command == F_BARRIERFSYNC);
+	check(command == F_FULLFSYNC || command == F_BARRIERFSYNC);
 	device_flushed();
 	++g_seam_flushes;
 	note("device flush");
@@ -108,7 +104,7 @@ void materialize(const std::filesystem::path &root, const State &state, bool vol
 				 DataMode data) {
 	std::filesystem::remove_all(root);
 	std::filesystem::create_directories(root);
-	require(::chmod(root.c_str(), 0700) == 0);
+	check(::chmod(root.c_str(), 0700) == 0);
 	write(root / "owner.lock", {});
 	std::map<std::string, int> names = volatile_view ? state.volatile_entries : state.durable_entries;
 	if (!volatile_view && entries == EntryMode::All)
@@ -187,9 +183,9 @@ void drain(const std::shared_ptr<l::DiskStore> &store) {
 			store->advance();
 			continue;
 		}
-		require(++turns < 100000);
+		check(++turns < 100000);
 		job->submitted();
-		require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
 		store->advance();
 	}
 	store->advance();
@@ -200,16 +196,16 @@ l::Descriptor open_and_recover(const std::filesystem::path &root) {
 	Environment env;
 	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
 	drain(store);
-	require(store->status() == l::StoreStatus::Ready);
+	check(store->status() == l::StoreStatus::Ready);
 	const auto selection = store->selection();
-	require(selection.knowledge == l::SelectionKnowledge::Known && selection.descriptor);
+	check(selection.knowledge == l::SelectionKnowledge::Known && selection.descriptor);
 	{
 		auto recovered = l::recover_generation(root, env.options.recovery_limits);
-		require(recovered.descriptor() == *selection.descriptor);
+		check(recovered.descriptor() == *selection.descriptor);
 	}
 	store->close();
 	drain(store);
-	require(store->drained());
+	check(store->drained());
 	store.reset();
 	env.domain.close().wait();
 	return *selection.descriptor;
@@ -240,11 +236,11 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 	g_inode_ids.clear();
 	g_seam_files = g_seam_directories = g_seam_flushes = 0;
 	struct stat directory_status{};
-	require(::stat(root.c_str(), &directory_status) == 0);
+	check(::stat(root.c_str(), &directory_status) == 0);
 	g_directory = {directory_status.st_dev, directory_status.st_ino};
 	for (const auto &[name, id] : state.volatile_entries) {
 		struct stat status{};
-		require(::stat((root / name).c_str(), &status) == 0);
+		check(::stat((root / name).c_str(), &status) == 0);
 		g_inode_ids[{status.st_dev, status.st_ino}] = id;
 	}
 	note("start", true);
@@ -254,9 +250,9 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
 	{
 		auto job = store->operation();
-		require(bool(job));
+		check(bool(job));
 		auto *posix = dynamic_cast<c::PosixIO *>(&job->io());
-		require(posix != nullptr);
+		check(posix != nullptr);
 		install(*posix);
 	}
 	std::map<const c::File *, int> file_ids;
@@ -267,10 +263,10 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 			return;
 		}
 		const auto request = job->request();
-		require(request.kind != c::Kind::Sync);
+		check(request.kind != c::Kind::Sync);
 		job->submitted();
 		auto result = kronuz::journal::detail::execute_primitive(job->io(), request);
-		require(!result.error);
+		check(!result.error);
 		if (publishing)
 			run.trace.push_back(request.kind);
 		switch (request.kind) {
@@ -281,7 +277,7 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 			const int id = int(state.inodes.size()) - 1;
 			state.volatile_entries[name] = id;
 			struct stat status{};
-			require(::stat((root / name).c_str(), &status) == 0);
+			check(::stat((root / name).c_str(), &status) == 0);
 			g_inode_ids[{status.st_dev, status.st_ino}] = id;
 			if (request.file)
 				file_ids[request.file.get()] = id;
@@ -315,21 +311,26 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 		default:
 			break;
 		}
-		require(job->complete(std::move(result)));
+		check(job->complete(std::move(result)));
 		store->advance();
 		note(std::string("complete ") + std::to_string(int(request.kind)), true);
 	};
 	// Startup, to ready.
 	unsigned turns = 0;
 	while (store->status() != l::StoreStatus::Ready) {
-		require(++turns < 100000 && store->status() == l::StoreStatus::Starting);
+		check(++turns < 100000 && store->status() == l::StoreStatus::Starting);
 		step(false);
 	}
 	run.ready = run.history.size() - 1;
 	run.startup_events = run.history.size();
 	run.startup_counters = store->sync_stats().startup;
-	require(bool(store->selection().descriptor));
+	check(bool(store->selection().descriptor));
 	run.before = *store->selection().descriptor;
+	const auto selected_inode = state.volatile_entries.at("selected");
+	check(state.durable_entries.at("selected") == selected_inode &&
+		  state.inodes[selected_inode].durable == state.inodes[selected_inode].content.size());
+	const auto startup_files = g_seam_files, startup_directories = g_seam_directories,
+			   startup_flushes = g_seam_flushes;
 	// Publish a maintenance rewrite of the selected generation.
 	auto base = std::optional<l::RecoveredGeneration>(l::recover_generation(root, env.options.recovery_limits));
 	l::GenerationId next;
@@ -345,28 +346,28 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 		plan.emplace(builder.take());
 	}
 	run.after = plan->descriptor();
-	require(store->publication_ready());
+	check(store->publication_ready());
 	const auto counters_before = store->sync_stats().total;
 	store->begin(std::move(*plan));
 	turns = 0;
 	while (store->publication_status() == l::DiskPublicationStatus::Preparing) {
-		require(++turns < 100000);
+		check(++turns < 100000);
 		step(true);
 	}
-	require(store->publication_status() == l::DiskPublicationStatus::Published);
+	check(store->publication_status() == l::DiskPublicationStatus::Published);
 	run.publication_counters = store->sync_stats().publication;
-	require(store->sync_stats().total - counters_before == run.publication_counters);
-	run.seam_files = g_seam_files;
-	run.seam_directories = g_seam_directories;
-	run.seam_flushes = g_seam_flushes;
+	check(store->sync_stats().total - counters_before == run.publication_counters);
+	run.seam_files = g_seam_files - startup_files;
+	run.seam_directories = g_seam_directories - startup_directories;
+	run.seam_flushes = g_seam_flushes - startup_flushes;
 	{
 		auto recovered = l::recover_generation(root, env.options.recovery_limits);
-		require(recovered.descriptor() == run.after);
+		check(recovered.descriptor() == run.after);
 		store->confirm_recovered(recovered);
 	}
 	store->close();
 	drain(store);
-	require(store->drained());
+	check(store->drained());
 	store.reset();
 	plan.reset();
 	base.reset();
@@ -424,7 +425,7 @@ int main(int argc, char **argv) {
 		if (!(selected == run.before) && !(index >= run.startup_events && selected == run.after)) {
 			std::cerr << what << " at event " << index << " selected a generation that is neither the one before the "
 					  << "publication nor the one it publishes\n";
-			require(false);
+			check(false);
 		}
 		(void)from;
 		++cases;
@@ -437,15 +438,15 @@ int main(int argc, char **argv) {
 		requests += run.trace.size();
 		// Group syncs: owners and lease, then the payloads in windows of `window`, never a per-file sync.
 		for (auto kind : run.trace)
-			require(kind != c::Kind::Sync);
-		require(run.publication_counters.groups == run.groups);
+			check(kind != c::Kind::Sync);
+		check(run.publication_counters.groups == run.groups);
 		const auto counters = run.publication_counters;
 #ifdef __APPLE__
-		require(counters.device_flushes == run.seam_flushes);
+		check(counters.device_flushes == run.seam_flushes);
 #else
-		require(counters.device_flushes == run.seam_files + run.seam_directories);
+		check(counters.device_flushes == run.seam_files + run.seam_directories);
 #endif
-		require(counters.files == run.seam_files && counters.directory_syncs == run.seam_directories);
+		check(counters.files == run.seam_files && counters.directory_syncs == run.seam_directories);
 		std::cout << "window " << window << ": " << run.trace.size() << " publication primitives, "
 				  << run.history.size() << " events, files " << counters.files << ", groups " << counters.groups
 				  << ", directory syncs " << counters.directory_syncs << ", device flushes "
@@ -457,17 +458,17 @@ int main(int argc, char **argv) {
 			// The startup barrier: a restarted store reports ready only once what it serves is durable.
 			if (i == run.ready) {
 				const auto selected = state.volatile_entries.at("selected");
-				require(state.durable_entries.at("selected") == selected &&
+				check(state.durable_entries.at("selected") == selected &&
 						state.inodes[selected].durable == state.inodes[selected].content.size());
 			}
 			// An owner record is durable before its payload, a lease before its generation's other files.
 			for (const auto &[name, id] : state.durable_entries) {
 				const auto stem = name.substr(0, name.rfind('.'));
 				if (name.ends_with(".pack"))
-					require(state.durable_entries.count(stem + ".owner"));
+					check(state.durable_entries.count(stem + ".owner"));
 				for (const char *suffix : {".image", ".descriptor", ".live", ".read"})
 					if (name.ends_with(suffix))
-						require(state.durable_entries.count(stem + ".lease"));
+						check(state.durable_entries.count(stem + ".lease"));
 			}
 			const auto probe = directory / "probe";
 			for (const auto &[entries, data] : modes) {
@@ -483,8 +484,8 @@ int main(int argc, char **argv) {
 		if (window != 2)
 			continue;
 		unsigned cycle = 0;
-		for (std::size_t i = 0; i < run.history.size(); i += 5 * stride) {
-			if (!run.boundary[i])
+		for (std::size_t i = 0; i < run.history.size(); ++i) {
+			if (!run.boundary[i] || (i % (5 * stride) && !run.labels[i].starts_with("replace ")))
 				continue;
 			for (int variant = 0; variant < 3; ++variant) {
 				State second = variant == 0   ? after_cut(run.history[i], EntryMode::Durable, DataMode::Truncate)
