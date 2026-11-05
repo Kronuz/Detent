@@ -36,7 +36,7 @@ struct SegmentBuilder::Impl {
 		require(nonzero(storage) && nonzero(publication));
 		ownership.storage = storage;
 		SHA256 identity;
-		constexpr std::string_view domain = "detent.local.segment.v2.identity";
+		constexpr std::string_view domain = "detent.local.segment.v3.identity";
 		identity.add(domain.data(), domain.size());
 		identity.add(storage.data(), storage.size());
 		identity.add(publication.data(), publication.size());

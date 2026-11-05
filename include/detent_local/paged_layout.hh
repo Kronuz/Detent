@@ -5,6 +5,7 @@
 
 namespace detent::local::paged {
 using Digest = std::array<char, 32>;
+inline constexpr std::uint32_t format_version = 3;
 class UnsupportedFormat final : public std::invalid_argument {
   public:
     UnsupportedFormat() : std::invalid_argument("unsupported paged local format") {}

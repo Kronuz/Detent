@@ -338,7 +338,7 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	std::array<char, root_bytes> bytes{};
 	constexpr std::string_view magic = "DTROOT03";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 3, 4);
+	write_integer(bytes, 8, format_version, 4);
 	write_integer(bytes, 12, root_bytes, 4);
 	write_integer(bytes, 16, root.bytes, 8);
 	write_integer(bytes, 24, root.records, 4);
@@ -360,7 +360,7 @@ Root decode_root(std::span<const char> bytes, Limits limits) {
         read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 12, 4) == root_bytes)
         throw UnsupportedFormat();
 	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
-			read_integer(bytes, 8, 4) == 3 && read_integer(bytes, 12, 4) == root_bytes &&
+			read_integer(bytes, 8, 4) == format_version && read_integer(bytes, 12, 4) == root_bytes &&
 			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(225)));
 	Root root;
 	root.bytes = read_integer(bytes, 16, 8);
