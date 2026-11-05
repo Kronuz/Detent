@@ -169,7 +169,7 @@ static std::uint64_t
 check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Base> &base,
 	  const Rows &rows,
 	  const std::vector<std::pair<std::string, std::optional<std::vector<char>>>> &changes,
-	  bool relocate = false, std::size_t quantum = 8192) {
+	  bool relocate = false, std::size_t quantum = 8192, std::string_view label = {}) {
 	x::TrieOverlay overlay(account, base, base->inputs, base->root);
 	if (relocate) {
 		const auto id = base->inputs.front().ownership.segment;
@@ -238,6 +238,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		}
 	require(removed_pages + retained_pages == base->root.pages &&
 			removed_bytes + retained_bytes == base->root.bytes);
+	if (!label.empty())std::cout<<label<<": page hashes "<<hashes.page_calls<<", hash bytes "<<hashes.page_bytes<<", written pack bytes "<<written<<"\n";
 	return written;
 }
 int main() {
@@ -247,6 +248,7 @@ int main() {
 		rows[key("ns:k" + std::to_string(i))] = std::vector<char>(24, char(i));
 	auto base = std::make_shared<Base>(Full(account).build(rows));
 	require(check(account, base, rows, {}) == 0);
+	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=std::vector<char>(24,'z');check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
 	std::mt19937 rng(1729);
 	for (unsigned trial = 0; trial < 50; ++trial) {
 		auto target = rows;

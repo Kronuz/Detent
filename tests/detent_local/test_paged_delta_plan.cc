@@ -94,8 +94,8 @@ std::string heavy(bool snapshot) {
 	return wire;
 }
 int main() {
-	const auto directory =
-		std::filesystem::current_path() / ".scratch" / ("paged-delta-plan-" + std::to_string(::getpid()));
+	const auto directory = std::filesystem::current_path() / ".scratch" /
+						   ("paged-delta-plan-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() {
@@ -151,9 +151,9 @@ int main() {
 				oracle.step(work);
 			}
 			auto wanted = oracle.take();
-			require(plan.root().logical == wanted.root().logical);
+			require(p::state_commitment(plan.root()) == p::state_commitment(wanted.root()));
 			require(plan.descriptor().checksum ==
-					p::physical_commitment({plan.bytes()->data(), plan.bytes()->size()}));
+					p::metadata_commitment({plan.bytes()->data(), plan.bytes()->size()}));
 		}
 		domain.close().wait();
 		require(account->used() == baseline);
@@ -228,8 +228,9 @@ int main() {
 		const auto baseline = account->used();
 		{
 			auto input = parse_delta(false, 2, "app", account);
-			rejects<d::StoragePressure>(
-				[&] { l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain); });
+			rejects<d::StoragePressure>([&] {
+				l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
+			});
 		}
 		domain.close().wait();
 		require(account->used() == baseline);
@@ -263,19 +264,22 @@ int main() {
 					plan->override_histogram()[256] == 256);
 			auto target = cursor();
 			target.revision = 43;
-			auto expected = std::make_shared<const d::ValidatedSnapshot>(decode(heavy(true), target));
+			auto expected =
+				std::make_shared<const d::ValidatedSnapshot>(decode(heavy(true), target));
 			l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
 			while (!oracle.done()) {
 				l::ValidationBudget work;
 				oracle.step(work);
 			}
 			auto wanted = oracle.take();
-			require(plan->root().logical == wanted.root().logical);
+			require(p::state_commitment(plan->root()) == p::state_commitment(wanted.root()));
 			std::vector<l::detail::SegmentInput> merged;
 			for (const auto &segment : image.segments())
-				merged.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
+				merged.push_back(
+					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 			for (const auto &segment : plan->segments())
-				merged.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
+				merged.push_back(
+					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 			std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
 				return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 			});
@@ -285,7 +289,8 @@ int main() {
 				graph.step(work);
 			}
 			for (std::size_t i = 0; i < plan->segments().size(); ++i) {
-				const auto index = l::detail::find_segment(merged, plan->segments()[i].ownership.segment);
+				const auto index =
+					l::detail::find_segment(merged, plan->segments()[i].ownership.segment);
 				const auto live = graph.segment_reachability(index);
 				require(live.pages == plan->new_reachability(i).pages &&
 						live.bytes == plan->new_reachability(i).bytes);
@@ -323,5 +328,6 @@ int main() {
 		domain.close().wait();
 		require(account->used() == baseline);
 	}
-	std::cout << "exact-base sparse plans, transferred input, cancellation and owner pressure passed\n";
+	std::cout
+		<< "exact-base sparse plans, transferred input, cancellation and owner pressure passed\n";
 }
