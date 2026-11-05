@@ -60,12 +60,14 @@ S6 (`reader/s6`, rebased on `Detent:3e8bdbc`):
 
 S6 criteria: D1, D2, D4, D5, D10 and the C++ header, attach by directory descriptor, Q6 (a), T3, T6, T1 syscalls, `reader_bench`, proof (values, mutants, reverts, sanitizers, note) are met locally; CI green on `reader/s6` is not.
 
-1. Read CI [41973979278](https://github.com/Kronuz/Detent/actions/runs/41973979278), dispatched on merged head `Detent:a08386d`. Earlier CI 41933091120 is **cancelled**: linux-tsan cancelled, all other executed jobs successful; freebsd and headers skipped by plan. It is not green evidence.
+1. Read final-code CI [41974132576](https://github.com/Kronuz/Detent/actions/runs/41974132576), dispatched on `Detent:31ac047` (pending at recovery handoff). It supersedes merged-only run 41973979278 at `Detent:a08386d`; per-ref CI concurrency cancels the earlier run. Earlier CI 41933091120 is **cancelled**: linux-tsan cancelled, all other executed jobs successful; freebsd and headers skipped by plan. It is not green evidence.
 2. Build and run the new deterministic `replaced_selected` case in `test_reader_core`, then the final-form FIX-2 revert (`.scratch/s6-final-fix2.json`). This replaces `checked_or_unlinked` with `check_generation_file` for records. Rebuild the restored source and require the test to pass again. None of this new proof has run yet.
 3. Investigate the fixed-head concurrent soak failure: `.scratch/overnight/done/detent-s6-soak-fixed/x4-1-4.log` in the main worktree records T3 passing 792,825,041 lookup pairs and 1,000 generations in 796.448 s, then a fork child reply timeout at `test_reader_switch.cc:390`. Alone: 0/12 failed; concurrent: 1/24 failed. The failure is after T3, and its cause is unverified. New diagnostics identify fork scenario, PID, expected revision and poll result; they preserve the 30-second deadline. No surviving process from that run was found at recovery.
 4. Run T3 under each separate sanitizer build at defaults (60 s / 1,000 generations), `ctest -R reader_switch --repeat until-fail:20`. Queue bounded individual repetitions under light holds of at most 30 minutes, and stop that flavor on failure. Full criteria are unchanged.
 5. Run the merged-tree reader suite and dispatch CI on the final code. Current local compilation is blocked by Xapiand's exclusive hold through 2026-11-05 01:21 PST. The shared run queue handles runs after that hold.
-6. Request the independent proof audit and security review from the lead once the required proof is complete. The code review and landing are the lead's. Do not rebase or force-push.
+6. Queued jobs are fully staged in the main worktree's `.scratch/overnight/queue/`: `detent-s6-final-proof.sh`, then `detent-s6-t3-gate.sh`. The first builds release, runs `test_reader_core`, invokes `/usr/local/bin/python3 .scratch/mutants.py .scratch/build .scratch/s6-final-fix2.json`, requires `KILLED rc=`, reruns the restored baseline, checks syscalls, runs six rounds of four `forks` processes, builds each sanitizer and runs its core test. The second runs the 20 default T3 trials per flavor as separate `ctest -R '^test_reader_switch$'` invocations, equivalent to stopping at the first failure in `--repeat until-fail:20`. Every command uses a light hold of 30 minutes and a 1,750-second process timeout; CTest retains its 900-second test timeout. Each build has at most four jobs.
+7. Read queue driver results in the main worktree's `.scratch/overnight/done/detent-s6-final-proof.{log,rc}` and `detent-s6-t3-gate.{log,rc}`. Per-command logs are in this worktree's `.scratch/s6-final-proof/`; `preflight-passed` is created only if the first job completes. Both jobs reject code changes relative to `Detent:31ac047`. The first job restores `prepared_reader.cc` even if a mutant times out. Source snapshot: `.scratch/s6-final-proof/prepared-reader-original.cc`. Do not edit the affected source during that job. Tests, mutants and the new hook remain **unverified** until these logs exist and pass.
+8. Request the independent proof audit and security review from the lead once the required proof is complete. The code review and landing are the lead's. Do not rebase or force-push.
 
 Local commands: builds `quiet light NAME MINUTES "what" -- <script>`; `.scratch/reader.sh BUILD OUT SECONDS PUBLISHES` (reader tests), `.scratch/san6.sh asan|tsan` (S6 set under a sanitizer, needs `.scratch/build-<flavor>`), `.scratch/phases.py BUILD 10 100 400` (switch, parks, forks one by one), `python3 .scratch/mutants.py BUILD SPEC.json`.
 
@@ -99,10 +101,13 @@ Local commands: builds `quiet light NAME MINUTES "what" -- <script>`; `.scratch/
 
 ## Blocked on
 
-- Nothing.
+- Local builds and tests: the shared exclusive host hold through 2026-11-05 01:21 PST. Jobs are queued; no local build or test ran during recovery.
+- The prior fork child reply timeout is unresolved. S6 is not ready for independent review or landing.
 
 ## Log
 
 - 2026-11-03: Read the design, namespace-delivery D8/D9, the S1-S4 ledger, the store, census, publication and prepared reader. `reader/s5` from `Detent:ff0167d`.
 
 - 2026-11-04: Recovered the branch and raw fixed-head soak evidence. Merged current main at `Detent:a08386d`, retaining main's `VerifiedPages` mechanism and HTTP removal. Pushed the branch and dispatched CI 41973979278. Added deterministic replacement proof and fork timeout diagnostics; unbuilt while the host is exclusively held.
+
+- 2026-11-04: `Detent:31ac047` commits the deterministic FIX-2 regression and fork scenario/PID diagnostics. Pushed and dispatched CI 41974132576; staged both bounded proof jobs. Local verification remains pending the exclusive hold; the lead resumes the worker when queued proof and CI have results.
