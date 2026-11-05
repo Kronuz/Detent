@@ -29,7 +29,7 @@ struct StoreCore {
 	std::shared_ptr<CollectorControls> controls;
 	std::unique_ptr<ChangeWriter> change;
 	StorageIdentity identity{};
-	SyncCounters startup_sync, publication_sync;
+	SyncCounters startup_sync, publication_sync, closed_sync;
 	DirectoryIdentity directory_identity{};
 	SelectionSnapshot selection{SelectionKnowledge::Uncertain, {}};
 	std::optional<Descriptor> verified;
