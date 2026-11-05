@@ -69,6 +69,24 @@
           ],
           "worktree": "../Detent-wt/dense-pages--deltas"
         },
+        "integration": {
+          "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
+          "branch": "quest/dense-pages--integration",
+          "files": [
+            "src/detent_local/ownership.*",
+            "src/detent_local/generation.*",
+            "src/detent_local/disk_store.*",
+            "src/detent_local/state_cursor.*",
+            "src/detent_local/prepared_reader.*",
+            "src/detent_local/paged_state_equivalence.*",
+            "src/detent_local/paged_root_prefix.*",
+            "tests/detent_local/test_paged_root_prefix.cc",
+            "tests/detent_local/test_dense_refetch.cc",
+            "docs/HOW_IT_WORKS.md",
+            "docs/mechanisms/**"
+          ],
+          "worktree": "../Detent-wt/dense-pages--integration"
+        },
         "reads": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
           "branch": "quest/dense-pages--reads",
@@ -91,7 +109,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-05T15:01:51",
+      "updated": "2026-11-05T15:01:52",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
