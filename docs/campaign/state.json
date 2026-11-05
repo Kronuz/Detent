@@ -93,12 +93,13 @@
           "files": [
             "src/detent_local/lazy_page_access.*",
             "src/detent_local/paged_read_state.*",
-            "src/detent_local/paged_navigator.*",
+            "src/detent_local/paged_navigation.hh",
             "src/detent_local/paged_page_validator.*",
             "src/detent_local/paged_graph_validator.*",
-            "src/detent_local/paged_warm_graph_validator.*",
+            "src/detent_local/paged_warm_validator.*",
             "src/detent_local/paged_cursor.*",
-            "src/detent_local/paged_discovery.*",
+            "src/detent_local/paged_dependency_walk.*",
+            "src/detent_local/paged_dependency_discovery.*",
             "tests/detent_local/test_dense_reads.cc",
             "tests/detent_local/dense_graph_fixture.hh",
             "tests/detent_local/prepared_reader_fixture.hh",
@@ -109,7 +110,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-05T15:01:52",
+      "updated": "2026-11-05T15:06:53",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
