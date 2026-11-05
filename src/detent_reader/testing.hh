@@ -6,6 +6,7 @@
 
 namespace detent::reader::testing {
 enum class Window {
+	ForkPrepared, // refreshes and cold page preparation are frozen, before fork
 	ChangeMapped, // change was mapped, before the core records its identity
 	BeforePin,  // a lookup loaded `current`, before its increment
 	Pinned,     // a lookup holds its slot, before it reads the view

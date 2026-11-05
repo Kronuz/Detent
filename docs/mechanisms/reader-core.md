@@ -52,6 +52,20 @@ The Dekker pair: a reader's seq_cst increment and recheck against the publisher'
 
 The first open registers `pthread_atfork` handlers. Live handles sit on a list under one mutex that open and close take. Prepare takes the mutex, then every handle's `refreshing` (waiting out any refresh in progress). Parent releases each and the mutex. Child zeroes every counter of every slot of every handle (its one thread is not inside a lookup, D1 item 8), releases each `refreshing` and the mutex. The child's lease descriptors share the parent's open file descriptions.
 
+## Fork and cold preparation
+
+Each `PageTable` has a `frozen` bit and an active-preparation count. A cold segment miss waits for an unfrozen table, increments the count, then rechecks the bit. If freezing raced admission, it drops the count and retries. An admitted miss keeps its count until its candidate is published or destroyed. The sequence is the same counter-and-recheck shape as view pinning; all gate operations are sequentially consistent.
+
+Prepare acquires every handle's `refreshing` flag before freezing the page tables reachable from all live ring views, then waits for each active count to drain. The flags pin those generations' lifetimes. Existing pinned lookups can remain parked while forking; only cold segment preparation must finish. Parent unfreezes every table. Child zeroes inherited view pins and preparation counts, then unfreezes the tables; neither handler allocates or performs file I/O.
+
+1. A candidate segment owns no mapping or allocation before acquiring preparation admission. The warm segment hit bypasses this admission entirely.
+2. Either prepare observes an admitted miss and waits for its candidate to become reachable or be destroyed, or the miss observes freezing and backs out before allocation. The sequentially consistent store, count increment and recheck establish this ordering.
+3. A failed attempt may increment after prepare has observed zero. It cannot allocate while frozen. Child clears these inherited transient counts because those parent threads do not exist there; parent retains its counts for the live threads to release.
+4. Every reachable table is frozen after all handle refresh flags are acquired, so generation replacement and destruction cannot race the table traversal. Shared generations appearing in several views may be frozen and thawed repeatedly.
+5. Parent and child both reopen cold admission. Parent lookups retain their pins and active counts; child starts with neither. Each process frees its own candidate ownership and all published mappings on close.
+
+The scratch probe `.scratch/fork-publication-probe.cc` parks one handle at `LazyPageWindow::Publish` with a second live handle. Before the barrier, both child reads succeed but closing both handles leaves four file mappings against a three-mapping writer baseline; the matched completed-publication control returns to three. This proves an unpublished child mapping is orphaned. It does not attribute the earlier fork-reply timeout.
+
 ## Status mapping
 
 `GenerationUnavailable` is `DETENT_UNAVAILABLE`; `bad_alloc` and ledger pressure `DETENT_NO_MEMORY`; `system_error` `DETENT_IO`; a refused directory `DETENT_UNTRUSTED`; everything else from a record, page or `change` check `DETENT_SOURCE_FAILURE`.

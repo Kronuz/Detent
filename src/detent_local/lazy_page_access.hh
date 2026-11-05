@@ -7,7 +7,7 @@
 #include <sys/types.h>
 
 namespace detent::local::detail {
-enum class LazyPageWindow { Miss, Publish, Mark };
+enum class LazyPageWindow { BeforePreparation, PreparationCounted, PreparationBlocked, ForkWaiting, Miss, Publish, Mark };
 // Qualification hook: runs after a segment miss, before its publish and before a page's bit is set.
 // Install before any lookup, never concurrently with one.
 struct LazyPageTesting {
@@ -27,6 +27,10 @@ class PageTable final : public PagedPageAccess {
 	bool available() const noexcept override;
 	std::size_t mapped_segments() const;
 	std::uint64_t page_verifications() const noexcept;
+	// Fork preparation runs with the owning handle refresh flags held.
+	void prepare_fork() noexcept;
+	void parent_after_fork() noexcept;
+	void child_after_fork() noexcept;
 	// Unmaps one mapped segment; false once none remain. Never concurrent with resolve.
 	bool release_one() noexcept;
 

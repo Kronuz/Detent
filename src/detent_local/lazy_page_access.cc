@@ -11,6 +11,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 namespace detent::local::detail {
@@ -70,6 +71,25 @@ struct PageTable::State {
 	mutable std::vector<Slot, d::StorageAllocator<Slot>> slots;
 	mutable std::atomic<std::uint64_t> mapped_bytes{0}, published{0}, verifications{0};
 	mutable std::atomic<bool> failed{false};
+	mutable std::atomic<bool> frozen{false};
+	mutable std::atomic<std::uint64_t> preparing{0};
+	struct Preparation {
+		const State &state;
+		explicit Preparation(const State &value) : state(value) {
+			for (;;) {
+				while (state.frozen.load(std::memory_order_seq_cst))
+					std::this_thread::yield();
+				window(LazyPageWindow::BeforePreparation);
+				state.preparing.fetch_add(1, std::memory_order_seq_cst);
+				window(LazyPageWindow::PreparationCounted);
+				if (!state.frozen.load(std::memory_order_seq_cst))
+					return;
+				state.preparing.fetch_sub(1, std::memory_order_seq_cst);
+				window(LazyPageWindow::PreparationBlocked);
+			}
+		}
+		~Preparation() { state.preparing.fetch_sub(1, std::memory_order_seq_cst); }
+	};
 	std::size_t retired = 0;
 	State(int fd, uid_t uid, StorageIdentity identity, p::Root selected, ViewLimits bounds,
 	      std::shared_ptr<d::StorageLedger> account, std::shared_ptr<d::StorageLedger> mappings)
@@ -164,6 +184,7 @@ struct PageTable::State {
 		return publish(identity, probe);
 	}
 	const Segment &publish(const StorageIdentity &identity, std::size_t probe) const {
+		Preparation preparation(*this);
 		d::StorageAllocator<Segment> allocator(heap);
 		window(LazyPageWindow::Miss);
 		const Segment *raced = nullptr;
@@ -246,6 +267,20 @@ bool PageTable::available() const noexcept { return !state_->failed.load(std::me
 std::size_t PageTable::mapped_segments() const { return state_->published.load(std::memory_order_relaxed); }
 std::uint64_t PageTable::page_verifications() const noexcept {
 	return state_->verifications.load(std::memory_order_relaxed);
+}
+void PageTable::prepare_fork() noexcept {
+	state_->frozen.store(true, std::memory_order_seq_cst);
+	while (state_->preparing.load(std::memory_order_seq_cst) != 0) {
+		window(LazyPageWindow::ForkWaiting);
+		std::this_thread::yield();
+	}
+}
+void PageTable::parent_after_fork() noexcept {
+	state_->frozen.store(false, std::memory_order_seq_cst);
+}
+void PageTable::child_after_fork() noexcept {
+	state_->preparing.store(0, std::memory_order_seq_cst);
+	state_->frozen.store(false, std::memory_order_seq_cst);
 }
 bool PageTable::release_one() noexcept { return state_ && state_->release_one(); }
 

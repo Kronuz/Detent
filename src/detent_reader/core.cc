@@ -206,19 +206,34 @@ void fork_prepare() noexcept {
 	for (auto *handle = registry; handle; handle = handle->next)
 		while (!handle->try_refreshing())
 			handle->refreshing.wait(true, std::memory_order_relaxed);
+	for (auto *handle = registry; handle; handle = handle->next)
+		for (auto &slot : handle->ring)
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.prepare_fork();
+	DETENT_WINDOW(ForkPrepared);
 }
 void fork_parent() noexcept {
-	for (auto *handle = registry; handle; handle = handle->next)
+	for (auto *handle = registry; handle; handle = handle->next) {
+		for (auto &slot : handle->ring)
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.parent_after_fork();
 		handle->release_refreshing();
+	}
 	registry_mutex.unlock();
 }
 // The child runs one thread, the one that forked, which is not inside a lookup (D1 item 8): counts
 // left by the parent's threads would pin their slots forever.
 void fork_child() noexcept {
 	for (auto *handle = registry; handle; handle = handle->next) {
-		for (auto &slot : handle->ring)
+		for (auto &slot : handle->ring) {
 			for (auto &stripe : slot.counts)
 				stripe.count.store(0, std::memory_order_relaxed);
+			if (const auto *view = slot.view.load(std::memory_order_relaxed))
+				for (const auto &entry : view->entries)
+					entry.generation->pages.child_after_fork();
+		}
 		handle->refreshing.store(false, std::memory_order_release);
 	}
 	registry_mutex.unlock();

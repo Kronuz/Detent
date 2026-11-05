@@ -3,6 +3,8 @@
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
 #include "testing.hh"
+#include "lazy_page_access.hh"
+#include <csignal>
 #include <cstdio>
 #include <atomic>
 #include <chrono>
@@ -495,6 +497,133 @@ void forks(const std::filesystem::path &root) {
 		CHECK(detent_refresh(r.handle) == DETENT_OK && get(r.handle) == rev);
 	}
 }
+enum class ColdMode { InFlight, Starting, Counted };
+struct ColdThread {
+	Park before, counted;
+	std::atomic<int> outcome{0}; // 1 blocked by freeze, 2 admitted
+	std::atomic<bool> done{false};
+};
+struct ColdFork {
+	ColdMode mode;
+	ColdThread threads[2];
+	std::atomic<bool> prepared{false};
+	std::atomic<unsigned> waits{0};
+};
+thread_local ColdThread *cold_thread = nullptr;
+void cold_wait(const std::function<bool()> &ready) {
+	const auto deadline = std::chrono::steady_clock::now() + 5s;
+	while (!ready()) {
+		CHECK(std::chrono::steady_clock::now() < deadline);
+		std::this_thread::yield();
+	}
+}
+void cold_forks(const std::filesystem::path &root) {
+	using namespace detent::local::detail;
+	for (const auto mode : {ColdMode::InFlight, ColdMode::Starting, ColdMode::Counted}) {
+		::alarm(30);
+		const auto store = root / ("cold-" + std::to_string(int(mode)));
+		detent::testing::GenerationWriter writer(store);
+		CHECK(writer.publish_json(knobs(1)) == 1);
+		const auto baseline = mappings(store), fds = descriptors();
+		Opened first(store), second(store);
+		ColdFork race{mode};
+		LazyPageTesting::install([](LazyPageWindow at, void *context) noexcept {
+			auto &race = *static_cast<ColdFork *>(context);
+			if (at == LazyPageWindow::ForkWaiting) {
+				++race.waits;
+				if (race.mode == ColdMode::InFlight)
+					for (auto &thread : race.threads)
+						release(thread.before);
+			}
+			if (!cold_thread)
+				return;
+			auto &thread = *cold_thread;
+			if (at == LazyPageWindow::PreparationBlocked)
+				thread.outcome = 1;
+			if (at == LazyPageWindow::Miss && thread.outcome.load() == 0)
+				thread.outcome = 2;
+			const bool before = race.mode == ColdMode::InFlight ? at == LazyPageWindow::Publish
+			                                                       : at == LazyPageWindow::BeforePreparation;
+			Park *park = before ? &thread.before
+			             : race.mode == ColdMode::Counted && at == LazyPageWindow::PreparationCounted
+			                 ? &thread.counted : nullptr;
+			if (park && park->state.load() == 0) {
+				park->state = 1;
+				while (park->state.load() != 2)
+					std::this_thread::yield();
+			}
+		}, &race);
+		t::install([](t::Window at, void *context) noexcept {
+			auto &race = *static_cast<ColdFork *>(context);
+			if (at != t::Window::ForkPrepared || race.prepared.exchange(true))
+				return;
+			if (race.mode == ColdMode::InFlight)
+				return;
+			for (auto &thread : race.threads)
+				release(thread.before);
+			for (auto &thread : race.threads) {
+				if (race.mode == ColdMode::Counted)
+					cold_wait([&] { return thread.counted.state.load() == 1; });
+				else {
+					cold_wait([&] { return thread.outcome.load() != 0; });
+					CHECK(thread.outcome.load() == 1);
+				}
+			}
+		}, &race);
+		std::thread readers[2];
+		detent_reader *handles[] = {first.handle, second.handle};
+		for (unsigned i = 0; i != 2; ++i)
+			readers[i] = std::thread([&, i] {
+				cold_thread = &race.threads[i];
+				CHECK(get(handles[i]) == 1);
+				race.threads[i].done = true;
+			});
+		for (auto &thread : race.threads)
+			wait_parked(thread.before);
+		const auto child = ::fork();
+		CHECK(child >= 0);
+		if (child == 0) {
+			::alarm(5);
+			CHECK(get(first.handle) == 1 && get(second.handle) == 1);
+			// A transient increment copied after the drain must not pin the child's next fork.
+			const auto grandchild = ::fork();
+			CHECK(grandchild >= 0);
+			if (grandchild == 0)
+				std::_Exit(0);
+			int status = 0;
+			CHECK(::waitpid(grandchild, &status, 0) == grandchild && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+			detent_close(std::exchange(first.handle, nullptr));
+			detent_close(std::exchange(second.handle, nullptr));
+			const auto remaining = mappings(store);
+			if (remaining != baseline)
+				std::fprintf(stderr, "cold fork %d: mappings after close %zu, baseline %zu\n", int(mode), remaining, baseline);
+			CHECK(remaining == baseline && descriptors() == fds);
+			std::_Exit(0);
+		}
+		for (auto &thread : race.threads)
+			release(thread.counted);
+		for (auto &thread : race.threads)
+			cold_wait([&] { return thread.done.load(); });
+		for (auto &reader : readers)
+			reader.join();
+		int status = 0;
+		CHECK(::waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+		CHECK(mode != ColdMode::InFlight || race.waits.load() > 0);
+		// Parent thaw retains its live preparation counts and allows another fork.
+		const auto check_parent = ::fork();
+		CHECK(check_parent >= 0);
+		if (check_parent == 0)
+			std::_Exit(0);
+		CHECK(::waitpid(check_parent, &status, 0) == check_parent && WIFEXITED(status) && WEXITSTATUS(status) == 0);
+		detent_close(std::exchange(first.handle, nullptr));
+		detent_close(std::exchange(second.handle, nullptr));
+		CHECK(mappings(store) == baseline && descriptors() == fds);
+		LazyPageTesting::install(nullptr, nullptr);
+		t::install(hook, nullptr);
+		::alarm(0);
+		std::cout << "cold fork mode " << int(mode) << ": parent/child values, nested fork and cleanup pass\n";
+	}
+}
 } // namespace
 int main(int argc, char **argv) {
 	const auto root = std::filesystem::current_path() / ".scratch" / ("reader-switch-" + std::to_string(::getpid()));
@@ -513,6 +642,8 @@ int main(int argc, char **argv) {
 		parks(root);
 	if (only.empty() || only == "forks")
 		forks(root);
+	if (only.empty() || only == "cold")
+		cold_forks(root);
 	std::cout << "ok\n";
 	return 0;
 }
