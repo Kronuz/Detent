@@ -6,16 +6,16 @@ The [lead ledger](campaign-lead.md) records evidence and decisions under the [No
 
 | Workstream | Branch | Worktree | Owner | State | Next | Updated |
 | --- | --- | --- | --- | --- | --- | --- |
-| Reader S6 | `reader/s6` | `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Reader contributor | Recovery | Concurrent failure, final proof, security review, merged-head CI | 2026-11-04 |
+| Reader S6 | `reader/s6` | `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Lead; contributor checkpointed | Proof pending | Read queued proof and CI 41974132576; unresolved fork timeout, then audit/security review | 2026-11-04 |
 | Sync groups | `namespace/s1-s2` | `.claude/worktrees/agent-af2c08dd24001ec58` | Sync contributor | Recovery | Power-cut failure, mutants, queued evidence, architect review | 2026-11-04 |
-| Dense pages design | `main` | Main, review file only | Independent architect | Preliminary review | Builds-on findings and numbered implementation criteria | 2026-11-04 |
+| Namespace S3b | `namespace/s3b` | `.claude/worktrees/agent-a70bf4a502ea488db` | Repair contributor | Fix round | Collection, bounds, cold recovery, scrub and original review probes | 2026-11-04 |
+| Dense pages design | `phase/dense-pages` | `.claude/worktrees/dense-pages-series` | Designer | Required changes | Correct DP-1 through DP-6; model proof, then S1 | 2026-11-04 |
 
 ## Queued
 
-1. Namespace S3b fix round on `namespace/s3b`; its existing worktree is `.claude/worktrees/agent-a70bf4a502ea488db`.
-2. Reader proof audit and security review when the contributor identifies its final reviewable head.
-3. Dense-page S1 implementation after the preliminary review settles its foundations.
-4. Legacy H integration after S6 lands, then the remaining handoff follow-ups.
+1. Reader proof audit and security review when queued proof and CI establish a reviewable head.
+2. Dense-page S1 implementation after the corrected design settles its foundations.
+3. Legacy H integration after S6 lands, then the remaining handoff follow-ups.
 
 ## Earlier qualification evidence (2026-10-29)
 

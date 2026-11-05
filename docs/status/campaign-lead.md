@@ -18,9 +18,10 @@ State: recovery and implementation. No branch has landed under this takeover.
 
 | Workstream | Branch / worktree | State | Next |
 | --- | --- | --- | --- |
-| Reader recovery | `reader/s6`, `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Contributor diagnosing fixed-head concurrent failure | Final proof, audit, security review, CI |
+| Reader recovery | `reader/s6`, `.claude/worktrees/agent-a1fbf8344cbf48ecb` | Checkpointed at `Detent:78195dd`; queued proof and hosted CI pending | Read results, resume contributor, audit and security review |
 | Sync groups | `namespace/s1-s2`, `.claude/worktrees/agent-af2c08dd24001ec58` | Contributor diagnosing power-cut invariant failure | Finish bounded proof and measurement jobs |
-| Dense design | Design on `main` | Independent architect reviewing format and cross-design assumptions | Fold required changes into design and criteria |
+| Dense design | `phase/dense-pages`, `.claude/worktrees/dense-pages-series` | Designer correcting preliminary findings DP-1 through DP-6 | Settle occurrence/root/summary contracts and run corrected model |
+| Damaged-pack repair | `namespace/s3b`, `.claude/worktrees/agent-a70bf4a502ea488db` | Contributor closes architect findings after merging main | Original probes, revert checks, final CI |
 | Lead | `main` | State reconciliation and landing coordination | Prepare remaining branch recovery and review queue |
 
 ## Evidence at takeover
@@ -31,7 +32,9 @@ State: recovery and implementation. No branch has landed under this takeover.
 4. Grouped syncs pass six targeted tests. `test_local_publication_power_cut` aborts with `snapshot invariant failed`; full `ctest` returns 8. The overnight driver is alive (PID 60892), with sanitizer configuration queued behind the exclusive hold. A narrow initial process query misses it; no duplicate jobs are queued. Sanitizers, bootstrap pairs and ext4 evidence remain owed.
 5. Legacy CI run 41926685309 passes both binding jobs and macOS jobs; both Linux GCC jobs fail and TSan is cancelled. Final merged-head CI remains owed.
 6. The host has an Xapiand exclusive benchmark hold at takeover. No local build or test starts while it remains exclusive. Free space is 181 GiB; load averages are 2.45, 2.88 and 3.00 at 21:24 PST.
-7. The dense architect identifies a builds-on question: a digest set cannot distinguish equal pages at distinct key paths while physical extents must remain disjoint. The preliminary ruling and the occurrence-aware reuse contract are pending.
+7. The dense preliminary review requires DP-1 through DP-6. The lead records the review and K1 through K15 in `Detent:d5fa05d`. Occurrence-aware reuse, empty roots and child-summary binding need explicit contracts before affected implementation.
+8. Reader candidate `Detent:31ac047` adds deterministic selected-replacement proof and fork diagnostics; no local verification runs under the exclusive hold. Hosted run 41974132576 covers that code. The queue holds `detent-s6-final-proof.sh` and `detent-s6-t3-gate.sh`; the latter requires a successful preflight and runs each sanitizer trial in a separate bounded hold. Ledger-only head is `Detent:78195dd`.
+9. Sync candidate `Detent:630b2f3` has hosted run 41974346242. Its session-counter lifecycle fix is `Detent:0cd1527`; the identical baseline patch is `Detent:327ca58` over `Detent:7a4425a`. T7 accounting fix `Detent:522452a` separates startup counters. All runtime proof remains pending. The proof job mutates an isolated source archive, never the live overnight driver's source.
 
 ## Decisions in force
 
@@ -39,9 +42,9 @@ The handoff's defaults apply: read-time bounds and failure containment, cold rec
 
 ## Next
 
-1. Close the reader's concurrent failure and outstanding proof before its security gate.
-2. Start S3b's fix round when a contributor slot frees. Its worktree exists despite the handoff's stale claim that it is gone; inspect status before reuse.
-3. Incorporate the dense architect's builds-on findings and set numbered S1-S5 criteria before implementation.
+1. Read the reader's hosted and queued results, resume its contributor for any failures, then run an independent proof audit and security review. The fork timeout remains open until attributed.
+2. Finish S3b's active fix round; verify original reviewer probes and dying reverts. Its existing worktree is retained.
+3. Verify dense contract corrections against DP-1 through DP-6. Use a fresh architect at explicit maximum effort for unresolved foundational changes, before the affected implementation; avoid another broad design survey.
 4. Finish sync-group proof and bounded queued runs without duplicating the shared queue's work.
 5. Land in the handoff's dependency order, verifying each composed tree and CI.
 
