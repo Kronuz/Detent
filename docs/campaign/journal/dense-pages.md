@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: working
+State: waiting on jobs 261105-150743-b66bbc, 261105-150744-5b7a4c
 Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
@@ -44,7 +44,22 @@ includes truly empty admitted input. Reader fixture linkage now includes the
 builder, and disk-fixture ownership declares the current format, as requested
 by the reader task and approved by the lead.
 
-Baseline job: `261105-150551-bfb8c9` at Detent:7ea40e5 (running). The first
+Baseline job: `261105-150551-bfb8c9` at Detent:7ea40e5 passed all five
+Debug codec, packer, segment, snapshot and full-builder tests (19.77 seconds). The first
 submission `261105-150515-44cd1a` was cancelled: campaign resolved literal HEAD
 against the home checkout, so it named main and is invalid candidate evidence.
 Until that tool issue is fixed, submit the explicit `git rev-parse HEAD` result.
+
+Queued at Detent:f444c98:
+
+1. `261105-150715-4c5b2d`: targeted Debug build and empty/full-builder,
+   snapshot resource/recovery and sealed-segment tests; passed, exit 0. Exports
+   the exact binary for the dependent corpus jobs.
+2. `261105-150743-b66bbc`: fresh 100K Python model encoding, corpus/model/binary
+   hashes and native full-generation comparison (dependent on the targeted job).
+3. `261105-150744-5b7a4c`: the same comparison on 5,000,004 corpus entries.
+
+These are light correctness jobs. Their printed CPU/wall observations are not
+isolated performance acceptance measurements. When they finish, reconcile the
+raw output, address failures, and add mutation evidence for strengthened oracle
+and accounting assertions before claiming A2/A3/A5/A7 complete.
