@@ -319,6 +319,8 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 					return;
 				break;
 			case Phase::Page:
+				if (s.page.summary.length > s.maximum_output_bytes - s.fresh_bytes)
+					throw std::length_error("overlay output page limit exceeded");
 				if (!s.segment)
 					s.segment.emplace(s.account, s.storage, s.generation,
 									  s.output->impl_->segments.size());
