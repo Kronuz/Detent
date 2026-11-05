@@ -7,7 +7,8 @@ using Digest = std::array<char, 32>;
 inline constexpr std::uint32_t page_bytes = 64 * 1024, segment_bytes = 1024 * 1024;
 inline constexpr std::size_t reference_bytes = 65, content_bytes = 48, placement_bytes = 20,
 							 child_bytes = content_bytes + placement_bytes, page_header_bytes = 64,
-							 minimum_page_bytes = 79, root_bytes = 320, page_capacity = 4096;
+							 minimum_page_bytes = 79, root_bytes = 320, page_capacity = 4096,
+							 maximum_leaf_body_bytes = page_bytes - 80;
 enum class PageKind : std::uint8_t { Branch = 1, Definition = 2, Namespace = 3 };
 struct Limits {
 	std::uint64_t bytes = 256ull * 1024 * 1024, pages = 1100000, segments = 4096;
@@ -52,7 +53,17 @@ Key decode_key(std::string_view);
 // ranges.
 Digest page_commitment(std::span<const char>, Limits = {});
 std::uint64_t page_digests() noexcept;
-void count_page_digest() noexcept;
+enum class HashKind { Page, Pack, Metadata };
+struct HashCounts {
+	std::uint64_t page_calls = 0, page_bytes = 0, pack_calls = 0, pack_bytes = 0,
+				  metadata_calls = 0, metadata_bytes = 0;
+	bool operator==(const HashCounts &) const = default;
+};
+HashCounts hash_counts() noexcept;
+void reset_hash_counts() noexcept;
+void count_hash(HashKind, std::uint64_t calls, std::uint64_t bytes) noexcept;
+Digest pack_commitment(std::span<const char>);
+Digest metadata_commitment(std::span<const char>);
 std::array<char, reference_bytes> encode_reference(const Reference &);
 Reference decode_reference(std::span<const char>);
 std::array<char, content_bytes> encode_content(const Reference &);
@@ -73,5 +84,6 @@ struct NodeView {
 NodeView decode_node(std::span<const char>, std::size_t offset, Limits = {});
 // Verifies digest, reference summaries and exact preorder structure without
 // allocation.
+void verify_page_structure(std::span<const char>, const Reference &, Limits = {});
 void verify_page(std::span<const char>, const Reference &, Limits = {});
 } // namespace detent::local::paged

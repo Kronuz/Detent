@@ -1,7 +1,7 @@
 #pragma once
 #include "detent_local/generation.hh"
 #include "detent_local/ownership.hh"
-#include "paged_page_builder.hh"
+#include "paged_packer.hh"
 
 namespace detent::local::detail {
 class SegmentBuilder {
@@ -11,8 +11,8 @@ class SegmentBuilder {
 	~SegmentBuilder();
 	SegmentBuilder(SegmentBuilder &&) noexcept;
 	SegmentBuilder(const SegmentBuilder &) = delete;
-	bool fits(const PageBuilder &) const;
-	void append(const PageBuilder &);
+	bool fits(const SealedPage &) const;
+	void append(const SealedPage &);
 	void step(ValidationBudget &);
 	bool page_ready() const noexcept;
 	paged::Reference reference() const;

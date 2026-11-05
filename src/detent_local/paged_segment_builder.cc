@@ -43,31 +43,38 @@ struct SegmentBuilder::Impl {
 		std::array<char, 8> ordinal_bytes{};
 		write_integer(ordinal_bytes, 0, ordinal, 8);
 		identity.add(ordinal_bytes.data(), ordinal_bytes.size());
+		p::count_hash(p::HashKind::Metadata, 1,
+					  domain.size() + storage.size() + publication.size() + ordinal_bytes.size());
 		const auto digest = finish(identity);
 		std::copy_n(digest.begin(), ownership.segment.size(), ownership.segment.begin());
 		require(nonzero(ownership.segment));
 		output = distribution::make_owned_buffer(std::move(account), p::segment_bytes);
 	}
 };
-SegmentBuilder::SegmentBuilder(std::shared_ptr<distribution::StorageLedger> account, StorageIdentity storage,
-							   GenerationId publication, std::uint64_t ordinal)
-	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, storage,
-												   publication, ordinal)) {}
+SegmentBuilder::SegmentBuilder(std::shared_ptr<distribution::StorageLedger> account,
+							   StorageIdentity storage, GenerationId publication,
+							   std::uint64_t ordinal)
+	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account,
+												   storage, publication, ordinal)) {}
 SegmentBuilder::~SegmentBuilder() = default;
 SegmentBuilder::SegmentBuilder(SegmentBuilder &&) noexcept = default;
-bool SegmentBuilder::fits(const PageBuilder &page) const {
+bool SegmentBuilder::fits(const SealedPage &page) const {
 	if (!impl_ || impl_->phase != Impl::Phase::Idle)
 		throw std::logic_error("segment is not available for append");
+	require(page.bytes && page.bytes->sealed());
 	const auto start = (impl_->output->size() + 7) & ~std::size_t(7);
-	return start <= p::segment_bytes && page.bytes()->size() <= p::segment_bytes - start;
+	return start <= p::segment_bytes && page.bytes->size() <= p::segment_bytes - start;
 }
-void SegmentBuilder::append(const PageBuilder &page) {
+void SegmentBuilder::append(const SealedPage &page) {
 	require(fits(page));
 	auto &state = *impl_;
-	state.page = page.bytes();
+	state.page = page.bytes;
 	const auto start = (state.output->size() + 7) & ~std::size_t(7);
-	state.reference = {state.ownership.segment, static_cast<std::uint32_t>(start),
-					   static_cast<std::uint32_t>(state.page->size()), page.physical(), page.logical()};
+	require(page.bytes && page.bytes->sealed() && page.summary.length == state.page->size());
+	state.reference = page.summary;
+	state.reference.segment = state.ownership.segment;
+	state.reference.offset = static_cast<std::uint32_t>(start);
+	p::encode_reference(state.reference);
 	state.offset = 0;
 	state.phase = Impl::Phase::Padding;
 }
@@ -103,6 +110,7 @@ void SegmentBuilder::step(ValidationBudget &budget) {
 		--budget.rows;
 		state.ownership.length = state.output->size();
 		state.ownership.checksum = finish(state.hash);
+		p::count_hash(p::HashKind::Pack, 1, state.ownership.length);
 		state.output->seal_prefix();
 		state.phase = Impl::Phase::Done;
 	}
