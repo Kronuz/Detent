@@ -319,6 +319,31 @@ static void boundary_checks() {
 	changed[24] = 2;
 	require(p::page_commitment(changed) != original);
 }
+static void injection_checks() {
+    auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+    for (auto page : {watermark(), external_branch()}) {
+        x::PagedPacker packer(account); Sink sink;
+        packer.push_cluster(page, 64, {});
+        advance(packer, sink, 1);
+        packer.finish(); advance(packer, sink, 1);
+        require(sink.pages.size() == 1 && sink.pages[0].bytes == page);
+    }
+    {
+        auto page = external_branch();
+        x::PagedPacker packer(account); Sink sink;
+        packer.push_cluster(page, 76, "a");
+        advance(packer, sink, 1);
+        std::vector<char> body(24, 'v');
+        manual(packer, sink, p::PageKind::Definition, "b", {}, {}, 1, body);
+        const std::array<std::uint8_t, 2> labels{'a', 'b'};
+        manual(packer, sink, p::PageKind::Branch, {}, {}, labels, 2);
+        packer.finish(); advance(packer, sink, 1);
+        const auto root = p::decode_node(sink.pages[0].bytes, 64);
+        const auto node = p::decode_node(sink.pages[0].bytes, root.slot(0));
+        require(node.kind == p::PageKind::Namespace && node.body.size() == 8 && sink.pages[0].reference.keys == 2);
+    }
+    require(account->used() == 0);
+}
 static void resource_checks() {
 	auto parent = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
 	auto account = std::make_shared<d::StorageLedger>(parent, parent->limit());
@@ -431,6 +456,7 @@ int main(int argc, char **argv) {
 	require(p::decode_page_header(small.pages[0].bytes).nodes == 257);
 	require(wide(64).pages.size() == 1);
 	boundary_checks();
+	injection_checks();
 	resource_checks();
 	std::cout << "resumable dense packing: empty/watermark/max-body/256-way/repeated "
 				 "occurrences/admission/cancellation passed\n";
