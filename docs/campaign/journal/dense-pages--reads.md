@@ -28,3 +28,19 @@ Historical ledger: `docs/status/dense-reads.md` on `phase/dense-pages-reads`. Hi
 ## Rulings I made
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
+
+## 2026-11-05 resumed validation
+
+Added a 1,000-definition prepared fixture and one-byte/one-row warm validation
+checks for whole-root reuse and a rewritten root retaining external subtrees.
+They compare exact values, cold/warm counts, removed/added extents, per-kind hash
+counts and checksum-correct forged child length/keys/height summaries.
+
+Baseline job `261105-150600-3eceff` runs the composed reader/page/graph/lazy/hash
+suite at Detent:43334e8. Job `261105-150527-c6567d` was cancelled: campaign's
+`--commit HEAD` resolved in HOME to main, not the task worktree. All subsequent
+jobs pass the expanded task SHA. Lead corrected the tool and task source globs.
+
+Pending integration: Detent:f444c98 provides the warm fixture's local_builder
+link and shared disk fixture ownership3. Production ownership3 routing is the
+lead's integration work. Fresh composed fixture execution follows that merge.
