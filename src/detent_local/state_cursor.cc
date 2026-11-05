@@ -163,11 +163,11 @@ SourceOverride StateCursor::override_value() const {
 	return override_row_;
 }
 std::optional<paged::Digest> StateCursor::logical_commitment(const RecoveredGeneration &generation) {
-	return generation.paged_ ? std::optional(generation.paged_->root().logical) : std::nullopt;
+	return generation.paged_ ? std::optional(paged::state_commitment(generation.paged_->root())) : std::nullopt;
 }
 std::optional<paged::Digest> StateCursor::logical_commitment() const {
 	if (candidate_root_)
-		return candidate_root_->logical;
+		return paged::state_commitment(*candidate_root_);
 	return generation_ ? logical_commitment(*generation_) : std::nullopt;
 }
 void StateCursor::reset() {
