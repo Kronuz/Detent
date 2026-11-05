@@ -1,30 +1,31 @@
 # dense-pages--integration: journal
 
 State: working
-Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
-
-The adventurer keeps this journal current and commits it with the work, so a fresh adventurer can
-pick the quest up. The first two lines are read by `campaign status`. State is one of: working,
-waiting on jobs <ids>, ready for review, fixing <review>, blocked on <who>: <what> (say which
-criteria are done and which wait).
+Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
 
-<The current step, precisely enough for a fresh adventurer to continue it.>
+Finish ownership version-3 routing and safe old-format refusal/refetch; assemble the complete feature.
+
+Adopted `phase/dense-pages-integration` at Detent:813c3ea; the original worktree stays parked. Prior contributor stopped at usage limit, with no live process or hold. The generated quest/task worktree is the active writer now.
 
 ## Next
 
-1. <step>
+1. Merge current complete codec/build/read/delta checkpoints into assembly.
+2. Advance generation layout version to 3 and implement narrowly recognized old-format refusal/refetch under owner lock.
+3. Add deterministic interrupted-copy/restart tests, update mechanism docs and run final composed proof.
+4. Coordinate measured acceptance and whole-feature paladins before architect ruling.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. Cross-component changes go through the lead; no per-step review queue.
 
 ## Evidence
 
-| Criterion | Evidence (job id, test, commit) |
-|---|---|
+Detent:7618072 ports state commitment and root-prefix framing/tests. Standalone prefix truncation/empty/reserved/old-refusal checks passed historically.
+
+Historical ledger: `docs/status/campaign-lead.md` on `phase/dense-pages-integration`. Historical evidence is scoped to its recorded code; it is not an automatically passing Campaign 2.0 job.
 
 ## Rulings I made
 
-<Decisions taken inside the quest's scope, so the paladin can check them.>
+Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
