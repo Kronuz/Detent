@@ -102,6 +102,7 @@ struct Coordinator::Impl {
 	d::RetirementHandle<RecoveryResult> base;
 	std::optional<l::Descriptor> confirmed_prepared;
 	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> prepared_probe_pause;
+	std::shared_ptr<detail::CoordinatorAccess::PreparedProbePause> scrub_pause;
 	d::StorageOwner<l::ImageBuilder> builder;
 	d::RetirementHandle<PagedCandidateResult> paged_candidate;
 	bool paged_writer = options.image_format == LocalImageFormat::PagedV2;
@@ -190,10 +191,10 @@ struct Coordinator::Impl {
 			disk_wake->cancel();
 	}
 	task::task<void> wait_disk() {
-		auto expires = std::chrono::steady_clock::time_point::max();
+		auto expires = store->collection_retry_at();
 		if (diagnostic.phase == CoordinatorPhase::WaitingPublication && !cancelled() &&
 			publication_retry > std::chrono::steady_clock::now())
-			expires = publication_retry;
+			expires = std::min(expires, publication_retry);
 		disk_wake->expires_at(expires);
 		const asio::error_code error = co_await task::await_asio<void(asio::error_code)>(
 			[&](auto handler) { disk_wake->async_wait(std::move(handler)); });
@@ -693,11 +694,16 @@ struct Coordinator::Impl {
 						reported_passes = result->scrub.passes();
 					result->failure = {};
 					result->ready.store(false, std::memory_order_relaxed);
-					asio::post(worker, [result, begin, now] {
+					asio::post(worker, [result, begin, now, paused = scrub_pause] {
 						try {
+							const auto passes = result->scrub.passes();
 							if (begin)
 								result->scrub.begin(result->root->registry()->inputs(), now, result->directory);
 							result->scrub.step(now, per_tick);
+							if (paused && result->scrub.passes() != passes) {
+								paused->reached.store(true, std::memory_order_release);
+								paused->resume.wait();
+							}
 						} catch (...) {
 							result->failure = std::current_exception();
 						}
@@ -710,6 +716,12 @@ struct Coordinator::Impl {
 						if (error && error != asio::error::operation_aborted)
 							throw asio::system_error(error);
 					}
+					if (scrub_pause && scrub_pause->reached.load(std::memory_order_acquire))
+						scrub_pause.reset();
+					if (closing)
+						break;
+					if (store->selection().descriptor != result->root->descriptor())
+						continue;
 					auto &scrubber = result->scrub;
 					diagnostic.scrub.passes = scrubber.passes();
 					diagnostic.scrub.bytes_hashed = scrubber.bytes_hashed();
@@ -1340,6 +1352,12 @@ void detail::CoordinatorAccess::pause_next_prepared_probe(Coordinator &coordinat
 	if (!pause || !pause->resume.valid() || coordinator.impl_->prepared_probe_pause)
 		throw std::invalid_argument("invalid prepared probe pause");
 	coordinator.impl_->prepared_probe_pause = std::move(pause);
+}
+void detail::CoordinatorAccess::pause_next_scrub(Coordinator &coordinator,
+												std::shared_ptr<PreparedProbePause> pause) {
+	if (!pause || !pause->resume.valid() || coordinator.impl_->scrub_pause)
+		throw std::invalid_argument("invalid scrub pause");
+	coordinator.impl_->scrub_pause = std::move(pause);
 }
 void detail::CoordinatorAccess::fail_next_maintenance_recovery(Coordinator &coordinator,
 															   std::exception_ptr failure) {

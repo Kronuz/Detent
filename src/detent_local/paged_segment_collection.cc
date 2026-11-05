@@ -94,7 +94,7 @@ struct PagedSegmentCollection::State final : d::RetirementNode {
 	std::size_t inspected = 0;
 	std::uint64_t deleting_length = 0;
 	bool submitted = false, cursor_open = false, stopping = false, selected_seen = false, destructive = false,
-		 barriers_done = false;
+		 barriers_done = false, retained_root = false;
 	std::optional<c::EntryInspection> owner_identity;
 	RecordReader owner_reader;
 	bool owner_open = false, owner_only = false;
@@ -158,6 +158,9 @@ bool PagedSegmentCollection::paused() const noexcept { return state_->phase == S
 std::exception_ptr PagedSegmentCollection::error() const noexcept {
 	return state_->failure ? state_->failure : state_->warning;
 }
+bool PagedSegmentCollection::deferred() const noexcept {
+	return done() && (state_->retained_root || state_->warning) && !state_->failure;
+}
 void PagedSegmentCollection::prepare(c::Kind kind) {
 	auto &s = *state_;
 	request_ = {};
@@ -193,6 +196,7 @@ void PagedSegmentCollection::start() {
 	s.stopping = false;
 	s.failure = {};
 	s.warning = {};
+	s.retained_root = false;
 	s.phase = Phase::Scan;
 	prepare(c::Kind::ScanInto);
 }
@@ -352,6 +356,8 @@ void PagedSegmentCollection::advance() {
 			s.marks->begin_conservative(s.root->live_dependencies());
 			s.phase = Phase::Mark;
 		} else if (s.phase == Phase::Root && s.root->ready()) {
+			if (!s.selected || s.root->descriptor().generation != s.selected->generation)
+				s.retained_root = true;
 			if (s.selected && s.root->descriptor().generation == s.selected->generation) {
 				if (s.root->legacy_anchor() ? (!s.core->verified || *s.core->verified != *s.selected ||
 											   s.root->descriptor().length != s.selected->length ||

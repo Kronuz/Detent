@@ -29,7 +29,7 @@ int main() {
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 	d::RetirementRuntime runtime(baseline, 1);
 	auto domain = runtime.domain(account, 256);
-	for (unsigned variant = 0; variant < 15; ++variant) {
+	for (unsigned variant = 0; variant < 17; ++variant) {
 		std::filesystem::remove_all(directory);
 		install(directory, image, storage);
 		l::StorageIdentity orphan{};
@@ -117,11 +117,20 @@ int main() {
 			corrupt[56] ^= 1;
 			write(directory / (l::generation_name(generation) + ".image"), corrupt);
 		}
-		if (variant == 14) {
+		if (variant >= 14) {
 			const auto &segment = image.segments().front();
 			auto corrupt = std::string(segment.bytes->view());
 			corrupt.back() ^= 1;
 			write(directory / l::detail::SegmentNames(segment.ownership.segment).payload_name(), corrupt);
+			const auto live = directory / (l::generation_name(generation) + ".live");
+			if (variant == 15)
+				require(std::filesystem::remove(live));
+			if (variant == 16) {
+				std::ifstream input(live, std::ios::binary);
+				std::vector<char> record{std::istreambuf_iterator<char>(input), {}};
+				record.back() ^= 1;
+				write(live, record);
+			}
 		}
 		l::detail::PagedSegmentCollection collector(domain.factory(), core);
 		std::optional<d::StorageLedger::Ticket> pressure;
@@ -210,7 +219,7 @@ int main() {
 			} else if (variant >= 4 && variant < 8) {
 				require(injected && collector.error() == failure && core->ledger.stats().used == usage);
 				require(core->ledger.stats().fenced == (variant != 7));
-			} else if (variant == 2) {
+			} else if (variant == 2 || variant >= 15) {
 				require(bool(collector.error()) &&
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);

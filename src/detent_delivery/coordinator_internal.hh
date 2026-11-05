@@ -10,6 +10,7 @@ struct CoordinatorAccess {
 		std::shared_future<void> resume;
 	};
 	static void pause_next_prepared_probe(Coordinator &, std::shared_ptr<PreparedProbePause>);
+	static void pause_next_scrub(Coordinator &, std::shared_ptr<PreparedProbePause>);
 	struct ReconnectObservation {
 		std::uint64_t count = 0;
 		std::chrono::milliseconds delay{0};

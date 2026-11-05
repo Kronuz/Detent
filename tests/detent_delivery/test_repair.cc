@@ -46,12 +46,13 @@ void check(bool value, std::source_location location = std::source_location::cur
 }
 const int knobs = std::getenv("DETENT_REPAIR_KNOBS") ? std::atoi(std::getenv("DETENT_REPAIR_KNOBS")) : 100000;
 constexpr int namespaces = 10;
+std::atomic<char> fixture_epoch{'e'};
 
 d::Cursor cursor(std::uint64_t revision = 1) {
 	d::Cursor value;
 	value.cluster.fill('c');
 	value.group.fill('g');
-	value.restore_epoch.fill('e');
+	value.restore_epoch.fill(fixture_epoch.load(std::memory_order_relaxed));
 	value.scope.fill('s');
 	value.revision = revision;
 	return value;
@@ -497,6 +498,8 @@ struct Options {
 	std::uint64_t scrub_rate = 1'000'000'000;
 	bool relay = false;
 	bool fresh = false;
+	unsigned workers = 1;
+	std::optional<d::Cursor> reset_from;
 };
 task::task<bool> until(task::asio_scheduler &scheduler, std::chrono::seconds limit, const auto &predicate) {
 	asio::steady_timer timer(scheduler.executor());
@@ -527,7 +530,7 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 	auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), disk_options);
 	asio::io_context io(1);
 	task::asio_scheduler scheduler(io.get_executor());
-	asio::thread_pool worker(1);
+	asio::thread_pool worker(options.workers);
 	auto queue = kronuz::io::completion::make_native_queue(
 		kronuz::io::completion::AllocationContext(d::make_storage_resource(account)));
 	auto driver = std::allocate_shared<t::NativeDriver>(d::StorageAllocator<t::NativeDriver>(account), scheduler, queue);
@@ -543,6 +546,7 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 	config.source.token = "0123456789abcdef0123456789abcdef";
 	config.source.tls_context = server.client_tls;
 	config.source.configured = cursor();
+	config.reset_from = options.reset_from;
 	config.source.compression = false;
 	config.source.timeout = 60s;
 	for (int ns = 0; ns < namespaces; ++ns)
@@ -641,7 +645,7 @@ bool settled(const t::CoordinatorStatus &status) {
 
 // T5's damage over the coordinator: the scrub reports, a repair publishes, every read is right afterwards, the
 // damaged packs are collected and the scrub runs clean; a reader that mapped the damaged generation keeps serving.
-void heal(const fs::path &certificates, const fs::path &root) {
+void heal(const fs::path &certificates, const fs::path &root, bool close_deferred = false) {
 	const auto store = root / "store";
 	seed(certificates, store);
 	Damage damage(store);
@@ -677,8 +681,26 @@ void heal(const fs::path &certificates, const fs::path &root) {
 		check(watcher.rounds > 0 && !watcher.regressed && !watcher.wrong);
 		// The damaged root's lease keeps its packs, while an unrelated orphan is reclaimed.
 		check(co_await until(scheduler, 60s, [&] { return !fs::exists(store / orphan.payload_name()); }));
-		check(bool(disk->collection_error()));
 		check(std::all_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); }));
+		check(co_await until(scheduler, 60s, [&] {
+			return disk->collection_retry_at() != std::chrono::steady_clock::time_point::max();
+		}));
+		const auto first_retry = disk->collection_retry_at();
+		check(first_retry > std::chrono::steady_clock::now());
+		// A second deferred pass backs off and still preserves every leased extent.
+		check(co_await until(scheduler, 60s, [&] {
+			const auto retry = disk->collection_retry_at();
+			return retry != std::chrono::steady_clock::time_point::max() && retry > first_retry;
+		}));
+		check(disk->collection_retry_at() >= first_retry + 1s);
+		for (const auto &pack : old_packs)
+			check(fs::exists(pack) && fs::file_size(pack) == damage.original.at(pack).size());
+		if (close_deferred) {
+			final_status = coordinator->status();
+			coordinator->close();
+			check(disk->collection_retry_at() == std::chrono::steady_clock::time_point::max());
+			co_return;
+		}
 		watcher.finish();
 		const auto repaired = status.selected.descriptor;
 		check(repaired && repaired->generation != before.generation && repaired->cursor == before.cursor);
@@ -688,8 +710,7 @@ void heal(const fs::path &certificates, const fs::path &root) {
 		for (const auto &pack : now)
 			fresh += !old_packs.count(pack);
 		check(fresh >= 10 && now.size() == old_packs.size() + fresh);
-		// One request after the reader releases its lease reclaims the damaged packs.
-		disk->request_collection();
+		// The repair's original request is retried after the reader releases its lease.
 		check(co_await until(scheduler, 60s, [&] {
 			return std::none_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); });
 		}));
@@ -782,6 +803,65 @@ void unchanged(const fs::path &certificates, const fs::path &root, bool relay) {
 	std::cout << "unchanged" << (relay ? " (relay bundle)" : "") << ": the same-cursor snapshot published nothing; the repair published generation "
 			  << "different from the first at cursor " << before.cursor.revision << ", " << reads.ok << " reads ok\n";
 }
+void repair_reset(const fs::path &certificates, const fs::path &root) {
+	const auto store = root / "store";
+	seed(certificates, store);
+	const auto prior = cursor();
+	fixture_epoch = 'f';
+	Server server(certificates);
+	run_phase(certificates, store, server, {.scrub_rate = 0, .reset_from = prior},
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		t::detail::CoordinatorAccess::request_repair(*coordinator);
+		check(co_await until(scheduler, 60s, [&] { return coordinator->status().recoverable == cursor(); }));
+		const auto status = coordinator->status();
+		check(settled(status) && status.repair.requested == 1 && status.repair.completed == 0 && !status.repair.pending);
+	});
+	Reader reader(store);
+	const auto reads = reader.read(1);
+	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
+	fixture_epoch = 'e';
+}
+void scrub_worker(const fs::path &certificates, const fs::path &root) {
+	const auto store = root / "store";
+	seed(certificates, store);
+	Reader leased(store, true);
+	Server server(certificates);
+	server.head = 2;
+	run_phase(certificates, store, server, {.workers = 2},
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
+		for (bool closing : {false, true}) {
+			auto pause = std::make_shared<t::detail::CoordinatorAccess::PreparedProbePause>();
+			std::promise<void> resume;
+			pause->resume = resume.get_future().share();
+			struct Release {
+				std::promise<void> &resume;
+				~Release() { try { resume.set_value(); } catch (const std::future_error &) {} }
+			} release{resume};
+			if (!closing)
+				Damage(store).apply();
+			t::detail::CoordinatorAccess::pause_next_scrub(*coordinator, pause);
+			check(co_await until(scheduler, 60s, [&] { return pause->reached.load(std::memory_order_acquire); }));
+			if (!closing) {
+				t::detail::CoordinatorAccess::request_repair(*coordinator);
+				check(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 1; }));
+				resume.set_value();
+				const auto passes = coordinator->status().scrub.passes;
+				check(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.passes > passes; }));
+				check(coordinator->status().repair.requested == 1 && !coordinator->status().repair.pending);
+			} else {
+				coordinator->close();
+				check(coordinator->status().phase != t::CoordinatorPhase::Closed);
+				asio::steady_timer timer(scheduler.executor());
+				timer.expires_after(40ms);
+				const auto error = co_await task::await_asio<void(asio::error_code)>(
+					[&](auto handler) { timer.async_wait(std::move(handler)); });
+				check(!error && !coordinator->drained());
+				resume.set_value();
+			}
+		}
+	});
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -796,12 +876,18 @@ int main(int argc, char **argv) {
 		} cleanup{root};
 		if (mode == "heal")
 			heal(certificates, root);
+		else if (mode == "lease-close")
+			heal(certificates, root, true);
 		else if (mode == "delta")
 			delta(certificates, root);
 		else if (mode == "unchanged")
 			unchanged(certificates, root, false);
 		else if (mode == "relay")
 			unchanged(certificates, root, true);
+		else if (mode == "scrub-worker")
+			scrub_worker(certificates, root);
+		else if (mode == "reset")
+			repair_reset(certificates, root);
 		else
 			throw std::invalid_argument("unknown mode");
 		std::cout << "ok\n";

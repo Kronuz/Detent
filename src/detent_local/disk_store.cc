@@ -1442,6 +1442,9 @@ struct DiskStore::Impl {
 	std::shared_ptr<ReclaimOperation> reclaim;
 	std::shared_ptr<detail::PagedSegmentCollection> segments;
 	bool segment_collection_pending = false;
+	bool segment_collection_settled = true;
+	std::chrono::steady_clock::time_point collection_retry = std::chrono::steady_clock::time_point::max();
+	std::chrono::seconds collection_backoff{1};
 	std::exception_ptr terminal_collection_error;
 };
 DiskStore::DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core)
@@ -1477,8 +1480,21 @@ std::shared_ptr<c::Operation> DiskStore::operation() const {
 }
 bool DiskStore::needs_work() const noexcept { return impl_->segments && impl_->segments->needs_work(); }
 void DiskStore::advance() {
-	if (impl_->segments && impl_->segments->done() && impl_->segments->error())
+	if (impl_->segments && impl_->segments->done() && !impl_->segment_collection_settled) {
+		impl_->segment_collection_settled = true;
 		impl_->terminal_collection_error = impl_->segments->error();
+		if (impl_->segments->deferred()) {
+			impl_->collection_retry = std::chrono::steady_clock::now() + impl_->collection_backoff;
+			impl_->collection_backoff = std::min(impl_->collection_backoff * 2, std::chrono::seconds(30));
+		} else {
+			impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+			impl_->collection_backoff = std::chrono::seconds(1);
+		}
+	}
+	if (!impl_->core->closing && std::chrono::steady_clock::now() >= impl_->collection_retry) {
+		impl_->core->collect = true;
+		impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+	}
 	if (impl_->publication && impl_->publication->done() && !impl_->publication->in_flight()) {
 		impl_->terminal_publication_status = impl_->publication->status();
 		impl_->terminal_publication_error = impl_->publication->error();
@@ -1504,6 +1520,7 @@ void DiskStore::advance() {
 						impl_->core);
 				}
 				impl_->segments->start();
+				impl_->segment_collection_settled = false;
 				impl_->terminal_collection_error = {};
 			} catch (const distribution::StoragePressure &) {
 				impl_->terminal_collection_error = std::current_exception();
@@ -1538,6 +1555,9 @@ void DiskStore::advance() {
 	}
 }
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
+std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
+	return impl_->core->closing ? std::chrono::steady_clock::time_point::max() : impl_->collection_retry;
+}
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
 		   !impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done()) &&
