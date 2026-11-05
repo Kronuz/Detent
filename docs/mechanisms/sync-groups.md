@@ -33,7 +33,7 @@ A `SyncFiles` takes open descriptors, so a group is written in windows of at mos
 | macOS | n `fsync`, one directory `fsync`, one `F_FULLFSYNC`: one device flush |
 | Linux, FreeBSD | n `fsync` (Linux: a `sync_file_range` writeback hint on each first), one directory `fsync`: n + 1 flushes on ext4 and XFS |
 
-At 5M a publication has 1,441 owners plus the lease and 1,441 packs plus four files, so with 128 per window group A is 12 windows and group B 12, and with barrier C the publication issues 25 `F_FULLFSYNC` on macOS, against 5,778 before.
+The expected 5M shape, not yet confirmed by a grouped-publication run, has 1,441 owners plus the lease and 1,441 packs plus four files, so with 128 per window group A is 12 windows and group B 12, and with barrier C the publication issues 25 `F_FULLFSYNC` on macOS, against 5,778 before.
 
 ## Cancellation and failure
 
@@ -41,7 +41,7 @@ A window is atomic with respect to cancel: the files it created are synced and c
 
 ## Counters
 
-`DiskStore::sync_stats()` returns `SyncStats {total, startup, publication}` of `SyncCounters {files, directory_syncs, device_flushes, groups}`. Operations count each request that completed without error (`StorageSession::sync_performed`): a `Sync` is one file and one flush; a `DirectorySync` one directory sync and one flush; a `SyncFiles` of n files is one group, n files, one directory sync and one flush on macOS or n + 1 elsewhere. `startup` is the session's counters when the store became ready; `publication` is the last published publication's delta. The agent logs the publication counters when they change; the relay reports them in its status JSON (`sync_*`, `publication_*`).
+`DiskStore::sync_stats()` returns `SyncStats {total, startup, publication}` of `SyncCounters {files, directory_syncs, device_flushes, groups}`. Operations count each request that completed without error (`StorageSession::sync_performed`): a `Sync` is one file and one flush; a `DirectorySync` one directory sync and one flush; a `SyncFiles` of n files is one group, n files, one directory sync and one flush on macOS or n + 1 elsewhere. `total` retains its final value after the store closes; `startup` is the session's counters when the store became ready; `publication` is the last published publication's delta. The agent logs the publication counters when they change; the relay reports them in its status JSON (`sync_*`, `publication_*`).
 
 ## Design vs code
 

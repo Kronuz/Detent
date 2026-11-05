@@ -1,10 +1,10 @@
-> Status: CURRENT (2026-11-04) Ledger for namespace steps S1 (completion `SyncFiles` and `OrderFiles`) and S2 (D11 on today's store): WIP checkpoint, handed to the next lead.
+> Status: CURRENT (2026-11-04) Ledger for namespace steps S1 (completion `SyncFiles` and `OrderFiles`) and S2 (D11 on today's store): Recovery in progress; lifecycle and T7 accounting fixes committed, runtime proof queued.
 
 # namespace-s1-s2
 
 - Design: docs/design/namespace-delivery.md D11 and S1, S2; criteria: docs/status/namespace-design.md (S1, S2, verbatim there; ticked only here, with evidence). Mechanism note: docs/mechanisms/sync-groups.md (draft; its 25-flush figure at 5M is expected, not measured). Timing note to write: docs/perf/sync-groups.md. Measured start: docs/perf/cold-bootstrap-5m.md (Round 2).
 - Branch / worktree: Detent `namespace/s1-s2` in `.claude/worktrees/agent-af2c08dd24001ec58`, base `Detent:32aa0c8`; completion worktree `~/code/Kronuz/completion-wt/s2-stage` (branch `namespace/s2-stage`, now also on completion main).
-- State: S1 done and verified. S2 code written and building; its tests ran once (results below); no mutants, sanitizer runs, timings or Detent CI yet.
+- State: S1 done and verified. S2 rework. Six targeted tests pass in the recovered overnight logs. T7 and full ctest fail before the recovery fixes; mutant, sanitizer and timing evidence remains outstanding.
 - Found on arrival: S1's primitives were already built and landed (`completion:0490a5a` SyncFiles and OrderFiles, `completion:df6394a` read-only opens, `sync_primitives_test`, mutants s1-s8, `docs/mechanisms/sync-files.md`; completion CI green at `completion:9acfba3`) and Detent's pin already pointed at it (`Detent:b42d781`). S1 needed verification. What S2 needed beyond it is one policy, `PreparationFilePolicy::Stage` (create and write, no sync, file left open for a group sync), now `completion:560c288` on completion main.
 
 ## Done criteria
@@ -47,7 +47,13 @@ Run from the worktree root; helper scripts are in `.scratch/` (untracked): `buil
 8. Tick the criteria with evidence, finish `docs/mechanisms/sync-groups.md`, then the architect review (durability).
 
 ## Blocked on
-Nothing.
+Local CPU work waits for the Xapiand exclusive hold (until approximately 2026-11-05 01:21 PST). Hosted CI can run independently.
 
 ## Log
 - 2026-11-04: Read the design, the explorer's prototype and the code. Branched `namespace/s1-s2` from `github/main` at `Detent:32aa0c8`. Counters committed (`Detent:7a4425a`); "before" tree built from it. Completion Stage policy pushed to completion main (`completion:560c288`, CI and mutants green). Grouped publication, census and tests written; VM ext4 measurement at 128 files taken. Checkpoint requested by the coordinator (credits); handed over.
+
+- 2026-11-04 recovery: Overnight `SUMMARY` records six targeted passes (artifacts, startup, disk_store, faults, publication, paged_disk_store), T7 rc 134 and full ctest rc 8 (57 failures of 222). Logs: main worktree `.scratch/overnight/logs/s2-*.log`. The overnight driver is alive, PID 60892, waiting in its ASan configure through quiet PID 26601; no sanitizer, coldboot or ext4 rerun is duplicated.
+- 2026-11-04 recovery: Existing macOS crash reports (`test_delivery_prepared_startup-2026-11-04-193543.ips`, `detent-agent-2026-11-04-193658.ips`) identify `Coordinator::status -> DiskStore::sync_stats -> StorageSession::sync_counters`, invalid address 0x68. `advance()` releases the session at Closed; instrumentation introduced at `Detent:7a4425a` dereferences it unconditionally. `Detent:0cd1527` captures terminal totals before release and tests all counter fields after close and repeated advance. Fix/runtime attribution is unverified until the queued revert check runs.
+- 2026-11-04 recovery: With lead authorization, apply the identical instrumentation fix to the clean, idle baseline tree. Original baseline `Detent:7a4425a`, patched baseline `Detent:327ca58`. No grouped-sync behavior changes in that arm. The live driver will rebuild both measurement arms before coldboot.
+- 2026-11-04 recovery: T7 compares publication-only counters against sync-seam totals that also include the startup barrier. `Detent:522452a` subtracts the startup seam counts, reports assertion lines, checks durability at readiness on every publish, and always includes the rename boundary in restart cycles. This is a static diagnosis; its positive run and accounting-revert failure are owed.
+- 2026-11-04 recovery: Prepared bounded jobs under `.scratch/recovery-s2/`: `reconfigure-release.sh` removes the completion source override, rebuilds and runs full ctest; `proof.sh` uses an archived `Detent:522452a` in its own source/build/dependency directories, runs Debug positives, lifecycle/accounting reverts, the three T7 mutants, and restored positives. Each CPU command has a light hold, at most four build jobs, and a timeout no longer than 30 minutes. These source mutations cannot affect the live overnight driver's source tree. Proof audit and architect review are not ready.
