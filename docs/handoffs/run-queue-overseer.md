@@ -15,7 +15,7 @@ Everything is under `~/code/Kronuz/Detent/.scratch/overnight/`:
 
 ## Each check (every few hours, and when asked)
 
-1. `tail -20 SUMMARY`, then `ps -axo pid,etime,command | grep -E 'overnight/(run|queue).sh' | grep -v grep` to confirm the scripts are alive.
+1. `tail -20 SUMMARY`, then `pgrep -fl '(run|queue)\.sh$' (the scripts run as ./run.sh and ./queue.sh)` to confirm the scripts are alive.
 2. `quiet list` and `quiet check`: a step that has not advanced is usually waiting for a hold; `quiet list` shows who holds it and until when. Report free disk (`df -h ~`) each time, and say so plainly when it is below 20 GiB.
 3. For each new nonzero `rc` in `SUMMARY`, read the last 40 lines of its log and report the failure in one or two lines: step, exit code, the error line, and whether it looks like the code under test or the harness.
 4. When `run.sh` writes `done`, report its results to the lead:
