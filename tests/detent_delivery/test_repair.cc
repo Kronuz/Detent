@@ -692,7 +692,7 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 			const auto retry = disk->collection_retry_at();
 			return retry != std::chrono::steady_clock::time_point::max() && retry > first_retry;
 		}));
-		check(disk->collection_retry_at() >= first_retry + 1s);
+		check(disk->collection_retry_at() >= first_retry + 2s);
 		for (const auto &pack : old_packs)
 			check(fs::exists(pack) && fs::file_size(pack) == damage.original.at(pack).size());
 		if (close_deferred) {
