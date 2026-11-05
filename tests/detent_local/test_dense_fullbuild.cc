@@ -4,6 +4,7 @@
 #include "paged_snapshot_builder.hh"
 #include <chrono>
 #include <ctime>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -78,6 +79,19 @@ static std::string hex(std::span<const char> bytes) {
 		out << std::hex << std::setfill('0') << std::setw(2) << unsigned(c);
 	return out.str();
 }
+static l::StorageIdentity model_segment(std::size_t index) {
+	SHA256 hash;
+	constexpr std::string_view domain = "model segment";
+	hash.add(domain.data(), domain.size());
+	std::array<char, 8> ordinal{};
+	l::write_integer(ordinal, 0, index, 8);
+	hash.add(ordinal.data(), ordinal.size());
+	p::Digest digest;
+	hash.getHash(reinterpret_cast<unsigned char *>(digest.data()));
+	l::StorageIdentity result;
+	std::copy_n(digest.begin(), result.size(), result.begin());
+	return result;
+}
 static double seconds(std::chrono::steady_clock::time_point begin) {
 	return std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
 }
@@ -141,7 +155,18 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 	const auto wall = seconds(start), cpu_s = double(std::clock() - cpu) / CLOCKS_PER_SEC;
 	const auto hashes = p::hash_counts();
 	auto image = builder.take();
-	std::uint64_t pack_bytes = 0;
+	std::uint64_t pack_bytes = 0, page_bytes = 0, page_hash_bytes = 0;
+	std::map<l::StorageIdentity, l::StorageIdentity> model_ids;
+	for (std::size_t i = 0; i < image.segments().size(); ++i)
+		model_ids.emplace(model_segment(i), image.segments()[i].ownership.segment);
+	if (!model.empty()) {
+		std::size_t model_packs = 0;
+		for (const auto &entry : std::filesystem::directory_iterator(model))
+			if (entry.path().extension() == ".pack")
+				++model_packs;
+		require(model_packs == image.segments().size());
+	}
+	p::Reference last_page;
 	std::size_t page_count = 0;
 	for (const auto &segment : image.segments()) {
 		const auto bytes = std::span<const char>(segment.bytes->data(), segment.bytes->size());
@@ -149,18 +174,10 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 		require(p::pack_commitment(bytes) == segment.ownership.checksum);
 		std::vector<char> expected;
 		if (!model.empty()) {
-			// The model uses separate deterministic ids; match segment ordinal and covered page
-			// bytes.
-			SHA256 id;
-			constexpr std::string_view domain = "model segment";
-			id.add(domain.data(), domain.size());
-			std::array<char, 8> ordinal{};
-			l::write_integer(ordinal, 0, &segment - image.segments().data(), 8);
-			id.add(ordinal.data(), ordinal.size());
-			p::Digest digest;
-			id.getHash(reinterpret_cast<unsigned char *>(digest.data()));
-			expected =
-				load(model + "/segment-" + hex(std::span<const char>(digest).first(16)) + ".pack");
+			// Only segment identities differ; every placement keeps its seal-order
+			// offset.
+			expected = load(model + "/segment-" +
+							hex(model_segment(&segment - image.segments().data())) + ".pack");
 			require(expected.size() == bytes.size());
 		}
 		for (std::size_t at = 0; at < bytes.size();) {
@@ -174,15 +191,35 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 							 h.height,
 							 h.digest};
 			p::verify_page(page, ref, limits);
-			if (!expected.empty())
+			if (!expected.empty()) {
+				const auto expected_page = std::span<const char>(expected).subspan(at, length);
 				require(std::equal(page.begin(), page.end() - p::placement_bytes * h.externals,
-								   expected.begin() + at));
+								   expected_page.begin()));
+				for (std::uint16_t i = 0; i < h.externals; ++i) {
+					auto wanted = p::decode_external(expected_page, i, limits);
+					wanted.segment = model_ids.at(wanted.segment);
+					require(p::decode_external(page, i, limits) == wanted);
+				}
+			}
+			last_page = ref;
+			page_bytes += length;
+			page_hash_bytes += length - 32 - p::placement_bytes * h.externals;
 			++page_count;
-			at = (at + length + 7) & ~std::size_t(7);
+			const auto end = at + length;
+			at = (end + 7) & ~std::size_t(7);
+			for (auto padding = end; padding < std::min(at, bytes.size()); ++padding)
+				require(bytes[padding] == 0);
 		}
 	}
-	require(page_count == image.root().pages && hashes.page_calls == page_count &&
-			hashes.pack_calls == image.segments().size() && hashes.pack_bytes == pack_bytes);
+	require(page_count == image.root().pages && page_bytes == image.root().bytes &&
+			image.root().tree == last_page && image.root().segments == image.segments().size());
+	require(hashes == p::HashCounts{page_count, page_hash_bytes, image.segments().size(),
+									pack_bytes, image.segments().size() + 1,
+									72 * image.segments().size() + p::root_bytes});
+	auto root_bytes = image.bytes();
+	require(p::decode_root({root_bytes->data(), root_bytes->size()}, limits).tree == last_page);
+	require(p::metadata_commitment({root_bytes->data(), root_bytes->size()}) ==
+			image.descriptor().checksum);
 	std::cout << "fullbuild: pages " << image.root().pages << ", pagebytes " << image.root().bytes
 			  << ", segments " << image.root().segments << ", packbytes " << pack_bytes << ", root "
 			  << hex(p::state_commitment(image.root())) << ", wall_s " << wall << ", cpu_s "
@@ -192,6 +229,7 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 			  << hashes.metadata_calls << ", metadata_hash_bytes " << hashes.metadata_bytes
 			  << ", output_resident_bytes " << account->used() - baseline << ", peak_bytes "
 			  << account->peak() << '\n';
+	root_bytes.reset();
 	l::ValidationBudget disposal{SIZE_MAX, SIZE_MAX};
 	require(image.discard(disposal));
 	require(account->used() == baseline);
@@ -203,6 +241,7 @@ int main(int argc, char **argv) {
 	}
 	require(argc == 1);
 	auto rows = std::make_shared<Rows>();
+	run(rows);
 	std::array<char, 8> body{};
 	l::write_integer(body, 0, 17, 8);
 	rows->push_back({std::string("Wa\0", 3), {body.begin(), body.end()}});
