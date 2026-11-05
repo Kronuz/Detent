@@ -89,10 +89,16 @@ int main() {
 		} else {
 			require(store->status() == l::StoreStatus::Fenced && bool(store->error()));
 		}
+		const auto before_close = store->sync_stats();
 		store->close();
 		drive(store);
 		store->advance();
 		require(store->drained());
+		const auto after_close = store->sync_stats();
+		require(after_close.total == before_close.total && after_close.startup == before_close.startup &&
+				after_close.publication == before_close.publication);
+		store->advance();
+		require(store->sync_stats().total == after_close.total);
 		store.reset();
 		domain.close().wait();
 		require(account->used() == initial);
