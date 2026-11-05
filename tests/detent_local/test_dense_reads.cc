@@ -1,7 +1,12 @@
 #include "dense_graph_fixture.hh"
+#include "lazy_page_access.hh"
 #include "paged_navigation.hh"
 #include "paged_read_state.hh"
+#include "segment_names.hh"
+#include <fcntl.h>
+#include <filesystem>
 #include <iostream>
+#include <unistd.h>
 using namespace dense_graph_test;
 namespace {
 l::detail::PagedReadState read_state(const std::shared_ptr<Fixture> &source,
@@ -30,6 +35,73 @@ void mutation(unsigned kind) {
 	rejects<l::detail::ReadSourceFailure>(
 	    [&] { state.lookup(source->rows.front().key, p::PageKind::Definition); });
 }
+void mapped_mutation(unsigned variant) {
+	auto source = fixture(1000);
+	const auto path =
+	    std::filesystem::current_path() / ".scratch" /
+	    ("dense-mapped-" + std::to_string(::getpid()) + "-" + std::to_string(variant));
+	std::filesystem::create_directories(path);
+	const auto file = path / l::detail::SegmentNames(source->root.tree.segment).payload.data();
+	const int payload = ::open(file.c_str(), O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, 0600);
+	check(payload >= 0);
+	check(::write(payload, source->bytes.data(), source->bytes.size()) ==
+	      static_cast<ssize_t>(source->bytes.size()));
+	const int directory = ::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	check(directory >= 0);
+	{
+		d::RetirementRuntime runtime(source->account, 1);
+		auto domain = runtime.domain(source->account);
+		auto mappings = std::make_shared<d::StorageLedger>(2 * p::segment_bytes);
+		auto access = domain.make<l::detail::LazyPageAccess>(
+		    source, directory, ::getuid(), source->storage, source->root, l::ViewLimits{},
+		    domain.factory(), source->account, mappings);
+		for (const auto &page : source->pages)
+			access->resolve(page.reference);
+		const auto verified = access->page_verifications();
+		const auto root_offset = source->root.tree.offset;
+		auto root_bytes =
+		    std::span<const char>(source->bytes).subspan(root_offset, source->root.tree.length);
+		if (variant == 0) {
+			auto redirected = source->pages.front().reference;
+			redirected.offset = source->pages.back().reference.offset;
+			redirected.length = source->pages.back().reference.length;
+			rejects<l::detail::ReadSourceFailure>([&] { access->resolve(redirected); });
+		} else if (variant == 1) {
+			auto interior = source->pages.front().reference;
+			interior.offset += 8;
+			rejects<l::detail::ReadSourceFailure>([&] { access->resolve(interior); });
+		} else {
+			const auto node = p::decode_node(root_bytes, 64);
+			std::size_t at = root_offset + 64;
+			std::array<char, 2> replacement{};
+			std::size_t size = 1;
+			if (variant == 2) {
+				at = root_offset + 12;
+				replacement = {0x7f, char(0xff)};
+				size = 2;
+			} else if (variant == 3) {
+				at = root_offset + (node.slots.data() - root_bytes.data());
+				l::write_integer(replacement, 0, 64, 2);
+				size = 2;
+			}
+			check(::pwrite(payload, replacement.data(), size, at) == static_cast<ssize_t>(size));
+			using Handle = d::RetirementHandle<l::detail::LazyPageAccess>;
+			auto held = std::make_shared<Handle>(access);
+			l::detail::PagedReadState state{
+			    source->root,
+			    {},
+			    std::shared_ptr<const l::detail::PagedPageAccess>(held, access.get())};
+			rejects<l::detail::ReadSourceFailure>(
+			    [&] { state.lookup(source->rows.front().key, p::PageKind::Definition); });
+		}
+		check(access->page_verifications() == verified);
+		access.reset();
+		domain.close().wait();
+	}
+	check(::close(directory) == 0 && ::close(payload) == 0);
+	std::filesystem::remove_all(path);
+}
+
 } // namespace
 int main() {
 	{
@@ -103,6 +175,8 @@ int main() {
 	}
 	for (unsigned kind = 0; kind < 5; ++kind)
 		mutation(kind);
+	for (unsigned variant = 0; variant < 5; ++variant)
+		mapped_mutation(variant);
 	std::cout << "dense reads, one-hash first touch, exact starts and mapped "
 	             "mutation bounds passed\n";
 }

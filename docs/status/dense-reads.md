@@ -14,3 +14,7 @@ malformed framing, back edges and bounded body reads. Graph fixtures pass 0, 1,
 Remaining: migrate prepared-reader disk fixture and lazy read expectations; run
 composed reader, recovery, warm validation and sanitizer suites. Whole-feature
 review and acceptance measurements remain lead gates.
+
+## Parked for Campaign 2.0 (2026-11-05)
+
+The contributor stopped at a usage limit while migrating prepared/lazy fixtures and hash-once tests. The lead checkpoints those files as incomplete; prior source and scoped-test evidence above stays valid only for the recorded versions. Branch `phase/dense-pages-reads`, worktree `.claude/worktrees/dense-pages-reads`. No live command or hold remains at 14:54 PST. Resume composed fixture and sanitizer checks from the quest journal.

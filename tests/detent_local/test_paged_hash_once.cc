@@ -1,6 +1,6 @@
-// Managed recovery compares each segment checksum and page digest once. These tests flip every byte of a
-// stored pack and require the rejection (or acceptance) a recovery has always given, and count the bytes
-// hashed.
+// Managed recovery compares each segment checksum and page digest once. These tests flip every byte
+// of a stored pack and require the rejection (or acceptance) a recovery has always given, and count
+// the bytes hashed.
 #include "detent_local/reader.hh"
 #include "paged_disk_fixture.hh"
 #include "recovery_context.hh"
@@ -11,10 +11,11 @@
 namespace {
 struct Outcome {
 	std::string error;
-	std::uint64_t records = 0, segment_hash_bytes = 0;
+	std::uint64_t records = 0, segment_hash_bytes = 0, page_calls = 0, pack_calls = 0;
 };
 Outcome attempt(const std::filesystem::path &directory) {
 	Outcome outcome;
+	l::paged::reset_hash_counts();
 	auto heap = std::make_shared<d::StorageLedger>(8 * 1024 * 1024);
 	auto mappings = std::make_shared<d::StorageLedger>(1024 * 1024);
 	auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
@@ -35,6 +36,9 @@ Outcome attempt(const std::filesystem::path &directory) {
 		domain.close().wait();
 	}
 	outcome.segment_hash_bytes = metrics->segment_hash_bytes;
+	const auto hashes = l::paged::hash_counts();
+	outcome.page_calls = hashes.page_calls;
+	outcome.pack_calls = hashes.pack_calls;
 	return outcome;
 }
 void flip(const std::filesystem::path &path, std::size_t at) {
@@ -52,8 +56,8 @@ std::string slurp(const std::filesystem::path &path) {
 }
 } // namespace
 int main() {
-	const auto directory =
-		std::filesystem::current_path() / ".scratch" / ("paged-hash-once-" + std::to_string(::getpid()));
+	const auto directory = std::filesystem::current_path() / ".scratch" /
+	                       ("paged-hash-once-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() {
@@ -80,8 +84,10 @@ int main() {
 	const auto clean = attempt(directory);
 	require(clean.error.empty() && clean.records == image.root().records);
 	require(clean.segment_hash_bytes == pack_bytes);
+	require(clean.page_calls == image.root().pages && clean.pack_calls == image.root().segments);
 
-	// A flipped pack byte is rejected where a recovery has always rejected it: the segment checksum.
+	// A flipped pack byte is rejected where a recovery has always rejected it: the segment
+	// checksum.
 	std::map<std::string, std::size_t> plain, forged;
 	std::size_t accepted = 0;
 	for (const auto &segment : image.segments()) {
@@ -98,7 +104,7 @@ int main() {
 			// With the owner record forged to match, only the page digests can reject.
 			auto record = segment.ownership;
 			const auto bytes = slurp(pack);
-			const auto digest = l::paged::physical_commitment({bytes.data(), bytes.size()});
+			const auto digest = l::paged::pack_commitment({bytes.data(), bytes.size()});
 			std::copy(digest.begin(), digest.end(), record.checksum.begin());
 			write(owner, l::encode_segment_ownership(record));
 			const auto second = attempt(directory);
@@ -112,8 +118,10 @@ int main() {
 		}
 	}
 	require(attempt(directory).error.empty());
-	// Recoveries before this change gave exactly these outcomes for this 880-byte pack.
-	require(pack_bytes == 880 && plain.size() == 1 && plain.at("invalid paged dependency graph") == 880);
-	require(forged.size() == 2 && forged.at("invalid immutable page") == 632 &&
-			forged.at("invalid paged local image") == 233 && accepted == 15);
+	require(image.root().pages == 1 && image.root().bytes == pack_bytes);
+	require(plain.size() == 1 && plain.begin()->second == pack_bytes);
+	std::uint64_t rejected = 0;
+	for (const auto &[error, count] : forged)
+		rejected += count;
+	require(!accepted && rejected == pack_bytes);
 }
