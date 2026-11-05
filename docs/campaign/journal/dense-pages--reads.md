@@ -1,30 +1,30 @@
 # dense-pages--reads: journal
 
 State: working
-Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
-
-The adventurer keeps this journal current and commits it with the work, so a fresh adventurer can
-pick the quest up. The first two lines are read by `campaign status`. State is one of: working,
-waiting on jobs <ids>, ready for review, fixing <review>, blocked on <who>: <what> (say which
-criteria are done and which wait).
+Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
 
-<The current step, precisely enough for a fresh adventurer to continue it.>
+Finish prepared-reader/lazy/hash-once fixture migration and composed reader, cold/warm graph, recovery and malformed-input proof.
+
+Adopted `phase/dense-pages-reads` at Detent:7fb6574; the original worktree stays parked. Prior contributor stopped at usage limit, with no live process or hold. The generated quest/task worktree is the active writer now.
 
 ## Next
 
-1. <step>
+1. Bring full-build checkpoint into the task through lead-coordinated integration.
+2. Complete owned test migration; run committed scoped jobs.
+3. Finish decoder and warm-skip mutation/revert proof, then sanitizer jobs.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. Cross-component changes go through the lead; no per-step review queue.
 
 ## Evidence
 
-| Criterion | Evidence (job id, test, commit) |
-|---|---|
+Bounded dense sources and scoped reader/page/graph fixtures pass historically. Final composed fixtures/sanitizers remain pending.
+
+Historical ledger: `docs/status/dense-reads.md` on `phase/dense-pages-reads`. Historical evidence is scoped to its recorded code; it is not an automatically passing Campaign 2.0 job.
 
 ## Rulings I made
 
-<Decisions taken inside the quest's scope, so the paladin can check them.>
+Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
