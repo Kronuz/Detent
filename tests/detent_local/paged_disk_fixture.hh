@@ -2,6 +2,7 @@
 #include "paged_snapshot_builder.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
+#include "trusted_records.hh"
 #include <filesystem>
 #include <fstream>
 #include <sys/stat.h>
@@ -30,4 +31,12 @@ inline void install(const std::filesystem::path &directory, const l::detail::Pag
 		write(directory / names.payload_name(), {s.bytes->data(), s.bytes->size()});
 	}
 	write(directory / "selected", l::encode_descriptor(image.descriptor()));
+	// The agent's cold start requires the records a publication writes; a store that cannot produce them
+	// fails here, naming itself, instead of as an unrelated refusal later.
+	try {
+		trusted_records::derive(directory);
+	} catch (const std::exception &error) {
+		throw std::runtime_error("install: cannot derive the trusted records of " + directory.string() + ": " +
+								 error.what());
+	}
 }

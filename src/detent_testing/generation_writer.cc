@@ -5,11 +5,17 @@
 #include "detent_distribution/wire_encoder.hh"
 #include "detent_local/disk_store.hh"
 #include "managed_recovery.hh"
+#include "paged_compaction_plan.hh"
+#include "paged_delta_plan.hh"
+#include "paged_limits.hh"
 #include "paged_snapshot_plan.hh"
 #include "detent_testing/generation_writer.h"
 #include <completion/native_completion.h>
+#include <algorithm>
+#include <array>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <random>
 #include <sys/stat.h>
 #include <vector>
@@ -198,6 +204,120 @@ struct GenerationWriter::Impl {
 		cursor = next;
 		return cursor.revision;
 	}
+	void put_cursor(std::string &out, const d::Cursor &value) {
+		m::array(out, 5);
+		for (const auto *field : {&value.cluster, &value.group, &value.restore_epoch})
+			m::string(out, std::string_view(field->data(), field->size()), true);
+		m::string(out, std::string_view(value.scope.data(), value.scope.size()), true);
+		m::unsigned_integer(out, value.revision);
+	}
+	void publish_plan(l::detail::PagedPlan plan) {
+		disk->begin(std::move(plan));
+		drive();
+		if (disk->publication_status() != l::DiskPublicationStatus::Published)
+			throw std::runtime_error("test publication was refused");
+		auto current = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
+		disk->confirm_recovered(current);
+		drive();
+	}
+	std::uint64_t delta(const std::vector<std::string> &scope, std::string_view name_space,
+	                    const std::map<std::string, std::int64_t> &upserts,
+	                    const std::vector<std::string> &removals) {
+		const auto found = std::find(scope.begin(), scope.end(), name_space);
+		if (found == scope.end())
+			throw std::invalid_argument("delta namespace is not in the scope");
+		const auto namespace_index = static_cast<std::uint64_t>(found - scope.begin());
+		auto next = cursor;
+		++next.revision;
+		std::map<std::string, std::optional<std::int64_t>> changes;
+		for (const auto &[name, value] : upserts)
+			changes[name] = value;
+		for (const auto &name : removals)
+			changes[name] = std::nullopt;
+		std::uint64_t strings = name_space.size();
+		for (const auto &[name, value] : changes)
+			strings += name.size();
+		std::string wire;
+		m::array(wire, 7);
+		m::unsigned_integer(wire, 1);
+		m::unsigned_integer(wire, 2);
+		m::array(wire, 2);
+		m::unsigned_integer(wire, 1);
+		m::unsigned_integer(wire, 1);
+		put_cursor(wire, cursor);
+		put_cursor(wire, next);
+		m::array(wire, 4);
+		m::unsigned_integer(wire, 1);
+		m::unsigned_integer(wire, changes.size());
+		m::unsigned_integer(wire, 0);
+		m::unsigned_integer(wire, strings);
+		m::array(wire, 1);
+		m::array(wire, 3);
+		m::unsigned_integer(wire, next.revision);
+		m::array(wire, 1);
+		m::array(wire, 2);
+		m::string(wire, name_space);
+		m::unsigned_integer(wire, next.revision);
+		m::array(wire, changes.size());
+		for (const auto &[name, value] : changes) {
+			m::array(wire, 4);
+			m::unsigned_integer(wire, namespace_index);
+			m::string(wire, name);
+			m::unsigned_integer(wire, value ? 0 : 1);
+			if (value) {
+				m::array(wire, 2);
+				m::unsigned_integer(wire, 1);
+				m::signed_integer(wire, *value);
+			} else
+				wire.push_back('\xc0');
+		}
+		d::Limits limits;
+		limits.storage_account = heap;
+		d::DeltaDecoder decoder(cursor, scope, limits, d::UpdateKind::Delta);
+		std::span<const char> input(wire.data(), wire.size());
+		while (!input.empty()) {
+			d::WorkBudget budget{1 << 20, 1 << 16};
+			decoder.feed(input, budget);
+		}
+		auto source = std::make_shared<const d::ValidatedDelta>(decoder.finish());
+		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
+		l::GenerationId generation{};
+		for (auto &byte : generation)
+			byte = static_cast<char>(random());
+		const auto bounds = l::detail::paged_limits(options.recovery_limits, l::paged::root_bytes);
+		l::detail::PagedDeltaPlanBuilder builder(actual, source, generation, domain.factory(), heap, bounds);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		publish_plan(builder.take());
+		cursor = next;
+		return cursor.revision;
+	}
+	void compact(std::size_t packs) {
+		const auto context = l::detail::ManagedRecovery::capture(*disk);
+		auto actual = l::detail::ManagedRecovery::recover(store, l::detail::ManagedRecovery::capture(*disk));
+		std::array<l::StorageIdentity, 8> selected{};
+		std::size_t count = 0;
+		const auto prior = context.paged.prior;
+		if (!prior)
+			throw std::logic_error("compaction needs a recovered head");
+		const auto inputs = prior->registry()->inputs();
+		for (std::size_t i = 0; i < inputs.size() && count < std::min(packs, selected.size()); ++i)
+			if (prior->registry()->reachability(i).pages)
+				selected[count++] = inputs[i].ownership.segment;
+		l::GenerationId generation{};
+		for (auto &byte : generation)
+			byte = static_cast<char>(random());
+		const auto bounds = l::detail::paged_limits(options.recovery_limits, l::paged::root_bytes);
+		l::detail::PagedCompactionBuilder builder(actual, {selected.data(), count}, generation, domain.factory(),
+		                                          heap, l::detail::CompactionLimits{}, bounds);
+		while (!builder.done()) {
+			l::ValidationBudget budget;
+			builder.step(budget);
+		}
+		publish_plan(builder.take());
+	}
 };
 GenerationWriter::GenerationWriter(std::filesystem::path store) : impl_(std::make_unique<Impl>(std::move(store))) {}
 GenerationWriter::~GenerationWriter() = default;
@@ -208,6 +328,12 @@ std::uint64_t GenerationWriter::publish_json(std::string_view json) {
 		throw std::invalid_argument("invalid knob definitions");
 	return impl_->publish(parsed.value());
 }
+std::uint64_t GenerationWriter::publish_delta(const std::vector<std::string> &scope, std::string_view name_space,
+                                              const std::map<std::string, std::int64_t> &upserts,
+                                              const std::vector<std::string> &removals) {
+	return impl_->delta(scope, name_space, upserts, removals);
+}
+void GenerationWriter::compact(std::size_t packs) { impl_->compact(packs); }
 std::uint64_t GenerationWriter::revision() const noexcept { return impl_->cursor.revision; }
 const std::filesystem::path &GenerationWriter::store() const noexcept { return impl_->store; }
 } // namespace detent::testing

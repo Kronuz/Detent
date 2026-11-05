@@ -1,4 +1,5 @@
 #include "paged_read_state.hh"
+#include "paged_navigation.hh"
 #include <algorithm>
 #include <cstring>
 
@@ -38,23 +39,25 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
                                                             paged::PageKind expected) const {
 	if (!root.pages)
 		return {};
-	std::span<const char> identity(root.tree.segment), encoded;
-	std::size_t offset = root.tree.offset, length = root.tree.length, cursor = 0;
+	std::span<const char> encoded;
+	std::size_t cursor = 0;
 	for (;;) {
 		std::span<const char> bytes;
+		const auto reference = encoded.empty() ? root.tree : paged::decode_reference(encoded);
 		if (access) {
 			if (!access->available())
 				throw ReadSourceFailure("local generation is unavailable");
-			bytes = access->resolve(encoded.empty() ? root.tree : paged::decode_reference(encoded));
+			bytes = access->resolve(reference);
 		} else {
-			const auto found = std::lower_bound(segments.begin(), segments.end(), identity,
-			                                    [](const SegmentInput &input, std::span<const char> value) {
-				                                    return std::memcmp(input.ownership.segment.data(),
-													                   value.data(), value.size()) < 0;
-			                                    });
-			if (found == segments.end() || std::memcmp(found->ownership.segment.data(), identity.data(), 16))
-				throw std::logic_error("validated page dependency missing");
-			bytes = found->bytes.subspan(offset, length);
+			// The first-touch accessor checks a page's digests the first time any read reaches it.
+			const auto found = find_segment(segments, reference.segment);
+			if (found == segments.size())
+				throw ReadSourceFailure("local page names a segment outside its generation");
+			try {
+				bytes = checked_page_bytes(segments[found], reference);
+			} catch (const std::invalid_argument &) {
+				throw ReadSourceFailure("local page exceeds its segment");
+			}
 		}
 		const auto prefix = read_integer(bytes, 20, 4);
 		const auto kind = static_cast<paged::PageKind>(read_integer(bytes, 12, 4));
@@ -98,9 +101,6 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 		if (low == children || static_cast<unsigned char>(bytes[begin + low * paged::child_bytes]) != label)
 			return {};
 		encoded = bytes.subspan(begin + low * paged::child_bytes + 8, paged::reference_bytes);
-		identity = encoded.first(16);
-		offset = read_integer(encoded, 16, 4);
-		length = read_integer(encoded, 20, 4);
 	}
 }
 } // namespace detent::local::detail

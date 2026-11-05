@@ -27,6 +27,5 @@ endif()
 add_subdirectory(detent_local)
 add_subdirectory(detent_testing)
 add_subdirectory(detent_reader)
-add_subdirectory(detent_http)
 
 add_subdirectory(detent_system)

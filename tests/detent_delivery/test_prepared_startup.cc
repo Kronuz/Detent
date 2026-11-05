@@ -15,45 +15,10 @@ namespace x = l::detail;
 using prepared_test::check;
 using namespace std::chrono_literals;
 
-void replace_prepared(const std::shared_ptr<t::Coordinator> &coordinator,
-                      const std::shared_ptr<l::DiskStore> &store, const t::CoordinatorOptions &options, bool fail_barrier) {
-	const auto &limits = options.view_limits;
-	auto actual = l::recover_generation(options.directory, limits);
-	auto next = actual.descriptor().generation;
-	next[0] ^= 1;
-	x::PagedPlanBuilder builder(x::PagedPlanBuilder::Republish{}, actual, next, *limits.retirement_domain);
-	while (!builder.done()) {
-		l::ValidationBudget budget;
-		builder.step(budget);
-	}
-	store->begin(builder.take());
-	bool replaced = false, barrier = false;
-	// Drive actual originals without yielding before coordinator reconciliation.
-	for (unsigned turns = 0;; ++turns) {
-		check(turns < 10000);
-		store->advance();
-		auto operation = store->operation();
-		if (!operation) {
-			if (store->needs_work()) continue;
-			break;
-		}
-		const auto kind = operation->request().kind;
-		operation->submitted();
-		if (kind == kronuz::journal::PrimitiveKind::Replace) replaced = true;
-		if (replaced) check(!coordinator->status().prepared_ready);
-		auto result = kronuz::journal::detail::execute_primitive(operation->io(), operation->request());
-		if (replaced && kind == kronuz::journal::PrimitiveKind::DirectorySync) {
-			barrier = true;
-			if (fail_barrier)
-				result.error = std::make_exception_ptr(std::runtime_error("injected final barrier failure"));
-		}
-		check(operation->complete(std::move(result)));
-	}
-	check(replaced && barrier && !coordinator->status().prepared_ready);
-	check(store->publication_status() == (fail_barrier ? l::DiskPublicationStatus::Fenced : l::DiskPublicationStatus::Published));
-}
+// The coordinator starts from a store with its records, is ready as it stands, and its scrub task completes
+// passes over the selected generation: clean when the store is, reporting the damaged pack when it is not.
 task::task<void> await_prepared(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
-                                std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
+                                bool damaged) {
 	asio::steady_timer timer(scheduler.executor());
 	const auto deadline = std::chrono::steady_clock::now() + 10s;
 	std::optional<l::Descriptor> prepared;
@@ -66,40 +31,23 @@ task::task<void> await_prepared(task::asio_scheduler &scheduler, std::shared_ptr
 			stable = false;
 			break;
 		}
-		if (prepared && state.failures >= 2 &&
-			(!replacement || (!state.worker_pending && !store->operation() && !store->needs_work())))
+		if (prepared && state.failures >= 2 && state.scrub.passes >= 2)
 			break;
 		timer.expires_after(1ms);
 		co_await detent::transport::await_timer(timer);
 	}
-	const bool ready = prepared && stable && coordinator->status().prepared_ready &&
-		coordinator->status().failures >= 2;
-	std::promise<void> resume;
-	std::shared_ptr<t::detail::CoordinatorAccess::PreparedProbePause> pause;
-	if (ready && replacement == 3) {
-		pause = std::make_shared<t::detail::CoordinatorAccess::PreparedProbePause>();
-		pause->resume = resume.get_future().share();
-		t::detail::CoordinatorAccess::pause_next_prepared_probe(*coordinator, pause);
-	}
-	if (ready && replacement) replace_prepared(coordinator, store, options, replacement == 2);
-	bool unconfirmed = true;
-	if (pause) {
-		while (!pause->reached.load(std::memory_order_acquire) &&
-			std::chrono::steady_clock::now() < deadline && !coordinator->drained()) {
-			timer.expires_after(1ms);
-			co_await detent::transport::await_timer(timer);
-		}
-		unconfirmed = pause->reached.load(std::memory_order_acquire) &&
-			coordinator->status().worker_pending && !coordinator->status().prepared_ready;
-	}
+	const auto state = coordinator->status();
+	const bool ready = prepared && stable && state.prepared_ready && state.failures >= 2;
+	// Two completed passes: the first is not a running total of the second.
+	const bool scrubbed = state.scrub.passes >= 2 && state.scrub.bytes_hashed > 0 &&
+		(damaged ? state.scrub.source_failure && state.scrub.damaged_packs == 1
+		         : !state.scrub.source_failure && state.scrub.damaged_packs == 0);
 	coordinator->close();
-	if (pause) resume.set_value();
 	check(!coordinator->status().prepared_ready);
-	check(ready && unconfirmed);
+	check(ready && scrubbed);
 }
-task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator,
-                     std::shared_ptr<l::DiskStore> store, const t::CoordinatorOptions &options, int replacement) {
-	co_await task::when_all(coordinator->run(), await_prepared(scheduler, coordinator, store, options, replacement));
+task::task<void> run(task::asio_scheduler &scheduler, std::shared_ptr<t::Coordinator> coordinator, bool damaged) {
+	co_await task::when_all(coordinator->run(), await_prepared(scheduler, coordinator, damaged));
 }
 void check_cli(const char *reader, const std::filesystem::path &directory, bool valid) {
 	int output[2];
@@ -135,12 +83,21 @@ void check_cli(const char *reader, const std::filesystem::path &directory, bool 
 	check(valid ? (WEXITSTATUS(status) == 0 && result == "42\n") : WEXITSTATUS(status) != 0);
 }
 int main(int argc, char **argv) {
-	check(argc == 2 || argc == 3);
-	const int replacement = argc == 2 ? 0 : (std::string_view(argv[2]) == "--barrier-failure" ? 2 :
-		(std::string_view(argv[2]) == "--worker-confirmation" ? 3 : 1));
+	check(argc == 2 || (argc == 3 && std::string_view(argv[2]) == "--scrub-damage"));
+	const bool damaged = argc == 3;
 	auto fixture = std::make_shared<prepared_test::Fixture>();
 	prepared_test::write_file(fixture->path / "owner.lock", {});
-	check(std::filesystem::remove(fixture->path / (l::generation_name(fixture->generation) + ".read")));
+	if (damaged) {
+		// One byte of a pack's page flips before the agent starts: the restart trusts it, the scrub finds it.
+		const x::SegmentNames pack(fixture->definitions[0].segment);
+		const int fd = ::open((fixture->path / pack.payload_name()).c_str(), O_RDWR | O_CLOEXEC | O_NOFOLLOW);
+		check(fd >= 0);
+		const auto offset = fixture->definitions[0].offset + l::paged::page_header_bytes;
+		char byte;
+		check(::pread(fd, &byte, 1, offset) == 1);
+		byte ^= 1;
+		check(::pwrite(fd, &byte, 1, offset) == 1 && ::close(fd) == 0);
+	}
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	d::RetirementRuntime runtime(account, 2);
 	auto domain = runtime.domain(account, 512);
@@ -166,23 +123,21 @@ int main(int argc, char **argv) {
 		options.view_limits.retirement_domain = &domain;
 		options.view_limits.mapping_account =
 		    std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
+		options.scrub_bytes_per_second = 1000 * 1000 * 1000;
 		l::DiskStoreOptions disk;
 		disk.limits = {64 * l::paged::segment_bytes, 100, 10};
 		disk.recovery_limits = options.view_limits;
 		auto store = l::make_disk_store(domain, fixture->path, account, disk);
 		auto coordinator = t::make_coordinator(options, store, driver, domain, worker);
-		auto done = spawn_future(scheduler, run(scheduler, coordinator, store, options, replacement));
+		auto done = spawn_future(scheduler, run(scheduler, coordinator, damaged));
 		io.run();
 		done.get();
 		worker.join();
 		check(coordinator->drained() && store->drained());
-		auto selected = store->selection().descriptor;
-		if (replacement == 2) {
-			check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
-			selected = l::read_generation_selection(fixture->path).descriptor;
-		}
-		check(selected && selected->generation != fixture->generation &&
-		      selected->cursor == fixture->root.cursor);
+		const auto selected = store->selection().descriptor;
+		// A store with its records is ready as it stands: nothing is republished.
+		check(selected && selected->generation == fixture->generation && selected->cursor == fixture->root.cursor);
+		if (!damaged) {
 		auto prepared = x::PreparedReader::open(fixture->path, ::getuid(), options.view_limits);
 		check(prepared.descriptor == *selected && prepared.view.get("a", "k").value() == 42);
 		check_cli(argv[1], fixture->path, true);
@@ -203,6 +158,7 @@ int main(int argc, char **argv) {
 		byte ^= 1;
 		check(::pwrite(fd, &byte, 1, offset) == 1 && ::close(fd) == 0);
 		check_cli(argv[1], fixture->path, false);
+		}
 	}
 	domain.close().wait();
 }

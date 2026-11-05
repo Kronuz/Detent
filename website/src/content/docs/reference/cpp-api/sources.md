@@ -9,7 +9,6 @@ A client consumes at most one live source. Each kind is selected by a different
 | --- | --- | --- |
 | None (baked defaults only) | none | `detent::detent` |
 | Snapshot file | `source_path` | `detent::detent` |
-| HTTP endpoint serving `GET /v1/snapshot` | `source_poll` = `make_http_poll_source(...)` | `detent_http::detent_http` |
 | Any custom poller | `source_poll` = your function | `detent::detent` |
 | Managed generations | `read_source` = `make_local_read_source(...)` | `detent::local_client` |
 
@@ -31,41 +30,6 @@ The specification Detent grew from describes watching the parent directory for
 rename events, with 100 ms coalescing. Detent polls metadata instead, which is
 portable and cheap but adds up to one `poll_interval` of latency.
 :::
-
----
-
-## HTTP Source
-
-```cpp
-#include "detent_http/http_source.hh"
-
-detent::InitOptions::SourcePoll make_http_poll_source(
-    std::string host,
-    std::uint16_t port,
-    std::string path = "/v1/snapshot",
-    std::chrono::milliseconds request_timeout = std::chrono::seconds{5},
-    std::chrono::milliseconds max_connection_age = {});
-
-detent::InitOptions::SourcePoll make_http_poll_source(
-    std::vector<std::pair<std::string, std::uint16_t>> nodes,
-    std::string path = "/v1/snapshot",
-    std::chrono::milliseconds request_timeout = std::chrono::seconds{5},
-    std::chrono::milliseconds max_connection_age = {});
-```
-
-1. `request_timeout` bounds one HTTP round trip. How often polls happen is
-   `InitOptions::poll_interval`.
-2. `max_connection_age`, when nonzero, forces a periodic reconnect with fresh
-   DNS resolution. Use it when `host` is a round-robin or health-checked DNS
-   name: the source otherwise keeps one keep-alive connection forever, and DNS
-   only balances at connect time.
-3. The multi-node overload picks one node at random at construction, sticks to
-   it, and moves to the next node in the list when a request fails, trying up
-   to `nodes.size()` nodes per poll.
-
-Each poll sends `If-None-Match`, `X-Detent-Base-Version` and `Accept-Encoding:
-zstd, gzip`, and handles `304`, full snapshots and merge-patch diffs. Responses
-are decoded transparently.
 
 ---
 

@@ -13,7 +13,7 @@ these docs are collected here.
 
 | Area | Status |
 | --- | --- |
-| Client library: reads, evaluation, file and HTTP sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
+| Client library: reads, evaluation and file sources | **Done**, covered by golden vectors, precedence tests and concurrency stress |
 | Host-local agent and `detent get` | **Done** |
 | Python and Rust bindings | **Basic**: file source only |
 | Durable authority | **Component accepted**; fleet-scale qualification open |
@@ -69,9 +69,9 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
    (`--just-knob name=value`) and a config-path flag.
 2. An opt-in environment switch that freezes baked defaults for tests.
 3. Filesystem notifications for the file source instead of metadata polling.
-4. Python: HTTP source, `read_view()`, `check()`, category-specific exceptions,
+4. Python: `read_view()`, `check()`, category-specific exceptions,
    type stubs.
-5. Rust: HTTP source, views, structured errors, test guards.
+5. Rust: views, structured errors, test guards.
 6. Go and Java bindings, and a documented stable reader ABI for the shared
    snapshot.
 7. A change-notification API for applications that want to react to updates.
@@ -81,7 +81,6 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
 1. Resumable subscriptions with snapshot/history handoff and durable publication feedback have Stage 5A component acceptance. Native, sanitizer and focused supported-platform checks establish component behavior; sustained fleet capacity remains a Stage 6 qualification target.
 2. Regional relays for fan-out have Stage 5B component acceptance; sustained fleet qualification remains in Stage 6.
 3. Incremental page publication, warm recovery, shared-segment reclamation, migration and bounded maintenance have private-component source GO and affected native/platform/sanitizer qualification. Opt-in agent/relay format configuration is under assembled-process qualification; sustained pressure and fleet capacity remain in Stage 6.
-4. A path for unmanaged agents and clients to receive authority data.
 
 ## Operations and Observability
 

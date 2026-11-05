@@ -51,10 +51,13 @@ class DiskLedger {
 			throw std::length_error("invalid managed generation extent");
 		return {image_length + overhead, 3, 1};
 	}
-	static DiskUsage paged_peak(std::span<const std::uint64_t> pack_lengths) {
+	// `live_bytes` is the size of the generation's live record, which covers every segment it reaches.
+	static DiskUsage paged_peak(std::span<const std::uint64_t> pack_lengths, std::uint64_t live_bytes) {
+		if (live_bytes > std::numeric_limits<std::uint64_t>::max() / 2)
+			throw std::length_error("invalid managed live record extent");
 		DiskUsage peak{paged::root_bytes + generation_ownership_bytes + descriptor_bytes +
-		                   prepared_metadata_bytes,
-		               4, 1};
+		                   prepared_metadata_bytes + live_bytes,
+		               5, 1};
 		for (const auto length : pack_lengths) {
 			if (!length || length > paged::segment_bytes ||
 				length > std::numeric_limits<std::uint64_t>::max() - segment_ownership_bytes - peak.bytes ||

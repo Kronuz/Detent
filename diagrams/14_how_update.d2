@@ -1,0 +1,24 @@
+vars: { d2-config: { layout-engine: elk; theme-id: 302; sketch: true; pad: 24; theme-overrides: { B1: "#8C7B7E"; B2: "#C25B73"; N2: "#C25B73" } } }
+style.fill: transparent
+grid-columns: 3
+horizontal-gap: 140
+vertical-gap: 90
+
+old: "old root"
+gap: "" {style.opacity: 0}
+new: "new root" {style.fill: "#E8E2F0"}
+ob: "old branch"
+x: "unchanged\nsubtree"
+nb: "new branch" {style.fill: "#E8E2F0"}
+od: "old definition"
+y: "unchanged\ndefinition"
+nd: "new definition" {style.fill: "#E8E2F0"}
+
+old -> ob
+old -> x
+ob -> od
+ob -> y
+new -> x {style.stroke-dash: 4}
+new -> nb
+nb -> y {style.stroke-dash: 4}
+nb -> nd

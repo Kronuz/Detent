@@ -58,8 +58,8 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 ```json
 {
-  "source_path": "/var/lib/myapp/live_knobs.json",
-  "poll_interval_ms": 200,
+  "managed_path": "managed.json",
+  "generation_dir": "agent-state",
   "defaults_path": "defaults.json",
   "runtime_dir": "/run/detent",
   "log_level": "info",
@@ -70,10 +70,7 @@ On macOS, an absolute `XDG_*` variable overrides the native location too.
 
 | Field | Meaning |
 | --- | --- |
-| `source_address` | `host:port` of an HTTP endpoint serving `GET /v1/snapshot` (alias: `source_http`) |
-| `source_path` | Snapshot file; exclusive with `source_address` |
 | `defaults_path` | Optional fallback knobs; `defaults.json` beside the config is found automatically |
-| `poll_interval_ms` | Poll interval, default `200` |
 | `runtime_dir` | Runtime directory |
 | `managed_path` | Private managed credential file |
 | `generation_dir` | Managed generation directory |
@@ -139,11 +136,9 @@ The private managed agent configuration accepts `delivery_mode` as `"poll"` (def
 
 | Variable | Used by | Meaning |
 | --- | --- | --- |
-| `DETENT_SOURCE_ADDRESS` | agent, `detent` | HTTP snapshot endpoint `host:port` |
-| `DETENT_SOURCE_HTTP` | agent, `detent` | Legacy alias of `DETENT_SOURCE_ADDRESS` |
-| `DETENT_SOURCE_PATH` | agent, `detent` | Snapshot file |
-| `DETENT_DEFAULTS_PATH` | agent, `detent` | Defaults file |
-| `DETENT_POLL_INTERVAL_MS` | agent, `detent` | Poll interval |
+| `DETENT_MANAGED_CONFIG` | agent, `detent` | Private managed configuration |
+| `DETENT_GENERATION_DIR` | agent, `detent` | Durable generation directory |
+| `DETENT_DEFAULTS_PATH` | `detent` | Defaults file |
 | `DETENT_RUNTIME_DIR` | agent, `detent` | Runtime directory |
 | `DETENTD_PORT` | `detentd` | Port |
 | `DETENTD_REACTORS` | `detentd` | Reactor threads |

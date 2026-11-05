@@ -139,7 +139,6 @@ Measured today:
 | Read path | Per read | Source |
 | --- | ---: | --- |
 | C++, managed mapped image, 500,000 knobs, random keys | ~1.4 µs | 100,000 lookups in 143–145 ms, 3 runs |
-| C++, legacy shared memory, 4 threads | 27.6 ns | `detent_agent_shm_bench` |
 | C++, in-process `detent::Client` | 149 ns | `detent_read_bench` |
 | Shell, `detent get`, warm agent | 5.2 ± 0.4 ms | 300 runs, `hyperfine` |
 

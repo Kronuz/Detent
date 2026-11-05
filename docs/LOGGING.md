@@ -35,9 +35,9 @@ Both `agent.json` and `detentd.json` accept these fields:
 {"log_level":"info","verbosity":0,"color":"auto"}
 ```
 
-Lifecycle messages include startup and shutdown. The agent logs source connection transitions, warns about refresh failures, and reports shared-memory capacity failures. Repeated refresh failures move to debug until a newer snapshot arrives. Host hashes, switch values, and knob values are not logged.
+Lifecycle messages include startup and shutdown. The managed agent logs delivery progress and failures. Host hashes, switch values, and knob values are not logged.
 
-The daemon executables own logging initialization and shutdown. Core, HTTP and shared-memory libraries expose optional diagnostic callbacks without acquiring a logger dependency. The `detent` reader does not link the logger. Routine agent diagnostics read existing atomic counters without counting knobs or traversing snapshots. Debug messages are compiled into Release daemon builds and filtered before formatting or evaluating arguments.
+The daemon executables own logging initialization and shutdown. Core and HTTP libraries expose optional diagnostic callbacks without acquiring a logger dependency. The `detent` reader does not link the logger. Debug messages are compiled into Release daemon builds and filtered before formatting or evaluating arguments.
 
 Agent background startup initializes logging after `fork()`. Background logs go to `agent.log` in the runtime directory. Foreground service managers capture stderr; use their journal or file rotation facilities. Logging drains before normal exit, including SIGTERM. Asynchronous notice, info, debug, and verbose messages are limited to 4,096 pending entries; this is an entry limit, not a byte limit. Warning and error messages bypass that limit, and critical messages use the synchronous path. A stalled sink can therefore still accumulate warnings and errors.
 

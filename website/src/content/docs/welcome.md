@@ -26,8 +26,8 @@ Detent has three moving parts:
    sessions and submit atomic, per-namespace transactions; it commits them
    through durable Raft consensus and delivers them to managed agents.
 3. **`detent-agent`** and **`detent`**, the host-local agent and its shell
-   reader. One agent per host keeps a warm client and publishes a pre-parsed
-   snapshot into shared memory, so `detent get NAME` answers in microseconds
+   reader. One agent per host receives deliveries and publishes immutable
+   generations, so `detent get NAME` reads local files rather than the network,
    from any script or language.
 
 :::hint[Where the name comes from]{.info}

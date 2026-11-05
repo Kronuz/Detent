@@ -1,6 +1,6 @@
 add_library(detent_local_view state_equivalence.cc state_cursor.cc warm_registry_merge.cc mapped_recovery_admission.cc owned_segment_inputs.cc paged_dependency_walk.cc paged_warm_validator.cc paged_contextual_reuse.cc paged_progress_view.cc paged_cursor.cc segment_mapping.cc segment_registry.cc change_file.cc paged_dependency_discovery.cc layout.cc paged_layout.cc paged_definition.cc paged_page_validator.cc paged_graph_validator.cc paged_read_state.cc borrowed_definition.cc view.cc generation.cc ownership.cc reader.cc)
 target_include_directories(detent_local_view PUBLIC "${PROJECT_SOURCE_DIR}/include")
-target_sources(detent_local_view PRIVATE reader_metadata.cc lazy_page_access.cc prepared_reader.cc)
+target_sources(detent_local_view PRIVATE reader_metadata.cc lazy_page_access.cc prepared_reader.cc pack_scrub.cc live_record.cc trusted_restart.cc)
 target_compile_features(detent_local_view PUBLIC cxx_std_20)
 add_library(detent::local_view ALIAS detent_local_view)
 add_library(detent_local_client client_source.cc)

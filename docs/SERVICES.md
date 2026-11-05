@@ -1,6 +1,6 @@
 # System services
 
-Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivileged service account. The service manager owns process startup, restarts, and logging. Daemons run in the foreground when supervised. The application-specific `--system` option selects system locations and prevents shell readers from spawning or stopping unmanaged system agents. Explicit `--config PATH` and path settings override these locations.
+Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivileged service account. The service manager owns process startup, restarts, and logging. Daemons run in the foreground when supervised. The application-specific `--system` option selects system locations and prevents shell readers from spawning or stopping system agents. Explicit `--config PATH` and path settings override these locations.
 
 | Platform | Configuration | Agent runtime | Service state | Logs |
 | --- | --- | --- | --- | --- |
@@ -8,7 +8,7 @@ Install the binaries in `/usr/local/bin` and run them under a dedicated, unprivi
 | FreeBSD | `/usr/local/etc/detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 | macOS | `/Library/Application Support/Detent` | `/var/run/detent` | `/var/db/detent` | `/var/log/detent` |
 
-Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid and snapshot files are `0644` so other users can inspect status and read knobs. Configuration values published through the shared agent are therefore visible to local users. Keep secrets out of knobs. Only the service account can modify the runtime files.
+Configuration is root-owned and readable by the service account. State is owned by the service account with mode `0700`. Shared agent runtime is service-owned with mode `0755`; its pid file is `0644` so other users can inspect status. Any local account that can read the generation directory can read every published knob. Keep secrets out of knobs.
 
 Use `agent.json` and `detentd.json` in the configuration directory. Templates pass explicit config files, so create them before starting services. `detentd.json` names the authority configuration:
 
@@ -16,19 +16,13 @@ Use `agent.json` and `detentd.json` in the configuration directory. Templates pa
 {"authority": "/etc/detent/authority.json"}
 ```
 
-The agent configuration may be empty:
+The agent configuration names the private managed configuration; without it the agent exits with `no source configured`:
 
 ```json
-{}
+{"managed_path": "/etc/detent/managed.json"}
 ```
 
-To poll an HTTP endpoint that serves `GET /v1/snapshot`, the agent configuration is:
-
-```json
-{"source_address": "snapshots.example:8317"}
-```
-
-An agent may use optional `defaults.json` beside its config to serve fallback values before its source delivers a snapshot.
+Readers may use optional `defaults.json` beside the config to serve fallback values before the agent has published a generation.
 
 ## Linux: systemd
 
@@ -63,17 +57,15 @@ These templates are deployment artifacts, not an installer that modifies the hos
 
 References: [systemd directory management](https://github.com/systemd/systemd/blob/main/man/systemd.exec.xml), [launchd process supervision](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html), [FreeBSD rc.d](https://docs.freebsd.org/en/articles/rc-scripting/), [FreeBSD daemon](https://man.freebsd.org/cgi/man.cgi?apropos=0&manpath=FreeBSD+14.2-RELEASE&query=daemon&sektion=8).
 
-When upgrading to group rollout support (shared-memory layout version 2), restart the agent through its service manager and upgrade the readers too. Older readers reject the new layout.
-
 ## Log controls
 
 Both daemons emit timestamped, severity-marked logs to stderr. The default level is `info`; use `log_level`, numeric `verbosity`, and `color` in the service's JSON configuration, or `--log-level`, `-v`, and `--color` on the command line. Automatic color produces plain output when redirected. Use `color: "never"` when the service manager allocates a terminal. See [Daemon logging](LOGGING.md) for examples, lifecycle behavior, and measured footprint.
 
 ## Foreground, background, and status
 
-Both `detent-agent` and `detentd` run directly in the foreground. They accept `--daemonize` for unmanaged user operation, `--runtime-dir PATH`, and read-only `--status`. Lifecycle subcommands are removed. Detached startup reports readiness or an error to the caller; logs remain in the selected runtime directory. Distributor PID and log filenames include the port, so distinct instances can share one runtime directory.
+Both `detent-agent` and `detentd` run directly in the foreground. They accept `--daemonize` for unmanaged user operation, `--runtime-dir PATH`, and read-only `--status`. Lifecycle subcommands are removed. Detached startup reports readiness or an error to the caller; logs remain in the selected runtime directory.
 
-`detent-agent --status` reports the locked PID and local snapshot version/count. `detentd --status` queries the configured local port's health endpoint and reports the PID when a local lock is available. Neither status operation starts a daemon. Send SIGTERM to stop an unmanaged process; service managers own supervised stop/restart. `--system --daemonize` and `--status --daemonize` fail for both binaries.
+`detent-agent --status` reports the locked PID and, with a generation directory, the durable revision and knob count. `detentd --status` queries the configured local port's health endpoint and reports the PID when a local lock is available. Neither status operation starts a daemon. Send SIGTERM to stop an unmanaged process; service managers own supervised stop/restart. `--system --daemonize` and `--status --daemonize` fail for both binaries.
 
 ## Durable authority
 

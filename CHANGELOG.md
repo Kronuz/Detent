@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Trusted restart (namespace S3)
+
+- The agent's cold start no longer hashes or walks the packs. Each paged generation now carries
+  `generation-<id>.live`, written with its other files before `selected` is replaced; a restart
+  reads it with `.read`, maps the packs without reading them, and checks each page against its
+  parent reference the first time any read reaches it. Restart over 100K knobs: 0.67 s to 0.12 s
+  (smoke, one host; `docs/perf/trusted-restart.md`).
+- **A store written before this change is refused, and the refusal is fatal.** It has no `.live`,
+  so the agent's cold start throws, the coordinator ends, and the agent does not start; the
+  operator must bootstrap a fresh store. A damaged or missing `.live` or `.read` refuses the
+  same way. There is no fallback path.
+- A paced scrub task hashes the selected generation's packs against their owner records at
+  `scrub_bytes_per_second` (managed configuration; default 524,288; 0 disables). A damaged pack
+  is reported in the coordinator status, the agent's log and the relay's `/v1/health` bundles
+  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`). Repair is not built.
+- Removed the coordinator's "republish a missing `.read`" path and `PagedPlanBuilder::Republish`;
+  `migrate_flat_head` now acts only on a flat (layout 1) base.
+
 ### Legacy removal (wave 2)
 
 - Removed the `detent_publish` example.
@@ -22,6 +40,42 @@
   `cmake/dependencies.json`.
 - `kLoopbackHost` moved from `detent_http/address.hh` to
   `detent_cli::kLoopbackHost` in `src/detent_cli/config.hh`.
+
+### Legacy removal (wave 2, step G)
+
+- Removed the shared-memory agent and the unmanaged `detent-agent` path:
+  `agent.cc`, `shm_writer`, `shm_reader`, `shm_format.hh`, the `detent_agent_lib`
+  target, `snapshot.shm`, `test_agent_basic`, `test_snapshot_canonical`,
+  `test_shm_concurrency_stress`, `test_system_agent` and the
+  `detent_agent_shm_bench` benchmark. `detent_scale_bench` no longer reports the
+  shared-memory image.
+- `detent-agent` runs the managed profile only, and `detent get` reads durable
+  generations only. With no source configured (no `--managed`, `managed_path`,
+  `--generation-dir` or `generation_dir`) both exit 1 with `no source configured`,
+  whatever `--default` or `--defaults` say.
+- `--source-path`, `--poll-interval-ms`, `DETENT_SOURCE_PATH`,
+  `DETENT_POLL_INTERVAL_MS` and the `source_path` and `poll_interval_ms` fields of
+  `agent.json` are gone; each is now an unknown argument or field. `--defaults`
+  stays a `detent get` option (it is no longer forwarded to a started agent).
+- `detent-agent --status` prints `durable revision=N knob_count=M` instead of
+  `OK version=N knob_count=M`, and prints it whenever a generation directory is
+  set.
+- Roadmap item 4 (a path for unmanaged agents and clients to receive authority
+  data) is dropped.
+- The systemd `detentd` unit and the Homebrew caveats and test no longer call
+  `detentd` a distributor.
+
+### Legacy removal (wave 2, step F)
+
+- Removed the `detent_http` library (`detent_http::detent_http`,
+  `make_http_poll_source()`, the blocking HTTP client) and its two tests. No
+  Detent daemon serves `GET /v1/snapshot`, so nothing polled it.
+- `detent-agent` and `detent get` no longer take `--source-address`,
+  `--source-http`, `DETENT_SOURCE_ADDRESS`, `DETENT_SOURCE_HTTP` or the
+  `source_address` and `source_http` config fields; each is now an unknown
+  argument or field. With no defaults and no source, the agent no longer
+  polls `127.0.0.1:8317`.
+- `InitOptions::source_poll` stays as the custom-poller seam.
 
 ### Legacy removal (wave 1)
 

@@ -23,8 +23,8 @@ flags, kill switches and live settings. It features:
   * Fail-fast on missing knobs, with baked defaults shipped alongside code.
 
 ##### Distribution:
-  * Live updates from a snapshot file or an HTTP endpoint.
-  * A host-local shared-memory agent and `detent get` for any language.
+  * Live updates from a snapshot file, or managed delivery from the authority.
+  * A host-local managed agent and `detent get` for any language.
 
 ##### Durable authority:
   * Authenticated, atomic, per-namespace transactions with compare-and-set.

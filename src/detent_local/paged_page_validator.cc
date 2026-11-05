@@ -12,6 +12,7 @@ void require(bool value) {
 		throw std::invalid_argument("invalid immutable page");
 }
 p::Digest finish(SHA256 &hash) {
+	p::count_page_digest();
 	std::array<unsigned char, 32> bytes{};
 	hash.getHash(bytes.data());
 	p::Digest result;

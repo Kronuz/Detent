@@ -3,8 +3,7 @@ title: "Delivery and Local Images"
 ---
 
 Managed delivery moves committed authority state to hosts and makes it
-readable without any per-read I/O. It replaces both the JSON poll and the
-legacy agent's mutable shared-memory file.
+readable without any per-read I/O.
 
 ---
 
@@ -75,8 +74,7 @@ descriptor. Readers:
 
 Cleanup must take an exclusive lock on the same lease before deleting a retired
 image, so a pinned generation is never removed under a reader. Nobody ever
-modifies a sealed image, which removes the legacy seqlock's data race
-entirely.
+modifies a sealed image, so a reader never races a writer.
 
 ---
 

@@ -108,6 +108,9 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 		field(",\"source_endpoint_index\":", delivery.source_endpoint_index);
 		field(",\"source_rotations\":", delivery.source_rotations);
 		field(",\"quorum_refresh_failures\":", delivery.quorum_refresh_failures);
+		field(",\"scrub_passes\":", delivery.scrub.passes);
+		field(",\"scrub_damaged_packs\":", delivery.scrub.damaged_packs);
+		field(",\"scrub_source_failure\":", delivery.scrub.source_failure);
 		if (delivery.last_quorum_open)
 			field(",\"quorum_open_age_ms\":",
 				  std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -

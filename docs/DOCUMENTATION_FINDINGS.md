@@ -47,7 +47,7 @@ From `justknobs-implementation-spec.md`; each is marked unimplemented on the web
 
 ## 5. Binding gaps
 
-1. Python and Rust expose only the file source: no HTTP poll source, no managed generation source, no `read_view()`.
+1. Python and Rust expose only the file source: no managed generation source, no `read_view()`.
 2. No `get_as`, no `_or_panic`, no Rust error enum, no Rust test guard.
 3. No `.pyi` stubs, no wheel, no crate publication.
 4. No Go or Java bindings (the spec mentions both), and no documented stable reader ABI for the shared snapshot.

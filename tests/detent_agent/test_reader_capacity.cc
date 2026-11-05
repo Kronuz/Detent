@@ -74,8 +74,8 @@ int main(int argc, char **argv) {
 	struct stat acl_file{};
 	assert(::stat(path.c_str(), &acl_file) == 0 && (acl_file.st_mode & 0777) == 0644);
 	refused(load);
-	write(R"({"poll_interval_ms":10})");
-	assert(load().at("--poll-interval-ms") == "10");
+	write(R"({"verbosity":1})");
+	assert(load().at("--verbosity") == "1");
 	const auto cleanup = ::fork();
 	assert(cleanup >= 0);
 	if (cleanup == 0) {
@@ -90,8 +90,8 @@ int main(int argc, char **argv) {
 	const auto link = root / "link.json";
 	std::filesystem::create_symlink(path.filename(), link);
 	refused([&] { detent_agent::load_config({"--config", link.string()}); });
-	write(R"({"poll_interval_ms":10})");
-	assert(detent_agent::load_config({"--config", link.string()}).at("--poll-interval-ms") == "10");
+	write(R"({"verbosity":1})");
+	assert(detent_agent::load_config({"--config", link.string()}).at("--verbosity") == "1");
 	for (const auto value : {"4294967296", "-1", "18446744073709551616"})
 		refused([&] {
 			ReaderCapacity capacity([&](const auto &flag, const char *) -> std::optional<std::string> {

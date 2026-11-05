@@ -15,7 +15,7 @@ build. They build on the [Quick-start](/Detent/quickstart/) and link into the
 2. [Live Updates](/Detent/guides/live-updates/): feed clients from a local file
    or an HTTP endpoint, and watch versions converge.
 3. [Shell Scripts and the Agent](/Detent/guides/shell-and-agent/): read knobs
-   from any process on a host through shared memory.
+   from any process on a host through local generations.
 4. [Python and Rust](/Detent/guides/python-and-rust/): the language bindings.
 
 ## Working with Knobs
