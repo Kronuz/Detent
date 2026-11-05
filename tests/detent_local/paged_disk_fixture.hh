@@ -22,7 +22,7 @@ inline void install(const std::filesystem::path &directory, const l::detail::Pag
 	write(directory / "storage.meta", l::encode_storage_identity(storage));
 	auto name = l::generation_name(image.descriptor().generation);
 	l::GenerationOwnership ownership{storage, image.descriptor().generation, image.descriptor().length,
-									 image.descriptor().checksum, 2};
+									 image.descriptor().checksum, l::paged::format_version};
 	write(directory / (name + ".lease"), l::encode_generation_ownership(ownership));
 	write(directory / (name + ".image"), {image.bytes()->data(), image.bytes()->size()});
 	for (const auto &s : image.segments()) {
