@@ -1,9 +1,15 @@
 #pragma once
 #include "layout.hh"
 #include <array>
+#include <stdexcept>
 
 namespace detent::local::paged {
 using Digest = std::array<char, 32>;
+inline constexpr std::uint32_t format_version = 3;
+class UnsupportedFormat final : public std::invalid_argument {
+  public:
+    UnsupportedFormat() : std::invalid_argument("unsupported paged local format") {}
+};
 inline constexpr std::uint32_t page_bytes = 64 * 1024, segment_bytes = 1024 * 1024;
 inline constexpr std::size_t reference_bytes = 65, content_bytes = 48, placement_bytes = 20,
 							 child_bytes = content_bytes + placement_bytes, page_header_bytes = 64,

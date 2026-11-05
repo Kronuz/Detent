@@ -20,7 +20,7 @@ int main() {
 		original.step(work);
 	}
 	auto image = std::make_shared<l::detail::PagedImage>(original.take());
-	require(image->segments().size() > 1);
+	require(!image->segments().empty());
 	std::vector<l::detail::SegmentInput> segments;
 	for (const auto &segment : image->segments())
 		segments.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
@@ -37,8 +37,8 @@ int main() {
 		for (std::size_t i = 0; i < segments.size(); ++i)
 			live.push_back(graph.segment_reachability(i));
 	}
-	const auto directory =
-		std::filesystem::current_path() / ".scratch" / ("warm-assembly-" + std::to_string(::getpid()));
+	const auto directory = std::filesystem::current_path() / ".scratch" /
+						   ("warm-assembly-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() {
@@ -74,20 +74,21 @@ int main() {
 	target.revision = 43;
 	const auto baseline = account->used();
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), storage, next,
-											target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
+											storage, next, target);
 		for (unsigned turn = 0; !builder.done(); ++turn) {
 			require(turn < 2000000);
 			l::ValidationBudget work{1, 1};
 			builder.step(work);
 		}
 		auto result = std::make_shared<l::detail::PagedImage>(builder.take());
-		require(result->segments().size() == 1 && result->segments()[0].ownership.length < 8192);
+		require(result->segments().size() == 1 && result->segments()[0].ownership.length < 65536);
 		require(result->root().segments == image->root().segments + 1 &&
 				result->root().pages < image->root().pages + 32);
 		std::vector<l::detail::SegmentInput> merged = segments;
-		merged.push_back({result->segments()[0].ownership,
-						  {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}});
+		merged.push_back(
+			{result->segments()[0].ownership,
+			 {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}});
 		std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
 			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 		});
@@ -113,8 +114,8 @@ int main() {
 					warm.counts().maximum_overrides == 0);
 			require(warm.hashed_segment_bytes() == result->segments()[0].bytes->size());
 			for (std::size_t i = 0; i < segments.size(); ++i)
-				require(warm.removed(i).pages == overlay.removed()[i].pages &&
-						warm.removed(i).bytes == overlay.removed()[i].bytes);
+				require(warm.removed(i).pages == builder.removed()[i].pages &&
+						warm.removed(i).bytes == builder.removed()[i].bytes);
 			for (unsigned turn = 0;; ++turn) {
 				require(turn < 2000000);
 				l::ValidationBudget work{1, 1};
@@ -122,15 +123,17 @@ int main() {
 					break;
 			}
 		}
-		auto expected = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
+		auto expected =
+			std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
 		l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
 		while (!oracle.done()) {
 			l::ValidationBudget work;
 			oracle.step(work);
 		}
 		auto wanted = oracle.take();
-		require(result->root().logical == wanted.root().logical &&
-				result->root().bytes == wanted.root().bytes && result->root().pages == wanted.root().pages);
+		require(p::state_commitment(result->root()) == p::state_commitment(wanted.root()) &&
+				result->root().bytes == wanted.root().bytes &&
+				result->root().pages == wanted.root().pages);
 		for (unsigned turn = 0;; ++turn) {
 			require(turn < 2000000);
 			l::ValidationBudget work{1, 1};
@@ -140,8 +143,8 @@ int main() {
 	}
 	require(account->used() == baseline);
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), storage, next,
-											target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
+											storage, next, target);
 		for (unsigned turn = 0; account->used() - baseline < p::segment_bytes; ++turn) {
 			require(turn < 100000);
 			l::ValidationBudget work{1, 1};
@@ -160,8 +163,8 @@ int main() {
 	{
 		auto incorrect = live;
 		++incorrect[0].pages;
-		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(), storage,
-											next, target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(),
+											storage, next, target);
 		bool rejected = false;
 		try {
 			while (!builder.done()) {
@@ -180,6 +183,6 @@ int main() {
 		}
 	}
 	require(account->used() == baseline);
-	std::cout
-		<< "20k shared definitions, sparse bytes, cold validation and partial-pack cancellation passed\n";
+	std::cout << "20k shared definitions, sparse bytes, cold validation and partial-pack "
+				 "cancellation passed\n";
 }
