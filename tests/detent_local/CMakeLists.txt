@@ -363,7 +363,7 @@ add_test(NAME test_local_dense_fullbuild COMMAND test_local_dense_fullbuild)
 
 add_executable(test_local_dense_reads test_dense_reads.cc)
 target_include_directories(test_local_dense_reads PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
-target_link_libraries(test_local_dense_reads PRIVATE detent::local_view detent::local_packer)
+target_link_libraries(test_local_dense_reads PRIVATE detent::local_builder)
 add_test(NAME test_local_dense_reads COMMAND test_local_dense_reads)
 
 add_executable(test_local_dense_delta_assembly test_dense_delta_assembly.cc)
