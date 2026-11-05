@@ -361,6 +361,10 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 						require(proof && proof->matches(frame.reference, {s.key.data(), s.key_size},
 														s.base->descriptor(), s.base->directory_identity(),
 														s.base->storage_identity()));
+						const auto certified = proof->header();
+						require(certified.length == frame.reference.length &&
+							certified.keys == frame.reference.keys && certified.height == frame.reference.height &&
+							certified.digest == frame.reference.digest);
 						Impl::Frontier frontier;
 						frontier.reference = frame.reference;
 						frontier.length = s.key_size;
