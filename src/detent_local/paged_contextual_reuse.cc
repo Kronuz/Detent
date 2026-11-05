@@ -7,7 +7,8 @@ namespace detent::local::detail {
 namespace p = paged;
 namespace d = distribution;
 ContextualReuse::ContextualReuse(d::RetirementHandle<LeasedPagedRoot> base, p::Reference reference,
-								 p::PageHeader header, std::string_view prefix, const SegmentMapping &mapping)
+								 p::PageHeader header, std::string_view prefix,
+								 const SegmentMapping &mapping)
 	: base_(std::move(base)), reference_(reference), header_(header), prefix_size_(prefix.size()),
 	  ownership_(mapping.ownership()), file_identity_(mapping.identity()) {
 	if (prefix.size() > prefix_.size())
@@ -50,7 +51,9 @@ struct ReuseNavigator::Impl {
 	std::span<const char> bytes;
 	std::array<char, 202> key{};
 	std::size_t key_size = 0, cursor = 0, level = 0, wanted = 0, charge = 0, segment = SIZE_MAX;
-	std::uint32_t prefix = 0;
+	std::uint16_t node_offset = p::page_header_bytes;
+	std::size_t page_entering = 0;
+	p::NodeView node{};
 	std::optional<ContextualReuse> result;
 	std::optional<p::Reference> exact;
 	Phase phase = Phase::Node;
@@ -66,7 +69,8 @@ struct ReuseNavigator::Impl {
 		if (!base->root().pages)
 			phase = Phase::Done;
 	}
-	Impl(d::RetirementHandle<LeasedPagedRoot> value, p::Reference expected, std::string_view entering)
+	Impl(d::RetirementHandle<LeasedPagedRoot> value, p::Reference expected,
+		 std::string_view entering)
 		: base(std::move(value)), wanted(SIZE_MAX), exact(expected) {
 		if (!base || entering.size() > key.size())
 			throw std::invalid_argument("invalid reuse context");
@@ -94,7 +98,8 @@ struct ReuseNavigator::Impl {
 ReuseNavigator::ReuseNavigator(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> root, std::string_view key,
 							   std::size_t depth)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(root), key, depth)) {}
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, std::move(root), key,
+										depth)) {}
 ReuseNavigator::~ReuseNavigator() = default;
 ReuseNavigator::ReuseNavigator(std::shared_ptr<d::StorageLedger> account,
 							   d::RetirementHandle<LeasedPagedRoot> root, p::Reference expected,
@@ -116,13 +121,14 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 					if (s.segment == inputs.size())
 						throw std::logic_error("validated reuse dependency missing");
 					s.bytes = checked_page_bytes(inputs[s.segment], s.reference);
-					s.prefix = read_integer(s.bytes, 20, 4);
+					s.header = p::decode_page_header(s.bytes);
 				}
-				const auto prefix = s.prefix;
+				s.node = p::decode_node(s.bytes, s.node_offset);
+				const auto prefix = s.node.prefix.size();
 				if (!s.admit(p::page_header_bytes + prefix, budget))
 					return;
 				s.header = p::decode_page_header(s.bytes);
-				if (s.exact && s.cursor == s.key_size) {
+				if (s.exact && s.cursor == s.key_size && s.node_offset == p::page_header_bytes) {
 					if (s.reference == *s.exact)
 						s.result.emplace(ContextualReuse(s.base, s.reference, s.header,
 														 {s.key.data(), s.key_size},
@@ -131,14 +137,14 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 					continue;
 				}
 				if (prefix > s.key_size - s.cursor ||
-					std::memcmp(s.bytes.data() + p::page_header_bytes, s.key.data() + s.cursor, prefix)) {
+					std::memcmp(s.node.prefix.data(), s.key.data() + s.cursor, prefix)) {
 					s.phase = Impl::Phase::Done;
 					continue;
 				}
-				const auto entering = s.cursor;
+				const auto entering = s.page_entering;
 				s.cursor += prefix;
-				if (s.level == s.wanted || s.header.kind != p::PageKind::Branch) {
-					if (!s.exact && (s.header.kind == p::PageKind::Branch || s.cursor == s.key_size))
+				if (s.level == s.wanted || s.node.kind != p::PageKind::Branch) {
+					if (!s.exact && (s.node.kind == p::PageKind::Branch || s.cursor == s.key_size))
 						s.result.emplace(ContextualReuse(s.base, s.reference, s.header,
 														 {s.key.data(), entering},
 														 *registry.mapping(s.segment)));
@@ -155,25 +161,29 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 					continue;
 				}
 				const auto label = static_cast<unsigned char>(s.key[s.cursor]);
-				const auto begin = p::page_header_bytes + s.header.prefix;
-				std::size_t low = 0, high = s.header.children;
+				std::size_t low = 0, high = s.node.labels.size();
 				while (low < high) {
 					auto middle = low + (high - low) / 2;
-					if (static_cast<unsigned char>(s.bytes[begin + middle * p::child_bytes]) < label)
+					if (static_cast<unsigned char>(s.node.labels[middle]) < label)
 						low = middle + 1;
 					else
 						high = middle;
 				}
-				if (low == s.header.children ||
-					static_cast<unsigned char>(s.bytes[begin + low * p::child_bytes]) != label) {
+				if (low == s.node.labels.size() ||
+					static_cast<unsigned char>(s.node.labels[low]) != label) {
 					s.phase = Impl::Phase::Done;
 					continue;
 				}
-				s.reference =
-					p::decode_child(s.bytes.subspan(begin + low * p::child_bytes, p::child_bytes)).reference;
-				s.segment = SIZE_MAX;
+				const auto slot = s.node.slot(low);
 				++s.cursor;
 				++s.level;
+				if (slot & 0x8000) {
+					s.reference = p::decode_external(s.bytes, slot & 0x7fff);
+					s.segment = SIZE_MAX;
+					s.node_offset = p::page_header_bytes;
+					s.page_entering = s.cursor;
+				} else
+					s.node_offset = slot;
 				s.phase = Impl::Phase::Node;
 			}
 		}

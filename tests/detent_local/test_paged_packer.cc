@@ -1,4 +1,4 @@
-#include "dense_fixture.hh"
+#include "dense_corpus.hh"
 #include "paged_packer.hh"
 #include <fstream>
 #include <iomanip>
@@ -11,11 +11,6 @@
 using namespace dense_test;
 namespace x = detent::local::detail;
 namespace d = detent::distribution;
-struct Row {
-	std::string key;
-	std::vector<char> body;
-};
-using Rows = std::vector<Row>;
 static std::size_t read_key(const void *source, std::uint64_t ordinal, std::span<char> out) {
 	const auto &key = static_cast<const Rows *>(source)->at(ordinal).key;
 	require(key.size() <= out.size());
@@ -34,12 +29,6 @@ static d::Identity segment_id(std::size_t ordinal) {
 	d::Identity result;
 	std::copy_n(full.begin(), 16, result.begin());
 	return result;
-}
-static std::vector<char> load(const std::string &path) {
-	std::ifstream file(path, std::ios::binary);
-	if (!file)
-		throw std::runtime_error("cannot open " + path);
-	return {std::istreambuf_iterator<char>(file), {}};
 }
 static std::string hex(std::span<const char> bytes) {
 	std::ostringstream out;
@@ -175,27 +164,6 @@ static Sink run_reference(const std::shared_ptr<Rows> &rows, std::size_t *peak =
 	require(account->used() == 0);
 	return sink;
 }
-static std::shared_ptr<Rows> corpus(const std::string &path) {
-	auto data = load(path);
-	require(data.size() >= 32 && std::string_view(data.data(), 8) == "DTCORP01");
-	const auto count = l::read_integer(data, 8, 8), keys = l::read_integer(data, 16, 8),
-			   bodies = l::read_integer(data, 24, 8);
-	const auto key_at = 32 + 4 * (count + 1), body_offsets = key_at + keys,
-			   body_at = body_offsets + 4 * (count + 1);
-	require(body_at + bodies + count == data.size());
-	auto rows = std::make_shared<Rows>();
-	for (std::size_t i = 0; i < count; ++i) {
-		const auto k0 = l::read_integer(data, 32 + 4 * i, 4),
-				   k1 = l::read_integer(data, 36 + 4 * i, 4),
-				   b0 = l::read_integer(data, body_offsets + 4 * i, 4),
-				   b1 = l::read_integer(data, body_offsets + 4 * i + 4, 4);
-		require(k0 <= k1 && k1 <= keys && b0 <= b1 && b1 <= bodies);
-		rows->push_back(
-			{std::string(data.data() + key_at + k0, k1 - k0),
-			 std::vector<char>(data.begin() + body_at + b0, data.begin() + body_at + b1)});
-	}
-	return rows;
-}
 static void verify_values(const Sink &sink, const Rows &rows) {
 	std::map<std::pair<d::Identity, std::uint32_t>, const Sink::Page *> pages;
 	for (const auto &page : sink.pages)
@@ -320,29 +288,34 @@ static void boundary_checks() {
 	require(p::page_commitment(changed) != original);
 }
 static void injection_checks() {
-    auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
-    for (auto page : {watermark(), external_branch()}) {
-        x::PagedPacker packer(account); Sink sink;
-        packer.push_cluster(page, 64, {});
-        advance(packer, sink, 1);
-        packer.finish(); advance(packer, sink, 1);
-        require(sink.pages.size() == 1 && sink.pages[0].bytes == page);
-    }
-    {
-        auto page = external_branch();
-        x::PagedPacker packer(account); Sink sink;
-        packer.push_cluster(page, 76, "a");
-        advance(packer, sink, 1);
-        std::vector<char> body(24, 'v');
-        manual(packer, sink, p::PageKind::Definition, "b", {}, {}, 1, body);
-        const std::array<std::uint8_t, 2> labels{'a', 'b'};
-        manual(packer, sink, p::PageKind::Branch, {}, {}, labels, 2);
-        packer.finish(); advance(packer, sink, 1);
-        const auto root = p::decode_node(sink.pages[0].bytes, 64);
-        const auto node = p::decode_node(sink.pages[0].bytes, root.slot(0));
-        require(node.kind == p::PageKind::Namespace && node.body.size() == 8 && sink.pages[0].reference.keys == 2);
-    }
-    require(account->used() == 0);
+	auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
+	for (auto page : {watermark(), external_branch()}) {
+		x::PagedPacker packer(account);
+		Sink sink;
+		packer.push_cluster(page, 64, {});
+		advance(packer, sink, 1);
+		packer.finish();
+		advance(packer, sink, 1);
+		require(sink.pages.size() == 1 && sink.pages[0].bytes == page);
+	}
+	{
+		auto page = external_branch();
+		x::PagedPacker packer(account);
+		Sink sink;
+		packer.push_cluster(page, 76, "a");
+		advance(packer, sink, 1);
+		std::vector<char> body(24, 'v');
+		manual(packer, sink, p::PageKind::Definition, "b", {}, {}, 1, body);
+		const std::array<std::uint8_t, 2> labels{'a', 'b'};
+		manual(packer, sink, p::PageKind::Branch, {}, {}, labels, 2);
+		packer.finish();
+		advance(packer, sink, 1);
+		const auto root = p::decode_node(sink.pages[0].bytes, 64);
+		const auto node = p::decode_node(sink.pages[0].bytes, root.slot(0));
+		require(node.kind == p::PageKind::Namespace && node.body.size() == 8 &&
+				sink.pages[0].reference.keys == 2);
+	}
+	require(account->used() == 0);
 }
 static void resource_checks() {
 	auto parent = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);

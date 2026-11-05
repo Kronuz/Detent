@@ -145,7 +145,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 			for (const auto &input : registry->inputs())
 				segment_bytes += input.bytes.size();
 			require(validator.hashed_segment_bytes() == segment_bytes);
-			require(registry->compared_root() && registry->compared_root()->logical == image.root().logical);
+			require(registry->compared_root() && p::state_commitment(*registry->compared_root()) == p::state_commitment(image.root()));
 			l::detail::GraphValidator certified(account, lease, registry->inputs(), image.root(), storage, {}, {},
 												registry.get());
 			while (!certified.done()) {
@@ -175,7 +175,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 			if (validator.record_reachability(*registry, proof))
 				break;
 		}
-		require(registry->validated_root().logical == image.root().logical);
+		require(p::state_commitment(registry->validated_root()) == p::state_commitment(image.root()));
 		require(!registry->compared_root());
 		std::uint64_t definitions = 0, overrides = 0;
 		std::uint32_t maximum = 0;
@@ -224,14 +224,16 @@ int main() {
 		build(builder);
 		auto image = builder.take();
 		require(!builder.done() && image.segments().size() == 1 && image.root().records == 2);
-		logical = image.root().logical;
+		logical = p::state_commitment(image.root());
         {
             auto controls = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
             d::RetirementRuntime runtime{controls, 1};
             auto domain = runtime.domain(account, 4);
             auto metadata = image.root();
             metadata.segments = metadata.pages = 4097;
-            metadata.bytes = metadata.pages * p::page_header_bytes + metadata.tree.length;
+            metadata.bytes = metadata.pages * p::minimum_page_bytes + metadata.tree.length;
+            metadata.records = metadata.pages;
+            metadata.tree.keys = std::uint64_t(metadata.records) + metadata.namespaces;
             rejects<std::invalid_argument>([&] {
                 l::detail::DependencyDiscovery refused(account, domain, metadata, storage);
             });
@@ -253,7 +255,6 @@ int main() {
 			auto empty = image.root();
 			empty.bytes = empty.pages = empty.segments = empty.records = empty.namespaces = 0;
 			empty.tree = {};
-			empty.logical = p::empty_commitment();
 			l::detail::DependencyDiscovery discovery(account, domain, empty, storage);
 			require(!discovery.missing());
 			l::ValidationBudget work{1, 1};
@@ -285,8 +286,8 @@ int main() {
 		rejects<std::invalid_argument>([&] { recover_dependencies(image, account, storage, 1, true); });
 		require(image.descriptor().generation == generation && image.descriptor().cursor == cursor());
 		require(image.descriptor().checksum ==
-				p::physical_commitment({image.bytes()->data(), image.bytes()->size()}));
-		require(p::decode_root({image.bytes()->data(), image.bytes()->size()}).logical == logical);
+				p::metadata_commitment({image.bytes()->data(), image.bytes()->size()}));
+		require(p::state_commitment(p::decode_root({image.bytes()->data(), image.bytes()->size()})) == logical);
 		auto lease =
 			std::allocate_shared<Lease>(d::StorageAllocator<Lease>(account), std::move(image), account);
 		l::detail::GraphValidator validator(account, lease, lease->segments, lease->image.root(), storage);
@@ -382,7 +383,7 @@ int main() {
 		l::detail::PagedSnapshotBuilder builder(source, storage, generation);
 		build(builder);
 		auto image = builder.take();
-		require(image.root().logical == logical);
+		require(p::state_commitment(image.root()) == logical);
 		l::ValidationBudget empty{0, 0};
 		require(!image.discard(empty));
 		for (;;) {
@@ -402,13 +403,13 @@ int main() {
 	}
 	require(account->used() == baseline);
 	{
-		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000)));
+		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(100000)));
 		auto ledger = large->storage_account();
 		const auto retained = ledger->used();
 		l::detail::PagedSnapshotBuilder builder(large, storage, generation);
 		build(builder, 8192);
 		auto image = builder.take();
-		require(image.segments().size() > 1 && image.root().records == 20000);
+		require(image.segments().size() > 1 && image.root().records == 100000);
 		recover_dependencies(image, ledger, storage, 8192);
 		auto lease =
 			std::allocate_shared<Lease>(d::StorageAllocator<Lease>(ledger), std::move(image), ledger);
@@ -417,7 +418,7 @@ int main() {
 			l::ValidationBudget budget;
 			validator.step(budget);
 		}
-		require(validator.root().records == 20000);
+		require(validator.root().records == 100000);
 		l::ValidationBudget disposal{0, 1};
 		require(validator.discard(disposal));
 		lease.reset();

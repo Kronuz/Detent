@@ -1,7 +1,7 @@
 #pragma once
+#include "dense_graph_fixture.hh"
 #include "detent_local/paged_definition.hh"
 #include "names.hh"
-#include "paged_segment_builder.hh"
 #include "prepared_reader.hh"
 #include "segment_names.hh"
 #include "trusted_records.hh"
@@ -39,7 +39,8 @@ inline void write_file(const std::filesystem::path &path, std::span<const char> 
 struct Fixture {
 	std::filesystem::path path;
 	int directory = -1;
-	std::shared_ptr<d::StorageLedger> heap = std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
+	std::shared_ptr<d::StorageLedger> heap =
+	    std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
 	l::StorageIdentity storage{};
 	l::GenerationId generation{};
 	p::Root root;
@@ -48,84 +49,49 @@ struct Fixture {
 	std::vector<x::SegmentInput> segments;
 	std::uint64_t physical_bytes = p::root_bytes;
 	explicit Fixture(unsigned count = 2) : definitions(count) {
-		path = std::filesystem::current_path() /
+		path = std::filesystem::current_path() / ".scratch" /
 		       ("lazy-pages-" + std::to_string(::getpid()) + "-" + std::to_string(count));
+		std::filesystem::create_directories(path.parent_path());
 		check(::mkdir(path.c_str(), 0700) == 0);
 		directory = ::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 		check(directory >= 0);
 		storage.fill('s');
 		generation.fill('g' + count);
-		std::vector<p::Reference> namespaces(count);
-		auto append = [&](x::SegmentBuilder &segment, p::PageKind kind, std::string_view prefix,
-		                  std::span<const p::Child> children, std::span<const char> body) {
-			x::PageBuilder page(heap, kind,
-			                    children.empty() ? 1 : (children[0].label == 'K' ? count * 2 : count), prefix,
-			                    children, body);
-			while (!page.done()) {
-				l::ValidationBudget budget;
-				page.step(budget);
-			}
-			segment.append(page);
-			while (!segment.page_ready()) {
-				l::ValidationBudget budget;
-				segment.step(budget);
-			}
-			const auto reference = segment.reference();
-			root.bytes += reference.length;
-			++root.pages;
-			return reference;
-		};
-		auto save = [&](x::SegmentBuilder &segment) {
-			segment.seal();
-			while (!segment.done()) {
-				l::ValidationBudget budget;
-				segment.step(budget);
-			}
-			const auto ownership = segment.ownership();
-			const x::SegmentNames names(ownership.segment);
-			write_file(path / names.ownership.data(), l::encode_segment_ownership(ownership));
-			const auto bytes = segment.bytes();
-			write_file(path / names.payload.data(), {bytes->data(), bytes->size()});
-			segments.push_back({ownership, {bytes->data(), bytes->size()}});
-			buffers.push_back(bytes);
-			physical_bytes += bytes->size();
-			++root.segments;
-		};
+		auto packed = std::make_shared<dense_graph_test::Fixture>();
+		packed->account = heap;
+		packed->storage = storage;
+		packed->segment.fill('s' + count);
+		std::array<char, 202> key{};
 		for (unsigned i = 0; i != count; ++i) {
-			x::SegmentBuilder segment(heap, storage, generation, i);
-			std::string ns(1, 'a' + i);
-			ns += '\0';
-			std::array<char, 8> watermark{};
+			const std::string ns(1, 'a' + i);
+			std::vector<char> watermark(8);
 			l::write_integer(watermark, 0, 9, 8);
-			namespaces[i] =
-			    append(segment, p::PageKind::Namespace, std::string_view(ns).substr(1), {}, watermark);
+			auto length = p::encode_namespace_key(key, ns);
+			packed->rows.push_back({std::string(key.data(), length), std::move(watermark)});
 			detent::BoolDef boolean;
 			boolean.default_value = true;
 			boolean.overrides.emplace("force", false);
-			const detent::KnobDef source = i ? detent::KnobDef(boolean) : detent::KnobDef(detent::IntDef{42});
+			const detent::KnobDef source =
+			    i ? detent::KnobDef(boolean) : detent::KnobDef(detent::IntDef{42});
 			std::vector<char> body(p::definition_size(source));
 			p::encode_definition(body, source, 8);
-			definitions[i] = append(segment, p::PageKind::Definition, ns.substr(1) + 'k' + '\0', {}, body);
-			save(segment);
+			length = p::encode_definition_key(key, ns + ":k");
+			packed->rows.push_back({std::string(key.data(), length), std::move(body)});
 		}
-		x::SegmentBuilder index(heap, storage, generation, count);
-		std::vector<p::Child> definitions_children, namespace_children;
-		for (unsigned i = 0; i != count; ++i) {
-			definitions_children.push_back({static_cast<std::uint8_t>('a' + i), definitions[i]});
-			namespace_children.push_back({static_cast<std::uint8_t>('a' + i), namespaces[i]});
-		}
-		const auto definitions_root = append(index, p::PageKind::Branch, {}, definitions_children, {});
-		const auto namespace_root = append(index, p::PageKind::Branch, {}, namespace_children, {});
-		std::array<p::Child, 2> roots{{{'K', definitions_root}, {'W', namespace_root}}};
-		root.tree = append(index, p::PageKind::Branch, {}, roots, {});
-		root.logical = root.tree.logical;
-		save(index);
-		root.records = root.namespaces = count;
-		root.cursor.cluster.fill('c');
-		root.cursor.group.fill('g');
-		root.cursor.restore_epoch.fill('e');
-		root.cursor.scope.fill('s');
-		root.cursor.revision = 10;
+		packed = dense_graph_test::seal(std::move(packed), count, count);
+		root = packed->root;
+		for (auto &reference : definitions)
+			reference = root.tree;
+		auto bytes = d::make_owned_buffer(heap, packed->bytes.size());
+		bytes->append({packed->bytes.data(), packed->bytes.size()});
+		bytes->seal();
+		const auto ownership = packed->inputs[0].ownership;
+		const x::SegmentNames names(ownership.segment);
+		write_file(path / names.ownership.data(), l::encode_segment_ownership(ownership));
+		write_file(path / names.payload.data(), {bytes->data(), bytes->size()});
+		segments.push_back({ownership, {bytes->data(), bytes->size()}});
+		buffers.push_back(bytes);
+		physical_bytes += bytes->size();
 		std::sort(segments.begin(), segments.end(), [](const auto &a, const auto &b) {
 			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 		});
@@ -135,14 +101,16 @@ struct Fixture {
 			proof.step(budget);
 		}
 		const auto image = p::encode_root(root);
-		const auto checksum = p::physical_commitment(image);
+		const auto checksum = p::metadata_commitment(image);
 		l::Descriptor descriptor{generation, p::root_bytes, checksum, root.cursor, root.profile};
 		write_file(path / "storage.meta", l::encode_storage_identity(storage));
 		write_file(path / x::GenerationName(generation, x::GenerationFile::Image).view(), image);
-		write_file(path / x::GenerationName(generation, x::GenerationFile::Lease).view(),
-		           l::encode_generation_ownership({storage, generation, p::root_bytes, checksum, 2}));
+		write_file(
+		    path / x::GenerationName(generation, x::GenerationFile::Lease).view(),
+		    l::encode_generation_ownership({storage, generation, p::root_bytes, checksum, 3}));
 		x::ReaderMetadata metadata{storage, generation, checksum, proof.counts(), physical_bytes};
-		write_file(path / x::GenerationName(generation, ".read").view(), x::encode_reader_metadata(metadata));
+		write_file(path / x::GenerationName(generation, ".read").view(),
+		           x::encode_reader_metadata(metadata));
 		write_file(path / "selected", l::encode_descriptor(descriptor));
 		trusted_records::derive(path);
 	}

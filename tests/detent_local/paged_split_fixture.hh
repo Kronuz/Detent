@@ -4,7 +4,7 @@
 #include "paged_snapshot_builder.hh"
 #include <functional>
 namespace detent::local::testing {
-// Separates index pages from leaves for physical relocation fixtures.
+// Separates pages with external edges from terminal pages for relocation.
 struct SplitPagedInput {
 	paged::Root root;
 	std::array<detail::BuiltSegment, 2> packs;
@@ -13,48 +13,47 @@ struct SplitPagedInput {
 					std::span<const detail::SegmentInput> original, paged::Root source,
 					StorageIdentity storage, GenerationId generation)
 		: root(source) {
-		detail::SegmentBuilder branches(heap, storage, generation, 0), leaves(heap, storage, generation, 1);
+		detail::SegmentBuilder branches(heap, storage, generation, 0),
+			leaves(heap, storage, generation, 1);
 		std::function<paged::Reference(paged::Reference)> copy = [&](paged::Reference reference) {
 			const auto index = detail::find_segment(original, reference.segment);
 			if (index == original.size())
 				throw std::logic_error("split fixture segment missing");
 			const auto bytes = detail::checked_page_bytes(original[index], reference);
-			const auto header = paged::decode_page_header(bytes);
-			const std::string_view prefix(bytes.data() + paged::page_header_bytes, header.prefix);
-			const auto body = bytes.subspan(paged::page_header_bytes + header.prefix, header.body);
-			std::vector<paged::Child> children;
-			for (std::uint32_t i = 0; i < header.children; ++i) {
-				const auto child = paged::decode_child(bytes.subspan(
-					paged::page_header_bytes + header.prefix + i * paged::child_bytes, paged::child_bytes));
-				children.push_back({child.label, copy(child.reference)});
+			const auto h = paged::decode_page_header(bytes);
+			auto buffer = distribution::make_owned_buffer(heap, bytes.size());
+			buffer->append({bytes.data(), bytes.size()});
+			for (std::size_t i = 0; i < h.externals; ++i) {
+				const auto child = copy(paged::decode_external(bytes, i));
+				const auto placement = paged::encode_placement(child);
+				std::copy(placement.begin(), placement.end(),
+						  buffer->mutable_bytes().end() -
+							  paged::placement_bytes * (h.externals - i));
 			}
-			detail::PageBuilder page(heap, header.kind, header.keys, prefix, children, body);
-			while (!page.done()) {
-				ValidationBudget budget;
-				page.step(budget);
-			}
-			auto &pack = header.kind == paged::PageKind::Branch ? branches : leaves;
+			buffer->seal();
+			detail::SealedPage page{buffer, reference, {}};
+			auto &pack = h.externals ? branches : leaves;
 			pack.append(page);
 			while (!pack.page_ready()) {
-				ValidationBudget budget;
-				pack.step(budget);
+				ValidationBudget b;
+				pack.step(b);
 			}
 			const auto result = pack.reference();
-			if (result.logical != reference.logical)
+			if (result.digest != reference.digest)
 				throw std::logic_error("split fixture changed semantics");
 			return result;
 		};
-		if (!source.pages)
-			throw std::invalid_argument("split fixture requires a nonempty tree");
+		if (source.pages < 2)
+			throw std::invalid_argument("split fixture requires several dense pages");
 		root.tree = copy(source.tree);
 		branches.seal();
 		leaves.seal();
 		while (!branches.done() || !leaves.done()) {
-			ValidationBudget first, second;
+			ValidationBudget a, b;
 			if (!branches.done())
-				branches.step(first);
+				branches.step(a);
 			if (!leaves.done())
-				leaves.step(second);
+				leaves.step(b);
 		}
 		packs[0] = {branches.ownership(), branches.bytes()};
 		packs[1] = {leaves.ownership(), leaves.bytes()};
@@ -62,7 +61,7 @@ struct SplitPagedInput {
 		for (std::size_t i = 0; i < inputs.size(); ++i)
 			inputs[i] = {packs[i].ownership, {packs[i].bytes->data(), packs[i].bytes->size()}};
 		std::sort(inputs.begin(), inputs.end(), [](const auto &a, const auto &b) {
-			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
+			return a.ownership.segment < b.ownership.segment;
 		});
 	}
 };

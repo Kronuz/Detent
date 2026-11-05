@@ -1,104 +1,117 @@
-#include "paged_page_builder.hh"
+#include "dense_graph_fixture.hh"
 #include "paged_page_validator.hh"
 #include <iostream>
-#include <stdexcept>
-
-namespace d = detent::distribution;
-namespace l = detent::local;
-namespace p = l::paged;
+using namespace dense_graph_test;
 namespace {
-void check(bool value) {
-	if (!value)
-		throw std::runtime_error("incremental page validation invariant");
-}
-template <class Error, class F> void rejects(F call) {
-	try {
-		call();
-	} catch (const Error &) {
-		return;
-	}
-	throw std::runtime_error("invalid page accepted");
-}
 void run(l::detail::PageValidator &validator) {
-	unsigned steps = 0;
-	while (!validator.done()) {
+	for (std::size_t steps = 0; !validator.done(); ++steps) {
+		check(steps < 2000000);
 		l::ValidationBudget budget{1, 1};
 		validator.step(budget);
-		check(budget.bytes <= 1 && budget.rows <= 1 && ++steps < 200000);
+		check(budget.bytes <= 1 && budget.rows <= 1);
 	}
 }
-void qualify(p::PageKind kind, std::string_view prefix, std::span<const p::Child> children,
-			 std::span<const char> body) {
-	auto account = std::make_shared<d::StorageLedger>(1024 * 1024);
-	l::detail::PageBuilder builder(account, kind, children.empty() ? 1 : children.size(), prefix, children,
-								   body);
-	while (!builder.done()) {
-		l::ValidationBudget budget;
-		builder.step(budget);
-	}
-	auto bytes = builder.bytes();
-	p::Reference reference;
-	reference.segment.fill('s');
-	reference.length = bytes->size();
-	reference.physical = builder.physical();
-	reference.logical = builder.logical();
-	l::ValidationBudget disposal{0, 1};
-	check(builder.discard(disposal));
-	const auto baseline = account->used();
-	std::size_t admitted;
-	{
-		l::detail::PageValidator validator(account, bytes, {bytes->data(), bytes->size()}, reference);
-		admitted = account->used() - baseline;
-		rejects<std::logic_error>([&] { validator.header(); });
-		l::ValidationBudget empty{0, 0};
-		validator.step(empty);
-		check(!validator.done());
-		run(validator);
-		check(validator.header().kind == kind && validator.header().prefix == prefix.size());
-		check(!validator.discard(empty));
-		disposal.rows = 1;
-		check(validator.discard(disposal) && account->used() == baseline);
-	}
-	auto short_account = std::make_shared<d::StorageLedger>(admitted - 1);
-	rejects<d::StoragePressure>([&] {
-		l::detail::PageValidator validator(short_account, bytes, {bytes->data(), bytes->size()}, reference);
-	});
-	check(!short_account->used());
-	auto damaged = d::make_owned_buffer(account, bytes->size());
-	damaged->append(bytes->view());
-	damaged->mutable_bytes().back() ^= 1;
-	damaged->seal();
-	{
-		l::detail::PageValidator validator(account, damaged, {damaged->data(), damaged->size()}, reference);
-		rejects<std::invalid_argument>([&] { run(validator); });
-		check(!validator.done());
-		l::ValidationBudget budget;
-		rejects<std::logic_error>([&] { validator.step(budget); });
-	}
-	reference.physical = p::physical_commitment({damaged->data(), damaged->size()});
-	{
-		l::detail::PageValidator validator(account, damaged, {damaged->data(), damaged->size()}, reference);
-		rejects<std::invalid_argument>([&] { run(validator); });
-	}
-	damaged.reset();
-	bytes.reset();
-	check(!account->used());
+void validate(const std::shared_ptr<Fixture> &source, const Page &page, bool compare = true) {
+	l::detail::PageValidator validator(source->account, source, page.bytes, page.reference, {},
+	                                   compare);
+	run(validator);
+	check(validator.header().digest == page.reference.digest);
 }
 } // namespace
 int main() {
-	std::array<char, 8> body{};
-	l::write_integer(body, 0, 7, 8);
-	qualify(p::PageKind::Namespace, std::string_view("Wns\0", 4), {}, body);
-	std::array<p::Child, 256> children{};
-	for (unsigned i = 0; i < children.size(); ++i) {
-		auto &child = children[i];
-		child.label = i;
-		child.reference.segment.fill('s');
-		child.reference.physical.fill('p');
-		child.reference.logical.fill('l');
-		child.reference.length = p::page_header_bytes + 8;
+	for (auto count : {1u, 32u, 256u, 1000u}) {
+		auto source = fixture(count);
+		for (const auto &page : source->pages) {
+			const auto before = p::hash_counts();
+			validate(source, page);
+			const auto after = p::hash_counts();
+			const auto header = p::decode_page_header(page.bytes);
+			check(after.page_calls == before.page_calls + 1 &&
+			      after.page_bytes == before.page_bytes + page.bytes.size() - 32 -
+			                              p::placement_bytes * header.externals);
+			validate(source, page, false);
+			check(p::hash_counts().page_calls == after.page_calls);
+			for (auto field : {8u, 16u, 24u, 32u}) {
+				auto wrong = page;
+				wrong.bytes[field] ^= 1;
+				rejects<std::invalid_argument>([&] { validate(source, wrong); });
+			}
+			auto bad = page;
+			bad.bytes.back() ^= 1;
+			rejects<std::invalid_argument>([&] { validate(source, bad); });
+		}
 	}
-	qualify(p::PageKind::Branch, std::string(512, 'x'), children, {});
-	qualify(p::PageKind::Definition, {}, {}, std::string(33816, 'v'));
-	std::cout << "incremental page checks, terminal corruption and exact admission passed\n";
+	{
+		auto source = fixture(1000);
+		const auto &page = source->pages.back();
+		auto account = std::make_shared<d::StorageLedger>(4 * p::segment_bytes);
+		std::size_t initial = 0, peak = 0;
+		{
+			l::detail::PageValidator validator(account, source, page.bytes, page.reference);
+			initial = account->used();
+			run(validator);
+			peak = account->peak();
+		}
+		check(!account->used() && peak > initial);
+		auto short_initial = std::make_shared<d::StorageLedger>(initial - 1);
+		rejects<d::StoragePressure>([&] {
+			l::detail::PageValidator validator(short_initial, source, page.bytes, page.reference);
+		});
+		check(!short_initial->used());
+		auto short_frontier = std::make_shared<d::StorageLedger>(peak - 1);
+		{
+			l::detail::PageValidator validator(short_frontier, source, page.bytes, page.reference);
+			rejects<d::StoragePressure>([&] { run(validator); });
+			l::ValidationBudget budget;
+			check(validator.discard(budget));
+		}
+		check(!short_frontier->used());
+	}
+	// A checksum-correct page with two tiny external leaves is structurally valid
+	// but violates the height packer's boundary decisions.
+	auto source = fixture(1);
+	auto original = source->pages.back();
+	const auto node = p::decode_node(original.bytes, p::page_header_bytes);
+	check(node.kind == p::PageKind::Branch && node.labels.size() == 2);
+	p::PageHeader header;
+	header.length = 64 + 9 + 2 * p::child_bytes;
+	header.externals = 2;
+	header.nodes = 1;
+	header.keys = 2;
+	header.height = 2;
+	Page malformed;
+	malformed.bytes.resize(header.length);
+	const auto encoded = p::encode_page_header(header);
+	std::copy(encoded.begin(), encoded.end(), malformed.bytes.begin());
+	malformed.bytes[64] = 1;
+	malformed.bytes[65] = 0;
+	malformed.bytes[66] = 1;
+	malformed.bytes[67] = 'K';
+	malformed.bytes[68] = 'W';
+	l::write_integer(malformed.bytes, 69, 0x8000, 2);
+	l::write_integer(malformed.bytes, 71, 0x8001, 2);
+	for (unsigned i = 0; i < 2; ++i) {
+		auto r = original.reference;
+		r.length = 100;
+		r.keys = 1;
+		r.height = 1;
+		const auto content = p::encode_content(r);
+		const auto placement = p::encode_placement(r);
+		std::copy(content.begin(), content.end(),
+		          malformed.bytes.begin() + 73 + p::content_bytes * i);
+		std::copy(placement.begin(), placement.end(),
+		          malformed.bytes.end() - 40 + p::placement_bytes * i);
+	}
+	header.digest = p::page_commitment(malformed.bytes);
+	const auto committed = p::encode_page_header(header);
+	std::copy(committed.begin(), committed.end(), malformed.bytes.begin());
+	malformed.reference = original.reference;
+	malformed.reference.length = header.length;
+	malformed.reference.keys = header.keys;
+	malformed.reference.height = header.height;
+	malformed.reference.digest = header.digest;
+	p::verify_page(malformed.bytes, malformed.reference);
+	rejects<std::invalid_argument>([&] { validate(source, malformed); });
+	std::cout << "dense incremental SHA, canonical boundaries and summary "
+	             "binding passed\n";
 }
