@@ -1,37 +1,31 @@
 # Detent Dense pages: plan
 
-The patron writes Goals, Non-goals and Reserved decisions; the game master keeps the rest
-current. Quest state is in `state.json` (`campaign status`, the quest log); this file holds what
-the state cannot.
-
 ## Goals
 
-- <what success means, measurably>
+Complete and optimize Dense pages. One coherent implementation and one format replace version 2, with exact correctness and 100K/5M measurements. Acceptance is A1-A15 in the quest.
 
 ## Non-goals
 
-- <what this campaign will not do>
+Reader S6 completion, damaged-pack repair, grouped syncs, legacy cleanup, shared-library upgrades and general release qualification remain parked. No AWS or other billable resources.
 
 ## Constraints
 
-- <platforms, compatibility, licensing, hardware, deadlines>
+Keep record full copies and pack checksums. Use current main APIs. Honor quiet holds and the Homebrew pin. Gate native correctness, relevant sanitizers, bounded fuzz/decoder proof and quantitative reader acceptance. Queue extended matrices and soaks later.
 
 ## Reserved decisions
 
-The patron decides these; everything else the game master decides and records below.
-
-- Goals, non-goals and significant scope changes.
-- Removing or narrowing user-visible behavior.
-- Public APIs and formats the patron reserves: <list>.
-- Commitments to other teams, new external services or repositories, anything that costs money.
+The owner decides scope, public behavior removal, full-copy wire changes and any waiver of quantitative acceptance. The game master coordinates implementation, jobs and whole-feature review.
 
 ## Milestones
 
-| Milestone | Quests | Validation (a check that runs on `main`) |
+| Milestone | Quests | Validation |
 |---|---|---|
-| <M1> | <ids> | <command> |
+| Dense pages | dense-pages | Native, sanitizer/decoder, 100K/5M model and reader acceptance jobs on the complete feature; repeat accepted results on main |
 
 ## Decisions
 
 | ID | Date | Decision | By | Why |
 |---|---|---|---|---|
+| D1 | 2026-11-05 | Only Dense pages; implement before whole-feature reviews, then architect merge ruling | Owner | Previous broad campaign wasted the feature budget |
+| D2 | 2026-11-05 | Adopt full-build quest plus reads, deltas and integration tasks | Game master | Components are one persistent-format change and cannot land independently |
+| D3 | 2026-11-05 | Preserve conditional contract approval as scoped history | Game master | It authorizes building, not landing |
