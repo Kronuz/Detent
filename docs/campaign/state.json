@@ -1,6 +1,59 @@
 {
   "campaign": "Detent Dense pages",
   "ci": "",
-  "quests": {},
+  "quests": {
+    "dense-pages": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 30,
+          "name": "native"
+        },
+        {
+          "cmd": "ctest --test-dir .scratch/build --output-on-failure -j4 --repeat until-fail:5",
+          "later": true,
+          "level": "light",
+          "minutes": 30,
+          "name": "extended"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent_local/**",
+        "src/detent_local/**",
+        "src/detent_reader/**",
+        "src/detent_agent/**",
+        "tests/**",
+        "benchmarks/**",
+        "docs/design/dense-pages*",
+        "docs/status/dense*",
+        "docs/HOW_IT_WORKS.md",
+        "docs/mechanisms/**",
+        "CMakeLists.txt",
+        ".github/workflows/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness",
+        "security",
+        "design"
+      ],
+      "milestone": "Dense pages",
+      "needs": [],
+      "provides": [
+        "DTPAGE03",
+        "DTROOT03",
+        "dense-occurrence-reuse"
+      ],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Complete and optimize Dense pages",
+      "updated": "2026-11-05T15:01:33"
+    }
+  },
   "version": 2
 }
