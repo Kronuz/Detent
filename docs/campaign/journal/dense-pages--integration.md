@@ -66,3 +66,5 @@ The new `test_local_dense_refetch` starts separate processes and exits at four c
 2. Confirm that the stable owner lock, selected checksum/ownership rechecks and retained shared generation lease carry enough authority through census/removal/barrier, including failure and cancellation.
 3. Confirm that exclusive-lease root cleanup plus a complete segment mark/sweep safely reclaims old packs; a held obsolete root blocks sweep and retains all quota debt until later collection.
 4. Confirm the trusted-v3 no-page/pack-scan ruling and the residual for framing-valid writes after verification. This change adds no general damaged-pack repair.
+
+State: waiting on job 261106-064706-acfa0c at candidate Detent:02bbc64. This exact-commit Debug/AppleClang job builds and runs `test_local_dense_refetch` and `test_local_ownership` in slot `dense-refetch`. The one bounded 45-second wait returned pending; no candidate pass is claimed. Frozen fixture proof 261106-063837-22f097 passes. Lead resumes this branch after the candidate job finishes; inspect its output, finish any code/test corrections, and record final evidence before whole-feature security/correctness review.
