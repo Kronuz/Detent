@@ -137,10 +137,19 @@
             "tests/detent_local/test_paged_segment_collection.cc"
           ],
           "worktree": "../Detent-wt/dense-pages--reads"
+        },
+        "real-deltas": {
+          "base": "a729b77a42dce29d789c3bf47e28409dd2397654",
+          "branch": "quest/dense-pages--real-deltas",
+          "files": [
+            "tests/detent_local/test_dense_delta_assembly.cc",
+            "docs/perf/dense-delta*"
+          ],
+          "worktree": "../Detent-wt/dense-pages--real-deltas"
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T11:44:13",
+      "updated": "2026-11-06T13:17:04",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
