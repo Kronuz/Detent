@@ -58,7 +58,8 @@ encode_generation_ownership(const GenerationOwnership &ownership) {
 	// Admission quotas are absent; older owned generations can exceed them.
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
 			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
+			 (ownership.layout_version == paged::format_version &&
+			  ownership.image_length == paged::root_bytes)));
 	std::array<char, generation_ownership_bytes> bytes{};
 	constexpr std::string_view magic = "DTLEASE1";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
@@ -84,7 +85,8 @@ GenerationOwnership decode_generation_ownership(std::span<const char> bytes) {
 	std::copy_n(bytes.begin() + 64, 32, ownership.image_checksum.begin());
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
 			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
+			 ((ownership.layout_version == 2 || ownership.layout_version == paged::format_version) &&
+			  ownership.image_length == paged::root_bytes)));
 	return ownership;
 }
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {

@@ -171,7 +171,7 @@ RecoveredGeneration detail::RecoveryEngine::recover_routed(const std::filesystem
 			read_record(lease.fd, record);
 			version = decode_generation_ownership(record).layout_version;
 		}
-		auto context = version == 2 ? paged_context : legacy;
+		auto context = version == paged::format_version ? paged_context : legacy;
 		context.selection =
 			GenerationSelection{descriptor, {std::uint64_t(info.st_dev), std::uint64_t(info.st_ino)}};
 		context.layout_version = version;
@@ -329,7 +329,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 			unsigned char digest[32];
 			hash.getHash(digest);
 			require(std::memcmp(digest, descriptor.checksum.data(), 32) == 0);
-			if (generation_ownership && generation_ownership->layout_version == 2) {
+			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&

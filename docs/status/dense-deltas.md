@@ -22,3 +22,7 @@ the production overlay, assembler, packer, segment builder, codec and image code
 Pending: composed full-builder/read-validator integration, sanitizer execution,
 and updated pre-dense delta/compaction fixture execution. No throughput or write
 amplification improvement is claimed from the fixture run.
+
+## Parked for Campaign 2.0 (2026-11-05)
+
+Branch `phase/dense-pages-deltas` is clean at `Detent:fc9029f`. The contributor stopped at a usage limit after committing updated integration fixtures. Standalone Debug and separate ASan/UBSan fixture evidence is in the session logs; composed execution remains pending. No live command or hold remains at 14:54 PST. Resume with the full-builder checkpoint under the quest journal.

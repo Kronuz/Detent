@@ -7,6 +7,11 @@
 #include <fcntl.h>
 #include <sys/file.h>
 namespace p = l::paged;
+#include <source_location>
+void check(bool value, std::source_location location = std::source_location::current()) {
+	if (!value)
+		throw std::runtime_error("delta fixture invariant at " + std::to_string(location.line()));
+}
 template <class Error, class F> void rejects(F call) {
 	try {
 		call();
@@ -124,39 +129,39 @@ int main() {
 		{
 			auto input = parse_delta(false, transactions, "app", account);
 			l::detail::PagedDeltaPlanBuilder builder(recovered, std::move(input), next, domain);
-			require(input.storage_capacity() == 0);
+			check(input.storage_capacity() == 0);
 			rejects<std::logic_error>([&] { builder.take(); });
 			l::ValidationBudget none{0, 0};
 			builder.step(none);
-			require(!builder.done());
+			check(!builder.done());
 			for (unsigned turn = 0; !builder.done(); ++turn) {
-				require(turn < 2000000);
+				check(turn < 2000000);
 				l::ValidationBudget work{1, 1};
 				builder.step(work);
 			}
 			auto plan = builder.take();
 			rejects<std::logic_error>([&] { builder.take(); });
-			require(plan.base_descriptor() == recovered.descriptor() &&
+			check(plan.base_descriptor() == recovered.descriptor() &&
 					plan.directory_identity() == recovered.directory_identity() &&
 					plan.storage_identity() == storage);
-			require(plan.descriptor().generation == next &&
+			check(plan.descriptor().generation == next &&
 					plan.descriptor().cursor.revision == 43 + transactions);
-			require(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
-			require(plan.new_reachability(0).pages == plan.root().pages &&
+			check(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
+			check(plan.new_reachability(0).pages == plan.root().pages &&
 					plan.override_histogram()[0] == plan.root().records);
-			require(plan.counts().ints == (transactions == 1 ? 0 : 1) && plan.counts().bools == 1);
+			check(plan.counts().ints == (transactions == 1 ? 0 : 1) && plan.counts().bools == 1);
 			l::detail::PagedSnapshotBuilder oracle(expected(false, transactions), storage, next);
 			while (!oracle.done()) {
 				l::ValidationBudget work;
 				oracle.step(work);
 			}
 			auto wanted = oracle.take();
-			require(p::state_commitment(plan.root()) == p::state_commitment(wanted.root()));
-			require(plan.descriptor().checksum ==
+			check(p::state_commitment(plan.root()) == p::state_commitment(wanted.root()));
+			check(plan.descriptor().checksum ==
 					p::metadata_commitment({plan.bytes()->data(), plan.bytes()->size()}));
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	for (unsigned invalid = 0; invalid < 3; ++invalid) {
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
@@ -175,7 +180,7 @@ int main() {
 			});
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	{
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
@@ -195,10 +200,10 @@ int main() {
 			pressure.reset();
 			l::ValidationBudget work;
 			rejects<std::logic_error>([&] { builder.step(work); });
-			require(builder.discard(work));
+			check(builder.discard(work));
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	for (unsigned partial : {0u, 2500u, 15000u, 1000000u}) {
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
@@ -213,13 +218,13 @@ int main() {
 				builder.step(work);
 			}
 			l::ValidationBudget none{0, 0};
-			require(!builder.discard(none));
+			check(!builder.discard(none));
 			l::ValidationBudget disposal{0, 1};
-			require(builder.discard(disposal));
+			check(builder.discard(disposal));
 			rejects<std::logic_error>([&] { builder.step(disposal); });
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	{
 		auto account = std::make_shared<d::StorageLedger>(16 * p::segment_bytes);
@@ -233,7 +238,7 @@ int main() {
 			});
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	{
 		auto account = std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
@@ -252,15 +257,16 @@ int main() {
 			}
 			l::detail::PagedDeltaPlanBuilder builder(recovered, decoder.finish(), next, domain);
 			for (unsigned turn = 0; !builder.done(); ++turn) {
-				require(turn < 2000000);
+				check(turn < 2000000);
 				l::ValidationBudget work{4096, 16};
 				builder.step(work);
 			}
 			auto plan = std::make_shared<l::detail::PagedPlan>(builder.take());
-			require(plan->segments().size() >= 3 && plan->base_reachability(0).pages == 2);
-			require(plan->counts().ints == 1 && plan->counts().bools == 257 &&
+			check(image.root().pages == 1 && plan->segments().size() >= 3 &&
+					plan->base_reachability(0).pages == 0 && plan->base_reachability(0).bytes == 0);
+			check(plan->counts().ints == 1 && plan->counts().bools == 257 &&
 					plan->counts().overrides == 65537 && plan->counts().strings == 2099992);
-			require(plan->override_histogram()[0] == 1 && plan->override_histogram()[1] == 1 &&
+			check(plan->override_histogram()[0] == 1 && plan->override_histogram()[1] == 1 &&
 					plan->override_histogram()[256] == 256);
 			auto target = cursor();
 			target.revision = 43;
@@ -272,11 +278,8 @@ int main() {
 				oracle.step(work);
 			}
 			auto wanted = oracle.take();
-			require(p::state_commitment(plan->root()) == p::state_commitment(wanted.root()));
+			check(p::state_commitment(plan->root()) == p::state_commitment(wanted.root()));
 			std::vector<l::detail::SegmentInput> merged;
-			for (const auto &segment : image.segments())
-				merged.push_back(
-					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 			for (const auto &segment : plan->segments())
 				merged.push_back(
 					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
@@ -292,12 +295,12 @@ int main() {
 				const auto index =
 					l::detail::find_segment(merged, plan->segments()[i].ownership.segment);
 				const auto live = graph.segment_reachability(index);
-				require(live.pages == plan->new_reachability(i).pages &&
+				check(live.pages == plan->new_reachability(i).pages &&
 						live.bytes == plan->new_reachability(i).bytes);
 			}
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	{
 		const auto detached = directory / "detached";
@@ -320,13 +323,13 @@ int main() {
 			rejects<std::logic_error>([&] { plan.root(); });
 			const int lease =
 				::open((detached / (l::generation_name(generation) + ".lease")).c_str(), O_RDWR);
-			require(lease >= 0);
-			require(::flock(lease, LOCK_EX | LOCK_NB) == -1);
+			check(lease >= 0);
+			check(::flock(lease, LOCK_EX | LOCK_NB) == -1);
 			::close(lease);
-			require(moved.base_descriptor() == image.descriptor());
+			check(moved.base_descriptor() == image.descriptor());
 		}
 		domain.close().wait();
-		require(account->used() == baseline);
+		check(account->used() == baseline);
 	}
 	std::cout
 		<< "exact-base sparse plans, transferred input, cancellation and owner pressure passed\n";
