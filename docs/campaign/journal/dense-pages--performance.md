@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: waiting on jobs 261106-113833-59651a 261106-113849-8b5e41 261106-113856-eac55c 261106-113856-ad9732
+State: waiting on jobs 261106-113938-0f7177 261106-113947-a8ff2a 261106-113948-3d61d0 261106-113949-c5749a
 
 ## Scope
 
@@ -66,6 +66,10 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
     access calls subspan on OwnedBuffer's string view. The probe now forms
     a byte span explicitly. All dependent measurement jobs are skipped;
     none provides results. Resubmit the same pipeline at the corrected code.
+14. Corrected preparation 261106-113938-0f7177 runs at Detent:2a0968f.
+    Strict smoke 261106-113947-a8ff2a depends on it; exclusive first-read
+    261106-113948-3d61d0 and warm comparison 261106-113949-c5749a depend on
+    the smoke. Resume from these four jobs, not the superseded failed chain.
 
 ## Open gates
 
