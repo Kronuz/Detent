@@ -39,3 +39,5 @@ Job 261105-211305-158ebe exposed a stale test: segment length 79 is legal with t
 ## Publication blocker resumed
 
 The composed compaction build failed because PagedNamedRoot still called removed physical_commitment for root metadata. It now uses metadata_commitment, matching snapshot and overlay descriptor construction. Targeted named-root/compaction qualification follows at this exact commit. No waiting on an owner decision.
+
+The composed compaction compile exposed the final production physical_commitment caller in disk-store census. Its root checksum comparison now uses metadata_commitment. A repository-wide src/include search finds no remaining old caller. Delta proof 261106-061050-6ac155 passes leaves, overlay and dense assembly; delta-plan immutable graph validation remains open.
