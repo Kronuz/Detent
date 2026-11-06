@@ -2,6 +2,7 @@
 #include "paged_snapshot_builder.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
+#include <trusted_records.hh>
 #include <filesystem>
 #include <fstream>
 #include <sys/stat.h>
@@ -41,6 +42,7 @@ int main(int argc, char **argv) {
 		put(directory / names.payload_name(), {segment.bytes->data(), segment.bytes->size()});
 	}
 	// Exact values certify the fixture before its bytes become a refusal oracle.
+	trusted_records::derive(directory);
 	const auto recovered = l::recover_generation(directory);
 	require(recovered.view().size() == 2 &&
 			recovered.view().get("app", "count").value() == INT64_MIN &&
