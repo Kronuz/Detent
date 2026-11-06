@@ -1,6 +1,6 @@
 # dense-pages--overlay-bounds: journal
 
-State: waiting on jobs 261106-114739-ba4d50 261106-114740-c11743 261106-114741-2f126a
+State: complete — bounded overlay traversal verified and merged
 Quest: docs/campaign/quests/dense-pages.md
 
 ## Doing
@@ -40,3 +40,7 @@ runs alongside it to check canonical deltas and relocation values.
 Counting traverses only the selected inline subtree and external summaries; it
 neither rehashes verified hits nor verifies the full page for each node. Repeated
 forward aliases consume the page's declared node budget on every visit.
+
+## Results reconciled by the lead
+
+Debug261106-114739-ba4d50 and separate ASan/UBSan261106-114740-c11743 both pass the focused test plus delta assembly. Parent-code261106-114741-2f126a returns exit0 only after the unguarded code fails the bounded regression. The fix is merged in Detent:a729b77. No jobs remain for this task.
