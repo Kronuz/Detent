@@ -76,3 +76,8 @@ rewrite placement tails without changing page digests. The parked cap race
 uses a namespace pack at least as large as the omitted namespace pack, and its
 coverage is asserted rather than skipped. Full GraphValidator proves each
 fixture before its ownership and trusted records become reader input.
+
+The initial bitmap job stopped on a vector/string_view append conversion,
+corrected without changing geometry. Collection probe `261106-111223-310964`
+reproduces variant 13 with independent child accounting; its exact boundaries
+are retained in that job's stderr. Canonical geometry/sweep job follows.

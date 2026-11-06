@@ -171,7 +171,7 @@ struct Fixture {
     }
     for (unsigned i = 0; i < packs.size(); ++i) {
       auto bytes = d::make_owned_buffer(heap, packs[i].size());
-      bytes->append(packs[i]);
+      bytes->append({packs[i].data(), packs[i].size()});
       bytes->seal();
       const l::SegmentOwnership ownership{storage, identities[i], bytes->size(),
                                          p::pack_commitment(bytes->view())};
