@@ -31,3 +31,7 @@ Historical ledger: `docs/status/campaign-lead.md` on `phase/dense-pages-integrat
 ## Rulings I made
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
+
+## Resumed qualification
+
+Job 261105-211305-158ebe exposed a stale test: segment length 79 is legal with the 64-byte dense header. The exact lower boundary is now 63 rejected, 64 accepted. Production ownership rules are unchanged by this fixture correction.
