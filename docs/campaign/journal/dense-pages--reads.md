@@ -1,19 +1,18 @@
 # dense-pages--reads: journal
 
-State: working
+State: complete — bounded canonical bitmap and collection-pressure fixture repair
 Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
 
-Finish prepared-reader/lazy/hash-once fixture migration and composed reader, cold/warm graph, recovery and malformed-input proof.
-
-Adopted `phase/dense-pages-reads` at Detent:7fb6574; the original worktree stays parked. Prior contributor stopped at usage limit, with no live process or hold. The generated quest/task worktree is the active writer now.
+The assigned bounded fixture repair is complete at Detent:61cc5d6. Historical
+reader migration notes remain below; broad dense-page acceptance belongs to
+the lead and the assembled quest.
 
 ## Next
 
-1. Bring full-build checkpoint into the task through lead-coordinated integration.
-2. Complete owned test migration; run committed scoped jobs.
-3. Finish decoder and warm-skip mutation/revert proof, then sanitizer jobs.
+Lead integrates this task's fixture commits and reruns the assembled native and
+sanitizer gates. No production source, public API or shared library changed.
 
 ## Blocked on
 
@@ -105,3 +104,12 @@ final pair and repeated margin stability validation pending.
 Use a per-variant drainage guard to preserve the surrounding source shape;
 all core/collector handles die before domain drainage, and runtime shutdown
 precedes aggregate byte checks. Reverted unrelated formatter churn.
+
+
+Final native qualification `261106-111645-b25734` passes at Detent:61cc5d6:
+lazy bitmap, paged segment collection, lazy page access and dense reads, all four
+in 3.42 seconds. Five additional complete collection runs pass, preserving
+first pressure failure, certificate dropping, unchanged pre-retry disk ledger,
+retry success, protected packs and full account cleanup after runtime shutdown.
+Earlier equivalent scoped check `261106-111608-6fa79c` also passes. The final
+journal-only commit changes no tested source.
