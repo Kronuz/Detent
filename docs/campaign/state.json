@@ -361,6 +361,7 @@
         "docs/status/dense*",
         "docs/HOW_IT_WORKS.md",
         "docs/mechanisms/**",
+        "docs/perf/**",
         "CMakeLists.txt",
         ".github/workflows/**"
       ],
@@ -476,7 +477,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T13:17:45",
+      "updated": "2026-11-06T13:26:25",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
