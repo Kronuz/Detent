@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: working
+State: waiting on jobs 261106-132614-fcb023 261106-132621-774d99
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -24,6 +24,11 @@ the full-build seal order with 8-byte alignment and 1 MiB packs.
 Nothing. Machine work queues under light holds; no timing claims are made.
 
 ## Evidence
+
+Current smoke `261106-132614-fcb023` and dependent real 5M `261106-132621-774d99` run at
+Detent:d051e910133b2a16f5d51c3c80ce7d01974f9434. Their commands are the exact submissions
+below with the corrected commit and the replacement smoke dependency. The 5M corpus/model
+digests, build slot, flags and output policy are unchanged. No T4 result is claimed yet.
 
 Initial smoke `261106-132109-e3b576` failed compilation at Detent:5aad259 because
 `vector<string>::push_back(page.path)` cannot implicitly convert `string_view`. The harness
