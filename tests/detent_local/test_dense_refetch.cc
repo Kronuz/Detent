@@ -70,7 +70,16 @@ l::Descriptor full_copy(Runtime &runtime, const std::filesystem::path &directory
 	const auto context = l::detail::ManagedRecovery::capture(*store);
 	l::GenerationId id;
 	id.fill(generation);
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	d::Limits limits;
+	limits.storage_account = runtime.heap;
+	d::SnapshotDecoder decoder(cursor(), {"app"}, limits);
+	const auto wire = fixture();
+	auto input = std::span<const char>(wire);
+	while (!input.empty()) {
+		d::WorkBudget budget;
+		decoder.feed(input, budget);
+	}
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 	l::detail::PagedSnapshotPlanBuilder builder(source, {}, context.directory, context.storage, id,
 											  runtime.domain.factory(), runtime.heap, runtime.options.recovery_limits);
 	while (!builder.done()) {
