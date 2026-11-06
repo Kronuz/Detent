@@ -73,7 +73,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		const auto descriptor = plan.descriptor();
 		append(GenerationName(descriptor.generation, GenerationFile::Lease).view(),
 			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
-											descriptor.checksum, 2}),
+											descriptor.checksum, paged::format_version}),
 			   {}, true);
 		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
 		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
