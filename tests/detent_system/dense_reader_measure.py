@@ -22,7 +22,9 @@ def digest(path: Path) -> str:
 
 def run(command: list[str], log: Path) -> list[dict[str, Any]]:
     started = time.monotonic_ns()
-    result = subprocess.run(command, capture_output=True, text=True, timeout=600, check=False)
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=600, check=False
+    )
     log.write_text(result.stdout + result.stderr)
     if result.returncode:
         raise RuntimeError(f"exit {result.returncode}: {command}; see {log}")
@@ -186,7 +188,9 @@ def main() -> None:
                     store = root / f"store-{suffix}"
                     if not store.exists():
                         if name == "candidate" or suffix == "5m":
-                            raise ValueError(f"required first-read arm missing: {store}")
+                            raise ValueError(
+                                f"required first-read arm missing: {store}"
+                            )
                         continue
                     records = 5_099_900 if suffix == "1000ns" else 5_000_000
                     # Recipes describe the unchanged five million primary records.
@@ -203,7 +207,9 @@ def main() -> None:
                 arm = report["first"][f"candidate-{suffix}"]
                 if arm["samples"] != 200 or arm["below_1ms"] != 200:
                     report["status"] = "failed-first-read-gate"
-                    raise ValueError(f"candidate-{suffix} misses the 200/200 first-read gate")
+                    raise ValueError(
+                        f"candidate-{suffix} misses the 200/200 first-read gate"
+                    )
         report["status"] = "completed"
     finally:
         report["ended_ns"] = time.time_ns()
