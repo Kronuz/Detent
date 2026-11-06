@@ -45,7 +45,7 @@ void run(bool shared) {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 5020, 25, 42, std::string(5000, 'p'))));
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
 	l::StorageIdentity storage{}, generation{}, next{};
 	storage.fill('s');
 	generation.fill('g');

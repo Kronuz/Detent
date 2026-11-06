@@ -171,8 +171,8 @@ void publish_window() {
 }
 
 void mark_window() {
-	Harness harness(std::make_shared<Fixture>());
-	const auto reference = harness.fixture->definitions[0];
+	Harness harness(std::make_shared<Fixture>(2, 256));
+	const auto reference = p::decode_external(harness.expected(harness.fixture->root.tree), 0);
 	auto neighbour = harness.fixture->root.tree;
 	harness.access->resolve(neighbour);
 	check(harness.access->page_verifications() == 1);

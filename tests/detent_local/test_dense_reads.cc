@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <sys/resource.h>
+#include <sys/mman.h>
 #include <unistd.h>
 using namespace dense_graph_test;
 namespace {
@@ -271,8 +272,14 @@ void mapped_mutation(unsigned variant) {
         l::write_integer(replacement, 0, 64, 2);
         size = 2;
       }
-      check(::pwrite(payload, replacement.data(), size, at) ==
-            static_cast<ssize_t>(size));
+      const auto mapped = access->resolve(source->root.tree);
+      auto *destination = const_cast<char *>(mapped.data()) + (at - root_offset);
+      const auto page_size = static_cast<std::uintptr_t>(::sysconf(_SC_PAGESIZE));
+      const auto begin = reinterpret_cast<std::uintptr_t>(destination) & ~(page_size - 1);
+      const auto end = (reinterpret_cast<std::uintptr_t>(destination + size) + page_size - 1) & ~(page_size - 1);
+      check(::mprotect(reinterpret_cast<void *>(begin), end - begin, PROT_READ | PROT_WRITE) == 0);
+      std::memcpy(destination, replacement.data(), size);
+      check(::mprotect(reinterpret_cast<void *>(begin), end - begin, PROT_READ) == 0);
       using Handle = d::RetirementHandle<l::detail::LazyPageAccess>;
       auto held = std::make_shared<Handle>(access);
       l::detail::PagedReadState state{
