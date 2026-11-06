@@ -169,3 +169,12 @@ five fixtures, Apple Clang Debug and dense-deltas-trial slot with at most four
 build jobs. No seeded workload expansion.
 
 State: waiting on job 261106-062412-e50b10.
+
+Job 261106-062412-e50b10 builds all targets and passes the four delta
+fixtures. Compaction reaches post-collection checks and fails line 202: the
+shared many() fixture now creates integer definitions, but the assertion calls
+boolean eval(). Check the exact integer value of app:k000001 (1) after
+collection, matching the earlier get() checks for app:k000000 (0). This keeps
+post-collection reader/value coverage for the actual fixture type.
+
+State: working; submit corrected composed proof without a second wait.

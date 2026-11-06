@@ -199,7 +199,7 @@ void run(std::size_t choice) {
 		}
 		check(store->stats().used == census(directory) &&
 			  store->stats().reserved == l::DiskUsage{});
-		check(recovered.view().eval("app", "k000001", "host-a", "beta").has_value());
+		check(recovered.view().get("app", "k000001").value() == 1);
 		store->close();
 		drive(store);
 		check(store->drained());
