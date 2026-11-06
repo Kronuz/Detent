@@ -102,8 +102,8 @@ failing dense-layout assumptions. The 1,000-round expansion remains deferred.
 
 Diagnostic job 261106-060830-63b661 passed delta leaves and dense assembly.
 Overlay assembly fails its cancellation fixture's 100,000-turn bound while
-waiting to admit a 1-MiB segment under a one-byte budget: segment admission
-alone needs 1,048,576 turns. Raise the existing bound to two million and also
+waiting to reach a 1-MiB segment under a one-byte budget. Dense traversal and
+packing precede that allocation. Raise the existing bound to two million and also
 require the builder to remain unfinished, preserving partial-pack cancellation.
 
 Delta plan fails its heavy fixture's assertion that two old pages survive.
@@ -119,3 +119,15 @@ Detent:234ea84 (Apple Clang Debug, managed publication enabled, at most four
 build jobs), including the approved root metadata hash checkpoint. Diagnostic
 job 261106-060830-63b661 remains the exact failing evidence for the two fixture
 assumptions; its successful delta-leaves run confirms the constructor repair.
+
+Composed job 261106-060936-a8ba92 compiled the four delta targets but failed
+in disk_store.cc:1198: another removed physical_commitment call compares root
+metadata with slot().proof.image_checksum. Reported to lead; no tests executed
+in that build-and-test job. The exact pre-segment byte-budget cost has not been
+measured; the diagnostic establishes the old 100,000-turn bound is insufficient.
+
+State: waiting on job 261106-061050-6ac155; compaction blocked on integration.
+
+Four-fixture runtime proof 261106-061050-6ac155 uses Detent:234ea84 and the
+same Debug slot, independently of the publication build blocker. The single
+50-second wait was spent on composed job 261106-060936-a8ba92.
