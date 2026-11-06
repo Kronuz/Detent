@@ -25,7 +25,7 @@ int main() {
 			auto bytes = d::make_owned_buffer(account, value.size());
 			bytes->append(value);
 			bytes->seal();
-			inputs.begin({storage, id, value.size(), l::paged::physical_commitment(value)}, bytes);
+			inputs.begin({storage, id, value.size(), l::paged::pack_commitment(value)}, bytes);
 			while (inputs.busy()) {
 				l::ValidationBudget budget{1, 1};
 				inputs.step(budget);
@@ -44,7 +44,7 @@ int main() {
 		id.fill('d');
 		bool refused = false;
 		try {
-			inputs.begin({storage, id, value.size(), l::paged::physical_commitment(value)}, bytes);
+			inputs.begin({storage, id, value.size(), l::paged::pack_commitment(value)}, bytes);
 		} catch (const std::invalid_argument &) {
 			refused = true;
 		}
@@ -85,7 +85,7 @@ int main() {
 			l::ValidationBudget budget{1, 1};
 			graph.step(budget);
 		}
-		require(graph.root().logical == image.root().logical && graph.counts().bools == 1 &&
+		require(l::paged::state_commitment(graph.root()) == l::paged::state_commitment(image.root()) && graph.counts().bools == 1 &&
 				graph.counts().ints == 1);
 		for (;;) {
 			l::ValidationBudget budget{1, 1};

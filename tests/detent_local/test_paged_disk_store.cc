@@ -115,7 +115,7 @@ int main() {
 				plan.emplace(builder.take());
 			}
 			const auto wanted = plan->descriptor();
-			const auto logical = plan->root().logical;
+			const auto logical = l::paged::state_commitment(plan->root());
 			std::vector<std::uint64_t> lengths;
 			for (const auto &segment : plan->segments())
 				lengths.push_back(segment.bytes->size());
@@ -228,9 +228,9 @@ int main() {
 							l::ValidationBudget budget;
 							oracle.step(budget);
 						}
-						check(oracle.take().root().logical == logical);
+						check(l::paged::state_commitment(oracle.take().root()) == logical);
 					} else
-						check(logical == image.root().logical);
+						check(logical == l::paged::state_commitment(image.root()));
 				}
 			}
 			if (store->status() == l::StoreStatus::Ready)

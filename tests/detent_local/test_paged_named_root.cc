@@ -62,7 +62,7 @@ int main() {
 		l::GenerationId other_generation;
 		other_generation.fill('n');
 		const l::Descriptor other_descriptor{other_generation, l::paged::root_bytes,
-											 l::paged::physical_commitment(other_bytes), other_root.cursor,
+											 l::paged::metadata_commitment(other_bytes), other_root.cursor,
 											 other_root.profile};
 		const auto other_name = l::generation_name(other_generation);
 		write(directory / (other_name + ".image"), other_bytes);
@@ -260,7 +260,7 @@ int main() {
 			write(directory / (name + ".image"), enlarged);
 			write(directory / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, legacy, enlarged.size(), l::paged::physical_commitment(enlarged), 1}));
+					  {storage, legacy, enlarged.size(), l::paged::metadata_commitment(enlarged), 1}));
 			l::detail::PagedNamedRoot inconsistent(domain.factory(), session, storage, legacy, ::getuid());
 			drive(inconsistent);
 			require(!inconsistent.ready() && inconsistent.error());

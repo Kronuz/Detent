@@ -273,7 +273,7 @@ int main() {
 				++invalid.bytes;
 				const auto bytes = l::paged::encode_root(invalid);
 				auto descriptor = plan->descriptor();
-				descriptor.checksum = l::paged::physical_commitment(bytes);
+				descriptor.checksum = l::paged::metadata_commitment(bytes);
 				const auto name = l::generation_name(next);
 				write(directory / (name + ".image"), bytes);
 				write(directory / (name + ".lease"),

@@ -54,7 +54,6 @@ int main() {
 		if (variant == 3) {
 			root.bytes = root.pages = root.segments = root.records = root.namespaces = 0;
 			root.tree = {};
-			root.logical = l::paged::empty_commitment();
 		}
 		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root, storage);
 		l::ValidationBudget zero{0, 0};

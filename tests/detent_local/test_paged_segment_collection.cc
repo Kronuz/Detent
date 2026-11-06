@@ -37,7 +37,7 @@ int main() {
 		const l::detail::SegmentNames names(orphan);
 		const std::string bytes(257, 'x');
 		const l::SegmentOwnership ownership{storage, orphan, bytes.size(),
-											l::paged::physical_commitment(bytes)};
+											l::paged::pack_commitment(bytes)};
 		write(directory / names.owner_name(), l::encode_segment_ownership(ownership));
 		write(directory / names.payload_name(), bytes);
 		if (variant == 9)
@@ -59,7 +59,7 @@ int main() {
 			const l::detail::SegmentNames broken(bad);
 			write(directory / broken.owner_name(),
 				  l::encode_segment_ownership(
-					  {storage, bad, bytes.size(), l::paged::physical_commitment(bytes)}));
+					  {storage, bad, bytes.size(), l::paged::pack_commitment(bytes)}));
 			auto corrupt = bytes;
 			corrupt.back() ^= 1;
 			write(directory / broken.payload_name(), corrupt);
@@ -73,7 +73,7 @@ int main() {
 			write(directory / (l::generation_name(historical) + ".image"), encoded);
 			write(directory / (l::generation_name(historical) + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, historical, encoded.size(), l::paged::physical_commitment(encoded), 2}));
+					  {storage, historical, encoded.size(), l::paged::metadata_commitment(encoded), l::paged::format_version}));
 		}
 		if (variant == 8) {
 			l::GenerationId abandoned{};
