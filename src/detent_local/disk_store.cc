@@ -1195,7 +1195,7 @@ class ReclaimOperation final : public c::Operation {
 		if (slot().proof.layout_version == paged::format_version) {
 			slot().image_scope = detail::validate_paged_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes) {
-				if (paged::physical_commitment(bytes) != slot().proof.image_checksum)
+				if (paged::metadata_commitment(bytes) != slot().proof.image_checksum)
 					throw std::runtime_error("paged root checksum differs from ownership");
 				const auto root = paged::decode_root(bytes, detail::paged_format_limits());
 				slot().image_scope = std::pair(root.cursor, root.profile);
