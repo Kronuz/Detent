@@ -241,7 +241,10 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	if (!label.empty())std::cout<<label<<": page hashes "<<hashes.page_calls<<", hash bytes "<<hashes.page_bytes<<", written pack bytes "<<written<<"\n";
 	return written;
 }
-int main() {
+int main(int argc, char **argv) {
+	require(argc <= 2);
+	const unsigned rounds = argc == 2 ? std::stoul(argv[1]) : 50;
+	require(rounds > 0 && rounds <= 1000000);
 	auto account = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
 	for (unsigned i = 0; i < 2000; ++i)
@@ -250,10 +253,10 @@ int main() {
 	require(check(account, base, rows, {}) == 0);
 	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=std::vector<char>(24,'z');check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
 	std::mt19937 rng(1729);
-	for (unsigned trial = 0; trial < 50; ++trial) {
+	for (unsigned trial = 0; trial < rounds; ++trial) {
 		auto target = rows;
 		std::vector<std::pair<std::string, std::optional<std::vector<char>>>> changes;
-		for (unsigned j = 0; j < 10; ++j) {
+		for (unsigned j = 0; j < 1 + trial % 500; ++j) {
 			auto k = key("ns:k" + std::to_string(rng() % 2100));
 			std::optional<std::vector<char>> body;
 			if (rng() % 3)
@@ -297,6 +300,6 @@ int main() {
 	check(account, none, single, {{key("ns", true), std::vector<char>(8)}}, false, 1);
 	auto one = std::make_shared<Base>(Full(account).build(single));
 	check(account, one, empty, {{key("ns", true), std::nullopt}}, false, 1);
-	std::cout << "dense delta: 50 seeded mixed trials, occurrence identity, no rewrite, offpath "
+	std::cout << "dense delta: " << rounds << " seeded mixed trials (1..500 changes), occurrence identity, no rewrite, offpath "
 				 "seal, relocation zero page hashes, empty transitions passed\n";
 }
