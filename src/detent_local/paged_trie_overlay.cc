@@ -1,6 +1,7 @@
 #include "paged_trie_overlay.hh"
 #include "paged_navigation.hh"
 #include <algorithm>
+#include <limits>
 #include <set>
 #include <vector>
 namespace detent::local::detail {
@@ -25,8 +26,11 @@ struct TrieOverlay::Impl {
 			if (!old)
 				return children[index].reference;
 			const auto slot = node.slot(index);
-			return slot & 0x8000 ? OverlayReference{p::decode_external(bytes, slot & 0x7fff)}
-								 : OverlayReference{old, nullptr, slot};
+			if (slot & 0x8000)
+				return {p::decode_external(bytes, slot & 0x7fff)};
+			if (slot < node.end)
+				throw std::invalid_argument("overlay inline slot does not progress");
+			return {old, nullptr, slot};
 		}
 	};
 	struct Frame {
@@ -104,14 +108,47 @@ struct TrieOverlay::Impl {
 		return true;
 	}
 	std::uint64_t keys(std::span<const char> bytes, std::size_t offset) const {
-		const auto n = p::decode_node(bytes, offset, limits);
-		if (n.kind != p::PageKind::Branch)
-			return 1;
+		struct CountFrame {
+			p::NodeView node;
+			std::size_t next = 0, length = 0;
+		};
+		std::array<CountFrame, 203> stack{};
+		std::size_t depth = 0, visited = 0;
+		const auto header = p::decode_page_header(bytes, limits);
+		auto enter = [&](std::size_t at, std::size_t before) {
+			if (++visited > header.nodes || depth == stack.size())
+				throw std::invalid_argument("overlay inline node budget exceeded");
+			const auto node = p::decode_node(bytes, at, limits);
+			if (before > key.size() || node.prefix.size() > key.size() - before)
+				throw std::invalid_argument("overlay inline key depth exceeded");
+			stack[depth++] = {node, 0, before + node.prefix.size()};
+		};
 		std::uint64_t result = 0;
-		for (std::size_t i = 0; i < n.labels.size(); ++i) {
-			const auto slot = n.slot(i);
-			result += slot & 0x8000 ? p::decode_external(bytes, slot & 0x7fff, limits).keys
-									: keys(bytes, slot);
+		auto add = [&](std::uint64_t count) {
+			if (count > std::numeric_limits<std::uint64_t>::max() - result)
+				throw std::invalid_argument("overlay inline key count overflow");
+			result += count;
+		};
+		enter(offset, 0);
+		while (depth) {
+			auto &frame = stack[depth - 1];
+			if (frame.node.kind != p::PageKind::Branch) {
+				add(1);
+				--depth;
+			} else if (frame.next == frame.node.labels.size()) {
+				--depth;
+			} else {
+				if (frame.length == key.size())
+					throw std::invalid_argument("overlay inline key depth exceeded");
+				const auto slot = frame.node.slot(frame.next++);
+				if (slot & 0x8000)
+					add(p::decode_external(bytes, slot & 0x7fff, limits).keys);
+				else {
+					if (slot < frame.node.end)
+						throw std::invalid_argument("overlay inline slot does not progress");
+					enter(slot, frame.length + 1);
+				}
+			}
 		}
 		return result;
 	}
@@ -389,6 +426,8 @@ void TrieOverlay::step(ValidationBudget &budget) {
 				if (!s.grant(p::page_header_bytes + s.view.prefix.size() + p::child_bytes + 8,
 							 budget))
 					return;
+				if (s.view.prefix.size() > s.key.size() - s.offset)
+					throw std::invalid_argument("overlay key depth exceeded");
 				s.common = 0;
 				while (s.common < s.view.prefix.size() && s.offset + s.common < s.key_length &&
 					   s.view.prefix[s.common] == s.key[s.offset + s.common])
