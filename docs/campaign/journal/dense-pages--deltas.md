@@ -85,3 +85,17 @@ Job 261105-213737-260e38 pins the same Detent:a34fe4e code and runs the
 four delta fixtures separately from the blocked publication target. No second
 wait this turn. Root metadata likely needs metadata_commitment, not the
 compiler's pack_commitment suggestion; integration owner must confirm.
+
+## Targeted runtime diagnosis (2026-11-06)
+
+Job 261105-213737-260e38 passed dense_delta_assembly; delta leaves threw an
+invalid warm graph, while overlay assembly and delta plan reported generic
+snapshot invariant errors. Integrated the approved publication metadata hash
+fix as Detent:f2a0ed3.
+
+The malformed duplicate parent accidentally doubled namespace count, violating
+WarmGraphValidator's constructor precondition outside the rejection try block.
+Keep namespace cardinality stable and represent the duplicate keys in records,
+so the intended malformed graph reaches the guarded validation step. Add source
+line diagnostics to owned overlay/plan assertions before diagnosing their
+failing dense-layout assumptions. The 1,000-round expansion remains deferred.

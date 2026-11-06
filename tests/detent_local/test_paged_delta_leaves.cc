@@ -378,8 +378,7 @@ int main() {
 		auto bad = image->root();
 		++bad.cursor.revision;
 		bad.tree = reference;
-		bad.records *= 2;
-		bad.namespaces *= 2;
+		bad.records = 2 * (bad.records + bad.namespaces) - bad.namespaces;
 		++bad.pages;
 		bad.bytes += reference.length;
 		++bad.segments;
