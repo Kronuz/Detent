@@ -66,3 +66,9 @@ fixture now writes paged::format_version in its manual lease, matching the
 shared disk fixture and the version-3 ownership codec.
 
 State: working; scoped proof resubmission follows this commit.
+
+State: waiting on job 261105-213628-5a503c
+
+Job 261105-213628-5a503c pins the repaired composed proof to
+Detent:a34fe4e, reusing the Apple Clang Debug slot and the same five fixtures.
+The 1,000-round workload remains deferred until scoped proof passes.
