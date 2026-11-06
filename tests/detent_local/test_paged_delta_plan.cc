@@ -280,9 +280,6 @@ int main() {
 			auto wanted = oracle.take();
 			check(p::state_commitment(plan->root()) == p::state_commitment(wanted.root()));
 			std::vector<l::detail::SegmentInput> merged;
-			for (const auto &segment : image.segments())
-				merged.push_back(
-					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 			for (const auto &segment : plan->segments())
 				merged.push_back(
 					{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});

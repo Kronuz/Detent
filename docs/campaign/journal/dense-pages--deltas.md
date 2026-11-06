@@ -131,3 +131,16 @@ State: waiting on job 261106-061050-6ac155; compaction blocked on integration.
 Four-fixture runtime proof 261106-061050-6ac155 uses Detent:234ea84 and the
 same Debug slot, independently of the publication build blocker. The single
 50-second wait was spent on composed job 261106-060936-a8ba92.
+
+## Heavy-plan graph directory correction (2026-11-06)
+
+Job 261106-061050-6ac155 passes delta leaves, overlay assembly and dense
+assembly; heavy delta-plan cold validation throws invalid immutable page graph.
+Its merged input directory still includes the entirely dead base pack although
+the earlier fixture checks base reachability is zero. GraphValidator requires
+inputs.size() == root.segments in its constructor. Remove that dead pack from
+the heavy fixture's directory; preserve the full-build commitment comparison and
+exact reachability checks for every output segment.
+
+Integrated approved store root metadata hash fix as Detent:fbe4016. Submit
+five-fixture composed proof before expanding workloads.
