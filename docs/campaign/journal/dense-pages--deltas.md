@@ -28,3 +28,21 @@ Historical ledger: `docs/status/dense-deltas.md` on `phase/dense-pages-deltas`. 
 ## Rulings I made
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
+
+## Bounded fixture migration (2026-11-05)
+
+Adopted the authorized fullbuilder checkpoint as Detent:9340e5a. The
+changed-leaf fixture compares placement-free state commitments and dense
+canonical fingerprints. Its malformed duplicate-extent parent uses explicit
+version-3 codec bytes because canonical packing refuses small external pages;
+the warm-validator rejection remains exercised independently of that packer.
+
+Composed proof covers delta leaves, delta plans, overlay assembly, dense delta
+assembly and partial/complete compaction. Submission follows this commit; the
+job id is recorded in the next journal-only commit.
+
+Known integration dependency: the shared disk fixture writes ownership layout
+3, but this task's ownership codec still accepts only layout 2. Lead owns the
+routing change (Detent:6b198c3). The compaction fixture's manual lease also still
+uses layout 2; report the composed result before integrating ownership changes.
+The 1,000-round expansion remains outside this bounded trial.
