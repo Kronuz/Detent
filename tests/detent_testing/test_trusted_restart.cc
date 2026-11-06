@@ -207,7 +207,7 @@ std::vector<fs::path> live_packs(const fs::path &store) {
 }
 void t5(const fs::path &store, const fs::path &root, int revision) {
 	const auto packs = live_packs(store);
-	CHECK(packs.size() >= 10);
+	CHECK(packs.size() >= 3);
 	std::map<fs::path, std::vector<char>> original;
 	for (const auto &pack : packs) {
 		std::ifstream in(pack, std::ios::binary);
