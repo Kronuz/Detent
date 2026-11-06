@@ -112,13 +112,15 @@
             "tests/detent_local/dense_graph_fixture.hh",
             "tests/detent_local/prepared_reader_fixture.hh",
             "tests/detent_local/test_lazy_page_access.cc",
-            "tests/detent_local/test_paged_hash_once.cc"
+            "tests/detent_local/test_paged_hash_once.cc",
+            "tests/detent_local/test_lazy_page_bitmap.cc",
+            "tests/detent_local/test_paged_segment_collection.cc"
           ],
           "worktree": "../Detent-wt/dense-pages--reads"
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T06:34:37",
+      "updated": "2026-11-06T11:08:41",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
