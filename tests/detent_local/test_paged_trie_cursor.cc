@@ -1,4 +1,5 @@
 #include "paged_trie_cursor.hh"
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <vector>

@@ -298,12 +298,8 @@ std::vector<p::Reference> all_pages(const Fixture &fixture) {
 				continue;
 			const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
 			const auto header = p::decode_page_header(bytes);
-			if (header.kind == p::PageKind::Branch)
-				for (unsigned i = 0; i != header.children; ++i)
-					self(p::decode_child(bytes.subspan(p::page_header_bytes + header.prefix + i * p::child_bytes,
-					                                   p::child_bytes))
-					         .reference,
-					     self);
+			for (unsigned i = 0; i != header.external; ++i)
+				self(p::decode_external(bytes, i), self);
 		}
 	};
 	walk(fixture.root.tree, walk);
@@ -352,7 +348,7 @@ void forged_unverified() {
 	Harness harness(fixture);
 	check(!harness.access->resolve(fixture->definitions[0]).empty());
 	auto forged = fixture->definitions[2];
-	forged.physical[0] ^= 1;
+	forged.digest[0] ^= 1;
 	check(refused(*harness.access, forged));
 	check(!harness.access->available());
 }
