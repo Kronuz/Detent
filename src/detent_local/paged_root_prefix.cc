@@ -38,6 +38,26 @@ std::uint64_t minimum(std::span<const char> bytes, std::size_t offset, unsigned 
 }
 } // namespace
 std::optional<std::pair<distribution::Cursor, distribution::Profile>>
+validate_obsolete_root_prefix(std::span<const char> bytes) {
+	require(bytes.size() <= p::root_bytes);
+	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '2', 0, 0, 0, 2, 0, 0, 1, 64};
+	matches(bytes, 0, framing);
+	zeros(bytes, 48, 56);
+	zeros(bytes, 148, 152);
+	zeros(bytes, 280, 320);
+	if (bytes.size() < 160)
+		return {};
+	Header context;
+	context.cursor.revision = read_integer(bytes, 56, 8);
+	std::copy_n(bytes.begin() + 64, 16, context.cursor.cluster.begin());
+	std::copy_n(bytes.begin() + 80, 16, context.cursor.group.begin());
+	std::copy_n(bytes.begin() + 96, 16, context.cursor.restore_epoch.begin());
+	std::copy_n(bytes.begin() + 112, 32, context.cursor.scope.begin());
+	context.profile = {static_cast<std::uint32_t>(read_integer(bytes, 144, 4)), read_integer(bytes, 152, 8)};
+	encode_header(context);
+	return std::pair(context.cursor, context.profile);
+}
+std::optional<std::pair<distribution::Cursor, distribution::Profile>>
 validate_paged_root_prefix(std::span<const char> bytes) {
 	require(bytes.size() <= p::root_bytes);
 	constexpr std::array<char, 16> framing{'D', 'T', 'R', 'O', 'O', 'T', '0', '3', 0, 0, 0, 3, 0, 0, 1, 64};

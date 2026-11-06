@@ -73,26 +73,26 @@ Inside a generation, knobs live in a **canonical, path-compressed byte-radix tri
 
 ![Root, branch pages and definition pages, spread across two segments](../diagrams/12_how_trie.png)
 
-Each box is one page: its kind and its compressed prefix. The letter on each arrow is the child's label byte. Looking up `payments:new_checkout` walks the key `K payments NUL new_checkout NUL`: the root branch has no prefix, label `K` leads to a branch with prefix `payments NUL`, label `n` leads to a definition page with prefix `ew_checkout NUL`, and the key ends there. Pages of one generation can sit in different segments; a reference names the segment.
+The diagram shows trie nodes and child labels. Dense pages hold connected groups of these nodes. Looking up `payments:new_checkout` walks `K payments NUL new_checkout NUL`; an edge either reaches another node in the same page or follows a reference to another page. Pages of one generation can sit in different segments.
 
-**One node per page.** A page is (`include/detent_local/paged_layout.hh`):
+**Dense pages.** DTPAGE03 has this layout (`include/detent_local/paged_layout.hh`):
 
 | Part | Size | What it holds |
 | --- | --- | --- |
-| Header | 80 B | Kind, length, prefix length, child count, body length, key count, logical digest |
-| Prefix | At most 512 B | The compressed key bytes this page consumes |
-| Children | 96 B each, up to 256, sorted by label | A one-byte label, seven zero bytes, and an 88-byte reference |
-| Body | For a definition, at most 33,816 B | A 24-byte header (revision, type, default, optional rollout, override count), then the overrides |
+| Header | 64 B | Length, external-child count, node count, key count, height and page digest |
+| Nodes | Variable | Connected trie nodes in preorder, compressed prefixes, sorted labels, inline slots and leaf bodies |
+| External-child content | 48 B each | Length, key count, height and digest, with reserved bytes |
+| External-child placement | 20 B each | Segment identity and aligned offset |
 
-A **reference** is 88 bytes: the segment id (16), the page's offset (4) and length (4), its physical SHA-256 (32) and its logical SHA-256 (32). A page is at most 64 KiB and at least 80 B, starts on an 8-byte boundary, and fits inside one segment (`src/detent_local/paged_layout.cc:27-31`). The 320-byte root holds the cursor, the profile, the totals and the reference to the first page.
+A **reference** is 65 bytes: segment identity (16), offset (4), length (4), key count (8), height (1) and digest (32). A page occupies 79 bytes to 64 KiB, starts on an 8-byte boundary and fits inside one segment. The packer groups nodes toward a 4 KiB target. The 320-byte DTROOT03 holds the cursor, profile, totals and root-page reference ([dense pages](mechanisms/dense-pages.md)).
 
-**Kinds.** A *Branch* has at least two children and no body. A *Definition* has one key and a body. A *Namespace* page holds the 8-byte watermark, the namespace's revision. *Overflow* is reserved; the format does not use it (`src/detent_local/paged_layout.cc:41-53`). The largest definition, 256 overrides with 128-byte keys, is 33,816 bytes and fits one page.
+**Kinds.** A *Branch* node has at least two children. A *Definition* node holds its value and overrides. A *Namespace* node holds the 8-byte revision watermark. The largest definition, 256 overrides with 128-byte keys, occupies 33,816 body bytes and fits in one page.
 
-**Two digests per page.** The *physical* digest is SHA-256 of the page's exact bytes. The *logical* digest is SHA-256 of what the page means: its kind, its prefix, each child's label and logical digest, and its body, but not where any child is stored (`src/detent_local/paged_layout.cc:130-169`). That makes the trie a Merkle tree over content: the same knobs have the same logical hashes however the pages are packed, so moving pages between segments changes no logical hash, while the physical digest still binds every byte.
+**One digest per page.** SHA-256 covers the page header outside its digest field, the nodes and the external-child content. Child placement is outside that digest. The root-page digest commits to the complete state; an empty state uses SHA-256 of `detent.local.empty.v3`. Moving pages preserves their digests, while each pack's checksum covers every file byte, including placement and padding (`src/detent_local/paged_layout.cc:136`).
 
-**Updates are copy-on-write.** Changing a knob writes a new definition page, a new copy of every branch on the path from the root to it, and a new root. Every other subtree is reused by reference. Deleting a key removes its page, and a branch left with one child collapses into it, so the trie stays canonical.
+**Updates are copy-on-write.** A delta rebuilds affected trie paths with the same packing rule as a full build. Equal pages at corresponding paths retain their references. Distinct occurrences own distinct extents even when their bytes agree. Deleting a key collapses a branch left with one child, so the trie stays canonical.
 
-**A lookup** starts at the root's reference, checks the page, matches the page's prefix against the next bytes of the key, binary-searches the children for the next key byte, follows that reference, and repeats until it reaches the definition page (`src/detent_local/paged_read_state.cc:38-110`). It also reads the namespace page and refuses a definition whose revision is above the namespace's watermark. Then it evaluates the definition.
+**A lookup** starts at the root reference and follows bounded inline slots or external references until it reaches the definition. It also reads the namespace watermark and refuses a definition whose revision exceeds it. First touch verifies a complete page; warm access compares the reached header with its reference and bounds every visited node ([verified-page bitmap](mechanisms/verified-page-bitmap.md)).
 
 ## 4. Reading
 
@@ -159,6 +159,8 @@ An image owned by another account is not adopted, and the agent reports `seed_ow
 **A generation is verified once, by the build that writes it** ([trusted-restart.md](mechanisms/trusted-restart.md)). After that, nothing rehashes it wholesale.
 
 **Trusted restart.** A cold start reads `selected`, the lease, `storage.meta`, the 320-byte root (hashed against `selected`), `.read` and `.live` (each against its own digest and its bindings), and per segment its `.owner` record and a `stat`. It maps every pack and reads none of them. A test counter proves it: zero pack bytes hashed at startup (`test_testing_trusted_restart_oracle`). A store whose `.live` or `.read` is missing or wrong is refused, and the operator bootstraps a fresh one.
+
+**Format refusal.** An authenticated version-2 ownership record and recognized DTROOT02 root make startup persist an absent selection before it becomes Ready. The agent then requests a full record copy and builds version 3. Interrupted copies remain accounted and restart through the same absent-selection path. Unrecognized damage and conflicting ownership fence the store; they cannot authorize selection removal ([refusal and reclamation](mechanisms/dense-pages.md#refusal-and-reclamation)).
 
 **First touch.** Every page the agent reads from a trusted mapping is checked against its parent's reference the first time any read reaches it, with the same bitmap readers use. A damaged page fails that read with `SourceFailure`; it never returns a wrong value.
 

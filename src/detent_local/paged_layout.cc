@@ -224,6 +224,10 @@ std::array<char, page_header_bytes> encode_page_header(const PageHeader &h, Limi
 	return bytes;
 }
 PageHeader decode_page_header(std::span<const char> bytes, Limits limits) {
+	if (bytes.size() >= 80 && std::string_view(bytes.data(), 8) == "DTPAGE02" &&
+		read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 16, 4) == bytes.size() &&
+		!read_integer(bytes, 72, 8))
+		throw UnsupportedFormat();
 	require(bytes.size() >= page_header_bytes && std::string_view(bytes.data(), 8) == "DTPAGE03" &&
 			zero(bytes.subspan(25, 7)));
 	PageHeader h;

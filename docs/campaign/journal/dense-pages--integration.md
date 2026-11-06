@@ -43,3 +43,36 @@ The composed compaction build failed because PagedNamedRoot still called removed
 The composed compaction compile exposed the final production physical_commitment caller in disk-store census. Its root checksum comparison now uses metadata_commitment. A repository-wide src/include search finds no remaining old caller. Delta proof 261106-061050-6ac155 passes leaves, overlay and dense assembly; delta-plan immutable graph validation remains open.
 
 Publication artifacts now encode generation leases with paged::format_version, matching the managed-store path. The composed compaction failure in261106-061455-47047e identified the stale version2 literal. Four delta fixtures pass; rerun all five after composing this checkpoint.
+
+## S5 refusal mechanism checkpoint
+
+State: implementing deterministic refusal/refetch/restart proof.
+
+Recovery routes recognized lease version 2 through the paged context and checks the selected root checksum, storage identity and generation ownership before producing retained obsolete-selection evidence. Startup census consumes that evidence, removes only `selected`, and persists absence through its existing directory barrier before Ready. The ordinary exclusive-lease generation collector recognizes v2 framing for cleanup; the pack sweep runs only after remaining roots are understood. Unknown/corrupt v3 bytes stay fenced. No dependency changes.
+
+Lead ruling: preserve trusted-v3 restart's no-page/pack-scan contract. An embedded DTPAGE02 refuses when reached by full validation or first touch; manufactured old bytes under v3 ownership never authorize automatic deselection. Legitimate owned v2 stores refetch. The frozen-v2 fixture generator builds against Detent:785fb34 and validates exact values before exporting fixture bytes. Deterministic proof and security-review questions follow.
+
+Frozen-v2 generation job 261106-063531-1ed91a failed during CMake setup because the job reference environment name is uppercase (`JOB_REF_FIXTURE`). No compiled fixture or test evidence resulted. The corrected job also derives authentic old `.read`/`.live` records through the frozen baseline's test helper.
+
+## Frozen refusal fixture and deterministic restart proof
+
+Job 261106-063837-22f097 passes at frozen Detent:785fb34 with generator reference Detent:4427690. It produces nine files / 3,144 bytes, derives old reader/live records, recovers them with the frozen reader and checks `app:count == INT64_MIN` plus the exact bool evaluation. Root SHA-256: `2873842c45dc99ec596aa79111c55d8c38900ef40dad09c359c4b7c91c736cda`; pack SHA-256: `2ead959d9d80344cc502e20843eca643fe1b8c33d34815dbe68777131e8f3bab`. `dense_legacy_fixture.hh` contains those exact bytes, with no version-2 encoder or serving code.
+
+The new `test_local_dense_refetch` starts separate processes and exits at four concrete cuts: before `Remove(selected)`, after removal before its directory barrier, after durable absence, and after a 13-byte replacement-root write. Restart exercises a complete record snapshot plan, exact values, selected recovery/confirmation, owned-debris reclamation and exact disk-census equality. Separate cases cover bad root checksum, storage/generation mismatches, obsolete-looking root bytes under ownership3, unknown framing, unowned leases, a held owner lock, a held old-reader lease, foreign-file preservation, and embedded-page refusal during full recovery and lazy first touch. Proof execution pending at the committed candidate.
+
+## Final security-review questions
+
+1. Confirm that authenticated ownership2 plus exact DTROOT02/version2/320-byte framing is the intended deselection boundary; ownership3 and unrecognized damage remain fenced with `selected` intact.
+2. Confirm that the stable owner lock, selected checksum/ownership rechecks and retained shared generation lease carry enough authority through census/removal/barrier, including failure and cancellation.
+3. Confirm that exclusive-lease root cleanup plus a complete segment mark/sweep safely reclaims old packs; a held obsolete root blocks sweep and retains all quota debt until later collection.
+4. Confirm the trusted-v3 no-page/pack-scan ruling and the residual for framing-valid writes after verification. This change adds no general damaged-pack repair.
+
+State: waiting on job 261106-064706-acfa0c at candidate Detent:02bbc64. This exact-commit Debug/AppleClang job builds and runs `test_local_dense_refetch` and `test_local_ownership` in slot `dense-refetch`. The one bounded 45-second wait returned pending; no candidate pass is claimed. Frozen fixture proof 261106-063837-22f097 passes. Lead resumes this branch after the candidate job finishes; inspect its output, finish any code/test corrections, and record final evidence before whole-feature security/correctness review.
+
+Candidate job 261106-064706-acfa0c passes ownership but fails the new refetch fixture before publication: `PagedSnapshotPlanBuilder` correctly rejects its snapshot decoder's default heap account because the planner uses the dedicated runtime account. The full-copy fixture now decodes with that exact account; real process cuts, ownership boundaries and assertions are unchanged. Rerun the candidate proof at this correction.
+
+## S5 passing candidate qualification
+
+Job 261106-065403-f3c14e passes at Detent:9ceabbd (Debug, `/usr/bin/clang++`, existing `dense-refetch` slot): `test_local_dense_refetch` and `test_local_ownership`, 2/2. The fixture resource mismatch is corrected; all four real-process restart cuts, exact full-copy values, ownership/fencing cases, held-lease quota debt/reclamation, foreign-file preservation and embedded-page refusal execute. The frozen baseline fixture remains independently qualified by 261106-063837-22f097. Final feature review questions remain the four recorded above. Routing/barrier dying-mutant proof follows at the same candidate.
+
+State: candidate qualification passed; waiting on dying-mutant job 261106-065516-d5a93a. This job pins Detent:9ceabbd, restores the original obsolete-lease routing bug and requires `test_local_dense_refetch` to fail, then skips the absence barrier and requires another failure. It restores production source after each mutant and requires the final refetch test to pass. Raw logs are retained under the job's `out/`. No mutant result is claimed before job completion; lead resumes or records its terminal result.
