@@ -178,3 +178,9 @@ collection, matching the earlier get() checks for app:k000000 (0). This keeps
 post-collection reader/value coverage for the actual fixture type.
 
 State: working; submit corrected composed proof without a second wait.
+
+State: waiting on job 261106-062527-75b336.
+
+Five-fixture job 261106-062527-75b336 pins Detent:091a783 with the exact
+post-collection integer assertion. Same Apple Clang Debug slot and four-job
+build maximum; no second wait, no expanded workload.
