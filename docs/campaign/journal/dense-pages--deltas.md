@@ -111,3 +111,11 @@ The current base packs all three keys into one dense page. Updating the namespac
 watermark prevents retaining that page; assert the single-page base and zero
 remaining base pages/bytes, keeping the independent full-build digest and
 per-segment graph reachability checks.
+
+State: waiting on job 261106-060936-a8ba92.
+
+Five-fixture composed proof 261106-060936-a8ba92 is pinned to
+Detent:234ea84 (Apple Clang Debug, managed publication enabled, at most four
+build jobs), including the approved root metadata hash checkpoint. Diagnostic
+job 261106-060830-63b661 remains the exact failing evidence for the two fixture
+assumptions; its successful delta-leaves run confirms the constructor repair.
