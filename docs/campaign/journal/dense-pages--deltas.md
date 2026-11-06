@@ -72,3 +72,16 @@ State: waiting on job 261105-213628-5a503c
 Job 261105-213628-5a503c pins the repaired composed proof to
 Detent:a34fe4e, reusing the Apple Clang Debug slot and the same five fixtures.
 The 1,000-round workload remains deferred until scoped proof passes.
+
+Job 261105-213628-5a503c built all four delta test targets, then failed
+compiling compaction's shared publication library: paged_named_root.cc:324
+still calls removed paged::physical_commitment on root metadata. This is an
+integration-owned hash-domain migration, reported to the lead. No tests ran
+because the build-and-ctest command stopped on that error.
+
+State: waiting on job 261105-213737-260e38; compaction blocked on integration.
+
+Job 261105-213737-260e38 pins the same Detent:a34fe4e code and runs the
+four delta fixtures separately from the blocked publication target. No second
+wait this turn. Root metadata likely needs metadata_commitment, not the
+compiler's pack_commitment suggestion; integration owner must confirm.
