@@ -352,11 +352,17 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				lease->fd = std::exchange(mapping->lease, -1);
 				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
 			};
-			try {
-			if (generation_ownership && generation_ownership->layout_version >= 2) {
+			if (generation_ownership && generation_ownership->layout_version == 2) {
+				try {
+					paged::decode_root(bytes, detail::paged_limits(limits, descriptor.length));
+				} catch (const paged::UnsupportedFormat &) {
+					refuse();
+				}
+				throw std::runtime_error("obsolete ownership conflicts with current root format");
+			}
+			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);
-				require(generation_ownership->layout_version == paged::format_version);
 				require(root.cursor == descriptor.cursor && root.profile == descriptor.profile &&
 						(!expected || (expected->same_identity(root.cursor) &&
 									   root.cursor.revision >= expected->revision)));
@@ -557,11 +563,6 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				if (context.admission)
 					context.admission->complete_attempt();
 				return result;
-			}
-			} catch (const paged::UnsupportedFormat &) {
-				if (generation_ownership && generation_ownership->layout_version == 2)
-					refuse();
-				throw;
 			}
 			auto header = decode_header(bytes, limits.bytes);
 			require(header.cursor == descriptor.cursor && header.profile == descriptor.profile);

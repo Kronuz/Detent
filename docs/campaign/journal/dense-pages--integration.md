@@ -53,3 +53,16 @@ Recovery routes recognized lease version 2 through the paged context and checks 
 Lead ruling: preserve trusted-v3 restart's no-page/pack-scan contract. An embedded DTPAGE02 refuses when reached by full validation or first touch; manufactured old bytes under v3 ownership never authorize automatic deselection. Legitimate owned v2 stores refetch. The frozen-v2 fixture generator builds against Detent:785fb34 and validates exact values before exporting fixture bytes. Deterministic proof and security-review questions follow.
 
 Frozen-v2 generation job 261106-063531-1ed91a failed during CMake setup because the job reference environment name is uppercase (`JOB_REF_FIXTURE`). No compiled fixture or test evidence resulted. The corrected job also derives authentic old `.read`/`.live` records through the frozen baseline's test helper.
+
+## Frozen refusal fixture and deterministic restart proof
+
+Job 261106-063837-22f097 passes at frozen Detent:785fb34 with generator reference Detent:4427690. It produces nine files / 3,144 bytes, derives old reader/live records, recovers them with the frozen reader and checks `app:count == INT64_MIN` plus the exact bool evaluation. Root SHA-256: `2873842c45dc99ec596aa79111c55d8c38900ef40dad09c359c4b7c91c736cda`; pack SHA-256: `2ead959d9d80344cc502e20843eca643fe1b8c33d34815dbe68777131e8f3bab`. `dense_legacy_fixture.hh` contains those exact bytes, with no version-2 encoder or serving code.
+
+The new `test_local_dense_refetch` starts separate processes and exits at four concrete cuts: before `Remove(selected)`, after removal before its directory barrier, after durable absence, and after a 13-byte replacement-root write. Restart exercises a complete record snapshot plan, exact values, selected recovery/confirmation, owned-debris reclamation and exact disk-census equality. Separate cases cover bad root checksum, storage/generation mismatches, obsolete-looking root bytes under ownership3, unknown framing, unowned leases, a held owner lock, a held old-reader lease, foreign-file preservation, and embedded-page refusal during full recovery and lazy first touch. Proof execution pending at the committed candidate.
+
+## Final security-review questions
+
+1. Confirm that authenticated ownership2 plus exact DTROOT02/version2/320-byte framing is the intended deselection boundary; ownership3 and unrecognized damage remain fenced with `selected` intact.
+2. Confirm that the stable owner lock, selected checksum/ownership rechecks and retained shared generation lease carry enough authority through census/removal/barrier, including failure and cancellation.
+3. Confirm that exclusive-lease root cleanup plus a complete segment mark/sweep safely reclaims old packs; a held obsolete root blocks sweep and retains all quota debt until later collection.
+4. Confirm the trusted-v3 no-page/pack-scan ruling and the residual for framing-valid writes after verification. This change adds no general damaged-pack repair.

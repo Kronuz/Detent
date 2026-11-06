@@ -1,83 +1,27 @@
-> Status: CURRENT (2026-11-03) how managed recovery compares each segment checksum and page digest once, read from `src/detent_local/` at the head of `phase/hash-once`.
-
 # Recovery compares each digest once
 
-A cold paged recovery (`RecoveryEngine::recover`, `generation.cc`) runs two graph passes over the same
-pack bytes. Each pass used to compute and compare every digest; now the first pass compares and the
-second skips what the first already proved.
+A full paged recovery runs discovery and semantic graph validation over the same pack bytes. Discovery compares every pack checksum and reachable page digest. The graph pass reuses that evidence while checking canonical packing and semantics (`src/detent_local/paged_dependency_discovery.cc`, `paged_graph_validator.cc`).
 
-## The digests
+| Digest | Input | Expected value |
+| --- | --- | --- |
+| Pack checksum | Every file byte, including placement and padding | The owned segment record's checksum |
+| Page digest | Header outside its digest field, nodes and external-child content | The parent reference's digest |
+| Root checksum | Every byte of DTROOT03 | The selected descriptor's checksum |
 
-Three different digests protect a pack, and each has its own comparison:
+Each page has one placement-free digest. Its reference also binds length, key count and height to the reached header. Page relocation preserves that digest. Pack checksums cover the placement bytes outside page commitments.
 
-| Digest | Over | Compared with | Compared in |
-| --- | --- | --- | --- |
-| Segment checksum | the whole pack file | `ownership.checksum` in the `.owner` record | `DependencyDiscovery` (Hash phase) |
-| Page physical digest | the page's bytes | `reference.physical` from the parent page or root | `PageValidator`, Physical phase |
-| Page logical digest | the page's header frame, prefix, child labels with child logical digests, and body | `reference.logical` | `PageValidator`, Seal phase |
+## Discovery and the carried proof
 
-The segment checksum covers padding between pages that no page digest covers; the page digests
-chain to the root image, which `selected` authenticates, and the segment checksum does not. All
-three comparisons stay, so a pack is hashed three times, not six.
+`DependencyDiscovery` obtains each owned pack, compares its checksum and inserts it into the admitted sorted registry. `PagedDependencyWalk` validates every reachable page. When a complete discovery skips no frontier, `SegmentRegistry::certify_digests(root)` binds that evidence to the exact root and registry inputs.
 
-## The two passes
+`GraphValidator` accepts that registry as optional evidence. It requires the certified root to encode identically to its target and the input span to be the registry's own span. It then skips pack hashing and creates page validators with `compare_digests = false`. Header/reference equality and structural validation still run (`src/detent_local/paged_page_validator.cc:45`). Canonical packing, key order, counts, leaf semantics and disjoint extents remain graph checks.
 
-1. `DependencyDiscovery` walks the tree from the root page. Each segment it needs is supplied by the
-   recovery loop, hashed against its owner record, and inserted into the sorted registry. Its
-   `PagedDependencyWalk` runs a `PageValidator` per page, which compares both page digests.
-2. `GraphValidator` walks the same tree over the finished registry for the semantic checks (key
-   order, counts, definitions, extent overlap). It used to hash every segment again (`Segments`
-   phase) and run a second `PageValidator` per page.
+Only discovery can certify the registry. Recording final reachability clears the certificate, so it cannot authorize a later recovery. A graph validator without this evidence compares all digests. Warm validation uses its checked prior graph and validates changed paths separately.
 
-## The carried result
+## Immutability and refusal
 
-When discovery completes without a prior registry (no frontier skips any page), it calls
-`SegmentRegistry::certify_digests(root)` after `seal()` (`paged_dependency_discovery.cc`). The
-registry then holds `compared_root()`: every segment in it passed its checksum, and every page
-reachable from that root passed both page digests.
+The proof assumes that pack bytes remain unchanged between discovery and graph validation. A generation lease protects file lifetime; owner, mode, size and inode checks do not prevent a trusted writer from editing bytes. A correctly framed value change after verification can remain undetected until scrub. Reader visits retain bounds checks even on verified pages.
 
-`GraphValidator` takes the registry as an optional last constructor argument, `compared`. The
-constructor (`digests_compared`, `paged_graph_validator.cc`) requires that the registry's
-certified root encodes equal to the validator's root and that the registry's inputs are the very
-span being validated; any mismatch throws `std::invalid_argument`. When it passes:
+An intact owner record makes a flipped pack byte fail the pack checksum. If the owner checksum is rewritten, page content changes fail their page commitment or structural checks. Padding with a matching rewritten pack checksum is outside the state commitment. Page, pack and metadata hash counters record their input separately.
 
-- the `Segments` phase is skipped (`hashed_segment_bytes()` stays 0);
-- each `PageValidator` is built with `compare_digests = false` and does not hash or compare, while
-  its header decode, `header.logical == reference.logical` check, child label ordering and
-  everything else in `GraphValidator` (extent overlap marking, key and count checks) still run.
-
-Without `compared`, `GraphValidator` compares everything, as before. The warm path
-(`WarmGraphValidator`, a prior registry) is unchanged.
-
-Only `DependencyDiscovery` can certify a registry (`certify_digests` is private to it), and
-`record_reachability`, which recovery calls once validation ends, clears the certificate, so it never
-outlives the recovery that earned it.
-
-## Assumption: pack files do not change during recovery
-
-The skip is sound only if the pack bytes the second pass reads are the bytes the first pass compared.
-Segments are `MAP_PRIVATE` read-only mappings (`segment_mapping.cc:54`); the generation lease does not
-stop another writer from changing the file, and the open checks (`trusted_file`, the final `fstatat`
-loop) test owner, mode, size and inode, not content. So recovery now assumes pack files are not modified
-between discovery and validation, about 100 s apart on a 5M store.
-
-The cost, measured by the code review (`docs/reviews/hash-once.md`): with one mapped byte changed between
-the two passes, 167 of 880 flips are accepted, where main refused all 880. Queries after recovery already
-read the mapping without re-hashing, so the same assumption holds for the rest of the process's life; the
-direction is to trust a prepared generation and catch later corruption on first touch and by the scrub
-(namespace-delivery design D10). A pack that is corrupt before recovery starts is still rejected, as the
-byte-flip tests show.
-
-## Where a corrupt pack is rejected
-
-A flipped pack byte is rejected by discovery, in the same phase and with the same error as before:
-
-- Anywhere in the pack, owner record intact: `invalid paged dependency graph` (segment checksum).
-- Inside a page, owner record rewritten to match: `invalid immutable page` (page physical digest) or
-  a structural error from the page decode.
-- In padding, owner record rewritten to match: accepted, as before; no digest covers it.
-
-The checks `GraphValidator` no longer repeats cannot fail once discovery has passed on the same
-bytes. `tests/detent_local/test_paged_hash_once.cc` flips every byte of a stored pack both ways and
-records the rejection; `test_paged_snapshot_builder.cc` validates a certified registry and a
-mismatched one.
+Authenticated version-2 ownership and recognized DTROOT02 framing produce managed startup's [full-refetch path](dense-pages.md#refusal-and-reclamation). An embedded DTPAGE02 refuses when reached; unsupported bytes under version-3 ownership cannot authorize selection removal. Trusted version-3 restart reads its authenticated root and derived records, then maps packs without a graph scan. Page first touch and scrub supply its subsequent integrity checks.
