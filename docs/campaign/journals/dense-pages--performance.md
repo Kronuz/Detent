@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: preparing the real candidate stores for public-reader qualification.
+State: waiting on job 261106-112936-d91c6d.
 
 ## Scope
 
@@ -26,6 +26,11 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
    the existing model directories, prepare `.read` records, and check a real
    value through the public managed client. Build fan-out is four. Release
    uses AppleClang and READ_COUNTERS with an empty CMAKE_OSX_SYSROOT.
+5. Job 261106-112936-d91c6d runs that build/export/public-reader smoke at
+   Detent:c7438bc. Its output keeps `fullbuild`, `prepared_client_probe`,
+   `mixed_oracle`, `store-100k`, `store-5m`, and both export logs. No timing
+   claim uses this light job. Resume after the job completes, inspect every
+   stage, and use its immutable store paths in the strict smoke.
 
 ## Open gates
 
