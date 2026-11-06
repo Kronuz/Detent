@@ -150,3 +150,13 @@ State: waiting on job 261106-061455-47047e.
 Composed job 261106-061455-47047e pins all five fixtures to Detent:24753d6,
 using Apple Clang Debug and the existing dense-deltas-trial slot, at most four
 build jobs. This run includes both root metadata hash integration checkpoints.
+
+State: blocked on integration publication lease version; four delta fixtures pass.
+
+Composed job 261106-061455-47047e builds all five targets and passes delta
+leaves, overlay assembly, delta plan and dense delta assembly at Detent:24753d6.
+Compaction throws invalid local storage ownership record. The publication-owned
+paged_publication_artifacts.cc:76 still passes layout 2 to
+encode_generation_ownership, whose version-3 encoder now rejects it. Reported
+that exact caller to the lead; no publication edits made. The single permitted
+wait is complete. No 1,000-round workload expansion.
