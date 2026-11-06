@@ -160,3 +160,12 @@ paged_publication_artifacts.cc:76 still passes layout 2 to
 encode_generation_ownership, whose version-3 encoder now rejects it. Reported
 that exact caller to the lead; no publication edits made. The single permitted
 wait is complete. No 1,000-round workload expansion.
+
+## Publication lease qualification (2026-11-06)
+
+Integrated approved version-3 artifact lease checkpoint as Detent:1ebf0c7.
+Composed job 261106-062412-e50b10 is pinned to that exact code, using the same
+five fixtures, Apple Clang Debug and dense-deltas-trial slot with at most four
+build jobs. No seeded workload expansion.
+
+State: waiting on job 261106-062412-e50b10.
