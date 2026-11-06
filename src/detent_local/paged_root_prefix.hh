@@ -5,6 +5,9 @@ namespace detent::local::detail {
 // Structural prefix checks supply no graph or segment deletion authority.
 std::optional<std::pair<distribution::Cursor, distribution::Profile>>
 	validate_paged_root_prefix(std::span<const char>);
+// Obsolete framing is recognized only for owned, unselected artifact cleanup.
+std::optional<std::pair<distribution::Cursor, distribution::Profile>>
+	validate_obsolete_root_prefix(std::span<const char>);
 inline paged::Limits paged_format_limits() noexcept {
 	paged::Limits limits;
 	limits.bytes = limits.pages = limits.segments = UINT64_MAX;

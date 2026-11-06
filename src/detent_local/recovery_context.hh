@@ -1,6 +1,16 @@
 #pragma once
 #include "mapped_recovery_admission.hh"
 namespace detent::local::detail {
+// Only authenticated owned selections carry authority to become absent at startup.
+struct ObsoleteGeneration final : std::runtime_error {
+	GenerationSelection selection;
+	GenerationOwnership ownership;
+	std::shared_ptr<const void> lease;
+	ObsoleteGeneration(GenerationSelection selection, GenerationOwnership ownership,
+					   std::shared_ptr<const void> lease)
+		: std::runtime_error("obsolete owned generation requires a full copy"),
+		  selection(selection), ownership(ownership), lease(std::move(lease)) {}
+};
 struct RecoveryMetrics {
 	std::uint64_t root_hash_bytes = 0, segment_hash_bytes = 0;
 	std::uint64_t root_mapping_installs = 0, segment_mapping_installs = 0;

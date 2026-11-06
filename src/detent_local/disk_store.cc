@@ -64,6 +64,7 @@ struct StartupData {
 	std::uint64_t segment_owners_seen = 0, segment_packs_seen = 0;
 	c::EntryInspection observed;
 	std::optional<Descriptor> selected;
+	std::optional<detail::ObsoleteGeneration> obsolete;
 	std::optional<StorageIdentity> stored_identity;
 	DiskLedger::Permit metadata_permit;
 	std::uint64_t anchors = 0;
@@ -181,8 +182,17 @@ class StartupOperation final : public c::Operation {
 					data_->reader.start(data_->observed_name(), record_length_, data_->core->owner,
 										data_->core->session->directory_identity());
 					prepare_reader();
-				} else if (phase == Phase::Barrier)
+				} else if (phase == Phase::RemoveSelected) {
+					data_->selected.reset();
+					prepare(Phase::Barrier, c::Kind::DirectorySync);
+				} else if (phase == Phase::Barrier) {
+					if (data_->obsolete) {
+						data_->core->ledger.reclaimed({descriptor_bytes, 1, 0});
+						data_->obsolete.reset();
+						data_->core->collect = true;
+					}
 					ready();
+				}
 			}
 		} catch (...) {
 			remember(std::current_exception());
@@ -226,6 +236,7 @@ class StartupOperation final : public c::Operation {
 		Sync,
 		Close,
 		CreateMetadata,
+		RemoveSelected,
 		Barrier,
 		Done
 	};
@@ -256,6 +267,8 @@ class StartupOperation final : public c::Operation {
 			request_.file = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
 		if (kind == c::Kind::OpenInto || kind == c::Kind::InspectEntry)
 			request_.source = data_->observed_name();
+		if (phase == Phase::RemoveSelected)
+			request_.source = "selected";
 	}
 	void prepare_reader() {
 		phase_ = Phase::Read;
@@ -266,6 +279,7 @@ class StartupOperation final : public c::Operation {
 	void observe_entry(const c::EntryInspection &entry) {
 		auto &data = *data_;
 		auto &core = *data.core;
+		const auto verified = data.obsolete ? std::optional(data.obsolete->selection.descriptor) : core.verified;
 		const auto name = data.observed_name();
 		data.expected_segment.reset();
 		if (name == "owner.lock") {
@@ -292,9 +306,9 @@ class StartupOperation final : public c::Operation {
 			record_length_ = descriptor_bytes;
 			read = true;
 		} else if (const auto parsed = detail::parse_generation_name(name);
-				   parsed && parsed->kind == detail::GenerationFile::Image && core.verified &&
-				   parsed->generation == core.verified->generation) {
-			if (!safe(entry, core) || entry.footprint.logical_bytes != core.verified->length)
+				   parsed && parsed->kind == detail::GenerationFile::Image && verified &&
+				   parsed->generation == verified->generation) {
+			if (!safe(entry, core) || entry.footprint.logical_bytes != verified->length)
 				throw std::runtime_error("selected image differs from verified recovery");
 			data.selected_image_seen = true;
 			record_length_ = 0;
@@ -306,7 +320,7 @@ class StartupOperation final : public c::Operation {
 			++data.anchors;
 			if (!safe(entry, core) || entry.footprint.logical_bytes != 0)
 				data.upgrade_blocked = true;
-			if (core.verified && parsed->generation == core.verified->generation) {
+			if (verified && parsed->generation == verified->generation) {
 				data.selected_lease_seen = true;
 				record_length_ = 0;
 				read = true;
@@ -386,7 +400,8 @@ class StartupOperation final : public c::Operation {
 			throw std::runtime_error("stable owner lock disappeared");
 		const auto usage = inventory_->report().usage;
 		core.ledger.initialize(usage);
-		if (data.selected != core.verified ||
+		const auto verified = data.obsolete ? std::optional(data.obsolete->selection.descriptor) : core.verified;
+		if (data.selected != verified ||
 			(data.selected && (!data.selected_lease_seen || !data.selected_image_seen)))
 			throw std::runtime_error("selected recovery differs from retained census evidence");
 		if (core.verified_paged &&
@@ -396,12 +411,16 @@ class StartupOperation final : public c::Operation {
 		if (data.stored_identity) {
 			core.identity = *data.stored_identity;
 			if (data.selected && data.selected_owned &&
-				data.selected_ownership != GenerationOwnership{core.identity, data.selected->generation,
+				data.selected_ownership != (data.obsolete ? data.obsolete->ownership : GenerationOwnership{core.identity, data.selected->generation,
 															   data.selected->length, data.selected->checksum,
-															   core.verified_paged ? paged::format_version : 1u})
+															   core.verified_paged ? paged::format_version : 1u}))
 				throw std::runtime_error("selected generation ownership differs from storage identity");
+			if (data.obsolete && (!data.selected_owned || data.obsolete->ownership.storage != core.identity ||
+				data.obsolete->selection.directory_identity != core.directory_identity))
+				throw std::runtime_error("obsolete selection differs from retained ownership");
 			core.bootstrap->usage = {};
-			prepare(Phase::Barrier, c::Kind::DirectorySync);
+			prepare(data.obsolete ? Phase::RemoveSelected : Phase::Barrier,
+					data.obsolete ? c::Kind::Remove : c::Kind::DirectorySync);
 			return;
 		}
 		if (core.options.mode == StoreOpenMode::ExistingManaged)
@@ -927,7 +946,7 @@ class ReclaimOperation final : public c::Operation {
 				if (part == 1) {
 					if (result.inspection && result.inspection->footprint.logical_bytes) {
 						data_->prefix_length = std::min<std::uint64_t>(
-							slot().proof.layout_version == paged::format_version ? paged::root_bytes : header_bytes,
+							slot().proof.layout_version >= 2 ? paged::root_bytes : header_bytes,
 							result.inspection->footprint.logical_bytes);
 						data_->prefix_offset = 0;
 						slot().valid = true;
@@ -1192,6 +1211,13 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
+		if (slot().proof.layout_version == 2) {
+			slot().image_scope = detail::validate_obsolete_root_prefix(bytes);
+			if (bytes.size() == paged::root_bytes &&
+				paged::metadata_commitment(bytes) != slot().proof.image_checksum)
+				throw std::runtime_error("obsolete root checksum differs from ownership");
+			return;
+		}
 		if (slot().proof.layout_version == paged::format_version) {
 			slot().image_scope = detail::validate_paged_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes) {
@@ -1269,7 +1295,7 @@ class ReclaimOperation final : public c::Operation {
 			throw std::runtime_error("partial descriptor has unconfigured identity");
 	}
 	void validate_metadata_prefix(std::span<const char> bytes) {
-        if (slot().proof.layout_version != paged::format_version)
+        if (slot().proof.layout_version < 2)
             throw std::runtime_error("reader metadata requires a paged generation");
         detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
                                                        slot().proof.image_checksum, {}, paged::root_bytes});
@@ -1784,6 +1810,8 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 				throw std::runtime_error("recovered directory differs from stable session");
 			core->retain_recovered(recovered);
 		}
+	} catch (const detail::ObsoleteGeneration &obsolete) {
+		data->obsolete = obsolete;
 	} catch (...) {
 		data->failure = std::current_exception();
 		core->fence(data->failure);

@@ -43,3 +43,11 @@ The composed compaction build failed because PagedNamedRoot still called removed
 The composed compaction compile exposed the final production physical_commitment caller in disk-store census. Its root checksum comparison now uses metadata_commitment. A repository-wide src/include search finds no remaining old caller. Delta proof 261106-061050-6ac155 passes leaves, overlay and dense assembly; delta-plan immutable graph validation remains open.
 
 Publication artifacts now encode generation leases with paged::format_version, matching the managed-store path. The composed compaction failure in261106-061455-47047e identified the stale version2 literal. Four delta fixtures pass; rerun all five after composing this checkpoint.
+
+## S5 refusal mechanism checkpoint
+
+State: implementing deterministic refusal/refetch/restart proof.
+
+Recovery routes recognized lease version 2 through the paged context and checks the selected root checksum, storage identity and generation ownership before producing retained obsolete-selection evidence. Startup census consumes that evidence, removes only `selected`, and persists absence through its existing directory barrier before Ready. The ordinary exclusive-lease generation collector recognizes v2 framing for cleanup; the pack sweep runs only after remaining roots are understood. Unknown/corrupt v3 bytes stay fenced. No dependency changes.
+
+Lead ruling: preserve trusted-v3 restart's no-page/pack-scan contract. An embedded DTPAGE02 refuses when reached by full validation or first touch; manufactured old bytes under v3 ownership never authorize automatic deselection. Legitimate owned v2 stores refetch. The frozen-v2 fixture generator builds against Detent:785fb34 and validates exact values before exporting fixture bytes. Deterministic proof and security-review questions follow.
