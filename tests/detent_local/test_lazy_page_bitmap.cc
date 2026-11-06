@@ -298,7 +298,7 @@ std::vector<p::Reference> all_pages(const Fixture &fixture) {
 				continue;
 			const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
 			const auto header = p::decode_page_header(bytes);
-			for (unsigned i = 0; i != header.external; ++i)
+			for (unsigned i = 0; i != header.externals; ++i)
 				self(p::decode_external(bytes, i), self);
 		}
 	};
