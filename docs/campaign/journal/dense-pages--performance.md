@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: working
+State: waiting on jobs 261106-132451-040107 261106-132451-1f5ce0 261106-132922-093a04
 
 ## Scope
 
@@ -86,6 +86,35 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
     and repeated independent Client constructions provide enough samples for
     macOS stack sampling. Profiling data is diagnostic, not gate evidence:
     repeated attachments share the process runtime and include sampling cost.
+18. Owner parks new work for the Claude handoff. Detent:ff1658d commits the
+    test-only profiling probe; build 261106-132922-093a04 is queued in
+    dense-release. No sampling job is submitted and no production source is
+    changed by this diagnostic step. Stop new experiments and let the lead
+    drain the existing bounded jobs.
+
+## Handoff
+
+1. Branch `quest/dense-pages--performance`, worktree
+   `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages--performance`.
+   The feature branch was fast-forwarded through Detent:1d2b4c0 before the
+   test-only profile commit. No production optimization is present here.
+2. Retain warm-comparison job 261106-132451-040107 and first200 job
+   261106-132451-1f5ce0. Both run at Detent:a729b77. Their raw results are
+   under `~/.scratch/campaign/jobs/<id>/a1/out/results/`. The latest real
+   candidate stores and binaries are in job 261106-132438-20983c outputs;
+   baseline stores and binaries remain in 261106-113938-0f7177 outputs.
+3. Diagnostic build 261106-132922-093a04 runs at Detent:ff1658d and copies
+   its binary to `JOB_OUT/probe`. The explicit command is
+   `probe --profile DIR KEY EXPECTED REPETITIONS`; output adds segment-map
+   duration through the existing hook. A future isolated macOS `sample`
+   run can attribute repeated attachment stacks, but is not yet queued.
+4. The current public Client baseline also misses the 1 ms target in the
+   strict smoke. `reader.md` describes that pre-existing failure and makes
+   T2 a target of the broader S6 core, absent from current main. The owner
+   parks S6 for this Dense-only work; Claude owns that broader plan and must
+   reconcile the Dense reader gate with S6. This task neither waives the
+   threshold nor attributes baseline misses to Dense. Do not report smoke
+   or repeated-process profiling as first-read acceptance.
 
 ## Open gates
 
