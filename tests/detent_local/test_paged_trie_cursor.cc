@@ -1,6 +1,3 @@
-#include "detent_local/paged_definition.hh"
-#include "paged_graph_validator.hh"
-#include "paged_segment_builder.hh"
 #include "paged_trie_cursor.hh"
 #include <iostream>
 #include <stdexcept>
@@ -24,8 +21,6 @@ template <class Error, class F> void rejects(F call) {
 }
 struct Source {
 	std::vector<std::string> keys;
-	std::shared_ptr<const d::OwnedBuffer> bytes;
-	std::array<l::detail::SegmentInput, 1> segments;
 };
 std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> output) {
 	const auto &text = static_cast<const Source *>(owner)->keys.at(ordinal);
@@ -33,130 +28,75 @@ std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> output
 	std::copy(text.begin(), text.end(), output.begin());
 	return text.size();
 }
-std::span<const char> body(const Source &source, std::size_t ordinal, std::span<char> output) {
-	if (p::decode_key(source.keys[ordinal]).kind == p::PageKind::Namespace) {
-		l::write_integer(output, 0, source.keys.size() + 1, 8);
-		return output.first(8);
-	}
-	p::encode_definition(output.first(24),
-						 detent::KnobDef{detent::IntDef{static_cast<std::int64_t>(ordinal)}}, ordinal + 1);
-	return output.first(24);
-}
-p::Digest oracle(const Source &source, std::size_t begin, std::size_t end, int parent = -1) {
+struct Expected {
+	p::PageKind kind;
+	std::uint64_t ordinal, keys;
+	std::string key, prefix;
+	std::vector<std::uint8_t> children;
+};
+void oracle(const Source &source, std::size_t begin, std::size_t end,
+            std::vector<Expected> &events, int parent = -1) {
 	if (begin == end)
-		return p::empty_commitment();
+		return;
 	const auto &first = source.keys[begin];
+	const auto below = static_cast<std::size_t>(parent + 1);
 	if (end - begin == 1) {
-		std::array<char, 24> value{};
-		return p::logical_commitment(p::decode_key(first).kind, std::string_view(first).substr(parent + 1),
-									 {}, body(source, begin, value));
+		events.push_back({first[0] == 'K' ? p::PageKind::Definition : p::PageKind::Namespace,
+		                  begin, 1, first, first.substr(below), {}});
+		return;
 	}
 	const auto &last = source.keys[end - 1];
 	std::size_t common = 0;
 	while (common < first.size() && first[common] == last[common])
 		++common;
-	std::vector<p::Child> children;
+	std::vector<std::uint8_t> children;
 	for (auto next = begin; next < end;) {
 		const auto label = static_cast<unsigned char>(source.keys[next][common]);
 		auto stop = next + 1;
 		while (stop < end && static_cast<unsigned char>(source.keys[stop][common]) == label)
 			++stop;
-		p::Child child;
-		child.label = label;
-		child.reference.logical = oracle(source, next, stop, common);
-		children.push_back(child);
+		oracle(source, next, stop, events, static_cast<int>(common));
+		children.push_back(label);
 		next = stop;
 	}
-	return p::logical_commitment(
-		p::PageKind::Branch, std::string_view(first).substr(parent + 1, common - parent - 1), children, {});
+	events.push_back({p::PageKind::Branch, 0, end - begin, first.substr(0, common),
+	                  first.substr(below, common - below), std::move(children)});
 }
 void qualify(std::vector<std::string> keys) {
 	auto source = std::make_shared<Source>();
 	source->keys = std::move(keys);
+	std::vector<Expected> expected;
+	oracle(*source, 0, source->keys.size(), expected);
 	auto account = std::make_shared<d::StorageLedger>(8 * p::segment_bytes);
-	l::StorageIdentity storage{}, generation{};
-	storage.fill('s');
-	generation.fill('g');
-	std::uint64_t pages = 0, extents = 0;
-	std::uint32_t records = 0, namespaces = 0;
 	{
 		l::detail::TrieCursor cursor(account, source, key, source->keys.size());
-		l::detail::SegmentBuilder segment(account, storage, generation, 0);
 		unsigned turns = 0;
+		std::size_t emitted = 0;
 		while (!cursor.done()) {
 			l::ValidationBudget budget{1, 1};
 			cursor.step(budget);
 			check(budget.bytes <= 1 && budget.rows <= 1 && ++turns < (source->keys.size() + 1) * 4096);
 			if (!cursor.ready())
 				continue;
+			check(emitted < expected.size());
 			const auto event = cursor.event();
-			std::array<char, 24> value{};
-			const auto payload = event.kind == p::PageKind::Branch ? std::span<const char>{}
-																   : body(*source, event.ordinal, value);
-			l::detail::PageBuilder page(account, event.kind, event.keys, event.prefix, event.children,
-										payload);
-			while (!page.done()) {
-				l::ValidationBudget work{1, 1};
-				page.step(work);
-			}
-			check(segment.fits(page));
-			segment.append(page);
-			while (!segment.page_ready()) {
-				l::ValidationBudget work{1, 1};
-				segment.step(work);
-			}
-			const auto reference = segment.reference();
-			++pages;
-			extents += reference.length;
-			if (event.kind == p::PageKind::Definition)
-				++records;
-			if (event.kind == p::PageKind::Namespace)
-				++namespaces;
-			l::ValidationBudget disposal{0, 1};
-			check(page.discard(disposal));
-			for (;;) {
-				l::ValidationBudget work{1, 1};
-				if (cursor.commit(reference, work))
-					break;
-				check(cursor.ready());
-			}
+			const auto &wanted = expected[emitted++];
+			check(event.kind == wanted.kind && event.ordinal == wanted.ordinal &&
+			      event.keys == wanted.keys && event.key == wanted.key && event.prefix == wanted.prefix &&
+			      std::equal(event.children.begin(), event.children.end(), wanted.children.begin(), wanted.children.end()));
+			l::ValidationBudget zero{0, 0};
+			check(!cursor.commit(zero) && cursor.ready() && cursor.event().prefix == wanted.prefix);
+			l::ValidationBudget commit{0, 1};
+			check(cursor.commit(commit));
 		}
-		const auto root = cursor.root();
-		if (!pages)
-			check(root == p::Reference{});
-		else {
-			check(root.logical == oracle(*source, 0, source->keys.size()));
-			segment.seal();
-			l::ValidationBudget budget;
-			segment.step(budget);
-			source->bytes = segment.bytes();
-			source->segments[0] = {segment.ownership(), {source->bytes->data(), source->bytes->size()}};
-			p::Root manifest;
-			manifest.cursor.cluster.fill('c');
-			manifest.cursor.group.fill('g');
-			manifest.cursor.restore_epoch.fill('e');
-			manifest.cursor.scope.fill('s');
-			manifest.cursor.revision = source->keys.size() + 1;
-			manifest.records = records;
-			manifest.namespaces = namespaces;
-			manifest.pages = pages;
-			manifest.bytes = extents;
-			manifest.segments = 1;
-			manifest.tree = root;
-			manifest.logical = root.logical;
-			l::detail::GraphValidator validator(account, source, source->segments, manifest, storage);
-			while (!validator.done()) {
-				l::ValidationBudget work;
-				validator.step(work);
-			}
-			check(validator.root().pages == pages);
-		}
+		check(emitted == expected.size());
+		rejects<std::logic_error>([&] { cursor.event(); });
 		l::ValidationBudget disposal{0, 1};
 		check(cursor.discard(disposal));
 	}
-	source->bytes.reset();
 	check(!account->used());
 }
+
 } // namespace
 int main() {
 	qualify({});
@@ -189,7 +129,7 @@ int main() {
 			}
 		});
 		check(!cursor.done() && !cursor.ready());
-		rejects<std::logic_error>([&] { cursor.root(); });
+		rejects<std::logic_error>([&] { cursor.event(); });
 		l::ValidationBudget disposal{0, 1};
 		check(cursor.discard(disposal) && !account->used());
 	}
@@ -237,5 +177,5 @@ int main() {
 		}
 		check(!short_work->used());
 	}
-	std::cout << "streamed canonical trie matches independent grouping and complete graph validation\n";
+	std::cout << "streamed canonical trie matches independent event grouping\n";
 }
