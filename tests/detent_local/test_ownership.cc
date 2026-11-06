@@ -114,7 +114,7 @@ int main() {
 			reseal(broken);
 			rejected([&] { l::decode_segment_ownership(broken); });
 		}
-		for (auto length : {0u, 79u, 1048577u}) {
+		for (auto length : {0u, 63u, 1048577u}) {
 			auto broken = segment_bytes;
 			l::write_integer(broken, 48, length, 8);
 			reseal(broken);
@@ -122,6 +122,8 @@ int main() {
 			segment.length = length;
 			rejected([&] { l::encode_segment_ownership(segment); });
 		}
+		segment.length = 64;
+		check(l::decode_segment_ownership(l::encode_segment_ownership(segment)) == segment);
 		segment.length = 1048576;
 		check(l::decode_segment_ownership(l::encode_segment_ownership(segment)) == segment);
 		for (std::size_t at = 0; at < storage.size(); ++at) {
