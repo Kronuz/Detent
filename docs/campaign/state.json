@@ -421,7 +421,10 @@
           "files": [
             "tests/detent_local/test_dense_fullbuild.cc",
             "tests/detent_system/*",
-            "docs/perf/dense-pages*"
+            "docs/perf/dense-pages*",
+            "src/detent_local/lazy_page_access.*",
+            "src/detent_local/paged_page_validator.*",
+            "src/detent_local/prepared_reader.*"
           ],
           "worktree": "../Detent-wt/dense-pages--performance"
         },
@@ -444,7 +447,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T13:27:05",
+      "updated": "2026-11-06T13:27:06",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
