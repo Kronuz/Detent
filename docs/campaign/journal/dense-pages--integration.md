@@ -86,3 +86,11 @@ State: preparing one focused semantic mutation proof at passing Detent:9ceabbd. 
 Job 261106-070003-0436c9 kills both semantic mutants: disabling authenticated refusal fails the child Ready invariant (and parent exit check); skipping the absence barrier fails exact census/credit equality. The final restored-production run fails with `lock journal owner: Resource temporarily unavailable`. This is a fixture lifetime race: `restart_copy` reopens the directory on the same runtime before its retirement worker necessarily releases the prior NativeOwner, despite DiskStore drainage. The test now ends and drains the first Runtime before constructing the restart Runtime, preserving the intended real restart and every assertion. No production behavior changes. State: rerunning the same focused mutation/restoration proof at this deterministic lifetime correction.
 
 State: waiting on 261106-070134-ecbe03 at Detent:829f828. It repeats the same semantic refusal mutant, absence-barrier mutant and restored-production pass with deterministic runtime release between restarts. Prior mutant failures are recorded above; final success at this corrected test head awaits this job. No production code changes follow the passing Detent:9ceabbd qualification.
+
+## Final S5 proof result
+
+State: ready for whole-feature review.
+
+Job 261106-070134-ecbe03 passes, exit 0, at Detent:829f828. Disabling authenticated ownership2 refusal fails the real-process Ready/exit invariants (CTest exit 8, 0.38 s). Publishing Ready without the absence barrier fails exact named-file census/credit equality (CTest exit 8, 0.54 s). Restored production passes `test_local_dense_refetch` (4.26 s). Raw per-mutant logs and restored output remain in that job's `out/` and log. The surviving context-routing mutant is explicitly equivalent; no incidental routing assertion is added.
+
+Final evidence: frozen baseline exact-value fixture 261106-063837-22f097; candidate refetch/ownership 261106-065403-f3c14e; corrected real-restart test plus both semantic mutant kills and restored pass 261106-070134-ecbe03. All S5 production changes and deterministic tests are committed. Whole-feature security/correctness and architect rulings remain the lead's gates; the four final security-review questions above describe the precise boundary to examine.
