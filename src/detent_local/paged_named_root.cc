@@ -321,7 +321,7 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 										  state_->ownership.image_checksum, header.cursor, header.profile};
 					state_->cached.reset();
 				} else {
-					if (paged::physical_commitment(state_->bytes) != state_->ownership.image_checksum)
+					if (paged::metadata_commitment(state_->bytes) != state_->ownership.image_checksum)
 						throw std::runtime_error("named paged root checksum mismatch");
 					state_->root = paged::decode_root(state_->bytes, paged_format_limits());
 					state_->descriptor = {state_->generation, paged::root_bytes,

@@ -35,3 +35,7 @@ Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurem
 ## Resumed qualification
 
 Job 261105-211305-158ebe exposed a stale test: segment length 79 is legal with the 64-byte dense header. The exact lower boundary is now 63 rejected, 64 accepted. Production ownership rules are unchanged by this fixture correction.
+
+## Publication blocker resumed
+
+The composed compaction build failed because PagedNamedRoot still called removed physical_commitment for root metadata. It now uses metadata_commitment, matching snapshot and overlay descriptor construction. Targeted named-root/compaction qualification follows at this exact commit. No waiting on an owner decision.
