@@ -101,3 +101,7 @@ regression's assertion. The fixture now uses one 64 KiB dense page of spare
 headroom, asserts StoragePressure specifically, and checks every child account,
 the parent and runtime metadata account only after runtime shutdown. Native
 final pair and repeated margin stability validation pending.
+
+Use a per-variant drainage guard to preserve the surrounding source shape;
+all core/collector handles die before domain drainage, and runtime shutdown
+precedes aggregate byte checks. Reverted unrelated formatter churn.
