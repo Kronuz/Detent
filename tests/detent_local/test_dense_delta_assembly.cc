@@ -1,4 +1,6 @@
 #include "dense_fixture.hh"
+#include "detent_local/paged_definition.hh"
+#include "paged_read_state.hh"
 #include "paged_navigation.hh"
 #include "paged_overlay_assembler.hh"
 #include "paged_packer.hh"
@@ -10,6 +12,12 @@ using namespace dense_test;
 namespace x = l::detail;
 namespace d = detent::distribution;
 using Rows = std::map<std::string, std::vector<char>>;
+static std::vector<char> encoded(const detent::KnobDef &value) {
+	std::vector<char> bytes(p::definition_size(value));
+	p::encode_definition(bytes, value, 8);
+	p::validate_definition(bytes, 17, 256);
+	return bytes;
+}
 struct Base {
 	struct Pack {
 		l::SegmentOwnership ownership;
@@ -207,6 +215,12 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		return a.ownership.segment < b.ownership.segment;
 	});
 	const auto actual = occurrences(merged, image.root());
+	x::PagedReadState reader{image.root(), merged};
+	for (const auto &[key, body] : rows) {
+		const auto reached = reader.lookup(key, key.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace);
+		require(reached && reached->size() == body.size() &&
+		        std::equal(reached->begin(), reached->end(), body.begin(), body.end()));
+	}
 	const auto expected = Full(account).build(rows);
 	require(p::state_commitment(image.root()) == p::state_commitment(expected.root));
 	require(image.root().pages == expected.root.pages && image.root().bytes == expected.root.bytes);
@@ -247,11 +261,12 @@ int main(int argc, char **argv) {
 	require(rounds > 0 && rounds <= 1000000);
 	auto account = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
+	l::write_integer(rows.at(key("ns", true)), 0, 17, 8);
 	for (unsigned i = 0; i < 2000; ++i)
-		rows[key("ns:k" + std::to_string(i))] = std::vector<char>(24, char(i));
+		rows[key("ns:k" + std::to_string(i))] = encoded(detent::IntDef{static_cast<std::int64_t>(i)});
 	auto base = std::make_shared<Base>(Full(account).build(rows));
 	require(check(account, base, rows, {}) == 0);
-	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=std::vector<char>(24,'z');check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
+	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=encoded(detent::IntDef{-1});check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
 	std::mt19937 rng(1729);
 	for (unsigned trial = 0; trial < rounds; ++trial) {
 		auto target = rows;
@@ -259,8 +274,19 @@ int main(int argc, char **argv) {
 		for (unsigned j = 0; j < 1 + trial % 500; ++j) {
 			auto k = key("ns:k" + std::to_string(rng() % 2100));
 			std::optional<std::vector<char>> body;
-			if (rng() % 3)
-				body = std::vector<char>(24 + rng() % 7000, char(rng()));
+			if (rng() % 3) {
+				if (rng() % 2) body = encoded(detent::IntDef{static_cast<std::int64_t>(rng())});
+				else {
+					detent::BoolDef value;
+					value.default_value = rng() % 2;
+					const auto count = rng() % 51;
+					for (unsigned at = 0; at < count; ++at) {
+						const auto prefix = "case" + std::to_string(at);
+						value.overrides.emplace(prefix + std::string(128 - prefix.size(), 'p'), bool(rng() % 2));
+					}
+					body = encoded(value);
+				}
+			}
 			if (body)
 				target[k] = *body;
 			else
