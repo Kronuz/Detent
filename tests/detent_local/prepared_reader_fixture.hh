@@ -143,7 +143,7 @@ struct Fixture {
         path += node.prefix;
         if (node.kind == p::PageKind::Definition) {
           const auto key = p::decode_key(path);
-          if (key.local_name == "k")
+          if (key.local_name == "k100001")
             definitions[key.name_space[0] - 'a'] = owner;
         }
         for (unsigned i = 0; i < node.labels.size(); ++i) {

@@ -276,7 +276,7 @@ void corrupt_first_touch() {
 		check(state.definition("a", "k")->default_int() == 42);
 		bool caught = false;
 		try {
-			state.definition("b", "k");
+			state.definition("b", "k100001");
 		} catch (const x::ReadSourceFailure &) {
 			caught = true;
 		}

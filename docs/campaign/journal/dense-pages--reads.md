@@ -81,3 +81,8 @@ The initial bitmap job stopped on a vector/string_view append conversion,
 corrected without changing geometry. Collection probe `261106-111223-310964`
 reproduces variant 13 with independent child accounting; its exact boundaries
 are retained in that job's stderr. Canonical geometry/sweep job follows.
+
+Canonical packing retains the small original `k` rows in the shared root.
+Direct namespace references therefore select `k100001` (the first added row),
+while the stress oracle continues reading each original `k` value. Serial
+first-touch corruption follows the representative row in its namespace pack.
