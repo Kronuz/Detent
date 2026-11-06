@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: working
+State: parked; owner requests the Claude lead handoff
 Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
@@ -102,3 +102,7 @@ The1,000-round raw-payload oracle passes at Detent:4986f72. The stronger follow-
 6. Performance task exported authentic100K/5M candidate stores and checked actual public-client values in261106-112936-d91c6d. Contended smoke timings are not acceptance evidence. Isolated reader measurements and the one/1,000-namespace cases remain pending. Current-main Client/ReadView is the API baseline; the unlanded S6 C ABI is outside this Dense-only campaign.
 
 Next: finish measurements and fuzz, replay generated corpus, rerun final native checks, obtain whole-feature correctness/performance and architect landing reviews, confirm security gaps with job evidence, then land once all criteria pass.
+
+## Owner park, 2026-11-06
+
+The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
