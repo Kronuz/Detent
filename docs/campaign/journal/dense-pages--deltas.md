@@ -52,3 +52,17 @@ State: waiting on job 261105-212056-3c8d10
 Proof job 261105-212056-3c8d10 is pinned to Detent:1a11408 (Apple
 Clang, Debug, managed publication enabled, five delta/compaction fixtures,
 maximum four build jobs). No passing composed result is claimed yet.
+
+## Scoped proof repair (2026-11-05)
+
+Job 261105-212056-3c8d10 failed while compiling the new malformed-page
+fixture: OwnedBuffer::append takes string_view, not vector<char>. The fixture
+now passes its explicit data/size span. No runtime proof resulted from that job.
+
+Integrated the approved ownership-routing checkpoints as Detent:f70bc37 and
+Detent:9258d8c. The first cherry-pick restored the integration journal absent
+from this task branch; its contents remain unchanged. The owned compaction
+fixture now writes paged::format_version in its manual lease, matching the
+shared disk fixture and the version-3 ownership codec.
+
+State: working; scoped proof resubmission follows this commit.

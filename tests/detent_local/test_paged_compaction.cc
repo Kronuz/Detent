@@ -80,7 +80,7 @@ void run(std::size_t choice) {
 		write(directory / (name + ".image"), encoded);
 		write(directory / (name + ".lease"),
 			  l::encode_generation_ownership(
-				  {storage, generation, descriptor.length, descriptor.checksum, 2}));
+				  {storage, generation, descriptor.length, descriptor.checksum, p::format_version}));
 		write(directory / (name + ".descriptor"), l::encode_descriptor(descriptor));
 		write(directory / "selected", l::encode_descriptor(descriptor));
 		for (const auto &segment : split->packs) {

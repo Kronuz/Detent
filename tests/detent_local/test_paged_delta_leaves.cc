@@ -357,7 +357,7 @@ int main() {
 		summary.digest = p::page_commitment(encoded);
 		std::copy(summary.digest.begin(), summary.digest.end(), encoded.begin() + 32);
 		auto bytes = d::make_owned_buffer(account, encoded.size());
-		bytes->append(encoded);
+		bytes->append({encoded.data(), encoded.size()});
 		bytes->seal();
 		l::GenerationId next{};
 		next.fill('a');
