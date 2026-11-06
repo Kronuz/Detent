@@ -401,25 +401,7 @@
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
           "branch": "quest/dense-pages--integration",
           "files": [
-            "src/detent_local/ownership.*",
-            "src/detent_local/generation.*",
-            "src/detent_local/disk_store.*",
-            "src/detent_local/state_cursor.*",
-            "src/detent_local/prepared_reader.*",
-            "src/detent_local/paged_state_equivalence.*",
-            "src/detent_local/paged_root_prefix.*",
-            "tests/detent_local/test_paged_root_prefix.cc",
-            "tests/detent_local/test_dense_refetch.cc",
-            "docs/HOW_IT_WORKS.md",
-            "docs/mechanisms/**",
-            "src/detent_local/paged_named_root.*",
-            "tests/detent_local/test_ownership.cc",
-            "src/detent_local/paged_publication_artifacts.*",
-            "src/detent_local/managed_recovery.hh",
-            "src/detent_local/recovery_context.hh",
-            "tests/detent_local/dense_legacy_fixture.hh",
-            "tests/detent_local/CMakeLists.txt",
-            "tests/detent_local/dense_legacy_fixture_generator.cc"
+            "docs/status/dense-integration.md"
           ],
           "worktree": "../Detent-wt/dense-pages--integration"
         },
