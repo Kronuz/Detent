@@ -186,6 +186,7 @@ void fuzz_sample(std::uint64_t &seed) {
   });
 }
 void fuzz_warm_sample(std::uint64_t &seed) {
+  namespace x = l::detail;
   struct Base {
     std::shared_ptr<prepared_test::Fixture> source =
         std::make_shared<prepared_test::Fixture>(2, 500);
