@@ -1,7 +1,10 @@
 #include "dense_corpus.hh"
+#include "change_file.hh"
 #include "detent_distribution/snapshot_encoder.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_snapshot_builder.hh"
+#include "segment_names.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -126,7 +129,8 @@ admit(const std::shared_ptr<Rows> &rows, const std::shared_ptr<d::StorageLedger>
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
-static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}) {
+static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {},
+				const std::filesystem::path &output = {}) {
 	auto account = std::make_shared<d::StorageLedger>(4ull * 1024 * 1024 * 1024);
 	auto start = std::chrono::steady_clock::now();
 	auto source = admit(rows, account);
@@ -229,14 +233,52 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 			  << hashes.metadata_calls << ", metadata_hash_bytes " << hashes.metadata_bytes
 			  << ", output_resident_bytes " << account->used() - baseline << ", peak_bytes "
 			  << account->peak() << '\n';
+	if (!output.empty()) {
+		require(std::filesystem::create_directories(output));
+		std::filesystem::permissions(output, std::filesystem::perms::owner_all);
+		trusted_records::put(output / "storage.meta", l::encode_storage_identity(storage));
+		const auto name = l::generation_name(generation);
+		trusted_records::put(output / (name + ".image"), root_bytes->view());
+		trusted_records::put(output / (name + ".lease"), l::encode_generation_ownership(
+			{storage, generation, image.descriptor().length, image.descriptor().checksum,
+			 p::format_version}));
+		const auto descriptor = l::encode_descriptor(image.descriptor());
+		trusted_records::put(output / (name + ".descriptor"), descriptor);
+		for (const auto &segment : image.segments()) {
+			const x::SegmentNames names(segment.ownership.segment);
+			trusted_records::put(output / names.payload_name(), segment.bytes->view());
+			trusted_records::put(output / names.owner_name(),
+							 l::encode_segment_ownership(segment.ownership));
+		}
+		trusted_records::put(output / "selected", descriptor);
+		const int directory = ::open(output.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		require(directory >= 0);
+		{
+			x::ChangeWriter change(directory, 1, ::getuid(), 0600);
+			change.bump_all();
+		}
+		require(::close(directory) == 0);
+		for (const auto &row : *rows) {
+			if (row.key.front() == 'W')
+				break;
+			const auto definition = p::validate_definition(row.body, source->cursor().revision);
+			if (!definition.boolean) {
+				const auto key = p::decode_key(row.key);
+				std::cout << "intprobe: key " << key.name_space << ':' << key.local_name
+						  << ", expected " << definition.default_int << '\n';
+				break;
+			}
+		}
+		std::cout << "export: directory " << output << '\n';
+	}
 	root_bytes.reset();
 	l::ValidationBudget disposal{SIZE_MAX, SIZE_MAX};
 	require(image.discard(disposal));
 	require(account->used() == baseline);
 }
 int main(int argc, char **argv) {
-	if (argc == 3) {
-		run(corpus(argv[1]), argv[2]);
+	if (argc == 3 || argc == 4) {
+		run(corpus(argv[1]), argv[2], argc == 4 ? argv[3] : "");
 		return 0;
 	}
 	require(argc == 1);
