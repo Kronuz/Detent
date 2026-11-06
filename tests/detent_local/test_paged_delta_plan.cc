@@ -262,7 +262,8 @@ int main() {
 				builder.step(work);
 			}
 			auto plan = std::make_shared<l::detail::PagedPlan>(builder.take());
-			check(plan->segments().size() >= 3 && plan->base_reachability(0).pages == 2);
+			check(image.root().pages == 1 && plan->segments().size() >= 3 &&
+					plan->base_reachability(0).pages == 0 && plan->base_reachability(0).bytes == 0);
 			check(plan->counts().ints == 1 && plan->counts().bools == 257 &&
 					plan->counts().overrides == 65537 && plan->counts().strings == 2099992);
 			check(plan->override_histogram()[0] == 1 && plan->override_histogram()[1] == 1 &&

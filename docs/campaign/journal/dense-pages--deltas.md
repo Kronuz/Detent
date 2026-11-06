@@ -99,3 +99,15 @@ Keep namespace cardinality stable and represent the duplicate keys in records,
 so the intended malformed graph reaches the guarded validation step. Add source
 line diagnostics to owned overlay/plan assertions before diagnosing their
 failing dense-layout assumptions. The 1,000-round expansion remains deferred.
+
+Diagnostic job 261106-060830-63b661 passed delta leaves and dense assembly.
+Overlay assembly fails its cancellation fixture's 100,000-turn bound while
+waiting to admit a 1-MiB segment under a one-byte budget: segment admission
+alone needs 1,048,576 turns. Raise the existing bound to two million and also
+require the builder to remain unfinished, preserving partial-pack cancellation.
+
+Delta plan fails its heavy fixture's assertion that two old pages survive.
+The current base packs all three keys into one dense page. Updating the namespace
+watermark prevents retaining that page; assert the single-page base and zero
+remaining base pages/bytes, keeping the independent full-build digest and
+per-segment graph reachability checks.

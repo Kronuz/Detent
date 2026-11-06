@@ -151,7 +151,7 @@ int main() {
 		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
 											storage, next, target);
 		for (unsigned turn = 0; account->used() - baseline < p::segment_bytes; ++turn) {
-			check(turn < 100000);
+			check(turn < 2000000 && !builder.done());
 			l::ValidationBudget work{1, 1};
 			builder.step(work);
 		}
