@@ -185,6 +185,47 @@ void fuzz_sample(std::uint64_t &seed) {
     bounded(validator);
   });
 }
+void fuzz_warm_sample(std::uint64_t &seed) {
+  struct Base {
+    std::shared_ptr<prepared_test::Fixture> source =
+        std::make_shared<prepared_test::Fixture>(2, 500);
+    l::RecoveredGeneration recovered = l::recover_generation(source->path);
+    std::shared_ptr<d::StorageLedger> account =
+        std::make_shared<d::StorageLedger>(32 * p::segment_bytes);
+  };
+  static Base base;
+  auto random = [&] {
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+    return seed;
+  };
+  const auto original = base.source->segments[0].bytes.subspan(
+      base.source->root.tree.offset, base.source->root.tree.length);
+  auto bytes = std::make_shared<std::vector<char>>(original.begin(), original.end());
+  for (unsigned i = 0, flips = random() % 5; i != flips; ++i)
+    (*bytes)[random() % bytes->size()] ^= static_cast<char>(1 + random() % 255);
+  try {
+    auto root = base.source->root;
+    ++root.cursor.revision;
+    const auto digest = p::page_commitment(*bytes);
+    std::copy(digest.begin(), digest.end(), bytes->begin() + 32);
+    l::SegmentOwnership ownership;
+    ownership.storage = base.source->storage;
+    ownership.segment.fill('z');
+    ownership.length = bytes->size();
+    ownership.checksum = p::pack_commitment(*bytes);
+    root.tree.segment = ownership.segment;
+    root.tree.offset = 0;
+    root.tree.digest = digest;
+    root.segments = 2;
+    std::array<x::SegmentInput, 1> added{{{ownership, *bytes}}};
+    x::WarmGraphValidator validator(base.account, base.recovered, bytes, added, root);
+    bounded(validator);
+  } catch (const std::invalid_argument &) {
+  } catch (const x::ReadSourceFailure &) {
+  }
+}
 double cpu_seconds() {
   rusage usage{};
   check(::getrusage(RUSAGE_SELF, &usage) == 0);
@@ -313,9 +354,10 @@ int main(int argc, char **argv) {
     std::size_t samples = 0;
     do {
       fuzz_sample(seed);
+      fuzz_warm_sample(seed);
       ++samples;
     } while (cpu_seconds() - begin < seconds);
-    std::cout << samples << " bounded dense reader/page/graph fuzz samples, "
+    std::cout << samples << " bounded dense reader/page/graph/warm fuzz samples, "
               << cpu_seconds() - begin << " CPU seconds\n";
     return 0;
   }
