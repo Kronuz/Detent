@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: working
+State: waiting on jobs 261106-113833-59651a 261106-113849-8b5e41 261106-113856-eac55c 261106-113856-ad9732
 
 ## Scope
 
@@ -47,12 +47,29 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
    oracle results, first-process warmups, resident-file warmup, A/A runs and
    counterbalanced baseline/candidate order. First reads use forty seeded
    integer keys and five rounds, with every checked value retained.
+10. At Detent:935f34b, job 261106-113833-59651a builds the tools in the
+    dense-release slot, clones the baseline stores without touching originals,
+    derives both namespace shapes, and counts actual 5M page visits. Its
+    outputs contain `baseline/` and `candidate/` tools and stores.
+11. Strict smoke 261106-113849-8b5e41 depends on that preparation. It checks
+    100K A/A and candidate warm reads plus forty 5M first-read keys in every
+    available namespace shape. Exclusive first-read job 261106-113856-eac55c
+    and warm-comparison job 261106-113856-ad9732 depend on the smoke. The
+    first-read job uses 200 samples per stopped-publisher arm. The warm job
+    uses 1M calls and a seeded 1M-key sample, first A/A then four whole
+    baseline/candidate runs in counterbalanced order. All runs use the named
+    actual mixed recipes and validate every queried value.
+12. Ruff format/check and Pyrefly report zero issues in the Python runner.
+    Compiler qualification is pending the preparation job. Existing fuzz
+    holds remain respected; no direct measurements bypass the queue.
 
 ## Open gates
 
-1. Current public-reader smoke and all quantitative measurements are pending.
+1. Current isolated public-reader smoke and quantitative measurements are pending.
 2. Record A/A spread before four interleaved baseline/candidate repetitions.
 3. Preserve named host, architecture, toolchain, corpus hashes and exact
    commits. Published comparisons require exclusive holds.
 4. Repeat accepted reader results on main after landing; task-branch results
    cannot fulfill that part of A15.
+5. Running-publisher first reads and current-API 8-thread/allocation/syscall
+   checks are not established by these jobs. They remain explicit gaps.
