@@ -225,7 +225,7 @@ int main() {
 				write(directory / (name + ".image"), {plan->bytes()->data(), plan->bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, 2}));
+						  {storage, next, plan->descriptor().length, plan->descriptor().checksum, detent::local::paged::format_version}));
 				for (const auto &segment : plan->segments()) {
 					const l::detail::SegmentNames names(segment.ownership.segment);
 					write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -278,7 +278,7 @@ int main() {
 				write(directory / (name + ".image"), bytes);
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, next, descriptor.length, descriptor.checksum, 2}));
+						  {storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 				auto metrics = std::make_shared<l::detail::RecoveryMetrics>();
 				l::detail::RecoveryContext context{domain.factory(),	heap, mappings, limits,

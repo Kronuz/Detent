@@ -4,6 +4,7 @@
 #include "paged_packer.hh"
 #include <algorithm>
 #include <stdexcept>
+#include <source_location>
 #include <vector>
 
 namespace dense_graph_test {
@@ -14,13 +15,13 @@ inline void check(bool value) {
 	if (!value)
 		throw std::runtime_error("dense validation invariant");
 }
-template <class E, class F> void rejects(F call) {
+template <class E, class F> void rejects(F call, std::source_location at = std::source_location::current()) {
 	try {
 		call();
 	} catch (const E &) {
 		return;
 	}
-	throw std::runtime_error("malformed dense input accepted");
+	throw std::runtime_error("malformed dense input accepted at " + std::string(at.file_name()) + ":" + std::to_string(at.line()));
 }
 struct Row {
 	std::string key;

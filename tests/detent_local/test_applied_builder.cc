@@ -131,7 +131,7 @@ int main() {
 			write(paged_directory / (name + ".image"), image.bytes()->view());
 			write(paged_directory / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
+					  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames names(segment.ownership.segment);
 				write(paged_directory / names.payload_name(), segment.bytes->view());

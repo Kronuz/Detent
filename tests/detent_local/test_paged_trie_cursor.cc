@@ -2,15 +2,16 @@
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
+#include <source_location>
 #include <vector>
 
 namespace d = detent::distribution;
 namespace l = detent::local;
 namespace p = l::paged;
 namespace {
-void check(bool value) {
+void check(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("canonical trie stream invariant");
+		throw std::runtime_error("canonical trie stream invariant at " + std::to_string(at.line()));
 }
 template <class Error, class F> void rejects(F call) {
 	try {
