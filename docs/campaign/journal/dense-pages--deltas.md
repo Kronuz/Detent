@@ -46,3 +46,9 @@ Known integration dependency: the shared disk fixture writes ownership layout
 routing change (Detent:6b198c3). The compaction fixture's manual lease also still
 uses layout 2; report the composed result before integrating ownership changes.
 The 1,000-round expansion remains outside this bounded trial.
+
+State: waiting on job 261105-212056-3c8d10
+
+Proof job 261105-212056-3c8d10 is pinned to Detent:1a11408 (Apple
+Clang, Debug, managed publication enabled, five delta/compaction fixtures,
+maximum four build jobs). No passing composed result is claimed yet.
