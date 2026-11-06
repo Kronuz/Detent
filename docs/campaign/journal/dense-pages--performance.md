@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: waiting on jobs 261106-113938-0f7177 261106-113947-a8ff2a 261106-113948-3d61d0 261106-113949-c5749a
+State: working
 
 ## Scope
 
@@ -70,6 +70,22 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
     Strict smoke 261106-113947-a8ff2a depends on it; exclusive first-read
     261106-113948-3d61d0 and warm comparison 261106-113949-c5749a depend on
     the smoke. Resume from these four jobs, not the superseded failed chain.
+15. Resume at Detent:1d2b4c0 includes the bounded overlay fix and the lead's
+    reader-runner corrections. The lead replaces a refused symlink fixture
+    stage with real cloned directories in 261106-132438-20983c. Functional
+    strict smoke 261106-132450-077e0a passes; its latency scores fail:
+    baseline 4ns 16/40 below 1 ms, median 1,016,658 ns; candidate 4ns 23/40,
+    median 948,406 ns; candidate 1ns 32/40, median 835,228.5 ns; candidate
+    1000ns 16/40, median 1,041,923.5 ns. Every arm has zero major faults.
+16. Exclusive A/A/interleaved 261106-132451-040107 is running; exclusive
+    first200 261106-132451-1f5ce0 is queued. These determine whether the
+    smoke scores reproduce. No production optimization follows from smoke
+    outliers alone.
+17. The prepared-client probe adds an explicit profiling mode. The existing
+    lazy-page qualification hook times segment miss through map/publication,
+    and repeated independent Client constructions provide enough samples for
+    macOS stack sampling. Profiling data is diagnostic, not gate evidence:
+    repeated attachments share the process runtime and include sampling cost.
 
 ## Open gates
 

@@ -2,6 +2,7 @@
 #include "detent_local/client_source.hh"
 #include "detent_local/read_counters.hh"
 #include "names.hh"
+#include "lazy_page_access.hh"
 #include "prepared_reader.hh"
 #include <charconv>
 #include <chrono>
@@ -14,6 +15,21 @@ namespace d = detent::distribution;
 namespace l = detent::local;
 namespace x = l::detail;
 namespace {
+struct LookupProfile {
+	std::chrono::steady_clock::time_point miss;
+	std::uint64_t mapping_ns = 0, mappings = 0;
+};
+LookupProfile *lookup_profile = nullptr;
+void profile_window(x::LazyPageWindow window, void *context) noexcept {
+	auto &profile = *static_cast<LookupProfile *>(context);
+	if (window == x::LazyPageWindow::Miss)
+		profile.miss = std::chrono::steady_clock::now();
+	else if (window == x::LazyPageWindow::Publish) {
+		profile.mapping_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
+			std::chrono::steady_clock::now() - profile.miss).count();
+		++profile.mappings;
+	}
+}
 template <class Integer> Integer integer(std::string_view text) {
 	Integer value{};
 	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
@@ -111,7 +127,11 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"table_bytes\":" << counts.table_bytes
 	          << ",\"pages_verified\":" << counts.pages_verified
 	          << ",\"bytes_hashed\":" << counts.bytes_hashed
-	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
+	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs;
+	if (lookup_profile)
+		std::cout << ",\"profile_mapping_ns\":" << lookup_profile->mapping_ns
+				  << ",\"profile_mappings\":" << lookup_profile->mappings;
+	std::cout << "}\n";
 }
 } // namespace
 int main(int argc, char **argv) {
@@ -120,6 +140,18 @@ int main(int argc, char **argv) {
 			prepare(argv);
 		else if ((argc == 5 || argc == 6) && std::string_view(argv[1]) == "--read")
             read(argv, argc == 6 ? integer<std::uint64_t>(argv[5]) : 0);
+		else if (argc == 6 && std::string_view(argv[1]) == "--profile") {
+			LookupProfile profile;
+			lookup_profile = &profile;
+			x::LazyPageTesting::install(profile_window, &profile);
+			const auto repetitions = integer<unsigned>(argv[5]);
+			for (unsigned i = 0; i < repetitions; ++i) {
+				profile = {};
+				read(argv, 0);
+			}
+			x::LazyPageTesting::install(nullptr, nullptr);
+			lookup_profile = nullptr;
+		}
 		else
 			throw std::invalid_argument(
 			    "use --prepare DIR RECORDS BYTES STRINGS HEAP MAPPINGS or --read DIR KNOB EXPECTED_INT [ITERATIONS]");
