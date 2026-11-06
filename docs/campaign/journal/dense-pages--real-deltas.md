@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: waiting on jobs 261106-132614-fcb023 261106-132621-774d99
+State: parked; owner requests the Claude lead handoff
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -71,3 +71,7 @@ native commands, and raw outputs. The 5M mode verifies its input digest before e
    matching `mutate`/`churn_main` in the pinned model. Counts compare occurrences, not digest sets.
 4. Weekly Codex quota was 96% at the first check; only one focused experiment is staged, with
    synthetic smoke gating the full real-corpus run.
+
+## Owner park, 2026-11-06
+
+The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
