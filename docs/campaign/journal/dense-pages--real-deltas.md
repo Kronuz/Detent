@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: working
+State: waiting on jobs 261106-132109-e3b576 261106-132121-4dd94d
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -27,7 +27,18 @@ Nothing. Machine work queues under light holds; no timing claims are made.
 
 | Criterion | Evidence (job id, test, commit) |
 |---|---|
-| A10/T4 | Pending committed smoke and 5M jobs. |
+| A10/T4 | Synthetic smoke `261106-132109-e3b576`; dependent actual 5M `261106-132121-4dd94d`, both at Detent:5aad259f9824e32f400400865e92d124490cf06a. |
+
+Both are light 30-minute correctness jobs in the dedicated `dense-real-deltas` build slot,
+with at most four compiler jobs. The full run depends on smoke success. Inspect them with
+`campaign job show ID` / `campaign job log ID`; outputs live under each job's `a1/out`.
+
+Exact submissions (the worktree resolves `--commit` to this code):
+
+```sh
+campaign job submit --quest dense-pages --commit 5aad259f9824e32f400400865e92d124490cf06a --level light --minutes 30 --slot dense-real-deltas --what 'Dense real-delta synthetic model/native smoke' -- bash docs/perf/dense-delta-real-corpus.sh smoke build-real-deltas
+campaign job submit --quest dense-pages --commit 5aad259f9824e32f400400865e92d124490cf06a --level light --minutes 30 --slot dense-real-deltas --after 261106-132109-e3b576 --env DENSE_CORPUS=/Users/kronuz/code/Kronuz/Detent/.claude/worktrees/agent-a7d1b230a685025e4/.scratch/dense/corpus-5m.bin --env DENSE_CORPUS_SHA256=bb87ae5d3a30f666e06bb236f1f826d7afd0ba8d942f9fffcec1db76152bc835 --env DENSE_MODEL_SHA256=96dfd0a7aad2af1f8bd8dead7f85729ddd5e6aeac4ba03ce49ce1b7ea3906bd1 --what 'Dense actual 5M delta occurrence writes and full model oracle' -- bash docs/perf/dense-delta-real-corpus.sh 5m build-real-deltas
+```
 
 Pinned input corpus: `/Users/kronuz/code/Kronuz/Detent/.claude/worktrees/agent-a7d1b230a685025e4/.scratch/dense/corpus-5m.bin`,
 SHA-256 `bb87ae5d3a30f666e06bb236f1f826d7afd0ba8d942f9fffcec1db76152bc835`.
