@@ -79,7 +79,7 @@ struct Full {
 				pack.bytes.insert(pack.bytes.end(), page.bytes->begin(), page.bytes->end());
 				p::verify_page({page.bytes->data(), page.bytes->size()}, r);
 				result.occurrences.emplace(page.path, r);
-				result.seal_order.push_back(page.path);
+				result.seal_order.emplace_back(page.path);
 				++result.root.pages;
 				result.root.bytes += r.length;
 				l::ValidationBudget commit;

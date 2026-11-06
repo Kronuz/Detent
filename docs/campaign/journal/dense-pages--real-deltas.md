@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: waiting on jobs 261106-132109-e3b576 261106-132121-4dd94d
+State: working
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -24,6 +24,11 @@ the full-build seal order with 8-byte alignment and 1 MiB packs.
 Nothing. Machine work queues under light holds; no timing claims are made.
 
 ## Evidence
+
+Initial smoke `261106-132109-e3b576` failed compilation at Detent:5aad259 because
+`vector<string>::push_back(page.path)` cannot implicitly convert `string_view`. The harness
+uses `emplace_back` to construct the string explicitly. Dependent 5M job
+`261106-132121-4dd94d` was skipped and supplies no evidence.
 
 | Criterion | Evidence (job id, test, commit) |
 |---|---|
