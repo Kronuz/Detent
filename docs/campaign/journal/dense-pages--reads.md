@@ -86,3 +86,18 @@ Canonical packing retains the small original `k` rows in the shared root.
 Direct namespace references therefore select `k100001` (the first added row),
 while the stress oracle continues reading each original `k` value. Serial
 first-touch corruption follows the representative row in its namespace pack.
+
+Canonical bitmap proof passes in `261106-111531-d8a4fa`: 77 pages across 27
+packs in the 26-namespace stress case, 113 concurrent verifications (36 duplicate
+first touches), both publication and mark windows reached, count/cap admission
+races reached, and 56 neighbour-corruption cases refused. The serial reader
+verifies every canonical page once, then the 16-thread warm pass adds no hashes.
+
+Pressure sweep `261106-111459-acd221` measured injection used=753,915 bytes and
+post-certificate drainage baseline=4,241 bytes (excluding the pressure ticket).
+16/32 KiB spare both fail retry; 64 KiB preserves first-attempt pressure and
+retry success; 96/128 KiB permit the first attempt, which correctly fails the
+regression's assertion. The fixture now uses one 64 KiB dense page of spare
+headroom, asserts StoragePressure specifically, and checks every child account,
+the parent and runtime metadata account only after runtime shutdown. Native
+final pair and repeated margin stability validation pending.

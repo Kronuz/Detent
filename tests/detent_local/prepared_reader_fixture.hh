@@ -85,8 +85,10 @@ struct Fixture {
               : detent::KnobDef(detent::IntDef{42 + j});
         std::vector<char> body(p::definition_size(source));
         p::encode_definition(body, source, 8);
-        const auto name =
-            ns + ":k" + (per_namespace == 1 || (separate_segments && j == 0) ? "" : std::to_string(100000 + j));
+        const auto name = ns + ":k" +
+                          (per_namespace == 1 || (separate_segments && j == 0)
+                               ? ""
+                               : std::to_string(100000 + j));
         length = p::encode_definition_key(key, name);
         packed->rows.push_back(
             {std::string(key.data(), length), std::move(body)});
@@ -105,9 +107,11 @@ struct Fixture {
         identities[i] = packed->segment;
         identities[i][0] = static_cast<char>(i + 1);
       }
-      // Relocate sealed canonical clusters; placement tails do not enter page digests.
+      // Relocate sealed canonical clusters; placement tails do not enter page
+      // digests.
       for (const auto &page : packed->pages) {
-        const unsigned group = page.path.size() >= 2 ? page.path[1] - 'a' : count;
+        const unsigned group =
+            page.path.size() >= 2 ? page.path[1] - 'a' : count;
         check(group <= count);
         auto &pack = packs[group];
         pack.resize((pack.size() + 7) & ~std::size_t(7));
@@ -125,11 +129,14 @@ struct Fixture {
       };
       for (unsigned i = 0; i < packed->pages.size(); ++i) {
         const auto &reference = page_references[i];
-        const auto group = std::ranges::find(identities, reference.segment) - identities.begin();
-        auto bytes = std::span<char>(packs[group]).subspan(reference.offset, reference.length);
+        const auto group = std::ranges::find(identities, reference.segment) -
+                           identities.begin();
+        auto bytes = std::span<char>(packs[group])
+                         .subspan(reference.offset, reference.length);
         const auto header = p::decode_page_header(bytes);
         for (unsigned j = 0; j < header.externals; ++j) {
-          const auto placement = p::encode_placement(relocated(p::decode_external(bytes, j)));
+          const auto placement =
+              p::encode_placement(relocated(p::decode_external(bytes, j)));
           std::copy(placement.begin(), placement.end(),
                     bytes.end() - p::placement_bytes * (header.externals - j));
         }
@@ -137,8 +144,9 @@ struct Fixture {
       }
       root.tree = relocated(root.tree);
       root.segments = packs.size();
-      auto find_definitions = [&](std::span<const char> bytes, std::size_t offset,
-                                  std::string path, p::Reference owner, auto &self) -> void {
+      auto find_definitions = [&](std::span<const char> bytes,
+                                  std::size_t offset, std::string path,
+                                  p::Reference owner, auto &self) -> void {
         const auto node = p::decode_node(bytes, offset);
         path += node.prefix;
         if (node.kind == p::PageKind::Definition) {
@@ -150,19 +158,24 @@ struct Fixture {
           const auto slot = node.slot(i);
           if (slot & 0x8000) {
             const auto child = p::decode_external(bytes, slot & 0x7fff);
-            const auto group = std::ranges::find(identities, child.segment) - identities.begin();
-            self(std::span<const char>(packs[group]).subspan(child.offset, child.length),
+            const auto group = std::ranges::find(identities, child.segment) -
+                               identities.begin();
+            self(std::span<const char>(packs[group])
+                     .subspan(child.offset, child.length),
                  p::page_header_bytes, path + node.labels[i], child, self);
           } else {
             self(bytes, slot, path + node.labels[i], owner, self);
           }
         }
       };
-      const auto group = std::ranges::find(identities, root.tree.segment) - identities.begin();
-      find_definitions(std::span<const char>(packs[group]).subspan(root.tree.offset, root.tree.length),
+      const auto group =
+          std::ranges::find(identities, root.tree.segment) - identities.begin();
+      find_definitions(std::span<const char>(packs[group])
+                           .subspan(root.tree.offset, root.tree.length),
                        p::page_header_bytes, {}, root.tree, find_definitions);
       for (const auto &reference : definitions)
-        check(reference != p::Reference{} && reference.segment != root.tree.segment);
+        check(reference != p::Reference{} &&
+              reference.segment != root.tree.segment);
     } else {
       for (auto &reference : definitions)
         reference = root.tree;
@@ -174,7 +187,7 @@ struct Fixture {
       bytes->append({packs[i].data(), packs[i].size()});
       bytes->seal();
       const l::SegmentOwnership ownership{storage, identities[i], bytes->size(),
-                                         p::pack_commitment(bytes->view())};
+                                          p::pack_commitment(bytes->view())};
       const x::SegmentNames names(ownership.segment);
       write_file(path / names.ownership.data(),
                  l::encode_segment_ownership(ownership));
