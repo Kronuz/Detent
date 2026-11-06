@@ -62,6 +62,10 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
 12. Ruff format/check and Pyrefly report zero issues in the Python runner.
     Compiler qualification is pending the preparation job. Existing fuzz
     holds remain respected; no direct measurements bypass the queue.
+13. Preparation 261106-113833-59651a fails compilation because the counting
+    access calls subspan on OwnedBuffer's string view. The probe now forms
+    a byte span explicitly. All dependent measurement jobs are skipped;
+    none provides results. Resubmit the same pipeline at the corrected code.
 
 ## Open gates
 

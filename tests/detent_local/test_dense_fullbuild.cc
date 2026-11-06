@@ -133,7 +133,8 @@ class CountingAccess final : public x::PagedPageAccess {
 			seen.push_back(ref);
 		for (const auto &segment : image_.segments())
 			if (segment.ownership.segment == ref.segment)
-				return segment.bytes->view().subspan(ref.offset, ref.length);
+				return std::span(segment.bytes->data(), segment.bytes->size())
+					.subspan(ref.offset, ref.length);
 		throw std::runtime_error("lookup names an absent segment");
 	}
 	std::uint32_t maximum_overrides() const noexcept override { return 256; }
