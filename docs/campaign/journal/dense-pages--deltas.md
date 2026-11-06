@@ -144,3 +144,9 @@ exact reachability checks for every output segment.
 
 Integrated approved store root metadata hash fix as Detent:fbe4016. Submit
 five-fixture composed proof before expanding workloads.
+
+State: waiting on job 261106-061455-47047e.
+
+Composed job 261106-061455-47047e pins all five fixtures to Detent:24753d6,
+using Apple Clang Debug and the existing dense-deltas-trial slot, at most four
+build jobs. This run includes both root metadata hash integration checkpoints.
