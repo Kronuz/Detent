@@ -1,0 +1,83 @@
+# Dense pages performance
+
+State: waiting on jobs 261106-113938-0f7177 261106-113947-a8ff2a 261106-113948-3d61d0 261106-113949-c5749a
+
+## Scope
+
+Own the Dense pages A15 and T3/T5/T6 evidence on this task branch, starting
+at Detent:88dc7fc. The game master owns acceptance criteria and landing.
+Reader T1/T2 remain gates, including 200/200 first reads below 1 ms in each
+namespace-count and publisher-state arm. A missing or failed arm stays open.
+
+## Evidence and next step
+
+1. Campaign status and check agree that the feature is active, with no
+   overlapping task edits. This task starts with a clean worktree.
+2. Prior jobs 261105-150743-b66bbc and 261105-150744-5b7a4c provide the
+   model directories for the real 100K and 5M corpora. They report 3,245
+   pages / 6,217,662 pack bytes and 162,367 pages / 315,759,038 pack bytes.
+   These are prior structural evidence, not current reader measurements.
+3. The full-build checker accepts an optional output directory. It writes
+   root, descriptor, ownership, segment payloads, selected and change records
+   using the existing codecs and file helper. It prints an integer key and
+   expected value from the admitted corpus. Image disposal and accounting
+   assertions still run after export.
+4. Next job: build in the idle dense-release slot, export both stores against
+   the existing model directories, prepare `.read` records, and check a real
+   value through the public managed client. Build fan-out is four. Release
+   uses AppleClang and READ_COUNTERS with an empty CMAKE_OSX_SYSROOT.
+5. Job 261106-112936-d91c6d passes that build/export/public-reader smoke at
+   Detent:c7438bc. Its output keeps `fullbuild`, `prepared_client_probe`,
+   `mixed_oracle`, `store-100k`, `store-5m`, and both export logs. No timing
+   claim uses this light job. Resume after the job completes, inspect every
+   stage, and use its immutable store paths in the strict smoke.
+6. The 5M actual build equals 162,367 pages, 315,432,480 page bytes,
+   302 packs and 315,759,038 pack bytes. Construction hashes 306,989,416
+   page bytes / 162,367 calls, 315,759,038 pack bytes / 302 calls and
+   22,064 metadata bytes / 303 calls. Light-job CPU and wall are informational.
+7. Merge Detent:1f8436d carries only additional test qualification beyond the
+   starting production code. The current owner plan parks S6. Current public
+   Client and pinned ReadView are the reader baseline; the nonexistent S6 C
+   ABI and reader_bench are stale assumptions, not additional prerequisites.
+8. The exporter also supports 1 or 1,000 namespaces by retaining all five
+   million actual definitions in `primary` and adding 999 namespaces of 100
+   integer definitions when requested. The all-definition walk counts distinct
+   physical pages across the production definition and watermark paths.
+9. The measurement runner records binary hashes and architecture, exact-value
+   oracle results, first-process warmups, resident-file warmup, A/A runs and
+   counterbalanced baseline/candidate order. First reads use forty seeded
+   integer keys and five rounds, with every checked value retained.
+10. At Detent:935f34b, job 261106-113833-59651a builds the tools in the
+    dense-release slot, clones the baseline stores without touching originals,
+    derives both namespace shapes, and counts actual 5M page visits. Its
+    outputs contain `baseline/` and `candidate/` tools and stores.
+11. Strict smoke 261106-113849-8b5e41 depends on that preparation. It checks
+    100K A/A and candidate warm reads plus forty 5M first-read keys in every
+    available namespace shape. Exclusive first-read job 261106-113856-eac55c
+    and warm-comparison job 261106-113856-ad9732 depend on the smoke. The
+    first-read job uses 200 samples per stopped-publisher arm. The warm job
+    uses 1M calls and a seeded 1M-key sample, first A/A then four whole
+    baseline/candidate runs in counterbalanced order. All runs use the named
+    actual mixed recipes and validate every queried value.
+12. Ruff format/check and Pyrefly report zero issues in the Python runner.
+    Compiler qualification is pending the preparation job. Existing fuzz
+    holds remain respected; no direct measurements bypass the queue.
+13. Preparation 261106-113833-59651a fails compilation because the counting
+    access calls subspan on OwnedBuffer's string view. The probe now forms
+    a byte span explicitly. All dependent measurement jobs are skipped;
+    none provides results. Resubmit the same pipeline at the corrected code.
+14. Corrected preparation 261106-113938-0f7177 runs at Detent:2a0968f.
+    Strict smoke 261106-113947-a8ff2a depends on it; exclusive first-read
+    261106-113948-3d61d0 and warm comparison 261106-113949-c5749a depend on
+    the smoke. Resume from these four jobs, not the superseded failed chain.
+
+## Open gates
+
+1. Current isolated public-reader smoke and quantitative measurements are pending.
+2. Record A/A spread before four interleaved baseline/candidate repetitions.
+3. Preserve named host, architecture, toolchain, corpus hashes and exact
+   commits. Published comparisons require exclusive holds.
+4. Repeat accepted reader results on main after landing; task-branch results
+   cannot fulfill that part of A15.
+5. Running-publisher first reads and current-API 8-thread/allocation/syscall
+   checks are not established by these jobs. They remain explicit gaps.

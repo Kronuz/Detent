@@ -1,7 +1,11 @@
 #include "dense_corpus.hh"
+#include "change_file.hh"
 #include "detent_distribution/snapshot_encoder.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_snapshot_builder.hh"
+#include "paged_read_state.hh"
+#include "segment_names.hh"
+#include "trusted_records.hh"
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -95,6 +99,69 @@ static l::StorageIdentity model_segment(std::size_t index) {
 static double seconds(std::chrono::steady_clock::time_point begin) {
 	return std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
 }
+static void reshape(const std::shared_ptr<Rows> &rows, unsigned namespaces) {
+	require(namespaces == 1 || namespaces == 1000);
+	std::uint64_t revision = 0;
+	for (const auto &row : *rows)
+		if (row.key.front() == 'W')
+			revision = std::max(revision, l::read_integer(row.body, 0, 8));
+	std::erase_if(*rows, [](const auto &row) { return row.key.front() == 'W'; });
+	for (auto &row : *rows) {
+		const auto local = std::string(p::decode_key(row.key).local_name);
+		row.key = std::string("Kprimary\0", 9) + local + '\0';
+	}
+	for (unsigned i = 0; i < namespaces; ++i) {
+		const auto name = i == 0 ? "primary" : "side" + std::to_string(i);
+		std::vector<char> watermark(8);
+		l::write_integer(watermark, 0, revision, 8);
+		rows->push_back({"W" + name + '\0', std::move(watermark)});
+		if (i)
+			for (unsigned j = 0; j < 100; ++j) {
+				std::vector<char> body(p::definition_header_bytes);
+				p::encode_definition(body, detent::IntDef{17}, revision);
+				rows->push_back({"K" + name + '\0' + "key" + std::to_string(j) + '\0',
+								 std::move(body)});
+			}
+	}
+	std::sort(rows->begin(), rows->end(), [](const auto &a, const auto &b) { return a.key < b.key; });
+}
+class CountingAccess final : public x::PagedPageAccess {
+  public:
+	explicit CountingAccess(const x::PagedImage &image) : image_(image) {}
+	std::span<const char> resolve(const p::Reference &ref) const override {
+		if (std::find(seen.begin(), seen.end(), ref) == seen.end())
+			seen.push_back(ref);
+		for (const auto &segment : image_.segments())
+			if (segment.ownership.segment == ref.segment)
+				return std::span(segment.bytes->data(), segment.bytes->size())
+					.subspan(ref.offset, ref.length);
+		throw std::runtime_error("lookup names an absent segment");
+	}
+	std::uint32_t maximum_overrides() const noexcept override { return 256; }
+	bool available() const noexcept override { return true; }
+	mutable std::vector<p::Reference> seen;
+  private:
+	const x::PagedImage &image_;
+};
+static void lookup_pages(const Rows &rows, const x::PagedImage &image) {
+	auto access = std::make_shared<CountingAccess>(image);
+	x::PagedReadState state{image.root(), {}, access};
+	std::map<std::size_t, std::size_t> histogram;
+	std::size_t definitions = 0;
+	for (const auto &row : rows) {
+		if (row.key.front() == 'W')
+			break;
+		const auto key = p::decode_key(row.key);
+		access->seen.clear();
+		require(state.definition(key.name_space, key.local_name).has_value());
+		++histogram[access->seen.size()];
+		++definitions;
+	}
+	std::cout << "lookup_pages: definitions " << definitions;
+	for (const auto &[pages, count] : histogram)
+		std::cout << ", pages_" << pages << ' ' << count;
+	std::cout << '\n';
+}
 static std::shared_ptr<const d::ValidatedSnapshot>
 admit(const std::shared_ptr<Rows> &rows, const std::shared_ptr<d::StorageLedger> &account) {
 	auto source = std::make_shared<CorpusSource>(rows, account);
@@ -126,7 +193,8 @@ admit(const std::shared_ptr<Rows> &rows, const std::shared_ptr<d::StorageLedger>
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
-static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}) {
+static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {},
+				const std::filesystem::path &output = {}) {
 	auto account = std::make_shared<d::StorageLedger>(4ull * 1024 * 1024 * 1024);
 	auto start = std::chrono::steady_clock::now();
 	auto source = admit(rows, account);
@@ -229,14 +297,56 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 			  << hashes.metadata_calls << ", metadata_hash_bytes " << hashes.metadata_bytes
 			  << ", output_resident_bytes " << account->used() - baseline << ", peak_bytes "
 			  << account->peak() << '\n';
+	if (!output.empty()) {
+		lookup_pages(*rows, image);
+		require(std::filesystem::create_directories(output));
+		std::filesystem::permissions(output, std::filesystem::perms::owner_all);
+		trusted_records::put(output / "storage.meta", l::encode_storage_identity(storage));
+		const auto name = l::generation_name(generation);
+		trusted_records::put(output / (name + ".image"), root_bytes->view());
+		trusted_records::put(output / (name + ".lease"), l::encode_generation_ownership(
+			{storage, generation, image.descriptor().length, image.descriptor().checksum,
+			 p::format_version}));
+		const auto descriptor = l::encode_descriptor(image.descriptor());
+		trusted_records::put(output / (name + ".descriptor"), descriptor);
+		for (const auto &segment : image.segments()) {
+			const x::SegmentNames names(segment.ownership.segment);
+			trusted_records::put(output / names.payload_name(), segment.bytes->view());
+			trusted_records::put(output / names.owner_name(),
+							 l::encode_segment_ownership(segment.ownership));
+		}
+		trusted_records::put(output / "selected", descriptor);
+		const int directory = ::open(output.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		require(directory >= 0);
+		{
+			x::ChangeWriter change(directory, 1, ::getuid(), 0600);
+			change.bump_all();
+		}
+		require(::close(directory) == 0);
+		for (const auto &row : *rows) {
+			if (row.key.front() == 'W')
+				break;
+			const auto definition = p::validate_definition(row.body, source->cursor().revision);
+			if (!definition.boolean) {
+				const auto key = p::decode_key(row.key);
+				std::cout << "intprobe: key " << key.name_space << ':' << key.local_name
+						  << ", expected " << definition.default_int << '\n';
+				break;
+			}
+		}
+		std::cout << "export: directory " << output << '\n';
+	}
 	root_bytes.reset();
 	l::ValidationBudget disposal{SIZE_MAX, SIZE_MAX};
 	require(image.discard(disposal));
 	require(account->used() == baseline);
 }
 int main(int argc, char **argv) {
-	if (argc == 3) {
-		run(corpus(argv[1]), argv[2]);
+	if (argc >= 3 && argc <= 5) {
+		auto rows = corpus(argv[1]);
+		if (argc == 5)
+			reshape(rows, std::stoul(argv[4]));
+		run(rows, argv[2], argc >= 4 ? argv[3] : "");
 		return 0;
 	}
 	require(argc == 1);

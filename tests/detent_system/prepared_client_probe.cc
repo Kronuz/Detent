@@ -1,5 +1,6 @@
 #include "detent/client.hh"
 #include "detent_local/client_source.hh"
+#include "detent_local/read_counters.hh"
 #include "names.hh"
 #include "prepared_reader.hh"
 #include <charconv>
@@ -69,6 +70,7 @@ void read(char **argv, std::uint64_t iterations) {
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
 		throw std::runtime_error("getrusage failed");
 	const auto start = std::chrono::steady_clock::now();
+	const auto counters = l::counters::snapshot();
 	detent::InitOptions options;
 	options.read_source = l::make_managed_read_source(argv[2], ::getuid());
 	detent::Client client(std::move(options));
@@ -77,6 +79,7 @@ void read(char **argv, std::uint64_t iterations) {
 	if (!value || value.value() != expected)
 		throw std::runtime_error("first live value differs");
 	const auto stop = std::chrono::steady_clock::now();
+	const auto counts = l::counters::snapshot() - counters;
 	if (::getrusage(RUSAGE_SELF, &after) != 0)
 		throw std::runtime_error("getrusage failed");
     double steady_ns = 0;
@@ -103,6 +106,11 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"minor_faults\":" << after.ru_minflt - before.ru_minflt
 	          << ",\"major_faults\":" << after.ru_majflt - before.ru_majflt
 	          << ",\"steady_mean_ns\":" << steady_ns
+	          << ",\"directory_trust\":" << counts.directory_trust
+	          << ",\"record_opens\":" << counts.record_opens
+	          << ",\"table_bytes\":" << counts.table_bytes
+	          << ",\"pages_verified\":" << counts.pages_verified
+	          << ",\"bytes_hashed\":" << counts.bytes_hashed
 	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
 }
 } // namespace
