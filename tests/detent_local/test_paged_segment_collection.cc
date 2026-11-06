@@ -4,6 +4,8 @@
 #include <chrono>
 #include <completion/native_completion.h>
 #include <thread>
+#include <cstdio>
+#include <cstdlib>
 namespace c = kronuz::io::completion;
 int main() {
 	const auto directory = std::filesystem::current_path() / ".scratch" /
@@ -25,11 +27,13 @@ int main() {
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
+	auto parent = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
 	d::RetirementRuntime runtime(baseline, 1);
-	auto domain = runtime.domain(account, 256);
 	for (unsigned variant = 0; variant < 14; ++variant) {
+        auto account = std::make_shared<d::StorageLedger>(parent, parent->limit());
+        auto domain = runtime.domain(account, 256);
+        {
 		std::filesystem::remove_all(directory);
 		install(directory, image, storage);
 		l::StorageIdentity orphan{};
@@ -123,7 +127,10 @@ int main() {
 		bool observed_pack = false, pressured = false;
 		std::size_t selected_pack_reads = 0;
 		for (unsigned attempt = 0; attempt < (variant == 13 ? 2u : 1u); ++attempt) {
-			collector.start();
+			if (variant == 13)
+                std::fprintf(stderr, "attempt %u: used=%zu peak=%zu residents=%zu\n", attempt,
+                             account->used(), account->peak(), domain.residents());
+            collector.start();
 			bool cancelled = false;
 			bool injected = false;
 			const auto failure = std::make_exception_ptr(std::runtime_error("collector original failure"));
@@ -136,7 +143,10 @@ int main() {
 				if (collector.needs_work()) {
 					if (variant == 13 && attempt == 0 && observed_pack && !pressured) {
 						// Spare room for the retry's own retirement lag; attempt 0 needs ~48 KiB more.
-						constexpr std::size_t spare = 16 * 1024;
+						const std::size_t spare = std::getenv("DETENT_COLLECTION_SPARE")
+                            ? std::strtoull(std::getenv("DETENT_COLLECTION_SPARE"), nullptr, 10) : 16 * 1024;
+                        std::fprintf(stderr, "pressure: used=%zu peak=%zu spare=%zu residents=%zu\n",
+                                     account->used(), account->peak(), spare, domain.residents());
 						pressure.emplace(account->admit(account->limit() - account->used() - spare));
 						pressured = true;
 					}
@@ -184,6 +194,9 @@ int main() {
 				require(!collector.complete(std::move(stale)) && collector.in_flight());
 				require(collector.complete(std::move(result)));
 			}
+            if (variant == 13)
+                std::fprintf(stderr, "done %u: used=%zu peak=%zu residents=%zu error=%d\n", attempt,
+                             account->used(), account->peak(), domain.residents(), bool(collector.error()));
 			if (variant == 13 && attempt == 0) {
 				require(pressured && collector.error() && !core->ledger.stats().fenced &&
 						core->ledger.stats().used == usage);
@@ -228,6 +241,7 @@ int main() {
 			}
 			require(!core->controls->active());
 		}
+		}
+        domain.close().wait();
 	}
-	domain.close().wait();
 }

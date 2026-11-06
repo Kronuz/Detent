@@ -63,3 +63,8 @@ regressions are bitmap fixture segment aliasing and collection variant 13's
 unmeasured pressure margin. The bitmap fixture now has an opt-in valid graph
 with namespace leaf packs and an index pack, preserving logical rows and
 rebuilding pack ownership, graph proof and trusted records. Validation pending.
+
+Job `261106-111149-e29a65` validates the distinct-pack bitmap graph and retains
+collection variant 13's original failure as a baseline. The next probe isolates
+each collection variant under its own child ledger/domain and reports exact
+injection, drainage and retry resident bytes; the 16 KiB margin is unaltered.
