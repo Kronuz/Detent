@@ -172,9 +172,9 @@ void restart_copy(const std::filesystem::path &directory, unsigned cut) {
 	dense_legacy::install(directory);
 	child_crash(directory, cut);
 	check(std::filesystem::exists(directory / "selected") == (cut == 0));
-	Runtime runtime;
 	l::Descriptor wanted;
 	{
+		Runtime runtime;
 		auto store = runtime.open(directory);
 		drive(store);
 		if (store->error())
@@ -187,6 +187,7 @@ void restart_copy(const std::filesystem::path &directory, unsigned cut) {
 		close(store);
 	}
 	{
+		Runtime runtime;
 		auto store = runtime.open(directory);
 		drive(store);
 		check(store->status() == l::StoreStatus::Ready && store->selection().descriptor == wanted);
