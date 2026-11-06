@@ -21,7 +21,7 @@ d::Cursor cursor() {
 	return value;
 }
 std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, std::uint64_t percentage = 25,
-					std::uint64_t revision = 42) {
+					std::uint64_t revision = 42, std::string_view selector = "beta") {
 	std::string out;
 	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
 	auto a = [&](std::uint32_t value) { m::array(out, value); };
@@ -65,7 +65,7 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	n(percentage);
 	a(1);
 	a(3);
-	s("beta");
+	s(selector);
 	n(1);
 	n(17);
 	return out;

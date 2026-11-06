@@ -7,6 +7,10 @@
 #include "detent_relay/bundle.hh"
 #include "detent_relay/sessions.hh"
 #include "task_support.hh"
+#include <asio/buffers_iterator.hpp>
+#include <asio/read.hpp>
+#include <asio/read_until.hpp>
+#include <asio/streambuf.hpp>
 #include <charconv>
 #include <filesystem>
 #include <fstream>

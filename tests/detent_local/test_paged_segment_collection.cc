@@ -210,6 +210,12 @@ int main() {
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);
 			} else {
+				if (collector.error()) {
+					try { std::rethrow_exception(collector.error()); }
+					catch (const std::exception &error) {
+						throw std::runtime_error("collector variant " + std::to_string(variant) + ": " + error.what());
+					}
+				}
 				require(!collector.error() && !std::filesystem::exists(directory / names.payload_name()) &&
 						!std::filesystem::exists(directory / names.owner_name()));
 				require(core->ledger.stats().used.bytes ==

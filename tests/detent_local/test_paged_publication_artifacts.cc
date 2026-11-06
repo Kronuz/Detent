@@ -77,7 +77,7 @@ int main() {
 					const auto &lease = rows[rows.size() - 5];
 					const auto ownership =
 						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
-					require(ownership.layout_version == 2 && ownership.storage == storage &&
+					require(ownership.layout_version == l::paged::format_version && ownership.storage == storage &&
 							ownership.generation == next);
 					std::vector<std::uint64_t> lengths;
 					for (const auto &segment : plan->segments())

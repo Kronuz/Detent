@@ -144,15 +144,15 @@ void stress() {
 		}
 	}
 	const auto pages = serial.access->page_verifications();
-	check(pages > namespaces + 2 && serial.access->mapped_segments() == namespaces + 1);
-	check(access.mapped_segments() == namespaces + 1);
+	check(pages == serial.fixture->root.pages && serial.access->mapped_segments() == serial.fixture->segments.size());
+	check(access.mapped_segments() == harness.fixture->segments.size());
 	const auto first = access.page_verifications();
 	check(first >= pages && first <= pages * threads);
 	std::printf("stress: %llu verifications for %llu pages (%llu concurrent duplicates)\n",
 	            (unsigned long long)first, (unsigned long long)pages, (unsigned long long)(first - pages));
 	parallel(threads, [&](unsigned t) { round(t + threads, 64); });
 	check(access.page_verifications() == first);
-	check(access.mapped_segments() == namespaces + 1);
+	check(access.mapped_segments() == harness.fixture->segments.size());
 	check(access.available());
 }
 

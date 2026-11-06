@@ -88,7 +88,7 @@ void qualify(std::vector<std::string> keys) {
 			      std::equal(event.children.begin(), event.children.end(), wanted.children.begin(), wanted.children.end()));
 			l::ValidationBudget zero{0, 0};
 			check(!cursor.commit(zero) && cursor.ready() && cursor.event().prefix == wanted.prefix);
-			l::ValidationBudget commit{0, 1};
+			l::ValidationBudget commit{1, 1};
 			check(cursor.commit(commit));
 		}
 		check(emitted == expected.size());

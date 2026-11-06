@@ -280,9 +280,13 @@ void mapped_mutation(unsigned variant) {
           {},
           std::shared_ptr<const l::detail::PagedPageAccess>(held,
                                                             access.get())};
-      rejects<l::detail::ReadSourceFailure>([&] {
-        state.lookup(source->rows.front().key, p::PageKind::Definition);
-      });
+      try {
+        rejects<l::detail::ReadSourceFailure>([&] {
+          state.lookup(source->rows.front().key, p::PageKind::Definition);
+        });
+      } catch (const std::runtime_error &error) {
+        throw std::runtime_error("mapped variant " + std::to_string(variant) + ": " + error.what());
+      }
     }
     check(access->page_verifications() == verified);
     access.reset();

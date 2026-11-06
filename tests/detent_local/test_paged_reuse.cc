@@ -151,7 +151,7 @@ int main() {
 		rejects<std::invalid_argument>([&] { l::detail::PagedPlanBuilder::reuse(legacy, account, target); });
 	}
 	{
-		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000)));
+		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(50000)));
 		l::GenerationId id{};
 		id.fill('m');
 		l::detail::PagedSnapshotBuilder build(large, storage, id);

@@ -39,7 +39,7 @@ int main() {
 		source->replacement.reset();
 		if (variant == 1) {
 			++root.pages;
-			root.bytes += l::paged::page_header_bytes;
+			root.bytes += l::paged::minimum_page_bytes;
 		}
 		if (variant == 2) {
 			const auto &original = source->image.segments().front();
