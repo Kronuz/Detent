@@ -73,7 +73,7 @@ def first_reads(
     selected = cases(recipe, 5_000_000, "ns" in store.name)
     warm_files(store)
     samples: list[dict[str, Any]] = []
-    with (out / f"first-{store.name}.jsonl").open("w") as stream:
+    with (out / f"first-{store.parent.name}-{store.name}.jsonl").open("x") as stream:
         for round_number in range(rounds):
             for index, (key, value) in enumerate(selected):
                 command = [str(probe), "--read", str(store), key, str(value)]
@@ -185,6 +185,8 @@ def main() -> None:
                 for suffix in ("5m", "1ns", "1000ns"):
                     store = root / f"store-{suffix}"
                     if not store.exists():
+                        if name == "candidate" or suffix == "5m":
+                            raise ValueError(f"required first-read arm missing: {store}")
                         continue
                     records = 5_099_900 if suffix == "1000ns" else 5_000_000
                     # Recipes describe the unchanged five million primary records.
@@ -196,6 +198,12 @@ def main() -> None:
                         rounds,
                         out,
                     )
+        if args.mode == "first":
+            for suffix in ("1ns", "1000ns"):
+                arm = report["first"][f"candidate-{suffix}"]
+                if arm["samples"] != 200 or arm["below_1ms"] != 200:
+                    report["status"] = "failed-first-read-gate"
+                    raise ValueError(f"candidate-{suffix} misses the 200/200 first-read gate")
         report["status"] = "completed"
     finally:
         report["ended_ns"] = time.time_ns()
