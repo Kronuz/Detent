@@ -68,3 +68,11 @@ Job `261106-111149-e29a65` validates the distinct-pack bitmap graph and retains
 collection variant 13's original failure as a baseline. The next probe isolates
 each collection variant under its own child ledger/domain and reports exact
 injection, drainage and retry resident bytes; the 16 KiB margin is unaltered.
+
+The initial node-scattering experiment is superseded: acceptance requires the
+packer's canonical cluster boundaries. Bitmap fixtures now build 128 exact
+values per namespace, relocate only the packer's already sealed pages, and
+rewrite placement tails without changing page digests. The parked cap race
+uses a namespace pack at least as large as the omitted namespace pack, and its
+coverage is asserted rather than skipped. Full GraphValidator proves each
+fixture before its ownership and trusted records become reader input.

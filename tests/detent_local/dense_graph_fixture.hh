@@ -30,6 +30,7 @@ struct Row {
 struct Page {
 	p::Reference reference;
 	std::vector<char> bytes;
+	std::string path;
 };
 struct Fixture {
 	std::shared_ptr<d::StorageLedger> account =
@@ -79,7 +80,8 @@ inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_
 			                     page.bytes->data() + page.bytes->size());
 			result->pages.push_back(
 			    {reference,
-				 std::vector<char>(page.bytes->data(), page.bytes->data() + page.bytes->size())});
+				 std::vector<char>(page.bytes->data(), page.bytes->data() + page.bytes->size()),
+                 std::string(page.path)});
 			result->root.bytes += reference.length;
 			check(packer.commit(reference, budget));
 			continue;
