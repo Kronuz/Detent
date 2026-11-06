@@ -89,7 +89,8 @@
             "src/detent_local/paged_publication_artifacts.*",
             "src/detent_local/managed_recovery.hh",
             "src/detent_local/recovery_context.hh",
-            "tests/detent_local/dense_legacy_fixture.hh"
+            "tests/detent_local/dense_legacy_fixture.hh",
+            "tests/detent_local/CMakeLists.txt"
           ],
           "worktree": "../Detent-wt/dense-pages--integration"
         },
@@ -116,7 +117,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T06:29:54",
+      "updated": "2026-11-06T06:32:20",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
