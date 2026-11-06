@@ -179,7 +179,7 @@ std::vector<Pack> read_store(const std::filesystem::path &store) {
 }
 void real_store(const std::filesystem::path &root) {
 	std::string json = R"({"schema_version":1,"knobs":{)";
-	for (int i = 0; i != 20000; ++i)
+	for (int i = 0; i != 60000; ++i)
 		json += (i ? "," : "") + std::string("\"t:k") + std::to_string(i) + R"(":{"type":"int","default":)" +
 				std::to_string(i * 7919) + "}";
 	json += "}}";
