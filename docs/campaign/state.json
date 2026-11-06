@@ -95,6 +95,16 @@
           ],
           "worktree": "../Detent-wt/dense-pages--integration"
         },
+        "overlay-bounds": {
+          "base": "6b58a858e1bf6a5ce32d95033ae96795400bb40f",
+          "branch": "quest/dense-pages--overlay-bounds",
+          "files": [
+            "src/detent_local/paged_trie_overlay.cc",
+            "tests/detent_local/test_dense_overlay_bounds.cc",
+            "tests/detent_local/CMakeLists.txt"
+          ],
+          "worktree": "../Detent-wt/dense-pages--overlay-bounds"
+        },
         "performance": {
           "base": "88dc7fcd2db77e91277d7963f19cad31e7a82e4d",
           "branch": "quest/dense-pages--performance",
@@ -130,7 +140,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T11:41:00",
+      "updated": "2026-11-06T11:44:13",
       "worktree": "../Detent-wt/dense-pages"
     }
   },
