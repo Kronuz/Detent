@@ -55,3 +55,11 @@ Baseline `261105-150600-3eceff` failed building compressors before composed test
 missing CMAKE_OSX_SYSROOT inserts SDK C headers ahead of LLVM libc++ wrappers.
 The same configuration at main is queued as `261105-150836-e99580`. Subsequent
 jobs explicitly set the SDK sysroot; no dependency/source patch is needed.
+
+## 2026-11-06 bounded fixture geometry repair
+
+Reconciled at Detent:1f866d9 with no uncommitted work. The remaining native
+regressions are bitmap fixture segment aliasing and collection variant 13's
+unmeasured pressure margin. The bitmap fixture now has an opt-in valid graph
+with namespace leaf packs and an index pack, preserving logical rows and
+rebuilding pack ownership, graph proof and trusted records. Validation pending.

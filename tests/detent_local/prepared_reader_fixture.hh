@@ -52,7 +52,8 @@ struct Fixture {
   std::vector<std::shared_ptr<const d::OwnedBuffer>> buffers;
   std::vector<x::SegmentInput> segments;
   std::uint64_t physical_bytes = p::root_bytes;
-  explicit Fixture(unsigned count = 2, unsigned per_namespace = 1)
+  explicit Fixture(unsigned count = 2, unsigned per_namespace = 1,
+                   bool separate_segments = false)
       : definitions(count) {
     path = std::filesystem::current_path() / ".scratch" /
            ("lazy-pages-" + std::to_string(::getpid()) + "-" +
@@ -94,19 +95,109 @@ struct Fixture {
     packed =
         dense_graph_test::seal(std::move(packed), count * per_namespace, count);
     root = packed->root;
-    for (auto &reference : definitions)
-      reference = root.tree;
-    auto bytes = d::make_owned_buffer(heap, packed->bytes.size());
-    bytes->append({packed->bytes.data(), packed->bytes.size()});
-    bytes->seal();
-    const auto ownership = packed->inputs[0].ownership;
-    const x::SegmentNames names(ownership.segment);
-    write_file(path / names.ownership.data(),
-               l::encode_segment_ownership(ownership));
-    write_file(path / names.payload.data(), {bytes->data(), bytes->size()});
-    segments.push_back({ownership, {bytes->data(), bytes->size()}});
-    buffers.push_back(bytes);
-    physical_bytes += bytes->size();
+    std::vector<std::vector<char>> packs;
+    std::vector<l::StorageIdentity> identities;
+    if (separate_segments) {
+      check(per_namespace == 1 && count >= 2 && count <= 26);
+      packs.resize(count + 1);
+      identities.resize(count + 1);
+      for (unsigned i = 0; i <= count; ++i) {
+        identities[i] = packed->segment;
+        identities[i][0] = static_cast<char>(i + 1);
+      }
+      root.bytes = root.pages = 0;
+      // Each namespace owns its leaves; shared trie branches occupy the index pack.
+      auto scatter = [&](std::span<const char> source, std::size_t offset,
+                         std::string path, auto &self) -> p::Reference {
+        const auto node = p::decode_node(source, offset);
+        path += node.prefix;
+        std::vector<p::Reference> children;
+        for (std::size_t i = 0; i < node.labels.size(); ++i) {
+          const auto slot = node.slot(i);
+          if (slot & 0x8000) {
+            const auto child = p::decode_external(source, slot & 0x7fff);
+            children.push_back(self(std::span<const char>(packed->bytes).subspan(child.offset, child.length),
+                                    p::page_header_bytes, path + node.labels[i], self));
+          } else {
+            children.push_back(self(source, slot, path + node.labels[i], self));
+          }
+        }
+        p::PageHeader header;
+        header.nodes = 1;
+        header.externals = children.size();
+        header.keys = children.empty() ? 1 : 0;
+        header.height = 1;
+        std::vector<char> page(p::page_header_bytes);
+        page.push_back(static_cast<char>(node.kind));
+        page.push_back(static_cast<char>(node.prefix.size()));
+        if (children.empty()) {
+          page.resize(page.size() + 2);
+          l::write_integer(page, page.size() - 2, node.body.size(), 2);
+          page.insert(page.end(), node.prefix.begin(), node.prefix.end());
+          page.insert(page.end(), node.body.begin(), node.body.end());
+        } else {
+          page.push_back(static_cast<char>(children.size() - 1));
+          page.insert(page.end(), node.prefix.begin(), node.prefix.end());
+          page.insert(page.end(), node.labels.begin(), node.labels.end());
+          for (unsigned i = 0; i < children.size(); ++i) {
+            const auto at = page.size();
+            page.resize(at + 2);
+            l::write_integer(page, at, 0x8000 | i, 2);
+            header.keys += children[i].keys;
+            header.height = std::max<unsigned>(header.height, children[i].height + 1);
+          }
+          for (const auto &child : children) {
+            const auto content = p::encode_content(child);
+            page.insert(page.end(), content.begin(), content.end());
+          }
+          for (const auto &child : children) {
+            const auto placement = p::encode_placement(child);
+            page.insert(page.end(), placement.begin(), placement.end());
+          }
+        }
+        header.length = page.size();
+        const auto encoded = p::encode_page_header(header);
+        std::copy(encoded.begin(), encoded.end(), page.begin());
+        const auto digest = p::page_commitment(page);
+        std::copy(digest.begin(), digest.end(), page.begin() + 32);
+        const unsigned group = path.size() >= 2 ? path[1] - 'a' : count;
+        check(group <= count);
+        auto &pack = packs[group];
+        pack.resize((pack.size() + 7) & ~std::size_t(7));
+        p::Reference reference{identities[group], static_cast<std::uint32_t>(pack.size()),
+                               header.length, header.keys, header.height, digest};
+        p::verify_page(page, reference);
+        pack.insert(pack.end(), page.begin(), page.end());
+        root.bytes += page.size();
+        ++root.pages;
+        if (node.kind == p::PageKind::Definition)
+          definitions[group] = reference;
+        return reference;
+      };
+      root.tree = scatter(std::span<const char>(packed->bytes).subspan(
+                              packed->root.tree.offset, packed->root.tree.length),
+                          p::page_header_bytes, {}, scatter);
+      root.segments = packs.size();
+    } else {
+      for (auto &reference : definitions)
+        reference = root.tree;
+      packs.push_back(packed->bytes);
+      identities.push_back(packed->segment);
+    }
+    for (unsigned i = 0; i < packs.size(); ++i) {
+      auto bytes = d::make_owned_buffer(heap, packs[i].size());
+      bytes->append(packs[i]);
+      bytes->seal();
+      const l::SegmentOwnership ownership{storage, identities[i], bytes->size(),
+                                         p::pack_commitment(bytes->view())};
+      const x::SegmentNames names(ownership.segment);
+      write_file(path / names.ownership.data(),
+                 l::encode_segment_ownership(ownership));
+      write_file(path / names.payload.data(), {bytes->data(), bytes->size()});
+      segments.push_back({ownership, {bytes->data(), bytes->size()}});
+      buffers.push_back(bytes);
+      physical_bytes += bytes->size();
+    }
     std::sort(segments.begin(), segments.end(),
               [](const auto &a, const auto &b) {
                 return std::memcmp(a.ownership.segment.data(),
