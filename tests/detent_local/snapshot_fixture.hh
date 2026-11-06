@@ -70,7 +70,8 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	n(17);
 	for (unsigned i = 0; i < padding; ++i) {
 		a(3);
-		const auto prefix = "pad" + std::to_string(i);
+		const auto digits = std::to_string(i);
+		const auto prefix = "pad" + std::string(4 - digits.size(), '0') + digits;
 		s(prefix + std::string(128 - prefix.size(), 'p'));
 		n(1);
 		n(17);
