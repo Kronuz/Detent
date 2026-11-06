@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: waiting on jobs 261106-132451-040107 261106-132451-1f5ce0 261106-132922-093a04
+State: parked; owner requests the Claude lead handoff
 
 ## Scope
 
@@ -126,3 +126,7 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
    cannot fulfill that part of A15.
 5. Running-publisher first reads and current-API 8-thread/allocation/syscall
    checks are not established by these jobs. They remain explicit gaps.
+
+## Owner park, 2026-11-06
+
+The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
