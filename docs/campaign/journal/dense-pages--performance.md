@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: parked; owner requests the Claude lead handoff
+State: waiting on jobs 261106-173358-3b82ed 261106-173446-10c88a
 
 ## Scope
 
@@ -130,3 +130,7 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
 ## Owner park, 2026-11-06
 
 The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
+
+## Owner resumption, 2026-11-06
+
+The resumed profile build261106-173309-40965c passes. New first-read acceptance261106-173358-3b82ed uses the preserved real directories and final production binaries. Component diagnostic261106-173446-10c88a runs30 independent Client constructions per shape in one process and establishes attribution only.
