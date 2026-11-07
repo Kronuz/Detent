@@ -74,7 +74,7 @@ The gate needs about 350 to 400 µs off the cold median, plus headroom for the t
    - A dense placement rule that keeps the top levels of the trie in one segment would cut the 3 to 4 segment opens toward 1 or 2. Dense pages owns that placement decision now (D-rules, T2 and T8 identity).
 3. **Shorten the trusted path** (about 21 µs per component cold). Either measure at a production-depth path, or anchor trust at a root-owned store parent so that the walk does not start at `/`. Design D2 decides this.
 4. **Code page-in** (about 100 to 170 µs). An order file grouping the first-read path, or a smaller first-read code path, reduces the roughly 60 text faults. Prefaulting in the probe is a diagnostic, not a fix, because it moves the cost before the timer.
-5. **SHA-256** (about 60 µs warm). The Kronuz/sha256 library has only SHA-NI, ARMv8 and portable kernels. This CPU has no SHA extensions, so it always runs the portable kernel. An AVX2 kernel is a shared-library change.
+5. **SHA-256** (about 60 µs warm). This CPU has no SHA extensions, so it runs the portable kernel. Kronuz/sha256 `sha256:35e8639` (local, not pushed) adds an AVX2 kernel: 1.4× the portable kernel at 64 B and 1.6× on bulk data on this host. That would save roughly 20 to 25 µs per first read once Detent picks it up.
 6. **Host conditions.** Record the host load and power state with every T2 run. The same baseline binary measured a 715 µs median on 2026-10-26 and 1031 to 1236 µs today.
 
 ## Reproduce
