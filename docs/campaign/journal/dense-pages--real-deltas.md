@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: parked; owner requests the Claude lead handoff
+State: waiting on jobs 261106-173308-d6523a 261106-173308-538815
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -75,3 +75,7 @@ native commands, and raw outputs. The 5M mode verifies its input digest before e
 ## Owner park, 2026-11-06
 
 The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
+
+## Owner resumption, 2026-11-06
+
+The owner resumes the committed harness. Smoke261106-173308-d6523a and dependent actual5M261106-173308-538815 preserve the earlier commit, input hashes and driver commands. Results remain pending; no production code changes.
