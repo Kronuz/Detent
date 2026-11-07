@@ -13,12 +13,23 @@
 #include <vector>
 
 namespace detent::local::detail {
+inline bool generation_file_status(const struct stat &info, uid_t owner, std::uint64_t length) {
+	return S_ISREG(info.st_mode) && info.st_uid == owner && info.st_nlink == 1 && !(info.st_mode & 0022) &&
+	       info.st_size >= 0 && std::uint64_t(info.st_size) == length;
+}
 inline void check_generation_file(int fd, uid_t owner, std::uint64_t length) {
 	struct stat info{};
-	if (fd < 0 || ::fstat(fd, &info) != 0 || !S_ISREG(info.st_mode) || info.st_uid != owner ||
-	    info.st_nlink != 1 || (info.st_mode & 0022) || info.st_size < 0 ||
-	    std::uint64_t(info.st_size) != length)
+	if (fd < 0 || ::fstat(fd, &info) != 0 || !generation_file_status(info, owner, length))
 		throw std::runtime_error("invalid local generation descriptor");
+}
+// check_generation_file and mode_only_acl from one status call; returns the ACL verdict.
+inline bool check_trusted_generation_file(int fd, uid_t owner, std::uint64_t length) {
+	struct stat info{};
+	bool acl_ok = false;
+	if (fd < 0 || !internal::status_and_acl(fd, info, internal::AclPolicy::ModeOnly, acl_ok) ||
+	    !generation_file_status(info, owner, length))
+		throw std::runtime_error("invalid local generation descriptor");
+	return acl_ok;
 }
 inline void read_generation_record(int fd, std::span<char> bytes) {
 	DETENT_COUNT(table_bytes, bytes.size());
@@ -38,9 +49,10 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 	const auto absolute = path.is_absolute() ? path : std::filesystem::current_path() / path;
 	RecoveryFile current(::open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
 	struct stat anchor{};
-	if (current.fd < 0 || ::fstat(current.fd, &anchor) != 0 || anchor.st_uid != 0 ||
-	    !S_ISDIR(anchor.st_mode) || (anchor.st_mode & 0022) ||
-	    !internal::acceptable_acl(current.fd, internal::AclPolicy::DenialsAllowed))
+	bool anchor_acl = false;
+	if (current.fd < 0 ||
+	    !internal::status_and_acl(current.fd, anchor, internal::AclPolicy::DenialsAllowed, anchor_acl) ||
+	    anchor.st_uid != 0 || !S_ISDIR(anchor.st_mode) || (anchor.st_mode & 0022) || !anchor_acl)
 		throw std::runtime_error("cannot open publisher directory anchor");
 	std::vector<std::unique_ptr<RecoveryFile>> parents;
 	std::deque<std::filesystem::path> pending;
@@ -69,13 +81,21 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			}
 			continue;
 		}
-		struct stat entry{};
-		if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
+		// Open first: O_NOFOLLOW | O_DIRECTORY refuses a symlink or non-directory, and only then is the
+		// component inspected, so a plain directory costs no separate lstat.
+		RecoveryFile next(
+		    ::openat(current.fd, part.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
+		if (next.fd < 0) {
+			struct stat entry{};
 			if (errno == ENOENT)
 				throw GenerationUnavailable("publisher directory is not available");
-			throw std::runtime_error("cannot inspect publisher directory component");
-		}
-		if (S_ISLNK(entry.st_mode)) {
+			if (::fstatat(current.fd, part.c_str(), &entry, AT_SYMLINK_NOFOLLOW) != 0) {
+				if (errno == ENOENT)
+					throw GenerationUnavailable("publisher directory is not available");
+				throw std::runtime_error("cannot inspect publisher directory component");
+			}
+			if (!S_ISLNK(entry.st_mode))
+				throw std::runtime_error("publisher directory has untrusted ancestry");
 			struct stat parent{}, after{};
 			if (++links > 40 || entry.st_uid != 0 || ::fstat(current.fd, &parent) != 0 || parent.st_uid != 0)
 				throw std::runtime_error("publisher directory has an untrusted alias");
@@ -96,14 +116,11 @@ inline int open_publisher_directory(const std::filesystem::path &path, uid_t own
 			prepend(resolved);
 			continue;
 		}
-		RecoveryFile next(
-		    ::openat(current.fd, part.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
-		if (next.fd < 0 && errno == ENOENT)
-			throw GenerationUnavailable("publisher directory is not available");
 		struct stat held{}, named{};
-		if (next.fd < 0 || ::fstat(next.fd, &held) != 0 || !S_ISDIR(held.st_mode) ||
-		    (held.st_uid != 0 && held.st_uid != owner) || (held.st_mode & 0022) ||
-		    !internal::acceptable_acl(next.fd, internal::AclPolicy::DenialsAllowed) ||
+		bool held_acl = false;
+		if (!internal::status_and_acl(next.fd, held, internal::AclPolicy::DenialsAllowed, held_acl) ||
+		    !S_ISDIR(held.st_mode) || (held.st_uid != 0 && held.st_uid != owner) || (held.st_mode & 0022) ||
+		    !held_acl ||
 		    ::fstatat(current.fd, part.c_str(), &named, AT_SYMLINK_NOFOLLOW) != 0 ||
 		    held.st_dev != named.st_dev || held.st_ino != named.st_ino)
 			throw std::runtime_error("publisher directory has untrusted ancestry");

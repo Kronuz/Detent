@@ -116,12 +116,14 @@ struct LazyPageAccess::State {
 		DETENT_COUNT(segment_opens, 1);
 		RecoveryFile payload(::openat(directory, names.payload.data(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 		struct stat held{};
-		if (payload.fd < 0 || ::fstat(payload.fd, &held) != 0 || held.st_size < p::page_header_bytes ||
-		    std::uint64_t(held.st_size) > p::segment_bytes)
+		bool acl_ok = false;
+		if (payload.fd < 0 || !internal::status_and_acl(payload.fd, held, internal::AclPolicy::ModeOnly, acl_ok) ||
+		    held.st_size < p::page_header_bytes || std::uint64_t(held.st_size) > p::segment_bytes)
 			throw ReadSourceFailure("local pack has an invalid extent");
 		const auto length = static_cast<std::size_t>(held.st_size);
-		check_generation_file(payload.fd, publisher, length);
-		if (!internal::mode_only_acl(payload.fd))
+		if (!generation_file_status(held, publisher, length))
+			throw std::runtime_error("invalid local generation descriptor");
+		if (!acl_ok)
 			throw ReadSourceFailure("segment payload has an unsafe ACL");
 		if ((raced = admit(identity, probe, length)))
 			return {};

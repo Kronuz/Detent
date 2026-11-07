@@ -33,8 +33,7 @@ template <std::size_t N> std::array<char, N> record(int directory, std::string_v
     if (file.fd < 0 && errno == ENOENT &&
         (name == "selected" || name.ends_with(".read")))
         throw GenerationUnavailable("publisher has not prepared a selected generation");
-	check_generation_file(file.fd, owner, N);
-	require(internal::mode_only_acl(file.fd));
+	require(check_trusted_generation_file(file.fd, owner, N));
 	std::array<char, N> bytes{};
 	read_generation_record(file.fd, bytes);
 	return bytes;
@@ -81,8 +80,7 @@ bool PreparedReader::metadata_ready(const std::filesystem::path &path,
     RecoveryFile file(open_record(directory.fd, name.view()));
     if (file.fd < 0 && errno == ENOENT)
         return false;
-    check_generation_file(file.fd, publisher, reader_metadata_bytes);
-    require(internal::mode_only_acl(file.fd));
+    require(check_trusted_generation_file(file.fd, publisher, reader_metadata_bytes));
     std::array<char, reader_metadata_bytes> bytes{};
     read_generation_record(file.fd, bytes);
     decode_reader_metadata(bytes);
@@ -110,8 +108,7 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		files->lease.fd = open_record(files->directory.fd, lease_name.view());
 		if (files->lease.fd < 0 && errno == ENOENT)
 			continue;
-		check_generation_file(files->lease.fd, publisher, generation_ownership_bytes);
-		require(internal::mode_only_acl(files->lease.fd));
+		require(check_trusted_generation_file(files->lease.fd, publisher, generation_ownership_bytes));
 		int locked;
 		do {
 			locked = ::flock(files->lease.fd, LOCK_SH | LOCK_NB);
