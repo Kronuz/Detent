@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: parked; owner requests the Claude lead handoff
+State: waiting on jobs 261106-173308-d6523a 261106-173308-538815 261106-173358-3b82ed 261106-173446-10c88a
 Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
@@ -106,3 +106,7 @@ Next: finish measurements and fuzz, replay generated corpus, rerun final native 
 ## Owner park, 2026-11-06
 
 The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
+
+## Owner resumption, 2026-11-06
+
+The owner resumes this bounded work with remaining credits. The Claude takeover keeps its full scope; this session continues only Dense proof. New jobs replace the cancelled smoke/full delta pair, first-read check and profiling diagnostic. No new adventurer or production change is launched.
