@@ -1,73 +1,95 @@
-You are the Claude Code lead resuming your existing campaign and its full scope. Recover your own master plan, responsibilities and workstreams, including any other repositories you already lead. Keep that scope. Dense pages is one small delegated task returning to you; this prompt does not replace your plan with the Dense pages campaign.
+You are the Claude Code lead resuming your existing campaign and its full scope. Recover your own master plan, responsibilities and workstreams, including any other repositories you already lead, and keep that scope. Dense pages is one delegated task returning to you; this prompt does not replace your plan with it.
 
-Upgrade your campaign workflow to Campaign 2.0 from github.com/Kronuz/agent-campaign, then continue all of your authorized work. Work without stopping for confirmation unless a step is irreversible or only I can decide it.
+Move your work onto `campaign` (github.com/Kronuz/agent-campaign, branch `preflight-hardening`), then continue all of your authorized work. Work without stopping for confirmation unless a step is irreversible or only I can decide it.
 
-First recover your latest master plan and ledgers. Then read `docs/handoffs/dense-pages-2026-11-06.md` as the return handoff for the Dense pages assignment. It contains that task's branches, evidence and remaining jobs. `docs/handoffs/detent-codex-2026-11.md` is another historical source for the Detent part of your work. Neither handoff defines the limits of your lead role.
+First recover your latest master plan and ledgers. Then read `docs/handoffs/dense-pages-2026-11-06.md`, the return handoff for Dense pages (its branches, evidence and remaining jobs), and `docs/handoffs/detent-codex-2026-11.md`, a historical source for the Detent part of your work. Neither handoff limits your role.
 
-## Take over without duplicating work
+## What is already true (2026-11-08)
 
-1. Park anything your old Campaign 1.x session still owns. Let its agents finish their current step and commit their ledgers. Inventory their branches and `quiet list`. Preserve the old ledgers and reviews.
-2. Dense pages already has a Campaign 2.0 home in `/Users/kronuz/code/Kronuz/Detent`, quest `dense-pages`, branch `quest/dense-pages`, worktree `../Detent-wt/dense-pages`. Reuse its state, journals and accepted reviews. Do not reinitialize or recreate it.
-3. Reconcile `campaign status`, `campaign check`, the journals and job records before launching agents. A journal may say waiting even though its jobs ended during the pause. Record results before rerunning anything.
-   At the final park, all agents are stopped and all remaining jobs are cancelled. Partial measurement output is retained. Resubmit only the work your resumed plan needs.
-4. Keep Dense pages as one feature with one final landing. Its implementation is composed; reader acceptance, the real 5M delta-write evidence and the architect's landing ruling remain open. Do not declare it done because a component's tests pass.
-5. Migrate every remaining workstream in your existing full plan to the appropriate Campaign 2.0 home and quests. Reuse the Dense home for its existing quest; use the campaign registry to keep other repository campaigns distinct. Keep each feature's ownership separate. The Dense implementers do not inherit every unrelated pending item.
+- All agents are stopped and no campaign job is queued or running. A parked Codex session may still be open in this home; it is idle. Do not drive it.
+- Every Dense branch is on GitHub at the same commit as here (`github` remote; `origin` is a stale local path): `quest/dense-pages` and its six task branches. `performance` (4 commits) and `real-deltas` (7) are not merged into the quest; the other four are. Also pushed: `dense-pages-grouped-sync` (the quest's head), `dense-pages-first-read` (3 commits, the first-read attribution work) and three snapshots, `wip/dense-s2-parked`, `wip/dense-t2-base-parked` and `wip/main-parked-2026-11-08` (local `main`).
+- `gh` on this laptop holds an invalid Kronuz token, so pushes fail until I run `gh auth login`. Do not work around it: keep working locally and list what waits to be pushed in your report.
+- `Detent-wt/dense-s2` is mid-merge of `namespace/s1-s2` (grouped syncs) into the Dense head, with a conflict in `src/detent_local/disk_store.cc`. `wip/dense-s2-parked` holds it exactly as it was. That work belongs to the grouped-sync workstream, not Dense.
+- Local `main` is 28 commits ahead of `github/main`: the Dense campaign's state, the handoffs and this prompt (the last commit).
+- The Dense campaign keeps its files in `docs/campaign` on `main`, under the name "Detent Dense pages". The new tool reads only `.campaign/<name>/`, so it is moved in place below. The job records (`~/.scratch/campaign/jobs`, 12 GB) stay and are reused.
 
-## Install or update Campaign 2.0 safely
+## Install
 
-The machine already has 2.0 installed. At the checkpoint, dotfiles is clean on `main`, and its campaign submodule is clean on `main`. Recheck those facts; do not overwrite later local work.
+Install `preflight-hardening` through dotfiles on a local branch. `main` stays as it is, so rolling back is switching back.
 
 ```sh
 cd ~/.local/share/dotfiles
- git status --short
- git fetch origin
- git switch main
- git merge --ff-only origin/main
- git submodule update --init
- ./install.sh --dry-run
- ./install.sh
- ./install.sh --check
- campaign --help
- quiet --help
- pace claude
+git status --short                          # must be clean; stop and tell me if not
+git switch -c campaign-trial
+git -C home/.agents/skills/campaign fetch origin preflight-hardening
+git -C home/.agents/skills/campaign switch --detach origin/preflight-hardening
+cd home/.claude/agents
+git rm -q adventurer.md paladin.md
+ln -s ../../.agents/skills/campaign/agents/campaign-contributor.md .
+ln -s ../../.agents/skills/campaign/agents/campaign-reviewer.md .
+cd ../../..
+home/.agents/skills/campaign/scripts/sync-agents.py      # regenerates home/.copilot and home/.codex agent files
+git add -A home/.claude/agents home/.copilot/agents home/.codex/agents home/.agents/skills/campaign
+git commit -m "Try the campaign skill at preflight-hardening"
+./install.sh --dry-run && ./install.sh && ./install.sh --check
+home/.agents/skills/campaign/scripts/sync-agents.py --check
+command -v lease                                          # must print nothing
+campaign --help; quiet --help
 ```
 
-Use `git submodule update` only when nobody is developing in the submodule. It can detach their branch. Read the installed `SKILL.md`, `references/migration.md` and `references/harness.md` after updating. `quiet` and `pace` are Python tools; `lease` is retired. Remove an obsolete `~/.local/bin/lease` link if present.
+Push only `campaign-trial` if you push dotfiles at all. Roll back with `git switch main && git submodule update && ./install.sh` (the generated agent files are tracked, so switching restores them).
 
-If the installer refuses a destination, inspect it. `--force` backs it up under `~/.local/state/dotfiles/backups/`. You may force only the campaign skill, campaign agent types and the `campaign`, `quiet` and `pace` links. Ask before forcing other files.
+The agent types are now `campaign-contributor` and `campaign-reviewer`. They load when a session starts; until you restart, prepend the type's body (`agents/<type>.md` without its front matter) to a general-purpose agent's prompt. Then read the installed `SKILL.md`, `migration/checklist.md`, `migration/trial-runbook.md` and `references/harness.md`. Roles are owner, lead, contributor and reviewer; classes are now assignments. Records are terse: no writing-style skill for journals, reviews or notes.
 
-Agent types load when a session starts. Until you restart, prepend the installed `~/.claude/agents/adventurer.md` or `paladin.md` body to a general-purpose agent's prompt.
+Run the suite before relying on it: `cd ~/.agents/skills/campaign/tests && CAMPAIGN_TEST_TMP=~/.scratch/campaign-tests quiet light campaign-tests 20 "campaign suite" -- /usr/local/bin/python3 run.py`.
 
-## Prove and adopt
+## Move Dense pages in place
 
-1. Run the installed campaign suite under `quiet light`, with `CAMPAIGN_TEST_TMP=~/.scratch/campaign-tests`. Use the newest managed Python, `/usr/local/bin/python3` on this machine. Run Ruff and Pyrefly from the skill directory when changing Python.
-2. For each remaining 1.x workstream, follow “Resume a 1.x project” in `references/migration.md`: create a quest, adopt the existing branch, copy acceptance criteria and ledger state, and carry only reviews that actually passed at the relevant content. Multiple complementary branches for one feature become tasks.
-3. Dense pages is already adopted. Its security acceptance is recorded by `campaign`; correctness is CHANGES pending quantitative evidence, and design has no final acceptance. Reuse the actual review files and confirming jobs.
-4. Keep `campaign check` clean. Use only the tool to edit `docs/campaign/state.json`. The campaign registry and repository landing lock coordinate other campaigns on this machine; check `campaign status --all` before shared-library or landing work.
-   The installed version warns that this campaign still stores metadata in `docs/campaign` and offers `campaign migrate` when no quest is in flight. Preserve this working legacy location while Dense is active; follow the installed migration instructions when that condition is satisfied. Do not create a duplicate campaign to remove the warning.
+Follow `migration/checklist.md`, step 3, the case "a pre-release campaign in `docs/campaign/`". It was rehearsed end to end on a copy of this layout. Here:
+
+1. On `main` in `/Users/kronuz/code/Kronuz/Detent`: `git mv docs/campaign .campaign/detent`, set `"campaign": "detent"` in `.campaign/detent/state.json`, commit. Rename the registry entry: `mv ~/.scratch/campaign/campaigns/"Detent Dense pages" ~/.scratch/campaign/campaigns/detent` (without it, `status --all` and `job prune` do not see the campaign). The old build slot `slots/Detent Dense pages-dense-pages` stays for `job prune`; the first Dense build under the new name starts cold.
+2. In `../Detent-wt/dense-pages` (`quest/dense-pages`): `git merge main`; then, in one commit, move every `docs/campaign/journal/*.md` to `.campaign/detent/journal/` and `git rm -r docs/campaign`.
+3. In `../Detent-wt/dense-pages--performance` and `../Detent-wt/dense-pages--real-deltas`: `git -c merge.directoryRenames=true merge quest/dense-pages`, then the same move for anything left under `docs/campaign`.
+4. Retag the old jobs, so status, usage and prune count them (their identity, and so their reuse, is untouched):
+   ```sh
+   /usr/local/bin/python3 -c 'import json,pathlib; h="/Users/kronuz/code/Kronuz/Detent"
+   for f in pathlib.Path.home().glob(".scratch/campaign/jobs/*/spec.json"):
+       d=json.loads(f.read_text())
+       if d.get("campaign")==h: d["campaign"]=h+"/.campaign/detent"; f.write_text(json.dumps(d,indent=2,sort_keys=True)+"\n")'
+   ```
+5. `campaign check` must be clean. Compare `git for-each-ref refs/heads` with GitHub: nothing may be lost.
+
+Do not run `campaign init` for Dense and do not create a second campaign. Do not prune jobs until the trial's first week is over.
+
+## Reconcile Dense before launching anyone
+
+Read `campaign status dense-pages`, `campaign brief`, the journals and the job records. A journal may say "waiting" though its jobs ended or were cancelled at the park. Record results before rerunning anything.
+
+- Criteria: each criterion names its evidence. Untagged ones need a job that passed at the current code; `[artifact]`, `[decision]` and `[manual]` are the exceptions. The migrated journals keep evidence as prose, so give A1-A15 their Evidence rows from the job records. Rerun what ran at older code (`campaign job rerun`; merging `main` changed the code). Never weaken a criterion; tag one `[artifact]` or `[decision]` only when a job cannot show it. A14 is the landing reviews (the quest's lenses) plus the architect's ruling: make the ruling a `[decision]` criterion recorded in PLAN.md's Decisions.
+- Reviews: the earlier tool's security acceptance is void, by design. `dense-pages-security.md` is CHANGES at `Detent:b7b37c6`: SEC-1 (warm-validator fuzz harness) and SEC-2 (one CPU-hour of decoder fuzzing) are open gaps. `dense-pages-correctness.md` is CHANGES at `Detent:c1323db`: COR-1 (defect) and PERF-1 (A15/T5 reader acceptance). Accept each only when every blocking finding has a job that passed at the fixed head: `campaign accept dense-pages LENS --confirm SEC-1=JOB --confirm SEC-2=JOB`. A fix touching files the reviewer never saw goes back to that reviewer for those files. `dense-pages-contracts.md` is history, not a lens. Design has no final acceptance yet.
+- Keep Dense one feature with one final landing. Reader acceptance, the real 5M delta-write evidence (`real-deltas`) and the architect's ruling remain open. Do not declare it done because a component passes.
+- Resolve the S6/Dense boundary explicitly. Current main lacks `libdetent_reader` and `benchmarks/reader_bench`, and S6 remains on `reader/s6`. `docs/design/reader.md` states that the existing Client misses the 1 ms gate in three of four prior arms. Keep the Dense threshold and the actual measurements, but do not call baseline misses Dense regressions. Choose and validate the integration order from your full plan; do not waive acceptance or make the Dense task implement S6.
+
+## Move your other workstreams
+
+For each remaining workstream in your full plan, follow `migration/checklist.md`, step 3. A live workstream becomes a quest that adopts its branch. Complementary branches of one feature become tasks of one quest. Parked work becomes planned quests marked blocked: `reader/s6`, `namespace/s3b`, the grouped syncs in `namespace/s1-s2` and `wip/dense-s2-parked`, the library adoptions. A 1.x review counts only for the exact code it examined; a conditional approval is history whose conditions become criteria. Use one campaign per home; check `campaign status --all` before shared-library or landing work. Read `docs/SHARED_LIBRARY_DECISIONS.md` before changing or pinning shared libraries.
 
 ## Continue engineering
 
-Run implementation with adventurers and whole-feature reviews with fresh paladins. Finish complementary implementation pieces before reviewing the feature. Confirm fixes with the reviewer's probes and `campaign accept --jobs`; do not build a review loop around every small edit. The architect gives the final landing ruling.
+Launch contributors in the background, by assignment and model tier, and resume them by message while their context is small. Run whole-feature reviews with fresh reviewers after the complementary pieces are done; each review names `Commit:` and a findings table. The architect gives the final landing ruling. Builds, tests and benchmarks are commit-pinned jobs. Builds use at most four parallel jobs; measurements that decide acceptance use `exclusive`. Only direct-path checks gate; soaks and other-platform matrices are deferred checks. Decoder fuzzing, sanitizers and durability tests stay gates. Lowering a risk or removing or changing a check needs `--weaken REASON`; tell me when you do.
 
-Builds, tests and benchmarks are commit-pinned `campaign` jobs. Builds use at most four jobs. Measurements that decide acceptance use `exclusive` holds. Only direct-path checks gate the next step; extended soaks and other-platform matrices use deferred checks. Required decoder fuzzing, sanitizer evidence and durability tests remain gates.
+Check `pace claude` before parallel launches and keep quota for integration and landing. Start with one contributor, and read `campaign usage` after its first turn. When only jobs remain, use one background `campaign wait --commits`. Collect the runbook's daily records and stop on its warning signs. Before the final landing, reconcile A1-A15, finish the correctness/performance and decoder-safety acceptances, obtain the architect's ruling, run the required CI and repeat accepted measurements on main. No cloud machines or billable resources.
 
-Check `pace claude` before parallel launches. Preserve quota for integration and landing. While agents are out, keep your turn until their results are handled unless you have verified that completion wakes Claude Code. When only jobs remain, use one background `campaign wait --commits`; consume its events and wait again. It reports new commits and ended jobs once. A new installation starts its event cursor from now, so run `campaign status` first. Inspect remote holds with `etctl run SESSION 'quiet check; quiet list'`.
+## Claude Code support, without delaying the move
 
-Resolve the S6/Dense boundary explicitly. Current main lacks `libdetent_reader` and `benchmarks/reader_bench`; S6 remains on its separate branch. `docs/design/reader.md` states that the existing Client misses the 1 ms gate in three of four prior arms. Preserve the Dense threshold and actual measurements, but do not claim that baseline misses are introduced Dense regressions. Use your full plan to choose and validate the integration order. Do not silently waive acceptance or make the Dense task implement all of S6.
+Inspect the installed tool first. Keep the skill working in Claude Code, Copilot CLI and Codex; harness details go in `references/harness.md` and the tool, with verified dates, never in `SKILL.md`.
 
-Before final landing, reconcile all A1–A15 criteria against executable evidence, finish correctness/performance and decoder-safety acceptance, obtain the architect's ruling, run the required CI and repeat accepted measurements on main. Read `docs/SHARED_LIBRARY_DECISIONS.md` before changing or pinning shared libraries. No cloud machines or billable resources.
+1. Verify fresh-session agent discovery of `campaign-contributor` and `campaign-reviewer`, model and effort selection, background launch, resumption by message, result delivery, skill discovery and global guidance. Keep the cmux sidebar current with `report`.
+2. Test, harmlessly and with a bound, whether a contributor's completion wakes an idle lead. If it does not, keep your turn while work is out and document the actual waiting mechanism.
+3. Add a `claude_runs(since)` usage reader from real local transcripts: preserve launch prompts for `launch()`, tell lead from subagents, and report model, effort, input, cached, output and reasoning tokens, cost where recorded (never 0 for unknown), and time. Use scrubbed real event shapes as fixtures.
+4. Inspect Claude Code's quota records before adding a `pace` reader. Read 5-hour, weekly and purchased-credit information only where recorded. Keep the status-line snapshot as fallback.
+5. Run the full suite, `ruff check scripts tests` and `pyrefly check` before pushing tool fixes. Write measured migration costs and limits to `migration/claude-trial.md`.
 
-## Check Claude Code support without delaying adoption
+Tool fixes go on a branch `claude-code` from `preflight-hardening`, pushed to Kronuz/agent-campaign; dotfiles changes stay on `campaign-trial`. Never push either repository's `main`. Use the local identity `Germán Méndez Bravo <german.mb@gmail.com>` and add no AI attribution. Detent's own landing follows its project instructions.
 
-Inspect the installed tool first; other sessions may already have implemented these items. Keep the skill working in Claude Code, Copilot CLI and Codex. Harness details belong in `references/harness.md` and tool code, with verified dates. Add no harness-specific rules to `SKILL.md`.
-
-1. Verify fresh-session agent discovery, model/effort selection, background launch, resumption, result delivery, skill discovery and global guidance. Keep the cmux sidebar current with `report`.
-2. Test whether an adventurer's completion wakes an idle lead in a bounded, harmless trial. If it does not, keep the lead's turn while work is out and document the actual waiting mechanism.
-3. If absent, add a `claude_runs(since)` usage reader from this version's real local transcripts. Preserve launch prompts unchanged for `launch()`, distinguish lead/subagents, and report model, effort, cumulative tokens and time. Use scrubbed real event shapes as fixtures.
-4. Inspect this version's quota records before adding a `pace` reader. Read 5-hour, weekly and purchased-credit information only where recorded. Keep the existing status-line snapshot as fallback; document unavailable fields honestly.
-5. Keep the instruction word budget green. Run the full suite, `ruff check scripts tests` and `pyrefly check` before pushing tool fixes. Write a short `docs/claude-trial.md` with measured migration costs and limitations.
-
-Tool fixes go on a branch from agent-campaign main, `claude-code`, pushed to Kronuz/agent-campaign. Dotfiles fixes go on `campaign-2-claude`. Never push those repositories' main branches. Set local identity to `Germán Méndez Bravo <german.mb@gmail.com>` and add no AI attribution. Detent's own landing follows its project instructions; its GitHub remote is `github`, while `origin` is a stale local path.
-
-Report the quests, repository-prefixed commits and owner-only decisions. That report is a checkpoint: continue until the campaign's authorized goals are complete or I ask you to park it.
+Report the quests, repository-prefixed commits, every `--weaken`, `--waive`, `--fix-scope` or `--no-ci` taken, and the decisions only I can make. That report is a checkpoint: continue until the campaign's authorized goals are complete or I ask you to park it.
