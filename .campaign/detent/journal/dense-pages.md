@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261106-173308-d6523a 261106-173308-538815 261106-173358-3b82ed 261106-173446-10c88a
+State: blocked on the lead: A10 real-delta smoke aborts (261106-173308-d6523a); A15 misses its first-read gate (261106-173358-3b82ed)
 Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
 
 ## Doing
@@ -21,9 +21,31 @@ Nothing. Cross-component changes go through the lead; no per-step review queue.
 
 ## Evidence
 
-Codec/packer fixtures and actual 100K full build: 3,245 pages, 6,209,298 page bytes, six packs totaling 6,217,662 bytes. Historical scoped evidence only; final composed jobs still required.
+Audit 2026-11-08, by job record. The quest's src/include/tests equal Detent:a729b77 (the last
+full native and sanitizer runs); merging main brought docs only, so gate jobs rerun at the head
+for identity, not because code changed.
 
-Historical ledger: `docs/status/dense-pages.md` on `phase/dense-pages`. Historical evidence is scoped to its recorded code; it is not an automatically passing Campaign 2.0 job.
+| Criterion | Evidence |
+|---|---|
+| A1 | Design `docs/design/dense-pages.md` resolves DP-1..DP-6; contracts review `.campaign/detent/reviews/dense-pages-contracts.md` approves the contracts at Detent:7d339fe. A design record: the lead tags this [artifact] or [decision]. |
+| A2 | 261105-150551-bfb8c9 and 261105-150715-4c5b2d pass (codec, packer, segment, snapshot, full builder); full native suite 261106-131622-172969 passes 178 tests at Detent:a729b77. Rerun at head. |
+| A3 | 261105-150743-b66bbc (100K) and 261105-150744-5b7a4c (5M) equal the model exactly. Sealing-order, boundary and height mutant kills: only the pre-campaign "four packing mutants fail" (Detent:8b041fa); open at this code. |
+| A4 | Codec libFuzzer 261106-112828-869301 (927.89 CPU s) and reader/page/graph/warm fuzz 261106-113725-c6d946 (3 x 940 CPU s): 3,747.9 CPU s, zero findings; warm smoke 261106-113537-ede7c2. Corpus replays in the native suite; hosted CI not run: open. |
+| A5 | 261105-150743-b66bbc and 261105-150744-5b7a4c: 162,367 pages, 315,432,480 page bytes, 302 packs, 315,759,038 pack bytes, root and placements equal the model. Rerun at head. |
+| A6 | Forged summary refusal in 261106-111645-b25734 and the native suite. False-height, keys, canonicity and order mutant kills not recorded: open. |
+| A7 | 261105-150715-4c5b2d; 5M hash counts page 162,367/306,989,416 B, pack 302/315,759,038 B, metadata 303/22,064 B (261105-150744-5b7a4c). Rerun at head. |
+| A8 | Reader fixtures 261106-111645-b25734 and the native suite pass. "Landed S6 interfaces are preserved" cannot hold while S6 is parked: open, the lead's S6/Dense order. |
+| A9 | Overlay bounds (COR-1): 261106-114739-ba4d50 Debug, 261106-114740-c11743 ASan/UBSan, 261106-114741-2f126a kills the unguarded parent. S3b's bounds are not on main: open, the S3b/Dense order. |
+| A10 | Typed 1,000-round oracle 261106-111601-989a59 passes. Real write targets: smoke 261106-173308-d6523a failed, exit 134, `ReadSourceFailure: local page walk failed` on the first synthetic one-update case; 5M job 261106-173308-538815 skipped. Open: a harness or read-path defect, undiagnosed. |
+| A11 | Compaction/relocation fixtures 261106-062527-75b336 pass. Off-path, no-op rewrite and relocation mutant kills not recorded: open. |
+| A12 | Frozen v2 fixture 261106-063837-22f097, refetch/ownership 261106-065403-f3c14e, refusal and barrier mutants killed with restored pass 261106-070134-ecbe03. "No live callers" and the mechanism docs: open, unchecked. |
+| A13 | ASan/UBSan 261106-112740-2f388f (10/10) and 261106-131702-5c4936; TSan 261106-112739-5f92a5 (4/4); trusted restart byte flips in 261106-131622-172969. CI at the final merged head: not run, open. |
+| A14 | Security: CHANGES at Detent:b7b37c6, SEC-1 and SEC-2 gaps, confirming jobs 261106-113537-ede7c2, 261106-112828-869301, 261106-113725-c6d946; the earlier acceptance is void. Correctness: CHANGES at Detent:c1323db, COR-1 fixed and confirmed above, PERF-1 is A15. Architect ruling: none. Open. |
+| A15 | First-read acceptance 261106-173358-3b82ed failed the gate, publisher stopped, 200 samples each: below 1 ms baseline 90, Dense 5M 115, 1 namespace 137, 1,000 namespaces 79 (medians 1,031 / 974 / 855 / 1,039 us; zero major faults). A/A and interleaved 261106-132451-040107 cancelled. Open. |
+
+Diagnostic, not evidence: attribution 261106-173446-10c88a, 30 constructions per shape in one
+process: first live read 542 us (1 namespace) and 600 us (1,000), of which attach 342 / 329 us,
+lookup 201 / 268 us, segment mapping 121 / 168 us.
 
 ## Rulings I made
 
@@ -110,3 +132,7 @@ The owner requests a takeover checkpoint to conserve credits. No new work is sta
 ## Owner resumption, 2026-11-06
 
 The owner resumes this bounded work with remaining credits. The Claude takeover keeps its full scope; this session continues only Dense proof. New jobs replace the cancelled smoke/full delta pair, first-read check and profiling diagnostic. No new adventurer or production change is launched.
+
+## Results of the resumed jobs, recorded 2026-11-08
+
+The four jobs submitted at the owner resumption ended without being recorded. Smoke 261106-173308-d6523a failed (exit 134, ReadSourceFailure: local page walk failed); 5M 261106-173308-538815 skipped. First-read acceptance 261106-173358-3b82ed failed its gate (A15 row). Profile build 261106-173309-40965c and attribution 261106-173446-10c88a passed (diagnostic only).
