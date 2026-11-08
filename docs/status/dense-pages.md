@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Ledger for the dense paged-trie format design.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Ledger for the dense paged-trie format design.
 
 # dense-pages
 

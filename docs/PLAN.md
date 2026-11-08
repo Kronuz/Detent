@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-05) Owner scope: complete and optimize Dense pages only. Supersedes the broader November handoff campaign.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-05) Owner scope: complete and optimize Dense pages only. Supersedes the broader November handoff campaign.
 
 # Dense pages
 

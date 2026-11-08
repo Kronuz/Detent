@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-04) Ledger for the hands-on tutorial rewrite. Workstream: quickstart-managed (tech writer).
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Ledger for the hands-on tutorial rewrite. Workstream: quickstart-managed (tech writer).
 
 # quickstart-managed
 
