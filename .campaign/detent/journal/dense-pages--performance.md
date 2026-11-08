@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: waiting on jobs 261106-173358-3b82ed 261106-173446-10c88a
+State: blocked on the lead: first-read acceptance fails its gate
 
 ## Scope
 
@@ -134,3 +134,7 @@ The owner requests a takeover checkpoint to conserve credits. No new work is sta
 ## Owner resumption, 2026-11-06
 
 The resumed profile build261106-173309-40965c passes. New first-read acceptance261106-173358-3b82ed uses the preserved real directories and final production binaries. Component diagnostic261106-173446-10c88a runs30 independent Client constructions per shape in one process and establishes attribution only.
+
+## Recorded 2026-11-08
+
+261106-173358-3b82ed failed the 200/200 gate: below 1 ms baseline 90, candidate 5M 115, 1 namespace 137, 1,000 namespaces 79 of 200 (publisher stopped, zero major faults). Attribution 261106-173446-10c88a: first live read 542 us (1 namespace), attach 342 us, lookup 201 us, mapping 121 us; diagnostic only.
