@@ -56,6 +56,38 @@ kronuz::io::completion::Token StorageSession::next_operation() {
 		throw std::overflow_error("storage session operation identity exhausted");
 	return {incarnation_, ++operation_, 0};
 }
+void StorageSession::sync_performed(const kronuz::io::completion::Request &request) noexcept {
+	using Kind = kronuz::io::completion::Kind;
+	constexpr auto relaxed = std::memory_order_relaxed;
+	switch (request.kind) {
+	case Kind::Sync:
+		sync_files_.fetch_add(1, relaxed);
+		sync_flushes_.fetch_add(1, relaxed);
+		break;
+	case Kind::DirectorySync:
+		sync_directories_.fetch_add(1, relaxed);
+		sync_flushes_.fetch_add(1, relaxed);
+		break;
+	case Kind::SyncFiles:
+	case Kind::OrderFiles:
+		sync_groups_.fetch_add(1, relaxed);
+		sync_files_.fetch_add(request.files.size(), relaxed);
+		sync_directories_.fetch_add(1, relaxed);
+#ifdef __APPLE__
+		sync_flushes_.fetch_add(1, relaxed);
+#else
+		sync_flushes_.fetch_add(request.files.size() + 1, relaxed);
+#endif
+		break;
+	default:
+		break;
+	}
+}
+SyncCounters StorageSession::sync_counters() const noexcept {
+	constexpr auto relaxed = std::memory_order_relaxed;
+	return {sync_files_.load(relaxed), sync_directories_.load(relaxed), sync_flushes_.load(relaxed),
+			sync_groups_.load(relaxed)};
+}
 std::shared_ptr<StorageSession> make_storage_session(kronuz::io::completion::AllocationContext context,
 													 std::shared_ptr<kronuz::io::completion::IO> io,
 													 std::shared_ptr<void> admission, bool create_owner) {

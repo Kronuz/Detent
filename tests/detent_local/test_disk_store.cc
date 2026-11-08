@@ -177,7 +177,7 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 	auto builder = build(account, 'u', 42);
 	const auto injected = std::make_exception_ptr(std::runtime_error("injected recovery sync failure"));
 	for (bool legacy : {false, true}) {
-		for (unsigned fault = 0; fault <= 4; ++fault) {
+		for (unsigned fault = 0; fault <= 1; ++fault) {
 			const auto directory =
 				parent / ("recovery-sync-" + std::to_string(legacy) + "-" + std::to_string(fault));
 			std::filesystem::create_directory(directory);
@@ -212,7 +212,6 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 			const auto before = census(directory);
 			auto domain = runtime.domain(account, 1);
 			auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
-			unsigned syncs = 0;
 			bool fired = false;
 			while (store->operation() || store->needs_work()) {
 				auto job = store->operation();
@@ -225,12 +224,15 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 				job->submitted();
 				auto result = kronuz::journal::detail::execute_primitive(job->io(), job->request());
 				check(!result.error);
-				if (kind == c::Kind::Sync && ++syncs == fault) {
-					result.error = injected;
-					fired = true;
+				// The census syncs no file: one directory barrier, which is the fault's target.
+				check(kind != c::Kind::Sync && kind != c::Kind::SyncFiles);
+				if (kind == c::Kind::DirectorySync) {
+					check(!fired && store->status() == l::StoreStatus::Starting);
+					if (fault) {
+						result.error = injected;
+						fired = true;
+					}
 				}
-				if (kind == c::Kind::DirectorySync)
-					check(syncs == 4 && !fired && store->status() == l::StoreStatus::Starting);
 				check(job->complete(std::move(result)));
 				store->advance();
 			}
@@ -240,7 +242,7 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 			if (fault)
 				check(store->selection().knowledge == l::SelectionKnowledge::Uncertain);
 			if (!fault) {
-				check(syncs == 4 && store->selection().descriptor == builder->descriptor());
+				check(store->selection().descriptor == builder->descriptor());
 				if (legacy) {
 					auto next = build(account, 'v', 43);
 					store->begin(*next, builder->descriptor().cursor);
@@ -261,7 +263,7 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 			domain.close().wait();
 		}
 	}
-	std::cout << "managed and legacy recovery sync cases: 10\n";
+	std::cout << "managed and legacy recovery barrier cases: 4\n";
 }
 void facade_cancellation(d::RetirementRuntime &runtime, const std::shared_ptr<d::StorageLedger> &account,
 						 const std::filesystem::path &parent) {
@@ -739,9 +741,36 @@ void publication_faults(d::RetirementRuntime &runtime, const std::shared_ptr<d::
 						const std::filesystem::path &parent) {
 	auto builder = build(account, 'f', 42);
 	const auto injected = std::make_exception_ptr(std::runtime_error("injected managed original failure"));
+	// A clean publication's primitive count is the fault range: lease, image and descriptor each created
+	// and written, two group syncs, their closes, the rename and its barrier.
+	std::size_t primitives = 0;
+	{
+		const auto directory = parent / "fault-count";
+		std::filesystem::create_directory(directory);
+		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
+		l::DiskStoreOptions options;
+		options.mode = l::StoreOpenMode::FreshEmpty;
+		options.limits = {1024 * 1024, 100, 10};
+		auto domain = runtime.domain(account, 1);
+		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
+		drive(store);
+		store->begin(*builder);
+		auto job = store->operation();
+		while (!job->done()) {
+			++primitives;
+			job->submitted();
+			check(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+		}
+		check(store->publication_status() == l::DiskPublicationStatus::Published && primitives > 12);
+		job.reset();
+		store->close();
+		check(store->drained());
+		store.reset();
+		domain.close().wait();
+	}
 	std::size_t cases = 0;
 	for (bool after : {false, true}) {
-		for (std::size_t boundary = 0; boundary < 20; ++boundary) {
+		for (std::size_t boundary = 0; boundary < primitives; ++boundary) {
 			const auto directory = parent / ("fault-" + std::to_string(cases++));
 			std::filesystem::create_directory(directory);
 			std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
@@ -861,12 +890,16 @@ void crash_recovery(d::RetirementRuntime &runtime, const std::shared_ptr<d::Stor
 								Boundary{"startup", c::Kind::DirectorySync, 0},
 								Boundary{"publication", c::Kind::CreateInto, 0},
 								Boundary{"publication", c::Kind::Write, 0},
+								Boundary{"publication", c::Kind::SyncFiles, 0},
+								Boundary{"publication", c::Kind::CloseFile, 0},
 								Boundary{"publication", c::Kind::CreateInto, 1},
 								Boundary{"publication", c::Kind::Write, 1},
 								Boundary{"publication", c::Kind::CreateInto, 2},
 								Boundary{"publication", c::Kind::Write, 2},
+								Boundary{"publication", c::Kind::SyncFiles, 1},
+								Boundary{"publication", c::Kind::CloseFile, 2},
 								Boundary{"publication", c::Kind::Replace, 0},
-								Boundary{"publication", c::Kind::DirectorySync, 3},
+								Boundary{"publication", c::Kind::DirectorySync, 0},
 								Boundary{"gc", c::Kind::Remove, 0},
 								Boundary{"gc", c::Kind::DirectorySync, 0},
 								Boundary{"gc", c::Kind::Remove, 1},
