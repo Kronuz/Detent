@@ -5,7 +5,10 @@
 #include "prepared_reader.hh"
 #include <charconv>
 #include <chrono>
+#include <cstdlib>
 #include <fcntl.h>
+#include <mach-o/dyld.h>
+#include <mach-o/getsect.h>
 #include <iostream>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -64,7 +67,18 @@ void prepare(char **argv) {
 	}
 	domain.close().wait();
 }
+// Diagnostic: touch every __TEXT page of the executable before timing, to isolate code page-in cost.
+void prefault_text() {
+	unsigned long size = 0;
+	const auto *header = reinterpret_cast<const mach_header_64 *>(_dyld_get_image_header(0));
+	const auto *text = getsegmentdata(header, "__TEXT", &size);
+	volatile unsigned char sink = 0;
+	for (unsigned long offset = 0; offset < size; offset += 4096)
+		sink ^= text[offset];
+}
 void read(char **argv, std::uint64_t iterations) {
+	if (std::getenv("PROBE_PREFAULT"))
+		prefault_text();
 	const auto expected = integer<std::int64_t>(argv[4]);
 	rusage before{}, after{};
 	if (::getrusage(RUSAGE_SELF, &before) != 0)
@@ -113,9 +127,36 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"bytes_hashed\":" << counts.bytes_hashed
 	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs << "}\n";
 }
+// Fresh Client per iteration in one process: inherent attach/lookup cost without process-cold effects.
+void loop(char **argv, unsigned iterations) {
+	const auto expected = integer<std::int64_t>(argv[4]);
+	for (unsigned i = 0; i != iterations; ++i) {
+		rusage before{}, after{};
+		::getrusage(RUSAGE_SELF, &before);
+		const auto start = std::chrono::steady_clock::now();
+		detent::InitOptions options;
+		options.read_source = l::make_managed_read_source(argv[2], ::getuid());
+		const auto sourced = std::chrono::steady_clock::now();
+		detent::Client client(std::move(options));
+		const auto attached = std::chrono::steady_clock::now();
+		const auto value = client.get(argv[3]);
+		const auto stop = std::chrono::steady_clock::now();
+		if (!value || value.value() != expected)
+			throw std::runtime_error("loop value differs");
+		::getrusage(RUSAGE_SELF, &after);
+		const auto ns = [](auto a, auto b) { return std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count(); };
+		std::cout << "{\"i\":" << i << ",\"source_ns\":" << ns(start, sourced) << ",\"client_ns\":" << ns(sourced, attached)
+		          << ",\"lookup_ns\":" << ns(attached, stop) << ",\"minor_faults\":" << after.ru_minflt - before.ru_minflt
+		          << "}\n";
+	}
+}
 } // namespace
 int main(int argc, char **argv) {
 	try {
+		if (argc == 6 && std::string_view(argv[1]) == "--loop") {
+			loop(argv, integer<unsigned>(argv[5]));
+			return 0;
+		}
 		if (argc == 8 && std::string_view(argv[1]) == "--prepare")
 			prepare(argv);
 		else if ((argc == 5 || argc == 6) && std::string_view(argv[1]) == "--read")
