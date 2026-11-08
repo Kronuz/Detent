@@ -1,6 +1,6 @@
 # dense-pages--real-deltas: journal
 
-State: waiting on jobs 261106-173308-d6523a 261106-173308-538815
+State: fixing: the synthetic smoke aborts in the native oracle
 Quest: docs/campaign/quests/dense-pages.md (the game master's; never edit it)
 
 ## Doing
@@ -79,3 +79,7 @@ The owner requests a takeover checkpoint to conserve credits. No new work is sta
 ## Owner resumption, 2026-11-06
 
 The owner resumes the committed harness. Smoke261106-173308-d6523a and dependent actual5M261106-173308-538815 preserve the earlier commit, input hashes and driver commands. Results remain pending; no production code changes.
+
+## Recorded 2026-11-08
+
+Smoke 261106-173308-d6523a failed, exit 134: test_local_dense_delta_assembly --corpus aborted with ReadSourceFailure (local page walk failed) on the one-update case (20,205 records, 913 pages, 2 changes); the model side completed. 5M 261106-173308-538815 skipped. Next: find whether the opaque-body corpus mode or the dense read path is at fault, before any 5M run.
