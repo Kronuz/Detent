@@ -2,7 +2,7 @@
 # The counting-cost benchmark of docs/design/observability.md D2, run as campaign jobs from the checkout
 # root on one slot, with the reader S6 commit as a ref:
 #   observability-bench.sh build                      (light: builds observability_bench against $JOB_REF_S6)
-#   observability-bench.sh run smoke|screen|confirm   (strict or exclusive: runs it and summarizes)
+#   observability-bench.sh run smoke|screen|confirm   (strict or exclusive: runs it, summarizes and pairs)
 set -euo pipefail
 here=$(pwd)
 work=$here/.scratch/obs
@@ -52,6 +52,7 @@ run)
 	echo "s6 $s6_commit; bench $source_digest; host $(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m); $(date -u +%FT%TZ)"
 	"$bin" --store "$store" --map-dir "$map" "${args[@]}" | tee "$out/$mode.jsonl"
 	"${PYTHON:-python3}" docs/design/observability-summary.py "$out/$mode.jsonl" | tee "$out/$mode.md"
+	"${PYTHON:-python3}" -I docs/design/observability-paired.py "$out/$mode.jsonl" | tee "$out/$mode-paired.md"
 	rm -rf "$store" "$map"
 	;;
 *)
