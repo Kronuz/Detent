@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: waiting on jobs 261108-230300-28e052 261108-230300-5e2827 261108-230300-2bec9b 261108-230300-c7df19
+State: ready for review (evidence rerun at b99d3a37ebb1, all four exit 0; the lead swapped the ids)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -36,9 +36,9 @@ commits touch only the document and this journal.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `261108-215112-5db839`: full copy at 5M. Wire form 25,728,032 B as sent against 25,646,713 B of measured records (1.003×), 315,759,038 B raw against 261,337,255. Receiver SHA-256 622,748,454 B in 162,669 digests and 315,759,038 B written, the same as the dense build, against today's 3,774,996,569 B in 14,001,455 digests and 1,509,994,805 B. The replay reproduces all 302 packs and the root. Path: `docs/design/dense-distribution.md`, "What the measurements say" |
-| A2 | `261108-215113-2c03ee` (u:1, u:10000, c:10000, m:9800:100:100) and `261108-215113-376435` (the sweep). 10K uniform: 6,715,150 B of pages against 108,240 B of records (62×). 10K clustered: 62,961 against 55,246 (1.14×). T4: 6,801,139 against 108,472 (62.7×). Crossover: clustered at about 100K keys (1.01×, 0.91× at 1M); uniform never (2.07× at 2M). Rule in D6. Path: `docs/design/dense-distribution.md`, A2 table, D6 and Q1 |
-| A3 | `docs/design/dense-distribution.md` D1-D5 and D7 (frame header digest, transfer, wire form, receiver, path naming, relay storage). Refusals from `261108-215111-57b64f`: root digest mismatch, page digest mismatch, page referenced twice, child not before its parent |
+| A1 | `261108-230300-5e2827`: full copy at 5M. Wire form 25,728,032 B as sent against 25,646,713 B of measured records (1.003×), 315,759,038 B raw against 261,337,255. Receiver SHA-256 622,748,454 B in 162,669 digests and 315,759,038 B written, the same as the dense build, against today's 3,774,996,569 B in 14,001,455 digests and 1,509,994,805 B. The replay reproduces all 302 packs and the root. Path: `docs/design/dense-distribution.md`, "What the measurements say" |
+| A2 | `261108-230300-2bec9b` (u:1, u:10000, c:10000, m:9800:100:100) and `261108-230300-c7df19` (the sweep). 10K uniform: 6,715,150 B of pages against 108,240 B of records (62×). 10K clustered: 62,961 against 55,246 (1.14×). T4: 6,801,139 against 108,472 (62.7×). Crossover: clustered at about 100K keys (1.01×, 0.91× at 1M); uniform never (2.07× at 2M). Rule in D6. Path: `docs/design/dense-distribution.md`, A2 table, D6 and Q1 |
+| A3 | `docs/design/dense-distribution.md` D1-D5 and D7 (frame header digest, transfer, wire form, receiver, path naming, relay storage). Refusals from `261108-230300-28e052`: root digest mismatch, page digest mismatch, page referenced twice, child not before its parent |
 | A4 | `docs/design/dense-distribution.md` D8 and D9 (resume, damaged fragment, root mismatch, relay lacks base or copy, base page missing, repair), plus Limits |
 | A5 | `docs/design/dense-distribution.md`, "Build plan": DD1-DD5 with files, criteria, risk and needs from dense-pages, reader S6 and namespace S4-S10 |
 | A6 | The four job ids above, all cited in the document beside their numbers |
