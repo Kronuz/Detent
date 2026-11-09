@@ -115,6 +115,8 @@ Open: no C++ CPU number for the skipped build (DD3 measures it); record delta si
    each named with its hash in the job's `--env`; the model also prints the hash it read.
 8. A forged-root case is valid only when sealed: the digest checks must pass, so the targeted
    structure or canonicity check is the one that refuses (lead's direction on job 261109-014058-00ad3c).
+9. Lead note D33 (owner withdrew receivers-build-nothing): folded into the same document round, no
+   extra rerun; Outcome and criteria unchanged; the build plan is "Candidate steps".
 10. Stale gaps (A7): "T4 churn" for a time gap is T4's mix (98% updates, 1% inserts, 1%
    deletes) at namespace D6's moderate rate, 1M writes a day at 5M (`namespace-delivery.md:181`),
    with its skew (80% of writes to a hot 1% of keys); the hot set is a random 1% ("moderate", the
@@ -124,5 +126,3 @@ Open: no C++ CPU number for the skipped build (DD3 measures it); record delta si
    digest; the pull form keeps content digests (the receiver compares them before it holds the
    children) and zeroes header digest and placement; requests are modeled as 96 B plus 32 B per
    digest.
-9. Lead note D33 (owner withdrew receivers-build-nothing): folded into the same document round, no
-   extra rerun; Outcome and criteria unchanged; the build plan is "Candidate steps".
