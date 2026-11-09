@@ -1,4 +1,8 @@
-"""A fixed three-voter node started alone: --daemonize returns promptly, --status reports not ready."""
+"""A fixed three-voter node started alone: --daemonize returns promptly, --status reports not ready.
+
+A one-member voter set is refused at load, so no configured node is a lone quorum with peers;
+if that changes, the lone-quorum wait in detentd needs its own test here.
+"""
 
 from __future__ import annotations
 
@@ -72,6 +76,16 @@ def main() -> None:
         "--runtime-dir",
         str(directory / "runtime"),
     ]
+    single = directory / "single.json"
+    single.write_text(json.dumps(configuration | {"voters": voters[:1]}))
+    single.chmod(0o600)
+    refused = subprocess.run(
+        [*common[:1], "--authority", str(single), "--port", "0", "--runtime-dir", str(directory / "single")],
+        capture_output=True,
+        text=True,
+        timeout=25,
+    )
+    assert refused.returncode != 0 and "fixed voter count" in refused.stderr, (refused.returncode, refused.stdout, refused.stderr)
     daemon = 0
     try:
         started = time.monotonic()

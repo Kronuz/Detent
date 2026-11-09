@@ -161,7 +161,7 @@ int run(const std::vector<std::string>& input_args) {
 			const auto authority_network_timeout = authority_options.timeout;
 			const auto authority_bind = authority_options.publisher_bind.to_string();
 			const char* authority_mode = authority_options.peers ? "fixed-voter" : "single-voter";
-			const bool lone_quorum = !authority_options.peers;
+			const bool lone_quorum = !authority_options.peers || authority_options.peers->addresses.empty();
 			const bool publisher_https = authority_options.publisher_tls.has_value();
 			http::HttpAsioService::ConnectionFactory connection;
 			if (publisher_https) {
@@ -191,8 +191,8 @@ int run(const std::vector<std::string>& input_args) {
 			service.start(port);
 			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
 				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
-			// A lone quorum waits for its own leader; a voter set returns at once, and /v1/health
-			// reports ready only when a leader is known.
+			// A node that alone is a quorum (no other voter) waits for its own leader; with other voters
+			// it returns at once, and /v1/health reports ready only when a leader is known.
 			while (lone_quorum && !authority.has_leader() && !g_stop.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{5});
 			}
