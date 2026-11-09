@@ -9,32 +9,34 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Writing `docs/design/dense-distribution-model.py`: imports the dense model pinned at
+`Detent:28d3ed9` (job ref `DENSE`), measures the full copy and the deltas in three wire forms
+against modeled records calibrated to the measured 5M record copy, and replays the receiver.
 
 ## Next
 
-1. <step>
+1. Probe the model on the 100K corpus (unversioned light job), then commit it.
+2. Submit the 5M `full` and `delta` jobs at the branch head with `--ref DENSE=28d3ed9`.
+3. Write `docs/design/dense-distribution.md` from the job outputs.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-One row per criterion, with what its kind needs: a job id (it, or the same job rerun, passed at
-the current code), a `path`, a decision id, or for a [manual] one who checked what. Name every job
-you examined, failures included, and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1-A6 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. The dense model is the one at `Detent:28d3ed9` (unchanged in `docs/design/` through
+   `Detent:be49a1d`), loaded by path from the job's `DENSE` ref, not copied into this file set.
+2. Lead message (2026-11-08, quest Decision 4 at `Detent:a08818f`): keys stay generic. The wire
+   names pages by digest and trie paths as length-framed bytes; nothing splits on NUL. "Pages only"
+   is presented as its own option with its byte cost.
