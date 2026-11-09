@@ -1407,7 +1407,8 @@
         "tests/detent_local/test_disk_store.cc",
         "tests/detent_local/test_paged_publication_artifacts.cc",
         "tests/detent_local/test_paged_store_startup.cc",
-        "tests/detent_local/test_publication_power_cut.cc"
+        "tests/detent_local/test_publication_power_cut.cc",
+        "docs/measurements/sync-groups-20261108/**"
       ],
       "landed": [],
       "lenses": [
@@ -1419,12 +1420,11 @@
         "publication-sync-order",
         "sync-counters"
       ],
-      "reason": "Parked 2026-11-05; evidence complete 2026-11-07; waits for the architect's durability review, a merge of main with the D24 pins, and CI",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-08T21:20:05",
+      "updated": "2026-11-08T21:27:35",
       "worktree": "../Detent-wt/detent/namespace-s1-s2"
     },
     "namespace-s3": {
