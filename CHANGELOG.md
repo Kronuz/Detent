@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### detentd readiness
+
+- `detentd --daemonize` returns, and `--status` and `/v1/health` report `"ready":true`, only once the
+  authority has a leader: this node leads, or follows a known leader. The first `/v2/open` after
+  `--daemonize` succeeds without a retry, and the quick-start no longer loops on it. A fixed-voter
+  node started alone now waits for its quorum and ends at the 30 s startup timeout instead of
+  returning with the listener up.
+
 ### Trusted restart (namespace S3)
 
 - The agent's cold start no longer hashes or walks the packs. Each paged generation now carries

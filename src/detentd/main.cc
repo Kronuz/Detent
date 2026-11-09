@@ -188,9 +188,13 @@ int run(const std::vector<std::string>& input_args) {
 			bind.address = authority_bind;
 			service.set_bind_options(bind);
 			service.start(port);
-			ready();
 			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
 				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
+			// Ready means a leader accepts /v2/open; the startup timeout bounds this wait.
+			while (!authority.has_leader() && !g_stop.load()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds{5});
+			}
+			ready();
 
 			while (!g_stop.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{200});

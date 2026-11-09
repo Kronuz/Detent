@@ -1480,6 +1480,8 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 									  options_.subscription_requests.opens +
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
+		// A leader is known: this node leads, or follows one. Health reports it before has_leader() does.
+		bool leader_known = false;
 		auto publish_health = [&] {
 			const auto export_progress = delivering && delivering->exporter
 				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
@@ -1592,7 +1594,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					return bounds + "]";
 				}() +
-				",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
+				",\"ready\":" + std::string(node.worker().ready() && leader_known ? "true" : "false") +
 				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 				",\"committed\":" + std::to_string(node.worker().committed()) +
 				",\"term\":" + std::to_string(node.worker().term()) +
@@ -1751,6 +1753,10 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
 					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
+				} else if (auto role = std::get_if<kronuz::consensus::RoleChanged>(&action)) {
+					leader_known = role->leader != 0;
+					publish_health();
+					service.leader_known_.store(leader_known, std::memory_order_release);
 				}
 			}
 			if (peers)

@@ -44,6 +44,8 @@ if(DETENT_BUILD_AUTHORITY)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   add_test(NAME test_authority_daemon COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon.sh $<TARGET_FILE:detentd> ${Python3_EXECUTABLE})
   set_tests_properties(test_authority_daemon PROPERTIES TIMEOUT 90)
+  add_test(NAME test_authority_daemon_ready COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon_ready.sh $<TARGET_FILE:detentd>)
+  set_tests_properties(test_authority_daemon_ready PROPERTIES TIMEOUT 90)
 endif()
 
 if(DETENT_BUILD_AUTHORITY)
