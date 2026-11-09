@@ -91,7 +91,7 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
    fixes the race (lazy snapshot is), but it keeps the fixture from depending on the coordinator
    retiring the poll socket before it opens the close; the assertions make a late close a
    failure instead of a silent pass. The rate comparison uses Detent:97f0f2f, not b8ef8d2:
-   b8ef8d2's stricter assertions are a different test from main's; 8f7f5c (b8ef8d2 + logs)
+   b8ef8d2's stricter assertions are a different test from main's; 2489dd (b8ef8d2 + logs)
    gives b8ef8d2's rate.
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
