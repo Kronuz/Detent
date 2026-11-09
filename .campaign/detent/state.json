@@ -498,8 +498,8 @@
       "risk": "low",
       "status": "landed",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-09T11:16:59",
-      "worktree": "../Detent-wt/detent/dense-distribution"
+      "updated": "2026-11-09T14:26:51",
+      "worktree": ""
     },
     "dense-pages": {
       "accepted": {
