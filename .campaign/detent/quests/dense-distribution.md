@@ -20,6 +20,7 @@ steps with their criteria, each number measured on the real 5M corpus with the d
 - A4 [artifact] Failure and resume: a partial fetch, a missing or corrupt page, a relay that lacks a page, and the fallback to records: `docs/design/dense-distribution.md`
 - A5 [artifact] Build plan: the first buildable steps as quests (files, criteria, risk) and what each needs from dense-pages, reader S6 and namespace S4-S10: `docs/design/dense-distribution.md`
 - A6 The model runs that produce A1 and A2 are campaign jobs (`--commit` at the branch head) whose outputs the document cites by job id
+- A7 [artifact] The stale receiver: a receiver whose base is older than the relay's record window gets the pages it lacks by digest (top-down, receiver-driven, no old generation kept on the relay) or the full copy, whichever is smaller, measured at 5M for gaps of an hour, a day and a week of T4 churn against records from blocks and the full copy, with round trips: `docs/design/dense-distribution.md`
 
 ## Contracts
 
@@ -29,14 +30,22 @@ D8 (derived file ids) and D10 (first touch, scrub, repair). Provides the design 
 
 ## Decisions
 
-1. Owner direction (2026-11-08): agents should not have to build anything; "everything just falls
-   in place". The owner left order and approach to the lead (D31).
+1. The owner withdrew the "agents should not have to build anything" direction (2026-11-09, D33).
+   The design stands on its measurements (receiver work and bytes per encoding) as a record for
+   later quests; no implementation quest starts from it until a goal asks for one.
 2. Projected starting points, to be replaced by measurements: full copy 31.7 MB of zstd-1 packs
    against 25.6 MB of records as sent; 10K uniform delta 42.8 MB of pages against about 0.5 MB of
    records; 10K clustered 0.6 MB.
 3. One state, one root digest, two encodings: the receiver's verification is the same whichever
    encoding arrives (the owner's one-shape rule).
-4. The design is reviewed once (lens `design`) before any implementation quest starts.
+4. Keys stay generic (PLAN.md, Candidate uses): page and key naming on the wire must not assume text keys or NUL-free names, and must leave room for ordered (floor, prefix) lookups.
+5. The design is reviewed once (lens `design`) before any implementation quest starts.
+
+6. Three receiver states (owner, 2026-11-09): empty gets the full copy; warm (inside the record
+   window) gets record deltas and builds pages locally, which match everywhere because pages are
+   canonical after deltas (dense-pages D5); stale gets the missing pages or the full copy,
+   whichever is cheaper (A7). Revised by D36: the pull is dropped; stale above the cut gets records,
+   below the cut the full copy; A7's measurements stay as the record.
 
 ## May land early
 

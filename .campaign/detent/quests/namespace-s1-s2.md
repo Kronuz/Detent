@@ -29,7 +29,6 @@ Numbering cites `namespace/s1-s2:docs/status/namespace-design.md` (S1 n, S2 n, "
 - A9 S2 5: restart and cold bootstrap timed at 10K and 100K under `exclusive`, before (`Detent:327ca58`) and after, with an A/A; 5M by the lead's ask: `exclusive` jobs, one arm per job
 - A10 Sanitizers in separate builds on the power-cut, disk-store and artifacts tests (Next 4): the `asan` and `tsan` gates
 - A11 [artifact] How-it-works note with the measured flush count (All four): `docs/mechanisms/sync-groups.md`
-- A12 [artifact] Before and after table, measured rows only from `main` (handoff 4.4; All four): `docs/perf/sync-groups.md`
 - A13 [manual] The ext4 VM result (1,445 files: per-file 4,300-4,438 ms, `IO::sync_files` 717.6 ms, threads 919.5 ms, `syncfs` 506 ms) is in completion's `docs/PLATFORM_FINDINGS.md` (handoff 4.4): the lead names the completion commit
 
 CI on every job, pin-check included (Next 5, All four), is the landing's CI gate (REPORT O2).
@@ -43,6 +42,7 @@ the agent log line "publication synced N files in N groups", the relay status fi
 
 ## Decisions
 
+0. D32 (2026-11-09): the perf table (former A12) is quest sync-groups-perf; write A11 before the final job round, and run the A9 arms `--after` the four gates.
 1. D24: the journal and consensus completion declarations are on their mains; this quest only
    takes the pins. The general pin wave stays in `pin-wave`.
 2. Lead-accepted design-vs-code items for the reviewer: windows of at most 128 open files, one
