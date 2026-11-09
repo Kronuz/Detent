@@ -9,9 +9,16 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Writing `docs/design/dense-distribution-model.py`: imports the dense model pinned at
-`Detent:28d3ed9` (job ref `DENSE`), measures the full copy and the deltas in three wire forms
-against modeled records calibrated to the measured 5M record copy, and replays the receiver.
+Model committed (`Detent:4fa06bd`); its four jobs are queued behind host load (still queued after
+one 600 s wait, 2026-11-08 22:0x). Design direction, to be written once numbers land: a transfer
+lists the pages the receiver lacks in the target's seal order, laid out as the receiver writes
+them; full copy = transfer from the empty base (canonical packs); wire form zeroes the header digest
+and in-transfer child digests and names in-transfer children by (transfer segment from 1, offset);
+base children keep their digest and are resolved by trie path (generic bytes) in the base; the
+receiver hashes bottom-up and checks the one root digest; relays keep a page window of recent
+generations for Merkle diffs and a canonical copy made by relocation (no digest); smaller of pages
+and records per update, "pages only" as an owner option. 100K probe: wire form 594 KB vs records
+542 KB measured; replay reproduces the build's files; refusals work.
 
 ## Next
 
