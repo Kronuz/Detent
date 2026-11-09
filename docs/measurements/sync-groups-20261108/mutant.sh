@@ -17,7 +17,7 @@ cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON \
   -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON || exit 125
 if [ "$name" = targets ]; then
-  ninja -C "$build" -t targets all | grep -E 'test_local_(publication_power_cut|paged_store_startup|disk_store):' | tee /dev/stderr | grep -c . | grep -qx 3
+  ninja -C "$build" -t targets all | grep -E '^test_local_(disk_store|paged_store_startup|publication_power_cut): phony$' | tee /dev/stderr | grep -c . | grep -qx 3
   exit $?
 fi
 if [ "$name" = d1-revert ]; then
