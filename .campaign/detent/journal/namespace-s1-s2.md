@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs 261108-212823-edd6f7 261108-212824-1e1d46 261108-212825-a55bba 261108-213111-929a69 261108-213112-ecd616 261108-213114-e47da1 261108-213115-984fa5 261108-213116-edd4b1 261108-213632-c9deac 261108-213632-baa7ec
+State: waiting on jobs 261108-213700-dc3b49 261108-212824-1e1d46 261108-212825-a55bba 261108-213111-929a69 261108-213112-ecd616 261108-213114-e47da1 261108-213115-984fa5 261108-213116-edd4b1 261108-213713-d6e0a3 261108-213632-baa7ec
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, consensus:ab05507; check_pins 0 mismatches, gate pins job 261108-212143-7ae4f5 done). Job scripts committed in docs/measurements/sync-groups-20261108/ (mutant.sh, build.sh, arm.sh, summarize.py). Any non-.campaign commit changes the job code key, so every row is rerun at the final head (the first gate jobs at c2025c2 were cancelled to free light slots; pins gate 261108-212143-7ae4f5 passed). Submitted: build slots s1s2-before (327ca58: 261108-212823-edd6f7) and s1s2-after (261108-212824-1e1d46); mutant positive 261108-212825-a55bba; mutants unsynced-descriptor 929a69, empty-payload-group ecd616, startup-before-barrier e47da1, closed-session 984fa5, phase-counts edd4b1 (each must FAIL; log shows 'MUTANT.. SURVIVED' if not; exit 125 = build error, not a kill); 10K smoke arms before c9deac, after baa7ec (these test arm.sh itself; if they pass, queue 10K/100K x3 and 5M x1 with `--env ROUND=n`).
+Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, consensus:ab05507; check_pins 0 mismatches, gate pins job 261108-212143-7ae4f5 done). Job scripts committed in docs/measurements/sync-groups-20261108/ (mutant.sh, build.sh, arm.sh, summarize.py). Any non-.campaign commit changes the job code key, so every row is rerun at the final head (the first gate jobs at c2025c2 were cancelled to free light slots; pins gate 261108-212143-7ae4f5 passed). Submitted: build slots s1s2-before (327ca58: 261108-213700-dc3b49) and s1s2-after (261108-212824-1e1d46); mutant positive 261108-212825-a55bba; mutants unsynced-descriptor 929a69, empty-payload-group ecd616, startup-before-barrier e47da1, closed-session 984fa5, phase-counts edd4b1 (each must FAIL; log shows 'MUTANT.. SURVIVED' if not; exit 125 = build error, not a kill); 10K smoke arms before (resubmitted; see below), after baa7ec (these test arm.sh itself; if they pass, queue 10K/100K x3 and 5M x1 with `--env ROUND=n`).
 
 ## Next
 
