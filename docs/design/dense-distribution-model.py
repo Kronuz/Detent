@@ -939,7 +939,8 @@ def day_main(D: Any, corpus: Any, scale: tuple[float, float]) -> None:
 # --- a stale receiver ---------------------------------------------------------------------------
 # A base older than the relay's windows: the receiver pulls the pages it lacks top-down from the
 # relay's head, one batch per level, comparing each child's content entry with its base page at
-# the same trie path, and switches to the full copy once the pull would pass it (D10).
+# the same trie path; the stop rule estimates the pull from a sample of its subtrees and takes
+# the full copy when the rest of the pull would cost more (D10).
 
 WRITES_PER_DAY = (
     1_000_000  # namespace D6's moderate churn at 5M (namespace-delivery.md:181)
@@ -950,6 +951,12 @@ TURNOVER, HOT_SHARE = (
 )  # its creates and deletes, and its writes to a hot 1% of keys
 REQUEST_HEADER = (
     96  # a pull request's frame, modeled as one fragment header; 32 B per digest
+)
+SAMPLE_LEVEL = (
+    256  # the stop rule samples the first level of the pull with this many pages
+)
+SAMPLE_SHARE = (
+    16  # and pulls the subtrees of a sixteenth of them first, chosen by digest
 )
 SHAPES = (
     "moderate",
@@ -1040,6 +1047,75 @@ def pull_levels(target: Any, index: Base) -> dict[int, list[int]]:
     return levels
 
 
+def level_cost(D: Any, target: Any, encoder: Any, pages: list[int]) -> tuple[int, int]:
+    """One pull round trip for `pages`: the answer as sent (pull form) plus its request, and the
+    pages' raw bytes."""
+    if not pages:
+        return 0, 0
+    answer = make_transfer(D, target, encoder, sorted(pages), "pull")
+    _, sent = fragments_sent(answer.stream, 3)
+    return sent + REQUEST_HEADER + 32 * len(pages), answer.page_bytes
+
+
+def stop_rule(
+    D: Any,
+    target: Any,
+    encoder: Any,
+    levels: dict[int, list[int]],
+    costs: dict[int, int],
+    full_sent: int,
+) -> tuple[str, int, int]:
+    """D10's stop rule. At the first level with SAMPLE_LEVEL pages the receiver first pulls, to the
+    bottom, the subtrees of the pages whose digest starts below 256 / SAMPLE_SHARE, and scales
+    their cost to the level's other pages by the keys their content entries state. What it spent
+    is spent either way, so it takes the full copy when that estimate of the rest passes the full
+    copy's size, and otherwise pulls the rest. A pull with no level that wide runs to the end.
+    Returns (what it did, bytes, round trips)."""
+    depths = sorted(levels)
+    first = next((d for d in depths if len(levels[d]) >= SAMPLE_LEVEL), None)
+    if first is None:
+        return "no level to sample; pull", sum(costs.values()), len(depths)
+    before = sum(costs[d] for d in depths if d < first)
+    top = {p: p for p in levels[first]}
+    for d in depths:
+        if d > first:
+            for p in levels[d]:
+                top[p] = top[target.pages[p].parent]
+    sample = {
+        p for p in levels[first] if target.pages[p].digest[0] < 256 // SAMPLE_SHARE
+    }
+    if not sample:
+        sample = {min(levels[first], key=lambda p: target.pages[p].digest)}
+    below = [d for d in depths if d >= first]
+    sampled = [[p for p in levels[d] if top[p] in sample] for d in below]
+    rest = [[p for p in levels[d] if top[p] not in sample] for d in below]
+    sample_cost = sum(level_cost(D, target, encoder, pages)[0] for pages in sampled)
+    keys = sum(target.pages[p].keys for p in levels[first])
+    sample_keys = sum(target.pages[p].keys for p in sample)
+    estimate = round(sample_cost * (keys - sample_keys) / sample_keys)
+    spent = before + sample_cost
+    rounds = first - 1 + sum(1 for pages in sampled if pages)
+    rest_cost = sum(level_cost(D, target, encoder, pages)[0] for pages in rest)
+    rest_rounds = sum(1 for pages in rest if pages)
+    print(
+        f"  sample: level {first}, {len(sample):,} of {len(levels[first]):,} pages and their"
+        f" subtrees, {sample_cost:,} B; decided after {spent:,} B in {rounds} round trips; the"
+        f" rest estimated {estimate:,} B (it costs {rest_cost:,} B) against the full copy"
+        f" {full_sent:,} B"
+    )
+    if estimate > full_sent:
+        return (
+            f"full copy after the sample at level {first}",
+            spent + full_sent,
+            rounds + 1,
+        )
+    return (
+        f"pull after the sample at level {first}",
+        spent + rest_cost,
+        rounds + rest_rounds,
+    )
+
+
 def stale_main(
     D: Any, corpus: Any, specs: list[str], scale: tuple[float, float]
 ) -> None:
@@ -1080,6 +1156,7 @@ def stale_main(
         sent = raw = requests = stop_sent = 0
         stop: int | None = None
         rounds = 0
+        costs: dict[int, int] = {}
         for depth in sorted(levels):
             pages = levels[depth]
             level_raw = sum(target.pages[p].length for p in pages)
@@ -1088,6 +1165,7 @@ def stale_main(
             answer = make_transfer(D, target, encoder, pages, "pull")
             _, level_sent = fragments_sent(answer.stream, 3)
             request = REQUEST_HEADER + 32 * len(pages)
+            costs[depth] = level_sent + request
             print(
                 f"  level {depth}: {len(pages):,} pages, {level_raw:,} B raw, {level_sent:,} B as"
                 f" sent, request {request:,} B; pulled so far {sent + level_sent + requests + request:,} B"
@@ -1124,19 +1202,25 @@ def stale_main(
             f"  records answer (modeled, calibrated): {records_cal:,.0f} B as sent, 1 round trip"
         )
         if stop is None:
-            chosen, rule_total, rule_rounds = "pull", pull_total, rounds
+            ahead, ahead_total = "pull", pull_total
         else:
-            chosen, rule_total, rule_rounds = (
+            ahead, ahead_total = (
                 f"full copy after level {stop - 1}",
                 stop_sent + full_sent,
-                stop,
             )
+        chosen, rule_total, rule_rounds = stop_rule(
+            D, target, encoder, levels, costs, full_sent
+        )
         best = min(pull_total, full_sent)
         print(
-            f"  stop rule: {chosen}, {rule_total:,} B in {rule_rounds} round trips; the smaller"
-            f" of pull and full copy {best:,} B; pull / full copy {pull_total / full_sent:.3f},"
-            f" pull / records {pull_total / records_cal:.1f}, full copy / records"
-            f" {full_sent / records_cal:.2f}; {time.monotonic() - t0:.0f} s",
+            f"  one level ahead (superseded): {ahead}, {ahead_total:,} B, {ahead_total / best:.3f}"
+            " of the smaller"
+        )
+        print(
+            f"  stop rule: {chosen}, {rule_total:,} B in {rule_rounds} round trips, {rule_total / best:.3f}"
+            f" of the smaller of pull and full copy ({best:,} B); pull / full copy"
+            f" {pull_total / full_sent:.3f}, pull / records {pull_total / records_cal:.1f}, full"
+            f" copy / records {full_sent / records_cal:.2f}; {time.monotonic() - t0:.0f} s",
             flush=True,
         )
 
