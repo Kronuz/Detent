@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: fixing a T7 regression (waiting on jobs 261109-012918-55c24d targets, 261109-012919-eef97a positive with cycle diagnostics)
+State: waiting on jobs 261109-013025-36d6c4 (attribution a: pre-D1 disk_store.cc, new tests, TSan), 261109-013026-f516c2 (attribution b: new code, b3fef50 power-cut test, TSan), 261109-012919-eef97a (positive with cycle diagnostics)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -28,6 +28,8 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 - Chain queued 2026-11-09 (all ids carry the 261109-0116 prefix except the gates and 5M): targets check (grep for `^test_local_(disk_store|paged_store_startup|publication_power_cut): phony$` == 3; the first version counted every target line and failed ac1932), then the positive run, the seven mutants (each passes iff killed), build-after, A9 arms interleaved b/a x3 at 10K and 100K, 5M one each (28 minutes), then `campaign verify` gates. A6's harness line is the 10K and later after arms (summarize.py --require-counters); A8 is closed-session (lifecycle, startup test) and phase-counts (accounting, T7). Earlier arms (baa7ec 10K after, d6e0a3 10K before) ran at older code and are superseded.
 
 - 2026-11-09: the tsan gate 4c7c75 (Detent:4128dd7) failed in test_publication_power_cut after 413 s: "cycle at event 0 selected a generation that is neither the one before the publication nor the one it publishes" (line 552, window 2 restart-then-republish cycles); windows 1 and 2 and the new creation case had passed before it. The same T7 passed 7,186 cases at Detent:4c0eb36, so the regression comes from this round: the Tracker refactor (outside-model files skipped, Write on an untracked file ignored) or the startup SyncFiles over storage.meta. I cancelled the whole queued chain (stale at any fix) and ran a diagnostic positive (commit adds the cycle's source event, variant and the three generations to the message). Next: read the log, fix, requeue the chain.
+
+- Attribution per the lead: attribute.sh a (head with disk_store.cc as of b3fef50) and b (head with the power-cut test as of b3fef50), both TSan Debug, one slot each. a fails => the test refactor is the cause; b fails => the restart SyncFiles.
 
 ## Blocked on
 
