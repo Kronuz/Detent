@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: working
+State: waiting on jobs 261108-212823-edd6f7 261108-212824-1e1d46 261108-212825-a55bba
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,13 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, consensus:ab05507; check_pins 0 mismatches, gate pins job 261108-212143-7ae4f5 done). Job scripts committed in docs/measurements/sync-groups-20261108/ (mutant.sh, build.sh, arm.sh, summarize.py). Gate jobs native/asan/tsan queued at c2025c2 (261108-212143-{1824ae,df3187,69e836}) as early signal only: any non-.campaign commit changes the code key, so every row is rerun at the final head. Submitted: build slots s1s2-before (327ca58) and s1s2-after, mutant positive run.
 
 ## Next
 
-1. <step>
+1. Mutant jobs (one per name in mutant.sh; each must fail), A6 harness job, A9 arms (10K/100K x3 before/after, 5M x1), A8 reverts.
+2. Write docs/mechanisms/sync-groups.md and docs/perf/sync-groups.md from job results.
+3. Rerun `campaign verify` and the evidence jobs at the final head; fill the Evidence table; State ready for review.
 
 ## Blocked on
 
