@@ -1,0 +1,20 @@
+--- a/tests/detent_delivery/test_coordinator.cc	2026-11-09 04:44:58
++++ b/tests/detent_delivery/test_coordinator.cc	2026-11-09 04:44:58
+@@ -750,7 +750,7 @@
+ 			std::jthread held_poll;
+ 			auto hold = [&](asio::ssl::stream<asio::ip::tcp::socket> held) {
+ 				check(!held_poll.joinable());
+-				held_poll = std::jthread([&, held = std::move(held)]() mutable {
++				[&]() mutable {
+ 					try {
+ 						pollfd descriptor{held.next_layer().native_handle(), POLLIN, 0};
+ 						const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(options.source.timeout);
+@@ -764,7 +764,7 @@
+ 					} catch (...) {
+ 						held_failure = std::current_exception();
+ 					}
+-				});
++				}();
+ 			};
+ 			try {
+ 				for (unsigned attempt = 0; attempt != attempts; ++attempt) {

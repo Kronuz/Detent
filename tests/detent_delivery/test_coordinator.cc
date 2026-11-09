@@ -729,18 +729,45 @@ int main(int argc, char **argv) {
 			quota_domain.close().wait();
 		}
 		acceptor.non_blocking(true);
+		const unsigned attempts = maintenance_failure ? 0u
+								  : poll_backoff	  ? 5u
+								  : cancel_open		  ? 2u
+								  : reset_retry		  ? 11u
+								  : worker_cancel	  ? 3u
+								  : subscription	  ? (transitions ? 6u : 4u)
+								  : pressure		  ? 3u
+								  : cancel_selected	  ? 2u
+													  : 1u;
+		// The coordinator must close the final session-close connection well inside
+		// release_session's 1,000 ms timeout, or the close timed out unacknowledged.
+		constexpr auto close_acknowledgement = 500ms;
+		std::chrono::steady_clock::time_point close_answered;
+		bool close_acknowledged = false;
+		std::chrono::steady_clock::time_point settled;
 		std::jthread server([&] {
+			// A relay serves a held long poll while it accepts the session close: so does the fixture.
+			std::exception_ptr held_failure;
+			std::jthread held_poll;
+			auto hold = [&](asio::ssl::stream<asio::ip::tcp::socket> held) {
+				check(!held_poll.joinable());
+				held_poll = std::jthread([&, held = std::move(held)]() mutable {
+					try {
+						pollfd descriptor{held.next_layer().native_handle(), POLLIN, 0};
+						const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(options.source.timeout);
+						if (::poll(&descriptor, 1, static_cast<int>(wait.count())) <= 0)
+							throw std::runtime_error("held long poll not released");
+						std::array<char, 1> input;
+						asio::error_code error;
+						held.read_some(asio::buffer(input), error);
+						checkpoint("server-poll-released");
+						check(bool(error));
+					} catch (...) {
+						held_failure = std::current_exception();
+					}
+				});
+			};
 			try {
-				for (unsigned attempt = 0; attempt != (maintenance_failure ? 0u
-													   : poll_backoff	   ? 5u
-													   : cancel_open	   ? 2u
-													   : reset_retry	   ? 11u
-													   : worker_cancel	   ? 3u
-													   : subscription	   ? (transitions ? 6u : 4u)
-													   : pressure		   ? 3u
-													   : cancel_selected   ? 2u
-																		   : 1u);
-					 ++attempt) {
+				for (unsigned attempt = 0; attempt != attempts; ++attempt) {
 					const auto phase =
 						cancel_open		? std::array<unsigned, 2>{0, 3}[attempt]
 						: worker_cancel ? std::array<unsigned, 3>{0, 1, 3}[attempt]
@@ -767,12 +794,18 @@ int main(int argc, char **argv) {
 					checkpoint("server-handshake");
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
+					bool close_request = false;
+					const bool final_close = subscription && attempt + 1 == attempts;
 					if (cancel_selected || pressure || subscription || poll_backoff) {
 						auto text = [&] {
 							return std::string(asio::buffers_begin(request.data()),
 											   asio::buffers_end(request.data()));
 						};
 						auto header = text();
+						close_request = subscription && header.starts_with("POST /v2/distribution/session/close ");
+						if (final_close && !close_request)
+							throw std::runtime_error("coordinator final request is not a session close: " +
+													 header.substr(0, header.find("\r\n")));
 						if (cancel_open)
 							check(header.starts_with(phase == 0 ? "POST /v2/distribution/session/open "
 																: "POST /v2/distribution/session/close "));
@@ -984,17 +1017,17 @@ int main(int argc, char **argv) {
 					}
 					auto bytes = response(count, pressure ? attempt + 1 : 1);
 					if (subscription) {
-						if (transitions && (phase == 2 || phase == 3)) {
+						if (close_request) {
+							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
+						} else if (transitions && (phase == 2 || phase == 3)) {
 							bytes = transition_response(phase == 2);
 							bytes.insert(bytes.find("\r\n") + 2,
 										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
 										 "11111111111111111111111111111111\r\nX-Detent-Window: " +
 											 std::to_string(phase) + "\r\n");
-						} else if (transitions && phase == 4) {
-							std::array<char, 1> buffer;
-							asio::error_code error;
-							socket.read_some(asio::buffer(buffer), error);
-							check(bool(error));
+						} else if (transitions ? phase == 4 : phase == 2) {
+							// Hold an original long poll until owner cancellation closes the socket.
+							hold(std::move(socket));
 							continue;
 						} else if (phase == 0) {
 							const std::string body =
@@ -1015,21 +1048,28 @@ int main(int argc, char **argv) {
 							bytes = "HTTP/1.1 409 Conflict\r\nContent-Type: "
 									"application/json\r\nContent-Length: " +
 									std::to_string(body.size()) + "\r\n\r\n" + body;
-						} else if (phase == 2) {
-							// Hold an original long poll until owner cancellation closes the socket.
-							std::array<char, 1> input;
-							asio::error_code error;
-							socket.read_some(asio::buffer(input), error);
-							checkpoint("server-poll-released");
-							check(bool(error));
-							continue;
 						} else {
 							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 						}
 					}
 					if (!retained_idle)
 						bytes.insert(bytes.find("\r\n") + 2, "Connection: close\r\n");
+					if (final_close) {
+						close_answered = std::chrono::steady_clock::now();
+						checkpoint("server-close-answered");
+					}
 					asio::write(socket, asio::buffer(bytes));
+					if (final_close) {
+						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
+						if (::poll(&descriptor, 1, static_cast<int>(close_acknowledgement.count())) <= 0)
+							throw std::runtime_error("coordinator did not acknowledge the session close");
+						std::array<char, 1> byte;
+						asio::error_code error;
+						socket.read_some(asio::buffer(byte), error);
+						check(bool(error));
+						checkpoint("server-close-acknowledged");
+						close_acknowledged = true;
+					}
 					if (retained_idle) {
 						pollfd descriptor{socket.next_layer().native_handle(), POLLIN, 0};
 						check(::poll(&descriptor, 1, 5000) > 0);
@@ -1043,6 +1083,10 @@ int main(int argc, char **argv) {
 				server_failure = std::current_exception();
 				asio::post(io, [&] { coordinator->close(); });
 			}
+			if (held_poll.joinable())
+				held_poll.join();
+			if (held_failure && !server_failure)
+				server_failure = held_failure;
 		});
 		if (cancel_open)
 			t::detail::CoordinatorAccess::close_after_next_session_open(*coordinator);
@@ -1057,6 +1101,7 @@ int main(int argc, char **argv) {
 										  poll_backoff));
 		checkpoint("coordinator-running");
 		io.run();
+		settled = std::chrono::steady_clock::now();
 		checkpoint("coordinator-settled");
 		std::exception_ptr run_failure;
 		try {
@@ -1083,6 +1128,8 @@ int main(int argc, char **argv) {
 			std::rethrow_exception(server_failure);
 		if (run_failure)
 			std::rethrow_exception(run_failure);
+		if (subscription && attempts)
+			check(close_acknowledged && close_answered < settled);
 		auto final_cursor = cursor();
 		if (pressure || transitions)
 			final_cursor.revision = 3;
