@@ -32,12 +32,12 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/design/observability.md`: "D1. What is observed, and its bounds" (per process, per host, per fleet bounds; freshness in D5) |
-| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." D2 cost table from confirm (exclusive) 261109-125827-bc28dd, numbers quoted from its same-binary run at `d1ce742`: knob_sampled +6.0/+4.1/+2.6/+7.4 ns at 8 threads vs A/A bands 6.5/11.4/22.0/24.6; one thread unresolvable (bands 30.3-180.2) |
-| A3 | `docs/design/observability.md`: "D7. Leaving the process and the host" (usage page, agent `pread`, JSON document, Prometheus textfile totals Q3, fleet Q4) |
+| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." D2 cost table from confirm (exclusive) 261109-125827-bc28dd, numbers quoted from its same-binary run at d1ce742: knob_sampled +6.0/+4.1/+2.6/+7.4 ns at 8 threads vs A/A bands 6.5/11.4/22.0/24.6; one thread unresolvable (bands 30.3-180.2) |
+| A3 | `docs/design/observability.md`: "D7. Leaving the process and the host" (usage page, agent pread, JSON document, Prometheus textfile totals Q3, fleet Q4) |
 | A4 | `docs/design/observability.md`: "unused, it measures +0.9 to +5.5 ns at 8 threads, inside the A/A bands" |
 | A5 | `docs/design/observability.md`: "D8. Privacy and limits" (identifiers and fallbacks never stored, names never labels, caps) |
 | A6 | `docs/design/observability.md`: "OB1 Usage table, sampling and arms in the core" (OB1-OB6 with files, criteria, risk, needs) |
-| A7 | Build 261109-125827-d3567b, smoke 261109-125827-7b2e64, screen 261109-125827-bd1c57, confirm (exclusive) 261109-125827-bc28dd at `6f718fa`; the doc cites the same-binary chain at `d1ce742` listed under Doing |
+| A7 | Build 261109-125827-d3567b, smoke 261109-125827-7b2e64, screen 261109-125827-bd1c57, confirm (exclusive) 261109-125827-bc28dd at 6f718fa; the doc cites the same-binary chain at d1ce742 listed under Doing |
 
 ## Result
 
