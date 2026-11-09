@@ -4,8 +4,9 @@
 #include "paged_navigation.hh"
 #include "paged_overlay_assembler.hh"
 #include "paged_packer.hh"
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <iterator>
 #include <map>
 #include <random>
 #include <set>
@@ -304,13 +305,14 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	return written;
 }
 
-static Rows read_corpus(const std::string &path) {
-	std::ifstream file(path, std::ios::binary);
-	require(bool(file));
-	const auto read = [&](std::size_t size) {
-		std::vector<char> bytes(size);
-		file.read(bytes.data(), size);
-		require(bool(file));
+// Parses a DTCORP01 corpus; every key must satisfy the store's key grammar, which the
+// reader enforces on each leaf it reaches.
+static Rows parse_corpus(std::span<const char> file) {
+	std::size_t at = 0;
+	const auto read = [&](std::uint64_t size) {
+		require(size <= file.size() - at);
+		const auto bytes = file.subspan(at, size);
+		at += size;
 		return bytes;
 	};
 	const auto header = read(32);
@@ -321,7 +323,7 @@ static Rows read_corpus(const std::string &path) {
 			body_bytes <= 1024ULL * 1024 * 1024);
 	const auto key_offsets = read(4 * (count + 1)), keys = read(key_bytes),
 			   body_offsets = read(4 * (count + 1)), bodies = read(body_bytes), kinds = read(count);
-	require(file.peek() == std::char_traits<char>::eof());
+	require(at == file.size());
 	Rows rows;
 	for (std::size_t i = 0; i < count; ++i) {
 		const auto k0 = l::read_integer(key_offsets, 4 * i, 4),
@@ -330,12 +332,70 @@ static Rows read_corpus(const std::string &path) {
 				   b1 = l::read_integer(body_offsets, 4 * i + 4, 4);
 		require(k0 < k1 && k1 <= keys.size() && b0 <= b1 && b1 <= bodies.size());
 		std::string key(keys.data() + k0, k1 - k0);
-		require((key.front() == 'K' && kinds[i] == 2) || (key.front() == 'W' && kinds[i] == 3));
+		try {
+			require(static_cast<std::uint8_t>(p::decode_key(key).kind) ==
+					static_cast<std::uint8_t>(kinds[i]));
+		} catch (const std::invalid_argument &) {
+			throw std::runtime_error("corpus record " + std::to_string(i) +
+									 " has a key outside the store key grammar");
+		}
 		require(rows.empty() || rows.rbegin()->first < key);
 		rows.emplace_hint(rows.end(), std::move(key),
 						  std::vector<char>(bodies.begin() + b0, bodies.begin() + b1));
 	}
 	return rows;
+}
+static Rows read_corpus(const std::string &path) {
+	std::ifstream file(path, std::ios::binary);
+	require(bool(file));
+	const std::vector<char> bytes{std::istreambuf_iterator<char>(file), {}};
+	require(!file.bad());
+	return parse_corpus(bytes);
+}
+// Encodes rows as DTCORP01, the model's corpus format.
+static std::vector<char> corpus_bytes(const std::vector<std::pair<std::string, std::string>> &rows) {
+	std::vector<char> keys, bodies, key_offsets(4 * (rows.size() + 1)),
+		body_offsets(4 * (rows.size() + 1)), kinds;
+	for (std::size_t i = 0; i < rows.size(); ++i) {
+		keys.insert(keys.end(), rows[i].first.begin(), rows[i].first.end());
+		bodies.insert(bodies.end(), rows[i].second.begin(), rows[i].second.end());
+		l::write_integer(key_offsets, 4 * i + 4, keys.size(), 4);
+		l::write_integer(body_offsets, 4 * i + 4, bodies.size(), 4);
+		kinds.push_back(static_cast<char>(rows[i].first.front() == 'K' ? 2 : 3));
+	}
+	std::vector<char> out(32);
+	std::copy_n("DTCORP01", 8, out.begin());
+	l::write_integer(out, 8, rows.size(), 8);
+	l::write_integer(out, 16, keys.size(), 8);
+	l::write_integer(out, 24, bodies.size(), 8);
+	for (const auto *part : {&key_offsets, &keys, &body_offsets, &bodies, &kinds})
+		out.insert(out.end(), part->begin(), part->end());
+	return out;
+}
+// The model's synthetic corpus holds keys such as "Kwide\0a!\0" that no store can hold: the
+// packer seals them, the reader refuses the leaf, and the corpus parser rejects the file.
+static void check_key_grammar(const std::shared_ptr<d::StorageLedger> &account) {
+	const std::string ns("Wwide\0", 6), valid("Kwide\0a\0", 8), invalid("Kwide\0a!\0", 9);
+	const auto parsed = parse_corpus(corpus_bytes({{valid, "body"}, {ns, std::string(8, '\0')}}));
+	require(parsed.size() == 2 && parsed.at(valid) == std::vector<char>{'b', 'o', 'd', 'y'});
+	bool refused = false;
+	try {
+		parse_corpus(corpus_bytes({{valid, "body"}, {invalid, "body"}, {ns, std::string(8, '\0')}}));
+	} catch (const std::runtime_error &error) {
+		refused = std::string_view(error.what()).ends_with("outside the store key grammar");
+	}
+	require(refused);
+	Rows stored{{valid, {'b'}}, {invalid, {'c'}}, {ns, std::vector<char>(8)}};
+	const auto base = Full(account).build(stored);
+	x::PagedReadState reader{base.root, base.inputs};
+	require(reader.lookup(valid, p::PageKind::Definition).has_value());
+	refused = false;
+	try {
+		(void)reader.lookup(invalid, p::PageKind::Definition);
+	} catch (const x::ReadSourceFailure &) {
+		refused = true;
+	}
+	require(refused);
 }
 
 static void compare_corpus(const std::string &before_path, const std::string &after_path) {
@@ -383,6 +443,7 @@ int main(int argc, char **argv) {
 	const unsigned rounds = argc == 2 ? std::stoul(argv[1]) : 50;
 	require(rounds > 0 && rounds <= 1000000);
 	auto account = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
+	check_key_grammar(account);
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
 	l::write_integer(rows.at(key("ns", true)), 0, 17, 8);
 	for (unsigned i = 0; i < 2000; ++i)

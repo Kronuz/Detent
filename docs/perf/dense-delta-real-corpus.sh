@@ -2,7 +2,7 @@
 set -euo pipefail
 set -x
 
-mode=${1:?smoke or 5m}
+mode=${1:?smoke (100K corpus) or 5m}
 build=${2:?build directory}
 : "${JOB_OUT:?campaign output directory}"
 model=docs/design/dense-pages-model.py
@@ -22,19 +22,19 @@ binary="$build/tests/detent_local/test_local_dense_delta_assembly"
 file "$binary"
 shasum -a 256 "$binary"
 
+# Both modes read an extracted store corpus: the model's synthetic corpus holds keys outside the
+# store key grammar (its 200-way "wide" branch), which the dense reader refuses.
+: "${DENSE_CORPUS:?pinned corpus path}"
+corpus=$DENSE_CORPUS
 if test "$mode" = smoke; then
     "$binary"
-    corpus="$JOB_OUT/synthetic.bin"
-    /usr/local/bin/python3 -I "$model" synthetic "$corpus"
+    corpus_sha=3214561e0d3e065a94e11a2765976a0834d54ee3b5cd5e332a14c8812a1a5740
 elif test "$mode" = 5m; then
-    : "${DENSE_CORPUS:?pinned 5M corpus path}"
-    corpus=$DENSE_CORPUS
-    test "$(shasum -a 256 "$corpus" | cut -d ' ' -f1)" = \
-        bb87ae5d3a30f666e06bb236f1f826d7afd0ba8d942f9fffcec1db76152bc835
+    corpus_sha=bb87ae5d3a30f666e06bb236f1f826d7afd0ba8d942f9fffcec1db76152bc835
 else
     exit 2
 fi
-shasum -a 256 "$corpus"
+test "$(shasum -a 256 "$corpus" | cut -d ' ' -f1)" = "$corpus_sha"
 /usr/local/bin/python3 -I "$model" bytes "$corpus" 4096 --rule=height \
     | tee "$JOB_OUT/base-bytes.log"
 
