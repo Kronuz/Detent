@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_packer.cc b/src/detent_local/paged_packer.cc
+index 57f7ef1..66042f2 100644
+--- a/src/detent_local/paged_packer.cc
++++ b/src/detent_local/paged_packer.cc
+@@ -420,7 +420,7 @@ void PagedPacker::step(ValidationBudget &budget) {
+ 						auto &candidate = *s.frontier[i];
+ 						if (candidate.sealed() || candidate.size() <= p::child_bytes)
+ 							continue;
+-						if (!best || candidate.height < best->height ||
++						if (!best || candidate.size() > best->size() ||
+ 							(candidate.height == best->height && candidate.size() > best->size()))
+ 							best = &candidate;
+ 					}

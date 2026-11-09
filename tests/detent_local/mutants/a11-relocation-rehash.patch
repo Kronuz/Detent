@@ -1,0 +1,12 @@
+diff --git a/src/detent_local/paged_overlay_assembler.cc b/src/detent_local/paged_overlay_assembler.cc
+index 7d1018f..146338a 100644
+--- a/src/detent_local/paged_overlay_assembler.cc
++++ b/src/detent_local/paged_overlay_assembler.cc
+@@ -229,6 +229,7 @@ void OverlayAssembler::step(ValidationBudget &budget) {
+ 									  bytes.end() - p::placement_bytes * (count - i));
+ 						}
+ 						s.relocated->seal();
++						(void)p::page_commitment(bytes);
+ 						s.page = {s.relocated, n.relocation_reference, {}};
+ 						f.entered = true;
+ 					}
