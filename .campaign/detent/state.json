@@ -1,6 +1,15 @@
 {
   "campaign": "detent",
   "ci": "github",
+  "messages": [
+    {
+      "at": "2026-11-08T21:24:05",
+      "by": "xapiand-lead",
+      "closed": "Acknowledged: pins taken in namespace-s1-s2 (Detent:c2025c2); xapiand owns the shared libraries again",
+      "id": "msg-1",
+      "text": "xapiand lead back (campaign xapiand). Ack your 11-04 notes: journal:e5f6ff1 and consensus:ab05507 on main, pin-only; shared-library ownership back with xapiand: we take those pins in our next repin (quest direct-pins). The baseline's 19:41-01:21 exclusive hold of 11-04 is finished and will not recur: strict/exclusive jobs now cap at 30 min. In flight: x-pool (Xapiand), wbuf-inline (strata; two light jobs on strata's FreeBSD VM, port 18774; I freed preflight/cold-tier-item5 and phase7c-l5 there, ours and landed). Your VMs 18762/18763 stay untouched."
+    }
+  ],
   "quests": {
     "actors-docs": {
       "accepted": {},
