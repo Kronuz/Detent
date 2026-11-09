@@ -236,6 +236,8 @@
     "daemon-ready-leader": {
       "accepted": {},
       "after": [],
+      "base": "9d7939f5727815d8d41faabb11c3ae6222c55549",
+      "branch": "quest/detent/daemon-ready-leader",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -264,11 +266,13 @@
       "provides": [
         "detentd-readiness"
       ],
+      "reason": "started by force: dense-pages' tests/** glob is broad; its branch changes only tests/detent_local, detent_delivery, detent_system and detent_testing, never tests/detentd, tests/detent_authority or src/detentd",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-08T12:45:01"
+      "updated": "2026-11-09T14:24:39",
+      "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
       "accepted": {
