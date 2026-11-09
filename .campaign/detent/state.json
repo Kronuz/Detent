@@ -85,6 +85,8 @@
     "async-drivers-design": {
       "accepted": {},
       "after": [],
+      "base": "882a56d20dfa8094b803ea632c63593f1643ebb7",
+      "branch": "quest/detent/async-drivers-design",
       "checks": [],
       "consumes": [],
       "files": [
@@ -101,9 +103,10 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-09T14:24:56"
+      "updated": "2026-11-09T14:25:43",
+      "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
       "accepted": {},
