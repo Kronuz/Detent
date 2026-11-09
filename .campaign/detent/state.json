@@ -2526,19 +2526,53 @@
         "tests/detent_distribution/test_retirement.cc",
         "docs/mechanisms/retirement*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T10:10:15",
+          "commit": "9cccd2b0d8224c5cf5a0e33b8f168b0eb7a3bdbf",
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-091524-b72f0a",
+              "level": "light",
+              "seconds": 1083.8,
+              "state": "done",
+              "what": "retirement-close-race check native at 5772d201eaa0"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R retirement",
+              "commit": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-091524-3d7822",
+              "level": "light",
+              "seconds": 799.0,
+              "state": "done",
+              "what": "retirement-close-race check tsan at 5772d201eaa0"
+            }
+          ],
+          "final": true,
+          "from": "5beef417cef72b59757aeebaf5fc284fdbcec663",
+          "reason": "",
+          "tested": "28e72949ccc2c325d9dea529536aa260b1709f06"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
-      "updated": "2026-11-09T09:42:20",
-      "worktree": "../Detent-wt/detent/retirement-close-race"
+      "updated": "2026-11-09T10:10:20",
+      "worktree": ""
     },
     "salvage": {
       "accepted": {},
