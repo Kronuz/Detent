@@ -209,13 +209,19 @@ The sender knows both encodings' sizes: the records answer from namespace D6, an
 
 At 5M the rule sends records for every uniform update, and for clustered updates below about 100,000 keys. It sends pages for larger clustered changes and for every full copy. A receiver of a full copy then skips the 5M build; a receiver of a scattered delta runs dense-pages D7, whose work is proportional to the change: the same pages hashed as with pages, plus the packer on those paths.
 
+**What a warm receiver relies on.** A receiver that applies record deltas ends with the same pages as every other holder of that position, because pages are canonical after deltas: dense-pages D7's result is the full build's page tree (dense-pages D5 and Limit 3, `dense-pages.md:256`; files are not canonical, pages are). Three results stand behind it:
+
+1. The model's replay of the 5M full copy reproduces the build's 302 packs byte for byte (`8606dc`): the pages of a position are a function of its records.
+2. The review's P9 chains three deltas over received bases and ends with a full build's page set (`20ab89`).
+3. D1's root check makes a receiver whose incremental result diverged refuse it and ask for pages (D9), so a divergence is a refusal, never a silent fork.
+
 ### D7. What a relay stores and serves
 
 A relay keeps four things per namespace:
 
 1. **Records history**: the ring, blocks and base mirrored from upstream (namespace D7, unchanged). It serves record answers and feeds item 2.
 2. **Its prepared generation at head**, built from the records it mirrors: a full build at its own cold start, dense-pages D7 after that. Relays are the build tier: one build per relay serves every agent below it. A relay that took pages from upstream would pay for both encodings, since it must mirror records anyway.
-3. **A page window**: its generations at recent positions, which share all unchanged pages, so a window costs only superseded pages. It is bounded like the record ring, by 64 positions and by the generation's own size in bytes. For R in the window, the delta transfer is a top-down Merkle diff of h against R: descend while the page at a path differs, prune where digests match, and emit in seal order. D9's canonicity walk yields seal order from the pages alone. For R outside the window, D6's choice is records (or the cut's full copy).
+3. **A page window**: its generations at recent positions, which share all unchanged pages, so a window costs only superseded pages. It is bounded like the record ring, by 64 positions and by the generation's own size in bytes. For R in the window, the delta transfer is a top-down Merkle diff of h against R: descend while the page at a path differs, prune where digests match, and emit in seal order. D9's canonicity walk yields seal order from the pages alone. The relay indexes the window's pages by digest for D10's pulls. For R outside the window it keeps nothing: D6 answers with records, and a stale receiver pulls (D10).
 4. **A canonical full copy**: the transfer from empty at a position s, made by relocating its generation into seal order. That is dense-pages D8's relocation, which computes no page digest, with D9's walk giving the order. Its first instance is the relay's own cold build, whose files are already canonical. It is replaced when the delta s→h stops being smaller than a fresh copy, and counted in namespace D6's disk bound (one cached copy per namespace). A cold agent gets the copy at s, then the D6 answer from s to h.
 
 The relay serves only immutable objects (copies, deltas, blocks), so any HTTP cache that authorizes per namespace can serve them.
@@ -238,6 +244,30 @@ A fragment that fails its frame checksum (namespace D12.2: frame SHA-256 stays) 
 | Agent's base lacks a page the delta reuses, or a base page fails first touch or scrub | The base is damaged: namespace D10.3 applies unchanged. The namespace fails alone and the agent asks for a full copy, now the 25.7 MB pages copy with no build, published at build ordinal r + 1 |
 
 Repair stays a full copy. A repair by page would have to fetch or relocate every live page of the damaged pack, not only the damaged page, since the pack's `.live` checksum keeps failing scrub otherwise (dense-pages D10), and a transfer carries no way to add a reused page below the delta's frontier. A full copy at 5M costs 25.7 MB once per damaged namespace.
+
+### D10. The stale receiver: the pages it lacks, or the full copy
+
+A receiver is in one of three states (the quest's Decision 6):
+
+| State | Base | What it gets | Its work |
+| --- | --- | --- | --- |
+| Empty | none, or another incarnation | the full copy as pages (D2) | verifies and writes; no build |
+| Warm | R inside the relay's record window | records (D6), or pages where smaller | dense-pages D7 on the changed paths; same pages as every holder (D6) |
+| Stale | R older than the record window: a stalled agent, or one started from an old image | the pages it lacks, pulled by digest, or the full copy, whichever is smaller | verifies and writes the pulled pages; no build |
+
+**The pull.** The relay keeps no generation for R. The receiver compares, the relay only serves pages by digest:
+
+1. The receiver pins the head: the frame header names h and its root digest (D1).
+2. **Level 1**: it asks for the root page by that digest, and checks the page hashes to it.
+3. **Level k + 1**: for every page of level k it resolves each external slot's trie path (D5) and compares the slot's content entry (digest, keys, length, height) with its base page at that path. Equal: the subtree is held, by dense-pages D7's identity. Otherwise the child's digest joins the next request. One request per level carries every digest of that level, so the round trips are the depth of the deepest missing page.
+4. Every answered page must hash to the digest its parent states. Pages travel in the "pull" form: content digests kept, since the receiver compares them before it holds the children, and the header digest and placement zero.
+5. When no digest is left, the pulled pages in seal order are exactly the delta transfer from R to h in the digests form, and the receiver runs D4 on them: parse, canonicity, seal order, layout, root. Its files are those a warm receiver of the same delta writes.
+
+The relay answers a pull from its page window (D7.3), indexed by digest, while h is in it. If h leaves the window mid-pull, the relay says so, and the receiver pins the new head and keeps comparing, counting the pages it already verified as base pages at their paths.
+
+**The stop rule.** Before each request the receiver knows the raw length of every page it is about to ask for, from the content entries. It switches to the full copy as soon as what it has been sent, plus the next level at the ratio of sent to raw bytes so far, would pass the full copy's size as sent, which the relay publishes with the copy's name (D2). What it already fetched is spent; the copy then arrives as a full copy (D4).
+
+STALE_RESULTS
 
 ### Limits
 
@@ -272,7 +302,7 @@ Its cost per agent-day, for agents that poll the head and take each poll's chang
 | Every minute, T4 churn | 156 MB | 9.78 GB | 62.6 | $31, $1,956 |
 | Every 10 minutes, T4 churn | 15.6 MB | 978 MB | 62.6 | $3.12, $196 |
 
-Pages only also needs R's generation for every R it answers. Either the page window grows to cover the record history, or agents outside the window pull level by level, one round trip per level of the page tree (about 6 at 5M, dense-pages T3).
+Pages only also needs R's generation for every R it answers. Either the page window grows to cover the record history, or agents outside the window pull as D10's stale receiver does, at D10's bytes.
 
 - (a) The smaller per update (D6): agents apply scattered deltas.
 - (b) Pages only: agents never build, at the bytes above, plus window disk or pull round trips.

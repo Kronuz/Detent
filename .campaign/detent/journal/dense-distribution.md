@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: waiting on jobs 261109-030636-4ce079 (the 5M sweep; then its rows, the final-head reruns, ready for review)
+State: waiting on jobs 261109-030636-4ce079 261109-080251-f17f4b 261109-080252-b7e62c (sweep; stale probe at 100K; stale at 5M)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,13 @@ status` reads State, the first step under Next, and the Evidence table. State is
 waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Round 3 (lead, 2026-11-09; quest Decision 6 and A7 at `Detent:15649a7`): the stale tier and the
+warm-path property, in the same round as the sweep rows. Model `stale` mode at `Detent:d0e8f85`
+(pull per level in the "pull" form, stop rule, full copy of the head, records answer; asserts the
+pulled set is the occurrence writes and replays it to the head's root; `check` runs three gaps).
+Document: D6's warm-path property, D7.3 and Q1 point to D10, D10 drafted with STALE_RESULTS left
+for job 261109-080252-b7e62c. Older rounds below.
 
 Design review CHANGES at `Detent:d874004` (`.campaign/detent/reviews/dense-distribution-design.md`).
 Model fixed at `Detent:4d66fe1` and `Detent:29b5e53` (each forged-root case sealed, so only its
@@ -28,9 +35,12 @@ and job id from the jobs, D4's refusal table, Q1's per-agent-day rows (DD-4). Le
 
 ## Next
 
-1. Read 261109-030636-4ce079; fill the sweep rows, recheck D6 rule 1 on every row; commit (the
-   final code head).
-2. `campaign job rerun` the six at that head; then State "ready for review" with the DD map below.
+1. Read 261109-030636-4ce079; fill the sweep rows (SWEEP_RANGE, RULE1_EVIDENCE, Q1_SWEEP_*),
+   recheck D6 rule 1 on every row (sent/raw range starts at 0.48, the 1-key row).
+2. Read 261109-080252-b7e62c; fill STALE_RESULTS (table, where each wins), the abstract, Limits,
+   a DD6 candidate and the rerun commands; one final document commit.
+3. `campaign job rerun` the six plus the 5M stale job at that head (--after keeps order); State
+   "ready for review", noting A7 is new scope the reviewer has not seen.
 
 ## Blocked on
 
@@ -51,6 +61,7 @@ level; their reruns at the final head are the same jobs at that code.
 | A3 | `docs/design/dense-distribution.md` D1-D5 and D7, and D4's refusal table from 261109-030632-2d5f94 (layout, order, keys, height, labels, parse and canonical each refused by its own check on a sealed forgery, a mutant per check accepting) |
 | A4 | `docs/design/dense-distribution.md` D8, D9 and Limits; 261109-030633-20ab89 (P6 truncation refused; P7 and P8c refused, repair is a full copy) |
 | A5 | `docs/design/dense-distribution.md`, "Candidate steps": DD1-DD5 with files, criteria, risk and needs, as candidates (D33) |
+| A7 | pending: 261109-080252-b7e62c (5M stale gaps), 261109-080251-f17f4b (100K probe). Path: `docs/design/dense-distribution.md` D10 |
 | A6 | 261109-030634-8606dc, 261109-030635-4e209f, 261109-030636-4ce079, 261109-030637-311a76, 261109-030632-2d5f94, cited in the document beside their numbers |
 
 ## Review findings
@@ -104,5 +115,14 @@ Open: no C++ CPU number for the skipped build (DD3 measures it); record delta si
    each named with its hash in the job's `--env`; the model also prints the hash it read.
 8. A forged-root case is valid only when sealed: the digest checks must pass, so the targeted
    structure or canonicity check is the one that refuses (lead's direction on job 261109-014058-00ad3c).
+10. Stale gaps (A7): "T4 churn" for a time gap is T4's mix (98% updates, 1% inserts, 1%
+   deletes) at namespace D6's moderate rate, 1M writes a day at 5M (`namespace-delivery.md:181`),
+   with its skew (80% of writes to a hot 1% of keys); the hot set is a random 1% ("moderate", the
+   harder case for pages) or a contiguous 1% ("hotrange"); "uniform" drops the hot set. Each key
+   keeps its last write (net state); writes to inserted keys are not modeled.
+11. The pull names pages by digest under a pinned head root; the relay indexes its page window by
+   digest; the pull form keeps content digests (the receiver compares them before it holds the
+   children) and zeroes header digest and placement; requests are modeled as 96 B plus 32 B per
+   digest.
 9. Lead note D33 (owner withdrew receivers-build-nothing): folded into the same document round, no
    extra rerun; Outcome and criteria unchanged; the build plan is "Candidate steps".
