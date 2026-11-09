@@ -31,6 +31,8 @@ All jobs `261109-`; driver `docs/mechanisms/retirement-wakeup.sh`. Not evidence:
 | A4 | tsan gate 261109-091524-3d7822 |
 | A5 | native gate 261109-091524-b72f0a |
 
+Failing by design (reproductions against pre-fix code): 261109-085248-0c7d20, 261109-091902-d4c641 (A1), 261109-091904-2f2be3 (A2 revert), 261109-093510-5e418c (reviewer's stress at 10b4b13).
+
 ## Result
 
 `RetirementState::step` loads `rolling_back` and `closing`, then `admission` once, and decides drainage and pending from those values (`src/detent_distribution/retirement.cc`, Detent:d5d9bc9); `run()` no longer rereads. The same change closes the sibling window for a rollback (a failed `make` on a closing domain): `rolling_back` returns to zero after its admission decrement, and main reread it after loading admission. Seam: `detail::RetirementTesting::interleave` with four `RetirementPoint`s (Detent:10b4b13). Test: `drains_across` in `tests/detent_distribution/test_retirement.cc`, four forced interleavings, no sleeps (a 5 s deadline only detects the hang). How it works: `docs/mechanisms/retirement-wakeup.md`.
