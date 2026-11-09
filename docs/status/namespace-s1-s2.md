@@ -2,7 +2,7 @@
 
 # namespace-s1-s2
 
-- Design: docs/design/namespace-delivery.md D11 and S1, S2; criteria: docs/status/namespace-design.md (S1, S2, verbatim there; ticked only here, with evidence). Mechanism note: docs/mechanisms/sync-groups.md (draft; its 25-flush figure at 5M is expected, not measured). Timing note to write: docs/perf/sync-groups.md. Measured start: docs/perf/cold-bootstrap-5m.md (Round 2).
+- Design: docs/design/namespace-delivery.md D11 and S1, S2; criteria: docs/status/namespace-design.md (S1, S2, verbatim there; ticked only here, with evidence). Mechanism note: docs/mechanisms/sync-groups.md. The timing table (docs/perf/sync-groups.md) belongs to quest sync-groups-perf (D32). Measured start: docs/perf/cold-bootstrap-5m.md (Round 2).
 - Branch / worktree: Detent `namespace/s1-s2` in `.claude/worktrees/agent-af2c08dd24001ec58`, base `Detent:32aa0c8`; completion worktree `~/code/Kronuz/completion-wt/s2-stage` (branch `namespace/s2-stage`, now also on completion main).
 - State: S1 done and verified. S2 rework. Six targeted tests pass in the recovered overnight logs. T7 and full ctest fail before the recovery fixes; mutant, sanitizer and timing evidence remains outstanding.
 - Found on arrival: S1's primitives were already built and landed (`completion:0490a5a` SyncFiles and OrderFiles, `completion:df6394a` read-only opens, `sync_primitives_test`, mutants s1-s8, `docs/mechanisms/sync-files.md`; completion CI green at `completion:9acfba3`) and Detent's pin already pointed at it (`Detent:b42d781`). S1 needed verification. What S2 needed beyond it is one policy, `PreparationFilePolicy::Stage` (create and write, no sync, file left open for a group sync), now `completion:560c288` on completion main.
