@@ -27,7 +27,7 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `docs/perf/sync-groups.md`; source jobs (exclusive, Detent:35296ba, exit 0): 10K before 261109-125239-019c9c 261109-121537-aa665e 261109-121537-59e880, after 261109-125239-e9ce13 261109-121537-ef207f 261109-125238-294dec; 100K before 261109-125239-90fffe 261109-125238-d9860a 261109-125239-2750d0, after 261109-125238-e2ca32 261109-125239-826187 261109-121537-2817a2; 5M before 261109-125238-dffa9c, after 261109-125239-dd7342 |
+| A1 | `docs/perf/sync-groups.md` (each row names its exclusive A9 job at Detent:35296ba) |
 
 ## Result
 
