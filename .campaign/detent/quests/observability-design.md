@@ -22,6 +22,7 @@ allocation or syscall; p50 268.5 ns integer, 475 ns bool). Every cost claim is m
 - A5 [artifact] Value privacy and limits: what is exported as a value, a hash or an arm label, and how unbounded value sets are capped: `docs/design/observability.md`
 - A6 [artifact] Build plan: candidate quests with files, criteria and risk, and what each needs from reader S5-S7 and the agent: `docs/design/observability.md`
 - A7 The warm-path cost measurements are campaign jobs (`exclusive` for numbers that decide) the document cites by id
+- A8 [artifact] Exact counting (D38): at least three exact per-knob mechanisms beyond D2's rows (for example a counter in the cache line the lookup already reads, per-thread plain counters merged on scan, an exact "ever read" bit with test-before-set), each measured paired against `none` at 1, 8 and 64 threads in exclusive jobs, and a verdict against OB1's gate (≤ 5 ns at 1 thread, ≤ 10 ns at 8 and 64): the cheapest exact mechanism, or the measured reason none fits: `docs/design/observability.md`
 
 ## Contracts
 
