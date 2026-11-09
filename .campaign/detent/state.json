@@ -1760,10 +1760,66 @@
         "tests/detent_local/test_publication_power_cut.cc",
         "docs/measurements/sync-groups-20261108/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T14:41:43",
+          "commit": "dbf4f8dc73940924415b5f44c38c5e63f4d61b9a",
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-4154e6",
+              "level": "light",
+              "seconds": 621.3,
+              "state": "done",
+              "what": "namespace-s1-s2 check native at 35296bada2db"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-c8454e",
+              "level": "none",
+              "seconds": 5.6,
+              "state": "done",
+              "what": "namespace-s1-s2 check pins at 35296bada2db"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-cfa19e",
+              "level": "light",
+              "seconds": 620.3,
+              "state": "done",
+              "what": "namespace-s1-s2 check asan at 35296bada2db"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-b38ac1",
+              "level": "light",
+              "seconds": 191.8,
+              "state": "done",
+              "what": "namespace-s1-s2 check tsan at 35296bada2db"
+            }
+          ],
+          "final": true,
+          "from": "fd7f455420a36e079bd490bbbc1019b7953c93cc",
+          "reason": "",
+          "tested": "f048b4a256416966bfe66bff66d35ce92bd0304a"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [
@@ -1772,10 +1828,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-09T14:06:17",
-      "worktree": "../Detent-wt/detent/namespace-s1-s2"
+      "updated": "2026-11-09T14:41:56",
+      "worktree": ""
     },
     "namespace-s3": {
       "accepted": {},
