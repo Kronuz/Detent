@@ -4,8 +4,11 @@
 # MUTANT: apply one source edit, rebuild, run the tests named for it, and report each test's status.
 # The job passes (exit 0) only when the mutant is killed, i.e. every test named for it fails;
 # a survivor prints SURVIVED and exits 1; a configure or build failure exits 125 (not evidence).
+# A test that hangs (T7's watchdog exits 124; the per-test bound of $limit s raises SIGALRM, 142) is
+# neither a kill nor a pass: the mutant job prints HUNG and exits 125, the positive job fails.
 set -u
 name=$1
+limit=420
 build=.scratch/build-dbg
 targets=(test_local_publication_power_cut test_local_paged_store_startup test_local_disk_store)
 restore() { git checkout -q -- src tests; }
@@ -94,16 +97,24 @@ case "$name" in
   startup-before-barrier) run=(test_local_publication_power_cut test_local_paged_store_startup) ;;
   *) run=(test_local_publication_power_cut) ;;
 esac
-failed=0 passed=0
+failed=0 passed=0 hung=0
 for t in "${run[@]}"; do
-  "$build/tests/detent_local/$t"
+  echo "$name: running $t, bound $limit s"
+  start=$(date +%s)
+  /usr/bin/perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$limit" "$build/tests/detent_local/$t"
   rc=$?
-  echo "$name: $t rc=$rc"
-  if [ "$rc" -eq 0 ]; then passed=$((passed + 1)); else failed=$((failed + 1)); fi
+  echo "$name: $t rc=$rc seconds=$(($(date +%s) - start))"
+  if [ "$rc" -eq 0 ]; then passed=$((passed + 1));
+  elif [ "$rc" -eq 124 ] || [ "$rc" -eq 142 ]; then hung=$((hung + 1)); echo "$name: $t HUNG";
+  else failed=$((failed + 1)); fi
 done
 if [ "$name" = positive ]; then
-  [ "$failed" -eq 0 ]
+  [ "$failed" -eq 0 ] && [ "$hung" -eq 0 ]
   exit $?
+fi
+if [ "$hung" -ne 0 ]; then
+  echo "MUTANT $name HUNG ($hung of ${#run[@]} named tests): not evidence"
+  exit 125
 fi
 if [ "$passed" -ne 0 ]; then
   echo "MUTANT $name SURVIVED ($passed of ${#run[@]} named tests passed)"

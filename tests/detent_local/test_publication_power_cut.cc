@@ -6,16 +6,62 @@
 #include "paged_maintenance_plan.hh"
 #include <completion/native_completion.h>
 #include <chrono>
+#include <condition_variable>
+#include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
 #include <map>
+#include <mutex>
 #include <source_location>
+#include <thread>
 namespace c = kronuz::io::completion;
 
 namespace {
 void check(bool value, std::source_location where = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("power-cut invariant at line " + std::to_string(where.line()));
+}
+// Fails the run (exit 124) when no case completes for `limit`, naming the last one: a hang is never a pass
+// and never reads as a failed invariant.
+class Watchdog {
+  public:
+	explicit Watchdog(std::chrono::seconds limit) : limit_(limit), thread_([this] { watch(); }) {}
+	~Watchdog() {
+		{
+			std::lock_guard lock(mutex_);
+			stop_ = true;
+		}
+		wake_.notify_one();
+		thread_.join();
+	}
+	void beat(std::string where) {
+		std::lock_guard lock(mutex_);
+		where_ = std::move(where);
+		last_ = std::chrono::steady_clock::now();
+	}
+
+  private:
+	void watch() {
+		std::unique_lock lock(mutex_);
+		while (!wake_.wait_for(lock, std::chrono::seconds(1), [&] { return stop_; }))
+			if (std::chrono::steady_clock::now() - last_ >= limit_) {
+				std::fprintf(stderr, "watchdog: nothing completed for %lld s after %s\n",
+							 static_cast<long long>(limit_.count()), where_.c_str());
+				std::_Exit(124);
+			}
+	}
+	const std::chrono::seconds limit_;
+	std::mutex mutex_;
+	std::condition_variable wake_;
+	std::string where_ = "start";
+	std::chrono::steady_clock::time_point last_ = std::chrono::steady_clock::now();
+	bool stop_ = false;
+	std::thread thread_;
+};
+Watchdog *g_watchdog = nullptr;
+void beat(std::string where) {
+	if (g_watchdog)
+		g_watchdog->beat(std::move(where));
 }
 struct Inode {
 	std::string content;                 // as written, volatile
@@ -181,6 +227,9 @@ struct Environment {
 		options.recovery_limits.mapping_account =
 			std::make_shared<d::StorageLedger>(16 * l::paged::segment_bytes);
 	}
+	// Waits until every owner retired. The runtime's shutdown wakes its worker after the domain is closed;
+	// RetirementDomain::close().wait() can miss that wakeup (retirement_wakeup.cc in the job scripts).
+	void close() { runtime.shutdown(); }
 	std::shared_ptr<d::StorageLedger> account, baseline;
 	d::RetirementRuntime runtime;
 	d::RetirementDomain domain;
@@ -227,7 +276,7 @@ l::Descriptor open_and_recover(const std::filesystem::path &root) {
 	drain(store);
 	check(store->drained());
 	store.reset();
-	env.domain.close().wait();
+	env.close();
 	return *selection.descriptor;
 }
 
@@ -371,7 +420,7 @@ Run start_store(const std::filesystem::path &root, State start, l::StoreOpenMode
 	check(store->drained());
 	store.reset();
 	tracker.store.reset();
-	env.domain.close().wait();
+	env.close();
 	g_state = nullptr;
 	return run;
 }
@@ -385,7 +434,7 @@ bool reopens(const std::filesystem::path &root) {
 	store->close();
 	drain(store);
 	store.reset();
-	env.domain.close().wait();
+	env.close();
 	return ready;
 }
 
@@ -467,7 +516,7 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 	tracker.store.reset();
 	plan.reset();
 	base.reset();
-	env.domain.close().wait();
+	env.close();
 	g_state = nullptr;
 	return run;
 }
@@ -512,6 +561,7 @@ std::size_t creation_cuts(const std::filesystem::path &directory) {
 			materialize(probe, ready, false, entries, data);
 			check(reopens(probe));
 			++cases;
+			beat("creation event " + std::to_string(i));
 		}
 	}
 	check(restarts > 0);
@@ -529,6 +579,9 @@ int main(int argc, char **argv) {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
+	std::setvbuf(stdout, nullptr, _IOLBF, 0); // result lines reach a job log as they are printed
+	Watchdog watchdog(std::chrono::seconds(60));
+	g_watchdog = &watchdog;
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
@@ -560,6 +613,7 @@ int main(int argc, char **argv) {
 	auto progress = [&](const std::string &where) {
 		const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - began;
 		std::cerr << "progress: " << where << ", " << cases << " cases, " << elapsed.count() << " s\n";
+		beat(where);
 	};
 	// Cuts at every event, with every window size, in every mode.
 	const std::pair<EntryMode, DataMode> modes[] = {{EntryMode::Durable, DataMode::Truncate},
@@ -583,12 +637,14 @@ int main(int argc, char **argv) {
 			check(false);
 		}
 		++cases;
+		beat(what + " at event " + std::to_string(index));
 	};
 	for (const std::size_t window : {std::size_t(1), std::size_t(2), std::size_t(128)}) {
 		const auto root = directory / ("run-" + std::to_string(window));
 		std::filesystem::remove_all(root);
 		materialize(root, start, true, EntryMode::Durable, DataMode::Truncate);
 		auto run = publish(root, start, storage, 'n', window);
+		progress("window " + std::to_string(window) + " published");
 		requests += run.trace.size();
 		// Group syncs: owners and lease, then the payloads in windows of `window`, never a per-file sync.
 		for (auto kind : run.trace)
@@ -653,6 +709,7 @@ int main(int argc, char **argv) {
 				const auto again = directory / ("cycle-" + std::to_string(cycle++));
 				materialize(again, second, true, EntryMode::Durable, DataMode::Truncate);
 				auto rerun = publish(again, second, storage, 'o', 2);
+				beat(tag + " published");
 				for (std::size_t j = 0; j < rerun.history.size(); j += 3) {
 					const auto probe = directory / "probe";
 					for (const auto &[entries, data] : {modes[0], modes[3]}) {
