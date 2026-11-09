@@ -936,8 +936,10 @@ int main(int argc, char **argv) {
 											*coordinator);
 									t::detail::CoordinatorAccess::request_compaction(*coordinator);
 								});
-							else
+							else {
 								feedback_received.store(true);
+								checkpoint("server-feedback");
+							}
 						}
 						if (transitions && (phase == 3 || phase == 4)) {
 							if (body.find("\"after\":" + std::to_string(phase - 1)) == std::string::npos) {
@@ -1018,6 +1020,7 @@ int main(int argc, char **argv) {
 							std::array<char, 1> input;
 							asio::error_code error;
 							socket.read_some(asio::buffer(input), error);
+							checkpoint("server-poll-released");
 							check(bool(error));
 							continue;
 						} else {
