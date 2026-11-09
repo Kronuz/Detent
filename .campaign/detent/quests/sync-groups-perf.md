@@ -5,27 +5,25 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`docs/perf/sync-groups.md` gives the restart and cold-bootstrap times at 10K, 100K and 5M before
+(`Detent:327ca58`) and after S1/S2, with the A/A spread, from namespace-s1-s2's A9 exclusive jobs.
+Its "after" rows come from jobs whose code is the landed S1/S2 code, so every row is measured on
+`main`. It changes no code, so its own commit never makes those jobs stale.
 
 ## Acceptance criteria
 
-One line each: `- A1 <criterion>: <the job, test or check that shows it>`. An untagged criterion
-needs a job that passed at the landed code; tag one `[artifact]` (a committed `path`),
-`[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
-cannot show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] The before and after table, each row naming its exclusive job id, medians and the A/A spread, honest magnitude stated: `docs/perf/sync-groups.md`
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+1. Split from namespace-s1-s2's A12 (lead, 2026-11-09): a docs commit changes job identity, so a
+   perf note written after the timings would make the 14 exclusive A9 jobs stale and force a full
+   rerun; writing it in its own quest after S1/S2 lands breaks that cycle.
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+None.
