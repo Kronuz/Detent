@@ -80,6 +80,29 @@
       "title": "M1b: coroutine drivers for journal and consensus, Detents owner loops on them",
       "updated": "2026-11-08T15:37:58"
     },
+    "async-drivers-design": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/design/async-drivers*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [
+        "task:driver"
+      ],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Design the journal and consensus coroutine drivers",
+      "updated": "2026-11-09T14:24:56"
+    },
     "client-local-source": {
       "accepted": {},
       "after": [],
