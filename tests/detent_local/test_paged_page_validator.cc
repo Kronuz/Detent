@@ -39,6 +39,16 @@ int main() {
 			auto bad = page;
 			bad.bytes.back() ^= 1;
 			rejects<std::invalid_argument>([&] { validate(source, bad); });
+			// A reference whose summary disagrees with a self-consistent page is refused even
+			// though the page's own replay passes.
+			for (const bool height : {false, true}) {
+				auto forged = page;
+				if (height)
+					++forged.reference.height;
+				else
+					++forged.reference.keys;
+				rejects<std::invalid_argument>([&] { validate(source, forged); });
+			}
 		}
 	}
 	{
