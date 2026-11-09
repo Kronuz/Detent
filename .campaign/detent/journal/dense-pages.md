@@ -1,23 +1,22 @@
 # dense-pages: journal
 
-State: blocked on the lead: A10 real-delta smoke aborts (261106-173308-d6523a); A15 misses its first-read gate (261106-173358-3b82ed)
-Quest: /Users/kronuz/code/Kronuz/Detent/docs/campaign/quests/dense-pages.md
+State: waiting on jobs 261108-213453-4048a8 261108-213503-22cf8f 261108-213503-7538e7 261108-214256-fab375 261108-214256-99a747 and the eleven mutant jobs listed under "Session 2026-11-08"
+Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Complete native full/snapshot/segment build composition and actual 100K/5M output against the corrected model.
-
-Adopted `phase/dense-pages` at Detent:c4fe881; the original worktree stays parked. Prior contributor stopped at usage limit, with no live process or hold. The generated quest/task worktree is the active writer now.
+A10 fixed (harness, not the read path); mutants for A3/A6/A11 and head reruns queued.
 
 ## Next
 
-1. Finish composed targeted baseline and strengthened native model/hash checks.
-2. Complete full-build and accounting regression jobs; extract and reproduce 5M corpus.
-3. Report exact page/pack/metadata hashing and memory. Coordinate final measurements with the lead.
+1. Read the A10 smoke/5M/revert jobs; record T4 actuals against the model projections.
+2. Read the eleven mutant jobs; a survivor gets a test (or an equivalence argument) and a rerun.
+3. Rerun the remaining evidence jobs at the head; rerun COR-1's three confirming jobs.
+4. Merge main again once namespace-s1-s2 lands (lead's word), then rerun at that head.
 
 ## Blocked on
 
-Nothing. Cross-component changes go through the lead; no per-step review queue.
+Nothing yet. A15 is the lead's (numbers recorded below).
 
 ## Evidence
 
@@ -48,6 +47,16 @@ process: first live read 542 us (1 namespace) and 600 us (1,000), of which attac
 lookup 201 / 268 us, segment mapping 121 / 168 us.
 
 ## Rulings I made
+
+1. 2026-11-08: merged quest/dense-pages--real-deltas before its 5M run passed, so the fix and its
+   proof live on the quest branch (no edits in the task worktree). The quest lands only whole, so an
+   unproved harness cannot land alone.
+2. 2026-11-08: A10's smoke corpus is the extracted 100K store, not the model's synthetic corpus,
+   which is outside the key grammar by design (its 200-way branch). The synthetic corpus stays in
+   the packer's model comparison, which handles untyped keys.
+3. 2026-11-08: mutants follow the design's S1/S2/S4 lists (docs/design/dense-pages.md:311, 329,
+   353) as committed patches under tests/detent_local/mutants; A6's "order" is the page
+   validator's preorder slot check (T1(4) "a slot off preorder").
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
@@ -136,3 +145,35 @@ The owner resumes this bounded work with remaining credits. The Claude takeover 
 ## Results of the resumed jobs, recorded 2026-11-08
 
 The four jobs submitted at the owner resumption ended without being recorded. Smoke 261106-173308-d6523a failed (exit 134, ReadSourceFailure: local page walk failed); 5M 261106-173308-538815 skipped. First-read acceptance 261106-173358-3b82ed failed its gate (A15 row). Profile build 261106-173309-40965c and attribution 261106-173446-10c88a passed (diagnostic only).
+
+## Session 2026-11-08 (implementation contributor)
+
+A10 diagnosis. The smoke ran the model's synthetic corpus, whose "wide" namespace holds keys
+`Kwide\0a<c>\0` for c in 33..232: '!' and bytes above 127 are outside the store key grammar
+(`is_name_char`). The packer seals them; `PagedReadState::lookup` decodes each reached leaf's key,
+`decode_key` throws `invalid_argument`, and the catch-all maps it to `ReadSourceFailure: local page
+walk failed`. The read path is correct; the harness fed it a store no client can write.
+Prediction "record 20000 is the first bad key" (20,000 `Kload*` keys sort first) confirmed by job
+261108-213452-75a571 at Detent:be49a1d.
+
+Fix (Detent:be49a1d): the corpus parser checks every key with `decode_key` and names the record;
+a fast case (`check_key_grammar`) pins the parser refusal and the reader's `ReadSourceFailure` on a
+built store holding `Kwide\0a!\0`; the smoke runs the pinned extracted 100K corpus. Revert check
+261108-213503-7538e7 (must fail): parser without the refusal.
+
+Jobs at Detent:be49a1d: smoke 261108-213453-4048a8 (100K), 5M 261108-213503-22cf8f (after smoke).
+
+Mutants (Detent:ce98e70 scripts, run at Detent:45a46aa, slot dense-mutants; each must fail with
+"MUTANT KILLED"; exit 3 means no verdict): a3-largest-first 261108-214257-9e49ac, a3-seal-64
+261108-214258-9d23ef, a3-boundary 261108-214258-dcbe50, a3-height-digest 261108-214259-27af36,
+a6-height 261108-214300-2f03c3, a6-keys 261108-214301-6102a5, a6-canonicity 261108-214302-8544d8,
+a6-order 261108-214302-c5dc67, a11-noop-rewrite 261108-214303-a9d58a, a11-relocation-rehash
+261108-214304-1e5d5d, a11-offpath-skip 261108-214305-3204ec. The A3 ones also run the 100K model
+check when the suites pass.
+
+Model checks at Detent:45a46aa: 100K+synthetic 261108-214256-fab375, 5M 261108-214256-99a747
+(`docs/perf/dense-model-check.sh`; replaces 261105-150743/150744, which ran a binary copied out of
+another job and cannot be rerun at a new head).
+
+Main merged at Detent:45a46aa (docs and campaign files only; one status-line conflict in
+`docs/status/dense-pages.md`, taken as main's HISTORY line).
