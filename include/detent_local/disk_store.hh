@@ -3,6 +3,7 @@
 #include "disk_ledger.hh"
 #include "identity_reset.hh"
 #include "storage_session.hh"
+#include "sync_counters.hh"
 
 namespace detent::local {
 enum class StoreOpenMode { FreshEmpty, ExistingManaged, UpgradeLegacy };
@@ -20,6 +21,9 @@ struct DiskStoreOptions {
 	std::size_t gc_scan_slice = 256;
 	unsigned artifact_mode = 0600;
 	ViewLimits recovery_limits;
+	// A publication writes its files in sync groups of at most this many open descriptors; each group
+	// is one SyncFiles (on macOS one device flush). Descriptors are the bound, not the file count.
+	std::size_t sync_group_files = 128;
 };
 namespace detail {
 struct StoreCore;
@@ -41,6 +45,7 @@ class DiskStore {
 	DiskStore(const DiskStore &) = delete;
 	StoreStatus status() const noexcept;
 	DiskStats stats() const noexcept;
+	SyncStats sync_stats() const noexcept;
 	SelectionSnapshot selection() const noexcept;
 	DirectoryIdentity directory_identity() const noexcept;
 	std::shared_ptr<kronuz::io::completion::Operation> operation() const;
