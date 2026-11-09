@@ -207,6 +207,7 @@ constexpr const char *arm_names[] = {
 #undef X
 };
 constexpr std::size_t arm_count = sizeof arm_names / sizeof *arm_names;
+static_assert(std::size_t(Arm::hook_on) < arm_count);
 
 struct Name {
 	std::string text;
@@ -222,6 +223,11 @@ struct Word {
 };
 inline Word at(std::uint64_t &word) noexcept { return {&word}; }
 
+// The sampled path's slow half, out of line so the per-lookup half stays a load, a test and a store.
+[[gnu::noinline, gnu::cold]] void sample(const Name &name, unsigned cell) noexcept {
+	const auto slot = table->find(name_hash(name.text.data(), name.text.size()));
+	at(shared_cells.line(0, slot)[cell]).add(64);
+}
 template <Arm A> inline void count(const Name &name, detent_status status, std::int64_t value) noexcept {
 	const unsigned cell = status != DETENT_OK ? 6u : (value != 0 ? 1u : 0u);
 	if constexpr (A == Arm::shared) {
@@ -242,12 +248,11 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 			word.store(word.load() + 1);
 		} else if constexpr (A == Arm::knob_sampled) {
 			auto countdown = at(stripe_lines[stripe].cell[7]);
-			if (const auto left = countdown.load()) {
+			if (const auto left = countdown.load()) [[likely]] {
 				countdown.store(left - 1);
 			} else {
 				countdown.store(63);
-				const auto slot = table->find(name_hash(name.text.data(), name.text.size()));
-				at(shared_cells.line(0, slot)[cell]).add(64);
+				sample(name, cell);
 			}
 		} else {
 			const auto key = A == Arm::knob_ptr_rows8 ? std::uint64_t(std::uintptr_t(name.text.data()))
@@ -413,6 +418,7 @@ detent_status lookup_bare(detent_reader *, const Name &, std::int64_t &value) {
 	value = 1;
 	return DETENT_OK;
 }
+inline bool on_first(std::size_t pair, std::size_t cycle) noexcept { return ((pair ^ (pair / cycle)) & 1) != 0; }
 // One block of 64 calls of arm A; returns its per-call mean.
 template <Arm A>
 float block(detent_reader *core, Lookup lookup, const std::vector<Name> &names, std::size_t &i) noexcept {
@@ -427,7 +433,8 @@ float block(detent_reader *core, Lookup lookup, const std::vector<Name> &names, 
 	}
 	return float(std::chrono::duration<double, std::nano>(Clock::now() - start).count() / batch);
 }
-// OB1's paired method: block pairs of the arm and `none` on one thread, the order swapped every pair.
+// OB1's paired method: block pairs of the arm and `none` on one thread over the same 64 names, the order
+// swapped every pair and every cycle of the name set, so each name sees both orders.
 template <Arm A>
 void interleaved(detent_reader *core, Lookup lookup, const std::vector<Name> &names, std::size_t calls,
                  Result &result) {
@@ -438,13 +445,17 @@ void interleaved(detent_reader *core, Lookup lookup, const std::vector<Name> &na
 	result.diff.assign(pairs, 0.0f);
 	counting = true;
 	std::size_t i = 0;
+	const auto cycle = std::max<std::size_t>(2, names.size() / batch);
 	for (std::size_t k = 0; k != pairs; ++k) {
 		float on, off;
-		if (k & 1) {
+		const auto first = i;
+		if (on_first(k, cycle)) {
 			on = block<A>(core, lookup, names, i);
+			i = first;
 			off = block<Arm::none>(core, lookup, names, i);
 		} else {
 			off = block<Arm::none>(core, lookup, names, i);
+			i = first;
 			on = block<A>(core, lookup, names, i);
 		}
 		result.per_call[k] = off;
@@ -613,14 +624,22 @@ void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string 
 	for (auto &worker : workers)
 		worker.join();
 	const auto fault_delta = minor_faults() - faults;
-	std::vector<float> diffs, offs, thread_medians;
+	// The statistic: the mean of the two orders' medians, so warming the second block's names cancels.
+	const auto cycle = std::max<std::size_t>(2, names.size() / batch);
+	std::vector<float> diffs, on_first_diffs, off_first_diffs, offs, thread_medians;
 	std::set<std::uint64_t> distinct;
 	for (const auto &r : results) {
+		std::vector<float> mine[2];
+		for (std::size_t k = 0; k != r.diff.size(); ++k)
+			mine[on_first(k, cycle)].push_back(r.diff[k]);
+		off_first_diffs.insert(off_first_diffs.end(), mine[0].begin(), mine[0].end());
+		on_first_diffs.insert(on_first_diffs.end(), mine[1].begin(), mine[1].end());
 		diffs.insert(diffs.end(), r.diff.begin(), r.diff.end());
 		offs.insert(offs.end(), r.per_call.begin(), r.per_call.end());
-		thread_medians.push_back(percentile(r.diff, 0.5));
+		thread_medians.push_back((percentile(mine[0], 0.5) + percentile(mine[1], 0.5)) / 2);
 		distinct.insert(r.stripe);
 	}
+	const auto on_first_median = percentile(on_first_diffs, 0.5), off_first_median = percentile(off_first_diffs, 0.5);
 	std::set<std::uint32_t> seen;
 	for (const auto &name : names)
 		seen.insert(name.pos);
@@ -637,7 +656,9 @@ void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string 
 	}
 	std::cout << "{\"pair\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"" << op << "\",\"set\":\"" << set
 	          << "\",\"bare\":" << o.bare << ",\"threads\":" << threads << ",\"rep\":" << rep
-	          << ",\"delta_ns\":" << percentile(diffs, 0.5) << ",\"delta_q25_ns\":" << percentile(diffs, 0.25)
+	          << ",\"delta_ns\":" << (on_first_median + off_first_median) / 2
+	          << ",\"order_ns\":" << (off_first_median - on_first_median) / 2
+	          << ",\"pooled_ns\":" << percentile(diffs, 0.5) << ",\"delta_q25_ns\":" << percentile(diffs, 0.25)
 	          << ",\"delta_q75_ns\":" << percentile(diffs, 0.75)
 	          << ",\"thread_min_ns\":" << *std::min_element(thread_medians.begin(), thread_medians.end())
 	          << ",\"thread_max_ns\":" << *std::max_element(thread_medians.begin(), thread_medians.end())

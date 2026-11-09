@@ -4,10 +4,11 @@ For each operation, name set, thread count and arm: the median, minimum and maxi
 repetitions of the arm's case p50 minus the `none` case p50 of the same repetition, and the
 spread of `none` across repetitions. Also prints the sampling odds D3 and Q7 quote.
 
-Interleaved cases (`--interleave 1`, A8 and OB1's gate) already carry each repetition's median
-block-pair delta; for them it prints the median, minimum and maximum over repetitions and the gate
-(at most 5 ns at 1 thread, 10 ns at 8 and 64). Exits 1 when an exact arm lost a count, an "ever
-read" arm missed a name, or a timed loop allocated.
+Interleaved cases (`--interleave 1`, A8 and OB1's gate) already carry each repetition's delta
+(the mean of its on-first and off-first block-pair medians); for them it prints the median,
+minimum and maximum over repetitions and the gate (at most 5 ns at 1 thread, 10 ns at 8 and 64).
+Exits 1 when an exact arm lost a count, an "ever read" arm missed a name, or a timed loop
+allocated.
 """
 
 from __future__ import annotations
@@ -48,12 +49,13 @@ def interleaved(pairs: list[dict[str, Any]]) -> int:
     for bare in sorted({key[0] for key in groups}):
         title = "counting code alone (--bare 1)" if bare else "around the S6 lookup"
         print(
-            f"\nInterleaved on/off, {title}: median over repetitions of each repetition's median block-pair delta"
+            f"\nInterleaved on/off, {title}: median over repetitions of each repetition's delta "
+            "(the mean of its on-first and off-first block-pair medians); order: half their gap"
         )
         print(
-            "| op | set | threads | arm | delta ns | min ns | max ns | off p50 ns | gate ns | verdict | rows per thread |"
+            "| op | set | threads | arm | delta ns | min ns | max ns | order ns | off p50 ns | gate ns | verdict | rows per thread |"
         )
-        print("|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|")
+        print("|---|---|---:|---|---:|---:|---:|---:|---:|---:|---|---:|")
         for key in sorted(k for k in groups if k[0] == bare):
             records = groups[key]
             deltas = [r["delta_ns"] for r in records]
@@ -65,7 +67,8 @@ def interleaved(pairs: list[dict[str, Any]]) -> int:
             rows = max(r["thread_rows"] for r in records)
             print(
                 f"| {key[1]} | {key[2]} | {key[3]} | {key[4]} | {median:+.1f} | {min(deltas):+.1f} "
-                f"| {max(deltas):+.1f} | {statistics.median(r['off_p50_ns'] for r in records):.1f} "
+                f"| {max(deltas):+.1f} | {statistics.median(r['order_ns'] for r in records):+.1f} "
+                f"| {statistics.median(r['off_p50_ns'] for r in records):.1f} "
                 f"| {gate if gate is not None else ''} | {verdict} | {rows} |"
             )
     for failure in failures:
