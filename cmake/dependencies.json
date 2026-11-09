@@ -164,7 +164,7 @@
   {
     "name": "journal",
     "repository": "https://github.com/Kronuz/journal.git",
-    "revision": "bfad97f3d101dc69530fa782795138769099a0e0",
+    "revision": "e5f6ff1cfe85d388ee2e243427328f5016508fbd",
     "source_subdir": "."
   },
   {
@@ -176,7 +176,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "cef08eb5bd8f0af72131629564ef88cf365a616f",
+    "revision": "ab05507d8c88bb28d650c15dfe11c95e5db0eaf6",
     "source_subdir": "."
   },
   {
