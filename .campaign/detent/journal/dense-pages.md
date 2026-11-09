@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs at the merged head Detent:435a525 (gate 261109-145341-9f0788, T7 positive 261109-145355-7c2f59 and the evidence batch listed under "Merged head 2026-11-09")
+State: waiting on jobs at the merged head Detent:435a525 (gate 261109-145341-9f0788, T7 positive 261109-145355-7c2f59, the evidence batch under "Merged head 2026-11-09") and the A15 gate rerun f406a9 -> 210773
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -15,7 +15,9 @@ round 3 closed: fix proven (verdicts below).
    killed), then the batch; rewrite the Evidence table with the head ids.
 2. Fold the head ids into A9/A10/A11 (COR-1 confirm: bd9ad1, 71a2c4, cecb4a) and A4/SEC-2
    (fuzz 649826, 976098, warm smoke 2539d5) for the lead's accepts.
-3. A15 is the lead's: finding and recommendation below ("A15 baseline 2026-11-09").
+3. A15 gate rerun (lead ruling, msg of 2026-11-09): prepare 261109-151355-f406a9 -> exclusive
+   measure 261109-151427-210773; read result.json per arm. The lead decides the gate.
+4. d4859c is contaminated, not evidence; its own-slot rerun is 261109-145822-623329.
 
 ## Blocked on
 
@@ -528,6 +530,35 @@ an A/A pair. If the baseline then meets the running-arm 200/200 and the candidat
 first-read part holds; if both miss only the stopped arm, that is the pre-existing condition
 reader.md:31 records, and whether A15 waits for S6's T2 is the owner's/lead's ruling. On these
 numbers the candidate is not worse than the baseline (974 vs 1,031 us median, 115 vs 90/200).
+
+## A15 gate rerun 2026-11-09 (lead ruling: gate unchanged)
+
+Runner Detent:70377f2, script fix Detent:c552990: `docs/perf/first-read-gate.md`,
+`docs/perf/first-read-gate.sh`, `tests/detent_system/first_read_gate.py`,
+`tests/detent_system/first_read_export.cc`.
+1. Prepare 261109-151355-f406a9 (light, 150 min): Dense at Detent:70377f2, baseline main
+   Detent:4d56489 (--ref BASELINE; its code equals ff6218e, the merged main). Homebrew LLVM 23.1.2
+   pinned (fails on another version), Release -O3, DETENT_READ_COUNTERS=OFF, both checked in each
+   CMake cache. Each tree exports the pinned 5M corpus (DENSE_CORPUS, sha256 recorded) as 1- and
+   1,000-namespace stores with its own builder (layout 2 / 3) and prepares them with its own
+   probe; builds its own detent-agent.
+2. Measure 261109-151427-210773 (exclusive, 30 min, after f406a9): 10 arms x 200 samples:
+   stopped B1 D1 D1000 B1000, running B1 D1 D1000 B1000, A/A D1 B1 stopped. Running arms start the
+   tree's detent-agent over the arm's clone, upstream bound but not listening (as the 10-26
+   qualification). An arm that cannot run is recorded with its error; the job exits 2 then.
+   (261109-151412-b2d859 cancelled: the first script required DENSE_CORPUS to measure.)
+Read path timed: the pre-S6 `detent::Client` (prepared_client_probe --read, first_live_ns,
+steady_clock from before Client construction to the first checked value), not S6's `detent_open`.
+Risk: the agent may refuse an exported store (cursor/scope are set to match managed.json:
+cluster 63.., group 67.., epoch 65.., scope = canonical_scope_identity("system-reader", 1, names));
+then the running arms carry an error and the stopped and A/A arms still stand.
+Reader-core arm: possible from reader/s6 (= quest/detent/reader-s6, Detent:b1d281c, 187 commits
+behind main) only over the baseline's version-2 stores: its C ABI (`include/detent/reader.h`,
+detent_open/detent_get) exists, but `benchmarks/reader_bench.cc` times warm lookups only, so a
+~40-line first-read probe built at that branch is needed. It cannot read Dense (version-3) stores
+until S6 is rebased onto Dense. Not queued: the lead's call.
+d4859c (revert a10-cursor-default-limits at d8f6cff) is contaminated, not evidence (follow-up 2);
+rerun in its own slot: 261109-145822-623329.
 
 ## Follow-ups for the lead
 
