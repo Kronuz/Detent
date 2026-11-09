@@ -90,11 +90,13 @@ PY
   git --no-pager diff -U0 | grep '^[-+][^-+]'
 fi
 cmake --build "$build" -j4 --target "${targets[@]}" || exit 125
-# The tests that must each fail for the mutant to count as killed.
+# The tests that must each fail for the mutant to count as killed. T7_GROUP=creation limits T7 to the
+# store-creation cases, which are the ones that catch d1-revert (the full T7 stays in the gates).
 case "$name" in
   positive) run=("${targets[@]}") ;;
   closed-session) run=(test_local_paged_store_startup) ;;
   startup-before-barrier) run=(test_local_publication_power_cut test_local_paged_store_startup) ;;
+  d1-revert) run=(test_local_publication_power_cut); export T7_GROUP=creation ;;
   *) run=(test_local_publication_power_cut) ;;
 esac
 failed=0 passed=0 hung=0

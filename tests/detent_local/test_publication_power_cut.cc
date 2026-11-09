@@ -13,6 +13,7 @@
 #include <map>
 #include <mutex>
 #include <source_location>
+#include <string_view>
 #include <thread>
 namespace c = kronuz::io::completion;
 
@@ -582,6 +583,11 @@ int main(int argc, char **argv) {
 	std::setvbuf(stdout, nullptr, _IOLBF, 0); // result lines reach a job log as they are printed
 	Watchdog watchdog(std::chrono::seconds(60));
 	g_watchdog = &watchdog;
+	// T7_GROUP=creation runs only the store-creation cases (the full run is the default).
+	if (const char *group = std::getenv("T7_GROUP"); group && std::string_view(group) == "creation") {
+		std::cout << creation_cuts(directory / "creation") << " store-creation restart cases passed\n";
+		return 0;
+	}
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
