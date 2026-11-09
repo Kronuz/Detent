@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: working
+State: waiting on jobs 261109-141657-d683a8 261109-141658-03e1a9
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,12 +19,22 @@ Chains (slot `obs-bench`, ref `s6=b1d281c`):
   261109-120858-28cd50, all exit 0; the doc's numbers are from these (same bench binary digest `0d8211c2`).
 - `6f718fa`: build 261109-125827-d3567b, smoke 261109-125827-7b2e64 passed; screen bd1c57, confirm bc28dd cancelled (stale).
 - `51923f8`: build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm
-  261109-131328-0ce3a4 (queued).
+  261109-131328-0ce3a4 (all exit 0).
+
+A8 (D38) chain, same slot and ref, arms `none2,knob_sampled,knob_rows64,pos_shared,pos_stripe_rmw,pos_tls,
+ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
+- `beccf27`: smoke 261109-140348-9e0d9e failed (`all` ran A8 arms unpaired; registry push allocated). Fixed `29dcab5`.
+- `29dcab5`: build 261109-140527-973349, smoke 261109-140528-6e2a88, exact-screen 261109-140528-498e45, exit 0.
+  Screen showed a scattered A/A bias (+1.5 to +5.9 ns): the pair's blocks walked different name segments.
+  Hot names: `pos_tls` −1.5 to +1.3, `ever_bit` +0.5 to +4.0 at all thread counts; `pos_shared`, `dm_cache`,
+  `knob_rows64` out; `pos_stripe_rmw` +6.1 at 1 thread (locked RMW, bare +6.9). Superseded by `4871285`.
+- `4871285` (same-name pairs, both orders, delta = mean of the order medians; sampled slow path out of line):
+  build 261109-141656-5650f8 exit 0; smoke 261109-141657-d683a8, exact-screen 261109-141658-03e1a9 pending.
 
 ## Next
 
-1. A8 (D38): add position-indexed exact arms and an interleaved on/off mode to the bench; screen (strict), then
-   decide with exclusive runs at 1, 8 and 64 threads.
+1. A8: read exact-screen 261109-141658-03e1a9 (`exact-screen-paired.md`; A/A near 0 confirms the method fix);
+   then exact-confirm (exclusive) on the survivors, write A8 and update Q7, D2; rerun the chain at the doc head.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
