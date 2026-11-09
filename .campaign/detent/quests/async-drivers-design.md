@@ -5,27 +5,36 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+`docs/design/async-drivers.md` designs the coroutine drivers for journal and consensus that quest
+async-drivers builds: each library's existing state machine (journal's resumable machines,
+consensus's I/O-free `Core`) driven by `task::task<T>` over `scheduler_ref`, replacing the polling
+loops and the callback Worker API, per the November 2 agreement
+(`docs/SHARED_LIBRARY_DECISIONS.md`, "Coroutine drivers for journal and consensus", items 1-5) and
+PLAN D7. It splits async-drivers into the `--repo` quests (journal, consensus, then Detent) with
+criteria, and it carries the measurements that bound an idle group's cost.
 
 ## Acceptance criteria
 
-One line each: `- A1 <criterion>: <the job, test or check that shows it>`. An untagged criterion
-needs a job that passed at the landed code; tag one `[artifact]` (a committed `path`),
-`[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
-cannot show it.
-
-- A1 <criterion>: <evidence>
+- A1 [artifact] One section per library (journal, consensus): the driver's shape over the existing state machine, which loops and Worker API calls it replaces (file and line), and how Detent's owner loops move onto it: `docs/design/async-drivers.md`
+- A2 [artifact] The public API: `task::task<T>` generic over `scheduler_ref`, the asio adapter for Detent, no `asio::awaitable` in public headers (item 2): `docs/design/async-drivers.md`
+- A3 [artifact] Injection: scheduler, clock and IO through completion's `IO` seam, and how a deterministic simulator steps journal and consensus with no real time or threads (item 3): `docs/design/async-drivers.md`
+- A4 [artifact] Idle cost: a per-idle-group cost row per library (bytes; no thread, `io_context`, armed timer or coroutine frame per idle group; timers in a shared wheel per reactor), at 1, 1,000 and 1,000,000 groups (item 4): `docs/design/async-drivers.md`
+- A5 [artifact] The blocking entry: the same state machine driven to completion without an `io_context` on the calling thread (run-to-completion or `sync_wait`), one implementation driven two ways (item 5): `docs/design/async-drivers.md`
+- A6 [artifact] Build plan: the `--repo` quests (journal, consensus, Detent) with files, criteria, risk and order, each intermediate state working, and the deletion of the Worker API last: `docs/design/async-drivers.md`
+- A7 The idle-cost and resume-cost numbers the design relies on (a task frame, a timer-wheel entry, one driver step against today's loop) are campaign jobs at named commits of task, journal and consensus, `exclusive` for any number that decides, cited by id
+- A8 [manual] The Xapiand lead reviewed items 1-5 and 7b fit (a `campaign message xapiand:` answered in the journal)
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `task:driver`: the driver API shape journal and consensus will expose. Consumes
+`task::task` and `scheduler_ref` (Kronuz/task) and completion's `IO`.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+1. D7: Detent owns both designs; Xapiand reviews items 1-5 and 7b fit before code lands.
+2. One coroutine type (November 2, "One coroutine type"): task is made cheaper rather than mixed with `asio::awaitable`; a mixed shape needs a case to the owner with before/after numbers.
+3. Measurements may build task, journal and consensus at their current `main` in jobs; no library code changes in this quest.
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+None.
