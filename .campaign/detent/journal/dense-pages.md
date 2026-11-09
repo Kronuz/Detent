@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-063254-60ccf1 261109-063255-ce975b 261109-063256-8f7f5c 261109-063257-f27cde 261109-063257-e99c35 (500K rate, timeline, fix proof, revert) and gate 261109-063352-da4860 with its chain (see "500K round 3 2026-11-09")
+State: waiting on jobs 261109-063745-875b4f 261109-063745-b2db8d 261109-063746-2489dd 261109-063747-19ca42 261109-063748-747eb5 (500K rate, timeline, fix proof, revert) and gate 261109-063352-da4860 with its chain (see "500K round 3 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -9,15 +9,15 @@ Third round on the 500K coordinator subscription failures. Reading of the b8ef8d
 the fixture builds response(500K) for every request, including the held poll and the final
 close, on its one server thread, while release_session's 1,000 ms timeout runs. Fix
 Detent:203f729 builds it only for replies that carry it. Proof jobs queued; the timeline job
-8f7f5c must confirm the reading before the fix counts.
+2489dd must confirm the reading before the fix counts.
 
 ## Next
 
-1. 8f7f5c (Detent:00c9aaf, -V): per port, check observer-close -> coordinator settle = ~1,000 ms
+1. 2489dd (Detent:00c9aaf, -V): per port, check observer-close -> coordinator settle = ~1,000 ms
    (release_session deadline), the close connection queued (pending > 0 at accept) while the
    server sat in server-response-built. If it does not show that, the fix is unproven: stop.
-2. Rates: main 60ccf1 vs quest 97f0f2f ce975b (same command): does the quest change frequency?
-3. Fix f27cde must pass (6 rounds x 6 cases); revert e99c35 must pass (killed).
+2. Rates: main 875b4f vs quest 97f0f2f b2db8d (same command): does the quest change frequency?
+3. Fix 19ca42 must pass (6 rounds x 6 cases); revert 747eb5 must pass (killed).
 4. Gate and chain requeued at the head; read them.
 5. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
 
@@ -409,12 +409,18 @@ Revert `tests/detent_delivery/mutants/snapshot-eager.patch` builds it for every 
 held-poll-inline.patch removed (theory superseded; its job f703ba at b8ef8d2 is moot: cancel was
 not permitted to me, the lead may cancel it).
 
-Jobs, all light, -j4, 6 rounds x 6 cases (36 case runs), fixed N:
-1. 261109-063254-60ccf1 at main Detent:45e2044 (script via git show 00c9aaf): rate on main.
-2. 261109-063255-ce975b at Detent:97f0f2f (quest code, fixture = main + one checkpoint): rate.
-3. 261109-063256-8f7f5c at Detent:00c9aaf (b8ef8d2 + logs), -V: timeline, before-rate.
-4. 261109-063257-f27cde at Detent:203f729, -V: must pass.
-5. 261109-063257-e99c35 revert at Detent:203f729, dense_mutant.sh: passes when killed.
+Jobs, all light, -j4, -V, 6 rounds x 6 cases (36 case runs), fixed N, one command: `git show
+792887c:tests/detent_delivery/repeat_500k.sh > .scratch/repeat_500k.sh && bash .scratch/repeat_500k.sh 6`:
+1. 261109-063745-875b4f at main Detent:45e2044: rate on main.
+2. 261109-063745-b2db8d at Detent:97f0f2f (quest code, fixture = main + one checkpoint): rate.
+3. 261109-063746-2489dd at Detent:00c9aaf (b8ef8d2 + logs): timeline, before-rate.
+4. 261109-063747-19ca42 at Detent:792887c (fix 203f729 + script fix): must pass.
+5. 261109-063748-747eb5 revert at Detent:792887c, dense_mutant.sh + the script as DENSE_MUTANT_RUN:
+   passes when killed.
+Invalid, not evidence: 261109-063254-60ccf1 and 261109-063255-ce975b "done" in 0.5 s (zsh read
+`$S:t` as a modifier, git show failed, bash ran an empty script); 261109-063256-8f7f5c exit 3
+(ctest -N counts the TLS fixture: 7 not 6); f27cde, e99c35 cancelled (same script, which also
+skipped rebuilding a reused slot's binary). Detent:792887c fixes both.
 Requeued at Detent:d8f6cff (code = 203f729): gate (`campaign verify`) 261109-063352-da4860; the
 chain rerun with the old gate in the set, so `after` maps to da4860: b02339, d4859c, 2d00f8,
 bd758a, 7ed01d, 61b36a, 18eaab, 973d5d, c65072 -> 1908e9, f05d8f -> 0c4718, 79035a, 361de8,
