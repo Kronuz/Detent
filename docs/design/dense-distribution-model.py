@@ -17,8 +17,12 @@ Modes:
                             answer; a receiver replay over the base. Scenarios: u:K (K uniform
                             updates), c:K (K consecutive definitions), m:U:I:D (the dense-pages
                             T4 churn and seed).
-  check CORPUS              Both modes on a small corpus, plus refusal cases: a flipped body byte,
-                            a redirected placement and a parent sent before its child.
+  day CORPUS                Pages only against records per agent-day: four per-poll deltas at
+                            1- and 10-minute polls, with dollars for 10,000 agents.
+  check CORPUS              Both modes on a small corpus, plus the receiver's refusals: damage,
+                            reuse and truncation; a layout or an order the sender chose; and a
+                            validly sealed forgery per structure and canonicity check, refused by
+                            that check and accepted by a mutant without it.
 
 Options: --dense=PATH (the dense model; default $JOB_REF_DENSE/docs/design/dense-pages-model.py).
 Needs Python 3.14 (compression.zstd). Run under a light hold, as a campaign job, e.g.:
@@ -979,8 +983,18 @@ def check_main(D: Any, corpus: Any) -> None:
         s[start : start + len(value)] = value
         return bytes(s)
 
-    def forged_root(stream: bytes, check: str) -> bytes:
-        return receive_stream(D, stream, None, None, one, frozenset({check})).root
+    def sealed(stream: bytes, check: str) -> tuple[bytes, bytes]:
+        """A forgery sealed as its sender would seal it: the root page's stated digest (zero in
+        the wire form) is recomputed, so that only `check` can refuse it."""
+        stated = edit_root(stream, 32, bytes(32))
+        named = receive_stream(D, stated, None, None, one, frozenset({check})).root
+        if any(stream[len(stream) - tail + 32 : len(stream) - tail + 64]):
+            return edit_root(stated, 32, named), named
+        return stated, named
+
+    def forgery(name: str, stream: bytes, expect: str, check: str) -> None:
+        sent, named = sealed(stream, check)
+        case(name, stream_run(sent, named), expect, check)
 
     # Damage the honest sender's bytes: the root and the stated digests find it.
     page_starts = [0]
@@ -1021,12 +1035,12 @@ def check_main(D: Any, corpus: Any) -> None:
     case(
         "root's first placement redirected to the first page",
         stream_run(bytes(redirect), root),
-        "",
+        "a page no parent references",
     )
     case(
         "root sent first",
         stream_run(wire.stream[-tail:] + wire.stream[:-tail], root),
-        "",
+        "placement names no page of the derived layout",
     )
     leaf = next(p for p, page in enumerate(packing.pages) if page.externals == 0)
     twice = make_transfer(D, packing, encoder, [leaf] + chosen, "wire")
@@ -1036,20 +1050,24 @@ def check_main(D: Any, corpus: Any) -> None:
         "no parent references",
     )
     case("one byte short", stream_run(wire.stream[:-1], root), "page length")
-    case("root dropped", stream_run(wire.stream[:-tail], root), "")
+    case(
+        "root dropped",
+        stream_run(wire.stream[:-tail], root),
+        "a page no parent references",
+    )
 
     # DD-1: the layout and the order are the build's, or refused.
     half = make_transfer(D, packing, encoder, chosen, "wire", place=half_place)
     case(
         "P1 segments broken at 512 KiB, handed over as segments",
         lambda skip: receive(D, half.segments, None, root, one, skip),
-        "",
+        "placement names no page of the derived layout",
         "layout",
     )
     case(
         "P1 placement naming 512 KiB breaks, as a stream",
         stream_run(half.stream, root),
-        "",
+        "placement names no page of the derived layout",
     )
     children: dict[int, list[int]] = {}
     for p, page in enumerate(packing.pages):
@@ -1072,52 +1090,41 @@ def check_main(D: Any, corpus: Any) -> None:
         "order",
     )
 
-    # DD-2: a tree the sender forged under a root it names; each check refuses its forgery.
+    # DD-2: a tree the sender forged under a root it names, each forgery validly sealed so that
+    # only its targeted check refuses it.
     keys = D.be(wire.stream, len(wire.stream) - tail + 16, 8)
-    forged = edit_root(wire.stream, 16, (keys + 1).to_bytes(8, "big"))
-    case(
-        "root header keys +1 under a forged root, wire form",
-        stream_run(forged, forged_root(forged, "keys")),
-        "header keys",
-        "keys",
-    )
-    forged = edit_root(digests.stream, 16, (keys + 1).to_bytes(8, "big"))
-    named = forged_root(forged, "keys")
-    forged = edit_root(forged, 32, named)
-    case(
-        "P4 root header keys +1 under a forged root, digests form",
-        stream_run(forged, named),
-        "header keys",
-        "keys",
-    )
+    for form, transfer in (("wire", wire), ("digests", digests)):
+        forgery(
+            f"P4 root header keys +1 under a forged root, {form} form",
+            edit_root(transfer.stream, 16, (keys + 1).to_bytes(8, "big")),
+            "header keys disagree with the page",
+            "keys",
+        )
     height = wire.stream[len(wire.stream) - tail + 24]
-    forged = edit_root(wire.stream, 24, bytes((height + 1,)))
-    case(
+    forgery(
         "root header height +1 under a forged root",
-        stream_run(forged, forged_root(forged, "height")),
-        "header height",
+        edit_root(wire.stream, 24, bytes((height + 1,))),
+        "header height disagrees with the page",
         "height",
     )
     top = len(wire.stream) - tail + 64
     assert wire.stream[top] == 1 and wire.stream[top + 2] >= 1
     labels = top + 3 + wire.stream[top + 1]
-    forged = edit_root(
-        wire.stream,
-        labels - len(wire.stream) + tail + 1,
-        wire.stream[labels : labels + 1],
-    )
-    case(
+    forgery(
         "root's second label equal to its first, under a forged root",
-        stream_run(forged, forged_root(forged, "labels")),
+        edit_root(
+            wire.stream,
+            labels - len(wire.stream) + tail + 1,
+            wire.stream[labels : labels + 1],
+        ),
         "branch labels",
         "labels",
     )
     count = D.be(wire.stream, len(wire.stream) - tail + 14, 2)
-    forged = edit_root(wire.stream, 14, (count + 1).to_bytes(2, "big"))
-    case(
+    forgery(
         "root header node count +1, under a forged root",
-        stream_run(forged, forged_root(forged, "parse")),
-        "page structure",
+        edit_root(wire.stream, 14, (count + 1).to_bytes(2, "big")),
+        "page structure: nodes do not fill",
         "parse",
     )
     largest_encoder = D.Encoder(memory=True, compress=False)
