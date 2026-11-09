@@ -1701,6 +1701,27 @@
       "title": "Namespace delivery S4-S10",
       "updated": "2026-11-08T15:38:09"
     },
+    "observability-design": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/design/observability*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "Observability",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Design knob observability: usage, resolved values, export",
+      "updated": "2026-11-09T10:28:01"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
