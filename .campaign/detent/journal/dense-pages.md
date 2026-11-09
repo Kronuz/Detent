@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs (`campaign wait --quest dense-pages`): gate 261109-023907-3907fb at Detent:c9db691 and its dependents, listed under "Session 2026-11-09 (default limits)"
+State: waiting on jobs 261109-030629-e09f9f 261109-030630-d655be (attribution of the native gate failure; see "Gate failure 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -297,3 +297,22 @@ a11-offpath-skip 261108-215347-fbd883.
    dd8697 -> b0e5e3, d03cb7 -> d311c6, f63e1a -> 269318, a75af3 -> 39d01e, 9b0e92 -> b149d6,
    d0560e -> 2b1898, TSan 169c6b -> e3fdeb, ASan cae590 -> 041fbf, warm 5fbb95 -> 638ff5, ASan
    79d264 -> 5fbe88 (prefix 261109-0239/0240). Stale gate 261109-023744-fa8873 cancelled.
+
+## Gate failure 2026-11-09 (msg from lead)
+
+Native gate 261109-023907-3907fb at Detent:c9db691 failed: 174/179; the five 500K coordinator
+subscription cases (#59, #69, #89, #90, #91) end with "fixture server: handshake: stream
+truncated": the server's last expected accept (attempt 3 of 4) finds the coordinator already
+closed after `feedback=received`. All 100K variants pass; at Detent:ac4c32e (48e472) all five
+passed, run early in the suite. 24 dependents skipped.
+
+Reading so far (not proof): the only production change on these paths is the overlay's limits,
+which here are `paged_limits(ViewLimits{})` = default records/namespaces, the same bounds the
+default argument gave; cursor and reuse moved to format limits (looser). #59 is a non-paged
+mode. Hypothesis: load-timed, not 791d9fc. Attribution, identical commands, -j1, x2
+(`--repeat until-fail:2`): before the fix Detent:c0020ff 261109-030629-e09f9f; head
+Detent:c9db691 261109-030630-d655be.
+
+Next: head fails and parent passes -> bisect the overlay/cursor/reuse change with the revert
+patches; both pass -> requeue the gate (`campaign verify --force`) and the --after chain as
+recorded above; both fail -> pre-existing, report with the c0020ff job.
