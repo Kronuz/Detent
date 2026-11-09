@@ -5,6 +5,7 @@
 #include "paged_overlay_assembler.hh"
 #include "paged_packer.hh"
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <random>
 #include <set>
@@ -28,6 +29,7 @@ struct Base {
 	std::vector<x::SegmentReachability> live;
 	p::Root root = empty_root();
 	std::map<std::string, p::Reference> occurrences;
+	std::vector<std::string> seal_order;
 	void prepare() {
 		inputs.clear();
 		live.clear();
@@ -77,6 +79,7 @@ struct Full {
 				pack.bytes.insert(pack.bytes.end(), page.bytes->begin(), page.bytes->end());
 				p::verify_page({page.bytes->data(), page.bytes->size()}, r);
 				result.occurrences.emplace(page.path, r);
+				result.seal_order.emplace_back(page.path);
 				++result.root.pages;
 				result.root.bytes += r.length;
 				l::ValidationBudget commit;
@@ -177,7 +180,8 @@ static std::uint64_t
 check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Base> &base,
 	  const Rows &rows,
 	  const std::vector<std::pair<std::string, std::optional<std::vector<char>>>> &changes,
-	  bool relocate = false, std::size_t quantum = 8192, std::string_view label = {}) {
+	  bool relocate = false, std::size_t quantum = 8192, std::string_view label = {},
+	  const std::set<std::string> *changed_paths = nullptr) {
 	x::TrieOverlay overlay(account, base, base->inputs, base->root);
 	if (relocate) {
 		const auto id = base->inputs.front().ownership.segment;
@@ -221,11 +225,16 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		require(reached && reached->size() == body.size() &&
 		        std::equal(reached->begin(), reached->end(), body.begin(), body.end()));
 	}
+	for (const auto &[key, body] : changes)
+		if (!body && !rows.contains(key))
+			require(!reader.lookup(key, key.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace));
 	const auto expected = Full(account).build(rows);
 	require(p::state_commitment(image.root()) == p::state_commitment(expected.root));
 	require(image.root().pages == expected.root.pages && image.root().bytes == expected.root.bytes);
 	require(actual.size() == expected.occurrences.size());
 	std::set<std::pair<l::StorageIdentity, std::uint32_t>> extents;
+	std::set<std::string> fresh_paths;
+	std::uint64_t fresh_bytes = 0, offpath_pages = 0, offpath_bytes = 0;
 	for (const auto &[path, r] : actual) {
 		const auto &want = expected.occurrences.at(path);
 		require(r.digest == want.digest && r.length == want.length && r.keys == want.keys &&
@@ -236,8 +245,34 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 			old->second.length == r.length && old->second.keys == r.keys &&
 			old->second.height == r.height)
 			require(r == old->second);
-		else if (!relocate)
+		else if (!relocate) {
 			require(x::find_segment(base->inputs, r.segment) == base->inputs.size());
+			fresh_paths.insert(path);
+			fresh_bytes += r.length;
+			if (changed_paths) {
+				const auto changed = changed_paths->lower_bound(path);
+				if (changed == changed_paths->end() || !changed->starts_with(path)) {
+					++offpath_pages;
+					offpath_bytes += r.length;
+				}
+			}
+		}
+	}
+	if (!relocate) {
+		std::uint64_t packed = 0, tail = 0, packs = 0;
+		for (const auto &path : expected.seal_order) {
+			if (!fresh_paths.contains(path))
+				continue;
+			const auto length = expected.occurrences.at(path).length;
+			const auto offset = (tail + 7) & ~std::uint64_t(7);
+			if (!packs || offset + length > p::segment_bytes) {
+				packed += tail;
+				tail = length;
+				++packs;
+			} else
+				tail = offset + length;
+		}
+		require(written == packed + tail && image.segments().size() == packs);
 	}
 	std::uint64_t removed_pages = 0, removed_bytes = 0;
 	for (const auto &n : assembler.removed()) {
@@ -252,10 +287,98 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		}
 	require(removed_pages + retained_pages == base->root.pages &&
 			removed_bytes + retained_bytes == base->root.bytes);
-	if (!label.empty())std::cout<<label<<": page hashes "<<hashes.page_calls<<", hash bytes "<<hashes.page_bytes<<", written pack bytes "<<written<<"\n";
+	if (!label.empty()) {
+		std::cout << label << ": page hashes " << hashes.page_calls << ", hash bytes "
+				  << hashes.page_bytes << ", written pack bytes " << written << "\n";
+		std::cout << "actual: pages=" << image.root().pages << " pageB=" << image.root().bytes
+				  << " newPages=" << fresh_paths.size() << " newPageB=" << fresh_bytes
+				  << " newPacks=" << image.segments().size() << " newPackB=" << written
+				  << " offPages=" << offpath_pages << " offB=" << offpath_bytes << " root=";
+		constexpr char digits[] = "0123456789abcdef";
+		for (const auto byte : p::state_commitment(image.root())) {
+			const auto value = static_cast<unsigned char>(byte);
+			std::cout << digits[value >> 4] << digits[value & 15];
+		}
+		std::cout << "; all " << rows.size() << " bodies and canonical occurrences match full rebuild\n";
+	}
 	return written;
 }
+
+static Rows read_corpus(const std::string &path) {
+	std::ifstream file(path, std::ios::binary);
+	require(bool(file));
+	const auto read = [&](std::size_t size) {
+		std::vector<char> bytes(size);
+		file.read(bytes.data(), size);
+		require(bool(file));
+		return bytes;
+	};
+	const auto header = read(32);
+	require(std::string_view(header.data(), 8) == "DTCORP01");
+	const auto count = l::read_integer(header, 8, 8), key_bytes = l::read_integer(header, 16, 8),
+			   body_bytes = l::read_integer(header, 24, 8);
+	require(count <= 5000004 && key_bytes <= 1024ULL * 1024 * 1024 &&
+			body_bytes <= 1024ULL * 1024 * 1024);
+	const auto key_offsets = read(4 * (count + 1)), keys = read(key_bytes),
+			   body_offsets = read(4 * (count + 1)), bodies = read(body_bytes), kinds = read(count);
+	require(file.peek() == std::char_traits<char>::eof());
+	Rows rows;
+	for (std::size_t i = 0; i < count; ++i) {
+		const auto k0 = l::read_integer(key_offsets, 4 * i, 4),
+				   k1 = l::read_integer(key_offsets, 4 * i + 4, 4),
+				   b0 = l::read_integer(body_offsets, 4 * i, 4),
+				   b1 = l::read_integer(body_offsets, 4 * i + 4, 4);
+		require(k0 < k1 && k1 <= keys.size() && b0 <= b1 && b1 <= bodies.size());
+		std::string key(keys.data() + k0, k1 - k0);
+		require((key.front() == 'K' && kinds[i] == 2) || (key.front() == 'W' && kinds[i] == 3));
+		require(rows.empty() || rows.rbegin()->first < key);
+		rows.emplace_hint(rows.end(), std::move(key),
+						  std::vector<char>(bodies.begin() + b0, bodies.begin() + b1));
+	}
+	return rows;
+}
+
+static void compare_corpus(const std::string &before_path, const std::string &after_path) {
+	auto account = std::make_shared<d::StorageLedger>(4ULL * 1024 * 1024 * 1024);
+	auto before = read_corpus(before_path);
+	auto base = std::make_shared<Base>(Full(account).build(before));
+	std::uint64_t pack_bytes = 0;
+	for (const auto &pack : base->packs)
+		pack_bytes += pack.bytes.size();
+	std::cout << "base: records=" << before.size() << " pages=" << base->root.pages
+			  << " pageB=" << base->root.bytes << " packs=" << base->packs.size()
+			  << " packB=" << pack_bytes << "\n" << std::flush;
+	auto after = read_corpus(after_path);
+	std::vector<std::pair<std::string, std::optional<std::vector<char>>>> changes;
+	std::set<std::string> changed_paths;
+	for (auto i = before.begin(); i != before.end(); ++i) {
+		const auto found = after.find(i->first);
+		if (found == after.end()) {
+			changes.emplace_back(i->first, std::nullopt);
+			if (i != before.begin())
+				changed_paths.insert(std::prev(i)->first);
+			if (std::next(i) != before.end())
+				changed_paths.insert(std::next(i)->first);
+		}
+	}
+	for (const auto &[key, body] : after) {
+		const auto found = before.find(key);
+		if (found == before.end() || found->second != body) {
+			changes.emplace_back(key, body);
+			changed_paths.insert(key);
+		}
+	}
+	before.clear();
+	std::cout << "corpus changes=" << changes.size()
+			  << "; opaque encoded bodies; ledger limit=4294967296 B\n" << std::flush;
+	check(account, base, after, changes, false, 8192, "corpus", &changed_paths);
+}
+
 int main(int argc, char **argv) {
+	if (argc == 4 && std::string_view(argv[1]) == "--corpus") {
+		compare_corpus(argv[2], argv[3]);
+		return 0;
+	}
 	require(argc <= 2);
 	const unsigned rounds = argc == 2 ? std::stoul(argv[1]) : 50;
 	require(rounds > 0 && rounds <= 1000000);
