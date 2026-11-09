@@ -1,22 +1,23 @@
 # dense-pages: journal
 
-State: waiting on jobs (`campaign wait --quest dense-pages`): the Detent:ac4c32e batch and two diagnosis jobs at Detent:9770ca2, listed under "Lead message 2026-11-09 (second 5M abort)"
+State: waiting on jobs (`campaign wait --quest dense-pages`): gate 261109-023907-3907fb at Detent:c9db691 and its dependents, listed under "Session 2026-11-09 (default limits)"
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Three harness defects fixed (key grammar, signed segment order, default format limits);
-production unchanged. Mutant verdict made explicit (exit 0 only on a test failure). Every proof
-job requeued at Detent:98ebd27.
+The 5M delta abort was a production defect: the page codec defaulted `Limits`, and the overlay's
+external-child decode, the paged cursor's header decode and contextual reuse omitted them, so any
+store over 504,096 keys refused its own root page. Fixed at Detent:791d9fc (codec takes `Limits`
+explicitly; regressions for overlay and cursor). The frozen-v2 failure is not a defect: the job
+generates version-2 records and is valid only at Detent:785fb34.
 
 ## Next
 
-1. Read the A10 smoke/5M/revert jobs; record T4 actuals against the model projections (5 pages /
-   15,691 B one update; 16,616 pages / 42,821,363 B mixed, 99 off-path / 220,903 B).
-2. Read the eleven mutant jobs ("MUTANT KILLED" in each log); a survivor gets a test and a rerun.
-3. Once the head is stable: `campaign verify dense-pages`; `campaign job rerun` the brief's list
-   except 261105-150743/150744 (replaced by the model checks); COR-1's three confirming jobs.
-4. Merge main again once namespace-s1-s2 lands (lead's word), then rerun at that head.
+1. Read gate 3907fb and its dependents; reverts cdb214/fe85d6 must pass (killed), COR-1 824414
+   must pass; record the 5M T4 actuals (fd8f8f) against the model (5 pages / 15,691 B one update).
+2. A3/A6 mutants stand at Detent:ac4c32e (untouched code); rerun all mutants at the post-S1/S2
+   head with the fuzz jobs.
+3. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
 
 ## Blocked on
 
@@ -38,10 +39,10 @@ for identity, not because code changed.
 | A6 | Forged summary refusal in 261106-111645-b25734. New tests Detent:ddf89ae (forged reference keys/height), Detent:b62b40c (slot off preorder). Kills at d6d53a9 (each a test failure): height 261108-215342-9f84ee and keys 261108-215343-7b0d6f and order 261108-215344-4f774c (test_local_paged_page_validator, the new cases), canonicity 261108-215343-c81dc3 (test_local_paged_graph_validator). Head: 261109-000657-33a399, 261109-000657-ee6ef2, 261109-000658-dd59fb, 261109-000659-9cc222. |
 | A7 | 261105-150715-4c5b2d; 5M hash counts page 162,367/306,989,416 B, pack 302/315,759,038 B, metadata 303/22,064 B (261105-150744-5b7a4c). Rerun at head. |
 | A8 | Reader fixtures 261106-111645-b25734 and the native suite pass. "Landed S6 interfaces are preserved" cannot hold while S6 is parked: open, the lead's S6/Dense order. |
-| A9 | Overlay bounds (COR-1): 261106-114739-ba4d50 Debug, 261106-114740-c11743 ASan/UBSan, 261106-114741-2f126a kills the unguarded parent. S3b's bounds are not on main: open, the S3b/Dense order. |
-| A10 | Typed 1,000-round oracle 261106-111601-989a59 (rerun at head pending). Diagnosis 261108-213452-75a571. Smoke 261108-215334-7f2aa1 passed at d6d53a9: 100K one update 5 pages / 14,276 B / 14,287 pack B / 0 off-path; mixed churn (9,800+100+100) 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B, 2 off-path / 3,203 B; roots equal the model. 5M 261108-215335-b1a3ec aborted, default limits ("invalid dense packer input"), the revert evidence for that fix. Reverts at d6d53a9 killed at the test: key grammar 261108-215337-6fbb5e (line 395), signed order 261108-215338-050e7b (line 25). Head: smoke 261109-000646-d2548f passed, 5M 261109-000647-5fdbec, reverts 261109-000651-ba36ce, 261109-000652-8732cd. |
-| A11 | Compaction/relocation fixtures 261106-062527-75b336 (rerun pending). Kills at d6d53a9: off-path skip 261108-215347-fbd883 (paged_trie_overlay, paged_overlay_assembler, dense_delta_assembly:241), relocation rehash 261108-215346-e0fd25 (dense_delta_assembly:221, zero page hashes), no-op rewrite 261108-215345-93d4f7 (paged_delta_leaves, paged_overlay_assembler, dense_delta_assembly:256). Head: 261109-000702-788b29, 261109-000701-61d8db, 261109-000700-46eab6. |
-| A12 | Frozen v2 fixture 261106-063837-22f097, refetch/ownership 261106-065403-f3c14e, refusal and barrier mutants 261106-070134-ecbe03. No live references: grep job 261108-215423-6228c3 passed at d6d53a9, head rerun 261109-000710-6a7c72 ( also counts the same patterns on main to show they matched there). Docs [artifact]: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md` (Dense pages, Format refusal), `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
+| A9 | COR-1 at Detent:c9db691: Debug 261109-023940-16ed87, ASan/UBSan 261109-023941-feea7a, unguarded-parent kill 261109-023943-824414 (probe now a patch, `mutants/cor1-unguarded-parent.patch`). Earlier, overlay bounds (COR-1): 261106-114739-ba4d50 Debug, 261106-114740-c11743 ASan/UBSan, 261106-114741-2f126a kills the unguarded parent. S3b's bounds are not on main: open, the S3b/Dense order. |
+| A10 | At Detent:ac4c32e: smoke 261109-002832-7724ff passed; 5M 261109-002833-ba74d7 aborted (default limits in the overlay, production; fixed Detent:791d9fc). At Detent:c9db691: smoke 261109-023944-e56196, 5M 261109-023945-fd8f8f, reverts (pass = killed) overlay 261109-023934-cdb214, cursor 261109-023935-fe85d6, key grammar/segment order killed at ac4c32e (261109-002839-00fc85, 261109-002840-cdfa5b), 1,000 rounds 261109-023959-b149d6. Earlier: typed 1,000-round oracle 261106-111601-989a59 (rerun at head pending). Diagnosis 261108-213452-75a571. Smoke 261108-215334-7f2aa1 passed at d6d53a9: 100K one update 5 pages / 14,276 B / 14,287 pack B / 0 off-path; mixed churn (9,800+100+100) 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B, 2 off-path / 3,203 B; roots equal the model. 5M 261108-215335-b1a3ec aborted, default limits ("invalid dense packer input"), the revert evidence for that fix. Reverts at d6d53a9 killed at the test: key grammar 261108-215337-6fbb5e (line 395), signed order 261108-215338-050e7b (line 25). Head: smoke 261109-000646-d2548f passed, 5M 261109-000647-5fdbec, reverts 261109-000651-ba36ce, 261109-000652-8732cd. |
+| A11 | Mutants at Detent:c9db691 (pass = killed): noop-rewrite 261109-023936-80095a, relocation-rehash 261109-023937-d09b48 (patch now names the assembler's limits), offpath-skip 261109-023939-b86619; all three killed at ac4c32e (261109-002853-0e22ed, 261109-002854-cecb99, 261109-002855-28f894). Compaction/relocation fixtures 261106-062527-75b336 (rerun pending). Kills at d6d53a9: off-path skip 261108-215347-fbd883 (paged_trie_overlay, paged_overlay_assembler, dense_delta_assembly:241), relocation rehash 261108-215346-e0fd25 (dense_delta_assembly:221, zero page hashes), no-op rewrite 261108-215345-93d4f7 (paged_delta_leaves, paged_overlay_assembler, dense_delta_assembly:256). Head: 261109-000702-788b29, 261109-000701-61d8db, 261109-000700-46eab6. |
+| A12 | Frozen v2 fixture 261106-063837-22f097 at Detent:785fb34 (valid only there: the head refuses to encode version-2 ownership, test_ownership.cc:79; its head rerun 261109-002857-957eef fails by design). Head identity: embedded bytes equal its printed hashes, 261109-023948-15181a. Refetch at head 261109-023956-269318, barrier mutants 261109-023957-39d01e, grep 261109-023950-68e477. Earlier: refetch/ownership 261106-065403-f3c14e, refusal and barrier mutants 261106-070134-ecbe03. No live references: grep job 261108-215423-6228c3 passed at d6d53a9, head rerun 261109-000710-6a7c72 ( also counts the same patterns on main to show they matched there). Docs [artifact]: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md` (Dense pages, Format refusal), `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
 | A13 | ASan/UBSan 261106-112740-2f388f (10/10) and 261106-131702-5c4936; TSan 261106-112739-5f92a5 (4/4); trusted restart byte flips in 261106-131622-172969. CI at the final merged head: not run, open. |
 | A14 | Security: CHANGES at Detent:b7b37c6, SEC-1 and SEC-2 gaps, confirming jobs 261106-113537-ede7c2, 261106-112828-869301, 261106-113725-c6d946; the earlier acceptance is void. Correctness: CHANGES at Detent:c1323db, COR-1 fixed and confirmed above, PERF-1 is A15. Architect ruling: none. Open. |
 | A15 | First-read acceptance 261106-173358-3b82ed failed the gate, publisher stopped, 200 samples each: below 1 ms baseline 90, Dense 5M 115, 1 namespace 137, 1,000 namespaces 79 (medians 1,031 / 974 / 855 / 1,039 us; zero major faults). A/A and interleaved 261106-132451-040107 cancelled. Open. |
@@ -61,6 +62,18 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 3. 2026-11-08: mutants follow the design's S1/S2/S4 lists (docs/design/dense-pages.md:311, 329,
    353) as committed patches under tests/detent_local/mutants; A6's "order" is the page
    validator's preorder slot check (T1(4) "a slot off preorder").
+6. 2026-11-09: the codec's `Limits` default is removed rather than patching the three callers: one
+   explicit argument everywhere makes the omission a compile error. Callers on validated bytes
+   (cursor, reuse navigator) take `paged_format_limits()`, as their neighbouring decodes already
+   did; the overlay passes its own. Contextual reuse has no >504,096-key test (compile-enforced
+   only); overlay and cursor have one each, with revert patches.
+7. 2026-11-09: 261106-063837-22f097 is not rerun at the head: it compiles the v2 generator against
+   Detent:785fb34 by design (`dense_legacy_fixture_generator.cc:1`). The head check is that
+   `dense_legacy_fixture.hh` embeds exactly its output (`dense_legacy_fixture_check.py`).
+8. 2026-11-09: A3/A6 mutant kills stand at Detent:ac4c32e (packer and validators unchanged since);
+   the A11 mutants and both COR-1/A10 reverts rerun at the head because the overlay changed.
+   Pinned corpora now live at `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/` (same sha256),
+   named by `DENSE_CORPUS` in each job's env.
 5. 2026-11-09: the two one-CPU-hour fuzz jobs (261106-112828-869301, 261106-113725-c6d946) are
    rerun once, at the post-S1/S2 head, not now: the decoders are unchanged since they ran and a
    second hour at a head that will change again buys nothing. Lead may overrule.
@@ -263,3 +276,24 @@ a11-offpath-skip 261108-215347-fbd883.
    002857-5fbb95, COR-1 114739/114740/114741 -> 002857-8f8f5c / 002857-e50a4c / 002857-b0cd74,
    native 131622 -> 002857-48e472 (also `campaign verify`'s native check), ASan 131702 ->
    002857-79d264. The 98ebd27 queue was cancelled (stale test code).
+
+## Session 2026-11-09 (default limits)
+
+1. 261109-002833-ba74d7 (5M delta): `TrieOverlay::Impl::View::child` called
+   `p::decode_external(bytes, slot)` with the default `Limits` (500,000 records + 4,096 namespaces),
+   whose header check refuses the 5M root page (5,000,004+ keys) though the overlay was built with
+   sized limits. Same omission in `PagedCursor::step` (page header) and `ReuseNavigator::step`.
+   Production: a sparse update, cursor walk or reuse on any store above 504,096 keys (possible under
+   `ViewLimits::prepared()`) failed. Fix Detent:791d9fc; revert patches Detent:65ae6de.
+2. 261109-002857-957eef (frozen v2): `encode_generation_ownership` refuses layout version 2 at the
+   head (ownership.cc:61, pinned by test_ownership.cc:79). Not the limits pattern; the job is valid
+   only at Detent:785fb34 (ruling 7).
+3. Mutant verdicts at Detent:ac4c32e (explicit harness, exit 0 = killed, none exit 3): all eleven
+   killed (261109-002842-4a14db .. 261109-002855-28f894), both reverts killed, self-test
+   261109-002837-05443e passed. 5M packer 261109-002836-c29925 passed (A5/A7).
+4. Batch at Detent:c9db691, all after gate 261109-023907-3907fb (native): reverts cdb214, fe85d6;
+   A11 mutants 80095a, d09b48, b86619; COR-1 16ed87, feea7a, 824414; A10 e56196 -> fd8f8f; model
+   727b88 -> 5da14e; A12 15181a (no gate), 68e477 (no gate); self-test 51ac53; 89d2ac -> 3d7eea,
+   dd8697 -> b0e5e3, d03cb7 -> d311c6, f63e1a -> 269318, a75af3 -> 39d01e, 9b0e92 -> b149d6,
+   d0560e -> 2b1898, TSan 169c6b -> e3fdeb, ASan cae590 -> 041fbf, warm 5fbb95 -> 638ff5, ASan
+   79d264 -> 5fbe88 (prefix 261109-0239/0240). Stale gate 261109-023744-fa8873 cancelled.
