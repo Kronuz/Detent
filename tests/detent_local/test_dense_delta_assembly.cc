@@ -63,6 +63,7 @@ struct Base {
 struct Full {
 	std::shared_ptr<d::StorageLedger> account;
 	std::optional<x::PagedPacker> packer;
+	p::Limits limits;
 	Base result;
 	std::size_t pack_limit;
 	Full(std::shared_ptr<d::StorageLedger> a, std::size_t limit = p::segment_bytes)
@@ -89,7 +90,7 @@ struct Full {
 				r.offset = (pack.bytes.size() + 7) & ~std::size_t(7);
 				pack.bytes.resize(r.offset);
 				pack.bytes.insert(pack.bytes.end(), page.bytes->begin(), page.bytes->end());
-				p::verify_page({page.bytes->data(), page.bytes->size()}, r);
+				p::verify_page({page.bytes->data(), page.bytes->size()}, r, limits);
 				result.occurrences.emplace(page.path, r);
 				result.seal_order.emplace_back(page.path);
 				++result.root.pages;
@@ -139,7 +140,8 @@ struct Full {
 			else
 				++result.root.namespaces;
 		}
-		packer.emplace(account, corpus_limits(result.root.records, result.root.namespaces));
+		limits = corpus_limits(result.root.records, result.root.namespaces);
+		packer.emplace(account, limits);
 		if (!rows.empty())
 			node(indexed, 0, indexed.size(), 0);
 		packer->finish();
@@ -165,22 +167,22 @@ static void change(x::TrieOverlay &overlay, const std::string &key,
 	}
 }
 static std::map<std::string, p::Reference> occurrences(std::span<const x::SegmentInput> inputs,
-													   const p::Root &root) {
+													   const p::Root &root, const p::Limits &limits) {
 	std::map<std::string, p::Reference> result;
 	const auto walk = [&](auto &&self, p::Reference r, std::size_t offset,
 						  std::string path) -> void {
 		const auto bytes = x::checked_page_bytes(inputs[segment_index(inputs, r.segment)], r);
 		if (offset == p::page_header_bytes) {
 			require(result.emplace(path, r).second);
-			p::verify_page(bytes, r);
+			p::verify_page(bytes, r, limits);
 		}
-		const auto n = p::decode_node(bytes, offset);
+		const auto n = p::decode_node(bytes, offset, limits);
 		path += n.prefix;
 		for (std::size_t i = 0; i < n.labels.size(); ++i) {
 			auto child = path + char(n.labels[i]);
 			const auto slot = n.slot(i);
 			if (slot & 0x8000)
-				self(self, p::decode_external(bytes, slot & 0x7fff), p::page_header_bytes, child);
+				self(self, p::decode_external(bytes, slot & 0x7fff, limits), p::page_header_bytes, child);
 			else
 				self(self, r, slot, child);
 		}
@@ -234,7 +236,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		written += pack.bytes->size();
 	}
 	std::sort(merged.begin(), merged.end(), segment_less);
-	const auto actual = occurrences(merged, image.root());
+	const auto actual = occurrences(merged, image.root(), limits);
 	x::PagedReadState reader{image.root(), merged};
 	for (const auto &[key, body] : rows) {
 		const auto reached = reader.lookup(key, key.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace);

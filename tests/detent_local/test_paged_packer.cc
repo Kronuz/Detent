@@ -45,6 +45,7 @@ struct Sink {
 	};
 	std::vector<Page> pages;
 	std::size_t segment = 0, used = 0, bytes = 0;
+	p::Limits limits;
 	bool drain(x::PagedPacker &packer, l::ValidationBudget &budget) {
 		if (!packer.ready())
 			return false;
@@ -58,7 +59,7 @@ struct Sink {
 		}
 		ref.segment = segment_id(ordinal);
 		ref.offset = offset;
-		p::verify_page({page.bytes->data(), page.bytes->size()}, ref);
+		p::verify_page({page.bytes->data(), page.bytes->size()}, ref, limits);
 		if (!packer.commit(ref, budget))
 			return false;
 		segment = ordinal;
@@ -87,7 +88,7 @@ static Sink run(const std::shared_ptr<Rows> &rows, std::size_t quantum = 8192,
 	auto account = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
 	Sink sink;
 	{
-		const auto limits = limits_for(*rows);
+		const auto limits = sink.limits = limits_for(*rows);
 		x::TrieCursor cursor(account, rows, read_key, rows->size(), limits);
 		x::PagedPacker packer(account, limits);
 		std::size_t turns = 0;
@@ -158,7 +159,7 @@ static Sink run_reference(const std::shared_ptr<Rows> &rows, std::size_t *peak =
 	auto account = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
 	Sink sink;
 	{
-		x::PagedPacker packer(account, limits_for(*rows));
+		x::PagedPacker packer(account, sink.limits = limits_for(*rows));
 		if (!rows->empty())
 			postorder(*rows, 0, rows->size(), 0, packer, sink);
 		if (peak)
@@ -172,6 +173,7 @@ static Sink run_reference(const std::shared_ptr<Rows> &rows, std::size_t *peak =
 	return sink;
 }
 static void verify_values(const Sink &sink, const Rows &rows) {
+	const auto limits = limits_for(rows);
 	std::map<std::pair<d::Identity, std::uint32_t>, const Sink::Page *> pages;
 	for (const auto &page : sink.pages)
 		require(pages.emplace(std::make_pair(page.reference.segment, page.reference.offset), &page)
@@ -182,10 +184,10 @@ static void verify_values(const Sink &sink, const Rows &rows) {
 		const Sink::Page *page = &sink.pages.back();
 		for (std::size_t visits = 0;; ++visits) {
 			require(visits <= row.key.size());
-			const auto h = p::decode_page_header(page->bytes);
+			const auto h = p::decode_page_header(page->bytes, limits);
 			require(h.digest == ref.digest && h.length == ref.length && h.keys == ref.keys &&
 					h.height == ref.height);
-			const auto node = p::decode_node(page->bytes, offset);
+			const auto node = p::decode_node(page->bytes, offset, limits);
 			require(consumed <= row.key.size() && node.prefix.size() <= row.key.size() - consumed &&
 					std::string_view(row.key).substr(consumed, node.prefix.size()) == node.prefix);
 			consumed += node.prefix.size();
@@ -202,7 +204,7 @@ static void verify_values(const Sink &sink, const Rows &rows) {
 			require(child < node.labels.size());
 			const auto slot = node.slot(child);
 			if (slot & 0x8000) {
-				ref = p::decode_external(page->bytes, slot & 0x7fff);
+				ref = p::decode_external(page->bytes, slot & 0x7fff, limits);
 				const auto found = pages.find({ref.segment, ref.offset});
 				require(found != pages.end());
 				page = found->second;
