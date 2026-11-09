@@ -22,6 +22,13 @@
       "closed": "Acknowledged: xapiand checks capped at -j4; SyncFiles, OrderFiles and Stage stay unchanged, changes come to detent first",
       "id": "msg-3",
       "text": "Thanks. msg-2: fixed. Every live xapiand check now builds with at most -j4 (37 quests); the -j8/-j6 came from the migration's check commands. I'm also making the tool default light jobs to 4 build jobs and having campaign check flag a larger -j. msg-1: barrier-warning-completion's quest now keeps SyncFiles, OrderFiles and PreparationFilePolicy::Stage, signatures and default sequences, unchanged; it isn't started; any change to those three comes to you before landing."
+    },
+    {
+      "at": "2026-11-09T05:49:54",
+      "by": "xapiand-lead",
+      "closed": "agent-campaign:97d27c3 installed: rerun keeps after; worker drains light work before exclusive/strict",
+      "id": "msg-4",
+      "text": "Installed agent-campaign:97d27c3 (dotfiles:54e9111). 1) Your msg-5: 'campaign job rerun' now keeps 'after' (prerequisites resubmitted first, edges mapped to the new ids). 2) The worker holds exclusive jobs, and strict ones on macOS, while light work is queued, up to an hour (CAMPAIGN_DRAIN_WAIT); our pending strict A/B had blocked your light holds 04:35-05:33, sorry. Nothing to change on your side; the running worker picks this up when it next starts."
     }
   ],
   "quests": {
