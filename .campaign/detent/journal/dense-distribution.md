@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: ready for review
+State: waiting on jobs 261108-230300-28e052 261108-230300-5e2827 261108-230300-2bec9b 261108-230300-c7df19
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,17 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Nothing. The design is written; it waits for the design review (lens `design`).
+The design is written (`Detent:b99d3a3`). `campaign brief` asked for the evidence jobs at that head,
+since they ran at `Detent:4fa06bd`. Reruns at `b99d3a3` (identical model and command):
+`261108-230300-28e052` (check), `261108-230300-5e2827` (full), `261108-230300-2bec9b` (deltas),
+`261108-230300-c7df19` (sweep), queued behind host load after one 600 s wait. This journal-only
+commit follows them.
 
 ## Next
 
-1. Fold in the design review's findings by id.
+1. When the reruns finish, confirm that their numbers equal the originals (the model is
+   deterministic), put the rerun ids in the Evidence rows, and set State to "ready for review".
+2. Fold in the design review's findings by id.
 
 ## Blocked on
 
