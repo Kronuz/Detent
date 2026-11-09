@@ -2423,12 +2423,11 @@
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
-      "reason": "started by force: dense-pages' tests/** glob matches test_retirement.cc, but its branch changes none of this quest's four paths (git diff main...quest/dense-pages is empty for them)",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
-      "updated": "2026-11-09T09:01:42",
+      "updated": "2026-11-09T09:29:16",
       "worktree": "../Detent-wt/detent/retirement-close-race"
     },
     "salvage": {
