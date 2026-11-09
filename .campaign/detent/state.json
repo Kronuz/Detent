@@ -72,13 +72,15 @@
         "correctness"
       ],
       "milestone": "M1b Async drivers",
-      "needs": [],
+      "needs": [
+        "async-drivers-design"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "M1b: coroutine drivers for journal and consensus, Detents owner loops on them",
-      "updated": "2026-11-08T15:37:58"
+      "updated": "2026-11-09T14:24:58"
     },
     "async-drivers-design": {
       "accepted": {},
