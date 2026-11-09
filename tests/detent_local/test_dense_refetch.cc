@@ -144,7 +144,8 @@ void crash_at(const std::filesystem::path &directory, unsigned cut) {
 			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
 			check(store->status() == l::StoreStatus::Starting &&
 				  store->selection().knowledge == l::SelectionKnowledge::Uncertain &&
-				  operation->request().kind == c::Kind::DirectorySync);
+				  operation->request().kind == c::Kind::OpenInto &&
+				  operation->request().source == "storage.meta"); // the barrier's reopen, before its SyncFiles
 			if (cut == 1)
 				::_exit(0);
 			continue;

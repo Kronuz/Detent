@@ -34,6 +34,7 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	const auto preparation_deadline = std::chrono::steady_clock::now() + preparation_timeout;
 	std::optional<d::Cursor> reported;
 	std::uint64_t failures = 0, rotations = 0, refresh_failures = 0, damaged_packs = 0;
+	l::SyncCounters published_sync;
 	std::optional<std::chrono::steady_clock::time_point> quorum_open;
 	while (!coordinator->drained()) {
 		const auto state = coordinator->status();
@@ -68,6 +69,14 @@ task::task<void> monitor(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 		if (state.quorum_refresh_failures != refresh_failures) {
 			L_WARNING("detent-agent: managed quorum refresh failures {}", state.quorum_refresh_failures);
 			refresh_failures = state.quorum_refresh_failures;
+		}
+		if (!(state.sync.publication == published_sync)) {
+			published_sync = state.sync.publication;
+			L_INFO("detent-agent: publication synced {} files in {} groups, {} directory syncs, {} device flushes; "
+				   "{} device flushes since start (startup {})",
+				   published_sync.files, published_sync.groups, published_sync.directory_syncs,
+				   published_sync.device_flushes, state.sync.total.device_flushes,
+				   state.sync.startup.device_flushes);
 		}
 		if (state.scrub.damaged_packs != damaged_packs) {
 			L_WARNING("detent-agent: managed scrub found {} damaged packs in the selected generation after {} "

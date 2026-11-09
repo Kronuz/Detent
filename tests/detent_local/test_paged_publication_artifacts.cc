@@ -74,7 +74,16 @@ int main() {
 					const auto rows = artifacts->artifacts();
 					require(rows.size() == (progress ? 5 : 7));
 					require(artifacts->reused().size() == (progress ? 1 : 0));
-					const auto &lease = rows[rows.size() - 5];
+					// Owners then the lease, then packs, image, live, read and descriptor: five rows follow
+					// the packs, and the first sync group is the owners plus the lease.
+					const auto segments = (rows.size() - 5) / 2;
+					require(plan->segments().size() == segments && artifacts->first_group() == segments + 1);
+					const auto &lease = rows[artifacts->first_group() - 1];
+					require(lease.filename().ends_with(".lease"));
+					for (std::size_t i = 0; i < segments; ++i) {
+						require(rows[i].filename().ends_with(".owner"));
+						require(rows[artifacts->first_group() + i].filename().ends_with(".pack"));
+					}
 					const auto ownership =
 						l::decode_generation_ownership({lease.bytes().data(), lease.bytes().size()});
 					require(ownership.layout_version == l::paged::format_version && ownership.storage == storage &&

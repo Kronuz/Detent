@@ -66,7 +66,6 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			live.rows.push_back({segment.ownership.segment, segment.ownership.length,
 								 segment.ownership.checksum, plan.new_reachability(i)});
 			append(names.owner_name(), encode_segment_ownership(segment.ownership), {});
-			append(names.payload_name(), {}, segment.bytes);
 		}
 		if (reused_.size() + segments.size() != plan.root().segments)
 			throw std::invalid_argument("paged publication dependency count mismatch");
@@ -75,6 +74,10 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
 											descriptor.checksum, paged::format_version}),
 			   {}, true);
+		// Owners and the lease form the first sync group; everything below waits for its barrier.
+		first_group_ = artifacts_.size();
+		for (const auto &segment : segments)
+			append(SegmentNames(segment.ownership.segment).payload_name(), {}, segment.bytes);
 		append(GenerationName(descriptor.generation, GenerationFile::Image).view(), {}, plan.bytes());
 		const auto metadata = encode_reader_metadata({plan.storage_identity(), descriptor.generation,
 		                                              descriptor.checksum, plan.counts(), physical_bytes_});
@@ -141,6 +144,10 @@ DiskUsage PagedPublicationArtifacts::prefix_usage(std::size_t count) const {
 	if (count > artifacts_.size())
 		throw std::out_of_range("paged artifact prefix exceeded");
 	return count ? artifacts_[count - 1].prefix : DiskUsage{};
+}
+std::size_t PagedPublicationArtifacts::first_group() const {
+	artifacts();
+	return first_group_;
 }
 void PagedPublicationArtifacts::attach_recovery(d::RetirementHandle<MappedRecoveryAdmission> admission) {
 	artifacts();

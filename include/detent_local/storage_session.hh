@@ -1,6 +1,7 @@
 #pragma once
 #include "detent_distribution/retirement.hh"
 #include "generation.hh"
+#include "sync_counters.hh"
 #include <atomic>
 #include <completion/api.h>
 
@@ -18,6 +19,9 @@ class StorageSession {
 	const kronuz::io::completion::AllocationContext &allocation_context() const noexcept { return context_; }
 	DirectoryIdentity directory_identity() const noexcept { return directory_; }
 	kronuz::io::completion::Token next_operation();
+	// Called by an operation for each request that completed without error.
+	void sync_performed(const kronuz::io::completion::Request &request) noexcept;
+	SyncCounters sync_counters() const noexcept;
 	// Revokes new identities; accepted originals retain their cleanup authority.
 	void close() noexcept { closed_.store(true, std::memory_order_release); }
 	bool closed() const noexcept { return closed_.load(std::memory_order_acquire); }
@@ -40,6 +44,7 @@ class StorageSession {
 	kronuz::io::completion::Identity incarnation_{};
 	std::uint64_t operation_ = 0;
 	std::atomic<bool> closed_{false};
+	std::atomic<std::uint64_t> sync_files_{0}, sync_directories_{0}, sync_flushes_{0}, sync_groups_{0};
 	void initialize_identity();
 };
 std::shared_ptr<StorageSession> make_storage_session(kronuz::io::completion::AllocationContext context,
