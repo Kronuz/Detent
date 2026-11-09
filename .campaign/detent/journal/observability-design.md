@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-104451-e928ee 261109-104452-5b4e92 261109-104453-f581b5 261109-104454-a6435c
+State: waiting on jobs 261109-120856-787b87 261109-120857-5b7ebc 261109-120857-3fb43d 261109-120858-28cd50
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -16,11 +16,12 @@ confirm job lands. Chains (slot `obs-bench`, ref `s6=b1d281c`):
 - `fce36ed`: build 261109-104451-e928ee ok, smoke 261109-104452-5b4e92 ok, screen 261109-104453-f581b5 FAILED
   ("invalid knob definitions": `--knobs 100000` built 200,000 definitions, past `kDefaultMaxKnobs` 100,000;
   smoke's 40,000 fit), confirm 261109-104454-a6435c skipped. Fixed at `438191b`.
-- `438191b`: see State.
+- `d1ce742` (bench fix `438191b` + journal): build 261109-120856-787b87, smoke 261109-120857-5b7ebc,
+  screen 261109-120857-3fb43d, confirm 261109-120858-28cd50 (queued behind another quest's exclusive hold).
 
 ## Next
 
-1. Read the confirm job's `confirm.md` (`$JOB_OUT`, or its log); put its numbers in D2 of the design; choose the counting shape by them.
+1. If build or smoke fail, read the log under `~/.scratch/campaign/jobs/<id>/a1/log`. Read the confirm job's `confirm.md` (`$JOB_OUT`, or its log); put its numbers in D2 of the design; choose the counting shape by them.
 2. Commit the design, then rerun the confirm job at the head (`campaign job rerun 261109-104454-a6435c`, with the build, smoke and screen; the doc
    commit changes job identity) and cite both.
 3. Fill the Evidence table, Result; set State to "ready for review".
