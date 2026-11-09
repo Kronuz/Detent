@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: separate durable-ingestion syscall time from queue and request waits
 
 **Priority:** P1 · Rank 3 of 7 · Ingestion-qualification blocker.
