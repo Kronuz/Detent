@@ -15,7 +15,7 @@ races close against the worker's two reads fails without the fix.
 
 ## Acceptance criteria
 
-- A1 The race reproduced on main's code: namespace-s1-s2's probe (261109-085248-0c7d20, exit 1 = reproduced) or an equivalent test, as a job at main that fails: the job
+- A1 [manual] The race reproduced on main's code: the lead checks that namespace-s1-s2's probe and the same probe at this quest's base fail with a lost wakeup (a job that must fail cannot be untagged evidence)
 - A2 A regression test in `tests/detent_distribution/test_retirement.cc` that drives close between the worker's two reads (a seam or a deterministic interleaving, not sleeps) passes with the fix and fails with it reverted: a positive job and a revert job
 - A3 The probe's 300,000 rounds drain with the fix: the job
 - A4 TSan clean on the retirement tests: the `tsan` gate
