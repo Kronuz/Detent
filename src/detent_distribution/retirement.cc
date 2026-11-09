@@ -103,7 +103,7 @@ struct RetirementState {
 		if (auto hook = interleave_hook.load(std::memory_order_acquire))
 			hook(interleave_context, point);
 	}
-	bool step(bool &work) noexcept {
+	bool step(bool &work, bool &pending) noexcept {
 		for (unsigned i = 0; i < 8 && retry; ++i)
 			push(pop(retry, retry_tail), runnable, runnable_tail);
 		if (auto head = incoming.exchange(nullptr, std::memory_order_acquire)) {
@@ -138,11 +138,18 @@ struct RetirementState {
 			destroy(node);
 			admission.fetch_sub(1, std::memory_order_acq_rel);
 		}
+		// One admission load decides, after the markers its producers set before
+		// their wake: a handoff it misses is pending here or has its wake unread.
+		const auto rollbacks = rolling_back.load(std::memory_order_acquire);
+		const bool closing_seen = closing.load(std::memory_order_acquire);
 		at(RetirementPoint::worker_admission);
 		const auto admitted = admission.load(std::memory_order_acquire);
 		at(RetirementPoint::worker_admitted);
-		return admitted == closed && rolling_back.load(std::memory_order_acquire) == 0 && !waiting && !runnable &&
-			   !retry && !incoming.load(std::memory_order_acquire);
+		if (admitted == closed && !rollbacks && !waiting && !runnable && !retry &&
+			!incoming.load(std::memory_order_acquire))
+			return true;
+		pending |= waiting || retry || rollbacks || (closing_seen && !(admitted & closed));
+		return false;
 	}
 };
 
@@ -198,13 +205,8 @@ struct RetirementRuntimeState {
 				auto &domain = pass[i];
 				if (!domain)
 					continue;
-				if (!domain->step(work)) {
-					pending |= domain->waiting != nullptr || domain->retry != nullptr ||
-							   domain->rolling_back.load(std::memory_order_acquire) != 0 ||
-							   (domain->closing.load(std::memory_order_acquire) &&
-								!(domain->admission.load(std::memory_order_acquire) & closed));
+				if (!domain->step(work, pending))
 					continue;
-				}
 				work = true;
 				{
 					std::lock_guard lock(registry_mutex);
