@@ -1,28 +1,29 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-044236-f5ae51 261109-051245-db09c0 261109-052359-e76a0c 261109-052359-b5065a 261109-052400-f703ba (fixture race proof) and gate 261109-051101-0e5691 with its chain (see "Fixture fix 2026-11-09")
+State: waiting on jobs 261109-063254-60ccf1 261109-063255-ce975b 261109-063256-8f7f5c 261109-063257-f27cde 261109-063257-e99c35 (500K rate, timeline, fix proof, revert) and the requeued gate chain (see "500K round 3 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-The 500K gate failures were the coordinator fixture's, not the quest's: its single-threaded server
-blocked on the held long poll and could not accept the final session close. Fixed in the fixture
-at Detent:b8ef8d2 (held poll on its own thread; the final close must be answered and acknowledged
-before the coordinator settles). Proof and the requeued gate chain are queued at that head.
+Third round on the 500K coordinator subscription failures. Reading of the b8ef8d2 logs (below):
+the fixture builds response(500K) for every request, including the held poll and the final
+close, on its one server thread, while release_session's 1,000 ms timeout runs. Fix
+Detent:203f729 builds it only for replies that carry it. Proof jobs queued; the timeline job
+8f7f5c must confirm the reading before the fix counts.
 
 ## Next
 
-1. Fixture proof: head jobs f5ae51/e76a0c (Detent:97f0f2f) must fail, fixed db09c0/b5065a must
-   pass, revert f703ba must pass (killed). Record the close answered -> acknowledged gap from db09c0's -V log.
-2. Read gate 0e5691 and its chain (below); reverts 844834/5c50b4 must pass (killed), COR-1 872c6e
-   must pass; record the 5M T4 actuals (d14e40) against the model (5 pages / 15,691 B one update).
-3. A3/A6 mutants stand at Detent:ac4c32e (untouched code); rerun all mutants at the post-S1/S2
-   head with the fuzz jobs.
-4. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
+1. 8f7f5c (Detent:00c9aaf, -V): per port, check observer-close -> coordinator settle = ~1,000 ms
+   (release_session deadline), the close connection queued (pending > 0 at accept) while the
+   server sat in server-response-built. If it does not show that, the fix is unproven: stop.
+2. Rates: main 60ccf1 vs quest 97f0f2f ce975b (same command): does the quest change frequency?
+3. Fix f27cde must pass (6 rounds x 6 cases); revert e99c35 must pass (killed).
+4. Gate and chain requeued at the head; read them.
+5. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
 
 ## Blocked on
 
-Nothing yet. A15 is the lead's (numbers recorded below).
+Nothing. A15 is the lead's (numbers recorded below).
 
 ## Evidence
 
@@ -86,6 +87,12 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 4. 2026-11-08: `StateCursor::logical_commitment` and `PreparedReader::logical` keep their names
    on purpose: they return the one state commitment, predate Dense on main, and their callers sit
    in src/detent_delivery (outside this quest's files). A12's removed fields are the format's.
+5. 2026-11-09: the b8ef8d2 held-poll thread and its close assertions stay. The thread is not what
+   fixes the race (lazy snapshot is), but it keeps the fixture from depending on the coordinator
+   retiring the poll socket before it opens the close; the assertions make a late close a
+   failure instead of a silent pass. The rate comparison uses Detent:97f0f2f, not b8ef8d2:
+   b8ef8d2's stricter assertions are a different test from main's; 8f7f5c (b8ef8d2 + logs)
+   gives b8ef8d2's rate.
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
@@ -374,11 +381,47 @@ d14e40; model 98ec25 -> 897c15; self-test a73aba; 3d7eea -> af6dae, b0e5e3 -> 92
 No gate: A12 15181a -> 525be9, 68e477 -> a204d2. Fuzz still waits for S1/S2 (ruling 5).
 `campaign job rerun` drops `after`; these were resubmitted with their spec and the new gate.
 
+## 500K round 3 2026-11-09
+
+Reading of b8ef8d2's own logs (db09c0 serial, #59): server-feedback 16,071; poll released 16,899
+and the close accepted 16,901 (handshake 16,903); coordinator settled 17,081; close answered
+17,728. The settle is ~1,010 ms after feedback, i.e. after the observer's close (feedback + 6 ms):
+release_session's 1,000 ms deadline, counted from its start, not from the close's connect. The
+828 ms before poll-released and the 825 ms between handshake and answer are the fixture: for
+every request it builds `response(count)` (500K records, tests/detent_delivery/test_coordinator.cc
+`auto bytes = response(...)`) before choosing the reply, discarding it for the held poll and the
+close. The held-poll thread is spawned only after that build, so server-poll-released marked the
+build's end, not the coordinator's release. #89 db09c0: settled 37,848 before poll-released 37,918
+and accept 37,920, then "stream truncated": same. 8e6377 (pre-fix #69): feedback 36,982, settled
+37,991, poll released 38,115: same. The coordinator does not hold the poll: the earlier follow-up
+was wrong (corrected below). b8ef8d2 made it fail more, not less: its "answered before settle"
+assertion (line 1132) turns every late answer into a failure, and its close-acknowledged check
+passed falsely on an already-closed socket.
+
+Diagnosis Detent:00c9aaf (tests only): each accept logs peer port, attempt and bytes already
+queued (FIONREAD), the request line, response build ms, held-poll end and error, handshake errors;
+the observer logs its close. `tests/detent_delivery/repeat_500k.sh ROUNDS [BUILD]` runs the six
+500K cases (the five plus relay-500000, which failed in gate 0e5691) ROUNDS times at -j4 without
+stopping and prints failing case runs.
+
+Fix Detent:203f729: the snapshot is built only for phases 1/5 and non-subscription modes.
+Revert `tests/detent_delivery/mutants/snapshot-eager.patch` builds it for every request again.
+held-poll-inline.patch removed (theory superseded; its job f703ba at b8ef8d2 is moot: cancel was
+not permitted to me, the lead may cancel it).
+
+Jobs, all light, -j4, 6 rounds x 6 cases (36 case runs), fixed N:
+1. 261109-063254-60ccf1 at main Detent:45e2044 (script via git show 00c9aaf): rate on main.
+2. 261109-063255-ce975b at Detent:97f0f2f (quest code, fixture = main + one checkpoint): rate.
+3. 261109-063256-8f7f5c at Detent:00c9aaf (b8ef8d2 + logs), -V: timeline, before-rate.
+4. 261109-063257-f27cde at Detent:203f729, -V: must pass.
+5. 261109-063257-e99c35 revert at Detent:203f729, dense_mutant.sh: passes when killed.
+Before-rate so far (not this job's): at b8ef8d2 every case failed its first run (db09c0 serial,
+b5065a -j4); at 97f0f2f -j4 (e76a0c) every case failed within 6 runs. A pass of 36 runs at a
+per-run rate p is luck with probability (1-p)^36: 2.6e-6 at p = 0.3, 0.023 at p = 0.1.
+
 ## Follow-ups for the lead
 
-1. The coordinator holds the subscription long poll open while it releases the session: in the
-   failing run the poll was released 1,133 ms after feedback, after release_session's 1,000 ms
-   close timed out (src/detent_delivery/coordinator.cc:1139 releases before
-   `options.source.connections.reset()`). Against a real one-thread or connection-limited relay
-   the close can go unacknowledged. Outside this quest's files; the lead decides whether it
-   becomes a delivery quest.
+1. Withdrawn: "the coordinator holds the long poll open while it releases the session". The
+   poll-released checkpoint marked the end of the fixture's own response build (round 3 above).
+   Remaining coordinator fact, not a defect claim: release_session's 1,000 ms cap counts from its
+   start, so a relay that takes ~1 s to read a close leaves the session to expire.
