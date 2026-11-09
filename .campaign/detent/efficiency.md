@@ -38,3 +38,4 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 2. The first review on the campaign found what the earlier process did not: S1/S2's D1 is a crash window that 222/222 ctest, ASan, TSan and the old mutants all passed over, because T7 never cut store creation.
 3. Evidence that cannot fail is caught: D2 showed the new mutant jobs exit 125 (no test target built), which a "must fail" job cannot tell from a kill; the harness now has to separate the two.
 4. Three contributors plus a reviewer share one machine: their jobs queue behind each other's exclusive holds, so wall-clock is bound by the host, not the agents.
+5. Queue wait dominates: by 2026-11-09 the campaign's 293 jobs ran 7 h 05 m and waited 100 h 17 m (`campaign usage`), mostly behind other campaigns' light holds. `campaign usage` counts cached input (95% of 154.0M tokens); the token columns above come from agent completion records and are not comparable to it.
