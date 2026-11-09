@@ -8,7 +8,7 @@
 # neither a kill nor a pass: the mutant job prints HUNG and exits 125, the positive job fails.
 set -u
 name=$1
-limit=420
+limit=300
 build=.scratch/build-dbg
 targets=(test_local_publication_power_cut test_local_paged_store_startup test_local_disk_store)
 restore() { git checkout -q -- src tests; }
