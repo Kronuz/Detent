@@ -1462,7 +1462,8 @@
     "namespace-s3b": {
       "accepted": {},
       "after": [
-        "namespace-s1-s2"
+        "namespace-s1-s2",
+        "dense-pages"
       ],
       "checks": [
         {
@@ -1532,7 +1533,7 @@
       "risk": "high",
       "status": "blocked",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-08T21:19:39"
+      "updated": "2026-11-08T21:26:35"
     },
     "namespace-s4-s10": {
       "accepted": {},
