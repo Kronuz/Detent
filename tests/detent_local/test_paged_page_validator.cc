@@ -77,6 +77,29 @@ int main() {
 		}
 		check(!short_frontier->used());
 	}
+	// A checksum-correct page whose root branch names its first two inline children in swapped
+	// slots keeps its bytes in preorder but is refused: readers follow slots.
+	{
+		auto source = fixture(1000);
+		bool swapped = false;
+		for (auto page : source->pages) {
+			const auto node = p::decode_node(page.bytes, p::page_header_bytes);
+			if (node.kind != p::PageKind::Branch || (node.slot(0) & 0x8000) ||
+			    (node.slot(1) & 0x8000))
+				continue;
+			const auto at = node.slots.data() - page.bytes.data();
+			std::swap_ranges(page.bytes.begin() + at, page.bytes.begin() + at + 2,
+			                 page.bytes.begin() + at + 2);
+			auto header = p::decode_page_header(page.bytes);
+			header.digest = page.reference.digest = p::page_commitment(page.bytes);
+			const auto encoded = p::encode_page_header(header);
+			std::copy(encoded.begin(), encoded.end(), page.bytes.begin());
+			rejects<std::invalid_argument>([&] { validate(source, page); });
+			swapped = true;
+			break;
+		}
+		check(swapped);
+	}
 	// A checksum-correct page with two tiny external leaves is structurally valid
 	// but violates the height packer's boundary decisions.
 	auto source = fixture(1);
