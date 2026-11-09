@@ -57,16 +57,18 @@ you examined, failures included, and answer each message by its id (msg-N).
 |---|---|
 | A1 | `docs/status/namespace-s1-s2.md` (completion:0490a5a, df6394a, 560c288; CI 41925122896) |
 | A2 | `docs/status/namespace-s1-s2.md` (completion mutants run 41925127096) |
-| A3 | pins gate 261109-085306-f88ebc |
-| A4 | positive 261109-085250-7abf33; unsynced-descriptor 085254-afd4a0, rename-before-sync 085255-9a46c2 (each passes iff killed; at 8a0ba8b 053518-443bd3, 053519-e40466 killed) |
-| A5 | positive 261109-085250-7abf33 (test_local_paged_store_startup); startup-before-barrier 085253-a67627; d1-revert 085251-69e523 (053515-ae762d timed out at 8a0ba8b: the retirement deadlock, not evidence) |
-| A6 | native gate 261109-085306-1a0b81; harness: A9 after arms with summarize.py --require-counters (085308-2a2aab and later) |
-| A7 | positive 261109-085250-7abf33; mutants unsynced-descriptor 085254-afd4a0, rename-before-sync 085255-9a46c2, empty-payload-group 085257-1a17df, startup-before-barrier 085253-a67627, cycle-oracle 085301-423694; attribute c 085303-c6d79d |
-| A8 | positive 261109-085250-7abf33; reverts closed-session 085258-83cfd7 (0cd1527), phase-counts 085300-ad0afa (522452a) |
-| A9 | build before 261108-213700-dc3b49 (at Detent:327ca58 by design), after 261109-085305-a3da2d; 10K b/a 085307-752e2e 085308-2a2aab 085310-8706a2 085312-59c763 085314-1b83e8 085315-422381; 100K b/a 085316-2f062e 085317-2b5b3b 085318-19589c 085320-3078d4 085321-a8c1c3 085323-bff1da; 5M b 085324-24b714, a 085326-8bcc5c (all 261109-) |
-| A10 | asan gate 261109-085306-9cde82, tsan gate 261109-085306-8a5cd6 |
+| A3 | pins gate 261109-121535-c8454e |
+| A4 | positive 261109-125238-76d6d1; unsynced-descriptor 261109-140404-f6cf65, rename-before-sync 261109-125238-154e04 (each passes iff killed) |
+| A5 | positive 261109-125238-76d6d1 (test_local_paged_store_startup); startup-before-barrier 261109-125239-3bf8a5; d1-revert 261109-140404-6e8cad; D1 probe census-meta 261109-121536-ca7460 |
+| A6 | native gate 261109-121535-4154e6; harness: A9 after arms with summarize.py --require-counters (261109-121537-ef207f and the other after arms in A9) |
+| A7 | positive 261109-125238-76d6d1; mutants unsynced-descriptor 261109-140404-f6cf65, rename-before-sync 261109-125238-154e04, empty-payload-group 261109-125238-502411, startup-before-barrier 261109-125239-3bf8a5, cycle-oracle 261109-125238-8e9711; attribute c 261109-121536-856543 |
+| A8 | positive 261109-125238-76d6d1; reverts closed-session 261109-125238-f8af79, phase-counts 261109-125238-eaac26 |
+| A9 | after build 261109-121536-fe3e62 (the before build runs at Detent:327ca58 by design and is each before arm's dependency); 10K before 261109-125239-019c9c 261109-121537-aa665e 261109-121537-59e880, after 261109-125239-e9ce13 261109-121537-ef207f 261109-125238-294dec; 100K before 261109-125239-90fffe 261109-125238-d9860a 261109-125239-2750d0, after 261109-125238-e2ca32 261109-125239-826187 261109-121537-2817a2; 5M before 261109-125238-dffa9c, after 261109-125239-dd7342. The table is quest sync-groups-perf's (D32) |
+| A10 | asan gate 261109-121535-cfa19e, tsan gate 261109-121535-b38ac1 |
 | A11 | `docs/mechanisms/sync-groups.md` |
 | A13 | [manual] the lead names the completion commit (decision 5 open) |
+
+Examined at 35296ba and not evidence: power-cut positive 261109-121535-e93d52 (300 s hang bound tripped under host load; window 1 took 238 s, 2.7 s on rerun 261109-125238-76d6d1), unsynced-descriptor 261109-125238-38804a (runner lost), d1-revert 261109-125239-e09f2e (rapidjson FetchContent configure failed in the shared mutant slot, exit 125 before any test).
 
 ## Result
 
