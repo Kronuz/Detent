@@ -7,11 +7,10 @@
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 sdk=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
-corpus=${DENSE_CORPUS:?DENSE_CORPUS names the 5M corpus}
 trials=/Users/kronuz/code/Kronuz/Detent/.scratch/capacity-trials/5000000-restore-r12
 
 prepare() {
-	local out=$1 dense=$PWD
+	local out=$1 dense=$PWD corpus=${DENSE_CORPUS:?DENSE_CORPUS names the 5M corpus}
 	mkdir -p "$out"
 	"$llvm/clang++" --version | tee "$out/toolchain.txt"
 	grep -q 'clang version 23.1.2' "$out/toolchain.txt"
