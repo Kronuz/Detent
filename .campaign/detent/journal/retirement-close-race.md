@@ -25,11 +25,11 @@ All jobs `261109-`; driver `docs/mechanisms/retirement-wakeup.sh`. Not evidence:
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 085248-0c7d20 (namespace-s1-s2's probe at main's blob dd31703, exit 1); 091902-d4c641 (same probe against base 018202d: failed exit 1, lost wakeup at -O0 in 10 s and at -O2 at round 47,625 in 7 s) |
-| A2 | positive 091903-cdd46b (head, passed); revert 091904-2f2be3 (head's test against 10b4b13's retirement.cc, the fix's parent; failed exit 1: close and rollback at `worker_admitted` lost the wakeup); mutants (pass iff killed) reread-admission 091905-c0b74a (killed by close at `worker_admitted`), swap-rollbacks-admission 091906-df6aa6 (killed by rollback at `worker_admission`), drop-closing 091907-3f61f4 (killed by close at `worker_admitted`) |
-| A3 | 091909-9f78a1 (probe at head: 300,000 rounds drained at -O0 in 34 s and at -O2 in 27 s) |
-| A4 | tsan gate 091524-3d7822 |
-| A5 | native gate 091524-b72f0a |
+| A1 | Lead (2026-11-09), by hand: 261109-085248-0c7d20 (probe at main's retirement.cc) and 261109-091902-d4c641 (same probe at base 018202d) both exit 1 with a lost wakeup |
+| A2 | positive 261109-091903-cdd46b (head, passed); revert 261109-091904-2f2be3 (head's test against 10b4b13's retirement.cc, the fix's parent; failed exit 1: close and rollback at `worker_admitted` lost the wakeup); mutants (pass iff killed) reread-admission 261109-091905-c0b74a (killed by close at `worker_admitted`), swap-rollbacks-admission 261109-091906-df6aa6 (killed by rollback at `worker_admission`), drop-closing 261109-091907-3f61f4 (killed by close at `worker_admitted`) |
+| A3 | 261109-091909-9f78a1 (probe at head: 300,000 rounds drained at -O0 in 34 s and at -O2 in 27 s) |
+| A4 | tsan gate 261109-091524-3d7822 |
+| A5 | native gate 261109-091524-b72f0a |
 
 ## Result
 
