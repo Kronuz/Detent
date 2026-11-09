@@ -1,6 +1,6 @@
 # retirement-close-race: journal
 
-State: waiting on jobs 261109-091516-8a1684 091517-bb33d3 091518-c83b2f 091519-0f30d7 091521-43baf8 091522-70963d 091523-b003a4 091524-b72f0a 091524-3d7822
+State: waiting on jobs 261109-091902-d4c641 091903-cdd46b 091904-2f2be3 091905-c0b74a 091906-df6aa6 091907-3f61f4 091909-9f78a1 091524-b72f0a 091524-3d7822
 Quest: .campaign/detent/quests/retirement-close-race.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Waiting on the jobs in State, all at Detent:5772d20 (code: seams+test 10b4b13, fix d5d9bc9, driver 5772d20).
+Waiting on the jobs in State; code at Detent:5772d20 (code: seams+test 10b4b13, fix d5d9bc9, driver 5772d20).
 
 ## Next
 
@@ -21,13 +21,13 @@ Nothing.
 
 ## Evidence
 
-All jobs `261109-`; driver `docs/mechanisms/retirement-wakeup.sh`.
+All jobs `261109-`; driver `docs/mechanisms/retirement-wakeup.sh`. Not evidence: 091516-8a1684 through 091523-b003a4 exited 127 (my submission passed the flags as one word, so they became the command); resubmitted as the ids below.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 085248-0c7d20 (namespace-s1-s2's probe at main's blob dd31703, exit 1); 091516-8a1684 (same probe, 300k rounds, against base 018202d, expect exit 1) |
-| A2 | positive 091517-bb33d3 (head); revert 091518-c83b2f (head's test against 10b4b13's retirement.cc, the fix's parent; expect exit 1, failing close and rollback at `worker_admitted`); mutants (pass iff killed) reread-admission 091519-0f30d7, swap-rollbacks-admission 091521-43baf8, drop-closing 091522-70963d |
-| A3 | 091523-b003a4 (probe, 300k rounds, -O0 and -O2, at head) |
+| A1 | 085248-0c7d20 (namespace-s1-s2's probe at main's blob dd31703, exit 1); 091902-d4c641 (same probe, 300k rounds, against base 018202d, expect exit 1) |
+| A2 | positive 091903-cdd46b (head); revert 091904-2f2be3 (head's test against 10b4b13's retirement.cc, the fix's parent; expect exit 1, failing close and rollback at `worker_admitted`); mutants (pass iff killed) reread-admission 091905-c0b74a, swap-rollbacks-admission 091906-df6aa6, drop-closing 091907-3f61f4 |
+| A3 | 091909-9f78a1 (probe, 300k rounds, -O0 and -O2, at head) |
 | A4 | tsan gate 091524-3d7822 |
 | A5 | native gate 091524-b72f0a |
 
