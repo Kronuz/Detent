@@ -544,11 +544,13 @@ int main(int argc, char **argv) {
 													{EntryMode::All, DataMode::Truncate},
 													{EntryMode::All, DataMode::Zeros}};
 	auto verify = [&](const Run &run, std::size_t index, const State &from, const std::filesystem::path &root,
-					  const char *what) {
+					  const std::string &what) {
 		const auto selected = open_and_recover(root);
 		if (!(selected == run.before) && !(index >= run.startup_events && selected == run.after)) {
-			std::cerr << what << " at event " << index << " selected a generation that is neither the one before the "
-					  << "publication nor the one it publishes\n";
+			std::cerr << what << " at event " << index << " (" << run.labels[index] << ") selected a generation that is "
+					  << "neither the one before the publication nor the one it publishes; startup events "
+					  << run.startup_events << ", selected generation " << selected.generation[0] << ", before "
+					  << run.before.generation[0] << ", after " << run.after.generation[0] << '\n';
 			check(false);
 		}
 		(void)from;
@@ -615,6 +617,8 @@ int main(int argc, char **argv) {
 				State second = variant == 0   ? after_cut(run.history[i], EntryMode::Durable, DataMode::Truncate)
 							   : variant == 1 ? after_cut(run.history[i], EntryMode::All, DataMode::Zeros)
 											  : after_kill(run.history[i]);
+				const std::string tag = "cycle from event " + std::to_string(i) + " (" + run.labels[i] + ") variant " +
+										std::to_string(variant);
 				const auto again = directory / ("cycle-" + std::to_string(cycle++));
 				materialize(again, second, true, EntryMode::Durable, DataMode::Truncate);
 				auto rerun = publish(again, second, storage, 'o', 2);
@@ -622,7 +626,7 @@ int main(int argc, char **argv) {
 					const auto probe = directory / "probe";
 					for (const auto &[entries, data] : {modes[0], modes[3]}) {
 						materialize(probe, rerun.history[j], false, entries, data);
-						verify(rerun, j, rerun.history[j], probe, "cycle");
+						verify(rerun, j, rerun.history[j], probe, tag);
 					}
 				}
 				std::filesystem::remove_all(again);
