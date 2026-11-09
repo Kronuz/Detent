@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Relay snapshot lifecycle
 
 **State:** Integrated. The full candidate suite, delayed TLS regression and scoped ASan/UBSan checks pass. Release-scale capacity remains unqualified.

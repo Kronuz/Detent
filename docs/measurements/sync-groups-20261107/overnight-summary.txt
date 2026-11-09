@@ -1,0 +1,205 @@
+2026-11-04 14:51:49 start S2=76bb6cf S6=8768732 before=7a4425a
+2026-11-04 14:55:09 s6-build rc=1 log=logs/s6-build.log
+2026-11-04 15:05:37 s6-alone-1 rc=0 log=logs/s6-alone-1.log
+2026-11-04 15:13:23 s6-alone-2 rc=0 log=logs/s6-alone-2.log
+2026-11-04 15:17:02 s6-alone-3 rc=1 log=logs/s6-alone-3.log
+2026-11-04 15:19:04 s6-alone-4 rc=1 log=logs/s6-alone-4.log
+2026-11-04 15:23:35 queue start detent-s6-soak-fixed
+2026-11-04 15:30:34 s6-alone-5 rc=0 log=logs/s6-alone-5.log
+2026-11-04 15:39:32 s6-alone-6 rc=0 log=logs/s6-alone-6.log
+2026-11-04 15:49:50 s6-alone-7 rc=0 log=logs/s6-alone-7.log
+2026-11-04 15:59:26 s6-alone-8 rc=0 log=logs/s6-alone-8.log
+2026-11-04 16:09:26 s6-alone-9 rc=0 log=logs/s6-alone-9.log
+2026-11-04 16:19:20 s6-alone-10 rc=0 log=logs/s6-alone-10.log
+2026-11-04 16:28:34 s6-alone-11 rc=0 log=logs/s6-alone-11.log
+2026-11-04 16:37:48 s6-alone-12 rc=0 log=logs/s6-alone-12.log
+2026-11-04 16:54:37 s6-x4-1 rcs=0 0 0 0 
+2026-11-04 17:11:31 s6-x4-2 rcs=0 0 0 0 
+2026-11-04 17:28:13 s6-x4-3 rcs=0 0 0 0 
+2026-11-04 17:45:03 s6-x4-4 rcs=0 0 0 0 
+2026-11-04 18:01:28 s6-x4-5 rcs=0 0 0 0 
+2026-11-04 18:18:59 s6-x4-6 rcs=0 0 0 0 
+2026-11-04 18:35:52 s6-x4-7 rcs=0 0 0 0 
+2026-11-04 18:52:28 s6-x4-8 rcs=0 0 0 0 
+2026-11-04 19:15:24 s2-build rc=0 log=logs/s2-build.log
+2026-11-04 19:19:52 s2-test_local_paged_publication_artifacts rc=0 log=logs/s2-test_local_paged_publication_artifacts.log
+2026-11-04 19:19:57 s2-test_local_paged_store_startup rc=0 log=logs/s2-test_local_paged_store_startup.log
+2026-11-04 19:30:44 queue detent-s6-soak-fixed rc=1 log=done/detent-s6-soak-fixed.log
+2026-11-04 19:30:44 queue start Xapiand-baseline
+2026-11-04 19:33:39 s2-test_local_disk_store rc=0 log=logs/s2-test_local_disk_store.log
+2026-11-04 19:34:07 s2-test_local_paged_publication_faults rc=0 log=logs/s2-test_local_paged_publication_faults.log
+2026-11-04 19:34:15 s2-test_local_publication rc=0 log=logs/s2-test_local_publication.log
+2026-11-04 19:34:16 s2-test_local_paged_disk_store rc=0 log=logs/s2-test_local_paged_disk_store.log
+2026-11-04 19:34:17 s2-test_local_publication_power_cut rc=134 log=logs/s2-test_local_publication_power_cut.log
+2026-11-04 19:40:16 s2-ctest rc=8 log=logs/s2-ctest.log
+2026-11-04 21:37:52 lead stopped old Detent driver 60892 and queued child 26601; bounded replacements pending; no CPU work interrupted
+2026-11-04 22:39:28 queue Xapiand-baseline rc=0 log=done/Xapiand-baseline.log
+2026-11-04 22:39:28 queue start detent-s6-final-proof
+2026-11-04 22:47:40 queue detent-s6-final-proof rc=0 log=done/detent-s6-final-proof.log
+2026-11-04 22:47:40 queue start detent-dense-contracts
+2026-11-04 22:47:55 queue detent-dense-contracts rc=0 log=done/detent-dense-contracts.log
+2026-11-04 22:47:55 queue start detent-s2-coldboot-smoke
+2026-11-04 22:48:01 queue detent-s2-coldboot-smoke rc=0 log=done/detent-s2-coldboot-smoke.log
+2026-11-04 22:48:01 queue start detent-s2-proof-recovery
+2026-11-04 22:54:45 queue detent-s2-proof-recovery rc=1 log=done/detent-s2-proof-recovery.log
+2026-11-04 22:54:45 queue start detent-s2-reconfigure-release
+2026-11-04 23:05:33 queue detent-s2-reconfigure-release rc=0 log=done/detent-s2-reconfigure-release.log
+2026-11-04 23:05:33 queue start detent-s2-sanitizer-asan
+2026-11-04 23:12:33 queue detent-s2-sanitizer-asan rc=0 log=done/detent-s2-sanitizer-asan.log
+2026-11-04 23:12:33 queue start detent-s6-t3-gate
+2026-11-05 03:20:05 queue detent-s6-t3-gate rc=0 log=done/detent-s6-t3-gate.log
+2026-11-05 03:20:05 queue start detent-s2-sanitizer-tsan
+2026-11-05 03:27:55 queue detent-s2-sanitizer-tsan rc=0 log=done/detent-s2-sanitizer-tsan.log
+2026-11-05 03:27:55 queue start detent-s2-coldboot-all-arm-smoke
+2026-11-05 03:27:55 queue detent-s2-coldboot-all-arm-smoke rc=1 log=done/detent-s2-coldboot-all-arm-smoke.log
+2026-11-05 03:27:56 queue start detent-s2-ext4
+2026-11-05 03:29:52 queue detent-s2-ext4 rc=0 log=done/detent-s2-ext4.log
+2026-11-05 03:29:52 queue start detent-s2-coldboot-10000-screen
+2026-11-05 03:29:52 queue detent-s2-coldboot-10000-screen rc=1 log=done/detent-s2-coldboot-10000-screen.log
+2026-11-05 03:29:52 queue start detent-s2-coldboot-10000-aa
+2026-11-05 03:29:52 queue detent-s2-coldboot-10000-aa rc=1 log=done/detent-s2-coldboot-10000-aa.log
+2026-11-05 03:29:52 queue start detent-s2-coldboot-10000-confirm-1
+2026-11-05 03:29:53 queue detent-s2-coldboot-10000-confirm-1 rc=1 log=done/detent-s2-coldboot-10000-confirm-1.log
+2026-11-05 03:29:53 queue start detent-s2-coldboot-10000-confirm-2
+2026-11-05 03:29:53 queue detent-s2-coldboot-10000-confirm-2 rc=1 log=done/detent-s2-coldboot-10000-confirm-2.log
+2026-11-05 03:29:53 queue start detent-s2-coldboot-10000-confirm-3
+2026-11-05 03:29:53 queue detent-s2-coldboot-10000-confirm-3 rc=1 log=done/detent-s2-coldboot-10000-confirm-3.log
+2026-11-05 03:29:53 queue start detent-s2-coldboot-100000-screen
+2026-11-05 03:29:53 queue detent-s2-coldboot-100000-screen rc=1 log=done/detent-s2-coldboot-100000-screen.log
+2026-11-05 03:29:53 queue start detent-s2-coldboot-100000-aa
+2026-11-05 03:29:53 queue detent-s2-coldboot-100000-aa rc=1 log=done/detent-s2-coldboot-100000-aa.log
+2026-11-05 03:29:53 queue start detent-s2-coldboot-100000-confirm-1
+2026-11-05 03:29:54 queue detent-s2-coldboot-100000-confirm-1 rc=1 log=done/detent-s2-coldboot-100000-confirm-1.log
+2026-11-05 03:29:54 queue start detent-s2-coldboot-100000-confirm-2
+2026-11-05 03:29:54 queue detent-s2-coldboot-100000-confirm-2 rc=1 log=done/detent-s2-coldboot-100000-confirm-2.log
+2026-11-05 03:29:54 queue start detent-s2-coldboot-100000-confirm-3
+2026-11-05 03:29:54 queue detent-s2-coldboot-100000-confirm-3 rc=1 log=done/detent-s2-coldboot-100000-confirm-3.log
+2026-11-05 03:29:54 queue start detent-s2-coldboot-5000000-screen
+2026-11-05 03:29:54 queue detent-s2-coldboot-5000000-screen rc=1 log=done/detent-s2-coldboot-5000000-screen.log
+2026-11-05 03:29:54 queue start detent-s2-coldboot-5000000-aa
+2026-11-05 03:29:55 queue detent-s2-coldboot-5000000-aa rc=1 log=done/detent-s2-coldboot-5000000-aa.log
+2026-11-05 03:29:55 queue start detent-s2-coldboot-5000000-confirm-1
+2026-11-05 03:29:55 queue detent-s2-coldboot-5000000-confirm-1 rc=1 log=done/detent-s2-coldboot-5000000-confirm-1.log
+2026-11-05 03:29:55 queue start detent-s2-coldboot-5000000-confirm-2
+2026-11-05 03:29:55 queue detent-s2-coldboot-5000000-confirm-2 rc=1 log=done/detent-s2-coldboot-5000000-confirm-2.log
+2026-11-06 18:07:40 overseer requeued proof (startup-before-barrier retargeted to test_local_paged_store_startup), smoke and 14 coldboot pairs as -r2
+2026-11-06 18:08:37 queue start detent-s2-proof-recovery-r2
+2026-11-06 18:09:01 owner: continue the coldboot runs even if proof fails; smoke-r2 now uses stage-noproof.sh (asan/tsan markers still required)
+2026-11-06 18:16:59 queue detent-s2-proof-recovery-r2 rc=0 log=done/detent-s2-proof-recovery-r2.log
+2026-11-06 18:16:59 queue start detent-s2-coldboot-all-arm-smoke-r2
+2026-11-06 18:17:35 overseer: proof-r2 passed, all 5 mutants caught; proof gate waiver unused
+2026-11-06 18:20:17 queue detent-s2-coldboot-all-arm-smoke-r2 rc=124 log=done/detent-s2-coldboot-all-arm-smoke-r2.log
+2026-11-06 18:20:17 queue start detent-s2-coldboot-10000-screen-r2
+2026-11-06 18:20:17 queue detent-s2-coldboot-10000-screen-r2 rc=1 log=done/detent-s2-coldboot-10000-screen-r2.log
+2026-11-06 18:20:17 queue start detent-s2-coldboot-10000-aa-r2
+2026-11-06 18:20:17 queue detent-s2-coldboot-10000-aa-r2 rc=1 log=done/detent-s2-coldboot-10000-aa-r2.log
+2026-11-06 18:20:17 queue start detent-s2-coldboot-10000-confirm-1-r2
+2026-11-06 18:20:18 queue detent-s2-coldboot-10000-confirm-1-r2 rc=1 log=done/detent-s2-coldboot-10000-confirm-1-r2.log
+2026-11-06 18:20:18 queue start detent-s2-coldboot-10000-confirm-2-r2
+2026-11-06 18:20:18 queue detent-s2-coldboot-10000-confirm-2-r2 rc=1 log=done/detent-s2-coldboot-10000-confirm-2-r2.log
+2026-11-06 18:20:18 queue start detent-s2-coldboot-10000-confirm-3-r2
+2026-11-06 18:20:18 queue detent-s2-coldboot-10000-confirm-3-r2 rc=1 log=done/detent-s2-coldboot-10000-confirm-3-r2.log
+2026-11-06 18:20:18 queue start detent-s2-coldboot-100000-screen-r2
+2026-11-06 18:20:19 queue detent-s2-coldboot-100000-screen-r2 rc=1 log=done/detent-s2-coldboot-100000-screen-r2.log
+2026-11-06 18:20:19 queue start detent-s2-coldboot-100000-aa-r2
+2026-11-06 18:20:19 queue detent-s2-coldboot-100000-aa-r2 rc=1 log=done/detent-s2-coldboot-100000-aa-r2.log
+2026-11-06 18:20:19 queue start detent-s2-coldboot-100000-confirm-1-r2
+2026-11-06 18:20:19 queue detent-s2-coldboot-100000-confirm-1-r2 rc=1 log=done/detent-s2-coldboot-100000-confirm-1-r2.log
+2026-11-06 18:20:19 queue start detent-s2-coldboot-100000-confirm-2-r2
+2026-11-06 18:20:19 queue detent-s2-coldboot-100000-confirm-2-r2 rc=1 log=done/detent-s2-coldboot-100000-confirm-2-r2.log
+2026-11-06 18:20:20 queue start detent-s2-coldboot-100000-confirm-3-r2
+2026-11-06 18:20:20 queue detent-s2-coldboot-100000-confirm-3-r2 rc=1 log=done/detent-s2-coldboot-100000-confirm-3-r2.log
+2026-11-06 18:20:20 queue start detent-s2-coldboot-5000000-screen-r2
+2026-11-06 18:20:20 queue detent-s2-coldboot-5000000-screen-r2 rc=1 log=done/detent-s2-coldboot-5000000-screen-r2.log
+2026-11-06 18:20:20 queue start detent-s2-coldboot-5000000-aa-r2
+2026-11-06 18:20:20 queue detent-s2-coldboot-5000000-aa-r2 rc=1 log=done/detent-s2-coldboot-5000000-aa-r2.log
+2026-11-06 18:20:20 queue start detent-s2-coldboot-5000000-confirm-1-r2
+2026-11-06 18:20:21 queue detent-s2-coldboot-5000000-confirm-1-r2 rc=1 log=done/detent-s2-coldboot-5000000-confirm-1-r2.log
+2026-11-06 18:20:21 queue start detent-s2-coldboot-5000000-confirm-2-r2
+2026-11-06 18:20:21 queue detent-s2-coldboot-5000000-confirm-2-r2 rc=1 log=done/detent-s2-coldboot-5000000-confirm-2-r2.log
+2026-11-06 18:22:09 overseer: smoke-r2 rc=124 (10K before arm killed by its 3m cap with no agent started, no marks.json); pairs-r2 failed on the smoke marker; requeued smoke with 25m cap/28m strict hold plus 14 pairs as -r3
+2026-11-06 18:22:21 queue start detent-s2-coldboot-all-arm-smoke-r3
+2026-11-06 18:35:06 overseer: ROOT CAUSE smoke stall = expired TLS fixture (tls_certificates.cmake uses -days 1; before tree's copy expired 2026-10-18, after tree's 2026-11-06 06:56 GMT); peers never handshake, no leader. stage-noproof.sh now regenerates the fixture per arm. Pulled 14 r3 pairs; queued smoke + 14 pairs as -r4
+2026-11-06 18:37:38 queue detent-s2-coldboot-all-arm-smoke-r3 rc=1 log=done/detent-s2-coldboot-all-arm-smoke-r3.log
+2026-11-06 18:37:38 queue start detent-s2-coldboot-all-arm-smoke-r4
+2026-11-06 18:37:52 queue detent-s2-coldboot-all-arm-smoke-r4 rc=0 log=done/detent-s2-coldboot-all-arm-smoke-r4.log
+2026-11-06 18:37:52 queue start detent-s2-coldboot-10000-screen-r4
+2026-11-06 18:38:07 queue detent-s2-coldboot-10000-screen-r4 rc=0 log=done/detent-s2-coldboot-10000-screen-r4.log
+2026-11-06 18:38:07 queue start detent-s2-coldboot-10000-aa-r4
+2026-11-06 18:38:21 queue detent-s2-coldboot-10000-aa-r4 rc=0 log=done/detent-s2-coldboot-10000-aa-r4.log
+2026-11-06 18:38:21 queue start detent-s2-coldboot-10000-confirm-1-r4
+2026-11-06 18:38:33 queue detent-s2-coldboot-10000-confirm-1-r4 rc=0 log=done/detent-s2-coldboot-10000-confirm-1-r4.log
+2026-11-06 18:38:33 queue start detent-s2-coldboot-10000-confirm-2-r4
+2026-11-06 18:38:46 queue detent-s2-coldboot-10000-confirm-2-r4 rc=0 log=done/detent-s2-coldboot-10000-confirm-2-r4.log
+2026-11-06 18:38:46 queue start detent-s2-coldboot-10000-confirm-3-r4
+2026-11-06 18:39:00 queue detent-s2-coldboot-10000-confirm-3-r4 rc=0 log=done/detent-s2-coldboot-10000-confirm-3-r4.log
+2026-11-06 18:39:00 queue start detent-s2-coldboot-100000-screen-r4
+2026-11-06 18:39:44 queue detent-s2-coldboot-100000-screen-r4 rc=0 log=done/detent-s2-coldboot-100000-screen-r4.log
+2026-11-06 18:39:44 queue start detent-s2-coldboot-100000-aa-r4
+2026-11-06 18:40:37 queue detent-s2-coldboot-100000-aa-r4 rc=0 log=done/detent-s2-coldboot-100000-aa-r4.log
+2026-11-06 18:40:37 queue start detent-s2-coldboot-100000-confirm-1-r4
+2026-11-06 18:41:21 queue detent-s2-coldboot-100000-confirm-1-r4 rc=0 log=done/detent-s2-coldboot-100000-confirm-1-r4.log
+2026-11-06 18:41:21 queue start detent-s2-coldboot-100000-confirm-2-r4
+2026-11-06 18:42:06 queue detent-s2-coldboot-100000-confirm-2-r4 rc=0 log=done/detent-s2-coldboot-100000-confirm-2-r4.log
+2026-11-06 18:42:06 queue start detent-s2-coldboot-100000-confirm-3-r4
+2026-11-06 18:42:49 queue detent-s2-coldboot-100000-confirm-3-r4 rc=0 log=done/detent-s2-coldboot-100000-confirm-3-r4.log
+2026-11-06 18:42:49 queue start detent-s2-coldboot-5000000-screen-r4
+2026-11-06 19:07:25 queue detent-s2-coldboot-5000000-screen-r4 rc=0 log=done/detent-s2-coldboot-5000000-screen-r4.log
+2026-11-06 19:07:25 queue start detent-s2-coldboot-5000000-aa-r4
+2026-11-06 19:39:16 queue detent-s2-coldboot-5000000-aa-r4 rc=0 log=done/detent-s2-coldboot-5000000-aa-r4.log
+2026-11-06 19:39:16 queue start detent-s2-coldboot-5000000-confirm-1-r4
+2026-11-06 20:05:20 queue detent-s2-coldboot-5000000-confirm-1-r4 rc=0 log=done/detent-s2-coldboot-5000000-confirm-1-r4.log
+2026-11-06 20:05:20 queue start detent-s2-coldboot-5000000-confirm-2-r4
+2026-11-06 20:30:20 queue detent-s2-coldboot-5000000-confirm-2-r4 rc=0 log=done/detent-s2-coldboot-5000000-confirm-2-r4.log
+2026-11-06 20:31:44 overseer: all r4 coldboot jobs passed (smoke + 14 pairs); results and lead summary in NOTES-r2.md
+2026-11-06 22:58:12 overseer: dense-pages reader T2 first-read findings + syscall trim on branch dense-pages-first-read (Detent:6417ed8, Detent:ca8636b); see NOTES-r2.md
+2026-11-07 02:34:18 overseer: queued detent-s6-soak-x4-forkfix (x4 soak at S6 b1d281c; the 3d8559a x4 fork-reply timeout was never retested under load)
+2026-11-07 02:34:27 queue start detent-s6-soak-x4-forkfix
+2026-11-07 04:26:18 queue detent-s6-soak-x4-forkfix rc=0 log=done/detent-s6-soak-x4-forkfix.log
+2026-11-07 04:34:13 overseer: detent-s6-soak-x4-forkfix 32/32 pass at Detent:b1d281c; all run.sh steps now replaced and complete; see NOTES-r2.md
+2026-11-07 05:18:14 overseer: queued detent-runsh-remainder (run.sh sections 3-5 and its closing done; owner's request; harness fixes in the script header)
+2026-11-07 05:18:20 queue start detent-runsh-remainder
+2026-11-07 05:18:20 run.sh remainder (sections 3-5) start S2=4c0eb36 before=327ca58
+2026-11-07 05:19:30 s2-asan-configure rc=0 log=logs/s2-asan-configure.log
+2026-11-07 05:20:47 s2-asan-build rc=0 log=logs/s2-asan-build.log
+2026-11-07 05:24:12 s2-asan-test_local_publication_power_cut rc=0 log=logs/s2-asan-test_local_publication_power_cut.log
+2026-11-07 05:25:31 s2-asan-test_local_disk_store rc=0 log=logs/s2-asan-test_local_disk_store.log
+2026-11-07 05:25:32 s2-asan-test_local_paged_publication_artifacts rc=0 log=logs/s2-asan-test_local_paged_publication_artifacts.log
+2026-11-07 05:26:40 s2-tsan-configure rc=0 log=logs/s2-tsan-configure.log
+2026-11-07 05:27:36 s2-tsan-build rc=0 log=logs/s2-tsan-build.log
+2026-11-07 05:31:07 s2-tsan-test_local_publication_power_cut rc=0 log=logs/s2-tsan-test_local_publication_power_cut.log
+2026-11-07 05:32:35 s2-tsan-test_local_disk_store rc=0 log=logs/s2-tsan-test_local_disk_store.log
+2026-11-07 05:32:38 s2-tsan-test_local_paged_publication_artifacts rc=0 log=logs/s2-tsan-test_local_paged_publication_artifacts.log
+2026-11-07 05:32:39 cb-targets-agent-af2c08dd24001ec58 rc=0 log=logs/cb-targets-agent-af2c08dd24001ec58.log
+2026-11-07 05:32:39 cb-targets-s2-before rc=0 log=logs/cb-targets-s2-before.log
+2026-11-07 05:34:21 cb-100k-before-1 rc=1 log=logs/cb-100k-before-1.log
+2026-11-07 05:34:22 cb-100k-after-1 rc=1 log=logs/cb-100k-after-1.log
+2026-11-07 05:34:23 cb-100k-before-2 rc=1 log=logs/cb-100k-before-2.log
+2026-11-07 05:34:24 cb-100k-after-2 rc=1 log=logs/cb-100k-after-2.log
+2026-11-07 05:34:26 cb-100k-before-3 rc=1 log=logs/cb-100k-before-3.log
+2026-11-07 05:34:27 cb-100k-after-3 rc=1 log=logs/cb-100k-after-3.log
+2026-11-07 05:34:48 cb-5m-before-1 rc=1 log=logs/cb-5m-before-1.log
+2026-11-07 05:34:49 cb-5m-after-1 rc=1 log=logs/cb-5m-after-1.log
+2026-11-07 05:34:50 cb-5m-before-2 rc=1 log=logs/cb-5m-before-2.log
+2026-11-07 05:34:52 cb-5m-after-2 rc=1 log=logs/cb-5m-after-2.log
+2026-11-07 05:35:03 queue detent-runsh-remainder rc=143 log=done/detent-runsh-remainder.log
+2026-11-07 05:35:27 overseer: detent-runsh-remainder stopped (rc=143) after section 3 passed 10/10; its 10 cb runs failed preflight in 1 s (coldboot.py at S2 4c0eb36 needs --stage above 10K; logs kept as logs/cb-*.unstaged.log); queued detent-runsh-remainder-r2 for sections 4-5 and done
+2026-11-07 05:36:03 queue start detent-runsh-remainder-r2
+2026-11-07 05:36:03 run.sh remainder r2 (sections 4-5) start S2=4c0eb36 before=327ca58
+2026-11-07 05:36:03 cb-targets-agent-af2c08dd24001ec58 rc=0 log=logs/cb-targets-agent-af2c08dd24001ec58.log
+2026-11-07 05:36:04 cb-targets-s2-before rc=0 log=logs/cb-targets-s2-before.log
+2026-11-07 05:36:33 cb-100k-before-1 rc=0 log=logs/cb-100k-before-1.log
+2026-11-07 05:38:18 cb-100k-after-1 rc=0 log=logs/cb-100k-after-1.log
+2026-11-07 05:40:37 cb-100k-before-2 rc=0 log=logs/cb-100k-before-2.log
+2026-11-07 05:40:57 cb-100k-after-2 rc=0 log=logs/cb-100k-after-2.log
+2026-11-07 05:42:11 cb-100k-before-3 rc=0 log=logs/cb-100k-before-3.log
+2026-11-07 05:42:56 cb-100k-after-3 rc=0 log=logs/cb-100k-after-3.log
+2026-11-07 06:00:46 cb-5m-before-1 rc=0 log=logs/cb-5m-before-1.log
+2026-11-07 06:12:03 cb-5m-after-1 rc=0 log=logs/cb-5m-after-1.log
+2026-11-07 06:29:10 cb-5m-before-2 rc=0 log=logs/cb-5m-before-2.log
+2026-11-07 06:40:12 cb-5m-after-2 rc=0 log=logs/cb-5m-after-2.log
+2026-11-07 06:42:01 vm-probe rc=0 log=logs/vm-probe.log
+2026-11-07 06:42:01 done
+2026-11-07 06:42:02 queue detent-runsh-remainder-r2 rc=0 log=done/detent-runsh-remainder-r2.log
+2026-11-07 06:42:40 overseer: run.sh done via detent-runsh-remainder-r2; publication synced tally from events.jsonl (run.sh's grep looks at *.log): device flushes 100K before 129 / after 5, 5M before 5777 / after 27; lead report in NOTES-r2.md
+2026-11-08 12:48:38 queue stopped

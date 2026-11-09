@@ -1,7 +1,272 @@
 {
-  "campaign": "Detent Dense pages",
-  "ci": "",
+  "campaign": "detent",
+  "ci": "github",
   "quests": {
+    "actors-docs": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T13:08:13",
+          "commit": "74e07c971efc4bf54089305e5ee3dd436919c8cd",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/actors-docs.md; owner review named as next step, landed by the lead; site build 68 pages, no warnings",
+          "recorded": "2026-11-08T12:46:01",
+          "tested": "74e07c971efc4bf54089305e5ee3dd436919c8cd",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Actors documentation",
+      "updated": "2026-11-08T15:38:08"
+    },
+    "async-drivers": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b Async drivers",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "M1b: coroutine drivers for journal and consensus, Detents owner loops on them",
+      "updated": "2026-11-08T15:37:58"
+    },
+    "client-local-source": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T12:26:02",
+          "commit": "4872b7a46d57bbfff2df1062caa13332be91da4d",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/client-local-source.md; owner approval 2026-11-04 (D14), no reviewer review recorded; design only",
+          "recorded": "2026-11-08T12:45:57",
+          "tested": "4872b7a46d57bbfff2df1062caa13332be91da4d",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Client local source design: Reader in every language",
+      "updated": "2026-11-08T15:38:07"
+    },
+    "client-spec": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-09-30T17:58:29",
+          "commit": "f7893803fa9a8885f434b6841cce7f331a9e7e78",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: justknobs-implementation-spec.md section 14; initial commit message and its tests; no review; milestones 1, 5, 6, 7, 8, 9 partly or wholly open",
+          "recorded": "2026-11-08T15:38:10",
+          "tested": "f7893803fa9a8885f434b6841cce7f331a9e7e78",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Spec milestones 1-9: the client library",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "The client library, per the JustKnobs spec milestones 1-9",
+      "updated": "2026-11-08T15:38:10"
+    },
+    "completion-sync-files": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T16:57:25",
+          "commit": "ab0f5513715436aa0f9a467be02cf766aa0ebbbe",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/sync-files.md in Kronuz/completion; review none recorded; criteria 1-4 met; CI 41746149943 green on 9 jobs, mutants run 41746153588",
+          "recorded": "2026-11-08T15:38:37",
+          "tested": "ab0f5513715436aa0f9a467be02cf766aa0ebbbe",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": "../completion",
+      "risk": "high",
+      "status": "landed",
+      "title": "SyncFiles and OrderFiles primitives (namespace S1)",
+      "updated": "2026-11-08T15:38:37"
+    },
+    "completion-task-driver": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-02T21:23:44",
+          "commit": "576618d05bc4b1af9684a5a1ac77ddc3f6b8de9a",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/task-driver.md in Kronuz/completion; review docs/reviews/task-driver-code.md -- APPROVE WITH CONDITIONS; 19/19 ASan+UBSan and TSan; CI run 41573992492 green",
+          "recorded": "2026-11-08T15:38:36",
+          "tested": "576618d05bc4b1af9684a5a1ac77ddc3f6b8de9a",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../completion",
+      "risk": "normal",
+      "status": "landed",
+      "title": "completion Asio driver on task::task",
+      "updated": "2026-11-08T15:38:36"
+    },
+    "container-selection": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-24T19:34:24",
+          "commit": "4f1a08622b407a9f8951a4f19a91adeb69662567",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/container-selection.md; docs/reviews/container-adoption-code-2026-10-24.md accept (conditional, met by the clean public-pin build); hosted run 40125876413 green on six jobs",
+          "recorded": "2026-11-08T12:45:23",
+          "tested": "4f1a08622b407a9f8951a4f19a91adeb69662567",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "EX-0: flat-map adoption and container qualification",
+      "updated": "2026-11-08T15:38:03"
+    },
+    "daemon-ready-leader": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CHANGELOG.md",
+        "QUICKSTART.md",
+        "src/detentd/**",
+        "src/detent_authority/service.cc",
+        "src/detent_authority/service.hh",
+        "tests/detent_authority/**",
+        "tests/detentd/**",
+        "website/src/content/docs/quickstart.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N2 Handoff follow-ups",
+      "needs": [],
+      "provides": [
+        "detentd-readiness"
+      ],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "detentd reports ready only once a leader exists",
+      "updated": "2026-11-08T12:45:01"
+    },
+    "dense-distribution": {
+      "accepted": {},
+      "after": [],
+      "base": "8874c718629115b1adbfb80c33cb3868451e7739",
+      "branch": "quest/detent/dense-distribution",
+      "checks": [],
+      "consumes": [
+        "DTPAGE03",
+        "DTROOT03"
+      ],
+      "files": [
+        "docs/design/dense-distribution*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "Dense pages",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "Dense distribution design: ship verified pages, not records",
+      "updated": "2026-11-08T21:28:55",
+      "worktree": "../Detent-wt/detent/dense-distribution"
+    },
     "dense-pages": {
       "accepted": {
         "security": {
@@ -331,7 +596,9 @@
           "verdict": "CHANGES"
         }
       },
-      "after": [],
+      "after": [
+        "namespace-s1-s2"
+      ],
       "base": "7d339feb174ae1ed8139398f6fd0d5e3f55e7e31",
       "branch": "quest/dense-pages",
       "checks": [
@@ -447,8 +714,2081 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T13:27:06",
+      "updated": "2026-11-08T21:27:00",
       "worktree": "../Detent-wt/dense-pages"
+    },
+    "dense-sync-stack": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 45,
+          "name": "native"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "level": "light",
+          "minutes": 90,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "level": "light",
+          "minutes": 120,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "publication-sync-order",
+        "DTPAGE03"
+      ],
+      "files": [
+        "docs/perf/dense-sync-stack.md",
+        "include/detent_local/disk_store.hh",
+        "src/detent_local/disk_store.cc",
+        "src/detent_local/paged_publication_artifacts.*",
+        "src/detent_local/storage_session.cc",
+        "src/detent_local/store_core.hh",
+        "tests/detent_local/test_disk_store.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_local/test_publication_power_cut.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "Dense pages",
+      "needs": [
+        "dense-pages",
+        "namespace-s1-s2"
+      ],
+      "provides": [],
+      "reason": "Parked 2026-11-08 mid-merge as wip/dense-s2-parked (f7bf999, conflict markers kept); needs dense-pages and namespace-s1-s2 landed; the lead may fold it into dense-pages",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "Grouped syncs for Dense pages publication",
+      "updated": "2026-11-08T12:45:00"
+    },
+    "fleet-runner": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-15T17:59:03",
+          "commit": "4cd8a4ac5eddb4f833a24147f5a11ab2d3227314",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/FLEET_QUALIFICATION.md tooling Architect source approval; reduced native matrix 11/11",
+          "recorded": "2026-11-08T15:38:24",
+          "tested": "4cd8a4ac5eddb4f833a24147f5a11ab2d3227314",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "Stage 6 component 1: bounded runner and native fleet tooling",
+      "updated": "2026-11-08T15:38:24"
+    },
+    "hash-once": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T18:47:14",
+          "commit": "9b24fb356c417b1f56dbb185001b8196d772406a",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/hash-once.md; docs/reviews/hash-once.md APPROVE WITH CONDITIONS (CR1, CR2 folded); CI run 41748094042 green after one rerun, exclusive A/B with A/A",
+          "recorded": "2026-11-08T12:45:51",
+          "tested": "9b24fb356c417b1f56dbb185001b8196d772406a",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Digest each pack once during cold recovery",
+      "updated": "2026-11-08T15:38:05"
+    },
+    "how-it-works": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T11:31:47",
+          "commit": "dba0ef8a1f248e57c99984de815eb79458fff237",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/how-it-works.md; lead review, landed by the lead; Pages build run 41897675297 green",
+          "recorded": "2026-11-08T12:46:03",
+          "tested": "dba0ef8a1f248e57c99984de815eb79458fff237",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "End-to-end how-it-works guide",
+      "updated": "2026-11-08T15:38:08"
+    },
+    "http-affine-thread": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T05:00:39",
+          "commit": "73cfa02035a7da5edd229b2bbd838f2fdaaa72be",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/affine-thread.md in Kronuz/http; review none; mutant; ASan+UBSan and TSan 13/13; CI run 41639438922 green",
+          "recorded": "2026-11-08T15:38:34",
+          "tested": "73cfa02035a7da5edd229b2bbd838f2fdaaa72be",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "low",
+      "status": "landed",
+      "title": "Affinity checked against the loop thread (D9)",
+      "updated": "2026-11-08T15:38:34"
+    },
+    "http-client-adoption": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 180,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 240,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "http:client",
+        "reactor:tls"
+      ],
+      "files": [
+        "CMakeLists.txt",
+        "cmake/dependencies.json",
+        "docs/EXTRACTION_CHECKLIST.md",
+        "docs/perf/http-client-adoption.md",
+        "include/detent_delivery/client.hh",
+        "include/detent_transport/**",
+        "src/CMakeLists.txt",
+        "src/detent_delivery/**",
+        "tests/detent_authority/CMakeLists.txt",
+        "tests/detent_delivery/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "M2 Integration (RC-1)",
+      "needs": [],
+      "provides": [],
+      "reason": "Caller-CPU cost gate NO-GO pending attribution (EXTRACTION_CHECKLIST EX-2); M2 work after the handoff landing",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "EX-2: shared HTTP clients and common TLS",
+      "updated": "2026-11-08T17:30:06"
+    },
+    "http-coroutines": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T16:17:20",
+          "commit": "d0a5cd8430cbec8426ede22c9c3551c94aa05e0a",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/http-coroutines.md; docs/reviews/w2-s2-code-review.md and w2-s1-s8-code-review.md APPROVE WITH CONDITIONS; CI 41635725007 green (S1-S9), native 238/238; six ledger criteria unticked",
+          "recorded": "2026-11-08T12:45:37",
+          "tested": "d0a5cd8430cbec8426ede22c9c3551c94aa05e0a",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "W2: Detent's HTTP path on task::task",
+      "updated": "2026-11-08T12:45:37"
+    },
+    "http-task-h1": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-02T22:57:50",
+          "commit": "2bede1b935af107214fa25403e45de3515c8fd1a",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/task-h1.md in Kronuz/http; review docs/reviews/task-h1-code.md -- APPROVE WITH CONDITIONS, CR1-CR4 fixed; 13/13 under ASan+UBSan and TSan; CI run 41585840133 green",
+          "recorded": "2026-11-08T15:38:31",
+          "tested": "2bede1b935af107214fa25403e45de3515c8fd1a",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "high",
+      "status": "landed",
+      "title": "http buffered path on task (H1)",
+      "updated": "2026-11-08T15:38:31"
+    },
+    "http-task-h2": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T00:48:30",
+          "commit": "93dc7bbefcc003145725e63f4c9cff86edfbb697",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/task-h2.md in Kronuz/http; review docs/reviews/task-h2-code-review.md -- APPROVE TO LAND; 13 L3 probes; CI run 41603112360 green",
+          "recorded": "2026-11-08T15:38:33",
+          "tested": "93dc7bbefcc003145725e63f4c9cff86edfbb697",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "high",
+      "status": "landed",
+      "title": "http streamed path on task (H2)",
+      "updated": "2026-11-08T15:38:33"
+    },
+    "http-task-handlers": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T14:26:46",
+          "commit": "fd29d3515921821e412fb9c448d4861bcdf57cad",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/task-handlers.md in Kronuz/http; reviews task-handlers-design.md -- REJECT, rev2 (branch only) -- APPROVE WITH CONDITIONS; K6, K7 measured on Linux metal; K1-K5 ticked in task-h1/h2; K8, K9 open",
+          "recorded": "2026-11-08T15:38:30",
+          "tested": "fd29d3515921821e412fb9c448d4861bcdf57cad",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../http",
+      "risk": "high",
+      "status": "landed",
+      "title": "http handlers on task: design, S1-S2 and the T6/T7 gate (W2a)",
+      "updated": "2026-11-08T15:38:30"
+    },
+    "legacy-h": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+          "level": "light",
+          "minutes": 150,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'authority|relay'",
+          "level": "light",
+          "minutes": 180,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "detent-c-abi"
+      ],
+      "files": [
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        "CMakeLists.txt",
+        "CHANGELOG.md",
+        "README.md",
+        "benchmarks/**",
+        "bindings/**",
+        "diagrams/**",
+        "docs/*.md",
+        "docs/diagrams/**",
+        "docs/mechanisms/reader-core.md",
+        "docs/status/legacy-wave2.md",
+        "examples/**",
+        "include/detent/**",
+        "include/detent_local/client_source.hh",
+        "src/CMakeLists.txt",
+        "src/detent/**",
+        "src/detent_agent/config.cc",
+        "src/detent_agent/main.cc",
+        "src/detent_local/CMakeLists.txt",
+        "src/detent_local/client_source.cc",
+        "src/detent_reader/**",
+        "src/detent_testing/**",
+        "tests/CMakeLists.txt",
+        "tests/cmake_consumer/**",
+        "tests/detent/**",
+        "tests/detent_agent/test_agent_cli.cmake",
+        "tests/detent_delivery/test_managed_process.sh",
+        "tests/detent_local/CMakeLists.txt",
+        "tests/detent_local/test_client_source.cc",
+        "tests/detent_local/test_evaluation.cc",
+        "tests/detent_local/test_lazy_page_access.cc",
+        "tests/detent_reader/**",
+        "tests/detent_system/**",
+        "tools/w5/**",
+        "website/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness",
+        "design"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [
+        "reader-s6"
+      ],
+      "provides": [
+        "detent-python",
+        "detent-rust",
+        "detent-get-cli"
+      ],
+      "reason": "Parked 2026-11-05; needs reader-s6 landed, then merges main and proves the .ccache and macos-15 bindings CI fixes (handoff step 2)",
+      "repo": ".",
+      "risk": "critical",
+      "status": "blocked",
+      "title": "Legacy H: the Client goes, bindings on the reader core",
+      "updated": "2026-11-08T15:38:08"
+    },
+    "legacy-wave2": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T11:54:53",
+          "commit": "72ed8eecb72f1ba928a5a661417015ec12a00fa8",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/legacy-wave2.md; no review recorded, owner rulings D11-D13; CI runs 41812264929, 41886875818 and 41898318055 green on every job",
+          "recorded": "2026-11-08T12:45:59",
+          "tested": "72ed8eecb72f1ba928a5a661417015ec12a00fa8",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness",
+        "design"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "critical",
+      "status": "landed",
+      "title": "Legacy removal wave 2, steps B to G",
+      "updated": "2026-11-08T15:38:07"
+    },
+    "library-adoption-ae": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-19T02:08:33",
+          "commit": "fbd15d5c265f3661bd07ed5e778a0e8cf840032c",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/DEPENDENCY_UPGRADES.md; 201 native tests and a 15-test relay run; final composed qualification open",
+          "recorded": "2026-11-08T15:38:25",
+          "tested": "fbd15d5c265f3661bd07ed5e778a0e8cf840032c",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 6: updated libraries A-E at immutable pins",
+      "updated": "2026-11-08T15:38:25"
+    },
+    "m1-pins": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T05:08:27",
+          "commit": "3e8bdbc3b9d53f0ddf0b811af957fa6816557554",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/m1-pins.md; no code review (pin waves and evidence); CI run 41796189324 green on every job, W5 run 41835299429 terminal result not recorded",
+          "recorded": "2026-11-08T12:45:35",
+          "tested": "3e8bdbc3b9d53f0ddf0b811af957fa6816557554",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "M1: Kronuz pins at their heads, with the W5 evidence",
+      "updated": "2026-11-08T12:45:35"
+    },
+    "managed-failover": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-15T17:39:49",
+          "commit": "4c9794fa8c499764306788c9d5c5782fbfb65e5c",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/MANAGED_FAILOVER_ARCHITECTURE.md Architect source GO; qualified native, ASan/UBSan, TSan, Linux, FreeBSD",
+          "recorded": "2026-11-08T15:38:22",
+          "tested": "4c9794fa8c499764306788c9d5c5782fbfb65e5c",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 6: managed authority failover",
+      "updated": "2026-11-08T15:38:22"
+    },
+    "msgpack-adoption": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 180,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 240,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "msgpack:bounded"
+      ],
+      "files": [
+        "CMakeLists.txt",
+        "benchmarks/**",
+        "cmake/dependencies.json",
+        "docs/EXTRACTION_CHECKLIST.md",
+        "include/detent_distribution/**",
+        "src/detent_authority/change_history.cc",
+        "src/detent_authority/delta_export.cc",
+        "src/detent_authority/wire_fields.hh",
+        "src/detent_distribution/**",
+        "tests/detent_authority/**",
+        "tests/detent_delivery/**",
+        "tests/detent_distribution/**",
+        "tests/detent_local/*fixture.hh",
+        "tests/detent_local/test_paged_*.cc",
+        "tests/detent_local/test_state_equivalence.cc",
+        "tests/detent_local/test_identity_reset.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "security"
+      ],
+      "milestone": "M2 Integration (RC-1)",
+      "needs": [],
+      "provides": [],
+      "reason": "Snapshot-encoding cost gate unresolved and msgpack:f8975e3 not on msgpack main (EXTRACTION_CHECKLIST EX-3); M2 work after the handoff landing",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "EX-3: the bounded MessagePack lexer in msgpack",
+      "updated": "2026-11-08T17:30:06"
+    },
+    "namespace-design": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T03:27:53",
+          "commit": "814b6051d4e9450521ff020dbee65ef82070cd5e",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/namespace-design.md; docs/reviews/namespace-delivery-preliminary.md APPROVE WITH CONDITIONS and namespace-blocks-preliminary-2026-11-04.md roll-up approved with conditions RU-C1..RU-C5, folded; design only",
+          "recorded": "2026-11-08T12:45:52",
+          "tested": "814b6051d4e9450521ff020dbee65ef82070cd5e",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Namespace delivery design",
+      "updated": "2026-11-08T15:38:06"
+    },
+    "namespace-s1-s2": {
+      "accepted": {},
+      "after": [],
+      "base": "aad46758246e5797892fa9274cb2b4d0044accc0",
+      "branch": "quest/detent/namespace-s1-s2",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "level": "light",
+          "minutes": 120,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+          "level": "light",
+          "minutes": 150,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "completion:sync-files"
+      ],
+      "files": [
+        "cmake/dependencies.json",
+        "docs/mechanisms/sync-groups.md",
+        "docs/perf/sync-groups.md",
+        "docs/status/namespace-design.md",
+        "docs/status/namespace-s1-s2.md",
+        "include/detent_delivery/coordinator.hh",
+        "include/detent_local/disk_store.hh",
+        "include/detent_local/storage_session.hh",
+        "include/detent_local/sync_counters.hh",
+        "src/detent_agent/managed_host.cc",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_local/disk_store.cc",
+        "src/detent_local/paged_publication_artifacts.*",
+        "src/detent_local/paged_segment_collection.cc",
+        "src/detent_local/storage_session.cc",
+        "src/detent_local/store_core.hh",
+        "src/detent_relay/host.cc",
+        "tests/detent_local/CMakeLists.txt",
+        "tests/detent_local/test_disk_store.cc",
+        "tests/detent_local/test_paged_publication_artifacts.cc",
+        "tests/detent_local/test_paged_store_startup.cc",
+        "tests/detent_local/test_publication_power_cut.cc",
+        "docs/measurements/sync-groups-20261108/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [
+        "publication-sync-order",
+        "sync-counters"
+      ],
+      "repo": ".",
+      "risk": "high",
+      "status": "active",
+      "title": "Namespace S1/S2: grouped file syncs",
+      "updated": "2026-11-08T21:27:35",
+      "worktree": "../Detent-wt/detent/namespace-s1-s2"
+    },
+    "namespace-s3": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T10:23:29",
+          "commit": "5475bafede8900361f64059e2c54b0897ea2bfd3",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/namespace-s3.md; architect and security reviews (review/namespace-s3-architect 2b0b9cb, review/namespace-s3-security 5f2385b) APPROVE WITH CONDITIONS, folded at 40019a2; CI run 41880909373 green on every job",
+          "recorded": "2026-11-08T12:45:54",
+          "tested": "5475bafede8900361f64059e2c54b0897ea2bfd3",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Namespace S3: trusted restart, first touch and the scrub",
+      "updated": "2026-11-08T15:38:06"
+    },
+    "namespace-s3b": {
+      "accepted": {},
+      "after": [
+        "namespace-s1-s2",
+        "dense-pages"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'repair|trusted_restart|pack_scrub|segment_collection|snapshot_plan|bundle_maintenance|prepared_startup'",
+          "level": "light",
+          "minutes": 150,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'repair|trusted_restart|pack_scrub|segment_collection|snapshot_plan|bundle_maintenance|prepared_startup'",
+          "level": "light",
+          "minutes": 180,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "trusted-restart"
+      ],
+      "files": [
+        "CHANGELOG.md",
+        "docs/mechanisms/trusted-restart.md",
+        "docs/status/namespace-s3b.md",
+        "include/detent_delivery/coordinator.hh",
+        "include/detent_delivery/publication_sink.hh",
+        "include/detent_local/disk_store.hh",
+        "include/detent_relay/bundle.hh",
+        "include/detent_testing/generation_writer.hh",
+        "src/detent_delivery/coordinator.cc",
+        "src/detent_delivery/coordinator_internal.hh",
+        "src/detent_local/borrowed_definition.*",
+        "src/detent_local/disk_store.cc",
+        "src/detent_local/pack_scrub.*",
+        "src/detent_local/paged_named_root.*",
+        "src/detent_local/paged_plan.*",
+        "src/detent_local/paged_read_state.cc",
+        "src/detent_local/paged_segment_collection.*",
+        "src/detent_local/paged_segment_marks.*",
+        "src/detent_local/paged_segment_read.*",
+        "src/detent_local/paged_snapshot_plan.*",
+        "src/detent_local/verified_pages.hh",
+        "src/detent_local/view.cc",
+        "src/detent_relay/bundle.cc",
+        "src/detent_testing/generation_writer.cc",
+        "tests/detent_delivery/**",
+        "tests/detent_local/test_paged_segment_collection.cc",
+        "tests/detent_local/test_paged_snapshot_plan.cc",
+        "tests/detent_testing/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [
+        "paged-repair-intent",
+        "repair-status"
+      ],
+      "reason": "Parked 2026-11-05 at K6: CI run 42026513094 unfinished and the narrow review not run; shares disk_store.cc and coordinator.cc with namespace-s1-s2",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "Namespace S3b: repair of a damaged pack",
+      "updated": "2026-11-08T21:26:35"
+    },
+    "namespace-s4-s10": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M4 Capacity and restoration (RC-3, RC-4)",
+      "needs": [
+        "namespace-s1-s2"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Namespace delivery S4-S10",
+      "updated": "2026-11-08T15:38:09"
+    },
+    "persistent-map-adoption": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 180,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 240,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "persistent-map"
+      ],
+      "files": [
+        "CMakeLists.txt",
+        "cmake/dependencies.json",
+        "docs/EXTRACTION_CHECKLIST.md",
+        "src/detent_authority/CMakeLists.txt",
+        "src/detent_authority/persistent_map.hh",
+        "tests/detent_authority/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "durability"
+      ],
+      "milestone": "M2 Integration (RC-1)",
+      "needs": [],
+      "provides": [],
+      "reason": "Consumer recheck NO-GO pending single-case attribution of the short-update outlier (EXTRACTION_CHECKLIST EX-4); M2 work after the handoff landing",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "EX-4: the authority's ordered map from persistent-map",
+      "updated": "2026-11-08T12:45:08"
+    },
+    "pin-wave": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=ON -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 180,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 240,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "CHANGELOG.md",
+        "cmake/dependencies.json",
+        "docs/DEPENDENCIES.md",
+        "docs/DEPENDENCY_UPGRADES.md",
+        "docs/SHARED_LIBRARY_DECISIONS.md",
+        "docs/perf/**",
+        "tools/w5/**",
+        "website/src/content/docs/architecture/dependencies.md",
+        "website/src/content/docs/installation.md",
+        "website/src/content/docs/roadmap.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N2 Handoff follow-ups",
+      "needs": [
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b",
+        "namespace-s1-s2",
+        "dense-pages"
+      ],
+      "provides": [
+        "dependency-manifest"
+      ],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Kronuz pins to their heads after the handoff branches",
+      "updated": "2026-11-08T12:45:02"
+    },
+    "post-w2": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T18:47:27",
+          "commit": "43d1ce998e3bc5033b9ce529cf41e6cfc2f29efb",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/post-w2.md; no separate review (carries docs/reviews/w2-s1-s8-code-review.md CR2); CI run 41757189321 green on every job",
+          "recorded": "2026-11-08T12:45:39",
+          "tested": "43d1ce998e3bc5033b9ce529cf41e6cfc2f29efb",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "Post-W2 follow-ups: pins, bound ports, CR2 probes",
+      "updated": "2026-11-08T12:45:39"
+    },
+    "prepared-activation": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-27T01:26:29",
+          "commit": "479c4bceeea65f424483e433898c7ade7523d4d9",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/reviews/prepared-activation-component-2026-10-26.md source GO with activation gates met (docs/reviews/prepared-managed-qualification-2026-10-26.md); hosted run 40434580649, FreeBSD 170 native and 9 sanitizer checks",
+          "recorded": "2026-11-08T12:45:33",
+          "tested": "479c4bceeea65f424483e433898c7ade7523d4d9",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Managed prepared-reader default",
+      "updated": "2026-11-08T15:38:03"
+    },
+    "prepared-reader": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-26T08:24:08",
+          "commit": "205ece1946f77ac54d10b8aad02fa5be0f1fc80c",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/reviews/prepared-reader-component-2026-10-26.md accepted within component scope (no ledger); hosted run 40306457470 Linux jobs green, macOS fixture failures attributed in docs/reviews/hosted-reader-fixtures-2026-10-26.md",
+          "recorded": "2026-11-08T12:45:32",
+          "tested": "205ece1946f77ac54d10b8aad02fa5be0f1fc80c",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Prepared-reader attachment, opt-in",
+      "updated": "2026-11-08T15:38:03"
+    },
+    "quickstart-managed": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T12:20:21",
+          "commit": "bea5c432c8d3c7bf1f5d015df2d09f6c8e2ea55b",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/quickstart-managed.md; lead review, landed by the lead; every command run in sh and zsh, Pages build run 41905491096 green",
+          "recorded": "2026-11-08T12:46:04",
+          "tested": "bea5c432c8d3c7bf1f5d015df2d09f6c8e2ea55b",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Quick-start on the loopback authority and managed agent",
+      "updated": "2026-11-08T15:38:08"
+    },
+    "rc1-integration": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M2 Integration (RC-1)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "RC-1: the remaining required integration and its closure",
+      "updated": "2026-11-08T15:37:58"
+    },
+    "rc2-client-performance": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M3 Client performance (RC-2)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "RC-2: client performance and updates",
+      "updated": "2026-11-08T15:37:59"
+    },
+    "rc3-sustained-capacity": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M4 Capacity and restoration (RC-3, RC-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "RC-3: sustained capacity and the published operating envelope",
+      "updated": "2026-11-08T15:38:00"
+    },
+    "rc4-restoration": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness",
+        "design"
+      ],
+      "milestone": "M4 Capacity and restoration (RC-3, RC-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "critical",
+      "status": "planned",
+      "title": "RC-4: failure and restoration",
+      "updated": "2026-11-08T15:38:01"
+    },
+    "rc5-release-candidate": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness",
+        "design"
+      ],
+      "milestone": "M5 Release candidate (RC-5)",
+      "needs": [
+        "rc1-integration",
+        "resource-adoption",
+        "http-client-adoption",
+        "msgpack-adoption",
+        "persistent-map-adoption"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "critical",
+      "status": "planned",
+      "title": "RC-5: the composed release candidate",
+      "updated": "2026-11-08T15:38:09"
+    },
+    "reactor-task-sessions": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-02T22:32:57",
+          "commit": "2fd30c80284a4224c1c6476fa5fb4ee3137a66be",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/task-sessions.md in Kronuz/reactor; review docs/reviews/task-sessions-code.md -- APPROVE WITH CONDITIONS, re-check recorded; T1-T5, K9 ticked; mutants; 0 extra allocations; CI green",
+          "recorded": "2026-11-08T15:38:29",
+          "tested": "2fd30c80284a4224c1c6476fa5fb4ee3137a66be",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "high",
+      "status": "landed",
+      "title": "reactor sessions on task (step R)",
+      "updated": "2026-11-08T15:38:29"
+    },
+    "reader-acl": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-23T19:34:19",
+          "commit": "a963c4e5430f1d75ba0ab85bd9f172cd1001aeca",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/reader-acl.md; docs/reviews/reader-capacity-security-2026-10-23.md REJECT then macOS re-check approve with condition C1; regression 1/1, reader/managed 3/3, scoped ASan/UBSan",
+          "recorded": "2026-11-08T12:45:25",
+          "tested": "a963c4e5430f1d75ba0ab85bd9f172cd1001aeca",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Reader configuration ACL admission",
+      "updated": "2026-11-08T15:38:02"
+    },
+    "reader-design": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T15:30:56",
+          "commit": "b607b5c62d8ca97b882433039a10e1de47d308a0",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/reader-design.md; docs/reviews/reader-design-preliminary.md APPROVE WITH CONDITIONS, folded and re-checked; design only, no build",
+          "recorded": "2026-11-08T12:45:45",
+          "tested": "b607b5c62d8ca97b882433039a10e1de47d308a0",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Reader design: libdetent_reader",
+      "updated": "2026-11-08T15:38:04"
+    },
+    "reader-s1-s4": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T16:59:43",
+          "commit": "02675d35b1318e4b9a5dc4b3bac555e0be70ba64",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/reader-s1-s4.md; no separate review recorded; local proof (six mutants, ASan/UBSan and TSan), CI result not recorded",
+          "recorded": "2026-11-08T12:45:47",
+          "tested": "02675d35b1318e4b9a5dc4b3bac555e0be70ba64",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "Reader S1, S2 and S4: counters, evaluate, GenerationWriter",
+      "updated": "2026-11-08T15:38:05"
+    },
+    "reader-s3": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T18:22:25",
+          "commit": "132b6bdf1e8c28497890eae480d7548ef43b6314",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/reader-s3.md; docs/reviews/reader-s3.md APPROVE WITH CONDITIONS (CR1, CR2 fixed); CI run 41755940771 green on every job",
+          "recorded": "2026-11-08T12:45:49",
+          "tested": "132b6bdf1e8c28497890eae480d7548ef43b6314",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Reader S3: the verified-page bitmap in LazyPageAccess",
+      "updated": "2026-11-08T15:38:05"
+    },
+    "reader-s5": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-04T03:20:24",
+          "commit": "d1e9ee6eab6ee53dfc2777a0e15d43efe7d24e58",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/reader-s5-s6.md (S5); no separate code review recorded (design review docs/reviews/reader-design-preliminary.md covers D4); CI run 41817708223 green",
+          "recorded": "2026-11-08T12:45:56",
+          "tested": "d1e9ee6eab6ee53dfc2777a0e15d43efe7d24e58",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Reader S5: the change file",
+      "updated": "2026-11-08T15:38:06"
+    },
+    "reader-s6": {
+      "accepted": {},
+      "after": [
+        "dense-pages"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 45,
+          "name": "native"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+          "level": "light",
+          "minutes": 90,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'test_reader_|change_file|lazy_page'",
+          "level": "light",
+          "minutes": 90,
+          "name": "tsan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+          "level": "light",
+          "minutes": 240,
+          "name": "t3-asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R '^test_reader_switch$' --repeat until-fail:20 --timeout 1750",
+          "level": "light",
+          "minutes": 300,
+          "name": "t3-tsan"
+        }
+      ],
+      "consumes": [
+        "change-file"
+      ],
+      "files": [
+        "benchmarks/CMakeLists.txt",
+        "benchmarks/reader_bench.cc",
+        "docs/mechanisms/reader-core.md",
+        "docs/status/reader-s5-s6.md",
+        "include/detent/reader.h",
+        "include/detent/reader.hh",
+        "include/detent_local/read_counters.hh",
+        "src/CMakeLists.txt",
+        "src/detent_local/change_file.*",
+        "src/detent_local/generation_file_access.hh",
+        "src/detent_local/lazy_page_access.*",
+        "src/detent_local/prepared_reader.*",
+        "src/detent_reader/**",
+        "tests/CMakeLists.txt",
+        "tests/detent_local/test_lazy_page_access.cc",
+        "tests/detent_local/test_lazy_page_bitmap.cc",
+        "tests/detent_reader/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "security",
+        "correctness"
+      ],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [
+        "detent-c-abi",
+        "libdetent-reader"
+      ],
+      "reason": "Parked 2026-11-05 by the Dense-only scope (D1, superseded by D4); fork fix passed 32/32 on 2026-11-07; resumes when the lead starts it; its files overlap active dense-pages",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "Reader S6: the lock-free reader core",
+      "updated": "2026-11-08T21:26:34"
+    },
+    "reader-s7-s9": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M3 Client performance (RC-2)",
+      "needs": [
+        "reader-s6"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Reader S7-S9: `detent get` on the core, Python and Rust over the C ABI",
+      "updated": "2026-11-08T15:38:09"
+    },
+    "recovery-delivery": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-25T15:43:49",
+          "commit": "19a734d07b3386dc3d99153228369a3232c865e6",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/reviews/recovery-delivery-component-2026-10-25.md accepted in the tested scope (no ledger; docs/status/README.md row); hosted run 40207536973 green on six profiles, 224 native checks",
+          "recorded": "2026-11-08T12:45:30",
+          "tested": "19a734d07b3386dc3d99153228369a3232c865e6",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Recovery and delivery fixes, qualified component",
+      "updated": "2026-11-08T15:38:03"
+    },
+    "relay-snapshot-lifecycle": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-23T20:50:20",
+          "commit": "c5680e40c49077f6eecaf2174fecd642d01d34ee",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/relay-snapshot-lifecycle.md; docs/reviews/relay-bootstrap-code-2026-10-23.md APPROVE WITH CONDITIONS (CR1 met); full-product suite 219/219 and scoped ASan/UBSan, no hosted run recorded",
+          "recorded": "2026-11-08T12:45:27",
+          "tested": "c5680e40c49077f6eecaf2174fecd642d01d34ee",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "SC-1: relay snapshot lifecycle with retained bootstrap paths",
+      "updated": "2026-11-08T15:38:02"
+    },
+    "resource-adoption": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 180,
+          "name": "asan"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 240,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [
+        "allocators:resources"
+      ],
+      "files": [
+        "CMakeLists.txt",
+        "benchmarks/CMakeLists.txt",
+        "benchmarks/resource_*",
+        "cmake/dependencies.json",
+        "docs/EXTRACTION_CHECKLIST.md",
+        "docs/perf/resource-adoption.md",
+        "docs/status/resource-adoption.md",
+        "include/detent_distribution/**",
+        "include/detent_local/disk_ledger.hh",
+        "src/detent_distribution/**",
+        "tests/detent_delivery/CMakeLists.txt",
+        "tests/detent_local/snapshot_fixture.hh",
+        "tests/detent_local/test_paged_segment_collection.cc"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M2 Integration (RC-1)",
+      "needs": [],
+      "provides": [],
+      "reason": "Parked since 2026-11-02 for the handoff's order; waits for the lead's ruling on the allocators change and the macos-arm64 variant-13 fix (resource-adoption ledger)",
+      "repo": ".",
+      "risk": "high",
+      "status": "blocked",
+      "title": "EX-1: one resource-accounting implementation in allocators",
+      "updated": "2026-11-08T17:30:07"
+    },
+    "retained-state": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T16:19:53",
+          "commit": "ebfbcaba3ccd917eb2abdda91b71252c4233971c",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/retained-state.md; docs/reviews/retained-state.md APPROVE TO LAND; CI run 41723121996 green on every job, sanitizers 7/7",
+          "recorded": "2026-11-08T12:45:44",
+          "tested": "ebfbcaba3ccd917eb2abdda91b71252c4233971c",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Retained-state envelope in the authority",
+      "updated": "2026-11-08T15:38:04"
+    },
+    "salvage": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T12:56:11",
+          "commit": "5207f967521656b04e9b15de8d8213dfda8f8101",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/salvage-2026-11-03.md; no review recorded; CI run 41714654828 green on eight jobs",
+          "recorded": "2026-11-08T12:45:40",
+          "tested": "5207f967521656b04e9b15de8d8213dfda8f8101",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "Salvage of the archived scratch work",
+      "updated": "2026-11-08T15:38:04"
+    },
+    "salvage-followups": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-03T16:12:09",
+          "commit": "9abad8538ac02d6f089080dcb500fb8301f04b34",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/salvage-followups.md; no review recorded; CI run 41737319246 green on all jobs",
+          "recorded": "2026-11-08T12:45:42",
+          "tested": "9abad8538ac02d6f089080dcb500fb8301f04b34",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Salvage follow-ups: one FNV and accurate docs",
+      "updated": "2026-11-08T15:38:04"
+    },
+    "seeding-waits": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-23T19:27:03",
+          "commit": "1cc2f38a44841be5b8700d346b0739feca1083d3",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/seeding-waits.md; no review (evidence note only); two 10K runs verified all 10,000 records",
+          "recorded": "2026-11-08T12:45:28",
+          "tested": "1cc2f38a44841be5b8700d346b0739feca1083d3",
+          "unverified": []
+        }
+      ],
+      "lenses": [],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Seeding waits attribution",
+      "updated": "2026-11-08T15:38:02"
+    },
+    "sha256-avx2": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-07T05:16:27",
+          "commit": "07cdc83cea6903ae7effd03d6b5a0570d601d918",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: no ledger: commit sha256:07cdc83 and docs/perf/README.md; owner request 2026-11-07 (Detent first-read item 5); i9 1.6x portable at 64 MiB; CI 42376213584 green",
+          "recorded": "2026-11-08T15:38:38",
+          "tested": "07cdc83cea6903ae7effd03d6b5a0570d601d918",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M3 Client performance (RC-2)",
+      "needs": [],
+      "provides": [],
+      "repo": "../sha256",
+      "risk": "normal",
+      "status": "landed",
+      "title": "sha256 AVX2 kernel for x86_64 without SHA-NI",
+      "updated": "2026-11-08T15:38:38"
+    },
+    "stage-0-architecture": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-02T07:56:20",
+          "commit": "bd2ea89851e3d2d05b46e310eadcfd45128a527a",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/VALIDATED_ARCHITECTURE.md Stage 0; Architect review CONDITIONAL GO 2026-10-02",
+          "recorded": "2026-11-08T15:38:12",
+          "tested": "bd2ea89851e3d2d05b46e310eadcfd45128a527a",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 0: architecture and contracts",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 0: contracts, fault model, workload matrix",
+      "updated": "2026-11-08T15:38:12"
+    },
+    "stage-1-raft-safety": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-02T16:49:52",
+          "commit": "e78dc25d61bc1e5908697b1038f4a21463963cf7",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/IMPLEMENTATION.md Stage 1 table; Architect GO per correction; cluster CTests native and ASan/UBSan; 23 Detent CTests; Xapiand compatibility",
+          "recorded": "2026-11-08T15:38:14",
+          "tested": "e78dc25d61bc1e5908697b1038f4a21463963cf7",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 1: legacy Raft safety",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 1: legacy Raft safety corrections",
+      "updated": "2026-11-08T15:38:14"
+    },
+    "stage-2-durable-consensus": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-04T09:40:46",
+          "commit": "5778aeb2c9f3090d8cb4d083fd863bdc3cc669e8",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/IMPLEMENTATION.md Stage 2; snapshot transfer consolidated Architect GO (cluster 99d01be); Journal 98,254, Core 36,171, Worker 92,227 checks",
+          "recorded": "2026-11-08T15:38:15",
+          "tested": "5778aeb2c9f3090d8cb4d083fd863bdc3cc669e8",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 2: durable storage and strict consensus",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 2: durable journal, checkpoints and strict consensus",
+      "updated": "2026-11-08T15:38:15"
+    },
+    "stage-3-authority-runtime": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-04T17:15:05",
+          "commit": "238bd9214d13bea085cd6d86a1ad5606694565bf",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/AUTHORITY_ARCHITECTURE.md; consolidated Architect source GO; 30 native, 7 ASan/UBSan, 8 cluster tests",
+          "recorded": "2026-11-08T15:38:16",
+          "tested": "238bd9214d13bea085cd6d86a1ad5606694565bf",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 3: bounded transactions and authority runtime",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 3: bounded transactions and the authority runtime",
+      "updated": "2026-11-08T15:38:16"
+    },
+    "stage-4-distribution": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-09T07:58:32",
+          "commit": "58a27e35d9ecf73de917c3b53d7a09950bc11010",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/DELIVERY_INTEGRATION_ARCHITECTURE.md Stage 4 source GO and component acceptance; prerequisite docs/AUTHORITY_COMPONENT_REVIEW.md; pressure/churn and telemetry gates left open",
+          "recorded": "2026-11-08T15:38:17",
+          "tested": "58a27e35d9ecf73de917c3b53d7a09950bc11010",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 4: portable distribution and immutable local views",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 4: portable distribution and immutable local views",
+      "updated": "2026-11-08T15:38:17"
+    },
+    "stage-5a-subscriptions": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-10T03:23:26",
+          "commit": "83b55c5ca48149aae53e5b7bcb99edb85c16788e",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/SUBSCRIPTIONS_ARCHITECTURE.md Stage 5A component acceptance after consolidated review",
+          "recorded": "2026-11-08T15:38:19",
+          "tested": "83b55c5ca48149aae53e5b7bcb99edb85c16788e",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 5: subscriptions, relays and incremental publication",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 5A: resumable subscriptions and snapshot/history handoff",
+      "updated": "2026-11-08T15:38:19"
+    },
+    "stage-5b-relays": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-11T03:35:31",
+          "commit": "83ca8a71dc21d44a9e02dd65c085c066ceecabc8",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/RELAY_ARCHITECTURE.md Stage 5B component accepted 2026-10-11",
+          "recorded": "2026-11-08T15:38:20",
+          "tested": "83ca8a71dc21d44a9e02dd65c085c066ceecabc8",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 5: subscriptions, relays and incremental publication",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 5B: durable relay host and network fan-out",
+      "updated": "2026-11-08T15:38:20"
+    },
+    "stage-5c-incremental-publication": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-14T21:53:53",
+          "commit": "a842c33ee9ef326b33054b0a8a2821d7d60378c3",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/IMPLEMENTATION.md status at a842c33: Stage 5C component acceptance; 30 local-storage checks",
+          "recorded": "2026-11-08T15:38:21",
+          "tested": "a842c33ee9ef326b33054b0a8a2821d7d60378c3",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 5: subscriptions, relays and incremental publication",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Stage 5C: incremental local publication",
+      "updated": "2026-11-08T15:38:21"
+    },
+    "startup-runtime-capacity": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-10-23T07:31:59",
+          "commit": "5721d5320ce37979e316b7d139193dab0e5baf9f",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/CAPACITY_RUNTIME.md; commit 5721d53: 217 native and 54 Python tests; no review; larger cardinalities left open",
+          "recorded": "2026-11-08T15:38:26",
+          "tested": "5721d5320ce37979e316b7d139193dab0e5baf9f",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "Stage 6: qualification components (to 2026-10-29)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "landed",
+      "title": "Stage 6: startup runtime capacity configuration",
+      "updated": "2026-11-08T15:38:26"
+    },
+    "task-cancellation": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [],
+      "landed": [
+        {
+          "at": "2026-11-02T21:22:29",
+          "commit": "6558c2e9c533ebb0fa1177f22edd4fff528f6efa",
+          "earlier": true,
+          "evidence": [],
+          "final": true,
+          "reason": "landed before the campaign: docs/status/cancellation.md in Kronuz/task; reviews cancellation-design.md (REJECT, re-check cleared), cancellation-c1/c2/c3-code.md -- APPROVE WITH CONDITIONS; 42 mutants; CI run 41579535675 green; K3, K5-K7 unticked",
+          "recorded": "2026-11-08T15:38:27",
+          "tested": "6558c2e9c533ebb0fa1177f22edd4fff528f6efa",
+          "unverified": []
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1 On the tip",
+      "needs": [],
+      "provides": [],
+      "repo": "../task",
+      "risk": "high",
+      "status": "landed",
+      "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
+      "updated": "2026-11-08T15:38:27"
     }
   },
   "version": 2

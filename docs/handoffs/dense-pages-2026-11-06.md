@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Dense pages takeover checkpoint
 
 Date: 2026-11-06. Status: parked at the owner's request for credit conservation. This is the return handoff for one delegated task. The Claude lead retains its own broader campaign scope and master plan, including its other workstreams and repositories. No Dense implementation is landed or pushed to GitHub. All branches and job artifacts below are local to this machine.

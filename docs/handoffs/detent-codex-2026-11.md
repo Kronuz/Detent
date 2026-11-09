@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 > Historical broader-plan handoff (2026-11-04). The Dense pages implementation and Campaign 2.0 takeover checkpoint are in [dense-pages-2026-11-06.md](dense-pages-2026-11-06.md). Start the Claude takeover with [claude-lead-prompt.md](../../claude-lead-prompt.md). Reconcile the landing order below with the latest owner instructions and branch state.
 
 # Detent handoff, 2026-11-04

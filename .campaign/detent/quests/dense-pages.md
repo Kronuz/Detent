@@ -31,7 +31,7 @@ The corrected design at `docs/design/dense-pages.md` defines exact root/referenc
 
 ## Decisions
 
-1. The owner's Dense-only plan (`docs/PLAN.md`) supersedes S6/S3b-first landing, unrelated dependency work and per-step reviews. Main's current APIs are the baseline.
+1. The owner restored the full scope on 2026-11-08 (PLAN.md D4), superseding the Dense-only plan (D1). Dense pages is one quest of the campaign `detent`, and the lead's landing order applies again (D25): `reader-s6` lands before Dense's reading step, since both change `resolve` and `lookup`; `namespace-s3b`'s read-time bounds, exception mapping and byte-flip regressions carry into Dense (A9, A13); `namespace-s1-s2` lands before Dense, which then merges grouped syncs (see `dense-sync-stack`). The baseline is `main`'s APIs when Dense merges it, S6's reader included (A15). Per-step reviews stay replaced by the whole-feature reviews and the architect's merge ruling (Decision 2).
 2. The three developers finish complementary pieces, then correctness/performance and decoder-safety paladins review the whole feature. The architect gives the final design/merge ruling. Security is separate because malformed persistent bytes need decoder expertise.
 3. A1-A15 preserve the former K1-K15 obligations, with A14's process updated to the owner's whole-feature review instruction. The bounded fuzz/sanitizer/quantitative gates remain; extended soaks and other platforms are deferred.
 4. Each live branch is adopted, with component branches represented as tasks inside this quest because none independently delivers a format switch. Original branches, ledgers and reviews remain history.

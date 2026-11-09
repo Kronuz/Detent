@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # Ask: reuse one bounded MessagePack lexer and existing encoder
 
 **Priority:** P2 · Rank 6 of 7 · Required codec adoption.

@@ -1,0 +1,11 @@
+run,result,authority_ready_s,cohort_start_s,agent_selected_s,restart_s,total_s,publication_synced
+cb-100k-after-1,passed,6.79,7.14,9.85,0.07 0.07 0.07,18.67,publication synced 63 files in 2 groups; 3 directory syncs; 3 device flushes; 5 device flushes since start (startup 2)
+cb-100k-after-2,passed,6.30,6.58,9.99,0.07 0.07 0.07,18.13,publication synced 63 files in 2 groups; 3 directory syncs; 3 device flushes; 5 device flushes since start (startup 2)
+cb-100k-after-3,passed,6.80,7.02,9.98,0.07 0.07 0.07,18.52,publication synced 63 files in 2 groups; 3 directory syncs; 3 device flushes; 5 device flushes since start (startup 2)
+cb-100k-before-1,passed,6.50,6.74,15.61,1.46 1.42 1.40,27.91,publication synced 63 files in 0 groups; 64 directory syncs; 127 device flushes; 129 device flushes since start (startup 2)
+cb-100k-before-2,passed,6.36,6.63,15.61,1.40 1.38 1.44,27.93,publication synced 63 files in 0 groups; 64 directory syncs; 127 device flushes; 129 device flushes since start (startup 2)
+cb-100k-before-3,passed,6.35,6.57,15.57,1.41 1.46 1.44,27.89,publication synced 63 files in 0 groups; 64 directory syncs; 127 device flushes; 129 device flushes since start (startup 2)
+cb-5m-after-1,passed,38.90,39.05,481.18,0.97 0.52 0.59,544.71,publication synced 2887 files in 24 groups; 25 directory syncs; 25 device flushes; 27 device flushes since start (startup 2)
+cb-5m-after-2,passed,39.12,39.38,481.18,0.87 0.46 0.50,544.96,publication synced 2887 files in 24 groups; 25 directory syncs; 25 device flushes; 27 device flushes since start (startup 2)
+cb-5m-before-1,passed,39.89,40.35,741.15,65.27 63.16 63.86,998.91,publication synced 2887 files in 0 groups; 2888 directory syncs; 5775 device flushes; 5777 device flushes since start (startup 2)
+cb-5m-before-2,passed,40.81,40.91,742.35,61.85 65.93 63.71,1000.86,publication synced 2887 files in 0 groups; 2888 directory syncs; 5775 device flushes; 5777 device flushes since start (startup 2)
