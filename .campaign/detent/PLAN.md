@@ -89,6 +89,13 @@ Staying generic needs, above the page format (DTPAGE03 and the trie are byte-gen
 3. An opaque bytes value type beside the typed knobs.
 Until then, no design may assume text keys or NUL-free names.
 
+Framing: an engine for rapidly distributing indexed lookup databases to large fleets, with local
+access to every entry and incremental publication of immutable generations. Fit (a peer's table,
+2026-11-08): excellent for flags, authorization policy, gateway routing and static dictionaries;
+strong for localization; conditional for service discovery (publication latency is unmeasured;
+RC-2) and package metadata; weak for large catalogs until namespace subscriptions (S4-S10) and
+page fetch by digest (dense-distribution) deliver slices; poor for telemetry and counters.
+
 ## Reserved decisions
 
 The owner decides these; everything else the lead decides and records below.
