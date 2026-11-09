@@ -1,24 +1,24 @@
-> Status: DRAFT (2026-11-09), a measured design record. The owner withdrew the direction that receivers should build nothing (`.campaign/detent/PLAN.md`, D33), so this document sets no goal: it records what each encoding costs, the receiver that verifies pages against one root digest, and the rule the numbers support. No implementation quest starts from it until a goal asks for one. D1 to D9 are the designer's. The full-copy wire format is reserved to the owner (D20), so D2 and D3 are recommendations until Q2 is ruled, and the delta encoding is Q1. Every byte figure comes from the [model](dense-distribution-model.py) in the campaign job named beside it. Page bytes are exact for the 5M corpus. Record bytes are modeled and calibrated against the measured record copy. No time is measured here.
+> Status: DRAFT (2026-11-09), a measured design record. The owner withdrew the direction that receivers should build nothing (`.campaign/detent/PLAN.md`, D33), so this document sets no goal: it records what each encoding costs, the receiver that verifies pages against one root digest, and the rule the numbers support. No implementation quest starts from it until a goal asks for one. D1 to D10 are the designer's. The owner ruled the full-copy wire format (reserved D20) as the transfer in wire form (D2, D3), compression per fragment (D8) and a relay on the authority's host where there is none (PLAN.md D34: Q2 (b), Q3 (a), Q4 (b)); Q1, pages only, is moot under D33. Every byte figure comes from the [model](dense-distribution-model.py) in the campaign job named beside it. Page bytes are exact for the 5M corpus. Record bytes are modeled and calibrated against the measured record copy. No time is measured here.
 
 # Dense distribution
 
-A full copy as verified pages costs what records cost on the wire, and its receiver checks and writes what it is sent instead of building. A scattered delta as pages costs 38 to 123 times its records; a clustered one about the same. The rule the numbers support is to send each update in whichever encoding is smaller.
+A full copy as verified pages costs what records cost on the wire, and its receiver checks and writes what it is sent instead of building. A scattered delta as pages costs 38 to 135 times its records up to 10,000 keys; a clustered one of 10,000 keys or more about the same. The rule the numbers support is to send each update in whichever encoding is smaller. A stale receiver gets records while the relay's blocks reach back to its base; only below the cut does it pull the pages it lacks, or take the full copy when a sample says the pull would cost more (D10).
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-08. Quest `dense-distribution`.
 - Base: `Detent:8874c71` (`main`); owner direction D33 at `Detent:75c6c99`. The page format is [dense-pages.md](dense-pages.md) as implemented on `quest/dense-pages` at `Detent:28d3ed9`, cited as dense-pages D*n* with line numbers at that commit. [namespace-delivery.md](namespace-delivery.md) is cited as namespace D*n*.
 - Depends on dense-pages D1 (one digest, placement outside it, :46), D5 (canonical bottom-up sealing, :110), D7 (occurrence reuse, :162-168), D8 (relocation computes no digest, :170) and D9 (canonicity, :174). On the namespace side it depends on D6 (records history and the cut), D7 (relays), D8 (derived ids, `namespace-delivery.md:233-239`) and D10 (first touch, scrub, repair, `:261-267`).
 - Changes two things:
   - namespace W6 (`:344`): a frame names its target's root digest and carries pages or records.
-  - dense-pages Q2 (:268): answered by D2 and Q2 here.
+  - dense-pages Q2 (:268): answered by D2, as Q2 here was ruled (b).
 - Keeps namespace D10.3 (`:267`): repair is a full copy, which D2 makes a 25.7 MB pages copy with no build.
 - Model: [dense-distribution-model.py](dense-distribution-model.py) imports [dense-pages-model.py](dense-pages-model.py) at `Detent:28d3ed9` (SHA-256 `96dfd0a7…3906bd1`), passed as the job ref `DENSE`.
   - Corpus: the r12 5M corpus (SHA-256 `bb87ae5d…52bc835`).
   - Its receiver replays every transfer. It must reproduce the target's root digest, and for a full copy the build's files byte for byte.
-  - Jobs, all at `Detent:29b5e53` with `--ref DENSE=28d3ed9` and the corpus and its SHA-256 in `--env`, each exit 0: full copy `261109-030634-8606dc`, deltas `261109-030635-4e209f`, crossover sweep `261109-030636-4ce079`, a day of polls `261109-030637-311a76`, the 100K self-check and refusals `261109-030632-2d5f94`, and the design review's probes `261109-030633-20ab89`.
+  - Jobs, all at `Detent:29b5e53` with `--ref DENSE=28d3ed9` and the corpus and its SHA-256 in `--env`, each exit 0: full copy `261109-030634-8606dc`, deltas `261109-030635-4e209f`, crossover sweep `261109-030636-4ce079`, a day of polls `261109-030637-311a76`, the 100K self-check and refusals `261109-030632-2d5f94`, and the design review's probes `261109-030633-20ab89`. The stale receiver's gaps at 5M: `261109-080252-b7e62c` at `Detent:d0e8f85` (the pull per level and the one-level-ahead rule) and `261109-092232-0a7ab9` at `Detent:7ba0734` (the sampled stop rule).
 
 | Review | State |
 | --- | --- |
-| Design | CHANGES at `Detent:d874004` (DD-1 to DD-5 blocking); revised here |
+| Design | CHANGES at `Detent:d874004` (DD-1 to DD-5 blocking); revised here. D10 (the stale receiver, quest A7), D6's warm-path property and rule 1's threshold, and DD6 are new since that review |
 
 ## Abstract
 
@@ -36,7 +36,9 @@ The receiver handles a transfer in five steps:
 
 A full copy is the transfer from the empty base. At 5M it is 25.7 MB as sent, against 25.6 MB of records, 1.002 times. The receiver's output is byte-identical to a full build, with the same 622.7 MB of SHA-256 input as the dense build. It does not decode records, build a trie or pack.
 
-A delta is the transfer from the receiver's base. Scattered updates cost far more as pages than as records: 6.7 MB against 108 KB for 10,000 uniform updates, 62 times. Clustered updates are near parity: 63 KB against 55 KB for 10,000 consecutive keys. The numbers support sending each update as whichever encoding is smaller (D6). Under that rule, pages win only for clustered changes of about 100,000 keys and more, and for full copies. Sending every delta as pages would cost SWEEP_RANGE times the records' bytes per scattered update, and 1.5 GB per agent-day at namespace D6's moderate churn polled every minute, against 12 MB of records (Q1).
+A delta is the transfer from the receiver's base. Scattered updates cost far more as pages than as records: 6.7 MB against 108 KB for 10,000 uniform updates, 62 times. Clustered updates are near parity: 63 KB against 55 KB for 10,000 consecutive keys. The numbers support sending each update as whichever encoding is smaller (D6). Under that rule, pages win only for clustered changes of about 100,000 keys and more, and for full copies. Sending every delta as pages would cost 2.07 to 135 times the records' bytes per scattered update, and 1.5 GB per agent-day at namespace D6's moderate churn polled every minute, against 12 MB of records (Q1).
+
+A stale receiver, one whose base is older than the relay's ring, gets records while the relay's blocks reach back to its base: a pull of the pages it lacks costs 4.6 to 45.6 times the records for the same gap, and the receiver hashes and writes the same pages either way. Below the cut, where the alternative is the full copy, the receiver pulls by digest, top-down, from the relay's head (D10); with namespace D6's cut 32 to 44 days back under moderate churn, that happens only where a relay keeps less history than the cut. The pull wins up to about 6 h of moderate churn and loses from about 24 h. A sample of a sixteenth of the pull decides between them after 2 to 8% of the copy's bytes, and every 5M gap ends within 1.079 times the cheaper of the two.
 
 ## What the measurements say
 
@@ -203,7 +205,7 @@ No path crosses the wire. Every receiver at a position holds the same canonical 
 
 The sender knows both encodings' sizes: the records answer from namespace D6, and the pages from D7's diff. It applies this rule:
 
-1. **Raw pages above twice the raw records: send records.** RULE1_EVIDENCE
+1. **Raw pages above three times the raw records: send records.** Across every row of the delta table the ratio as sent was 0.48 to 2.2 times the raw ratio. The low end is the 1-key row, whose 160 B of records are mostly the 96-byte fragment header, so a raw ratio of 2 could be 0.96 as sent, and the shortcut starts at 3, where the worst factor still gives 1.44. Every row past it (every uniform row from 1 key to 1,000,000, and 100 clustered keys at 3.48 raw) had a ratio as sent of 3.82 or more. The 2,000,000-key row, at 2.74 raw, goes to rule 2, which sends its records (13.9 MB against 28.8 MB).
 2. **Otherwise, compress both and send the smaller as sent.**
 3. **The cut still decides between an answer and a full copy** (namespace D6). The full copy goes as pages: 25.7 MB against 25.6 MB of records, with no build.
 
@@ -221,7 +223,7 @@ A relay keeps four things per namespace:
 
 1. **Records history**: the ring, blocks and base mirrored from upstream (namespace D7, unchanged). It serves record answers and feeds item 2.
 2. **Its prepared generation at head**, built from the records it mirrors: a full build at its own cold start, dense-pages D7 after that. Relays are the build tier: one build per relay serves every agent below it. A relay that took pages from upstream would pay for both encodings, since it must mirror records anyway.
-3. **A page window**: its generations at recent positions, which share all unchanged pages, so a window costs only superseded pages. It is bounded like the record ring, by 64 positions and by the generation's own size in bytes. For R in the window, the delta transfer is a top-down Merkle diff of h against R: descend while the page at a path differs, prune where digests match, and emit in seal order. D9's canonicity walk yields seal order from the pages alone. The relay indexes the window's pages by digest for D10's pulls. For R outside the window it keeps nothing: D6 answers with records, and a stale receiver pulls (D10).
+3. **A page window**: its generations at recent positions, which share all unchanged pages, so a window costs only superseded pages. It is bounded like the record ring, by 64 positions and by the generation's own size in bytes. For R in the window, the delta transfer is a top-down Merkle diff of h against R: descend while the page at a path differs, prune where digests match, and emit in seal order. D9's canonicity walk yields seal order from the pages alone. The relay indexes the window's pages by digest for D10's pulls. For R outside the window it keeps nothing: D6 answers with records, and a receiver below the cut pulls (D10).
 4. **A canonical full copy**: the transfer from empty at a position s, made by relocating its generation into seal order. That is dense-pages D8's relocation, which computes no page digest, with D9's walk giving the order. Its first instance is the relay's own cold build, whose files are already canonical. It is replaced when the delta s→h stops being smaller than a fresh copy, and counted in namespace D6's disk bound (one cached copy per namespace). A cold agent gets the copy at s, then the D6 answer from s to h.
 
 The relay serves only immutable objects (copies, deltas, blocks), so any HTTP cache that authorizes per namespace can serve them.
@@ -239,21 +241,26 @@ A fragment that fails its frame checksum (namespace D12.2: frame SHA-256 stays) 
 | Partial fetch, connection lost | Resume at the fragment offset (D8); the transfer's name pins its bytes |
 | Fragment damaged in transit | Its frame checksum fails; that fragment is fetched again |
 | Root mismatch, or any D4 refusal | The transfer is discarded. The receiver asks one other source for the same name, then falls back to records (above the cut) or a records full copy and builds, as today. Health counts refusals by source |
-| Relay lacks R's generation | D6 sends records; below the cut, the full copy |
+| Relay lacks R's generation | D6 sends records; below the cut, D10's pull or the full copy |
 | Relay lacks or has damaged its canonical copy (scrub) | It relocates a new one (D7.4); meanwhile it serves records |
 | Agent's base lacks a page the delta reuses, or a base page fails first touch or scrub | The base is damaged: namespace D10.3 applies unchanged. The namespace fails alone and the agent asks for a full copy, now the 25.7 MB pages copy with no build, published at build ordinal r + 1 |
 
 Repair stays a full copy. A repair by page would have to fetch or relocate every live page of the damaged pack, not only the damaged page, since the pack's `.live` checksum keeps failing scrub otherwise (dense-pages D10), and a transfer carries no way to add a reused page below the delta's frontier. A full copy at 5M costs 25.7 MB once per damaged namespace.
 
-### D10. The stale receiver: the pages it lacks, or the full copy
+### D10. The stale receiver: records, then the pages it lacks or the full copy
 
-A receiver is in one of three states (the quest's Decision 6):
+A receiver is in one of four states, by where its base R falls in the relay's history (the quest's Decision 6, with namespace D6's tiers):
 
-| State | Base | What it gets | Its work |
+| State | Base R | What it gets | Its work |
 | --- | --- | --- | --- |
 | Empty | none, or another incarnation | the full copy as pages (D2) | verifies and writes; no build |
-| Warm | R inside the relay's record window | records (D6), or pages where smaller | dense-pages D7 on the changed paths; same pages as every holder (D6) |
-| Stale | R older than the record window: a stalled agent, or one started from an old image | the pages it lacks, pulled by digest, or the full copy, whichever is smaller | verifies and writes the pulled pages; no build |
+| Warm | in the relay's ring | record deltas (D6 sends pages instead only for a clustered change of more than about 100,000 keys) | dense-pages D7 on the changed paths; the same pages as every holder, since pages are canonical after deltas (D6) |
+| Stale above the cut | below the ring, above the cut: the relay's blocks reach back to R | records from the compacted blocks: each changed key once, at its last value (namespace D6) | dense-pages D7, which hashes and writes the same pages a pull would send |
+| Stale below the cut | below the cut: a stalled agent, or one started from an old image, whose relay keeps no records back to R | the pages it lacks, pulled by digest, or the full copy, as the stop rule picks | verifies and writes the pulled pages; no build |
+
+**Records beat the pull at every gap** (job `261109-080252-b7e62c`, 5M). The pull costs 4.6 to 45.6 times the records answer for the same gap, and the receiver hashes and writes the same pages either way, since the pulled set is exactly the occurrence writes the records path's D7 produces (the model asserts it). So while the relay keeps blocks back to R, a stale receiver gets records. The pull is worth it only below the cut, where its alternative is the full copy.
+
+**Where the cut falls decides whether the pull ever runs.** Namespace D6 cuts by cost, where the block answer reaches the copy: 32 to 44 days back under moderate churn at α = 1 (`namespace-delivery.md:181`). The pull already loses to the copy from about 24 h, so below that cut the stop rule takes the copy after its sample. The pull wins only where a relay's records stop hours back: a relay with the ring alone (today's 4,096 transactions, before namespace S8 mirrors blocks), or a store that namespace D6's disk cap cut early (its second cut rule, which fired once in its model, `namespace-delivery.md:139`).
 
 **The pull.** The relay keeps no generation for R. The receiver compares, the relay only serves pages by digest:
 
@@ -265,9 +272,45 @@ A receiver is in one of three states (the quest's Decision 6):
 
 The relay answers a pull from its page window (D7.3), indexed by digest, while h is in it. If h leaves the window mid-pull, the relay says so, and the receiver pins the new head and keeps comparing, counting the pages it already verified as base pages at their paths.
 
-**The stop rule.** Before each request the receiver knows the raw length of every page it is about to ask for, from the content entries. It switches to the full copy as soon as what it has been sent, plus the next level at the ratio of sent to raw bytes so far, would pass the full copy's size as sent, which the relay publishes with the copy's name (D2). What it already fetched is spent; the copy then arrives as a full copy (D4).
+**The stop rule: sample, then decide.** What the receiver has spent is spent whichever way it goes, so the choice is between the rest of the pull and the full copy, and it must be made before the pull has spent much.
 
-STALE_RESULTS
+1. The receiver pulls level by level until a level asks for at least 256 pages.
+2. Of that level, it first pulls the pages whose digest starts below 0x10, about a sixteenth spread over the key space, with their subtrees to the bottom.
+3. It scales the sample's bytes to the level's other pages by the keys their content entries state: the rest is estimated at the sample's bytes times the other pages' keys over the sample's keys.
+4. If the estimate passes the full copy's size as sent, which the relay publishes with the copy's name (D2), it takes the full copy (D4). Otherwise it pulls the rest of the level and below.
+5. A pull with no level of 256 pages runs to the end: it holds under 256 pages per level.
+
+The sample costs extra round trips, one per level it descends. The worst case is bounded both ways. When the estimate is right, the rule pays what it spent before deciding: the levels above the sample and the sample, about a sixteenth of the pull below it. When the estimate is wrong, a wrong full copy costs that spend plus the copy, and a wrong pull costs at most about the pull of every page, which at 5M is 1.33 times the copy (39.2 MB against 29.5 MB at 24 h of uniform churn, where nearly every page differs).
+
+The rule it replaces looked one level ahead: it took the full copy once what it had been sent, plus the next level's raw bytes at the ratio so far, would pass the copy. It saw the size of the deep levels only after paying for the shallow ones, and it overshot. At 24 h of moderate churn it pulled through level 4 and then took the full copy, 37.5 MB against 28.3 MB for the copy alone, and at 168 h 57.1 MB against 34.1 MB.
+
+**What each answer costs** (job `261109-080252-b7e62c`, 5M; job `261109-092232-0a7ab9` prints the same bytes). A gap is T4's mix at namespace D6's moderate rate, 1M writes a day; "moderate" sends 80% of the writes to a scattered hot 1% of keys, "hot range" to a contiguous 1%, "uniform" to none. Bytes are as sent; records from blocks and the full copy take one round trip each.
+
+| Gap | Writes | Records from blocks | Pull (round trips) | Full copy | Pull / records | Pull / full copy |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 h, moderate | 41,667 | 321,391 | 14,668,963 (6) | 26,058,960 | 45.6 | 0.563 |
+| 6 h, moderate | 250,000 | 860,114 | 23,105,335 (6) | 26,737,248 | 26.9 | 0.864 |
+| 24 h, moderate | 1,000,000 | 1,985,482 | 32,308,454 (6) | 28,283,137 | 16.3 | 1.142 |
+| 168 h, moderate | 7,000,000 | 9,570,561 | 43,770,372 (7) | 34,078,717 | 4.6 | 1.284 |
+| 1 h, hot range | 41,667 | 248,923 | 7,080,178 (6) | 25,919,836 | 28.4 | 0.273 |
+| 1 h, uniform | 41,667 | 398,571 | 16,301,667 (6) | 26,101,267 | 40.9 | 0.625 |
+| 24 h, uniform | 1,000,000 | 6,748,268 | 39,188,815 (6) | 29,530,547 | 5.8 | 1.327 |
+
+Below the cut the pull wins up to about 6 h of moderate churn, at 0.27 to 0.86 of the full copy, and loses from about 24 h. Its receiver hashes and writes only what it pulls: at 1 h of moderate churn 183 MB of SHA-256 input and 94 MB written, against the full copy's 623 MB and 316 MB.
+
+**The stop rule at 5M** (job `261109-092232-0a7ab9`). Every gap sampled level 3.
+
+| Gap | Sample | Decided after | Rest: estimated, actual | Choice | Bytes (round trips) | Of the smaller | One level ahead, of the smaller |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 h, moderate | 66 of 1,080 | 1,095,969 | 13,654,748; 13,587,342 | pull | 14,683,311 (10) | 1.001 | 1.000 |
+| 6 h, moderate | 66 of 1,080 | 1,593,190 | 21,704,046; 21,524,261 | pull | 23,117,451 (10) | 1.001 | 1.000 |
+| 24 h, moderate | 63 of 1,112 | 1,813,293 | 31,000,190; 30,512,062 | full copy | 30,096,430 (7) | 1.064 | 1.326 |
+| 168 h, moderate | 38 of 623 | 2,185,391 | 40,094,091; 41,589,061 | full copy | 36,264,108 (7) | 1.064 | 1.675 |
+| 1 h, hot range | 75 of 1,069 | 524,923 | 6,215,338; 6,559,755 | pull | 7,084,678 (10) | 1.001 | 1.000 |
+| 1 h, uniform | 65 of 1,080 | 1,038,102 | 15,307,061; 15,276,010 | pull | 16,314,112 (10) | 1.001 | 1.000 |
+| 24 h, uniform | 68 of 1,097 | 2,328,863 | 37,947,134; 36,867,366 | full copy | 31,859,410 (7) | 1.079 | 1.331 |
+
+The rule picks the cheaper side in every gap. The estimates fall within −5.2% to +2.9% of the rest. It decides after 0.5 to 2.3 MB, 2 to 8% of the copy, and that spend is its whole overshoot: at most 1.079 times the smaller of pull and copy, where the one-level-ahead rule reached 1.675. A pull takes four more round trips than without the sample, for the sample's descent; a full copy after the sample takes 7, against 1 for the copy alone.
 
 ### Limits
 
@@ -276,21 +319,27 @@ STALE_RESULTS
 3. **A wire-form failure is found at the root, not at the page.** Damage in transit is caught per fragment; a sender's wrong page costs a whole retry (D3, D9).
 4. **The records sizes are modeled**: MessagePack rows with the stored body as a bin. They are calibrated by one factor per corpus size against the measured full copies. Delta answers are smaller and less regular than full copies, and their factor is the full copy's.
 5. **The corpus is synthetic** (dense-pages Limit 7). Bodies compress about 10 times and keys are decimal counters; a real key set reruns the model in minutes.
-6. **Deployments without a relay** get records from the authority and build (Q4).
+6. **Deployments without a relay** run one on the authority's host (Q4, ruled (b)); until then their agents get records from the authority and build.
 7. **Bytes per namespace are unmeasured.** The 5M figures come from one tree holding the corpus's four namespaces, where namespace W10 gives each namespace its own root. The receiver's replay is exact per namespace at 100K (the review's P11, `261109-030633-20ab89`); DD3 would measure the bytes.
 8. **D6's rule 1 is fitted to the synthetic corpus**, whose bodies compress about 10 times. It is only a shortcut: dropping it changes the bytes sent, never correctness. DD4 would measure real record answers at the crossover.
 9. **The model checks no leaf body** against the position (D4.2's last check, dense-pages D4.4). A C++ receiver would, and DD1 would test it.
+10. **The stale gaps are net states.** Each key keeps its last write, the hot set stays put for the whole gap, and writes to keys inserted during it are not modeled. A hot set that moves changes more pages per write, which favors records and the full copy over the pull.
+11. **The stop rule's estimate is checked on this corpus only.** At 5M it came within −5.2% to +2.9% of the rest from 38 to 75 sampled subtrees; at 100K, from 16 to 25, within about 15%. Subtrees that vary more in bytes per key would widen the error, and a gap whose pull is within that error of the copy can go to the dearer side, by at most the error. Only the bytes depend on it, never what is published.
 
-## Open questions for the owner
+## Owner questions
 
-**Q1. Deltas: pages, records, or the smaller?** D33 withdrew the goal that asked for pages only, so this question is open only if a later goal asks receivers never to build. Its cost per update:
+Q2 to Q4 are ruled (PLAN.md D34); Q1 is moot under D33. They stay here with the numbers they were decided on.
+
+**Q1. Deltas: pages, records, or the smaller? Moot (D33).** D33 withdrew the goal that asked for pages only, so the question reopens only if a later goal asks receivers never to build. Its cost per update:
 
 | At 5M, as sent | Records (D6 picks) | Pages only | Extra per agent |
 | --- | --- | --- | --- |
 | 1 key | 160 B | 6,024 B | 5.9 KB |
-Q1_SWEEP_100| 10,000 keys | 108 KB | 6.71 MB | 6.60 MB |
+| 100 keys | 1,507 B | 203,514 B | 202 KB |
+| 10,000 keys | 108 KB | 6.71 MB | 6.60 MB |
 | T4 churn | 108 KB | 6.79 MB | 6.68 MB |
-Q1_SWEEP_100K
+| 100,000 keys | 862 KB | 18.4 MB | 17.6 MB |
+
 Its cost per agent-day, for agents that poll the head and take each poll's changes as one delta (job `261109-030637-311a76`). Dollars are for 10,000 agents at an assumed cross-region rate of $0.02 per GB; in-region traffic is cheaper. Moderate churn is namespace D6's 1M writes a day at 5M (`namespace-delivery.md:181`), modeled as uniform updates.
 
 | Poll, changes per poll | Records per agent-day | Pages only per agent-day | Pages / records | $ a day: records, pages only |
@@ -308,42 +357,43 @@ Pages only also needs R's generation for every R it answers. Either the page win
 - (b) Pages only: agents never build, at the bytes above, plus window disk or pull round trips.
 - (c) Records for every delta, pages for full copies only. This differs from (a) only for large clustered changes, which are 1.0 to 0.91 times the records.
 
-*Recommendation: (a)*: it never sends more than the smaller encoding, and the build it lets agents skip is the largest one, the full copy.
+*Recommendation: (a)*: it never sends more than the smaller encoding, and the build it lets agents skip is the largest one, the full copy. D6 states it as the designer's rule.
 
-**Q2. The full-copy wire format (reserved, D20).**
+**Q2. The full-copy wire format (reserved, D20). Ruled (b) (D34).**
 
 - (a) Records, as today: 25.6 MB and a build per cold agent.
 - (b) The transfer in wire form (D2, D3): 25.7 MB, no build, packs identical to a full build.
 - (c) The transfer with digests kept: 36.8 MB, and a bad page found where it is.
 
-*Recommendation: (b)*.
+*Recommendation: (b)*, which the owner accepted: D2 and D3 are the full copy's format.
 
-**Q3. Compression context.**
+**Q3. Compression context. Ruled (a) (D34).**
 
 - (a) Per 64 KiB fragment, as today.
 - (b) Per 1 MiB segment, with fragments carrying slices of the compressed stream: 10% fewer pages bytes at 5M (23.1 MB), records unmeasured.
 
-*Recommendation: (a)* now, with (b) measured for both encodings in DD3 before any change: one framing serves both.
+*Recommendation: (a)* now, with (b) measured for both encodings in DD3 before any change: one framing serves both. The owner accepted it.
 
-**Q4. Deployments with no relay.** The authority serves records only.
+**Q4. Deployments with no relay. Ruled (b) (D34).** The authority serves records only.
 
 - (a) Agents there build, as today.
 - (b) The authority's host runs a relay.
 - (c) The authority builds pages.
 
-*Recommendation: (b)*: page serving is the relay's role, and (c) puts builds in the consensus process.
+*Recommendation: (b)*: page serving is the relay's role, and (c) puts builds in the consensus process. The owner accepted it.
 
 ## Candidate steps
 
-These are candidates a later quest may take when a goal asks for one (D33), not a commitment. Each would be a quest with its own branch, CI green, and the model as oracle. DD1 and DD2 are local to the store and could run beside namespace S5 and S6; DD3 waits for namespace S7, DD4 for S8 and DD5 for S9.
+These are candidates a later quest may take when a goal asks for one (D33), not a commitment. Each would be a quest with its own branch, CI green, and the model as oracle. DD1 and DD2 are local to the store and could run beside namespace S5 and S6; DD3 waits for namespace S7, DD4 for S8 and DD5 for S9. DD6 earns its cost only where relays keep records shorter than the cut (D10).
 
 | Step | Needs | Risk |
 | --- | --- | --- |
 | DD1 Transfer codec and receiver | dense-pages S1 to S5 landed, which land together (codec, validators with D9, deltas, relocation) | high: a decoder of untrusted bytes |
 | DD2 Seal-order relocation (canonical copy) | dense-pages S4 (relocation) | normal |
-| DD3 Full copy as pages | DD1, DD2; namespace S6 (W6 frames, namespace and incarnation, one root per namespace, W10) and S7 (derived ids); Q2 ruled | high: wire and publication |
-| DD4 Delta transfers and the choice rule | DD3; namespace S8 (the relay's mirror of blocks, base and ring, whose block answer is D6's records size); Q1 ruled | high |
+| DD3 Full copy as pages | DD1, DD2; namespace S6 (W6 frames, namespace and incarnation, one root per namespace, W10) and S7 (derived ids); Q2 ruled (b) | high: wire and publication |
+| DD4 Delta transfers and the choice rule | DD3; namespace S8 (the relay's mirror of blocks, base and ring, whose block answer is D6's records size) | high |
 | DD5 Images from transfers | DD3; namespace S9 | normal |
+| DD6 Stale pull and its stop rule | DD4 (the page window, indexed by digest) | normal: every pulled page is checked by D4 |
 
 Reader S6 is needed by none: the receiver writes files and readers keep reader.md D3's first touch. Namespace S4 (no re-validation of a tier's own build) would apply to the receiver: D4 is the tier's verification, done once. Namespace S10 is not needed.
 
@@ -381,6 +431,13 @@ Reader S6 is needed by none: the receiver writes files and readers keep reader.m
 - Files: `detent-image` writes through the receiver.
 - Done when namespace T6 holds by per-file SHA-256 between an image and an agent's received copy.
 
+**DD6.**
+- Files: the relay's page-by-digest answer over its window (`src/detent_relay/host.cc`), the receiver's pull and stop rule (`src/detent_delivery/coordinator.cc`), and tests.
+- Done when, at 5M, for the seven gaps of `261109-092232-0a7ab9`:
+  - The pull fetches exactly the model's pages, level by level, in the model's round trips, and publishes the head's root.
+  - The stop rule samples the model's pages and makes the model's choice in every gap.
+  - A head that leaves the window mid-pull is re-pinned, and the pull still ends at the new head's root.
+
 **Rerunning this design's numbers.**
 
 ```sh
@@ -394,5 +451,7 @@ job --minutes 120 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/p
 job --minutes 180 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M delta $C5 \
   u:100 u:1000 u:100000 u:300000 u:1000000 u:2000000 c:100 c:1000 c:100000 c:1000000
 job --minutes 120 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M day $C5
+job --minutes 60  --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M stale $C5 \
+  1:moderate 6:moderate 24:moderate 168:moderate 1:hotrange 1:uniform 24:uniform
 job --minutes 30  --env CORPUS=$C1 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M check $C1
 ```
