@@ -1,17 +1,22 @@
 # async-drivers-design: journal
 
-State: working
+State: waiting on jobs 261109-145202-956fb1 261109-145203-34a395
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
 
-Measurements (A7) as jobs at the bench commit (Detent:0b4924a); the design doc follows them in
-one commit.
+Measurements (A7) queued at Detent:87df68b (bench committed at Detent:0b4924a): 261109-145202-956fb1
+(idle_cost, strict) and 261109-145203-34a395 (driver_cost, exclusive, after the first, same slot
+`adb`). The design doc's full draft, with {PLACEHOLDERS} for the job numbers, is
+`.scratch/async-drivers-draft.md` (untracked, worktree); dev runs (not evidence) gave the shape:
+idle Worker::run_one ~2.7 us with 1.6 allocations, a 3-voter SnapshotChannel ~164 KB, 2-3 fds per
+group, today's lone 1 ms loop ~21 ms CPU per second.
 
 ## Next
 
-1. When the bench jobs pass: write docs/design/async-drivers.md from their output, commit it, rerun
-   the jobs at the doc commit, send the A8 message to the Xapiand lead.
+1. When both jobs pass (`campaign job log <id>`): fill the draft's placeholders from their output,
+   move it to docs/design/async-drivers.md, commit it alone, rerun both jobs at that commit, send
+   the A8 message to the Xapiand lead, fill Evidence, mark ready for review.
 
 ## Blocked on
 
