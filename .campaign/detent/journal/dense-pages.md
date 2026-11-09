@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261108-213453-4048a8 261108-213503-22cf8f 261108-213503-7538e7 261108-214256-fab375 261108-214256-99a747 and the eleven mutant jobs listed under "Session 2026-11-08"
+State: waiting on jobs 261108-215334-7f2aa1 261108-215335-b1a3ec 261108-215336-b92177 261108-215336-a9a989 and the mutant jobs under "Head d6d53a9 jobs"
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -177,3 +177,33 @@ another job and cannot be rerun at a new head).
 
 Main merged at Detent:45a46aa (docs and campaign files only; one status-line conflict in
 `docs/status/dense-pages.md`, taken as main's HISTORY line).
+
+Superseded: the 45a46aa model and mutant jobs were cancelled before running (new tests below).
+
+Smoke 261108-213453-4048a8 at Detent:be49a1d: the 100K one-update arm PASSES exactly against the
+model (5 pages, 14,276 B written, 14,287 pack B, 0 off-path, root 794d3bbf...); the mixed arm
+(10,004 changes) threw `invalid_argument: invalid paged segment reference`. Cause: the oracle
+sorted segment inputs with `std::array<char>::operator<` (signed chars here) while `find_segment`
+searches with memcmp; the six output packs' derived ids (and base ordinals from 128, e.g. 5M's 302
+packs) break the order, and `inputs[find_segment(...)]` indexed past the end. Harness defect, not
+production (every production sort and search uses memcmp). Fix Detent:8056246: memcmp order, a
+checked `segment_index`, a 600-page one-page-per-pack base case; paged_split_fixture.hh and
+test_pack_scrub.cc had the same signed sort and now use memcmp. Revert key-grammar check
+261108-213503-7538e7 failed at the parser's `require(refused)` (line 387) as required.
+
+New tests from mutant analysis (before any mutant ran): the page validator replay checks the
+header against content, so header byte flips cannot isolate the constructor's reference/header
+comparison; Detent:ddf89ae forges reference keys/height over a valid page. The validator walks in
+byte order, so a slot off preorder is caught only by `slot == position`; Detent:b62b40c swaps two
+inline slots of a checksum-correct page.
+
+### Head d6d53a9 jobs
+
+A10 smoke 261108-215334-7f2aa1, 5M 261108-215335-b1a3ec (after smoke). Model checks 100K
+261108-215336-b92177, 5M 261108-215336-a9a989. Revert checks (must fail): a10-key-grammar
+261108-215337-6fbb5e, a10-signed-segment-order 261108-215338-050e7b. Mutants (must fail):
+a3-largest-first 261108-215339-d4d8a3, a3-seal-64 261108-215340-a0ba31, a3-boundary
+261108-215340-ee9bb3, a3-height-digest 261108-215341-fcf2e6, a6-height 261108-215342-9f84ee,
+a6-keys 261108-215343-7b0d6f, a6-canonicity 261108-215343-c81dc3, a6-order 261108-215344-4f774c,
+a11-noop-rewrite 261108-215345-93d4f7, a11-relocation-rehash 261108-215346-e0fd25,
+a11-offpath-skip 261108-215347-fbd883.
