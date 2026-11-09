@@ -91,7 +91,7 @@ inline p::Root empty_root() {
 	return root;
 }
 inline p::Reference reference(std::span<const char> page) {
-	const auto h = p::decode_page_header(page);
+	const auto h = p::decode_page_header(page, p::Limits{});
 	p::Reference r;
 	r.segment.fill('s');
 	r.length = h.length;
@@ -101,13 +101,13 @@ inline p::Reference reference(std::span<const char> page) {
 	return r;
 }
 inline void reseal(std::span<char> page) {
-	const auto hash = p::page_commitment(page);
+	const auto hash = p::page_commitment(page, p::Limits{});
 	std::copy(hash.begin(), hash.end(), page.begin() + 32);
 }
 inline std::vector<char> watermark(std::string_view suffix = std::string_view("Wa\0", 3)) {
 	p::PageHeader h;
 	h.length = 64 + 4 + suffix.size() + 8;
-	const auto header = p::encode_page_header(h);
+	const auto header = p::encode_page_header(h, p::Limits{});
 	std::vector<char> bytes(header.begin(), header.end());
 	bytes.push_back(3);
 	bytes.push_back(static_cast<char>(suffix.size()));
@@ -122,7 +122,7 @@ inline std::vector<char> watermark(std::string_view suffix = std::string_view("W
 inline std::vector<char> external_branch() {
 	auto child = reference(watermark());
 	p::PageHeader h{224, 2, 2, 3, 2, {}};
-	const auto header = p::encode_page_header(h);
+	const auto header = p::encode_page_header(h, p::Limits{});
 	std::vector<char> bytes(header.begin(), header.end());
 	const auto nodes = unhex("01 00 02 00 01 02 8000 004c 8001 03 00 0008 0000000000000011");
 	bytes.insert(bytes.end(), nodes.begin(), nodes.end());
@@ -137,7 +137,7 @@ inline std::vector<char> external_branch() {
 	}
 	require(bytes.size() == h.length);
 	reseal(bytes);
-	p::verify_page(bytes, reference(bytes));
+	p::verify_page(bytes, reference(bytes), p::Limits{});
 	return bytes;
 }
 } // namespace dense_test

@@ -48,8 +48,8 @@ int main() {
 		require(p::hash_counts() == p::HashCounts{0, 0, 1, 159, 0, 0});
 		const auto bytes = segment.bytes();
 		require(bytes->size() == 159 && bytes->data()[79] == 0);
-		p::verify_page({bytes->data(), 79}, first);
-		p::verify_page({bytes->data() + 80, 79}, second);
+		p::verify_page({bytes->data(), 79}, first, p::Limits{});
+		p::verify_page({bytes->data() + 80, 79}, second, p::Limits{});
 		require(segment.ownership().checksum == p::pack_commitment({bytes->data(), bytes->size()}));
 	}
 	require(account->used() == 0);

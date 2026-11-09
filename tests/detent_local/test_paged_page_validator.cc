@@ -25,7 +25,7 @@ int main() {
 			const auto before = p::hash_counts();
 			validate(source, page);
 			const auto after = p::hash_counts();
-			const auto header = p::decode_page_header(page.bytes);
+			const auto header = p::decode_page_header(page.bytes, p::Limits{});
 			check(after.page_calls == before.page_calls + 1 &&
 			      after.page_bytes == before.page_bytes + page.bytes.size() - 32 -
 			                              p::placement_bytes * header.externals);
@@ -83,16 +83,16 @@ int main() {
 		auto source = fixture(1000);
 		bool swapped = false;
 		for (auto page : source->pages) {
-			const auto node = p::decode_node(page.bytes, p::page_header_bytes);
+			const auto node = p::decode_node(page.bytes, p::page_header_bytes, p::Limits{});
 			if (node.kind != p::PageKind::Branch || (node.slot(0) & 0x8000) ||
 			    (node.slot(1) & 0x8000))
 				continue;
 			const auto at = node.slots.data() - page.bytes.data();
 			std::swap_ranges(page.bytes.begin() + at, page.bytes.begin() + at + 2,
 			                 page.bytes.begin() + at + 2);
-			auto header = p::decode_page_header(page.bytes);
-			header.digest = page.reference.digest = p::page_commitment(page.bytes);
-			const auto encoded = p::encode_page_header(header);
+			auto header = p::decode_page_header(page.bytes, p::Limits{});
+			header.digest = page.reference.digest = p::page_commitment(page.bytes, p::Limits{});
+			const auto encoded = p::encode_page_header(header, p::Limits{});
 			std::copy(encoded.begin(), encoded.end(), page.bytes.begin());
 			rejects<std::invalid_argument>([&] { validate(source, page); });
 			swapped = true;
@@ -104,7 +104,7 @@ int main() {
 	// but violates the height packer's boundary decisions.
 	auto source = fixture(1);
 	auto original = source->pages.back();
-	const auto node = p::decode_node(original.bytes, p::page_header_bytes);
+	const auto node = p::decode_node(original.bytes, p::page_header_bytes, p::Limits{});
 	check(node.kind == p::PageKind::Branch && node.labels.size() == 2);
 	p::PageHeader header;
 	header.length = 64 + 9 + 2 * p::child_bytes;
@@ -114,7 +114,7 @@ int main() {
 	header.height = 2;
 	Page malformed;
 	malformed.bytes.resize(header.length);
-	const auto encoded = p::encode_page_header(header);
+	const auto encoded = p::encode_page_header(header, p::Limits{});
 	std::copy(encoded.begin(), encoded.end(), malformed.bytes.begin());
 	malformed.bytes[64] = 1;
 	malformed.bytes[65] = 0;
@@ -135,15 +135,15 @@ int main() {
 		std::copy(placement.begin(), placement.end(),
 		          malformed.bytes.end() - 40 + p::placement_bytes * i);
 	}
-	header.digest = p::page_commitment(malformed.bytes);
-	const auto committed = p::encode_page_header(header);
+	header.digest = p::page_commitment(malformed.bytes, p::Limits{});
+	const auto committed = p::encode_page_header(header, p::Limits{});
 	std::copy(committed.begin(), committed.end(), malformed.bytes.begin());
 	malformed.reference = original.reference;
 	malformed.reference.length = header.length;
 	malformed.reference.keys = header.keys;
 	malformed.reference.height = header.height;
 	malformed.reference.digest = header.digest;
-	p::verify_page(malformed.bytes, malformed.reference);
+	p::verify_page(malformed.bytes, malformed.reference, p::Limits{});
 	rejects<std::invalid_argument>([&] { validate(source, malformed); });
 	std::cout << "dense incremental SHA, canonical boundaries and summary "
 	             "binding passed\n";

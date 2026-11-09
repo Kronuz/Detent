@@ -287,7 +287,7 @@ int main() {
 		require(image.descriptor().generation == generation && image.descriptor().cursor == cursor());
 		require(image.descriptor().checksum ==
 				p::metadata_commitment({image.bytes()->data(), image.bytes()->size()}));
-		require(p::state_commitment(p::decode_root({image.bytes()->data(), image.bytes()->size()})) == logical);
+		require(p::state_commitment(p::decode_root({image.bytes()->data(), image.bytes()->size()}, p::Limits{})) == logical);
 		auto lease =
 			std::allocate_shared<Lease>(d::StorageAllocator<Lease>(account), std::move(image), account);
 		l::detail::GraphValidator validator(account, lease, lease->segments, lease->image.root(), storage);

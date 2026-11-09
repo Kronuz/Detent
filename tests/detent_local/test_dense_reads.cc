@@ -66,7 +66,7 @@ void warm_skips() {
   root.tree.offset = 0;
   root.segments = 2;
   std::array<x::SegmentInput, 1> added{{{ownership, *bytes}}};
-  check(p::decode_page_header(*bytes).externals > 1);
+  check(p::decode_page_header(*bytes, p::Limits{}).externals > 1);
   {
     const auto before = p::hash_counts();
     x::WarmGraphValidator warm(account, recovered, bytes, added, root);
@@ -98,17 +98,17 @@ void warm_skips() {
   }
   for (unsigned field : {32u, 40u, 44u}) {
     bytes->assign(original.begin(), original.end());
-    const auto header = p::decode_page_header(*bytes);
+    const auto header = p::decode_page_header(*bytes, p::Limits{});
     const auto content = bytes->size() - p::child_bytes * header.externals;
     if (field == 32)
       l::write_integer(*bytes, content + field,
-                       p::decode_external(*bytes, 0).keys + 1, 8);
+                       p::decode_external(*bytes, 0, p::Limits{}).keys + 1, 8);
     else if (field == 40)
       l::write_integer(*bytes, content + field,
-                       p::decode_external(*bytes, 0).length + 1, 4);
+                       p::decode_external(*bytes, 0, p::Limits{}).length + 1, 4);
     else
       ++(*bytes)[content + field];
-    root.tree.digest = p::page_commitment(*bytes);
+    root.tree.digest = p::page_commitment(*bytes, p::Limits{});
     std::copy(root.tree.digest.begin(), root.tree.digest.end(),
               bytes->begin() + 32);
     added[0].ownership.checksum = p::pack_commitment(*bytes);
@@ -139,7 +139,7 @@ void fuzz_sample(std::uint64_t &seed) {
     page[random() % page.size()] ^= static_cast<char>(1 + random() % 255);
   if (random() & 1) {
     try {
-      const auto digest = p::page_commitment(page);
+      const auto digest = p::page_commitment(page, p::Limits{});
       std::copy(digest.begin(), digest.end(), page.begin() + 32);
       if (reference == source->root.tree)
         source->root.tree.digest = digest;
@@ -172,7 +172,7 @@ void fuzz_sample(std::uint64_t &seed) {
   }
   tolerate_corruption([&] {
     auto expected = reference;
-    const auto header = p::decode_page_header(page);
+    const auto header = p::decode_page_header(page, p::Limits{});
     expected.digest = header.digest;
     expected.keys = header.keys;
     expected.height = header.height;
@@ -209,7 +209,7 @@ void fuzz_warm_sample(std::uint64_t &seed) {
   try {
     auto root = base.source->root;
     ++root.cursor.revision;
-    const auto digest = p::page_commitment(*bytes);
+    const auto digest = p::page_commitment(*bytes, p::Limits{});
     std::copy(digest.begin(), digest.end(), bytes->begin() + 32);
     l::SegmentOwnership ownership;
     ownership.storage = base.source->storage;
@@ -247,7 +247,7 @@ void mutation(unsigned kind) {
   const auto offset = source->root.tree.offset;
   auto root =
       std::span<char>(source->bytes).subspan(offset, source->root.tree.length);
-  const auto node = p::decode_node(root, p::page_header_bytes);
+  const auto node = p::decode_node(root, p::page_header_bytes, p::Limits{});
   if (kind == 0)
     l::write_integer(root, 12, 0x7fff, 2);
   else if (kind == 1)
@@ -301,7 +301,7 @@ void mapped_mutation(unsigned variant) {
       interior.offset += 8;
       rejects<l::detail::ReadSourceFailure>([&] { access->resolve(interior); });
     } else {
-      const auto node = p::decode_node(root_bytes, 64);
+      const auto node = p::decode_node(root_bytes, 64, p::Limits{});
       std::size_t at = root_offset + 64;
       std::array<char, 2> replacement{};
       std::size_t size = 1;
@@ -431,7 +431,7 @@ int main(int argc, char **argv) {
             .subspan(source->root.tree.offset, source->root.tree.length);
     std::size_t node_at = p::page_header_bytes;
     for (;;) {
-      const auto node = p::decode_node(bytes, node_at);
+      const auto node = p::decode_node(bytes, node_at, p::Limits{});
       if (node.body.data() == body->data())
         break;
       node_at = node.end;

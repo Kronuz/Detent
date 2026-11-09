@@ -88,7 +88,7 @@ void PagedCursor::step(ValidationBudget &budget) {
 					if (index == segments.size())
 						throw std::logic_error("missing checked cursor segment");
 					frame.bytes = checked_page_bytes(segments[index], frame.reference);
-					frame.header = p::decode_page_header(frame.bytes);
+					frame.header = p::decode_page_header(frame.bytes, paged_format_limits());
 				}
 				frame.node = p::decode_node(frame.bytes, frame.offset, paged_format_limits());
 				if (!s.grant(frame.node.end - frame.offset, budget))

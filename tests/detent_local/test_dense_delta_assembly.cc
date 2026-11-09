@@ -477,6 +477,19 @@ int main(int argc, char **argv) {
 			  {{key("ns:w7"), target.at(key("ns:w7"))}, {key("ns:w300"), std::nullopt}});
 		check(account, many, many_rows, {}, true);
 	}
+	// More keys than default limits admit in one page: the overlay walks the root's externals
+	// with the limits it was given.
+	{
+		auto large = std::make_shared<d::StorageLedger>(2ull * 1024 * 1024 * 1024);
+		Rows wide{{key("ns", true), std::vector<char>(8)}};
+		for (std::uint32_t i = 0; i < p::Limits{}.records + p::Limits{}.namespaces; ++i)
+			wide[key("ns:k" + std::to_string(i))] = encoded(detent::IntDef{std::int64_t(i)});
+		auto big = std::make_shared<Base>(Full(large).build(wide));
+		require(big->root.tree.keys > std::uint64_t(p::Limits{}.records) + p::Limits{}.namespaces);
+		const auto changed = key("ns:k7");
+		wide[changed] = encoded(detent::IntDef{-7});
+		check(large, big, wide, {{changed, wide.at(changed)}}, false, 8192, "one-update/504k");
+	}
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
 	l::write_integer(rows.at(key("ns", true)), 0, 17, 8);
 	for (unsigned i = 0; i < 2000; ++i)

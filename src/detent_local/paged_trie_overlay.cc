@@ -22,12 +22,12 @@ struct TrieOverlay::Impl {
 		std::uint8_t label(std::size_t index) const {
 			return old ? static_cast<unsigned char>(node.labels[index]) : children[index].label;
 		}
-		OverlayReference child(std::size_t index) const {
+		OverlayReference child(std::size_t index, const p::Limits &limits) const {
 			if (!old)
 				return children[index].reference;
 			const auto slot = node.slot(index);
 			if (slot & 0x8000)
-				return {p::decode_external(bytes, slot & 0x7fff)};
+				return {p::decode_external(bytes, slot & 0x7fff, limits)};
 			if (slot < node.end)
 				throw std::invalid_argument("overlay inline slot does not progress");
 			return {old, nullptr, slot};
@@ -271,7 +271,7 @@ struct TrieOverlay::Impl {
 						return;
 					std::construct_at(frame.node->children.data() + frame.copied,
 									  OverlayChild{frame.view.label(frame.copied),
-												   frame.view.child(frame.copied)});
+												   frame.view.child(frame.copied, limits)});
 					++frame.copied;
 					frame.node->children = {frame.node->children.data(), frame.copied};
 				}
@@ -288,7 +288,7 @@ struct TrieOverlay::Impl {
 					return;
 				if (relocation->depth == relocation->frames.size())
 					throw std::length_error("compaction path depth exceeded");
-				const auto child = frame.view.child(frame.next++);
+				const auto child = frame.view.child(frame.next++, limits);
 				relocation->frames[relocation->depth++] = RelocationFrame{child};
 				continue;
 			}
@@ -479,7 +479,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
 				if (s.depth == s.frames.size())
 					throw std::length_error("overlay path depth");
 				s.frames[s.depth++] = {s.current, low, label};
-				s.current = s.view.child(low);
+				s.current = s.view.child(low, s.limits);
 				break;
 			}
 			case Phase::Convert:
@@ -495,7 +495,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
 						return;
 					auto data = s.converted->children.data();
 					std::construct_at(data + s.copy,
-									  OverlayChild{s.view.label(s.copy), s.view.child(s.copy)});
+									  OverlayChild{s.view.label(s.copy), s.view.child(s.copy, s.limits)});
 					++s.copy;
 					s.converted->children = {data, s.copy};
 					break;

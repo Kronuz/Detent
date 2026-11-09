@@ -337,7 +337,7 @@ int main() {
 		summary.keys *= 2;
 		++summary.height;
 		const auto header = p::encode_page_header({summary.length, 2, 1, summary.keys,
-												  summary.height, {}});
+												  summary.height, {}}, p::Limits{});
 		std::copy(header.begin(), header.end(), encoded.begin());
 		const auto node = p::page_header_bytes;
 		encoded[node] = static_cast<char>(p::PageKind::Branch);
@@ -354,7 +354,7 @@ int main() {
 			std::copy(placement.begin(), placement.end(),
 					  encoded.end() - (2 - i) * p::placement_bytes);
 		}
-		summary.digest = p::page_commitment(encoded);
+		summary.digest = p::page_commitment(encoded, p::Limits{});
 		std::copy(summary.digest.begin(), summary.digest.end(), encoded.begin() + 32);
 		auto bytes = d::make_owned_buffer(account, encoded.size());
 		bytes->append({encoded.data(), encoded.size()});
@@ -382,7 +382,7 @@ int main() {
 		++bad.pages;
 		bad.bytes += reference.length;
 		++bad.segments;
-		p::encode_root(bad);
+		p::encode_root(bad, p::Limits{});
 		l::detail::WarmGraphValidator validator(account, recovered, segment.bytes(), added, bad);
 		bool rejected = false;
 		try {

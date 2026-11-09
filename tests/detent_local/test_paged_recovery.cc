@@ -47,7 +47,7 @@ int main() {
 		auto empty = image.root();
 		empty.bytes = empty.pages = empty.segments = empty.records = empty.namespaces = 0;
 		empty.tree = {};
-		auto bytes = p::encode_root(empty);
+		auto bytes = p::encode_root(empty, p::Limits{});
 		auto descriptor = image.descriptor();
 		descriptor.generation.fill('e');
 		descriptor.checksum = p::metadata_commitment(bytes);

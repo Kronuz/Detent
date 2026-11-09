@@ -303,7 +303,7 @@ void embedded(const std::filesystem::path &directory) {
 	check(page.size() >= 80);
 	bool refused = false;
 	try {
-		l::paged::decode_page_header(page);
+		l::paged::decode_page_header(page, l::paged::Limits{});
 	} catch (const l::paged::UnsupportedFormat &) {
 		refused = true;
 	}
@@ -326,7 +326,7 @@ void embedded(const std::filesystem::path &directory) {
 	root.bytes = page.size();
 	root.tree = {segment, 0, static_cast<std::uint32_t>(page.size()), 1, 1, {}};
 	root.tree.digest.fill('d');
-	const auto bytes = l::paged::encode_root(root);
+	const auto bytes = l::paged::encode_root(root, l::paged::Limits{});
 	auto descriptor = image.descriptor();
 	descriptor.checksum = l::paged::metadata_commitment(bytes);
 	const auto name = l::generation_name(generation);

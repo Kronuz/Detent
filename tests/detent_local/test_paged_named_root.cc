@@ -58,7 +58,7 @@ int main() {
 		require(std::filesystem::remove(directory / "selected"));
 		auto other_root = image.root();
 		++other_root.cursor.revision;
-		const auto other_bytes = l::paged::encode_root(other_root);
+		const auto other_bytes = l::paged::encode_root(other_root, l::paged::Limits{});
 		l::GenerationId other_generation;
 		other_generation.fill('n');
 		const l::Descriptor other_descriptor{other_generation, l::paged::root_bytes,

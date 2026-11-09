@@ -46,11 +46,11 @@ int main() {
 							"7373737373737373737373737373737373737373737373737373737373737373 "
 							"00000001 00000000 0000000000000001");
 	exact_root.resize(320);
-	require(std::ranges::equal(p::encode_root(root), exact_root));
-	require(p::state_commitment(p::decode_root(exact_root)) == empty_digest);
+	require(std::ranges::equal(p::encode_root(root, p::Limits{}), exact_root));
+	require(p::state_commitment(p::decode_root(exact_root, p::Limits{})) == empty_digest);
 	auto page = watermark();
 	auto ref = reference(page);
-	p::verify_page(page, ref);
+	p::verify_page(page, ref, p::Limits{});
 	const auto exact_page =
 		unhex("4454504147453033 0000004f 0000 0001 0000000000000001 01 00000000000000 "
 			  "0000000000000000000000000000000000000000000000000000000000000000 "
@@ -72,10 +72,10 @@ int main() {
 		unhex("73737373737373737373737373737373 00000000 0000004f 0000000000000001 01 "
 			  "fb64e273fec41c4270b4fdbb7323570be428ae4660eaeb88d819fdf2fa411599");
 	std::copy(ref_bytes.begin(), ref_bytes.end(), nonempty.begin() + 160);
-	require(std::ranges::equal(p::encode_root(root), nonempty));
-	require(p::decode_root(nonempty).tree == ref && p::state_commitment(root) == ref.digest);
+	require(std::ranges::equal(p::encode_root(root, p::Limits{}), nonempty));
+	require(p::decode_root(nonempty, p::Limits{}).tree == ref && p::state_commitment(root) == ref.digest);
 	for (auto state : {empty_root(), root, empty_root(), root}) {
-		const auto decoded = p::decode_root(p::encode_root(state));
+		const auto decoded = p::decode_root(p::encode_root(state, p::Limits{}), p::Limits{});
 		require(decoded.tree == state.tree && decoded.cursor == state.cursor &&
 				decoded.profile == state.profile &&
 				p::state_commitment(decoded) == p::state_commitment(state));
@@ -85,51 +85,51 @@ int main() {
 			for (const auto &seed : {exact_root, nonempty}) {
 				auto bad = seed;
 				bad[i] = 1;
-				rejects([&] { p::decode_root(bad); });
+				rejects([&] { p::decode_root(bad, p::Limits{}); });
 			}
 		}
 	}
 	for (std::size_t i = 25; i < 32; ++i) {
 		auto bad = page;
 		bad[i] = 1;
-		rejects([&] { p::decode_page_header(bad); });
+		rejects([&] { p::decode_page_header(bad, p::Limits{}); });
 	}
 	for (auto field : {8u, 12u, 14u, 16u, 24u, 64u, 65u, 66u}) {
 		auto bad = page;
 		bad[field] = static_cast<char>(255);
 		rejects([&] {
 			reseal(bad);
-			p::verify_page(bad, reference(bad));
+			p::verify_page(bad, reference(bad), p::Limits{});
 		});
 	}
 	for (auto &summary : {ref}) {
 		auto bad = summary;
 		++bad.keys;
-		rejects([&] { p::verify_page(page, bad); });
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
 		bad = summary;
 		++bad.height;
-		rejects([&] { p::verify_page(page, bad); });
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
 		bad = summary;
 		++bad.length;
-		rejects([&] { p::verify_page(page, bad); });
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
 	}
 	for (std::size_t i = 0; i < page.size(); ++i) {
 		auto bad = page;
 		bad[i] ^= 1;
-		rejects([&] { p::verify_page(bad, ref); });
+		rejects([&] { p::verify_page(bad, ref, p::Limits{}); });
 	}
 	auto old = nonempty;
 	old[7] = '2';
-	rejects([&] { p::decode_root(old); });
+	rejects([&] { p::decode_root(old, p::Limits{}); });
     l::write_integer(old, 8, 2, 4);
-    try { p::decode_root(old); require(false); } catch (const p::UnsupportedFormat &) {}
+    try { p::decode_root(old, p::Limits{}); require(false); } catch (const p::UnsupportedFormat &) {}
     old[7] = '4';
-    try { p::decode_root(old); require(false); }
+    try { p::decode_root(old, p::Limits{}); require(false); }
     catch (const p::UnsupportedFormat &) { require(false); }
     catch (const std::invalid_argument &) {}
 	old = page;
 	old[7] = '2';
-	rejects([&] { p::verify_page(old, ref); });
+	rejects([&] { p::verify_page(old, ref, p::Limits{}); });
 	auto parent = external_branch();
 	const auto parent_ref = reference(parent);
 	for (auto index : {0u, 1u}) {
@@ -138,35 +138,35 @@ int main() {
 			auto bad = parent;
 			l::write_integer(bad, content + 40, value, 4);
 			reseal(bad);
-			rejects([&] { p::verify_page(bad, reference(bad)); });
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
 		}
 		for (auto height : {0u, 255u}) {
 			auto bad = parent;
 			bad[content + 44] = static_cast<char>(height);
 			reseal(bad);
-			rejects([&] { p::verify_page(bad, reference(bad)); });
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
 		}
 		auto bad = parent;
 		l::write_integer(bad, content + 32, 2, 8);
 		reseal(bad);
-		rejects([&] { p::verify_page(bad, reference(bad)); });
+		rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
 		l::write_integer(bad, 16, 4, 8);
 		reseal(bad);
-		p::verify_page(bad, reference(bad));
-		const auto false_keys = p::decode_external(bad, index);
-		rejects([&] { p::verify_page(page, false_keys); });
+		p::verify_page(bad, reference(bad), p::Limits{});
+		const auto false_keys = p::decode_external(bad, index, p::Limits{});
+		rejects([&] { p::verify_page(page, false_keys, p::Limits{}); });
 		bad = parent;
 		bad[content + 44] = 2;
 		bad[24] = 3;
 		reseal(bad);
-		p::verify_page(bad, reference(bad));
-		const auto false_height = p::decode_external(bad, index);
-		rejects([&] { p::verify_page(page, false_height); });
+		p::verify_page(bad, reference(bad), p::Limits{});
+		const auto false_height = p::decode_external(bad, index, p::Limits{});
+		rejects([&] { p::verify_page(page, false_height, p::Limits{}); });
 		for (std::size_t reserved = 45; reserved < 48; ++reserved) {
 			bad = parent;
 			bad[content + reserved] = 1;
 			reseal(bad);
-			rejects([&] { p::verify_page(bad, reference(bad)); });
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
 		}
 	}
 	for (auto field : {12u, 13u, 70u, 72u, 74u}) {
@@ -174,17 +174,17 @@ int main() {
 		bad[field] = static_cast<char>(255);
 		rejects([&] {
 			reseal(bad);
-			p::verify_page(bad, reference(bad));
+			p::verify_page(bad, reference(bad), p::Limits{});
 		});
 	}
 	auto moved = parent;
 	l::write_integer(moved, moved.size() - 4, 88, 4);
-	require(p::page_commitment(moved) == parent_ref.digest);
-	p::verify_page(moved, parent_ref);
+	require(p::page_commitment(moved, p::Limits{}) == parent_ref.digest);
+	p::verify_page(moved, parent_ref, p::Limits{});
 	p::reset_hash_counts();
-	p::verify_page_structure(parent, parent_ref);
+	p::verify_page_structure(parent, parent_ref, p::Limits{});
 	require(p::hash_counts() == p::HashCounts{});
-	p::verify_page(parent, parent_ref);
+	p::verify_page(parent, parent_ref, p::Limits{});
 	require(p::hash_counts() == p::HashCounts{1, parent.size() - 32 - 40, 0, 0, 0, 0});
 	p::pack_commitment(parent);
 	p::metadata_commitment(parent);

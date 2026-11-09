@@ -127,19 +127,19 @@ struct Fixture {
         const auto &reference = page_references[i];
         const auto group = std::ranges::find(identities, reference.segment) - identities.begin();
         auto bytes = std::span<char>(packs[group]).subspan(reference.offset, reference.length);
-        const auto header = p::decode_page_header(bytes);
+        const auto header = p::decode_page_header(bytes, p::Limits{});
         for (unsigned j = 0; j < header.externals; ++j) {
-          const auto placement = p::encode_placement(relocated(p::decode_external(bytes, j)));
+          const auto placement = p::encode_placement(relocated(p::decode_external(bytes, j, p::Limits{})));
           std::copy(placement.begin(), placement.end(),
                     bytes.end() - p::placement_bytes * (header.externals - j));
         }
-        p::verify_page(bytes, reference);
+        p::verify_page(bytes, reference, p::Limits{});
       }
       root.tree = relocated(root.tree);
       root.segments = packs.size();
       auto find_definitions = [&](std::span<const char> bytes, std::size_t offset,
                                   std::string path, p::Reference owner, auto &self) -> void {
-        const auto node = p::decode_node(bytes, offset);
+        const auto node = p::decode_node(bytes, offset, p::Limits{});
         path += node.prefix;
         if (node.kind == p::PageKind::Definition) {
           const auto key = p::decode_key(path);
@@ -149,7 +149,7 @@ struct Fixture {
         for (unsigned i = 0; i < node.labels.size(); ++i) {
           const auto slot = node.slot(i);
           if (slot & 0x8000) {
-            const auto child = p::decode_external(bytes, slot & 0x7fff);
+            const auto child = p::decode_external(bytes, slot & 0x7fff, p::Limits{});
             const auto group = std::ranges::find(identities, child.segment) - identities.begin();
             self(std::span<const char>(packs[group]).subspan(child.offset, child.length),
                  p::page_header_bytes, path + node.labels[i], child, self);
@@ -193,7 +193,7 @@ struct Fixture {
       l::ValidationBudget budget;
       proof.step(budget);
     }
-    const auto image = p::encode_root(root);
+    const auto image = p::encode_root(root, p::Limits{});
     const auto checksum = p::metadata_commitment(image);
     l::Descriptor descriptor{generation, p::root_bytes, checksum, root.cursor,
                              root.profile};

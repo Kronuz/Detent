@@ -57,7 +57,7 @@ struct Key {
 Key decode_key(std::string_view);
 // Hashes [0,32) and [64,L-20E); framing must be valid before deriving these
 // ranges.
-Digest page_commitment(std::span<const char>, Limits = {});
+Digest page_commitment(std::span<const char>, Limits);
 std::uint64_t page_digests() noexcept;
 enum class HashKind { Page, Pack, Metadata };
 struct HashCounts {
@@ -74,11 +74,11 @@ std::array<char, reference_bytes> encode_reference(const Reference &);
 Reference decode_reference(std::span<const char>);
 std::array<char, content_bytes> encode_content(const Reference &);
 std::array<char, placement_bytes> encode_placement(const Reference &);
-Reference decode_external(std::span<const char>, std::uint16_t index, Limits = {});
-std::array<char, page_header_bytes> encode_page_header(const PageHeader &, Limits = {});
-PageHeader decode_page_header(std::span<const char>, Limits = {});
-std::array<char, root_bytes> encode_root(const Root &, Limits = {});
-Root decode_root(std::span<const char>, Limits = {});
+Reference decode_external(std::span<const char>, std::uint16_t index, Limits);
+std::array<char, page_header_bytes> encode_page_header(const PageHeader &, Limits);
+PageHeader decode_page_header(std::span<const char>, Limits);
+std::array<char, root_bytes> encode_root(const Root &, Limits);
+Root decode_root(std::span<const char>, Limits);
 struct NodeView {
 	PageKind kind;
 	std::string_view prefix;
@@ -87,9 +87,9 @@ struct NodeView {
 	std::uint16_t slot(std::size_t index) const;
 };
 // Bounds each visited node against the current header and table boundaries.
-NodeView decode_node(std::span<const char>, std::size_t offset, Limits = {});
+NodeView decode_node(std::span<const char>, std::size_t offset, Limits);
 // Verifies digest, reference summaries and exact preorder structure without
 // allocation.
-void verify_page_structure(std::span<const char>, const Reference &, Limits = {});
-void verify_page(std::span<const char>, const Reference &, Limits = {});
+void verify_page_structure(std::span<const char>, const Reference &, Limits);
+void verify_page(std::span<const char>, const Reference &, Limits);
 } // namespace detent::local::paged

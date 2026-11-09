@@ -75,7 +75,7 @@ int main() {
 		if (variant == 13) {
 			auto root = image.root();
 			++root.cursor.revision;
-			const auto encoded = l::paged::encode_root(root);
+			const auto encoded = l::paged::encode_root(root, l::paged::Limits{});
 			l::GenerationId historical{};
 			historical.fill('h');
 			write(directory / (l::generation_name(historical) + ".image"), encoded);

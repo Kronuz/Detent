@@ -59,7 +59,7 @@ struct Graph {
 		f->bytes.assign(reference.length, 0);
 		p::PageHeader header{reference.length, std::uint16_t(external ? 1 : 0), count,
 							 reference.keys, reference.height, reference.digest};
-		const auto encoded = p::encode_page_header(header);
+		const auto encoded = p::encode_page_header(header, p::Limits{});
 		std::copy(encoded.begin(), encoded.end(), f->bytes.begin());
 		std::copy(nodes.begin(), nodes.end(), f->bytes.begin() + p::page_header_bytes);
 		if (external) {

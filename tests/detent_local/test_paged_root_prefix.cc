@@ -8,7 +8,7 @@ int main() {
 	root.namespaces = root.pages = root.segments = 1;
 	root.bytes = page.size();
 	root.tree = reference(page);
-	const auto encoded = p::encode_root(root);
+	const auto encoded = p::encode_root(root, p::Limits{});
 	for (std::size_t n = 0; n <= encoded.size(); ++n) {
 		const auto scope = l::detail::validate_paged_root_prefix(std::span(encoded).first(n));
 		require(bool(scope) == (n >= 160));
@@ -55,7 +55,7 @@ int main() {
 		changed[11] = 2;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(16)); });
 	}
-	const auto blank = p::encode_root(empty_root());
+	const auto blank = p::encode_root(empty_root(), p::Limits{});
 	for (std::size_t n = 0; n <= blank.size(); ++n)
 		l::detail::validate_paged_root_prefix(std::span(blank).first(n));
 	for (const auto offset : {16u, 24u, 28u, 40u, 160u, 224u, 225u, 248u, 319u}) {
@@ -70,7 +70,7 @@ int main() {
 		dense.records = 10;
 		dense.tree.keys = 11;
 		dense.bytes = dense.tree.length = 1024;
-		const auto bytes = p::encode_root(dense);
+		const auto bytes = p::encode_root(dense, p::Limits{});
 		for (std::size_t n = 0; n <= bytes.size(); ++n)
 			l::detail::validate_paged_root_prefix(std::span(bytes).first(n));
 	}

@@ -135,7 +135,7 @@ int main() {
 		header.length = p::page_header_bytes + 4 + prefix.size() + watermark.size();
 		auto bytes = d::make_owned_buffer(fixture->heap, header.length);
 		bytes->resize(header.length);
-		auto encoded = p::encode_page_header(header);
+		auto encoded = p::encode_page_header(header, p::Limits{});
 		std::copy(encoded.begin(), encoded.end(), bytes->mutable_bytes().begin());
 		bytes->mutable_bytes()[64] = static_cast<char>(p::PageKind::Namespace);
 		bytes->mutable_bytes()[65] = static_cast<char>(prefix.size());
@@ -143,8 +143,8 @@ int main() {
 		std::copy(prefix.begin(), prefix.end(), bytes->mutable_bytes().begin() + 68);
 		std::copy(watermark.begin(), watermark.end(),
 		          bytes->mutable_bytes().begin() + 68 + prefix.size());
-		header.digest = p::page_commitment(bytes->mutable_bytes());
-		encoded = p::encode_page_header(header);
+		header.digest = p::page_commitment(bytes->mutable_bytes(), p::Limits{});
+		encoded = p::encode_page_header(header, p::Limits{});
 		std::copy(encoded.begin(), encoded.end(), bytes->mutable_bytes().begin());
 		bytes->seal();
 		p::Reference summary;

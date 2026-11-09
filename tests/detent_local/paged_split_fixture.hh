@@ -20,11 +20,11 @@ struct SplitPagedInput {
 			if (index == original.size())
 				throw std::logic_error("split fixture segment missing");
 			const auto bytes = detail::checked_page_bytes(original[index], reference);
-			const auto h = paged::decode_page_header(bytes);
+			const auto h = paged::decode_page_header(bytes, paged::Limits{});
 			auto buffer = distribution::make_owned_buffer(heap, bytes.size());
 			buffer->append({bytes.data(), bytes.size()});
 			for (std::size_t i = 0; i < h.externals; ++i) {
-				const auto child = copy(paged::decode_external(bytes, i));
+				const auto child = copy(paged::decode_external(bytes, i, paged::Limits{}));
 				const auto placement = paged::encode_placement(child);
 				std::copy(placement.begin(), placement.end(),
 						  buffer->mutable_bytes().end() -

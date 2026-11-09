@@ -171,7 +171,7 @@ void publish_window() {
 
 void mark_window() {
 	Harness harness(std::make_shared<Fixture>(2, 256));
-	const auto reference = p::decode_external(harness.expected(harness.fixture->root.tree), 0);
+	const auto reference = p::decode_external(harness.expected(harness.fixture->root.tree), 0, p::Limits{});
 	auto neighbour = harness.fixture->root.tree;
 	harness.access->resolve(neighbour);
 	check(harness.access->page_verifications() == 1);
@@ -293,9 +293,9 @@ std::vector<p::Reference> all_pages(const Fixture &fixture) {
 			if (segment.ownership.segment != reference.segment)
 				continue;
 			const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
-			const auto header = p::decode_page_header(bytes);
+			const auto header = p::decode_page_header(bytes, p::Limits{});
 			for (unsigned i = 0; i != header.externals; ++i)
-				self(p::decode_external(bytes, i), self);
+				self(p::decode_external(bytes, i, p::Limits{}), self);
 		}
 	};
 	walk(fixture.root.tree, walk);

@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 			++historical.cursor.revision;
 			l::GenerationId id{};
 			id.fill('h');
-			const auto root = l::paged::encode_root(historical);
+			const auto root = l::paged::encode_root(historical, l::paged::Limits{});
 			write(directory / (l::generation_name(id) + ".image"), root);
 			write(directory / (l::generation_name(id) + ".lease"),
 				  l::encode_generation_ownership(

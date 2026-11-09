@@ -291,10 +291,10 @@ static void boundary_checks() {
 	packer.finish();
 	advance(packer, sink, 1);
 	require(sink.pages.size() == 1 && sink.pages[0].bytes.size() == p::page_capacity);
-	const auto original = p::page_commitment(sink.pages[0].bytes);
+	const auto original = p::page_commitment(sink.pages[0].bytes, p::Limits{});
 	auto changed = sink.pages[0].bytes;
 	changed[24] = 2;
-	require(p::page_commitment(changed) != original);
+	require(p::page_commitment(changed, p::Limits{}) != original);
 }
 static void injection_checks() {
 	auto account = std::make_shared<d::StorageLedger>(4 * 1024 * 1024);
@@ -319,8 +319,8 @@ static void injection_checks() {
 		manual(packer, sink, p::PageKind::Branch, {}, {}, labels, 2);
 		packer.finish();
 		advance(packer, sink, 1);
-		const auto root = p::decode_node(sink.pages[0].bytes, 64);
-		const auto node = p::decode_node(sink.pages[0].bytes, root.slot(0));
+		const auto root = p::decode_node(sink.pages[0].bytes, 64, p::Limits{});
+		const auto node = p::decode_node(sink.pages[0].bytes, root.slot(0), p::Limits{});
 		require(node.kind == p::PageKind::Namespace && node.body.size() == 8 &&
 				sink.pages[0].reference.keys == 2);
 	}
@@ -419,11 +419,11 @@ int main(int argc, char **argv) {
 	root.tree = alone.pages[0].reference;
 	root.pages = root.segments = root.namespaces = 1;
 	root.bytes = 79;
-	require(p::state_commitment(p::decode_root(p::encode_root(root))) == root.tree.digest);
+	require(p::state_commitment(p::decode_root(p::encode_root(root, p::Limits{}), p::Limits{})) == root.tree.digest);
 	root = empty_root();
 	rows->clear();
 	require(run(rows).pages.empty());
-	require(p::state_commitment(p::decode_root(p::encode_root(root))) == p::empty_commitment());
+	require(p::state_commitment(p::decode_root(p::encode_root(root, p::Limits{}), p::Limits{})) == p::empty_commitment());
 	rows->push_back({std::string("Wa\0", 3), {watermark.begin(), watermark.end()}});
 	require(run(rows).pages[0].bytes == alone.pages[0].bytes);
 	auto large = wide(p::page_bytes - 80);
@@ -436,7 +436,7 @@ int main(int argc, char **argv) {
 	}
 	auto small = wide(60);
 	require(small.pages.size() == 1 && small.pages[0].bytes.size() > p::page_capacity);
-	require(p::decode_page_header(small.pages[0].bytes).nodes == 257);
+	require(p::decode_page_header(small.pages[0].bytes, p::Limits{}).nodes == 257);
 	require(wide(64).pages.size() == 1);
 	boundary_checks();
 	injection_checks();

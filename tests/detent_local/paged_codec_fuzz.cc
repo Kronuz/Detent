@@ -5,13 +5,13 @@ using namespace dense_test;
 void walk(std::span<const char> bytes, std::span<const std::uint8_t> input) {
 	std::size_t offset = p::page_header_bytes;
 	for (std::size_t visited = 0; visited <= 202; ++visited) {
-		const auto node = p::decode_node(bytes, offset);
+		const auto node = p::decode_node(bytes, offset, p::Limits{});
 		if (node.kind != p::PageKind::Branch)
 			return;
 		const auto child = input.empty() ? 0 : input[visited % input.size()] % node.labels.size();
 		const auto slot = node.slot(child);
 		if (slot & 0x8000) {
-			p::decode_external(bytes, slot & 0x7fff);
+			p::decode_external(bytes, slot & 0x7fff, p::Limits{});
 			return;
 		}
 		if (slot <= offset)
@@ -22,8 +22,8 @@ void walk(std::span<const char> bytes, std::span<const std::uint8_t> input) {
 }
 void probe(std::span<const char> bytes, std::span<const std::uint8_t> input) {
 	try {
-		const auto root = p::decode_root(bytes);
-		if (!std::ranges::equal(p::encode_root(root), bytes))
+		const auto root = p::decode_root(bytes, p::Limits{});
+		if (!std::ranges::equal(p::encode_root(root, p::Limits{}), bytes))
 			std::abort();
 	} catch (const std::invalid_argument &) {
 	}
@@ -35,7 +35,7 @@ void probe(std::span<const char> bytes, std::span<const std::uint8_t> input) {
 	}
 	try {
 		const auto ref = reference(bytes);
-		p::verify_page(bytes, ref);
+		p::verify_page(bytes, ref, p::Limits{});
 		walk(bytes, input);
 	} catch (const std::invalid_argument &) {
 	}

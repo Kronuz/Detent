@@ -69,7 +69,7 @@ void run(std::size_t choice) {
 			inputs.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 		auto split = std::make_shared<l::testing::SplitPagedInput>(heap, inputs, image.root(),
 																   storage, split_generation);
-		const auto encoded = l::paged::encode_root(split->root);
+		const auto encoded = l::paged::encode_root(split->root, l::paged::Limits{});
 		l::Descriptor descriptor{generation, encoded.size(), l::paged::metadata_commitment(encoded),
 								 split->root.cursor, split->root.profile};
 		std::filesystem::create_directories(directory);

@@ -271,7 +271,7 @@ int main() {
 				auto pressure = mappings->admit(mappings->limit() - baseline - needed);
 				auto invalid = plan->root();
 				++invalid.bytes;
-				const auto bytes = l::paged::encode_root(invalid);
+				const auto bytes = l::paged::encode_root(invalid, l::paged::Limits{});
 				auto descriptor = plan->descriptor();
 				descriptor.checksum = l::paged::metadata_commitment(bytes);
 				const auto name = l::generation_name(next);

@@ -63,7 +63,7 @@ int main() {
 		auto source = fixture(1000);
 		const auto root_offset = source->root.tree.offset;
 		const auto header = p::decode_page_header(
-		    std::span<const char>(source->bytes).subspan(root_offset, source->root.tree.length));
+		    std::span<const char>(source->bytes).subspan(root_offset, source->root.tree.length), p::Limits{});
 		check(header.externals > 0);
 		// Change a child's summary and rehash its parent, preserving the file
 		// checksum.
@@ -75,7 +75,7 @@ int main() {
 			++source->bytes[content + 44];
 		auto root_page =
 		    std::span<char>(source->bytes).subspan(root_offset, source->root.tree.length);
-		source->root.tree.digest = p::page_commitment(root_page);
+		source->root.tree.digest = p::page_commitment(root_page, p::Limits{});
 		std::copy(source->root.tree.digest.begin(), source->root.tree.digest.end(),
 		          root_page.begin() + 32);
 		source->refresh();

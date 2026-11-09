@@ -432,7 +432,7 @@ void stale_rows(const fs::path &root) {
 	std::ifstream image(scratch / std::string(x::GenerationName(selected(scratch).generation, x::GenerationFile::Image).view()),
 						std::ios::binary);
 	std::vector<char> root_bytes{std::istreambuf_iterator<char>(image), {}};
-	const auto tree = l::paged::decode_root(root_bytes).tree.segment;
+	const auto tree = l::paged::decode_root(root_bytes, l::paged::Limits{}).tree.segment;
 	bool swapped = false;
 	rewrite_live(live_path(scratch), [&](x::LiveRecord &record) {
 		for (auto &row : record.rows)
