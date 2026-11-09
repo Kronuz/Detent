@@ -1357,6 +1357,8 @@
     "namespace-s1-s2": {
       "accepted": {},
       "after": [],
+      "base": "aad46758246e5797892fa9274cb2b4d0044accc0",
+      "branch": "quest/detent/namespace-s1-s2",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1423,9 +1425,10 @@
       "reason": "Parked 2026-11-05; evidence complete 2026-11-07; waits for the architect's durability review, a merge of main with the D24 pins, and CI",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-08T17:30:07"
+      "updated": "2026-11-08T21:20:05",
+      "worktree": "../Detent-wt/detent/namespace-s1-s2"
     },
     "namespace-s3": {
       "accepted": {},
