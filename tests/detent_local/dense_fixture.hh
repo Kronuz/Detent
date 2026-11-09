@@ -13,6 +13,17 @@ inline void require(bool value, std::source_location location = std::source_loca
 		throw std::runtime_error(std::string(location.file_name()) + ":" +
 								 std::to_string(location.line()) + ": dense page invariant");
 }
+// Format limits that admit a whole corpus: the defaults, raised to its key counts, twice its key
+// count in pages and 4 GiB of page bytes.
+inline p::Limits corpus_limits(std::uint64_t records, std::uint64_t namespaces) {
+	p::Limits limits;
+	require(records <= UINT32_MAX && namespaces <= UINT32_MAX);
+	limits.records = std::max<std::uint32_t>(limits.records, records);
+	limits.namespaces = std::max<std::uint32_t>(limits.namespaces, namespaces);
+	limits.pages = std::max<std::uint64_t>(limits.pages, 2 * (records + namespaces));
+	limits.bytes = std::max<std::uint64_t>(limits.bytes, 4ull * 1024 * 1024 * 1024);
+	return limits;
+}
 template <class F> void rejects(F operation) {
 	try {
 		operation();

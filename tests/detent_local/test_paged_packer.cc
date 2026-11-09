@@ -1,5 +1,6 @@
 #include "dense_corpus.hh"
 #include "paged_packer.hh"
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -76,13 +77,19 @@ static void advance(x::PagedPacker &packer, Sink &sink, std::size_t quantum = 81
 		sink.drain(packer, budget);
 	}
 }
+static p::Limits limits_for(const Rows &rows) {
+	const auto records = std::count_if(rows.begin(), rows.end(),
+									   [](const Row &row) { return row.key.front() == 'K'; });
+	return corpus_limits(records, rows.size() - records);
+}
 static Sink run(const std::shared_ptr<Rows> &rows, std::size_t quantum = 8192,
 				std::size_t *peak = nullptr) {
 	auto account = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
 	Sink sink;
 	{
-		x::TrieCursor cursor(account, rows, read_key, rows->size());
-		x::PagedPacker packer(account);
+		const auto limits = limits_for(*rows);
+		x::TrieCursor cursor(account, rows, read_key, rows->size(), limits);
+		x::PagedPacker packer(account, limits);
 		std::size_t turns = 0;
 		bool submitted = false, finishing = false;
 		while (!packer.done()) {
@@ -151,7 +158,7 @@ static Sink run_reference(const std::shared_ptr<Rows> &rows, std::size_t *peak =
 	auto account = std::make_shared<d::StorageLedger>(16 * 1024 * 1024);
 	Sink sink;
 	{
-		x::PagedPacker packer(account);
+		x::PagedPacker packer(account, limits_for(*rows));
 		if (!rows->empty())
 			postorder(*rows, 0, rows->size(), 0, packer, sink);
 		if (peak)

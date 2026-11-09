@@ -9,6 +9,7 @@
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <optional>
 #include <random>
 #include <set>
 using namespace dense_test;
@@ -61,18 +62,18 @@ struct Base {
 };
 struct Full {
 	std::shared_ptr<d::StorageLedger> account;
-	x::PagedPacker packer;
+	std::optional<x::PagedPacker> packer;
 	Base result;
 	std::size_t pack_limit;
 	Full(std::shared_ptr<d::StorageLedger> a, std::size_t limit = p::segment_bytes)
-		: account(a), packer(a), pack_limit(limit) {}
+		: account(a), pack_limit(limit) {}
 	void drain() {
-		for (unsigned turn = 0; !packer.accepted() && !packer.done(); ++turn) {
+		for (unsigned turn = 0; !packer->accepted() && !packer->done(); ++turn) {
 			require(turn < 1000000);
 			l::ValidationBudget budget;
-			packer.step(budget);
-			if (packer.ready()) {
-				const auto page = packer.page();
+			packer->step(budget);
+			if (packer->ready()) {
+				const auto page = packer->page();
 				auto r = page.summary;
 				if (result.packs.empty() ||
 					((result.packs.back().bytes.size() + 7) & ~std::size_t(7)) + r.length >
@@ -94,7 +95,7 @@ struct Full {
 				++result.root.pages;
 				result.root.bytes += r.length;
 				l::ValidationBudget commit;
-				require(packer.commit(r, commit));
+				require(packer->commit(r, commit));
 			}
 		}
 	}
@@ -103,7 +104,7 @@ struct Full {
 		const auto &first = rows[lo]->first;
 		const auto &last = rows[hi - 1]->first;
 		if (hi - lo == 1) {
-			packer.push({first.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace,
+			packer->push({first.front() == 'K' ? p::PageKind::Definition : p::PageKind::Namespace,
 						 0,
 						 1,
 						 first,
@@ -126,7 +127,7 @@ struct Full {
 			i = j;
 		}
 		std::string_view key(first.data(), at);
-		packer.push({p::PageKind::Branch, 0, hi - lo, key, key.substr(start), labels});
+		packer->push({p::PageKind::Branch, 0, hi - lo, key, key.substr(start), labels});
 		drain();
 	}
 	Base build(const Rows &rows) {
@@ -138,11 +139,12 @@ struct Full {
 			else
 				++result.root.namespaces;
 		}
+		packer.emplace(account, corpus_limits(result.root.records, result.root.namespaces));
 		if (!rows.empty())
 			node(indexed, 0, indexed.size(), 0);
-		packer.finish();
+		packer->finish();
 		drain();
-		result.root.tree = packer.root();
+		result.root.tree = packer->root();
 		result.root.segments = result.packs.size();
 		result.prepare();
 		return std::move(result);
@@ -193,7 +195,12 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	  const std::vector<std::pair<std::string, std::optional<std::vector<char>>>> &changes,
 	  bool relocate = false, std::size_t quantum = 8192, std::string_view label = {},
 	  const std::set<std::string> *changed_paths = nullptr) {
-	x::TrieOverlay overlay(account, base, base->inputs, base->root);
+	std::uint64_t records = 0;
+	for (const auto &[key, body] : rows)
+		records += key.front() == 'K';
+	const auto limits = corpus_limits(std::max<std::uint64_t>(records, base->root.records),
+									  std::max<std::uint64_t>(rows.size() - records, base->root.namespaces));
+	x::TrieOverlay overlay(account, base, base->inputs, base->root, limits);
 	if (relocate) {
 		const auto id = base->inputs.front().ownership.segment;
 		overlay.begin_relocation({&id, 1}, 100000);
@@ -209,7 +216,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 	storage.fill('s');
 	generation.fill('n');
 	x::OverlayAssembler assembler(account, overlay, base->inputs, base->live, base->root, storage,
-								  generation, base->root.cursor);
+								  generation, base->root.cursor, limits);
 	p::reset_hash_counts();
 	for (unsigned turn = 0; !assembler.done(); ++turn) {
 		require(turn < 10000000);
