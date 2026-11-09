@@ -30,6 +30,7 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 | namespace-s1-s2 | contributor | sonnet high | 147,377 (leg 1) | 20 m | 1 fix round (D1, D2) | |
 | namespace-s1-s2 | durability review | opus high | 204,246 | 31 m | found D1, a regression against main that every earlier run missed; D2, a harness that could never produce evidence | |
 | dense-pages | contributor | opus high | 255,439 (leg 1) | 32 m | A10 diagnosed (two harness defects, 3 days stalled before) | |
+| dense-pages | contributor | opus high | 208,686 (fresh resume) | 18 m | 5M abort was a production defect (codec default limits refused stores over 504,096 keys); fixed at the type level | |
 | dense-distribution | design | opus high | 298,559 (leg 1) | 33 m | | |
 
 ## Observations
