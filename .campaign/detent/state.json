@@ -1704,6 +1704,8 @@
     "observability-design": {
       "accepted": {},
       "after": [],
+      "base": "194edd06424edda6cb23bc34e472e72bffaefebb",
+      "branch": "quest/detent/observability-design",
       "checks": [],
       "consumes": [],
       "files": [
@@ -1718,9 +1720,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Design knob observability: usage, resolved values, export",
-      "updated": "2026-11-09T10:28:01"
+      "updated": "2026-11-09T10:28:06",
+      "worktree": "../Detent-wt/detent/observability-design"
     },
     "persistent-map-adoption": {
       "accepted": {},
