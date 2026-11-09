@@ -18,6 +18,7 @@
 #include <mutex>
 #include <poll.h>
 #include <source_location>
+#include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
 
@@ -26,6 +27,8 @@ namespace l = detent::local;
 namespace t = detent::delivery;
 namespace m = d::messagepack;
 using namespace std::chrono_literals;
+// Origin of the 500K timeline checkpoints, shared with the observer.
+std::chrono::steady_clock::time_point checkpoint_epoch = std::chrono::steady_clock::now();
 void check(bool value, std::source_location location = std::source_location::current()) {
 	if (!value)
 		throw std::runtime_error("coordinator invariant at line " + std::to_string(location.line()));
@@ -318,6 +321,11 @@ task::task<void> observe(task::asio_scheduler &scheduler, std::shared_ptr<t::Coo
 	// Close wakes the parked candidate after the source observes durable feedback.
 	timer.expires_after(5ms);
 	co_await detent::transport::await_timer(timer);
+	std::cerr << "coordinator phase=observer-close elapsed_ms="
+			  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+																		  checkpoint_epoch)
+					 .count()
+			  << '\n';
 	coordinator->close();
 	auto final = cursor();
 	final.revision = final_revision;
@@ -563,6 +571,7 @@ int main(int argc, char **argv) {
 		check(requested <= 500000);
 		const auto count = static_cast<std::uint32_t>(requested);
 		const auto started = std::chrono::steady_clock::now();
+		checkpoint_epoch = started;
 		std::mutex checkpoint_mutex;
 		auto checkpoint = [&](std::string_view phase) {
 			std::lock_guard lock(checkpoint_mutex);
@@ -748,9 +757,9 @@ int main(int argc, char **argv) {
 			// A relay serves a held long poll while it accepts the session close: so does the fixture.
 			std::exception_ptr held_failure;
 			std::jthread held_poll;
-			auto hold = [&](asio::ssl::stream<asio::ip::tcp::socket> held) {
+			auto hold = [&](asio::ssl::stream<asio::ip::tcp::socket> held, unsigned short port) {
 				check(!held_poll.joinable());
-				held_poll = std::jthread([&, held = std::move(held)]() mutable {
+				held_poll = std::jthread([&, port, held = std::move(held)]() mutable {
 					try {
 						pollfd descriptor{held.next_layer().native_handle(), POLLIN, 0};
 						const auto wait = std::chrono::duration_cast<std::chrono::milliseconds>(options.source.timeout);
@@ -759,7 +768,8 @@ int main(int argc, char **argv) {
 						std::array<char, 1> input;
 						asio::error_code error;
 						held.read_some(asio::buffer(input), error);
-						checkpoint("server-poll-released");
+						checkpoint("server-poll-released port=" + std::to_string(port) + " error=" +
+								   error.message());
 						check(bool(error));
 					} catch (...) {
 						held_failure = std::current_exception();
@@ -788,12 +798,26 @@ int main(int argc, char **argv) {
 								" attempt=" + std::to_string(attempt) + " phase=" + std::to_string(phase));
 						std::this_thread::sleep_for(1ms);
 					}
+					const auto port = accepted.remote_endpoint().port();
+					int pending = 0;
+					::ioctl(accepted.native_handle(), FIONREAD, &pending);
 					asio::ssl::stream<asio::ip::tcp::socket> socket(std::move(accepted), *server_tls);
-					checkpoint("server-accepted");
-					socket.handshake(asio::ssl::stream_base::server);
-					checkpoint("server-handshake");
+					checkpoint("server-accepted port=" + std::to_string(port) + " attempt=" +
+							   std::to_string(attempt) + " pending=" + std::to_string(pending));
+					try {
+						socket.handshake(asio::ssl::stream_base::server);
+					} catch (const std::exception &error) {
+						checkpoint("server-handshake-failed port=" + std::to_string(port) + " error=" + error.what());
+						throw;
+					}
+					checkpoint("server-handshake port=" + std::to_string(port));
 					asio::streambuf request;
 					asio::read_until(socket, request, "\r\n\r\n");
+					{
+						const std::string head(asio::buffers_begin(request.data()), asio::buffers_end(request.data()));
+						checkpoint("server-request port=" + std::to_string(port) + " line=" +
+								   head.substr(0, head.find("\r\n")));
+					}
 					bool close_request = false;
 					const bool final_close = subscription && attempt + 1 == attempts;
 					if (cancel_selected || pressure || subscription || poll_backoff) {
@@ -1015,7 +1039,12 @@ int main(int argc, char **argv) {
 							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) !=
 								  std::string::npos);
 					}
+					const auto building = std::chrono::steady_clock::now();
 					auto bytes = response(count, pressure ? attempt + 1 : 1);
+					checkpoint("server-response-built port=" + std::to_string(port) + " build_ms=" +
+							   std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+												  std::chrono::steady_clock::now() - building)
+												  .count()));
 					if (subscription) {
 						if (close_request) {
 							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
@@ -1027,7 +1056,7 @@ int main(int argc, char **argv) {
 											 std::to_string(phase) + "\r\n");
 						} else if (transitions ? phase == 4 : phase == 2) {
 							// Hold an original long poll until owner cancellation closes the socket.
-							hold(std::move(socket));
+							hold(std::move(socket), port);
 							continue;
 						} else if (phase == 0) {
 							const std::string body =
