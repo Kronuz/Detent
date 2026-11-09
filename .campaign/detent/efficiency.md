@@ -36,6 +36,7 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 | retirement-close-race | contributor + correctness review | opus high | 169,504 + 123,911 | about 2 h (planned 09:05, landed 10:08) | 0 fix rounds; found by S1/S2's mutant hang | Detent:9cccd2b |
 | dense-distribution | 6 designer legs + 2 design reviews | opus high, last leg sonnet | 1,129,472 designers + 437,816 reviewers | 1 day 4 h (11-08 to 11-09 10:58) | 2 fix rounds; scope added (stale tier) then dropped by the owner (D36) | Detent:676d137 |
 | observability-design | design (bench + D2 table) | opus high | 146,239 (leg 2) | 10 m | 1 owner correction folded in (Reader API only) | |
+| namespace-s1-s2 | 4 contributor legs + durability review | sonnet, then opus high | 147,377 + 107,102 + 120,027 (CI diagnosis) + earlier legs; review 204,246 | 2026-11-08 to 11-09 (about 1 day 6 h) | 1 fix round (D1, D2); 31 jobs rerun after a docs landing; 1 load flake; CI blocked by a shared-workflow ccache defect (fixed in cpp-libraries:9233435) | Detent:dbf4f8d |
 
 ## Observations
 
