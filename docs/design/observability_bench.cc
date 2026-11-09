@@ -3,17 +3,25 @@
 //
 //   observability_bench --store DIR [--knobs N] [--reps N] [--calls N] [--threads 1,8] [--ops int,bool]
 //                       [--arms a,b,...] [--scattered N] [--map-dir DIR] [--soak SECONDS]
+//                       [--interleave 0|1] [--bare 0|1]
 //
 // Each case prints one JSON line. A case times batches of 64 calls with steady_clock and reports the
 // per-call mean of each batch, so the clock costs under 1 ns per call. The counting code runs after
 // the lookup in this file, not inside the core: the core already holds the stripe this file
 // recomputes, so a striped arm here costs about one hash more than it would inside the core.
+//
+// `--interleave 1` is OB1's paired method (D2, A8): each thread alternates 64-lookup blocks of the arm and of
+// `none`, and a case reports the median over all threads' block pairs of (arm - none). The `pos_*`,
+// `ever_*` and `dm_cache` arms index by the knob's definition position, which each name carries from
+// setup (the core would derive it from the definition it found; A8). `--bare 1` drops the lookup, so
+// a case times the counting code alone.
 #include "detent/json_schema.hh"
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
 #include <metrics.hh>
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -155,9 +163,39 @@ alignas(64) std::atomic<Hook> hook{nullptr};
 Table *table = nullptr;
 Cells shared_cells, rows8, rows64, rows8_mapped;
 
+// A8's position-indexed arms: `positions` knob definitions, each name's index in [0, positions).
+std::size_t positions = 0;
+std::atomic<std::uint64_t> *pos_counts = nullptr;        // one shared row
+std::uint32_t *stripe_counts = nullptr;                   // 64 rows, relaxed fetch_add
+std::atomic<std::uint64_t> *ever_bits = nullptr;          // one bit per definition
+thread_local std::uint32_t *tls_counts = nullptr;         // one row per thread, plain load and store
+std::mutex tls_mutex;
+std::vector<std::uint32_t *> tls_rows;
+std::atomic<std::uint64_t> tls_allocations{0};
+struct alignas(64) DirectMapped {                         // 8 (position + 1, count) entries in one line
+	std::uint32_t key[8], count[8];
+};
+thread_local DirectMapped dm_line{};
+std::uint32_t *tls_allocate() noexcept {
+	auto *row = static_cast<std::uint32_t *>(std::calloc(positions, sizeof(std::uint32_t)));
+	if (!row)
+		std::abort();
+	tls_allocations.fetch_add(1, relaxed);
+	std::lock_guard lock(tls_mutex);
+	tls_rows.push_back(row);
+	return tls_counts = row;
+}
+void dm_flush() noexcept {
+	for (std::size_t i = 0; i != 8; ++i)
+		if (dm_line.count[i])
+			pos_counts[dm_line.key[i] - 1].fetch_add(dm_line.count[i], relaxed);
+	dm_line = {};
+}
+
 #define ARMS(X)                                                                                                       \
 	X(none) X(none2) X(shared) X(metrics_atomic) X(metrics_contended) X(stripe_rmw) X(stripe_plain) X(tls) X(knob_probe) X(knob_shared)     \
-	    X(knob_rows8) X(knob_rows64) X(knob_ptr_rows8) X(knob_sampled) X(knob_rows8_mapped) X(hook_off) X(hook_on)
+	    X(knob_rows8) X(knob_rows64) X(knob_ptr_rows8) X(knob_sampled) X(knob_rows8_mapped) X(hook_off) X(hook_on)   \
+	        X(pos_shared) X(pos_stripe_rmw) X(pos_tls) X(ever_bit) X(ever_sampled) X(dm_cache)
 enum class Arm {
 #define X(a) a,
 	ARMS(X)
@@ -172,6 +210,7 @@ constexpr std::size_t arm_count = sizeof arm_names / sizeof *arm_names;
 
 struct Name {
 	std::string text;
+	std::uint32_t pos = 0; // definition position: 2 × index, + 1 for the bool
 	detent_str str() const noexcept { return {text.data(), text.size()}; }
 };
 // Relaxed atomic access to a plain word (the cells may live in a shared file mapping).
@@ -226,6 +265,35 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 	} else if constexpr (A == Arm::knob_shared) {
 		const auto slot = table->find(name_hash(name.text.data(), name.text.size()));
 		at(shared_cells.line(0, slot)[cell]).add(1);
+	} else if constexpr (A == Arm::pos_shared) {
+		pos_counts[name.pos].fetch_add(1, relaxed);
+	} else if constexpr (A == Arm::pos_stripe_rmw) {
+		const char frame = 0;
+		(void)__atomic_fetch_add(&stripe_counts[stripe_of(&frame) * positions + name.pos], 1u, __ATOMIC_RELAXED);
+	} else if constexpr (A == Arm::pos_tls) {
+		auto *row = tls_counts;
+		if (!row) [[unlikely]]
+			row = tls_allocate();
+		__atomic_store_n(&row[name.pos], __atomic_load_n(&row[name.pos], __ATOMIC_RELAXED) + 1, __ATOMIC_RELAXED);
+	} else if constexpr (A == Arm::ever_bit) {
+		auto &word = ever_bits[name.pos >> 6];
+		const auto bit = std::uint64_t(1) << (name.pos & 63);
+		if (!(word.load(relaxed) & bit)) [[unlikely]]
+			word.fetch_or(bit, relaxed);
+	} else if constexpr (A == Arm::ever_sampled) {
+		count<Arm::ever_bit>(name, status, value);
+		count<Arm::knob_sampled>(name, status, value);
+	} else if constexpr (A == Arm::dm_cache) {
+		auto &line = dm_line;
+		const auto i = name.pos & 7;
+		if (line.key[i] == name.pos + 1) {
+			++line.count[i];
+		} else {
+			if (line.count[i])
+				pos_counts[line.key[i] - 1].fetch_add(line.count[i], relaxed);
+			line.key[i] = name.pos + 1;
+			line.count[i] = 1;
+		}
 	} else if constexpr (A == Arm::hook_off || A == Arm::hook_on) {
 		if (const auto h = hook.load(relaxed)) {
 			const Event event{name.text.data(), name.text.size(), int(status), int(cell), value};
@@ -237,6 +305,7 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 struct Options {
 	std::string store, map_dir, arms = "all", threads = "1,8", ops = "int,bool";
 	std::size_t knobs = 100000, reps = 5, calls = 262144, scattered = 1024, soak = 0;
+	bool interleave = false, bare = false;
 };
 Options parse(int argc, char **argv) {
 	Options o;
@@ -252,13 +321,15 @@ Options parse(int argc, char **argv) {
 		else if (flag == "--calls") o.calls = std::stoull(value);
 		else if (flag == "--scattered") o.scattered = std::stoull(value);
 		else if (flag == "--soak") o.soak = std::stoull(value);
+		else if (flag == "--interleave") o.interleave = value == "1";
+		else if (flag == "--bare") o.bare = value == "1";
 		else throw std::invalid_argument("unknown flag " + flag);
 	}
 	if (o.store.empty() || o.map_dir.empty())
 		throw std::invalid_argument("--store and --map-dir are required");
 	if (o.knobs < 2)
 		throw std::invalid_argument("--knobs must be at least 2");
-	o.calls = std::max<std::size_t>(batch, o.calls / batch * batch);
+	o.calls = std::max<std::size_t>(2 * batch, o.calls / (2 * batch) * (2 * batch));
 	return o;
 }
 std::vector<std::string> split_list(const std::string &list) {
@@ -295,7 +366,8 @@ void generate(const Options &o) {
 }
 
 struct Result {
-	std::vector<float> per_call; // per-call mean of each batch, ns
+	std::vector<float> per_call; // per-call mean of each batch, ns (interleaved: of each `none` block)
+	std::vector<float> diff;     // interleaved: per-call (arm - none) of each block pair, ns
 	std::uint64_t stripe = 0;
 };
 using Lookup = detent_status (*)(detent_reader *, const Name &, std::int64_t &);
@@ -337,7 +409,58 @@ constexpr Timed timed_arms[] = {
     ARMS(X)
 #undef X
 };
-void reset_counters() {
+detent_status lookup_bare(detent_reader *, const Name &, std::int64_t &value) {
+	value = 1;
+	return DETENT_OK;
+}
+// One block of 64 calls of arm A; returns its per-call mean.
+template <Arm A>
+float block(detent_reader *core, Lookup lookup, const std::vector<Name> &names, std::size_t &i) noexcept {
+	const auto start = Clock::now();
+	for (std::size_t j = 0; j != batch; ++j) {
+		const auto &name = names[i];
+		i = i + 1 == names.size() ? 0 : i + 1;
+		std::int64_t value = 0;
+		const auto status = lookup(core, name, value);
+		count<A>(name, status, value);
+		escape(value);
+	}
+	return float(std::chrono::duration<double, std::nano>(Clock::now() - start).count() / batch);
+}
+// OB1's paired method: block pairs of the arm and `none` on one thread, the order swapped every pair.
+template <Arm A>
+void interleaved(detent_reader *core, Lookup lookup, const std::vector<Name> &names, std::size_t calls,
+                 Result &result) {
+	const char frame = 0;
+	result.stripe = stripe_of(&frame);
+	const auto pairs = calls / (2 * batch);
+	result.per_call.assign(pairs, 0.0f);
+	result.diff.assign(pairs, 0.0f);
+	counting = true;
+	std::size_t i = 0;
+	for (std::size_t k = 0; k != pairs; ++k) {
+		float on, off;
+		if (k & 1) {
+			on = block<A>(core, lookup, names, i);
+			off = block<Arm::none>(core, lookup, names, i);
+		} else {
+			off = block<Arm::none>(core, lookup, names, i);
+			on = block<A>(core, lookup, names, i);
+		}
+		result.per_call[k] = off;
+		result.diff[k] = on - off;
+	}
+	counting = false;
+	if constexpr (A == Arm::dm_cache)
+		dm_flush();
+}
+constexpr Timed interleaved_arms[] = {
+#define X(a) &interleaved<Arm::a>,
+    ARMS(X)
+#undef X
+};
+// Clears A8's position rows only for paired cases, so the other cases keep their cache state.
+void reset_counters(bool positions_too = false) {
 	shared_counter.store(0, relaxed);
 	std::destroy_at(&metrics_counter);
 	std::construct_at(&metrics_counter);
@@ -348,6 +471,19 @@ void reset_counters() {
 	table->clear();
 	for (auto *cells : {&shared_cells, &rows8, &rows64, &rows8_mapped})
 		cells->clear();
+	if (!positions_too)
+		return;
+	for (std::size_t p = 0; p != positions; ++p)
+		pos_counts[p].store(0, relaxed);
+	std::memset(stripe_counts, 0, stripes * positions * sizeof(std::uint32_t));
+	for (std::size_t w = 0; w != positions / 64 + 1; ++w)
+		ever_bits[w].store(0, relaxed);
+	for (auto *row : tls_rows)
+		std::free(row);
+	tls_rows.clear();
+	tls_counts = nullptr; // this thread's; the workers that held the others have exited
+	tls_allocations.store(0, relaxed);
+	dm_line = {};
 }
 // Counts the arm kept, or -1 for an arm that keeps none.
 std::int64_t counted(Arm arm) {
@@ -369,6 +505,25 @@ std::int64_t counted(Arm arm) {
 	case Arm::knob_ptr_rows8: return std::int64_t(rows8.total());
 	case Arm::knob_rows64: return std::int64_t(rows64.total());
 	case Arm::knob_rows8_mapped: return std::int64_t(rows8_mapped.total());
+	case Arm::pos_shared:
+	case Arm::dm_cache:
+		for (std::size_t p = 0; p != positions; ++p)
+			sum += pos_counts[p].load(relaxed);
+		return std::int64_t(sum);
+	case Arm::pos_stripe_rmw:
+		for (std::size_t c = 0; c != stripes * positions; ++c)
+			sum += __atomic_load_n(&stripe_counts[c], __ATOMIC_RELAXED);
+		return std::int64_t(sum);
+	case Arm::pos_tls:
+		for (const auto *row : tls_rows)
+			for (std::size_t p = 0; p != positions; ++p)
+				sum += row[p];
+		return std::int64_t(sum);
+	case Arm::ever_bit:
+	case Arm::ever_sampled: // distinct definitions seen
+		for (std::size_t w = 0; w != positions / 64 + 1; ++w)
+			sum += std::uint64_t(__builtin_popcountll(ever_bits[w].load(relaxed)));
+		return std::int64_t(sum);
 	default: return -1;
 	}
 }
@@ -425,6 +580,72 @@ void run_case(detent_reader *core, const Options &o, Arm arm, const std::string 
 	          << ",\"minor_faults\":" << fault_delta << ",\"stripes\":" << distinct.size()
 	          << ",\"rows8\":" << distinct8.size() << "}" << std::endl;
 }
+// OB1's paired case: every thread warms its own counters, then alternates arm and `none` blocks.
+void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string &op, const std::string &set,
+              const std::vector<Name> &names, std::size_t threads, std::size_t rep) {
+	const auto lookup = o.bare ? &lookup_bare : op == "int" ? &lookup_int : &lookup_bool;
+	reset_counters(true);
+	hook.store(arm == Arm::hook_on ? &noop_hook : nullptr);
+	const auto warm_calls = names.size() / batch * batch + batch;
+	{
+		Result warm;
+		timed_arms[std::size_t(arm)](core, lookup, names, warm_calls, warm);
+		if (arm == Arm::dm_cache)
+			dm_flush();
+	}
+	reset_counters(true);
+	std::vector<Result> results(threads);
+	std::atomic<std::size_t> ready{0};
+	allocations = 0;
+	const auto faults = minor_faults();
+	std::vector<std::thread> workers;
+	for (std::size_t t = 0; t != threads; ++t)
+		workers.emplace_back([&, t] {
+			Result warm; // this thread's own rows, lines and countdown, untimed
+			timed_arms[std::size_t(arm)](core, lookup, names, warm_calls, warm);
+			if (arm == Arm::dm_cache)
+				dm_flush();
+			ready.fetch_add(1);
+			while (ready.load() != threads) {
+			}
+			interleaved_arms[std::size_t(arm)](core, lookup, names, o.calls, results[t]);
+		});
+	for (auto &worker : workers)
+		worker.join();
+	const auto fault_delta = minor_faults() - faults;
+	std::vector<float> diffs, offs, thread_medians;
+	std::set<std::uint64_t> distinct;
+	for (const auto &r : results) {
+		diffs.insert(diffs.end(), r.diff.begin(), r.diff.end());
+		offs.insert(offs.end(), r.per_call.begin(), r.per_call.end());
+		thread_medians.push_back(percentile(r.diff, 0.5));
+		distinct.insert(r.stripe);
+	}
+	std::set<std::uint32_t> seen;
+	for (const auto &name : names)
+		seen.insert(name.pos);
+	const auto on_calls = std::int64_t((warm_calls + o.calls / 2) * threads);
+	std::int64_t expected = -1;
+	switch (arm) {
+	case Arm::pos_shared:
+	case Arm::pos_stripe_rmw:
+	case Arm::pos_tls:
+	case Arm::dm_cache: expected = on_calls; break;
+	case Arm::ever_bit:
+	case Arm::ever_sampled: expected = std::int64_t(seen.size()); break;
+	default: break;
+	}
+	std::cout << "{\"pair\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"" << op << "\",\"set\":\"" << set
+	          << "\",\"bare\":" << o.bare << ",\"threads\":" << threads << ",\"rep\":" << rep
+	          << ",\"delta_ns\":" << percentile(diffs, 0.5) << ",\"delta_q25_ns\":" << percentile(diffs, 0.25)
+	          << ",\"delta_q75_ns\":" << percentile(diffs, 0.75)
+	          << ",\"thread_min_ns\":" << *std::min_element(thread_medians.begin(), thread_medians.end())
+	          << ",\"thread_max_ns\":" << *std::max_element(thread_medians.begin(), thread_medians.end())
+	          << ",\"off_p50_ns\":" << percentile(offs, 0.5) << ",\"pairs\":" << diffs.size()
+	          << ",\"counted\":" << counted(arm) << ",\"expected\":" << expected
+	          << ",\"allocations\":" << allocations.load() << ",\"thread_rows\":" << tls_allocations.load()
+	          << ",\"minor_faults\":" << fault_delta << ",\"stripes\":" << distinct.size() << "}" << std::endl;
+}
 // One thread for `seconds` on a counting arm: minor faults and the slowest batch, per second.
 void soak(detent_reader *core, const Options &o, Arm arm, const std::vector<Name> &names) {
 	reset_counters();
@@ -465,13 +686,17 @@ int main(int argc, char **argv) try {
 	// Name sets: one hot name and `scattered` seeded names per operation.
 	std::mt19937_64 random(0x4f4253455256ull);
 	const auto indices = o.knobs / 2;
-	std::vector<Name> hot_int{{knob_name(indices / 2, false)}}, hot_bool{{knob_name(indices / 2, true)}}, sc_int,
-	    sc_bool;
+	const auto named = [](std::size_t k, bool boolean) { return Name{knob_name(k, boolean), std::uint32_t(2 * k + boolean)}; };
+	std::vector<Name> hot_int{named(indices / 2, false)}, hot_bool{named(indices / 2, true)}, sc_int, sc_bool;
 	for (std::size_t i = 0; i != o.scattered; ++i) {
 		const auto k = random() % indices;
-		sc_int.push_back({knob_name(k, false)});
-		sc_bool.push_back({knob_name(k, true)});
+		sc_int.push_back(named(k, false));
+		sc_bool.push_back(named(k, true));
 	}
+	positions = indices * 2;
+	pos_counts = new std::atomic<std::uint64_t>[positions]();
+	stripe_counts = static_cast<std::uint32_t *>(std::calloc(stripes * positions, sizeof(std::uint32_t)));
+	ever_bits = new std::atomic<std::uint64_t>[positions / 64 + 1]();
 	// The table holds twice the scattered set; each row has a line per slot.
 	std::size_t capacity = 1;
 	while (capacity < 2 * o.scattered)
@@ -513,6 +738,7 @@ int main(int argc, char **argv) try {
 	          << ",\"threads\":\"" << o.threads << "\",\"ops\":\"" << o.ops << "\",\"arms\":" << arms.size()
 	          << ",\"hot_name_bytes\":" << hot_int.front().text.size()
 	          << ",\"rows64_bytes\":" << rows64.bytes << ",\"rows8_bytes\":" << rows8.bytes
+	          << ",\"interleave\":" << o.interleave << ",\"bare\":" << o.bare << ",\"positions\":" << positions
 	          << ",\"mapped\":" << rows8_mapped.mapped << ",\"hardware_threads\":" << std::thread::hardware_concurrency()
 	          << ",\"setup_s\":" << std::chrono::duration<double>(Clock::now() - started).count() << "}}" << std::endl;
 	const auto thread_counts = split_list(o.threads);
@@ -521,8 +747,9 @@ int main(int argc, char **argv) try {
 			const auto arm = arms[(a + rep) % arms.size()]; // rotate the order every repetition
 			for (const auto &op : split_list(o.ops))
 				for (const auto &t : thread_counts) {
-					run_case(core, o, arm, op, "hot", op == "int" ? hot_int : hot_bool, std::stoull(t), rep);
-					run_case(core, o, arm, op, "scattered", op == "int" ? sc_int : sc_bool, std::stoull(t), rep);
+					const auto run = o.interleave ? &run_pair : &run_case;
+					run(core, o, arm, op, "hot", op == "int" ? hot_int : hot_bool, std::stoull(t), rep);
+					run(core, o, arm, op, "scattered", op == "int" ? sc_int : sc_bool, std::stoull(t), rep);
 				}
 		}
 	if (o.soak)

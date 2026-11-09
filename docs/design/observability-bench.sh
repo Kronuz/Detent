@@ -3,6 +3,7 @@
 # root on one slot, with the reader S6 commit as a ref:
 #   observability-bench.sh build                      (light: builds observability_bench against $JOB_REF_S6)
 #   observability-bench.sh run smoke|screen|confirm   (strict or exclusive: runs it, summarizes and pairs)
+#   observability-bench.sh run exact-screen|exact-confirm   (A8: interleaved on/off at 1, 8 and 64 threads)
 set -euo pipefail
 here=$(pwd)
 work=$here/.scratch/obs
@@ -38,10 +39,17 @@ run)
 	[ "$(cat "$work/build/STAMP")" = "$s6_commit $source_digest" ] ||
 		{ echo "stale binary: $(cat "$work/build/STAMP") is not $s6_commit $source_digest" >&2; exit 1; }
 	file "$bin"
+	exact=(--arms none2,knob_sampled,knob_rows64,pos_shared,pos_stripe_rmw,pos_tls,ever_bit,ever_sampled,dm_cache
+		--interleave 1 --threads 1,8,64)
+	bare=()
 	case "$mode" in
-	smoke) args=(--knobs 100000 --reps 1 --calls 16384 --scattered 256 --soak 2) ;;
+	smoke) args=(--knobs 100000 --reps 1 --calls 16384 --scattered 256 --soak 2)
+		paired=(--knobs 100000 --reps 1 --calls 2048 --scattered 256 "${exact[@]}") ;;
 	screen) args=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 --soak 10) ;;
 	confirm) args=(--knobs 100000 --reps 7 --calls 262144 --scattered 1024 --soak 60) ;;
+	exact-screen) args=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${exact[@]}")
+		bare=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${exact[@]}" --bare 1) ;;
+	exact-confirm) args=(--knobs 100000 --reps 7 --calls 262144 --scattered 1024 "${exact[@]}") ;;
 	*) echo "unknown mode $mode" >&2; exit 2 ;;
 	esac
 	out=${JOB_OUT:-$work/out}
@@ -51,7 +59,16 @@ run)
 	mkdir -p "$map"
 	echo "s6 $s6_commit; bench $source_digest; host $(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m); $(date -u +%FT%TZ)"
 	"$bin" --store "$store" --map-dir "$map" "${args[@]}" | tee "$out/$mode.jsonl"
-	"${PYTHON:-python3}" docs/design/observability-summary.py "$out/$mode.jsonl" | tee "$out/$mode.md"
+	case "$mode" in
+	smoke)
+		"$bin" --store "$store" --map-dir "$map" "${paired[@]}" | tee -a "$out/$mode.jsonl" ;;
+	exact-screen)
+		"$bin" --store "$store" --map-dir "$map" "${bare[@]}" | tee -a "$out/$mode.jsonl" ;;
+	esac
+	case "$mode" in
+	exact-*) ;;
+	*) "${PYTHON:-python3}" docs/design/observability-summary.py "$out/$mode.jsonl" | tee "$out/$mode.md" ;;
+	esac
 	"${PYTHON:-python3}" -I docs/design/observability-paired.py "$out/$mode.jsonl" | tee "$out/$mode-paired.md"
 	rm -rf "$store" "$map"
 	;;

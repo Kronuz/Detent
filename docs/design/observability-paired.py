@@ -3,6 +3,11 @@
 For each operation, name set, thread count and arm: the median, minimum and maximum over
 repetitions of the arm's case p50 minus the `none` case p50 of the same repetition, and the
 spread of `none` across repetitions. Also prints the sampling odds D3 and Q7 quote.
+
+Interleaved cases (`--interleave 1`, A8 and OB1's gate) already carry each repetition's median
+block-pair delta; for them it prints the median, minimum and maximum over repetitions and the gate
+(at most 5 ns at 1 thread, 10 ns at 8 and 64). Exits 1 when an exact arm lost a count, an "ever
+read" arm missed a name, or a timed loop allocated.
 """
 
 from __future__ import annotations
@@ -11,18 +16,80 @@ import json
 import statistics
 import sys
 from collections import defaultdict
+from typing import Any
 
 PERIOD = 64
 
 
+GATE = {1: 5.0, 8: 10.0, 64: 10.0}
+
+
+def interleaved(pairs: list[dict[str, Any]]) -> int:
+    failures: list[str] = []
+    groups: dict[tuple[int, str, str, int, str], list[dict[str, Any]]] = defaultdict(
+        list
+    )
+    for record in pairs:
+        key = (
+            record["bare"],
+            record["op"],
+            record["set"],
+            record["threads"],
+            record["pair"],
+        )
+        groups[key].append(record)
+        where = f"{record['pair']} {record['op']}/{record['set']}/{record['threads']}t rep {record['rep']}"
+        if record["allocations"]:
+            failures.append(f"{where}: {record['allocations']} allocations")
+        if record["expected"] >= 0 and record["counted"] != record["expected"]:
+            failures.append(
+                f"{where}: counted {record['counted']}, expected {record['expected']}"
+            )
+    for bare in sorted({key[0] for key in groups}):
+        title = "counting code alone (--bare 1)" if bare else "around the S6 lookup"
+        print(
+            f"\nInterleaved on/off, {title}: median over repetitions of each repetition's median block-pair delta"
+        )
+        print(
+            "| op | set | threads | arm | delta ns | min ns | max ns | off p50 ns | gate ns | verdict | rows per thread |"
+        )
+        print("|---|---|---:|---|---:|---:|---:|---:|---:|---|---:|")
+        for key in sorted(k for k in groups if k[0] == bare):
+            records = groups[key]
+            deltas = [r["delta_ns"] for r in records]
+            median = statistics.median(deltas)
+            gate = GATE.get(key[3])
+            verdict = (
+                "" if bare or gate is None else ("pass" if median <= gate else "FAIL")
+            )
+            rows = max(r["thread_rows"] for r in records)
+            print(
+                f"| {key[1]} | {key[2]} | {key[3]} | {key[4]} | {median:+.1f} | {min(deltas):+.1f} "
+                f"| {max(deltas):+.1f} | {statistics.median(r['off_p50_ns'] for r in records):.1f} "
+                f"| {gate if gate is not None else ''} | {verdict} | {rows} |"
+            )
+    for failure in failures:
+        print(f"FAILED: {failure}")
+    return 1 if failures else 0
+
+
 def main(path: str) -> int:
     by: dict[tuple[str, str, int, int], dict[str, float]] = defaultdict(dict)
+    pairs: list[dict[str, Any]] = []
     with open(path) as lines:
         for line in lines:
             record = json.loads(line)
-            if "arm" in record:
+            if "pair" in record:
+                pairs.append(record)
+            elif "arm" in record:
                 key = (record["op"], record["set"], record["threads"], record["rep"])
                 by[key][record["arm"]] = record["p50_ns"]
+    if pairs:
+        status = interleaved(pairs)
+        if not by:
+            return status
+    else:
+        status = 0
     cases = sorted({key[:3] for key in by})
     reps = sorted({key[3] for key in by})
     arms = sorted({arm for found in by.values() for arm in found} - {"none"})
@@ -59,7 +126,7 @@ def main(path: str) -> int:
     print("\nStandard error of a 50/50 arm split, percentage points:")
     for n in (640, 10_000, 100_000):
         print(f"  n={n}: {100 * (0.25 / (n / PERIOD)) ** 0.5:.1f}")
-    return 0
+    return status
 
 
 if __name__ == "__main__":
