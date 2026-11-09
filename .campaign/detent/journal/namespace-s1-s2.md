@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: fixing D1 D2 (waiting on jobs 261108-220722-23c2fd and its mutants 220723-d9e709 220725-910792 220726-92b8b6 220727-d6491e 220728-95df45 220729-357878 220731-54f601, probe 220732-5cd56d)
+State: waiting on jobs 261109-000453-ac1932 (mutant harness target check; then rerun the positive run and the seven mutants)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -22,6 +22,8 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 - D1 (blocking, defect): fixed at Detent:08440be. The startup barrier is one SyncFiles over storage.meta (reopened read-only: SyncOpen, Barrier, SyncClose phases in StartupOperation) plus the directory, then ready(). Counters: startup is now 1 file, 1 group, 1 directory sync, 1 flush on macOS (2 elsewhere). Tests: test_publication_power_cut gains `creation_cuts` (kill at every event of a fresh store after storage.meta exists, restart ExistingManaged, require storage.meta durable at ready, cut power at ready in four modes, require the next start to accept it); test_paged_store_startup and test_disk_store updated to the new barrier. Failing-without-fix job: mutant d1-revert 261108-220723-d9e709 (disk_store.cc as of b3fef50 with the new tests; passes iff T7 fails). Confirming probe at the fix: 261108-220732-5cd56d (baseline at b3fef50: 261108-215124-d07d1a).
 - D2 (blocking, gap): fixed. mutant.sh configures with DETENT_BUILD_MANAGED_AGENT=ON, a mutant job passes iff its named tests all fail (exit 1 survived, 125 build error). Added rename-before-sync (Replace issued before the last window's SyncFiles) beside unsynced-descriptor for A4/A7's per-file-order revert, and startup-before-barrier now requires T7 itself (not only the startup test) to fail. Jobs: see State.
 - N1 (restart-then-republish cycles sample every third event; readiness check only on the first pass), N2 (no fault injection over a multi-window paged publication), N3 (T7's macOS seam treats F_BARRIERFSYNC as a device flush), N4 (kill between Replace and its barrier lets local readers see the new generation before it is durable; unchanged from main): non-blocking, noted, no work. The new creation case checks durability at ready for every kill point, which narrows N1 for the startup barrier.
+
+- Fix-round result: D1 confirmed both ways (probe d07d1a fails at b3fef50, 5cd56d passes at the fix). The positive run 23c2fd failed with 'unknown target': the slot s1s2-mutant kept a build directory configured by the first (AUTHORITY/RELAY/MANAGED_AGENT off) run, and mutant.sh configured only when no cache existed. mutant.sh now reconfigures every run and has a `targets` mode; job ac1932 checks the three test targets exist before the batch is requeued.
 
 ## Blocked on
 
