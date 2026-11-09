@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs at Detent:802a9df (final code and docs): positive 261109-041847-3953a3, mutants 041848-85c0c1 041848-3d4994 041849-50d4e2 041850-91582d 041850-0295d1 041851-8c0fe0 041852-4eeda0 041852-dfa337, attribute c 041853-e6bf27, gates 041854-585460 -2b17c7 -56f3be -b97278, A9 arms 041855-eea2e8..041904-1a7f6c (all 261109-)
+State: waiting on jobs at Detent:8a0ba8b: T7 timing A/B 261109-053454-fc078b; positive 053515-0e6248, mutants 053515-ae762d..053525-28e6bf, attribute c 053526-dc9720, gates 053529-40e439 -b273be -9a3f10 -10fd2e, A9 arms 053530-15c25c..053550-5244c6 after the gates (all 261109-)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -36,6 +36,8 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 
 - D32 (lead, 2026-11-09): A12 moved to quest sync-groups-perf; docs/perf/sync-groups.md is not written here. A11 written at Detent:802a9df (docs/mechanisms/sync-groups.md: restart barrier over storage.meta, flush counts from T7 and the startup test, 5M 25 vs 5,775 from the 2026-11-07 runs, the power-cut model); the ledger's pointer updated. At e32cdb8 the positive 025503-2ccb31 and all four gates (native dd57e8, pins 8e2301, asan 6ba699, tsan b2d410) passed, confirming the oracle fix; the queued rest was cancelled as stale (d90f68, 3f17fc, d3c885 were running and left to finish). Resubmitted at 802a9df in the lead's order, the 14 arms `--after` the four gates (.scratch/queue.out).
 
+- T7 timeout (lead msg, 2026-11-09): at 802a9df (code = e32cdb8) native 585460 and asan 56f3be timed out at 900 s in T7 with no output; tsan b97278 passed in 237 s. Earlier T7 times: native dd57e8 296 s, asan 6ba699 437 s, tsan b2d410 377 s, tsan 4c7c75 413 s (to its failure). Hypothesis: T7's run time follows the host's device-flush latency. Each of about 6,000 probe restarts (open_and_recover, reopens) ran an unseamed store, whose startup barrier issues a real F_FULLFSYNC (probe on this host at load 6.8/16: median 20.0 ms, max 21.9 ms, so at least 120 s of flushes when idle), and the recording seam forwarded each fsync and flush to the kernel. stdout is block-buffered into ctest's pipe, so a killed run shows nothing. Fix, Detent:8a0ba8b: the seam returns without a kernel sync, the probe stores get a skipping seam (`skip_syncs`), and T7 prints progress lines on stderr. Measurement: t7-timing.sh (interleaved old e32cdb8 / new head x2, flush latency before and after each run, `sample` top of stack at 120 s and at the 1200 s limit), job 261109-053454-fc078b. No timeout was raised. The stale 802a9df chain was cancelled and the whole chain resubmitted at 8a0ba8b.
+
 ## Blocked on
 
 Nothing.
@@ -50,14 +52,14 @@ you examined, failures included, and answer each message by its id (msg-N).
 |---|---|
 | A1 | `docs/status/namespace-s1-s2.md` (completion:0490a5a, df6394a, 560c288; CI 41925122896) |
 | A2 | `docs/status/namespace-s1-s2.md` (completion mutants run 41925127096) |
-| A3 | pins gate 261109-041854-2b17c7 |
-| A4 | positive 261109-041847-3953a3; unsynced-descriptor 041849-50d4e2, rename-before-sync 041850-91582d (each passes iff killed) |
-| A5 | positive 261109-041847-3953a3 (test_local_paged_store_startup); startup-before-barrier 041848-3d4994; d1-revert 041848-85c0c1 |
-| A6 | native gate 261109-041854-585460; harness: A9 after arms with summarize.py --require-counters (041856-0a2e68 and later) |
-| A7 | positive 261109-041847-3953a3; mutants unsynced-descriptor 041849-50d4e2, rename-before-sync 041850-91582d, empty-payload-group 041850-0295d1, startup-before-barrier 041848-3d4994, cycle-oracle 041852-dfa337; attribute c 041853-e6bf27 |
-| A8 | positive 261109-041847-3953a3; reverts closed-session 041851-8c0fe0 (0cd1527), phase-counts 041852-4eeda0 (522452a) |
-| A9 | build before 261108-213700-dc3b49, after 261109-041854-da9b9f; 10K b/a 041855-eea2e8 041856-0a2e68 041857-42aaae 041857-30489c 041858-ac49a0 041859-25cb74; 100K b/a 041859-1fa8ca 041900-830bd7 041901-48f5c0 041901-82402b 041902-9162a3 041903-3fc47c; 5M b 041903-b627cb, a 041904-1a7f6c (all 261109-) |
-| A10 | asan gate 261109-041854-56f3be, tsan gate 261109-041854-b97278 |
+| A3 | pins gate 261109-053529-b273be |
+| A4 | positive 261109-053515-0e6248; unsynced-descriptor 053518-443bd3, rename-before-sync 053519-e40466 (each passes iff killed) |
+| A5 | positive 261109-053515-0e6248 (test_local_paged_store_startup); startup-before-barrier 053517-765657; d1-revert 053515-ae762d |
+| A6 | native gate 261109-053529-40e439; harness: A9 after arms with summarize.py --require-counters (053532-53caa6 and later) |
+| A7 | positive 261109-053515-0e6248; mutants unsynced-descriptor 053518-443bd3, rename-before-sync 053519-e40466, empty-payload-group 053521-acfd9c, startup-before-barrier 053517-765657, cycle-oracle 053525-28e6bf; attribute c 053526-dc9720 |
+| A8 | positive 261109-053515-0e6248; reverts closed-session 053522-d7b627 (0cd1527), phase-counts 053523-64711f (522452a) |
+| A9 | build before 261108-213700-dc3b49, after 261109-053527-aca6f4; 10K b/a 053530-15c25c 053532-53caa6 053533-964ef1 053535-2b8fb5 053536-dd8bad 053538-c75e5b; 100K b/a 053539-396912 053541-d218a2 053542-7d39c5 053544-15e690 053545-889cd2 053547-29b391; 5M b 053548-85185d, a 053550-5244c6 (all 261109-) |
+| A10 | asan gate 261109-053529-9a3f10, tsan gate 261109-053529-10fd2e |
 | A11 | `docs/mechanisms/sync-groups.md` |
 | A13 | [manual] the lead names the completion commit (decision 5 open) |
 
