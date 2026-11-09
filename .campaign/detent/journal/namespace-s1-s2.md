@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs at Detent:8a0ba8b: T7 timing A/B 261109-053454-fc078b; positive 053515-0e6248, mutants 053515-ae762d..053525-28e6bf, attribute c 053526-dc9720, gates 053529-40e439 -b273be -9a3f10 -10fd2e, A9 arms 053530-15c25c..053550-5244c6 after the gates (all 261109-)
+State: waiting on jobs at Detent:9d708b8 (all 261109-08): wakeup probe 5248-0c7d20; targets 5249-c139f3, positive 5250-7abf33, mutants 5251-69e523..5301-423694, attribute c 5303-c6d79d, D1 probe 5304-2d998b, build-after 5305-a3da2d, gates 5306-1a0b81 -f88ebc -9cde82 -8a5cd6, A9 arms 5307-752e2e..5326-8bcc5c after the gates (.scratch/queue2.out)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -38,9 +38,14 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 
 - T7 timeout (lead msg, 2026-11-09): at 802a9df (code = e32cdb8) native 585460 and asan 56f3be timed out at 900 s in T7 with no output; tsan b97278 passed in 237 s. Earlier T7 times: native dd57e8 296 s, asan 6ba699 437 s, tsan b2d410 377 s, tsan 4c7c75 413 s (to its failure). Hypothesis: T7's run time follows the host's device-flush latency. Each of about 6,000 probe restarts (open_and_recover, reopens) ran an unseamed store, whose startup barrier issues a real F_FULLFSYNC (probe on this host at load 6.8/16: median 20.0 ms, max 21.9 ms, so at least 120 s of flushes when idle), and the recording seam forwarded each fsync and flush to the kernel. stdout is block-buffered into ctest's pipe, so a killed run shows nothing. Fix, Detent:8a0ba8b: the seam returns without a kernel sync, the probe stores get a skipping seam (`skip_syncs`), and T7 prints progress lines on stderr. Measurement: t7-timing.sh (interleaved old e32cdb8 / new head x2, flush latency before and after each run, `sample` top of stack at 120 s and at the 1200 s limit), job 261109-053454-fc078b. No timeout was raised. The stale 802a9df chain was cancelled and the whole chain resubmitted at 8a0ba8b.
 
+- T7 hang, 2026-11-09 (resume): d1-revert 053515-ae762d hit 120 min with no output after the links. Not slowness: a deadlock, and not mutant-specific. lldb on three hung Debug d1-revert runs (~/.scratch/ns-d1/run-A-1/lldb.txt): main in RetirementDrain::wait from open_and_recover (cycle cases from events 75-90), worker in Wake::tick(pending=false) poll(-1), domain state admission == closed (no residents), rolling_back 0, every queue empty, closing true, drained false: drainable, never revisited (see Blocked on). fc078b's old r1 hang (killed at 1,207 s) has the same two stacks. Rate at 8a0ba8b: 5 of 11 local Debug d1-revert runs hung; the other 6 were killed at the creation case ("ready at creation event 10 (write) trusts a storage.meta no sync made durable") in 36-52 s. mutant.sh did not hide progress (765657 and 0e6248 logs show it); ae762d hung before the first progress line.
+- Fix, Detent:0523cf9 + 9d708b8: T7's Environment::close() is RetirementRuntime::shutdown (it signals after its last state change) at all four teardown sites; a watchdog thread exits 124 when no case completes for 60 s and names the last case; stdout is line-buffered; a progress line after each window's publication. mutant.sh runs each test under a 300 s alarm, prints per-test seconds, and maps rc 124/142 to HUNG (mutant job exit 125, not evidence; positive fails). Local A/B, same d1-revert build: fixed T7 6 of 6 killed at the creation case (57-82 s); the control (fixed T7 with close().wait() put back) 3 of 5 ended by the watchdog with exit 124 at 71-102 s, 2 killed. Jobs: the chain in State.
+- T7 timing A/B fc078b (Release, interleaved, at 8a0ba8b): old (e32cdb8 test: real fsync/F_FULLFSYNC in the seam and probes) r1 hung, killed at 1,207 s (flush median 27.6 ms, p90 57.5, load 11.4); new r1 passed in 91 s (flush median 26.3 ms, load 4.0); old r2 passed in 155 s (flush median 20.8 ms); new r2 passed in 25 s (flush median 20.3 ms, load 7.8). New runs: 5,766 cases each; window 1 cuts at 2.3-11.5 s. The seam change cuts T7 time 6x at equal flush latency; the r1 hang is the retirement deadlock, not flush latency.
+
 ## Blocked on
 
-Nothing.
+- Lead: RetirementDomain::close can lose the worker's wakeup (src/detent_distribution/retirement.cc, outside my file set, identical to main: blob dd31703). close() signals, then sets the closed bit; the worker's step reads admission, then `run()` reloads it for `pending`, so a fetch_or landing between the two loads (after the worker consumed the byte) leaves it in poll(-1) with a drainable domain. Product callers: relay host.cc:419-420, managed_host.cc:221 (shutdown can hang), and ~30 waits in test_disk_store. Probe: retirement-wakeup.sh at main fails in 3 s (-O0, round 4,786) and 7 s (-O2, round 36,310) locally; job 261109-085248-0c7d20. Candidate fix (tried locally on a copy, not committed): step keeps the rolling_back and admission values it read (rolling_back first) and `pending` uses them; 300,000 rounds drain at -O0 and -O2. Options: (1) add retirement.cc and a tests/detent_distribution regression to this quest's file set, I land it with the probe as its failing-without test; (2) a separate small quest. Recommendation: (2), so S1/S2 does not grow a distribution change; T7 no longer depends on it.
+- Lead: the stale 8a0ba8b jobs still queued (cycle-oracle 053525-28e6bf, build-after 053527-aca6f4 done, arms 053532-53caa6, -2b8fb5, -c75e5b, -d218a2, -7d39c5, -15e690, -889cd2, -29b391, 5M -85185d, -5244c6): `campaign job cancel` was refused to me by the permission classifier; please cancel them.
 
 ## Evidence
 
@@ -52,14 +57,14 @@ you examined, failures included, and answer each message by its id (msg-N).
 |---|---|
 | A1 | `docs/status/namespace-s1-s2.md` (completion:0490a5a, df6394a, 560c288; CI 41925122896) |
 | A2 | `docs/status/namespace-s1-s2.md` (completion mutants run 41925127096) |
-| A3 | pins gate 261109-053529-b273be |
-| A4 | positive 261109-053515-0e6248; unsynced-descriptor 053518-443bd3, rename-before-sync 053519-e40466 (each passes iff killed) |
-| A5 | positive 261109-053515-0e6248 (test_local_paged_store_startup); startup-before-barrier 053517-765657; d1-revert 053515-ae762d |
-| A6 | native gate 261109-053529-40e439; harness: A9 after arms with summarize.py --require-counters (053532-53caa6 and later) |
-| A7 | positive 261109-053515-0e6248; mutants unsynced-descriptor 053518-443bd3, rename-before-sync 053519-e40466, empty-payload-group 053521-acfd9c, startup-before-barrier 053517-765657, cycle-oracle 053525-28e6bf; attribute c 053526-dc9720 |
-| A8 | positive 261109-053515-0e6248; reverts closed-session 053522-d7b627 (0cd1527), phase-counts 053523-64711f (522452a) |
-| A9 | build before 261108-213700-dc3b49, after 261109-053527-aca6f4; 10K b/a 053530-15c25c 053532-53caa6 053533-964ef1 053535-2b8fb5 053536-dd8bad 053538-c75e5b; 100K b/a 053539-396912 053541-d218a2 053542-7d39c5 053544-15e690 053545-889cd2 053547-29b391; 5M b 053548-85185d, a 053550-5244c6 (all 261109-) |
-| A10 | asan gate 261109-053529-9a3f10, tsan gate 261109-053529-10fd2e |
+| A3 | pins gate 261109-085306-f88ebc |
+| A4 | positive 261109-085250-7abf33; unsynced-descriptor 085254-afd4a0, rename-before-sync 085255-9a46c2 (each passes iff killed; at 8a0ba8b 053518-443bd3, 053519-e40466 killed) |
+| A5 | positive 261109-085250-7abf33 (test_local_paged_store_startup); startup-before-barrier 085253-a67627; d1-revert 085251-69e523 (053515-ae762d timed out at 8a0ba8b: the retirement deadlock, not evidence) |
+| A6 | native gate 261109-085306-1a0b81; harness: A9 after arms with summarize.py --require-counters (085308-2a2aab and later) |
+| A7 | positive 261109-085250-7abf33; mutants unsynced-descriptor 085254-afd4a0, rename-before-sync 085255-9a46c2, empty-payload-group 085257-1a17df, startup-before-barrier 085253-a67627, cycle-oracle 085301-423694; attribute c 085303-c6d79d |
+| A8 | positive 261109-085250-7abf33; reverts closed-session 085258-83cfd7 (0cd1527), phase-counts 085300-ad0afa (522452a) |
+| A9 | build before 261108-213700-dc3b49 (at Detent:327ca58 by design), after 261109-085305-a3da2d; 10K b/a 085307-752e2e 085308-2a2aab 085310-8706a2 085312-59c763 085314-1b83e8 085315-422381; 100K b/a 085316-2f062e 085317-2b5b3b 085318-19589c 085320-3078d4 085321-a8c1c3 085323-bff1da; 5M b 085324-24b714, a 085326-8bcc5c (all 261109-) |
+| A10 | asan gate 261109-085306-9cde82, tsan gate 261109-085306-8a5cd6 |
 | A11 | `docs/mechanisms/sync-groups.md` |
 | A13 | [manual] the lead names the completion commit (decision 5 open) |
 
@@ -75,5 +80,9 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 1. Job scripts live in docs/measurements/sync-groups-20261108/ (now in the quest's file set). They reuse the unmodified 2026-11-07 harness (docs/measurements/sync-groups-20261107/coldboot.py, SHA-256 518db64e...75a5) and run its 10K smoke inside each arm job so its staged-run precondition holds.
 2. A9 design: one arm per exclusive job; builds are light jobs on named slots s1s2-before (Detent:327ca58) and s1s2-after; arm.sh checks the slot's built commit and that the slot's code equals the job's. Before/after arms interleaved b1 a1 b2 a2 b3 a3; the A/A band is the spread among the before arms (10K, 100K); 5M one before, one after.
+
+3. T7 waits for retirement through RetirementRuntime::shutdown, not RetirementDomain::close().wait(): T7 tests power cuts, not drainage, and the shutdown path has no lost wakeup. The defect itself is the lead's (Blocked on). test_disk_store and test_paged_store_startup keep close().wait(); they close far fewer domains per run.
+4. A hang is never a kill: mutant.sh maps a watchdog exit (124) or its 300 s alarm (142) to exit 125. T7's watchdog limit is 60 s per case (slowest observed gap between cases under TSan is a few seconds).
+5. --minutes from observed runs plus the bounds: targets 5, positive 20 (3 tests x 300 s), one-test mutants 10, startup-before-barrier 15, attribute c 30, build-after 15, probes 10, 10K arms 5, 100K arms 8, 5M arms 29.
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
