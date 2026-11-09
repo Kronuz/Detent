@@ -173,7 +173,7 @@ std::vector<Pack> read_store(const std::filesystem::path &store) {
 		packs.push_back(std::move(pack));
 	}
 	std::sort(packs.begin(), packs.end(), [](const Pack &a, const Pack &b) {
-		return a.ownership.segment < b.ownership.segment;
+		return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 	});
 	return packs;
 }

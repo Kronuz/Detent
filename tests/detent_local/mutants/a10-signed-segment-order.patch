@@ -1,0 +1,14 @@
+diff --git a/tests/detent_local/test_dense_delta_assembly.cc b/tests/detent_local/test_dense_delta_assembly.cc
+index 5403db9..3cda4cf 100644
+--- a/tests/detent_local/test_dense_delta_assembly.cc
++++ b/tests/detent_local/test_dense_delta_assembly.cc
+@@ -17,8 +17,7 @@ namespace d = detent::distribution;
+ using Rows = std::map<std::string, std::vector<char>>;
+ // Orders segments as find_segment searches them: unsigned bytes, not signed chars.
+ static bool segment_less(const x::SegmentInput &a, const x::SegmentInput &b) {
+-	return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(),
+-					   a.ownership.segment.size()) < 0;
++	return a.ownership.segment < b.ownership.segment;
+ }
+ static std::size_t segment_index(std::span<const x::SegmentInput> inputs,
+ 								 const l::StorageIdentity &id) {

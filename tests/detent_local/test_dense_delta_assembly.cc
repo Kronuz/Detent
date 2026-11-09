@@ -4,6 +4,7 @@
 #include "paged_navigation.hh"
 #include "paged_overlay_assembler.hh"
 #include "paged_packer.hh"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -14,6 +15,17 @@ using namespace dense_test;
 namespace x = l::detail;
 namespace d = detent::distribution;
 using Rows = std::map<std::string, std::vector<char>>;
+// Orders segments as find_segment searches them: unsigned bytes, not signed chars.
+static bool segment_less(const x::SegmentInput &a, const x::SegmentInput &b) {
+	return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(),
+					   a.ownership.segment.size()) < 0;
+}
+static std::size_t segment_index(std::span<const x::SegmentInput> inputs,
+								 const l::StorageIdentity &id) {
+	const auto i = x::find_segment(inputs, id);
+	require(i != inputs.size());
+	return i;
+}
 static std::vector<char> encoded(const detent::KnobDef &value) {
 	std::vector<char> bytes(p::definition_size(value));
 	p::encode_definition(bytes, value, 8);
@@ -39,11 +51,9 @@ struct Base {
 			inputs.push_back({pack.ownership, pack.bytes});
 			live.push_back({});
 		}
-		std::sort(inputs.begin(), inputs.end(), [](const auto &a, const auto &b) {
-			return a.ownership.segment < b.ownership.segment;
-		});
+		std::sort(inputs.begin(), inputs.end(), segment_less);
 		for (const auto &[path, r] : occurrences) {
-			auto i = x::find_segment(inputs, r.segment);
+			const auto i = segment_index(inputs, r.segment);
 			++live[i].pages;
 			live[i].bytes += r.length;
 		}
@@ -157,7 +167,7 @@ static std::map<std::string, p::Reference> occurrences(std::span<const x::Segmen
 	std::map<std::string, p::Reference> result;
 	const auto walk = [&](auto &&self, p::Reference r, std::size_t offset,
 						  std::string path) -> void {
-		const auto bytes = x::checked_page_bytes(inputs[x::find_segment(inputs, r.segment)], r);
+		const auto bytes = x::checked_page_bytes(inputs[segment_index(inputs, r.segment)], r);
 		if (offset == p::page_header_bytes) {
 			require(result.emplace(path, r).second);
 			p::verify_page(bytes, r);
@@ -216,9 +226,7 @@ check(const std::shared_ptr<d::StorageLedger> &account, const std::shared_ptr<Ba
 		merged.push_back({pack.ownership, {pack.bytes->data(), pack.bytes->size()}});
 		written += pack.bytes->size();
 	}
-	std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
-		return a.ownership.segment < b.ownership.segment;
-	});
+	std::sort(merged.begin(), merged.end(), segment_less);
 	const auto actual = occurrences(merged, image.root());
 	x::PagedReadState reader{image.root(), merged};
 	for (const auto &[key, body] : rows) {
@@ -444,6 +452,21 @@ int main(int argc, char **argv) {
 	require(rounds > 0 && rounds <= 1000000);
 	auto account = std::make_shared<d::StorageLedger>(256 * 1024 * 1024);
 	check_key_grammar(account);
+	// Over 128 single-page packs: from ordinal 128 the last id byte is above 0x7f, which a
+	// signed-char sort orders apart from find_segment's unsigned search.
+	{
+		Rows many_rows{{key("ns", true), std::vector<char>(8)}};
+		for (unsigned i = 0; i < 600; ++i)
+			many_rows[key("ns:w" + std::to_string(i))] = std::vector<char>(1000, char('a' + i % 26));
+		auto many = std::make_shared<Base>(Full(account, 1).build(many_rows));
+		require(many->packs.size() > 128);
+		auto target = many_rows;
+		target[key("ns:w7")] = std::vector<char>(900, 'z');
+		target.erase(key("ns:w300"));
+		check(account, many, target,
+			  {{key("ns:w7"), target.at(key("ns:w7"))}, {key("ns:w300"), std::nullopt}});
+		check(account, many, many_rows, {}, true);
+	}
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
 	l::write_integer(rows.at(key("ns", true)), 0, 17, 8);
 	for (unsigned i = 0; i < 2000; ++i)

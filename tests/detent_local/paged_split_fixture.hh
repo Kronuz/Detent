@@ -61,7 +61,8 @@ struct SplitPagedInput {
 		for (std::size_t i = 0; i < inputs.size(); ++i)
 			inputs[i] = {packs[i].ownership, {packs[i].bytes->data(), packs[i].bytes->size()}};
 		std::sort(inputs.begin(), inputs.end(), [](const auto &a, const auto &b) {
-			return a.ownership.segment < b.ownership.segment;
+			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(),
+							   a.ownership.segment.size()) < 0;
 		});
 	}
 };
