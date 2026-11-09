@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: ready for review
+State: working
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,7 +23,9 @@ Chains (slot `obs-bench`, ref `s6=b1d281c`):
 
 ## Next
 
-1. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
+1. A8 (D38): add position-indexed exact arms and an interleaved on/off mode to the bench; screen (strict), then
+   decide with exclusive runs at 1, 8 and 64 threads.
+2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
 ## Blocked on
