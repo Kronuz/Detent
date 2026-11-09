@@ -89,6 +89,8 @@ if(DETENT_BUILD_AUTHORITY)
   set_tests_properties(test_authority_distribution_large_scope PROPERTIES TIMEOUT 60)
   add_test(NAME test_authority_multivoter COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_multivoter.py $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_authority_multivoter PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 60)
+  add_test(NAME test_authority_daemon_alone COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_daemon_alone.py $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
+  set_tests_properties(test_authority_daemon_alone PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 60)
   add_test(NAME test_authority_readiness_pressure COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_multivoter.py $<TARGET_FILE:detentd> ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture --load)
   set_tests_properties(test_authority_readiness_pressure PROPERTIES FIXTURES_REQUIRED authority_tls TIMEOUT 180)
 

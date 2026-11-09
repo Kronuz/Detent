@@ -4,11 +4,12 @@
 
 ### detentd readiness
 
-- `detentd --daemonize` returns, and `--status` and `/v1/health` report `"ready":true`, only once the
-  authority has a leader: this node leads, or follows a known leader. The first `/v2/open` after
-  `--daemonize` succeeds without a retry, and the quick-start no longer loops on it. A fixed-voter
-  node started alone now waits for its quorum and ends at the 30 s startup timeout instead of
-  returning with the listener up.
+- `detentd --status` and `/v1/health` report `"ready":true` only once the node has a leader: it leads,
+  or it follows a known leader. `detentd --daemonize` waits for that when the node alone is a quorum
+  (the single-voter configuration, the quick-start case), so the first `/v2/open` after it succeeds
+  without a retry and the quick-start no longer loops on it. With a fixed voter set, `--daemonize`
+  returns once the listener is up, as before, and `--status` reports `"ready":false` until a leader
+  exists.
 
 ### Trusted restart (namespace S3)
 
