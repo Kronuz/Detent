@@ -23,6 +23,7 @@ Modes:
                             a day), a stale receiver's top-down pull of the pages it lacks, level
                             by level, with the stop rule, against the head's full copy and the
                             records answer: bytes as sent, round trips, receiver SHA-256 input.
+                            Record only: the pull is not part of the design (D10, PLAN.md D36).
   check CORPUS              Every mode on a small corpus, plus the receiver's refusals: damage,
                             reuse and truncation; a layout or an order the sender chose; and a
                             validly sealed forgery per structure and canonicity check, refused by
