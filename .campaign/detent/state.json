@@ -2782,6 +2782,27 @@
       "title": "Stage 6: startup runtime capacity configuration",
       "updated": "2026-11-08T15:38:26"
     },
+    "sync-groups-perf": {
+      "accepted": {},
+      "after": [
+        "namespace-s1-s2"
+      ],
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/perf/sync-groups.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "S1/S2 before and after timing table from main",
+      "updated": "2026-11-09T04:16:22"
+    },
     "task-cancellation": {
       "accepted": {},
       "after": [],
