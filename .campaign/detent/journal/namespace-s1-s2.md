@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs 261109-000453-ac1932 (mutant harness target check; then rerun the positive run and the seven mutants)
+State: waiting on the whole chain at Detent:4128dd7: targets 261109-011617-8bfe8f, positive 390a68, mutants a9e1f5 853414 bd301c 80936a 2a94c1 2d1b39 88a6e7, build-after 793ad4, A9 arms 10K (b2b35d b86500 a3676f 588c4d 2c1f8d 0cc6db) 100K (84352e 9fe0e4 b681fd 5f5d2c 199f0b c49e01) 5M (b81781 before, 1b7a51 after), gates (261109-011657-b961c0 native, 5c3a58 pins, bdc62c asan, 4c7c75 tsan)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,6 +24,8 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 - N1 (restart-then-republish cycles sample every third event; readiness check only on the first pass), N2 (no fault injection over a multi-window paged publication), N3 (T7's macOS seam treats F_BARRIERFSYNC as a device flush), N4 (kill between Replace and its barrier lets local readers see the new generation before it is durable; unchanged from main): non-blocking, noted, no work. The new creation case checks durability at ready for every kill point, which narrows N1 for the startup barrier.
 
 - Fix-round result: D1 confirmed both ways (probe d07d1a fails at b3fef50, 5cd56d passes at the fix). The positive run 23c2fd failed with 'unknown target': the slot s1s2-mutant kept a build directory configured by the first (AUTHORITY/RELAY/MANAGED_AGENT off) run, and mutant.sh configured only when no cache existed. mutant.sh now reconfigures every run and has a `targets` mode; job ac1932 checks the three test targets exist before the batch is requeued.
+
+- Chain queued 2026-11-09 (all ids carry the 261109-0116 prefix except the gates and 5M): targets check (grep for `^test_local_(disk_store|paged_store_startup|publication_power_cut): phony$` == 3; the first version counted every target line and failed ac1932), then the positive run, the seven mutants (each passes iff killed), build-after, A9 arms interleaved b/a x3 at 10K and 100K, 5M one each (28 minutes), then `campaign verify` gates. A6's harness line is the 10K and later after arms (summarize.py --require-counters); A8 is closed-session (lifecycle, startup test) and phase-counts (accounting, T7). Earlier arms (baa7ec 10K after, d6e0a3 10K before) ran at older code and are superseded.
 
 ## Blocked on
 
