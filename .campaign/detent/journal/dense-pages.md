@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-044236-f5ae51 261109-051245-db09c0 261109-051245-860eed (fixture race proof) and gate 261109-051101-0e5691 with its chain (see "Fixture fix 2026-11-09")
+State: waiting on jobs 261109-044236-f5ae51 261109-051245-db09c0 261109-052359-e76a0c 261109-052359-b5065a 261109-052400-f703ba (fixture race proof) and gate 261109-051101-0e5691 with its chain (see "Fixture fix 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -12,8 +12,8 @@ before the coordinator settles). Proof and the requeued gate chain are queued at
 
 ## Next
 
-1. Fixture proof: head job f5ae51 (Detent:97f0f2f) must fail, fixed db09c0 must pass, revert
-   860eed must pass (killed). Record the close answered -> acknowledged gap from db09c0's -V log.
+1. Fixture proof: head jobs f5ae51/e76a0c (Detent:97f0f2f) must fail, fixed db09c0/b5065a must
+   pass, revert f703ba must pass (killed). Record the close answered -> acknowledged gap from db09c0's -V log.
 2. Read gate 0e5691 and its chain (below); reverts 844834/5c50b4 must pass (killed), COR-1 872c6e
    must pass; record the 5M T4 actuals (d14e40) against the model (5 pages / 15,691 B one update).
 3. A3/A6 mutants stand at Detent:ac4c32e (untouched code); rerun all mutants at the post-S1/S2
@@ -358,8 +358,13 @@ with the new assertions, including transitions, reset, cancel-open and worker-ca
 Proof jobs, five 500K cases, `--repeat until-fail:8`, light:
 1. 261109-044236-f5ae51 at Detent:97f0f2f (before the fix): expected to fail.
 2. 261109-051245-db09c0 at Detent:b8ef8d2 (fix, -V): must pass.
-3. 261109-051245-860eed at Detent:b8ef8d2, `dense_mutant.sh` with held-poll-inline.patch and
-   DENSE_MUTANT_RUN repeating x8: passes when killed.
+3. 261109-051245-860eed (serial revert): cancelled before it ran, replaced by 6.
+4. Serial f5ae51 passed its first 22 runs (#59, #69, #89 8/8 each, #90 6/6) at the time of
+   writing: serial load rarely loses the race. The gate lost it under -j4, so the proof also runs
+   the five cases in parallel: head 261109-052359-e76a0c (Detent:97f0f2f, must fail).
+5. Fix in parallel: 261109-052359-b5065a (Detent:b8ef8d2, must pass).
+6. Revert in parallel: 261109-052400-f703ba, `dense_mutant.sh` with held-poll-inline.patch and
+   DENSE_MUTANT_RUN `ctest -j4 --repeat until-fail:8` on the five: passes when killed.
 
 Requeued at Detent:b8ef8d2: gate (`campaign verify`) 261109-051101-0e5691; after it: reverts
 844834, 5c50b4; A11 mutants 60ed43, 2bcd01, 8f3443; COR-1 ecbdb4, 43de33, 872c6e; A10 1b276f ->
