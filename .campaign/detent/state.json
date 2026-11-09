@@ -271,7 +271,161 @@
       "updated": "2026-11-08T12:45:01"
     },
     "dense-distribution": {
-      "accepted": {},
+      "accepted": {
+        "design": {
+          "at": "2026-11-09T10:55:07",
+          "base": "8874c718629115b1adbfb80c33cb3868451e7739",
+          "blobs": {
+            "docs/design/dense-distribution-model.py": "100644:dc25265b817c3ca2c8ba2723c0573dd27a0c936f",
+            "docs/design/dense-distribution.md": "100644:70e4112714030b4a3f9089efeb4a726f3ac7afdf"
+          },
+          "brief": "ffc2fca849a5f356",
+          "by": "review",
+          "commit": "09baa8f4a9ec9d4dfe65b2ab8cb4538fd803eb9f",
+          "findings": {
+            "DD-1": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py check /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-60880b",
+                  "level": "light",
+                  "seconds": 78.9,
+                  "state": "done",
+                  "what": "A3/A4 DD-1/DD-2: model check and refusals, 100K at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "DD-14": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py check /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-60880b",
+                  "level": "light",
+                  "seconds": 78.9,
+                  "state": "done",
+                  "what": "A3/A4 DD-1/DD-2: model check and refusals, 100K at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "DD-15": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py stale /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-5m.bin 1:moderate 6:moderate 24:moderate 168:moderate 1:hotrange 1:uniform 24:uniform",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-6bafb6",
+                  "level": "light",
+                  "seconds": 1368.8,
+                  "state": "done",
+                  "what": "A7: stale receiver at 5M with the sampled stop rule at fecec8992279"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "DD-16": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py check /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-60880b",
+                  "level": "light",
+                  "seconds": 78.9,
+                  "state": "done",
+                  "what": "A3/A4 DD-1/DD-2: model check and refusals, 100K at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "DD-2": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py check /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-60880b",
+                  "level": "light",
+                  "seconds": 78.9,
+                  "state": "done",
+                  "what": "A3/A4 DD-1/DD-2: model check and refusals, 100K at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "DD-3": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I /Users/kronuz/code/Kronuz/Detent/.scratch/review-dense-distribution-design/probe.py /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-c6dbf7",
+                  "level": "light",
+                  "seconds": 41.7,
+                  "state": "done",
+                  "what": "DD-1..DD-3: reviewer's probe, 100K at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "DD-4": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py day /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-5m.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-d342e5",
+                  "level": "light",
+                  "seconds": 539.2,
+                  "state": "done",
+                  "what": "DD-4: pages only per agent-day at 5M at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "DD-5": {
+              "jobs": [
+                {
+                  "cmd": "/usr/local/bin/python3 -I docs/design/dense-distribution-model.py full /Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-5m.bin",
+                  "commit": "fecec899227939d6f870d488db5caae5cebb3aa3",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-101430-2bd56e",
+                  "level": "light",
+                  "seconds": 289.6,
+                  "state": "done",
+                  "what": "A1: full copy at 5M at 29b5e53 at fecec8992279"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "3409221b32bd5b55d9089660e391c7cfe5b05895",
+          "reviewed": "",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "8874c718629115b1adbfb80c33cb3868451e7739",
       "branch": "quest/detent/dense-distribution",
@@ -294,7 +448,7 @@
       "risk": "low",
       "status": "review",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-09T01:16:42",
+      "updated": "2026-11-09T10:55:07",
       "worktree": "../Detent-wt/detent/dense-distribution"
     },
     "dense-pages": {
