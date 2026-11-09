@@ -3,38 +3,36 @@
 State: working
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State, the first step under Next, and the Evidence table. State is one of: working,
-waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Measurements (A7) as jobs at the bench commit (Detent:0b4924a); the design doc follows them in
+one commit.
 
 ## Next
 
-1. <step>
+1. When the bench jobs pass: write docs/design/async-drivers.md from their output, commit it, rerun
+   the jobs at the doc commit, send the A8 message to the Xapiand lead.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-One row per criterion, with what its kind needs: a job id (it, or the same job rerun, passed at
-the current code), a `path`, a decision id, or for a [manual] one who checked what. Name every job
-you examined, failures included, and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1-A8 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Library heads read and measured: origin/main of journal (e5f6ff1), consensus (ab05507), task
+   (bdafa5f), completion (560c288); local `main` of journal and consensus is behind origin, so
+   the design cites origin/main. Detent pins older journal (bfad97f) and consensus (cef08eb).
+2. Bench lives in docs/design/async-drivers-bench/ (file set) and pins the libraries through
+   `--ref`, passed to CMake as FETCHCONTENT_SOURCE_DIR_<NAME>.
+3. Task frames are counted with TASK_FRAME_POOL=0 (task.hh:438) so the pool hides nothing; the
+   create+destroy time is therefore malloc's, an upper bound on the pooled path.
