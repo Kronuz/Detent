@@ -437,18 +437,29 @@
       "files": [
         "docs/design/dense-distribution*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T11:16:59",
+          "commit": "676d137b22fab7a71f521dfa5e974fc7890973d9",
+          "evidence": [],
+          "final": true,
+          "from": "468d155a6fd0a24df9c5d1766c42ca85a878e5df",
+          "reason": "",
+          "tested": "676d137b22fab7a71f521dfa5e974fc7890973d9"
+        }
+      ],
       "lenses": [
         "design"
       ],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "review",
+      "status": "landed",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-09T10:55:07",
+      "updated": "2026-11-09T11:16:59",
       "worktree": "../Detent-wt/detent/dense-distribution"
     },
     "dense-pages": {
