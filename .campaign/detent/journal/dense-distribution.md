@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: working
+State: waiting on jobs 261108-215111-57b64f 261108-215112-5db839 261108-215113-2c03ee 261108-215113-376435
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,9 +15,10 @@ against modeled records calibrated to the measured 5M record copy, and replays t
 
 ## Next
 
-1. Probe the model on the 100K corpus (unversioned light job), then commit it.
-2. Submit the 5M `full` and `delta` jobs at the branch head with `--ref DENSE=28d3ed9`.
-3. Write `docs/design/dense-distribution.md` from the job outputs.
+1. Read the four jobs' logs (check 100K `261108-215111-57b64f`, full 5M `261108-215112-5db839`,
+   deltas 5M `261108-215113-2c03ee`, crossover sweep 5M `261108-215113-376435`).
+2. Write `docs/design/dense-distribution.md` from them (skeleton committed).
+3. Fill the Evidence table; State "ready for review".
 
 ## Blocked on
 
@@ -27,7 +28,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1-A6 | pending |
+| A1-A6 | pending: jobs queued at `Detent:4fa06bd` (the model). Probe `261108-214633-1b1530` (unversioned, 100K, not evidence) passed. |
 
 ## Result
 
