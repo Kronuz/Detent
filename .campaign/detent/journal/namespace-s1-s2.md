@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs 261109-025503-2ccb31 (positive), mutants 025504-d90f68 025505-8d6713 025506-46f896 025508-2f9c30 025509-aeaaff 025510-58adb2 025511-86c6f4 025512-aa1268, attribute c 025513-3f17fc, A9 arms 025515..025530, gates 025531-dd57e8 -8e2301 -6ba699 -b2d410 (all 261109-)
+State: waiting on jobs at Detent:802a9df (final code and docs): positive 261109-041847-3953a3, mutants 041848-85c0c1 041848-3d4994 041849-50d4e2 041850-91582d 041850-0295d1 041851-8c0fe0 041852-4eeda0 041852-dfa337, attribute c 041853-e6bf27, gates 041854-585460 -2b17c7 -56f3be -b97278, A9 arms 041855-eea2e8..041904-1a7f6c (all 261109-)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -34,6 +34,8 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 - T7 cycle failure resolved (Detent:e32cdb8). Cause: an oracle gap exposed by event numbering, not a code ordering change. The D1 barrier adds three startup events (OpenInto, SyncFiles, CloseFile), so window 2's Replace completion moved to event 120 and the cycle sampler (every fifth boundary) picked it for the first time. A kill there leaves the rename visible, not durable; a power cut at the rerun's event 0 (before its barrier) correctly selects `g`, the generation before the first publication (the main loop accepts the same cut at event 120). The cycle oracle knew only the rerun's before/after (`n`, `o`). The sampler's `starts_with("replace ")` clause never matched (that note is not a boundary), so the Replace point was covered only by luck of index. Attribution: variant a (36d6c4) failed at the D1 creation case, as designed; variant b (f516c2) failed at the old test's line 442, `publication_counters.groups == run.groups`, because the old Tracker counted the startup SyncFiles as a publication group: accounting, not the invariant. Fix: before the rerun reports ready, the oracle also accepts what the original cut allowed; the sampler always includes the Replace-completion boundary. Fails without it: mutant cycle-oracle 025512-aa1268 (allowance removed, head code; passes iff T7 fails). Predates D1: attribute.sh c 025513-3f17fc (pre-D1 disk_store.cc, allowance removed; passes iff the Replace-completion cycle variant 2 selects g).
 - Chain requeued at e32cdb8 (.scratch/queue.out): targets 025502-a25bfb, positive 025503-2ccb31, eight mutants (the seven plus cycle-oracle), build-after 025514-2eafd5, arms b/a x3 at 10K (025515-d3c885 b1, 025517-ec84d1 a1, 025518-a3f71a b2, 025519-135889 a2, 025520-319247 b3, 025521-9b3488 a3) and 100K (025522-f543d6 b1, 025523-7e61b3 a1, 025525-077e5b b2, 025526-33819c a2, 025527-a786bb b3, 025528-99a16c a3), 5M 025529-519b08 b, 025530-734fe1 a; gates native 025531-dd57e8, pins -8e2301, asan -6ba699, tsan -b2d410. Next: read results; write the two docs; rerun `campaign verify` at that final head (docs change the tree key, so the gates rerun there).
 
+- D32 (lead, 2026-11-09): A12 moved to quest sync-groups-perf; docs/perf/sync-groups.md is not written here. A11 written at Detent:802a9df (docs/mechanisms/sync-groups.md: restart barrier over storage.meta, flush counts from T7 and the startup test, 5M 25 vs 5,775 from the 2026-11-07 runs, the power-cut model); the ledger's pointer updated. At e32cdb8 the positive 025503-2ccb31 and all four gates (native dd57e8, pins 8e2301, asan 6ba699, tsan b2d410) passed, confirming the oracle fix; the queued rest was cancelled as stale (d90f68, 3f17fc, d3c885 were running and left to finish). Resubmitted at 802a9df in the lead's order, the 14 arms `--after` the four gates (.scratch/queue.out).
+
 ## Blocked on
 
 Nothing.
@@ -46,7 +48,18 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1 | `docs/status/namespace-s1-s2.md` (completion:0490a5a, df6394a, 560c288; CI 41925122896) |
+| A2 | `docs/status/namespace-s1-s2.md` (completion mutants run 41925127096) |
+| A3 | pins gate 261109-041854-2b17c7 |
+| A4 | positive 261109-041847-3953a3; unsynced-descriptor 041849-50d4e2, rename-before-sync 041850-91582d (each passes iff killed) |
+| A5 | positive 261109-041847-3953a3 (test_local_paged_store_startup); startup-before-barrier 041848-3d4994; d1-revert 041848-85c0c1 |
+| A6 | native gate 261109-041854-585460; harness: A9 after arms with summarize.py --require-counters (041856-0a2e68 and later) |
+| A7 | positive 261109-041847-3953a3; mutants unsynced-descriptor 041849-50d4e2, rename-before-sync 041850-91582d, empty-payload-group 041850-0295d1, startup-before-barrier 041848-3d4994, cycle-oracle 041852-dfa337; attribute c 041853-e6bf27 |
+| A8 | positive 261109-041847-3953a3; reverts closed-session 041851-8c0fe0 (0cd1527), phase-counts 041852-4eeda0 (522452a) |
+| A9 | build before 261108-213700-dc3b49, after 261109-041854-da9b9f; 10K b/a 041855-eea2e8 041856-0a2e68 041857-42aaae 041857-30489c 041858-ac49a0 041859-25cb74; 100K b/a 041859-1fa8ca 041900-830bd7 041901-48f5c0 041901-82402b 041902-9162a3 041903-3fc47c; 5M b 041903-b627cb, a 041904-1a7f6c (all 261109-) |
+| A10 | asan gate 261109-041854-56f3be, tsan gate 261109-041854-b97278 |
+| A11 | `docs/mechanisms/sync-groups.md` |
+| A13 | [manual] the lead names the completion commit (decision 5 open) |
 
 ## Result
 
