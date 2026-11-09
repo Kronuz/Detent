@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-063254-60ccf1 261109-063255-ce975b 261109-063256-8f7f5c 261109-063257-f27cde 261109-063257-e99c35 (500K rate, timeline, fix proof, revert) and the requeued gate chain (see "500K round 3 2026-11-09")
+State: waiting on jobs 261109-063254-60ccf1 261109-063255-ce975b 261109-063256-8f7f5c 261109-063257-f27cde 261109-063257-e99c35 (500K rate, timeline, fix proof, revert) and gate 261109-063352-da4860 with its chain (see "500K round 3 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -415,6 +415,12 @@ Jobs, all light, -j4, 6 rounds x 6 cases (36 case runs), fixed N:
 3. 261109-063256-8f7f5c at Detent:00c9aaf (b8ef8d2 + logs), -V: timeline, before-rate.
 4. 261109-063257-f27cde at Detent:203f729, -V: must pass.
 5. 261109-063257-e99c35 revert at Detent:203f729, dense_mutant.sh: passes when killed.
+Requeued at Detent:d8f6cff (code = 203f729): gate (`campaign verify`) 261109-063352-da4860; the
+chain rerun with the old gate in the set, so `after` maps to da4860: b02339, d4859c, 2d00f8,
+bd758a, 7ed01d, 61b36a, 18eaab, 973d5d, c65072 -> 1908e9, f05d8f -> 0c4718, 79035a, 361de8,
+da9795, 3f89dc, 6a25ab, d3ac7e, e3a875, b31605, 1b6a98, cdb818, 73121f, 78c3be (prefix
+261109-0635, same order as the 0512 list above). No gate: A12 537286, 5a2ae9. The 261109-0634
+batch skipped: rerun without the gate kept `after` on failed 0e5691.
 Before-rate so far (not this job's): at b8ef8d2 every case failed its first run (db09c0 serial,
 b5065a -j4); at 97f0f2f -j4 (e76a0c) every case failed within 6 runs. A pass of 36 runs at a
 per-run rate p is luck with probability (1-p)^36: 2.6e-6 at p = 0.3, 0.023 at p = 0.1.
