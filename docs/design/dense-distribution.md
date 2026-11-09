@@ -1,11 +1,11 @@
-> Status: DRAFT (2026-11-08) Ready for design review. D1 to D9 are the designer's. The full-copy wire format is reserved to the owner (`.campaign/detent/PLAN.md`, "Reserved decisions", D20), so D2 and D3 are recommendations until Q2 is ruled, and the delta encoding is Q1. Every byte figure comes from the [model](dense-distribution-model.py) in the campaign job named beside it. Page bytes are exact for the 5M corpus. Record bytes are modeled and calibrated against the measured record copy. No time is measured here.
+> Status: DRAFT (2026-11-09), a measured design record. The owner withdrew the direction that receivers should build nothing (`.campaign/detent/PLAN.md`, D33), so this document sets no goal: it records what each encoding costs, the receiver that verifies pages against one root digest, and the rule the numbers support. No implementation quest starts from it until a goal asks for one. D1 to D9 are the designer's. The full-copy wire format is reserved to the owner (D20), so D2 and D3 are recommendations until Q2 is ruled, and the delta encoding is Q1. Every byte figure comes from the [model](dense-distribution-model.py) in the campaign job named beside it. Page bytes are exact for the 5M corpus. Record bytes are modeled and calibrated against the measured record copy. No time is measured here.
 
 # Dense distribution
 
-Full copies reach agents as verified pages: the receiver checks and writes what it is sent, and builds nothing. Each delta goes as pages or records, whichever is smaller.
+A full copy as verified pages costs what records cost on the wire, and its receiver checks and writes what it is sent instead of building. A scattered delta as pages costs 38 to 123 times its records; a clustered one about the same. The rule the numbers support is to send each update in whichever encoding is smaller.
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-08. Quest `dense-distribution`.
-- Base: `Detent:8874c71` (`main`). The page format is [dense-pages.md](dense-pages.md) as implemented on `quest/dense-pages` at `Detent:28d3ed9`, cited as dense-pages D*n* with line numbers at that commit. [namespace-delivery.md](namespace-delivery.md) is cited as namespace D*n*.
+- Base: `Detent:8874c71` (`main`); owner direction D33 at `Detent:75c6c99`. The page format is [dense-pages.md](dense-pages.md) as implemented on `quest/dense-pages` at `Detent:28d3ed9`, cited as dense-pages D*n* with line numbers at that commit. [namespace-delivery.md](namespace-delivery.md) is cited as namespace D*n*.
 - Depends on dense-pages D1 (one digest, placement outside it, :46), D5 (canonical bottom-up sealing, :110), D7 (occurrence reuse, :162-168), D8 (relocation computes no digest, :170) and D9 (canonicity, :174). On the namespace side it depends on D6 (records history and the cut), D7 (relays), D8 (derived ids, `namespace-delivery.md:233-239`) and D10 (first touch, scrub, repair, `:261-267`).
 - Changes two things:
   - namespace W6 (`:344`): a frame names its target's root digest and carries pages or records.
@@ -14,11 +14,11 @@ Full copies reach agents as verified pages: the receiver checks and writes what 
 - Model: [dense-distribution-model.py](dense-distribution-model.py) imports [dense-pages-model.py](dense-pages-model.py) at `Detent:28d3ed9` (SHA-256 `96dfd0a7…3906bd1`), passed as the job ref `DENSE`.
   - Corpus: the r12 5M corpus (SHA-256 `bb87ae5d…52bc835`).
   - Its receiver replays every transfer. It must reproduce the target's root digest, and for a full copy the build's files byte for byte.
-  - Jobs, all at `Detent:4fa06bd` with `--ref DENSE=28d3ed9`, each exit 0: full copy `261108-215112-5db839`, deltas `261108-215113-2c03ee`, crossover sweep `261108-215113-376435`, and the 100K self-check and refusals `261108-215111-57b64f`.
+  - Jobs, all at `Detent:29b5e53` with `--ref DENSE=28d3ed9` and the corpus and its SHA-256 in `--env`, each exit 0: full copy `261109-030634-8606dc`, deltas `261109-030635-4e209f`, crossover sweep `261109-030636-4ce079`, a day of polls `261109-030637-311a76`, the 100K self-check and refusals `261109-030632-2d5f94`, and the design review's probes `261109-030633-20ab89`.
 
 | Review | State |
 | --- | --- |
-| Design | not started |
+| Design | CHANGES at `Detent:d874004` (DD-1 to DD-5 blocking); revised here |
 
 ## Abstract
 
@@ -34,9 +34,9 @@ The receiver handles a transfer in five steps:
 4. It hashes every page bottom-up, which it would do anyway to verify the pages, and fills in the fields that were left out.
 5. It publishes only if the root digest equals the one the frame names.
 
-A full copy is the transfer from the empty base. At 5M it is 25.7 MB as sent, against 25.6 MB of records, 1.003 times. The receiver's output is byte-identical to a full build, with the same 622.7 MB of SHA-256 input as the dense build. It does not decode records, build a trie or pack.
+A full copy is the transfer from the empty base. At 5M it is 25.7 MB as sent, against 25.6 MB of records, 1.002 times. The receiver's output is byte-identical to a full build, with the same 622.7 MB of SHA-256 input as the dense build. It does not decode records, build a trie or pack.
 
-A delta is the transfer from the receiver's base. Scattered updates cost far more as pages than as records: 6.7 MB against 108 KB for 10,000 uniform updates, 62 times. Clustered updates are near parity: 63 KB against 55 KB for 10,000 consecutive keys. So each update goes out as whichever encoding is smaller. Under that rule, pages win only for clustered changes of about 100,000 keys and more, and for full copies. "Pages only" (Q1) is the owner's alternative: receivers never build, at 21 to 135 times the records' bytes per scattered update.
+A delta is the transfer from the receiver's base. Scattered updates cost far more as pages than as records: 6.7 MB against 108 KB for 10,000 uniform updates, 62 times. Clustered updates are near parity: 63 KB against 55 KB for 10,000 consecutive keys. The numbers support sending each update as whichever encoding is smaller (D6). Under that rule, pages win only for clustered changes of about 100,000 keys and more, and for full copies. Sending every delta as pages would cost SWEEP_RANGE times the records' bytes per scattered update, and 1.5 GB per agent-day at namespace D6's moderate churn polled every minute, against 12 MB of records (Q1).
 
 ## What the measurements say
 
@@ -46,38 +46,40 @@ A delta is the transfer from the receiver's base. Scattered updates cost far mor
 | Records full copy, modeled | 25,911,641 (calibration ×0.990) | 291,340,194 (×0.897) | | |
 | Today's DTPAGE02 build from records | | | 3,774,996,569 B in 14,001,455 digests | 1,509,994,805 B, 1,441 packs |
 | Dense build from records | | | 622,748,454 B in 162,669 digests | 315,759,038 B, 302 packs |
-| Transfer, "stored" form (packs as built) | 36,736,371 | 315,759,038 | | |
-| Transfer, "digests" form (D3, digests kept) | 36,824,459 | 315,759,038 | | |
-| **Transfer, "wire" form (D3)** | **25,728,032** (1.003× records) | 315,759,038 | 306,989,416 page + 315,759,038 pack = 622,748,454 B in 162,669 digests | 315,759,038 B, identical to the build |
+| Transfer, "stored" form (packs as built) | 36,719,840 | 315,432,480 | | |
+| Transfer, "digests" form (D3, digests kept) | 36,800,022 | 315,432,480 | | |
+| **Transfer, "wire" form (D3)** | **25,705,725** (1.002× records) | 315,432,480 | 306,989,416 page + 315,759,038 pack = 622,748,454 B in 162,669 digests | 315,759,038 B, identical to the build |
 
-Source: job `261108-215112-5db839`. "As sent" is today's framing: 64 KiB fragments, each zstd-3, with a 96-byte header each (`include/detent_distribution/framing.hh:7`). Compressing per 1 MiB segment instead gives 23,099,721 B for the wire form at zstd-3 and 20,459,677 at zstd-9 (Q3).
+Source: job `261109-030634-8606dc`. "As sent" is today's framing: 64 KiB fragments, each zstd-3, with a 96-byte header each (`include/detent_distribution/framing.hh:7`). A transfer's raw bytes are its pages back to back; the receiver's 302 segments add the 8-byte alignment padding. Compressing per 1 MiB segment instead gives 23,102,008 B for the wire form at zstd-3 and 20,441,963 at zstd-9 (Q3).
 
-The modeled records stream comes within 1% of the measured one as sent (×0.990) and within 11% raw (×0.897); at 100K the same model comes within 2% as sent (×0.979, job `261108-215111-57b64f`). Delta record sizes below are modeled and scaled by the 5M factors.
+The modeled records stream comes within 1% of the measured one as sent (×0.990) and within 11% raw (×0.897); at 100K the same model comes within 2% as sent (×0.979, job `261109-030632-2d5f94`). Delta record sizes below are modeled and scaled by the 5M factors.
 
 **A1, the receiver's work.**
 
 1. **Hashing and writes.** The receiver of a full copy hashes what the dense build hashes: 622.7 MB in 162,669 digests, about 2.6 s of one core at dense-pages' rate (an estimate from `dense-pages-model.py:81-82`, not a measurement). It writes the same 316 MB. Against today's build that is 6.06 times less SHA-256 input and 4.78 times fewer bytes written.
-2. **What it skips.** It decompresses 25.7 MB to 316 MB where the build decompresses 25.6 MB to 261 MB. Then it skips the build itself: decoding 5,000,004 records, the trie, the packer and the node encoder. That skipped work has no C++ counter today. The r12 agent spent 125 s of CPU on its DTPAGE02 build (`docs/perf/cold-bootstrap-5m.md`, phase table), and DD3's gate measures the dense difference.
+2. **What it skips.** It decompresses 25.7 MB to 315 MB where the build decompresses 25.6 MB to 261 MB. Then it skips the build itself: decoding 5,000,004 records, the trie, the packer and the node encoder. That skipped work has no C++ counter today. The r12 agent spent 125 s of CPU on its DTPAGE02 build (`docs/perf/cold-bootstrap-5m.md`, phase table); a C++ receiver would have to be timed against the dense build to price the difference.
 3. **What would cut the pack pass.** Half the hashing is the pack checksum `.live` needs (dense-pages Q1, ruled (a) for S1 to S5). Q1's (b) or (c) would remove those 316 MB.
 
 | At 5M, one update (wire form for pages) | Occurrence writes | Pages as sent | Pages raw | Records as sent (modeled) | Records raw (modeled) | Pages / records as sent |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 key, uniform | 5 pages | 6,026 | 15,234 | 160 | 194 | 37.6 |
+| 1 key, uniform | 5 pages | 6,024 | 15,212 | 160 | 194 | 37.6 |
 | 100 keys, uniform | 334 | 203,514 | 913,634 | 1,507 | 6,143 | 135 |
+| 694 keys, uniform (a minute of namespace D6's moderate churn) | 1,847 | 1,038,489 | 5,258,725 | 8,464 | 40,357 | 123 |
 | 1,000 keys, uniform | 2,540 | 1,403,314 | 7,236,393 | 12,037 | 57,869 | 117 |
-| **10,000 keys, uniform** | 16,489 | 6,715,150 | 42,485,753 | 108,240 | 575,208 | **62.0** |
-| **T4 churn: 9,800 updates, 100 inserts, 100 deletes** | 16,616 | 6,801,139 | 42,872,248 | 108,472 | 570,114 | **62.7** |
+| 6,944 keys, uniform (ten minutes of that churn) | 12,434 | 5,428,894 | 32,867,132 | 76,842 | 400,785 | 70.7 |
+| **10,000 keys, uniform** | 16,489 | 6,710,310 | 42,435,495 | 108,240 | 575,208 | **62.0** |
+| **T4 churn: 9,800 updates, 100 inserts, 100 deletes** | 16,616 | 6,792,600 | 42,821,363 | 108,472 | 570,114 | **62.6** |
 | 100,000 keys, uniform | 79,978 | 18,436,352 | 168,787,212 | 861,766 | 5,759,212 | 21.4 |
 | 300,000 keys, uniform | 136,337 | 24,642,024 | 269,527,690 | 2,341,715 | 17,276,902 | 10.5 |
 | 1,000,000 keys, uniform | 161,904 | 28,102,893 | 315,256,189 | 7,355,195 | 57,627,380 | 3.82 |
 | 2,000,000 keys, uniform | 162,216 | 28,807,525 | 315,737,295 | 13,883,436 | 115,250,486 | 2.07 |
 | 100 keys, clustered | 10 | 6,579 | 28,314 | 860 | 8,129 | 7.65 |
 | 1,000 keys, clustered | 41 | 10,635 | 103,202 | 5,559 | 79,893 | 1.91 |
-| **10,000 keys, clustered** | 369 | 62,961 | 901,570 | 55,246 | 797,501 | **1.14** |
+| **10,000 keys, clustered** | 369 | 62,986 | 901,414 | 55,246 | 797,501 | **1.14** |
 | 100,000 keys, clustered | 3,621 | 556,402 | 8,828,306 | 549,849 | 7,973,642 | 1.01 |
 | 1,000,000 keys, clustered | 28,824 | 4,713,346 | 38,233,520 | 5,185,423 | 35,760,514 | 0.91 |
 
-Sources: jobs `261108-215113-2c03ee` (the bold rows and the 1-key row) and `261108-215113-376435` (the sweep). The occurrence writes reproduce dense-pages' projections: 5 pages for one update, and 16,616 pages of 42,821,363 page bytes for T4 (dense-pages T4).
+Sources: jobs `261109-030635-4e209f` (the bold rows and the 1-key row), `261109-030637-311a76` (the 694- and 6,944-key rows) and `261109-030636-4ce079` (the sweep). The occurrence writes reproduce dense-pages' projections: 5 pages for one update, and 16,616 pages of 42,821,363 page bytes for T4 (dense-pages T4).
 
 In every scenario the pages with content the base lacks are exactly the occurrence writes, so dense-pages' path-based reuse sends nothing a content-addressed scheme would avoid.
 
@@ -106,9 +108,9 @@ The sender is the relay that built the target from records (D7). The authority b
 
 A transfer is the target's pages that the receiver's base lacks under dense-pages D7's identity: the same trie path before the top node's prefix, with equal digest, length, keys and height. It sends them back to back in the target's seal order (dense-pages D5.1), which puts every page after its children. It has no padding and no segment table.
 
-The receiver lays the pages out by the build's rule: each at the next 8-byte offset, in a new segment of at most 1 MiB when it does not fit, segments numbered from 1. It refuses a transfer whose order is not the seal order it recomputes from the pages (D4), so the layout is a function of the target's pages alone. It writes those segments under its own segment ids.
+The receiver lays the pages out by the build's rule: each at the next 8-byte offset, in a new segment of at most 1 MiB when it does not fit, segments numbered from 1. It refuses a transfer whose order is not the seal order it recomputes from the pages, and placement that names any other layout (D4), so the layout is a function of the target's pages alone. It writes those segments under its own segment ids.
 
-- **Full copy** = the transfer from the empty base: every page, in a full build's layout. With namespace D8's derived ids at build ordinal 0, the receiver's packs are the build's packs. The model's replay of the 5M full copy reproduces all 302 packs byte for byte and the root `67c70ad3…ab7f07` (`5db839`). An image built by `detent-image` from the same transfer is the same files (namespace T6 by construction).
+- **Full copy** = the transfer from the empty base: every page, in a full build's layout. With namespace D8's derived ids at build ordinal 0, the receiver's packs are the build's packs. The model's replay of the 5M full copy reproduces all 302 packs byte for byte and the root `67c70ad3…ab7f07` (`8606dc`). An image built by `detent-image` from the same transfer is the same files (namespace T6 by construction).
 - **Delta** = the transfer from base R to target h: dense-pages D7's occurrence writes, including off-path seals.
 
 Transfers are immutable and canonical. Any relay produces the same bytes for the same base and target, so a transfer is named and cached like namespace D6's blocks:
@@ -132,7 +134,7 @@ A transfer page is the stored page with three fields rewritten:
 Keys, length and height stay in every content entry, so the receiver checks each against the child it reaches.
 
 **Alternatives.**
-- **The "digests" form**: the same, with every digest kept. A damaged page then fails at that page instead of at the root. At 5M it costs 43% more on a full copy (36.8 MB against 25.7 MB) and 14% more on a 10,000-key delta (7.63 MB against 6.72 MB). Digests are SHA-256 output and do not compress, which is most of the gap.
+- **The "digests" form**: the same, with every digest kept. A damaged page then fails at that page instead of at the root. At 5M it costs 43% more on a full copy (36.8 MB against 25.7 MB) and 14% more on a 10,000-key delta (7.62 MB against 6.71 MB). Digests are SHA-256 output and do not compress, which is most of the gap.
 - **Pages as stored**: 36.7 MB.
 
 Damage in transit is a fragment's problem (D8). A wrong page from a correct transport means the sender is wrong, and that is handled per sender (D9).
@@ -153,7 +155,7 @@ Pages verified here are verified by the tier that writes them, as namespace D10 
 
 Steps 2 and 3 are the only defense against a wrong tree, since the root in the frame is the sending relay's (Limit 1): a relay that builds a malformed or non-canonical tree names that tree's root. With them, a transfer that passes is the full build of the records it holds, by dense-pages D9's induction, so its layout and files are the build's.
 
-Delta receiver costs at 5M (jobs DELTAS_JOB, SWEEP_JOB):
+Delta receiver costs at 5M (job `261109-030635-4e209f`):
 
 | Update | SHA-256 page input | Base-child resolutions | Base pages walked (unshared bound) |
 | --- | --- | --- | --- |
@@ -163,9 +165,29 @@ Delta receiver costs at 5M (jobs DELTAS_JOB, SWEEP_JOB):
 
 The walks run over pages already verified on the receiver, and walks that share a prefix share their pages. The SHA-256 input is what the records path would hash for the same new pages, since D7 writes them either way.
 
-The model's refusals (100K, CHECK_JOB). Each is refused with every check on; where a check is named, the model with that check off (a mutant) accepts it:
+The model's refusals (100K, job `261109-030632-2d5f94`). Each is refused with every check on, for the reason shown. Where a check is named, the input is a forgery sealed as its sender would seal it: every digest matches and the frame names the forgery's own root, so only that check stands between it and publication, and the model with that check off (a mutant) accepts it, with files that differ from the build.
 
-REFUSALS_TABLE
+| Input | Refused because | Check |
+| --- | --- | --- |
+| A leaf body byte flipped, wire form | root digest mismatch | |
+| A leaf body byte flipped, digests form | page digest mismatch | |
+| The root's first placement redirected to the first page | a page no parent references | |
+| The root sent first | placement names no page of the derived layout | |
+| An extra, unreferenced copy of a leaf | a page no parent references | |
+| One byte short | page length | |
+| The root dropped | a page no parent references | |
+| Segments broken at 512 KiB by the sender (review P1), handed over as segments | placement names no page of the derived layout | layout |
+| The same transfer as a stream | placement names no page of the derived layout | |
+| Children first, not in seal order (P2) | transfer is not in seal order | order |
+| Root header keys +1 under a forged root, wire form (P4) | header keys disagree with the page | keys |
+| Root header keys +1 under a forged root, digests form (P4) | header keys disagree with the page | keys |
+| Root header height +1 under a forged root | header height disagrees with the page | height |
+| The root's second label equal to its first, under a forged root | branch labels: fewer than two, or not strictly ascending | labels |
+| Root header node count +1, under a forged root | page structure: nodes do not fill [64, L − 68E) | parse |
+| The tree packed largest-first (3,241 pages against 3,245), in the order its pages imply, under its own root | page not packed by D5: its sealed children differ | canonical |
+| An empty stream over a base at another root | empty transfer | |
+
+An empty stream that names the empty commitment publishes the empty state, and over a base at the named root it writes nothing (same job). The review's probes, rerun at this design (`261109-030633-20ab89`), now refuse P1, P2 and P4, and still refuse P7 and P8c: repair is a full copy (D9).
 
 ### D5. Paths, not names: generic keys
 
@@ -181,11 +203,11 @@ No path crosses the wire. Every receiver at a position holds the same canonical 
 
 The sender knows both encodings' sizes: the records answer from namespace D6, and the pages from D7's diff. It applies this rule:
 
-1. **Raw pages above twice the raw records: send records.** Every measured case with a raw ratio of 2.74 or more (every uniform row, and 100 clustered keys at 3.48) had a ratio as sent of 2.07 or more; across all rows, sent over raw ratio ran from 0.76 to 2.2.
+1. **Raw pages above twice the raw records: send records.** RULE1_EVIDENCE
 2. **Otherwise, compress both and send the smaller as sent.**
 3. **The cut still decides between an answer and a full copy** (namespace D6). The full copy goes as pages: 25.7 MB against 25.6 MB of records, with no build.
 
-At 5M the rule sends records for every uniform update, and for clustered updates below about 100,000 keys. It sends pages for larger clustered changes and for every full copy. So agents build nothing for the full copy, the 5M build that motivated dense pages. They still run dense-pages D7 for scattered deltas, which costs work proportional to the change: the same pages hashed as with pages, plus the packer on those paths.
+At 5M the rule sends records for every uniform update, and for clustered updates below about 100,000 keys. It sends pages for larger clustered changes and for every full copy. A receiver of a full copy then skips the 5M build; a receiver of a scattered delta runs dense-pages D7, whose work is proportional to the change: the same pages hashed as with pages, plus the packer on those paths.
 
 ### D7. What a relay stores and serves
 
@@ -220,34 +242,43 @@ Repair stays a full copy. A repair by page would have to fetch or relocate every
 ### Limits
 
 1. **The root digest is the builder relay's.** It proves that every receiver holds what that relay built, not that the relay built what the authority holds: a relay that mis-applies records sends a consistent wrong state, as today. A second relay's transfer for the same position must name the same root, so a cross-check is available, but nothing in this design runs it.
-2. **Scattered deltas are not built-nothing.** Under D6 agents apply them as records (dense-pages D7). Q1 (b) removes that at the byte cost in the table above.
+2. **Scattered deltas are built.** Under D6 agents apply them as records (dense-pages D7). Q1 (b) removes that at the byte cost in the tables above.
 3. **A wire-form failure is found at the root, not at the page.** Damage in transit is caught per fragment; a sender's wrong page costs a whole retry (D3, D9).
 4. **The records sizes are modeled**: MessagePack rows with the stored body as a bin. They are calibrated by one factor per corpus size against the measured full copies. Delta answers are smaller and less regular than full copies, and their factor is the full copy's.
 5. **The corpus is synthetic** (dense-pages Limit 7). Bodies compress about 10 times and keys are decimal counters; a real key set reruns the model in minutes.
 6. **Deployments without a relay** get records from the authority and build (Q4).
-7. **Bytes per namespace are unmeasured.** The 5M figures come from one tree holding the corpus's four namespaces, where namespace W10 gives each namespace its own root. The receiver's replay is exact per namespace at 100K (the review's P11); DD3 measures the bytes.
-8. **D6's rule 1 is fitted to the synthetic corpus**, whose bodies compress about 10 times. It is only a shortcut: dropping it changes the bytes sent, never correctness. DD4 measures real record answers at the crossover.
-9. **The model checks no leaf body** against the position (D4.2's last check, dense-pages D4.4). The C++ receiver does, and DD1 tests it.
+7. **Bytes per namespace are unmeasured.** The 5M figures come from one tree holding the corpus's four namespaces, where namespace W10 gives each namespace its own root. The receiver's replay is exact per namespace at 100K (the review's P11, `261109-030633-20ab89`); DD3 would measure the bytes.
+8. **D6's rule 1 is fitted to the synthetic corpus**, whose bodies compress about 10 times. It is only a shortcut: dropping it changes the bytes sent, never correctness. DD4 would measure real record answers at the crossover.
+9. **The model checks no leaf body** against the position (D4.2's last check, dense-pages D4.4). A C++ receiver would, and DD1 would test it.
 
 ## Open questions for the owner
 
-**Q1. Deltas: pages, records, or the smaller?** Pages only is what "agents build nothing" asks for; this table is what it costs.
+**Q1. Deltas: pages, records, or the smaller?** D33 withdrew the goal that asked for pages only, so this question is open only if a later goal asks receivers never to build. Its cost per update:
 
 | At 5M, as sent | Records (D6 picks) | Pages only | Extra per agent |
 | --- | --- | --- | --- |
-| 1 key | 160 B | 6,026 B | 5.9 KB |
-| 100 keys | 1,507 B | 203,514 B | 202 KB |
-| 10,000 keys | 108 KB | 6.72 MB | 6.61 MB |
-| T4 churn | 108 KB | 6.80 MB | 6.69 MB |
-| 100,000 keys | 862 KB | 18.4 MB | 17.6 MB |
+| 1 key | 160 B | 6,024 B | 5.9 KB |
+Q1_SWEEP_100| 10,000 keys | 108 KB | 6.71 MB | 6.60 MB |
+| T4 churn | 108 KB | 6.79 MB | 6.68 MB |
+Q1_SWEEP_100K
+Its cost per agent-day, for agents that poll the head and take each poll's changes as one delta (job `261109-030637-311a76`). Dollars are for 10,000 agents at an assumed cross-region rate of $0.02 per GB; in-region traffic is cheaper. Moderate churn is namespace D6's 1M writes a day at 5M (`namespace-delivery.md:181`), modeled as uniform updates.
 
-Example: across 10,000 agents, one 10,000-key update costs 66 GB extra under pages only. At an assumed cross-region rate of $0.02 per GB that is about $1.3 per such update; in-region traffic is cheaper. Pages only also needs R's generation for every R it answers. Either the page window grows to cover the record history, or agents outside the window pull level by level, one round trip per level of the page tree (about 6 at 5M, dense-pages T3).
+| Poll, changes per poll | Records per agent-day | Pages only per agent-day | Pages / records | $ a day: records, pages only |
+| --- | --- | --- | --- | --- |
+| Every minute, moderate churn (694 keys) | 12.2 MB | 1.50 GB | 123 | $2.44, $299 |
+| Every 10 minutes, moderate churn (6,944 keys) | 11.1 MB | 782 MB | 70.6 | $2.21, $156 |
+| Every minute, one key | 231 KB | 8.67 MB | 37.6 | $0.05, $1.73 |
+| Every 10 minutes, one key | 23.1 KB | 867 KB | 37.6 | under $0.01, $0.17 |
+| Every minute, T4 churn | 156 MB | 9.78 GB | 62.6 | $31, $1,956 |
+| Every 10 minutes, T4 churn | 15.6 MB | 978 MB | 62.6 | $3.12, $196 |
+
+Pages only also needs R's generation for every R it answers. Either the page window grows to cover the record history, or agents outside the window pull level by level, one round trip per level of the page tree (about 6 at 5M, dense-pages T3).
 
 - (a) The smaller per update (D6): agents apply scattered deltas.
 - (b) Pages only: agents never build, at the bytes above, plus window disk or pull round trips.
 - (c) Records for every delta, pages for full copies only. This differs from (a) only for large clustered changes, which are 1.0 to 0.91 times the records.
 
-*Recommendation: (a)*: it never sends more than the smaller encoding, and the build agents avoid entirely is the one that matters, the full copy.
+*Recommendation: (a)*: it never sends more than the smaller encoding, and the build it lets agents skip is the largest one, the full copy.
 
 **Q2. The full-copy wire format (reserved, D20).**
 
@@ -272,9 +303,9 @@ Example: across 10,000 agents, one 10,000-key update costs 66 GB extra under pag
 
 *Recommendation: (b)*: page serving is the relay's role, and (c) puts builds in the consensus process.
 
-## Build plan
+## Candidate steps
 
-Each step is a quest with its own branch, CI green, and the model as oracle. DD1 and DD2 are local to the store and run beside namespace S5 and S6; DD3 waits for namespace S7, DD4 for S8 and DD5 for S9.
+These are candidates a later quest may take when a goal asks for one (D33), not a commitment. Each would be a quest with its own branch, CI green, and the model as oracle. DD1 and DD2 are local to the store and could run beside namespace S5 and S6; DD3 waits for namespace S7, DD4 for S8 and DD5 for S9.
 
 | Step | Needs | Risk |
 | --- | --- | --- |
@@ -284,15 +315,15 @@ Each step is a quest with its own branch, CI green, and the model as oracle. DD1
 | DD4 Delta transfers and the choice rule | DD3; namespace S8 (the relay's mirror of blocks, base and ring, whose block answer is D6's records size); Q1 ruled | high |
 | DD5 Images from transfers | DD3; namespace S9 | normal |
 
-Reader S6 is needed by none: the receiver writes files and readers keep reader.md D3's first touch. Namespace S4 (no re-validation of a tier's own build) applies to the receiver: D4 is the tier's verification, done once. Namespace S10 is not needed.
+Reader S6 is needed by none: the receiver writes files and readers keep reader.md D3's first touch. Namespace S4 (no re-validation of a tier's own build) would apply to the receiver: D4 is the tier's verification, done once. Namespace S10 is not needed.
 
 **DD1.**
 - Files: `src/detent_local/paged_transfer.{hh,cc}` (make a transfer from a generation and a page list; receive per D4, calling dense-pages S2's page and canonicity validators), `tests/detent_local/test_paged_transfer.cc`, a libFuzzer target beside `tests/detent_testing/live_record_fuzz.cc`, and a `--out` writer added to this model.
 - Done when:
   - The C++ receiver takes the model's 100K and 5M full-copy transfers and reproduces the root and every pack byte for byte, with the model's segment ids.
   - Its page and pack hash counters equal 306,989,416 and 315,759,038 bytes at 5M (dense-pages' execution contract 2).
-  - The four delta transfers of DELTAS_JOB give their roots.
-  - Each refusal of D4's table is a test: the review's P1 (segment breaks the sender chose) and P2 (children first, not in seal order); the forged-root cases for header keys (P4), header height, node count, a duplicate label and a tree packed against D5; and the four damage rows. A mutant without each check accepts its case and fails the test.
+  - The four delta transfers of `261109-030635-4e209f` give their roots.
+  - Each refusal of D4's table is a test: the review's P1 (segment breaks the sender chose) and P2 (children first, not in seal order); the sealed forged-root cases for header keys (P4), header height, node count, a duplicate label and a tree packed against D5, each refused by its own check with every digest matching; and the damage, reuse and truncation rows. A mutant without each check accepts its case and fails the test.
   - One CPU-hour of fuzzing finds nothing.
 
 **DD2.**
@@ -303,7 +334,7 @@ Reader S6 is needed by none: the receiver writes files and readers keep reader.m
 - Files: the transfer frame (`src/detent_distribution/framing.cc`, `protocol.cc`): namespace W6's frame header gains the encoding and the 32-byte target commitment beside the namespace, incarnation and position S6 adds, and the 96-byte fragment header is unchanged. The relay's copy service (`src/detent_relay/host.cc`), the agent's full-copy path (`src/detent_delivery/coordinator.cc`, `src/detent_agent/managed_host.cc`), and a system test in `tests/detent_system`.
 - Done when, at 5M cold bootstrap:
   - The agent runs no packer (a counter at zero).
-  - It receives FULL_SENT B as sent within 1%, and its packs equal the relay's copy, with derived ids at ordinal 0.
+  - It receives 25,705,725 B as sent within 1%, and its packs equal the relay's copy, with derived ids at ordinal 0.
   - The bytes per namespace are measured for each of the corpus's four namespaces, against their record copies.
   - A root mismatch falls back to records, and a resumed fetch continues from its offset.
   - The lead measures the agent's CPU and wall against the records arm under `quiet exclusive`, and Q3's two framings for both encodings.
@@ -311,7 +342,7 @@ Reader S6 is needed by none: the receiver writes files and readers keep reader.m
 **DD4.**
 - Files: the page window and Merkle diff on the relay, D6's rule, and the delta receiver.
 - Done when, at 5M:
-  - The transfers for the four scenarios of DELTAS_JOB have exactly the model's pages (5; 16,489; 369; 16,616) and bytes.
+  - The transfers for the four scenarios of `261109-030635-4e209f` have exactly the model's pages (5; 16,489; 369; 16,616) and bytes.
   - Against S8's block answers, the rule picks records for every `u:` row and pages for `c:1000000`, and rule 1's shortcut holds on the measured record sizes at the crossover.
   - A base page that fails first touch during a delta leads to namespace D10.3's full copy as pages, and reads recover.
   - A refused transfer falls back without a wrong read.
@@ -323,15 +354,15 @@ Reader S6 is needed by none: the receiver writes files and readers keep reader.m
 **Rerunning this design's numbers.**
 
 ```sh
-campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 90 -- \
-  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py full CORPUS-5M
-campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 120 -- \
-  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py delta CORPUS-5M u:1 u:10000 c:10000 m:9800:100:100
-campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 180 -- \
-  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py delta CORPUS-5M u:100 u:1000 u:100000 u:300000 \
-  u:1000000 u:2000000 c:100 c:1000 c:100000 c:1000000
-campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 120 -- \
-  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py day CORPUS-5M
-campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 30 -- \
-  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py check CORPUS-100K
+C5=/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-5m.bin      # SHA-256 bb87ae5d…52bc835
+C1=/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin    # SHA-256 3214561e…1a5740
+M=docs/design/dense-distribution-model.py
+job() { campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light "$@"; }
+job --minutes 90  --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M full $C5
+job --minutes 120 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M delta $C5 \
+  u:1 u:10000 c:10000 m:9800:100:100
+job --minutes 180 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M delta $C5 \
+  u:100 u:1000 u:100000 u:300000 u:1000000 u:2000000 c:100 c:1000 c:100000 c:1000000
+job --minutes 120 --env CORPUS=$C5 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M day $C5
+job --minutes 30  --env CORPUS=$C1 --env CORPUS_SHA256=<sha> -- /usr/local/bin/python3 -I $M check $C1
 ```
