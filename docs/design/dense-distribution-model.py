@@ -19,7 +19,11 @@ Modes:
                             T4 churn and seed).
   day CORPUS                Pages only against records per agent-day: four per-poll deltas at
                             1- and 10-minute polls, with dollars for 10,000 agents.
-  check CORPUS              Both modes on a small corpus, plus the receiver's refusals: damage,
+  stale CORPUS GAP...       Per gap HOURS:SHAPE (moderate, hotrange or uniform churn at 1M writes
+                            a day), a stale receiver's top-down pull of the pages it lacks, level
+                            by level, with the stop rule, against the head's full copy and the
+                            records answer: bytes as sent, round trips, receiver SHA-256 input.
+  check CORPUS              Every mode on a small corpus, plus the receiver's refusals: damage,
                             reuse and truncation; a layout or an order the sender chose; and a
                             validly sealed forgery per structure and canonicity check, refused by
                             that check and accepted by a mutant without it.
@@ -94,6 +98,9 @@ def fragments_sent(stream: bytes, level: int = 3) -> tuple[int, int]:
 #             layout, of a base child zero; every digest kept, so a bad page is found where it is;
 #   "wire"    as "digests", with the header digest and every in-transfer child's digest zeroed:
 #             the receiver computes them bottom-up and checks only the root.
+#   "pull"    a stale receiver's page answer (D10): every content digest kept, since the receiver
+#             compares them with its base to choose the next level, header digest and every
+#             placement entry zero.
 
 FORMS = ("stored", "digests", "wire")
 CAPACITY = 4096
@@ -161,7 +168,11 @@ def make_transfer(
         o, off = encoder.placed[p]
         length = packing.pages[p].length
         page = bytearray(memory[D.segment_id(o)][off : off + length])
-        if form != "stored":
+        if form == "pull":
+            externals = D.be(page, 12, 2)
+            page[length - 20 * externals : length] = bytes(20 * externals)
+            page[32:64] = bytes(32)
+        elif form != "stored":
             externals = D.be(page, 12, 2)
             content, placement = length - 68 * externals, length - 20 * externals
             for j in range(externals):
@@ -925,6 +936,211 @@ def day_main(D: Any, corpus: Any, scale: tuple[float, float]) -> None:
             )
 
 
+# --- a stale receiver ---------------------------------------------------------------------------
+# A base older than the relay's windows: the receiver pulls the pages it lacks top-down from the
+# relay's head, one batch per level, comparing each child's content entry with its base page at
+# the same trie path, and switches to the full copy once the pull would pass it (D10).
+
+WRITES_PER_DAY = (
+    1_000_000  # namespace D6's moderate churn at 5M (namespace-delivery.md:181)
+)
+TURNOVER, HOT_SHARE = (
+    0.01,
+    0.8,
+)  # its creates and deletes, and its writes to a hot 1% of keys
+REQUEST_HEADER = (
+    96  # a pull request's frame, modeled as one fragment header; 32 B per digest
+)
+SHAPES = (
+    "moderate",
+    "hotrange",
+    "uniform",
+)  # hot 1% scattered / contiguous / no hot set
+
+
+def gap(D: Any, corpus: Any, hours: float, shape: str) -> tuple[Any, int]:
+    """The records after `hours` of churn at WRITES_PER_DAY (scaled to the corpus): T4's mix of
+    98% updates, 1% inserts beside existing keys and 1% deletes; updates go 80% to a hot 1% of
+    definitions unless the shape is uniform. Each key keeps its last write. Returns the writer
+    and the number of writes."""
+    if shape not in SHAPES:
+        raise SystemExit(f"unknown gap shape {shape}")
+    rng = random.Random(0x5354414C45)
+    definitions = [
+        i for i in range(corpus.count) if corpus.kinds[i] == D.KIND_DEFINITION
+    ]
+    n = len(definitions)
+    writes = round(WRITES_PER_DAY * hours / 24 * corpus.count / 5_000_004)
+    creates = deletes = round(writes * TURNOVER)
+    updates = writes - creates - deletes
+    hot_writes = 0 if shape == "uniform" else round(writes * HOT_SHARE)
+    if shape == "moderate":
+        hot = rng.sample(range(n), n // 100)
+    else:
+        first = rng.randrange(n - n // 100)
+        hot = list(range(first, first + n // 100))
+    picked = {hot[rng.randrange(len(hot))] for _ in range(hot_writes)}
+    picked.update(rng.randrange(n) for _ in range(updates - hot_writes))
+    deleted = {definitions[d] for d in rng.sample(range(n), deletes)}
+    beside = [definitions[d] for d in rng.sample(range(n), creates)]
+    updated = {definitions[d] for d in picked} - deleted
+    bump = 1 << 32
+    touched: set[int] = set()
+    records: dict[bytes, tuple[int, bytes]] = {}
+    for i in range(corpus.count):
+        key, body = corpus.key(i), corpus.body(i)
+        if i in deleted:
+            touched.add(corpus.watermark[i])
+            continue
+        if i in updated:
+            body = (D.be(body, 0, 8) + bump).to_bytes(8, "big") + body[8:]
+            touched.add(corpus.watermark[i])
+        records[key] = (corpus.kinds[i], body)
+    for i in beside:
+        records[corpus.key(i)[:-1] + b"x\0"] = (D.KIND_DEFINITION, corpus.body(i))
+        touched.add(corpus.watermark[i])
+    for w in touched:
+        key = corpus.key(w)
+        kind, body = records[key]
+        records[key] = (kind, (D.be(body, 0, 8) + bump).to_bytes(8, "big"))
+    writer = D.CorpusWriter()
+    for key in sorted(records):
+        kind, body = records[key]
+        writer.add(key, kind, body)
+    return writer, writes
+
+
+def pull_levels(target: Any, index: Base) -> dict[int, list[int]]:
+    """The receiver's top-down pull: level 1 is the root; a child joins the next level unless the
+    base page at its trie path has its digest, keys, length and height. Target pages by level."""
+    children: dict[int, list[int]] = {}
+    for p, page in enumerate(target.pages):
+        children.setdefault(page.parent, []).append(p)
+    levels: dict[int, list[int]] = {}
+    top = target.pages[target.root]
+    held = index.by_path.get(b"")
+    if held is not None and held[:4] == (top.digest, top.keys, top.length, top.height):
+        return levels
+    frontier, depth = [target.root], 1
+    while frontier:
+        levels[depth] = sorted(frontier)
+        nxt: list[int] = []
+        for p in frontier:
+            for c in children.get(p, []):
+                page = target.pages[c]
+                held = index.by_path.get(page.path)
+                if held is None or held[:4] != (
+                    page.digest,
+                    page.keys,
+                    page.length,
+                    page.height,
+                ):
+                    nxt.append(c)
+        frontier, depth = nxt, depth + 1
+    return levels
+
+
+def stale_main(
+    D: Any, corpus: Any, specs: list[str], scale: tuple[float, float]
+) -> None:
+    """Per gap (HOURS:SHAPE): the pull per level, the stop rule, the full copy of the head and
+    the records answer, with bytes as sent, round trips and the receiver's SHA-256 input."""
+    started = time.monotonic()
+    base, base_encoder = encode(D, corpus)
+    index = base_index(D, base, base_encoder)
+    model = RecordModel(D, corpus)
+    print(
+        f"base: {len(base.pages):,} pages; {time.monotonic() - started:.0f} s",
+        flush=True,
+    )
+    for spec in specs:
+        t0 = time.monotonic()
+        hours_text, shape = spec.split(":")
+        writer, writes = gap(D, corpus, float(hours_text), shape)
+        after = writer.corpus()
+        target, encoder = encode(D, after)
+        diff = D.occurrence_diff(base, target)
+        levels = pull_levels(target, index)
+        pulled = sorted(p for level in levels.values() for p in level)
+        assert pulled == sorted(diff.written), "the pull fetches the occurrence writes"
+        root = D.state_commitment(target)
+        everything = list(range(len(target.pages)))
+        full = make_transfer(D, target, encoder, everything, "wire")
+        _, full_sent = fragments_sent(full.stream, 3)
+        stream, changed, removed, _ = record_answer(model, corpus, after)
+        _, records_sent = fragments_sent(stream, 3)
+        records_cal = records_sent * scale[1]
+        delta = make_transfer(D, target, encoder, pulled, "wire")
+        _, delta_sent = fragments_sent(delta.stream, 3)
+        print(
+            f"stale {spec}: {writes:,} writes; {after.count:,} records, {changed:,} rows at new"
+            f" values, {removed:,} tombstones; root {root.hex()}",
+            flush=True,
+        )
+        sent = raw = requests = stop_sent = 0
+        stop: int | None = None
+        rounds = 0
+        for depth in sorted(levels):
+            pages = levels[depth]
+            level_raw = sum(target.pages[p].length for p in pages)
+            if depth > 1 and sent + level_raw * sent / raw > full_sent and stop is None:
+                stop, stop_sent = depth, sent + requests
+            answer = make_transfer(D, target, encoder, pages, "pull")
+            _, level_sent = fragments_sent(answer.stream, 3)
+            request = REQUEST_HEADER + 32 * len(pages)
+            print(
+                f"  level {depth}: {len(pages):,} pages, {level_raw:,} B raw, {level_sent:,} B as"
+                f" sent, request {request:,} B; pulled so far {sent + level_sent + requests + request:,} B"
+            )
+            sent, raw, requests, rounds = (
+                sent + level_sent,
+                raw + level_raw,
+                requests + request,
+                rounds + 1,
+            )
+        pull_total = sent + requests
+        check = make_transfer(D, target, encoder, pulled, "digests")
+        got = receive_stream(
+            D, check.stream, index, root, lambda n: D.segment_id(2_000_000 + n)
+        )
+        assert got.root == root
+        written = sum(len(s) for s in got.segments)
+        full_hash = encoder.hashed + encoder.raw
+        print(
+            f"  pull: {len(pulled):,} pages in {rounds} round trips, {pull_total:,} B as sent"
+            f" ({requests:,} B of requests), {raw:,} B raw; a warm delta of the same pages"
+            f" (wire form) {delta_sent:,} B"
+        )
+        print(
+            f"  pull receiver: SHA-256 page input {got.hashed:,} B in {got.digests:,} digests plus"
+            f" packs {written:,} B = {got.hashed + written:,} B; writes {written:,} B; the"
+            f" records path's D7 hashes and writes the same pages"
+        )
+        print(
+            f"  full copy of the head: {full_sent:,} B as sent, 1 round trip; receiver SHA-256"
+            f" {full_hash:,} B, writes {encoder.raw:,} B"
+        )
+        print(
+            f"  records answer (modeled, calibrated): {records_cal:,.0f} B as sent, 1 round trip"
+        )
+        if stop is None:
+            chosen, rule_total, rule_rounds = "pull", pull_total, rounds
+        else:
+            chosen, rule_total, rule_rounds = (
+                f"full copy after level {stop - 1}",
+                stop_sent + full_sent,
+                stop,
+            )
+        best = min(pull_total, full_sent)
+        print(
+            f"  stop rule: {chosen}, {rule_total:,} B in {rule_rounds} round trips; the smaller"
+            f" of pull and full copy {best:,} B; pull / full copy {pull_total / full_sent:.3f},"
+            f" pull / records {pull_total / records_cal:.1f}, full copy / records"
+            f" {full_sent / records_cal:.2f}; {time.monotonic() - t0:.0f} s",
+            flush=True,
+        )
+
+
 # --- self-check ---------------------------------------------------------------------------------
 
 
@@ -1171,6 +1387,7 @@ def check_main(D: Any, corpus: Any) -> None:
         ["u:1", f"u:{definitions // 50}", f"c:{definitions // 50}", "m:98:1:1"],
         scale,
     )
+    stale_main(D, corpus, ["1:moderate", "24:hotrange", "168:uniform"], scale)
     print("check: ok")
 
 
@@ -1201,6 +1418,8 @@ def main(argv: list[str]) -> None:
         delta_main(D, corpus, rest[2:], calibrate(D, corpus))
     elif mode == "day":
         day_main(D, corpus, calibrate(D, corpus))
+    elif mode == "stale":
+        stale_main(D, corpus, rest[2:], calibrate(D, corpus))
     elif mode == "check":
         check_main(D, corpus)
     else:
