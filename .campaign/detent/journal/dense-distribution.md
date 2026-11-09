@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: waiting on jobs 261109-030632-2d5f94 261109-030633-20ab89 261109-030634-8606dc 261109-030635-4e209f 261109-030636-4ce079 261109-030637-311a76 (model at 29b5e53; fixing DD-1 to DD-5)
+State: waiting on jobs 261109-030636-4ce079 (the 5M sweep; then its rows, the final-head reruns, ready for review)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,35 +9,28 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Design review CHANGES at `Detent:d874004`
-(`.campaign/detent/reviews/dense-distribution-design.md`, probe job 261109-012437-1ff8e3).
-Model fixed at `Detent:4d66fe1` (derived layout, seal order, first-touch parse, D5 rerun per node,
-`day` mode) and `Detent:29b5e53`: check job 261109-014058-00ad3c failed because the digests-form P4
-forgery kept the root's stale stated digest, so the digest check refused it before the keys check.
-Each forged-root case is now sealed (the root's stated digest recomputed) so that only its targeted
-check refuses, with the exact reason asserted and a mutant per check accepting. A local light-hold
-run of `check` on 100K passed every case. Document revised at `Detent:53c67f7`; its numbers and
-job ids wait for the jobs below.
+Design review CHANGES at `Detent:d874004` (`.campaign/detent/reviews/dense-distribution-design.md`).
+Model fixed at `Detent:4d66fe1` and `Detent:29b5e53` (each forged-root case sealed, so only its
+targeted check refuses: the digests-form P4 forgery of failed job 261109-014058-00ad3c kept the
+root's stale digest). Five of the six jobs at 29b5e53 passed. Document round at `Detent:854e742`:
+D33 folded in (a measured record, no receivers-build-nothing goal, candidate steps), every number
+and job id from the jobs, D4's refusal table, Q1's per-agent-day rows (DD-4). Left: the sweep rows
+(SWEEP_RANGE, RULE1_EVIDENCE, Q1_SWEEP_100, Q1_SWEEP_100K) from 261109-030636-4ce079.
 
-Jobs at `Detent:29b5e53`, `--ref DENSE=28d3ed9`, corpora in `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/`
-named with their SHA-256 in `--env`:
-
-| Job | What |
-|---|---|
-| 261109-030632-2d5f94 | check, 100K (A3/A4, DD-1, DD-2, DD-7) |
-| 261109-030633-20ab89 | reviewer's probe, 100K (DD-1 to DD-3) |
-| 261109-030634-8606dc | full copy, 5M (A1) |
-| 261109-030635-4e209f | four deltas, 5M (A2) |
-| 261109-030636-4ce079 | crossover sweep, 5M (A2) |
-| 261109-030637-311a76 | pages only per agent-day, 5M (DD-4) |
+| Job (at 29b5e53) | What | Result |
+|---|---|---|
+| 261109-030632-2d5f94 | check, 100K | exit 0; every refusal for its reason, a mutant per check |
+| 261109-030633-20ab89 | reviewer's probe, 100K | exit 0; P1, P2, P4 refused; P7, P8c refused as D9 now expects |
+| 261109-030634-8606dc | full copy, 5M | exit 0; 25,705,725 B as sent, 302 packs identical |
+| 261109-030635-4e209f | four deltas, 5M | exit 0 |
+| 261109-030636-4ce079 | sweep, 5M | queued |
+| 261109-030637-311a76 | day, 5M | exit 0; 1.50 GB pages against 12.2 MB records per agent-day at 1-minute polls |
 
 ## Next
 
-1. Read the six jobs; fix the model if one fails.
-2. Fill the document from them (D4 refusal table and delta costs, Q1 per-day rows, FULL_SENT,
-   DELTAS_JOB, SWEEP_JOB, CHECK_JOB, header job list), commit.
-3. `campaign job rerun` the six at that head (twins of the same ids); Evidence cites the ids
-   above; answer DD-1 to DD-13; State "ready for review" with the DD-to-job map.
+1. Read 261109-030636-4ce079; fill the sweep rows, recheck D6 rule 1 on every row; commit (the
+   final code head).
+2. `campaign job rerun` the six at that head; then State "ready for review" with the DD map below.
 
 ## Blocked on
 
@@ -48,20 +41,35 @@ deployments; recommend a relay on the authority's host). None of them blocks the
 
 ## Evidence
 
-All jobs are at `Detent:4fa06bd` with `--ref DENSE=28d3ed9`, light level, exit 0. The model
-(`docs/design/dense-distribution-model.py`) is unchanged from that commit to the head; later
-commits touch only the document and this journal.
+Jobs at `Detent:29b5e53` with `--ref DENSE=28d3ed9`, the corpus and its SHA-256 in `--env`, light
+level; their reruns at the final head are the same jobs at that code.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261108-230300-5e2827: full copy at 5M. Wire form 25,728,032 B as sent against 25,646,713 B of measured records (1.003×), 315,759,038 B raw against 261,337,255. Receiver SHA-256 622,748,454 B in 162,669 digests and 315,759,038 B written, the same as the dense build, against today's 3,774,996,569 B in 14,001,455 digests and 1,509,994,805 B. The replay reproduces all 302 packs and the root. Path: `docs/design/dense-distribution.md`, "What the measurements say" |
-| A2 | 261108-230300-2bec9b (u:1, u:10000, c:10000, m:9800:100:100) and 261108-230300-c7df19 (the sweep). 10K uniform: 6,715,150 B of pages against 108,240 B of records (62×). 10K clustered: 62,961 against 55,246 (1.14×). T4: 6,801,139 against 108,472 (62.7×). Crossover: clustered at about 100K keys (1.01×, 0.91× at 1M); uniform never (2.07× at 2M). Rule in D6. Path: `docs/design/dense-distribution.md`, A2 table, D6 and Q1 |
-| A3 | `docs/design/dense-distribution.md` D1-D5 and D7 (frame header digest, transfer, wire form, receiver, path naming, relay storage). Refusals from 261108-230300-28e052: root digest mismatch, page digest mismatch, page referenced twice, child not before its parent |
-| A4 | `docs/design/dense-distribution.md` D8 and D9 (resume, damaged fragment, root mismatch, relay lacks base or copy, base page missing, repair), plus Limits |
-| A5 | `docs/design/dense-distribution.md`, "Build plan": DD1-DD5 with files, criteria, risk and needs from dense-pages, reader S6 and namespace S4-S10 |
-| A6 | 261108-230300-5e2827, 261108-230300-2bec9b, 261108-230300-c7df19 and 261108-230300-28e052 at b99d3a37ebb1 (the head minus journal commits), cited in the document beside their numbers |
+| A1 | 261109-030634-8606dc: wire form 25,705,725 B as sent against 25,646,713 B of measured records (1.002×); receiver SHA-256 622,748,454 B in 162,669 digests and 315,759,038 B written, equal to the dense build, against today's 3,774,996,569 B in 14,001,455 digests and 1,509,994,805 B; replay reproduces all 302 packs and the root. Path: `docs/design/dense-distribution.md`, "What the measurements say" |
+| A2 | 261109-030635-4e209f (u:1, u:10000, c:10000, T4), 261109-030636-4ce079 (sweep) and 261109-030637-311a76 (694 and 6,944 keys, per agent-day). 10K uniform 6,710,310 B of pages against 108,240 B of records (62.0×); 10K clustered 62,986 against 55,246 (1.14×); T4 6,792,600 against 108,472 (62.6×). Rule in D6. Path: `docs/design/dense-distribution.md`, the delta table, D6 and Q1 |
+| A3 | `docs/design/dense-distribution.md` D1-D5 and D7, and D4's refusal table from 261109-030632-2d5f94 (layout, order, keys, height, labels, parse and canonical each refused by its own check on a sealed forgery, a mutant per check accepting) |
+| A4 | `docs/design/dense-distribution.md` D8, D9 and Limits; 261109-030633-20ab89 (P6 truncation refused; P7 and P8c refused, repair is a full copy) |
+| A5 | `docs/design/dense-distribution.md`, "Candidate steps": DD1-DD5 with files, criteria, risk and needs, as candidates (D33) |
+| A6 | 261109-030634-8606dc, 261109-030635-4e209f, 261109-030636-4ce079, 261109-030637-311a76, 261109-030632-2d5f94, cited in the document beside their numbers |
 
-Examined and not evidence: probe 261108-214633-1b1530 (unversioned, 100K).
+## Review findings
+
+| Finding | Fix | Confirming job |
+|---|---|---|
+| DD-1 | Wire is pages back to back; receiver derives the layout and requires seal order (D2-D4); P1, P2 in D4's table and DD1's criteria | 261109-030632-2d5f94 (P1 'layout', P2 'order' mutants); 261109-030633-20ab89 (P1, P2 refused) |
+| DD-2 | D4 refusal rows for structure and canonicity under a forged root; DD1 criteria per check | 261109-030632-2d5f94 (sealed forgeries: keys both forms, height, labels, parse, canonical) |
+| DD-3 | Ruled (b) by the lead: namespace D10.3's full copy kept, now a pages copy; "Changes D10.3" dropped (D9) | 261109-030633-20ab89 (P7, P8c refused, as the design now expects) |
+| DD-4 | Q1 per-agent-day rows and dollars from the model's `day` mode | 261109-030637-311a76 |
+| DD-5 | Candidate steps: DD3 needs S6 and S7, DD4 needs S8, D6's records size from S8's block answer | document at the final head; 261109-030634-8606dc for DD3's 25,705,725 B criterion |
+| DD-6 | Summary restated (and D33) | document |
+| DD-7 | D4: empty commitment publishes an empty state, equal root writes nothing | 261109-030632-2d5f94 |
+| DD-8 | DD3 names where the root, namespace and incarnation go (frame header; fragment header unchanged) | document |
+| DD-9 | Not folded: damage lists are gone with DD-3 (b) | none needed |
+| DD-10 | Limit 7; DD3 measures per namespace | document |
+| DD-11 | DD1 needs "dense-pages S1 to S5 landed" | document |
+| DD-12 | Limit 8; DD4 measures real record answers | document |
+| DD-13 | The document cites the 29b5e53 ids | document |
 
 ## Result
 
@@ -96,3 +104,5 @@ Open: no C++ CPU number for the skipped build (DD3 measures it); record delta si
    each named with its hash in the job's `--env`; the model also prints the hash it read.
 8. A forged-root case is valid only when sealed: the digest checks must pass, so the targeted
    structure or canonicity check is the one that refuses (lead's direction on job 261109-014058-00ad3c).
+9. Lead note D33 (owner withdrew receivers-build-nothing): folded into the same document round, no
+   extra rerun; Outcome and criteria unchanged; the build plan is "Candidate steps".
