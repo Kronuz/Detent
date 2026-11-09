@@ -1409,7 +1409,96 @@
       "updated": "2026-11-08T15:38:06"
     },
     "namespace-s1-s2": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-09T10:00:39",
+          "base": "71a6cd7e1968188353dd833bb278afad47154c26",
+          "blobs": {
+            "cmake/dependencies.json": "100644:2e50e5943ac8050d495dbac01131935ff4299919",
+            "docs/measurements/sync-groups-20261108/arm.sh": "100755:66686de7ef2b13d27d55b71d4b2ce25b4178045a",
+            "docs/measurements/sync-groups-20261108/attribute.sh": "100755:ffb86a5cee8cd22bf57473ef2bbb1f8a7c738a55",
+            "docs/measurements/sync-groups-20261108/build.sh": "100755:ba7e207b66f92d8222066b214ab74f15ae9e3c42",
+            "docs/measurements/sync-groups-20261108/mutant.sh": "100755:6efa75196e6e21f29e872cf1210deeb20bbc54d0",
+            "docs/measurements/sync-groups-20261108/retirement-wakeup.sh": "100644:ab7526bfe0ba2c69f243b2c5e62b1baa8dd3b98c",
+            "docs/measurements/sync-groups-20261108/retirement_wakeup.cc": "100644:bc33b1a6f19fcb74b990b6b272ea80c18b37d187",
+            "docs/measurements/sync-groups-20261108/summarize.py": "100644:62940e4bf76e2f043f93c28174f96a88ac5bd0da",
+            "docs/measurements/sync-groups-20261108/t7-timing.sh": "100755:91e102bb86a0c0d2651901c50611288e56f2cd95",
+            "docs/mechanisms/sync-groups.md": "100644:d1f96e2e238460c865af28b1d27789b22d9452b5",
+            "docs/status/namespace-design.md": "100644:23fd7c313287f5aefe6d84e2033303ac3cd2d5ab",
+            "docs/status/namespace-s1-s2.md": "100644:0107e8bb33ed7c8409b3b122335a3c0a58bb1016",
+            "include/detent_delivery/coordinator.hh": "100644:fb624a7eca5d50ab1643d384837e83ae48999106",
+            "include/detent_local/disk_store.hh": "100644:f0aebe2f29082b3ee627c30e3fbbf216089ede1e",
+            "include/detent_local/storage_session.hh": "100644:d862f8c3773496af3aab13d616e8f204808fc923",
+            "include/detent_local/sync_counters.hh": "100644:3668050b74c9ae1752ff00fbf6b976acead23be5",
+            "src/detent_agent/managed_host.cc": "100644:ce2cf0fe554fc0d70fdf7e6bac5120505bd9d4ff",
+            "src/detent_delivery/coordinator.cc": "100644:5b4dc5d518bf5a1d2a6d719850f29dc0c5cd6e8e",
+            "src/detent_local/disk_store.cc": "100644:00b34b644f69abeaee6e5fcb3e7cbf5dde29bfbf",
+            "src/detent_local/paged_publication_artifacts.cc": "100644:6b50c1158a5fac10c4ae642d25fb8b0f346fc581",
+            "src/detent_local/paged_publication_artifacts.hh": "100644:fd94e78b521ab81931686d1435f9e44a88a65968",
+            "src/detent_local/paged_segment_collection.cc": "100644:25162ad48ccff95134fbf1e3b16c258d43c68719",
+            "src/detent_local/storage_session.cc": "100644:7197f4bd329e79b9c5e6c0b772ef249789d17c2e",
+            "src/detent_local/store_core.hh": "100644:bf7b88e8e2598cbdc3810c5b44b246fc4144b556",
+            "src/detent_relay/host.cc": "100644:fda64c5c104f908c5c8eb4d78a17e6a79e0bb228",
+            "tests/detent_local/CMakeLists.txt": "100644:17a59bbc7e6fa7a633f26d92333c324025419f3c",
+            "tests/detent_local/test_disk_store.cc": "100644:e09e57cdfa6095bcde40ac84d310fa181b19a47f",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "100644:3cdf4afbe6eadaa21f0150b8a3e50621be7170f3",
+            "tests/detent_local/test_paged_store_startup.cc": "100644:c6029aa08e7d21f5125bf0dc8e8256719eedb61b",
+            "tests/detent_local/test_publication_power_cut.cc": "100644:98cf31d4c8de6184367d9cb499e688402abf3831"
+          },
+          "brief": "852406731742b3bb",
+          "by": "review",
+          "commit": "e36937c919d851d3b66f68350b8b2416d0579116",
+          "findings": {
+            "D1": {
+              "jobs": [
+                {
+                  "cmd": "bash /Users/kronuz/code/Kronuz/Detent/.scratch/review-namespace-s1-s2-durability/probe.sh census-meta",
+                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-085304-2d998b",
+                  "level": "light",
+                  "seconds": 27.3,
+                  "state": "done",
+                  "what": "D1 confirming probe census-meta at the fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "D2": {
+              "jobs": [
+                {
+                  "cmd": "bash docs/measurements/sync-groups-20261108/mutant.sh targets",
+                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-085249-c139f3",
+                  "level": "light",
+                  "seconds": 71.4,
+                  "state": "done",
+                  "what": "mutant harness: configure and list the test targets"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "docs/measurements/sync-groups-20261108/attribute.sh",
+              "docs/measurements/sync-groups-20261108/retirement-wakeup.sh",
+              "docs/measurements/sync-groups-20261108/retirement_wakeup.cc",
+              "docs/measurements/sync-groups-20261108/t7-timing.sh"
+            ],
+            "reason": "the four unseen files are job drivers and a probe under docs/measurements (attribution, T7 timing, the retirement wake-up probe); they add no mechanism to the product, and the product fix for the retirement race is its own reviewed quest"
+          },
+          "note": "",
+          "review": "d82c5cd87babc5183c89b446168a58b6ffde55a6",
+          "reviewed": "b3fef5099a0512c31b1ccee1b56e45ccb8b9daf7",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "aad46758246e5797892fa9274cb2b4d0044accc0",
       "branch": "quest/detent/namespace-s1-s2",
@@ -1481,7 +1570,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-08T21:27:35",
+      "updated": "2026-11-09T10:00:39",
       "worktree": "../Detent-wt/detent/namespace-s1-s2"
     },
     "namespace-s3": {
