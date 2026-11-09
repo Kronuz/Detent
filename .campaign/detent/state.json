@@ -620,9 +620,10 @@
         "DTROOT03",
         "dense-occurrence-reuse"
       ],
+      "reason": "D30: waits for S1/S2, S6 and S3b to land; its files overlap theirs",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "blocked",
       "tasks": {
         "deltas": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
@@ -689,7 +690,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-08T21:19:38",
+      "updated": "2026-11-08T21:19:39",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
