@@ -2393,6 +2393,8 @@
     "retirement-close-race": {
       "accepted": {},
       "after": [],
+      "base": "018202d2c7d926b06686dd0653cdf35df3ac23ec",
+      "branch": "quest/detent/retirement-close-race",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2423,9 +2425,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "review",
       "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
-      "updated": "2026-11-09T09:01:05"
+      "updated": "2026-11-09T09:29:16",
+      "worktree": "../Detent-wt/detent/retirement-close-race"
     },
     "salvage": {
       "accepted": {},
