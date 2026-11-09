@@ -35,6 +35,7 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 | dense-distribution | design | opus high | 298,559 (leg 1) | 33 m | | |
 | retirement-close-race | contributor + correctness review | opus high | 169,504 + 123,911 | about 2 h (planned 09:05, landed 10:08) | 0 fix rounds; found by S1/S2's mutant hang | Detent:9cccd2b |
 | dense-distribution | 6 designer legs + 2 design reviews | opus high, last leg sonnet | 1,129,472 designers + 437,816 reviewers | 1 day 4 h (11-08 to 11-09 10:58) | 2 fix rounds; scope added (stale tier) then dropped by the owner (D36) | Detent:676d137 |
+| observability-design | design (bench + D2 table) | opus high | 146,239 (leg 2) | 10 m | 1 owner correction folded in (Reader API only) | |
 
 ## Observations
 
