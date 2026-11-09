@@ -3,7 +3,7 @@
 #include <completion/native_completion.h>
 namespace c = kronuz::io::completion;
 struct Syncs {
-	unsigned files = 0, barriers = 0;
+	unsigned files = 0, groups = 0, group_files = 0, barriers = 0;
 };
 Syncs drive(const std::shared_ptr<l::DiskStore> &store) {
 	Syncs syncs;
@@ -16,8 +16,14 @@ Syncs drive(const std::shared_ptr<l::DiskStore> &store) {
 		}
 		require(++turns < 100000);
 		const auto &request = job->request();
-		if (request.kind == c::Kind::Sync || request.kind == c::Kind::SyncFiles)
+		if (request.kind == c::Kind::Sync)
 			++syncs.files;
+		if (request.kind == c::Kind::SyncFiles) {
+			++syncs.groups;
+			syncs.group_files += unsigned(request.files.size());
+			// The group holds storage.meta, which the census read and trusts, opened read-only.
+			require(request.files.size() == 1 && request.files[0]);
+		}
 		if (request.kind == c::Kind::DirectorySync)
 			++syncs.barriers;
 		// The census reads records and never opens a file for writing.
@@ -86,12 +92,18 @@ int main() {
 		}
 		const auto syncs = drive(store);
 		if (changed == 0) {
-			// No per-file sync (storage.meta, selected, the lease, the image, an owner and a pack were six):
-			// one directory barrier, then ready.
-			require(store->status() == l::StoreStatus::Ready && syncs.files == 0 && syncs.barriers == 1);
+			// No per-file Sync: the one startup barrier is a SyncFiles over storage.meta (the only record the
+			// census trusts that no publication synced) and the directory, then ready.
+			require(store->status() == l::StoreStatus::Ready && syncs.files == 0 && syncs.barriers == 0 &&
+					syncs.groups == 1 && syncs.group_files == 1);
 			const auto census = store->sync_stats();
-			require(census.startup.files == 0 && census.startup.groups == 0 && census.startup.directory_syncs == 1 &&
-					census.startup.device_flushes == 1 && census.total == census.startup);
+#ifdef __APPLE__
+			const auto flushes = 1u;
+#else
+			const auto flushes = 2u;
+#endif
+			require(census.startup.files == 1 && census.startup.groups == 1 && census.startup.directory_syncs == 1 &&
+					census.startup.device_flushes == flushes && census.total == census.startup);
 			require(store->selection().descriptor == image.descriptor());
 			l::DiskUsage observed;
 			for (const auto &entry : std::filesystem::directory_iterator(root)) {

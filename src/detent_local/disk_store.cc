@@ -142,9 +142,9 @@ class StartupOperation final : public c::Operation {
 					prepare_reader();
 			} else {
 				const auto phase = phase_;
-				if (phase == Phase::Open && !result.error)
+				if ((phase == Phase::Open || phase == Phase::SyncOpen) && !result.error)
 					data_->scratch_open = true;
-				if (phase == Phase::Close)
+				if (phase == Phase::Close || phase == Phase::SyncClose)
 					data_->scratch_open = false;
 				if (result.error)
 					remember(result.error);
@@ -167,7 +167,12 @@ class StartupOperation final : public c::Operation {
 					data_->reader.start(data_->observed_name(), record_length_, data_->core->owner,
 										data_->core->session->directory_identity());
 					prepare_reader();
+				} else if (phase == Phase::SyncOpen) {
+					sync_file_[0] = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
+					prepare(Phase::Barrier, c::Kind::SyncFiles);
 				} else if (phase == Phase::Barrier)
+					prepare(Phase::SyncClose, c::Kind::CloseFile);
+				else if (phase == Phase::SyncClose)
 					ready();
 			}
 		} catch (...) {
@@ -203,7 +208,7 @@ class StartupOperation final : public c::Operation {
 	}
 
   private:
-	enum class Phase { Inventory, Open, Read, Close, CreateMetadata, Barrier, Done };
+	enum class Phase { Inventory, Open, Read, Close, CreateMetadata, SyncOpen, Barrier, SyncClose, Done };
 	void remember(std::exception_ptr failure) noexcept {
 		if (!data_->failure)
 			data_->failure = failure;
@@ -229,9 +234,11 @@ class StartupOperation final : public c::Operation {
 		if (kind == c::Kind::OpenInto || kind == c::Kind::CloseFile)
 			request_.file = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
 		if (kind == c::Kind::OpenInto) {
-			request_.source = data_->observed_name();
+			request_.source = phase == Phase::SyncOpen ? std::string_view("storage.meta") : data_->observed_name();
 			request_.read_only = true;
 		}
+		if (kind == c::Kind::SyncFiles)
+			request_.files = sync_file_;
 	}
 	void prepare_reader() {
 		phase_ = Phase::Read;
@@ -369,7 +376,8 @@ class StartupOperation final : public c::Operation {
 															   core.verified_paged ? 2u : 1u})
 				throw std::runtime_error("selected generation ownership differs from storage identity");
 			core.bootstrap->usage = {};
-			prepare(Phase::Barrier, c::Kind::DirectorySync);
+			// The one startup barrier: storage.meta (which the census trusted) and the directory.
+			prepare(Phase::SyncOpen, c::Kind::OpenInto);
 			return;
 		}
 		if (core.options.mode == StoreOpenMode::ExistingManaged)
@@ -404,6 +412,7 @@ class StartupOperation final : public c::Operation {
 	std::shared_ptr<c::ImagePreparation> metadata_;
 	c::Token token_;
 	c::Request request_;
+	std::array<std::shared_ptr<c::File>, 1> sync_file_;
 	Phase phase_ = Phase::Inventory;
 	std::size_t record_length_ = 0;
 	bool submitted_ = false, cancelled_ = false;

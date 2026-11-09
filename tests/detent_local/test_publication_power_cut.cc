@@ -111,6 +111,8 @@ void materialize(const std::filesystem::path &root, const State &state, bool vol
 		for (const auto &[name, id] : state.volatile_entries)
 			names[name] = id;
 	for (const auto &[name, id] : names) {
+		if (outside_model(name))
+			continue;
 		const auto &inode = state.inodes[id];
 		std::string content = inode.content;
 		if (!volatile_view) {
@@ -132,6 +134,8 @@ State after_cut(const State &state, EntryMode entries, DataMode data) {
 		for (const auto &[name, id] : state.volatile_entries)
 			names[name] = id;
 	for (const auto &[name, id] : names) {
+		if (outside_model(name))
+			continue;
 		const auto &inode = state.inodes[id];
 		std::string content = inode.content;
 		const auto kept = std::min(inode.durable, content.size());
@@ -223,12 +227,20 @@ struct Run {
 	std::vector<c::Kind> trace;
 	std::size_t groups = 0;
 };
-// Opens `root` (whose files `start` describes), publishes a maintenance rewrite as generation `next`,
-// and records the history of the disk's state at every event.
-Run publish(const std::filesystem::path &root, State start, const l::StorageIdentity &storage, char next_fill,
-			std::size_t window) {
-	Run run;
-	State state = std::move(start);
+// The disk's state at every event of one store incarnation.
+struct Tracker {
+	std::filesystem::path root;
+	State *state = nullptr;
+	Run *run = nullptr;
+	std::shared_ptr<l::DiskStore> store;
+	std::map<const c::File *, int> file_ids;
+	bool allow_sync = false; // store creation syncs storage.meta with a Sync; publication and restart never do
+};
+// Points the seam at `state` (whose files are in `root`) and records its first event in `run`.
+void begin_tracking(Tracker &t, const std::filesystem::path &root, State &state, Run &run) {
+	t.root = root;
+	t.state = &state;
+	t.run = &run;
 	g_state = &state;
 	g_history = &run.history;
 	g_labels = &run.labels;
@@ -244,10 +256,87 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 		g_inode_ids[{status.st_dev, status.st_ino}] = id;
 	}
 	note("start", true);
-
+}
+// Executes the store's next primitive and applies it to the model.
+void step(Tracker &t, bool publishing) {
+	auto &state = *t.state;
+	auto &run = *t.run;
+	auto job = t.store->operation();
+	if (!job) {
+		t.store->advance();
+		return;
+	}
+	const auto request = job->request();
+	check(t.allow_sync || request.kind != c::Kind::Sync);
+	job->submitted();
+	auto result = kronuz::journal::detail::execute_primitive(job->io(), request);
+	check(!result.error);
+	if (publishing)
+		run.trace.push_back(request.kind);
+	switch (request.kind) {
+	case c::Kind::Create:
+	case c::Kind::CreateInto: {
+		const std::string name(request.source);
+		if (outside_model(name))
+			break;
+		state.inodes.push_back({});
+		const int id = int(state.inodes.size()) - 1;
+		state.volatile_entries[name] = id;
+		struct stat status{};
+		check(::stat((t.root / name).c_str(), &status) == 0);
+		g_inode_ids[{status.st_dev, status.st_ino}] = id;
+		if (request.file)
+			t.file_ids[request.file.get()] = id;
+		note("create " + name);
+		break;
+	}
+	case c::Kind::Write: {
+		const auto found = t.file_ids.find(request.file.get());
+		if (found == t.file_ids.end())
+			break; // a file outside the model
+		auto &content = state.inodes[found->second].content;
+		const auto end = request.offset + result.count;
+		if (content.size() < end)
+			content.resize(end);
+		std::copy_n(request.bytes.begin(), result.count, content.begin() + request.offset);
+		note("write");
+		break;
+	}
+	case c::Kind::Replace: {
+		const std::string from(request.source), to(request.destination);
+		state.volatile_entries[to] = state.volatile_entries.at(from);
+		state.volatile_entries.erase(from);
+		note("replace " + from + " -> " + to);
+		break;
+	}
+	case c::Kind::Remove:
+		state.volatile_entries.erase(std::string(request.source));
+		note("remove");
+		break;
+	case c::Kind::SyncFiles:
+		if (publishing)
+			++run.groups;
+		break;
+	default:
+		break;
+	}
+	check(job->complete(std::move(result)));
+	t.store->advance();
+	note(std::string("complete ") + std::to_string(int(request.kind)), true);
+}
+constexpr std::size_t never = ~std::size_t(0);
+// Opens `root` (whose files `start` describes) in `mode` and records the disk's state at every event
+// until the store stops starting; `ready` is never when it refused to start.
+Run start_store(const std::filesystem::path &root, State start, l::StoreOpenMode mode) {
+	Run run;
+	State state = std::move(start);
+	Tracker tracker;
+	begin_tracking(tracker, root, state, run);
 	Environment env;
-	env.options.sync_group_files = window;
+	env.options.mode = mode;
+	tracker.allow_sync = mode == l::StoreOpenMode::FreshEmpty;
 	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
+	tracker.store = store;
 	{
 		auto job = store->operation();
 		check(bool(job));
@@ -255,66 +344,55 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 		check(posix != nullptr);
 		install(*posix);
 	}
-	std::map<const c::File *, int> file_ids;
-	auto step = [&](bool publishing) {
+	unsigned turns = 0;
+	while (store->status() == l::StoreStatus::Starting) {
+		check(++turns < 100000);
+		step(tracker, false);
+	}
+	run.ready = store->status() == l::StoreStatus::Ready ? run.history.size() - 1 : never;
+	store->close();
+	drain(store);
+	check(store->drained());
+	store.reset();
+	tracker.store.reset();
+	env.domain.close().wait();
+	g_state = nullptr;
+	return run;
+}
+// Opens the directory as a restarted agent would and reports whether it reaches ready.
+bool reopens(const std::filesystem::path &root) {
+	Environment env;
+	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
+	drain(store);
+	const bool ready = store->status() == l::StoreStatus::Ready;
+	store->close();
+	drain(store);
+	store.reset();
+	env.domain.close().wait();
+	return ready;
+}
+
+// Opens `root` (whose files `start` describes), publishes a maintenance rewrite as generation `next`,
+// and records the history of the disk's state at every event.
+Run publish(const std::filesystem::path &root, State start, const l::StorageIdentity &storage, char next_fill,
+			std::size_t window) {
+	Run run;
+	State state = std::move(start);
+	Tracker tracker;
+	begin_tracking(tracker, root, state, run);
+
+	Environment env;
+	env.options.sync_group_files = window;
+	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
+	tracker.store = store;
+	{
 		auto job = store->operation();
-		if (!job) {
-			store->advance();
-			return;
-		}
-		const auto request = job->request();
-		check(request.kind != c::Kind::Sync);
-		job->submitted();
-		auto result = kronuz::journal::detail::execute_primitive(job->io(), request);
-		check(!result.error);
-		if (publishing)
-			run.trace.push_back(request.kind);
-		switch (request.kind) {
-		case c::Kind::Create:
-		case c::Kind::CreateInto: {
-			const std::string name(request.source);
-			state.inodes.push_back({});
-			const int id = int(state.inodes.size()) - 1;
-			state.volatile_entries[name] = id;
-			struct stat status{};
-			check(::stat((root / name).c_str(), &status) == 0);
-			g_inode_ids[{status.st_dev, status.st_ino}] = id;
-			if (request.file)
-				file_ids[request.file.get()] = id;
-			note("create " + name);
-			break;
-		}
-		case c::Kind::Write: {
-			const int id = file_ids.at(request.file.get());
-			auto &content = state.inodes[id].content;
-			const auto end = request.offset + result.count;
-			if (content.size() < end)
-				content.resize(end);
-			std::copy_n(request.bytes.begin(), result.count, content.begin() + request.offset);
-			note("write");
-			break;
-		}
-		case c::Kind::Replace: {
-			const std::string from(request.source), to(request.destination);
-			state.volatile_entries[to] = state.volatile_entries.at(from);
-			state.volatile_entries.erase(from);
-			note("replace " + from + " -> " + to);
-			break;
-		}
-		case c::Kind::Remove:
-			state.volatile_entries.erase(std::string(request.source));
-			note("remove");
-			break;
-		case c::Kind::SyncFiles:
-			++run.groups;
-			break;
-		default:
-			break;
-		}
-		check(job->complete(std::move(result)));
-		store->advance();
-		note(std::string("complete ") + std::to_string(int(request.kind)), true);
-	};
+		check(bool(job));
+		auto *posix = dynamic_cast<c::PosixIO *>(&job->io());
+		check(posix != nullptr);
+		install(*posix);
+	}
+	auto step = [&](bool publishing) { ::step(tracker, publishing); };
 	// Startup, to ready.
 	unsigned turns = 0;
 	while (store->status() != l::StoreStatus::Ready) {
@@ -369,6 +447,7 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 	drain(store);
 	check(store->drained());
 	store.reset();
+	tracker.store.reset();
 	plan.reset();
 	base.reset();
 	env.domain.close().wait();
@@ -376,6 +455,51 @@ Run publish(const std::filesystem::path &root, State start, const l::StorageIden
 	return run;
 }
 } // namespace
+
+// Store creation: a kill (or a power cut) at any event of a fresh store, then a restart as an existing
+// managed store. Whatever the census trusts must be durable when the restarted store reports ready, and
+// a power cut right after ready must leave a directory the next start accepts.
+std::size_t creation_cuts(const std::filesystem::path &directory) {
+	const auto fresh = directory / "fresh";
+	std::filesystem::create_directories(fresh);
+	check(::chmod(fresh.c_str(), 0700) == 0);
+	const auto created = start_store(fresh, State{}, l::StoreOpenMode::FreshEmpty);
+	check(created.ready != never);
+	const std::pair<EntryMode, DataMode> modes[] = {{EntryMode::Durable, DataMode::Truncate},
+													{EntryMode::Durable, DataMode::Zeros},
+													{EntryMode::All, DataMode::Truncate},
+													{EntryMode::All, DataMode::Zeros}};
+	std::size_t cases = 0, restarts = 0;
+	for (std::size_t i = 0; i < created.history.size(); ++i) {
+		const auto &killed = created.history[i];
+		if (!killed.volatile_entries.count("storage.meta"))
+			continue;
+		const auto root = directory / "killed";
+		State view = after_kill(killed);
+		materialize(root, view, true, EntryMode::Durable, DataMode::Truncate);
+		const auto restarted = start_store(root, view, l::StoreOpenMode::ExistingManaged);
+		if (restarted.ready == never)
+			continue; // a record the census refuses is not trusted
+		++restarts;
+		const auto &ready = restarted.history[restarted.ready];
+		const auto meta = ready.volatile_entries.at("storage.meta");
+		const auto durable = ready.durable_entries.find("storage.meta");
+		if (durable == ready.durable_entries.end() || durable->second != meta ||
+			ready.inodes[meta].durable != ready.inodes[meta].content.size()) {
+			std::cerr << "ready at creation event " << i << " (" << created.labels[i]
+					  << ") trusts a storage.meta no sync made durable\n";
+			check(false);
+		}
+		const auto probe = directory / "probe";
+		for (const auto &[entries, data] : modes) {
+			materialize(probe, ready, false, entries, data);
+			check(reopens(probe));
+			++cases;
+		}
+	}
+	check(restarts > 0);
+	return cases;
+}
 
 int main(int argc, char **argv) {
 	const std::size_t stride = argc > 1 ? std::strtoul(argv[1], nullptr, 10) : 1;
@@ -505,6 +629,8 @@ int main(int argc, char **argv) {
 			}
 		}
 	}
+	const auto creation = creation_cuts(directory / "creation");
+	std::cout << creation << " store-creation restart cases passed\n";
 	std::cout << cases << " power-cut and restart cases over " << requests
 			  << " publication primitives passed\n";
 }

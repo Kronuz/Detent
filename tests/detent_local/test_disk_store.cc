@@ -224,9 +224,9 @@ void recovery_durability(d::RetirementRuntime &runtime, const std::shared_ptr<d:
 				job->submitted();
 				auto result = kronuz::journal::detail::execute_primitive(job->io(), job->request());
 				check(!result.error);
-				// The census syncs no file: one directory barrier, which is the fault's target.
-				check(kind != c::Kind::Sync && kind != c::Kind::SyncFiles);
-				if (kind == c::Kind::DirectorySync) {
+				// The census issues one SyncFiles (storage.meta and the directory), the fault's target.
+				check(kind != c::Kind::Sync && kind != c::Kind::DirectorySync);
+				if (kind == c::Kind::SyncFiles) {
 					check(!fired && store->status() == l::StoreStatus::Starting);
 					if (fault) {
 						result.error = injected;
