@@ -49,3 +49,4 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
    all 31 S1/S2 jobs stale and reran them at Detent:35296ba (2026-11-09).
 7. Wall-bounded tests flake under host load: T7's window-1 cuts took 6.2 s at Detent:18439d0 and
    238 s at Detent:35296ba with the same test code, so the 300 s hang bound tripped (job e93d52).
+8. Every push to `main` restarts its CI and cancels the run in progress (`concurrency: cancel-in-progress`), and campaign commits (`state.json`) are not in `paths-ignore`: three pushes in 10 minutes on 2026-11-09 cancelled two runs at the S1/S2 landing. Push `main` once per landing and let CI finish before the next push.
