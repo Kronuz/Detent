@@ -79,6 +79,23 @@ landed tree (lead ledger criterion 7).
 - Builds on macOS use Apple Clang: `-DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
   -DCMAKE_OSX_SYSROOT=`. Scratch in `.scratch/`, never `/tmp`.
 
+## Candidate uses (owner's idea, 2026-11-08; not a goal until the owner says so)
+
+Detent as a general replicated lookup table, beyond configuration: GeoIP-style range data, IP and
+domain blocklists, routing and tenant-to-shard maps, revocation sets, rate-limit and pricing tables.
+Staying generic needs, above the page format (DTPAGE03 and the trie are byte-generic already):
+1. Binary-safe keys through an order-preserving escape (0x00 as `00 FF`, terminator `00 01`) instead of a bare NUL.
+2. Ordered reader lookups: floor, ceiling, prefix scan and longest-prefix match.
+3. An opaque bytes value type beside the typed knobs.
+Until then, no design may assume text keys or NUL-free names.
+
+Framing: an engine for rapidly distributing indexed lookup databases to large fleets, with local
+access to every entry and incremental publication of immutable generations. Fit (a peer's table,
+2026-11-08): excellent for flags, authorization policy, gateway routing and static dictionaries;
+strong for localization; conditional for service discovery (publication latency is unmeasured;
+RC-2) and package metadata; weak for large catalogs until namespace subscriptions (S4-S10) and
+page fetch by digest (dense-distribution) deliver slices; poor for telemetry and counters.
+
 ## Reserved decisions
 
 The owner decides these; everything else the lead decides and records below.
@@ -184,6 +201,11 @@ A `[decision]` criterion's evidence names a row's ID here.
 | D22 | 2026-11-04 | The Homebrew tap stays at `Detent:323b971` until the owner says | Owner | Handoff owner question 6 |
 | D23 | 2026-11-04 | `detentd --daemonize` reports ready only once a leader exists | Lead (handoff default) | It reports ready about 2 s early |
 | D24 | 2026-11-05 | Temporary ownership of the completion-declaration pin update: `journal:e5f6ff1`, `consensus:ab05507` | Owner | Closes S1/S2's pin-check; `docs/SHARED_LIBRARY_DECISIONS.md`, November 4 |
+| D31 | 2026-11-08 | Revises D30: Dense pages lands right after S1/S2; reader S6 and S3b follow it and merge it (S3b's byte-flip tests run on DTPAGE03 then, instead of before Dense). Dense resumes now on its branch beside S1/S2 (`--force`: it merges S1/S2 before landing). Dense distribution (shipping pages, not records) gets its own design quest now | Lead (owner: "fastest and most efficient") | Dense is the owner's priority and the furthest-reaching change (5M agent selected 748.6 to 360.8 s measured; 316 MB of packs); landing it before S6 and S3b means each of those rebases once onto the final format instead of Dense rebasing over both |
+| D32 | 2026-11-09 | namespace-s1-s2's A12 (the perf table) moves to quest sync-groups-perf, after S1/S2 lands; the mechanism note (A11) is written before the final jobs; the A9 exclusive arms run after the four gates | Lead | A docs commit changes job identity, so docs written after the 14 exclusive timings would force rerunning them all; a pending exclusive also blocks new light holds, so timings queued before the gates delay the gates |
+| D33 | 2026-11-09 | The owner withdrew "agents don't have to build anything". dense-distribution finishes as a measured design record (its fixes and evidence are nearly done); no build quest starts from it without a goal | Owner; lead on finishing | Finishing costs one document round and six model jobs; dropping it would discard measured receiver-cost results the reader and namespace quests can use |
+| D34 | 2026-11-09 | Dense distribution: Q2 (b), the full copy ships as the transfer in wire form (pages, no build; settles reserved D20 for that design); Q3 (a), per-fragment compression stays, per-segment measured for both encodings before any change; Q4 (b), a deployment with no relay runs a relay on the authority's host | Owner (accepted the lead's recommendations) | 25.7 MB against 25.6 MB with no receiver build; one framing serves both encodings; builds stay out of the consensus process |
+| D35 | 2026-11-09 | O4: D17 and D18 stand. O5: D21 stands (`detent get` loses `--defaults` until reader S7). O18: legacy step I (flat-v1 removal, the `image_format` option) is approved, to run after N1 lands. O19: W5's 2.6% managed first-read loss is accepted without a bisect, and `detentd` keeps http-parser strict mode | Owner (accepted the lead's recommendations) | Dense pages replaces the first-read path; strict parsing is the guide's default and safer |
 | D30 | 2026-11-08 | Landing order revised: namespace S1/S2 first, then reader S6, namespace S3b (shares `disk_store.cc`, `coordinator.cc`, `paged_segment_collection.cc` with S1/S2), legacy H after S6, Dense pages after all four. One contributor at a time until `campaign usage` has Claude rows | Lead | S1/S2's evidence is complete (5M cold bootstrap 999-1001 s to 545 s, 222/222 ctest, ASan/TSan 10/10) and it needs only a durability review, the main merge and CI; S6 has open security findings. Dense was measured on top of S1/S2 (`docs/measurements/dense-cold-bootstrap-20261107/`). Supersedes D25's order, keeps its S6-before-Dense reason |
 | D25 | 2026-11-04 | Landing order: reader S6, legacy H, namespace S3b, namespace S1/S2 (S3b and S1/S2 in either order, the later merges the other), then Dense pages | Lead | Handoff; S6 and Dense S3 both change `resolve` and `lookup` |
 | D26 | 2026-11-03 | Reader Q1-Q6 all (a); RD-5: namespace delivery adopts D4's `change` shape; `change` slot 0 only until namespace-delivery S7 | Lead; owner may reverse | `docs/status/reader-design.md`, reader-s5-s6 ledger |

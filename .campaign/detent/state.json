@@ -1,6 +1,36 @@
 {
   "campaign": "detent",
   "ci": "github",
+  "messages": [
+    {
+      "at": "2026-11-08T21:24:05",
+      "by": "xapiand-lead",
+      "closed": "Acknowledged: pins taken in namespace-s1-s2 (Detent:c2025c2); xapiand owns the shared libraries again",
+      "id": "msg-1",
+      "text": "xapiand lead back (campaign xapiand). Ack your 11-04 notes: journal:e5f6ff1 and consensus:ab05507 on main, pin-only; shared-library ownership back with xapiand: we take those pins in our next repin (quest direct-pins). The baseline's 19:41-01:21 exclusive hold of 11-04 is finished and will not recur: strict/exclusive jobs now cap at 30 min. In flight: x-pool (Xapiand), wbuf-inline (strata; two light jobs on strata's FreeBSD VM, port 18774; I freed preflight/cold-tier-item5 and phase7c-l5 there, ours and landed). Your VMs 18762/18763 stay untouched."
+    },
+    {
+      "at": "2026-11-08T21:56:02",
+      "by": "xapiand-lead",
+      "closed": "Read: overnight results are in docs/measurements/sync-groups-20261107/ and feed namespace-s1-s2 A9",
+      "id": "msg-2",
+      "text": "From the owner, for you: Detent's overnight queue finished; summary and results in ~/code/Kronuz/Detent/.scratch/overnight/SUMMARY (last line 2026-11-08 12:48 'queue stopped'; run.sh done via detent-runsh-remainder-r2, lead report NOTES-r2.md). The only xapiand job in it was Xapiand-baseline (rc 0, 11-04). Also: I'm adding a Claude Code reader to campaign usage on a branch of agent-campaign (usage-claude-code); it will count your Claude agents too once merged."
+    },
+    {
+      "at": "2026-11-08T22:36:42",
+      "by": "xapiand-lead",
+      "closed": "Acknowledged: xapiand checks capped at -j4; SyncFiles, OrderFiles and Stage stay unchanged, changes come to detent first",
+      "id": "msg-3",
+      "text": "Thanks. msg-2: fixed. Every live xapiand check now builds with at most -j4 (37 quests); the -j8/-j6 came from the migration's check commands. I'm also making the tool default light jobs to 4 build jobs and having campaign check flag a larger -j. msg-1: barrier-warning-completion's quest now keeps SyncFiles, OrderFiles and PreparationFilePolicy::Stage, signatures and default sequences, unchanged; it isn't started; any change to those three comes to you before landing."
+    },
+    {
+      "at": "2026-11-09T05:49:54",
+      "by": "xapiand-lead",
+      "closed": "agent-campaign:97d27c3 installed: rerun keeps after; worker drains light work before exclusive/strict",
+      "id": "msg-4",
+      "text": "Installed agent-campaign:97d27c3 (dotfiles:54e9111). 1) Your msg-5: 'campaign job rerun' now keeps 'after' (prerequisites resubmitted first, edges mapped to the new ids). 2) The worker holds exclusive jobs, and strict ones on macOS, while light work is queued, up to an hour (CAMPAIGN_DRAIN_WAIT); our pending strict A/B had blocked your light holds 04:35-05:33, sorry. Nothing to change on your side; the running worker picks this up when it next starts."
+    }
+  ],
   "quests": {
     "actors-docs": {
       "accepted": {},
@@ -239,6 +269,33 @@
       "status": "planned",
       "title": "detentd reports ready only once a leader exists",
       "updated": "2026-11-08T12:45:01"
+    },
+    "dense-distribution": {
+      "accepted": {},
+      "after": [],
+      "base": "8874c718629115b1adbfb80c33cb3868451e7739",
+      "branch": "quest/detent/dense-distribution",
+      "checks": [],
+      "consumes": [
+        "DTPAGE03",
+        "DTROOT03"
+      ],
+      "files": [
+        "docs/design/dense-distribution*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "Dense pages",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "review",
+      "title": "Dense distribution design: ship verified pages, not records",
+      "updated": "2026-11-09T01:16:42",
+      "worktree": "../Detent-wt/detent/dense-distribution"
     },
     "dense-pages": {
       "accepted": {
@@ -570,9 +627,7 @@
         }
       },
       "after": [
-        "namespace-s1-s2",
-        "reader-s6",
-        "namespace-s3b"
+        "namespace-s1-s2"
       ],
       "base": "7d339feb174ae1ed8139398f6fd0d5e3f55e7e31",
       "branch": "quest/dense-pages",
@@ -620,10 +675,9 @@
         "DTROOT03",
         "dense-occurrence-reuse"
       ],
-      "reason": "D30: waits for S1/S2, S6 and S3b to land; its files overlap theirs",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "active",
       "tasks": {
         "deltas": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
@@ -690,7 +744,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-08T21:19:39",
+      "updated": "2026-11-08T21:27:00",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
@@ -1355,7 +1409,96 @@
       "updated": "2026-11-08T15:38:06"
     },
     "namespace-s1-s2": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-09T10:00:39",
+          "base": "71a6cd7e1968188353dd833bb278afad47154c26",
+          "blobs": {
+            "cmake/dependencies.json": "100644:2e50e5943ac8050d495dbac01131935ff4299919",
+            "docs/measurements/sync-groups-20261108/arm.sh": "100755:66686de7ef2b13d27d55b71d4b2ce25b4178045a",
+            "docs/measurements/sync-groups-20261108/attribute.sh": "100755:ffb86a5cee8cd22bf57473ef2bbb1f8a7c738a55",
+            "docs/measurements/sync-groups-20261108/build.sh": "100755:ba7e207b66f92d8222066b214ab74f15ae9e3c42",
+            "docs/measurements/sync-groups-20261108/mutant.sh": "100755:6efa75196e6e21f29e872cf1210deeb20bbc54d0",
+            "docs/measurements/sync-groups-20261108/retirement-wakeup.sh": "100644:ab7526bfe0ba2c69f243b2c5e62b1baa8dd3b98c",
+            "docs/measurements/sync-groups-20261108/retirement_wakeup.cc": "100644:bc33b1a6f19fcb74b990b6b272ea80c18b37d187",
+            "docs/measurements/sync-groups-20261108/summarize.py": "100644:62940e4bf76e2f043f93c28174f96a88ac5bd0da",
+            "docs/measurements/sync-groups-20261108/t7-timing.sh": "100755:91e102bb86a0c0d2651901c50611288e56f2cd95",
+            "docs/mechanisms/sync-groups.md": "100644:d1f96e2e238460c865af28b1d27789b22d9452b5",
+            "docs/status/namespace-design.md": "100644:23fd7c313287f5aefe6d84e2033303ac3cd2d5ab",
+            "docs/status/namespace-s1-s2.md": "100644:0107e8bb33ed7c8409b3b122335a3c0a58bb1016",
+            "include/detent_delivery/coordinator.hh": "100644:fb624a7eca5d50ab1643d384837e83ae48999106",
+            "include/detent_local/disk_store.hh": "100644:f0aebe2f29082b3ee627c30e3fbbf216089ede1e",
+            "include/detent_local/storage_session.hh": "100644:d862f8c3773496af3aab13d616e8f204808fc923",
+            "include/detent_local/sync_counters.hh": "100644:3668050b74c9ae1752ff00fbf6b976acead23be5",
+            "src/detent_agent/managed_host.cc": "100644:ce2cf0fe554fc0d70fdf7e6bac5120505bd9d4ff",
+            "src/detent_delivery/coordinator.cc": "100644:5b4dc5d518bf5a1d2a6d719850f29dc0c5cd6e8e",
+            "src/detent_local/disk_store.cc": "100644:00b34b644f69abeaee6e5fcb3e7cbf5dde29bfbf",
+            "src/detent_local/paged_publication_artifacts.cc": "100644:6b50c1158a5fac10c4ae642d25fb8b0f346fc581",
+            "src/detent_local/paged_publication_artifacts.hh": "100644:fd94e78b521ab81931686d1435f9e44a88a65968",
+            "src/detent_local/paged_segment_collection.cc": "100644:25162ad48ccff95134fbf1e3b16c258d43c68719",
+            "src/detent_local/storage_session.cc": "100644:7197f4bd329e79b9c5e6c0b772ef249789d17c2e",
+            "src/detent_local/store_core.hh": "100644:bf7b88e8e2598cbdc3810c5b44b246fc4144b556",
+            "src/detent_relay/host.cc": "100644:fda64c5c104f908c5c8eb4d78a17e6a79e0bb228",
+            "tests/detent_local/CMakeLists.txt": "100644:17a59bbc7e6fa7a633f26d92333c324025419f3c",
+            "tests/detent_local/test_disk_store.cc": "100644:e09e57cdfa6095bcde40ac84d310fa181b19a47f",
+            "tests/detent_local/test_paged_publication_artifacts.cc": "100644:3cdf4afbe6eadaa21f0150b8a3e50621be7170f3",
+            "tests/detent_local/test_paged_store_startup.cc": "100644:c6029aa08e7d21f5125bf0dc8e8256719eedb61b",
+            "tests/detent_local/test_publication_power_cut.cc": "100644:98cf31d4c8de6184367d9cb499e688402abf3831"
+          },
+          "brief": "852406731742b3bb",
+          "by": "review",
+          "commit": "e36937c919d851d3b66f68350b8b2416d0579116",
+          "findings": {
+            "D1": {
+              "jobs": [
+                {
+                  "cmd": "bash /Users/kronuz/code/Kronuz/Detent/.scratch/review-namespace-s1-s2-durability/probe.sh census-meta",
+                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-085304-2d998b",
+                  "level": "light",
+                  "seconds": 27.3,
+                  "state": "done",
+                  "what": "D1 confirming probe census-meta at the fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            },
+            "D2": {
+              "jobs": [
+                {
+                  "cmd": "bash docs/measurements/sync-groups-20261108/mutant.sh targets",
+                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261109-085249-c139f3",
+                  "level": "light",
+                  "seconds": 71.4,
+                  "state": "done",
+                  "what": "mutant harness: configure and list the test targets"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "docs/measurements/sync-groups-20261108/attribute.sh",
+              "docs/measurements/sync-groups-20261108/retirement-wakeup.sh",
+              "docs/measurements/sync-groups-20261108/retirement_wakeup.cc",
+              "docs/measurements/sync-groups-20261108/t7-timing.sh"
+            ],
+            "reason": "the four unseen files are job drivers and a probe under docs/measurements (attribution, T7 timing, the retirement wake-up probe); they add no mechanism to the product, and the product fix for the retirement race is its own reviewed quest"
+          },
+          "note": "",
+          "review": "d82c5cd87babc5183c89b446168a58b6ffde55a6",
+          "reviewed": "b3fef5099a0512c31b1ccee1b56e45ccb8b9daf7",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "aad46758246e5797892fa9274cb2b4d0044accc0",
       "branch": "quest/detent/namespace-s1-s2",
@@ -1410,7 +1553,8 @@
         "tests/detent_local/test_disk_store.cc",
         "tests/detent_local/test_paged_publication_artifacts.cc",
         "tests/detent_local/test_paged_store_startup.cc",
-        "tests/detent_local/test_publication_power_cut.cc"
+        "tests/detent_local/test_publication_power_cut.cc",
+        "docs/measurements/sync-groups-20261108/**"
       ],
       "landed": [],
       "lenses": [
@@ -1422,12 +1566,11 @@
         "publication-sync-order",
         "sync-counters"
       ],
-      "reason": "Parked 2026-11-05; evidence complete 2026-11-07; waits for the architect's durability review, a merge of main with the D24 pins, and CI",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-08T21:20:05",
+      "updated": "2026-11-09T10:00:39",
       "worktree": "../Detent-wt/detent/namespace-s1-s2"
     },
     "namespace-s3": {
@@ -1464,7 +1607,8 @@
     "namespace-s3b": {
       "accepted": {},
       "after": [
-        "namespace-s1-s2"
+        "namespace-s1-s2",
+        "dense-pages"
       ],
       "checks": [
         {
@@ -1534,7 +1678,7 @@
       "risk": "high",
       "status": "blocked",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-08T21:19:39"
+      "updated": "2026-11-08T21:26:35"
     },
     "namespace-s4-s10": {
       "accepted": {},
@@ -2085,7 +2229,9 @@
     },
     "reader-s6": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "dense-pages"
+      ],
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2156,7 +2302,7 @@
       "risk": "high",
       "status": "blocked",
       "title": "Reader S6: the lock-free reader core",
-      "updated": "2026-11-08T15:38:06"
+      "updated": "2026-11-08T21:26:34"
     },
     "reader-s7-s9": {
       "accepted": {},
@@ -2332,6 +2478,101 @@
       "status": "landed",
       "title": "Retained-state envelope in the authority",
       "updated": "2026-11-08T15:38:04"
+    },
+    "retirement-close-race": {
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-09T09:42:20",
+          "base": "45a03673935340445149f924d3cb1647d8d6046b",
+          "blobs": {
+            "docs/mechanisms/retirement-wakeup-probe.cc": "100644:bc33b1a6f19fcb74b990b6b272ea80c18b37d187",
+            "docs/mechanisms/retirement-wakeup.md": "100644:8ec82648f61b510c49fa9f207e364f42fee7eeff",
+            "docs/mechanisms/retirement-wakeup.sh": "100755:e051e136cbeb6b2fb483c6002592c1a94605af23",
+            "include/detent_distribution/retirement.hh": "100644:95ff907ac3495df72eaec8e0e24a7c58e137001e",
+            "src/detent_distribution/retirement.cc": "100644:36e9ac663c64a4cb726a52f5e57da4b93c87a917",
+            "tests/detent_distribution/test_retirement.cc": "100644:e1712a962468745a22ed5ef8b457eef7bd8f27d7"
+          },
+          "brief": "0453a4e5c3872677",
+          "by": "review",
+          "commit": "28e72949ccc2c325d9dea529536aa260b1709f06",
+          "findings": {},
+          "note": "",
+          "review": "f2e599d6ef7cc0a136ce1215e540e25d6ccefc81",
+          "reviewed": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+          "verdict": "APPROVE"
+        }
+      },
+      "after": [],
+      "base": "018202d2c7d926b06686dd0653cdf35df3ac23ec",
+      "branch": "quest/detent/retirement-close-race",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        },
+        {
+          "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R retirement",
+          "level": "light",
+          "minutes": 90,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_distribution/retirement.cc",
+        "include/detent_distribution/retirement.hh",
+        "tests/detent_distribution/test_retirement.cc",
+        "docs/mechanisms/retirement*"
+      ],
+      "landed": [
+        {
+          "at": "2026-11-09T10:10:15",
+          "commit": "9cccd2b0d8224c5cf5a0e33b8f168b0eb7a3bdbf",
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-091524-b72f0a",
+              "level": "light",
+              "seconds": 1083.8,
+              "state": "done",
+              "what": "retirement-close-race check native at 5772d201eaa0"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R retirement",
+              "commit": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-091524-3d7822",
+              "level": "light",
+              "seconds": 799.0,
+              "state": "done",
+              "what": "retirement-close-race check tsan at 5772d201eaa0"
+            }
+          ],
+          "final": true,
+          "from": "5beef417cef72b59757aeebaf5fc284fdbcec663",
+          "reason": "",
+          "tested": "28e72949ccc2c325d9dea529536aa260b1709f06"
+        }
+      ],
+      "lenses": [
+        "correctness"
+      ],
+      "messages": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "landed",
+      "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
+      "updated": "2026-11-09T10:10:20",
+      "worktree": ""
     },
     "salvage": {
       "accepted": {},
@@ -2731,6 +2972,27 @@
       "status": "landed",
       "title": "Stage 6: startup runtime capacity configuration",
       "updated": "2026-11-08T15:38:26"
+    },
+    "sync-groups-perf": {
+      "accepted": {},
+      "after": [
+        "namespace-s1-s2"
+      ],
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/perf/sync-groups.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "S1/S2 before and after timing table from main",
+      "updated": "2026-11-09T04:16:35"
     },
     "task-cancellation": {
       "accepted": {},
