@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-000647-5fdbec 261109-000648-f8d372 261109-000649-79f6d4 261109-000650-f03a2a 261109-000651-ba36ce 261109-000652-8732cd 261109-000653-878219 261109-000654-4fbf15 261109-000655-54c96f 261109-000656-ef1c74 261109-000657-33a399 261109-000657-ee6ef2 261109-000658-dd59fb 261109-000659-9cc222 261109-000700-46eab6 261109-000701-61d8db 261109-000702-788b29 261109-000710-6a7c72
+State: waiting on jobs (`campaign wait --quest dense-pages`): the Detent:ac4c32e batch and two diagnosis jobs at Detent:9770ca2, listed under "Lead message 2026-11-09 (second 5M abort)"
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -61,6 +61,9 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 3. 2026-11-08: mutants follow the design's S1/S2/S4 lists (docs/design/dense-pages.md:311, 329,
    353) as committed patches under tests/detent_local/mutants; A6's "order" is the page
    validator's preorder slot check (T1(4) "a slot off preorder").
+5. 2026-11-09: the two one-CPU-hour fuzz jobs (261106-112828-869301, 261106-113725-c6d946) are
+   rerun once, at the post-S1/S2 head, not now: the decoders are unchanged since they ran and a
+   second hour at a head that will change again buys nothing. Lead may overrule.
 4. 2026-11-08: `StateCursor::logical_commitment` and `PreparedReader::logical` keep their names
    on purpose: they return the one state commitment, predate Dense on main, and their callers sit
    in src/detent_delivery (outside this quest's files). A12's removed fields are the format's.
@@ -232,3 +235,31 @@ a11-offpath-skip 261108-215347-fbd883.
    (lines in the Evidence table), none at a build. They ran under the old convention (exit 1 =
    killed); the head reruns use the explicit one.
 4. Main merge held until the lead says S1/S2 landed.
+
+## Lead message 2026-11-09 (second 5M abort)
+
+1. At Detent:98ebd27 both 5M jobs aborted with `invalid_argument: invalid paged local image`
+   (5fdbec, 79f6d4). Second layer of the same defect: with the cursor and packer sized, the
+   oracles' own structural checks (packer test `Sink::drain` verify_page and `verify_values`;
+   delta oracle `Full::drain` verify_page and the occurrence walk) still used default limits, and
+   `validate(PageHeader)` refuses `keys > 504,096` on upper 5M pages. Fixed Detent:ac4c32e: all
+   take `corpus_limits`.
+2. Detent:9770ca2 adds `report_uncaught_exceptions` (dense_fixture.hh): a terminate handler that
+   prints type, message and the unwound-free backtrace. Diagnosis jobs at 9770ca2 (before the
+   fix, expected to fail and to name the site; they are also the revert evidence):
+   packer 261109-002829-1d2a73, delta 261109-002830-678fb1.
+3. Batch at Detent:ac4c32e. A10: smoke 261109-002832-7724ff -> 5M 261109-002833-ba74d7.
+   A3/A5/A7: 100K 261109-002834-b9ac85 -> 5M 261109-002836-c29925. Harness self-test
+   261109-002837-05443e. Reverts (pass = killed): 261109-002839-00fc85, 261109-002840-cdfa5b.
+   Mutants (pass = killed): a3-largest-first 261109-002842-4a14db, a3-seal-64
+   261109-002844-c13209, a3-boundary 261109-002846-6b3239, a3-height-digest 261109-002847-06930c,
+   a6-height 261109-002848-241da4, a6-keys 261109-002849-707844, a6-canonicity
+   261109-002851-00afc7, a6-order 261109-002852-0fc85c, a11-noop-rewrite 261109-002853-0e22ed,
+   a11-relocation-rehash 261109-002854-cecb99, a11-offpath-skip 261109-002855-28f894.
+   Reruns of the brief's list: A12 grep 261109-002856-a757d2, 150551 -> 002856-89d2ac,
+   150715 -> 002856-dd8697, 062527 -> 002856-d03cb7, 063837 -> 002857-957eef, 065403 ->
+   002857-f63e1a, 070134 -> 002857-a75af3, 111601 -> 002857-9b0e92, 111645 -> 002857-d0560e,
+   TSan 112739 -> 002857-169c6b, ASan 112740 -> 002857-cae590, warm smoke 113537 ->
+   002857-5fbb95, COR-1 114739/114740/114741 -> 002857-8f8f5c / 002857-e50a4c / 002857-b0cd74,
+   native 131622 -> 002857-48e472 (also `campaign verify`'s native check), ASan 131702 ->
+   002857-79d264. The 98ebd27 queue was cancelled (stale test code).
