@@ -697,6 +697,7 @@ int main(int argc, char **argv) try {
 	pos_counts = new std::atomic<std::uint64_t>[positions]();
 	stripe_counts = static_cast<std::uint32_t *>(std::calloc(stripes * positions, sizeof(std::uint32_t)));
 	ever_bits = new std::atomic<std::uint64_t>[positions / 64 + 1]();
+	tls_rows.reserve(1024); // a registry push never allocates inside a timed loop
 	// The table holds twice the scattered set; each row has a line per slot.
 	std::size_t capacity = 1;
 	while (capacity < 2 * o.scattered)
@@ -722,8 +723,8 @@ int main(int argc, char **argv) try {
 				throw std::runtime_error("bool knob does not answer its default: " + name.text);
 		}
 	std::vector<Arm> arms;
-	if (o.arms == "all")
-		for (std::size_t a = 0; a != arm_count; ++a)
+	if (o.arms == "all") // D2's arms; A8's run by name with --interleave 1
+		for (std::size_t a = 0; a <= std::size_t(Arm::hook_on); ++a)
 			arms.push_back(Arm(a));
 	else
 		for (const auto &item : split_list(o.arms)) {
