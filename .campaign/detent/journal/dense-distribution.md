@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: waiting on jobs 261109-014058-00ad3c (100K check of the fixed receiver at 4d66fe1; fixing DD-1 to DD-5)
+State: waiting on jobs 261109-030632-2d5f94 261109-030633-20ab89 261109-030634-8606dc 261109-030635-4e209f 261109-030636-4ce079 261109-030637-311a76 (model at 29b5e53; fixing DD-1 to DD-5)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,19 +11,33 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 Design review CHANGES at `Detent:d874004`
 (`.campaign/detent/reviews/dense-distribution-design.md`, probe job 261109-012437-1ff8e3).
-Model fixed at `Detent:4d66fe1`: the wire is the pages back to back; the receiver derives the
-layout (DD-1), parses each page as a first touch does and reruns D5 at every node, refusing a
-non-seal order or a non-canonical tree (DD-1, DD-2); check mode adds P1, P2, P4 and one forged-root
-case per check with a mutant each; `day` mode prices pages per agent-day (DD-4). Check job
-261109-014058-00ad3c queued. Document: D2-D4, D9, Limits and the build plan rewritten for DD-1 to
-DD-3, DD-5 and the folds; numbers wait for the reruns.
+Model fixed at `Detent:4d66fe1` (derived layout, seal order, first-touch parse, D5 rerun per node,
+`day` mode) and `Detent:29b5e53`: check job 261109-014058-00ad3c failed because the digests-form P4
+forgery kept the root's stale stated digest, so the digest check refused it before the keys check.
+Each forged-root case is now sealed (the root's stated digest recomputed) so that only its targeted
+check refuses, with the exact reason asserted and a mutant per check accepting. A local light-hold
+run of `check` on 100K passed every case. Document revised at `Detent:53c67f7`; its numbers and
+job ids wait for the jobs below.
+
+Jobs at `Detent:29b5e53`, `--ref DENSE=28d3ed9`, corpora in `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/`
+named with their SHA-256 in `--env`:
+
+| Job | What |
+|---|---|
+| 261109-030632-2d5f94 | check, 100K (A3/A4, DD-1, DD-2, DD-7) |
+| 261109-030633-20ab89 | reviewer's probe, 100K (DD-1 to DD-3) |
+| 261109-030634-8606dc | full copy, 5M (A1) |
+| 261109-030635-4e209f | four deltas, 5M (A2) |
+| 261109-030636-4ce079 | crossover sweep, 5M (A2) |
+| 261109-030637-311a76 | pages only per agent-day, 5M (DD-4) |
 
 ## Next
 
-1. Read check job 261109-014058-00ad3c; fix the model if a case fails.
-2. Submit at the final head: full, delta (4), sweep, day (5M), check (100K) and the reviewer's
-   probe; fill D4's refusal table, Q1's per-day rows and every number and job id in the doc.
-3. Answer DD-1 to DD-13 under "Review findings", Evidence, then State "ready for review".
+1. Read the six jobs; fix the model if one fails.
+2. Fill the document from them (D4 refusal table and delta costs, Q1 per-day rows, FULL_SENT,
+   DELTAS_JOB, SWEEP_JOB, CHECK_JOB, header job list), commit.
+3. `campaign job rerun` the six at that head (twins of the same ids); Evidence cites the ids
+   above; answer DD-1 to DD-13; State "ready for review" with the DD-to-job map.
 
 ## Blocked on
 
@@ -77,3 +91,8 @@ Open: no C++ CPU number for the skipped build (DD3 measures it); record delta si
    The authority builds no pages (Q4 (c) rejected in the recommendation).
 6. Lead message (2026-11-08, jobs done): the document is finished from the four jobs. The model is
    unchanged since `Detent:4fa06bd`, so no rerun.
+7. Corpora: `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin` (SHA-256
+   `3214561e…1a5740`, equal to the dense-pages-series copy) and `corpus-5m.bin` (`bb87ae5d…52bc835`),
+   each named with its hash in the job's `--env`; the model also prints the hash it read.
+8. A forged-root case is valid only when sealed: the digest checks must pass, so the targeted
+   structure or canonicity check is the one that refuses (lead's direction on job 261109-014058-00ad3c).
