@@ -1576,21 +1576,21 @@
     "namespace-s1-s2": {
       "accepted": {
         "durability": {
-          "at": "2026-11-09T10:00:39",
-          "base": "71a6cd7e1968188353dd833bb278afad47154c26",
+          "at": "2026-11-09T14:06:17",
+          "base": "19d87f09928f6483a1a27e116bf9938a28eef04a",
           "blobs": {
             "cmake/dependencies.json": "100644:2e50e5943ac8050d495dbac01131935ff4299919",
             "docs/measurements/sync-groups-20261108/arm.sh": "100755:66686de7ef2b13d27d55b71d4b2ce25b4178045a",
             "docs/measurements/sync-groups-20261108/attribute.sh": "100755:ffb86a5cee8cd22bf57473ef2bbb1f8a7c738a55",
             "docs/measurements/sync-groups-20261108/build.sh": "100755:ba7e207b66f92d8222066b214ab74f15ae9e3c42",
-            "docs/measurements/sync-groups-20261108/mutant.sh": "100755:6efa75196e6e21f29e872cf1210deeb20bbc54d0",
+            "docs/measurements/sync-groups-20261108/mutant.sh": "100755:b0c42f187a3df87c9c044c50c761a904c24539ea",
             "docs/measurements/sync-groups-20261108/retirement-wakeup.sh": "100644:ab7526bfe0ba2c69f243b2c5e62b1baa8dd3b98c",
             "docs/measurements/sync-groups-20261108/retirement_wakeup.cc": "100644:bc33b1a6f19fcb74b990b6b272ea80c18b37d187",
             "docs/measurements/sync-groups-20261108/summarize.py": "100644:62940e4bf76e2f043f93c28174f96a88ac5bd0da",
             "docs/measurements/sync-groups-20261108/t7-timing.sh": "100755:91e102bb86a0c0d2651901c50611288e56f2cd95",
             "docs/mechanisms/sync-groups.md": "100644:d1f96e2e238460c865af28b1d27789b22d9452b5",
             "docs/status/namespace-design.md": "100644:23fd7c313287f5aefe6d84e2033303ac3cd2d5ab",
-            "docs/status/namespace-s1-s2.md": "100644:0107e8bb33ed7c8409b3b122335a3c0a58bb1016",
+            "docs/status/namespace-s1-s2.md": "100644:a761aaf07937b6449ee9b736d93900b4051b9f1f",
             "include/detent_delivery/coordinator.hh": "100644:fb624a7eca5d50ab1643d384837e83ae48999106",
             "include/detent_local/disk_store.hh": "100644:f0aebe2f29082b3ee627c30e3fbbf216089ede1e",
             "include/detent_local/storage_session.hh": "100644:d862f8c3773496af3aab13d616e8f204808fc923",
@@ -1608,24 +1608,24 @@
             "tests/detent_local/test_disk_store.cc": "100644:e09e57cdfa6095bcde40ac84d310fa181b19a47f",
             "tests/detent_local/test_paged_publication_artifacts.cc": "100644:3cdf4afbe6eadaa21f0150b8a3e50621be7170f3",
             "tests/detent_local/test_paged_store_startup.cc": "100644:c6029aa08e7d21f5125bf0dc8e8256719eedb61b",
-            "tests/detent_local/test_publication_power_cut.cc": "100644:98cf31d4c8de6184367d9cb499e688402abf3831"
+            "tests/detent_local/test_publication_power_cut.cc": "100644:f93d93eb731f1334c7ddb0d2fc2fb25a223f8256"
           },
           "brief": "852406731742b3bb",
           "by": "review",
-          "commit": "e36937c919d851d3b66f68350b8b2416d0579116",
+          "commit": "c294b58251c1ed33d1a318e19c0f492cb11723d5",
           "findings": {
             "D1": {
               "jobs": [
                 {
                   "cmd": "bash /Users/kronuz/code/Kronuz/Detent/.scratch/review-namespace-s1-s2-durability/probe.sh census-meta",
-                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-085304-2d998b",
+                  "job": "261109-121536-ca7460",
                   "level": "light",
-                  "seconds": 27.3,
+                  "seconds": 21.8,
                   "state": "done",
-                  "what": "D1 confirming probe census-meta at the fix"
+                  "what": "D1 confirming probe census-meta at the fix at 35296bada2db"
                 }
               ],
               "kind": "defect",
@@ -1635,14 +1635,14 @@
               "jobs": [
                 {
                   "cmd": "bash docs/measurements/sync-groups-20261108/mutant.sh targets",
-                  "commit": "9d708b80c277cf9cb614b15394aa8e68130bf44f",
+                  "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-085249-c139f3",
+                  "job": "261109-121535-599f68",
                   "level": "light",
-                  "seconds": 71.4,
+                  "seconds": 20.3,
                   "state": "done",
-                  "what": "mutant harness: configure and list the test targets"
+                  "what": "mutant harness: configure and list the test targets at 35296bada2db"
                 }
               ],
               "kind": "gap",
@@ -1656,7 +1656,7 @@
               "docs/measurements/sync-groups-20261108/retirement_wakeup.cc",
               "docs/measurements/sync-groups-20261108/t7-timing.sh"
             ],
-            "reason": "the four unseen files are job drivers and a probe under docs/measurements (attribution, T7 timing, the retirement wake-up probe); they add no mechanism to the product, and the product fix for the retirement race is its own reviewed quest"
+            "reason": "after the review only the test harness changed: T7_GROUP filters T7 to its creation cases for the d1-revert mutant (Detent:0f962ed), mutant.sh passes that filter, and the status doc records it; no production mechanism changed"
           },
           "note": "",
           "review": "d82c5cd87babc5183c89b446168a58b6ffde55a6",
@@ -1735,7 +1735,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-09T10:00:39",
+      "updated": "2026-11-09T14:06:17",
       "worktree": "../Detent-wt/detent/namespace-s1-s2"
     },
     "namespace-s3": {
