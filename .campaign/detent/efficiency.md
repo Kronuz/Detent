@@ -33,6 +33,8 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 | dense-pages | contributor | opus high | 208,686 (fresh resume) | 18 m | 5M abort was a production defect (codec default limits refused stores over 504,096 keys); fixed at the type level | |
 | namespace-s1-s2 | contributor | opus high | 107,102 (fresh resume) | 7 m | T7 regression was a cycle-oracle gap exposed by D1's event shift; test-only fix | |
 | dense-distribution | design | opus high | 298,559 (leg 1) | 33 m | | |
+| retirement-close-race | contributor + correctness review | opus high | 169,504 + 123,911 | about 2 h (planned 09:05, landed 10:08) | 0 fix rounds; found by S1/S2's mutant hang | Detent:9cccd2b |
+| dense-distribution | 6 designer legs + 2 design reviews | opus high, last leg sonnet | 1,129,472 designers + 437,816 reviewers | 1 day 4 h (11-08 to 11-09 10:58) | 2 fix rounds; scope added (stale tier) then dropped by the owner (D36) | Detent:676d137 |
 
 ## Observations
 
