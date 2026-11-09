@@ -569,7 +569,11 @@
           "verdict": "CHANGES"
         }
       },
-      "after": [],
+      "after": [
+        "namespace-s1-s2",
+        "reader-s6",
+        "namespace-s3b"
+      ],
       "base": "7d339feb174ae1ed8139398f6fd0d5e3f55e7e31",
       "branch": "quest/dense-pages",
       "checks": [
@@ -685,7 +689,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-06T13:27:06",
+      "updated": "2026-11-08T21:19:38",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
