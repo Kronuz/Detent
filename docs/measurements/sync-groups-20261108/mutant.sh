@@ -11,11 +11,14 @@ targets=(test_local_publication_power_cut test_local_paged_store_startup test_lo
 restore() { git checkout -q -- src tests; }
 trap restore EXIT
 restore
-if [ ! -f "$build/CMakeCache.txt" ]; then
-  cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= \
-    -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON \
-    -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON || exit 125
+# Always configure: a build directory kept on the slot must not keep an older option set.
+cmake -S . -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= \
+  -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_MANAGED_AGENT=ON \
+  -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON || exit 125
+if [ "$name" = targets ]; then
+  ninja -C "$build" -t targets all | grep -E 'test_local_(publication_power_cut|paged_store_startup|disk_store):' | tee /dev/stderr | grep -c . | grep -qx 3
+  exit $?
 fi
 if [ "$name" = d1-revert ]; then
   # Review D1: the census barrier as of Detent:b3fef50 (a bare DirectorySync; storage.meta unsynced).
