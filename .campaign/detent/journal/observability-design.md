@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-103954-f7533a 261109-104006-59599d 261109-104008-56988f 261109-104009-46152e
+State: waiting on jobs 261109-104451-e928ee 261109-104452-5b4e92 261109-104453-f581b5 261109-104454-a6435c
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,18 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Writing `docs/design/observability.md` while the benchmark jobs run. Bench: `docs/design/observability_bench.cc`,
-built against reader S6 (`Detent:b1d281c`, ref `s6`) on slot `obs-bench` by `docs/design/observability-bench.sh`;
-summary by `docs/design/observability-summary.py`. Jobs (chained): build 261109-103954-f7533a (light),
-smoke 261109-104006-59599d (strict), screen 261109-104008-56988f (strict), confirm 261109-104009-46152e
-(exclusive), all at `15b6978`.
+Design drafted in `docs/design/observability.md` (D1-D9, Q1-Q6, build plan OB1-OB6); its D2 cost table,
+abstract result sentence and job ids are placeholders (NUMBERS, RESULT SENTENCE, COST TABLE, JOBID) until the
+confirm job lands. Jobs at `fce36ed` (chained, slot `obs-bench`, ref `s6=b1d281c`): build
+261109-104451-e928ee (light), smoke 261109-104452-5b4e92 (strict), screen 261109-104453-f581b5 (strict),
+confirm 261109-104454-a6435c (exclusive). First chain at `15b6978` failed to compile (build
+261109-103954-f7533a: the pinned metrics names `AtomicCounter` as an alias, so `~AtomicCounter()` failed);
+its smoke, screen and confirm were skipped.
 
 ## Next
 
-1. Read the confirm job's `confirm.md`; put its numbers in D2 of the design; choose the counting shape by them.
-2. Commit the design, then rerun the confirm job at the head (`campaign job rerun 261109-104009-46152e`; the doc
+1. Read the confirm job's `confirm.md` (`$JOB_OUT`, or its log); put its numbers in D2 of the design; choose the counting shape by them.
+2. Commit the design, then rerun the confirm job at the head (`campaign job rerun 261109-104454-a6435c`, with the build, smoke and screen; the doc
    commit changes job identity) and cite both.
 3. Fill the Evidence table, Result; set State to "ready for review".
 
