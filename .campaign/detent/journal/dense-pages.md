@@ -431,6 +431,29 @@ Before-rate so far (not this job's): at b8ef8d2 every case failed its first run 
 b5065a -j4); at 97f0f2f -j4 (e76a0c) every case failed within 6 runs. A pass of 36 runs at a
 per-run rate p is luck with probability (1-p)^36: 2.6e-6 at p = 0.3, 0.023 at p = 0.1.
 
+## Round-3 verdicts 2026-11-09 (fresh contributor)
+
+1. 875b4f (main Detent:45e2044): exit 3, no rate. main's test_coordinator.cc does not compile
+   with the script's configuration (Debug, DETENT_BUILD_RELAY=OFF): it gets asio::streambuf,
+   read_until and buffers_begin only transitively through relay headers; main's own gate builds
+   RELAY=ON (261109-121535-4154e6). Detent:97f0f2f added the four asio includes. No main rate.
+2. b2db8d (Detent:97f0f2f, fixture = main's logic + includes + two checkpoints): failed, 2 of 6
+   rounds, 7 of 36 case runs, all "fixture server: handshake: stream truncated" (#59 x2,
+   migrate x2, paged, transitions, sessions). This is the before-rate; it stands in for main's.
+3. 2489dd (Detent:00c9aaf, b8ef8d2 + logs): 36 of 36 failed at line 1161 (answer before settle).
+   The timeline shows the reading in every run (parsed per port): settle - observer-close
+   1,001-1,003 ms (median 1,002) = release_session's deadline; the close connection accepted
+   695-957 ms after observer-close with pending=1572 (its request already queued while the
+   server built the held poll's 500K response, build 693-1,006 ms); the close's own response
+   build ended after settle in 36 of 36. The reading holds: the fix is proven, not just passing.
+4. 19ca42 (Detent:792887c, fix 203f729): passed, 0 of 6 rounds, 0 of 36 case runs.
+5. 747eb5 (snapshot-eager revert at 792887c): MUTANT KILLED, by the first ctest pass (6 of 6
+   500K cases failed, "stream truncated"); DENSE_MUTANT_RUN not reached, by design.
+6. Gate da4860 at Detent:d8f6cff: passed. Chain: all done/passed except 2d00f8 (a11-noop-rewrite)
+   NO VERDICT exit 3, link "library 'libdetent_managed_agent.a' not found" while linking
+   detent-agent (target-linked in src/CMakeLists.txt:87; other mutants built the same tree:
+   transient, rerun at the merged head) and 1908e9 (A10 5M) cancelled (not by me): rerun at head.
+
 ## Follow-ups for the lead
 
 1. Withdrawn: "the coordinator holds the long poll open while it releases the session". The
