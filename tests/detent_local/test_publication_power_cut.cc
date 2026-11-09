@@ -543,17 +543,22 @@ int main(int argc, char **argv) {
 													{EntryMode::Durable, DataMode::Zeros},
 													{EntryMode::All, DataMode::Truncate},
 													{EntryMode::All, DataMode::Zeros}};
-	auto verify = [&](const Run &run, std::size_t index, const State &from, const std::filesystem::path &root,
-					  const std::string &what) {
+	auto allowed = [](const Run &run, std::size_t index, const l::Descriptor &selected) {
+		return selected == run.before || (index >= run.startup_events && selected == run.after);
+	};
+	// `input`, for a restarted store: before it reports ready, a cut may still leave any generation the cut
+	// it restarted from (`input` at `input_index`) allowed.
+	auto verify = [&](const Run &run, std::size_t index, const std::filesystem::path &root, const std::string &what,
+					  const Run *input = nullptr, std::size_t input_index = 0) {
 		const auto selected = open_and_recover(root);
-		if (!(selected == run.before) && !(index >= run.startup_events && selected == run.after)) {
+		const bool earlier = input && index < run.ready && allowed(*input, input_index, selected);
+		if (!allowed(run, index, selected) && !earlier) {
 			std::cerr << what << " at event " << index << " (" << run.labels[index] << ") selected a generation that is "
 					  << "neither the one before the publication nor the one it publishes; startup events "
 					  << run.startup_events << ", selected generation " << selected.generation[0] << ", before "
 					  << run.before.generation[0] << ", after " << run.after.generation[0] << '\n';
 			check(false);
 		}
-		(void)from;
 		++cases;
 	};
 	for (const std::size_t window : {std::size_t(1), std::size_t(2), std::size_t(128)}) {
@@ -599,11 +604,11 @@ int main(int argc, char **argv) {
 			const auto probe = directory / "probe";
 			for (const auto &[entries, data] : modes) {
 				materialize(probe, state, false, entries, data);
-				verify(run, i, state, probe, run.labels[i].c_str());
+				verify(run, i, probe, run.labels[i]);
 			}
 			if (run.boundary[i]) {
 				materialize(probe, state, true, EntryMode::All, DataMode::Zeros);
-				verify(run, i, state, probe, "kill");
+				verify(run, i, probe, "kill");
 			}
 		}
 		// Restart-then-republish cycles: cut or kill at a boundary, restart, publish again, cut again.
@@ -611,7 +616,9 @@ int main(int argc, char **argv) {
 			continue;
 		unsigned cycle = 0;
 		for (std::size_t i = 0; i < run.history.size(); ++i) {
-			if (!run.boundary[i] || (i % (5 * stride) && !run.labels[i].starts_with("replace ")))
+			// Every fifth boundary, and always the one completing a Replace (rename visible, not yet durable).
+			const bool replaced = i > 0 && run.labels[i - 1].starts_with("replace ");
+			if (!run.boundary[i] || (i % (5 * stride) && !replaced))
 				continue;
 			for (int variant = 0; variant < 3; ++variant) {
 				State second = variant == 0   ? after_cut(run.history[i], EntryMode::Durable, DataMode::Truncate)
@@ -626,7 +633,7 @@ int main(int argc, char **argv) {
 					const auto probe = directory / "probe";
 					for (const auto &[entries, data] : {modes[0], modes[3]}) {
 						materialize(probe, rerun.history[j], false, entries, data);
-						verify(rerun, j, rerun.history[j], probe, tag);
+						verify(rerun, j, probe, tag, &run, i);
 					}
 				}
 				std::filesystem::remove_all(again);

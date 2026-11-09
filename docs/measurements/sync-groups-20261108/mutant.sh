@@ -64,7 +64,13 @@ edits = {
         "ready();\n\t\t\treturn;",
     ),
 }
-if mutant == "phase-counts":
+if mutant == "cycle-oracle":
+    # The cycle oracle without its restart allowance: a cut before the rerun's barrier must select the rerun's own.
+    source = cut.read_text()
+    old = "const bool earlier = input && index < run.ready && allowed(*input, input_index, selected);"
+    assert source.count(old) == 1, old
+    cut.write_text(source.replace(old, "const bool earlier = false;"))
+elif mutant == "phase-counts":
     # The T7 accounting fix Detent:522452a reverted: startup syncs counted with the publication's.
     source = cut.read_text()
     for suffix in ("files", "directories", "flushes"):
