@@ -2391,7 +2391,28 @@
       "updated": "2026-11-08T15:38:04"
     },
     "retirement-close-race": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-09T09:42:20",
+          "base": "45a03673935340445149f924d3cb1647d8d6046b",
+          "blobs": {
+            "docs/mechanisms/retirement-wakeup-probe.cc": "100644:bc33b1a6f19fcb74b990b6b272ea80c18b37d187",
+            "docs/mechanisms/retirement-wakeup.md": "100644:8ec82648f61b510c49fa9f207e364f42fee7eeff",
+            "docs/mechanisms/retirement-wakeup.sh": "100755:e051e136cbeb6b2fb483c6002592c1a94605af23",
+            "include/detent_distribution/retirement.hh": "100644:95ff907ac3495df72eaec8e0e24a7c58e137001e",
+            "src/detent_distribution/retirement.cc": "100644:36e9ac663c64a4cb726a52f5e57da4b93c87a917",
+            "tests/detent_distribution/test_retirement.cc": "100644:e1712a962468745a22ed5ef8b457eef7bd8f27d7"
+          },
+          "brief": "0453a4e5c3872677",
+          "by": "review",
+          "commit": "28e72949ccc2c325d9dea529536aa260b1709f06",
+          "findings": {},
+          "note": "",
+          "review": "f2e599d6ef7cc0a136ce1215e540e25d6ccefc81",
+          "reviewed": "5772d201eaa0bffe55f583da2bd4847cb9978087",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "018202d2c7d926b06686dd0653cdf35df3ac23ec",
       "branch": "quest/detent/retirement-close-race",
@@ -2427,7 +2448,7 @@
       "risk": "high",
       "status": "review",
       "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
-      "updated": "2026-11-09T09:29:16",
+      "updated": "2026-11-09T09:42:20",
       "worktree": "../Detent-wt/detent/retirement-close-race"
     },
     "salvage": {
