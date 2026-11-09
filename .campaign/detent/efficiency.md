@@ -36,5 +36,5 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 
 1. Job identity covers the whole tree minus `.campaign/`, so a docs commit makes every earlier job stale: write docs last (S1/S2, 2026-11-08).
 2. The first review on the campaign found what the earlier process did not: S1/S2's D1 is a crash window that 222/222 ctest, ASan, TSan and the old mutants all passed over, because T7 never cut store creation.
-3. Evidence that cannot fail is caught: D2 showed every S1/S2 mutant job would exit 125 (no build), which the old run queue would have read as a kill.
+3. Evidence that cannot fail is caught: D2 showed the new mutant jobs exit 125 (no test target built), which a "must fail" job cannot tell from a kill; the harness now has to separate the two.
 4. Three contributors plus a reviewer share one machine: their jobs queue behind each other's exclusive holds, so wall-clock is bound by the host, not the agents.
