@@ -2794,14 +2794,14 @@
       ],
       "landed": [],
       "lenses": [],
-      "milestone": "N1",
+      "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
       "status": "planned",
       "title": "S1/S2 before and after timing table from main",
-      "updated": "2026-11-09T04:16:22"
+      "updated": "2026-11-09T04:16:35"
     },
     "task-cancellation": {
       "accepted": {},
