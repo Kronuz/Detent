@@ -1,23 +1,24 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-030630-d655be 261109-042705-8e6377 (gate-failure race diagnosis; see "Gate failure 2026-11-09")
+State: waiting on jobs 261109-044236-f5ae51 261109-051245-db09c0 261109-051245-860eed (fixture race proof) and gate 261109-051101-0e5691 with its chain (see "Fixture fix 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-The 5M delta abort was a production defect: the page codec defaulted `Limits`, and the overlay's
-external-child decode, the paged cursor's header decode and contextual reuse omitted them, so any
-store over 504,096 keys refused its own root page. Fixed at Detent:791d9fc (codec takes `Limits`
-explicitly; regressions for overlay and cursor). The frozen-v2 failure is not a defect: the job
-generates version-2 records and is valid only at Detent:785fb34.
+The 500K gate failures were the coordinator fixture's, not the quest's: its single-threaded server
+blocked on the held long poll and could not accept the final session close. Fixed in the fixture
+at Detent:b8ef8d2 (held poll on its own thread; the final close must be answered and acknowledged
+before the coordinator settles). Proof and the requeued gate chain are queued at that head.
 
 ## Next
 
-1. Read gate 3907fb and its dependents; reverts cdb214/fe85d6 must pass (killed), COR-1 824414
-   must pass; record the 5M T4 actuals (fd8f8f) against the model (5 pages / 15,691 B one update).
-2. A3/A6 mutants stand at Detent:ac4c32e (untouched code); rerun all mutants at the post-S1/S2
+1. Fixture proof: head job f5ae51 (Detent:97f0f2f) must fail, fixed db09c0 must pass, revert
+   860eed must pass (killed). Record the close answered -> acknowledged gap from db09c0's -V log.
+2. Read gate 0e5691 and its chain (below); reverts 844834/5c50b4 must pass (killed), COR-1 872c6e
+   must pass; record the 5M T4 actuals (d14e40) against the model (5 pages / 15,691 B one update).
+3. A3/A6 mutants stand at Detent:ac4c32e (untouched code); rerun all mutants at the post-S1/S2
    head with the fuzz jobs.
-3. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
+4. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
 
 ## Blocked on
 
@@ -77,6 +78,11 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 5. 2026-11-09: the two one-CPU-hour fuzz jobs (261106-112828-869301, 261106-113725-c6d946) are
    rerun once, at the post-S1/S2 head, not now: the decoders are unchanged since they ran and a
    second hour at a head that will change again buys nothing. Lead may overrule.
+9. 2026-11-09 (lead ruling, msg on the gate failure): the 500K race is fixed in the fixture, not
+   in src/detent_delivery. The transitions mode's final close now gets 204 like every other close
+   (it got a truncated snapshot body, a leftover of reset_retry's phase 5). The acknowledgement
+   bound is 500 ms, half release_session's 1,000 ms cap: a timed-out client closes about 1,000 ms
+   after it connects, an acknowledging one within milliseconds of the answer.
 4. 2026-11-08: `StateCursor::logical_commitment` and `PreparedReader::logical` keep their names
    on purpose: they return the one state commitment, predate Dense on main, and their callers sit
    in src/detent_delivery (outside this quest's files). A12's removed fields are the format's.
@@ -332,3 +338,42 @@ Detent:9e87dde adds `server-feedback` and `server-poll-released` checkpoints; di
 in the failing run, the hold is the coordinator's (src/detent_delivery, outside this quest's
 files): report, do not edit. A fixture-only fix (serve the held poll on its own thread) is in
 scope but changes what the test proves; lead's call.
+
+## Fixture fix 2026-11-09
+
+Diagnosis 261109-042705-8e6377 (Detent:9e87dde) failed run 1: server-feedback 36,982 ms,
+coordinator-settled 37,991 ms, server-poll-released 38,115 ms, then the fixture accepted the
+coordinator's already-dropped close: "handshake: stream truncated". The coordinator's final
+release_session (coordinator.cc:820, 1,000 ms cap) timed out while the one-thread fixture sat in
+the held poll's read.
+
+Fix Detent:b8ef8d2 (tests/detent_delivery/test_coordinator.cc): the held poll (phase 2; phase 4
+in transitions) waits on its own thread, bounded by the source timeout; the accept loop answers
+every session close with 204; the final request must be a session close; the coordinator must
+close that connection within 500 ms of the answer; the answer must precede settling. Revert
+patch `tests/detent_delivery/mutants/held-poll-inline.patch` runs the hold inline again.
+Local sanity (quiet light, not evidence): all 25 non-500K test_delivery_coordinator cases pass
+with the new assertions, including transitions, reset, cancel-open and worker-cancel.
+
+Proof jobs, five 500K cases, `--repeat until-fail:8`, light:
+1. 261109-044236-f5ae51 at Detent:97f0f2f (before the fix): expected to fail.
+2. 261109-051245-db09c0 at Detent:b8ef8d2 (fix, -V): must pass.
+3. 261109-051245-860eed at Detent:b8ef8d2, `dense_mutant.sh` with held-poll-inline.patch and
+   DENSE_MUTANT_RUN repeating x8: passes when killed.
+
+Requeued at Detent:b8ef8d2: gate (`campaign verify`) 261109-051101-0e5691; after it: reverts
+844834, 5c50b4; A11 mutants 60ed43, 2bcd01, 8f3443; COR-1 ecbdb4, 43de33, 872c6e; A10 1b276f ->
+d14e40; model 98ec25 -> 897c15; self-test a73aba; 3d7eea -> af6dae, b0e5e3 -> 92bc40, d311c6 ->
+060c0c, 269318 -> 3fece6, 39d01e -> 598544, b149d6 -> 78b7fa, 2b1898 -> 6f8158, TSan e3fdeb ->
+4655b8, ASan 041fbf -> 82ddbf, warm 638ff5 -> 941ad0, ASan 5fbe88 -> bb214e (prefix 261109-0512).
+No gate: A12 15181a -> 525be9, 68e477 -> a204d2. Fuzz still waits for S1/S2 (ruling 5).
+`campaign job rerun` drops `after`; these were resubmitted with their spec and the new gate.
+
+## Follow-ups for the lead
+
+1. The coordinator holds the subscription long poll open while it releases the session: in the
+   failing run the poll was released 1,133 ms after feedback, after release_session's 1,000 ms
+   close timed out (src/detent_delivery/coordinator.cc:1139 releases before
+   `options.source.connections.reset()`). Against a real one-thread or connection-limited relay
+   the close can go unacknowledged. Outside this quest's files; the lead decides whether it
+   becomes a delivery quest.
