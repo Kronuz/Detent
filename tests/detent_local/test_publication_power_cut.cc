@@ -5,6 +5,7 @@
 #include "paged_disk_fixture.hh"
 #include "paged_maintenance_plan.hh"
 #include <completion/native_completion.h>
+#include <chrono>
 #include <cstdlib>
 #include <fcntl.h>
 #include <map>
@@ -62,6 +63,8 @@ void device_flushed() {
 	if (g_state->directory_staged)
 		g_state->durable_entries = g_state->staged_entries;
 }
+// The model is the disk: no seam call reaches the kernel's sync paths, whose latency is the host's, not T7's.
+int skip_fsync(int) { return 0; }
 int record_fsync(int fd) {
 	struct stat status{};
 	check(::fstat(fd, &status) == 0);
@@ -75,22 +78,26 @@ int record_fsync(int fd) {
 		++g_seam_files;
 		note("fsync file");
 	}
-	return ::fsync(fd);
+	return 0;
 }
 #ifdef __APPLE__
-int record_fcntl(int fd, int command) {
+int record_fcntl(int, int command) {
 	check(command == F_FULLFSYNC || command == F_BARRIERFSYNC);
 	device_flushed();
 	++g_seam_flushes;
 	note("device flush");
-	return ::fcntl(fd, command);
+	return 0;
 }
+int skip_fcntl(int, int) { return 0; }
 void install(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &record_fcntl); }
+void install_unrecorded(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_fcntl); }
 #elif defined(__linux__)
-int record_writeback(int fd) { return kronuz::journal::detail::default_writeback(fd); }
-void install(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &record_writeback); }
+int skip_writeback(int) { return 0; }
+void install(c::PosixIO &io) { io.replace_sync_calls(&record_fsync, &skip_writeback); }
+void install_unrecorded(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync, &skip_writeback); }
 #else
 void install(c::PosixIO &io) { io.replace_sync_calls(&record_fsync); }
+void install_unrecorded(c::PosixIO &io) { io.replace_sync_calls(&skip_fsync); }
 #endif
 
 std::string slurp(const std::filesystem::path &path) {
@@ -179,6 +186,14 @@ struct Environment {
 	d::RetirementDomain domain;
 	l::DiskStoreOptions options;
 };
+// Points a store that the model does not track at sync calls that skip the kernel.
+void skip_syncs(const std::shared_ptr<l::DiskStore> &store) {
+	auto job = store->operation();
+	check(bool(job));
+	auto *posix = dynamic_cast<c::PosixIO *>(&job->io());
+	check(posix != nullptr);
+	install_unrecorded(*posix);
+}
 void drain(const std::shared_ptr<l::DiskStore> &store) {
 	unsigned turns = 0;
 	while (store->operation() || store->needs_work()) {
@@ -199,6 +214,7 @@ void drain(const std::shared_ptr<l::DiskStore> &store) {
 l::Descriptor open_and_recover(const std::filesystem::path &root) {
 	Environment env;
 	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
+	skip_syncs(store);
 	drain(store);
 	check(store->status() == l::StoreStatus::Ready);
 	const auto selection = store->selection();
@@ -363,6 +379,7 @@ Run start_store(const std::filesystem::path &root, State start, l::StoreOpenMode
 bool reopens(const std::filesystem::path &root) {
 	Environment env;
 	auto store = l::make_disk_store(env.domain, root, std::make_shared<int>(1), env.options);
+	skip_syncs(store);
 	drain(store);
 	const bool ready = store->status() == l::StoreStatus::Ready;
 	store->close();
@@ -538,6 +555,12 @@ int main(int argc, char **argv) {
 	}
 
 	std::size_t cases = 0, requests = 0;
+	// Progress on stderr (unbuffered), so a run stopped by a timeout shows where it was.
+	const auto began = std::chrono::steady_clock::now();
+	auto progress = [&](const std::string &where) {
+		const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - began;
+		std::cerr << "progress: " << where << ", " << cases << " cases, " << elapsed.count() << " s\n";
+	};
 	// Cuts at every event, with every window size, in every mode.
 	const std::pair<EntryMode, DataMode> modes[] = {{EntryMode::Durable, DataMode::Truncate},
 													{EntryMode::Durable, DataMode::Zeros},
@@ -611,6 +634,7 @@ int main(int argc, char **argv) {
 				verify(run, i, probe, "kill");
 			}
 		}
+		progress("window " + std::to_string(window) + " cuts");
 		// Restart-then-republish cycles: cut or kill at a boundary, restart, publish again, cut again.
 		if (window != 2)
 			continue;
@@ -638,9 +662,12 @@ int main(int argc, char **argv) {
 				}
 				std::filesystem::remove_all(again);
 			}
+			progress("cycles from event " + std::to_string(i));
 		}
+		progress("window 2 cycles");
 	}
 	const auto creation = creation_cuts(directory / "creation");
+	progress("store creation");
 	std::cout << creation << " store-creation restart cases passed\n";
 	std::cout << cases << " power-cut and restart cases over " << requests
 			  << " publication primitives passed\n";
