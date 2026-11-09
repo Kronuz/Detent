@@ -44,7 +44,8 @@ D8 (derived file ids) and D10 (first touch, scrub, repair). Provides the design 
 6. Three receiver states (owner, 2026-11-09): empty gets the full copy; warm (inside the record
    window) gets record deltas and builds pages locally, which match everywhere because pages are
    canonical after deltas (dense-pages D5); stale gets the missing pages or the full copy,
-   whichever is cheaper (A7).
+   whichever is cheaper (A7). Revised by D36: the pull is dropped; stale above the cut gets records,
+   below the cut the full copy; A7's measurements stay as the record.
 
 ## May land early
 
