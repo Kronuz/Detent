@@ -79,6 +79,16 @@ landed tree (lead ledger criterion 7).
 - Builds on macOS use Apple Clang: `-DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang
   -DCMAKE_OSX_SYSROOT=`. Scratch in `.scratch/`, never `/tmp`.
 
+## Candidate uses (owner's idea, 2026-11-08; not a goal until the owner says so)
+
+Detent as a general replicated lookup table, beyond configuration: GeoIP-style range data, IP and
+domain blocklists, routing and tenant-to-shard maps, revocation sets, rate-limit and pricing tables.
+Staying generic needs, above the page format (DTPAGE03 and the trie are byte-generic already):
+1. Binary-safe keys through an order-preserving escape (0x00 as `00 FF`, terminator `00 01`) instead of a bare NUL.
+2. Ordered reader lookups: floor, ceiling, prefix scan and longest-prefix match.
+3. An opaque bytes value type beside the typed knobs.
+Until then, no design may assume text keys or NUL-free names.
+
 ## Reserved decisions
 
 The owner decides these; everything else the lead decides and records below.

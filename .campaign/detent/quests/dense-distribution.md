@@ -36,7 +36,8 @@ D8 (derived file ids) and D10 (first touch, scrub, repair). Provides the design 
    records; 10K clustered 0.6 MB.
 3. One state, one root digest, two encodings: the receiver's verification is the same whichever
    encoding arrives (the owner's one-shape rule).
-4. The design is reviewed once (lens `design`) before any implementation quest starts.
+4. Keys stay generic (PLAN.md, Candidate uses): page and key naming on the wire must not assume text keys or NUL-free names, and must leave room for ordered (floor, prefix) lookups.
+5. The design is reviewed once (lens `design`) before any implementation quest starts.
 
 ## May land early
 
