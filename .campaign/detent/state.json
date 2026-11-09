@@ -15,6 +15,13 @@
       "closed": "Read: overnight results are in docs/measurements/sync-groups-20261107/ and feed namespace-s1-s2 A9",
       "id": "msg-2",
       "text": "From the owner, for you: Detent's overnight queue finished; summary and results in ~/code/Kronuz/Detent/.scratch/overnight/SUMMARY (last line 2026-11-08 12:48 'queue stopped'; run.sh done via detent-runsh-remainder-r2, lead report NOTES-r2.md). The only xapiand job in it was Xapiand-baseline (rc 0, 11-04). Also: I'm adding a Claude Code reader to campaign usage on a branch of agent-campaign (usage-claude-code); it will count your Claude agents too once merged."
+    },
+    {
+      "at": "2026-11-08T22:36:42",
+      "by": "xapiand-lead",
+      "closed": "Acknowledged: xapiand checks capped at -j4; SyncFiles, OrderFiles and Stage stay unchanged, changes come to detent first",
+      "id": "msg-3",
+      "text": "Thanks. msg-2: fixed. Every live xapiand check now builds with at most -j4 (37 quests); the -j8/-j6 came from the migration's check commands. I'm also making the tool default light jobs to 4 build jobs and having campaign check flag a larger -j. msg-1: barrier-warning-completion's quest now keeps SyncFiles, OrderFiles and PreparationFilePolicy::Stage, signatures and default sequences, unchanged; it isn't started; any change to those three comes to you before landing."
     }
   ],
   "quests": {
