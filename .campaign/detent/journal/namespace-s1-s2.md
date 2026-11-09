@@ -1,6 +1,6 @@
 # namespace-s1-s2: journal
 
-State: waiting on jobs 261109-013025-36d6c4 (attribution a: pre-D1 disk_store.cc, new tests, TSan), 261109-013026-f516c2 (attribution b: new code, b3fef50 power-cut test, TSan), 261109-012919-eef97a (positive with cycle diagnostics)
+State: waiting on jobs 261109-025503-2ccb31 (positive), mutants 025504-d90f68 025505-8d6713 025506-46f896 025508-2f9c30 025509-aeaaff 025510-58adb2 025511-86c6f4 025512-aa1268, attribute c 025513-3f17fc, A9 arms 025515..025530, gates 025531-dd57e8 -8e2301 -6ba699 -b2d410 (all 261109-)
 Quest: .campaign/detent/quests/namespace-s1-s2.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -31,9 +31,12 @@ Merged main (Detent:09472b7), pins taken (Detent:c2025c2: journal:e5f6ff1, conse
 
 - Attribution per the lead: attribute.sh a (head with disk_store.cc as of b3fef50) and b (head with the power-cut test as of b3fef50), both TSan Debug, one slot each. a fails => the test refactor is the cause; b fails => the restart SyncFiles.
 
+- T7 cycle failure resolved (Detent:e32cdb8). Cause: an oracle gap exposed by event numbering, not a code ordering change. The D1 barrier adds three startup events (OpenInto, SyncFiles, CloseFile), so window 2's Replace completion moved to event 120 and the cycle sampler (every fifth boundary) picked it for the first time. A kill there leaves the rename visible, not durable; a power cut at the rerun's event 0 (before its barrier) correctly selects `g`, the generation before the first publication (the main loop accepts the same cut at event 120). The cycle oracle knew only the rerun's before/after (`n`, `o`). The sampler's `starts_with("replace ")` clause never matched (that note is not a boundary), so the Replace point was covered only by luck of index. Attribution: variant a (36d6c4) failed at the D1 creation case, as designed; variant b (f516c2) failed at the old test's line 442, `publication_counters.groups == run.groups`, because the old Tracker counted the startup SyncFiles as a publication group: accounting, not the invariant. Fix: before the rerun reports ready, the oracle also accepts what the original cut allowed; the sampler always includes the Replace-completion boundary. Fails without it: mutant cycle-oracle 025512-aa1268 (allowance removed, head code; passes iff T7 fails). Predates D1: attribute.sh c 025513-3f17fc (pre-D1 disk_store.cc, allowance removed; passes iff the Replace-completion cycle variant 2 selects g).
+- Chain requeued at e32cdb8 (.scratch/queue.out): targets 025502-a25bfb, positive 025503-2ccb31, eight mutants (the seven plus cycle-oracle), build-after 025514-2eafd5, arms b/a x3 at 10K (025515-d3c885 b1, 025517-ec84d1 a1, 025518-a3f71a b2, 025519-135889 a2, 025520-319247 b3, 025521-9b3488 a3) and 100K (025522-f543d6 b1, 025523-7e61b3 a1, 025525-077e5b b2, 025526-33819c a2, 025527-a786bb b3, 025528-99a16c a3), 5M 025529-519b08 b, 025530-734fe1 a; gates native 025531-dd57e8, pins -8e2301, asan -6ba699, tsan -b2d410. Next: read results; write the two docs; rerun `campaign verify` at that final head (docs change the tree key, so the gates rerun there).
+
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
