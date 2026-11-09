@@ -11,11 +11,12 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 Design drafted in `docs/design/observability.md` (D1-D9, Q1-Q6, build plan OB1-OB6); its D2 cost table,
 abstract result sentence and job ids are placeholders (NUMBERS, RESULT SENTENCE, COST TABLE, JOBID) until the
-confirm job lands. Jobs at `fce36ed` (chained, slot `obs-bench`, ref `s6=b1d281c`): build
-261109-104451-e928ee (light), smoke 261109-104452-5b4e92 (strict), screen 261109-104453-f581b5 (strict),
-confirm 261109-104454-a6435c (exclusive). First chain at `15b6978` failed to compile (build
-261109-103954-f7533a: the pinned metrics names `AtomicCounter` as an alias, so `~AtomicCounter()` failed);
-its smoke, screen and confirm were skipped.
+confirm job lands. Chains (slot `obs-bench`, ref `s6=b1d281c`):
+- `15b6978`: build 261109-103954-f7533a failed to compile (`~AtomicCounter()` on an alias); rest skipped.
+- `fce36ed`: build 261109-104451-e928ee ok, smoke 261109-104452-5b4e92 ok, screen 261109-104453-f581b5 FAILED
+  ("invalid knob definitions": `--knobs 100000` built 200,000 definitions, past `kDefaultMaxKnobs` 100,000;
+  smoke's 40,000 fit), confirm 261109-104454-a6435c skipped. Fixed at `438191b`.
+- `438191b`: see State.
 
 ## Next
 
@@ -46,4 +47,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. `--knobs` counts knob definitions (int and bool halves), so screen and confirm publish 100,000 knobs, the
+   parser's default cap (about 8 MB of JSON, under the 16 MiB cap). The bench parses its definitions with
+   `parse_defaults` before publishing and fails with the limits and the parser's detail.
+2. Smoke uses the same 100,000-knob set as screen and confirm (setup about 5 s), so a definition-set failure
+   shows in the smoke, not the timed runs.
