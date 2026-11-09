@@ -27,6 +27,14 @@ ledger-and-agents process. Each row is one quest; numbers come from agent comple
 
 | Quest | Role | Model | Agent tokens | Duration | Rework | Landed |
 | --- | --- | --- | ---: | ---: | --- | --- |
-| namespace-s1-s2 | contributor | sonnet high | | | | |
-| dense-pages | contributor | opus high | | | | |
-| dense-distribution | design | opus high | | | | |
+| namespace-s1-s2 | contributor | sonnet high | 147,377 (leg 1) | 20 m | 1 fix round (D1, D2) | |
+| namespace-s1-s2 | durability review | opus high | 204,246 | 31 m | found D1, a regression against main that every earlier run missed; D2, a harness that could never produce evidence | |
+| dense-pages | contributor | opus high | 255,439 (leg 1) | 32 m | A10 diagnosed (two harness defects, 3 days stalled before) | |
+| dense-distribution | design | opus high | 298,559 (leg 1) | 33 m | | |
+
+## Observations
+
+1. Job identity covers the whole tree minus `.campaign/`, so a docs commit makes every earlier job stale: write docs last (S1/S2, 2026-11-08).
+2. The first review on the campaign found what the earlier process did not: S1/S2's D1 is a crash window that 222/222 ctest, ASan, TSan and the old mutants all passed over, because T7 never cut store creation.
+3. Evidence that cannot fail is caught: D2 showed every S1/S2 mutant job would exit 125 (no build), which the old run queue would have read as a kill.
+4. Three contributors plus a reviewer share one machine: their jobs queue behind each other's exclusive holds, so wall-clock is bound by the host, not the agents.
