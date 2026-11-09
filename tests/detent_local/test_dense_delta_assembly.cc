@@ -450,6 +450,7 @@ static void compare_corpus(const std::string &before_path, const std::string &af
 }
 
 int main(int argc, char **argv) {
+	report_uncaught_exceptions();
 	if (argc == 4 && std::string_view(argv[1]) == "--corpus") {
 		compare_corpus(argv[2], argv[3]);
 		return 0;

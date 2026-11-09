@@ -1,7 +1,12 @@
 #pragma once
 #include "detent_local/paged_layout.hh"
 #include <algorithm>
+#include <cstdlib>
+#include <exception>
+#include <execinfo.h>
+#include <iostream>
 #include <source_location>
+#include <typeinfo>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -12,6 +17,25 @@ inline void require(bool value, std::source_location location = std::source_loca
 	if (!value)
 		throw std::runtime_error(std::string(location.file_name()) + ":" +
 								 std::to_string(location.line()) + ": dense page invariant");
+}
+// An uncaught exception terminates before unwinding, so this handler's backtrace still shows the
+// throwing frames; it prints them with the exception's type and message, then aborts.
+inline void report_uncaught_exceptions() {
+	std::set_terminate([] {
+		void *frames[64];
+		const auto count = backtrace(frames, 64);
+		if (const auto error = std::current_exception()) {
+			try {
+				std::rethrow_exception(error);
+			} catch (const std::exception &e) {
+				std::cerr << "uncaught " << typeid(e).name() << ": " << e.what() << '\n';
+			} catch (...) {
+				std::cerr << "uncaught non-standard exception\n";
+			}
+		}
+		backtrace_symbols_fd(frames, count, 2);
+		std::abort();
+	});
 }
 // Format limits that admit a whole corpus: the defaults, raised to its key counts, twice its key
 // count in pages and 4 GiB of page bytes.

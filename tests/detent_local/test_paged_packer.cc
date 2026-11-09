@@ -399,6 +399,7 @@ static void resource_checks() {
 	require(account->used() == 0 && parent->used() == baseline);
 }
 int main(int argc, char **argv) {
+	dense_test::report_uncaught_exceptions();
 	if (argc == 3) {
 		compare_model(argv[1], argv[2]);
 		return 0;
