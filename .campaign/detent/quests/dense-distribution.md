@@ -29,8 +29,9 @@ D8 (derived file ids) and D10 (first touch, scrub, repair). Provides the design 
 
 ## Decisions
 
-1. Owner direction (2026-11-08): agents should not have to build anything; "everything just falls
-   in place". The owner left order and approach to the lead (D31).
+1. The owner withdrew the "agents should not have to build anything" direction (2026-11-09, D33).
+   The design stands on its measurements (receiver work and bytes per encoding) as a record for
+   later quests; no implementation quest starts from it until a goal asks for one.
 2. Projected starting points, to be replaced by measurements: full copy 31.7 MB of zstd-1 packs
    against 25.6 MB of records as sent; 10K uniform delta 42.8 MB of pages against about 0.5 MB of
    records; 10K clustered 0.6 MB.
