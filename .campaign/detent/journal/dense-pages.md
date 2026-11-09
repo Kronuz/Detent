@@ -1,25 +1,21 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-063745-875b4f 261109-063745-b2db8d 261109-063746-2489dd 261109-063747-19ca42 261109-063748-747eb5 (500K rate, timeline, fix proof, revert) and gate 261109-063352-da4860 with its chain (see "500K round 3 2026-11-09")
+State: waiting on jobs at the merged head Detent:435a525 (gate 261109-145341-9f0788, T7 positive 261109-145355-7c2f59 and the evidence batch listed under "Merged head 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Third round on the 500K coordinator subscription failures. Reading of the b8ef8d2 logs (below):
-the fixture builds response(500K) for every request, including the held poll and the final
-close, on its one server thread, while release_session's 1,000 ms timeout runs. Fix
-Detent:203f729 builds it only for replies that carry it. Proof jobs queued; the timeline job
-2489dd must confirm the reading before the fix counts.
+Merged main (S1/S2, Detent:ff6218e) and the performance task at Detent:435a525; gate, T7
+positive, the S1/S2 startup-before-barrier mutant and every evidence job queued there. 500K
+round 3 closed: fix proven (verdicts below).
 
 ## Next
 
-1. 2489dd (Detent:00c9aaf, -V): per port, check observer-close -> coordinator settle = ~1,000 ms
-   (release_session deadline), the close connection queued (pending > 0 at accept) while the
-   server sat in server-response-built. If it does not show that, the fix is unproven: stop.
-2. Rates: main 875b4f vs quest 97f0f2f b2db8d (same command): does the quest change frequency?
-3. Fix 19ca42 must pass (6 rounds x 6 cases); revert 747eb5 must pass (killed).
-4. Gate and chain requeued at the head; read them.
-5. Merge main once namespace-s1-s2 lands (lead's word), then rerun at that head.
+1. Read 9f0788 (gate), 7c2f59 (T7 positive, must pass), 0a4f36 (startup-before-barrier, must be
+   killed), then the batch; rewrite the Evidence table with the head ids.
+2. Fold the head ids into A9/A10/A11 (COR-1 confirm: bd9ad1, 71a2c4, cecb4a) and A4/SEC-2
+   (fuzz 649826, 976098, warm smoke 2539d5) for the lead's accepts.
+3. A15 is the lead's: finding and recommendation below ("A15 baseline 2026-11-09").
 
 ## Blocked on
 
@@ -93,6 +89,12 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
    failure instead of a silent pass. The rate comparison uses Detent:97f0f2f, not b8ef8d2:
    b8ef8d2's stricter assertions are a different test from main's; 2489dd (b8ef8d2 + logs)
    gives b8ef8d2's rate.
+
+11. 2026-11-09: mutants and reverts run each in its own slot (`dense-mut-NAME`), not the shared
+   dense-mutants slot, after observing three concurrent jobs in that one checkout (follow-up 2).
+   Costs about 1.3 GB per slot; delete them after the batch.
+12. 2026-11-09: merged quest/dense-pages--performance: it adds only the attribution probe
+   (tests/detent_system/prepared_client_probe.cc) and its task journal, both in the file set.
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
@@ -454,9 +456,90 @@ per-run rate p is luck with probability (1-p)^36: 2.6e-6 at p = 0.3, 0.023 at p 
    detent-agent (target-linked in src/CMakeLists.txt:87; other mutants built the same tree:
    transient, rerun at the merged head) and 1908e9 (A10 5M) cancelled (not by me): rerun at head.
 
+## Merged head 2026-11-09
+
+Detent:8eeb36e merges main (Detent:ff6218e, S1/S2 landed). One conflict, src/detent_local/
+disk_store.cc StartupOperation: main replaced the census DirectorySync with SyncOpen
+(storage.meta read-only) -> Barrier (SyncFiles, which also syncs the directory) -> SyncClose;
+Dense added RemoveSelected (remove an obsolete v2 `selected`) -> DirectorySync -> credit. Merged:
+obsolete: RemoveSelected -> SyncOpen -> Barrier -> credit the descriptor -> SyncClose -> ready;
+otherwise main's path unchanged. The S1/S2 mutant strings still match once each
+(mutant.sh startup-before-barrier, empty-payload-group, unsynced-descriptor, rename-before-sync,
+closed-session). paged_publication_artifacts.cc, tests CMakeLists and
+test_paged_publication_artifacts.cc merged clean (owners+lease first group; Dense's lease version
+is paged::format_version). test_dense_refetch.cc crash cut 1 now expects the barrier's
+storage.meta reopen after the removal (was DirectorySync). Docs: dense-pages.md (credit after the
+startup barrier), sync-groups.md (restart diagram names the obsolete removal).
+Detent:435a525 merges quest/dense-pages--performance (the attribution probe and its journal).
+
+Jobs at Detent:435a525 (all light):
+1. Gate `campaign verify`: 261109-145341-9f0788.
+2. S1/S2 T7 positive `mutant.sh positive`: 261109-145355-7c2f59; `mutant.sh
+   startup-before-barrier` (passes when killed): 261109-145403-0a4f36.
+3. Rerun after the gate (rerun with da4860 in the set maps to 9f0788): A3/A5 100K fb0366 -> 5M
+   933d09; overlay ASan cecb4a; A10 smoke a00ef8 -> 5M 28d1cf; TSan fe08c1; fullbuild ef7fac,
+   02bdc4; five-fixture 37b414; overlay Debug 71a2c4; refetch 2af02e, 9b17ea; COR-1 parent kill
+   bd9ad1; reader fixtures f3bd3f; ASan composed dc2bcc; 1,000 rounds 89ebfd; warm smoke c3f5af;
+   overlay+corpus ASan 79fbd0 (prefix 261109-14575). No gate: A12 5a7ad1, 969274; fuzz (ruling 5,
+   this is the post-S1/S2 head) codec 649826, warm smoke 2539d5 -> reader/graph/warm 976098.
+4. Mutants and reverts, each in its own slot (`dense-mut-NAME`, see ruling 11), after 9f0788
+   (prefix 261109-1458): a3 largest-first 3dfd88, seal-64 370f1a, boundary adf192, height-digest
+   95cb9d; a6 height 90dc99, keys 33fefb, canonicity 953b99, order 2916b3; a10 key-grammar 036ceb,
+   signed-order 9d2b50, overlay-default-limits f28cd1, cursor-default-limits 623329; a11
+   noop-rewrite 7e3011, relocation-rehash 1a6698, offpath-skip 86a096; harness self-test 29b141.
+   The a3 jobs name DENSE_CORPUS=/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-100k.bin.
+
+## A15 baseline 2026-11-09
+
+Question: why does the baseline arm of 261106-173358-3b82ed (Detent:a729b77, exclusive) miss
+200/200 (90/200, median 1,031 us)? Compared with the records reader.md T2 cites, from the job's
+result.json, its jsonl samples and the raw qualification record:
+
+| Record | Publisher | Below 1 ms | Median first | attach | lookup | CPU | Build |
+|---|---|---|---|---|---|---|---|
+| qualification 2026-10-26 (Detent:0e862f0) | running | 200/200 | 715 us | 436 | 270 | 759 us | LLVM 23.1.2 Release, no counters |
+| same | stopped | 198/200 | 806 us | 439 | 357 | 851 us | same |
+| capsule trial 2026-10-29 | stopped | 198, 193/200 | 800 us | | | | |
+| 3b82ed baseline (Detent:785fb34 binary) | stopped | 90/200 | 1,031 us | 578 | 428 | 1,076 us | AppleClang 17 Release, READ_COUNTERS=ON |
+| 3b82ed candidate 5M | stopped | 115/200 | 974 us | 548 | 379 | 1,017 us | same |
+
+Same: platform (macOS 15.8.1 x86_64, the same i9 host), resident data (files read before the arm,
+0 major faults; minor faults 98 vs 85), warm process (a warmup process per key before each
+measured one), clock (steady_clock from before Client construction to after the first checked
+value), 40 keys x 5 rounds.
+Different:
+1. Publisher: the job runs only the stopped arm (dense_reader_measure.py hard-codes it). No record
+   has ever met 200/200 stopped (198, 198, 193); only the running arm did. T2 requires both.
+2. Toolchain: AppleClang 17 (/usr/bin/c++) vs Homebrew LLVM 23.1.2 (available at
+   /usr/local/opt/llvm/bin/clang++).
+3. DETENT_READ_COUNTERS=ON in both job binaries (added 2026-11-03, after both prior records).
+4. Code: 785fb34 is 313 commits after 0e862f0.
+5. The baseline binary was copied from a worktree build dir (dense-pages-baseline), not built in a
+   commit-pinned job; only its hash is recorded.
+6. API: T2 times `detent_open` through S6's C ABI; S6 is not on main, so the job times the
+   pre-S6 `detent::Client`. reader.md:31 says today's path misses 1 ms in three of four arms: the
+   200/200 gate is S6's target, not a property of the baseline.
+The slowdown is CPU (process CPU +26% with wall +28%, attach +32%, lookup +20%), so 2-4 (or host
+frequency) are the candidates; the job cannot separate them.
+Recommendation (the lead's call, criterion unchanged): do not weaken the gate on 3b82ed. Rerun
+the first-read arms with (a) publisher running and stopped, (b) counters OFF, (c) both binaries
+built in commit-pinned jobs with the qualification's toolchain, interleaved under exclusive, with
+an A/A pair. If the baseline then meets the running-arm 200/200 and the candidate does too, A15's
+first-read part holds; if both miss only the stopped arm, that is the pre-existing condition
+reader.md:31 records, and whether A15 waits for S6's T2 is the owner's/lead's ruling. On these
+numbers the candidate is not worse than the baseline (974 vs 1,031 us median, 115 vs 90/200).
+
 ## Follow-ups for the lead
 
 1. Withdrawn: "the coordinator holds the long poll open while it releases the session". The
    poll-released checkpoint marked the end of the fixture's own response build (round 3 above).
    Remaining coordinator fact, not a defect claim: release_session's 1,000 ms cap counts from its
    start, so a relay that takes ~1 s to read a close leaves the session to expire.
+2. Campaign tool: slot exclusivity failed for slot dense-mutants. Jobs 261109-063511-2d00f8
+   (ran 634-798 s after 1794239000), 261109-063510-b02339 (606-799) and 261109-063510-d4859c
+   (705-822) ran at once in one checkout: d4859c's log diff carries three patches (cursor, noop
+   assembler, overlay), 2d00f8's two, and 2d00f8 failed to link (libdetent_managed_agent.a not
+   found). d4859c's "killed" is contaminated; its rerun 623329 decides. Earlier verdicts from
+   shared mutant slots are suspect wherever times overlap. Cause not found (slot_lock's pid check
+   looks right on this host).
+3. A15: see "A15 baseline 2026-11-09".
