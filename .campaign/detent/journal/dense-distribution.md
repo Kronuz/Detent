@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: fixing DD-1, DD-2, DD-3, DD-4, DD-5 (design review CHANGES at d874004, msg from the lead)
+State: waiting on jobs 261109-014058-00ad3c (100K check of the fixed receiver at 4d66fe1; fixing DD-1 to DD-5)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
