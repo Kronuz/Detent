@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import itertools
 import os
 import random
 import sys
@@ -80,28 +81,39 @@ def fragments_sent(stream: bytes, level: int = 3) -> tuple[int, int]:
 
 
 # --- wire forms ---------------------------------------------------------------------------------
-# A transfer lists the pages a receiver lacks in the target's seal order (children first), laid
-# out as the receiver will write them: 8-byte offsets in 1 MiB segments numbered from 1. Its page
+# A transfer is the pages a receiver lacks, back to back in the target's seal order, with no
+# padding and no segment table: the receiver lays them out by the build's rule (transfer_place:
+# 8-byte offsets, a new 1 MiB segment when a page does not fit, segments numbered from 1). Page
 # bytes are the stored bytes with the fields the receiver derives rewritten:
 #   "stored"  the bytes as the sender holds them (placement in the sender's segment ids);
-#   "digests" placement of an in-transfer child is (transfer segment, offset), of a base child zero;
-#             every digest kept, so a bad page is found where it is;
+#   "digests" placement of an in-transfer child is (segment number, offset) in that derived
+#             layout, of a base child zero; every digest kept, so a bad page is found where it is;
 #   "wire"    as "digests", with the header digest and every in-transfer child's digest zeroed:
 #             the receiver computes them bottom-up and checks only the root.
 
 FORMS = ("stored", "digests", "wire")
+CAPACITY = 4096
+# The receiver's checks, each of which a mutant (receive(..., skip={name})) turns off.
+CHECKS = ("layout", "order", "parse", "labels", "keys", "height", "canonical")
 
 
 @dataclass(slots=True)
 class Transfer:
-    segments: list[bytes]
+    stream: bytes  # what the wire carries
+    segments: list[
+        bytes
+    ]  # the layout the receiver derives from the stream, padding included
+    parts: list[bytes]  # the stream cut at the derived segment breaks
     pages: int
     page_bytes: int
 
 
-def transfer_place(D: Any, lengths: list[int]) -> list[tuple[int, int]]:
+Place = list[tuple[int, int]]
+
+
+def transfer_place(D: Any, lengths: list[int]) -> Place:
     """(segment number from 1, offset) of each page, laid out as the encoder lays out a build."""
-    out: list[tuple[int, int]] = []
+    out: Place = []
     number, used = 0, D.SEGMENT
     for length in lengths:
         start = (used + 7) & ~7
@@ -112,18 +124,36 @@ def transfer_place(D: Any, lengths: list[int]) -> list[tuple[int, int]]:
     return out
 
 
+def lay_out(pages: list[bytes] | list[bytearray], places: Place) -> list[bytes]:
+    segments: list[bytearray] = []
+    for page, (number, offset) in zip(pages, places, strict=True):
+        while len(segments) < number:
+            segments.append(bytearray())
+        segment = segments[number - 1]
+        segment.extend(bytes(offset - len(segment)))
+        segment.extend(page)
+    return [bytes(s) for s in segments]
+
+
 def make_transfer(
-    D: Any, packing: Any, encoder: Any, chosen: list[int], form: str
+    D: Any,
+    packing: Any,
+    encoder: Any,
+    chosen: list[int],
+    form: str,
+    place: Any = None,
 ) -> Transfer:
+    """The transfer of pages `chosen`, in that order. `place` replaces transfer_place only to
+    forge a sender that names its own segment breaks."""
     memory = encoder.memory
     at_place = {
         (D.segment_id(o), off): page for page, (o, off) in encoder.placed.items()
     }
     lengths = [packing.pages[p].length for p in chosen]
-    places = transfer_place(D, lengths)
+    places = (place or transfer_place)(D, lengths)
     where = dict(zip(chosen, places, strict=True))
-    segments: list[bytearray] = []
-    for p, (number, offset) in zip(chosen, places, strict=True):
+    pages: list[bytes] = []
+    for p in chosen:
         o, off = encoder.placed[p]
         length = packing.pages[p].length
         page = bytearray(memory[D.segment_id(o)][off : off + length])
@@ -144,28 +174,30 @@ def make_transfer(
                     page[at : at + 20] = bytes(20)
             if form == "wire":
                 page[32:64] = bytes(32)
-        while len(segments) < number:
-            segments.append(bytearray())
-        segment = segments[number - 1]
-        segment.extend(bytes(offset - len(segment)))
-        segment.extend(page)
-    return Transfer([bytes(s) for s in segments], len(chosen), sum(lengths))
+        pages.append(bytes(page))
+    parts: list[bytes] = []
+    for page, (number, _) in zip(pages, places, strict=True):
+        if len(parts) < number:
+            parts.append(b"")
+        parts[number - 1] += page
+    return Transfer(
+        b"".join(pages), lay_out(pages, places), parts, len(chosen), sum(lengths)
+    )
 
 
 def report_transfer(name: str, transfer: Transfer) -> dict[str, int]:
-    stream = b"".join(transfer.segments)
     row = {
-        "raw": len(stream),
-        "seg_z1": sum(zstd_size(s, 1) for s in transfer.segments),
-        "seg_z3": sum(zstd_size(s, 3) for s in transfer.segments),
-        "seg_z9": sum(zstd_size(s, 9) for s in transfer.segments),
+        "raw": len(transfer.stream),
+        "seg_z1": sum(zstd_size(s, 1) for s in transfer.parts),
+        "seg_z3": sum(zstd_size(s, 3) for s in transfer.parts),
+        "seg_z9": sum(zstd_size(s, 9) for s in transfer.parts),
     }
-    row["frags"], row["frag_z3"] = fragments_sent(stream, 3)
+    row["frags"], row["frag_z3"] = fragments_sent(transfer.stream, 3)
     print(
-        f"  {name:>7}: {transfer.pages:,} pages, {transfer.page_bytes:,} page B, {row['raw']:,} B in"
-        f" {len(transfer.segments):,} segments; zstd per segment -1 {row['seg_z1']:,} -3 {row['seg_z3']:,}"
-        f" -9 {row['seg_z9']:,}; zstd-3 per 64 KiB fragment, headers included, {row['frag_z3']:,}"
-        f" ({row['frags']:,} fragments)",
+        f"  {name:>7}: {transfer.pages:,} pages, stream {row['raw']:,} B, laid out in"
+        f" {len(transfer.segments):,} segments; zstd per segment -1 {row['seg_z1']:,} -3"
+        f" {row['seg_z3']:,} -9 {row['seg_z9']:,}; zstd-3 per 64 KiB fragment, headers included,"
+        f" {row['frag_z3']:,} ({row['frags']:,} fragments)",
         flush=True,
     )
     return row
@@ -241,21 +273,159 @@ class Received:
     digests: int
     base_children: int
     base_walk_pages: int
+    order: list[int]  # the seal order the receiver computed, as transfer page indices
+
+
+@dataclass(slots=True)
+class Node:
+    leaf: bool
+    size: int  # node bytes
+    prefix: bytes  # a branch's prefix
+    labels: bytes
+    slots: list[int]  # per child: its node index in the page, or ~j for content entry j
+
+
+@dataclass(slots=True)
+class Parsed:
+    nodes: list[Node]  # preorder, the top node first
+    entries: list[tuple[int, int, int]]  # content entries: keys, length, height
+
+
+def parse_page(D: Any, page: bytes | bytearray, skip: frozenset[str]) -> Parsed:
+    """dense-pages D4.3 in one preorder parse; refuses what a first touch refuses."""
+    length, externals, count = len(page), D.be(page, 12, 2), D.be(page, 14, 2)
+    content = length - 68 * externals
+    nodes: list[Node] = []
+    entries: list[tuple[int, int, int]] = []
+    leaves = next_external = 0
+
+    def structure(ok: bool, what: str) -> None:
+        if not ok and "parse" not in skip:
+            raise Refused(f"page structure: {what}")
+
+    def node(at: int) -> int:
+        nonlocal leaves, next_external
+        tag = page[at]
+        if tag in (2, 3):
+            size = 4 + page[at + 1] + D.be(page, at + 2, 2)
+            nodes.append(Node(True, size, b"", b"", []))
+            leaves += 1
+            structure(at + size <= content, "a node past the content table")
+            return at + size
+        if tag != 1:
+            raise Refused("page structure: node tag")
+        plen, children = page[at + 1], page[at + 2] + 1
+        labels = bytes(page[at + 3 + plen : at + 3 + plen + children])
+        slots = at + 3 + plen + children
+        end = slots + 2 * children
+        structure(end <= content, "a node past the content table")
+        record = Node(
+            False,
+            3 + plen + 3 * children,
+            bytes(page[at + 3 : at + 3 + plen]),
+            labels,
+            [],
+        )
+        nodes.append(record)
+        if "labels" not in skip and (
+            children < 2 or any(a >= b for a, b in itertools.pairwise(labels))
+        ):
+            raise Refused("branch labels: fewer than two, or not strictly ascending")
+        for k in range(children):
+            value = D.be(page, slots + 2 * k, 2)
+            if value & 0x8000:
+                structure(
+                    value & 0x7FFF == next_external, "external slots out of order"
+                )
+                record.slots.append(~(value & 0x7FFF))
+                next_external += 1
+            else:
+                structure(value == end, "an in-page slot off its preorder offset")
+                record.slots.append(len(nodes))
+                end = node(value)
+        return end
+
+    try:
+        structure(64 <= content and not any(page[25:32]), "header")
+        end = node(64)
+        structure(
+            end == content and len(nodes) == count and next_external == externals,
+            "nodes do not fill [64, L - 68E) in N nodes and E external slots",
+        )
+        for j in range(externals):
+            at = content + 48 * j
+            keys, clen, height = (
+                D.be(page, at + 32, 8),
+                D.be(page, at + 40, 4),
+                page[at + 44],
+            )
+            structure(
+                keys >= 1
+                and 79 <= clen <= D.MAX_PAGE
+                and height >= 1
+                and not any(page[at + 45 : at + 48]),
+                "content entry",
+            )
+            entries.append((keys, clen, height))
+    except IndexError:
+        raise Refused("page structure: truncated") from None
+    if "keys" not in skip and D.be(page, 16, 8) != leaves + sum(e[0] for e in entries):
+        raise Refused("header keys disagree with the page")
+    if "height" not in skip and page[24] != 1 + max((e[2] for e in entries), default=0):
+        raise Refused("header height disagrees with the page")
+    return Parsed(nodes, entries)
+
+
+def split_pages(D: Any, stream: bytes) -> list[bytearray]:
+    pages: list[bytearray] = []
+    at = 0
+    while at < len(stream):
+        if stream[at : at + 8] != b"DTPAGE03":
+            raise Refused("bytes outside a page")
+        length = D.be(stream, at + 8, 4)
+        if not 79 <= length <= D.MAX_PAGE or at + length > len(stream):
+            raise Refused("page length")
+        pages.append(bytearray(stream[at : at + length]))
+        at += length
+    return pages
+
+
+def receive_stream(
+    D: Any,
+    stream: bytes,
+    base: Base | None,
+    expected_root: bytes | None,
+    own_id: Any,
+    skip: frozenset[str] = frozenset(),
+) -> Received:
+    """Receives a transfer as the wire carries it: pages back to back, laid out by the build's
+    rule. expected_root None skips the root check, only to compute a forger's root."""
+    pages = split_pages(D, stream)
+    return receive_pages(
+        D,
+        pages,
+        transfer_place(D, [len(p) for p in pages]),
+        base,
+        expected_root,
+        own_id,
+        skip,
+    )
 
 
 def receive(
     D: Any,
     segments: list[bytes],
     base: Base | None,
-    expected_root: bytes,
+    expected_root: bytes | None,
     own_id: Any,
+    skip: frozenset[str] = frozenset(),
 ) -> Received:
-    """Rebuilds the target's segments from a transfer in any form but "stored": placement of
-    in-transfer children rewritten to own_id(n), base children resolved by path, every digest
-    computed bottom-up in transfer order, and the root compared. Refuses on any inconsistency."""
-    pages: list[tuple[int, int, bytearray]] = []
-    out = [bytearray(s) for s in segments]
-    for n, segment in enumerate(out, start=1):
+    """Receives a transfer handed over already laid out in segments, as a sender that names its
+    own breaks would. The layout is derived from the page lengths all the same: placement that
+    names the sender's layout and not the derived one is refused ("layout" keeps the sender's)."""
+    pages: list[bytearray] = []
+    given: Place = []
+    for n, segment in enumerate(segments, start=1):
         at = 0
         while at < len(segment):
             if segment[at : at + 8] != b"DTPAGE03":
@@ -263,73 +433,167 @@ def receive(
             length = D.be(segment, at + 8, 4)
             if not 79 <= length <= D.MAX_PAGE or at + length > len(segment):
                 raise Refused("page length")
-            pages.append((n, at, memoryview(segment)[at : at + length]))  # type: ignore[arg-type]
+            pages.append(bytearray(segment[at : at + length]))
+            given.append((n, at))
             end = at + length
             at = min(len(segment), (end + 7) & ~7)
             if any(segment[end:at]):
                 raise Refused("nonzero padding")
+    places = given if "layout" in skip else transfer_place(D, [len(p) for p in pages])
+    return receive_pages(D, pages, places, base, expected_root, own_id, skip)
+
+
+def receive_pages(
+    D: Any,
+    pages: list[bytearray],
+    places: Place,
+    base: Base | None,
+    expected_root: bytes | None,
+    own_id: Any,
+    skip: frozenset[str],
+) -> Received:
+    """Rebuilds the target's segments: every page parsed (dense-pages D4.3), the tree walked from
+    the root (the last page) with D5 rerun at every node (D9 canonicity) and the seal order it
+    implies compared with the transfer's, base children resolved by path, every digest computed
+    bottom-up, and the root compared. Refuses on any inconsistency."""
     if not pages:
+        if base is None and expected_root == D.EMPTY_COMMITMENT:
+            return Received(
+                [], expected_root, 0, 0, 0, 0, []
+            )  # publishes an empty state
+        if base is not None and base.by_path.get(b"", (b"",))[0] == expected_root:
+            return Received([], expected_root, 0, 0, 0, 0, [])  # the base is the target
         raise Refused("empty transfer")
-    index = {(n, at): i for i, (n, at, _) in enumerate(pages)}
-    # Pass 1, only with a base: paths top-down from the root (the last page), to resolve base
-    # children by the path the target's own pages give them.
-    resolved: dict[tuple[int, int], tuple[bytes, int, int, int, bytes, int, int]] = {}
-    walk = 0
-    if base is not None:
-        stack = [(len(pages) - 1, b"")]
-        while stack:
-            i, top = stack.pop()
-            page = pages[i][2]
-            length, externals = len(page), D.be(page, 12, 2)
-            placement = length - 20 * externals
-            for j, path in enumerate(external_paths(page, top)):
-                at = placement + 20 * j
-                tn, toff = D.be(page, at + 12, 4), D.be(page, at + 16, 4)
-                if any(page[at : at + 12]):
-                    raise Refused("placement names no transfer segment")
-                if tn:
-                    child = index.get((tn, toff))
-                    if child is None or child >= i:
-                        raise Refused("child not before its parent")
-                    stack.append((child, path))
-                else:
-                    found = base.by_path.get(path)
-                    if found is None:
-                        raise Refused("base lacks a page the delta reuses")
-                    resolved[(i, j)] = found
-                    walk += found[6]
-    # Pass 2, bottom-up in transfer order.
-    done: dict[int, tuple[bytes, int, int, int]] = {}
+    parsed = [parse_page(D, page, skip) for page in pages]
+    index = {place: i for i, place in enumerate(places)}
+    budget = CAPACITY - D.HEADER
+    resolved: dict[
+        tuple[int, int], int | tuple[bytes, int, int, int, bytes, int, int]
+    ] = {}
     used: set[int] = set()
+    order: list[int] = []
+    walk = 0
+
+    def resolve(i: int, j: int, path: bytes) -> int:
+        nonlocal walk
+        page = pages[i]
+        at = len(page) - 20 * len(parsed[i].entries) + 20 * j
+        tn, toff = D.be(page, at + 12, 4), D.be(page, at + 16, 4)
+        if any(page[at : at + 12]):
+            raise Refused("placement names no transfer segment")
+        if tn or base is None:
+            child = index.get((tn, toff))
+            if child is None:
+                raise Refused("placement names no page of the derived layout")
+            if child >= i:
+                raise Refused("child not before its parent")
+            if child in used:
+                raise Refused("page referenced twice")
+            used.add(child)
+            resolved[(i, j)] = child
+            return child
+        found = base.by_path.get(path)
+        if found is None:
+            raise Refused("base lacks a page the delta reuses")
+        resolved[(i, j)] = found
+        walk += found[6]
+        return -1
+
+    def visit(i: int, k: int, path: bytes) -> tuple[int, int]:
+        """The cluster (bytes, height) of node k of page i, as D5 builds it; emits seal events."""
+        node, top = parsed[i].nodes[k], k == 0
+        alone = top and len(pages[i]) > CAPACITY  # a page sealed alone, at its own node
+        if node.leaf:
+            if (
+                "canonical" not in skip
+                and node.size > budget
+                and not (alone and len(parsed[i].nodes) == 1)
+            ):
+                raise Refused("page not packed by D5: a leaf over budget is not alone")
+            if alone and i != len(pages) - 1:
+                order.append(i)
+            return node.size, 0
+        # Children as D5 sees them: (bytes, height, transfer page or -1, sealed here, alone).
+        items: list[tuple[int, int, int, bool, bool]] = []
+        total = node.size
+        for c, slot in enumerate(node.slots):
+            below = path + node.prefix + bytes((node.labels[c],))
+            if slot >= 0:
+                size, height = visit(i, slot, below)
+                items.append((size, height, -1, False, False))
+                total += size
+                continue
+            j = ~slot
+            _, clen, cheight = parsed[i].entries[j]
+            child = resolve(i, j, below)
+            if child >= 0:
+                visit(child, 0, below)
+            self_sealed = clen > CAPACITY
+            items.append(
+                (clen - D.HEADER, cheight, child, not self_sealed, self_sealed)
+            )
+            total += D.EXTERNAL if self_sealed else clen - D.HEADER
+        candidates = [
+            c for c, item in enumerate(items) if not item[4] and item[0] > D.EXTERNAL
+        ]
+
+        def rank(c: int) -> tuple[int, int, int]:
+            # A sealed child's cluster is its page less the header, one page less high.
+            size, height, _, here, _ = items[c]
+            return (height - 1 if here else height, -size, c)
+
+        sealed: list[int] = []
+        for c in sorted(candidates, key=rank):
+            if total <= budget:
+                break
+            sealed.append(c)
+            total -= items[c][0] - D.EXTERNAL
+        here = [c for c, item in enumerate(items) if item[3]]
+        if "canonical" not in skip:
+            if sorted(sealed) != here:
+                raise Refused("page not packed by D5: its sealed children differ")
+            if total > budget and not alone:
+                raise Refused("page not packed by D5: a node over budget is not a page")
+        for c in sorted(here, key=rank):
+            if items[c][2] >= 0:
+                order.append(items[c][2])
+        if alone and i != len(pages) - 1:
+            order.append(i)
+        return total, max(item[1] for item in items)
+
+    root = len(pages) - 1
+    limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(max(limit, 10_000))
+    try:
+        visit(root, 0, b"")
+    finally:
+        sys.setrecursionlimit(limit)
+    order.append(root)
+    if len(used) != root:
+        raise Refused("a page no parent references")
+    if "order" not in skip and order != list(range(len(pages))):
+        raise Refused("transfer is not in seal order")
+    # Bottom-up in transfer order: children are earlier pages (checked by resolve).
+    done: list[tuple[bytes, int, int, int]] = []
     hashed = 0
-    for i, (n, at0, page) in enumerate(pages):
-        length, externals = len(page), D.be(page, 12, 2)
+    for i, page in enumerate(pages):
+        length, externals = len(page), len(parsed[i].entries)
         content, placement = length - 68 * externals, length - 20 * externals
         for j in range(externals):
             entry, at = content + 48 * j, placement + 20 * j
-            keys, clen, height = (
-                D.be(page, entry + 32, 8),
-                D.be(page, entry + 40, 4),
-                page[entry + 44],
-            )
-            if (i, j) in resolved:
-                digest, bkeys, blen, bheight, sid, boff, _ = resolved[(i, j)]
+            target = resolved[(i, j)]
+            if isinstance(target, int):
+                summary = done[target]
+                tn, toff = places[target]
+                page[at : at + 20] = own_id(tn) + toff.to_bytes(4, "big")
+            else:
+                digest, bkeys, blen, bheight, sid, boff, _ = target
                 summary = (digest, bkeys, blen, bheight)
                 page[at : at + 20] = sid + boff.to_bytes(4, "big")
-            else:
-                tn, toff = D.be(page, at + 12, 4), D.be(page, at + 16, 4)
-                child = index.get((tn, toff))
-                if any(page[at : at + 12]) or child is None or child not in done:
-                    raise Refused("child not before its parent")
-                if child in used:
-                    raise Refused("page referenced twice")
-                used.add(child)
-                summary = done[child]
-                page[at : at + 20] = own_id(tn) + toff.to_bytes(4, "big")
             stated = bytes(page[entry : entry + 32])
             if stated != bytes(32) and stated != summary[0]:
                 raise Refused("content digest mismatch")
-            if (keys, clen, height) != summary[1:]:
+            if parsed[i].entries[j] != summary[1:]:
                 raise Refused("content summary mismatch")
             page[entry : entry + 32] = summary[0]
         h = hashlib.sha256(page[0:32])
@@ -340,15 +604,12 @@ def receive(
         if stated != bytes(32) and stated != digest:
             raise Refused("page digest mismatch")
         page[32:64] = digest
-        done[i] = (digest, D.be(page, 16, 8), length, page[24])
-    root = len(pages) - 1
-    if len(used) != root:
-        raise Refused("a page no parent references")
-    if done[root][0] != expected_root:
+        done.append((digest, D.be(page, 16, 8), length, page[24]))
+    if expected_root is not None and done[root][0] != expected_root:
         raise Refused("root digest mismatch")
-    walks = sum(1 for _ in resolved)
+    bases = sum(1 for t in resolved.values() if not isinstance(t, int))
     return Received(
-        [bytes(s) for s in out], done[root][0], hashed, len(pages), walks, walk
+        lay_out(pages, places), done[root][0], hashed, len(pages), bases, walk, order
     )
 
 
@@ -501,7 +762,7 @@ def full_main(D: Any, corpus: Any, replay: bool = True) -> tuple[float, float]:
     if replay:
         wire = make_transfer(D, packing, encoder, chosen, "wire")
         t0 = time.monotonic()
-        got = receive(D, wire.segments, None, root, D.segment_id_from_one)
+        got = receive_stream(D, wire.stream, None, root, D.segment_id_from_one)
         same = got.segments == [
             encoder.memory[D.segment_id(o)] for o in range(encoder.segments)
         ]
@@ -573,7 +834,9 @@ def record_answer(
 
 def delta_main(
     D: Any, corpus: Any, specs: list[str], scale: tuple[float, float]
-) -> None:
+) -> dict[str, tuple[int, float]]:
+    """Per scenario: pages in the wire form as sent, and records as sent (calibrated)."""
+    out: dict[str, tuple[int, float]] = {}
     started = time.monotonic()
     base, base_encoder = encode(D, corpus)
     index = base_index(D, base, base_encoder)
@@ -607,8 +870,8 @@ def delta_main(
         )
         rec = records_row(spec, stream, scale)
         wire = make_transfer(D, target, encoder, chosen, "wire")
-        got = receive(
-            D, wire.segments, index, root, lambda n: D.segment_id(1_000_000 + n)
+        got = receive_stream(
+            D, wire.stream, index, root, lambda n: D.segment_id(1_000_000 + n)
         )
         assert got.root == root
         print(
@@ -622,55 +885,276 @@ def delta_main(
                 f" {rows[f]['frag_z3'] / rec['sent_cal']:.2f}; raw = {rows[f]['raw'] / rec['raw_cal']:.2f};"
                 f" pages {rows[f]['frag_z3']:,} B, records {rec['sent_cal']:,.0f} B"
             )
+        out[spec] = (rows["wire"]["frag_z3"], rec["sent_cal"])
         print(f"  {time.monotonic() - t0:.0f} s", flush=True)
+    return out
+
+
+# --- a day of polls -----------------------------------------------------------------------------
+
+AGENTS, DOLLARS_PER_GB = 10_000, 0.02
+CADENCES = ((1, 1440), (10, 144))  # poll every N minutes -> polls a day
+DAY_SPECS = (
+    "u:1",  # one update per poll
+    "m:9800:100:100",  # dense-pages T4 churn per poll
+    "u:694",  # namespace D6 moderate churn (1M writes a day at 5M) per 1-minute poll
+    "u:6944",  # the same churn per 10-minute poll
+)
+
+
+def day_main(D: Any, corpus: Any, scale: tuple[float, float]) -> None:
+    rows = delta_main(D, corpus, list(DAY_SPECS), scale)
+    print(
+        f"per agent-day, pages only (wire form) against records, as sent; dollars for {AGENTS:,}"
+        f" agents at ${DOLLARS_PER_GB}/GB:"
+    )
+    for minutes, polls in CADENCES:
+        for spec in DAY_SPECS:
+            pages, records = rows[spec]
+            day_pages, day_records = pages * polls, records * polls
+            print(
+                f"  every {minutes} min ({polls:,} polls), {spec} per poll: pages {day_pages:,} B"
+                f" (${day_pages * AGENTS / 1e9 * DOLLARS_PER_GB:,.2f}), records {day_records:,.0f} B"
+                f" (${day_records * AGENTS / 1e9 * DOLLARS_PER_GB:,.2f}), ratio"
+                f" {day_pages / day_records:.1f}x",
+                flush=True,
+            )
 
 
 # --- self-check ---------------------------------------------------------------------------------
+
+
+def half_place(D: Any, lengths: list[int]) -> Place:
+    """A forger's layout: segments broken at 512 KiB (the review's P1)."""
+    out: Place = []
+    number, used = 0, D.SEGMENT
+    for length in lengths:
+        start = (used + 7) & ~7
+        if start + length > D.SEGMENT // 2:
+            number, start = number + 1, 0
+        out.append((number, start))
+        used = start + length
+    return out
 
 
 def check_main(D: Any, corpus: Any) -> None:
     scale = full_main(D, corpus)
     packing, encoder = encode(D, corpus)
     root = D.state_commitment(packing)
+    one = D.segment_id_from_one
     chosen = list(range(len(packing.pages)))
+    assert packing.root == chosen[-1]
+    built = [encoder.memory[D.segment_id(o)] for o in range(encoder.segments)]
     wire = make_transfer(D, packing, encoder, chosen, "wire")
     digests = make_transfer(D, packing, encoder, chosen, "digests")
+    tail = packing.pages[packing.root].length  # the root page ends every stream
 
-    def refused(segments: list[bytes], form: str) -> str:
+    def case(name: str, run: Any, expect: str, mutant: str | None = None) -> None:
+        """Refused with every check; accepted with the mutant's check off."""
         try:
-            receive(D, segments, None, root, D.segment_id_from_one)
+            run(frozenset())
         except Refused as error:
-            return str(error)
-        raise AssertionError(f"accepted a damaged {form} transfer")
+            why = str(error)
+        else:
+            raise AssertionError(f"check: {name}: accepted")
+        assert expect in why, f"check: {name}: refused for {why!r}, not {expect!r}"
+        line = f"check: {name}: refused ({why})"
+        if mutant is not None:
+            try:
+                got = run(frozenset({mutant}))
+            except Refused as error:
+                raise AssertionError(
+                    f"check: {name}: still refused without '{mutant}' ({error})"
+                ) from None
+            same = "identical to" if got.segments == built else "differ from"
+            line += f"; mutant without '{mutant}': accepted, files {same} the build"
+        print(line, flush=True)
 
-    middle = len(wire.segments) // 2
-    flipped = bytearray(wire.segments[middle])
-    flipped[200] ^= 1  # a node byte of the segment's first page
-    print(
-        f"check: flipped byte, wire form: {refused(wire.segments[:middle] + [bytes(flipped)] + wire.segments[middle + 1 :], 'wire')}"
-    )
-    flipped = bytearray(digests.segments[middle])
-    flipped[200] ^= 1
-    print(
-        f"check: flipped byte, digests form: {refused(digests.segments[:middle] + [bytes(flipped)] + digests.segments[middle + 1 :], 'digests')}"
-    )
-    # Redirect the root's first external to another page of the transfer.
-    last = bytearray(wire.segments[-1])
-    at = last.rfind(b"DTPAGE03")
-    length, externals = D.be(last, at + 8, 4), D.be(last, at + 12, 2)
-    entry = at + length - 20 * externals
-    last[entry + 12 : entry + 16] = (1).to_bytes(4, "big")
-    last[entry + 16 : entry + 20] = (0).to_bytes(4, "big")
-    print(
-        f"check: redirected placement: {refused(wire.segments[:-1] + [bytes(last)], 'wire')}"
-    )
-    # A parent before its child: the root moved to the front of a one-segment transfer.
-    if len(wire.segments) == 1:
-        print("check: one segment; reorder case skipped")
-    else:
-        print(
-            f"check: parent first: {refused([wire.segments[-1]] + wire.segments[:-1], 'wire')}"
+    def stream_run(stream: bytes, expected: bytes | None) -> Any:
+        return lambda skip: receive_stream(D, stream, None, expected, one, skip)
+
+    def edit_root(stream: bytes, at: int, value: bytes) -> bytes:
+        s = bytearray(stream)
+        start = len(s) - tail + at
+        s[start : start + len(value)] = value
+        return bytes(s)
+
+    def forged_root(stream: bytes, check: str) -> bytes:
+        return receive_stream(D, stream, None, None, one, frozenset({check})).root
+
+    # Damage the honest sender's bytes: the root and the stated digests find it.
+    page_starts = [0]
+    for p in chosen[:-1]:
+        page_starts.append(page_starts[-1] + packing.pages[p].length)
+    middle = next(
+        p
+        for p in range(len(chosen) // 2, len(chosen))
+        if parse_page(
+            D,
+            wire.stream[page_starts[p] : page_starts[p] + packing.pages[p].length],
+            frozenset(),
         )
+        .nodes[-1]
+        .leaf
+    )
+    body = (
+        page_starts[middle]
+        + packing.pages[middle].length
+        - 68 * packing.pages[middle].externals
+        - 1
+    )
+    for form, transfer, expect in (
+        ("wire", wire, "root digest mismatch"),
+        ("digests", digests, "page digest mismatch"),
+    ):
+        flipped = bytearray(transfer.stream)
+        flipped[body] ^= 1
+        case(
+            f"flipped leaf body byte, {form} form",
+            stream_run(bytes(flipped), root),
+            expect,
+        )
+    root_externals = packing.pages[packing.root].externals
+    redirect = bytearray(wire.stream)
+    at = len(redirect) - 20 * root_externals
+    redirect[at + 12 : at + 20] = (1).to_bytes(4, "big") + (0).to_bytes(4, "big")
+    case(
+        "root's first placement redirected to the first page",
+        stream_run(bytes(redirect), root),
+        "",
+    )
+    case(
+        "root sent first",
+        stream_run(wire.stream[-tail:] + wire.stream[:-tail], root),
+        "",
+    )
+    leaf = next(p for p, page in enumerate(packing.pages) if page.externals == 0)
+    twice = make_transfer(D, packing, encoder, [leaf] + chosen, "wire")
+    case(
+        "an extra, unreferenced copy of a leaf",
+        stream_run(twice.stream, root),
+        "no parent references",
+    )
+    case("one byte short", stream_run(wire.stream[:-1], root), "page length")
+    case("root dropped", stream_run(wire.stream[:-tail], root), "")
+
+    # DD-1: the layout and the order are the build's, or refused.
+    half = make_transfer(D, packing, encoder, chosen, "wire", place=half_place)
+    case(
+        "P1 segments broken at 512 KiB, handed over as segments",
+        lambda skip: receive(D, half.segments, None, root, one, skip),
+        "",
+        "layout",
+    )
+    case(
+        "P1 placement naming 512 KiB breaks, as a stream",
+        stream_run(half.stream, root),
+        "",
+    )
+    children: dict[int, list[int]] = {}
+    for p, page in enumerate(packing.pages):
+        children.setdefault(page.parent, []).append(p)
+    reverse: list[int] = []
+    stack = [(packing.root, False)]
+    while stack:
+        p, expanded = stack.pop()
+        if expanded:
+            reverse.append(p)
+            continue
+        stack.append((p, True))
+        stack.extend((c, False) for c in children.get(p, []))
+    assert sorted(reverse) == chosen and reverse != chosen
+    other = make_transfer(D, packing, encoder, reverse, "wire")
+    case(
+        "P2 children first, not in seal order",
+        stream_run(other.stream, root),
+        "seal order",
+        "order",
+    )
+
+    # DD-2: a tree the sender forged under a root it names; each check refuses its forgery.
+    keys = D.be(wire.stream, len(wire.stream) - tail + 16, 8)
+    forged = edit_root(wire.stream, 16, (keys + 1).to_bytes(8, "big"))
+    case(
+        "root header keys +1 under a forged root, wire form",
+        stream_run(forged, forged_root(forged, "keys")),
+        "header keys",
+        "keys",
+    )
+    forged = edit_root(digests.stream, 16, (keys + 1).to_bytes(8, "big"))
+    named = forged_root(forged, "keys")
+    forged = edit_root(forged, 32, named)
+    case(
+        "P4 root header keys +1 under a forged root, digests form",
+        stream_run(forged, named),
+        "header keys",
+        "keys",
+    )
+    height = wire.stream[len(wire.stream) - tail + 24]
+    forged = edit_root(wire.stream, 24, bytes((height + 1,)))
+    case(
+        "root header height +1 under a forged root",
+        stream_run(forged, forged_root(forged, "height")),
+        "header height",
+        "height",
+    )
+    top = len(wire.stream) - tail + 64
+    assert wire.stream[top] == 1 and wire.stream[top + 2] >= 1
+    labels = top + 3 + wire.stream[top + 1]
+    forged = edit_root(
+        wire.stream,
+        labels - len(wire.stream) + tail + 1,
+        wire.stream[labels : labels + 1],
+    )
+    case(
+        "root's second label equal to its first, under a forged root",
+        stream_run(forged, forged_root(forged, "labels")),
+        "branch labels",
+        "labels",
+    )
+    count = D.be(wire.stream, len(wire.stream) - tail + 14, 2)
+    forged = edit_root(wire.stream, 14, (count + 1).to_bytes(2, "big"))
+    case(
+        "root header node count +1, under a forged root",
+        stream_run(forged, forged_root(forged, "parse")),
+        "page structure",
+        "parse",
+    )
+    largest_encoder = D.Encoder(memory=True, compress=False)
+    largest = D.pack_dense(corpus, CAPACITY, "largest", largest_encoder)
+    largest_root = D.state_commitment(largest)
+    assert largest_root != root
+    everything = list(range(len(largest.pages)))
+    shape = receive_stream(
+        D,
+        make_transfer(D, largest, largest_encoder, everything, "wire").stream,
+        None,
+        largest_root,
+        one,
+        frozenset({"order", "canonical"}),
+    )
+    forged_tree = make_transfer(D, largest, largest_encoder, shape.order, "wire")
+    case(
+        f"the tree packed largest-first ({len(largest.pages):,} pages against {len(chosen):,}), in"
+        " the order its pages imply, under its own root",
+        stream_run(forged_tree.stream, largest_root),
+        "not packed by D5",
+        "canonical",
+    )
+
+    # DD-7: zero-page transfers.
+    index = base_index(D, packing, encoder)
+    assert receive_stream(D, b"", None, D.EMPTY_COMMITMENT, one).segments == []
+    assert receive_stream(D, b"", index, root, one).segments == []
+    print(
+        "check: empty stream publishes the empty commitment; over a base at the target root it writes nothing"
+    )
+    case(
+        "empty stream over a base at another root",
+        lambda skip: receive_stream(D, b"", index, D.EMPTY_COMMITMENT, one, skip),
+        "empty transfer",
+    )
+
     definitions = sum(
         1 for i in range(corpus.count) if corpus.kinds[i] == D.KIND_DEFINITION
     )
@@ -708,6 +1192,8 @@ def main(argv: list[str]) -> None:
         full_main(D, corpus)
     elif mode == "delta":
         delta_main(D, corpus, rest[2:], calibrate(D, corpus))
+    elif mode == "day":
+        day_main(D, corpus, calibrate(D, corpus))
     elif mode == "check":
         check_main(D, corpus)
     else:
