@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-030629-e09f9f 261109-030630-d655be (attribution of the native gate failure; see "Gate failure 2026-11-09")
+State: waiting on jobs 261109-030630-d655be 261109-042705-8e6377 (gate-failure race diagnosis; see "Gate failure 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -316,3 +316,19 @@ Detent:c9db691 261109-030630-d655be.
 Next: head fails and parent passes -> bisect the overlay/cursor/reuse change with the revert
 patches; both pass -> requeue the gate (`campaign verify --force`) and the --after chain as
 recorded above; both fail -> pre-existing, report with the c0020ff job.
+
+Attribution result: 261109-030629-e09f9f at Detent:c0020ff (before 791d9fc) failed #69 once in
+two serial runs, same truncation: pre-existing, intermittent, not the limits fix and not
+parallel load. The failing run is shorter (27.4 s vs 42.9 s passing).
+
+Reading of the race (to prove): the fixture server is one thread. In phase 2 it records
+feedback, then blocks in `read_some` on the held long poll until the coordinator drops it; only
+then can it accept attempt 3, the coordinator's final `release_session` (src/detent_delivery
+coordinator.cc:820, timeout capped at 1,000 ms). If the coordinator keeps the poll connection
+open past that second, the close request times out, the coordinator settles, the poll socket
+goes with it, and the server accepts a dead connection: "stream truncated" 30 ms after settle.
+Detent:9e87dde adds `server-feedback` and `server-poll-released` checkpoints; diagnosis
+261109-042705-8e6377 runs #69 until-fail x8 with -V. If poll release lags feedback by over 1 s
+in the failing run, the hold is the coordinator's (src/detent_delivery, outside this quest's
+files): report, do not edit. A fixture-only fix (serve the held poll on its own thread) is in
+scope but changes what the test proves; lead's call.
