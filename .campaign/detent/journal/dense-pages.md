@@ -1,12 +1,13 @@
 # dense-pages: journal
 
-State: waiting on jobs 261108-215334-7f2aa1 261108-215335-b1a3ec 261108-215336-b92177 261108-215336-a9a989 261108-215423-6228c3 261108-215337-6fbb5e 261108-215338-050e7b 261108-215339-d4d8a3 261108-215340-a0ba31 261108-215340-ee9bb3 261108-215341-fcf2e6 261108-215342-9f84ee 261108-215343-7b0d6f 261108-215343-c81dc3 261108-215344-4f774c 261108-215345-93d4f7 261108-215346-e0fd25 261108-215347-fbd883 (all queued behind an exclusive hold)
+State: waiting on jobs 261109-000646-d2548f 261109-000647-5fdbec 261109-000648-f8d372 261109-000649-79f6d4 261109-000650-f03a2a 261109-000651-ba36ce 261109-000652-8732cd 261109-000653-878219 261109-000654-4fbf15 261109-000655-54c96f 261109-000656-ef1c74 261109-000657-33a399 261109-000657-ee6ef2 261109-000658-dd59fb 261109-000659-9cc222 261109-000700-46eab6 261109-000701-61d8db 261109-000702-788b29 261109-000710-6a7c72
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-A10: two harness defects fixed (key grammar, signed segment order); production unchanged. Proof,
-the 5M T4 run, model checks and all eleven mutants queued at Detent:d6d53a9.
+Three harness defects fixed (key grammar, signed segment order, default format limits);
+production unchanged. Mutant verdict made explicit (exit 0 only on a test failure). Every proof
+job requeued at Detent:98ebd27.
 
 ## Next
 
@@ -31,16 +32,16 @@ for identity, not because code changed.
 |---|---|
 | A1 | Design `docs/design/dense-pages.md` resolves DP-1..DP-6; contracts review `.campaign/detent/reviews/dense-pages-contracts.md` approves the contracts at Detent:7d339fe. A design record: the lead tags this [artifact] or [decision]. |
 | A2 | 261105-150551-bfb8c9 and 261105-150715-4c5b2d pass (codec, packer, segment, snapshot, full builder); full native suite 261106-131622-172969 passes 178 tests at Detent:a729b77. Rerun at head. |
-| A3 | Synthetic+100K model check 261108-215336-b92177 (pending). Mutants (must fail): largest-first 261108-215339-d4d8a3, seal-64 261108-215340-a0ba31, boundary 261108-215340-ee9bb3, height-outside-digest 261108-215341-fcf2e6 (pending). |
+| A3 | Synthetic+100K model check 261108-215336-b92177 passed at Detent:d6d53a9 (synthetic 913 pages / 1,266,995 B, root 30a019eb...; 100K 3,245 pages / 6,209,298 B / 6 packs / 6,217,662 B, root 7c0f7d1b...; exact pages and placements). Kills at d6d53a9 (old harness, exit 1 = killed; each log checked for a test failure): largest-first 261108-215339-d4d8a3 (suites pass; killed by the 100K model compare, test_paged_packer.cc:242), seal-64 261108-215340-a0ba31 (test_local_paged_packer), boundary 261108-215340-ee9bb3 (test_local_paged_packer:284), height-outside-digest 261108-215341-fcf2e6 (10 tests incl. test_local_paged_layout:62). Head (explicit verdict, pass = killed): 261109-000653-878219, 261109-000654-4fbf15, 261109-000655-54c96f, 261109-000656-ef1c74; model 261109-000648-f8d372. |
 | A4 | Codec libFuzzer 261106-112828-869301 (927.89 CPU s) and reader/page/graph/warm fuzz 261106-113725-c6d946 (3 x 940 CPU s): 3,747.9 CPU s, zero findings; warm smoke 261106-113537-ede7c2. Corpus replays in the native suite; hosted CI not run: open. |
-| A5 | Earlier 261105-150743-b66bbc/150744-5b7a4c equal the model (162,367 pages, 315,432,480 B, 302 packs, 315,759,038 B). Head reruns via `docs/perf/dense-model-check.sh`: 100K 261108-215336-b92177, 5M 261108-215336-a9a989 (pending). |
-| A6 | Forged summary refusal in 261106-111645-b25734. New tests Detent:ddf89ae (forged reference keys/height), Detent:b62b40c (slot off preorder). Mutants (must fail): height 261108-215342-9f84ee, keys 261108-215343-7b0d6f, canonicity 261108-215343-c81dc3, order 261108-215344-4f774c (pending). |
+| A5 | 100K/synthetic 261108-215336-b92177 passed at d6d53a9. 5M 261108-215336-a9a989 aborted: the packer test used default limits (500,000 records), "invalid canonical trie input"; fixed at Detent:98ebd27^ (corpus_limits). Head: 100K 261109-000648-f8d372, 5M 261109-000649-79f6d4. |
+| A6 | Forged summary refusal in 261106-111645-b25734. New tests Detent:ddf89ae (forged reference keys/height), Detent:b62b40c (slot off preorder). Kills at d6d53a9 (each a test failure): height 261108-215342-9f84ee and keys 261108-215343-7b0d6f and order 261108-215344-4f774c (test_local_paged_page_validator, the new cases), canonicity 261108-215343-c81dc3 (test_local_paged_graph_validator). Head: 261109-000657-33a399, 261109-000657-ee6ef2, 261109-000658-dd59fb, 261109-000659-9cc222. |
 | A7 | 261105-150715-4c5b2d; 5M hash counts page 162,367/306,989,416 B, pack 302/315,759,038 B, metadata 303/22,064 B (261105-150744-5b7a4c). Rerun at head. |
 | A8 | Reader fixtures 261106-111645-b25734 and the native suite pass. "Landed S6 interfaces are preserved" cannot hold while S6 is parked: open, the lead's S6/Dense order. |
 | A9 | Overlay bounds (COR-1): 261106-114739-ba4d50 Debug, 261106-114740-c11743 ASan/UBSan, 261106-114741-2f126a kills the unguarded parent. S3b's bounds are not on main: open, the S3b/Dense order. |
-| A10 | Typed 1,000-round oracle 261106-111601-989a59 (rerun at head pending). Diagnosis 261108-213452-75a571 (synthetic corpus record 20000 outside key grammar). 100K one-update arm exact vs model in 261108-213453-4048a8; mixed arm exposed the signed segment sort. At head: smoke 261108-215334-7f2aa1, 5M 261108-215335-b1a3ec; revert checks 261108-215337-6fbb5e, 261108-215338-050e7b (earlier 261108-213503-7538e7 failed as required). Pending. |
-| A11 | Compaction/relocation fixtures 261106-062527-75b336 (rerun pending). Mutants (must fail): off-path skip 261108-215347-fbd883, relocation rehash 261108-215346-e0fd25, no-op rewrite 261108-215345-93d4f7 (pending). |
-| A12 | Frozen v2 fixture 261106-063837-22f097, refetch/ownership 261106-065403-f3c14e, refusal and barrier mutants 261106-070134-ecbe03. No live references: grep job 261108-215423-6228c3 (pending; also counts the same patterns on main to show they matched there). Docs [artifact]: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md` (Dense pages, Format refusal), `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
+| A10 | Typed 1,000-round oracle 261106-111601-989a59 (rerun at head pending). Diagnosis 261108-213452-75a571. Smoke 261108-215334-7f2aa1 passed at d6d53a9: 100K one update 5 pages / 14,276 B / 14,287 pack B / 0 off-path; mixed churn (9,800+100+100) 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B, 2 off-path / 3,203 B; roots equal the model. 5M 261108-215335-b1a3ec aborted, default limits ("invalid dense packer input"), the revert evidence for that fix. Reverts at d6d53a9 killed at the test: key grammar 261108-215337-6fbb5e (line 395), signed order 261108-215338-050e7b (line 25). Head: smoke 261109-000646-d2548f, 5M 261109-000647-5fdbec, reverts 261109-000651-ba36ce, 261109-000652-8732cd. |
+| A11 | Compaction/relocation fixtures 261106-062527-75b336 (rerun pending). Kills at d6d53a9: off-path skip 261108-215347-fbd883 (paged_trie_overlay, paged_overlay_assembler, dense_delta_assembly:241), relocation rehash 261108-215346-e0fd25 (dense_delta_assembly:221, zero page hashes), no-op rewrite 261108-215345-93d4f7 (paged_delta_leaves, paged_overlay_assembler, dense_delta_assembly:256). Head: 261109-000702-788b29, 261109-000701-61d8db, 261109-000700-46eab6. |
+| A12 | Frozen v2 fixture 261106-063837-22f097, refetch/ownership 261106-065403-f3c14e, refusal and barrier mutants 261106-070134-ecbe03. No live references: grep job 261108-215423-6228c3 passed at d6d53a9, head rerun 261109-000710-6a7c72 ( also counts the same patterns on main to show they matched there). Docs [artifact]: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md` (Dense pages, Format refusal), `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
 | A13 | ASan/UBSan 261106-112740-2f388f (10/10) and 261106-131702-5c4936; TSan 261106-112739-5f92a5 (4/4); trusted restart byte flips in 261106-131622-172969. CI at the final merged head: not run, open. |
 | A14 | Security: CHANGES at Detent:b7b37c6, SEC-1 and SEC-2 gaps, confirming jobs 261106-113537-ede7c2, 261106-112828-869301, 261106-113725-c6d946; the earlier acceptance is void. Correctness: CHANGES at Detent:c1323db, COR-1 fixed and confirmed above, PERF-1 is A15. Architect ruling: none. Open. |
 | A15 | First-read acceptance 261106-173358-3b82ed failed the gate, publisher stopped, 200 samples each: below 1 ms baseline 90, Dense 5M 115, 1 namespace 137, 1,000 namespaces 79 (medians 1,031 / 974 / 855 / 1,039 us; zero major faults). A/A and interleaved 261106-132451-040107 cancelled. Open. |
@@ -213,3 +214,21 @@ a3-largest-first 261108-215339-d4d8a3, a3-seal-64 261108-215340-a0ba31, a3-bound
 a6-keys 261108-215343-7b0d6f, a6-canonicity 261108-215343-c81dc3, a6-order 261108-215344-4f774c,
 a11-noop-rewrite 261108-215345-93d4f7, a11-relocation-rehash 261108-215346-e0fd25,
 a11-offpath-skip 261108-215347-fbd883.
+
+## Lead message 2026-11-09 (5M aborts, mutant verdict)
+
+1. Both 5M jobs at d6d53a9 aborted before comparing anything: the packer test and the delta oracle
+   built their trie cursor, packer, overlay and assembler with default `paged::Limits` (500,000
+   records, 256 MiB page bytes), and the 5M corpus has 5,000,004 keys and 315 MB of pages
+   (cursor: "invalid canonical trie input"; packer: "invalid dense packer input"). Harness defect;
+   the full-build test already sized its limits. `corpus_limits` (dense_fixture.hh) sizes every
+   oracle's limits to its corpus, keeping the defaults for smaller fixtures. Revert evidence: the
+   two aborted jobs at the parent commit.
+2. Mutant verdict: dense_mutant.sh exits 0 only when a test fails (ctest exit 8, or a
+   DENSE_MUTANT_RUN failure other than its setup's exit 3); a survivor exits 1; no patch, no
+   build, no matching test or a tool error exits 3. dense-model-check.sh exits 3 on setup
+   failures. Self-test 261109-000650-f03a2a requires no-build = 3 and a comment-only mutant = 1.
+3. Every d6d53a9 mutant/revert log was read: each ended "MUTANT KILLED" after a named test failed
+   (lines in the Evidence table), none at a build. They ran under the old convention (exit 1 =
+   killed); the head reruns use the explicit one.
+4. Main merge held until the lead says S1/S2 landed.
