@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <new>
 #include <random>
 #include <set>
@@ -145,6 +146,7 @@ void noop_hook(void *, const Event *event) noexcept { asm volatile("" : : "r"(ev
 
 alignas(64) std::atomic<std::uint64_t> shared_counter{0};
 alignas(64) kronuz::metrics::AtomicCounter metrics_counter;
+alignas(64) kronuz::metrics::ContendedCounter contended_counter;
 StripeLine stripe_lines[stripes];
 thread_local std::uint64_t thread_count = 0;
 alignas(64) std::atomic<std::uint64_t> thread_total{0};
@@ -153,7 +155,7 @@ Table *table = nullptr;
 Cells shared_cells, rows8, rows64, rows8_mapped;
 
 #define ARMS(X)                                                                                                       \
-	X(none) X(none2) X(shared) X(metrics_atomic) X(stripe_rmw) X(stripe_plain) X(tls) X(knob_probe) X(knob_shared)     \
+	X(none) X(none2) X(shared) X(metrics_atomic) X(metrics_contended) X(stripe_rmw) X(stripe_plain) X(tls) X(knob_probe) X(knob_shared)     \
 	    X(knob_rows8) X(knob_rows64) X(knob_ptr_rows8) X(knob_sampled) X(knob_rows8_mapped) X(hook_off) X(hook_on)
 enum class Arm {
 #define X(a) a,
@@ -186,6 +188,8 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 		shared_counter.fetch_add(1, relaxed);
 	} else if constexpr (A == Arm::metrics_atomic) {
 		metrics_counter.add();
+	} else if constexpr (A == Arm::metrics_contended) {
+		contended_counter.add();
 	} else if constexpr (A == Arm::stripe_rmw || A == Arm::stripe_plain || A == Arm::knob_sampled ||
 	                     A == Arm::knob_rows8 || A == Arm::knob_rows64 || A == Arm::knob_ptr_rows8 ||
 	                     A == Arm::knob_rows8_mapped) {
@@ -321,8 +325,10 @@ constexpr Timed timed_arms[] = {
 };
 void reset_counters() {
 	shared_counter.store(0, relaxed);
-	metrics_counter.~AtomicCounter();
-	new (&metrics_counter) kronuz::metrics::AtomicCounter();
+	std::destroy_at(&metrics_counter);
+	std::construct_at(&metrics_counter);
+	std::destroy_at(&contended_counter);
+	std::construct_at(&contended_counter);
 	std::memset(stripe_lines, 0, sizeof stripe_lines);
 	thread_total.store(0, relaxed);
 	table->clear();
@@ -335,6 +341,7 @@ std::int64_t counted(Arm arm) {
 	switch (arm) {
 	case Arm::shared: return std::int64_t(shared_counter.load());
 	case Arm::metrics_atomic: return std::int64_t(metrics_counter.get());
+	case Arm::metrics_contended: return std::int64_t(contended_counter.get());
 	case Arm::stripe_rmw:
 	case Arm::stripe_plain:
 		for (auto &line : stripe_lines)

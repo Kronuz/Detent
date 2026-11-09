@@ -17,6 +17,7 @@ from typing import Any
 EXACT = {
     "shared",
     "metrics_atomic",
+    "metrics_contended",
     "stripe_rmw",
     "tls",
     "knob_shared",
