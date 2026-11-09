@@ -6,7 +6,7 @@ index 7d1018f..146338a 100644
  									  bytes.end() - p::placement_bytes * (count - i));
  						}
  						s.relocated->seal();
-+						(void)p::page_commitment(bytes);
++						(void)p::page_commitment(bytes, s.limits);
  						s.page = {s.relocated, n.relocation_reference, {}};
  						f.entered = true;
  					}
