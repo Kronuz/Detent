@@ -240,6 +240,30 @@
       "title": "detentd reports ready only once a leader exists",
       "updated": "2026-11-08T12:45:01"
     },
+    "dense-distribution": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [
+        "DTPAGE03",
+        "DTROOT03"
+      ],
+      "files": [
+        "docs/design/dense-distribution*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "Dense pages",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Dense distribution design: ship verified pages, not records",
+      "updated": "2026-11-08T21:28:32"
+    },
     "dense-pages": {
       "accepted": {
         "security": {
