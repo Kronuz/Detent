@@ -98,6 +98,12 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 12. 2026-11-09: merged quest/dense-pages--performance: it adds only the attribution probe
    (tests/detent_system/prepared_client_probe.cc) and its task journal, both in the file set.
 
+13. 2026-11-09: the A15 gate runner (Detent:70377f2, c552990) is reverted on the branch
+   (Detent:51a53a9, c421f8e): its jobs run at those commits, and leaving it out keeps the quest's
+   code equal to Detent:435a525, where the whole evidence batch runs. If the lead wants the runner
+   and its result doc to land with A15, revert c421f8e and 51a53a9; that changes the code and
+   needs the batch again.
+
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
 ## Full-builder resumption (2026-11-05)
