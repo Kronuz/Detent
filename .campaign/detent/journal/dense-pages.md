@@ -87,7 +87,7 @@ lookup 201 / 268 us, segment mapping 121 / 168 us.
 4. 2026-11-08: `StateCursor::logical_commitment` and `PreparedReader::logical` keep their names
    on purpose: they return the one state commitment, predate Dense on main, and their callers sit
    in src/detent_delivery (outside this quest's files). A12's removed fields are the format's.
-5. 2026-11-09: the b8ef8d2 held-poll thread and its close assertions stay. The thread is not what
+10. 2026-11-09: the b8ef8d2 held-poll thread and its close assertions stay. The thread is not what
    fixes the race (lazy snapshot is), but it keeps the fixture from depending on the coordinator
    retiring the poll socket before it opens the close; the assertions make a late close a
    failure instead of a silent pass. The rate comparison uses Detent:97f0f2f, not b8ef8d2:
