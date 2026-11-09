@@ -1,6 +1,6 @@
 # Dense pages performance
 
-State: waiting on jobs 261106-113938-0f7177 261106-113947-a8ff2a 261106-113948-3d61d0 261106-113949-c5749a
+State: blocked on the lead: first-read acceptance fails its gate
 
 ## Scope
 
@@ -70,6 +70,51 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
     Strict smoke 261106-113947-a8ff2a depends on it; exclusive first-read
     261106-113948-3d61d0 and warm comparison 261106-113949-c5749a depend on
     the smoke. Resume from these four jobs, not the superseded failed chain.
+15. Resume at Detent:1d2b4c0 includes the bounded overlay fix and the lead's
+    reader-runner corrections. The lead replaces a refused symlink fixture
+    stage with real cloned directories in 261106-132438-20983c. Functional
+    strict smoke 261106-132450-077e0a passes; its latency scores fail:
+    baseline 4ns 16/40 below 1 ms, median 1,016,658 ns; candidate 4ns 23/40,
+    median 948,406 ns; candidate 1ns 32/40, median 835,228.5 ns; candidate
+    1000ns 16/40, median 1,041,923.5 ns. Every arm has zero major faults.
+16. Exclusive A/A/interleaved 261106-132451-040107 is running; exclusive
+    first200 261106-132451-1f5ce0 is queued. These determine whether the
+    smoke scores reproduce. No production optimization follows from smoke
+    outliers alone.
+17. The prepared-client probe adds an explicit profiling mode. The existing
+    lazy-page qualification hook times segment miss through map/publication,
+    and repeated independent Client constructions provide enough samples for
+    macOS stack sampling. Profiling data is diagnostic, not gate evidence:
+    repeated attachments share the process runtime and include sampling cost.
+18. Owner parks new work for the Claude handoff. Detent:ff1658d commits the
+    test-only profiling probe; build 261106-132922-093a04 is queued in
+    dense-release. No sampling job is submitted and no production source is
+    changed by this diagnostic step. Stop new experiments and let the lead
+    drain the existing bounded jobs.
+
+## Handoff
+
+1. Branch `quest/dense-pages--performance`, worktree
+   `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages--performance`.
+   The feature branch was fast-forwarded through Detent:1d2b4c0 before the
+   test-only profile commit. No production optimization is present here.
+2. Retain warm-comparison job 261106-132451-040107 and first200 job
+   261106-132451-1f5ce0. Both run at Detent:a729b77. Their raw results are
+   under `~/.scratch/campaign/jobs/<id>/a1/out/results/`. The latest real
+   candidate stores and binaries are in job 261106-132438-20983c outputs;
+   baseline stores and binaries remain in 261106-113938-0f7177 outputs.
+3. Diagnostic build 261106-132922-093a04 runs at Detent:ff1658d and copies
+   its binary to `JOB_OUT/probe`. The explicit command is
+   `probe --profile DIR KEY EXPECTED REPETITIONS`; output adds segment-map
+   duration through the existing hook. A future isolated macOS `sample`
+   run can attribute repeated attachment stacks, but is not yet queued.
+4. The current public Client baseline also misses the 1 ms target in the
+   strict smoke. `reader.md` describes that pre-existing failure and makes
+   T2 a target of the broader S6 core, absent from current main. The owner
+   parks S6 for this Dense-only work; Claude owns that broader plan and must
+   reconcile the Dense reader gate with S6. This task neither waives the
+   threshold nor attributes baseline misses to Dense. Do not report smoke
+   or repeated-process profiling as first-read acceptance.
 
 ## Open gates
 
@@ -81,3 +126,15 @@ namespace-count and publisher-state arm. A missing or failed arm stays open.
    cannot fulfill that part of A15.
 5. Running-publisher first reads and current-API 8-thread/allocation/syscall
    checks are not established by these jobs. They remain explicit gaps.
+
+## Owner park, 2026-11-06
+
+The owner requests a takeover checkpoint to conserve credits. No new work is started. The remaining benchmark, first-read, real-delta smoke/full and profile-build jobs are cancelled; partial output is retained but does not establish acceptance. Campaign status reports zero queued/running jobs and quiet holds are drained. Resume from the home checkout handoff docs/handoffs/dense-pages-2026-11-06.md, preserving the Claude lead's broader campaign scope.
+
+## Owner resumption, 2026-11-06
+
+The resumed profile build261106-173309-40965c passes. New first-read acceptance261106-173358-3b82ed uses the preserved real directories and final production binaries. Component diagnostic261106-173446-10c88a runs30 independent Client constructions per shape in one process and establishes attribution only.
+
+## Recorded 2026-11-08
+
+261106-173358-3b82ed failed the 200/200 gate: below 1 ms baseline 90, candidate 5M 115, 1 namespace 137, 1,000 namespaces 79 of 200 (publisher stopped, zero major faults). Attribution 261106-173446-10c88a: first live read 542 us (1 namespace), attach 342 us, lookup 201 us, mapping 121 us; diagnostic only.
