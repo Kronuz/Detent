@@ -3324,18 +3324,30 @@
       "files": [
         "docs/perf/sync-groups.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T14:46:52",
+          "ci_skipped": "docs-only: the change is docs/perf/sync-groups.md and its journal; CI's paths-ignore excludes docs/** and **/*.md, so no CI run exists for it",
+          "commit": "3d9a60ea789ecf76efce75e8e8fd079e90692c9e",
+          "evidence": [],
+          "final": true,
+          "from": "841a215fc375b22d12c4d9dc708bfd8b99a2dbbc",
+          "reason": "",
+          "tested": "4ca47fd0529029b1852ae7d161a23d8efcd48880"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
       "reason": "started by force: dense-pages' docs/perf/** glob is broad; its branch never touches docs/perf/sync-groups.md",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "S1/S2 before and after timing table from main",
-      "updated": "2026-11-09T14:43:00",
-      "worktree": "../Detent-wt/detent/sync-groups-perf"
+      "updated": "2026-11-09T14:46:53",
+      "worktree": ""
     },
     "task-cancellation": {
       "accepted": {},
