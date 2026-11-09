@@ -64,7 +64,8 @@ PY
 fi
 cmake --build "$build" -j4 --target "${targets[@]}" || exit 125
 case "$name" in
-  closed-session | startup-before-barrier) run=(test_local_paged_store_startup) ;;
+  closed-session) run=(test_local_paged_store_startup) ;;
+  startup-before-barrier) run=(test_local_paged_store_startup test_local_publication_power_cut) ;;
   positive) run=("${targets[@]}") ;;
   *) run=(test_local_publication_power_cut) ;;
 esac
