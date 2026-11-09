@@ -3317,6 +3317,8 @@
       "after": [
         "namespace-s1-s2"
       ],
+      "base": "381f08eedbdb51f24cc2557f22c3f692356bf6d9",
+      "branch": "quest/detent/sync-groups-perf",
       "checks": [],
       "consumes": [],
       "files": [
@@ -3327,11 +3329,13 @@
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
+      "reason": "started by force: dense-pages' docs/perf/** glob is broad; its branch never touches docs/perf/sync-groups.md",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "S1/S2 before and after timing table from main",
-      "updated": "2026-11-09T04:16:35"
+      "updated": "2026-11-09T14:43:00",
+      "worktree": "../Detent-wt/detent/sync-groups-perf"
     },
     "task-cancellation": {
       "accepted": {},
