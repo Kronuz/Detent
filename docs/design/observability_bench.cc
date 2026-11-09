@@ -8,6 +8,7 @@
 // per-call mean of each batch, so the clock costs under 1 ns per call. The counting code runs after
 // the lookup in this file, not inside the core: the core already holds the stripe this file
 // recomputes, so a striped arm here costs about one hash more than it would inside the core.
+#include "detent/json_schema.hh"
 #include "detent/reader.h"
 #include "detent_testing/generation_writer.hh"
 #include <metrics.hh>
@@ -255,6 +256,8 @@ Options parse(int argc, char **argv) {
 	}
 	if (o.store.empty() || o.map_dir.empty())
 		throw std::invalid_argument("--store and --map-dir are required");
+	if (o.knobs < 2)
+		throw std::invalid_argument("--knobs must be at least 2");
 	o.calls = std::max<std::size_t>(batch, o.calls / batch * batch);
 	return o;
 }
@@ -265,19 +268,30 @@ std::vector<std::string> split_list(const std::string &list) {
 		out.push_back(item);
 	return out;
 }
-// Names of realistic length (about 40 bytes): 64 namespaces, an int and a bool knob per index.
+// Names of realistic length (about 40 bytes): 64 namespaces, an int and a bool knob per index; `--knobs`
+// counts definitions, so there are knobs / 2 indices.
 std::string knob_name(std::size_t i, bool boolean) {
 	return "svc_namespace_" + std::to_string(i % 64) + ":feature_rollout_knob_" + std::to_string(i) +
 	       (boolean ? "_enabled" : "_limit");
 }
+// Builds the definitions and checks them against the parser's limits before publishing, so a set the
+// store rejects fails with its reason before any case is timed.
 void generate(const Options &o) {
-	detent::testing::GenerationWriter writer(o.store);
 	std::string json = R"({"schema_version":1,"knobs":{)";
-	for (std::size_t i = 0; i != o.knobs; ++i)
+	for (std::size_t i = 0; i != o.knobs / 2; ++i)
 		json += (i ? ",\"" : "\"") + knob_name(i, false) + R"(":{"type":"int","default":)" + std::to_string(i + 1) +
 		        "},\"" + knob_name(i, true) + R"(":{"type":"bool","default":false,"rollout_pct":50})";
 	json += "}}";
-	writer.publish_json(json);
+	const auto parsed = detent::parse_defaults(json, "observability_bench");
+	if (!parsed)
+		throw std::invalid_argument("knob definitions rejected (" + std::to_string(o.knobs) + " knobs, " +
+		                            std::to_string(json.size()) + " bytes; limits " +
+		                            std::to_string(detent::kDefaultMaxKnobs) + " knobs, " +
+		                            std::to_string(detent::kDefaultMaxBytes) + " bytes): " + parsed.error().detail);
+	if (parsed.value().knobs.size() != o.knobs / 2 * 2)
+		throw std::invalid_argument("parsed " + std::to_string(parsed.value().knobs.size()) + " knobs, built " +
+		                            std::to_string(o.knobs / 2 * 2));
+	detent::testing::GenerationWriter(o.store).publish_json(json);
 }
 
 struct Result {
@@ -450,10 +464,11 @@ int main(int argc, char **argv) try {
 		throw std::runtime_error("detent_open failed");
 	// Name sets: one hot name and `scattered` seeded names per operation.
 	std::mt19937_64 random(0x4f4253455256ull);
-	std::vector<Name> hot_int{{knob_name(o.knobs / 2, false)}}, hot_bool{{knob_name(o.knobs / 2, true)}}, sc_int,
+	const auto indices = o.knobs / 2;
+	std::vector<Name> hot_int{{knob_name(indices / 2, false)}}, hot_bool{{knob_name(indices / 2, true)}}, sc_int,
 	    sc_bool;
 	for (std::size_t i = 0; i != o.scattered; ++i) {
-		const auto k = random() % o.knobs;
+		const auto k = random() % indices;
 		sc_int.push_back({knob_name(k, false)});
 		sc_bool.push_back({knob_name(k, true)});
 	}
@@ -493,7 +508,7 @@ int main(int argc, char **argv) try {
 				throw std::invalid_argument("unknown arm " + item);
 			arms.push_back(Arm(found - std::begin(arm_names)));
 		}
-	std::cout << "{\"config\":{\"knobs\":" << 2 * o.knobs << ",\"scattered\":" << o.scattered
+	std::cout << "{\"config\":{\"knobs\":" << indices * 2 << ",\"scattered\":" << o.scattered
 	          << ",\"table_capacity\":" << capacity << ",\"calls_per_thread\":" << o.calls << ",\"reps\":" << o.reps
 	          << ",\"threads\":\"" << o.threads << "\",\"ops\":\"" << o.ops << "\",\"arms\":" << arms.size()
 	          << ",\"hot_name_bytes\":" << hot_int.front().text.size()

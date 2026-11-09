@@ -39,7 +39,7 @@ run)
 		{ echo "stale binary: $(cat "$work/build/STAMP") is not $s6_commit $source_digest" >&2; exit 1; }
 	file "$bin"
 	case "$mode" in
-	smoke) args=(--knobs 20000 --reps 1 --calls 16384 --scattered 256 --soak 2) ;;
+	smoke) args=(--knobs 100000 --reps 1 --calls 16384 --scattered 256 --soak 2) ;;
 	screen) args=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 --soak 10) ;;
 	confirm) args=(--knobs 100000 --reps 7 --calls 262144 --scattered 1024 --soak 60) ;;
 	*) echo "unknown mode $mode" >&2; exit 2 ;;
