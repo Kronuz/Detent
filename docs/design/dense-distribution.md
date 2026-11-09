@@ -2,15 +2,15 @@
 
 # Dense distribution
 
-DTPAGE03 state reaches relays and agents as verified pages: a receiver checks and writes what it is sent, and builds nothing.
+Full copies reach agents as verified pages: the receiver checks and writes what it is sent, and builds nothing. Each delta goes as pages or records, whichever is smaller.
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-08. Quest `dense-distribution`.
 - Base: `Detent:8874c71` (`main`). The page format is [dense-pages.md](dense-pages.md) as implemented on `quest/dense-pages` at `Detent:28d3ed9`, cited as dense-pages D*n* with line numbers at that commit. [namespace-delivery.md](namespace-delivery.md) is cited as namespace D*n*.
 - Depends on dense-pages D1 (one digest, placement outside it, :46), D5 (canonical bottom-up sealing, :110), D7 (occurrence reuse, :162-168), D8 (relocation computes no digest, :170) and D9 (canonicity, :174). On the namespace side it depends on D6 (records history and the cut), D7 (relays), D8 (derived ids, `namespace-delivery.md:233-239`) and D10 (first touch, scrub, repair, `:261-267`).
-- Changes three things:
+- Changes two things:
   - namespace W6 (`:344`): a frame names its target's root digest and carries pages or records.
-  - namespace D10.3 (`:267`): repair fetches the damaged pages, not a full copy.
   - dense-pages Q2 (:268): answered by D2 and Q2 here.
+- Keeps namespace D10.3 (`:267`): repair is a full copy, which D2 makes a 25.7 MB pages copy with no build.
 - Model: [dense-distribution-model.py](dense-distribution-model.py) imports [dense-pages-model.py](dense-pages-model.py) at `Detent:28d3ed9` (SHA-256 `96dfd0a7…3906bd1`), passed as the job ref `DENSE`.
   - Corpus: the r12 5M corpus (SHA-256 `bb87ae5d…52bc835`).
   - Its receiver replays every transfer. It must reproduce the target's root digest, and for a full copy the build's files byte for byte.
@@ -24,14 +24,15 @@ DTPAGE03 state reaches relays and agents as verified pages: a receiver checks an
 
 Today a cold agent receives 25.6 MB of records and builds its store: at 5M a DTPAGE02 build hashes 3.77 GB and writes 1.51 GB. Dense pages make the build canonical, and a canonical build can be shipped instead of repeated.
 
-This design ships a **transfer**: the pages the receiver lacks, in the target's seal order, laid out exactly as the receiver will write them. It leaves out the fields the receiver can derive itself: each page's digest, the digests of children inside the transfer, and placement in the sender's segments.
+This design ships a **transfer**: the pages the receiver lacks, back to back in the target's seal order. It leaves out what the receiver can derive itself: the segment layout, each page's digest, the digests of children inside the transfer, and placement in the sender's segments.
 
-The receiver handles a transfer in four steps:
+The receiver handles a transfer in five steps:
 
-1. It hashes every page bottom-up, which it would do anyway to verify the pages.
-2. It fills in the fields that were left out.
+1. It lays the pages out by the build's rule.
+2. It checks every page as a first touch does, and reruns the packing decision at every node as the validators do, so a tree packed any other way, or sent in any other order, is refused.
 3. It resolves children it already holds by their trie path in its base.
-4. It publishes only if the root digest equals the one the frame names.
+4. It hashes every page bottom-up, which it would do anyway to verify the pages, and fills in the fields that were left out.
+5. It publishes only if the root digest equals the one the frame names.
 
 A full copy is the transfer from the empty base. At 5M it is 25.7 MB as sent, against 25.6 MB of records, 1.003 times. The receiver's output is byte-identical to a full build, with the same 622.7 MB of SHA-256 input as the dense build. It does not decode records, build a trie or pack.
 
@@ -101,11 +102,11 @@ The sender is the relay that built the target from records (D7). The authority b
 - No target digest, as today: a divergent delta publishes silently.
 - An authority-computed digest: the authority would have to build pages for every namespace at every position, inside the consensus process.
 
-### D2. The transfer: what the receiver lacks, in seal order, as it will be written
+### D2. The transfer: what the receiver lacks, in seal order
 
-A transfer is the target's pages that the receiver's base lacks under dense-pages D7's identity: the same trie path before the top node's prefix, with equal digest, length, keys and height. It lists them in the target's seal order (dense-pages D5), which puts every page after its children.
+A transfer is the target's pages that the receiver's base lacks under dense-pages D7's identity: the same trie path before the top node's prefix, with equal digest, length, keys and height. It sends them back to back in the target's seal order (dense-pages D5.1), which puts every page after its children. It has no padding and no segment table.
 
-The pages are laid out as a build lays them out: each at the next 8-byte offset, in segments of at most 1 MiB, numbered from 1. The receiver writes the transfer's segments under its own segment ids, so its new files are a function of the transfer alone.
+The receiver lays the pages out by the build's rule: each at the next 8-byte offset, in a new segment of at most 1 MiB when it does not fit, segments numbered from 1. It refuses a transfer whose order is not the seal order it recomputes from the pages (D4), so the layout is a function of the target's pages alone. It writes those segments under its own segment ids.
 
 - **Full copy** = the transfer from the empty base: every page, in a full build's layout. With namespace D8's derived ids at build ordinal 0, the receiver's packs are the build's packs. The model's replay of the 5M full copy reproduces all 302 packs byte for byte and the root `67c70ad3…ab7f07` (`5db839`). An image built by `detent-image` from the same transfer is the same files (namespace T6 by construction).
 - **Delta** = the transfer from base R to target h: dense-pages D7's occurrence writes, including off-path seals.
@@ -125,7 +126,7 @@ Transfers are immutable and canonical. Any relay produces the same bytes for the
 A transfer page is the stored page with three fields rewritten:
 
 1. **The header digest** [32, 64) is zero.
-2. **A child inside the transfer** has a zero content digest. Its placement entry holds (12 zero bytes, transfer segment number from 1, offset).
+2. **A child inside the transfer** has a zero content digest. Its placement entry holds (12 zero bytes, segment number from 1, offset) in the layout D2 derives, and must name a page start of that layout.
 3. **A child the receiver already holds** (a base child) keeps its content digest. Its placement entry is all zero.
 
 Keys, length and height stay in every content entry, so the receiver checks each against the child it reaches.
@@ -140,19 +141,19 @@ Damage in transit is a fragment's problem (D8). A wrong page from a correct tran
 
 For each transfer, in order:
 
-1. **Parse.** Pages start at 8-aligned offsets, padding is zero, and lengths are 79 to 65,536 (dense-pages D2).
-2. **Resolve base children (deltas only).** Walk the transfer top-down from its last page, the root, giving each external slot its trie path. A slot whose placement is zero names a base child. The receiver walks its base along that path and requires a page with the stated digest, keys, length and height; otherwise it refuses with "base lacks a page".
-3. **Hash bottom-up**, in transfer order:
-   - Each in-transfer child must already be hashed and must not be referenced twice.
-   - Its keys, length and height must match the content entry.
-   - The receiver fills the content digest and rewrites placement to its own segment id, or to the base page's placement for a base child.
-   - It then hashes dense-pages D1's ranges and fills the header digest.
-   - It runs dense-pages D4's structure checks and D9's canonicity check per page. These are the validators, not the packer.
-4. **Check the root.** Every page but the last must be referenced exactly once, and the last page's digest must equal the frame's. Then the receiver writes the segments, computes their pack checksums for `.live`, and publishes as namespace D8 and D11 publish.
+1. **Split and lay out.** Pages follow one another, each with magic `DTPAGE03` and a length of 79 to 65,536 (dense-pages D2). The receiver places them by D2's rule, and every in-transfer placement entry must name a page start of that layout.
+2. **Parse each page as a first touch does** (dense-pages D4.3): N nodes exactly fill [64, L − 68E); tags and lengths are valid; each branch has at least two labels, strictly ascending; in-page slots hold their preorder offsets; external slots name content entries 0 to E − 1 in order; header keys equal the page's leaves plus its content keys; header height is one more than the greatest content height, or 1. Leaf bodies are checked against the frame's position as dense-pages D4.4 checks them against the root's revision.
+3. **Walk from the root**, the last page, in trie order. Each external slot resolves to an earlier page of the transfer, referenced once, or, when its placement is zero, to the base page at the slot's trie path with the stated digest, keys, length and height ("base lacks a page" otherwise). At every node the receiver reruns dense-pages D5 from what the page holds, as D9's validators do: the children it seals must be exactly the node's external slots. The walk yields the seal order those pages imply, and the transfer's order must equal it. These are the validators, not the packer.
+4. **Hash bottom-up**, in transfer order. Each child's keys, length and height must match its content entry. The receiver fills the content digest, rewrites placement to its own segment id (or the base page's placement), hashes dense-pages D1's ranges and fills the header digest.
+5. **Check the root.** Every page but the last must be referenced, and the last page's digest must equal the frame's. Then the receiver writes the segments, computes their pack checksums for `.live`, and publishes as namespace D8 and D11 publish.
+
+A transfer with no pages is a full copy of the empty state when the frame names the empty commitment (dense-pages D3), and the receiver publishes an empty generation; over a base whose root the frame names, it writes nothing. Any other empty transfer is refused.
 
 Pages verified here are verified by the tier that writes them, as namespace D10 asks of a build. Readers still verify on first touch (reader.md D3); nothing changes for them.
 
-Delta receiver costs at 5M (jobs `2c03ee`, `376435`):
+Steps 2 and 3 are the only defense against a wrong tree, since the root in the frame is the sending relay's (Limit 1): a relay that builds a malformed or non-canonical tree names that tree's root. With them, a transfer that passes is the full build of the records it holds, by dense-pages D9's induction, so its layout and files are the build's.
+
+Delta receiver costs at 5M (jobs DELTAS_JOB, SWEEP_JOB):
 
 | Update | SHA-256 page input | Base-child resolutions | Base pages walked (unshared bound) |
 | --- | --- | --- | --- |
@@ -162,20 +163,15 @@ Delta receiver costs at 5M (jobs `2c03ee`, `376435`):
 
 The walks run over pages already verified on the receiver, and walks that share a prefix share their pages. The SHA-256 input is what the records path would hash for the same new pages, since D7 writes them either way.
 
-The model's refusals (100K, `57b64f`), each refused and none accepted:
+The model's refusals (100K, CHECK_JOB). Each is refused with every check on; where a check is named, the model with that check off (a mutant) accepts it:
 
-| Damage | Refusal |
-| --- | --- |
-| A flipped node byte, wire form | root digest mismatch |
-| A flipped node byte, digests form | page digest mismatch, at that page |
-| A placement redirected to another page | page referenced twice |
-| A parent sent before its child | child not before its parent |
+REFUSALS_TABLE
 
 ### D5. Paths, not names: generic keys
 
 A base child is named by its trie path: the raw bytes from the root to the child's top node. The receiver computes that path from the target's own pages (branch prefixes and labels), so it is never sent. No step parses a key, splits on NUL or assumes text, which meets the quest's Decision 4 and PLAN.md's "Candidate uses" (binary keys through an order-preserving escape).
 
-The one place a path crosses the wire is a repair request (D9), as length-framed bytes. Every receiver at a position holds the same canonical page tree, so the ordered lookups PLAN.md lists (floor, ceiling, prefix scan, longest prefix) answer identically on every host once the reader has them. The transfer constrains none of them.
+No path crosses the wire. Every receiver at a position holds the same canonical page tree, so the ordered lookups PLAN.md lists (floor, ceiling, prefix scan, longest prefix) answer identically on every host once the reader has them. The transfer constrains none of them.
 
 **Alternatives.**
 - A digest index on the receiver: building it reads every page.
@@ -217,8 +213,9 @@ A fragment that fails its frame checksum (namespace D12.2: frame SHA-256 stays) 
 | Root mismatch, or any D4 refusal | The transfer is discarded. The receiver asks one other source for the same name, then falls back to records (above the cut) or a records full copy and builds, as today. Health counts refusals by source |
 | Relay lacks R's generation | D6 sends records; below the cut, the full copy |
 | Relay lacks or has damaged its canonical copy (scrub) | It relocates a new one (D7.4); meanwhile it serves records |
-| Agent's base lacks a page the delta reuses (resolution fails, or a base page fails first touch) | The agent repeats the request with a damage list of (length-framed path, digest). The relay adds those pages to the transfer; when a page is unchanged in h, h's copy is the same page |
-| Repair at an unchanged head (scrub or first touch, namespace D10.3) | The same request with target = base. The transfer is the damaged pages alone; the receiver rewrites their ancestors' placement (dense-pages D8: no digest moves) and publishes at build ordinal r + 1. A full copy remains the fallback, not the first step |
+| Agent's base lacks a page the delta reuses, or a base page fails first touch or scrub | The base is damaged: namespace D10.3 applies unchanged. The namespace fails alone and the agent asks for a full copy, now the 25.7 MB pages copy with no build, published at build ordinal r + 1 |
+
+Repair stays a full copy. A repair by page would have to fetch or relocate every live page of the damaged pack, not only the damaged page, since the pack's `.live` checksum keeps failing scrub otherwise (dense-pages D10), and a transfer carries no way to add a reused page below the delta's frontier. A full copy at 5M costs 25.7 MB once per damaged namespace.
 
 ### Limits
 
@@ -228,6 +225,9 @@ A fragment that fails its frame checksum (namespace D12.2: frame SHA-256 stays) 
 4. **The records sizes are modeled**: MessagePack rows with the stored body as a bin. They are calibrated by one factor per corpus size against the measured full copies. Delta answers are smaller and less regular than full copies, and their factor is the full copy's.
 5. **The corpus is synthetic** (dense-pages Limit 7). Bodies compress about 10 times and keys are decimal counters; a real key set reruns the model in minutes.
 6. **Deployments without a relay** get records from the authority and build (Q4).
+7. **Bytes per namespace are unmeasured.** The 5M figures come from one tree holding the corpus's four namespaces, where namespace W10 gives each namespace its own root. The receiver's replay is exact per namespace at 100K (the review's P11); DD3 measures the bytes.
+8. **D6's rule 1 is fitted to the synthetic corpus**, whose bodies compress about 10 times. It is only a shortcut: dropping it changes the bytes sent, never correctness. DD4 measures real record answers at the crossover.
+9. **The model checks no leaf body** against the position (D4.2's last check, dense-pages D4.4). The C++ receiver does, and DD1 tests it.
 
 ## Open questions for the owner
 
@@ -274,45 +274,46 @@ Example: across 10,000 agents, one 10,000-key update costs 66 GB extra under pag
 
 ## Build plan
 
-Each step is a quest with its own branch, CI green, and the model as oracle.
+Each step is a quest with its own branch, CI green, and the model as oracle. DD1 and DD2 are local to the store and run beside namespace S5 and S6; DD3 waits for namespace S7, DD4 for S8 and DD5 for S9.
 
 | Step | Needs | Risk |
 | --- | --- | --- |
-| DD1 Transfer codec and receiver | dense-pages S1 and S2 landed (codec, validators with D9) | high: a decoder of untrusted bytes |
-| DD2 Seal-order relocation (canonical copy) | dense-pages S4 (deltas, relocation); namespace S7 for derived ids, before it model-style ordinal ids in tests | normal |
-| DD3 Full copy as pages | DD1, DD2; Q2 ruled; runs on today's one-generation store before namespace S6 and S7 | high: wire and publication |
-| DD4 Delta transfers, choice rule, repair | DD1, DD2, DD3; namespace S6 (per-namespace frames, W6) and S3b's repair path; Q1 ruled | high |
+| DD1 Transfer codec and receiver | dense-pages S1 to S5 landed, which land together (codec, validators with D9, deltas, relocation) | high: a decoder of untrusted bytes |
+| DD2 Seal-order relocation (canonical copy) | dense-pages S4 (relocation) | normal |
+| DD3 Full copy as pages | DD1, DD2; namespace S6 (W6 frames, namespace and incarnation, one root per namespace, W10) and S7 (derived ids); Q2 ruled | high: wire and publication |
+| DD4 Delta transfers and the choice rule | DD3; namespace S8 (the relay's mirror of blocks, base and ring, whose block answer is D6's records size); Q1 ruled | high |
 | DD5 Images from transfers | DD3; namespace S9 | normal |
 
-Reader S6 is needed by none: the receiver writes files and readers keep reader.md D3's first touch. Namespace S4 (no re-validation of a tier's own build) applies to the receiver: D4 is the tier's verification, done once. Namespace S5, S8 and S10 are not needed. S8's relay mirror is D7.1, which DD4 extends.
+Reader S6 is needed by none: the receiver writes files and readers keep reader.md D3's first touch. Namespace S4 (no re-validation of a tier's own build) applies to the receiver: D4 is the tier's verification, done once. Namespace S10 is not needed.
 
 **DD1.**
-- Files: `src/detent_local/paged_transfer.{hh,cc}` (make a transfer from a generation and a page list; receive per D4), `tests/detent_local/test_paged_transfer.cc`, a libFuzzer target beside `tests/detent_testing/live_record_fuzz.cc`, and a `--out` writer added to this model.
+- Files: `src/detent_local/paged_transfer.{hh,cc}` (make a transfer from a generation and a page list; receive per D4, calling dense-pages S2's page and canonicity validators), `tests/detent_local/test_paged_transfer.cc`, a libFuzzer target beside `tests/detent_testing/live_record_fuzz.cc`, and a `--out` writer added to this model.
 - Done when:
-  - The C++ receiver takes the model's 100K and 5M full-copy transfers and reproduces the root and every pack byte for byte.
+  - The C++ receiver takes the model's 100K and 5M full-copy transfers and reproduces the root and every pack byte for byte, with the model's segment ids.
   - Its page and pack hash counters equal 306,989,416 and 315,759,038 bytes at 5M (dense-pages' execution contract 2).
-  - The four delta transfers of `2c03ee` give their roots.
-  - Each refusal of D4's table is a test, and a mutant without each check fails one.
+  - The four delta transfers of DELTAS_JOB give their roots.
+  - Each refusal of D4's table is a test: the review's P1 (segment breaks the sender chose) and P2 (children first, not in seal order); the forged-root cases for header keys (P4), header height, node count, a duplicate label and a tree packed against D5; and the four damage rows. A mutant without each check accepts its case and fails the test.
   - One CPU-hour of fuzzing finds nothing.
 
 **DD2.**
 - Files: `src/detent_local/paged_canonical_copy.{hh,cc}` and tests.
-- Done when, after the T4 churn applied through dense-pages D7, relocating into seal order gives packs whose SHA-256 equal a full build's of the after corpus, with zero page digests computed (dense-pages T7's counter).
+- Done when, after the T4 churn applied through dense-pages D7, relocating into seal order gives the full build's pages in the full build's order and offsets, every byte outside placement equal, with zero page digests computed (dense-pages T7's counter). Pack SHA-256 equality needs namespace S7's derived ids, and DD3 checks it.
 
 **DD3.**
-- Files: the frame kind and header digest (`src/detent_distribution/framing.cc`, `protocol.cc`), the relay's copy service (`src/detent_relay/host.cc`), the agent's full-copy path (`src/detent_delivery/coordinator.cc`, `src/detent_agent/managed_host.cc`), and a system test in `tests/detent_system`.
+- Files: the transfer frame (`src/detent_distribution/framing.cc`, `protocol.cc`): namespace W6's frame header gains the encoding and the 32-byte target commitment beside the namespace, incarnation and position S6 adds, and the 96-byte fragment header is unchanged. The relay's copy service (`src/detent_relay/host.cc`), the agent's full-copy path (`src/detent_delivery/coordinator.cc`, `src/detent_agent/managed_host.cc`), and a system test in `tests/detent_system`.
 - Done when, at 5M cold bootstrap:
   - The agent runs no packer (a counter at zero).
-  - It receives 25,728,032 B as sent within 1%, and its packs equal the relay's copy.
+  - It receives FULL_SENT B as sent within 1%, and its packs equal the relay's copy, with derived ids at ordinal 0.
+  - The bytes per namespace are measured for each of the corpus's four namespaces, against their record copies.
   - A root mismatch falls back to records, and a resumed fetch continues from its offset.
   - The lead measures the agent's CPU and wall against the records arm under `quiet exclusive`, and Q3's two framings for both encodings.
 
 **DD4.**
-- Files: the page window and Merkle diff on the relay, D6's rule, the delta receiver, the damage list, and the repair path.
+- Files: the page window and Merkle diff on the relay, D6's rule, and the delta receiver.
 - Done when, at 5M:
-  - The transfers for the four scenarios of `2c03ee` have exactly the model's pages (5; 16,489; 369; 16,616) and bytes.
-  - The rule picks records for every `u:` row and pages for `c:1000000`.
-  - A flipped base page is repaired by fetching that page alone at ordinal r + 1, and reads recover.
+  - The transfers for the four scenarios of DELTAS_JOB have exactly the model's pages (5; 16,489; 369; 16,616) and bytes.
+  - Against S8's block answers, the rule picks records for every `u:` row and pages for `c:1000000`, and rule 1's shortcut holds on the measured record sizes at the crossover.
+  - A base page that fails first touch during a delta leads to namespace D10.3's full copy as pages, and reads recover.
   - A refused transfer falls back without a wrong read.
 
 **DD5.**
@@ -326,6 +327,11 @@ campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light
   /usr/local/bin/python3 -I docs/design/dense-distribution-model.py full CORPUS-5M
 campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 120 -- \
   /usr/local/bin/python3 -I docs/design/dense-distribution-model.py delta CORPUS-5M u:1 u:10000 c:10000 m:9800:100:100
+campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 180 -- \
+  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py delta CORPUS-5M u:100 u:1000 u:100000 u:300000 \
+  u:1000000 u:2000000 c:100 c:1000 c:100000 c:1000000
+campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 120 -- \
+  /usr/local/bin/python3 -I docs/design/dense-distribution-model.py day CORPUS-5M
 campaign job submit --quest dense-distribution --ref DENSE=28d3ed9 --level light --minutes 30 -- \
   /usr/local/bin/python3 -I docs/design/dense-distribution-model.py check CORPUS-100K
 ```

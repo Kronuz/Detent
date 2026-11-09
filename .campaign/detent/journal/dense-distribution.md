@@ -1,6 +1,6 @@
 # dense-distribution: journal
 
-State: ready for review (evidence rerun at b99d3a37ebb1, all four exit 0; the lead swapped the ids)
+State: fixing DD-1, DD-2, DD-3, DD-4, DD-5 (design review CHANGES at d874004, msg from the lead)
 Quest: .campaign/detent/quests/dense-distribution.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,17 +9,21 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-The design is written (`Detent:b99d3a3`). `campaign brief` asked for the evidence jobs at that head,
-since they ran at `Detent:4fa06bd`. Reruns at `b99d3a3` (identical model and command):
-261108-230300-28e052 (check), 261108-230300-5e2827 (full), 261108-230300-2bec9b (deltas),
-261108-230300-c7df19 (sweep), queued behind host load after one 600 s wait. This journal-only
-commit follows them.
+Design review CHANGES at `Detent:d874004`
+(`.campaign/detent/reviews/dense-distribution-design.md`, probe job 261109-012437-1ff8e3).
+Model fixed at `Detent:4d66fe1`: the wire is the pages back to back; the receiver derives the
+layout (DD-1), parses each page as a first touch does and reruns D5 at every node, refusing a
+non-seal order or a non-canonical tree (DD-1, DD-2); check mode adds P1, P2, P4 and one forged-root
+case per check with a mutant each; `day` mode prices pages per agent-day (DD-4). Check job
+261109-014058-00ad3c queued. Document: D2-D4, D9, Limits and the build plan rewritten for DD-1 to
+DD-3, DD-5 and the folds; numbers wait for the reruns.
 
 ## Next
 
-1. When the reruns finish, confirm that their numbers equal the originals (the model is
-   deterministic), put the rerun ids in the Evidence rows, and set State to "ready for review".
-2. Fold in the design review's findings by id.
+1. Read check job 261109-014058-00ad3c; fix the model if a case fails.
+2. Submit at the final head: full, delta (4), sweep, day (5M), check (100K) and the reviewer's
+   probe; fill D4's refusal table, Q1's per-day rows and every number and job id in the doc.
+3. Answer DD-1 to DD-13 under "Review findings", Evidence, then State "ready for review".
 
 ## Blocked on
 
