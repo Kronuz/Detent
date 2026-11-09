@@ -243,6 +243,8 @@
     "dense-distribution": {
       "accepted": {},
       "after": [],
+      "base": "8874c718629115b1adbfb80c33cb3868451e7739",
+      "branch": "quest/detent/dense-distribution",
       "checks": [],
       "consumes": [
         "DTPAGE03",
@@ -260,9 +262,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-08T21:28:32"
+      "updated": "2026-11-08T21:28:55",
+      "worktree": "../Detent-wt/detent/dense-distribution"
     },
     "dense-pages": {
       "accepted": {
