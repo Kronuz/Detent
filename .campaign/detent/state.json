@@ -285,9 +285,9 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "review",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-08T21:28:55",
+      "updated": "2026-11-09T01:16:42",
       "worktree": "../Detent-wt/detent/dense-distribution"
     },
     "dense-pages": {
