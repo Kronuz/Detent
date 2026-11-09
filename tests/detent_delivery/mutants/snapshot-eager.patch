@@ -1,0 +1,11 @@
+--- a/tests/detent_delivery/test_coordinator.cc
++++ b/tests/detent_delivery/test_coordinator.cc
+@@ -1050,7 +1050,7 @@
+ 													  .count()));
+ 						return reply;
+ 					};
+-					std::string bytes;
++					std::string bytes = snapshot();
+ 					if (!subscription)
+ 						bytes = snapshot();
+ 					else {

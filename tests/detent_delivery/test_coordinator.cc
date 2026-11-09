@@ -1039,13 +1039,21 @@ int main(int argc, char **argv) {
 							check(body.find("\"revision\":" + std::to_string(pressure ? attempt : 1)) !=
 								  std::string::npos);
 					}
-					const auto building = std::chrono::steady_clock::now();
-					auto bytes = response(count, pressure ? attempt + 1 : 1);
-					checkpoint("server-response-built port=" + std::to_string(port) + " build_ms=" +
-							   std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
-												  std::chrono::steady_clock::now() - building)
-												  .count()));
-					if (subscription) {
+					// Build the snapshot only for a reply that carries it: at 500K records building it
+					// can outlast release_session's 1,000 ms close timeout.
+					auto snapshot = [&] {
+						const auto building = std::chrono::steady_clock::now();
+						auto reply = response(count, pressure ? attempt + 1 : 1);
+						checkpoint("server-response-built port=" + std::to_string(port) + " build_ms=" +
+								   std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(
+													  std::chrono::steady_clock::now() - building)
+													  .count()));
+						return reply;
+					};
+					std::string bytes;
+					if (!subscription)
+						bytes = snapshot();
+					else {
 						if (close_request) {
 							bytes = "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n";
 						} else if (transitions && (phase == 2 || phase == 3)) {
@@ -1065,6 +1073,7 @@ int main(int argc, char **argv) {
 							bytes = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
 									std::to_string(body.size()) + "\r\n\r\n" + body;
 						} else if (phase == 1 || phase == 5) {
+							bytes = snapshot();
 							bytes.insert(bytes.find("\r\n") + 2,
 										 "X-Detent-Session-Version: 1\r\nX-Detent-Session: "
 										 "11111111111111111111111111111111\r\n"
