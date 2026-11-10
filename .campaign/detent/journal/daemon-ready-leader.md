@@ -15,8 +15,10 @@ shape, documented in test_daemon_alone.py). N1: job at main below.
 
 ## Next
 
-1. On both green, fill the Evidence rows with the job ids and mark "ready for review".
-2. If the revert job exits 125 or 1 for a build or test reason, fix the script, not the test.
+1. On 261109-164903-36a5eb green: Evidence rows A5 (test_authority_lost_quorum), A6 (test_authority_daemon_stop) and the fix confirmations F1/F2/N5 take its id; A5/A6 revert rows take 261109-164904-d4954d / 261109-164905-ff3d30 (each passes iff the mutant is killed; 125 = build failure, then fix the script).
+2. On native 261109-164916-0e1fa4: fill A1/A2 with it. If it fails a test I touched, fix; `*-500000` cases are fixture-500k's.
+3. N1: 261109-164915-21368f runs test_authority_snapshot_catchup at main; if it fails there too, record it under Blocked on.
+4. If the stop test's chmod failure injection does not fail the runtime (parent reports ready), switch to RLIMIT_FSIZE on a restart.
 
 ## Blocked on
 
@@ -29,6 +31,8 @@ Nothing.
 | A1 | native 261109-150943-0c7951 (test_authority_daemon_ready: one open right after --daemonize, no retry) |
 | A2 | native 261109-150943-0c7951 (same test: --status "ready":true with "role":2; /v1/health sampled every 10 ms from first answer, never ready without role 2; test_authority_daemon_alone: a lone node of a three-voter set returns from --daemonize in under 10 s and reports "ready":false) |
 | A3 | 261109-150944-4403ae (earlier pass c05fdc at dd3aad7; restores main.cc, service.cc, service.hh from 63ed532, builds detentd, runs the test; passes iff the test fails on READINESS; 125 on build failure) |
+| A5 | pending: 261109-164903-36a5eb (test_authority_lost_quorum, scenarios A/B/C); revert 261109-164904-d4954d |
+| A6 | pending: 261109-164903-36a5eb (test_authority_daemon_stop); revert 261109-164905-ff3d30 |
 | A4 | D23 (.campaign/detent/PLAN.md): readiness waits for a leader; implemented as above |
 
 ## Result
