@@ -24,13 +24,14 @@ start() {
     "$binary" --authority "$root/$1.json" --port 0 --runtime-dir "$root/$1-runtime" --reactors 1 --daemonize \
         > "$root/$1.out" 2> "$root/$1.err" &
     parent=$!
+    until [[ -e "$root/$1-runtime/detentd-0.log" ]]; do kill -0 "$parent" 2>/dev/null || break; sleep 0.02; done
     bound_port "$root/$1-runtime/detentd-0.log" "$parent" > /dev/null
     daemon=$(cat "$root/$1-runtime/detentd-0.pid")
 }
 # finish NAME: the parent's exit status, which must come well before the 30 s startup timeout.
 finish() {
     local deadline=$((SECONDS + 20))
-    while kill -0 "$parent" 2>/dev/null; do
+    while state=$(ps -o stat= -p "$parent" 2>/dev/null) && [[ -n "$state" && "$state" != Z* ]]; do
         if ((SECONDS >= deadline)); then echo "STARTUP: the parent was still waiting after 20 s: $(cat "$root/$1.err")" >&2; exit 1; fi
         sleep 0.05
     done

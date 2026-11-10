@@ -205,7 +205,7 @@ int run(const std::vector<std::string>& input_args) {
 			if (startup_failure.empty() && detach && g_stop.load()) startup_failure = "stopped before startup completed";
 			if (startup_failure.empty()) ready();
 
-			while (!g_stop.load()) {
+			while (startup_failure.empty() && !g_stop.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{200});
 			}
 
