@@ -9,7 +9,7 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Runner, docs check, link check, workflow, docs/dev/docs-e2e.md and 26 assertion blocks written; first gate jobs run to find failing assertions.
+Runner, checks, workflow, docs and 23 assertion blocks written; fixing the last e2e job failures, then the A2 and A3 jobs.
 
 ## Next
 

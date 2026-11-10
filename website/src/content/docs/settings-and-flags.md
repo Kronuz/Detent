@@ -105,7 +105,7 @@ detent get search:timeout_ms
 
 <!-- e2e:begin
 exit: 1
-stdout-matches: ^ERR MissingKnob: search:timeout_ms \(scoped lookup failed\)$
+stderr-contains: ERR MissingKnob: search:timeout_ms (scoped lookup failed)
 e2e:end -->
 
 A client whose baked defaults contain `search:timeout_ms` falls back to that

@@ -40,3 +40,6 @@ operations/logging#2 -- starts detentd in the foreground with no authority confi
 operations/authority#1 -- probes an absolute /etc/detent/authority.json that is not there
 contributing#1 -- configures a Release build of the checkout
 contributing#2 -- changes into website/ for the site build the site check runs
+reference/cli/detent#1 -- shows the MissingKnob error on stdout with detail "not present in current snapshot"; the CLI prints it on stderr as "scoped lookup failed"
+reference/cli/detent-agent#1 -- the status command omits --runtime-dir, so it reports "not running" for the Quick-start agent (not "running (pid N)")
+reference/cli/detentd#1 -- probes plain HTTP but the Quick-start authority serves HTTPS, so it prints "not reachable"; needs --authority

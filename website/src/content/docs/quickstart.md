@@ -172,7 +172,7 @@ export DETENT_GENERATION_DIR="$PWD/agent-state"
 
 <!-- e2e:begin
 rewrite: "ca": "certs/ca.pem" => "ca": "certs/ca.pem", "port": 8317
-run: detent-agent --status --managed managed.json | grep -q '^running'
+run: detent-agent --status --generation-dir agent-state --runtime-dir run | grep -q '^running'
 e2e:end -->
 
 The agent connects to `localhost:8317` over TLS, checks the certificate against
