@@ -1,6 +1,6 @@
 # namespace-s5-1: journal
 
-State: working
+State: waiting on jobs 261110-140332-98a69b 261110-140332-333571
 Quest: .campaign/detent/quests/namespace-s5-1.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,12 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-First build of the implementation (State: `Namespace` entries, enabling and drop
-administrative entries, directory map, image DTAIMG02; node: administrative entries;
-tests: test_namespace_positions, test_namespace_cluster, test_namespace_power_cut).
+Gate jobs at the head: native suite (crash model included) and pins; the branch is pushed for
+CI's ASan, UBSan, TSan and platform matrix (D54).
 
 ## Next
 
-1. Build and run the three new tests and the authority suite locally (light hold).
-2. Write docs/status/namespace-s5.md (how it works, contract).
-3. Suite job (native) and pins; push the branch for CI's sanitizers (D54); crash model at the final head.
+1. Record the jobs' results here and CI's run on the pushed head; set "ready for review".
 
 ## Blocked on
 
@@ -31,13 +28,23 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1 | native 261110-140332-98a69b: `test_authority_namespace_positions` (`positions_start_at_stored_revision`: start at stored revision, advance only with own changes, image restart), `test_authority_namespace_cluster` (restart and snapshot install, exact positions per namespace) |
+| A2 | native 261110-140332-98a69b: `test_authority_namespace_positions` (`incarnations_and_drop`: new incarnation on re-creation, old cursor answered `FullCopy`, retried drop of the old incarnation `Conflict`) |
+| A3 | native 261110-140332-98a69b: `test_authority_namespace_positions` (`directory_stream`; `positions_start_at_stored_revision` enables over a store written before it) |
+| A4 | native 261110-140332-98a69b: `test_authority_namespace_cluster` (three voters, one installed from a snapshot past the enabling entry and the drop, one restarted mid-run: identical entries, records and images) |
+| A5 | native 261110-140332-98a69b: `test_authority_namespace_power_cut` (a cut at each of 352 storage operations; recovery keeps every acknowledged step and retries reach the uninterrupted state). Local mutant: images that forget tombstones fail it |
+| A6 | native 261110-140332-98a69b: `test_authority_namespace_positions` (`incarnations_and_drop`: in-flight writes with old-incarnation preconditions conflict, a held root reads the dropped namespace whole, reclaim in bounded collect steps); the drop applies at one index on every voter (`test_authority_namespace_cluster`). Deferral: the agent's generations and `.lease` files for a dropped namespace belong to the agent store, S7 (docs/status/namespace-s5.md, "Left open") |
+| pins | 261110-140332-333571 |
+
+Messages: none listed by `campaign brief`.
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Contract `namespace-positions` in `docs/status/namespace-s5.md`: `Namespace` entries (position,
+incarnation, directory position, live size, tombstone), `NamespaceCursor` and `State::answer`, the
+directory stream, the enabling entry and the namespace drop as administrative entries
+(`Node::propose_administrative`), image `DTAIMG02`. Nothing proposes either entry yet (R1).
+Open: agent side of a drop (S7); tombstones kept and counted (S6 can cut them).
 
 ## Rulings I made
 
