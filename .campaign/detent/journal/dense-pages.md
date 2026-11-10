@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs (final head Detent:531c370; ids in "Final head round 2026-11-09")
+State: waiting on jobs 261109-231620-614f13, 261109-231630-c4244f, 261109-231631-60335f, 261109-231632-1c7d69 (A15 gate rerun and first-read attribution at Detent:7648173)
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -878,3 +878,32 @@ Rulings (final head):
 Probes at Detent:531c370, done: reference_shape 261109-181408-7cb320 exit 0, delta_note
 261109-181408-55425a exit 0, stale_docs 261109-181408-51c59f exit 0 (DES-1 closed), D43 grep
 261109-181408-e19361 exit 0. The rest of the batch is queued or running on a loaded host.
+
+## A15 first-read attribution 2026-11-09 (lead msg: gate missed, running arm broken)
+
+Gate at Detent:8878c39 (code = 531c370), all under ~/.scratch/campaign/jobs/:
+1. Prepare 261109-222551-30d32f passed (455 s). Stopped 261109-222553-4f2dbd, exclusive, misses:
+   below 1 ms of 200: B1 61, D1 126, D1000 186, B1000 44; A/A D1 172, B1 112. Medians: B1 1,063,
+   D1 965, D1000 799, B1000 1,148, D1' 817, B1' 962 us; median attach 638 / 618 / 432 / 603 /
+   491 / 551 us; lookup 425 / 351 / 373 / 514 / 318 / 404 us; p99 1.39-1.72 ms (B1' 3.06).
+   A/A spread is 15-18% of the median (D1 965 vs 817, B1 1,063 vs 962): order or host state
+   moves the number as much as Dense does.
+2. Running 261109-222555-ec2293 failed in 4 s: every agent exited with "open existing journal
+   file: No such file or directory". Cause: `completion/posix.h:978` opens `owner.lock` without
+   O_CREAT when the directory already holds a store; first_read_export.cc wrote no owner lock
+   (the capacity-trial store the 10-26 qualification cloned has one, 0 bytes, 0600). The agent's
+   cold start also needs `.live` (tests/detent_local/trusted_records.hh:2), which nothing wrote.
+   Fix Detent:7648173: the exporter writes the empty owner lock and derives `.read` and `.live`
+   from one full recovery (trusted_records::derive's body with corpus-sized limits; it compiles
+   against main 4d56489's headers too, clang 23.1.2 -fsyntax-only, both trees); prepare no longer
+   runs the probe's `--prepare`.
+3. Attribution probe Detent:7648173 `tests/detent_system/first_read_phases.cc`, built from each
+   tree by prepare: `--phases` times, in one fresh process, the default retirement runtime
+   (thread), the trust walk cold, the trust walk warm, `PreparedReader::open`, the refresh
+   worker's jthread and the lookup (segment mappings via LazyPageTesting), each with wall, user,
+   system CPU and minor faults; `--micro` gives warm per-op means. `first-read-gate.sh profile`
+   runs B1 D1 D1000 B1000 at the job path (11 components) and D1 B1 at a 4-component path, per
+   key a warmup, a `--read` and a `--phases` sample. Doc: docs/perf/first-read-gate.md.
+
+Jobs at Detent:7648173: prepare 261109-231620-614f13 (light); after it, exclusive: stopped
+261109-231630-c4244f, running 261109-231631-60335f, profile 261109-231632-1c7d69.
