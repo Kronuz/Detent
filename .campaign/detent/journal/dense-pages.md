@@ -874,3 +874,7 @@ Rulings (final head):
 27. 2026-11-09: the `paged-v2` config string stays: its parser and enum are in
    src/detent_delivery/configuration.cc and include/detent_delivery/coordinator.hh, outside the
    set; the tests that write it follow the parser. Lead routes it to legacy step I.
+
+Probes at Detent:531c370, done: reference_shape 261109-181408-7cb320 exit 0, delta_note
+261109-181408-55425a exit 0, stale_docs 261109-181408-51c59f exit 0 (DES-1 closed), D43 grep
+261109-181408-e19361 exit 0. The rest of the batch is queued or running on a loaded host.
