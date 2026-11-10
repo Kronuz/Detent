@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-231620-614f13, 261109-231630-c4244f, 261109-231631-60335f, 261109-231632-1c7d69 (A15 gate rerun and first-read attribution at Detent:7648173)
+State: waiting on jobs 261109-231630-c4244f, 261109-231631-60335f, 261109-231632-1c7d69 (A15 gate halves and attribution at Detent:7648173; prepare 614f13 passed)
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -12,9 +12,14 @@ paged-recovery refusal expectation (Detent:941a17e), the repeat_500k round loop 
 
 ## Next
 
-1. Read the 531c370 batch into Evidence; fix any failure (a fix moves the head: rerun the batch).
-2. A15: read prepare 261109-181435-2ca86d and halves 4150fc / 001cb2 against the gate.
-3. Then State "ready for re-acceptance".
+1. Read stopped c4244f, running 60335f, profile 1c7d69 (results under each job's a1/out/results).
+2. From the profile, split the first read into what Dense owns (lookup: mappings, page verify,
+   walk) and what it does not (retirement runtime and refresh threads, directory trust per path
+   component, record opens); then either an in-scope fix with an exclusive A/B at named commits,
+   or "Blocked on" with the numbers and options for the lead.
+3. Prior attribution, not this build: the 2026-10-29 reader-metadata diagnostic (Detent:52246e2,
+   docs/measurements/reader-metadata-20261029) put directory trust at 212-222 us and the five
+   metadata opens at about 70 us of a ~430 us attach, both main's mechanisms, unchanged by Dense.
 
 ## Blocked on
 
@@ -58,8 +63,8 @@ at the final head Detent:531c370 (`campaign` takes the twin there), map in "Fina
 | A11 | Compaction, delta plan, relocation fixtures 261109-145755-37b414; relocation zero page hashes in 261109-145755-89ebfd. Mutants killed: noop-rewrite 261109-145824-7e3011, relocation-rehash 261109-145825-1a6698, offpath-skip 261109-145826-86a096; harness self-test 261109-145827-29b141. |
 | A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261109-181406-f2bfa6 (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261109-181407-08cc29, barrier mutant killed 261109-181407-924846; no per-version recognition left: grep 261109-181408-e19361. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
 | A13 | ASan/UBSan 261109-145755-dc2bcc (10/10), 261109-145754-cecb4a, 261109-145755-79fbd0; TSan 261109-145754-fe08c1 (4/4); native incl. trusted restart and power cut 261109-145341-9f0788; revert/mutant batch in A3, A6, A9-A11. S1/S2 T7 positive at the head 261109-163620-dd9c24 passed (power_cut 5,766 cases in 121 s; paired main run 261109-163621-709877 passed in 45 s at the same time); startup-before-barrier killed at the head 261109-163623-0dd05f (power_cut invariant line 475 at 122 s, as on main; startup :97). CI at the final merged head: open. |
-| A14 | Correctness CHANGES (COR-1 fixed, confirming jobs above; PERF-1 = A15); security CHANGES (SEC-1, SEC-2 jobs above); design review not launched; architect ruling none. Open. |
-| A15 | Gate at the final head: prepare 261109-181435-2ca86d (light, baseline main = Detent:4d56489, code-equal to main 03e4781), measure stopped 261109-181436-4150fc and running 261109-181437-001cb2 (exclusive), pending. Earlier 6fcc50 failed (sysroot, ruling 24); 261106-173358-3b82ed missed the gate on both arms (see "A15 baseline"). Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. |
+| A14 | Security accepted at Detent:8878c39 (home 76701a7); design accepted at Detent:8878c39 (home 36a9bcb). Correctness CHANGES: COR-1 fixed, confirmed by Debug bounds 261109-181408-98bea7, ASan/UBSan 261109-181407-e55347, unguarded parent killed 261109-181409-45986b; PERF-1 is A15 (open). Architect ruling: none yet. |
+| A15 | Open, gate missed. At Detent:8878c39 (code 531c370): prepare 261109-222551-30d32f; stopped 261109-222553-4f2dbd, below 1 ms of 200: B1 61, D1 126, D1000 186, B1000 44, A/A D1 172, B1 112 (Dense ahead of the baseline on every arm, neither 200/200); running 261109-222555-ec2293 failed (stores lacked owner.lock and `.live`; fixed Detent:7648173). Rerun at Detent:7648173: prepare 261109-231620-614f13 passed, stopped 261109-231630-c4244f, running 261109-231631-60335f, attribution 261109-231632-1c7d69, pending. Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. Times the pre-S6 `detent::Client`, not T2's `detent_open` (S6 not on main). |
 
 ## Rulings I made
 
@@ -905,5 +910,6 @@ Gate at Detent:8878c39 (code = 531c370), all under ~/.scratch/campaign/jobs/:
    runs B1 D1 D1000 B1000 at the job path (11 components) and D1 B1 at a 4-component path, per
    key a warmup, a `--read` and a `--phases` sample. Doc: docs/perf/first-read-gate.md.
 
-Jobs at Detent:7648173: prepare 261109-231620-614f13 (light); after it, exclusive: stopped
+Jobs at Detent:7648173: prepare 261109-231620-614f13 (light, passed in 435 s; every store lists
+owner.lock, .read, .live; B 1,189/1,211 segments layout 2, D 302/305 layout 3); after it, exclusive: stopped
 261109-231630-c4244f, running 261109-231631-60335f, profile 261109-231632-1c7d69.
