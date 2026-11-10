@@ -30,3 +30,4 @@ To be fixed when the lead splits this quest.
 ## May land early
 
 None until the lead splits it.
+- From async-drivers-design (Xapiand X10): add a `docs/SHARED_LIBRARY_DECISIONS.md` entry that the apply leaves the group's loop.
