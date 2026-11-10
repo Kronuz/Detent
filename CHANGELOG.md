@@ -9,7 +9,10 @@
   (the single-voter configuration, the quick-start case), so the first `/v2/open` after it succeeds
   without a retry and the quick-start no longer loops on it. With a fixed voter set, `--daemonize`
   returns once the listener is up, as before, and `--status` reports `"ready":false` until a leader
-  exists.
+  exists. A follower stays ready only while it hears from its leader within `election_max` (2 s); a
+  node that loses its leader and its quorum reports `"ready":false` within that window plus a health
+  interval. A `--daemonize` stopped by SIGTERM, or whose runtime fails, during the wait exits non-zero
+  with the cause instead of reporting ready or timing out after 30 s.
 
 ### Trusted restart (namespace S3)
 

@@ -68,6 +68,8 @@ class Service final : public http::HttpHandler {
 	// Whether this node leads or follows a known leader: health reports ready only then, and
 	// /v2/open is accepted once it holds. Set after health is published, so health never lags it.
 	[[nodiscard]] bool has_leader() const noexcept { return leader_known_.load(std::memory_order_acquire); }
+	// Why the runtime stopped after admission (the exception's text), or nothing while it runs.
+	[[nodiscard]] std::optional<std::string> failure() const;
 
   private:
 	struct ReplyAdmission;
@@ -111,12 +113,13 @@ class Service final : public http::HttpHandler {
 	};
 	ServiceOptions options_;
 	std::shared_ptr<Accounting> accounting_;
-	std::mutex mutex_;
+	mutable std::mutex mutex_;
 	std::deque<std::shared_ptr<Task>> queue_;
 	std::deque<std::shared_ptr<Task>> subscription_queue_;
 	std::deque<std::shared_ptr<Task>> subscription_close_queue_;
 	std::set<std::string> busy_producers_;
 	bool stopping_ = false;
+	std::optional<std::string> failure_;
 	std::atomic<bool> leader_known_{false};
 	std::string health_ = "{}";
 	std::shared_ptr<const reactor::ConnectionAdmission> connections_;

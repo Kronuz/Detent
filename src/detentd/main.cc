@@ -192,11 +192,18 @@ int run(const std::vector<std::string>& input_args) {
 			L_INFO("detentd: durable {} authority listening with {} on {}:{}", authority_mode,
 				publisher_https ? "HTTPS" : "HTTP", authority_bind, service.port());
 			// A node that alone is a quorum (no other voter) waits for its own leader; with other voters
-			// it returns at once, and /v1/health reports ready only when a leader is known.
+			// it returns at once, and /v1/health reports ready only when a leader is known. A stop or a
+			// runtime failure ends the wait without ready, and the parent receives the cause.
+			std::string startup_failure;
 			while (lone_quorum && !authority.has_leader() && !g_stop.load()) {
+				if (auto reason = authority.failure()) {
+					startup_failure = "authority stopped before a leader was elected: " + *reason;
+					break;
+				}
 				std::this_thread::sleep_for(std::chrono::milliseconds{5});
 			}
-			ready();
+			if (startup_failure.empty() && detach && g_stop.load()) startup_failure = "stopped before startup completed";
+			if (startup_failure.empty()) ready();
 
 			while (!g_stop.load()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{200});
@@ -213,6 +220,7 @@ int run(const std::vector<std::string>& input_args) {
 			authority.owner().close();
 			service.destroy_roots();
 			authority.owner().destroy_roots();
+			if (!startup_failure.empty()) throw std::runtime_error(startup_failure);
 			return 0;
 		} catch (const std::exception& e) {
 			L_ERR("detentd: {}", e.what());
