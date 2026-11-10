@@ -1,6 +1,6 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-231630-c4244f, 261109-231631-60335f, 261109-231632-1c7d69 (A15 gate halves and attribution at Detent:7648173; prepare 614f13 passed)
+State: waiting on jobs 261109-231632-1c7d69 (A15 attribution at Detent:7648173; running 261109-231631-60335f finishing)
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
@@ -913,3 +913,16 @@ Gate at Detent:8878c39 (code = 531c370), all under ~/.scratch/campaign/jobs/:
 Jobs at Detent:7648173: prepare 261109-231620-614f13 (light, passed in 435 s; every store lists
 owner.lock, .read, .live; B 1,189/1,211 segments layout 2, D 302/305 layout 3); after it, exclusive: stopped
 261109-231630-c4244f, running 261109-231631-60335f, profile 261109-231632-1c7d69.
+
+Results at Detent:7648173 (code unchanged since 531c370 except the runner/exporter/probe):
+1. Stopped 261109-231630-c4244f (exclusive), below 1 ms of 200 / median / p99 / attach / lookup us:
+   B1 38 / 1,100 / 1,383 / 643 / 438; D1 89 / 1,013 / 1,217 / 617 / 377; D1000 17 / 1,113 /
+   1,337 / 623 / 485; B1000 15 / 1,166 / 1,513 / 645 / 511; A/A D1 23 / 1,119; B1 173 / 833.
+2. Running 261109-231631-60335f: agents reach readiness (0.28-1.22 s), so the fix holds. B1 73 /
+   1,024 / 1,657; D1 196 / 805 / 1,050 (max 1,304); D1000 152 / 905 / 1,723; B1000 169 / 909 /
+   1,430. Log lines read while the job finished; result.json is the record.
+3. Same code, same stores, two exclusive runs 1 h apart: D1000 stopped 186 -> 17, B1 A/A 112 ->
+   173, D1 A/A 172 -> 23. Arm-to-arm swings (one arm's median moves ~300 us within one hold) are
+   larger than any Dense-vs-baseline difference; the host (i9-9980HK laptop, load 3.8-7 around the
+   holds) does not hold a sub-ms p100 steady for either code. Attribution job 1c7d69 decides where
+   the ~600 us attach goes; the gate verdict waits for it.
