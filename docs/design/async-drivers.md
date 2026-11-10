@@ -348,6 +348,14 @@ its connection, `peers.h:395-412`). *Shared connections per process* lose: a fra
 another loop hops threads on every receive. *A connection per pair of loops under free placement*
 loses: up to L_b connections per peer host per loop, 16 at 16 loops.
 
+*L is fixed for a host's life.* A host writes L into its store at first start and refuses to
+start with a different configured L; changing L means draining the host and re-creating it, so
+each group's commit log and directory stay with the loop that owns them. A loop does not move a
+hot group to another loop (see Limits). The connection hello carries `(base port, L, loop
+index)`; a dialer whose view of the peer's L disagrees closes with `l_mismatch`, and a group-open
+whose `slot(group) mod L` is not the receiving loop is refused with `misrouted`, never served
+through a hop (F15).
+
 *An idle connection.* The loop transport drives OpenSSL on the non-blocking socket (`SSL_set_fd`,
 readiness through `await_asio` on `async_wait`) with `SSL_MODE_RELEASE_BUFFERS`, and allocates
 each frame at its length as today's `Session` does. An idle end then holds 40,732 bytes and one
@@ -475,6 +483,8 @@ from another loop adds two posts (D2).
   not re-armed after a step, stalls with no error. The consensus quest's simulator checks
   liveness under every schedule; a Debug assertion checks after each step that a group with a
   deadline is armed; the blocking entry throws `stalled` instead of waiting (D5).
+- **A group stays on its loop.** `slot(group) mod L` with a fixed L (D10) cannot move a hot
+  group to an idle loop; rebalancing means re-creating the host with another L.
 - **Far deadlines wake early** once per 4,096 ms round (D4).
 - **One primitive per queue** serializes a loop's IO (D6).
 - Numbers are from one macOS x86-64 host; allocator rounding differs on Linux, the performance
@@ -490,7 +500,7 @@ Each quest leaves every repository working; the Worker pump API is deleted last.
 | 2 | `completion-seam` (completion) | `operation.h`, `completion.h`, the queues, `asio_completion.h`, tests | `SyncData` on every backend (fault tests); `completion_ref` with a token, `InlineCompletion`, `HeldCompletion`; `drive_synchronously` is `InlineCompletion`'s loop | low | - |
 | 3 | `journal-driver` (journal) | `turn_driver.h`, `store.h`, `journal.h`, tests | `TurnDriver::run` and `Store` tasks (D2); crash-point suites through `HeldCompletion` with the sync driver's histories; `journal::run` over a shared backend with no `io_context`, committing turns inline (D5): it returns only after staged records are written, an append cancelled after staging included (D8), and throws `stalled` on a lost wake (the `blocking_entry rules` cases as tests); the owner tag refuses a turn log a `Driver` holds; no Asio in `include/` (grep job) | medium | 1, 2 |
 | 4 | `consensus-driver` (consensus) | `core.h` (`next_deadline`), new `driver.h`, `snapshot_channel.h` (D9), tests | `simulation_test` through `Driver` on `inline_scheduler` + `HeldCompletion`; the waiter protocol tested per interleaving with every cross-loop post a scheduling point and freed frames checked (as `waiter_test`; the review's resume-before-unlink mutants fail it) and D8's table row by row, `create`, `recover` and `close` included; every call from another loop under TSan; `consensus::run` per D5's five steps (the `blocking_entry rules` cases: `stalled` on a lost wake with a heartbeat armed, `needs_peer` for a multi-voter `propose`/`read`, a single voter's first election, staged-then-cancelled written before return) and its ownership assertion; idle-cost job: 0 threads, frames, armed timers per group, 3-voter member's consensus state within 8 KiB; Worker suites green; ASan+UBSan and TSan | high | 3 |
-| 5 | `consensus-transport` (consensus) | `transport/` on task, tests | one transport per loop (D10) beside today's `Peers`: placement by `slot(group) mod L`, a port per loop, a Control connection per pair of loops sharing groups and a Bulk connection per transfer, no thread hop on receive (TSan job with two loops per host); idle-cost job: per idle group at most 64 bytes, 0 descriptors, frames or timers, an idle connection end within 48 KB, per loop `29 KB + H x 41 KB` within 10%; a group with full admission does not delay another group's heartbeat on the same connection (as `reader_test`); host authentication, the per-frame membership check and the hello's checks in the group-open exchange (security review, Q7); no `asio::awaitable` under `include/` once `Peers` leaves | high | 4, Q7 |
+| 5 | `consensus-transport` (consensus) | `transport/` on task, tests | one transport per loop (D10) beside today's `Peers`: placement by `slot(group) mod L`, a port per loop, a Control connection per pair of loops sharing groups and a Bulk connection per transfer, no thread hop on receive (TSan job with two loops per host); idle-cost job: per idle group at most 64 bytes, 0 descriptors, frames or timers, an idle connection end within 48 KB, per loop `29 KB + H x 41 KB` within 10%; a group with full admission does not delay another group's heartbeat on the same connection (as `reader_test`); host authentication, the per-frame membership check and the hello's checks in the group-open exchange (security review, Q7); a peer restarted with a different L is refused with `l_mismatch`, a misrouted group-open with `misrouted`, and a host never starts with an L other than its stored one (`l_mismatch_test`); no `asio::awaitable` under `include/` once `Peers` leaves | high | 4, Q7 |
 | 6 | `detent-on-drivers` (Detent) | `src/detent_authority/` | the owner-loop table; `AuthorityPeers` onto the loop transport; no 1 ms timer in the authority (grep and idle-CPU jobs); the `native` suite; CPU per request and p99 within the November 2 item 7 gate | high | 5 |
 | 7 | `worker-pump-removal` (consensus, then a Detent pin) | `worker.h`, `transport/peers.h`, their tests | `run_one`, `take_io_operation`, `take_actions`, `try_submit`, `try_submit_retained`, `storage_operation_failed` and today's `Peers` leave the public API; a grep job over Detent and consensus finds no caller | medium | 6 |
 
