@@ -1,53 +1,47 @@
 # dense-pages: journal
 
-State: waiting on jobs (D43 round at Detent:a904eef; ids in "D43 round 2026-11-09")
+State: waiting on jobs (final head Detent:941a17e; ids in "Final head round 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Design fixes (D42) at Detent:e879b9e, df7dabc, 5a134f9; main merged (D43, A12 rewritten) at
-c765cdf; D43 single-format refusal at 77aebb4, mutants at ddd1d24. The 5a134f9 batch was cancelled
-for the D43 change (its finished jobs are superseded). Head batch: "D43 round" (ddd1d24 for src-only jobs, a904eef for every job that runs dense_refetch or ownership).
+Final head Detent:941a17e: D42 design fixes, D43 single-format refusal, the widened file set's
+DES-1/DES-9 edits (Detent:421ca64), the A15 runner with its sysroot fix (Detent:3442d64), and the
+paged-recovery refusal expectation (Detent:941a17e). Every evidence job reruns there:
+"Final head round 2026-11-09".
 
 ## Next
 
-1. Read the ddd1d24 batch into Evidence; fix any failure.
-2. Lead widens the file set (Blocked on 1): apply `.scratch/des1-des9-out-of-set.patch`, commit,
-   rerun stale_docs.sh and native.
-3. Then State "ready for review"; A15's final rerun at the fixed head is the lead's.
+1. Read the 941a17e batch into Evidence; fix any failure (a fix moves the head: rerun the batch).
+2. A15: read prepare 261109-181129-0503bd and halves 1d7b57 / 2979b0 against the gate.
+3. Then State "ready for re-acceptance".
 
 ## Blocked on
 
-1. DES-1 and DES-9 need files outside the quest's set: `docs/FAST_CLIENT_ARCHITECTURE.md`,
-   `docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md`, `website/src/content/docs/architecture/how-it-works.md`
-   (DES-1: 15 probe lines, job 261109-174911-f589c4 at ddd1d24), and `src/detent_delivery/coordinator.cc`
-   (DES-9: 4 call sites of `StateCursor::logical_commitment` -> `state_commitment`). Edits ready:
-   `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages/.scratch/des1-des9-out-of-set.patch` (applies
-   at ddd1d24; stale_docs.sh exits 0 with it). Recommendation: widen the set by those four files.
-2. A15 prepare 261109-163514-6fcc50 failed (exit 2, `detent-agent` build error in its baseline);
-   halves 605b54 and 0e4b31 skipped. The runner is the lead's (ruling 14).
-3. D43 baggage outside this quest's mechanism, not removed (lead's call): the flat v1 image and
-   its migration and `legacy_anchor` paths (legacy H's), the "old paged head without prepared
-   metadata" equal-cursor replacement, and the user-facing `image_format: "paged-v2"` config
-   string (README, docs/ACTORS.md, LOCAL_IMAGE_FORMAT.md, PRODUCTION_CONTRACT.md, CAPACITY_*).
+1. D43 baggage outside this quest's set, routed by the lead to legacy step I: the flat v1 image,
+   its migration and `legacy_anchor` paths, the no-metadata equal-cursor replacement, and the
+   `paged-v2` config string (parsed in src/detent_delivery/configuration.cc and
+   include/detent_delivery/coordinator.hh; ruling 27).
 
-## For the lead's accepts (all at Detent:435a525, code = head)
+## For the lead's accepts (at Detent:941a17e, pending until the batch passes)
 
-- Correctness COR-1: `--confirm COR-1=261109-145755-71a2c4` (Debug bounds + delta oracle),
-  also 261109-145754-cecb4a (ASan/UBSan) and 261109-145755-bd9ad1 (unguarded-parent patch
-  segfaults test_local_dense_overlay_bounds; passes when killed). PERF-1 is A15: pending.
-- Security SEC-1 (warm validator fuzz): 261109-145755-2539d5 and 261109-145755-c3f5af (warm
-  contextual mutation ASan/UBSan smoke, 274 and 261 samples), 261109-145755-976098 (3 seeds x
-  940 CPU s reader/page/graph/warm).
-- Security SEC-2 (one CPU-hour): 261109-145755-649826 codec 726.9 CPU s (user 593.57 + sys
-  133.35; 930 s wall under load, 2,506,872 runs, 0 crashes) + 976098 2,820.25 CPU s = 3,547.2,
-  53 s short. Top-up 261109-163723-12ac7c (codec, 600 s wall, 535.41 CPU s, 0 crashes) brings it to
-  4,082.6 CPU s: `--confirm SEC-2=` all three.
+- Design: DES-1 `stale_docs` 261109-180946-6f6e7e; DES-2 `reference_shape` 261109-180945-2439b1
+  + des2-root-reserved 261109-180944-521053; DES-3 `delta_note` 261109-180945-4961d5;
+  DES-4/DES-9/DES-10 native 261109-180944-687f35; DES-5 a3-largest-first 261109-180944-f7f3ba, a3-seal-64
+  261109-180944-2e9402; DES-8/DES-11 (D43) grep 261109-180946-eaa529, refetch 261109-180944-49e1fc,
+  a12-no-refusal 261109-180945-002bed, a12-no-barrier 261109-180945-0c85a8.
+- Correctness COR-1: Debug bounds 261109-180945-9e64e1, ASan/UBSan 261109-180945-7689ca, unguarded
+  parent killed 261109-181100-08e5bf. PERF-1 is A15: prepare 261109-181129-0503bd, stopped
+  261109-181130-1d7b57, running 261109-181131-2979b0.
+- Security SEC-1: warm smoke 261109-180944-cbe9e6, 261109-180944-855f3d; reader/page/graph/warm 3 seeds
+  261109-181100-57ce7f. SEC-2 (one CPU-hour): codec 261109-181100-894cfb + 976098's twin + top-up
+  261109-181101-1605cc; CPU totals to read from their logs.
 
 ## Evidence
 
-All job ids below ran Detent:435a525 unless named; the head's code equals it (git diff
-435a525 a288377 is empty outside .campaign). Pending jobs are marked.
+Ids below are the measured runs at Detent:435a525 unless named; each reruns with the same command
+at the final head Detent:941a17e (`campaign` takes the twin there), map in "Final head round
+2026-11-09". Pending until that batch passes.
 
 | Criterion | Evidence |
 |---|---|
@@ -62,10 +56,10 @@ All job ids below ran Detent:435a525 unless named; the head's code equals it (gi
 | A9 | Overlay bounds (COR-1) Debug 261109-145755-71a2c4, ASan/UBSan 261109-145754-cecb4a and 261109-145755-79fbd0, unguarded-parent patch killed 261109-145755-bd9ad1. S3b's bounds on main: open (S3b/Dense order). |
 | A10 | 1,000 seeded trials of 1..500 changes equal full rebuilds 261109-145755-89ebfd. 100K real deltas 261109-145754-a00ef8: one update 5 pages / 14,276 B / 1 pack 14,287 B / 0 off-path; mixed churn 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B / 2 off-path 3,203 B; roots and occurrences equal the model. Repeated-content fixtures 261109-145755-37b414. Reverts killed: key grammar 261109-145819-036ceb, signed order 261109-145820-9d2b50, overlay limits 261109-145821-f28cd1, cursor limits 261109-145822-623329. 5M 261109-145754-28d1cf: one update 5 pages / 15,691 B / 1 pack 15,706 B / 0 off-path; mixed churn 16,616 pages / 42,821,363 B / 41 packs / 42,872,248 B / 99 off-path 220,903 B; all 5,000,004 bodies and occurrences equal the full rebuild and the model. |
 | A11 | Compaction, delta plan, relocation fixtures 261109-145755-37b414; relocation zero page hashes in 261109-145755-89ebfd. Mutants killed: noop-rewrite 261109-145824-7e3011, relocation-rehash 261109-145825-1a6698, offpath-skip 261109-145826-86a096; harness self-test 261109-145827-29b141. |
-| A12 | Refetch with the planner 261109-145755-2af02e; refusal and barrier mutants killed 261109-163618-cc9df2 at the head (refusal: invariant at test_dense_refetch.cc:155/170; barrier: :186, the skipped credit leaves `used` != census; replaces 9b17ea). Embedded v2 fixture equals generator output 261109-145755-5a7ad1; no live references 261109-145755-969274. Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
+| A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261109-180944-49e1fc (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261109-180945-002bed, barrier mutant killed 261109-180945-0c85a8; no per-version recognition left: grep 261109-180946-eaa529. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
 | A13 | ASan/UBSan 261109-145755-dc2bcc (10/10), 261109-145754-cecb4a, 261109-145755-79fbd0; TSan 261109-145754-fe08c1 (4/4); native incl. trusted restart and power cut 261109-145341-9f0788; revert/mutant batch in A3, A6, A9-A11. S1/S2 T7 positive at the head 261109-163620-dd9c24 passed (power_cut 5,766 cases in 121 s; paired main run 261109-163621-709877 passed in 45 s at the same time); startup-before-barrier killed at the head 261109-163623-0dd05f (power_cut invariant line 475 at 122 s, as on main; startup :97). CI at the final merged head: open. |
 | A14 | Correctness CHANGES (COR-1 fixed, confirming jobs above; PERF-1 = A15); security CHANGES (SEC-1, SEC-2 jobs above); design review not launched; architect ruling none. Open. |
-| A15 | Gate rerun (lead ruling): prepare 261109-163514-6fcc50 (light, runner Detent:40b7a87), measure stopped 261109-163530-605b54 and running 261109-163531-0e4b31 (exclusive), all pending. Earlier 261106-173358-3b82ed missed the gate on both arms (see "A15 baseline"). |
+| A15 | Gate at the final head: prepare 261109-181129-0503bd (light, baseline main = Detent:4d56489, code-equal to main 03e4781), measure stopped 261109-181130-1d7b57 and running 261109-181131-2979b0 (exclusive), pending. Earlier 6fcc50 failed (sysroot, ruling 24); 261106-173358-3b82ed missed the gate on both arms (see "A15 baseline"). Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. |
 
 ## Rulings I made
 
@@ -136,6 +130,9 @@ All job ids below ran Detent:435a525 unless named; the head's code equals it (gi
    under current ownership is fenced damage); v1 stays current (legacy H's); the model's
    `extract` stays as corpus provenance; the 80-byte body bound keeps its design reason.
    Text under "D43 round 2026-11-09".
+24-27. Final head: the A15 runner stays in the head with the config file's SDK (supersedes 13-14);
+   paged recovery expects the refusal path; superseded evidence; `paged-v2` stays outside the set.
+   Text under "Final head round 2026-11-09".
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
@@ -782,3 +779,95 @@ Rulings (D43 round):
 23. 2026-11-09: `maximum_leaf_body_bytes` keeps page_bytes - 80 (design D2: a lone leaf fits a
    page); its comment no longer cites DTPAGE02.
 
+## Final head round 2026-11-09 (lead msg: file set widened, A15 mine)
+
+1. Merged main 03e4781 (file set widened); applied the DES-1/DES-9 patch: Detent:421ca64
+   (stale_docs.sh exits 0 locally).
+2. Native 261109-175724-617306 at a904eef failed test_local_paged_recovery: a layout-4 lease now
+   decodes and takes the refusal path (ObsoleteGeneration), the test expected invalid_argument.
+   Fixed at Detent:941a17e (ruling 25).
+3. A15 prepare 6fcc50 root cause, reproduced with a 6-line CMake project
+   (`.scratch/a15/`): Homebrew LLVM 23.1.2's config file sets `-isysroot MacOSX15.sdk`, so CMake's
+   implicit include dirs are under MacOSX15.sdk; the runner passed `CMAKE_OSX_SYSROOT=MacOSX.sdk`
+   (-> 26.2), so `find_package(ZLIB)` returned MacOSX.sdk/usr/include, unfiltered, and the
+   imported target put it in as -isystem ahead of libc++ ("<cstring> tried including <string.h>").
+   With MacOSX.sdk the probe fails with that error; with MacOSX15.sdk it builds. Fix
+   Detent:3442d64: the sysroot comes from the config file and each cache is checked for it.
+4. Cancelled every queued/running job at ddd1d24 and a904eef (code moved). 605b54/0e4b31 had
+   already been skipped.
+
+Batch at Detent:941a17e (old -> new; old ids cited in Evidence resolve to these):
+
+| Old | New at 941a17e |
+|---|---|
+| 261109-175724-617306 | 261109-180944-687f35 |
+| 261109-175730-ce4c49 | 261109-180944-49e1fc |
+| 261109-175726-ce1145 | 261109-180944-bea2a0 |
+| 261109-175727-e6b831 | 261109-180944-cbe9e6 |
+| 261109-175728-c076bd | 261109-180944-855f3d |
+| 261109-175729-4c0bc7 | 261109-180944-e1ebb4 |
+| 261109-175731-2ec073 | 261109-180944-f7f3ba |
+| 261109-175731-53edcf | 261109-180944-2e9402 |
+| 261109-175732-2eb317 | 261109-180944-db72da |
+| 261109-175733-6f5e1c | 261109-180944-521053 |
+| 261109-175733-9fca9d | 261109-180944-e33d22 |
+| 261109-175734-d0fbd9 | 261109-180944-2189e8 |
+| 261109-175735-6f101d | 261109-180945-2bbae5 |
+| 261109-175736-8385ca | 261109-180945-002bed |
+| 261109-175736-aa9863 | 261109-180945-0c85a8 |
+| 261109-174653-689151 | 261109-180945-88b5ce |
+| 261109-174802-890ff1 | 261109-180945-7d65be |
+| 261109-174656-246235 | 261109-180945-5eb40d |
+| 261109-174806-3b102b | 261109-180945-f0d1dc |
+| 261109-174658-180c13 | 261109-180945-d5fab3 |
+| 261109-174700-0521e3 | 261109-180945-1f195b |
+| 261109-174810-102843 | 261109-180945-af7e88 |
+| 261109-174704-4702b7 | 261109-180945-d33e1c |
+| 261109-174705-1a49ef | 261109-180945-7689ca |
+| 261109-174719-dddba9 | 261109-180945-9e64e1 |
+| 261109-174813-04dd4d | 261109-180945-09d168 |
+| 261109-174848-e28eba | 261109-180945-180ad9 |
+| 261109-174721-6b20e3 | 261109-180945-664aa0 |
+| 261109-175748-7b7f6b | 261109-180945-2439b1 |
+| 261109-175749-970efa | 261109-180945-4961d5 |
+| 261109-175749-b2d21e | 261109-180946-6f6e7e |
+| 261109-175750-67c09e | 261109-180946-eaa529 |
+| 261109-145341-9f0788 | 261109-181100-28b7b1 |
+| 261109-145755-649826 | 261109-181100-894cfb |
+| 261109-145755-02bdc4 | 261109-181100-baf61e |
+| 261109-145755-ef7fac | 261109-181100-98fcc8 |
+| 261109-145755-976098 | 261109-181100-57ce7f |
+| 261109-145755-bd9ad1 | 261109-181100-08e5bf |
+| 261109-145812-adf192 | 261109-181100-249905 |
+| 261109-145816-953b99 | 261109-181100-caad32 |
+| 261109-145817-2916b3 | 261109-181100-190c20 |
+| 261109-145819-036ceb | 261109-181101-b8956f |
+| 261109-145820-9d2b50 | 261109-181101-e24170 |
+| 261109-145821-f28cd1 | 261109-181101-3fd8a5 |
+| 261109-145822-623329 | 261109-181101-1c607c |
+| 261109-145824-7e3011 | 261109-181101-0b9e6e |
+| 261109-145825-1a6698 | 261109-181101-d43c4a |
+| 261109-145827-29b141 | 261109-181101-feee08 |
+| 261109-163620-dd9c24 | 261109-181101-3429c3 |
+| 261109-163623-0dd05f | 261109-181101-68c11f |
+| 261109-163723-12ac7c | 261109-181101-1605cc |
+
+A15: prepare 261109-181129-0503bd (light), stopped 261109-181130-1d7b57, running
+261109-181131-2979b0 (exclusive, after prepare).
+
+Not rerun, superseded: cc9df2 (mutants of the removed UnsupportedFormat catch; replaced by
+a12-no-refusal/a12-no-barrier), 5a7ad1 (frozen v2 fixture, deleted by D43), 969274 (v2-name grep;
+replaced by the D43 grep), 709877 (main's paired T7 run, main's code unchanged).
+
+Rulings (final head):
+
+24. 2026-11-09: the A15 runner (docs/perf/first-read-gate.sh, .md,
+   tests/detent_system/first_read_export.cc, first_read_gate.py) stays in the head, per the lead;
+   supersedes rulings 13-14. Its sysroot is the SDK the LLVM config file names, not a fixed path.
+25. 2026-11-09: test_paged_recovery's unsupported-layout case expects
+   `detail::ObsoleteGeneration` from `GenerationReader::refresh` (the one refusal path) and still
+   checks the installed view is kept.
+26. 2026-11-09: evidence superseded by D43 is not rerun (list above).
+27. 2026-11-09: the `paged-v2` config string stays: its parser and enum are in
+   src/detent_delivery/configuration.cc and include/detent_delivery/coordinator.hh, outside the
+   set; the tests that write it follow the parser. Lead routes it to legacy step I.
