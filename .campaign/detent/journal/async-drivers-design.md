@@ -1,24 +1,50 @@
 # async-drivers-design: journal
 
-State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-042826-5c2da9 261110-042827-fb0e1d 261110-042829-5f86fb (waiter_test at Detent:9e7237c, the TSan fix)
+State: waiting on jobs 261110-051400-42b328 261110-051401-84305c 261110-051402-039776 261110-051403-98da34 261110-051404-d3763b 261110-051405-fcb3cf 261110-051406-7c0cea 261110-051407-cc2e96 261110-051408-0f19d8 261110-051409-9ec69b 261110-051409-6b0f0a 261110-051410-df6596 261110-051411-f62e3b 261110-051412-164e3c (design re-review R1-R13 at Detent:25f361e, D50)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Xapiand's review X1-X15 folded in: bench Detent:c351fc1, design Detent:786009f.
-Earlier: F11-F14 in Detent:672e7b7 / Detent:29fabf1; F1-F10 in Detent:35ed97d / Detent:3f16916.
+Nothing. Design re-review R1-R13 folded per the lead's D50: bench Detent:940514e, design
+Detent:25f361e. Earlier: Xapiand's X1-X15 in Detent:c351fc1 / Detent:786009f; F11-F14 in
+Detent:672e7b7 / Detent:29fabf1; F1-F10 in Detent:35ed97d / Detent:3f16916.
 
 ## Next
 
-1. The jobs above finish; reconcile their numbers with D5, D8 and D10's text (counts there are
-   from local runs of the same binaries at Detent:c351fc1).
-2. Xapiand's re-review (A8) at head; the lead relays it.
-3. The lead, outside this file set: record X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (Xapiand's
-   apply leaves the group's loop; the turn orders applies, the log orders appends, superseding
-   November 2's "the per-index turn holds the journal append and the apply").
+1. The jobs above finish; record exits in the R table and the D5/D8/D10 rows of the design's
+   Rerunnable checks (text only; the counts in D8 and D10 are from local runs of the same
+   binaries at Detent:25f361e).
+2. The design re-review of R1-R4 at head (the lead's).
+3. Xapiand's re-review (A8) at head; the lead relays it.
+4. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (Xapiand's apply
+   leaves the group's loop; the turn orders applies, the log orders appends).
+5. For the lead, unverified: journal may forget a lost verdict inside one generation too, once
+   retention reclaims the segment that holds the damage (`lost_` is rebuilt from each recovery,
+   `turn_log.h:176`). D10's group-table mark covers that case as well; no probe was run.
 
 "Task-wheel diff not found" (Xapiand's review, item 5): the diff is quest 1's output
 (`task-wheel`, task repository), which starts after this design lands; nothing to review yet.
+
+## Review findings (design re-review, 1ece2ff, D50)
+
+Review: `/Users/kronuz/code/Kronuz/Detent/.campaign/detent/reviews/async-drivers-design-design.md`,
+CHANGES, blocking R1-R4. Resolutions fixed by D50.
+
+| ID | Fix | Confirming job (failing before) |
+|---|---|---|
+| R1 | D10 step 1: every open marks recovery's lost ids in the host's group table, synced; `TurnLog` opens with them (quest 3); quest 3 criterion over a damaged old generation (Detent:25f361e); `placement_test remap` with one group in fifty lost and `remap-forget`, `repartition_lost` over the real RFTW0001 log with `forget` (Detent:940514e) | 261110-051400-42b328 (`repartition_lost`), 261110-051404-d3763b (`placement_test all`) (before: 261110-044744-df2ea9, the reviewer's probe at Detent:1ece2ff, ACCEPTED; controls 261110-051401-84305c `repartition_lost forget` and 261110-051405-fcb3cf `placement_test remap-forget`, must exit 1) |
+| R2 | D10: a refused, failed or hello-less dial falls back to the peer's loop 0, whose hello carries L; at most 3 dials; quest 5's `l_mismatch_test` with a stale lower-id dialer (Detent:25f361e); `placement_test hello` counts unbound dials apart from `misrouted`; `shrink_dial` follows the fallback (Detent:940514e) | 261110-051402-039776 (`shrink_dial`), 261110-051404-d3763b (before: 261110-044744-df2ea9, 25.0% / 81.2% / 25.2% / 66.6% unreachable; control 261110-051403-98da34 `shrink_dial stale`, must exit 1) |
+| R3 | D5 option (b): step 5 always throws `kronuz::journal::stalled` (`std::logic_error`, the waiting groups' ids, not retryable); a cross-thread cancel wakes only step 4's sleep; Limits matches; quests 1, 3, 4 criteria (Detent:25f361e); `can_wake`/`requestable` removed from blocking.hh and blocking_entry.cc, `lost-wake-live-token` case (Detent:940514e) | 261110-051407-cc2e96 (`blocking_entry all`), 261110-051408-0f19d8 (`threads`, TSan) (before: 261110-044953-75c0a8, no predicate in task; controls 261110-051409-9ec69b `inline` and 261110-051409-6b0f0a `v1`, must exit 1) |
+| R4 | D8 close rule 2 and table: every waiter holding no staged record (unadmitted proposal, read at either stage, `create`/`recover` after its durable step) completes `closed`; only staged ones drain; D2: `open`, `receive`, `applied` by `GroupId`, a closed group drops and counts them; close does not wait for the held `Committed` range (Detent:25f361e); `waiter_test close-read`, `close-open`, `close-late` and their `-naive` controls (Detent:940514e) | 261110-051410-df6596 (all), 261110-051411-f62e3b (ASan+UBSan), 261110-051412-164e3c (TSan) (before: the `-naive` controls inside the same runs: 32/234, 110/527, 182,104/241,710 schedules broken) |
+| R5 | D8 table: close and shutdown rows split; shutdown completes `cancelled`, the record still written (Detent:25f361e) | n/a (text) |
+| R6 | D5: `needs_peer` on a voting member (voter or witness) other than this node, X5's predicate; quest 4 criterion (Detent:25f361e) | n/a (criterion for quest 4) |
+| R7 | D10 and Q7: "stores"; a named source incarnation's node must be the authenticated node; quest 5 criterion (Detent:25f361e) | n/a (text; quest 5's security review) |
+| R8 | D3: three seams are `Seams`' members, the wheel the scheduler's; D4 heading (Detent:25f361e) | n/a (text) |
+| R9 | D2 `TurnDriver` per loop; quest 5 `l_mismatch` redials; quest 4 `create` and `recover` (Detent:25f361e) | n/a (text) |
+| R10 | D5 quotes 60.2 ms (TSan, 32585e) and 51.2 ms (plain, 58310d) (Detent:25f361e) | 261110-031130-32585e, 261110-031128-58310d |
+| R11 | Quest 4 criterion: close racing a cancel and teardown on real threads under TSan (Detent:25f361e) | n/a (criterion for quest 4) |
+| R12 | D10 Cost and quest 5 criterion: a half-open loop-pair connection detected within a stated bound (Detent:25f361e) | n/a (criterion for quest 5) |
+| R13 | Quest 3: each (generation, loop) log in its own subdirectory (Detent:25f361e) | n/a (text) |
 
 ## Review findings (Xapiand review, A8, f48f7cb)
 
@@ -145,6 +171,7 @@ changes for Xapiand:
 | A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, owns its groups, and ends." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
 | A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
+| R1-R4 | the R table above (design re-review at Detent:1ece2ff) |
 | A8 | Xapiand's review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), verdict CHANGES at Detent:f48f7cb, blocking X1-X5; folded at Detent:c351fc1 (bench) and Detent:786009f (design), jobs in the X table; re-review pending |
 
 ## Result
@@ -224,3 +251,21 @@ changes for Xapiand:
     issue and at its barrier; a local TSan build (threads 1000, close 1, teardown 1) is clean.
     Other jobs at Detent:c351fc1 finished as required: 58310d, 32585e, 9f199a pass; 189172,
     e8b259, 999c25 exit 1 (the before-jobs).
+25. R1's carrier is the host's group table, not the layout record or a lost marker in the log:
+    every open, not only a re-partition, writes recovery's lost ids there before it serves, so
+    the verdict outlives any later loss of the damage, and the table already names every group
+    (X9). TurnLog at the pin cannot be seeded, so `repartition_lost` models quest 3's seeding by
+    the host's refusal; it prints TurnLog's own verdict beside it.
+26. Ruling 23 is reversed (D50, option (b)): step 5 throws `stalled` on every lost wake; a cross-
+    thread cancel wakes only a deadline's sleep.
+27. Ruling 20 is narrowed: `open`, `receive` and `applied` take a `GroupId` too (R4), so every
+    Driver call names its group by id; on the group's loop the lookup is the only added cost.
+28. `stalled` is one type, `kronuz::journal::stalled` (a `std::logic_error` carrying the waiting
+    groups' ids), thrown by both entries, at the coordinator's request for Xapiand: journal is
+    the lower of the two libraries; a type per entry would be two shapes for one condition.
+29. The reviewer's `run_probes.sh` cannot run at Detent:940514e (its appended targets clash with
+    the bench's `repartition_lost` and `shrink_dial`), so the bench carries both probes with the
+    fixes and a control each (`forget`, `stale`); `token_predicate` is retired with option (b).
+30. The X2/X3/X4 jobs at Detent:c351fc1 and Detent:9e7237c stand only for their numbers quoted
+    in the text (60.2/51.2 ms, D8's close and teardown counts); the files changed, so the R
+    table's jobs at Detent:25f361e are the evidence for D5, D8 and D10.
