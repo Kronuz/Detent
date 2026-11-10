@@ -2,6 +2,7 @@
 # Builds the async-drivers measurements against the library commits a job pins and runs them.
 #   run.sh idle_cost [groups]       per-idle-group bytes, descriptors and threads
 #   run.sh driver_cost [section]    frames, resumes, wheels, steps, idle CPU
+#   run.sh channel_layout           where a follower's SnapshotChannel bytes go
 # A campaign job pins the libraries with --ref consensus=..., journal=..., completion=...,
 # task=... (checkouts at $JOB_REF_<NAME>); without them, the commits CMakeLists.txt declares.
 set -euo pipefail

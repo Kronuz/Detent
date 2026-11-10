@@ -25,3 +25,6 @@ target_link_libraries(idle_cost PRIVATE consensus::consensus completion::asio)
 
 add_executable(driver_cost driver_cost.cc)
 target_link_libraries(driver_cost PRIVATE consensus::consensus completion::asio scheduler)
+
+add_executable(channel_layout channel_layout.cc)
+target_link_libraries(channel_layout PRIVATE consensus::consensus)
