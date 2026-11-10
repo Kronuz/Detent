@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-031122-f53237 261110-031124-cc8ce9 261110-031126-76a5a7 261110-031128-58310d 261110-031130-32585e 261110-031132-189172 261110-031134-9f199a 261110-031136-e8b259 261110-031138-999c25
+State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-031126-76a5a7 261110-031128-58310d 261110-031130-32585e 261110-031132-189172 261110-031134-9f199a 261110-031136-e8b259 261110-031138-999c25 (f53237 and cc8ce9 finished, exit 0, counts match D8)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
