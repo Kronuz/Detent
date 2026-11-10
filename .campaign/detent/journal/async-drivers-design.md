@@ -1,18 +1,54 @@
 # async-drivers-design: journal
 
-State: ready for review (fix round 2 of 2, design re-review at 73e96d6, CHANGES: F11-F14); every job finished
+State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-031122-f53237 261110-031124-cc8ce9 261110-031126-76a5a7 261110-031128-58310d 261110-031130-32585e 261110-031132-189172 261110-031134-9f199a 261110-031136-e8b259 261110-031138-999c25
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Re-review F11-F14 and N1-N5 folded in: bench Detent:672e7b7, design Detent:29fabf1.
-Earlier: F1-F10 in Detent:35ed97d (bench) and Detent:3f16916 (design).
+Nothing. Xapiand's review X1-X15 folded in: bench Detent:c351fc1, design Detent:786009f.
+Earlier: F11-F14 in Detent:672e7b7 / Detent:29fabf1; F1-F10 in Detent:35ed97d / Detent:3f16916.
 
 ## Next
 
-1. Design re-review (lens `design`) at head.
-2. A8: the lead relays the note below to the Xapiand lead (`campaign message xapiand:`); record
-   the answer here.
+1. The jobs above finish; reconcile their numbers with D5, D8 and D10's text (counts there are
+   from local runs of the same binaries at Detent:c351fc1).
+2. Xapiand's re-review (A8) at head; the lead relays it.
+3. The lead, outside this file set: record X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (Xapiand's
+   apply leaves the group's loop; the turn orders applies, the log orders appends, superseding
+   November 2's "the per-index turn holds the journal append and the apply").
+
+"Task-wheel diff not found" (Xapiand's review, item 5): the diff is quest 1's output
+(`task-wheel`, task repository), which starts after this design lands; nothing to review yet.
+
+## Review findings (Xapiand review, A8, f48f7cb)
+
+Review: `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md`
+(Xapiand:de3c1b572, on Xapiand master). Verdict CHANGES; blocking X1-X5.
+
+| ID | Fix | Confirming job (failing before) |
+|---|---|---|
+| X1 | D10 identity and Q7 (a): accept a frame from a node the loop's pins authenticate for the cluster naming a group and destination incarnation the loop holds; Core decides; no membership check; quest 5: joiner installs and catches up, lagging follower catches up (Detent:786009f) | n/a (text: consensus:ab05507 `core.h:756-759` already admits any authenticated incarnation; ruling 18) |
+| X2 | D8: waiter destructor unlinks (legal on the group's loop and in teardown phase 3); close refuses, resolves unadmitted waiters with `closed`, drains staged, frees state once nothing queued; host-wide two-step shutdown; calls by group id (D2); D8 table row; quest 4 criteria (Detent:786009f); waiter.hh, waiter_test `close`/`teardown` and controls (Detent:c351fc1) | 261110-031122-f53237 (all), 261110-031124-cc8ce9 (ASan+UBSan), 261110-031126-76a5a7 (TSan) (before: the controls inside the same runs, `close-naive` and `teardown-naive`, break 977/1,824 and 27/319 schedules; local run at c351fc1) |
+| X3 | D5 on `task::blocking_scheduler` (Xapiand's engine::BlockingScheduler moved into task, with the wheel); `inline_scheduler` gains same-thread `post_call` for the simulator; step 5 waits only while a linked waiter's token can still be requested; quest 1 criterion (Detent:786009f); blocking.hh, `blocking_entry threads` (Detent:c351fc1) | 261110-031128-58310d (all), 261110-031130-32585e (threads, TSan) (before: 261110-031132-189172, `blocking_entry inline`, must exit 1: hop's post_call dropped, stalled) |
+| X4 | D10: placement `(slot * L) >> 12` for any L; re-partition at open when L changes (recover the generation, write live records to the next generation's logs, sync, commit by the layout record); hello and `misrouted` kept (F15); Limits; quests 3 and 5 (Detent:786009f); placement_test (Detent:c351fc1) | 261110-031134-9f199a (map, share, remap, hello) (before: 261110-031136-e8b259, `placement_test mod`, the f48f7cb rule, must exit 1) |
+| X5 | D5 step 4 counts no election; Core campaigns at Start for a lone voter with no witness; quest 4 criterion (Detent:786009f); blocking_entry rules first-election 0 advances, `core=today` control (Detent:c351fc1) | 261110-031128-58310d (before: 261110-031138-999c25, `lone_voter` on consensus:ab05507, must exit 1: leads 1,499 ms after Start) |
+| X6 | Q6 restated as (b): AsioHost::arm and DB-TIMER move, logger keeps Kronuz/scheduler; measure the logger's workload before proposing retirement; retiring is the owner's call (Detent:786009f) | n/a (text) |
+| X7 | D4 bullet: what moves onto the wheel and what stays (LagProbe off the wheel for good); owner check binds at loop start; Limits: up to 1 ms late (Detent:786009f) | n/a (text) |
+| X8 | Q4 and Build plan: quiescence with a closed state a frame or request reopens, before 7b; D10 rule for a frame naming a stored closed group (Detent:786009f) | n/a (text) |
+| X9 | Q3 (b) per host (not per core, for X4) with the five conditions as quest 3 criteria (Detent:786009f) | n/a (text) |
+| X10 | D2's Sink applies nothing inline, `applied` later via post_call (Detent:786009f); SHARED_LIBRARY_DECISIONS is outside this file set: listed for the lead (Next 3) | n/a (text) |
+| X11 | D8 row 2: a cancelled `propose` has an unknown outcome (Detent:786009f) | n/a (text) |
+| X12 | D10 Cost: connections grow with loops x peer hosts, depends on the copyset bound, keepalive per node pair, shard RPC on these connections; quest 5 measures keepalives (Detent:786009f) | n/a (text) |
+| X13 | D6: turn primitives ahead of artifact and snapshot IO; quest 2 criterion (Detent:786009f) | n/a (text) |
+| X14 | D2: `Seams` takes the wheel from the scheduler (`scheduler_ref::wheel()`); quest 1 criterion (Detent:786009f) | n/a (text) |
+| X15 | D8 table: the host owns opens (single flight); requests wait under their own tokens (Detent:786009f); Xapiand's 7b design handles the rest | n/a (text) |
+
+Xapiand's answers to the asks: API (D2) agreed, no bridge; deadlines (D8) shape right, X2/X11
+fixed; D5 rules right, X3/X5 fixed; 7b fit arithmetic checks, a million groups fit only once
+groups follow the catalog (X5, X8, X9); Q3 (b) with opaque group ids, per-group reclaim by name,
+per-core (now per-host) group table, 0 fds per idle group; Q6 (b) (AsioHost timers and DB-TIMER
+onto the wheel; Kronuz/logger's deferred lines keep Kronuz/scheduler, retiring it is the owner's
+call); Q7 (a) once X1 is fixed; X8: Q4 needs closable quiescent groups.
 
 ## Review findings (design review, 128df91)
 
@@ -45,7 +81,16 @@ Earlier: F1-F10 in Detent:35ed97d (bench) and Detent:3f16916 (design).
 
 ## Blocked on
 
-A8 needs the Xapiand lead's review of items 1-5, 7b fit, D8 and D10 (Q7); the lead relays it.
+Nothing of mine. A8 needs Xapiand's re-review of the fold at head (the lead relays it); X10's
+SHARED_LIBRARY_DECISIONS entry is the lead's (Next 3).
+
+## Note for the Xapiand re-review (A8, fold of X1-X15)
+
+Design at Detent:786009f, bench at Detent:c351fc1. Blockers: X1 in D10 "Identity" and Q7; X2 in
+D8 "Close, teardown and shutdown", D2 (calls by group id) and the D8 table; X3 and X5 in D5; X4 in
+D10 "Placement and routing" and "L may change at restart", Q3 (per host). Non-blocking: X6 Q6,
+X7 D4, X8 Q4 and D10, X9 quest 3, X10 D2 Sink (SHARED_LIBRARY_DECISIONS is the lead's), X11 D8,
+X12 D10 Cost, X13 D6, X14 D2, X15 D8. Probes and their before-jobs: the X table above.
 
 ## Note for the Xapiand lead (A8)
 
@@ -100,7 +145,7 @@ changes for Xapiand:
 | A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, owns its groups, and ends." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
 | A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
-| A8 | pending: the Xapiand lead's answer (note above) |
+| A8 | Xapiand's review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), verdict CHANGES at Detent:f48f7cb, blocking X1-X5; folded at Detent:c351fc1 (bench) and Detent:786009f (design), jobs in the X table; re-review pending |
 
 ## Result
 
@@ -152,3 +197,23 @@ changes for Xapiand:
     the A4/A7 jobs at Detent:35ed97d stand (the lead's ruling for this round).
 17. The reviewer's mutant script runs from the home checkout's `.scratch`; it is not copied
     into the file set.
+18. X1 gets no probe: the transport it constrains does not exist, and Core's own admission
+    (consensus:ab05507 `core.h:756-759`, "any authenticated incarnation") already settles it;
+    quest 5 carries the joiner and lagging-follower tests.
+19. X4: of Xapiand's options, (a) re-partition at open, with the lead's slot-keyed routing.
+    Storage is keyed by group id and (generation, loop), never a bare loop index; a fixed
+    partition count costs P/L barriers per turn forever and per-slot logs 256 GiB preallocated.
+    Placement switches from `slot mod L` to `(slot * L) >> 12` (division-free, contiguous, any
+    L) because `mod` breaks the per-peer sharing bound for non-power-of-two L. Q3 (b)'s directory
+    and owner lock move from per core to per host so a resize renames nothing.
+20. X2: task calls take a `GroupId` resolved in the loop's group table, so a call whose hop lands
+    after close completes with `closed` instead of touching freed state; on-loop plain calls keep
+    `Group&`.
+21. waiter.hh changed (destructor unlink, `closed`), so waiter_test reruns at Detent:c351fc1
+    (f53237, cc8ce9, 76a5a7); the F14 mutant jobs at Detent:672e7b7 stand, since the mutated
+    paths (resume before unlink, ignored claim) are unchanged.
+22. `lone_voter` exits 1 on consensus as pinned by design: it is X5's before-job and quest 4's
+    acceptance check.
+23. Step 5 on a steady clock waits while a linked waiter's token can still be requested (a
+    SIGINT or request token), rather than throwing: a cross-thread cancel is progress the entry
+    can wait for; a lost wake under such a token waits until it is requested or a deadline fires.
