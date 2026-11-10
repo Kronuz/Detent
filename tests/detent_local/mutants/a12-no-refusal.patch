@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/generation.cc b/src/detent_local/generation.cc
+index 7e9f8fc..202d502 100644
+--- a/src/detent_local/generation.cc
++++ b/src/detent_local/generation.cc
+@@ -353,7 +353,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path
+ 				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
+ 			};
+ 			if (generation_ownership && !current_layout(generation_ownership->layout_version))
+-				refuse();
++				throw std::runtime_error("generation not refused");
+ 			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
+ 				const auto bounds = detail::paged_limits(limits, descriptor.length);
+ 				const auto root = paged::decode_root(bytes, bounds);
