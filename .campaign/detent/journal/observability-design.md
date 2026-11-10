@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: ready for review (design re-review). Rerun jobs at 71e7c76 queued: 261110-021130-cf5075 (build), -f4abe5 (smoke), -e7b6b4 (screen), -d5103d (confirm), -1bad17 (D2 confirm), -06137b (A8 exact-confirm), -368d1b (pair-screen), -445051 (pair-confirm); check them with `campaign job list`
+State: ready for review (design round 3). OR1-OR10 of the review at c30abc4 folded in at 56dd0ab, text only; bench code unchanged, so nothing rerun. OR4's disassembly probe 261110-053432-d2ad94 still queued.
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -89,14 +89,13 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
 
 ## Next
 
-0. Reviewer: reruns at the head (ids in State) are queued behind exclusive holds; when they exit 0, check `confirm-paired.md` against D2's table and D10's
-   tables, then set State to ready for review. A8 and Checks now list the pair jobs.
-2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
-   `confirm-paired.md` against D2's table.
+1. Lead: design re-review of 56dd0ab (OR1-OR10).
+2. When probe 261110-053432-d2ad94 finishes, read its summary.txt (~/.scratch/campaign/jobs/261110-053432-d2ad94/a1/out/) against D10 shape item 4.3 and cite it, or correct the text.
 
 ## Blocked on
 
-Nothing. Owner ruled D48 (PLAN.md, 2026-11-10): keep `ever_sampled`, accept the +7.7 ns bool/scattered/1-thread miss
+Nothing for this quest. The lead has put to the owner that D48's "passes at 64 threads" holds in 2 of 3 exclusive runs (+8.3, +10.4, +8.6 bool scattered); D10 states the three runs and leaves D48 as recorded.
+Earlier: Owner ruled D48 (PLAN.md, 2026-11-10): keep ever_sampled, accept the +7.7 ns bool/scattered/1-thread miss
 (exclusive 261109-224833-fa1352); OB1 re-measures on the real hot path. Recorded in D10 item 4, Q7, the status line and Checks.
 
 ## Evidence
@@ -104,12 +103,12 @@ Nothing. Owner ruled D48 (PLAN.md, 2026-11-10): keep `ever_sampled`, accept the 
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/design/observability.md`: "D1. What is observed, and its bounds" (per process, per host, per fleet bounds; freshness in D5) |
-| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." Paired D2 table and OB1's gate; rerun at 71e7c76: confirm (exclusive) 261110-021130-d5103d and 261110-021130-1bad17 write confirm-paired.md; numbers quoted from the same-binary run 261109-120858-28cd50 at d1ce742 |
+| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." and "The sequential method does not resolve the pick." Cost quoted from D10's interleaved exclusive runs 261109-224833-fa1352, 261110-021130-06137b, 261110-021130-445051 (ever_sampled +2.3 to +6.4 ns at 8 threads); D2's sequential 261109-120858-28cd50 kept for large separations, reruns 261109-131328-0ce3a4, 261110-021130-d5103d, 261110-021130-1bad17 |
 | A3 | `docs/design/observability.md`: "D7. Leaving the process and the host" (usage page, agent pread, JSON document, Prometheus textfile Q3 and D9, fleet Q4) |
-| A4 | `docs/design/observability.md`: "unused, its paired median at 8 threads is" (D6 item 2) |
-| A5 | `docs/design/observability.md`: "D8. Privacy and limits" (identifiers and fallbacks never stored, names never labels, caps) |
+| A4 | `docs/design/observability.md`: "OB3's interleaved gate is its first resolving measure." (D6 item 2; hook_off unresolved in the sequential runs, −16.9 to +22.2 ns in the reruns) |
+| A5 | `docs/design/observability.md`: "D8. Privacy and limits" (identifiers and fallbacks never stored, names never labels, caps) and "The ever-read set is not in those rows" (per-revision bitsets outside the 65,536-row cap, 625 KB per revision at 5M; Limit 12, Q7, OB4) |
 | A6 | `docs/design/observability.md`: "OB1 Usage table, sampling, ever-read bits and arms in the core" (OB1-OB6 with files, criteria, risk, needs; OB1's gate carries D10 and the D48 re-measure) |
-| A8 | `docs/design/observability.md`: "No exact count passes on scattered names." and "The pair now passes at 8 and 64 threads." D10 table (the original runs it cites are listed there); owner decision D48 (keep ever_sampled), recorded in D10 item 4 and Q7; reruns at 71e7c76: exact-confirm 261110-021130-06137b, pair-screen 261110-021130-368d1b, pair-confirm 261110-021130-445051 |
+| A8 | `docs/design/observability.md`: "No exact count passes on scattered names.", "At 8 threads the pair passes in every run" and "The bench's error." D10 table (the original runs it cites are listed there); owner decision D48 (keep ever_sampled), recorded in D10 item 4 and Q7; reruns at 71e7c76: exact-confirm 261110-021130-06137b, pair-screen 261110-021130-368d1b, pair-confirm 261110-021130-445051 |
 | A7 | Reruns at 71e7c76: build 261110-021130-cf5075, smoke 261110-021130-f4abe5, screen 261110-021130-e7b6b4, confirm (exclusive) 261110-021130-d5103d; first run: build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm 261109-131328-0ce3a4 at 51923f8; the doc cites the same-binary chain at d1ce742 listed under Doing |
 
 Review findings (round 1, `6139e4c`), all fixed in `51923f8`:
@@ -123,14 +122,23 @@ Review findings (round 1, `6139e4c`), all fixed in `51923f8`:
 - OD-8: D2 item 7 reworded: deltas measured at the S6 baseline; OB1 re-establishes them in the core.
 - OD-9: OB1 builds generations with `publish(Snapshot)`; the `publish_json` call of `parse_defaults` is stated.
 
+Review findings (round 2, `.campaign/detent/reviews/observability-design-design.md` at c30abc4), fixed in 56dd0ab:
+- OR1: lead, Abstract, D2 items 1-2 quote D10's interleaved runs; D2's table labelled a one-run sequential screen, reruns' ranges given; A4's hook_off left to OB3's gate.
+- OR2: D10 item 4 states +8.3, +10.4, +8.6 (bool scattered, 64 threads), one of three over 10; D48 left as recorded, with a line that the lead put it to the owner.
+- OR3: "The bench's error." under the gate table: A/A −3.9 at 1 thread, knob_sampled −25 to −29 at 64; both D48 rows inside it; OB1's one-path method removes it. Hidden per-op cells footnoted.
+- OR4 (non-blocking): item 4.3 reworded as an observation, cites probe 261110-053432-d2ad94 (still queued).
+- OR5: ever-read set exported as per-namespace, per-revision bitsets outside the capped rows (D8, D7 item 5, D1, Q7, Limit 12, OB4).
+- OR6: off handle (usage_slots = 0) skips bits and countdown, allocates no bitmaps, is OB1's off handle; retired bitmaps' ranges reused (D10 shape items 2-3, Limit 8).
+- OR7: a fork child's bitmaps start clear (D7 item 4). OR8: A/A note says by value. OR9: added term marked as the design's proposal (PLAN wording is the lead's). OR10: D7 item 5 lists the ever-read field.
+
 ## Result
 
-`docs/design/observability.md` (D1-D9, Q1-Q7, OB1-OB6). Pick: sample one lookup in 64 per stripe into a
-per-handle per-knob table of 9 cells; paired median −4.4 to +6.7 ns per warm lookup at 8 threads. Exact
-per-knob counting +23 to +64 ns; shared `fetch_add` +21.7 to +33.6; kronuz::metrics counters +50 to +65.
-One thread unresolvable in this bench (`none` spread 221-287 ns); OB1's paired gate resolves it. Open: Q7
-(sampled vs dead-knob exactness), the S6 core's own baseline (889 ns hot int at 1 thread, 3.3x D3's 268.5 ns),
-Linux page faults (Limit 7).
+`docs/design/observability.md` (D1-D9, Q1-Q7, OB1-OB6). Pick (Q7, D48): ever_sampled, an exact ever-read bit per
+definition plus one lookup in 64 sampled per stripe into a per-handle table of 9 cells; interleaved, exclusive,
+three runs: +2.3 to +6.4 ns at 8 threads, +6.1 to +10.4 at 64, bool scattered at 1 thread +7.0 to +7.7 over
+the 5 ns ceiling. Bench error about ±4 ns placement and up to 29 ns code shape; OB1 re-measures in the core.
+No exact count passes scattered names at 64 threads. Open: the S6 core's own baseline (889 ns hot int at
+1 thread), Linux page faults (Limit 7).
 
 ## Rulings I made
 
