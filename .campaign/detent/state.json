@@ -2817,7 +2817,7 @@
     "observability-design": {
       "accepted": {
         "design": {
-          "at": "2026-11-10T06:20:06",
+          "at": "2026-11-10T06:46:15",
           "base": "970a7d42c362b6d14f4523aea8cb0991ecfab40a",
           "blobs": {
             "docs/design/observability-bench.sh": "100755:53e9a5bd12e49f8ec1ff91e06aa8cc05cb904756",
@@ -2831,7 +2831,7 @@
           "commit": "5282545286b326adb3154d06448a79e664691c39",
           "findings": {},
           "note": "",
-          "review": "22e5722236e45fa1cb437688a92307abc122642b",
+          "review": "9b9df20b3b1fbe2ddf9a514e232324af6141f171",
           "reviewed": "",
           "verdict": "APPROVE"
         }
@@ -2855,7 +2855,7 @@
       "risk": "low",
       "status": "active",
       "title": "Design knob observability: usage, resolved values, export",
-      "updated": "2026-11-10T06:20:06",
+      "updated": "2026-11-10T06:46:15",
       "worktree": "../Detent-wt/detent/observability-design"
     },
     "persistent-map-adoption": {
