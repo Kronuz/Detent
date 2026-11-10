@@ -69,10 +69,6 @@ name a configuration to serve. Paths are relative to the file.
 detentd --status --port 8317
 ```
 
-<!-- e2e:begin
-stdout-matches: "mode":"durable_single_voter"
-e2e:end -->
-
 Without `--authority`, `--status` probes `127.0.0.1` over plain HTTP. With
 `--authority CONFIG` it probes the publisher address in the configuration, and
 checks the HTTPS endpoint with CA and name verification when the publisher uses

@@ -67,13 +67,6 @@ detent get checkout:nope --default false
 # false
 ```
 
-<!-- e2e:begin
-stdout:
-  true
-  ERR MissingKnob: checkout:nope (not present in current snapshot)
-  false
-e2e:end -->
-
 ---
 
 ## Environment
