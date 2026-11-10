@@ -214,6 +214,9 @@ changes for Xapiand:
     paths (resume before unlink, ignored claim) are unchanged.
 22. `lone_voter` exits 1 on consensus as pinned by design: it is X5's before-job and quest 4's
     acceptance check.
+23. Step 5 on a steady clock waits while a linked waiter's token can still be requested (a
+    SIGINT or request token), rather than throwing: a cross-thread cancel is progress the entry
+    can wait for; a lost wake under such a token waits until it is requested or a deadline fires.
 24. TSan job 261110-031126-76a5a7 (exit 134, 3+ reports, one location) was a model bug, not a
     design gap: the close model's `posted` counter was decremented by the IO loop's wrapper of
     the turn write and incremented on loop A. The design already keeps group state on its loop
@@ -221,6 +224,3 @@ changes for Xapiand:
     issue and at its barrier; a local TSan build (threads 1000, close 1, teardown 1) is clean.
     Other jobs at Detent:c351fc1 finished as required: 58310d, 32585e, 9f199a pass; 189172,
     e8b259, 999c25 exit 1 (the before-jobs).
-23. Step 5 on a steady clock waits while a linked waiter's token can still be requested (a
-    SIGINT or request token), rather than throwing: a cross-thread cancel is progress the entry
-    can wait for; a lost wake under such a token waits until it is requested or a deadline fires.
