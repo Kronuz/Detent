@@ -13,6 +13,11 @@ endif()
 
 include(FetchContent)
 set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
+# peers_cost needs consensus::transport (reactor and OpenSSL 3); run.sh turns it on for that target.
+option(BENCH_TRANSPORT "Build peers_cost over consensus::transport" OFF)
+if(BENCH_TRANSPORT)
+	set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
+endif()
 FetchContent_Declare(consensus GIT_REPOSITORY https://github.com/Kronuz/consensus.git GIT_TAG ab05507d8c88bb28d650c15dfe11c95e5db0eaf6)
 FetchContent_Declare(scheduler GIT_REPOSITORY https://github.com/Kronuz/scheduler.git GIT_TAG d57e8fc051097d84500b4036b85daadd00c00b14)
 FetchContent_MakeAvailable(consensus scheduler)
@@ -28,3 +33,16 @@ target_link_libraries(driver_cost PRIVATE consensus::consensus completion::asio 
 
 add_executable(channel_layout channel_layout.cc)
 target_link_libraries(channel_layout PRIVATE consensus::consensus)
+
+# Protocol tests and probes for the design's threading rules (review F1-F5): assertions stay
+# on in every build type, so the wheel's owner-thread checks run.
+foreach(t wheel_test waiter_test blocking_entry)
+	add_executable(${t} ${t}.cc)
+	target_link_libraries(${t} PRIVATE consensus::consensus completion::asio)
+	target_compile_options(${t} PRIVATE -UNDEBUG)
+endforeach()
+
+if(BENCH_TRANSPORT)
+	add_executable(peers_cost peers_cost.cc)
+	target_link_libraries(peers_cost PRIVATE consensus::transport)
+endif()
