@@ -311,7 +311,8 @@
         "src/detent_authority/service.hh",
         "tests/detent_authority/**",
         "tests/detentd/**",
-        "website/src/content/docs/quickstart.md"
+        "website/src/content/docs/quickstart.md",
+        "docs/status/quickstart-managed.md"
       ],
       "landed": [],
       "lenses": [
@@ -322,12 +323,11 @@
       "provides": [
         "detentd-readiness"
       ],
-      "reason": "started by force: dense-pages' tests/** glob is broad; its branch changes only tests/detent_local, detent_delivery, detent_system and detent_testing, never tests/detentd, tests/detent_authority or src/detentd",
       "repo": ".",
       "risk": "normal",
       "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-09T14:24:39",
+      "updated": "2026-11-09T16:40:07",
       "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
