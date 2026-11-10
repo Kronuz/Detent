@@ -3343,11 +3343,12 @@
         "namespace-s1-s2"
       ],
       "provides": [],
+      "reason": "split into namespace-measure, s4, s5-1, s5-2, s6, s7, s8, s9-s10 (D53)",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "dropped",
       "title": "Namespace delivery S4-S10",
-      "updated": "2026-11-08T15:38:09"
+      "updated": "2026-11-10T13:11:11"
     },
     "namespace-s5-1": {
       "accepted": {},
