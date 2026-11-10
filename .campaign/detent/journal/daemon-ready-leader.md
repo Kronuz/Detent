@@ -1,6 +1,6 @@
 # daemon-ready-leader: journal
 
-State: fix round F1/F2/N2/N3/N5 implemented at 82024eb; waiting on jobs 261109-164903-36a5eb (fix tests), 261109-164904-d4954d (A5 revert), 261109-164905-ff3d30 (A6 revert), 261109-164916-0e1fa4 (native), 261109-164915-21368f (N1 at main)
+State: waiting on jobs 261109-170314-b99d1f (fix tests), 261109-170316-7c18b2 (A5 revert), 261109-170317-153a91 (A6 revert), 261109-170319-f07393 (native), all at f3215b1
 Quest: .campaign/detent/quests/daemon-ready-leader.md (the lead's; never edit it)
 
 ## Doing
@@ -15,10 +15,11 @@ shape, documented in test_daemon_alone.py). N1: job at main below.
 
 ## Next
 
-1. On 261109-164903-36a5eb green: Evidence rows A5 (test_authority_lost_quorum), A6 (test_authority_daemon_stop) and the fix confirmations F1/F2/N5 take its id; A5/A6 revert rows take 261109-164904-d4954d / 261109-164905-ff3d30 (each passes iff the mutant is killed; 125 = build failure, then fix the script).
-2. On native 261109-164916-0e1fa4: fill A1/A2 with it. If it fails a test I touched, fix; `*-500000` cases are fixture-500k's.
-3. N1: 261109-164915-21368f runs test_authority_snapshot_catchup at main; if it fails there too, record it under Blocked on.
-4. If the stop test's chmod failure injection does not fail the runtime (parent reports ready), switch to RLIMIT_FSIZE on a restart.
+1. On 261109-170314-b99d1f green: Evidence rows A5, A6 and the fix confirmations F1/F2/N5 take its id; the revert rows take 261109-170316-7c18b2 (A5, F3) and 261109-170317-153a91 (A6).
+2. On native 261109-170319-f07393: fill A1/A2 with it. `*-500000` cases are fixture-500k's.
+
+History: jobs at 82024eb: 261109-164903-36a5eb failed only test_authority_daemon_stop (script bug: log not yet created under `set -e`, then zombie parent polled with kill -0; plus main.cc idled after a failed wait); lost_quorum, daemon, daemon_ready, daemon_alone passed there; A5 revert 261109-164904-d4954d passed (mutant killed). Fixed at f3215b1.
+N1: 261109-164915-21368f ran test_authority_snapshot_catchup at main (ef001a0) and passed, so the 2 s timeout in 261109-162029-7d42a7 was host load (about 37), not a main defect; I did not change that test.
 
 ## Blocked on
 
@@ -31,8 +32,8 @@ Nothing.
 | A1 | native 261109-150943-0c7951 (test_authority_daemon_ready: one open right after --daemonize, no retry) |
 | A2 | native 261109-150943-0c7951 (same test: --status "ready":true with "role":2; /v1/health sampled every 10 ms from first answer, never ready without role 2; test_authority_daemon_alone: a lone node of a three-voter set returns from --daemonize in under 10 s and reports "ready":false) |
 | A3 | 261109-150944-4403ae (earlier pass c05fdc at dd3aad7; restores main.cc, service.cc, service.hh from 63ed532, builds detentd, runs the test; passes iff the test fails on READINESS; 125 on build failure) |
-| A5 | pending: 261109-164903-36a5eb (test_authority_lost_quorum, scenarios A/B/C); revert 261109-164904-d4954d |
-| A6 | pending: 261109-164903-36a5eb (test_authority_daemon_stop); revert 261109-164905-ff3d30 |
+| A5 | pending: 261109-170314-b99d1f (test_authority_lost_quorum, scenarios A/B/C); revert 261109-170316-7c18b2 |
+| A6 | pending: 261109-170314-b99d1f (test_authority_daemon_stop); revert 261109-170317-153a91 |
 | A4 | D23 (.campaign/detent/PLAN.md): readiness waits for a leader; implemented as above |
 
 ## Result
@@ -56,3 +57,6 @@ script `tests/detent_authority/revert_ready_check.sh`.
    --daemonize and is not about readiness.
 3. The test samples health rather than injecting a leader-less state; the revert job proves the
    sampling plus the no-retry open catch the old behaviour.
+4. A restart of a follower is not needed for F1: `leader_contact` starts at runtime construction and `leader_known` false, so a fresh node is not ready until a RoleChanged names a leader.
+5. The contact proof counts any AppendResponse we send, including the rejection of a stale-term append (it carries our higher term, so it cannot be told apart); a deposed leader would refresh the stamp at most until it sees that higher term and steps down. N4 kept: the `peers->addresses.empty()` half of `lone_quorum` is the documented D40 shape.
+6. The A6 failure test injects the fault with `chmod 000` on the data directory after the listening line: the open journal fd keeps working but the next storage operation fences the worker (seen: health `fenced:true`, "authority worker fenced").
