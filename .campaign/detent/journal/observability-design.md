@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-141657-d683a8 261109-141658-03e1a9
+State: waiting on jobs 261109-202834-bfb3cf
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,12 +29,17 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
   Hot names: `pos_tls` −1.5 to +1.3, `ever_bit` +0.5 to +4.0 at all thread counts; `pos_shared`, `dm_cache`,
   `knob_rows64` out; `pos_stripe_rmw` +6.1 at 1 thread (locked RMW, bare +6.9). Superseded by `4871285`.
 - `4871285` (same-name pairs, both orders, delta = mean of the order medians; sampled slow path out of line):
-  build 261109-141656-5650f8 exit 0; smoke 261109-141657-d683a8, exact-screen 261109-141658-03e1a9 pending.
+  build 261109-141656-5650f8, smoke 261109-141657-d683a8, exact-screen (strict) 261109-141658-03e1a9, exit 0.
+  A/A (`none2`) within ±1.9 ns in every row: the method fix holds. Realistic table: `ever_bit` passes every
+  row (worst +5.1 int/scattered/64); `knob_sampled` fails bool/scattered/1 (+7.8); every exact count fails
+  scattered (`pos_tls` +46.6/+57.6 at 64, `pos_stripe_rmw` +59.6, `dm_cache` +36.7, `pos_shared` +31.5 hot/64).
+- Merged main at `09f038e` (bench binary unchanged: it builds the S6 ref, bench source digest unchanged).
+  Exact-confirm (exclusive, all 9 arms, reps 7, calls 262144) 261109-202834-bfb3cf at `09f038e`, slot obs-bench.
 
 ## Next
 
-1. A8: read exact-screen 261109-141658-03e1a9 (`exact-screen-paired.md`; A/A near 0 confirms the method fix);
-   then exact-confirm (exclusive) on the survivors, write A8 and update Q7, D2; rerun the chain at the doc head.
+1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`); write A8, update Q7 and D2;
+   rerun the quest's checks at the doc head; mark ready for review.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
