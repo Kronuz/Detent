@@ -1,6 +1,7 @@
 #include "detent_local/reader.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_snapshot_builder.hh"
+#include "recovery_context.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
 #include <filesystem>
@@ -106,7 +107,7 @@ int main() {
 	require(::chmod(path.c_str(), 0620) == 0);
 	rejects<std::invalid_argument>([&] { l::open_generation(directory); });
 	require(::chmod(path.c_str(), 0600) == 0);
-	// Reject an unsupported selected root without replacing the installed view.
+	// A non-current layout takes the one refusal path and keeps the installed view.
 	auto descriptor = image.descriptor();
 	descriptor.generation.fill('h');
 	auto root_name = l::generation_name(descriptor.generation);
@@ -118,7 +119,7 @@ int main() {
 	std::copy(hash.begin(), hash.end(), lease.begin() + 96);
 	write(directory / (root_name + ".lease"), lease);
 	write(directory / "selected", l::encode_descriptor(descriptor));
-	rejects<std::invalid_argument>([&] { reader->refresh(); });
+	rejects<l::detail::ObsoleteGeneration>([&] { reader->refresh(); });
 	require(reader->read_view().get("app", "count").value() == INT64_MIN);
 	reader.reset();
 	std::filesystem::remove_all(directory);
