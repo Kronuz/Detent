@@ -178,6 +178,29 @@ Unbounded sets are capped where they enter: `K` names per handle, then the overf
 
 The agent keeps host aggregates and its scan and attach durations in `kronuz::metrics::Counter` and `DurationHistogram` (single owner, `metrics.hh` at the pin `metrics:9db73de`), as the authority does. The read path uses neither `AtomicCounter` (+55 to +65 ns paired at 8 threads) nor `ContendedCounter` (+50 to +55 ns), both measured in D2. The Prometheus text file needs a renderer for those types; it belongs in Kronuz/metrics, header-only beside the counters it renders, so the relay and authority can serve the same format later instead of each writing its own. It adds no dependency; it is a change to the metrics library under its own review (OB4's first step). The JSON writers stay where they are (`service.cc:56-67`, `host.cc:59-127`).
 
+### D10. Exact counting (A8)
+
+The owner asked for exact counts if they can be made cheap (Q7, D38). Five exact mechanisms beyond D2's rows were measured. Each indexes by the definition's position in the generation, which the core holds once `lookup` has found the definition (the bench carries it on each name), so none hashes a name or probes a table:
+
+1. `pos_shared`: one row of 64-bit counters, a relaxed `fetch_add` per lookup.
+2. `pos_stripe_rmw`: 64 rows of 32-bit counters, one per stripe, a relaxed `fetch_add` (a locked add on x86).
+3. `pos_tls`: one row of 32-bit counters per thread, a relaxed load and store; the row is allocated on the thread's first lookup and registered for a scan to sum.
+4. `dm_cache`: a per-thread cache line of 8 (position, count) pairs, direct-mapped by position; a lookup that evicts a pair adds its count to the shared row.
+5. `ever_bit`: one bit per definition, test-before-set: a relaxed load, and a `fetch_or` only on a knob's first read, so after it the word stays shared in every core's cache.
+
+Beside them: `ever_sampled` (`ever_bit` and `knob_sampled` together, the shape recommended below), `knob_sampled` (D2's pick), `knob_rows64` (D2's best exact rows) and `none2` (A/A).
+
+The method is OB1's gate: the arm and `none` in one binary, alternated per block of 64 lookups on each thread over the same names, in both orders; a repetition's delta is the mean of its on-first and off-first block-pair medians, and the table gives the median over 7 repetitions (`observability-paired.py`). Exclusive job `A8CONFIRM` at `Detent:A8COMMIT`, 262,144 calls per thread, 100,000 knobs, the hot set one name and the scattered set 1,024 names; 64 threads on 16 hardware threads share stripes. Each cell is the larger of the integer and the bool delta, hot / scattered, in ns:
+
+A8TABLE
+
+1. **Only `ever_bit` passes OB1's gate in every row** (worst A8EVERWORST). It answers "did this handle read this knob" exactly, at 1 bit per definition: 12.5 KB per handle at 100,000 knobs, 625 KB at 5M.
+2. **No exact count passes on scattered names.** Each lookup of a different knob writes a different line: a per-thread row touches 1,024 lines per thread (`pos_tls` A8TLS64 at 64 threads), shared and striped rows add coherence misses (`pos_shared`, `pos_stripe_rmw`), and `dm_cache` evicts on nearly every scattered lookup and pays the shared add anyway. On a hot name `pos_tls` and `pos_stripe_rmw` pass, because one line stays private. The instructions are not the cost: with the lookup removed (`--bare 1`, strict screen `261109-141658-03e1a9`) every one of them costs at most +3.4 ns except the shared and striped atomics. The cost is the written line per distinct knob, which an exact count cannot avoid.
+3. **The cheapest exact count is `pos_tls`**, and it misses the 10 ns ceiling by A8TLSMISS at 64 threads on scattered names; it also allocates 400 KB per thread at 100,000 knobs (20 MB at 5M) and needs a thread registry (Alternatives, per-thread counters).
+4. **The A/A spread** (`none2`) is A8AA in every row, so a delta under the gate is resolved.
+
+The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131,072 calls) agrees on every verdict.
+
 ## Checks
 
 Rerun with `campaign job rerun` on the four jobs at the commit under review (`observability-bench.sh build`, then `run smoke`, `run screen`, `run confirm`, on slot `obs-bench`, ref `s6=b1d281c`). Each run writes `<mode>.md` (the summary) and `<mode>-paired.md` (the paired deltas D2 quotes).
