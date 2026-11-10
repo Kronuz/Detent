@@ -29,6 +29,27 @@
       "closed": "agent-campaign:97d27c3 installed: rerun keeps after; worker drains light work before exclusive/strict",
       "id": "msg-4",
       "text": "Installed agent-campaign:97d27c3 (dotfiles:54e9111). 1) Your msg-5: 'campaign job rerun' now keeps 'after' (prerequisites resubmitted first, edges mapped to the new ids). 2) The worker holds exclusive jobs, and strict ones on macOS, while light work is queued, up to an hour (CAMPAIGN_DRAIN_WAIT); our pending strict A/B had blocked your light holds 04:35-05:33, sorry. Nothing to change on your side; the running worker picks this up when it next starts."
+    },
+    {
+      "at": "2026-11-09T14:22:52",
+      "by": "xapiand-lead",
+      "closed": "Adopted as D39: daemon-ready-leader and async-drivers-design started; rc1-rc4 wait for their milestones to be split",
+      "id": "msg-5",
+      "text": "From the xapiand lead, at the owner's request: we were running one quest at a time while ~25 were ready, and the owner sees Detent waiting the same way. We now keep every launchable quest running: dependencies landed, file set disjoint from active quests, critical path first, capped by what the lead can review and land and by light slots (pace is advice, not a limit). Idle capacity goes to explorer batches from a hunt list of review follow-ups and benchmark losing rows. agent-campaign is getting this as rule text plus a 'launchable now' line in campaign status; I'll message when it's pushed. No need to wait for the tool: the ready list plus campaign check already show what's disjoint."
+    },
+    {
+      "at": "2026-11-09T14:59:18",
+      "by": "xapiand-lead",
+      "closed": "Noted; D39 already follows it. hunt.md to follow when exploration batches start",
+      "id": "msg-7",
+      "text": "Parallelism change landed: agent-campaign:c43dc00 (dotfiles:6e0d8af). campaign status now prints 'launchable now:' and 'held by file sets:', the skill says keep every launchable quest running, and .campaign/<name>/hunt.md feeds explorer batches (template in templates/hunt.md). Disk housekeeping (stale build dirs in daily prune, campaign sweep, a low-disk warning in check) is being built; I'll tell you when it's pushed."
+    },
+    {
+      "at": "2026-11-09T15:15:44",
+      "by": "xapiand-lead",
+      "closed": "Relayed approval noted; the permission system denied the delete to this session, so it waits for the owner's own word here or his own command",
+      "id": "msg-8",
+      "text": "Owner approved (2026-11-09): delete the ~43 GiB of old 5M run outputs in Detent/.scratch. Keep anything an open quest's evidence, review or A9 fixtures still cite."
     }
   ],
   "quests": {
@@ -72,13 +93,41 @@
         "correctness"
       ],
       "milestone": "M1b Async drivers",
-      "needs": [],
+      "needs": [
+        "async-drivers-design"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "M1b: coroutine drivers for journal and consensus, Detents owner loops on them",
-      "updated": "2026-11-08T15:37:58"
+      "updated": "2026-11-09T14:24:58"
+    },
+    "async-drivers-design": {
+      "accepted": {},
+      "after": [],
+      "base": "882a56d20dfa8094b803ea632c63593f1643ebb7",
+      "branch": "quest/detent/async-drivers-design",
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/design/async-drivers*"
+      ],
+      "landed": [],
+      "lenses": [
+        "design"
+      ],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [
+        "task:driver"
+      ],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "Design the journal and consensus coroutine drivers",
+      "updated": "2026-11-09T14:25:43",
+      "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
       "accepted": {},
@@ -236,6 +285,8 @@
     "daemon-ready-leader": {
       "accepted": {},
       "after": [],
+      "base": "9d7939f5727815d8d41faabb11c3ae6222c55549",
+      "branch": "quest/detent/daemon-ready-leader",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -264,11 +315,13 @@
       "provides": [
         "detentd-readiness"
       ],
+      "reason": "started by force: dense-pages' tests/** glob is broad; its branch changes only tests/detent_local, detent_delivery, detent_system and detent_testing, never tests/detentd, tests/detent_authority or src/detentd",
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-08T12:45:01"
+      "updated": "2026-11-09T14:24:39",
+      "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
       "accepted": {
@@ -459,8 +512,8 @@
       "risk": "low",
       "status": "landed",
       "title": "Dense distribution design: ship verified pages, not records",
-      "updated": "2026-11-09T11:16:59",
-      "worktree": "../Detent-wt/detent/dense-distribution"
+      "updated": "2026-11-09T14:26:51",
+      "worktree": ""
     },
     "dense-pages": {
       "accepted": {
@@ -966,6 +1019,38 @@
       "status": "blocked",
       "title": "Grouped syncs for Dense pages publication",
       "updated": "2026-11-08T12:45:00"
+    },
+    "fixture-500k": {
+      "accepted": {},
+      "after": [],
+      "base": "fb926182c8f85fb25bbfb510d776e3fa0626957f",
+      "branch": "quest/detent/fixture-500k",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_delivery/mutants/**",
+        "tests/detent_delivery/repeat_500k.sh"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [],
+      "reason": "started by force: dense-pages owns tests/**; this lands its tests-only commit 203f729 ahead of it, byte-identical",
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "Coordinator fixture builds the 500K snapshot only for replies that carry it",
+      "updated": "2026-11-09T16:19:49",
+      "worktree": "../Detent-wt/detent/fixture-500k"
     },
     "fleet-runner": {
       "accepted": {},
@@ -1721,10 +1806,66 @@
         "tests/detent_local/test_publication_power_cut.cc",
         "docs/measurements/sync-groups-20261108/**"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T14:41:43",
+          "commit": "dbf4f8dc73940924415b5f44c38c5e63f4d61b9a",
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-4154e6",
+              "level": "light",
+              "seconds": 621.3,
+              "state": "done",
+              "what": "namespace-s1-s2 check native at 35296bada2db"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-c8454e",
+              "level": "none",
+              "seconds": 5.6,
+              "state": "done",
+              "what": "namespace-s1-s2 check pins at 35296bada2db"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=address,undefined -fno-sanitize-recover=undefined -O1 -g\" && cmake --build .scratch/build-asan -j4 && ctest --test-dir .scratch/build-asan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-cfa19e",
+              "level": "light",
+              "seconds": 620.3,
+              "state": "done",
+              "what": "namespace-s1-s2 check asan at 35296bada2db"
+            },
+            {
+              "cmd": "cmake -S . -B .scratch/build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON -DCMAKE_C_FLAGS=\"-fsanitize=thread -O1 -g\" -DCMAKE_CXX_FLAGS=\"-fsanitize=thread -O1 -g\" && cmake --build .scratch/build-tsan -j4 && ctest --test-dir .scratch/build-tsan --output-on-failure -j4 --timeout 900 -R 'power_cut|disk_store|paged_publication_artifacts'",
+              "commit": "35296bada2db56136ca9fdfd7db06171bbfca6ed",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261109-121535-b38ac1",
+              "level": "light",
+              "seconds": 191.8,
+              "state": "done",
+              "what": "namespace-s1-s2 check tsan at 35296bada2db"
+            }
+          ],
+          "final": true,
+          "from": "fd7f455420a36e079bd490bbbc1019b7953c93cc",
+          "reason": "",
+          "tested": "f048b4a256416966bfe66bff66d35ce92bd0304a"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [
@@ -1733,10 +1874,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S1/S2: grouped file syncs",
-      "updated": "2026-11-09T14:06:17",
-      "worktree": "../Detent-wt/detent/namespace-s1-s2"
+      "updated": "2026-11-09T14:41:56",
+      "worktree": ""
     },
     "namespace-s3": {
       "accepted": {},
@@ -3222,21 +3363,37 @@
       "after": [
         "namespace-s1-s2"
       ],
+      "base": "381f08eedbdb51f24cc2557f22c3f692356bf6d9",
+      "branch": "quest/detent/sync-groups-perf",
       "checks": [],
       "consumes": [],
       "files": [
         "docs/perf/sync-groups.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-09T14:46:52",
+          "ci_skipped": "docs-only: the change is docs/perf/sync-groups.md and its journal; CI's paths-ignore excludes docs/** and **/*.md, so no CI run exists for it",
+          "commit": "3d9a60ea789ecf76efce75e8e8fd079e90692c9e",
+          "evidence": [],
+          "final": true,
+          "from": "841a215fc375b22d12c4d9dc708bfd8b99a2dbbc",
+          "reason": "",
+          "tested": "4ca47fd0529029b1852ae7d161a23d8efcd48880"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [],
       "provides": [],
+      "reason": "started by force: dense-pages' docs/perf/** glob is broad; its branch never touches docs/perf/sync-groups.md",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "landed",
       "title": "S1/S2 before and after timing table from main",
-      "updated": "2026-11-09T04:16:35"
+      "updated": "2026-11-09T14:46:53",
+      "worktree": ""
     },
     "task-cancellation": {
       "accepted": {},
