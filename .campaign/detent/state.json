@@ -159,9 +159,9 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "review",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-09T14:25:43",
+      "updated": "2026-11-09T23:27:20",
       "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
