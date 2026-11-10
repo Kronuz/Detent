@@ -1792,6 +1792,56 @@
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
       "updated": "2026-11-10T11:59:20"
     },
+    "docs-site-architecture": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/architecture.md",
+        "website/src/content/docs/architecture/**",
+        "website/src/content/docs/about.md",
+        "website/src/content/docs/benchmarks.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: architecture",
+      "updated": "2026-11-10T11:59:26"
+    },
     "docs-site-audit": {
       "accepted": {},
       "after": [],
