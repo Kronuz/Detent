@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: ready for review (fix round 1 of the design review at 128df91, CHANGES)
+State: ready for review (fix round 1 of the design review at 128df91, CHANGES); waiting on job 261110-000912-e9dff1 (idle_cost rerun; bytes matched exactly in 1f63c8 and fdfe40)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -113,3 +113,4 @@ changes for Xapiand:
 10. peers_cost builds against Homebrew OpenSSL 4.1 (`/usr/local/opt/openssl@4`), whose headers
     `/usr/local/include` holds; mixing them with openssl@3's library is undefined.
 11. A7's numbers at 87df68b and 128df91 (963cb8, f67aa2) stay cited only for run-to-run spread.
+12. The bench is unchanged since Detent:35ed97d (`git diff 35ed97d..HEAD -- docs/design/async-drivers-bench` is empty), so its jobs there stand for the doc and journal commits after it.
