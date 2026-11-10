@@ -23,7 +23,7 @@ cmake --build "$build" -j4 --target test_delivery_coordinator || exit 3
 cases=$(ctest --test-dir "$build" -N -R "$regex" | grep -c ': test_delivery_coordinator_subscription-')
 test "$cases" -eq 6 || { echo "expected 6 cases, found $cases"; exit 3; }
 failed=0
-for round in $(seq "$rounds"); do
+for ((round = 1; round <= rounds; round++)); do
     ctest --test-dir "$build" --output-on-failure ${REPEAT_500K_VERBOSE:+-V} -j4 --timeout 600 -R "$regex"
     status=$?
     test "$status" -eq 0 -o "$status" -eq 8 || { echo "ctest exited $status"; exit 3; }
