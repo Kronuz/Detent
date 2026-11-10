@@ -147,7 +147,8 @@ int main() {
 			reseal(broken);
 			rejected([&] { l::decode_storage_identity(broken); });
 		}
-		for (auto offset : {0u, 8u, 12u, 56u, 60u}) {
+		// The layout field [56,60) is free: any other value decodes as a non-current layout (above).
+		for (auto offset : {0u, 8u, 12u, 60u}) {
 			auto broken = lease;
 			broken[offset] ^= 1;
 			reseal(broken);

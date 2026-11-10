@@ -192,6 +192,7 @@ void foreign_install(const std::filesystem::path &directory) {
 	}
 	const auto image = builder.take();
 	install(directory, image, storage);
+	write(directory / "owner.lock", std::span<const char>{});
 	const auto name = l::generation_name(generation);
 	auto root = read(directory / (name + ".image"));
 	root[7] = static_cast<char>('0' + foreign_layout);
