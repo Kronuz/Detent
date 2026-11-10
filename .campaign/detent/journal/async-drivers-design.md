@@ -97,7 +97,7 @@ changes for Xapiand:
 | A2 | `docs/design/async-drivers.md`: "D2. Public API: `task::task<T>` over `scheduler_ref`, no Asio in journal or consensus headers." |
 | A3 | `docs/design/async-drivers.md`: "D3. Injection through three seams." |
 | A4 | `docs/design/async-drivers.md`: "Where a three-voter member's 683 KB goes" |
-| A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, and owns its groups." |
+| A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, owns its groups, and ends." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
 | A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
 | A8 | pending: the Xapiand lead's answer (note above) |
