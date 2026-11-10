@@ -352,14 +352,8 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				lease->fd = std::exchange(mapping->lease, -1);
 				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
 			};
-			if (generation_ownership && paged::obsolete_paged_layout(generation_ownership->layout_version)) {
-				try {
-					paged::decode_root(bytes, detail::paged_limits(limits, descriptor.length));
-				} catch (const paged::UnsupportedFormat &) {
-					refuse();
-				}
-				throw std::runtime_error("obsolete ownership conflicts with current root format");
-			}
+			if (generation_ownership && !current_layout(generation_ownership->layout_version))
+				refuse();
 			if (generation_ownership && generation_ownership->layout_version == paged::format_version) {
 				const auto bounds = detail::paged_limits(limits, descriptor.length);
 				const auto root = paged::decode_root(bytes, bounds);

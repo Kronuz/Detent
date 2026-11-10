@@ -1273,13 +1273,9 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
-		if (paged::obsolete_paged_layout(slot().proof.layout_version)) {
-			slot().image_scope = detail::validate_obsolete_root_prefix(bytes);
-			if (bytes.size() == paged::root_bytes &&
-				paged::metadata_commitment(bytes) != slot().proof.image_checksum)
-				throw std::runtime_error("obsolete root checksum differs from ownership");
+		// An owned generation in a layout that is not current is removed unread.
+		if (!current_layout(slot().proof.layout_version))
 			return;
-		}
 		if (slot().proof.layout_version == paged::format_version) {
 			slot().image_scope = detail::validate_paged_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes) {
@@ -1357,8 +1353,10 @@ class ReclaimOperation final : public c::Operation {
 			throw std::runtime_error("partial descriptor has unconfigured identity");
 	}
 	void validate_metadata_prefix(std::span<const char> bytes) {
-        if (slot().proof.layout_version < 2)
+        if (slot().proof.layout_version == 1)
             throw std::runtime_error("reader metadata requires a paged generation");
+        if (!current_layout(slot().proof.layout_version))
+            return;
         detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
                                                        slot().proof.image_checksum, {}, paged::root_bytes});
     }

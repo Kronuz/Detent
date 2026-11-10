@@ -23,7 +23,7 @@ Before consulting that mark, `resolve` bounds the reference within its segment a
 
 A marked page still bounds each node visit, inline slot, prefix, suffix, body and external reference. Each branch consumes key bytes, and the walk has a bounded visit count. Redirected placement into another verified page fails the header comparison. Framing-valid value changes that preserve the compared header may remain undetected until scrub; the mark does not promise integrity against arbitrary writes after verification.
 
-DTPAGE02 framing refuses first touch and marks the generation failed. Startup's automatic old-format refetch requires authenticated version-2 generation ownership, as described in [dense pages](dense-pages.md#refusal-and-reclamation).
+A page that is not DTPAGE03 fails first touch and marks the generation failed. Startup's automatic refetch requires authenticated ownership in a layout that is not current, as described in [dense pages](dense-pages.md#refusal-and-reclamation).
 
 ## Lifetime and diagnostics
 

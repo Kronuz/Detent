@@ -135,18 +135,18 @@ int main() {
 		bad[i] ^= 1;
 		rejects([&] { p::verify_page(bad, ref, p::Limits{}); });
 	}
-	auto old = nonempty;
-	old[7] = '2';
-	rejects([&] { p::decode_root(old, p::Limits{}); });
-    l::write_integer(old, 8, 2, 4);
-    try { p::decode_root(old, p::Limits{}); require(false); } catch (const p::UnsupportedFormat &) {}
-    old[7] = '4';
-    try { p::decode_root(old, p::Limits{}); require(false); }
-    catch (const p::UnsupportedFormat &) { require(false); }
-    catch (const std::invalid_argument &) {}
-	old = page;
-	old[7] = '2';
-	rejects([&] { p::verify_page(old, ref, p::Limits{}); });
+	// A root or page in any other format is invalid input, whatever its version says.
+	for (const char version : {'2', '4', '9'}) {
+		auto other = nonempty;
+		other[7] = version;
+		rejects([&] { p::decode_root(other, p::Limits{}); });
+		l::write_integer(other, 8, version - '0', 4);
+		rejects([&] { p::decode_root(other, p::Limits{}); });
+		other = page;
+		other[7] = version;
+		rejects([&] { p::decode_page_header(other, p::Limits{}); });
+		rejects([&] { p::verify_page(other, ref, p::Limits{}); });
+	}
 	auto parent = external_branch();
 	const auto parent_ref = reference(parent);
 	for (auto index : {0u, 1u}) {

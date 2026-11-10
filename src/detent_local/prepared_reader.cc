@@ -141,9 +141,9 @@ PreparedGeneration PreparedReader::open(const std::filesystem::path &path, uid_t
 		        ownership.generation == descriptor.generation &&
 		        ownership.image_length == descriptor.length &&
 		        ownership.image_checksum == descriptor.checksum);
-        if (ownership.layout_version == 1)
-            throw GenerationUnavailable("publisher has not prepared a paged generation");
-        require(ownership.layout_version == paged::format_version && descriptor.length == paged::root_bytes);
+        if (ownership.layout_version != paged::format_version)
+            throw GenerationUnavailable("publisher has not prepared a current paged generation");
+        require(descriptor.length == paged::root_bytes);
 		const GenerationName image_name(descriptor.generation, GenerationFile::Image);
 		const auto image = record<paged::root_bytes>(files->directory.fd, image_name.view(), publisher);
 		require(checksum(image) == descriptor.checksum);

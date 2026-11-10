@@ -225,12 +225,12 @@ The packer and the codec are deterministic, so the rows on counts and bytes are 
 | T6 Build | Projected page input 306,989,416 B / 162,367 calls; pack input 315,759,038 B / 302 calls. Metadata separately reported. CPU and wall informational. | Instrument each category at construction/validation/metadata call sites; measure T2 build with the operation boundary in Execution contracts. Existing bytes_hashed/page_digests alone are insufficient. |
 | T7 Relocation | Zero page hash input/calls; pack and metadata separately allowed. Values, root commitment, graph counts and live accounting unchanged. | Partial and complete 100K relocation tests over TrieOverlay::begin_relocation. |
 | T8 Identity | namespace-delivery T6 holds on DTPAGE03 files | namespace-delivery T6's procedure, after its S7 derived ids |
-| T9 Refusal | A DTPAGE02 store is refused at cold start; the agent takes a full copy and serves from it | A fixture store from today's build; a system test |
+| T9 Refusal | A store whose generation is in any other layout is refused at cold start; the agent takes a full copy and serves from it | `test_local_dense_refetch`'s non-current store (layout 9, every checksum matching) |
 | T10 Decoder safety | One CPU-hour of bounded fuzzing with zero findings; corpus replayed in CI; independent decoder-safety clearance. | Fuzz first touch, walk, graph and warm validators with checksum-correct inputs and live checks, plus separate verified-mapping mutation cases. Separate ASan+UBSan and threaded-path TSan builds. |
 
 ## Format changes
 
-DTPAGE03 and DTROOT03 (D2, D3). The generation id's layout version (namespace-delivery D8.1) moves with them. A DTPAGE02 or DTROOT02 file is refused (G2). The logical-commitment domain (`paged_layout.cc:147`), the two-digest `Reference` and `Child` (`paged_layout.hh:14-23`), the 80-byte `PageHeader` and the reserved `Overflow` kind, which no tree holds today (`docs/HOW_IT_WORKS.md:89`), go.
+DTPAGE03 and DTROOT03 (D2, D3). The generation id's layout version (namespace-delivery D8.1) moves with them. A generation in any other layout is refused through one path, whatever its version (campaign PLAN.md D43); nothing recognizes an older format. The logical-commitment domain (`paged_layout.cc:147`), the two-digest `Reference` and `Child` (`paged_layout.hh:14-23`), the 80-byte `PageHeader` and the reserved `Overflow` kind, which no tree holds today (`docs/HOW_IT_WORKS.md:89`), go.
 
 ## Alternatives considered
 
@@ -359,7 +359,7 @@ Take each root digest from a fresh `bytes` run, never from a sweep log: the node
 **S5. Refusal, removal and notes.** Depends on S2 to S4.
 
 - Files:
-  - The cold-start path that decodes the root: it refuses a DTPAGE02 or DTROOT02 store, and the agent then takes a full copy (T9).
+  - The cold-start path: it refuses a generation whose ownership names a layout that is not current, and the agent then takes a full copy (T9).
   - Deleted: the logical commitment and its domain strings (`paged_layout.cc:147`, `:189`), the two-digest `Reference` and `Child`, and `PageKind::Overflow` (`paged_layout.hh:9`).
   - Updated: `docs/HOW_IT_WORKS.md`'s page section, `docs/mechanisms/verified-page-bitmap.md` and `docs/mechanisms/recovery-digest-once.md`.
   - A new `docs/mechanisms/dense-pages.md`.

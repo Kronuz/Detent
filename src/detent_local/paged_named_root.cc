@@ -230,10 +230,11 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 			state_->ownership = ownership;
 			if (state_->ownership.storage != state_->storage ||
 				state_->ownership.generation != state_->generation ||
+				!current_layout(state_->ownership.layout_version) ||
 				(state_->ownership.layout_version == paged::format_version &&
 				 state_->ownership.image_length != paged::root_bytes))
 				throw std::invalid_argument("unsupported named paged root ownership");
-			state_->extent = state_->ownership.layout_version >= 2 ? paged::root_bytes : header_bytes;
+			state_->extent = state_->ownership.layout_version == 1 ? header_bytes : paged::root_bytes;
 			state_->phase = Phase::OpenRoot;
 			prepare(c::Kind::OpenInto);
 			return true;

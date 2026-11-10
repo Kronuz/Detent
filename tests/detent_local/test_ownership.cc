@@ -1,5 +1,6 @@
 #include "detent_local/layout.hh"
 #include "detent_local/ownership.hh"
+#include "detent_local/paged_layout.hh"
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -71,20 +72,15 @@ int main() {
 			"13619420ba4f77c962d7c213bd3d620d0a871f78c6eac3e665db3d6f22763cbb");
 		check(l::encode_generation_ownership(paged) == paged_vector &&
 			  l::decode_generation_ownership(paged_vector) == paged);
-		auto obsolete = paged_vector;
-		l::write_integer(obsolete, 56, 2, 4);
-		reseal(obsolete);
-		const auto old_ownership = l::decode_generation_ownership(obsolete);
-		check(old_ownership.layout_version == 2);
-		rejected([&] { l::encode_generation_ownership(old_ownership); });
-		for (auto version : {0u, 4u, 0xffffffffu}) {
-			auto broken = paged_vector;
-			l::write_integer(broken, 56, version, 4);
-			reseal(broken);
-			rejected([&] { l::decode_generation_ownership(broken); });
-			auto invalid = paged;
-			invalid.layout_version = version;
-			rejected([&] { l::encode_generation_ownership(invalid); });
+		check(l::current_layout(1) && l::current_layout(l::paged::format_version));
+		// Any other layout decodes, so its generation is refused and refetched; none is written.
+		for (auto version : {0u, 2u, 4u, 0xffffffffu}) {
+			auto other = paged_vector;
+			l::write_integer(other, 56, version, 4);
+			reseal(other);
+			const auto decoded = l::decode_generation_ownership(other);
+			check(decoded.layout_version == version && !l::current_layout(version));
+			rejected([&] { l::encode_generation_ownership(decoded); });
 		}
 		for (auto length : {192u, 319u, 321u}) {
 			auto invalid = paged;

@@ -6,14 +6,8 @@
 namespace detent::local::paged {
 using Digest = std::array<char, 32>;
 inline constexpr std::uint32_t format_version = 3;
-// The previous paged layout: recognized only to refuse its stores and clean them up.
-constexpr bool obsolete_paged_layout(std::uint32_t version) noexcept { return version == 2; }
-class UnsupportedFormat final : public std::invalid_argument {
-  public:
-    UnsupportedFormat() : std::invalid_argument("unsupported paged local format") {}
-};
 inline constexpr std::uint32_t page_bytes = 64 * 1024, segment_bytes = 1024 * 1024;
-// The leaf body bound is DTPAGE02's (an 80-byte header), so every body it stored still fits.
+// A body stops 80 bytes short of a page, less its suffix, so a lone leaf fits one page (design D2).
 inline constexpr std::size_t content_bytes = 48, placement_bytes = 20,
 							 child_bytes = content_bytes + placement_bytes, page_header_bytes = 64,
 							 minimum_page_bytes = 79, root_bytes = 320, page_capacity = 4096,

@@ -1,5 +1,4 @@
 #include "detent_local/disk_store.hh"
-#include "dense_legacy_fixture.hh"
 #include "managed_recovery.hh"
 #include "generation_mapping.hh"
 #include "lazy_page_access.hh"
@@ -169,8 +168,57 @@ void child_crash(const std::filesystem::path &directory, unsigned cut) {
 	int status = 0;
 	check(::waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0);
 }
+std::vector<char> read(const std::filesystem::path &path) {
+	std::ifstream input(path, std::ios::binary);
+	return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+}
+void reseal(std::vector<char> &bytes) {
+	check(bytes.size() >= 32);
+	const auto digest = l::paged::metadata_commitment(std::span(bytes).first(bytes.size() - 32));
+	std::copy(digest.begin(), digest.end(), bytes.end() - 32);
+}
+constexpr std::uint32_t foreign_layout = 9;
+// A store whose selected generation is in another format: its ownership names another layout, and
+// its root and every pack's first page carry that layout's framing. Every checksum matches.
+void foreign_install(const std::filesystem::path &directory) {
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	l::StorageIdentity storage{}, generation{};
+	storage.fill('s');
+	generation.fill('g');
+	l::detail::PagedSnapshotBuilder builder(source, storage, generation);
+	while (!builder.done()) {
+		l::ValidationBudget budget;
+		builder.step(budget);
+	}
+	const auto image = builder.take();
+	install(directory, image, storage);
+	const auto name = l::generation_name(generation);
+	auto root = read(directory / (name + ".image"));
+	root[7] = static_cast<char>('0' + foreign_layout);
+	l::write_integer(root, 8, foreign_layout, 4);
+	const auto checksum = l::paged::metadata_commitment(root);
+	write(directory / (name + ".image"), root);
+	auto lease = read(directory / (name + ".lease"));
+	l::write_integer(lease, 56, foreign_layout, 4);
+	std::copy(checksum.begin(), checksum.end(), lease.begin() + 64);
+	reseal(lease);
+	write(directory / (name + ".lease"), lease);
+	auto descriptor = image.descriptor();
+	descriptor.checksum = checksum;
+	write(directory / "selected", l::encode_descriptor(descriptor));
+	for (const auto &segment : image.segments()) {
+		const l::detail::SegmentNames names(segment.ownership.segment);
+		auto pack = read(directory / names.payload_name());
+		pack[7] = static_cast<char>('0' + foreign_layout);
+		write(directory / names.payload_name(), pack);
+		write(directory / names.owner_name(),
+			  l::encode_segment_ownership({storage, segment.ownership.segment, pack.size(),
+										   l::paged::metadata_commitment(pack)}));
+	}
+	check(!l::current_layout(l::decode_generation_ownership(read(directory / (name + ".lease"))).layout_version));
+}
 void restart_copy(const std::filesystem::path &directory, unsigned cut) {
-	dense_legacy::install(directory);
+	foreign_install(directory);
 	child_crash(directory, cut);
 	check(std::filesystem::exists(directory / "selected") == (cut == 0));
 	l::Descriptor wanted;
@@ -195,17 +243,8 @@ void restart_copy(const std::filesystem::path &directory, unsigned cut) {
 		close(store);
 	}
 }
-std::vector<char> read(const std::filesystem::path &path) {
-	std::ifstream input(path, std::ios::binary);
-	return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
-}
-void reseal(std::vector<char> &bytes) {
-	check(bytes.size() >= 32);
-	const auto digest = l::paged::metadata_commitment(std::span(bytes).first(bytes.size() - 32));
-	std::copy(digest.begin(), digest.end(), bytes.end() - 32);
-}
 void damaged(const std::filesystem::path &directory, unsigned mutation) {
-	dense_legacy::install(directory);
+	foreign_install(directory);
 	l::GenerationId id;
 	id.fill('g');
 	const auto image_path = directory / (l::generation_name(id) + ".image");
@@ -213,7 +252,7 @@ void damaged(const std::filesystem::path &directory, unsigned mutation) {
 	auto bytes = read(image_path);
 	auto lease = read(lease_path);
 	if (mutation == 0) {
-		bytes[20] ^= 1; // A framing-correct old root with an incorrect selected checksum is damage.
+		bytes[20] ^= 1; // A root that differs from its selected checksum is damage.
 		write(image_path, bytes);
 	} else if (mutation == 1) {
 		l::StorageIdentity wrong;
@@ -224,22 +263,16 @@ void damaged(const std::filesystem::path &directory, unsigned mutation) {
 		reseal(lease);
 		write(lease_path, lease);
 	} else if (mutation == 3) {
-		// Version-3 ownership never turns old-looking damage into deletion authority.
-		l::write_integer(lease, 56, 3, 4);
+		// Current ownership never turns a root in another format into deletion authority.
+		l::write_integer(lease, 56, l::paged::format_version, 4);
 		reseal(lease);
 		write(lease_path, lease);
 	} else if (mutation == 4) {
-		bytes[7] = '9';
-		const auto digest = l::paged::metadata_commitment(bytes);
-		std::copy(digest.begin(), digest.end(), lease.begin() + 64);
+		lease[64] ^= 1; // Ownership that names another root than `selected` is damage.
 		reseal(lease);
 		write(lease_path, lease);
-		write(image_path, bytes);
-		auto descriptor = l::decode_descriptor(read(directory / "selected"));
-		descriptor.checksum = digest;
-		write(directory / "selected", l::encode_descriptor(descriptor));
 	} else if (mutation == 5) {
-		write(lease_path, {}); // An unowned old image has no cleanup authority.
+		write(lease_path, {}); // An unowned image has no cleanup authority.
 	} else {
 		const int lock = ::open((directory / "owner.lock").c_str(), O_RDONLY | O_CLOEXEC);
 		check(lock >= 0 && ::flock(lock, LOCK_EX | LOCK_NB) == 0);
@@ -263,7 +296,7 @@ void damaged(const std::filesystem::path &directory, unsigned mutation) {
 	close(store);
 }
 void leased(const std::filesystem::path &directory) {
-	dense_legacy::install(directory);
+	foreign_install(directory);
 	write(directory / "unowned.pack", std::string_view("accounted foreign data"));
 	l::GenerationId id;
 	id.fill('g');
@@ -292,20 +325,20 @@ void leased(const std::filesystem::path &directory) {
 	close(store);
 }
 void embedded(const std::filesystem::path &directory) {
-	dense_legacy::install(directory);
+	foreign_install(directory);
 	std::vector<char> page;
 	for (const auto &entry : std::filesystem::directory_iterator(directory)) {
 		if (entry.path().extension() == ".pack") {
 			page = read(entry.path());
-			page.resize(l::read_integer(page, 16, 4));
+			page.resize(l::read_integer(page, 8, 4));
 			break;
 		}
 	}
-	check(page.size() >= 80);
+	check(page.size() >= l::paged::minimum_page_bytes);
 	bool refused = false;
 	try {
 		l::paged::decode_page_header(page, l::paged::Limits{});
-	} catch (const l::paged::UnsupportedFormat &) {
+	} catch (const std::invalid_argument &) {
 		refused = true;
 	}
 	check(refused);
@@ -342,7 +375,7 @@ void embedded(const std::filesystem::path &directory) {
 	refused = false;
 	try {
 		l::recover_generation(directory, runtime.options.recovery_limits);
-	} catch (const l::paged::UnsupportedFormat &) {
+	} catch (const std::invalid_argument &) {
 		refused = true;
 	}
 	check(refused && l::read_generation_selection(directory).descriptor == descriptor);
@@ -361,7 +394,8 @@ void embedded(const std::filesystem::path &directory) {
 		}
 		check(refused && !pages->available() && pages->page_verifications() == 0);
 	}
-	// V3 damage is fenced at managed startup; it cannot authorize selected removal.
+	// A page cannot name its format: under current ownership another framing is damage, fenced at
+	// managed startup, and it cannot authorize selected removal.
 	auto store = runtime.open(directory);
 	drive(store);
 	check(store->status() == l::StoreStatus::Fenced &&
