@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-031126-76a5a7 261110-031128-58310d 261110-031130-32585e 261110-031132-189172 261110-031134-9f199a 261110-031136-e8b259 261110-031138-999c25 (f53237 and cc8ce9 finished, exit 0, counts match D8)
+State: ready for review (Xapiand review fold, A8 at f48f7cb, CHANGES: X1-X5 blocking); waiting on jobs 261110-042826-5c2da9 261110-042827-fb0e1d 261110-042829-5f86fb (waiter_test at Detent:9e7237c, the TSan fix)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -28,7 +28,7 @@ Review: `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-asyn
 | ID | Fix | Confirming job (failing before) |
 |---|---|---|
 | X1 | D10 identity and Q7 (a): accept a frame from a node the loop's pins authenticate for the cluster naming a group and destination incarnation the loop holds; Core decides; no membership check; quest 5: joiner installs and catches up, lagging follower catches up (Detent:786009f) | n/a (text: consensus:ab05507 `core.h:756-759` already admits any authenticated incarnation; ruling 18) |
-| X2 | D8: waiter destructor unlinks (legal on the group's loop and in teardown phase 3); close refuses, resolves unadmitted waiters with `closed`, drains staged, frees state once nothing queued; host-wide two-step shutdown; calls by group id (D2); D8 table row; quest 4 criteria (Detent:786009f); waiter.hh, waiter_test `close`/`teardown` and controls (Detent:c351fc1) | 261110-031122-f53237 (all), 261110-031124-cc8ce9 (ASan+UBSan), 261110-031126-76a5a7 (TSan) (before: the controls inside the same runs, `close-naive` and `teardown-naive`, break 977/1,824 and 27/319 schedules; local run at c351fc1) |
+| X2 | D8: waiter destructor unlinks (legal on the group's loop and in teardown phase 3); close refuses, resolves unadmitted waiters with `closed`, drains staged, frees state once nothing queued; host-wide two-step shutdown; calls by group id (D2); D8 table row; quest 4 criteria (Detent:786009f); waiter.hh, waiter_test `close`/`teardown` and controls (Detent:c351fc1); the model's group counters kept on the group's loop (Detent:9e7237c, ruling 24) | 261110-042826-5c2da9 (all), 261110-042827-fb0e1d (ASan+UBSan), 261110-042829-5f86fb (TSan), at Detent:9e7237c (at Detent:c351fc1: f53237 and cc8ce9 passed; TSan 76a5a7 exit 134, the model race of ruling 24) (before: the controls inside the same runs, `close-naive` and `teardown-naive`, break 977/1,824 and 27/319 schedules) |
 | X3 | D5 on `task::blocking_scheduler` (Xapiand's engine::BlockingScheduler moved into task, with the wheel); `inline_scheduler` gains same-thread `post_call` for the simulator; step 5 waits only while a linked waiter's token can still be requested; quest 1 criterion (Detent:786009f); blocking.hh, `blocking_entry threads` (Detent:c351fc1) | 261110-031128-58310d (all), 261110-031130-32585e (threads, TSan) (before: 261110-031132-189172, `blocking_entry inline`, must exit 1: hop's post_call dropped, stalled) |
 | X4 | D10: placement `(slot * L) >> 12` for any L; re-partition at open when L changes (recover the generation, write live records to the next generation's logs, sync, commit by the layout record); hello and `misrouted` kept (F15); Limits; quests 3 and 5 (Detent:786009f); placement_test (Detent:c351fc1) | 261110-031134-9f199a (map, share, remap, hello) (before: 261110-031136-e8b259, `placement_test mod`, the f48f7cb rule, must exit 1) |
 | X5 | D5 step 4 counts no election; Core campaigns at Start for a lone voter with no witness; quest 4 criterion (Detent:786009f); blocking_entry rules first-election 0 advances, `core=today` control (Detent:c351fc1) | 261110-031128-58310d (before: 261110-031138-999c25, `lone_voter` on consensus:ab05507, must exit 1: leads 1,499 ms after Start) |
@@ -214,6 +214,13 @@ changes for Xapiand:
     paths (resume before unlink, ignored claim) are unchanged.
 22. `lone_voter` exits 1 on consensus as pinned by design: it is X5's before-job and quest 4's
     acceptance check.
+24. TSan job 261110-031126-76a5a7 (exit 134, 3+ reports, one location) was a model bug, not a
+    design gap: the close model's `posted` counter was decremented by the IO loop's wrapper of
+    the turn write and incremented on loop A. The design already keeps group state on its loop
+    (D2, D8; completions post back to it, D3). Detent:9e7237c counts a write in flight on A at
+    issue and at its barrier; a local TSan build (threads 1000, close 1, teardown 1) is clean.
+    Other jobs at Detent:c351fc1 finished as required: 58310d, 32585e, 9f199a pass; 189172,
+    e8b259, 999c25 exit 1 (the before-jobs).
 23. Step 5 on a steady clock waits while a linked waiter's token can still be requested (a
     SIGINT or request token), rather than throwing: a cross-thread cancel is progress the entry
     can wait for; a lost wake under such a token waits until it is requested or a deadline fires.
