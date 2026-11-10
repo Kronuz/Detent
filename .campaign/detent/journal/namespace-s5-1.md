@@ -9,15 +9,19 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+First build of the implementation (State: `Namespace` entries, enabling and drop
+administrative entries, directory map, image DTAIMG02; node: administrative entries;
+tests: test_namespace_positions, test_namespace_cluster, test_namespace_power_cut).
 
 ## Next
 
-1. <step>
+1. Build and run the three new tests and the authority suite locally (light hold).
+2. Write docs/status/namespace-s5.md (how it works, contract).
+3. Suite job (native) and pins; push the branch for CI's sanitizers (D54); crash model at the final head.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
