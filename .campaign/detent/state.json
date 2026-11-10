@@ -1752,6 +1752,8 @@
     "docs-e2e": {
       "accepted": {},
       "after": [],
+      "base": "4f82ccd09ece4927cdd4dae75e8ff8614d74077d",
+      "branch": "quest/detent/docs-e2e",
       "checks": [
         {
           "cmd": "python3 -I tests/docs/check_docs.py",
@@ -1786,11 +1788,13 @@
       "provides": [
         "docs-e2e"
       ],
+      "reason": "started by force: dense-pages' globs tests/** and .github/workflows/** overlap only nominally: its diff touches no tests/docs/** or docs.yml",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
-      "updated": "2026-11-10T11:59:20"
+      "updated": "2026-11-10T12:01:11",
+      "worktree": "../Detent-wt/detent/docs-e2e"
     },
     "docs-site-architecture": {
       "accepted": {},
