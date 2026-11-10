@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: blocked on lead: ever_sampled misses OB1 at bool/scattered/1 thread (+7.7 vs 5.0); see Blocked on
+State: waiting on jobs (reruns at the head, ids under Doing); ready for review once they pass
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -89,35 +89,15 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
 
 ## Next
 
-0. Lead: rule on Blocked on. Then: Q7 and D10 follow the ruling; rerun the D2 chain (build, smoke, screen,
-   confirm) and the pair-confirm at the head for A2/A7/A8 evidence; ready for review.
-1. Abstract, D2 lede and Checks still name only the D2 chain; add the A8 and pair jobs to Checks.
+0. Reruns at the head (ids under Doing): when they exit 0, check `confirm-paired.md` against D2's table and D10's
+   tables, then set State to ready for review. A8 and Checks now list the pair jobs.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
 ## Blocked on
 
-Lead (owner rule: unified shape cheaper first, mixed only on a measured gap). After the fixes, the owner's pair
-(`ever_sampled`, D47 Q7) misses OB1 in one row: bool scattered, 1 thread. Exclusive jobs, max(int, bool), hot / scattered, ns:
-
-| arm | 1 thread | 8 threads | 64 threads |
-|---|---|---|---|
-| ever_sampled before (bfb3cf, 09f038e) | +3.7 / **+7.4** | +3.9 / +6.4 | **+11.9 / +14.4** |
-| ever_sampled after (fa1352, f476cf7) | +2.5 / **+7.7** | +2.7 / +6.3 | +6.6 / +9.3 |
-| knob_sampled (fa1352) | +2.6 / **+6.9** | +2.8 / +4.9 | +4.5 / +4.0 |
-| ever_bit (fa1352) | +2.5 / +2.3 | +2.3 / +1.9 | +3.4 / +6.3 |
-| es_one (fa1352) | +2.2 / **+6.1** | +2.7 / +5.0 | +7.7 / **+12.2** |
-
-The miss belongs to the sampled countdown, not the bit: sampling alone misses the same row (+6.9 here, +4.5 at
-09f038e, +7.8 in strict 03e1a9), and the pair adds +0.8 on top. The row moves about 3 ns with the compiled layout.
-Options:
-1. Keep the pair (recommended): it is the owner's shape, passes 8 and 64 threads, and its 1-thread bool miss is the
-   countdown's, which every sampled option carries; OB1 re-measures it in the core (stripe in a register, S6
-   lookup at about 900 ns, Limit 7), and the countdown's cost there is OB1's to cut.
-2. Exact usage only (`ever_bit`): passes every row of both exclusive confirms (worst +6.3 at 64 threads, +2.5 at 1);
-   loses sampled counts and arm splits (D2, D4), so "how often" and "which arm" go.
-3. Sampled only (`knob_sampled`): does not close the gap (+6.9 in the same row) and loses exact "was it read" (Q7:
-   0.98 miss odds for a knob read once).
+Nothing. Owner ruled D48 (PLAN.md, 2026-11-10): keep `ever_sampled`, accept the +7.7 ns bool/scattered/1-thread miss
+(exclusive 261109-224833-fa1352); OB1 re-measures on the real hot path. Recorded in D10 item 4, Q7, the status line and Checks.
 
 ## Evidence
 
