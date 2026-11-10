@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Every page of the public site (`website/src/content/docs/**`: welcome, basics, installation, quick start, architecture, guides, operations, reference, FAQ, roadmap) and the top-level guides (README.md, QUICKSTART.md, docs/*.md) describe Detent as it is on `main` after N1 and Dense pages: the Reader API (no `detent::Client`, no defaults file), Dense v3 stores, namespace delivery, `detentd` readiness, configuration and limits. Prose is present tense and factual (the docs-cleanup shape), with no history and no backward-compatibility notes (D43). A docs check, run in CI, keeps the reference pages and the source in step between waves (D44).
 
 ## Acceptance criteria
 
@@ -14,18 +14,22 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 <criterion>: <evidence>
+- A1 [artifact] An audit table in the journal: every page, what it claims, the source or job that confirms it, and what changed
+- A2 `tests/docs/check_docs.py` checks both directions for CLI flags (`detent`, `detentd`, `detent-agent`), configuration keys, HTTP endpoints, error/status names and knob types: every one a reference page names exists in the source, and every one in the source is documented: the `docs` gate
+- A3 Every shell command and code sample in the quick start and guides runs as written against a build of `main` (extracted by the docs check, run in a scratch directory): the `docs` gate
+- A4 A mutant check: renaming one CLI flag in the source and one config key on a reference page each makes the docs check fail: a job
+- A5 The site builds with no broken internal links: the `site` gate
+- A6 [artifact] CI runs the docs check on every push: `.github/workflows/ci.yml`
+- A7 [manual] The lead reads the rendered site end to end (architecture, features, quick start, usage, configuration) and records what was checked
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides the docs check later waves and quests reuse. Consumes the landed surface of N1 and Dense pages; changes no code outside tests/docs and CI.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D44 (owner ask, lead schedule), D43 (no compatibility notes). Pages are published by pages.yml on push to main.
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+The docs check and its CI step, before the page rewrites, once it passes on current pages with recorded exceptions.
