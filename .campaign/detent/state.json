@@ -3396,7 +3396,38 @@
       "updated": "2026-11-10T13:11:11"
     },
     "namespace-s5-1": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-10T14:49:34",
+          "base": "80a51c429f232abeed363b55348ae2b46233f2b8",
+          "blobs": {
+            "docs/status/namespace-s5.md": "100644:5dd3e119711c98cfb03ecdde3872735360a9c3dc",
+            "src/detent_authority/change_history.cc": "100644:6bfe58c339330812bd53e650c3c51b03b6707be3",
+            "src/detent_authority/export_capture.cc": "100644:02d8c24737454507abcd60804cca5feb1218ed75",
+            "src/detent_authority/export_capture.hh": "100644:3a9893c777f9b290ed49c7a562e9b449672c6649",
+            "src/detent_authority/node.cc": "100644:5665d39def20b8914ef76956c0dcd80811766fa2",
+            "src/detent_authority/node.hh": "100644:1c98f86499d4e6846812ae462c4cceb64a06d6ae",
+            "src/detent_authority/persistent_map.hh": "100644:dbba3637d7dc1feb4c6a2b3f9bd5ce580ec5cb84",
+            "src/detent_authority/state.cc": "100644:449379f11356ef6721a2147919fe196af1168320",
+            "src/detent_authority/state.hh": "100644:05bbf7bd69f0e593436650191c06c2dc89ffb4e2",
+            "tests/detent_authority/CMakeLists.txt": "100644:631b19fc73a16d5650e6239124974a231c459772",
+            "tests/detent_authority/cluster_harness.hh": "100644:3390120bf808df2a5c8970452a468a37743769dd",
+            "tests/detent_authority/namespace_oracle.hh": "100644:c8f4bba96a321f23c0a3a5acba25a0c8c3e4be40",
+            "tests/detent_authority/test_cluster.cc": "100644:c596f4d7267ad30ff19a3e6aacef3dc978e57149",
+            "tests/detent_authority/test_namespace_cluster.cc": "100644:e42612182fac6ca4f736bd74864e5c0af38ed8c6",
+            "tests/detent_authority/test_namespace_positions.cc": "100644:2ac360b6ef70ca3431bfbed6893346acb79ad5a9",
+            "tests/detent_authority/test_namespace_power_cut.cc": "100644:d93c8c644a8732f79b4447a4bd84fb8104be16c3"
+          },
+          "brief": "a19ae93521745935",
+          "by": "review",
+          "commit": "7e988289ed7719dc2182133550535772c2fceb77",
+          "findings": {},
+          "note": "",
+          "review": "566bd8f20d42d977b4ae99d29fee4bf7a9053d03",
+          "reviewed": "ae6441cebb78dacb349aefa4f0495f25ae5863c8",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "daemon-ready-leader"
       ],
@@ -3488,7 +3519,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S5.1: per-namespace positions, incarnations, directory stream, enabling entry",
-      "updated": "2026-11-10T13:19:08",
+      "updated": "2026-11-10T14:49:34",
       "worktree": "../Detent-wt/detent/namespace-s5-1"
     },
     "namespace-s5-2": {
