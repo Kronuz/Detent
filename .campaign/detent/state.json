@@ -1861,6 +1861,54 @@
       "title": "Docs site audit: every page's claims against main",
       "updated": "2026-11-10T11:59:23"
     },
+    "docs-site-config": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/reference/configuration.md",
+        "website/src/content/docs/reference/limits.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: configuration and limits",
+      "updated": "2026-11-10T11:59:33"
+    },
     "docs-site-start": {
       "accepted": {},
       "after": [],
