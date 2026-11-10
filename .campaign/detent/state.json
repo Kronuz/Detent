@@ -1845,6 +1845,8 @@
     "docs-site-audit": {
       "accepted": {},
       "after": [],
+      "base": "83e8c53d7b24066a52e015c44eda0dfe2b597def",
+      "branch": "quest/detent/docs-site-audit",
       "checks": [],
       "consumes": [],
       "files": [
@@ -1857,9 +1859,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Docs site audit: every page's claims against main",
-      "updated": "2026-11-10T11:59:23"
+      "updated": "2026-11-10T12:00:55",
+      "worktree": "../Detent-wt/detent/docs-site-audit"
     },
     "docs-site-config": {
       "accepted": {},
