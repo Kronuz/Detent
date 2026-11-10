@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-224833-fa1352
+State: blocked on lead: ever_sampled misses OB1 at bool/scattered/1 thread (+7.7 vs 5.0); see Blocked on
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -82,20 +82,42 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
   Exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (arms none2, ever_bit, knob_sampled, ever_sampled,
   es_one; reps 7, calls 262144).
 
+- Exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (exit 0): see D10 item 4's table. `ever_sampled` passes
+  8 and 64 threads (worst +9.3) but misses bool/scattered/1 at +7.7 (int +4.4 passes); `knob_sampled` alone misses
+  the same row (+6.9); `es_one` misses it (+6.1) and bool/scattered/64 (+12.2); `ever_bit` passes every row.
+  D10 item 4 rewritten at `aee1c7c`.
+
 ## Next
 
-0. Read pair-confirm 261109-224833-fa1352 (`pair-confirm-paired.md`). If `ever_sampled` or `es_one` passes
-   every row: D10 item 4 with both confirms' numbers, ready for review. Else Blocked on with the before/after
-   table and options (exact usage only; sampled only).
-1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`), fill D10's placeholders (A8TABLE,
-   A8CONFIRM, A8COMMIT, A8EVERWORST, A8TLS64, A8TLSMISS, A8AA, A8EVERSAMPLED, Q7's "+17 to +60"), check the
-   screen-agreement sentence; update abstract, D2 lede, Checks; rerun the chain at the head; ready for review.
+0. Lead: rule on Blocked on. Then: Q7 and D10 follow the ruling; rerun the D2 chain (build, smoke, screen,
+   confirm) and the pair-confirm at the head for A2/A7/A8 evidence; ready for review.
+1. Abstract, D2 lede and Checks still name only the D2 chain; add the A8 and pair jobs to Checks.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
 ## Blocked on
 
-Nothing.
+Lead (owner rule: unified shape cheaper first, mixed only on a measured gap). After the fixes, the owner's pair
+(`ever_sampled`, D47 Q7) misses OB1 in one row: bool scattered, 1 thread. Exclusive jobs, max(int, bool), hot / scattered, ns:
+
+| arm | 1 thread | 8 threads | 64 threads |
+|---|---|---|---|
+| ever_sampled before (bfb3cf, 09f038e) | +3.7 / **+7.4** | +3.9 / +6.4 | **+11.9 / +14.4** |
+| ever_sampled after (fa1352, f476cf7) | +2.5 / **+7.7** | +2.7 / +6.3 | +6.6 / +9.3 |
+| knob_sampled (fa1352) | +2.6 / **+6.9** | +2.8 / +4.9 | +4.5 / +4.0 |
+| ever_bit (fa1352) | +2.5 / +2.3 | +2.3 / +1.9 | +3.4 / +6.3 |
+| es_one (fa1352) | +2.2 / **+6.1** | +2.7 / +5.0 | +7.7 / **+12.2** |
+
+The miss belongs to the sampled countdown, not the bit: sampling alone misses the same row (+6.9 here, +4.5 at
+09f038e, +7.8 in strict 03e1a9), and the pair adds +0.8 on top. The row moves about 3 ns with the compiled layout.
+Options:
+1. Keep the pair (recommended): it is the owner's shape, passes 8 and 64 threads, and its 1-thread bool miss is the
+   countdown's, which every sampled option carries; OB1 re-measures it in the core (stripe in a register, S6
+   lookup at about 900 ns, Limit 7), and the countdown's cost there is OB1's to cut.
+2. Exact usage only (`ever_bit`): passes every row of both exclusive confirms (worst +6.3 at 64 threads, +2.5 at 1);
+   loses sampled counts and arm splits (D2, D4), so "how often" and "which arm" go.
+3. Sampled only (`knob_sampled`): does not close the gap (+6.9 in the same row) and loses exact "was it read" (Q7:
+   0.98 miss odds for a knob read once).
 
 ## Evidence
 
@@ -107,6 +129,7 @@ Nothing.
 | A4 | `docs/design/observability.md`: "unused, its paired median at 8 threads is" (D6 item 2) |
 | A5 | `docs/design/observability.md`: "D8. Privacy and limits" (identifiers and fallbacks never stored, names never labels, caps) |
 | A6 | `docs/design/observability.md`: "OB1 Usage table, sampling and arms in the core" (OB1-OB6 with files, criteria, risk, needs) |
+| A8 | `docs/design/observability.md`: "No exact count passes on scattered names." and "The pair now passes at 8 and 64 threads." D10 table: exclusive exact-confirm 261109-202834-bfb3cf at 09f038e; pair: strict screen 261109-222819-1a0f6c at 4ee258e, exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (bench source unchanged since); decision pending, Blocked on |
 | A7 | Build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm (exclusive) 261109-131328-0ce3a4 at 51923f8; the doc cites the same-binary chain at d1ce742 listed under Doing |
 
 Review findings (round 1, `6139e4c`), all fixed in `51923f8`:
@@ -143,5 +166,8 @@ Linux page faults (Limit 7).
    The random countdown reload is unmeasured and OB1's to measure.
 5. Fallback statuses get one ninth cell (`fallback_other`), not one per status: the handle's exact status
    counters split it, and nine cells cost nothing extra under sampling (D3 item 5).
+7. Countdown stays per stripe line: a thread-local countdown measured worse at every thread count (strict screen
+   261109-222819-1a0f6c), so neither TLS candidate went to the exclusive confirm; `es_one` did, as the best at 1
+   and 8 threads.
 6. The paired probe is a file in the quest's set (`observability-paired.py`), run by every bench job, so OD-2's
    confirmation is a job artifact, not an offline script.
