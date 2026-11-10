@@ -1161,6 +1161,37 @@
       "title": "Grouped syncs for Dense pages publication",
       "updated": "2026-11-08T12:45:00"
     },
+    "dense-walkers": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_*",
+        "tests/detent_local/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1b",
+      "needs": [
+        "dense-pages"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "One bounded inline-slot walker for Dense pages",
+      "updated": "2026-11-09T17:15:43"
+    },
     "fixture-500k": {
       "accepted": {},
       "after": [],
