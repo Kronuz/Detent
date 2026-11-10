@@ -16,8 +16,8 @@ touches). Every number is a campaign job pinned to those commits, run by
 (exclusive); the snapshot channel's layout in 261110-000913-e9e87d (light); today's per-group
 transport in 261110-000909-400d3c (strict); one idle peer connection in 261110-005436-650916
 (strict). The threading rules are tested by the bench's `wheel_test`, `waiter_test`,
-`blocking_entry`, `reader_test` and `placement_test`, and `lone_voter` measures a lone voter's
-first election (Rerunnable checks). Xapiand's review of this design (A8, findings X1-X15) is
+`blocking_entry`, `reader_test`, `placement_test`, `repartition_lost` and `shrink_dial`, and
+`lone_voter` measures a lone voter's first election (Rerunnable checks). Xapiand's review of this design (A8, findings X1-X15) is
 `.campaign/xapiand/reviews/detent-async-drivers-design.md` on Xapiand master.
 
 ## Abstract
@@ -86,7 +86,7 @@ a request (96 bytes) and an IO operation (512 bytes for `AsioCompletionDriver::r
 ```cpp
 namespace kronuz::journal {
 class completion_ref;   // the IO seam (D3): task::task<void> run(std::shared_ptr<IOOperation>, task::cancel_token)
-class TurnDriver {      // one per core
+class TurnDriver {      // one per reactor loop
 	task::task<void> run(completion_ref io);   // awaits staged records, writes, sync_datas, completes
 };
 class Store {           // per group; each awaits its operation through the seam
@@ -100,13 +100,13 @@ struct Seams { task::scheduler_ref scheduler; journal::completion_ref io; Transp
 template <class Sink> class Driver {   // one per reactor loop
 	Driver(Seams, Sink&);
 	task::task<void> run();             // the one long-lived frame
-	Group& open(GroupOptions);          // state only, entered in the loop's group table
+	void open(GroupId, GroupOptions);   // state only, entered in the loop's group table
 	task::task<void> create(GroupId, Identity, task::cancel_token = {});
 	template <class Restore> task::task<void> recover(GroupId, Restore, task::cancel_token = {});
 	task::task<Placement> propose(GroupId, Propose, task::cancel_token = {});
 	task::task<ReadReady> read(GroupId, Read, task::cancel_token = {});
-	void receive(Group&, Receive);      // marks the group ready
-	void applied(Group&, Applied);
+	void receive(GroupId, Receive);     // marks the group ready
+	void applied(GroupId, Applied);
 	task::task<void> close(GroupId);    // retirement until drained
 };
 template <class Sink, class T> T run(Driver<Sink>&, task::task<T>);   // the blocking entry (D5)
@@ -122,14 +122,19 @@ or closed completes the call with `consensus::closed`, so a call in flight when 
 never reaches freed state (X2). The wheel is the scheduler's (`scheduler_ref::wheel()`, an
 optional member like `roots()`), so a Driver cannot pair one loop's scheduler with another's
 wheel (X14). `open`, `receive` and `applied` are plain calls on the group's loop (Debug-asserted
-with `scheduler_ref::runs_here()`); another thread reaches them with `post_call`. The waiter
+with `scheduler_ref::runs_here()`); another thread reaches them with `post_call`. They too name
+the group by id through the table, because the transport's `receive` and the application's
+`applied` (Sink, below) can land after the group closed: a group closing or closed drops them and
+counts the drop per group, as `Worker::applied` drops one while closing today (`worker.h:239-240`;
+R4). The waiter
 test runs every caller on loop B against a group on loop A (D8).
 
 `Sink` receives what no caller awaits (`Send`, `Committed`, `RoleChanged`, snapshot and repair
 notices) with static dispatch and no allocation (Q2). It runs inside a driver step, which D7's
 budget does not bound, so it applies nothing inline: it hands a `Committed` range to the
 application (Xapiand: a chore under the index's turn), which calls `applied` later through
-`post_call`; Core holds one range until then. The log orders appends and the application's turn
+`post_call`; Core holds one range until then. `close` does not wait for it: an `applied` that
+lands after close is dropped (above). The log orders appends and the application's turn
 orders applies, superseding November 2's "the per-index turn holds the journal append and the
 apply" (X10). Detent's asio adapter already exists:
 `task::asio_scheduler` (`task_asio.hh:58-166`) and `AsioCompletionDriver` behind `completion_ref`.
@@ -138,7 +143,8 @@ instance per loop (D10), removing the last `asio::awaitable` from consensus's pu
 This is the contract `task:driver`.
 
 **D3. Injection through three seams.** The scheduler (`scheduler_ref`, `task.hh:169-199`) says
-where frames resume; the wheel (D4) is the clock and the timers; `completion_ref` is the IO:
+where frames resume and carries the loop's wheel (D4), its clock and timers; `completion_ref` is
+the IO; the transport (D10) carries frames. These are `Seams`' three members:
 
 | `completion_ref` | Who | How a primitive completes |
 |---|---|---|
@@ -152,7 +158,7 @@ gains a same-thread `post_call` in quest 1 so D8's cancel hop runs there (X3), o
 message, complete one held IO, or advance its manual clock to `wheel.next()` and expire. No real
 time, no threads; every choice comes from its seed.
 
-**D4. One intrusive timer wheel per reactor loop, the one timer mechanism.** An entry is 32
+**D4. One intrusive timer wheel per reactor loop, for group timers and operation deadlines.** An entry is 32
 bytes inside its owner (next, back-link, deadline, fire function); arm and cancel are O(1)
 with no allocation. Consensus gains `Core::next_deadline()`, a `const` accessor over the
 deadlines Core already keeps (`election_deadline_`, `heartbeat_deadline_`, `core.h:1196`; each
@@ -254,19 +260,34 @@ thread. The entry runs this loop:
    fixed point first, so staged records and the IO the machine issued for itself (D8) are written
    before the entry returns, whatever happened to the caller; only then does it give up its
    groups and turn log.
-4. Otherwise wait for the earliest operation deadline (a `task::deadline` on the entry's
-   scheduler, which the entry counts apart from group timers), and go to 1. A manual clock jumps
-   there; a steady clock sleeps until then or until another thread posts (a cancel's hop). Group
-   timers due by then fire as the clock passes them. No group timer counts: a lone voter leads at
-   `Start` (X5, quest 4), and a heartbeat or a multi-voter group's election needs a peer to move
-   anything, while every group always holds one (`core.h:1054-1066`).
-5. Otherwise throw `consensus::stalled` (a lost wake), unless on a steady clock a linked waiter
-   holds a token another thread can still request: then the entry sleeps until it is.
+4. Otherwise, if an operation deadline is armed (a `task::deadline` on the entry's scheduler,
+   which the entry counts apart from group timers), wait for the earliest, and go to 1. A manual
+   clock jumps there; a steady clock sleeps until then or until another thread posts (a cancel's
+   hop). Group timers due by then fire as the clock passes them. No group timer counts: a lone
+   voter leads at `Start` (X5, quest 4), and a heartbeat or a multi-voter group's election needs a
+   peer to move anything, while every group always holds one (`core.h:1054-1066`).
+5. Otherwise throw `stalled`: a lost wake.
+
+A cross-thread cancel wakes only step 4's sleep. A task awaiting a token with no operation
+deadline armed throws at step 5 even if another thread would request the token later: task
+cannot tell a token another thread will request from one whose source sits in the caller's own
+frame or links a process-wide shutdown source (`task.hh:995-1058`), and a lost wake never passes
+silently (R3). A caller that wants to wait for a cancel arms a deadline.
+
+`stalled` is one type for both entries, `kronuz::journal::stalled`, which `consensus::run`
+throws too (consensus builds on journal). It derives from `std::logic_error`, because a lost
+wake is a defect in a driver or its machine, not a condition of the run, and it carries
+`std::vector<std::uint64_t> groups`, the ids of the entry's groups that held a linked waiter,
+which `what()` names. It is not retryable: the same task over the same state stalls again.
+Xapiand's WorkPool chores report it as a 5xx naming the index and never retry it.
 
 An operation that needs a peer fails at the call with `consensus::needs_peer` and submits
-nothing: `propose` and `read` on a group whose membership has a voter other than this node.
-`create`, `recover`, checkpoint and `close` need no peer. So each pass runs work, commits a
-turn, fires an operation deadline, takes a cross-thread cancel, or throws.
+nothing: `propose` and `read` on a group whose membership has a voting member (voter or
+witness, `types.h:70-77`) other than this node. That is the predicate X5 uses for the lone
+voter's campaign at `Start`, so a lone voter beside a witness fails `needs_peer` at the call
+rather than `stalled` later (R6). `create`, `recover`, checkpoint and `close` need no peer. So
+each pass runs work, commits a turn, fires an operation deadline, takes a cross-thread cancel
+toward one, or throws.
 `blocking_entry rules` runs this loop over a model group whose timer is always armed: a lost
 wake throws `stalled` with no clock advance; a three-voter proposal fails `needs_peer` with
 nothing staged; a lone voter's first proposal is placed, written and committed with no clock
@@ -277,11 +298,13 @@ the task finishes) hangs on the first two, 100,000 heartbeats or elections witho
 and returns with the cancelled record unwritten. With Core as pinned, the lone voter's proposal
 waits out its 1.5 s election; `lone_voter` measures the real one leading 1,499 ms after `Start`.
 `blocking_entry threads` runs the steady-clock entry over the prototype scheduler
-(`blocking.hh`): a cancel requested on another thread wakes an entry asleep toward a 30 s
-deadline and returns `cancelled` within 55 ms of the request's 50 ms, 300 rounds under TSan; a
-200 ms deadline wakes it on the wheel; a lost wake with no requestable token throws at once.
-Over `inline_scheduler` the same cancel's hop is refused and the entry stalls
-(`blocking_entry inline`).
+(`blocking.hh`): a cancel requested on another thread at 50 ms wakes an entry asleep toward a
+30 s deadline, which returns `cancelled` 60.2 ms after it started under TSan and 51.2 ms in the
+plain build (jobs 261110-031130-32585e, 261110-031128-58310d), and 300 rounds of it all return
+`cancelled`; a 200 ms deadline wakes it on the wheel; a lost wake throws at once, with no token
+and under a live token another thread requests only after the entry returned
+(`lost-wake-live-token`, R3). Over `inline_scheduler` the same cancel's hop is refused and the
+entry stalls (`blocking_entry inline`).
 
 `task::sync_wait` is not the blocking entry: it waits for work other threads drive
 (`task.hh:744-792`), and over a shared-backend `Store` with no one running its `TurnDriver` it
@@ -325,7 +348,8 @@ cancellation never stalls Core or leaves a sequence gap:
 | a caller-owned IO primitive (an artifact chunk, a verify read) not yet queued | not issued |
 | a caller-owned IO primitive in the kernel | completes into the machine (no torn write); only the caller is released |
 | `create` or `recover` in progress | the caller completes with `task::cancelled`; the machine finishes its current durable step under the shutdown token and the group stays open, so a later `create`/`recover` resumes it or `close` retires it; the host owns opens, single-flight, and requests wait on an open under their own tokens (X15) |
-| waiting when its group closes or its loop shuts down | not yet admitted: unlinked, completes with `consensus::closed` (or `cancelled` at shutdown); staged: completes when its record commits, as row 2 (X2) |
+| waiting when its group closes | holding no staged record (a proposal not yet admitted, a read at either stage, a `create`/`recover` once its current durable step ends): unlinked, completes with `consensus::closed`; holding a staged record: completes when its record commits (X2, R4) |
+| waiting when its loop shuts down | completes with `task::cancelled` (`cancel_reason::shutdown`); a staged record is still written and may commit, as row 2 (R5) |
 | `close` | takes no caller token: retirement drains to the end; only the loop's shutdown stops it |
 
 *The waiter.* A caller awaiting a group holds a waiter in its frame: a claim word, the result
@@ -358,9 +382,14 @@ alive, and task's teardown phase 3 destroys suspended frames without resuming th
 
 1. A waiter's destructor unlinks it, which is legal on its group's loop and in phase 3, once
    every loop has joined. Groups outlive phase 3.
-2. `close` refuses new calls, unlinks every waiter not yet admitted and resumes those whose claim
-   it wins with `closed`, lets staged records drain and their waiters complete, and frees the
-   group's state only once nothing of its own is queued; the group table's entry outlives it.
+2. `close` refuses new calls and resolves with `closed` every waiter that holds no staged record:
+   proposals not yet admitted, reads awaiting their read index or the apply that reaches it (a
+   closing group confirms no read index), and `create`/`recover` once its current durable step
+   ends, never before. Each is unlinked and resumed if close wins its claim. Only waiters with a
+   staged record drain: they complete at their commit. The group's state is freed once nothing
+   of its own is queued; the group table's entry outlives it, so a late `receive` or `applied`
+   (D2) finds the group closed, is dropped and is counted. Close does not wait for the
+   application's `Committed` range (R4).
 3. Graceful shutdown is host-wide, in two steps. While every loop runs, every Driver cancels its
    waiters with `cancel_reason::shutdown` and refuses new calls. Then task's teardown runs.
 
@@ -370,6 +399,16 @@ once (completed, cancelled or closed) and nothing touches the freed state. `tear
 loop at any step and destroys the unresumed frames (319 and 133,406 schedules); the group then
 names no destroyed frame. Their controls fail: a close that frees the state with waiters linked
 breaks 977 of 1,824 schedules, and a destructor that leaves its waiter linked breaks 27 of 319.
+The other waiter kinds run the same exploration, caller 0 with no token so only close can end
+its wait and the others under the deadline (R4): `close-read`, reads closed at either stage
+(310 and 24,028 schedules); `close-open`, one or two callers waiting on one single-flight
+`create`/`recover`, closed only after its durable step (657 and 30,896); `close-late`, a
+proposal with the transport's `receive` and the application's `applied` arriving at any point
+through a sixth loop, 241,710 schedules, 74,247 receives and 180,845 applieds dropped on a
+closed group and none touching freed state. Their controls fail: close as rule 2 first read,
+resolving only proposals not yet admitted, leaves a read waiting in 32 of 234 schedules and an
+open in 110 of 527; `receive` and `applied` through `Group&` reach freed state in 182,104 of
+241,710.
 
 **D9. A snapshot channel holds frame buffers only while a frame arrives.** Each per-peer
 `Channel` embeds a `std::array<char, maximum_transfer_bytes>` (`snapshot_channel.h:185`;
@@ -411,25 +450,45 @@ artifacts are its own, each loop's turn log is named by (generation, loop), and 
 layout record names (L, generation). A host opened with another L re-partitions before it
 serves:
 
-1. Recover every log of the stored generation, the read every open does.
+1. Recover every log of the stored generation, the read every open does, and mark the groups
+   recovery calls lost in the host's group table, synced, before anything else.
 2. Write each group's live records into its new loop's log of the next generation, and sync each
    new log.
 3. Commit by replacing the layout record, then delete the old generation's logs.
 
-A crash before the commit leaves the old generation authoritative, and the next open starts
-again; after it, the new one is, and leftover old logs are deleted. The cost is one write of the
+A lost group (journal's `TurnRecovery::lost`: a sequence gap, or records in a damaged block)
+rejoins under a new id, and `TurnLog::append` refuses its old one (`turn_log.h:61-70`, `:206`).
+That verdict exists only as damage in the log, and `lost_` is rebuilt from each open's recovery
+(`turn_log.h:176`), so a clean next generation would forget it and let the old id append from
+sequence 1: a consensus member with its term and vote forgotten under the same incarnation (R1).
+Step 1's mark keeps it in the group table, which every open reads, and journal's `TurnLog`
+opens with the table's lost ids (quest 3), so they stay refused whatever log holds the group.
+Every open marks, so a later open also keeps the verdict after the damaged segment is gone.
+A crash before the commit leaves the old generation authoritative, its damage and the marks
+intact, and the next open starts again; after it, the new one is, and leftover old logs are
+deleted. The cost is one write of the
 live records, bounded by the retained-log budget (16 GiB), and one barrier per new log; a restart
 with the same L copies nothing. An rf = 1 node keeps its data through a resize, with no replica to
 re-create from. `placement_test remap` crashes after every durable step of 8->6, 6->12, 16->3 and
-3->1 re-partitions of 2,000 groups, and every group's records come back exactly once, on its new
-loop. *A fixed partition count P*, with loops serving partitions, loses: P / L barriers per loop
+3->1 re-partitions of 2,000 groups, one in fifty lost to damage, and every group's records come
+back exactly once, on its new loop, and every lost group stays lost, through two more restarts;
+without the marks (`remap-forget`) lost groups come back. `repartition_lost` runs journal's own
+damage scenario over the real RFTW0001 log: after a 1->2 re-partition the new log's recovery no
+longer calls group 1 lost, and only the mark refuses its old id. *A fixed partition count P*, with loops serving partitions, loses: P / L barriers per loop
 per turn for the host's life. *Turn logs per slot* lose: 4,096 logs, at least one 64 MiB segment
 each, 256 GiB. A running host still does not move a hot group (Limits).
 
 The connection hello carries `(base port, L, loop index)`. A dialer whose view of the peer's L
 disagrees closes with `l_mismatch` and dials again with the hello's L, and a group-open whose slot
-is not the receiving loop's is refused with `misrouted`, never served through a hop (F15,
-`placement_test hello`).
+is not the receiving loop's is refused with `misrouted`, never served through a hop (F15). After
+a restart that shrinks L, a stale view dials `base port + j` with j >= the new L, where nothing
+listens or another process does (R2): 25% of groups for 8->6, 81% for 16->3. A dial that is
+refused, fails its handshake or reads no hello therefore falls back to the peer's loop 0 (the
+base port, which listens for every L >= 1), whose hello carries the current L; the dialer closes
+with `l_mismatch`, updates its view of the peer, and dials the owning loop. A group reaches its
+loop in at most three dials (`placement_test hello`, which counts these unbound dials apart from
+`misrouted` group-opens; `shrink_dial`). A growing L needs no fallback: every stale target still
+listens.
 
 *An idle connection.* The loop transport drives OpenSSL on the non-blocking socket (`SSL_set_fd`,
 readiness through `await_asio` on `async_wait`) with `SSL_MODE_RELEASE_BUFFERS`, and allocates
@@ -448,7 +507,9 @@ connection per pair of loops at today's 118 KB. Connections grow with loops time
 against 128 in Track C D12's two lanes per peer, and random placement over 100,000 nodes (1,325
 peers) would hold 21,200 (863 MB). D10 therefore depends on the copyset bound. Keepalives run once
 per node pair, not per loop pair, and Xapiand 7b's shard RPC uses these connections rather than a
-second set. A group holds a 16-byte route in the loop's
+second set. A node pair's keepalive does not cross every loop pair's connection, so a half-open
+loop-pair connection under quiescent groups (Q4) is found only when a frame times out on it;
+quest 5 says what detects one sooner and tests it (R12). A group holds a 16-byte route in the loop's
 table, its per-group send queues (empty, unallocated while idle) and its admission state; the
 per-group queue caps of `PeerOptions` stay per group, and the writer takes groups' control frames
 round-robin, never behind more than one append frame (R19).
@@ -465,8 +526,13 @@ frames.
 
 *Identity (Q7).* TLS then authenticates a peer host's node rather than a group's voter. A frame
 is accepted when its sender is a node the loop's pins authenticate for the cluster and it names
-a group and destination incarnation the loop holds; `Core` then decides by term, incarnation and
+a group and destination incarnation the loop stores (open, or closed and reopened by the frame,
+below; R7); `Core` then decides by term, incarnation and
 log, as it already admits any authenticated incarnation (`core.h:756-759`; strata Track C D5).
+`Core` treats `Receive::authenticated_peer` as authenticated, while node TLS authenticates only
+the node, so where the membership names the frame's source incarnation, that incarnation's node
+must be the connection's authenticated node; an incarnation the membership does not name (a
+joiner's leader) is admitted as now (quest 5's security review).
 Membership is not checked (X1): a joiner's membership is empty until the log names it, so it
 would refuse its leader's first append and install, and a follower lagging an add-voter would
 refuse the new leader. The group-open exchange carries what today's hello checks per group
@@ -575,7 +641,8 @@ from another loop adds two posts (D2).
 - **Silent failure: a lost wake.** A group that should be ready and is not, or whose entry was
   not re-armed after a step, stalls with no error. The consensus quest's simulator checks
   liveness under every schedule; a Debug assertion checks after each step that a group with a
-  deadline is armed; the blocking entry throws `stalled` instead of waiting (D5).
+  deadline is armed; the blocking entry throws `stalled` instead of waiting, a live token
+  included (D5).
 - **A group moves between loops only at restart**, when L changes (D10); a running host cannot
   move a hot group to an idle loop.
 - **Far deadlines wake early** once per 4,096 ms round, and every wheel timer fires up to 1 ms
@@ -590,11 +657,11 @@ Each quest leaves every repository working; the Worker pump API is deleted last.
 
 | # | Quest (`--repo`) | Files | Criteria | Risk | Needs |
 |---|---|---|---|---|---|
-| 1 | `task-wheel` (task) | `task.hh`, `task_asio.hh`, tests, bench | `task::timer_wheel` (D4): O(1) arm and cancel, no allocation (job); `expire` tolerates a fire cancelling or re-arming any entry, itself included (the bench's `wheel_test reentry`, `chain` and the review probe as tests) and matches a reference model under random arm, cancel and re-arm from fires; deadlines beyond a round never fire early, `floor(d / round)` early wakes; owner-thread Debug assertions; `deadline<S>` on `S::clock`, `inline_scheduler::advance` expires it with no real time; a parent and children on two loops under TSan and ASan; `asio_scheduler::start_timer` on the wheel with task's deadline contract unchanged (created and destroyed on any thread: `asio_test.cc:371-390` passes as is, plus `wheel_test offloop` as a test, under TSan and ASan; the entry in the deadline's cancel state, no added allocation; a wheel destroyed with deadlines armed releases them); `cancellation.md` and the D4 users table unchanged; `scheduler_ref` source-compatible, gaining `wheel()` (X14); the owner check binds when the loop starts; `inline_scheduler` gains a same-thread `post_call`; `task::blocking_scheduler` (D5, X3), Xapiand's `engine::BlockingScheduler` with the wheel: thread-safe `post` and `post_call` that wake its wait (the `blocking_entry threads` cases as tests, under TSan); D4's list of what moves onto the wheel and what stays (X7); Xapiand lead reviews the diff | medium | Q1 |
+| 1 | `task-wheel` (task) | `task.hh`, `task_asio.hh`, tests, bench | `task::timer_wheel` (D4): O(1) arm and cancel, no allocation (job); `expire` tolerates a fire cancelling or re-arming any entry, itself included (the bench's `wheel_test reentry`, `chain` and the review probe as tests) and matches a reference model under random arm, cancel and re-arm from fires; deadlines beyond a round never fire early, `floor(d / round)` early wakes; owner-thread Debug assertions; `deadline<S>` on `S::clock`, `inline_scheduler::advance` expires it with no real time; a parent and children on two loops under TSan and ASan; `asio_scheduler::start_timer` on the wheel with task's deadline contract unchanged (created and destroyed on any thread: `asio_test.cc:371-390` passes as is, plus `wheel_test offloop` as a test, under TSan and ASan; the entry in the deadline's cancel state, no added allocation; a wheel destroyed with deadlines armed releases them); `cancellation.md` and the D4 users table unchanged; `scheduler_ref` source-compatible, gaining `wheel()` (X14); the owner check binds when the loop starts; `inline_scheduler` gains a same-thread `post_call`; `task::blocking_scheduler` (D5, X3), Xapiand's `engine::BlockingScheduler` with the wheel: thread-safe `post` and `post_call` that wake its wait, and no wait without an armed timer (the `blocking_entry threads` cases as tests, `lost-wake-live-token` included, under TSan; R3); D4's list of what moves onto the wheel and what stays (X7); Xapiand lead reviews the diff | medium | Q1 |
 | 2 | `completion-seam` (completion) | `operation.h`, `completion.h`, the queues, `asio_completion.h`, tests | `SyncData` on every backend (fault tests); `completion_ref` with a token, `InlineCompletion`, `HeldCompletion`; `drive_synchronously` is `InlineCompletion`'s loop; turn primitives ahead of artifact and snapshot IO, measured (X13) | low | - |
-| 3 | `journal-driver` (journal) | `turn_driver.h`, `store.h`, `journal.h`, tests | `TurnDriver::run` and `Store` tasks (D2); crash-point suites through `HeldCompletion` with the sync driver's histories; `journal::run` over a shared backend with no `io_context`, committing turns inline (D5): it returns only after staged records are written, an append cancelled after staging included (D8), and throws `stalled` on a lost wake (the `blocking_entry rules` cases as tests), over `blocking_scheduler` on a steady clock; the owner tag refuses a turn log a `Driver` holds; Q3 (b)'s layout with X9's five conditions: opaque group ids, reclamation and admission per group by name with no directory scan, a per-host group table that reopens a closed group without scanning the turn log, a strata index in its own nested directory that a checkpoint names, zero descriptors per idle group (idle-cost job); turn logs named by (generation, loop) and the re-partition when L changes at open, crash-tested at every durable step (as `placement_test remap`; X4); no Asio in `include/` (grep job) | medium | 1, 2 |
-| 4 | `consensus-driver` (consensus) | `core.h` (`next_deadline`, a lone voter's campaign at `Start`), new `driver.h`, `snapshot_channel.h` (D9), tests | `simulation_test` through `Driver` on `inline_scheduler` + `HeldCompletion`; Core campaigns at `Start` when this node is the group's only voter and there is no witness, so a lone voter's first proposal after `recover` succeeds with no clock advance (`lone_voter` passes; X5); calls by group id through the loop's group table; the waiter protocol tested per interleaving with every cross-loop post a scheduling point and freed frames checked (as `waiter_test`; the review's resume-before-unlink mutants fail it) and D8's table row by row, `create`, `recover` and `close` included; close with linked waiters, a cancel racing close and teardown with a linked waiter (as `waiter_test close` and `teardown`, their controls failing, under ASan; X2); the host-wide two-step shutdown; every call from another loop under TSan; `consensus::run` per D5's five steps (the `blocking_entry rules` cases: `stalled` on a lost wake with a heartbeat armed, `needs_peer` for a multi-voter `propose`/`read`, a lone voter's first proposal, staged-then-cancelled written before return; over `blocking_scheduler`, a cross-thread cancel returns `cancelled`, under TSan) and its ownership assertion; idle-cost job: 0 threads, frames, armed timers per group, 3-voter member's consensus state within 8 KiB; Worker suites green; ASan+UBSan and TSan | high | 3 |
-| 5 | `consensus-transport` (consensus) | `transport/` on task, tests | one transport per loop (D10) beside today's `Peers`: placement by `(slot × L) >> 12` for any L (as `placement_test map` and `share`), a port per loop, a Control connection per pair of loops sharing groups and a Bulk connection per transfer, no thread hop on receive (TSan job with two loops per host); idle-cost job: per idle group at most 64 bytes, 0 descriptors, frames or timers, an idle connection end within 48 KB, per loop `29 KB + H x 41 KB` within 10%; a group with full admission does not delay another group's heartbeat on the same connection (as `reader_test`); host authentication, the per-frame rule (an authenticated node of the cluster, a group and destination incarnation the loop holds) and the hello's checks in the group-open exchange (security review, Q7); a joiner installs and catches up over a shared connection, and a follower lagging an add-voter catches up from the new leader (X1); a peer restarted with a different L is refused with `l_mismatch`, a misrouted group-open with `misrouted`, and a host restarted with another L serves every group from its new loop (`l_mismatch_test`); keepalives once per node pair, measured (X12); no `asio::awaitable` under `include/` once `Peers` leaves | high | 4, Q7 |
+| 3 | `journal-driver` (journal) | `turn_driver.h`, `store.h`, `journal.h`, tests | `TurnDriver::run` and `Store` tasks (D2); crash-point suites through `HeldCompletion` with the sync driver's histories; `journal::run` over a shared backend with no `io_context`, committing turns inline (D5): it returns only after staged records are written, an append cancelled after staging included (D8), and throws `journal::stalled` (a `std::logic_error` carrying the waiting groups' ids, D5) on every lost wake, a live token included (the `blocking_entry rules` cases and `lost-wake-live-token` as tests), over `blocking_scheduler` on a steady clock; the owner tag refuses a turn log a `Driver` holds; Q3 (b)'s layout with X9's five conditions: opaque group ids, reclamation and admission per group by name with no directory scan, a per-host group table that reopens a closed group without scanning the turn log, a strata index in its own nested directory that a checkpoint names, zero descriptors per idle group (idle-cost job); turn logs named by (generation, loop), each in its own subdirectory of the host's directory so RFTW0001's scan of one directory for `turns-<n>` (`turn_log.h:92-104`, `:376-378`) stays as is (R13), and the re-partition when L changes at open, crash-tested at every durable step over a damaged old generation: every open marks recovery's lost ids in the group table and `TurnLog` opens with them, so a lost group stays lost after the commit and after a crash at every step (as `placement_test remap` and `repartition_lost`; X4, R1); no Asio in `include/` (grep job) | medium | 1, 2 |
+| 4 | `consensus-driver` (consensus) | `core.h` (`next_deadline`, a lone voter's campaign at `Start`), new `driver.h`, `snapshot_channel.h` (D9), tests | `simulation_test` through `Driver` on `inline_scheduler` + `HeldCompletion`; Core campaigns at `Start` when this node is the group's only voter and there is no witness, so a lone voter's first proposal after `create` and after `recover` succeeds with no clock advance (`lone_voter`, which covers `create`, passes, and a test covers `recover`; X5, R9); calls by group id through the loop's group table, `receive` and `applied` included, a closing or closed group dropping and counting them (R4); the waiter protocol tested per interleaving with every cross-loop post a scheduling point and freed frames checked (as `waiter_test`; the review's resume-before-unlink mutants fail it) and D8's table row by row, `create`, `recover` and `close` included; close with linked waiters of every kind, a cancel racing close and teardown with a linked waiter (as `waiter_test close`, `close-read`, `close-open`, `close-late` and `teardown`, their controls failing, under ASan; X2, R4), and close racing a cancel and teardown on real threads under TSan (R11); the host-wide two-step shutdown; every call from another loop under TSan; `consensus::run` per D5's five steps (the `blocking_entry rules` cases: `stalled` on a lost wake with a heartbeat armed, `needs_peer` for a `propose`/`read` on a group with a voting member (voter or witness) other than this node, a lone voter beside a witness included (R6), a lone voter's first proposal, staged-then-cancelled written before return; over `blocking_scheduler`, a cross-thread cancel toward a deadline returns `cancelled` and a lost wake under a live token throws `stalled`, under TSan) and its ownership assertion; idle-cost job: 0 threads, frames, armed timers per group, 3-voter member's consensus state within 8 KiB; Worker suites green; ASan+UBSan and TSan | high | 3 |
+| 5 | `consensus-transport` (consensus) | `transport/` on task, tests | one transport per loop (D10) beside today's `Peers`: placement by `(slot × L) >> 12` for any L (as `placement_test map` and `share`), a port per loop, a Control connection per pair of loops sharing groups and a Bulk connection per transfer, no thread hop on receive (TSan job with two loops per host); idle-cost job: per idle group at most 64 bytes, 0 descriptors, frames or timers, an idle connection end within 48 KB, per loop `29 KB + H x 41 KB` within 10%; a group with full admission does not delay another group's heartbeat on the same connection (as `reader_test`); host authentication, the per-frame rule (an authenticated node of the cluster, a group and destination incarnation the loop stores, and, where the membership names the source incarnation, its node the authenticated node; R7) and the hello's checks in the group-open exchange (security review, Q7); a joiner installs and catches up over a shared connection, and a follower lagging an add-voter catches up from the new leader (X1); a dialer with a stale view of a peer restarted with a different L is closed with `l_mismatch` and redials with the hello's L, a dial a shrunk peer refuses falls back to its loop 0, a lower-id dialer with a stale view included, a misrouted group-open is refused with `misrouted`, and a host restarted with another L serves every group from its new loop (`l_mismatch_test`, as `placement_test hello`; R2, R9); keepalives once per node pair, measured (X12), and a half-open loop-pair connection under quiescent groups detected within a stated bound, tested (R12); no `asio::awaitable` under `include/` once `Peers` leaves | high | 4, Q7 |
 | 6 | `detent-on-drivers` (Detent) | `src/detent_authority/` | the owner-loop table; `AuthorityPeers` onto the loop transport; no 1 ms timer in the authority (grep and idle-CPU jobs); the `native` suite; CPU per request and p99 within the November 2 item 7 gate | high | 5 |
 | 7 | `worker-pump-removal` (consensus, then a Detent pin) | `worker.h`, `transport/peers.h`, their tests | `run_one`, `take_io_operation`, `take_actions`, `try_submit`, `try_submit_retained`, `storage_operation_failed` and today's `Peers` leave the public API; a grep job over Detent and consensus finds no caller | medium | 6 |
 
@@ -634,7 +701,7 @@ reopens; Xapiand 7b needs it before it writes bytes (X8).
 - **Q7. Transport identity (D10).** A connection shared by a loop's groups authenticates a peer
   host's node, not one group's voter. (a) one certificate per node, pinned once per loop, a
   frame accepted from any node the pins authenticate for the cluster when it names a group and
-  destination incarnation the loop holds (Core decides the rest, X1), and the hello's per-group
+  destination incarnation the loop stores (Core decides the rest, X1; R7), and the hello's per-group
   checks (cluster, group, epoch, profile) in the group-open exchange; today's per-group `PeerOptions::pins` become the loop's
   per-node pins, which every group naming that node must agree on; (b) keep a `Peers` per group
   and pay 511,947 bytes and 5 descriptors per idle three-voter member; (c) per-group pins carried
