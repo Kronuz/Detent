@@ -16,9 +16,10 @@
 //            clock advance, and the case as it is today must fail.
 //   threads  review X3, the steady-clock entry over bench::blocking_scheduler (blocking.hh): a
 //            cancel requested on another thread wakes an entry asleep toward a 30 s deadline and
-//            returns `cancelled` at once; a 200 ms deadline wakes it on the wheel; a lost wake with
-//            no token that can be requested returns `stalled` without sleeping; 300 rounds of
-//            the cross-thread cancel. Run under TSan. The same cancel over task::inline_scheduler
+//            returns `cancelled` at once; a 200 ms deadline wakes it on the wheel; a lost wake
+//            returns `stalled` without sleeping, with no token or under a live token another
+//            thread requests only after the entry returned (review R3); 300 rounds of the
+//            cross-thread cancel. Run under TSan. The same cancel over task::inline_scheduler
 //            is the control: post_call is dropped and the entry stalls instead of cancelling.
 //   inline   that control alone: exits 1 at its failure.
 // Prints what each case observed; exits nonzero if an observation differs from the expected one.
@@ -367,33 +368,40 @@ const char* outcome_name(int state) {
 	return names[state];
 }
 
-// The steady-clock entry: drives the operation on the calling thread; `cancel_after_us` >= 0
-// requests the caller's token from another thread after that long.
-observed blocking(std::uint64_t deadline_ns, int cancel_after_us, bool requestable) {
+// The steady-clock entry: drives the operation on the calling thread under a deadline
+// (deadline_ns, 0 for none). With `live_token` the operation runs under a token another thread
+// holds: it requests it after `cancel_after_us`, or, when that is negative, only once the entry
+// has returned, so the token is live throughout the entry's run.
+observed blocking(std::uint64_t deadline_ns, int cancel_after_us, bool live_token) {
 	bench::blocking_scheduler s;
 	loop<bench::blocking_scheduler> l{s};
 	group<bench::blocking_scheduler> g;
 	task::cancel_source request;
 	std::optional<int> state;
+	std::atomic<bool> returned{false};
 	const auto start = std::chrono::steady_clock::now();
-	task::spawn(task::scheduler_ref::of(s), operation(s, l, g, requestable ? request.token() : task::cancel_token{}, deadline_ns),
+	task::spawn(task::scheduler_ref::of(s), operation(s, l, g, live_token ? request.token() : task::cancel_token{}, deadline_ns),
 		[&](std::exception_ptr, std::optional<int> v) { state = v; });
 	std::thread other;
-	if (cancel_after_us >= 0) {
+	if (live_token) {
 		other = std::thread([&, cancel_after_us] {
-			std::this_thread::sleep_for(std::chrono::microseconds(cancel_after_us));
+			if (cancel_after_us >= 0) {
+				std::this_thread::sleep_for(std::chrono::microseconds(cancel_after_us));
+			} else {
+				returned.wait(false);
+			}
 			request.request();
 		});
 	}
-	// Step 5 on this scheduler: nothing queued, no deadline armed, and no token another thread
-	// can request: the entry throws `stalled` without sleeping.
-	const bool done = s.drive([&] { return state.has_value(); }, [&] { return requestable; });
-	if (other.joinable()) { other.join(); }
+	// Step 5 on this scheduler: nothing queued and no deadline armed is a lost wake, and the
+	// entry throws `stalled` without sleeping, whatever tokens another thread holds.
+	const bool done = s.drive([&] { return state.has_value(); });
 	const double elapsed = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-	if (!done) {
-		give_up(g);
-		return {"stalled", elapsed, l.dropped.load()};
-	}
+	if (!done) { give_up(g); }
+	returned = true;
+	returned.notify_one();
+	if (other.joinable()) { other.join(); }
+	if (!done) { return {"stalled", elapsed, l.dropped.load()}; }
 	return {outcome_name(*state), elapsed, l.dropped.load()};
 }
 
@@ -431,6 +439,8 @@ void threads(int rounds) {
 	CHECK(report("cancel-thread", blocking(30'000 * ms, 50'000, true), "cancelled", 50, 1'000));
 	CHECK(report("deadline-steady", blocking(200 * ms, -1, false), "cancelled", 200, 1'200));
 	CHECK(report("lost-wake", blocking(0, -1, false), "stalled", 0, 100));
+	// Review R3: a live token another thread can still request does not hold off step 5.
+	CHECK(report("lost-wake-live-token", blocking(0, -1, true), "stalled", 0, 100));
 	std::mt19937 random(7);
 	double worst = 0;
 	for (int r = 0; r < rounds; ++r) {

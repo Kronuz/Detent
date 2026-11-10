@@ -44,9 +44,9 @@ public:
 
 	// The driving thread: runs queued work and due timers until done() holds, sleeping to the
 	// wheel's next deadline or until a post. Returns false, without sleeping, when nothing is
-	// queued, no timer is armed and `can_wake()` says no other thread can post: a lost wake.
-	template <class Done, class CanWake>
-	bool drive(Done&& done, CanWake&& can_wake) {
+	// queued and no timer is armed: a lost wake (D5 step 5), whatever tokens are live.
+	template <class Done>
+	bool drive(Done&& done) {
 		driver_ = std::this_thread::get_id();
 		std::unique_lock lock(mutex_);
 		for (;;) {
@@ -69,16 +69,12 @@ public:
 			timers.expire(now());
 			const bool finished = done();
 			const std::uint64_t next = timers.next();
-			const bool wakeable = can_wake();
 			lock.lock();
 			if (!ready_.empty()) { continue; }  // a fire, or another thread, queued work
 			if (finished) { return true; }
-			if (next == ~std::uint64_t{0}) {
-				if (!wakeable) { return false; }
-				wake_.wait(lock, [&] { return !ready_.empty(); });
-			} else {
-				wake_.wait_until(lock, start_ + std::chrono::nanoseconds(next), [&] { return !ready_.empty(); });
-			}
+			if (next == ~std::uint64_t{0}) { return false; }
+			// Step 4: only a deadline makes a sleep; a cross-thread post (a cancel's hop) cuts it short.
+			wake_.wait_until(lock, start_ + std::chrono::nanoseconds(next), [&] { return !ready_.empty(); });
 		}
 	}
 
