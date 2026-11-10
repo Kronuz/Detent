@@ -34,6 +34,7 @@ public:
 		}
 	}
 	bool idle() const noexcept { return queue_.empty(); }
+	void stop() { queue_.clear(); }  // the loop is gone: what it had queued never runs
 	void step() {
 		auto f = std::move(queue_.front());
 		queue_.pop_front();

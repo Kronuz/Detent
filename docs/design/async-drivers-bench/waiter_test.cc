@@ -10,6 +10,15 @@
 //                       to Core never staged; staged in a turn always written and committed
 //   naive [callers]     the same over D8 as first written (cancel resumes the caller at once);
 //                       passes iff some interleaving reaches a freed frame
+//   close [callers]     review X2: a fifth loop closes the group at any point; close resolves
+//                       waiters not yet admitted with `closed`, drains staged records, then frees
+//                       the group's state, which nothing may touch after (a cancel racing close)
+//   teardown [callers]  review X2: at any step every loop stops and phase 3 destroys unresumed
+//                       frames; each waiter's destructor unlinks it, so the group, which outlives
+//                       phase 3, names no destroyed frame
+//   close-naive, teardown-naive   the controls: close frees the state with waiters linked; a
+//                       destroyed waiter stays linked; each passes iff some schedule breaks
+//   x2 [callers]        close, teardown and their controls
 //   threads [n]         the four loops on four threads, n rounds; run under TSan and ASan
 #include "loops.hh"
 #include "waiter.hh"
@@ -71,27 +80,40 @@ struct ledger {
 
 // The group's machine on loop A: an admission list, then Core (stages a record in the turn
 // log), then the turn's write on the IO loop, then the barrier: the record is durable,
-// Committed reaches the sink, and the proposal's waiter completes if it still waits.
+// Committed reaches the sink, and the proposal's waiter completes if it still waits. close()
+// (review X2) refuses new calls, resolves waiters not yet admitted with `closed`, lets staged
+// records drain and their waiters complete, and frees the group's state once nothing of its own
+// is queued. The table entry (closing, freed) outlives the state; any later touch of the state
+// is a violation.
 template <class Loop>
 struct group_model {
 	using waiter = bench::waiter<Loop>;
 	Loop& loop;
 	Loop& io;
 	ledger& book;
+	bool naive_close = false;  // the negative control: close frees the state with waiters linked
 	waiter* admission = nullptr;
 	waiter* placed = nullptr;
 	std::map<const waiter*, int> record_of;
 	std::set<int> staged, written, committed;
 	int next_record = 1;
+	int posted = 0;  // the group's own calls queued on a loop: its ready link and its IO
+	bool closing = false, freed = false;
+	waiter *admission_at_free = nullptr, *placed_at_free = nullptr;
 
 	void enqueue(waiter& w, const task::cancel_token& token) {
+		if (closing) {  // the table refuses a call to a closing or closed group
+			w.close();
+			return;
+		}
 		w.link(admission);
 		w.watch(token);
-		loop.post([this] { turn(); });
+		post(loop, [this] { turn(); });
 	}
 	void turn() {  // Core accepts the oldest proposal still waiting for admission
+		if (!live()) { return; }
 		waiter* w = admission;
-		if (!w) { return; }  // its caller was cancelled before admission: never submitted
+		if (!w) { return maybe_free(); }  // its caller was cancelled before admission: never submitted
 		if (!book.alive(w)) { return; }
 		while (w->next) {
 			if (!book.alive(w->next)) { return; }
@@ -102,9 +124,10 @@ struct group_model {
 		staged.insert(r);  // machine-owned IO from here: written under the loop's token only
 		record_of[w] = r;
 		w->link(placed);
-		io.post([this, r] { loop.post([this, r] { barrier(r); }); });
+		post(io, [this, r] { post(loop, [this, r] { barrier(r); }); });
 	}
 	void barrier(int r) {
+		if (!live()) { return; }
 		written.insert(r);
 		committed.insert(r);
 		for (waiter* w = placed; w;) {
@@ -112,10 +135,47 @@ struct group_model {
 			waiter* following = w->next;
 			if (record_of[w] == r) {
 				w->complete(r);
-				return;
+				break;
 			}
 			w = following;
 		}
+		maybe_free();
+	}
+	void close() {  // on A
+		if (!live()) { return; }
+		closing = true;
+		if (naive_close) { return release(); }
+		while (waiter* w = admission) {
+			if (!book.alive(w)) { return; }
+			w->close();  // unlinks, then resumes the caller if the claim wins
+		}
+		maybe_free();
+	}
+	// The state's lists still as they were when it was freed: nothing wrote into freed memory.
+	bool untouched() const noexcept { return !freed || (admission == admission_at_free && placed == placed_at_free); }
+
+private:
+	template <class F>
+	void post(Loop& l, F f) {
+		++posted;
+		l.post([this, f] {
+			--posted;
+			f();
+		});
+	}
+	bool live() {
+		if (!freed) { return true; }
+		std::lock_guard lock(book.mutex);
+		++book.violations;
+		return false;
+	}
+	void maybe_free() {
+		if (closing && !freed && !admission && !placed && posted == 0) { release(); }
+	}
+	void release() {
+		freed = true;
+		admission_at_free = admission;
+		placed_at_free = placed;
 	}
 };
 
@@ -129,7 +189,9 @@ struct scenario {
 	task::cancel_token token;
 	bool naive;
 	bool keep;  // freed frames stay allocated (quarantined) and are checked at the end
+	bool keep_linked = false;  // the negative control: a destroyed waiter stays in the group's list
 	std::atomic<int> resumed{0};
+	std::vector<frame<Loop>*> made;
 
 	scenario(Loop& a_, Loop& b_, Loop& c_, Loop& io_, bool naive_, bool keep_)
 		: a(a_), b(b_), c(c_), io(io_), naive(naive_), keep(keep_) {}
@@ -143,6 +205,8 @@ struct scenario {
 		f->w.caller = &b;
 		f->w.group = &a;
 		f->w.naive = naive;
+		f->w.keep_linked = keep_linked;
+		made.push_back(f);
 		f->w.resume = [this, f, id] {  // on B: the caller resumes and its frame dies
 			{
 				std::lock_guard lock(book.mutex);
@@ -170,6 +234,18 @@ struct scenario {
 		for (void* f : book.quarantine) { n += !static_cast<frame<Loop>*>(f)->unchanged(); }
 		return n;
 	}
+	// Task teardown's phase 3 (every loop joined, its queue gone): frames destroyed unresumed.
+	// Returns how many were still linked in the group's lists.
+	int teardown() {
+		int linked = 0;
+		for (frame<Loop>* f : made) {
+			if (!book.live.count(&f->w)) { continue; }  // resumed: quarantined or freed already
+			book.live.erase(&f->w);
+			linked += f->w.linked();
+			delete f;  // ~waiter deregisters its callback and unlinks it
+		}
+		return linked;
+	}
 	~scenario() {
 		for (void* f : book.quarantine) { delete static_cast<frame<Loop>*>(f); }
 	}
@@ -187,6 +263,8 @@ void verdict(scenario<Loop>& s, int callers) {
 		if (s.book.outcome[id] == bench::waiter<Loop>::completed) {
 			CHECK(s.group.committed.count(s.book.value[id]));
 			CHECK(values.insert(s.book.value[id]).second);
+		} else if (s.book.outcome[id] == bench::waiter<Loop>::closed) {
+			CHECK(s.group.closing);  // refused or resolved by close, never staged
 		} else {
 			CHECK(s.book.outcome[id] == bench::waiter<Loop>::cancelled && s.deadline->expired());
 		}
@@ -195,6 +273,8 @@ void verdict(scenario<Loop>& s, int callers) {
 	// cancelled before admission was never staged, so staged records number the admitted ones.
 	CHECK(s.group.staged == s.group.written && s.group.written == s.group.committed);
 	CHECK(s.group.staged.size() <= std::size_t(callers));
+	CHECK(s.group.untouched());
+	CHECK(s.group.freed == s.group.closing);  // a closed group frees its state once drained
 }
 
 // Picks every choice of a run: which loop steps next, and at each post to another loop whether
@@ -225,50 +305,98 @@ struct chooser final : bench::manual_loop::scheduler {
 	}
 };
 
-// Runs one schedule to the end and checks it; returns whether a naive run broke the protocol.
-bool replay(chooser& pick, int callers, bool naive, std::uint64_t& steps) {
+// What a run adds to the base scenario (callers on B, the group on A, the deadline on C, the
+// turn write on IO), and its negative control.
+enum class mode {
+	plain,           // review F3, F4, F14
+	naive,           // control: cancel resumes the caller at once
+	close,           // review X2: another loop, D, closes the group at any point of the run
+	close_naive,     // control: close frees the group's state with waiters still linked
+	teardown,        // review X2: at any step the loops stop and phase 3 destroys unresumed frames
+	teardown_naive,  // control: a destroyed waiter leaves the group's list as is
+};
+bool control(mode m) { return m == mode::naive || m == mode::close_naive || m == mode::teardown_naive; }
+
+struct run_stats {
+	std::uint64_t steps = 0, closed = 0, linked_at_teardown = 0;
+};
+
+// Runs one schedule to the end and checks it; returns whether a control run broke the protocol.
+bool replay(chooser& pick, int callers, mode m, run_stats& stats) {
 	pick.trace.clear();
-	bench::manual_loop a, b, c, io;
-	scenario<bench::manual_loop> s(a, b, c, io, naive, true);
+	bench::manual_loop a, b, c, io, d;
+	scenario<bench::manual_loop> s(a, b, c, io, m == mode::naive, true);
+	s.keep_linked = m == mode::teardown_naive;
+	s.group.naive_close = m == mode::close_naive;
 	s.deadline = std::make_unique<bench::wheel_deadline>(c.timers, 5 * ms);
 	s.token = s.deadline->token();
 	for (int id = 0; id < callers; ++id) { b.post([&s, id] { s.propose(id); }); }
 	c.post([&] { c.timers.expire(10 * ms); });  // the deadline fires
-	bench::manual_loop* loops[] = {&a, &b, &c, &io};
+	const bool closes = m == mode::close || m == mode::close_naive;
+	if (closes) { d.post([&] { a.post([&] { s.group.close(); }); }); }  // a request on D drops the index
+	const bool tears = m == mode::teardown || m == mode::teardown_naive;
+	bench::manual_loop* loops[] = {&a, &b, &c, &io, &d};
 	for (auto* l : loops) { l->explorer = &pick; }
+	bool torn = false;
 	for (;;) {
-		bench::manual_loop* enabled[4];
+		bench::manual_loop* enabled[5];
 		int n = 0;
 		for (auto* l : loops) { if (!l->idle()) { enabled[n++] = l; } }
 		if (!n) { break; }
+		if (tears && pick.choose(2) == 1) {  // every loop joins here: what is queued never runs
+			torn = true;
+			break;
+		}
 		enabled[n > 1 ? pick.choose(n) : 0]->step();
-		++steps;
+		++stats.steps;
 	}
-	for (auto* l : loops) { l->explorer = nullptr; }
-	if (!naive) {
+	for (auto* l : loops) {
+		l->explorer = nullptr;
+		l->stop();
+	}
+	if (tears) {
+		stats.linked_at_teardown += s.teardown();
+		// The group outlives phase 3; its lists must not name a destroyed frame.
+		const bool dangling = s.group.admission || s.group.placed;
+		if (control(m)) { return dangling; }
+		CHECK(!dangling && s.book.violations == 0 && s.touched_after_free() == 0);
+		if (!torn) { verdict(s, callers); }
+		return false;
+	}
+	for (int id = 0; id < callers; ++id) { stats.closed += s.book.outcome[id] == bench::waiter<bench::manual_loop>::closed; }
+	if (!control(m)) {
 		verdict(s, callers);
 		return false;
 	}
-	if (s.book.violations > 0 || s.touched_after_free() > 0) { return true; }
+	if (s.book.violations > 0 || s.touched_after_free() > 0 || !s.group.untouched()) { return true; }
 	for (int id = 0; id < callers; ++id) { if (s.book.resumes[id] != 1) { return true; } }
 	return false;
 }
 
-void explore(int callers, bool naive) {
+const char* name(mode m) {
+	static const char* names[] = {"explore", "naive", "close", "close-naive", "teardown", "teardown-naive"};
+	return names[int(m)];
+}
+
+void explore(int callers, mode m) {
 	chooser pick;
-	std::uint64_t schedules = 0, steps = 0, broken = 0;
+	run_stats stats;
+	std::uint64_t schedules = 0, broken = 0;
 	do {
-		broken += replay(pick, callers, naive, steps);
+		broken += replay(pick, callers, m, stats);
 		++schedules;
 	} while (pick.next());
-	if (naive) {
+	if (control(m)) {
 		CHECK(broken > 0);
-		std::printf("naive callers=%d schedules=%llu schedules_reaching_a_freed_frame=%llu (expected > 0) ok\n", callers,
+		std::printf("%s callers=%d schedules=%llu schedules_breaking_the_protocol=%llu (expected > 0) ok\n", name(m), callers,
 			static_cast<unsigned long long>(schedules), static_cast<unsigned long long>(broken));
-	} else {
-		std::printf("explore callers=%d schedules=%llu steps=%llu violations=0 ok\n", callers, static_cast<unsigned long long>(schedules),
-			static_cast<unsigned long long>(steps));
+		return;
 	}
+	if (m == mode::close) { CHECK(stats.closed > 0); }
+	if (m == mode::teardown) { CHECK(stats.linked_at_teardown > 0); }
+	std::printf("%s callers=%d schedules=%llu steps=%llu closed_outcomes=%llu linked_at_teardown=%llu violations=0 ok\n", name(m),
+		callers, static_cast<unsigned long long>(schedules), static_cast<unsigned long long>(stats.steps),
+		static_cast<unsigned long long>(stats.closed), static_cast<unsigned long long>(stats.linked_at_teardown));
 }
 
 // The same protocol on four threads: the deadline fires on C while B's callers and A's group
@@ -322,11 +450,12 @@ void threads(int rounds) {
 int main(int argc, char** argv) {
 	const std::string_view only = argc > 1 ? argv[1] : "all";
 	const int n = argc > 2 ? std::atoi(argv[2]) : 0;
-	if (only == "all" || only == "explore") {
-		for (int callers : n ? std::vector<int>{n} : std::vector<int>{1, 2}) { explore(callers, false); }
-	}
-	if (only == "all" || only == "naive") {
-		for (int callers : n ? std::vector<int>{n} : std::vector<int>{1, 2}) { explore(callers, true); }
+	const auto counts = n ? std::vector<int>{n} : std::vector<int>{1, 2};
+	for (mode m : {mode::plain, mode::naive, mode::close, mode::close_naive, mode::teardown, mode::teardown_naive}) {
+		const bool x2 = m != mode::plain && m != mode::naive;
+		if (only == name(m) || only == "all" || (only == "x2" && x2)) {
+			for (int callers : counts) { explore(callers, m); }
+		}
 	}
 	if (only == "all" || only == "threads") { threads(n ? n : 3000); }
 	std::printf("waiter_test: ok\n");

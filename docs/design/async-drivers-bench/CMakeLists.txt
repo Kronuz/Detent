@@ -34,9 +34,9 @@ target_link_libraries(driver_cost PRIVATE consensus::consensus completion::asio 
 add_executable(channel_layout channel_layout.cc)
 target_link_libraries(channel_layout PRIVATE consensus::consensus)
 
-# Protocol tests and probes for the design's threading rules (review F1-F5, F11-F14): assertions stay
+# Protocol tests and probes for the design's threading rules (review F1-F5, F11-F14, X2-X5): assertions stay
 # on in every build type, so the wheel's owner-thread checks run.
-foreach(t wheel_test waiter_test blocking_entry reader_test)
+foreach(t wheel_test waiter_test blocking_entry reader_test placement_test lone_voter)
 	add_executable(${t} ${t}.cc)
 	target_link_libraries(${t} PRIVATE consensus::consensus completion::asio)
 	target_compile_options(${t} PRIVATE -UNDEBUG)
