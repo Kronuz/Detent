@@ -2844,19 +2844,31 @@
       "files": [
         "docs/design/observability*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-10T09:18:31",
+          "ci_skipped": "changes only docs/design/observability*; ci.yml ignores docs/** and never runs on quest branches",
+          "commit": "7a07b3133757c1ac3ddb5b92e574a842600edc11",
+          "evidence": [],
+          "final": true,
+          "from": "edfc03290cde33d4e7c3f935dee95d8ccea567ca",
+          "reason": "",
+          "tested": "5282545286b326adb3154d06448a79e664691c39"
+        }
+      ],
       "lenses": [
         "design"
       ],
+      "messages": [],
       "milestone": "Observability",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Design knob observability: usage, resolved values, export",
-      "updated": "2026-11-10T06:46:15",
-      "worktree": "../Detent-wt/detent/observability-design"
+      "updated": "2026-11-10T09:18:32",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
