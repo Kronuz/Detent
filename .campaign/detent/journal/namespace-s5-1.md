@@ -1,6 +1,6 @@
 # namespace-s5-1: journal
 
-State: waiting on jobs 261110-140332-98a69b 261110-140332-333571
+State: waiting on jobs 261110-140332-98a69b
 Quest: .campaign/detent/quests/namespace-s5-1.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -14,7 +14,10 @@ CI's ASan, UBSan, TSan and platform matrix (D54).
 
 ## Next
 
-1. Record the jobs' results here and CI's run on the pushed head; set "ready for review".
+1. Record native 261110-140332-98a69b (pins 261110-140332-333571 passed); set "ready for review".
+2. CI did not run on the push: the branch's base (93ced6e) predates ci.yml's quest/** trigger
+   (3b9ad2f). Rebase onto main after daemon-ready-leader lands (needed to land anyway), push,
+   and record CI's sanitizer run.
 
 ## Blocked on
 
