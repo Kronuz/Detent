@@ -1,6 +1,6 @@
 # async-drivers-design review: design
 
-Commit: Detent:73e96d686701841b771bf0213a2583455b4f7489
+Commit: Detent:b11ab50
 Verdict: CHANGES
 Date: 2026-11-10
 
@@ -8,63 +8,72 @@ APPROVE: lands as is, at this commit's code. CHANGES: lands after each blocking 
 and confirmed by a job at the fixed commit. REJECT: the approach is wrong; the quest is re-planned.
 An APPROVE lists no blocking finding; a CHANGES lists at least one.
 
-Re-review of fix round 1 (Detent:128df91..73e96d6) for F1-F10 of the review at 128df91, plus the
-new D10, Q7 and quest 5. The fixes are real: the wheel's detached-list `expire`, the clock and
-thread rules, the claim-word waiter, machine-owned IO under the shutdown token, Driver calls on
-the group's loop, the inline turn commit, the measured `Peers` and the corrected baseline all
-hold up. What remains is narrower: one contradiction in D4 about `asio_scheduler`, a blind spot
-in `waiter_test` that a mutant survives, the blocking entry's termination, and D10's routing and
-read-side isolation, which the new mechanism leaves unstated.
+Final re-review of fix round 2 (Detent:a5472e8..b11ab50) for F11-F14 of the review at 73e96d6.
+All four are resolved, and the evidence is real: each fix has a passing job and a control that
+fails at the old rule. One question remains, and the F12 fix itself raises it. D10 now fixes
+placement as `slot(group) mod L`, but a host's turn log and (under Q3(b)) its directory are per
+core, so L becomes part of both the wire contract and the on-disk layout. The design does not say
+where a peer learns L, what happens when two hosts disagree on it, or what happens to stored
+groups when a host's L changes (F15).
 
 ## Evidence I relied on
 
-All at Detent:35ed97d (the bench is unchanged since; `git diff 35ed97d..73e96d6 --
-docs/design/async-drivers-bench` is empty), pinned consensus:ab05507, journal:e5f6ff1,
-completion:560c288, task:bdafa5f, exit 0:
+Every job is at Detent:672e7b7 (`git diff 672e7b7..b11ab50 -- docs/design/async-drivers-bench`
+is empty), with the pins consensus:ab05507, journal:e5f6ff1, completion:560c288 and task:bdafa5f.
+I read each log and exit file under `~/.scratch/campaign/jobs/<id>/a1/`.
 
-- 261110-000902-6240b4 `wheel_test` (assertions on, `-UNDEBUG`): reentry cancel, rearm, self,
-  arm-due; model 20,000 rounds, 12,065 fires, 4,099 mutations from fires; long 4,095-300,000 ms
-  with `floor(d / 4,096)` early wakes and 999,877 ns late; manual 5,000 ms simulated in 34 us;
-  chain both orders; loops 2,000 x 8.
-- 261110-000905-c1d3b9 (ASan+UBSan) and 261110-000906-2730b5 (TSan): the same `wheel_test`
-  plus `waiter_test all`, clean. So the sanitizer jobs do run re-entrant expire, cross-thread
-  child deadlines created and destroyed on B while A fires, the manual clock and far deadlines
-  (risk 2).
-- 261110-000910-2d7f1a: my earlier probe, cancel and rearm both exit 0 (it crashed at 128df91).
-- 261110-000904-28d8d8: `explore` 17 / 2,910 / 938,978 schedules clean; naive control 12/19 and
-  2,308/2,860 schedules reach a freed frame; threads 3,000 rounds.
-- 261110-000908-5a484f: a staged shared-backend append is neither done nor in flight; one inline
-  `TurnDriver::commit` completes it, sequence 0 to 1, 0 threads added.
-- 261110-000909-400d3c (strict): `Peers` 511,947 B / 5 fds (3 voters, 4 connections), 982,918 B /
-  9 fds (5 voters, 8): slope 117,743 B per connection, intercept 40,975 B, so `41 KB + 2H x
-  118 KB` and `1 + 2H` fit both points.
-- 261110-000911-f87d0f (exclusive): 1 ms loop 16,305.67 us/s at 786 wakes, `run_one` 1,547.9 ns,
-  so 16,306 + 1,217 = 17,523 us per runtime; (17.523 - 0.026) x 8,760 = 153,300 core-hours,
-  shared loop (1.519 - 0.026) x 8,760 = 13,100. Every cited number matches the log.
-- Bytes: 261109-230223-1f63c8 and 261109-232742-fdfe40 (6,262; 170,902; 176,208; 6,880; 10,992).
-  170,902 + 511,947 = 683 KB, 3 + 5 = 8 fds; 6,262 + 1,600 + 48 + 16 = 7,926 B (risk 5: backed).
+- F11: 261110-005432-a6d855 `blocking_entry` exits 0. Under D5's rule, lost-wake gives `stalled`
+  with 0 advances; needs-peer gives `needs_peer` with 0 advances; first-election advances once
+  (1,500 ms) and the record is placed, written and committed; cancel-staged is `cancelled` with
+  1 written and 1 committed; deadline is `cancelled` after 8 advances. The 73e96d6 rule, run as a
+  control in the same job, fails 3 of 5: 100,000 advances on lost-wake and needs-peer, and
+  `unwritten=1` on cancel-staged. 261110-005433-b5324c (`v1`) exits 1 as it must.
+- F12: 261110-005434-15e1c5 `reader_test` exits 0: longest heartbeat gap 100 ms, 300 dropped.
+  261110-005435-c43e84 (`today`) exits 1 with a 3,000 ms gap. 261110-005436-650916 (strict)
+  `conn_cost 64`: context 29,408 B; an end costs 111,234 B over asio, 74,524 B direct and
+  40,732 B released, each with 1.00-1.02 fds. The design's numbers match these.
+- F13: 261110-005430-687d57, ASan+UBSan 261110-005428-f43eb1 and TSan 261110-005429-afba6f run
+  `wheel_test` with `offloop`: 300 rounds, 150 created and 200 destroyed off the loop,
+  `states_left=0`. 261110-005431-3ee08b (`offloop-embedded`) aborts with exit 134 on the wheel's
+  owner assertion, `wheel.hh:109`.
+- F14: 261110-005423-d753e6 (ASan+UBSan) and 261110-005426-635ab8 (TSan) run my
+  `.scratch/review-async-drivers-design-design/waiter_mutants.sh` (home checkout) at the fixed
+  commit. `explore` kills every mutant. Both resume-before-unlink mutants fail
+  `waiter_test.cc:182 s.touched_after_free() == 0`, which is the right reason: the freed frame's
+  link fields are written after the caller freed it. The claim mutant fails
+  `:184 resumes == 1`. Under TSan the threaded mode still misses both resume-before-unlink
+  mutants, which is why the explorer is the check that counts. 261110-005427-534e76 is the clean
+  run: 131 and 51,014 schedules with no violations, and the naive control is caught in 47/88 and
+  18,969/27,276 schedules.
 
 ## What I checked myself
 
-- Read waiter.hh, waiter_test.cc, wheel.hh, wheel_test.cc, loops.hh, blocking_entry.cc, the
-  design's D2-D10, Cost and Build plan, task:bdafa5f `task.hh` (`deadline`, `post_call`,
-  `inline_scheduler`, `event`) and `task_asio.hh:125-136`, consensus:ab05507 `core.h`,
-  `transport/peers.h`, `transport/hello.h`, and the current `task::deadline` users in Detent and
-  Xapiand.
-- I reasoned through the claim-word protocol for completion versus cancellation on three loops:
-  only the claim's winner posts a resume, the waiter leaves the group's list only on the group's
-  loop, and the cancel hop keeps the frame alive until it has unlinked. It gives exactly one
-  resume (risk 1, protocol: yes).
-- Probe 261110-002555-485959 (ASan+UBSan) and 261110-002557-76c931 (TSan),
-  `.scratch/review-async-drivers-design-design/waiter_mutants.sh` (home checkout): three
-  ordering mutants of waiter.hh against `explore 2` and `threads 20000`.
-
-  | Mutant | explore | threads ASan | threads TSan |
-  |---|---|---|---|
-  | original | pass | pass | pass |
-  | cancel ignores a lost claim | killed (UAF; `resumes == 1`) | killed | killed |
-  | the hop posts the resume, then unlinks | **survives** | **survives** | **survives** |
-  | completion posts the resume, then unlinks | **survives** | killed (UAF in `complete`) | survives |
+- Risk 1, frame drops: Core already recovers from a lost Control frame. Flights reset after
+  `rpc_timeout` (consensus:ab05507 `core.h:1059`, `:973`). A lost TimeoutNow is resent every
+  heartbeat (`:1020`). A snapshot flight times out and retries (`:1057`, `:542`). Read probes
+  ride on appends and their responses (`:383`, `:942-954`). Bulk frames are never dropped
+  because each transfer has its own connection. So dropping is safe for liveness and for
+  snapshot transfer. A sustained-load cost remains (N7).
+- Risk 1, placement: with L a power of two on both hosts, loop i shares groups with exactly the
+  loops D10 names, for any L_a and L_b. Membership changes need nothing extra, because a joiner's
+  loop is computed the same way. Peer addresses are local `PeerOptions::addresses` (`peers.h:30`),
+  not replicated, so each host's view of a peer's L is local configuration. Nothing in D10 says
+  how that view is checked. With Q3(b) and a `TurnDriver` per core (D2 at `async-drivers.md:87`),
+  a change in L also moves groups away from their stored data. That is F15.
+- Risk 2: D5's step 3 is reached only after steps 1-2 reach a fixed point, and step 5 only after
+  step 4 finds nothing, so neither path leaves a staged record behind. Checking `needs_peer` at
+  the call is right for `propose` and `read`. `create`, `recover`, checkpoint and `close` need no
+  peer. A single voter that proposes adding a voter is not refused at the call, but it ends in
+  `stalled` (its timers stop counting), not in a hang (N6).
+- Risk 3: `asio_scheduler` is defined as single-threaded ("All calls happen on the executor's
+  thread", task:bdafa5f `task_asio.hh:49-51`), so `runs_here` names one thread and the wheel's
+  owner rule holds. I traced `wheel_deadline` (`loops.hh:99-170`) through destruction on the loop,
+  off the loop, during a fire on the loop, during a fire off the loop, and before a posted arm.
+  None of them reaches a freed state or requests after the destructor returns. My grep of
+  `task::deadline` across the repositories under `~/code/Kronuz` at origin/main finds the same
+  users as D4's table: Detent `owner_loop.hh:72`, `https_client.hh:83`, `client.cc:291`; http
+  `http_asio.h:366`, `:807`; `http_asio_tls.h:97`. The contract now stays any-thread, so none of
+  them changes. One leak path remains (N8).
 
 ## Findings
 
@@ -80,15 +89,20 @@ completion:560c288, task:bdafa5f, exit 0:
 | F8 | no | resolved | "at least 26 cores", with the reason. | Limits | - |
 | F9 | no | resolved | The build plan says 3-5 add beside today's APIs and 6 takes the pin bump with `AuthorityPeers`. | Build plan | - |
 | F10 | no | resolved | D5 step 2: a manual clock jumps, a steady clock sleeps. | D5 | - |
-| F11 | yes | gap | The blocking entry still hangs, and can return before a staged write. (1) Step 3 throws only when the wheel is empty, but a consensus group always holds an entry: a leader re-arms `heartbeat_deadline_` on every drive, even a single voter, and a learner or follower resets `election_deadline_` (`core.h:1054-1066`, `:1003`; quiescence is Q4). So `consensus::run` over a lost wake, or over an operation that needs a peer, sleeps from timer to timer forever on a steady clock, or spins on a manual one, and never reaches the throw that D5, Limits and the Xapiand note promise. (2) The loop commits turns only "whenever the queue empties before the task finishes". A caller cancelled after staging (D8 row 2: "the record is written") lets the task finish, and the entry returns with the record still staged, then gives up ownership of the turn log. | D5 steps 1-3; D8 row 2; `core.h:1003`, `:1054-1066` | (1) Say what bounds it: refuse operations that need a peer at the call (a multi-voter `propose`/`read`), and count group timers as progress only while the awaited operation can still use them (a single voter's first election), otherwise throw; or require a deadline on the entry's task. (2) Before returning or throwing, drain: commit staged turns and finish machine-owned IO. Add both to quests 3 and 4's blocking-entry criteria. |
-| F12 | yes | gap | D10 does not say how a frame reaches the loop that owns its group, and its cost and its rejection of per-process sharing depend on that. (1) Routing: each host places its groups on its own loops, so group X can sit on loop 1 of host A and loop 3 of host B. A's loop-1 connection ends on some loop of B, and unless that is loop 3 every frame hops threads, which is the reason D10 gives for rejecting per-process sharing. Avoiding the hop needs either one placement rule on both ends (the same loop count and loop = f(group)) or connections per (local loop, remote loop) pair, which makes H the number of remote loops, not hosts: `41 KB + 2 x H x L_remote x 118 KB` per loop. At 16 loops per host that is about 3.8 MB per peer host per loop instead of 236 KB. (2) Read side: today's reader holds one decoded input per connection and waits for that group's admission before it reads again (`peers.h:368-390`, `:166-205`). On a connection shared by a loop's groups, one group whose admission is full stops every group's frames from that host, heartbeats included, so one slow group can trigger elections in the others. D10 covers only the write side (round-robin, R19). | D10; Cost "41 KB + 2H x 118 KB"; consensus:ab05507 `transport/peers.h:166-205`, `:368-390` | (1) Pick the routing rule (shared placement, connections per loop pair with the cost restated, or an accepted receive hop) and restate the D10 cost and the per-process rejection to match. (2) State that the reader never waits on one group: per-group input slots and budgets, and a frame for a group whose admission is full is dropped (Raft tolerates loss) or parked per group. Add a quest 5 criterion: a group with full admission does not delay another group's heartbeat on the same connection. |
-| F13 | yes | defect | D4 contradicts the build plan on `asio_scheduler`. D4 says a wheel-backed deadline is destroyed only on its loop, "narrowing task's 'any thread' ..., which still holds for `asio_scheduler`'s own timers". Quest 1's criteria include "`asio_scheduler::start_timer` on the wheel". If quest 1 does that, every `deadline<asio_scheduler>` is wheel-backed, task's documented and tested contract ("destroyed on any thread", `cancellation.md:65`, `:111`) changes for every user, and Release builds have no check. Users today: Detent `owner_loop.hh:72` (it resumes on the owner through `event`'s `resume_on`, so it looks safe), `https_client.hh:83`, `detent_delivery/client.cc:291`. A frame holding a deadline that hops loops (`schedule_on`) is the case that breaks. | D4 "Threads"; Build plan quest 1; task:bdafa5f `task.hh:1114-1146`, `task_asio.hh:125-136` | Choose one: (a) `asio_scheduler::start_timer` stays an Asio timer (any thread), and only the reactor loop's wheel scheduler is wheel-backed; or (b) it moves onto the wheel, D4 says the narrowing applies to `asio_scheduler`, quest 1 updates `cancellation.md` and the any-thread test, and audits the users above, with a hopped frame as a Debug-asserted case. Either way, make quest 1's criterion match. |
-| F14 | yes | gap | `waiter_test` cannot see the ordering D8 rests on. D8's argument is that the claim's winner "posts after the group's last touch". The explorer runs each posted call atomically, so a post followed by a touch of the waiter in the same call looks the same as the correct order. The mutant "the hop posts the resume, then unlinks" survives `explore`, and `threads` under ASan and TSan for 20,000 rounds; "completion posts the resume, then unlinks" survives `explore` and TSan, and only ASan's threaded run catches it. The design calls the exploration "every interleaving", and quest 4's criterion is "as `waiter_test`", so the blind spot carries over. | probes 485959, 76c931; `waiter_test.cc:185-228`; `loops.hh:43-56` | Make every cross-loop post a scheduling point in the explorer (the posted call can run before the poster's next statement), or poison the waiter in the model once its resume is posted and check that nothing touches it. Show both mutants killed by `explore`. |
-| N1 | no | gap | Q7/D10's per-frame check, "the node votes in the frame's group", rejects learners and joiners, which Core has (`core.h:1003`, `Membership` in `types.h:80`). The group-open exchange should also carry what today's hello checks (cluster, group, epoch, profile; `hello.h:51`), and Q7(a)'s one pin per node per loop has to reconcile today's per-group `PeerOptions::pins`. | D10, Q7 | For quest 5's security review: a member of the membership in force, with the hello's checks moved to the group-open exchange. |
-| N2 | no | nit | The design cites idle bytes to 261110-000912-e9dff1, which was still running during this review. Its finished rows match 1f63c8 and fdfe40. | job state | A7's rerun; cite it once it finishes. |
-| N3 | no | nit | The Idle CPU table's "17,523 us (1,000 runtimes)" is one measured runtime multiplied by 1,000, not a 1,000-runtime run (2,000 threads may cost more). | Cost, Idle CPU | Label it as derived. |
-| N4 | no | nit | D4 says `inline_scheduler` "declares its manual clock". At task:bdafa5f it has `now()` and `advance()` but no `clock` type (`task.hh:311-316`); quest 1 adds it. | D4 | Say "will declare". |
-| N5 | no | nit | `post_call` is "dropped when closed" (`task.hh:167`). D8 covers the group's loop at shutdown, but a caller's loop that closes before a pending resume loses it. | D8 | One sentence on shutdown order: callers' loops outlive their pending resumes. |
+| F11 | no | resolved | D5 is now a five-step loop. It drains before it returns or throws, counts only operation deadlines and a lone voter's election as progress, and refuses multi-voter `propose`/`read` with `needs_peer`. Each case has a test, and the old rule fails 3 of 5 in the same job. | a6d855, b5324c; D5 | - |
+| F12 | no | resolved | (1) Routing: placement is `slot(group) mod L` with a port per loop, so a connection joins two loops that share groups, nothing hops threads, and the cost is restated as `29 KB + H x 41 KB` from a measured 40,732-byte idle end. (2) Read side: each group has its own input slot and a full slot drops the frame, so a group with full admission no longer delays another group's heartbeat. Quest 5 has both criteria. The open part of the placement rule is F15. | 15e1c5, c43e84, 650916; D10 | - |
+| F13 | no | resolved | Option (b) with the contract kept: `task::deadline` stays any-thread on every scheduler, and its entry lives in a refcounted cancel state that only the loop touches. Off the loop, the constructor posts the arm and the destructor posts the unlink after claiming the state against a fire. The quest 1 criterion matches. The deadline as first designed trips the owner assertion. | 687d57, f43eb1, afba6f, 3ee08b; `loops.hh:99-170`; D4 | - |
+| F14 | no | resolved | Every cross-loop post is now a scheduling point, and freed frames are frozen and compared. `explore` kills all three of my mutants, the resume-before-unlink ones on `touched_after_free`. Quest 4's criterion names the mutants. | d753e6, 635ab8, 534e76; `loops.hh:30-35`, `waiter_test.cc:182` | - |
+| F15 | yes | gap | D10's placement makes the host's loop count L part of the wire contract and of the storage layout, and settles neither. (1) Agreement: the dialer computes the remote loop from the peer's base port and L, which come from local configuration (`PeerOptions::addresses`, `peers.h:30`, not replicated). D10 says nothing about checking that view, or about what a loop does with a group-open for a group it does not own. If a peer restarts with a different L, stale views could send its groups' connections to the wrong loop: either a silent stall or a hop, with no error. (2) Change: a `TurnDriver` is per core (D2), and under Q3(b) so are the directory and owner lock. When L changes, `slot mod L` moves most groups to loops whose turn log and directory do not hold their records. Nothing moves a hot group off its loop either. This is a bytes-on-disk and protocol decision, the kind that is expensive to reverse. | `async-drivers.md` D10 *Placement and routing*, D2 `TurnDriver // one per core`, Q3(b); consensus:ab05507 `transport/peers.h:30` | (1) Carry `(base port, L, loop index)` in the hello. A group-open on a loop that does not own the group is refused with an error that names the owning loop, never routed or dropped silently. (2) Choose one: (a) L is persisted with the host's storage and fixed for its life, a different L refuses to start, and changing it is an offline migration (say so in Limits); (b) storage is keyed by slot range instead of by core, so an L change only remaps slots, with the turn-batching cost stated; (c) a group whose data is on another loop accepts a receive hop. State that placement does not rebalance. Add a quest 5 criterion: two hosts with mismatched L get a refusal, not a hang. |
+| N1 | no | resolved | Q7 now checks membership in force (voters, learners, joiners), moves the hello's checks into the group-open exchange, and makes the per-group pins per-node pins. | D10 *Identity*, Q7 | - |
+| N2 | no | resolved | The idle-bytes job e9dff1 is cited. Its rows match 1f63c8 and fdfe40. | Sources | - |
+| N3 | no | resolved | Labelled "derived". | Cost, Idle CPU | - |
+| N4 | no | resolved | It now says quest 1 adds the clock types. | D4 *Clock* | - |
+| N5 | no | resolved | D8 now states the shutdown order: callers' loops outlive the resumes posted to them. | D8 | - |
+| N6 | no | nit | Step 4's "owned single-voter group with no leader" should say *whose one voter is this node*. As written, a group where this node is a learner of a remote single voter re-arms its election forever and never throws `stalled` on a steady clock. A single voter that proposes adding a voter is not refused at the call and ends in `stalled`; say so. | D5 step 4, `needs_peer` paragraph | One phrase each. |
+| N7 | no | gap | Under sustained load, a busy group's frames are dropped and then resent after `rpc_timeout` (`core.h:1059` resets the whole pipeline), so its flow control becomes timeout-paced retry instead of backpressure. That is safe but may cost throughput and bandwidth. Group-open and connection-level frames must never be dropped. | D10 *The reader never waits on one group* | Quest 5: measure a busy group's throughput under drop against today's reader, and state the exemptions. |
+| N8 | no | gap | Teardown step 3 (`destroy_roots` on the owner's thread, after `close`) destroys frames off the loop. Each armed deadline in them then posts an unlink that `post_call` drops on a closed scheduler, and the post's reference leaks, because the bench lambda (`loops.hh:143`, `:157`) never releases it. | task:bdafa5f `task_asio.hh:51-56`, `:93` | Quest 1: a dropped call releases its reference, plus an LSan test of teardown with armed deadlines. |
+| N9 | no | nit | `waiter_test` no longer runs `explore 3` (938,978 schedules before the explorer grew), and the freed-frame check sees writes, not reads. | 534e76; `waiter_test.cc:42-53` | Quest 4: keep a three-caller run as a job, even a long one. |
 
 Blocking: yes or no. Kind: defect (wrong behavior), gap (unproven claim or missing test), nit. A
 finding that would remove or narrow user-visible behavior offers options, including keeping it,
@@ -96,10 +110,9 @@ and is never blocking.
 
 ## Not run
 
-- No rerun of the cost jobs at 73e96d6 (A7's; the bench is unchanged since 35ed97d), and no Linux
-  numbers.
-- D10's per-loop transport is not prototyped. F12's 3.8 MB figure is arithmetic on 400d3c's
-  per-connection cost, not a measurement.
-- No probe of F11 or F13: both are read from the design text and the cited `core.h`, `task.hh`
-  and `cancellation.md` lines.
-- A8 (the Xapiand lead's review) is outside this lens.
+- No new probe jobs. F11-F14 are settled by the contributor's jobs above, one of which runs my
+  mutant script at the fixed commit. F15 and N6-N9 come from the design text and the cited
+  `core.h`, `peers.h` and `task_asio.hh` lines.
+- D10's per-loop transport is still a model (`reader_test`) plus one measured connection; quest 5
+  builds it.
+- No Linux numbers. A8 (the Xapiand lead's review) is outside this lens.
