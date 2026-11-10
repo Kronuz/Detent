@@ -13,7 +13,7 @@ endif()
 
 include(FetchContent)
 set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
-# peers_cost needs consensus::transport (reactor and OpenSSL 3); run.sh turns it on for that target.
+# peers_cost and conn_cost need consensus::transport (reactor and OpenSSL 3); run.sh turns it on for them.
 option(BENCH_TRANSPORT "Build peers_cost over consensus::transport" OFF)
 if(BENCH_TRANSPORT)
 	set(CONSENSUS_TRANSPORT ON CACHE BOOL "" FORCE)
@@ -34,9 +34,9 @@ target_link_libraries(driver_cost PRIVATE consensus::consensus completion::asio 
 add_executable(channel_layout channel_layout.cc)
 target_link_libraries(channel_layout PRIVATE consensus::consensus)
 
-# Protocol tests and probes for the design's threading rules (review F1-F5): assertions stay
+# Protocol tests and probes for the design's threading rules (review F1-F5, F11-F14): assertions stay
 # on in every build type, so the wheel's owner-thread checks run.
-foreach(t wheel_test waiter_test blocking_entry)
+foreach(t wheel_test waiter_test blocking_entry reader_test)
 	add_executable(${t} ${t}.cc)
 	target_link_libraries(${t} PRIVATE consensus::consensus completion::asio)
 	target_compile_options(${t} PRIVATE -UNDEBUG)
@@ -45,4 +45,6 @@ endforeach()
 if(BENCH_TRANSPORT)
 	add_executable(peers_cost peers_cost.cc)
 	target_link_libraries(peers_cost PRIVATE consensus::transport)
+	add_executable(conn_cost conn_cost.cc)
+	target_link_libraries(conn_cost PRIVATE consensus::transport)
 endif()

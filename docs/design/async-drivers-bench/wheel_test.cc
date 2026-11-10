@@ -5,10 +5,16 @@
 //   manual     a deadline on the manual clock of task::inline_scheduler, no real time
 //   chain      a fired parent deadline cancels a linked child whose callback destroys it
 //   loops      a parent on loop A, children on loop B: each deadline lives on its own wheel
+//   offloop    deadlines created and destroyed on threads other than their loop's while it
+//              fires: none requests after its destructor returns, every state is freed (F13)
+//   offloop-embedded   the negative control, not in `all`: the deadline as first designed,
+//              its entry inside the deadline, destroyed off its loop; the wheel's owner
+//              assertion aborts (what moving asio_scheduler onto the wheel would break)
 // Prints one line per test; exits nonzero on the first failure. Built with assertions on.
 #include "loops.hh"
 
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -266,6 +272,88 @@ void loops() {
 	b.reset();
 	std::printf("loops iterations=%d children=%d child_callbacks=%d ok\n", iterations, children, callbacks.load());
 }
+std::uint64_t steady_ns() {
+	return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
+}
+
+// Runs `f` on loop `l` and waits for it.
+template <class F>
+void on(bench::thread_loop& l, F f) {
+	std::atomic<bool> done{false};
+	l.post([&] {
+		f();
+		done = true;
+	});
+	while (!done) { std::this_thread::yield(); }
+}
+
+// task's own contract for a deadline (asio_test.cc:371-390, 300 rounds), on a wheel: created on
+// the loop or off it, destroyed on another thread or on the loop, while the loop keeps firing.
+void offloop() {
+	constexpr int rounds = 300;
+	auto a = std::make_unique<bench::thread_loop>();
+	std::atomic<bool> stop{false};
+	std::function<void()> tick = [&] {
+		a->timers.expire(steady_ns());
+		if (!stop) { a->post(tick); }
+	};
+	a->post(tick);
+	int requested = 0, created_off = 0, destroyed_off = 0;
+	for (int i = 0; i < rounds; ++i) {
+		const std::uint64_t at = steady_ns() + std::uint64_t(i % 4) * 80'000;
+		std::unique_ptr<bench::wheel_deadline> d;
+		if (i % 2) {
+			d = std::make_unique<bench::wheel_deadline>(a->timers, at, task::cancel_token{}, a.get());  // posts its arm
+			++created_off;
+		} else {
+			on(*a, [&] { d = std::make_unique<bench::wheel_deadline>(a->timers, at, task::cancel_token{}, a.get()); });
+		}
+		const auto token = d->token();
+		std::this_thread::sleep_for(std::chrono::microseconds(i % 5 * 40));
+		if (i % 3 == 2) {
+			on(*a, [&] { d.reset(); });
+		} else {
+			std::thread([&] { d.reset(); }).join();  // posts its unlink
+			++destroyed_off;
+		}
+		const bool after_destroy = token.requested();
+		std::this_thread::sleep_for(std::chrono::milliseconds(2));  // any expiry still queued runs
+		CHECK(token.requested() == after_destroy);
+		requested += after_destroy;
+	}
+	stop = true;
+	on(*a, [] {});
+	a.reset();
+	CHECK(bench::wheel_deadline::alive.load() == 0);
+	CHECK(requested > 0 && requested < rounds);  // both sides of the race were reached
+	std::printf("offloop rounds=%d created_off_loop=%d destroyed_off_loop=%d requested_before_destroy=%d states_left=0 ok\n", rounds,
+		created_off, destroyed_off, requested);
+}
+
+// The deadline as D4 first had it: the entry inside the deadline, unlinked by its destructor
+// on whatever thread runs it. Destroyed off its loop, it touches the loop's wheel.
+void offloop_embedded() {
+	struct embedded {
+		struct node : wheel_entry { task::cancel_source* source = nullptr; };
+		wheel& timers;
+		task::cancel_source source;
+		node entry;
+		embedded(wheel& w, std::uint64_t at) : timers(w) {
+			entry.source = &source;
+			entry.fire = [](wheel_entry& e) noexcept { static_cast<node&>(e).source->request(task::cancel_reason::deadline); };
+			timers.arm(entry, at);
+		}
+		~embedded() { timers.cancel(entry); }
+	};
+	auto a = std::make_unique<bench::thread_loop>();
+	std::unique_ptr<embedded> d;
+	on(*a, [&] { d = std::make_unique<embedded>(a->timers, steady_ns() + 1'000 * ms); });
+	std::printf("offloop-embedded: destroying a deadline off its loop (expected: the owner assertion aborts)\n");
+	std::fflush(stdout);
+	d.reset();
+	std::printf("offloop-embedded: no assertion\n");
+	on(*a, [] {});
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -276,6 +364,11 @@ int main(int argc, char** argv) {
 	if (only == "all" || only == "manual") { manual_clock(); }
 	if (only == "all" || only == "chain") { chain(); }
 	if (only == "all" || only == "loops") { loops(); }
+	if (only == "all" || only == "offloop") { offloop(); }
+	if (only == "offloop-embedded") {
+		offloop_embedded();
+		return 1;
+	}
 	std::printf("wheel_test: ok\n");
 	return 0;
 }
