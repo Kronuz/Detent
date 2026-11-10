@@ -5,6 +5,8 @@
 #       the 5M corpus as 1- and 1,000-namespace stores with each tree's own builder and prepares them.
 #   first-read-gate.sh measure PREPARED OUT [stopped|running]   exclusive job (each half fits one
 #       30-minute hold): tests/detent_system/first_read_gate.py.
+#   first-read-gate.sh profile PREPARED OUT   exclusive job: the first read split into its steps
+#       (tests/detent_system/first_read_phases.cc), at the job's path and at a 4-component path.
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 # CMake detects implicit includes under the SDK LLVM's config file names; any other sysroot leaves
@@ -42,6 +44,9 @@ prepare() {
 add_executable(first_read_export "$dense/tests/detent_system/first_read_export.cc")
 target_include_directories(first_read_export PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local" "\${PROJECT_SOURCE_DIR}/tests/detent_local")
 target_link_libraries(first_read_export PRIVATE detent::local_publication)
+add_executable(first_read_phases "$dense/tests/detent_system/first_read_phases.cc")
+target_include_directories(first_read_phases PRIVATE "\${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(first_read_phases PRIVATE detent::local_client)
 EOF
 		cmake -S "$src" -B "$src/.scratch/gate-build" -DCMAKE_BUILD_TYPE=Release \
 			-DCMAKE_CXX_COMPILER="$llvm/clang++" -DCMAKE_C_COMPILER="$llvm/clang" -DCMAKE_OSX_SYSROOT="$sdk" \
@@ -50,19 +55,19 @@ EOF
 			-DDETENT_READ_COUNTERS=OFF
 		check "$src/.scratch/gate-build"
 		cmake --build "$src/.scratch/gate-build" -j4 \
-			--target detent_system_prepared_client_probe detent-agent first_read_export
+			--target detent_system_prepared_client_probe detent-agent first_read_export first_read_phases
 		git -C "$src" checkout -- CMakeLists.txt
 		cp "$src/.scratch/gate-build/tests/detent_system/detent_system_prepared_client_probe" "$out/$code/prepared_client_probe"
 		cp "$src/.scratch/gate-build/src/detent-agent" "$out/$code/detent-agent"
+		cp "$src/.scratch/gate-build/first_read_phases" "$out/$code/first_read_phases"
 		for namespaces in 1 1000; do
-			local store="$out/$code/store-${namespaces}ns" records=5000000
-			[ "$namespaces" = 1000 ] && records=5099900
-			"$src/.scratch/gate-build/first_read_export" "$corpus" "$store" "$namespaces" "$version" | tee "$out/$code/export-${namespaces}ns.json"
-			"$out/$code/prepared_client_probe" --prepare "$store" "$records" 4294967296 4294967296 4294967296 4294967296
+			# The exporter also writes the owner lock, `.read` and `.live` the agent's cold start needs.
+			"$src/.scratch/gate-build/first_read_export" "$corpus" "$out/$code/store-${namespaces}ns" "$namespaces" "$version" |
+				tee "$out/$code/export-${namespaces}ns.json"
 		done
 		rm -rf "$src/.scratch/gate-build"
 	done
-	file "$out"/*/prepared_client_probe "$out"/*/detent-agent
+	file "$out"/*/prepared_client_probe "$out"/*/detent-agent "$out"/*/first_read_phases
 }
 
 case ${1:-} in
@@ -71,5 +76,10 @@ measure)
 	/usr/local/bin/python3 -I tests/detent_system/first_read_gate.py --prepared "${2:?PREPARED}" \
 		--recipe "$trials/expected-values.bin" --managed "$trials/agent-0/managed.json" --output "${3:?OUT}" ${4:+--publisher "$4"}
 	;;
-*) echo "usage: $0 prepare OUT | measure PREPARED OUT [stopped|running]" >&2; exit 2 ;;
+profile)
+	/usr/local/bin/python3 -I tests/detent_system/first_read_gate.py --prepared "${2:?PREPARED}" \
+		--recipe "$trials/expected-values.bin" --managed "$trials/agent-0/managed.json" --output "${3:?OUT}" \
+		--profile "$HOME/.fr-$$"
+	;;
+*) echo "usage: $0 prepare OUT | measure PREPARED OUT [stopped|running] | profile PREPARED OUT" >&2; exit 2 ;;
 esac

@@ -22,7 +22,9 @@ SDK puts its C headers ahead of libc++ through zlib's include dir), and checks t
 its detected version, the sysroot, the build type and the counters in each CMake cache. Each tree exports the
 pinned corpus (`DENSE_CORPUS`, sha256 recorded) with its own builder through
 `tests/detent_system/first_read_export.cc` (layout version 2 for the baseline, 3 for Dense),
-then prepares the store with its own probe. The 1,000-namespace shape is test_dense_fullbuild's:
+which also writes the empty owner lock and the `.read` and `.live` records the agent's cold start
+opens, derived from one full recovery as `tests/detent_local/trusted_records.hh` does. The
+1,000-namespace shape is test_dense_fullbuild's:
 every record in `primary` plus 999 namespaces of 100 integer knobs (5,099,900 records).
 
 `first-read-gate.sh measure` runs `tests/detent_system/first_read_gate.py` under `exclusive`;
@@ -33,3 +35,15 @@ B1000; A/A D1, B1 stopped. A running arm starts the tree's own `detent-agent` ov
 its upstream port bound but not listening (as the 2026-10-26 qualification did) and measures once
 the agent logs readiness. `result.json` records per arm the count below 1 ms, median, p99,
 maximum, median attach, lookup and CPU, major faults, and input hashes.
+
+## Attribution
+
+`first-read-gate.sh profile PREPARED OUT` (exclusive) splits the first read into the steps the
+pre-S6 Client takes, with `tests/detent_system/first_read_phases.cc` built from each tree: the
+process-default retirement runtime (its thread), the directory trust walk cold and again warm, the
+prepared attach (`PreparedReader::open`), the refresh worker's thread, and the lookup with its
+segment mappings, each with wall time, user and system CPU and minor faults. Per arm it also
+records warm per-operation means (`--micro`: each syscall the attach makes, the ACL checks, a
+pack mapping, SHA-256 of 4 KiB, thread start, the whole trust walk and attach). Arms: B1, D1,
+D1000, B1000 at the job's path (11 components), then D1 and B1 cloned to a 4-component path; per
+key a warmup, one `--read` sample and one `--phases` sample, each its own process.

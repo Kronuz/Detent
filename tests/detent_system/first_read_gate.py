@@ -177,6 +177,91 @@ def measure(
     return samples
 
 
+def run_json(args: list[str]) -> dict[str, Any]:
+    result = subprocess.run(
+        args, capture_output=True, text=True, timeout=120, check=False
+    )
+    if result.returncode:
+        raise RuntimeError(
+            f"{args[1]} exit {result.returncode}: {result.stderr[-400:]}"
+        )
+    return json.loads(result.stdout.splitlines()[-1])
+
+
+# (code, namespaces, depth): the gate's stores at the job's path, then 1-namespace clones at a
+# 4-component path, to price the directory trust walk per path component.
+PROFILE_ARMS = [
+    ("baseline", 1, "job"),
+    ("dense", 1, "job"),
+    ("dense", 1000, "job"),
+    ("baseline", 1000, "job"),
+    ("dense", 1, "shallow"),
+    ("baseline", 1, "shallow"),
+]
+
+
+def profile(
+    prepared: Path, out: Path, selected: list[tuple[str, int]], shallow: Path
+) -> dict[str, Any]:
+    """Per arm: warm per-operation means, then per key a warmup process, one --read sample and one
+    --phases sample, each a fresh process, publisher stopped."""
+    arms: list[dict[str, Any]] = []
+    for order, (code, count, depth) in enumerate(PROFILE_ARMS):
+        arm = out / f"{order:02d}-{code}-{count}ns-{depth}"
+        arm.mkdir()
+        store = arm / "generations" if depth == "job" else shallow / "generations"
+        subprocess.run(["rm", "-rf", str(shallow / "generations")], check=True)
+        subprocess.run(
+            ["cp", "-cR", str(prepared / code / f"store-{count}ns"), str(store)],
+            check=True,
+        )
+        warm(store)
+        binary = prepared / code / "prepared_client_probe"
+        phases = prepared / code / "first_read_phases"
+        row: dict[str, Any] = {
+            "order": order,
+            "code": code,
+            "namespaces": count,
+            "depth": depth,
+        }
+        row["micro"] = run_json([str(phases), "--micro", str(store), "2000"])
+        reads: list[dict[str, Any]] = []
+        split: list[dict[str, Any]] = []
+        for _ in range(ROUNDS):
+            for key, value in selected:
+                probe(binary, store, key, value)
+                reads.append(probe(binary, store, key, value))
+                name_space, name = key.split(":", 1)
+                split.append(
+                    run_json(
+                        [
+                            str(phases),
+                            "--phases",
+                            str(store),
+                            name_space,
+                            name,
+                            str(value),
+                        ]
+                    )
+                )
+        with (arm / "samples.jsonl").open("w") as stream:
+            for sample in reads:
+                stream.write(json.dumps({"mode": "read"} | sample) + "\n")
+            for sample in split:
+                stream.write(json.dumps({"mode": "phases"} | sample) + "\n")
+        row["read"] = summary(reads)
+        row["phases"] = {
+            k: statistics.median(s[k] for s in split)
+            for k in split[0]
+            if k.endswith(("_ns", "_us", "_faults")) or k in ("components", "mappings")
+        }
+        row["phases"]["below_1ms"] = sum(s["total_ns"] < 1_000_000 for s in split)
+        arms.append(row)
+        print(json.dumps(row), flush=True)
+        subprocess.run(["rm", "-rf", str(store)], check=True)
+    return {"arms": arms}
+
+
 def summary(samples: list[dict[str, Any]]) -> dict[str, Any]:
     first = sorted(s["first_live_ns"] for s in samples)
     return {
@@ -207,10 +292,27 @@ def main() -> None:
         choices=("stopped", "running"),
         help="only the arms in this publisher state (default: all)",
     )
+    parser.add_argument(
+        "--profile",
+        type=Path,
+        help="attribute the first read instead (a scratch directory for the shallow-path arms)",
+    )
     args = parser.parse_args()
     out: Path = args.output
     out.mkdir(parents=True, exist_ok=False)
     selected = cases(args.recipe)
+    if args.profile:
+        args.profile.mkdir(mode=0o700, parents=True, exist_ok=True)
+        try:
+            report = profile(args.prepared, out, selected, args.profile)
+        finally:
+            subprocess.run(["rm", "-rf", str(args.profile)], check=True)
+        report |= {
+            "platform": platform.platform(),
+            "toolchain": (args.prepared / "toolchain.txt").read_text(),
+        }
+        (out / "result.json").write_text(json.dumps(report, indent=2) + "\n")
+        return
     template: dict[str, Any] = json.loads(args.managed.read_text())
     ca = args.prepared / "ca.pem"
     report: dict[str, Any] = {

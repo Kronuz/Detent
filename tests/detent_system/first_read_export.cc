@@ -176,6 +176,40 @@ std::shared_ptr<const d::ValidatedSnapshot> admit(const std::shared_ptr<Rows> &r
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decoder.finish());
 }
+// The agent's cold start opens the existing owner lock and requires `.read` and `.live`; both are
+// derived from one full recovery, as trusted_records::derive does, with limits sized to the corpus.
+void agent_records(const std::filesystem::path &output, std::uint32_t records) {
+	auto heap = std::make_shared<d::StorageLedger>(4ull << 30);
+	d::RetirementRuntime runtime(heap, 1);
+	auto domain = runtime.domain(heap, 16384);
+	{
+		l::ViewLimits limits;
+		limits.records = records;
+		limits.bytes = limits.strings = 4ull << 30;
+		limits.pages = limits.bytes / p::page_header_bytes;
+		limits.retirement_domain = &domain;
+		limits.mapping_account = std::make_shared<d::StorageLedger>(4ull << 30);
+		const auto generation = l::recover_generation(output, limits);
+		const auto &registry = *x::RecoveredTesting::root(generation).registry();
+		const auto metadata = x::encode_reader_metadata(x::PreparedReader::describe(generation));
+		x::LiveRecord live;
+		live.generation = generation.descriptor().generation;
+		live.root_checksum = generation.descriptor().checksum;
+		std::copy(metadata.end() - x::live_digest_bytes, metadata.end(), live.read_digest.begin());
+		std::copy(registry.override_histogram().begin(), registry.override_histogram().end(), live.histogram.begin());
+		for (std::size_t i = 0; i < registry.inputs().size(); ++i) {
+			const auto &ownership = registry.inputs()[i].ownership;
+			live.rows.push_back({ownership.segment, ownership.length, ownership.checksum, registry.reachability(i)});
+		}
+		std::vector<char> bytes(x::live_record_size(live.rows.size()));
+		x::encode_live_record(live, bytes);
+		const auto id = generation.descriptor().generation;
+		trusted_records::put(output / std::string(x::GenerationName(id, x::GenerationFile::ReaderMetadata).view()),
+							 metadata);
+		trusted_records::put(output / std::string(x::GenerationName(id, x::GenerationFile::Live).view()), bytes);
+	}
+	domain.close().wait();
+}
 void run(const std::string &path, const std::filesystem::path &output, unsigned namespaces, std::uint32_t version) {
 	auto rows = corpus(path);
 	reshape(*rows, namespaces);
@@ -219,6 +253,8 @@ void run(const std::string &path, const std::filesystem::path &output, unsigned 
 		change.bump_all();
 	}
 	require(::close(directory) == 0, "close output");
+	trusted_records::put(output / "owner.lock", {});
+	agent_records(output, snapshot->records().size());
 	std::cout << "{\"records\":" << snapshot->records().size() << ",\"namespaces\":" << snapshot->namespaces().size()
 			  << ",\"segments\":" << image.segments().size() << ",\"layout_version\":" << version << "}\n";
 	l::ValidationBudget disposal{SIZE_MAX, SIZE_MAX};
