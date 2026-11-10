@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-09) Ready for design re-review: OD-1 to OD-9 (review `observability-design-design.md` at `Detent:6139e4c`) folded in, A8 measured (D10), Q1-Q7 decided by the owner (PLAN.md D47). Quest `observability-design` (campaign detent, D37). The owner accepted D6's application API shape (Q1, D47); its exact C declarations stay the owner's until OB1 freezes them (PLAN.md, Reserved decisions).
+> Status: DRAFT (2026-11-09) Ready for design re-review: OD-1 to OD-9 (review `observability-design-design.md` at `Detent:6139e4c`) folded in, A8 measured (D10), Q1-Q7 decided by the owner (PLAN.md D47), `ever_sampled` kept with its one 1-thread miss (PLAN.md D48). Quest `observability-design` (campaign detent, D37). The owner accepted D6's application API shape (Q1, D47); its exact C declarations stay the owner's until OB1 freezes them (PLAN.md, Reserved decisions).
 
 # Knob observability
 
@@ -235,6 +235,8 @@ The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131
 
    The pair now passes at 8 and 64 threads. One row still misses: bool scattered at 1 thread, +7.7 against 5.0, where the countdown alone is +6.9 (+4.5 at `09f038e`, +7.8 in strict screen `261109-141658-03e1a9`). So the countdown, not the bit, is over the 1-thread ceiling there, by an amount the compiled layout moves by about 3 ns, and sampling alone misses the same row. The bit alone passes every row of both confirms.
 
+   **Decision (PLAN.md D48, 2026-11-10).** The owner keeps `ever_sampled`: the exact ever-read bit plus sampled counts and arm splits. It is the one row over the gate: bool scattered at 1 thread, +7.7 ns against 5.0 (exclusive `261109-224833-fa1352`, `Detent:f476cf7`), a miss that the countdown carries (`knob_sampled` +6.9 in the same row) and the compiled layout moves by about 3 ns. The pair passes the 8- and 64-thread rows (worst +9.3 against 10). OB1 re-measures the gate on the real hot path (stripe in a register, S6 lookup near 900 ns, Limit 7); if the row still misses there, cutting the countdown's cost is OB1's work, and the bit stays.
+
 ## Checks
 
 Rerun with `campaign job rerun` on the four jobs at the commit under review (`observability-bench.sh build`, then `run smoke`, `run screen`, `run confirm`, on slot `obs-bench`, ref `s6=b1d281c`). Each run writes `<mode>.md` (the summary) and `<mode>-paired.md` (the paired deltas D2 quotes).
@@ -247,6 +249,7 @@ Rerun with `campaign job rerun` on the four jobs at the commit under review (`ob
 | A4 Hook | D6; `hook_off` and `hook_on` rows of D2 |
 | A5 Privacy and caps | D8 |
 | A6 Build plan | "Build plan" below |
+| A8 Exact counting | D10; exclusive exact-confirm `261109-202834-bfb3cf` (`09f038e`), strict pair-screen `261109-222819-1a0f6c` (`4ee258e`), exclusive pair-confirm `261109-224833-fa1352` (`f476cf7`); PLAN.md D48 |
 | A7 Jobs | Build `261109-120856-787b87`, smoke `261109-120857-5b7ebc`, screen `261109-120857-3fb43d`, confirm `261109-120858-28cd50` (cited in D2) |
 
 ## Limits
@@ -295,7 +298,7 @@ The owner took each recommendation on 2026-11-09 (PLAN.md D47). The labels stay,
 
 **Q6. The page is on whenever the agent's store has `usage/`** (an agent setting), so operators get host data without changing applications.
 
-**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +19.6 to +49.9 ns on scattered names at 64 threads (D10).
+**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). D48 keeps it with the pair's one miss, bool scattered at 1 thread (+7.7 against 5.0, D10 item 4); OB1 re-measures it in the core. Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +19.6 to +49.9 ns on scattered names at 64 threads (D10).
 
 ## Build plan
 
