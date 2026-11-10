@@ -28,8 +28,8 @@ class StateCursor {
 	SourceOverride override_value() const;
 	void reset();
 	const Descriptor &descriptor() const noexcept { return descriptor_; }
-	static std::optional<paged::Digest> logical_commitment(const RecoveredGeneration &);
-	std::optional<paged::Digest> logical_commitment() const;
+	static std::optional<paged::Digest> state_commitment(const RecoveredGeneration &);
+	std::optional<paged::Digest> state_commitment() const;
 	std::optional<DirectoryIdentity> directory_identity() const;
 
   private:
