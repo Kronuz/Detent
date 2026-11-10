@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Every in-page walker that follows inline slots (about 11 today: paged_read_state.cc, paged_cursor.cc, paged_trie_overlay.cc and the key-driven walkers) advances through one shared bounded step that enforces slot progress and the page end, so the COR-1 class (one copy missing a bound) cannot recur. Bytes on disk, digests and read results are unchanged. From review dense-pages-design DES-6 (D42).
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 <criterion>: <evidence>
+- A1 `git grep decode_node( src` shows decode_node called only from the shared step: a job
+- A2 Native, the Dense fuzz smoke under ASan/UBSan and the 5M model oracle pass unchanged: the `native` gate and jobs
+- A3 A mutant dropping the shared step's progress bound is killed by a test: a job
+- A4 Read-path cost does not regress: an exclusive A/B against main with an A/A spread, honest magnitude
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Internal to detent_local; no format or API change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D42 (lead).
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+Tests that pin current walker behavior.
