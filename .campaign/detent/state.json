@@ -298,7 +298,9 @@
     },
     "daemon-ready-leader": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "dense-pages"
+      ],
       "base": "9d7939f5727815d8d41faabb11c3ae6222c55549",
       "branch": "quest/detent/daemon-ready-leader",
       "checks": [
@@ -334,7 +336,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-09T16:40:07",
+      "updated": "2026-11-09T18:12:29",
       "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
