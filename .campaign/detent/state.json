@@ -50,6 +50,13 @@
       "closed": "Relayed approval noted; the permission system denied the delete to this session, so it waits for the owner's own word here or his own command",
       "id": "msg-8",
       "text": "Owner approved (2026-11-09): delete the ~43 GiB of old 5M run outputs in Detent/.scratch. Keep anything an open quest's evidence, review or A9 fixtures still cite."
+    },
+    {
+      "at": "2026-11-09T16:22:14",
+      "by": "xapiand-lead",
+      "closed": "answered: no active Detent quest in completion; go ahead",
+      "id": "msg-10",
+      "text": "Heads-up before we start quest barrier-warning-completion in Kronuz/completion: PosixIO gains a once-per-volume warning on storage whose ordering barrier is not a durable flush (non-Apple storage on macOS) and an opt-in full-flush ordering (contract completion:sync-files, which your namespace-s1-s2 consumes). Is Detent mid-change in completion's PosixIO/sync-files (the completion/journal/consensus split)? If yes, tell me which files to stay out of or when to start; if not, we start it next."
     }
   ],
   "quests": {
@@ -304,7 +311,8 @@
         "src/detent_authority/service.hh",
         "tests/detent_authority/**",
         "tests/detentd/**",
-        "website/src/content/docs/quickstart.md"
+        "website/src/content/docs/quickstart.md",
+        "docs/status/quickstart-managed.md"
       ],
       "landed": [],
       "lenses": [
@@ -315,12 +323,11 @@
       "provides": [
         "detentd-readiness"
       ],
-      "reason": "started by force: dense-pages' tests/** glob is broad; its branch changes only tests/detent_local, detent_delivery, detent_system and detent_testing, never tests/detentd, tests/detent_authority or src/detentd",
       "repo": ".",
       "risk": "normal",
       "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-09T14:24:39",
+      "updated": "2026-11-09T16:40:07",
       "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
