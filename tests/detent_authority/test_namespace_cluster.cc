@@ -56,6 +56,7 @@ int main(int argc, char **argv) {
 	// Voter 1 misses the enabling entry, the drop and the re-creation; it installs a snapshot.
 	group.link(0, 1, false);
 	group.link(1, 2, false);
+	const auto missed = group.nodes[1]->state().applied_index();
 	AdministrativeCommand enable{group.context, AdministrativeKind::EnablePositions, {}, {}};
 	enable.nonce[0] = 's';
 	assert(group.administer(0, 2, enable).results[0].status == Status::Applied);
@@ -69,12 +70,14 @@ int main(int argc, char **argv) {
 		[&] { return group.nodes[0]->worker().applied_index() == group.nodes[0]->state().applied_index(); });
 	assert(group.nodes[0]->checkpoint());
 	group.until([&] { return !group.nodes[0]->checkpoint_busy(); });
-	for (int i = 0; i < 130; ++i) // Past the 128-entry live log, so voter 1 needs the snapshot.
+	for (int i = 0; i < 3; ++i) // The leader compacted through its checkpoint: voter 1 installs it.
 		commit(group, 0, write(group, "a", "hot", i));
+	// The leader's log starts past what voter 1 applied, so only an install catches it up.
+	assert(group.nodes[0]->worker().base_index() > missed);
 	group.link(0, 1, true);
 	group.link(1, 2, true);
 	settle(group);
-	assert(group.nodes[1]->worker().base_index() > 0);
+	assert(group.nodes[1]->worker().base_index() > missed);
 	assert(group.nodes[1]->state().positions_enabled());
 
 	// Voter 2 restarts mid-run and replays the enabling entry and the drop from its journal.
@@ -100,7 +103,7 @@ int main(int argc, char **argv) {
 		assert(leader.checkpoint() == group.nodes[i]->state().checkpoint());
 	}
 	// Positions advanced only with each namespace's own changes, from its stored revision.
-	assert(leader.namespace_entry("a")->position == 5 + 14 + 130 + 10);
+	assert(leader.namespace_entry("a")->position == 5 + 14 + 3 + 10);
 	assert(leader.namespace_entry("c")->position == 13 + 10 + 5 && leader.namespace_entry("d")->position == 5);
 	auto b = *leader.namespace_entry("b");
 	assert(b.live && b.position == 6 + 13 + 1 + 1 && b.directory == 5 && leader.directory_position() == 6);
