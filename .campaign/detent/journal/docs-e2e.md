@@ -1,6 +1,6 @@
 # docs-e2e: journal
 
-State: working
+State: waiting on jobs 261110-122036-67414b 261110-122038-6852bf
 Quest: .campaign/detent/quests/docs-e2e.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,7 +13,7 @@ Runner, checks, workflow, docs and 23 assertion blocks written; fixing the last 
 
 ## Next
 
-1. Fix assertions the e2e job shows wrong (docs wrong -> list in e2e_exceptions.txt, no page rewrites).
+1. Read the e2e and mutant jobs; fix what they show.
 2. Mutant job (tests/docs/mutants.py) and overlap job (tests/docs/overlap.py).
 3. Fill Evidence.
 
@@ -29,7 +29,13 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1 | e2e check 261110-122036-67414b at a65daa8 (fresh build, 23 asserted blocks run, 41 listed in tests/docs/e2e_exceptions.txt); earlier iteration 261110-121205-42649f failed on 5 wrong assertions, fixed in f81d61d/a65daa8 |
+| A2 | mutants job 261110-122038-6852bf (tests/docs/mutants.py: M1 asserted value, M2 CLI flag in source with rebuild, M3 config key on a page) |
+| A3 | overlap job 261110-122040-35a06a: two simultaneous runs, ports 27135 and 53002, both 23 blocks pass, no leftover listener |
+| A4 | docs check 261110-122036-9bb2a0 (44 gaps listed in tests/docs/docs_exceptions.txt) |
+| A5 | site check 261110-122036-9413df (63 pages, 5385 links, 2 broken both listed in tests/docs/link_exceptions.txt) |
+| A6 | `.github/workflows/docs.yml` |
+| A7 | `docs/dev/docs-e2e.md` |
 
 ## Result
 
