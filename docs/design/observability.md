@@ -1,4 +1,4 @@
-> Status: DRAFT (2026-11-09) Ready for design review, round 2 (review `observability-design-design.md` at `Detent:6139e4c`, OD-1 to OD-9 folded in). Quest `observability-design` (campaign detent, D37). The application-facing API in D6 is a proposal: the `detent_*` C ABI is the owner's (PLAN.md, Reserved decisions).
+> Status: DRAFT (2026-11-09) Ready for design re-review: OD-1 to OD-9 (review `observability-design-design.md` at `Detent:6139e4c`) folded in, A8 measured (D10), Q1-Q7 decided by the owner (PLAN.md D47). Quest `observability-design` (campaign detent, D37). The owner accepted D6's application API shape (Q1, D47); its exact C declarations stay the owner's until OB1 freezes them (PLAN.md, Reserved decisions).
 
 # Knob observability
 
@@ -35,6 +35,7 @@ Measured on the S6 core (Intel i9-9980HK, Apple clang, 100,000 knobs, exclusive 
 | Signal | Kept as | Per process | Per host (agent) | Per fleet |
 | --- | --- | --- | --- | --- |
 | Reads per knob, by arm | 9 sampled counters per name slot (D2, D3) | At most `K` slots per handle (default 4,096) plus one overflow slot | One row per distinct knob and revision read on the host | One row per knob in the store (at most the 5M qualified) |
+| Knob ever read | 1 bit per definition per attached generation, exact (D10) | One bitmap per attached namespace | The union over processes, per knob | The union over hosts (OB6) |
 | Caller's default taken | Cells `missing`, `wrong_type`, `fallback_other` per knob; every status per handle, exact | 11 statuses × 2 kinds per handle | Summed | Summed |
 | Generation each process reads | Per attached namespace: revision, sequence seen, attach time (D5) | One record per attached namespace | One per process × namespace | Revision lag per host |
 | Age and refresh lag | Derived by the reader of the record: now − attach time; agent: its selection time − process attach time | | | |
@@ -124,7 +125,7 @@ Counts are not keyed by revision: a revision field per lookup would put the view
 
 The holder of `refreshing` writes, per attached namespace, the revision, the sequence seen and the attach time (`CLOCK_MONOTONIC`, beside the refresh path's existing clock reads, `core.cc:359,375`), into the view it publishes. A snapshot also loads the namespace's current sequence from the mapped `change` file without refreshing (`detent_revision` refreshes, `core.cc:733-748`), so `current - seen` is the number of publishes a process has not yet looked up. On the same host `CLOCK_MONOTONIC` is one clock, so the agent compares a process's attach time with the time it renamed `selected`: that difference is the refresh lag, and it needs no change to the `change` file.
 
-### D6. The application's view: snapshot and hook (proposed; Q1)
+### D6. The application's view: snapshot and hook (Q1)
 
 ```c
 typedef struct { size_t size; detent_str name; uint64_t samples[9]; } detent_knob_usage;
@@ -160,7 +161,7 @@ fleet: agent summary ─→ relay ─→ authority (Q4, deferred)
 3. **Lifetime.** The agent scans every few seconds, keeps the last counts of a process whose pid is gone (checked with its start time against pid reuse), reports them once more, then deletes the page.
 4. **Fork.** A child must not count into its parent's page: the child handler replaces the page's range with private anonymous memory (one `mmap`, no file I/O, matching reader.md D10's handler rules), and the child's next refresh creates its own page, copies its names and reseeds its stripes (D2 item 4).
 5. **Formats.** Host: one JSON usage document in the shape of the relay's health snapshot (hand-built, `host.cc:59-127`): per knob and revision the estimated reads by arm (samples × period) and the derived value; per process the namespaces, revisions, lag and age. Label-free totals (reads by kind and status, refused publishes, stale answers, processes) are spec §12's metrics (`justknobs-implementation-spec.md:690-738`), written as a Prometheus text file (D9).
-6. **Fleet.** Per-knob reads and the count of hosts reading each knob answer "which knobs are dead", and only at fleet scale: 1,000 processes reading a knob 10 times each yield about 156 samples, while one host may show none (Q7). Aggregated by knob, the authority-side state is bounded by the store's knob count, not by hosts. It needs an upstream message from agent to relay to authority, a wire change, so it is Q4.
+6. **Fleet.** The ever-read union across hosts answers "which knobs are dead" exactly (D10); sampled reads per knob answer "how often", and only at fleet scale for rare knobs: 1,000 processes reading a knob 10 times each yield about 156 samples, while one host may show none. Aggregated by knob, the authority-side state is bounded by the store's knob count, not by hosts. It needs an upstream message from agent to relay to authority, a wire change, so it is Q4.
 
 ### D8. Privacy and limits
 
@@ -201,6 +202,13 @@ A8TABLE
 
 The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131,072 calls) agrees on every verdict.
 
+**The shape (Q7).** Every attached namespace generation in a view gets an ever-read bitmap, one bit per definition in that generation, allocated by the refresh winner when it attaches the generation (the refresh path already allocates and maps; a warm lookup does neither). A lookup that finds a definition tests its bit and sets it if clear, after the answer, beside the sampled countdown. A lookup that finds no definition has no position; `missing` counts it in the sampled table.
+
+1. **Across generations.** When the D5 freer retires a view, no reader holds it, so its bitmaps are final. The freer ORs each set bit into the bitmap of the generation that replaced it, finding the knob by name there (one lookup per distinct knob read, off the hot path), with `fetch_or` beside lookups that set bits in the new one. A knob absent from the new generation (deleted) is marked in its usage-table slot's `seen` flag, claiming a slot if needed; past `K` it counts in `overflow` (Limit 4). So the current bitmap holds every knob the handle has read since open.
+2. **Leaving the process.** The page (D7 item 1) carries, per attached namespace, the revision and its bitmap; the refresh winner grows the page for a larger generation before it publishes the view. The agent resolves positions against the generation of that revision. A process on a revision the agent no longer holds is reported by its count of set bits until it refreshes, when the fold moves them (Limit 11).
+3. **Cost and size.** One relaxed load of a word that stays shared after a knob's first read, and one `fetch_or` per knob per handle per generation. 12.5 KB per handle per 100,000 definitions read from, 625 KB for a whole 5M store.
+4. **The gate.** OB1 measures the bit together with the sampled countdown (`ever_sampled` above) under the same gate. In the bench the pair costs more than its parts at 64 threads (A8EVERSAMPLED); in the core the stripe and the definition's position are already in registers, which the bench recomputes or carries. If the pair misses the gate in the core, OB1 reports it to the lead with its numbers before anything trades accuracy for it.
+
 ## Checks
 
 Rerun with `campaign job rerun` on the four jobs at the commit under review (`observability-bench.sh build`, then `run smoke`, `run screen`, `run confirm`, on slot `obs-bench`, ref `s6=b1d281c`). Each run writes `<mode>.md` (the summary) and `<mode>-paired.md` (the paired deltas D2 quotes).
@@ -218,7 +226,7 @@ Rerun with `campaign job rerun` on the four jobs at the commit under review (`ob
 ## Limits
 
 1. **Silent:** a 64-bit name-hash collision merges two knobs' counts (D3 item 2).
-2. **Silent:** a zero in the host document is not evidence that a knob is unused. A knob read once per process, at startup or on a reload, is missed with probability 0.98 in one process, 0.85 across 10 and 0.21 across 100 (Q7).
+2. **Silent:** the ever-read bit says a knob was read, not how often; a knob read once per process shows its bit and, with probability 0.98 in one process and 0.85 across 10, no sampled read. A host's union covers only processes alive since the agent's last scan of them (D7 item 3).
 3. **Silent:** a ramp's split carries the error of a sample count: a 50/50 split reads ±16 points at 640 reads, ±4 at 10,000 and ±1.3 at 100,000, and a 1% ramp shows about 1.5 samples per 10,000 reads.
 4. **Silent:** past `K` names a handle counts into one overflow slot; a process with more live knobs than `K` loses per-knob detail for the rest (it sees `overflow` grow).
 5. **Silent:** counts carry no revision; a scan interval that straddles a value-changing publish attributes its reads to the new value (D4).
@@ -227,6 +235,7 @@ Rerun with `campaign job rerun` on the four jobs at the commit under review (`ob
 8. The per-knob table costs memory per handle; with the hook alone and `usage_slots = 0` the table is off.
 9. The agent's view lags by its scan interval; the application's snapshot does not.
 10. A process can forge its page; host and fleet counts are as honest as the processes on the host.
+11. A process whose installed revision the agent no longer holds reports how many knobs it has read, not which, until its next refresh folds its bits into a newer generation (D10 item 2).
 
 ## Alternatives considered
 
@@ -244,45 +253,33 @@ Rerun with `campaign job rerun` on the four jobs at the commit under review (`ob
 
 **Knob-name labels in Prometheus.** Spec §12 forbids it, and per-knob series across 250k agents do not fit a time-series store.
 
-## Open questions for the owner
+## Owner decisions (PLAN.md D47)
 
-**Q1. The application API (reserved).** (a) D6: `detent_usage` plus a hook fixed at open, both behind `detent_open_options` growth. (b) Snapshot only. (c) Hook only, and the core keeps no table. *Recommendation: (a).* The table serves the agent with no application code; the hook serves applications that want every event.
+The owner took each recommendation on 2026-11-09 (PLAN.md D47). The labels stay, because the sections above cite them.
 
-**Q2. Prepared knob handles.** (a) Keep names per call; a sampled lookup hashes the name. (b) Add `detent_knob` handles resolved once (name validated, slot found), passed to lookups. *Recommendation: (a).* Hash and probe cost +15 to +45 ns (D2 item 2), but sampling runs them once per 64 lookups; (b) changes every binding to save under 1 ns on average.
+**Q1. The application API: D6.** `detent_usage` plus a hook fixed at open, both behind `detent_open_options` growth. The table serves the agent with no application code; the hook serves applications that want every event. Not taken: a snapshot only, or a hook only with no table in the core.
 
-**Q3. Host export.** (a) `detent-agent --status --usage` prints the JSON document, and the agent writes label-free totals to a Prometheus text file in a configured directory (the node exporter's textfile collector reads it), rendered by Kronuz/metrics (D9). (b) An HTTP `/metrics` listener in the agent. (c) OpenTelemetry. *Recommendation: (a):* no listener, port or credential on every host.
+**Q2. Names per call, no prepared knob handles.** A sampled lookup hashes the name; hash and probe cost +15 to +45 ns (D2 item 2), but sampling runs them once per 64 lookups. Not taken: `detent_knob` handles resolved once, which change every binding to save under 1 ns on average.
 
-**Q4. Fleet aggregation.** (a) Agents send per-knob summaries upstream on their relay sessions; relays sum; the authority serves per-knob readers. (b) None; fleet tools collect host documents. *Recommendation: (a), after namespace delivery S4-S10*, which changes the same sessions.
+**Q3. Host export: a document and a text file, no listener.** `detent-agent --status --usage` prints the JSON document, and the agent writes label-free totals to a Prometheus text file in a configured directory (the node exporter's textfile collector reads it), rendered by Kronuz/metrics (D9). No listener, port or credential on every host. Not taken: an HTTP `/metrics` listener, OpenTelemetry.
 
-**Q5. Values in the usage document.** (a) The value. (b) A digest of it. *Recommendation: (a)*: every agent already holds the definition.
+**Q4. Fleet aggregation upstream, after namespace delivery S4-S10.** Agents send per-knob summaries (reads by arm and the ever-read set, D10) upstream on their relay sessions; relays sum; the authority serves per-knob readers. It waits for S4-S10, which changes the same sessions (OB6).
 
-**Q6. The page by default.** (a) On whenever the agent's store has `usage/` (agent setting). (b) Only with an open option. *Recommendation: (a)*, so operators get host data without changing applications.
+**Q5. Values, not digests, in the usage document.** Every agent already holds the definition.
 
-**Q7. What the built-in counts promise.** Sampling costs a paired median of 7 ns or less at 8 threads and loses four things (Limits 2 and 3):
+**Q6. The page is on whenever the agent's store has `usage/`** (an agent setting), so operators get host data without changing applications.
 
-1. A knob read once per process is invisible on a host: missed with probability 0.98 in one process and 0.85 across 10.
-2. Dead-knob detection needs fleet aggregation (D7 item 6), which is Q4 and OB6, deferred until after namespace S4-S10, so until then it is unreliable for exactly the knobs most likely to be dead.
-3. The hook gives exactness only to applications that wire it, the adoption cost that rejects counting in the application only.
-4. A ramp's split has a sample count's error: ±4 points at 10,000 reads, ±16 at 640.
-
-The options:
-
-- (a) Sampled now; dead-knob answers wait for OB6.
-- (b) Sampled, and bring OB6 forward, or a cheaper host-level "seen" export (each agent sends the set of knobs any process on it has sampled), for the dead-knob question alone.
-- (c) Sampled, plus an exact "ever read" bit per knob keyed by the definition's position in the generation, set with test-before-set, so after a knob's first read it costs one load of a line that stays shared. Unmeasured; measuring it would be an OB1 case.
-- (d) Exact per-knob rows (+23 to +64 ns).
-
-*Recommendation: (a)*, as the cheapest shape that answers usage and ramp questions at volume; (c) is the one that answers the dead-knob question exactly per host, and whether to measure it is the owner's call.
+**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +17 to +60 ns on scattered names (D10).
 
 ## Build plan
 
 | Quest | Files | Criteria | Risk | Needs |
 | --- | --- | --- | --- | --- |
-| OB1 Usage table, sampling and arms in the core | `src/detent_local/evaluation.hh`, `src/detent_reader/core.cc`, `include/detent/reader.h`, `reader.hh`, `tests/detent_reader/` | D2's cost gate (paired, interleaved on and off; ≤ 5 ns at 1 thread, ≤ 10 ns at 8 and 64 threads; exclusive job); exact under 16 threads with the period forced to 1 (TSan); a 1,024-name cycle samples every name with the random reload; a fresh handle's first 64 lookups are not all sampled; zero allocation and syscall tests (reader.md T1) unchanged; fork child counts apart and reseeds; every fallback status lands in its cell; test generations from `publish(Snapshot)` | high (hot path) | reader S6 landed; Q1, Q7 |
+| OB1 Usage table, sampling, ever-read bits and arms in the core | `src/detent_local/evaluation.hh`, `src/detent_reader/core.cc`, `include/detent/reader.h`, `reader.hh`, `tests/detent_reader/` | D2's cost gate with the ever-read bit and the countdown together (D10; paired, interleaved on and off; ≤ 5 ns at 1 thread, ≤ 10 ns at 8 and 64 threads; exclusive job); every knob looked up has its bit, across a publish that reorders and deletes definitions (the D5 fold); exact under 16 threads with the period forced to 1 (TSan); a 1,024-name cycle samples every name with the random reload; a fresh handle's first 64 lookups are not all sampled; zero allocation and syscall tests (reader.md T1) unchanged; fork child counts apart and reseeds; every fallback status lands in its cell; test generations from `publish(Snapshot)` | high (hot path) | reader S6 landed; Q1, Q7 |
 | OB2 View records and `detent_usage` | `core.cc`, `reader.h`, tests | Lag and age correct across publishes (T3's helper) | medium | OB1; reader S5 (landed) |
 | OB3 Hook | `core.cc`, `reader.h`, `reader.hh` | Hook after unpin (park-hook test: a stalled hook never refuses a publish); `hook_off` within D2's gate | medium | OB1, Q1 |
-| OB4 Usage page, agent collector and export | Kronuz/metrics (Prometheus text renderer), `core.cc`, `src/detent_agent/`, `docs/mechanisms/` | Hostile page fuzz (truncation, oversize, bad names) never crashes the agent; a pre-created `usage/<pid>-<handle>` makes the handle fall back to a private table; on Linux, a page created by another uid is readable by the agent (VM); dead-process retention; Linux tmpfs fault count 0 over 10 min (VM); the usage document matches a golden schema, caps at 65,536 rows with `truncated` set, and splits rows by revision; the text file parses as Prometheus exposition format, carries no knob-name label, and is replaced by rename | medium | OB1, Q3, Q6 |
+| OB4 Usage page, agent collector and export | Kronuz/metrics (Prometheus text renderer), `core.cc`, `src/detent_agent/`, `docs/mechanisms/` | Hostile page fuzz (truncation, oversize, bad names) never crashes the agent; a pre-created `usage/<pid>-<handle>` makes the handle fall back to a private table; on Linux, a page created by another uid is readable by the agent (VM); dead-process retention; Linux tmpfs fault count 0 over 10 min (VM); the usage document matches a golden schema, caps at 65,536 rows with `truncated` set, and splits rows by revision; the ever-read union matches the knobs a multi-process test read, and a process on a dropped revision reports its count (Limit 11); the text file parses as Prometheus exposition format, carries no knob-name label, and is replaced by rename | medium | OB1, Q3, Q6 |
 | OB5 Bindings | `bindings/python`, `bindings/rust` | Usage and hook in both | low | reader S8, S9 (`reader-s7-s9`) |
-| OB6 Fleet aggregation | delivery protocol, relay, authority | Deferred | high | Q4, Q7; namespace S4-S10 |
+| OB6 Fleet aggregation | delivery protocol, relay, authority | Deferred; carries the ever-read union and sampled reads by arm (Q4) | high | Q4, Q7; namespace S4-S10 |
 
 reader S7 (`detent get` on the core) needs nothing from this design; `detent get` opens a handle with `usage_slots = 0`.

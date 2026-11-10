@@ -34,12 +34,16 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
   row (worst +5.1 int/scattered/64); `knob_sampled` fails bool/scattered/1 (+7.8); every exact count fails
   scattered (`pos_tls` +46.6/+57.6 at 64, `pos_stripe_rmw` +59.6, `dm_cache` +36.7, `pos_shared` +31.5 hot/64).
 - Merged main at `09f038e` (bench binary unchanged: it builds the S6 ref, bench source digest unchanged).
-  Exact-confirm (exclusive, all 9 arms, reps 7, calls 262144) 261109-202834-bfb3cf at `09f038e`, slot obs-bench.
+  Exact-confirm (exclusive, all 9 arms, reps 7, calls 262144) 261109-202834-bfb3cf at `09f038e`, slot obs-bench;
+  queued behind another exclusive hold at 20:40.
+- Lead message (2026-11-09): owner accepted Q1-Q7 (PLAN.md D47, main `b16115e`); merged main; Q section rewritten
+  as "Owner decisions (PLAN.md D47)"; D10 drafted with the ever-bit shape (per-generation bitmaps, D5 fold).
 
 ## Next
 
-1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`); write A8, update Q7 and D2;
-   rerun the quest's checks at the doc head; mark ready for review.
+1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`), fill D10's placeholders (A8TABLE,
+   A8CONFIRM, A8COMMIT, A8EVERWORST, A8TLS64, A8TLSMISS, A8AA, A8EVERSAMPLED, Q7's "+17 to +60"), check the
+   screen-agreement sentence; update abstract, D2 lede, Checks; rerun the chain at the head; ready for review.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
 
