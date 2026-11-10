@@ -1026,7 +1026,11 @@
         "docs/mechanisms/**",
         "docs/perf/**",
         "CMakeLists.txt",
-        ".github/workflows/**"
+        ".github/workflows/**",
+        "docs/FAST_CLIENT_ARCHITECTURE.md",
+        "docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md",
+        "src/detent_delivery/coordinator.cc",
+        "website/src/content/docs/architecture/how-it-works.md"
       ],
       "landed": [],
       "lenses": [
@@ -1110,7 +1114,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-09T17:03:14",
+      "updated": "2026-11-09T18:00:34",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
@@ -1198,6 +1202,48 @@
       "status": "planned",
       "title": "One bounded inline-slot walker for Dense pages",
       "updated": "2026-11-09T17:15:43"
+    },
+    "docs-wave-1": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 60,
+          "name": "docs"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "website/src/**",
+        "README.md",
+        "QUICKSTART.md",
+        "docs/*.md",
+        "tests/docs/**",
+        ".github/workflows/ci.yml"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
+      "updated": "2026-11-09T17:45:06"
     },
     "fixture-500k": {
       "accepted": {},
