@@ -1665,6 +1665,48 @@
       "title": "Legacy H: the Client goes, bindings on the reader core",
       "updated": "2026-11-08T15:38:08"
     },
+    "legacy-i": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 120,
+          "name": "native"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_delivery/configuration.cc",
+        "src/detent_delivery/configuration.hh",
+        "src/detent_agent/**",
+        "tests/**",
+        "docs/ACTORS.md",
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "website/src/content/docs/reference/configuration.md",
+        "website/src/content/docs/reference/snapshot-format.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "dense-pages",
+        "legacy-h",
+        "reader-s6",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Legacy I: one local image format; flat-v1, image_format and legacy_anchor removed",
+      "updated": "2026-11-09T18:01:49"
+    },
     "legacy-wave2": {
       "accepted": {},
       "after": [],
