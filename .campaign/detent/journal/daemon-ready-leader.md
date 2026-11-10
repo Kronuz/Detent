@@ -1,11 +1,17 @@
 # daemon-ready-leader: journal
 
-State: waiting on jobs 261109-150943-0c7951 (native), 261109-150944-4403ae (A3 revert)
+State: fix round F1/F2/N2/N3/N5 implemented at 82024eb; waiting on jobs 261109-164903-36a5eb (fix tests), 261109-164904-d4954d (A5 revert), 261109-164905-ff3d30 (A6 revert), 261109-164916-0e1fa4 (native), 261109-164915-21368f (N1 at main)
 Quest: .campaign/detent/quests/daemon-ready-leader.md (the lead's; never edit it)
 
 ## Doing
 
-Implemented at daemon-ready-leader:88f97af (D40 applied, lone quorum = no other voter); waiting on the two jobs at that head. Jobs 261109-143405-3aa931 and 261109-143406-72d271 (at 6177dc9) were cancelled by the lead. Native 261109-143812-a539df (dd3aad7) failed 7/223, all 500K delivery tests (#77 #81 #89 #99 #101 #129 #130): the pre-existing fixture defect on main that dense-pages fixed (Detent:203f729; its jobs 2489dd/19ca42/747eb5; unlanded), run under host load 34. Not this code; not evidence. A3 revert 261109-143813-c05fdc passed at dd3aad7 (old readiness killed with the 503); rerun below at the new head.
+Fix round for review daemon-ready-leader-correctness (CHANGES) at 82024eb. F1 (D41): health `ready` for a
+follower needs `leader_known` and a proof of life within `election_max`; the proof is a RoleChanged
+naming the leader or our own `AppendResponse` send (the reply to its append), stamped in the owner loop
+(service.cc `leader_alive`). F2/N5: `Service::failure()` returns the runtime's exception text; the
+`--daemonize` wait ends on it or on SIGTERM without `ready()` and the parent gets the cause. N2: the
+managed quick-start status item 2 is marked resolved. N3: the refusal text names the rule. N4 kept (D40
+shape, documented in test_daemon_alone.py). N1: job at main below.
 
 ## Next
 
