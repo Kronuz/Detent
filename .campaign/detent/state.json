@@ -2056,7 +2056,9 @@
     },
     "docs-site-usage": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "docs-site-start"
+      ],
       "checks": [
         {
           "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
@@ -2101,7 +2103,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: usage guides and operations",
-      "updated": "2026-11-10T11:59:30"
+      "updated": "2026-11-10T12:02:20"
     },
     "docs-wave-1": {
       "accepted": {},
