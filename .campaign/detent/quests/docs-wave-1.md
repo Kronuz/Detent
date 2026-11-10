@@ -37,3 +37,4 @@ The docs check and its CI step, before the page rewrites, once it passes on curr
 ## Inputs to weigh at split/start
 
 - Xapiand triage #24 (msg-13): a glossary page (authority, voter, leader, relay, agent, namespace, generation, store, page, knob, rollout).
+- D47: the operations/security page states #25 (disk or volume encryption; no at-rest encryption in Detent) and the configuration reference documents DNS voter addresses (#26).
