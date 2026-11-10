@@ -32,3 +32,7 @@ To be fixed when the lead splits this quest.
 ## May land early
 
 None until the lead splits it.
+
+## Inputs to weigh at split/start
+
+- Xapiand triage #35 (msg-13): deleting a namespace on every replica (tombstone, then reclaim) without racing in-flight writes or readers holding leases.

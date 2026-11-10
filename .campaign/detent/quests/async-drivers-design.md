@@ -38,3 +38,7 @@ Provides `task:driver`: the driver API shape journal and consensus will expose. 
 ## May land early
 
 None.
+
+## Inputs to weigh at split/start
+
+- Xapiand triage #18 (msg-13, Xapiand D20 names Detent the design owner): one deadline per fan-out operation that every child task inherits and cancels on, carried on the shared task cancellation token. The driver design states how a deadline propagates and cancels.

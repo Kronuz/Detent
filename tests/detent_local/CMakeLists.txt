@@ -200,6 +200,13 @@ if(TARGET detent::local_publication)
 endif()
 
 if(TARGET detent::local_publication)
+  add_executable(test_local_publication_power_cut test_publication_power_cut.cc)
+  target_include_directories(test_local_publication_power_cut PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+  target_link_libraries(test_local_publication_power_cut PRIVATE detent::local_publication)
+  add_test(NAME test_local_publication_power_cut COMMAND test_local_publication_power_cut)
+endif()
+
+if(TARGET detent::local_publication)
   add_executable(test_local_paged_root_reclaim test_paged_root_reclaim.cc)
   target_include_directories(test_local_paged_root_reclaim PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
   target_link_libraries(test_local_paged_root_reclaim PRIVATE detent::local_publication)
