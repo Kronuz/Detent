@@ -1026,7 +1026,11 @@
         "docs/mechanisms/**",
         "docs/perf/**",
         "CMakeLists.txt",
-        ".github/workflows/**"
+        ".github/workflows/**",
+        "docs/FAST_CLIENT_ARCHITECTURE.md",
+        "docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md",
+        "src/detent_delivery/coordinator.cc",
+        "website/src/content/docs/architecture/how-it-works.md"
       ],
       "landed": [],
       "lenses": [
@@ -1110,7 +1114,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-09T17:03:14",
+      "updated": "2026-11-09T18:00:34",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
