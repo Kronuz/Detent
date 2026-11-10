@@ -1,8 +1,8 @@
 # First-read gate (A15, reader.md T2)
 
-Measures 200 fresh-process first reads per arm for the baseline (`main` when Dense merges it) and
+Measures 200 fresh-process first reads per run for the baseline (`main` when Dense merges it) and
 the Dense head, over 1- and 1,000-namespace stores of the same 5M corpus, with the publisher
-running and stopped, with each code measured twice per shape (A/A).
+running and stopped, in six interleaved baseline/Dense pairs per cell.
 
 ## What it times
 
@@ -30,15 +30,28 @@ every record in `primary` plus 999 namespaces of 100 integer knobs (5,099,900 re
 `first-read-gate.sh measure` runs `tests/detent_system/first_read_gate.py` under `exclusive`;
 a trailing `stopped` or `running` runs only that publisher state's arms, so each half fits one
 30-minute hold.
-Arms run on fresh APFS clones, per publisher state and namespace count alternating baseline,
-Dense, baseline, Dense (B1, D1, B1', D1', then the 1,000-namespace four), so each code's second
-arm is its A/A repeat. A running arm starts the tree's own `detent-agent` over the clone with
-its upstream port bound but not listening (as the 2026-10-26 qualification did) and measures once
-the agent logs readiness. `result.json` records per arm the count below 1 ms, median, p99,
-maximum, median attach, lookup and CPU, major faults, and input hashes, and per shape a verdict
-(D49): Dense's mean median against the baseline's, each code's A/A spread (the gap between its
-two arms' medians) and the counts below 1 ms. Dense is "no worse" when its mean median is at most
-the baseline's mean median plus the baseline's A/A spread. The 1 ms bound belongs to reader-s6.
+Each (namespaces, publisher) cell runs six pairs, baseline then Dense, alternating
+(B, D, B, D, ...); the first pair's order flips from cell to cell (stopped/1 starts with the
+baseline, stopped/1000 with Dense, running/1 with the baseline, running/1000 with Dense). Runs use
+fresh APFS clones. A running run starts the tree's own `detent-agent` over the clone with its
+upstream port bound but not listening (as the 2026-10-26 qualification did) and measures once the
+agent logs readiness. With 12 runs of about 6 s per cell, each publisher state's job (24 runs)
+takes a few minutes and fits one 30-minute hold.
+
+`result.json` records per run the count below 1 ms, median, p99, maximum, median attach, lookup
+and CPU, major faults, and input hashes, and per cell the D51 verdict:
+
+1. Each arm's six run medians, in run order.
+2. The six paired differences (Dense minus baseline, pair by pair).
+3. Each arm's spread: the median absolute difference of consecutive same-arm run medians (five
+   differences).
+4. The noise floor: the larger of the two spreads.
+5. Dense is NO WORSE iff the median of the six paired differences is at most the noise floor;
+   otherwise WORSE, a real regression.
+
+The runner prints every run median, the paired differences, both spreads, the noise floor, the
+counts below 1 ms and the verdict as one `A15 verdict` line per cell. The 1 ms bound belongs to
+reader-s6.
 
 ## Attribution
 

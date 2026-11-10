@@ -3,8 +3,8 @@
 #   first-read-gate.sh prepare OUT   light job at the Dense commit with --ref BASELINE=<main>:
 #       builds both trees with the pinned LLVM 23.1.2, Release, DETENT_READ_COUNTERS=OFF, exports
 #       the 5M corpus as 1- and 1,000-namespace stores with each tree's own builder and prepares them.
-#   first-read-gate.sh measure PREPARED OUT [stopped|running]   exclusive job (each half fits one
-#       30-minute hold): tests/detent_system/first_read_gate.py.
+#   first-read-gate.sh measure PREPARED OUT [stopped|running]   exclusive job (each publisher state's
+#       24 runs fit one 30-minute hold): tests/detent_system/first_read_gate.py.
 #   first-read-gate.sh profile PREPARED OUT   exclusive job: the first read split into its steps
 #       (tests/detent_system/first_read_phases.cc), at the job's path and at a 4-component path.
 set -euo pipefail

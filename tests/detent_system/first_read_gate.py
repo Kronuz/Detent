@@ -1,8 +1,9 @@
 """First-read gate (reader.md T2 through the pre-S6 Client): baseline and Dense, 1 and 1,000
-namespaces, publisher running and stopped, alternating baseline, Dense, baseline, Dense per
-shape so each code's second arm is its A/A repeat (D49).
+namespaces, publisher running and stopped. Each (namespaces, publisher) cell runs PAIRS
+interleaved pairs, baseline then Dense (Dense then baseline in every other cell), and D51's
+verdict compares the paired differences with the larger same-arm run-to-run spread.
 
-Each arm times 200 fresh processes (40 keys x 5 rounds), each after its own warmup process, from
+Each run times 200 fresh processes (40 keys x 5 rounds), each after its own warmup process, from
 before `detent::Client` construction to its first checked value (`first_live_ns`, steady_clock),
 over a fresh APFS clone of the prepared store whose files are read into the page cache first.
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import platform
 import random
@@ -26,13 +28,15 @@ from pathlib import Path
 from typing import Any
 
 ROUNDS = 5
-# (code, namespaces, publisher), per publisher state and namespace count: baseline, Dense,
-# baseline again, Dense again. Each code's second arm is its A/A repeat.
+PAIRS = 6
+CELLS = [(count, state) for state in ("stopped", "running") for count in (1, 1000)]
+# (code, namespaces, publisher, pair): within a cell the codes alternate, and the order of the
+# first pair flips from cell to cell.
 ARMS = [
-    (code, count, state)
-    for state in ("stopped", "running")
-    for count in (1, 1000)
-    for code in ("baseline", "dense", "baseline", "dense")
+    (code, count, state, pair)
+    for cell, (count, state) in enumerate(CELLS)
+    for pair in range(PAIRS)
+    for code in (("baseline", "dense") if cell % 2 == 0 else ("dense", "baseline"))
 ]
 RECORDS = {1: 5_000_000, 1000: 5_099_900}
 
@@ -274,50 +278,65 @@ def summary(samples: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def verdicts(arms: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Per (namespaces, publisher): Dense vs baseline median, each code's A/A spread, and whether
-    Dense is no worse (its mean median is no more than the baseline's mean median plus the
-    baseline's A/A spread)."""
+    """D51, per (namespaces, publisher): each arm's run medians in run order, the paired
+    differences (Dense minus baseline), each arm's spread (the median absolute difference of
+    consecutive run medians) and the noise floor (the larger spread). Dense is no worse iff the
+    median paired difference is at most the noise floor."""
     result: list[dict[str, Any]] = []
-    shapes = sorted({(a["namespaces"], a["publisher"]) for a in arms})
-    for count, state in shapes:
+    for count, state in CELLS:
         rows = {
-            code: [
-                a
-                for a in arms
-                if (a["namespaces"], a["publisher"], a["code"]) == (count, state, code)
-                and "error" not in a
-            ]
+            code: sorted(
+                (
+                    a
+                    for a in arms
+                    if (a["namespaces"], a["publisher"], a["code"])
+                    == (count, state, code)
+                    and "error" not in a
+                ),
+                key=lambda a: a["pair"],
+            )
             for code in ("baseline", "dense")
         }
-        if any(len(r) != 2 for r in rows.values()):
+        if any(len(r) != PAIRS for r in rows.values()):
             continue
         medians = {c: [r["median_ns"] for r in rows[c]] for c in rows}
-        mean = {c: statistics.fmean(m) for c, m in medians.items()}
-        spread = {c: abs(m[0] - m[1]) for c, m in medians.items()}
+        diffs = [d - b for b, d in zip(medians["baseline"], medians["dense"])]
+        spread = {
+            c: statistics.median(abs(b - a) for a, b in itertools.pairwise(m))
+            for c, m in medians.items()
+        }
+        noise = max(spread.values())
         result.append(
             {
                 "namespaces": count,
                 "publisher": state,
-                "baseline_median_ns": mean["baseline"],
-                "dense_median_ns": mean["dense"],
-                "baseline_aa_spread_ns": spread["baseline"],
-                "dense_aa_spread_ns": spread["dense"],
+                "baseline_run_medians_ns": medians["baseline"],
+                "dense_run_medians_ns": medians["dense"],
+                "paired_differences_ns": diffs,
+                "median_difference_ns": statistics.median(diffs),
+                "baseline_spread_ns": spread["baseline"],
+                "dense_spread_ns": spread["dense"],
+                "noise_floor_ns": noise,
                 "baseline_below_1ms": [r["below_1ms"] for r in rows["baseline"]],
                 "dense_below_1ms": [r["below_1ms"] for r in rows["dense"]],
-                "dense_minus_baseline_ns": mean["dense"] - mean["baseline"],
-                "no_worse": mean["dense"] <= mean["baseline"] + spread["baseline"],
+                "no_worse": statistics.median(diffs) <= noise,
             }
         )
     return result
 
 
 def verdict_line(v: dict[str, Any]) -> str:
+    def us(values: list[float]) -> str:
+        return " ".join(f"{x / 1000:.0f}" for x in values)
+
     return (
-        f"A15 verdict {v['namespaces']}ns {v['publisher']}: Dense median "
-        f"{v['dense_median_ns'] / 1000:.0f} us vs main {v['baseline_median_ns'] / 1000:.0f} us "
-        f"(diff {v['dense_minus_baseline_ns'] / 1000:+.0f} us); below 1 ms of 200: Dense "
-        f"{v['dense_below_1ms']}, main {v['baseline_below_1ms']}; A/A spread: main "
-        f"{v['baseline_aa_spread_ns'] / 1000:.0f} us, Dense {v['dense_aa_spread_ns'] / 1000:.0f} us; "
+        f"A15 verdict {v['namespaces']}ns {v['publisher']}: run medians us: main "
+        f"[{us(v['baseline_run_medians_ns'])}], Dense [{us(v['dense_run_medians_ns'])}]; "
+        f"paired Dense-main us [{us(v['paired_differences_ns'])}], median "
+        f"{v['median_difference_ns'] / 1000:+.0f} us; spread: main "
+        f"{v['baseline_spread_ns'] / 1000:.0f} us, Dense {v['dense_spread_ns'] / 1000:.0f} us; "
+        f"noise floor {v['noise_floor_ns'] / 1000:.0f} us; below 1 ms of 200: main "
+        f"{v['baseline_below_1ms']}, Dense {v['dense_below_1ms']}; "
         f"{'NO WORSE' if v['no_worse'] else 'WORSE'}"
     )
 
@@ -379,10 +398,10 @@ def main() -> None:
             (args.prepared / code / "commit.txt").read_text().strip()
         )
     try:
-        for order, (code, count, state) in enumerate(ARMS):
+        for order, (code, count, state, pair) in enumerate(ARMS):
             if args.publisher and state != args.publisher:
                 continue
-            arm = out / f"{order:02d}-{code}-{count}ns-{state}"
+            arm = out / f"{order:02d}-{code}-{count}ns-{state}-p{pair}"
             arm.mkdir()
             store = arm / "generations"
             subprocess.run(
@@ -399,6 +418,7 @@ def main() -> None:
                 "code": code,
                 "namespaces": count,
                 "publisher": state,
+                "pair": pair,
             }
             binary = args.prepared / code / "prepared_client_probe"
             try:
