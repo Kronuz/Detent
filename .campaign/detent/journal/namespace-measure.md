@@ -9,7 +9,7 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Rules committed (A1). Next: harnesses (T9 C++ driver, Linux flush counter, model `wire` mode), smoke, then the exclusive jobs.
+Rules committed (A1). Harnesses committed (T9 driver, sync runner, flush counter, model `wire` mode). Jobs queued; T4(7) confirm jobs to submit once the smokes give per-size times.
 
 ## Next
 
@@ -31,7 +31,7 @@ you examined, failures included, and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
-| A2 | pending |
+| A2 | build 261110-134434-d53821; prepare 261110-134435-f6bf5e; smoke 100K 261110-134435-cffae5; confirm 5M rounds 1-5: 261110-134436-aaa766, 261110-134438-a127a8, 261110-134439-5fe56b, 261110-134440-c0d7f7, 261110-134441-b1e31d, 261110-134442-60b092, 261110-134443-f9ca66, 261110-134444-7a3ade, 261110-134446-f1bed4, 261110-134447-cfa18b |
 | A3 | build 261110-132140-883986; smokes 261110-132141-33bbc2 (APFS), 261110-132141-b4d4a3 (VM); confirm pending |
 | A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30) |
 | A5 | pending |
