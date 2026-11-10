@@ -28,7 +28,7 @@ Provides the docs check later waves and quests reuse. Consumes the landed surfac
 
 ## Decisions
 
-D44 (owner ask, lead schedule), D43 (no compatibility notes). Pages are published by pages.yml on push to main.
+D44 (owner ask, lead schedule), D43 (no compatibility notes). On landing, the lead tells xapiand-lead: Xapiand evaluates replacing docs_to_postman.py + newman with this runner (one runner for both, incl. xapiand-py samples). Pages are published by pages.yml on push to main.
 
 ## May land early
 
