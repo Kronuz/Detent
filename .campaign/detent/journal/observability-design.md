@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-222812-b203c8 261109-222819-1a0f6c
+State: waiting on jobs 261109-222819-1a0f6c
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -51,6 +51,12 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
 - Candidates at `4ee258e`: `knob_tls` (countdown thread-local), `es_tls` (bit + thread-local countdown),
   `es_one` (bit + stripe countdown, one branch, cold slow half), `es_tls_one` (both). Build 261109-222812-b203c8,
   strict pair-screen 261109-222819-1a0f6c (arms none2, ever_bit, knob_sampled, ever_sampled + the four; bare too).
+- Build b203c8 done (bench digest 15b89164). Disassembly at 4ee258e: `es_tls`/`es_tls_one` hold the TLV address
+  in a register (no per-lookup TLV call); `es_one`/`es_tls_one` compile to load, load, test/je, and/je to one
+  cold `ever_slow` call, with no per-lookup stack store of `frame`; `ever_sampled` keeps two duplicated tails,
+  a `frame` byte store per lookup and a countdown pointer reloaded from the stack on one path.
+- D10 table filled from bfb3cf at `ea0afdb` (A8TABLE, worst, pos_tls miss, A/A, screen agreement, Q7 range);
+  the gate item (A8EVERSAMPLED) waits for the pair results.
 
 ## Next
 
