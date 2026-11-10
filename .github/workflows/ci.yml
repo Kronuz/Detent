@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, 'track*/**', 'phase*/**', 'design/**']
+    branches: [main, 'quest/**', 'track*/**', 'phase*/**', 'design/**']
     paths-ignore: ['docs/**', 'website/**', 'diagrams/**', '**/*.md']
   pull_request:
   workflow_dispatch:
