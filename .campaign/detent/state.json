@@ -1863,17 +1863,29 @@
       "files": [
         "docs/dev/docs-site-audit.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-10T12:19:54",
+          "ci_skipped": "adds only docs/dev/docs-site-audit.md and its journal; ci.yml ignores docs/**",
+          "commit": "8c7d5b1211fadd110eac2b136d09cab9757ef055",
+          "evidence": [],
+          "final": true,
+          "from": "9d7d6a4a993da8dc321dca0c15c05245ab75a8fa",
+          "reason": "",
+          "tested": "f83f20333248fa4af969c8f001f35e3b61755f20"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Docs site audit: every page's claims against main",
-      "updated": "2026-11-10T12:00:55",
-      "worktree": "../Detent-wt/detent/docs-site-audit"
+      "updated": "2026-11-10T12:19:56",
+      "worktree": ""
     },
     "docs-site-config": {
       "accepted": {},
