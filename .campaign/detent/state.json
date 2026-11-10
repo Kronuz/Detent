@@ -4557,5 +4557,10 @@
       "updated": "2026-11-08T15:38:27"
     }
   },
+  "tested_docs": [
+    "website/src/content/docs/**",
+    "README.md",
+    "QUICKSTART.md"
+  ],
   "version": 2
 }
