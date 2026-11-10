@@ -14,6 +14,9 @@ quests), every number from jobs 261109-230223-1f63c8, 261109-230225-963cb8 and
 1. Design review (lens `design`).
 2. A8: the lead relays the note below to the Xapiand lead (`campaign message xapiand:`); record
    the answer here.
+3. A7's jobs ran at Detent:87df68b and 646cfb7 (the bench is unchanged since, bar the added
+   `channel_layout` target); `campaign status` asks for reruns at head, which belong after the
+   rebase onto main, with `campaign verify`.
 
 ## Blocked on
 
@@ -47,8 +50,8 @@ changes for Xapiand:
 |---|---|
 | A1 | `docs/design/async-drivers.md`: "What exists today" (file:line per loop and Worker call), D1, D5 (journal), D2/D4/D9 (consensus), "How Detent's owner loop moves" |
 | A2 | `docs/design/async-drivers.md`: "D2. Public API: `task::task<T>` over `scheduler_ref`, no Asio in journal or consensus headers." |
-| A3 | `docs/design/async-drivers.md`: "D3. Injection through three seams." (`HeldCompletion`, the simulator's loop) |
-| A4 | `docs/design/async-drivers.md`: "Cost" per-idle-group rows and the 1 / 1,000 / 1,000,000 table, from jobs 261109-230223-1f63c8 and 261109-232231-bced6c |
+| A3 | `docs/design/async-drivers.md`: "D3. Injection through three seams." |
+| A4 | `docs/design/async-drivers.md`: "Where a three-voter member's 171 KB goes" |
 | A5 | `docs/design/async-drivers.md`: "D5. The blocking entry is the same task, run on the caller's thread." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-6, Worker pump deletion last |
 | A7 | 261109-230225-963cb8 (exclusive, Detent:87df68b): frames 80/96/512 B, resumes 9.2/127.8 ns, wheel arm 14.2 ns vs 223/361 ns, `run_one` 1,572 ns, idle CPU; 261109-230223-1f63c8 (strict, Detent:87df68b): bytes, fds, threads; 261109-232231-bced6c (light, Detent:646cfb7): channel layout. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
