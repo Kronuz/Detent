@@ -32,6 +32,9 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	DiskUsage usage() const;
 	std::uint64_t target_physical_bytes() const;
 	DiskUsage prefix_usage(std::size_t) const;
+	// The leading artifacts that form the first sync group (segment owners and the generation lease):
+	// they are durable, with their directory entries, before any later artifact is created.
+	std::size_t first_group() const;
 
   protected:
 	bool retire_step() noexcept override;
@@ -48,6 +51,7 @@ class PagedPublicationArtifacts final : public distribution::RetirementNode {
 	std::optional<Descriptor> base_descriptor_;
 	DirectoryIdentity directory_;
 	StorageIdentity storage_;
+	std::size_t first_group_ = 0;
 	bool populated_ = false, failed_ = false;
 	void append(std::string_view, std::span<const char>, std::shared_ptr<const distribution::OwnedBuffer>,
 				bool generation = false);

@@ -32,3 +32,7 @@ To be fixed when the lead splits this quest.
 ## May land early
 
 None until the lead splits it.
+
+## Inputs to weigh at split/start
+
+- Xapiand triage #27 (msg-13): no spin-locked hand-off queues in the authority append path; the ingestion calibration measures the write path with write-heavy rows and a profile.
