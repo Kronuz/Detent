@@ -2921,6 +2921,8 @@
     "namespace-measure": {
       "accepted": {},
       "after": [],
+      "base": "a3955e22baa9411f1d3724875a314258cdbfcc73",
+      "branch": "quest/detent/namespace-measure",
       "checks": [
         {
           "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
@@ -2940,11 +2942,13 @@
       "milestone": "N1",
       "needs": [],
       "provides": [],
+      "reason": "started by force: dense-pages owns docs/perf/** by glob but its diff has no docs/perf/namespace-* file",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-10T13:11:01"
+      "updated": "2026-11-10T13:12:19",
+      "worktree": "../Detent-wt/detent/namespace-measure"
     },
     "namespace-s1-s2": {
       "accepted": {
