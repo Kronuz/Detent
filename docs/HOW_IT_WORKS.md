@@ -43,7 +43,7 @@ The store is one directory. A *generation* is one complete, immutable copy of th
 
 | File | What it holds | Size |
 | --- | --- | --- |
-| `segment-<id>.pack` | A segment: pages packed end to end | At most 1 MiB (`include/detent_local/paged_layout.hh:7`) |
+| `segment-<id>.pack` | A segment: pages packed end to end | At most 1 MiB (`include/detent_local/paged_layout.hh:15`) |
 | `segment-<id>.owner` | The segment's owner record: storage identity, id, length, SHA-256 | 128 B |
 | `generation-<id>.image` | The root of the trie | 320 B |
 | `generation-<id>.read` | Reader metadata: exact counts, bound to the storage, the generation and the root checksum, with a trailing SHA-256 | 192 B |
@@ -64,9 +64,9 @@ Sizes come from `include/detent_local/ownership.hh:8-9`, [LOCAL_IMAGE_FORMAT.md]
 
 ## 3. The trie
 
-Inside a generation, knobs live in a **canonical, path-compressed byte-radix trie**: radix 256, one child per possible next byte, with runs of shared bytes compressed into a prefix on one page ([INCREMENTAL_PUBLICATION_ARCHITECTURE.md](INCREMENTAL_PUBLICATION_ARCHITECTURE.md), "Format and logical identity"). Canonical means the same knobs always make the same trie, whatever their update history.
+Inside a generation, knobs live in a **canonical, path-compressed byte-radix trie**: radix 256, one child per possible next byte, with runs of shared bytes compressed into a prefix on one node ([dense pages](mechanisms/dense-pages.md)). Canonical means the same knobs always make the same trie, whatever their update history.
 
-**Keys.** Two kinds, both terminated by NUL so no key is a prefix of another (`src/detent_local/paged_layout.cc:83-109`):
+**Keys.** Two kinds, both terminated by NUL so no key is a prefix of another (`src/detent_local/paged_layout.cc:84-120`):
 
 - A namespace watermark: `W namespace NUL`.
 - A definition: `K namespace NUL local-name NUL`.
@@ -84,13 +84,13 @@ The diagram shows trie nodes and child labels. Dense pages hold connected groups
 | External-child content | 48 B each | Length, key count, height and digest, with reserved bytes |
 | External-child placement | 20 B each | Segment identity and aligned offset |
 
-A **reference** is 65 bytes: segment identity (16), offset (4), length (4), key count (8), height (1) and digest (32). A page occupies 79 bytes to 64 KiB, starts on an 8-byte boundary and fits inside one segment. The packer groups nodes toward a 4 KiB target. The 320-byte DTROOT03 holds the cursor, profile, totals and root-page reference ([dense pages](mechanisms/dense-pages.md)).
+A **reference** is one 68-byte child entry everywhere: its 48-byte content (digest 32, key count 8, length 4, height 1, zero 3) and its 20-byte placement (segment identity 16, offset 4). A page stores the two halves in its tables; the root stores them side by side. A page occupies 79 bytes to 64 KiB, starts on an 8-byte boundary and fits inside one segment. The packer groups nodes toward a 4 KiB target. The 320-byte DTROOT03 holds the cursor, profile, totals and root-page reference ([dense pages](mechanisms/dense-pages.md)).
 
 **Kinds.** A *Branch* node has at least two children. A *Definition* node holds its value and overrides. A *Namespace* node holds the 8-byte revision watermark. The largest definition, 256 overrides with 128-byte keys, occupies 33,816 body bytes and fits in one page.
 
-**One digest per page.** SHA-256 covers the page header outside its digest field, the nodes and the external-child content. Child placement is outside that digest. The root-page digest commits to the complete state; an empty state uses SHA-256 of `detent.local.empty.v3`. Moving pages preserves their digests, while each pack's checksum covers every file byte, including placement and padding (`src/detent_local/paged_layout.cc:136`).
+**One digest per page.** SHA-256 covers the page header outside its digest field, the nodes and the external-child content. Child placement is outside that digest. The root-page digest commits to the complete state; an empty state uses SHA-256 of `detent.local.empty.v3`. Moving pages preserves their digests, while each pack's checksum covers every file byte, including placement and padding (`page_commitment`, `src/detent_local/paged_layout.cc:148`).
 
-**Updates are copy-on-write.** A delta rebuilds affected trie paths with the same packing rule as a full build. Equal pages at corresponding paths retain their references. Distinct occurrences own distinct extents even when their bytes agree. Deleting a key collapses a branch left with one child, so the trie stays canonical.
+**Updates are copy-on-write.** A delta rebuilds affected trie paths with the same packing rule as a full build. Equal pages at corresponding paths retain their references. Distinct occurrences own distinct extents even when their bytes agree. Deleting a key collapses a branch left with one child, so the trie stays canonical ([deltas and relocation](mechanisms/dense-pages.md#deltas-and-relocation)).
 
 **A lookup** starts at the root reference and follows bounded inline slots or external references until it reaches the definition. It also reads the namespace watermark and refuses a definition whose revision exceeds it. First touch verifies a complete page; warm access compares the reached header with its reference and bounds every visited node ([verified-page bitmap](mechanisms/verified-page-bitmap.md)).
 
@@ -106,9 +106,9 @@ The reader core works in four steps ([reader.md](design/reader.md) D2-D5). It is
 
 **First lookup in a namespace.** It attaches that namespace: opens its `.read` record and lease, checks them, and publishes a view that includes it. Attach reuses the store's directory descriptor, so it never repeats directory trust.
 
-**First touch.** The first lookup that reaches a segment opens and maps it, with the same ownership and mode checks. The first lookup that reaches a page checks its physical and logical digests against the parent's reference and sets that page's bit in the segment's bitmap, one bit per 80 bytes. A page is checked once per mapping and never again.
+**First touch.** The first lookup that reaches a segment opens and maps it, with the same ownership and mode checks. The first lookup that reaches a page checks its header against the parent's reference (length, key count, height and digest), hashes the page once against that digest, parses its structure, and marks its exact start in the segment's bitmap, a four-bit code per 80-byte granule. A page's digest is computed once per mapping and never again.
 
-**Warm lookup.** One acquire load of the namespace's sequence word in `change`, compared with the sequence the view was built from, and an increment on one of 64 per-stripe counters that pins the view. Then the walk: per page, one bit test and the bytes. No syscall, no lock and no allocation ([reader.md](design/reader.md) D3, D5).
+**Warm lookup.** One acquire load of the namespace's sequence word in `change`, compared with the sequence the view was built from, and an increment on one of 64 per-stripe counters that pins the view. Then the walk: per page, one bitmap test, the compare of the reached 64-byte header with the reference, and the bytes. No syscall, no lock and no allocation ([reader.md](design/reader.md) D3, D5).
 
 **Generation switch.** When the sequence word moved, one lookup wins a flag, rereads `selected`, re-attaches only the namespaces whose generation changed, and publishes a new view; every other thread keeps reading the old view without waiting. A segment kept by the new generation keeps its mapping and its verified bits. Old views retire through a ring of four slots with per-stripe reader counters; the last reader out lets the one freer unmap them ([reader.md](design/reader.md) D4, D5).
 
@@ -120,11 +120,11 @@ The reader core works in four steps ([reader.md](design/reader.md) D2-D5). It is
 
 **What arrives.** The agent subscribes upstream with its current position and receives either a delta (the changes after its position) or a full snapshot. Today a delta needs the agent's position inside the upstream's in-memory window: the authority's last 4,096 transactions, or the relay's 64 recent updates per bundle. Below that window, the agent gets the full snapshot.
 
-**What the agent writes.** From a delta and the generation it already has, the agent builds new pages only along the changed paths: new definition pages, the branches above them and a new root. Untouched references pass through without visiting what is under them ([INCREMENTAL_PUBLICATION_ARCHITECTURE.md](INCREMENTAL_PUBLICATION_ARCHITECTURE.md), "Changed-path structural overlay"). The new pages go into new packs; every unchanged pack is reused by reference. Validation of the result checks the new pages only.
+**What the agent writes.** From a delta and the generation it already has, the agent repacks only the changed paths: the pages that hold changed leaves, the pages above them up to a new root page, and any clean sibling the repacking seals into a page of its own. A page that packs to the same bytes at the same path keeps its base extent; untouched references pass through without visiting what is under them ([deltas and relocation](mechanisms/dense-pages.md#deltas-and-relocation)). The new pages go into new packs; every unchanged pack is reused by reference. Validation of the result checks the new pages only.
 
 **How it publishes.** The new packs, their owner records and the generation's records are written and synced first. Then the agent replaces `selected` with a rename, syncs the directory, and only then bumps `change`: the entry's sequence, then the store word ([change-file.md](mechanisms/change-file.md)). A reader sees the whole old generation or the whole new one. A crash between the rename and the bump hides nothing, because every agent start bumps every word.
 
-**Compaction.** Reuse leaves packs with dead pages over time. Every `compaction_interval` (60 s by default, `include/detent_delivery/coordinator.hh:31`) the agent checks for sparse packs and rewrites them into new ones. Pages move and their logical digests stay the same, so this is local maintenance and sends nothing upstream.
+**Compaction.** Reuse leaves packs with dead pages over time. Every `compaction_interval` (60 s by default, `include/detent_delivery/coordinator.hh:31`) the agent checks for sparse packs and rewrites them into new ones. Pages move with their digests unchanged, since placement is outside every digest, so only placement entries are rewritten, no page is rehashed, and the root digest stays the same. This is local maintenance and sends nothing upstream.
 
 **A client pays only for what it is missing.** This is the owner's rule for catch-up (namespace delivery P1): an agent with a store of any age gets the changes its store lacks, never the whole dataset, as long as those changes cost less than a fresh copy. The design answers an agent at position R from the first of three tiers that reaches it (D6):
 

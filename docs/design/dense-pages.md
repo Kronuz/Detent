@@ -1,8 +1,8 @@
-> Status: DRAFT (2026-11-04) Design contracts revised; implementation and execution evidence pending. G1 and G2 are the lead's constraints; everything else is the designer's draft, with numbers projected (not measured) by [the model](dense-pages-model.py) from the 5M trial store's records.
+> Status: IMPLEMENTED (2026-11-09) on `quest/dense-pages`, in whole-feature landing review; contracts approved at `Detent:7d339fe`. G1 and G2 are the lead's constraints; everything else is the designer's draft, with numbers projected (not measured) by [the model](dense-pages-model.py) from the 5M trial store's records.
 
 # Dense pages
 
-> Execution scope (2026-11-05): the owner's Dense-only plan at `Detent:785fb34` supersedes the S6/S3b-first landing table and per-step review/CI sequence below. Complementary implementation runs in parallel against current main APIs. Whole-feature code, security and optimization reviews precede the architect's final merge ruling; the composed feature must pass CI.
+> Landing order (campaign PLAN.md D4, D42): Dense pages lands first, on current main. Reader S6 and namespace S3b are parked and rebase onto it; the landing table and the S3 dependency on S6 below describe the original plan. Whole-feature correctness, security and design reviews precede the merge, and the composed feature must pass CI.
 
 Many trie nodes per verified page, one header and one digest per page, in place of one node per page.
 
@@ -14,7 +14,8 @@ Many trie nodes per verified page, one header and one digest per page, in place 
 
 | Review | State |
 | --- | --- |
-| Architect, preliminary | APPROVE WITH REQUIRED CHANGES; DP-1 through DP-6 resolutions below await confirmation |
+| Architect, preliminary | APPROVE WITH REQUIRED CHANGES; DP-1 through DP-6 resolved, contracts approved at `Detent:7d339fe` |
+| Whole-feature correctness, security, design | `.campaign/detent/reviews/dense-pages-*.md` |
 
 ## Given by the lead
 
@@ -83,9 +84,9 @@ An edge inside a page costs its 2-byte slot; an edge to another page costs 68 by
 
 ### D3. References and the root
 
-`paged::Reference` has exactly 65 bytes, big-endian: segment [0,16), offset [16,20), length [20,24), keys [24,32), height [32,33), digest [33,65). A nonempty reference has an 8-aligned offset, length 79 to 65,536, positive keys and height 1 to 255. Its extent must fit its segment using checked subtraction. An absent reference is 65 zero bytes; no partial-zero reference denotes absence.
+`paged::Reference` has one encoding, the 68-byte child entry of D2: a 48-byte content entry (digest [0,32), keys [32,40), length [40,44), height [44,45), zero [45,48)) and a 20-byte placement entry (segment [0,16), offset [16,20)), big-endian. A page stores the two halves in its content and placement tables; the root stores them adjacent. A nonempty reference has a nonzero segment, an 8-aligned offset, length 79 to 65,536, positive keys and height 1 to 255. Its extent must fit its segment using checked subtraction. An absent reference is 68 zero bytes and occurs only as an empty root's tree; no partial-zero reference denotes absence.
 
-DTROOT03 remains 320 bytes. Magic [0,8) is `DTROOT03`, version [8,12) is 3, length [12,16) is 320. Fields [16,160) retain DTROOT02's meanings and offsets, including zero ranges [48,56) and [148,152). Tree reference [160,225) follows the encoding above. Every byte [225,320) is zero, including the old logical digest. Decode rejects nonzero reserved bytes.
+DTROOT03 remains 320 bytes. Magic [0,8) is `DTROOT03`, version [8,12) is 3, length [12,16) is 320. Fields [16,160) retain DTROOT02's meanings and offsets, including zero ranges [48,56) and [148,152). The tree reference's content entry is [160,208) and its placement entry [208,228). Every byte [228,320) is zero, including the old logical digest. Decode rejects nonzero reserved bytes. One layout for every reference means one decoder (`decode_child` in `paged_layout.cc`) for page edges and the root, and the root's reserved bytes hold the 3 extra bytes at no cost.
 
 An empty state has records, namespaces, pages, bytes and segments all zero and an absent tree. Its commitment API returns SHA-256 of the exact ASCII bytes `detent.local.empty.v3` (no NUL); this value is derived, never stored in the absent reference. Every equivalence/cursor/prepared-view consumer uses this function for empty and the root-page digest otherwise. An empty state retains its cursor/profile. Nonempty states require tree.keys = records + namespaces, 1 <= segments <= pages < 2 × tree.keys, pages <= bytes / 79, tree.length <= bytes, and bytes - tree.length >= 79 × (pages - 1), with checked arithmetic. Existing Limits caps still apply.
 
@@ -185,7 +186,7 @@ The page, graph and warm validators (`paged_page_validator.cc`, `paged_graph_val
 - **Repair (S3b):** how a damaged pack is repaired is open on S3b (`docs/status/namespace-s3.md`, "Blocked on", at `Detent:d4692ba`); under either of its options the repair publishes a generation that reuses no page of the damaged pack, and neither depends on the page format. D1 makes that publication cheaper than today: a rebuilt page keeps its digest, so the pages above it are rewritten for their placement entries alone, as relocation does (D8), and no digest above it is recomputed. An opportunity, not a decision here.
 - **Blocks (namespace-delivery D6):** record streams; unaffected.
 - **Images (namespace-delivery D9):** `detent-image` runs the agent's full-copy build at ordinal 0, so D5 makes images byte-identical to an agent's build once namespace-delivery D8's ids land (T8).
-- **Reader S6** (`reader/s6`): the core is unchanged; it holds a `PageTable` and a `PagedReadState` per generation (`src/detent_reader/core.cc:96-106` at `Detent:f92535f`). Below it, `PageTable::resolve` (`lazy_page_access.cc:204-242` there) gains D4's hit compare (`:214-220`) and D4's first touch in place of `verify_page` and the one-leaf check (`:221-229`); `PagedReadState::lookup` (`paged_read_state.cc:38-105`) walks in-page nodes. `reader_bench` and reader T1 are rerun; "pages verified per lookup" keeps its meaning. S6 lands first and waits on nothing here.
+- **Reader S6** (`reader/s6`): the core is unchanged; it holds a `PageTable` and a `PagedReadState` per generation (`src/detent_reader/core.cc:96-106` at `Detent:f92535f`). Below it, `PageTable::resolve` (`lazy_page_access.cc:204-242` there) gains D4's hit compare (`:214-220`) and D4's first touch in place of `verify_page` and the one-leaf check (`:221-229`); `PagedReadState::lookup` (`paged_read_state.cc:38-105`) walks in-page nodes. `reader_bench` and reader T1 are rerun; "pages verified per lookup" keeps its meaning. S6 is parked and rebases onto this series: `resolve` keeps D4's hit compare after the bitmap test, a page-length floor uses `minimum_page_bytes` (`page_header_bytes` is 64), and version-2 and `root.logical` uses become `obsolete_paged_layout` and the state commitment.
 
 ## Projected 5M totals
 
@@ -293,15 +294,15 @@ Take each root digest from a fresh `bytes` run, never from a sweep log: the node
 
 | Work | What it shares with this series | Order |
 | --- | --- | --- |
-| Reader S6 (`reader/s6`, `Detent:f92535f`) | `PageTable::resolve` (`lazy_page_access.cc:204-242` there) and `PagedReadState::lookup` (`paged_read_state.cc:38-105`) | S6 lands first. S3 is written against S6's `resolve` (D10) |
-| S3b (`namespace/s3b`, `Detent:d4692ba`) | The scrub, `.live` and trusted restart, and their byte-flip tests: `test_testing_trusted_restart` (`tests/detent_testing/test_trusted_restart.cc` there) and `tests/detent_local/test_paged_hash_once.cc` | S3b lands first, and its tests pass on DTPAGE03 before the series lands. Its open repair ruling does not depend on the page format |
+| Reader S6 (`reader/s6`, `Detent:f92535f`) | `PageTable::resolve` (`lazy_page_access.cc:204-242` there) and `PagedReadState::lookup` (`paged_read_state.cc:38-105`) | Parked; S6 rebases onto this series (D10) |
+| S3b (`namespace/s3b`, `Detent:d4692ba`) | The scrub, `.live` and trusted restart, and their byte-flip tests: `test_testing_trusted_restart` (`tests/detent_testing/test_trusted_restart.cc` there) and `tests/detent_local/test_paged_hash_once.cc` | Parked; its byte-flip tests run on DTPAGE03 when it rebases onto this series. Its open repair ruling does not depend on the page format |
 | Namespace S1 and S2 (completion's file syncs and D11's grouped publication syncs, `namespace-delivery.md:427-436`) | Publication and syncs, not the codec | Either order: the later one merges current main. The lead records T6's wall on a `main` that has both |
 | Namespace S7 (derived ids) | Segment and generation names | Independent. T8 runs once both have landed |
 
 **S1. Codec and packer.** Depends on nothing.
 
 - Files:
-  - `include/detent_local/paged_layout.hh` and `src/detent_local/paged_layout.cc` (D2, D3): DTPAGE03 and DTROOT03 encode and decode, D1's one digest, the 65-byte `Reference`, and D4's first-touch structure check as a function.
+  - `include/detent_local/paged_layout.hh` and `src/detent_local/paged_layout.cc` (D2, D3): DTPAGE03 and DTROOT03 encode and decode, D1's one digest, the one 68-byte `Reference` encoding, and D4's first-touch structure check as a function.
   - A new `src/detent_local/paged_packer.{hh,cc}` (D5): a pure function from the cursor's postorder events (`paged_trie_cursor.cc:155-170`) to sealed pages, in seal order.
   - `tests/detent_local/test_paged_layout.cc` and a new `tests/detent_local/test_paged_packer.cc`.
   - A libFuzzer target over D4's first touch and the walk, built the way `tests/detent_testing/live_record_fuzz.cc` is.
