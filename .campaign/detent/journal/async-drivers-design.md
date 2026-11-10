@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: ready for review (fix round 2 of 2, design re-review at 73e96d6, CHANGES: F11-F14); waiting on jobs 261110-005426-635ab8 (mutants under TSan), 261110-005436-650916 (conn_cost, strict)
+State: ready for review (fix round 2 of 2, design re-review at 73e96d6, CHANGES: F11-F14); every job finished
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -10,8 +10,7 @@ Earlier: F1-F10 in Detent:35ed97d (bench) and Detent:3f16916 (design).
 
 ## Next
 
-1. When 650916 finishes, check its rows against D10's numbers (local run: context 29,408;
-   asio 111,234; direct 74,524; released 40,732 B per end); then design re-review at head.
+1. Design re-review (lens `design`) at head.
 2. A8: the lead relays the note below to the Xapiand lead (`campaign message xapiand:`); record
    the answer here.
 
@@ -35,9 +34,9 @@ Earlier: F1-F10 in Detent:35ed97d (bench) and Detent:3f16916 (design).
 | ID | Fix | Confirming job (failing before) |
 |---|---|---|
 | F11 | D5's five steps: drain, commit staged, return only after; advance only to an operation deadline or an owned single voter's election; else `stalled`; `needs_peer` at the call; quests 3/4 criteria (Detent:29fabf1); `blocking_entry rules` (Detent:672e7b7) | 261110-005432-a6d855 (5 cases ok; control fails 3) (before: 261110-005433-b5324c, the rule at 73e96d6 alone, exit 1: lost wake and 3-voter propose hang 100,000 advances, staged-then-cancelled returns unwritten) |
-| F12 | D10: placement `slot(group) mod L` (power-of-two L), a port per loop, a Control connection per pair of loops sharing groups, Bulk per transfer, no hop; idle connection end 40.7 KB with `SSL_MODE_RELEASE_BUFFERS` vs 111 KB today; per loop `29 KB + H x 41 KB`, `1 + H` fds; reader drops a full group's frame; quest 5 criteria (Detent:29fabf1); conn_cost.cc, reader_test.cc (Detent:672e7b7) | 261110-005436-650916 (conn_cost, strict; pending), 261110-005434-15e1c5 (reader: longest gap 100 ms) (before: 261110-005435-c43e84, today's reader, gap 3,000 ms, exit 1) |
+| F12 | D10: placement `slot(group) mod L` (power-of-two L), a port per loop, a Control connection per pair of loops sharing groups, Bulk per transfer, no hop; idle connection end 40.7 KB with `SSL_MODE_RELEASE_BUFFERS` vs 111 KB today; per loop `29 KB + H x 41 KB`, `1 + H` fds; reader drops a full group's frame; quest 5 criteria (Detent:29fabf1); conn_cost.cc, reader_test.cc (Detent:672e7b7) | 261110-005436-650916 (conn_cost, strict: context 29,408; per end asio 111,234, direct 74,524, released 40,732 B; 1 fd), 261110-005434-15e1c5 (reader: longest gap 100 ms) (before: 261110-005435-c43e84, today's reader, gap 3,000 ms, exit 1) |
 | F13 | One contract: `asio_scheduler::start_timer` moves onto the wheel and `task::deadline` keeps task's any-thread contract (entry in the cancel state the wheel retains; off-loop create/destroy post to the loop); users audited in D4's table (Detent 3, http 3, task tests; Xapiand's `engine::Host` unaffected); quest 1 criterion (Detent:29fabf1); loops.hh `wheel_deadline`, `wheel_test offloop` (Detent:672e7b7) | 261110-005430-687d57, ASan 261110-005428-f43eb1, TSan 261110-005429-afba6f (300 rounds, states_left=0) (before: 261110-005431-3ee08b, the embedded entry destroyed off its loop, owner assertion, exit 134) |
-| F14 | Explorer: every cross-loop post is a scheduling point (target runs its backlog first), freed frames kept and checked unchanged (loops.hh, waiter_test.cc, Detent:672e7b7); D8 counts 131 / 51,014 schedules (Detent:29fabf1) | 261110-005423-d753e6 (reviewer's script, ASan: all three mutants killed by `explore`), 261110-005426-635ab8 (TSan; pending), 261110-005427-534e76 (all) (before: 261110-002555-485959, 261110-002557-76c931, both mutants survived `explore`) |
+| F14 | Explorer: every cross-loop post is a scheduling point (target runs its backlog first), freed frames kept and checked unchanged (loops.hh, waiter_test.cc, Detent:672e7b7); D8 counts 131 / 51,014 schedules (Detent:29fabf1) | 261110-005423-d753e6 (reviewer's script, ASan: all three mutants killed by `explore`), 261110-005426-635ab8 (TSan: the same, all three killed by `explore`), 261110-005427-534e76 (all) (before: 261110-002555-485959, 261110-002557-76c931, both mutants survived `explore`) |
 | N1 | Q7 (a) and D10: membership member (voter, learner, joiner), hello's checks in group-open, per-node pins (Detent:29fabf1) | n/a (text) |
 | N2 | Header and Cost cite 261110-000912-e9dff1, finished, rows match 1f63c8 and fdfe40 | 261110-000912-e9dff1 |
 | N3 | Idle CPU row labelled derived (Detent:29fabf1) | n/a (text) |
