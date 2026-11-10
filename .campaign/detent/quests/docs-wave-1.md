@@ -33,3 +33,7 @@ D44 (owner ask, lead schedule), D43 (no compatibility notes). On landing, the le
 ## May land early
 
 The docs check and its CI step, before the page rewrites, once it passes on current pages with recorded exceptions.
+
+## Inputs to weigh at split/start
+
+- Xapiand triage #24 (msg-13): a glossary page (authority, voter, leader, relay, agent, namespace, generation, store, page, knob, rollout).

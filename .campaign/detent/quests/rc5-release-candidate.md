@@ -31,3 +31,7 @@ To be fixed when the lead splits this quest.
 ## May land early
 
 None until the lead splits it.
+
+## Inputs to weigh at split/start
+
+- Xapiand triage (msg-13): #11 packaging: deb, rpm and a container image per release, each with a service unit; #28 sandboxed hosts: run the service under gVisor/seccomp and check reactor, io and http socket options (Xapiand saw SO_LINGER rejected); a shared-library fix is made with Xapiand.
