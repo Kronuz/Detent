@@ -219,7 +219,21 @@ The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131
 1. **Across generations.** When the D5 freer retires a view, no reader holds it, so its bitmaps are final. The freer ORs each set bit into the bitmap of the generation that replaced it, finding the knob by name there (one lookup per distinct knob read, off the hot path), with `fetch_or` beside lookups that set bits in the new one. A knob absent from the new generation (deleted) is marked in its usage-table slot's `seen` flag, claiming a slot if needed; past `K` it counts in `overflow` (Limit 4). So the current bitmap holds every knob the handle has read since open.
 2. **Leaving the process.** The page (D7 item 1) carries, per attached namespace, the revision and its bitmap; the refresh winner grows the page for a larger generation before it publishes the view. The agent resolves positions against the generation of that revision. A process on a revision the agent no longer holds is reported by its count of set bits until it refreshes, when the fold moves them (Limit 11).
 3. **Cost and size.** One relaxed load of a word that stays shared after a knob's first read, and one `fetch_or` per knob per handle per generation. 12.5 KB per handle per 100,000 definitions read from, 625 KB for a whole 5M store.
-4. **The gate.** OB1 measures the bit together with the sampled countdown (`ever_sampled` above) under the same gate. In the bench the pair costs more than its parts at 64 threads (A8EVERSAMPLED); in the core the stripe and the definition's position are already in registers, which the bench recomputes or carries. If the pair misses the gate in the core, OB1 reports it to the lead with its numbers before anything trades accuracy for it.
+4. **The gate.** At `Detent:09f038e` the pair (`ever_sampled`) misses OB1 at 64 threads (+11.9 / +14.4 above) though each part passes, while its counting code alone adds up (`--bare 1`, 64 threads: +1.3 for the bit, +2.0 for the countdown, +4.0 together). Three suspects were tested with the method above, strict pair-screen `261109-222819-1a0f6c` at `Detent:4ee258e` and exclusive pair-confirm `261109-224833-fa1352` at `Detent:f476cf7` (the same bench source):
+   1. *A shared countdown.* At 64 threads 64 stacks fall on 54 stripes, so ten threads share a countdown line, and the S6 pin's `lock xadd` drains the previous lookup's countdown store before it. A thread-local countdown (`knob_tls`, `es_tls`, `es_tls_one`) is worse at every thread count (`knob_tls` +10.7 / +15.0 at 64 threads, `es_tls_one` +8.6 hot at 1 thread, against the stripe line's +4.0 / +4.4 and +2.6), so sharing is not the cause and the stripe line stays.
+   2. *An unconditional bit store.* There is none: the bit is a load and a test, and a `fetch_or` only on a clear bit (disassembly of the bench at both commits).
+   3. *The compiled loop.* At `09f038e` clang split the loop on the lookup's status into two copies with duplicated tails; recompiled beside the new arms, the same source is one path with the cell computed on the sampling branch only, and the 64-thread excess goes. One branch for both tests with an out-of-line slow half (`es_one`) is no better: +12.2 at 64 threads.
+
+   | Arm (exclusive) | 1 thread | 8 threads | 64 threads |
+   | --- | ---: | ---: | ---: |
+   | `ever_sampled`, before (`09f038e`) | +3.7 / **+7.4** | +3.9 / +6.4 | **+11.9 / +14.4** |
+   | `ever_sampled`, after (`f476cf7`) | +2.5 / **+7.7** | +2.7 / +6.3 | +6.6 / +9.3 |
+   | `es_one` (`f476cf7`) | +2.2 / **+6.1** | +2.7 / +5.0 | +7.7 / **+12.2** |
+   | `knob_sampled` (`f476cf7`) | +2.6 / **+6.9** | +2.8 / +4.9 | +4.5 / +4.0 |
+   | `ever_bit` (`f476cf7`) | +2.5 / +2.3 | +2.3 / +1.9 | +3.4 / +6.3 |
+   | `none2` (`f476cf7`) | −0.9 / −0.8 | −0.6 / −0.8 | +0.2 / +0.9 |
+
+   The pair now passes at 8 and 64 threads. One row still misses: bool scattered at 1 thread, +7.7 against 5.0, where the countdown alone is +6.9 (+4.5 at `09f038e`, +7.8 in strict screen `261109-141658-03e1a9`). So the countdown, not the bit, is over the 1-thread ceiling there, by an amount the compiled layout moves by about 3 ns, and sampling alone misses the same row. The bit alone passes every row of both confirms.
 
 ## Checks
 
