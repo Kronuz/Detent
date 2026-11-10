@@ -9,15 +9,15 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Seven read-only auditors (scratchpad fragments frag-A..G) cover the 62 pages, README.md, QUICKSTART.md and docs/*.md; assembling `docs/dev/docs-site-audit.md` from them plus the site-infrastructure and Inputs sections.
 
 ## Next
 
-1. <step>
+1. Merge fragments into docs/dev/docs-site-audit.md, verify headings, fill Evidence, commit.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
