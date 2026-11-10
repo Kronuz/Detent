@@ -27,7 +27,7 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | [artifact] `docs/dev/docs-site-audit.md`: "## Pages" (and "## Page table": 62 site pages, `README.md`, `QUICKSTART.md`, 76 `docs/*.md`, each with a verdict and `file:line` claims) |
+| A1 | [artifact] `docs/dev/docs-site-audit.md`: "## Pages" (every page, README.md, QUICKSTART.md and docs/*.md has a verdict and file:line claims; the table is "## Page table") |
 | A2 | [artifact] `docs/dev/docs-site-audit.md`: "## Rewrite scope" (five areas: architecture; features and quick start; usage guides and operations; configuration and limits; reference and the rest) |
 | A3 | [artifact] `docs/dev/docs-site-audit.md`: "## Unverified" (each claim with its probe) |
 | A4 | [artifact] `docs/dev/docs-site-audit.md`: "## Owned by other quests" (legacy-h, reader-s6, reader-s7-s9, legacy-i, dense-pages, namespace-s3b, namespace-s4-s10, async-drivers, daemon-ready-leader, observability, rc3-rc5) |
