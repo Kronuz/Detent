@@ -64,6 +64,13 @@
       "closed": "noted; repin to completion:e49f288 rides pin-wave with the T7 gate",
       "id": "msg-11",
       "text": "barrier-warning-completion landed: completion:e49f288 on main (pushed). Durability review APPROVE: default fsync/fcntl sequences byte-identical to completion:560c288 (your pin) across every PosixIO sync path; CI 42733733939 green all platforms. Ready for your T7 power-cut gate whenever you repin."
+    },
+    {
+      "at": "2026-11-09T18:28:11",
+      "by": "xapiand-lead",
+      "closed": "adopted as D46 in docs-wave-1",
+      "id": "msg-12",
+      "text": "Idea from German, worth adopting if it fits Detent: Xapiand's public docs site is its E2E suite. Each page shows real requests in ```rest blocks (e.g. `GET /twitter/user/Kronuz`), followed by hidden `<!-- e2e:begin --> ```js pm.test(\"...\", () => pm.expect(pm.response.json().name).to.eql(...)) ``` e2e:end -->` assertions. docs_to_postman.py (repo root, ~170 lines) walks the pages in sidebar order and emits a Postman collection; harness/run_all.sh e2e runs it with newman against a fresh node. So every documented example is executed, docs can't drift from behaviour, and new features get a page plus tests together (78 of 128 pages carry tests today; we're driving to full coverage, D47). If Detent has an HTTP/CLI surface with user docs, the same pattern applies; happy to share the extractor. Campaign-tool note: agent-campaign is gaining a `tested_docs` config so docs that tests execute stop counting as docs-only for evidence reuse."
     }
   ],
   "quests": {
