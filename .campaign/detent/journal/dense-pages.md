@@ -1,19 +1,19 @@
 # dense-pages: journal
 
-State: waiting on jobs (final head Detent:941a17e; ids in "Final head round 2026-11-09")
+State: waiting on jobs (final head Detent:531c370; ids in "Final head round 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Final head Detent:941a17e: D42 design fixes, D43 single-format refusal, the widened file set's
+Final head Detent:531c370: D42 design fixes, D43 single-format refusal, the widened file set's
 DES-1/DES-9 edits (Detent:421ca64), the A15 runner with its sysroot fix (Detent:3442d64), and the
-paged-recovery refusal expectation (Detent:941a17e). Every evidence job reruns there:
+paged-recovery refusal expectation (Detent:941a17e), the repeat_500k round loop (Detent:531c370). Every evidence job reruns there:
 "Final head round 2026-11-09".
 
 ## Next
 
-1. Read the 941a17e batch into Evidence; fix any failure (a fix moves the head: rerun the batch).
-2. A15: read prepare 261109-181129-0503bd and halves 1d7b57 / 2979b0 against the gate.
+1. Read the 531c370 batch into Evidence; fix any failure (a fix moves the head: rerun the batch).
+2. A15: read prepare 261109-181435-2ca86d and halves 4150fc / 001cb2 against the gate.
 3. Then State "ready for re-acceptance".
 
 ## Blocked on
@@ -23,24 +23,24 @@ paged-recovery refusal expectation (Detent:941a17e). Every evidence job reruns t
    `paged-v2` config string (parsed in src/detent_delivery/configuration.cc and
    include/detent_delivery/coordinator.hh; ruling 27).
 
-## For the lead's accepts (at Detent:941a17e, pending until the batch passes)
+## For the lead's accepts (at Detent:531c370, pending until the batch passes)
 
-- Design: DES-1 `stale_docs` 261109-180946-6f6e7e; DES-2 `reference_shape` 261109-180945-2439b1
-  + des2-root-reserved 261109-180944-521053; DES-3 `delta_note` 261109-180945-4961d5;
-  DES-4/DES-9/DES-10 native 261109-180944-687f35; DES-5 a3-largest-first 261109-180944-f7f3ba, a3-seal-64
-  261109-180944-2e9402; DES-8/DES-11 (D43) grep 261109-180946-eaa529, refetch 261109-180944-49e1fc,
-  a12-no-refusal 261109-180945-002bed, a12-no-barrier 261109-180945-0c85a8.
-- Correctness COR-1: Debug bounds 261109-180945-9e64e1, ASan/UBSan 261109-180945-7689ca, unguarded
-  parent killed 261109-181100-08e5bf. PERF-1 is A15: prepare 261109-181129-0503bd, stopped
-  261109-181130-1d7b57, running 261109-181131-2979b0.
-- Security SEC-1: warm smoke 261109-180944-cbe9e6, 261109-180944-855f3d; reader/page/graph/warm 3 seeds
-  261109-181100-57ce7f. SEC-2 (one CPU-hour): codec 261109-181100-894cfb + 976098's twin + top-up
-  261109-181101-1605cc; CPU totals to read from their logs.
+- Design: DES-1 `stale_docs` 261109-181408-51c59f; DES-2 `reference_shape` 261109-181408-7cb320
+  + des2-root-reserved 261109-181406-c207a8; DES-3 `delta_note` 261109-181408-55425a;
+  DES-4/DES-9/DES-10 native 261109-181406-902906; DES-5 a3-largest-first 261109-181406-b40e93, a3-seal-64
+  261109-181406-19113c; DES-8/DES-11 (D43) grep 261109-181408-e19361, refetch 261109-181406-f2bfa6,
+  a12-no-refusal 261109-181407-08cc29, a12-no-barrier 261109-181407-924846.
+- Correctness COR-1: Debug bounds 261109-181408-98bea7, ASan/UBSan 261109-181407-e55347, unguarded
+  parent killed 261109-181409-45986b. PERF-1 is A15: prepare 261109-181435-2ca86d, stopped
+  261109-181436-4150fc, running 261109-181437-001cb2.
+- Security SEC-1: warm smoke 261109-181406-de2507, 261109-181406-d0413b; reader/page/graph/warm 3 seeds
+  261109-181408-9e6a82. SEC-2 (one CPU-hour): codec 261109-181408-4a0809 + 976098's twin + top-up
+  261109-181410-da309b; CPU totals to read from their logs.
 
 ## Evidence
 
 Ids below are the measured runs at Detent:435a525 unless named; each reruns with the same command
-at the final head Detent:941a17e (`campaign` takes the twin there), map in "Final head round
+at the final head Detent:531c370 (`campaign` takes the twin there), map in "Final head round
 2026-11-09". Pending until that batch passes.
 
 | Criterion | Evidence |
@@ -56,10 +56,10 @@ at the final head Detent:941a17e (`campaign` takes the twin there), map in "Fina
 | A9 | Overlay bounds (COR-1) Debug 261109-145755-71a2c4, ASan/UBSan 261109-145754-cecb4a and 261109-145755-79fbd0, unguarded-parent patch killed 261109-145755-bd9ad1. S3b's bounds on main: open (S3b/Dense order). |
 | A10 | 1,000 seeded trials of 1..500 changes equal full rebuilds 261109-145755-89ebfd. 100K real deltas 261109-145754-a00ef8: one update 5 pages / 14,276 B / 1 pack 14,287 B / 0 off-path; mixed churn 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B / 2 off-path 3,203 B; roots and occurrences equal the model. Repeated-content fixtures 261109-145755-37b414. Reverts killed: key grammar 261109-145819-036ceb, signed order 261109-145820-9d2b50, overlay limits 261109-145821-f28cd1, cursor limits 261109-145822-623329. 5M 261109-145754-28d1cf: one update 5 pages / 15,691 B / 1 pack 15,706 B / 0 off-path; mixed churn 16,616 pages / 42,821,363 B / 41 packs / 42,872,248 B / 99 off-path 220,903 B; all 5,000,004 bodies and occurrences equal the full rebuild and the model. |
 | A11 | Compaction, delta plan, relocation fixtures 261109-145755-37b414; relocation zero page hashes in 261109-145755-89ebfd. Mutants killed: noop-rewrite 261109-145824-7e3011, relocation-rehash 261109-145825-1a6698, offpath-skip 261109-145826-86a096; harness self-test 261109-145827-29b141. |
-| A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261109-180944-49e1fc (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261109-180945-002bed, barrier mutant killed 261109-180945-0c85a8; no per-version recognition left: grep 261109-180946-eaa529. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
+| A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261109-181406-f2bfa6 (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261109-181407-08cc29, barrier mutant killed 261109-181407-924846; no per-version recognition left: grep 261109-181408-e19361. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
 | A13 | ASan/UBSan 261109-145755-dc2bcc (10/10), 261109-145754-cecb4a, 261109-145755-79fbd0; TSan 261109-145754-fe08c1 (4/4); native incl. trusted restart and power cut 261109-145341-9f0788; revert/mutant batch in A3, A6, A9-A11. S1/S2 T7 positive at the head 261109-163620-dd9c24 passed (power_cut 5,766 cases in 121 s; paired main run 261109-163621-709877 passed in 45 s at the same time); startup-before-barrier killed at the head 261109-163623-0dd05f (power_cut invariant line 475 at 122 s, as on main; startup :97). CI at the final merged head: open. |
 | A14 | Correctness CHANGES (COR-1 fixed, confirming jobs above; PERF-1 = A15); security CHANGES (SEC-1, SEC-2 jobs above); design review not launched; architect ruling none. Open. |
-| A15 | Gate at the final head: prepare 261109-181129-0503bd (light, baseline main = Detent:4d56489, code-equal to main 03e4781), measure stopped 261109-181130-1d7b57 and running 261109-181131-2979b0 (exclusive), pending. Earlier 6fcc50 failed (sysroot, ruling 24); 261106-173358-3b82ed missed the gate on both arms (see "A15 baseline"). Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. |
+| A15 | Gate at the final head: prepare 261109-181435-2ca86d (light, baseline main = Detent:4d56489, code-equal to main 03e4781), measure stopped 261109-181436-4150fc and running 261109-181437-001cb2 (exclusive), pending. Earlier 6fcc50 failed (sysroot, ruling 24); 261106-173358-3b82ed missed the gate on both arms (see "A15 baseline"). Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. |
 
 ## Rulings I made
 
@@ -795,65 +795,68 @@ Rulings (D43 round):
    Detent:3442d64: the sysroot comes from the config file and each cache is checked for it.
 4. Cancelled every queued/running job at ddd1d24 and a904eef (code moved). 605b54/0e4b31 had
    already been skipped.
+5. Lead msg (repeat_500k BSD `seq 0`): Detent:531c370 loops with an arithmetic for (fixture-500k's
+   5c9403c); zero rounds now runs none (checked in a shell). The 941a17e batch was cancelled and
+   rerun at 531c370 so every job runs the final code.
 
-Batch at Detent:941a17e (old -> new; old ids cited in Evidence resolve to these):
+Batch at Detent:531c370 (old -> new; old ids cited in Evidence resolve to these):
 
-| Old | New at 941a17e |
+| Old | New at 531c370 |
 |---|---|
-| 261109-175724-617306 | 261109-180944-687f35 |
-| 261109-175730-ce4c49 | 261109-180944-49e1fc |
-| 261109-175726-ce1145 | 261109-180944-bea2a0 |
-| 261109-175727-e6b831 | 261109-180944-cbe9e6 |
-| 261109-175728-c076bd | 261109-180944-855f3d |
-| 261109-175729-4c0bc7 | 261109-180944-e1ebb4 |
-| 261109-175731-2ec073 | 261109-180944-f7f3ba |
-| 261109-175731-53edcf | 261109-180944-2e9402 |
-| 261109-175732-2eb317 | 261109-180944-db72da |
-| 261109-175733-6f5e1c | 261109-180944-521053 |
-| 261109-175733-9fca9d | 261109-180944-e33d22 |
-| 261109-175734-d0fbd9 | 261109-180944-2189e8 |
-| 261109-175735-6f101d | 261109-180945-2bbae5 |
-| 261109-175736-8385ca | 261109-180945-002bed |
-| 261109-175736-aa9863 | 261109-180945-0c85a8 |
-| 261109-174653-689151 | 261109-180945-88b5ce |
-| 261109-174802-890ff1 | 261109-180945-7d65be |
-| 261109-174656-246235 | 261109-180945-5eb40d |
-| 261109-174806-3b102b | 261109-180945-f0d1dc |
-| 261109-174658-180c13 | 261109-180945-d5fab3 |
-| 261109-174700-0521e3 | 261109-180945-1f195b |
-| 261109-174810-102843 | 261109-180945-af7e88 |
-| 261109-174704-4702b7 | 261109-180945-d33e1c |
-| 261109-174705-1a49ef | 261109-180945-7689ca |
-| 261109-174719-dddba9 | 261109-180945-9e64e1 |
-| 261109-174813-04dd4d | 261109-180945-09d168 |
-| 261109-174848-e28eba | 261109-180945-180ad9 |
-| 261109-174721-6b20e3 | 261109-180945-664aa0 |
-| 261109-175748-7b7f6b | 261109-180945-2439b1 |
-| 261109-175749-970efa | 261109-180945-4961d5 |
-| 261109-175749-b2d21e | 261109-180946-6f6e7e |
-| 261109-175750-67c09e | 261109-180946-eaa529 |
-| 261109-145341-9f0788 | 261109-181100-28b7b1 |
-| 261109-145755-649826 | 261109-181100-894cfb |
-| 261109-145755-02bdc4 | 261109-181100-baf61e |
-| 261109-145755-ef7fac | 261109-181100-98fcc8 |
-| 261109-145755-976098 | 261109-181100-57ce7f |
-| 261109-145755-bd9ad1 | 261109-181100-08e5bf |
-| 261109-145812-adf192 | 261109-181100-249905 |
-| 261109-145816-953b99 | 261109-181100-caad32 |
-| 261109-145817-2916b3 | 261109-181100-190c20 |
-| 261109-145819-036ceb | 261109-181101-b8956f |
-| 261109-145820-9d2b50 | 261109-181101-e24170 |
-| 261109-145821-f28cd1 | 261109-181101-3fd8a5 |
-| 261109-145822-623329 | 261109-181101-1c607c |
-| 261109-145824-7e3011 | 261109-181101-0b9e6e |
-| 261109-145825-1a6698 | 261109-181101-d43c4a |
-| 261109-145827-29b141 | 261109-181101-feee08 |
-| 261109-163620-dd9c24 | 261109-181101-3429c3 |
-| 261109-163623-0dd05f | 261109-181101-68c11f |
-| 261109-163723-12ac7c | 261109-181101-1605cc |
+| 261109-175724-617306 | 261109-181406-902906 |
+| 261109-175730-ce4c49 | 261109-181406-f2bfa6 |
+| 261109-175726-ce1145 | 261109-181406-fa5fd7 |
+| 261109-175727-e6b831 | 261109-181406-de2507 |
+| 261109-175728-c076bd | 261109-181406-d0413b |
+| 261109-175729-4c0bc7 | 261109-181406-96e215 |
+| 261109-175731-2ec073 | 261109-181406-b40e93 |
+| 261109-175731-53edcf | 261109-181406-19113c |
+| 261109-175732-2eb317 | 261109-181406-7de097 |
+| 261109-175733-6f5e1c | 261109-181406-c207a8 |
+| 261109-175733-9fca9d | 261109-181407-c836ed |
+| 261109-175734-d0fbd9 | 261109-181407-135d6f |
+| 261109-175735-6f101d | 261109-181407-17019c |
+| 261109-175736-8385ca | 261109-181407-08cc29 |
+| 261109-175736-aa9863 | 261109-181407-924846 |
+| 261109-174653-689151 | 261109-181407-e601a2 |
+| 261109-174802-890ff1 | 261109-181407-af0918 |
+| 261109-174656-246235 | 261109-181407-4ad379 |
+| 261109-174806-3b102b | 261109-181407-d5faf2 |
+| 261109-174658-180c13 | 261109-181407-eb9269 |
+| 261109-174700-0521e3 | 261109-181407-1886db |
+| 261109-174810-102843 | 261109-181407-f4a355 |
+| 261109-174704-4702b7 | 261109-181407-0d850b |
+| 261109-174705-1a49ef | 261109-181407-e55347 |
+| 261109-174719-dddba9 | 261109-181408-98bea7 |
+| 261109-174813-04dd4d | 261109-181408-fcb852 |
+| 261109-174848-e28eba | 261109-181408-0f7526 |
+| 261109-174721-6b20e3 | 261109-181408-b3d383 |
+| 261109-175748-7b7f6b | 261109-181408-7cb320 |
+| 261109-175749-970efa | 261109-181408-55425a |
+| 261109-175749-b2d21e | 261109-181408-51c59f |
+| 261109-175750-67c09e | 261109-181408-e19361 |
+| 261109-145341-9f0788 | 261109-181408-2cceb8 |
+| 261109-145755-649826 | 261109-181408-4a0809 |
+| 261109-145755-02bdc4 | 261109-181408-7a32a4 |
+| 261109-145755-ef7fac | 261109-181408-79144f |
+| 261109-145755-976098 | 261109-181408-9e6a82 |
+| 261109-145755-bd9ad1 | 261109-181409-45986b |
+| 261109-145812-adf192 | 261109-181409-d36b74 |
+| 261109-145816-953b99 | 261109-181409-cdd9fc |
+| 261109-145817-2916b3 | 261109-181409-ec4c07 |
+| 261109-145819-036ceb | 261109-181409-acc5ad |
+| 261109-145820-9d2b50 | 261109-181409-caaba8 |
+| 261109-145821-f28cd1 | 261109-181409-b5b4c9 |
+| 261109-145822-623329 | 261109-181409-6f85dc |
+| 261109-145824-7e3011 | 261109-181409-3ccea8 |
+| 261109-145825-1a6698 | 261109-181409-ed863b |
+| 261109-145827-29b141 | 261109-181409-6a5924 |
+| 261109-163620-dd9c24 | 261109-181409-52d139 |
+| 261109-163623-0dd05f | 261109-181409-c0e711 |
+| 261109-163723-12ac7c | 261109-181410-da309b |
 
-A15: prepare 261109-181129-0503bd (light), stopped 261109-181130-1d7b57, running
-261109-181131-2979b0 (exclusive, after prepare).
+A15: prepare 261109-181435-2ca86d (light), stopped 261109-181436-4150fc, running
+261109-181437-001cb2 (exclusive, after prepare).
 
 Not rerun, superseded: cc9df2 (mutants of the removed UnsupportedFormat catch; replaced by
 a12-no-refusal/a12-no-barrier), 5a7ad1 (frozen v2 fixture, deleted by D43), 969274 (v2-name grep;
