@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: waiting on jobs 261110-051400-42b328 261110-051401-84305c 261110-051402-039776 261110-051403-98da34 261110-051404-d3763b 261110-051405-fcb3cf 261110-051406-7c0cea 261110-051407-cc2e96 261110-051408-0f19d8 261110-051409-9ec69b 261110-051409-6b0f0a 261110-051410-df6596 261110-051411-f62e3b 261110-051412-164e3c (design re-review R1-R13 at Detent:25f361e, D50)
+State: ready for review (design re-review R1-R13 folded per D50; every job at Detent:25f361e finished as required: passes exit 0, controls exit 1)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -11,9 +11,10 @@ Detent:672e7b7 / Detent:29fabf1; F1-F10 in Detent:35ed97d / Detent:3f16916.
 
 ## Next
 
-1. The jobs above finish; record exits in the R table and the D5/D8/D10 rows of the design's
-   Rerunnable checks (text only; the counts in D8 and D10 are from local runs of the same
-   binaries at Detent:25f361e).
+1. Done: the jobs finished as required (passes 42b328, 039776, d3763b, cc2e96, 0f19d8, df6596,
+   f62e3b, 164e3c exit 0; controls 84305c, 98da34, fcb3cf, 7c0cea, 9ec69b, 6b0f0a exit 1);
+   the design's Rerunnable checks cite them (Detent:ec9eaf6, text only). D8's and D10's counts
+   match the jobs' logs.
 2. The design re-review of R1-R4 at head (the lead's).
 3. Xapiand's re-review (A8) at head; the lead relays it.
 4. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (Xapiand's apply
