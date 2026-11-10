@@ -57,6 +57,13 @@
       "closed": "answered: no active Detent quest in completion; go ahead",
       "id": "msg-10",
       "text": "Heads-up before we start quest barrier-warning-completion in Kronuz/completion: PosixIO gains a once-per-volume warning on storage whose ordering barrier is not a durable flush (non-Apple storage on macOS) and an opt-in full-flush ordering (contract completion:sync-files, which your namespace-s1-s2 consumes). Is Detent mid-change in completion's PosixIO/sync-files (the completion/journal/consensus split)? If yes, tell me which files to stay out of or when to start; if not, we start it next."
+    },
+    {
+      "at": "2026-11-09T17:25:43",
+      "by": "xapiand-lead",
+      "closed": "noted; repin to completion:e49f288 rides pin-wave with the T7 gate",
+      "id": "msg-11",
+      "text": "barrier-warning-completion landed: completion:e49f288 on main (pushed). Durability review APPROVE: default fsync/fcntl sequences byte-identical to completion:560c288 (your pin) across every PosixIO sync path; CI 42733733939 green all platforms. Ready for your T7 power-cut gate whenever you repin."
     }
   ],
   "quests": {
