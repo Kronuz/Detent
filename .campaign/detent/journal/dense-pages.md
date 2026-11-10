@@ -1,13 +1,13 @@
 # dense-pages: journal
 
-State: waiting on jobs (D43 round at Detent:ddd1d24; ids in "D43 round 2026-11-09")
+State: waiting on jobs (D43 round at Detent:a904eef; ids in "D43 round 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
 Design fixes (D42) at Detent:e879b9e, df7dabc, 5a134f9; main merged (D43, A12 rewritten) at
 c765cdf; D43 single-format refusal at 77aebb4, mutants at ddd1d24. The 5a134f9 batch was cancelled
-for the D43 change (its finished jobs are superseded). Head batch at ddd1d24: "D43 round".
+for the D43 change (its finished jobs are superseded). Head batch: "D43 round" (ddd1d24 for src-only jobs, a904eef for every job that runs dense_refetch or ownership).
 
 ## Next
 
@@ -734,31 +734,36 @@ Merged main (a303a7e, cf090a0) at c765cdf. At 77aebb4:
 - Mutants a12-no-refusal and a12-no-barrier carried as patches (replace the inline cc9df2
   form, whose refusal target was the removed `catch (UnsupportedFormat)`).
 
-Jobs at Detent:ddd1d24 (light unless named; `.scratch/batch-ddd1d240fc8a.txt`):
+First ddd1d24 run: 261109-174723-b5d26c failed (test_local_ownership expected a flipped layout
+field to be rejected; foreign_install wrote no owner.lock, so the crash child exited 90). Fixed at
+a904eef (tests only: `git diff ddd1d24 a904eef` touches test_dense_refetch.cc and test_ownership.cc), so
+jobs at ddd1d24 that run neither test stand for the head; the rest rerun at a904eef.
 
 | Finding / criterion | Job |
 |---|---|
-| DES-2 probe reference_shape.sh (none) | 261109-174907-7b85ec exit 0 |
-| DES-3 probe delta_note.sh (none) | 261109-174909-0c4ce6 exit 0 |
-| DES-1 probe stale_docs.sh (none) | 261109-174911-f589c4 exit 1: the 15 out-of-set lines only |
-| A12/D43 grep (none) | 261109-174912-e8fa4d exit 0 |
-| native (A2, A12, A13) | 261109-174652-7c1977 |
-| A3/A5 synthetic+100K, 5M (A7) | 261109-174653-689151, 261109-174802-890ff1 |
-| A2 full builder | 261109-174656-246235, 261109-174806-3b102b |
-| A10 1,000 rounds, relocation 0 page hashes | 261109-174658-180c13 |
-| A10 100K / 5M real deltas | 261109-174700-0521e3, 261109-174810-102843 |
-| A10/A11 fixtures | 261109-174704-4702b7 |
-| COR-1/A9 ASan UBSan, Debug | 261109-174705-1a49ef, 261109-174719-dddba9 |
-| A4 corpus replay ASan UBSan | 261109-174813-04dd4d |
-| A13 ASan UBSan (incl. dense_refetch) | 261109-174710-04a16e |
-| SEC-1 reader/page/graph/warm fuzz smoke ASan | 261109-174712-d41ca2, 261109-174714-eb92c5 |
-| SEC-2 codec libFuzzer 300 s ASan UBSan | 261109-174848-e28eba |
-| A13 TSan (incl. dense_refetch) | 261109-174716-80dd4c |
-| A8 reader fixtures | 261109-174721-6b20e3 |
-| A12 refetch with the planner | 261109-174723-b5d26c |
-| Mutants | a3-largest-first 261109-174851-230a08, a3-seal-64 261109-174853-bb1a9e, a3-height-digest 261109-174855-8717f4, des2-root-reserved 261109-174856-e7f728, a6-height 261109-174858-cec2e9, a6-keys 261109-174900-79b1f8, a11-offpath-skip 261109-174902-e78e8a, a12-no-refusal 261109-174904-bddf66, a12-no-barrier 261109-174906-9d8c1a |
+| DES-2 probe reference_shape.sh (none) | 261109-175748-7b7f6b exit 0 at a904eef |
+| DES-3 probe delta_note.sh (none) | 261109-175749-970efa exit 0 at a904eef |
+| DES-1 probe stale_docs.sh (none) | 261109-175749-b2d21e exit 1 at a904eef: the 15 out-of-set lines only (Blocked on 1) |
+| A12/D43 grep (none) | 261109-175750-67c09e exit 0 at a904eef |
+| native (A2, A12, A13) | 261109-175724-617306 at a904eef |
+| A12 refetch with the planner, ownership | 261109-175730-ce4c49 at a904eef |
+| A13 ASan UBSan (incl. dense_refetch) | 261109-175726-ce1145 at a904eef |
+| SEC-1 reader/page/graph/warm fuzz smoke ASan | 261109-175727-e6b831, 261109-175728-c076bd at a904eef |
+| A13 TSan (incl. dense_refetch) | 261109-175729-4c0bc7 at a904eef |
+| Mutants at a904eef | a3-largest-first 261109-175731-2ec073, a3-seal-64 261109-175731-53edcf, a3-height-digest 261109-175732-2eb317, des2-root-reserved 261109-175733-6f5e1c, a6-height 261109-175733-9fca9d, a6-keys 261109-175734-d0fbd9, a11-offpath-skip 261109-175735-6f101d, a12-no-refusal 261109-175736-8385ca, a12-no-barrier 261109-175736-aa9863 |
+| A3/A5 synthetic+100K (done), 5M + A7 | 261109-174653-689151 exit 0, 261109-174802-890ff1 at ddd1d24 |
+| A2 full builder | 261109-174656-246235 exit 0, 261109-174806-3b102b at ddd1d24 |
+| A10 1,000 rounds, relocation 0 page hashes | 261109-174658-180c13 at ddd1d24 |
+| A10 100K (done) / 5M real deltas | 261109-174700-0521e3 exit 0, 261109-174810-102843 at ddd1d24 |
+| A10/A11 fixtures | 261109-174704-4702b7 exit 0 at ddd1d24 |
+| COR-1/A9 ASan UBSan, Debug | 261109-174705-1a49ef exit 0, 261109-174719-dddba9 exit 0 at ddd1d24 |
+| A4 corpus replay ASan UBSan | 261109-174813-04dd4d at ddd1d24 |
+| SEC-2 codec libFuzzer 300 s ASan UBSan | 261109-174848-e28eba at ddd1d24 |
+| A8 reader fixtures | 261109-174721-6b20e3 exit 0 at ddd1d24 |
 
-Superseded (cancelled or at 5a134f9): every job in "Design fix round" except its probes;
+Superseded (cancelled or at 5a134f9): every job in "Design fix round" except its probes; at ddd1d24
+native 7c1977, ASan 04a16e, TSan 80dd4c, warm fuzz d41ca2/eb92c5 and all ddd1d24 mutants were
+cancelled for the test fix;
 cancelled ids 261109-174654-732d9b, 174657-1b4841, 174702-8f31ee, 174707-dea400 had wrong
 `--after` links and were resubmitted.
 
