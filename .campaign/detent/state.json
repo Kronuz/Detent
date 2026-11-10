@@ -1999,7 +1999,9 @@
     },
     "docs-site-start": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "docs-site-architecture"
+      ],
       "checks": [
         {
           "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
@@ -2050,7 +2052,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: features and quick start",
-      "updated": "2026-11-10T11:59:28"
+      "updated": "2026-11-10T12:02:18"
     },
     "docs-site-usage": {
       "accepted": {},
