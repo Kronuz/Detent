@@ -1,16 +1,17 @@
 # async-drivers-design: journal
 
-State: ready for review (fix round 1 of the design review at 128df91, CHANGES); waiting on job 261110-000912-e9dff1 (idle_cost rerun; bytes matched exactly in 1f63c8 and fdfe40)
+State: ready for review (fix round 2 of 2, design re-review at 73e96d6, CHANGES: F11-F14); waiting on jobs 261110-005426-635ab8 (mutants under TSan), 261110-005436-650916 (conn_cost, strict)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Design review F1-F10 folded in: bench Detent:35ed97d (tests, probes, wheel fix), design
-Detent:3f16916.
+Nothing. Re-review F11-F14 and N1-N5 folded in: bench Detent:672e7b7, design Detent:29fabf1.
+Earlier: F1-F10 in Detent:35ed97d (bench) and Detent:3f16916 (design).
 
 ## Next
 
-1. Design re-review (lens `design`) at head.
+1. When 650916 finishes, check its rows against D10's numbers (local run: context 29,408;
+   asio 111,234; direct 74,524; released 40,732 B per end); then design re-review at head.
 2. A8: the lead relays the note below to the Xapiand lead (`campaign message xapiand:`); record
    the answer here.
 
@@ -29,6 +30,20 @@ Detent:3f16916.
 | F9 | Build plan: 3-5 beside existing APIs, 6 takes the pin bump and AuthorityPeers together (Detent:3f16916) | n/a (text) |
 | F10 | D5 step 2: a manual clock jumps, a steady clock sleeps to `wheel.next()` (Detent:3f16916) | n/a (text) |
 
+## Review findings (design re-review, 73e96d6)
+
+| ID | Fix | Confirming job (failing before) |
+|---|---|---|
+| F11 | D5's five steps: drain, commit staged, return only after; advance only to an operation deadline or an owned single voter's election; else `stalled`; `needs_peer` at the call; quests 3/4 criteria (Detent:29fabf1); `blocking_entry rules` (Detent:672e7b7) | 261110-005432-a6d855 (5 cases ok; control fails 3) (before: 261110-005433-b5324c, the rule at 73e96d6 alone, exit 1: lost wake and 3-voter propose hang 100,000 advances, staged-then-cancelled returns unwritten) |
+| F12 | D10: placement `slot(group) mod L` (power-of-two L), a port per loop, a Control connection per pair of loops sharing groups, Bulk per transfer, no hop; idle connection end 40.7 KB with `SSL_MODE_RELEASE_BUFFERS` vs 111 KB today; per loop `29 KB + H x 41 KB`, `1 + H` fds; reader drops a full group's frame; quest 5 criteria (Detent:29fabf1); conn_cost.cc, reader_test.cc (Detent:672e7b7) | 261110-005436-650916 (conn_cost, strict; pending), 261110-005434-15e1c5 (reader: longest gap 100 ms) (before: 261110-005435-c43e84, today's reader, gap 3,000 ms, exit 1) |
+| F13 | One contract: `asio_scheduler::start_timer` moves onto the wheel and `task::deadline` keeps task's any-thread contract (entry in the cancel state the wheel retains; off-loop create/destroy post to the loop); users audited in D4's table (Detent 3, http 3, task tests; Xapiand's `engine::Host` unaffected); quest 1 criterion (Detent:29fabf1); loops.hh `wheel_deadline`, `wheel_test offloop` (Detent:672e7b7) | 261110-005430-687d57, ASan 261110-005428-f43eb1, TSan 261110-005429-afba6f (300 rounds, states_left=0) (before: 261110-005431-3ee08b, the embedded entry destroyed off its loop, owner assertion, exit 134) |
+| F14 | Explorer: every cross-loop post is a scheduling point (target runs its backlog first), freed frames kept and checked unchanged (loops.hh, waiter_test.cc, Detent:672e7b7); D8 counts 131 / 51,014 schedules (Detent:29fabf1) | 261110-005423-d753e6 (reviewer's script, ASan: all three mutants killed by `explore`), 261110-005426-635ab8 (TSan; pending), 261110-005427-534e76 (all) (before: 261110-002555-485959, 261110-002557-76c931, both mutants survived `explore`) |
+| N1 | Q7 (a) and D10: membership member (voter, learner, joiner), hello's checks in group-open, per-node pins (Detent:29fabf1) | n/a (text) |
+| N2 | Header and Cost cite 261110-000912-e9dff1, finished, rows match 1f63c8 and fdfe40 | 261110-000912-e9dff1 |
+| N3 | Idle CPU row labelled derived (Detent:29fabf1) | n/a (text) |
+| N4 | D4: quest 1 adds the `clock` types (Detent:29fabf1) | n/a (text) |
+| N5 | D8: callers' loops close after the group loops they wait on (Detent:29fabf1) | n/a (text) |
+
 ## Blocked on
 
 A8 needs the Xapiand lead's review of items 1-5, 7b fit, D8 and D10 (Q7); the lead relays it.
@@ -44,27 +59,36 @@ changes for Xapiand:
    loop and resume the caller on its own (D2).
 2. Deadlines (#18, D8): one `task::deadline` per fan-out on the loop's timer wheel, on that
    loop's clock (manual in the simulator); a child on another loop makes its own, linked to the
-   parent's token, and may only shorten it. Every driver call takes a `cancel_token`.
+   parent's token, and may only shorten it. A deadline keeps task's contract (created and
+   destroyed on any thread) on the wheel; `asio_scheduler` moves onto it; Xapiand's
+   `engine::Host` deadlines are unaffected (D4). Every driver call takes a `cancel_token`.
    Cancellation releases the caller exactly once (one claim; the group's loop unlinks before
    the resume); it never withdraws a proposal `Core` accepted (it may still commit, seen
    through `Committed`) and never cancels IO the machine owns (log appends, staged turn
    records), which runs under the loop's shutdown token.
 3. Blocking entry (D5): `journal::run` / `consensus::run` over `inline_scheduler` and
-   `InlineCompletion`, no `io_context`: it commits turns inline, sleeps to the wheel's next
-   deadline (a manual clock jumps), throws on a lost wake, and owns its groups and turn log, so
-   a WorkPool chore runs only on cores no reactor loop serves. Not `task::sync_wait`, which hangs
-   over a shared-backend Store.
+   `InlineCompletion`, no `io_context`: it commits turns inline and returns only after staged
+   records are written; it advances the clock only to an operation deadline or a single voter's
+   first election (a manual clock jumps), throws `stalled` otherwise, and fails a multi-voter
+   `propose`/`read` with `needs_peer`. It owns its groups and turn log, so a WorkPool chore runs
+   only on cores no reactor loop serves. Not `task::sync_wait`, which hangs over a
+   shared-backend Store.
 4. 7b fit: a three-voter member costs 683 KB and 8 descriptors idle today: 171 KB of consensus
    state (164 KB of it `SnapshotChannel` frame arrays) and 512 KB, 5 descriptors in its own
-   `consensus::Peers`. D9 (lazy frame buffers) and D10 (one transport per reactor loop, about
-   41 KB + 118 KB per peer-host connection per loop) bring the member to 7.9 KB and 3
-   descriptors. A million heartbeating groups cost at least 26 cores idle, so 7b's million
+   `consensus::Peers`. D9 (lazy frame buffers) and D10 bring the member to 7.9 KB and 3
+   descriptors. D10: one transport per reactor loop; every host places a group on loop
+   `slot(group) mod L` (power-of-two L) and each loop has its own port, so a connection joins
+   the two loops that share groups and no frame hops threads; about `29 KB + H x 41 KB` and
+   `1 + H` descriptors per loop for H peer hosts with as many loops (an idle TLS end is 40.7 KB
+   with OpenSSL's release mode, 111 KB as today's `asio::ssl::stream`); the reader drops a
+   frame for a group whose input slot is full rather than wait. The placement rule constrains
+   how Xapiand assigns shards to cores. A million heartbeating groups cost at least 26 cores idle, so 7b's million
    groups need quiescence (Q4).
 5. Asks: review items 1-5, 7b fit, D8's cancellation table and D10; Q3 (one directory and owner
    lock per core, a journal layout change before 7b writes bytes); Q6 (Xapiand's
    Kronuz/scheduler users onto the task wheel); Q7 (a shared connection authenticates the peer
-   host's node; each frame is checked against the group's voters); review of the task-wheel
-   diff (quest 1).
+   host's node; each frame is checked against the group's membership in force); D10's
+   placement rule; review of the task-wheel diff (quest 1).
 
 ## Evidence
 
@@ -76,7 +100,7 @@ changes for Xapiand:
 | A4 | `docs/design/async-drivers.md`: "Where a three-voter member's 683 KB goes" |
 | A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, and owns its groups." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
-| A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
+| A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
 | A8 | pending: the Xapiand lead's answer (note above) |
 
 ## Result
@@ -114,3 +138,18 @@ changes for Xapiand:
     `/usr/local/include` holds; mixing them with openssl@3's library is undefined.
 11. A7's numbers at 87df68b and 128df91 (963cb8, f67aa2) stay cited only for run-to-run spread.
 12. The bench is unchanged since Detent:35ed97d (`git diff 35ed97d..HEAD -- docs/design/async-drivers-bench` is empty), so its jobs there stand for the doc and journal commits after it.
+13. Fix round 2: F13's contract is task's existing one (any-thread create and destroy) kept on
+    the wheel by putting the entry in the deadline's cancel state, rather than narrowing it: CR1
+    in task's `docs/status/cancellation.md` removed the on-loop assertion on purpose, and the
+    audit found no user that needs the narrowing.
+14. F12's routing: placement `slot(group) mod L` with power-of-two L and a port per loop, so
+    the dialer computes the remote loop; free placement with redirects was rejected on
+    connection count (up to L per peer host per loop). Bulk opens per transfer.
+15. `waiter_test explore` now covers one and two callers (131 and 51,014 schedules); three
+    callers with post scheduling points would take an estimated hour per run, so it is not run.
+16. The bench changed in Detent:672e7b7 only by adding targets and tests (conn_cost.cc,
+    reader_test.cc, wheel_test/waiter_test/blocking_entry cases, loops.hh); idle_cost.cc,
+    driver_cost.cc, channel_layout.cc, peers_cost.cc, probe.hh and wheel.hh are unchanged, so
+    the A4/A7 jobs at Detent:35ed97d stand (the lead's ruling for this round).
+17. The reviewer's mutant script runs from the home checkout's `.scratch`; it is not copied
+    into the file set.
