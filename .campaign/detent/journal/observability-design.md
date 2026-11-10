@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs (reruns at the head, ids under Doing); ready for review once they pass
+State: ready for review (design re-review). Rerun jobs at 71e7c76 queued: 261110-021130-cf5075 (build), -f4abe5 (smoke), -e7b6b4 (screen), -d5103d (confirm), -1bad17 (D2 confirm), -06137b (A8 exact-confirm), -368d1b (pair-screen), -445051 (pair-confirm); check them with `campaign job list`
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -89,7 +89,7 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
 
 ## Next
 
-0. Reruns at the head (ids under Doing): when they exit 0, check `confirm-paired.md` against D2's table and D10's
+0. Reviewer: reruns at the head (ids in State) are queued behind exclusive holds; when they exit 0, check `confirm-paired.md` against D2's table and D10's
    tables, then set State to ready for review. A8 and Checks now list the pair jobs.
 2. Lead: design re-review. If a rerun fails, read `~/.scratch/campaign/jobs/<id>/a1/log`; check the confirm's
    `confirm-paired.md` against D2's table.
@@ -104,13 +104,13 @@ Nothing. Owner ruled D48 (PLAN.md, 2026-11-10): keep `ever_sampled`, accept the 
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/design/observability.md`: "D1. What is observed, and its bounds" (per process, per host, per fleet bounds; freshness in D5) |
-| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." Paired D2 table and OB1's gate; confirm (exclusive) 261109-131328-0ce3a4 writes confirm-paired.md; numbers quoted from its same-binary run 261109-120858-28cd50 at d1ce742 |
+| A2 | `docs/design/observability.md`: "The pick: sample one lookup in 64 per stripe." Paired D2 table and OB1's gate; rerun at 71e7c76: confirm (exclusive) 261110-021130-d5103d and 261110-021130-1bad17 write confirm-paired.md; numbers quoted from the same-binary run 261109-120858-28cd50 at d1ce742 |
 | A3 | `docs/design/observability.md`: "D7. Leaving the process and the host" (usage page, agent pread, JSON document, Prometheus textfile Q3 and D9, fleet Q4) |
 | A4 | `docs/design/observability.md`: "unused, its paired median at 8 threads is" (D6 item 2) |
 | A5 | `docs/design/observability.md`: "D8. Privacy and limits" (identifiers and fallbacks never stored, names never labels, caps) |
-| A6 | `docs/design/observability.md`: "OB1 Usage table, sampling and arms in the core" (OB1-OB6 with files, criteria, risk, needs) |
-| A8 | `docs/design/observability.md`: "No exact count passes on scattered names." and "The pair now passes at 8 and 64 threads." D10 table: exclusive exact-confirm 261109-202834-bfb3cf at 09f038e; pair: strict screen 261109-222819-1a0f6c at 4ee258e, exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (bench source unchanged since); decision pending, Blocked on |
-| A7 | Build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm (exclusive) 261109-131328-0ce3a4 at 51923f8; the doc cites the same-binary chain at d1ce742 listed under Doing |
+| A6 | `docs/design/observability.md`: "OB1 Usage table, sampling, ever-read bits and arms in the core" (OB1-OB6 with files, criteria, risk, needs; OB1's gate carries D10 and the D48 re-measure) |
+| A8 | `docs/design/observability.md`: "No exact count passes on scattered names." and "The pair now passes at 8 and 64 threads." D10 table: exclusive exact-confirm 261109-202834-bfb3cf at 09f038e; pair: strict screen 261109-222819-1a0f6c at 4ee258e, exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (bench source unchanged since); owner decision D48 (keep `ever_sampled`), recorded in D10 item 4 and Q7; reruns at 71e7c76: exact-confirm 261110-021130-06137b, pair-screen 261110-021130-368d1b, pair-confirm 261110-021130-445051 |
+| A7 | Reruns at 71e7c76: build 261110-021130-cf5075, smoke 261110-021130-f4abe5, screen 261110-021130-e7b6b4, confirm (exclusive) 261110-021130-d5103d; first run: build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm 261109-131328-0ce3a4 at 51923f8; the doc cites the same-binary chain at d1ce742 listed under Doing |
 
 Review findings (round 1, `6139e4c`), all fixed in `51923f8`:
 - OD-1: Q7 and Limits 2-3 state the four losses (0.98 / 0.85 miss odds, OB6 deferral, hook adoption, ramp ±4 / ±16 pts); options (a)-(d) for the owner, recommendation (a) kept, not decided.
