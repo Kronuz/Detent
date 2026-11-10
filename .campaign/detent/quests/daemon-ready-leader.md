@@ -18,6 +18,8 @@ Sources: handoff owner question 7 ("make ready wait for a leader; a small fix wi
 - A1 A test opens a session immediately after `detentd --daemonize` returns, with no retry, and it succeeds: the `native` gate
 - A2 `detentd --status` never reports `"ready":true` while no leader exists: the `native` gate
 - A3 Revert check: with the old readiness, the new test fails: a job
+- A5 A follower whose cluster lost its leader and quorum reports `"ready":false` within `election_max` plus one health interval (D41): `.scratch/review-daemon-ready-leader-correctness/run.sh` ported into the quest's tests, run in the `native` gate, and a job showing it fails without the fix
+- A6 A SIGTERM during the `--daemonize` leader wait does not signal ready to the parent, and a runtime failure after admission reports its cause to the parent rather than waiting out the 30 s timeout: the `native` gate
 - A4 [decision] Readiness waits for a leader: D23
 
 ## Contracts
