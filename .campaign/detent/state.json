@@ -1786,7 +1786,14 @@
         "tests/docs/**",
         ".github/workflows/docs.yml",
         "website/package.json",
-        "website/astro.config.mjs"
+        "website/astro.config.mjs",
+        "docs/dev/docs-e2e.md",
+        "website/src/content/docs/group-overrides.md",
+        "website/src/content/docs/quickstart.md",
+        "website/src/content/docs/reference/http-api.md",
+        "website/src/content/docs/reference/http-api/health.md",
+        "website/src/content/docs/rollouts.md",
+        "website/src/content/docs/settings-and-flags.md"
       ],
       "landed": [],
       "lenses": [],
@@ -1795,12 +1802,11 @@
       "provides": [
         "docs-e2e"
       ],
-      "reason": "started by force: dense-pages' globs tests/** and .github/workflows/** overlap only nominally: its diff touches no tests/docs/** or docs.yml",
       "repo": ".",
       "risk": "low",
       "status": "active",
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
-      "updated": "2026-11-10T12:01:11",
+      "updated": "2026-11-10T12:23:46",
       "worktree": "../Detent-wt/detent/docs-e2e"
     },
     "docs-site-architecture": {
