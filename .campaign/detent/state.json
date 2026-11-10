@@ -1749,6 +1749,49 @@
       "title": "One bounded inline-slot walker for Dense pages",
       "updated": "2026-11-09T17:15:43"
     },
+    "docs-e2e": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        },
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/docs/**",
+        ".github/workflows/docs.yml",
+        "website/package.json",
+        "website/astro.config.mjs"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [
+        "docs-e2e"
+      ],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
+      "updated": "2026-11-10T11:59:20"
+    },
     "docs-wave-1": {
       "accepted": {},
       "after": [],
