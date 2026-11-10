@@ -2817,58 +2817,23 @@
     "observability-design": {
       "accepted": {
         "design": {
-          "at": "2026-11-09T13:45:21",
-          "base": "0bd2aba79dae1bd1c87ff11b5505e92ed127cd3c",
+          "at": "2026-11-10T06:20:06",
+          "base": "970a7d42c362b6d14f4523aea8cb0991ecfab40a",
           "blobs": {
-            "docs/design/observability-bench.sh": "100755:dbfe7499d9bba6cd95ada2a66d5ad51bdeac0c4a",
-            "docs/design/observability-paired.py": "100644:6f0faa5e029317765e1c706d528ac9bd4100ffd7",
+            "docs/design/observability-bench.sh": "100755:53e9a5bd12e49f8ec1ff91e06aa8cc05cb904756",
+            "docs/design/observability-paired.py": "100644:9274510ba40a881f1d8d3c8c7bca2d27dc875711",
             "docs/design/observability-summary.py": "100644:b9164743f1fa946dff6deea62fa453d361beff2a",
-            "docs/design/observability.md": "100644:aa592cb0112d905b3aa84dba6b72997f8c5e6d1a",
-            "docs/design/observability_bench.cc": "100644:06ca141974afcec5343ebbca9ddae773052ba56d"
+            "docs/design/observability.md": "100644:60be4fcbcea9a00764c24fcba598aaaddee0a425",
+            "docs/design/observability_bench.cc": "100644:2525b746cb3d8208f3aea798b0c629bce0f21b18"
           },
-          "brief": "8e5eb6551b547d1e",
+          "brief": "def3b0ed9e8190eb",
           "by": "review",
-          "commit": "486b57b995a56b47d2444f8f780b9b772269c9dd",
-          "findings": {
-            "OD-1": {
-              "jobs": [
-                {
-                  "cmd": "bash docs/design/observability-bench.sh run screen",
-                  "commit": "51923f8f47d3b4c94e7740b708e690472f2f2f5f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261109-131328-647533",
-                  "level": "strict",
-                  "seconds": 84.1,
-                  "state": "done",
-                  "what": "observability bench screen at 51923f8f47d3"
-                }
-              ],
-              "kind": "gap",
-              "reproduced": false
-            },
-            "OD-2": {
-              "jobs": [
-                {
-                  "cmd": "bash docs/design/observability-bench.sh run confirm",
-                  "commit": "51923f8f47d3b4c94e7740b708e690472f2f2f5f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261109-131328-0ce3a4",
-                  "level": "exclusive",
-                  "seconds": 397.8,
-                  "state": "done",
-                  "what": "observability bench confirm (A2, A7) at 51923f8f47d3"
-                }
-              ],
-              "kind": "gap",
-              "reproduced": false
-            }
-          },
+          "commit": "5282545286b326adb3154d06448a79e664691c39",
+          "findings": {},
           "note": "",
-          "review": "b7f6f0d78f6d694b6cffd191f0bb7412b1cedef6",
+          "review": "22e5722236e45fa1cb437688a92307abc122642b",
           "reviewed": "",
-          "verdict": "CHANGES"
+          "verdict": "APPROVE"
         }
       },
       "after": [],
@@ -2890,7 +2855,7 @@
       "risk": "low",
       "status": "active",
       "title": "Design knob observability: usage, resolved values, export",
-      "updated": "2026-11-09T13:45:21",
+      "updated": "2026-11-10T06:20:06",
       "worktree": "../Detent-wt/detent/observability-design"
     },
     "persistent-map-adoption": {
