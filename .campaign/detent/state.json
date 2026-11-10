@@ -1023,6 +1023,8 @@
     "fixture-500k": {
       "accepted": {},
       "after": [],
+      "base": "fb926182c8f85fb25bbfb510d776e3fa0626957f",
+      "branch": "quest/detent/fixture-500k",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1042,11 +1044,13 @@
       "milestone": "M1b",
       "needs": [],
       "provides": [],
+      "reason": "started by force: dense-pages owns tests/**; this lands its tests-only commit 203f729 ahead of it, byte-identical",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Coordinator fixture builds the 500K snapshot only for replies that carry it",
-      "updated": "2026-11-09T16:19:45"
+      "updated": "2026-11-09T16:19:49",
+      "worktree": "../Detent-wt/detent/fixture-500k"
     },
     "fleet-runner": {
       "accepted": {},
