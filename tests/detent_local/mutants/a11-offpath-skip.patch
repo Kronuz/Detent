@@ -1,5 +1,5 @@
 diff --git a/src/detent_local/paged_packer.cc b/src/detent_local/paged_packer.cc
-index 57f7ef1..4d8ecae 100644
+index 63b0ad3..bf515f4 100644
 --- a/src/detent_local/paged_packer.cc
 +++ b/src/detent_local/paged_packer.cc
 @@ -22,6 +22,7 @@ struct Cluster {
@@ -22,8 +22,8 @@ index 57f7ef1..4d8ecae 100644
  					const auto first = s.frontier.size() - s.event.children.size();
  					for (std::size_t i = first; i < s.frontier.size(); ++i) {
  						auto &candidate = *s.frontier[i];
--						if (candidate.sealed() || candidate.size() <= p::child_bytes)
-+						if (candidate.sealed() || candidate.injected || candidate.size() <= p::child_bytes)
+-						if (candidate.sealed() || !p::seal_eligible(candidate.size()))
++						if (candidate.sealed() || candidate.injected || !p::seal_eligible(candidate.size()))
  							continue;
- 						if (!best || candidate.height < best->height ||
- 							(candidate.height == best->height && candidate.size() > best->size()))
+ 						if (!best || p::seals_before(candidate.height, candidate.size(),
+ 													 best->height, best->size()))

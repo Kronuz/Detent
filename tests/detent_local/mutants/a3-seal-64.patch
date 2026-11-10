@@ -1,13 +1,13 @@
-diff --git a/src/detent_local/paged_packer.cc b/src/detent_local/paged_packer.cc
-index 57f7ef1..4c8cca8 100644
---- a/src/detent_local/paged_packer.cc
-+++ b/src/detent_local/paged_packer.cc
-@@ -418,7 +418,7 @@ void PagedPacker::step(ValidationBudget &budget) {
- 					const auto first = s.frontier.size() - s.event.children.size();
- 					for (std::size_t i = first; i < s.frontier.size(); ++i) {
- 						auto &candidate = *s.frontier[i];
--						if (candidate.sealed() || candidate.size() <= p::child_bytes)
-+						if (candidate.sealed() || candidate.size() < 64)
- 							continue;
- 						if (!best || candidate.height < best->height ||
- 							(candidate.height == best->height && candidate.size() > best->size()))
+diff --git a/include/detent_local/paged_layout.hh b/include/detent_local/paged_layout.hh
+index dd1e8f0..d04958c 100644
+--- a/include/detent_local/paged_layout.hh
++++ b/include/detent_local/paged_layout.hh
+@@ -20,7 +20,7 @@ inline constexpr std::size_t content_bytes = 48, placement_bytes = 20,
+ 							 maximum_leaf_body_bytes = page_bytes - 80;
+ // D5's sealing choice: only a cluster larger than a child entry may seal, and of two
+ // candidates the lower one seals first, then the larger; equal ones keep label order.
+-constexpr bool seal_eligible(std::size_t size) noexcept { return size > child_bytes; }
++constexpr bool seal_eligible(std::size_t size) noexcept { return size >= 64; }
+ constexpr bool seals_before(unsigned height, std::size_t size, unsigned other_height,
+ 							std::size_t other_size) noexcept {
+ 	return height < other_height || (height == other_height && size > other_size);
