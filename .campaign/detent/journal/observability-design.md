@@ -166,8 +166,8 @@ Linux page faults (Limit 7).
    The random countdown reload is unmeasured and OB1's to measure.
 5. Fallback statuses get one ninth cell (`fallback_other`), not one per status: the handle's exact status
    counters split it, and nine cells cost nothing extra under sampling (D3 item 5).
+6. The paired probe is a file in the quest's set (`observability-paired.py`), run by every bench job, so OD-2's
+   confirmation is a job artifact, not an offline script.
 7. Countdown stays per stripe line: a thread-local countdown measured worse at every thread count (strict screen
    261109-222819-1a0f6c), so neither TLS candidate went to the exclusive confirm; `es_one` did, as the best at 1
    and 8 threads.
-6. The paired probe is a file in the quest's set (`observability-paired.py`), run by every bench job, so OD-2's
-   confirmation is a job artifact, not an offline script.
