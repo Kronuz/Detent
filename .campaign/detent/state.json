@@ -1269,12 +1269,12 @@
       "milestone": "M1b",
       "needs": [],
       "provides": [],
-      "reason": "started by force: dense-pages owns tests/**; this lands its tests-only commit 203f729 ahead of it, byte-identical",
+      "reason": "superseded by dense-pages (D45): main's paged 500K cases fail on the v2 paged path dense-pages replaces",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "dropped",
       "title": "Coordinator fixture builds the 500K snapshot only for replies that carry it",
-      "updated": "2026-11-09T16:19:49",
+      "updated": "2026-11-09T18:12:27",
       "worktree": "../Detent-wt/detent/fixture-500k"
     },
     "fleet-runner": {
