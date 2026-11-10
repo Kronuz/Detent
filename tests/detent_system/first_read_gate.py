@@ -1,5 +1,6 @@
 """First-read gate (reader.md T2 through the pre-S6 Client): baseline and Dense, 1 and 1,000
-namespaces, publisher running and stopped, plus an A/A repeat, in one interleaved run.
+namespaces, publisher running and stopped, alternating baseline, Dense, baseline, Dense per
+shape so each code's second arm is its A/A repeat (D49).
 
 Each arm times 200 fresh processes (40 keys x 5 rounds), each after its own warmup process, from
 before `detent::Client` construction to its first checked value (`first_live_ns`, steady_clock),
@@ -25,18 +26,13 @@ from pathlib import Path
 from typing import Any
 
 ROUNDS = 5
-# (code, namespaces, publisher); ABBA within each publisher state, then the A/A repeats.
+# (code, namespaces, publisher), per publisher state and namespace count: baseline, Dense,
+# baseline again, Dense again. Each code's second arm is its A/A repeat.
 ARMS = [
-    ("baseline", 1, "stopped"),
-    ("dense", 1, "stopped"),
-    ("dense", 1000, "stopped"),
-    ("baseline", 1000, "stopped"),
-    ("baseline", 1, "running"),
-    ("dense", 1, "running"),
-    ("dense", 1000, "running"),
-    ("baseline", 1000, "running"),
-    ("dense", 1, "stopped"),
-    ("baseline", 1, "stopped"),
+    (code, count, state)
+    for state in ("stopped", "running")
+    for count in (1, 1000)
+    for code in ("baseline", "dense", "baseline", "dense")
 ]
 RECORDS = {1: 5_000_000, 1000: 5_099_900}
 
@@ -277,6 +273,55 @@ def summary(samples: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def verdicts(arms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Per (namespaces, publisher): Dense vs baseline median, each code's A/A spread, and whether
+    Dense is no worse (its mean median is no more than the baseline's mean median plus the
+    baseline's A/A spread)."""
+    result: list[dict[str, Any]] = []
+    shapes = sorted({(a["namespaces"], a["publisher"]) for a in arms})
+    for count, state in shapes:
+        rows = {
+            code: [
+                a
+                for a in arms
+                if (a["namespaces"], a["publisher"], a["code"]) == (count, state, code)
+                and "error" not in a
+            ]
+            for code in ("baseline", "dense")
+        }
+        if any(len(r) != 2 for r in rows.values()):
+            continue
+        medians = {c: [r["median_ns"] for r in rows[c]] for c in rows}
+        mean = {c: statistics.fmean(m) for c, m in medians.items()}
+        spread = {c: abs(m[0] - m[1]) for c, m in medians.items()}
+        result.append(
+            {
+                "namespaces": count,
+                "publisher": state,
+                "baseline_median_ns": mean["baseline"],
+                "dense_median_ns": mean["dense"],
+                "baseline_aa_spread_ns": spread["baseline"],
+                "dense_aa_spread_ns": spread["dense"],
+                "baseline_below_1ms": [r["below_1ms"] for r in rows["baseline"]],
+                "dense_below_1ms": [r["below_1ms"] for r in rows["dense"]],
+                "dense_minus_baseline_ns": mean["dense"] - mean["baseline"],
+                "no_worse": mean["dense"] <= mean["baseline"] + spread["baseline"],
+            }
+        )
+    return result
+
+
+def verdict_line(v: dict[str, Any]) -> str:
+    return (
+        f"A15 verdict {v['namespaces']}ns {v['publisher']}: Dense median "
+        f"{v['dense_median_ns'] / 1000:.0f} us vs main {v['baseline_median_ns'] / 1000:.0f} us "
+        f"(diff {v['dense_minus_baseline_ns'] / 1000:+.0f} us); below 1 ms of 200: Dense "
+        f"{v['dense_below_1ms']}, main {v['baseline_below_1ms']}; A/A spread: main "
+        f"{v['baseline_aa_spread_ns'] / 1000:.0f} us, Dense {v['dense_aa_spread_ns'] / 1000:.0f} us; "
+        f"{'NO WORSE' if v['no_worse'] else 'WORSE'}"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -371,7 +416,6 @@ def main() -> None:
                     for sample in samples:
                         stream.write(json.dumps(sample) + "\n")
                 row |= summary(samples)
-                row["gate_200_of_200"] = row["below_1ms"] == 200
             except (
                 OSError,
                 RuntimeError,
@@ -384,6 +428,9 @@ def main() -> None:
             report["arms"].append(row)
             print(json.dumps(row), flush=True)
             subprocess.run(["rm", "-rf", str(store), str(arm / "runtime")], check=True)
+        report["verdicts"] = verdicts(report["arms"])
+        for v in report["verdicts"]:
+            print(verdict_line(v), flush=True)
         report["status"] = (
             "completed"
             if all("error" not in a for a in report["arms"])
