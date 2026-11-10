@@ -1909,6 +1909,80 @@
       "title": "Docs refresh: configuration and limits",
       "updated": "2026-11-10T11:59:33"
     },
+    "docs-site-reference": {
+      "accepted": {},
+      "after": [
+        "docs-site-architecture",
+        "docs-site-start",
+        "docs-site-usage",
+        "docs-site-config"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/reference.md",
+        "website/src/content/docs/reference/bindings/**",
+        "website/src/content/docs/reference/bindings.md",
+        "website/src/content/docs/reference/cli/**",
+        "website/src/content/docs/reference/cli.md",
+        "website/src/content/docs/reference/cpp-api/**",
+        "website/src/content/docs/reference/cpp-api.md",
+        "website/src/content/docs/reference/errors.md",
+        "website/src/content/docs/reference/evaluation.md",
+        "website/src/content/docs/reference/http-api/**",
+        "website/src/content/docs/reference/http-api.md",
+        "website/src/content/docs/reference/knobs.md",
+        "website/src/content/docs/reference/observability.md",
+        "website/src/content/docs/reference/snapshot-format.md",
+        "website/src/content/docs/faq.md",
+        "website/src/content/docs/help.md",
+        "website/src/content/docs/roadmap.md",
+        "website/src/content/docs/next.md",
+        "website/src/content/docs/contributing.md",
+        "website/src/content/docs/copyright.md",
+        "website/src/content/docs/tests/**",
+        "docs/*.md",
+        "website/astro.config.mjs"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: reference, coverage page and the rest",
+      "updated": "2026-11-10T11:59:35"
+    },
     "docs-site-start": {
       "accepted": {},
       "after": [],
