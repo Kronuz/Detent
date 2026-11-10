@@ -111,7 +111,7 @@ Earlier: Owner ruled D48 (PLAN.md, 2026-11-10): keep ever_sampled, accept the +7
 | A8 | `docs/design/observability.md`: "No exact count passes on scattered names.", "At 8 threads the pair passes in every run" and "The bench's error." D10 table (the original runs it cites are listed there); owner decision D48 (keep ever_sampled), recorded in D10 item 4 and Q7; reruns at 71e7c76: exact-confirm 261110-021130-06137b, pair-screen 261110-021130-368d1b, pair-confirm 261110-021130-445051 |
 | A7 | Reruns at 71e7c76: build 261110-021130-cf5075, smoke 261110-021130-f4abe5, screen 261110-021130-e7b6b4, confirm (exclusive) 261110-021130-d5103d; first run: build 261109-131328-ffcdb2, smoke 261109-131328-cbe2c7, screen 261109-131328-647533, confirm 261109-131328-0ce3a4 at 51923f8; the doc cites the same-binary chain at d1ce742 listed under Doing |
 
-Review findings (round 1, `6139e4c`), all fixed in `51923f8`:
+Review findings (round 1, 6139e4c), all fixed in 51923f8:
 - OD-1: Q7 and Limits 2-3 state the four losses (0.98 / 0.85 miss odds, OB6 deferral, hook adoption, ramp ±4 / ±16 pts); options (a)-(d) for the owner, recommendation (a) kept, not decided.
 - OD-2: D2 table now paired medians; OB1 gate: two handles in one binary, interleaved per 64-lookup block, ≤ 5 ns at 1 thread, ≤ 10 ns at 8 and 64, exclusive. Probe: confirm 261109-131328-0ce3a4 `confirm-paired.md`.
 - OD-3: `usage/` mode 3733, agent's group; O_EXCL failure falls back to a private table; OB4 adds pre-created page and Linux readability cases.
