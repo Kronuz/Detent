@@ -169,42 +169,98 @@
     "async-drivers-design": {
       "accepted": {
         "design": {
-          "at": "2026-11-10T01:07:25",
+          "at": "2026-11-10T12:39:28",
           "base": "36a9bcb0e6a65d9fc93d3c64470f947523f36b71",
           "blobs": {
-            "docs/design/async-drivers-bench/CMakeLists.txt": "100644:6c5a7d45608fc38aac8b5e3755fdc503fe15ad3e",
-            "docs/design/async-drivers-bench/blocking_entry.cc": "100644:ad0d102940151068366a0648a8aa87e25d130cb7",
+            "docs/design/async-drivers-bench/CMakeLists.txt": "100644:7b7449eef640a904131b6828a729a3b1e72641b9",
+            "docs/design/async-drivers-bench/blocking.hh": "100644:3a0f50580ebbb3f48016e1ea1a7b5cd3a95ca6ac",
+            "docs/design/async-drivers-bench/blocking_entry.cc": "100644:02a351c6e568151ab3d8d4c61e13e851c5a2747a",
             "docs/design/async-drivers-bench/channel_layout.cc": "100644:6a21ec536d4b0687c71b60436c5e4ab9e2dfeb04",
             "docs/design/async-drivers-bench/conn_cost.cc": "100644:3185ddb96cc1c484df7c310d267128df22ffed44",
             "docs/design/async-drivers-bench/driver_cost.cc": "100644:8cd596b76710b6fc3d108858d1787db8e88b2875",
             "docs/design/async-drivers-bench/idle_cost.cc": "100644:11d6fa073eda75037de04851fc17564b408a61df",
-            "docs/design/async-drivers-bench/loops.hh": "100644:9ebb8652b4f046d1c0beec3febb3a05f67454e6e",
+            "docs/design/async-drivers-bench/lone_voter.cc": "100644:c5228c9c54c21f16b39c6f75fae7e337665f4521",
+            "docs/design/async-drivers-bench/loops.hh": "100644:eb71e49b46f7c14d0f9d032627b2dd53a277f775",
             "docs/design/async-drivers-bench/peers_cost.cc": "100644:8a2410fa368c9c7276c27086b2bb3e42e260f7ef",
+            "docs/design/async-drivers-bench/placement_test.cc": "100644:5f26c0c505735b75eb5246a58259583c2e3d1464",
             "docs/design/async-drivers-bench/probe.hh": "100644:545ab4307e185d75d21465a43033c73d593dc2a6",
             "docs/design/async-drivers-bench/reader_test.cc": "100644:ed2c25a9a0eedd88e93a81862f4570ef440e8ec6",
-            "docs/design/async-drivers-bench/run.sh": "100755:cab8bde2505fe73657c2d8725b98387be4e5f190",
-            "docs/design/async-drivers-bench/waiter.hh": "100644:2da5a032553daeaff34084bb0438cdfdd6e475ea",
-            "docs/design/async-drivers-bench/waiter_test.cc": "100644:592d3535fc6877961f373f3d1b6f854886fe2739",
+            "docs/design/async-drivers-bench/repartition_lost.cc": "100644:61767842eeb7ea4791b4f7df30a0cf6906c90701",
+            "docs/design/async-drivers-bench/run.sh": "100755:9d191bed6d60bf1bed31d25e2714981cff8c0c81",
+            "docs/design/async-drivers-bench/shrink_dial.cc": "100644:4610219400fb61b776a70d9dd9c6f0067b9efb50",
+            "docs/design/async-drivers-bench/waiter.hh": "100644:d6d80973cf4f8bd6aaffe3265f64cb9437fff8dd",
+            "docs/design/async-drivers-bench/waiter_test.cc": "100644:ee32a4fee43c6ad933d5ab443f520c283b8cdc22",
             "docs/design/async-drivers-bench/wheel.hh": "100644:722ba73254a7dc0d8bcb4db89a770361c6e10a0a",
             "docs/design/async-drivers-bench/wheel_test.cc": "100644:5eee290e05f743d5a19834b8325489c44c2fdeb8",
-            "docs/design/async-drivers.md": "100644:b54d06bd775cbec3bd74519aaa1a22ea042fcd06"
+            "docs/design/async-drivers.md": "100644:818f51d03b28e071fb2e0375e6eeb8a115bb41ca"
           },
           "brief": "ffc4dc9db337f6af",
           "by": "review",
-          "commit": "f48f7cb8961cf8a760c16bcf81a06d6f3881fce7",
+          "commit": "b336a49d84191cf567281df5d5e3724839feb782",
           "findings": {
-            "F15": {
+            "R1": {
               "jobs": [
                 {
-                  "cmd": "bash -c 'grep -q \"L is fixed for a host\" docs/design/async-drivers.md && grep -q \"l_mismatch_test\" docs/design/async-drivers.md && grep -q \"misrouted\" docs/design/async-drivers.md && grep -q \"A group stays on its loop\" docs/design/async-drivers.md'",
-                  "commit": "31152cd155508780085e12393489d6014ceca44e",
+                  "cmd": "docs/design/async-drivers-bench/run.sh repartition_lost",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261110-010705-137092",
-                  "level": "none",
-                  "seconds": 0.4,
+                  "job": "261110-052002-470529",
+                  "level": "light",
+                  "seconds": 46.0,
                   "state": "done",
-                  "what": "design probe F15: fixed L, hello check, misrouted refusal, l_mismatch_test, limit"
+                  "what": "R1 repartition_lost (must pass) at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R2": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh shrink_dial",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-fb6e62",
+                  "level": "light",
+                  "seconds": 44.9,
+                  "state": "done",
+                  "what": "R2 shrink_dial (must pass) at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R3": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh blocking_entry all",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-a84a67",
+                  "level": "light",
+                  "seconds": 51.9,
+                  "state": "done",
+                  "what": "R3 blocking_entry all at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R4": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh waiter_test all",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-78de73",
+                  "level": "light",
+                  "seconds": 93.2,
+                  "state": "done",
+                  "what": "R4 waiter_test all at b336a49d8419"
                 }
               ],
               "kind": "gap",
@@ -212,7 +268,7 @@
             }
           },
           "note": "",
-          "review": "798f6a5532b1f6e13d2223a0f5bcb0070cf1c6d9",
+          "review": "e8af73e36fc5ea006e55536767c9b6308839d3af",
           "reviewed": "",
           "verdict": "CHANGES"
         }
@@ -238,7 +294,7 @@
       "risk": "low",
       "status": "review",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-10T01:07:25",
+      "updated": "2026-11-10T12:39:28",
       "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
