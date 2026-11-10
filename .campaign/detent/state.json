@@ -1877,7 +1877,9 @@
     },
     "docs-site-config": {
       "accepted": {},
-      "after": [],
+      "after": [
+        "docs-site-usage"
+      ],
       "checks": [
         {
           "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
@@ -1921,7 +1923,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: configuration and limits",
-      "updated": "2026-11-10T11:59:33"
+      "updated": "2026-11-10T12:02:22"
     },
     "docs-site-reference": {
       "accepted": {},
