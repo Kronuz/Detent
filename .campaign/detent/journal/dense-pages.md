@@ -1,24 +1,32 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-163514-6fcc50 261109-163530-605b54 261109-163531-0e4b31
+State: waiting on jobs (design fix round at Detent:5a134f9; ids in "Design fix round 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Head code equals Detent:435a525. Every criterion except A14 (reviews) and A15 has passing head
-evidence. Waiting only on A15: prepare 261109-163514-6fcc50 (running; past the corpus hash,
-configuring the baseline) -> exclusive halves 261109-163530-605b54 (stopped) and
-261109-163531-0e4b31 (running). Details: "Resumed 2026-11-09".
+Design review CHANGES (reviews/dense-pages-design.md at 81a3232; lead rulings PLAN.md D42) fixed
+at Detent:e879b9e (code), df7dabc (docs), 5a134f9 (mutants). DES-2 changes on-disk bytes, so the
+head batch reruns at 5a134f9. Details and job ids: "Design fix round 2026-11-09".
 
 ## Next
 
-1. When they finish: read
-   result.json of 605b54 and 0e4b31 into A15 (per arm: below 1 ms, median, attach, lookup, CPU).
-2. Then set State "ready for review" (A15's gate is the lead's call on the numbers).
+1. Read the 5a134f9 batch; record each in Evidence; fix any failure.
+2. Lead widens the file set (Blocked on 1), then apply
+   `.scratch/des1-des9-out-of-set.patch` in this worktree and rerun stale_docs.sh and native.
+3. Then State "ready for review"; A15's final rerun at the fixed head is the lead's.
 
 ## Blocked on
 
-Nothing. A15's verdict and PERF-1 are the lead's (numbers pending).
+1. DES-1 and DES-9 need files outside the quest's set: `docs/FAST_CLIENT_ARCHITECTURE.md`,
+   `docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md`, `website/src/content/docs/architecture/how-it-works.md`
+   (DES-1: 15 of the probe's lines, job 261109-173528-ea4cb1), and `src/detent_delivery/coordinator.cc`
+   (DES-9: 4 call sites of `StateCursor::logical_commitment`, renamed to `state_commitment`).
+   The edits are ready as `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages/.scratch/des1-des9-out-of-set.patch`
+   (applies at 5a134f9; with it, stale_docs.sh exits 0 locally). Recommendation: widen the set
+   by those four files; I apply, commit and rerun the probe and native.
+2. A15 prepare 261109-163514-6fcc50 failed (exit 2: `gmake ... detent-agent ... Error 2` in its
+   baseline build); its halves 605b54 and 0e4b31 were skipped. The runner is the lead's (ruling 14).
 
 ## For the lead's accepts (all at Detent:435a525, code = head)
 
@@ -624,3 +632,70 @@ rerun in its own slot: 261109-145822-623329.
    shared mutant slots are suspect wherever times overlap. Cause not found (slot_lock's pid check
    looks right on this host).
 3. A15: see "A15 baseline 2026-11-09".
+
+## Design fix round 2026-11-09
+
+Fixes (D42), at Detent:e879b9e / df7dabc / 5a134f9:
+
+- DES-2 (a): the root's tree reference is the child entry, content [160,208) + placement
+  [208,228), [228,320) zero; `decode_child` is the one decoder for page edges and the root;
+  `encode_reference`/`decode_reference`/`reference_bytes` gone; validate-only callers use
+  `paged::validate(const Reference &)`; root-prefix checks, exact fixtures (test_paged_layout:
+  content/placement bytes, root bytes, root slice equals `encode_content`+`encode_placement`, every
+  single byte of an empty root's 68 rejects), prefix tests and codec fuzz probe follow. The model
+  encodes no v3 root (its `extract` reads DTROOT02), so it is unchanged. Corpus files stay (fuzzer
+  inputs, none a valid root). New mutant des2-root-reserved.
+- DES-1 (in set): HOW_IT_WORKS §3-5 (reference, first touch, warm lookup with the header compare,
+  delta writes, compaction), read-counters.md:25, trusted-restart.md:66,70. Rest: Blocked on 1.
+- DES-3: `docs/mechanisms/dense-pages.md` "Deltas and relocation"; HOW_IT_WORKS §3/§5 link it.
+- DES-4: "Integration boundary" names each check and fuzz target.
+- DES-5: `seal_eligible`/`seals_before` in paged_layout.hh; packer and page validator call them.
+  a3-largest-first and a3-seal-64 now mutate the shared rule (the model check still kills a
+  consistent change).
+- DES-8: `obsolete_paged_layout(version)` at ownership.cc, generation.cc, disk_store.cc and both
+  framing recognizers in paged_layout.cc.
+- DES-9: `page_digests()` dropped (test_trusted_restart uses `hash_counts().page_calls`);
+  `PreparedGeneration::state_commitment`, `Reader::state_commitment_` (private member),
+  `expected_commitment`; `maximum_leaf_body_bytes` with its reason replaces `page_bytes - 80` in
+  the overlay, delta leaves and packer test. `StateCursor::logical_commitment`: Blocked on 1.
+- DES-10: design status IMPLEMENTED, Dense-first landing note, S6/S3b rows parked, S6 rebase
+  points in D10, review table. A8's "landed S6 interfaces" wording is the quest file's (lead).
+- Left: DES-6 (follow-up dense-walkers), DES-7 (reader-s6), DES-11 (owner).
+
+Jobs at Detent:5a134f9 (light unless named; `.scratch/batch-5a134f9.txt`):
+
+| Finding / criterion | Job | Replaces |
+|---|---|---|
+| DES-2 probe reference_shape.sh (none) | 261109-173524-f35dec exit 0 | b72512 |
+| DES-3 probe delta_note.sh (none) | 261109-173526-3aaf82 exit 0 | 925d30 |
+| DES-1 probe stale_docs.sh (none) | 261109-173528-ea4cb1 exit 1: 15 lines, all outside the set | c1bcc9 |
+| native (A2, A13) | 261109-173756-e44822 (173355-9d4fa5 failed: my resubmit lost the shell) | 9f0788 |
+| A3/A5 synthetic+100K model | 261109-173416-e0fb34 done: 3,245 pages / 6,209,298 B / 6 packs 6,217,662 B, root 7c0f7d1b..., exact model pages | fb0366 |
+| A5/A7 5M model + counters | 261109-173418-9dea0d | 933d09 |
+| A2 full builder | 261109-173419-b61b6b, 261109-173421-312c73 | ef7fac, 02bdc4 |
+| A10 1,000 rounds + relocation 0 page hashes | 261109-173422-663f2c | 89ebfd |
+| A10 100K / 5M real deltas | 261109-173424-a5e970, 261109-173426-8823d4 | a00ef8, 28d1cf |
+| A10/A11 fixtures | 261109-173428-2785e4 | 37b414 |
+| COR-1 / A9 overlay ASan UBSan, Debug | 261109-173430-084bbb, 261109-173445-252d5c | cecb4a, 71a2c4 |
+| A4 corpus replay ASan UBSan | 261109-173432-c71c9a | 79fbd0 |
+| A13 ASan UBSan | 261109-173434-da14e9 | dc2bcc |
+| SEC-1 warm/reader/page/graph fuzz smoke ASan | 261109-173437-fb6421, 261109-173439-562ec5 | 2539d5, c3f5af |
+| SEC-2 codec libFuzzer smoke, 300 s ASan UBSan | 261109-173511-af2ee8 | (649826, the hour) |
+| A13 TSan | 261109-173442-587012 | fe08c1 |
+| A8 reader fixtures | 261109-173447-5ca159 | f3bd3f |
+| A12 refetch, refusal/barrier mutants | 261109-173450-19b800, 261109-173452-b3a34f | 2af02e, cc9df2 |
+| A12 no live v2 references | 261109-173455-edbed0 | 969274 |
+| Mutants (root encoding, shared rule, changed context) | a3-largest-first 261109-173512-6c24b0, a3-seal-64 261109-173514-a28416, a3-height-digest 261109-173516-b2b861, a6-height 261109-173518-814f93, a6-keys 261109-173519-e13ae9, a11-offpath-skip 261109-173521-5558ff, des2-root-reserved 261109-173522-cb07d0 | 3dfd88, 370f1a, 95cb9d, 90dc99, 33fefb, 86a096, new |
+
+Rulings (design round):
+
+17. 2026-11-09: per-reference memory admissions charge `child_bytes` (68) where they charged the
+   65-byte `reference_bytes` (dependency walk, graph validator, overlay relocation): one size for
+   one encoding. Budgets are admission costs, not wire bytes.
+18. 2026-11-09: the StateCursor rename waits for coordinator.cc rather than keeping an alias; the
+   in-set renames (prepared generation, reader member, finalizer) land now.
+19. 2026-11-09: the mutants not touching the changed lines (a3-boundary, a6-order,
+   a6-canonicity, a10-*, a11-noop-rewrite, a11-relocation-rehash, cor1) are not rerun: their
+   patches apply unchanged and their code is unchanged. Rerun: every patch I edited, the new
+   root mutant and a3-height-digest (paged_layout.cc).
+
