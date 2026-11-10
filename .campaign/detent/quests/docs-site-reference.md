@@ -5,7 +5,7 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The reference and the rest pages (the rest of reference/**, FAQ, help, roadmap, next, contributing, copyright, docs/*.md, a glossary page (#24) and the coverage page `website/src/content/docs/tests/coverage.md`) describe Detent as it runs on `main` at the landed commit, rewritten as a whole from `docs/dev/docs-site-audit.md`'s rewrite scope for this area (D52). Every command, request and code sample on them runs in the docs E2E with an assertion block, and every feature the audit lists as undocumented for this area has a section with runnable examples.
 
 ## Acceptance criteria
 
@@ -14,18 +14,22 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 <criterion>: <evidence>
+- A1 [artifact] Every audit row for this area marked stale, wrong, missing content or delete is fixed or deleted, each fixed claim citing its source: the rows checked off in the journal's table
+- A2 Every runnable block on the area's pages has an assertion block, and the area's entries are gone from `tests/docs/e2e_exceptions.txt`: the `e2e` check
+- A3 Every feature the audit lists as undocumented for this area has a page section with runnable examples and assertions: the `e2e` check, and the journal names each section
+- A4 `check_docs.py` passes with no exception left for the area's pages: the `docs` check
+- A5 The site builds with no broken internal link from or to the area's pages: the `site` check
+- A6 [manual] The owner reads the area's rendered pages before landing: the lead publishes them (an artifact or the built site) and records his verdict
+- A7 [artifact] `website/src/content/docs/tests/coverage.md` maps every served feature (CLI command, endpoint, config key, API call) to its page and tests, and lists what is still uncovered with a reason; the E2E request count never falls between this quest's base and head: `website/src/content/docs/tests/coverage.md`: "## Coverage"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes `docs-e2e`. Changes only this area's pages; a fix another area needs goes to that quest by message.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D43, D44, D46, D52. The owner reads each area before it lands (D52).
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+None: the owner reads the whole area first.
