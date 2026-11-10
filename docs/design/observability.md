@@ -191,16 +191,28 @@ The owner asked for exact counts if they can be made cheap (Q7, D38). Five exact
 
 Beside them: `ever_sampled` (`ever_bit` and `knob_sampled` together, the shape recommended below), `knob_sampled` (D2's pick), `knob_rows64` (D2's best exact rows) and `none2` (A/A).
 
-The method is OB1's gate: the arm and `none` in one binary, alternated per block of 64 lookups on each thread over the same names, in both orders; a repetition's delta is the mean of its on-first and off-first block-pair medians, and the table gives the median over 7 repetitions (`observability-paired.py`). Exclusive job `A8CONFIRM` at `Detent:A8COMMIT`, 262,144 calls per thread, 100,000 knobs, the hot set one name and the scattered set 1,024 names; 64 threads on 16 hardware threads share stripes. Each cell is the larger of the integer and the bool delta, hot / scattered, in ns:
+The method is OB1's gate: the arm and `none` in one binary, alternated per block of 64 lookups on each thread over the same names, in both orders; a repetition's delta is the mean of its on-first and off-first block-pair medians, and the table gives the median over 7 repetitions (`observability-paired.py`). Exclusive job `261109-202834-bfb3cf` at `Detent:09f038e`, 262,144 calls per thread, 100,000 knobs, the hot set one name and the scattered set 1,024 names; 64 threads on 16 hardware threads share stripes. Each cell is the larger of the integer and the bool delta, hot / scattered, in ns:
 
-A8TABLE
+| Arm | 1 thread | 8 threads | 64 threads |
+| --- | ---: | ---: | ---: |
+| `none2` (A/A) | −0.1 / −0.1 | −0.8 / −0.2 | −1.7 / +0.3 |
+| `ever_bit` | +3.0 / +3.7 | +2.6 / +3.1 | +4.2 / +4.6 |
+| `knob_sampled` | +3.0 / +4.5 | +2.9 / +3.2 | +5.2 / +6.9 |
+| `ever_sampled` | +3.7 / **+7.4** | +3.9 / +6.4 | **+11.9 / +14.4** |
+| `pos_tls` | +1.4 / +4.3 | +1.4 / +6.1 | +4.1 / **+46.2** |
+| `pos_stripe_rmw` | +3.8 / **+8.4** | +3.3 / +8.9 | +4.7 / **+49.9** |
+| `pos_shared` | +2.0 / **+7.0** | **+22.4** / +9.1 | **+29.2 / +19.6** |
+| `dm_cache` | **+6.1 / +15.3** | +5.1 / **+17.1** | +5.7 / **+36.7** |
+| `knob_rows64` | **+21.9 / +47.1** | **+18.8 / +44.3** | **+53.6 / +95.3** |
 
-1. **Only `ever_bit` passes OB1's gate in every row** (worst A8EVERWORST). It answers "did this handle read this knob" exactly, at 1 bit per definition: 12.5 KB per handle at 100,000 knobs, 625 KB at 5M.
-2. **No exact count passes on scattered names.** Each lookup of a different knob writes a different line: a per-thread row touches 1,024 lines per thread (`pos_tls` A8TLS64 at 64 threads), shared and striped rows add coherence misses (`pos_shared`, `pos_stripe_rmw`), and `dm_cache` evicts on nearly every scattered lookup and pays the shared add anyway. On a hot name `pos_tls` and `pos_stripe_rmw` pass, because one line stays private. The instructions are not the cost: with the lookup removed (`--bare 1`, strict screen `261109-141658-03e1a9`) every one of them costs at most +3.4 ns except the shared and striped atomics. The cost is the written line per distinct knob, which an exact count cannot avoid.
-3. **The cheapest exact count is `pos_tls`**, and it misses the 10 ns ceiling by A8TLSMISS at 64 threads on scattered names; it also allocates 400 KB per thread at 100,000 knobs (20 MB at 5M) and needs a thread registry (Alternatives, per-thread counters).
-4. **The A/A spread** (`none2`) is A8AA in every row, so a delta under the gate is resolved.
+Bold cells miss the gate. The A/A cell is the larger of its two deltas by size; its bool hot row at 64 threads is −5.0.
 
-The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131,072 calls) agrees on every verdict.
+1. **Only `ever_bit` passes OB1's gate in every row** (worst +4.6 ns, integer scattered at 64 threads). It answers "did this handle read this knob" exactly, at 1 bit per definition: 12.5 KB per handle at 100,000 knobs, 625 KB at 5M.
+2. **No exact count passes on scattered names.** Each lookup of a different knob writes a different line: a per-thread row touches 1,024 lines per thread (`pos_tls` +46.2 ns at 64 threads), shared and striped rows add coherence misses (`pos_shared`, `pos_stripe_rmw`), and `dm_cache` evicts on nearly every scattered lookup and pays the shared add anyway. On a hot name `pos_tls` and `pos_stripe_rmw` pass, because one line stays private. The instructions are not the cost: with the lookup removed (`--bare 1`, strict screen `261109-141658-03e1a9`) every one of them costs at most +3.4 ns except the shared and striped atomics. The cost is the written line per distinct knob, which an exact count cannot avoid.
+3. **The cheapest exact count is `pos_tls`**, and it misses the 10 ns ceiling by 36.2 ns at 64 threads on scattered names; it also allocates 400 KB per thread at 100,000 knobs (20 MB at 5M) and needs a thread registry (Alternatives, per-thread counters).
+4. **The A/A spread** (`none2`) is within ±1.7 ns in every row but one, bool hot at 64 threads (−5.0 ns): there two copies of the same loop at different addresses differ by 5 ns, so at 64 threads a delta resolves to about ±5 ns.
+
+The strict screen `261109-141658-03e1a9` at `Detent:4871285` (3 repetitions, 131,072 calls) agrees that `ever_bit` passes every row and that every exact count fails scattered names at 64 threads; beside other work it also fails ten 1- and 8-thread rows that the exclusive confirm passes.
 
 **The shape (Q7).** Every attached namespace generation in a view gets an ever-read bitmap, one bit per definition in that generation, allocated by the refresh winner when it attaches the generation (the refresh path already allocates and maps; a warm lookup does neither). A lookup that finds a definition tests its bit and sets it if clear, after the answer, beside the sampled countdown. A lookup that finds no definition has no position; `missing` counts it in the sampled table.
 
@@ -269,7 +281,7 @@ The owner took each recommendation on 2026-11-09 (PLAN.md D47). The labels stay,
 
 **Q6. The page is on whenever the agent's store has `usage/`** (an agent setting), so operators get host data without changing applications.
 
-**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +17 to +60 ns on scattered names (D10).
+**Q7. Exact usage, sampled counts.** Each handle keeps an exact "ever read" bit per definition (`ever_bit`, D10) beside D2's sampled table, so "was this knob read" is exact per handle, per host and, with OB6, per fleet, while counts and arm splits stay sampled (Limit 3). D47 keeps this shape unless an exact-count mechanism meets OB1's gate at scattered names and 64 threads; none did (D10). Not taken: sampled only, which misses a knob read once per process with probability 0.98 in one process and 0.85 across 10; exact per-knob counts, which cost +19.6 to +49.9 ns on scattered names at 64 threads (D10).
 
 ## Build plan
 
