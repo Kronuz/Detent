@@ -176,6 +176,8 @@ struct alignas(64) DirectMapped {                         // 8 (position + 1, co
 	std::uint32_t key[8], count[8];
 };
 thread_local DirectMapped dm_line{};
+// The `*_tls` arms' countdown: one per thread, so no two threads share it (the stripe's can, at 64 threads).
+thread_local std::uint64_t tls_countdown = 63;
 std::uint32_t *tls_allocate() noexcept {
 	auto *row = static_cast<std::uint32_t *>(std::calloc(positions, sizeof(std::uint32_t)));
 	if (!row)
@@ -195,7 +197,8 @@ void dm_flush() noexcept {
 #define ARMS(X)                                                                                                       \
 	X(none) X(none2) X(shared) X(metrics_atomic) X(metrics_contended) X(stripe_rmw) X(stripe_plain) X(tls) X(knob_probe) X(knob_shared)     \
 	    X(knob_rows8) X(knob_rows64) X(knob_ptr_rows8) X(knob_sampled) X(knob_rows8_mapped) X(hook_off) X(hook_on)   \
-	        X(pos_shared) X(pos_stripe_rmw) X(pos_tls) X(ever_bit) X(ever_sampled) X(dm_cache)
+	        X(pos_shared) X(pos_stripe_rmw) X(pos_tls) X(ever_bit) X(ever_sampled) X(dm_cache) X(knob_tls) X(es_tls)  \
+	            X(es_one) X(es_tls_one)
 enum class Arm {
 #define X(a) a,
 	ARMS(X)
@@ -228,8 +231,25 @@ inline Word at(std::uint64_t &word) noexcept { return {&word}; }
 	const auto slot = table->find(name_hash(name.text.data(), name.text.size()));
 	at(shared_cells.line(0, slot)[cell]).add(64);
 }
+inline unsigned cell_of(detent_status status, std::int64_t value) noexcept {
+	return status != DETENT_OK ? 6u : (value != 0 ? 1u : 0u);
+}
+// The one-branch arms' slow half: sets the bit if clear, and reloads and samples if the countdown ran out.
+[[gnu::noinline, gnu::cold]] void ever_slow(const Name &name, detent_status status, std::int64_t value,
+                                            std::uint64_t *countdown, std::uint64_t left) noexcept {
+	auto &word = ever_bits[name.pos >> 6];
+	const auto bit = std::uint64_t(1) << (name.pos & 63);
+	if (!(word.load(relaxed) & bit))
+		word.fetch_or(bit, relaxed);
+	if (left) {
+		at(*countdown).store(left - 1);
+	} else {
+		at(*countdown).store(63);
+		sample(name, cell_of(status, value));
+	}
+}
 template <Arm A> inline void count(const Name &name, detent_status status, std::int64_t value) noexcept {
-	const unsigned cell = status != DETENT_OK ? 6u : (value != 0 ? 1u : 0u);
+	const unsigned cell = cell_of(status, value);
 	if constexpr (A == Arm::shared) {
 		shared_counter.fetch_add(1, relaxed);
 	} else if constexpr (A == Arm::metrics_atomic) {
@@ -288,6 +308,31 @@ template <Arm A> inline void count(const Name &name, detent_status status, std::
 	} else if constexpr (A == Arm::ever_sampled) {
 		count<Arm::ever_bit>(name, status, value);
 		count<Arm::knob_sampled>(name, status, value);
+	} else if constexpr (A == Arm::knob_tls) {
+		auto countdown = at(tls_countdown);
+		if (const auto left = countdown.load()) [[likely]] {
+			countdown.store(left - 1);
+		} else {
+			countdown.store(63);
+			sample(name, cell);
+		}
+	} else if constexpr (A == Arm::es_tls) {
+		count<Arm::ever_bit>(name, status, value);
+		count<Arm::knob_tls>(name, status, value);
+	} else if constexpr (A == Arm::es_one || A == Arm::es_tls_one) {
+		std::uint64_t *countdown;
+		if constexpr (A == Arm::es_one) {
+			const char frame = 0;
+			countdown = &stripe_lines[stripe_of(&frame)].cell[7];
+		} else {
+			countdown = &tls_countdown;
+		}
+		const auto set = ever_bits[name.pos >> 6].load(relaxed) >> (name.pos & 63) & 1;
+		const auto left = at(*countdown).load();
+		if (set & std::uint64_t(left != 0)) [[likely]]
+			at(*countdown).store(left - 1);
+		else
+			ever_slow(name, status, value, countdown, left);
 	} else if constexpr (A == Arm::dm_cache) {
 		auto &line = dm_line;
 		const auto i = name.pos & 7;
@@ -495,6 +540,7 @@ void reset_counters(bool positions_too = false) {
 	tls_counts = nullptr; // this thread's; the workers that held the others have exited
 	tls_allocations.store(0, relaxed);
 	dm_line = {};
+	tls_countdown = 63;
 }
 // Counts the arm kept, or -1 for an arm that keeps none.
 std::int64_t counted(Arm arm) {
@@ -511,7 +557,8 @@ std::int64_t counted(Arm arm) {
 		return std::int64_t(sum);
 	case Arm::tls: return std::int64_t(thread_total.load());
 	case Arm::knob_shared:
-	case Arm::knob_sampled: return std::int64_t(shared_cells.total());
+	case Arm::knob_sampled:
+	case Arm::knob_tls: return std::int64_t(shared_cells.total());
 	case Arm::knob_rows8:
 	case Arm::knob_ptr_rows8: return std::int64_t(rows8.total());
 	case Arm::knob_rows64: return std::int64_t(rows64.total());
@@ -531,7 +578,10 @@ std::int64_t counted(Arm arm) {
 				sum += row[p];
 		return std::int64_t(sum);
 	case Arm::ever_bit:
-	case Arm::ever_sampled: // distinct definitions seen
+	case Arm::ever_sampled:
+	case Arm::es_tls:
+	case Arm::es_one:
+	case Arm::es_tls_one: // distinct definitions seen
 		for (std::size_t w = 0; w != positions / 64 + 1; ++w)
 			sum += std::uint64_t(__builtin_popcountll(ever_bits[w].load(relaxed)));
 		return std::int64_t(sum);
@@ -651,7 +701,10 @@ void run_pair(detent_reader *core, const Options &o, Arm arm, const std::string 
 	case Arm::pos_tls:
 	case Arm::dm_cache: expected = on_calls; break;
 	case Arm::ever_bit:
-	case Arm::ever_sampled: expected = std::int64_t(seen.size()); break;
+	case Arm::ever_sampled:
+	case Arm::es_tls:
+	case Arm::es_one:
+	case Arm::es_tls_one: expected = std::int64_t(seen.size()); break;
 	default: break;
 	}
 	std::cout << "{\"pair\":\"" << arm_names[std::size_t(arm)] << "\",\"op\":\"" << op << "\",\"set\":\"" << set

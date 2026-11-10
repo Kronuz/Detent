@@ -4,6 +4,7 @@
 #   observability-bench.sh build                      (light: builds observability_bench against $JOB_REF_S6)
 #   observability-bench.sh run smoke|screen|confirm   (strict or exclusive: runs it, summarizes and pairs)
 #   observability-bench.sh run exact-screen|exact-confirm   (A8: interleaved on/off at 1, 8 and 64 threads)
+#   observability-bench.sh run pair-screen [ARMS] | pair-confirm ARMS   (D10's ever-bit and countdown pair)
 set -euo pipefail
 here=$(pwd)
 work=$here/.scratch/obs
@@ -42,6 +43,8 @@ run)
 	exact=(--arms none2,knob_sampled,knob_rows64,pos_shared,pos_stripe_rmw,pos_tls,ever_bit,ever_sampled,dm_cache
 		--interleave 1 --threads 1,8,64)
 	bare=()
+	pair_arms=none2,ever_bit,knob_sampled,ever_sampled,${3:-knob_tls,es_tls,es_one,es_tls_one}
+	pair=(--arms "$pair_arms" --interleave 1 --threads 1,8,64)
 	case "$mode" in
 	smoke) args=(--knobs 100000 --reps 1 --calls 16384 --scattered 256 --soak 2)
 		paired=(--knobs 100000 --reps 1 --calls 2048 --scattered 256 "${exact[@]}") ;;
@@ -50,6 +53,10 @@ run)
 	exact-screen) args=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${exact[@]}")
 		bare=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${exact[@]}" --bare 1) ;;
 	exact-confirm) args=(--knobs 100000 --reps 7 --calls 262144 --scattered 1024 "${exact[@]}") ;;
+	pair-screen) args=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${pair[@]}")
+		bare=(--knobs 100000 --reps 3 --calls 131072 --scattered 1024 "${pair[@]}" --bare 1) ;;
+	pair-confirm) [ -n "${3:-}" ] || { echo "pair-confirm needs the candidate arms" >&2; exit 2; }
+		args=(--knobs 100000 --reps 7 --calls 262144 --scattered 1024 "${pair[@]}") ;;
 	*) echo "unknown mode $mode" >&2; exit 2 ;;
 	esac
 	out=${JOB_OUT:-$work/out}
@@ -62,11 +69,11 @@ run)
 	case "$mode" in
 	smoke)
 		"$bin" --store "$store" --map-dir "$map" "${paired[@]}" | tee -a "$out/$mode.jsonl" ;;
-	exact-screen)
+	exact-screen|pair-screen)
 		"$bin" --store "$store" --map-dir "$map" "${bare[@]}" | tee -a "$out/$mode.jsonl" ;;
 	esac
 	case "$mode" in
-	exact-*) ;;
+	exact-*|pair-*) ;;
 	*) "${PYTHON:-python3}" docs/design/observability-summary.py "$out/$mode.jsonl" | tee "$out/$mode.md" ;;
 	esac
 	"${PYTHON:-python3}" -I docs/design/observability-paired.py "$out/$mode.jsonl" | tee "$out/$mode-paired.md"
