@@ -97,7 +97,8 @@ struct group_model {
 	std::map<const waiter*, int> record_of;
 	std::set<int> staged, written, committed;
 	int next_record = 1;
-	int posted = 0;  // the group's own calls queued on a loop: its ready link and its IO
+	int posted = 0;     // the group's own calls queued on its loop (its ready link); touched on A only
+	int in_flight = 0;  // turn writes issued and not yet completed back on A; touched on A only
 	bool closing = false, freed = false;
 	waiter *admission_at_free = nullptr, *placed_at_free = nullptr;
 
@@ -124,7 +125,13 @@ struct group_model {
 		staged.insert(r);  // machine-owned IO from here: written under the loop's token only
 		record_of[w] = r;
 		w->link(placed);
-		post(io, [this, r] { post(loop, [this, r] { barrier(r); }); });
+		++in_flight;  // the IO loop touches no group state: its completion posts back to A
+		io.post([this, r] {
+			loop.post([this, r] {
+				--in_flight;
+				barrier(r);
+			});
+		});
 	}
 	void barrier(int r) {
 		if (!live()) { return; }
@@ -156,7 +163,7 @@ struct group_model {
 
 private:
 	template <class F>
-	void post(Loop& l, F f) {
+	void post(Loop& l, F f) {  // on A, to A
 		++posted;
 		l.post([this, f] {
 			--posted;
@@ -170,7 +177,7 @@ private:
 		return false;
 	}
 	void maybe_free() {
-		if (closing && !freed && !admission && !placed && posted == 0) { release(); }
+		if (closing && !freed && !admission && !placed && posted == 0 && in_flight == 0) { release(); }
 	}
 	void release() {
 		freed = true;
