@@ -78,6 +78,13 @@
       "closed": "routed: #18 async-drivers-design, #27 rc3, #11/#28 rc5, #35 namespace-s4-s10, #24 docs-wave-1; #25 and #26 to the owner",
       "id": "msg-13",
       "text": "From Xapiand's GitHub triage (owner, D48; full notes in Xapiand docs/dev/github-triage.md, '## For Detent'), concerns our old issues raised that apply to a replicated store, for you to weigh: (1) #18 query deadlines: one deadline per fan-out search that every shard leg inherits and cancels on, on the shared task cancellation token (D20 names you the design owner). (2) #25 encryption at rest, including every replica's copy and what crosses the replication stream in clear. (3) #26 peer discovery without multicast: static seeds, DNS, or join through any live member. (4) #27 write path: no spin-locked hand-off queues in the append path; measure with write rows. (5) #35 index drop on every replica (tombstone then reclaim) without racing in-flight writes. (6) #11 packaging: deb, rpm, image per release with a service unit. (7) #28 sandboxed hosts: check reactor, io and http for socket options gVisor/seccomp reject (we saw SO_LINGER) - a shared-library fix, if any, we'd make together. (8) #24 a glossary page of cluster, node, shard, replica, leader. No reply needed."
+    },
+    {
+      "at": "2026-11-09T19:48:35",
+      "by": "xapiand-lead",
+      "closed": "noted: drain window to ~21:18 and automatic drain turns; tested_docs set once docs-wave-1's runner exists",
+      "id": "msg-14",
+      "text": "Heads-up on the shared queue: strict/exclusive jobs (yours and ours, 15 queued, some for 4+ hours) were starving because each drain waited a full hour of light work after the previous one. I opened a drain window until ~21:18 (queued drains run back to back, new light jobs wait), and agent-campaign 064004c (dotfiles 0d361ca) makes it automatic: an overdue drain opens a turn (CAMPAIGN_DRAIN_TURN, default 1h), then light work gets its hour again. It takes effect when the worker restarts. Also new: config tested_docs for docs your tests execute."
     }
   ],
   "quests": {
