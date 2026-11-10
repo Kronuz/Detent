@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-222819-1a0f6c
+State: waiting on jobs 261109-224833-fa1352
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -57,11 +57,36 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
   a `frame` byte store per lookup and a countdown pointer reloaded from the stack on one path.
 - D10 table filled from bfb3cf at `ea0afdb` (A8TABLE, worst, pos_tls miss, A/A, screen agreement, Q7 range);
   the gate item (A8EVERSAMPLED) waits for the pair results.
+- Pair-screen 261109-222819-1a0f6c (strict, exit 0, binary 15b89164). Max(int, bool) delta, hot / scattered, ns:
+
+  | arm | 1 | 8 | 64 | bare 64 |
+  |---|---|---|---|---|
+  | none2 | -1.2 / +0.1 | -0.7 / +0.0 | -0.0 / +0.8 | -0.1 |
+  | ever_bit | +2.9 / +2.1 | +2.4 / +2.1 | +2.6 / +6.6 | +1.3 |
+  | knob_sampled | +3.2 / +3.9 | +3.0 / +4.4 | +4.0 / +4.4 | +2.0 |
+  | ever_sampled | +2.7 / +6.8 | +3.4 / +6.6 | +6.0 / +8.9 | +4.0 |
+  | knob_tls | +3.8 / +6.7 | +4.4 / +5.9 | +10.7 / +15.0 | +1.9 |
+  | es_tls | +4.4 / +6.7 | +5.1 / +6.9 | +13.0 / +17.6 | +3.4 |
+  | es_one | +2.6 / +4.9 | +2.9 / +4.7 | +6.8 / +11.1 | +3.7 |
+  | es_tls_one | +8.6 / +7.3 | +8.9 / +7.2 | +11.7 / +16.9 | +3.4 |
+
+  Reading: (1) sharing refuted: a thread-local countdown is worse than the stripe line at every thread count
+  (knob_tls vs knob_sampled, es_tls vs ever_sampled, es_tls_one vs es_one, whose fast paths are the same
+  instructions); (2) bare costs add (64 threads: 1.3 + 2.0 vs 4.0); (3) `ever_sampled` itself fell from
+  +10.5..+14.4 (bfb3cf, and 03e1a9 agrees, binary 904da3e) to +5.9..+8.9 at 64 threads in this binary: the
+  `cell_of` refactor turned its status-split loop with duplicated tails into one path with the cell computed in
+  the cold branch, and moved the code. The bench cannot split codegen from placement; it shows the 64-thread
+  excess is the compiled loop around the lookup, not the pair's instructions. `knob_sampled` int scattered 64 at
+  -28.8 in this run is the same kind of effect in the other direction.
+- Winner for the confirm: `es_one` (best at 1 and 8 threads) beside the new `ever_sampled`; TLS arms rejected.
+  Exclusive pair-confirm 261109-224833-fa1352 at f476cf7 (arms none2, ever_bit, knob_sampled, ever_sampled,
+  es_one; reps 7, calls 262144).
 
 ## Next
 
-0. Read pair-screen 261109-222819-1a0f6c (`pair-screen-paired.md`); disassemble the winner; submit
-   `run pair-confirm <winner>` (exclusive, slot obs-bench) against the same baseline arms.
+0. Read pair-confirm 261109-224833-fa1352 (`pair-confirm-paired.md`). If `ever_sampled` or `es_one` passes
+   every row: D10 item 4 with both confirms' numbers, ready for review. Else Blocked on with the before/after
+   table and options (exact usage only; sampled only).
 1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`), fill D10's placeholders (A8TABLE,
    A8CONFIRM, A8COMMIT, A8EVERWORST, A8TLS64, A8TLSMISS, A8AA, A8EVERSAMPLED, Q7's "+17 to +60"), check the
    screen-agreement sentence; update abstract, D2 lede, Checks; rerun the chain at the head; ready for review.
