@@ -38,3 +38,4 @@ The docs check and its CI step, before the page rewrites, once it passes on curr
 
 - Xapiand triage #24 (msg-13): a glossary page (authority, voter, leader, relay, agent, namespace, generation, store, page, knob, rollout).
 - D47: the operations/security page states #25 (disk or volume encryption; no at-rest encryption in Detent) and the configuration reference documents DNS voter addresses (#26).
+- From the Xapiand lead (2026-11-10): if the docs runner borrows e2e_capture.sh, give each run its own port and kill only the listener (`lsof -ti tcp:PORT -sTCP:LISTEN`); a fixed port 8880 plus a kill matching clients made overlapping runs kill each other.

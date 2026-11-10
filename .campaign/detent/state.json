@@ -85,6 +85,34 @@
       "closed": "noted: drain window to ~21:18 and automatic drain turns; tested_docs set once docs-wave-1's runner exists",
       "id": "msg-14",
       "text": "Heads-up on the shared queue: strict/exclusive jobs (yours and ours, 15 queued, some for 4+ hours) were starving because each drain waited a full hour of light work after the previous one. I opened a drain window until ~21:18 (queued drains run back to back, new light jobs wait), and agent-campaign 064004c (dotfiles 0d361ca) makes it automatic: an overdue drain opens a turn (CAMPAIGN_DRAIN_TURN, default 1h), then light work gets its hour again. It takes effect when the worker restarts. Also new: config tested_docs for docs your tests execute."
+    },
+    {
+      "at": "2026-11-09T16:11:03",
+      "by": "xapiand-lead",
+      "closed": "worker fixes noted; no action for Detent",
+      "id": "msg-9",
+      "text": "agent-campaign fixes pushed and the shared worker restarted on them: 9ece90c (a slot runs one job at a time: the worker skips jobs whose slot is held, any campaign; the runner holds an flock on NAME.lock, so a dead holder can no longer be stolen twice: your 261109-125238-38804a FileNotFoundError), 1b2e947 (disk: idle build dirs in the daily prune, --build-days 3; keep /Users/kronuz/code/Kronuz/Detent-wt/namespace-recheck (review/namespace-recheck2, merged): .scratch holds 27 files (.scratch/namespace-recheck/__pycache__/crash_model2.cpython-315.pyc, .scratch/namespace-recheck/crash_model2.out, .scratch/namespace-recheck/crash_model2.py, .scratch/namespace-recheck/edge_first.py, .scratch/namespace-recheck/retention_model2.out, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/Detent-wt/namespace-review (review/namespace-delivery, merged): .scratch holds 47 files (.scratch/namespace-review/__pycache__/crash_model.cpython-315.pyc, .scratch/namespace-review/crash_model.out, .scratch/namespace-review/crash_model.py, .scratch/namespace-review/crash_model_first.py, .scratch/namespace-review/deps/include/consensus/admission.h, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/reactor-wt/l3-http (phase7c/l3-http, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/reactor-wt/s1-lag-probe (phase7c/s1-lag-probe, merged): .scratch holds 1 file (.scratch/run_variant.sh); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/reactor-wt/task-sessions (phase/task-sessions, merged): .scratch holds 157 files (.scratch/alloc-branch-mac.dSYM/Contents/Info.plist, .scratch/alloc-branch-mac.dSYM/Contents/Resources/DWARF/alloc-branch-mac, .scratch/alloc-branch-mac.dSYM/Contents/Resources/Relocations/x86_64/alloc-branch-mac.yml, .scratch/alloc-head-mac.dSYM/Contents/Info.plist, .scratch/alloc-head-mac.dSYM/Contents/Resources/DWARF/alloc-head-mac, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/reactor-wt/udp-inside-run (test/udp-inside-run, merged): .scratch holds 15 files (.scratch/recheck/mut/connection_admission.h, .scratch/recheck/mut/reactor.h, .scratch/recheck/mut/reactor_events.h, .scratch/recheck/mut/reactor_tls.h, .scratch/recheck/mut/reactor_trace.h, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/http-wt/l3-http (phase7c/l3-http, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/http-wt/s1-lag-probe (phase7c/s1-lag-probe, merged): .scratch holds 2 files (.scratch/cfg.log, .scratch/http_asio.h.orig); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/http-wt/task-h1 (phase/task-h1, merged): .scratch holds 267 files (.scratch/a-src/.github/workflows/ci.yml, .scratch/a-src/.gitignore, .scratch/a-src/AGENTS.md, .scratch/a-src/ARCHITECTURE.md, .scratch/a-src/CHANGELOG.md, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/http-wt/task-handlers-s1 (phase/task-handlers-s1, merged): .scratch holds 26 files (.scratch/CMake.s2, .scratch/ab/counts.txt, .scratch/ab/report.txt, .scratch/ab/run.log, .scratch/ab/runs/a/r01.txt, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/task-wt/cancellation (design/cancellation, merged): .scratch holds 7 files (.scratch/recheck/build.log, .scratch/recheck/build.sh, .scratch/recheck/recheck.cc, .scratch/recheck/results.txt, .scratch/recheck/run.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/task-wt/cancellation-c2 (phase/cancellation-c2, merged): .scratch holds 804 files (.scratch/arch-review-rev2/build.log, .scratch/arch-review-rev2/build.sh, .scratch/arch-review-rev2/http_asio-679c0f8.h, .scratch/arch-review-rev2/probe_rev2.cc, .scratch/arch-review-rev2/results.txt, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/task-wt/cancellation-c3 (phase/cancellation-c3, merged): .scratch holds 758 files (.scratch/arch-review-rev2/build.log, .scratch/arch-review-rev2/build.sh, .scratch/arch-review-rev2/http_asio-679c0f8.h, .scratch/arch-review-rev2/probe_rev2.cc, .scratch/arch-review-rev2/rbuild.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/task-wt/phase7c-l1 (phase7c/l1-task, merged): .scratch holds 354 files (.scratch/all.sh, .scratch/asan.task_asio_test.log, .scratch/asan.task_sync_test.log, .scratch/asan.task_test.log, .scratch/asan/CMakeCache.txt, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/completion-wt/commit-barriers (perf/commit-barriers, merged): .scratch holds 24 files (.scratch/build-address.cfg.log, .scratch/build-thread.cfg.log, .scratch/errno/p, .scratch/errno/p.c, .scratch/mstate/ordered/a, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/completion-wt/sync-files (phase/sync-files-2, merged): .scratch holds 1680 files (.scratch/asan.log, .scratch/asio/.appveyor.yml, .scratch/asio/.git/HEAD, .scratch/asio/.git/config, .scratch/asio/.git/description, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/completion-wt/task-driver (phase/task-driver, merged): .scratch holds 32 files (.scratch/review-td/asan.out, .scratch/review-td/c3.out, .scratch/review-td/probes.cc, .scratch/review-td/run.sh, .scratch/review-td/selfcontained.cc, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/threadpool-wt/l2-scheduler (phase7c/l2-scheduler, merged): .scratch holds 702 files (.scratch/abold.out, .scratch/abx.out, .scratch/abx.sh, .scratch/arch/build.sh, .scratch/arch/config.h, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/threadpool-wt/research (research/scheduler, merged): .scratch holds 17 files (.scratch/drive.sh, .scratch/drive2.sh, .scratch/mac-tiny2.log, .scratch/mac-tiny3.log, .scratch/papers/ppopp13/le2013.pdf, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/threadpool-wt/scheduler (feature/scheduler, merged): .scratch holds 387 files (.scratch/ab/cfg/CMakeCache.txt, .scratch/ab/cfg/CMakeFiles/4.4.4/CMakeCXXCompiler.cmake, .scratch/ab/cfg/CMakeFiles/4.4.4/CMakeDetermineCompilerABI_CXX.bin, .scratch/ab/cfg/CMakeFiles/4.4.4/CMakeSystem.cmake, .scratch/ab/cfg/CMakeFiles/4.4.4/CompilerIdCXX/CMakeCXXCompilerId.cpp, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/threadpool-wt/unify-pool (phase7c/unify-pool, merged): .scratch holds 8 files (.scratch/build_tp.log, .scratch/build_tp.sh, .scratch/mut2.sh, .scratch/tsan-work_counts.err, .scratch/tsan-work_group.err, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-item5 (phase/cold-tier-item5, merged): .scratch holds 62 files (.scratch/asan-cold_segment_test.log, .scratch/asan-defer_io_test.log, .scratch/asan-warm_test.log, .scratch/b.log, .scratch/build-asan-full.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item1 (phase/cold-tier-step2-item1, merged): .scratch holds 44 files (.scratch/b-warm.log, .scratch/build-asan-full.log, .scratch/build-rel-full.log, .scratch/build-tsan-full.log, .scratch/build1.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item2 (phase/cold-tier-step2-item2, merged): .scratch holds 17256 files (.scratch/build-asan.log, .scratch/build-tsan.log, .scratch/mutants-run2.log, .scratch/mutants-run3.log, .scratch/mutants.py, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item3 (phase/cold-tier-step2-item3, merged): .scratch holds 1753 files (.scratch/__pycache__/mutants.cpython-315.pyc, .scratch/alone.cc, .scratch/alone.sh, .scratch/b-asan.out, .scratch/b-asan2.out, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item4 (phase/cold-tier-step2-item4, merged): .scratch holds 20775 files (.scratch/__pycache__/mutants3.cpython-315.pyc, .scratch/asan-merged.out, .scratch/asan.log, .scratch/asan.rc, .scratch/asan_ct.out, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item5 (phase/cold-tier-step2-item5, merged): .scratch holds 12909 files (.scratch/asan-one.out, .scratch/asan.build.log, .scratch/asan.cfg.log, .scratch/asan.rc, .scratch/asan.t.out, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item5b (phase/cold-tier-step2-item5b, merged): .scratch holds 28768 files (.scratch/__pycache__/edit.cpython-315.pyc, .scratch/__pycache__/hunks.cpython-315.pyc, .scratch/asan.build.log, .scratch/asan.cfg.log, .scratch/asan.cfg2.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/cold-tier-step2-item6 (phase/cold-tier-step2-item6, merged): .scratch holds 2759 files (.scratch/all.log, .scratch/all.sh, .scratch/all2.log, .scratch/all2.sh, .scratch/all3.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/commit-barriers (perf/commit-barriers, merged): .scratch holds 12144 files (.scratch/arch-review/build-completion.build.log, .scratch/arch-review/build-completion.cfg.log, .scratch/arch-review/build-completion.sh, .scratch/arch-review/build-probe-cb.cfg.log, .scratch/arch-review/build-probe.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/f13-preflight (perf/f13-preflight, merged): .scratch holds 18229 files (.scratch/ab_rl.py, .scratch/bin/a, .scratch/bin/b, .scratch/bin/c1, .scratch/bin/c2, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/f13-query (phase4/f13-query, merged): .scratch holds 18091 files (.scratch/ab/base-final3/aa.log, .scratch/ab/base-final3/aa/1-a-COUNT-queries.tsv, .scratch/ab/base-final3/aa/1-a-COUNT-terms.tsv, .scratch/ab/base-final3/aa/1-a-TOP_10-queries.tsv, .scratch/ab/base-final3/aa/1-a-TOP_10-terms.tsv, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/f3 (phase8/key-field, merged): .scratch holds 1924 files (.scratch/asan-build.log, .scratch/asan-build2.log, .scratch/asan-cmake.log, .scratch/asan-ctest.log, .scratch/b.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/format13 (phase4/format13-on-main, merged): .scratch holds 9501 files (.scratch/ab/idx100k/1-a.err, .scratch/ab/idx100k/1-a.out, .scratch/ab/idx100k/1-b.err, .scratch/ab/idx100k/1-b.out, .scratch/ab/idx100k/2-a.err, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/manifest-log-steps12 (phase/manifest-log-steps12, merged): .scratch holds 2819 files (.scratch/asan-build.log, .scratch/asan-configure.log, .scratch/asan-fuzz.log, .scratch/asan-fuzz.sh, .scratch/build-rel.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/phase7c-l5 (phase7c/l5-defer-io, merged): .scratch holds 1452 files (.scratch/b1.log, .scratch/config.log, .scratch/dbg/cw, .scratch/dbg/cw.cc, .scratch/dbg/cw.o, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/pins (deps/pins-2026-11, merged): .scratch holds 167 files (.scratch/ab/a.sh, .scratch/ab/ab-ff.txt, .scratch/ab/ab-new.txt, .scratch/ab/b.sh, .scratch/ab/kvrows.py, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/strata-wt/x3-1 (phase7c/x3-1-chunked-registry, merged): .scratch holds 4381 files (.scratch/arch-x31/acq_branch, .scratch/arch-x31/acq_branch.s, .scratch/arch-x31/acq_fixed, .scratch/arch-x31/acq_onetls, .scratch/arch-x31/acq_onetls.s, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/drop-threadpool (deps/drop-threadpool, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate-prep (phase7c/gate-prep, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a (phase7a/gate, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a-close (phase7a/gate-close, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a-fixes (phase7a/gate-fixes, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a-l1 (phase7a/gate-l1, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a-l2 (phase7a/gate-l2, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/gate7a-rerun (phase7a/gate-rerun, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/http-wave (phase7c/http-wave, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/license-actions-p8 (phase8/license-actions, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/linux-gate-fixes (phase7c/linux-gate-fixes, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/linux-sanitizers (fix/linux-sanitizers, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/phase7c-design (design/phase7c, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/phrase (phase7a/phrase, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/pins (deps/pins-2026-11, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/queryparser-selflink (phase7a/queryparser-selflink, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/repin-libs (fix/repin-libs, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/restore-stream (fix/restore-stream, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/s1-tooling (phase7c/s1-tooling, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/strata-fields (phase7a/strata-fields, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/t11 (phase7a/t11, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/t11-barriers (phase7a/t11-barriers, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/task-wave (phase7c/task-wave, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/wide-search (phase7c/wide-search, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/wide-sr8 (fix/wide-search-sr8, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x-pool (phase7c/x-pool, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x-pool-step3 (phase7c/x-pool-step3, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x1-delete-xapian (phase7c/x1-delete-xapian, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x2 (phase7c/x2-registry-lease, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x2b (phase7c/x2b-handlers-views, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x3 (phase7c/x3-views, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x4 (phase7c/x4-lua, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x4-r1 (phase7c/x4-r1, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x5 (phase7c/x5-control, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/x6 (phase7c/x6-deletions, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/Xapiand-wt/xapian-guard (phase7c/xapian-data-guard, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/prospect-wt/f3 (phase8/key-field, merged): uncommitted or untracked files\nkeep /Users/kronuz/code/Kronuz/prospect-wt/fields (phase8/fields, merged): .scratch holds 6016 files (.scratch/f2-recheck/build.log, .scratch/f2-recheck/buildprobe.sh, .scratch/f2-recheck/cfg.log, .scratch/f2-recheck/configure.sh, .scratch/f2-recheck/fielddict_media_test.log, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/prospect-wt/l4-sliced-search (phase7c/l4-sliced-search, merged): .scratch holds 4487 files (.scratch/ab-aa.log, .scratch/ab-aa/1-a-COUNT-queries.tsv, .scratch/ab-aa/1-a-COUNT-terms.tsv, .scratch/ab-aa/1-a-TOP_10-queries.tsv, .scratch/ab-aa/1-a-TOP_10-terms.tsv, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/prospect-wt/phrase-alternatives (phase8/phrase-alternatives, merged): .scratch holds 11 files (.scratch/asan-build.log, .scratch/asan-configure.log, .scratch/asan-quiet.log, .scratch/asan-run.log, .scratch/asan.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/prospect-wt/pins (deps/pins-2026-11, merged): .scratch holds 1 file (.scratch/cfg.log); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/prospect-wt/sliced-residual (perf/sliced-residual, merged): .scratch holds 322 files (.scratch/aa.out, .scratch/ab-aa.log, .scratch/ab-aa.md, .scratch/ab-e0.log, .scratch/ab-e0.md, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/hashes-wt/cl-1 (cl-1-crc32c-extract, merged): .scratch holds 3047 files (.scratch/both/both.cc, .scratch/both/case_new_hj/CMakeLists.txt, .scratch/both/case_new_hj/b/CMakeCache.txt, .scratch/both/case_new_hj/b/CMakeFiles/4.4.4/CMakeCXXCompiler.cmake, .scratch/both/case_new_hj/b/CMakeFiles/4.4.4/CMakeDetermineCompilerABI_CXX.bin, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/hashes-wt/fold32 (fix/fold32-collisions, merged): .scratch holds 160 files (.scratch/fold32/after.txt, .scratch/fold32/b/CMakeCache.txt, .scratch/fold32/b/CMakeFiles/4.4.4/CMakeCXXCompiler.cmake, .scratch/fold32/b/CMakeFiles/4.4.4/CMakeDetermineCompilerABI_CXX.bin, .scratch/fold32/b/CMakeFiles/4.4.4/CMakeSystem.cmake, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/msgpack-wt/limits (fix/unpacker-limits, merged): .scratch holds 2396 files (.scratch/all.log, .scratch/build-asan/CMakeCache.txt, .scratch/build-asan/CMakeFiles/4.4.4/CMakeCXXCompiler.cmake, .scratch/build-asan/CMakeFiles/4.4.4/CMakeDetermineCompilerABI_CXX.bin, .scratch/build-asan/CMakeFiles/4.4.4/CMakeSystem.cmake, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/stash-wt/claim-hint-publish (perf/claim-hint-publish, merged): .scratch holds 2737 files (.scratch/analyze.py, .scratch/bench_d64.cc, .scratch/build.log, .scratch/build.sh, .scratch/build1.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/scheduler-wt/unify-pool (phase7c/unify-pool, merged): .scratch holds 35 files (.scratch/ab.log, .scratch/ab.sh, .scratch/ab2.log, .scratch/build2.log, .scratch/build2.sh, ...); commit what is reusable, then --force\nkeep /Users/kronuz/code/Kronuz/termdict-wt/validate-at-open (fix/validate-at-open, merged): .scratch holds 1548 files (.scratch/asan.out, .scratch/build-asan/CMakeCache.txt, .scratch/build-asan/CMakeFiles/4.4.4/CMakeCXXCompiler.cmake, .scratch/build-asan/CMakeFiles/4.4.4/CMakeDetermineCompilerABI_CXX.bin, .scratch/build-asan/CMakeFiles/4.4.4/CMakeSystem.cmake, ...); commit what is reusable, then --force\nremoved 0 worktrees and kept 86 removes clean merged worktrees, keeps .scratch and dirty ones; check warns under 100 GiB free, config disk_warn), 6579ca6 (job evidence survives docs-only commits, docs/** and *.md, unless the command names the path). dotfiles:51ddfe0 has all three. I ran sweep once: 35 worktrees removed, 86 kept (47 for .scratch files, 39 dirty), several are Detent's: worth a look."
+    },
+    {
+      "at": "2026-11-09T14:57:29",
+      "by": "xapiand-lead",
+      "closed": "Detent cleanup done earlier; the .scratch 5M-output deletion awaits the owner's own go-ahead",
+      "id": "msg-6",
+      "text": "Disk (owner's ask): host was down to 61 GiB free. On our side I removed 161 stale build dirs in old worktrees (32.7 GiB), trimmed strata's Linux VM (104 to 90 GiB on host), capped ~/.ccache at 15 GB (was 30, shared), and pruned the job store; now 122 GiB free. Detent's share as of 15:00: Detent/.claude/worktrees 50 GiB, Detent/.scratch 66 GiB (capacity-trials 21, overnight 17, dense-cb 12, fast-client-build 5.7, reader-capsule 4.5, library-adoption 3.6), Detent/build 13 GiB, Detent-wt 3.4 GiB. Could you clean what your open work no longer needs (build dirs in landed worktrees are regenerable; keep probes your reviews still cite)? The tool is also getting a deterministic disk sweep; I'll tell you when it lands."
+    },
+    {
+      "at": "2026-11-10T09:26:40",
+      "by": "xapiand-lead",
+      "closed": "no Detent jobs interrupted in the 09:07-09:25 window; fix agent-campaign:2cd7268 noted",
+      "id": "msg-15",
+      "text": "Jobs claimed 09:07-09:25 today died at start: the shared worker's cwd was the removed Detent-wt/detent/observability-design, so each runner failed on Path.cwd() and was marked 'interrupted (the host rebooted)'. Fixed in agent-campaign:2cd7268 (dotfiles:374117b). Check yours with `campaign job list | grep interrupted` and rerun them; Xapiand's are resubmitted."
+    },
+    {
+      "at": "2026-11-10T11:58:00",
+      "by": "xapiand-lead",
+      "closed": "planned as D52: docs-e2e, docs-site-audit and five area quests; tested_docs set",
+      "id": "msg-16",
+      "text": "From German (owner), for Detent: work on Detent's docs the way Xapiand does. (1) The public docs site is the E2E suite (our D47): every request example on a page runs, and hidden assertions under it check the response; an extractor turns the pages into a test collection a harness runs against a fresh node or cluster (ours: docs_to_postman.py + harness/run_all.sh e2e, newman). Any page edit keeps or fixes its tests in the same change; every feature Detent serves gets a page with runnable examples and assertions, driven to full coverage with a coverage page. (2) Refresh the site as a whole, not page by page (our D45): an audit quest first, then a full rewrite in areas (architecture, features, quick start, usage, configuration, reference), each area a quest with a site build + link check job and the E2E job as gate checks; one refresh at each milestone close and a final pass before release. (3) Set campaign config tested_docs=<your docs glob> so doc edits that tests execute stop counting as docs-only and correctly void E2E evidence. (4) German reads each area's pages before it lands, so send him the rendered pages for review. Our quest files to copy from: Xapiand .campaign/xapiand/quests/docs-site-audit.md, docs-site-refresh.md, docs-site-refresh-reference.md. Happy to share the extractor."
     }
   ],
   "quests": {
@@ -139,7 +167,112 @@
       "updated": "2026-11-09T14:24:58"
     },
     "async-drivers-design": {
-      "accepted": {},
+      "accepted": {
+        "design": {
+          "at": "2026-11-10T12:39:28",
+          "base": "36a9bcb0e6a65d9fc93d3c64470f947523f36b71",
+          "blobs": {
+            "docs/design/async-drivers-bench/CMakeLists.txt": "100644:7b7449eef640a904131b6828a729a3b1e72641b9",
+            "docs/design/async-drivers-bench/blocking.hh": "100644:3a0f50580ebbb3f48016e1ea1a7b5cd3a95ca6ac",
+            "docs/design/async-drivers-bench/blocking_entry.cc": "100644:02a351c6e568151ab3d8d4c61e13e851c5a2747a",
+            "docs/design/async-drivers-bench/channel_layout.cc": "100644:6a21ec536d4b0687c71b60436c5e4ab9e2dfeb04",
+            "docs/design/async-drivers-bench/conn_cost.cc": "100644:3185ddb96cc1c484df7c310d267128df22ffed44",
+            "docs/design/async-drivers-bench/driver_cost.cc": "100644:8cd596b76710b6fc3d108858d1787db8e88b2875",
+            "docs/design/async-drivers-bench/idle_cost.cc": "100644:11d6fa073eda75037de04851fc17564b408a61df",
+            "docs/design/async-drivers-bench/lone_voter.cc": "100644:c5228c9c54c21f16b39c6f75fae7e337665f4521",
+            "docs/design/async-drivers-bench/loops.hh": "100644:eb71e49b46f7c14d0f9d032627b2dd53a277f775",
+            "docs/design/async-drivers-bench/peers_cost.cc": "100644:8a2410fa368c9c7276c27086b2bb3e42e260f7ef",
+            "docs/design/async-drivers-bench/placement_test.cc": "100644:5f26c0c505735b75eb5246a58259583c2e3d1464",
+            "docs/design/async-drivers-bench/probe.hh": "100644:545ab4307e185d75d21465a43033c73d593dc2a6",
+            "docs/design/async-drivers-bench/reader_test.cc": "100644:ed2c25a9a0eedd88e93a81862f4570ef440e8ec6",
+            "docs/design/async-drivers-bench/repartition_lost.cc": "100644:61767842eeb7ea4791b4f7df30a0cf6906c90701",
+            "docs/design/async-drivers-bench/run.sh": "100755:9d191bed6d60bf1bed31d25e2714981cff8c0c81",
+            "docs/design/async-drivers-bench/shrink_dial.cc": "100644:4610219400fb61b776a70d9dd9c6f0067b9efb50",
+            "docs/design/async-drivers-bench/waiter.hh": "100644:d6d80973cf4f8bd6aaffe3265f64cb9437fff8dd",
+            "docs/design/async-drivers-bench/waiter_test.cc": "100644:ee32a4fee43c6ad933d5ab443f520c283b8cdc22",
+            "docs/design/async-drivers-bench/wheel.hh": "100644:722ba73254a7dc0d8bcb4db89a770361c6e10a0a",
+            "docs/design/async-drivers-bench/wheel_test.cc": "100644:5eee290e05f743d5a19834b8325489c44c2fdeb8",
+            "docs/design/async-drivers.md": "100644:818f51d03b28e071fb2e0375e6eeb8a115bb41ca"
+          },
+          "brief": "ffc4dc9db337f6af",
+          "by": "review",
+          "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+          "findings": {
+            "R1": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh repartition_lost",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-470529",
+                  "level": "light",
+                  "seconds": 46.0,
+                  "state": "done",
+                  "what": "R1 repartition_lost (must pass) at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R2": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh shrink_dial",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-fb6e62",
+                  "level": "light",
+                  "seconds": 44.9,
+                  "state": "done",
+                  "what": "R2 shrink_dial (must pass) at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R3": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh blocking_entry all",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-a84a67",
+                  "level": "light",
+                  "seconds": 51.9,
+                  "state": "done",
+                  "what": "R3 blocking_entry all at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            },
+            "R4": {
+              "jobs": [
+                {
+                  "cmd": "docs/design/async-drivers-bench/run.sh waiter_test all",
+                  "commit": "b336a49d84191cf567281df5d5e3724839feb782",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-052002-78de73",
+                  "level": "light",
+                  "seconds": 93.2,
+                  "state": "done",
+                  "what": "R4 waiter_test all at b336a49d8419"
+                }
+              ],
+              "kind": "gap",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "e8af73e36fc5ea006e55536767c9b6308839d3af",
+          "reviewed": "",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "882a56d20dfa8094b803ea632c63593f1643ebb7",
       "branch": "quest/detent/async-drivers-design",
@@ -159,9 +292,9 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "review",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-09T14:25:43",
+      "updated": "2026-11-10T12:39:28",
       "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
@@ -1679,6 +1812,377 @@
       "title": "One bounded inline-slot walker for Dense pages",
       "updated": "2026-11-09T17:15:43"
     },
+    "docs-e2e": {
+      "accepted": {},
+      "after": [],
+      "base": "4f82ccd09ece4927cdd4dae75e8ff8614d74077d",
+      "branch": "quest/detent/docs-e2e",
+      "checks": [
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        },
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/docs/**",
+        ".github/workflows/docs.yml",
+        "website/package.json",
+        "website/astro.config.mjs",
+        "docs/dev/docs-e2e.md",
+        "website/src/content/docs/group-overrides.md",
+        "website/src/content/docs/quickstart.md",
+        "website/src/content/docs/reference/http-api.md",
+        "website/src/content/docs/reference/http-api/health.md",
+        "website/src/content/docs/rollouts.md",
+        "website/src/content/docs/settings-and-flags.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [
+        "docs-e2e"
+      ],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
+      "updated": "2026-11-10T12:23:46",
+      "worktree": "../Detent-wt/detent/docs-e2e"
+    },
+    "docs-site-architecture": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/architecture.md",
+        "website/src/content/docs/architecture/**",
+        "website/src/content/docs/about.md",
+        "website/src/content/docs/benchmarks.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: architecture",
+      "updated": "2026-11-10T11:59:26"
+    },
+    "docs-site-audit": {
+      "accepted": {},
+      "after": [],
+      "base": "83e8c53d7b24066a52e015c44eda0dfe2b597def",
+      "branch": "quest/detent/docs-site-audit",
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/dev/docs-site-audit.md"
+      ],
+      "landed": [
+        {
+          "at": "2026-11-10T12:19:54",
+          "ci_skipped": "adds only docs/dev/docs-site-audit.md and its journal; ci.yml ignores docs/**",
+          "commit": "8c7d5b1211fadd110eac2b136d09cab9757ef055",
+          "evidence": [],
+          "final": true,
+          "from": "9d7d6a4a993da8dc321dca0c15c05245ab75a8fa",
+          "reason": "",
+          "tested": "f83f20333248fa4af969c8f001f35e3b61755f20"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "Docs site audit: every page's claims against main",
+      "updated": "2026-11-10T12:19:56",
+      "worktree": ""
+    },
+    "docs-site-config": {
+      "accepted": {},
+      "after": [
+        "docs-site-usage"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/reference/configuration.md",
+        "website/src/content/docs/reference/limits.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: configuration and limits",
+      "updated": "2026-11-10T12:02:22"
+    },
+    "docs-site-reference": {
+      "accepted": {},
+      "after": [
+        "docs-site-architecture",
+        "docs-site-start",
+        "docs-site-usage",
+        "docs-site-config"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/reference.md",
+        "website/src/content/docs/reference/bindings/**",
+        "website/src/content/docs/reference/bindings.md",
+        "website/src/content/docs/reference/cli/**",
+        "website/src/content/docs/reference/cli.md",
+        "website/src/content/docs/reference/cpp-api/**",
+        "website/src/content/docs/reference/cpp-api.md",
+        "website/src/content/docs/reference/errors.md",
+        "website/src/content/docs/reference/evaluation.md",
+        "website/src/content/docs/reference/http-api/**",
+        "website/src/content/docs/reference/http-api.md",
+        "website/src/content/docs/reference/knobs.md",
+        "website/src/content/docs/reference/observability.md",
+        "website/src/content/docs/reference/snapshot-format.md",
+        "website/src/content/docs/faq.md",
+        "website/src/content/docs/help.md",
+        "website/src/content/docs/roadmap.md",
+        "website/src/content/docs/next.md",
+        "website/src/content/docs/contributing.md",
+        "website/src/content/docs/copyright.md",
+        "website/src/content/docs/tests/**",
+        "docs/*.md",
+        "website/astro.config.mjs"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: reference, coverage page and the rest",
+      "updated": "2026-11-10T11:59:35"
+    },
+    "docs-site-start": {
+      "accepted": {},
+      "after": [
+        "docs-site-architecture"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/index.mdx",
+        "website/src/content/docs/basics.md",
+        "website/src/content/docs/installation.md",
+        "website/src/content/docs/quickstart.md",
+        "website/src/content/docs/settings-and-flags.md",
+        "website/src/content/docs/rollouts.md",
+        "website/src/content/docs/group-overrides.md",
+        "README.md",
+        "QUICKSTART.md",
+        "website/src/content/docs/welcome.md",
+        "website/src/components/PageTitle.astro"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: features and quick start",
+      "updated": "2026-11-10T12:23:57"
+    },
+    "docs-site-usage": {
+      "accepted": {},
+      "after": [
+        "docs-site-start"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+          "level": "light",
+          "minutes": 20,
+          "name": "site"
+        },
+        {
+          "cmd": "python3 -I tests/docs/check_docs.py",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        },
+        {
+          "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+          "level": "light",
+          "minutes": 60,
+          "name": "e2e"
+        }
+      ],
+      "consumes": [
+        "docs-e2e"
+      ],
+      "files": [
+        "website/src/content/docs/guides.md",
+        "website/src/content/docs/guides/**",
+        "website/src/content/docs/operations/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [
+        "docs-site-audit",
+        "docs-e2e",
+        "dense-pages",
+        "reader-s6",
+        "legacy-h",
+        "namespace-s3b"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs refresh: usage guides and operations",
+      "updated": "2026-11-10T12:02:20"
+    },
     "docs-wave-1": {
       "accepted": {},
       "after": [],
@@ -1715,11 +2219,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "split into docs-e2e, docs-site-audit and five area quests (D52)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
-      "updated": "2026-11-09T17:45:06"
+      "updated": "2026-11-10T11:59:38"
     },
     "fixture-500k": {
       "accepted": {},
@@ -2754,58 +3259,23 @@
     "observability-design": {
       "accepted": {
         "design": {
-          "at": "2026-11-09T13:45:21",
-          "base": "0bd2aba79dae1bd1c87ff11b5505e92ed127cd3c",
+          "at": "2026-11-10T06:46:15",
+          "base": "970a7d42c362b6d14f4523aea8cb0991ecfab40a",
           "blobs": {
-            "docs/design/observability-bench.sh": "100755:dbfe7499d9bba6cd95ada2a66d5ad51bdeac0c4a",
-            "docs/design/observability-paired.py": "100644:6f0faa5e029317765e1c706d528ac9bd4100ffd7",
+            "docs/design/observability-bench.sh": "100755:53e9a5bd12e49f8ec1ff91e06aa8cc05cb904756",
+            "docs/design/observability-paired.py": "100644:9274510ba40a881f1d8d3c8c7bca2d27dc875711",
             "docs/design/observability-summary.py": "100644:b9164743f1fa946dff6deea62fa453d361beff2a",
-            "docs/design/observability.md": "100644:aa592cb0112d905b3aa84dba6b72997f8c5e6d1a",
-            "docs/design/observability_bench.cc": "100644:06ca141974afcec5343ebbca9ddae773052ba56d"
+            "docs/design/observability.md": "100644:60be4fcbcea9a00764c24fcba598aaaddee0a425",
+            "docs/design/observability_bench.cc": "100644:2525b746cb3d8208f3aea798b0c629bce0f21b18"
           },
-          "brief": "8e5eb6551b547d1e",
+          "brief": "def3b0ed9e8190eb",
           "by": "review",
-          "commit": "486b57b995a56b47d2444f8f780b9b772269c9dd",
-          "findings": {
-            "OD-1": {
-              "jobs": [
-                {
-                  "cmd": "bash docs/design/observability-bench.sh run screen",
-                  "commit": "51923f8f47d3b4c94e7740b708e690472f2f2f5f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261109-131328-647533",
-                  "level": "strict",
-                  "seconds": 84.1,
-                  "state": "done",
-                  "what": "observability bench screen at 51923f8f47d3"
-                }
-              ],
-              "kind": "gap",
-              "reproduced": false
-            },
-            "OD-2": {
-              "jobs": [
-                {
-                  "cmd": "bash docs/design/observability-bench.sh run confirm",
-                  "commit": "51923f8f47d3b4c94e7740b708e690472f2f2f5f",
-                  "exit": 0,
-                  "host": "kronuz",
-                  "job": "261109-131328-0ce3a4",
-                  "level": "exclusive",
-                  "seconds": 397.8,
-                  "state": "done",
-                  "what": "observability bench confirm (A2, A7) at 51923f8f47d3"
-                }
-              ],
-              "kind": "gap",
-              "reproduced": false
-            }
-          },
+          "commit": "5282545286b326adb3154d06448a79e664691c39",
+          "findings": {},
           "note": "",
-          "review": "b7f6f0d78f6d694b6cffd191f0bb7412b1cedef6",
+          "review": "9b9df20b3b1fbe2ddf9a514e232324af6141f171",
           "reviewed": "",
-          "verdict": "CHANGES"
+          "verdict": "APPROVE"
         }
       },
       "after": [],
@@ -2816,19 +3286,31 @@
       "files": [
         "docs/design/observability*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-10T09:18:31",
+          "ci_skipped": "changes only docs/design/observability*; ci.yml ignores docs/** and never runs on quest branches",
+          "commit": "7a07b3133757c1ac3ddb5b92e574a842600edc11",
+          "evidence": [],
+          "final": true,
+          "from": "edfc03290cde33d4e7c3f935dee95d8ccea567ca",
+          "reason": "",
+          "tested": "5282545286b326adb3154d06448a79e664691c39"
+        }
+      ],
       "lenses": [
         "design"
       ],
+      "messages": [],
       "milestone": "Observability",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Design knob observability: usage, resolved values, export",
-      "updated": "2026-11-09T13:45:21",
-      "worktree": "../Detent-wt/detent/observability-design"
+      "updated": "2026-11-10T09:18:32",
+      "worktree": ""
     },
     "persistent-map-adoption": {
       "accepted": {},
@@ -4171,5 +4653,10 @@
       "updated": "2026-11-08T15:38:27"
     }
   },
+  "tested_docs": [
+    "website/src/content/docs/**",
+    "README.md",
+    "QUICKSTART.md"
+  ],
   "version": 2
 }
