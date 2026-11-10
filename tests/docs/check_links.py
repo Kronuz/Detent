@@ -3,7 +3,7 @@
 
 usage: check_links.py DIST [BASE]      (BASE defaults to /Detent, the site's base path)
 Exit status: 0 when every internal href resolves to a page or file and every fragment to an id
-on its page, 1 when any is broken.
+on its page (or is listed in link_exceptions.txt, which fails once the link is fixed), 1 otherwise.
 """
 
 from __future__ import annotations
@@ -49,6 +49,28 @@ def load(dist: str) -> dict[str, Page]:
     return pages
 
 
+def load_exceptions() -> dict[tuple[str, str], str]:
+    """`PAGE HREF -- reason` lines of link_exceptions.txt: broken links an area quest still owes."""
+    listed: dict[tuple[str, str], str] = {}
+    path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "link_exceptions.txt"
+    )
+    if not os.path.exists(path):
+        return listed
+    with open(path, encoding="utf-8") as f:
+        for number, line in enumerate(f.read().splitlines(), 1):
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            head, _, reason = line.partition(" -- ")
+            parts = head.split()
+            if len(parts) != 2 or not reason.strip():
+                raise SystemExit(
+                    f"link_exceptions.txt:{number}: expected 'PAGE HREF -- reason'"
+                )
+            listed[(parts[0], parts[1])] = reason.strip()
+    return listed
+
+
 def main(argv: list[str]) -> int:
     if not 2 <= len(argv) <= 3:
         print(__doc__)
@@ -91,12 +113,18 @@ def main(argv: list[str]) -> int:
                     broken.setdefault(src, []).append(href)
             elif not os.path.exists(os.path.join(dist, key.lstrip("/"))):
                 broken.setdefault(src, []).append(href)
-    for src, hrefs in broken.items():
-        print(f"BROKEN {src}: {', '.join(sorted(set(hrefs)))}")
+    listed = load_exceptions()
+    found = {(src, href) for src, hrefs in broken.items() for href in hrefs}
+    new = sorted(found - listed.keys())
+    stale = sorted(listed.keys() - found)
+    for src, href in new:
+        print(f"BROKEN {src}: {href}")
+    for src, href in stale:
+        print(f"STALE exception {src} {href}")
     print(
-        f"link check: {len(pages)} pages, {total} internal links, {sum(len(set(h)) for h in broken.values())} broken"
+        f"link check: {len(pages)} pages, {total} internal links, {len(found)} broken, {len(new)} unlisted, {len(stale)} stale"
     )
-    return 1 if broken else 0
+    return 1 if new or stale else 0
 
 
 if __name__ == "__main__":
