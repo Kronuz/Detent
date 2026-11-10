@@ -3355,6 +3355,8 @@
       "after": [
         "daemon-ready-leader"
       ],
+      "base": "93ced6efc6bf93168ed4971a4d36d58eb42d474f",
+      "branch": "quest/detent/namespace-s5-1",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3396,11 +3398,13 @@
       "provides": [
         "namespace-positions"
       ],
+      "reason": "started by force: daemon-ready-leader changes 42 lines of src/detent_authority/service.* (readiness); S5.1 lands after it (--after)",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S5.1: per-namespace positions, incarnations, directory stream, enabling entry",
-      "updated": "2026-11-10T13:11:04"
+      "updated": "2026-11-10T13:12:11",
+      "worktree": "../Detent-wt/detent/namespace-s5-1"
     },
     "namespace-s5-2": {
       "accepted": {},
