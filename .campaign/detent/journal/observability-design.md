@@ -1,6 +1,6 @@
 # observability-design: journal
 
-State: waiting on jobs 261109-202834-bfb3cf
+State: waiting on jobs 261109-222812-b203c8 261109-222819-1a0f6c
 Quest: .campaign/detent/quests/observability-design.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -39,8 +39,23 @@ ever_bit,ever_sampled,dm_cache` with `--interleave 1 --threads 1,8,64`:
 - Lead message (2026-11-09): owner accepted Q1-Q7 (PLAN.md D47, main `b16115e`); merged main; Q section rewritten
   as "Owner decisions (PLAN.md D47)"; D10 drafted with the ever-bit shape (per-generation bitmaps, D5 fold).
 
+- Exact-confirm 261109-202834-bfb3cf (exit 0) read: `ever_sampled` misses OB1 at 64 threads (int hot +11.9,
+  int scattered +10.5, bool hot +11.3, bool scattered +14.4); parts alone pass (`ever_bit` +0.2 to +4.6,
+  `knob_sampled` +4.3 to +6.9). Superadditive only with the lookup: bare screen 03e1a9 at 64 threads is
+  `ever_bit` 1.6 + `knob_sampled` 2.0 vs pair 4.1.
+- Diagnosis so far (disassembly of `block<ever_sampled>` in the slot binary at 09f038e): the bit is already
+  test-before-set (load, test, `lock or` only on a clear bit); the countdown is per stripe
+  (`stripe_lines[stripe].cell[7]`, its own line), not thread-local, so 64 threads on 54 distinct stripes share
+  10 countdown lines; the S6 lookup pins with a `lock xadd` (core.cc:301, seq_cst) that drains the store buffer,
+  so the countdown store of the previous lookup must own its line before the next pin. Two branches per lookup.
+- Candidates at `4ee258e`: `knob_tls` (countdown thread-local), `es_tls` (bit + thread-local countdown),
+  `es_one` (bit + stripe countdown, one branch, cold slow half), `es_tls_one` (both). Build 261109-222812-b203c8,
+  strict pair-screen 261109-222819-1a0f6c (arms none2, ever_bit, knob_sampled, ever_sampled + the four; bare too).
+
 ## Next
 
+0. Read pair-screen 261109-222819-1a0f6c (`pair-screen-paired.md`); disassemble the winner; submit
+   `run pair-confirm <winner>` (exclusive, slot obs-bench) against the same baseline arms.
 1. A8: read exact-confirm 261109-202834-bfb3cf (`exact-confirm-paired.md`), fill D10's placeholders (A8TABLE,
    A8CONFIRM, A8COMMIT, A8EVERWORST, A8TLS64, A8TLSMISS, A8AA, A8EVERSAMPLED, Q7's "+17 to +60"), check the
    screen-agreement sentence; update abstract, D2 lede, Checks; rerun the chain at the head; ready for review.
