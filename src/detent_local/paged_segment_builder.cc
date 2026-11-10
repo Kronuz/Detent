@@ -74,7 +74,7 @@ void SegmentBuilder::append(const SealedPage &page) {
 	state.reference = page.summary;
 	state.reference.segment = state.ownership.segment;
 	state.reference.offset = static_cast<std::uint32_t>(start);
-	p::encode_reference(state.reference);
+	p::validate(state.reference);
 	state.offset = 0;
 	state.phase = Impl::Phase::Padding;
 }

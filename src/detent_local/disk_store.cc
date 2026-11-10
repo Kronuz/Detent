@@ -1273,7 +1273,7 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
-		if (slot().proof.layout_version == 2) {
+		if (paged::obsolete_paged_layout(slot().proof.layout_version)) {
 			slot().image_scope = detail::validate_obsolete_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes &&
 				paged::metadata_commitment(bytes) != slot().proof.image_checksum)

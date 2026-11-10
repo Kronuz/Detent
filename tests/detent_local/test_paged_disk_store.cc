@@ -211,7 +211,7 @@ int main() {
 					{
 						const auto prepared =
 						    l::detail::PreparedReader::open(root, ::getuid(), options.recovery_limits);
-						check(prepared.descriptor == wanted && prepared.logical == logical);
+						check(prepared.descriptor == wanted && prepared.state_commitment == logical);
 						check(prepared.view.get("app", "count").value() == (progress ? INT64_MIN : 1));
 					}
 					auto recovered = l::detail::ManagedRecovery::recover(

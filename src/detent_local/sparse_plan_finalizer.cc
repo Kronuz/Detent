@@ -9,7 +9,7 @@ SparsePlanFinalizer::SparsePlanFinalizer(d::RetirementHandle<PagedPlanState> sta
 	: plan(std::move(state)), account(std::move(heap)),
 	  old_live(d::StorageAllocator<SegmentReachability>(account)),
 	  added(d::StorageAllocator<SegmentInput>(account)), limits(bounds),
-	  maximum_output_bytes(maximum), expected_logical(expected) {
+	  maximum_output_bytes(maximum), expected_commitment(expected) {
 	old_live.reserve(plan->registry_->inputs().size());
 }
 void SparsePlanFinalizer::start(TrieOverlay &&source) {
@@ -59,8 +59,8 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 				if (!assembly->done())
 					return;
 				plan->image_.emplace(assembly->take());
-				if (expected_logical &&
-					p::state_commitment(plan->image_->root()) != *expected_logical)
+				if (expected_commitment &&
+					p::state_commitment(plan->image_->root()) != *expected_commitment)
 					throw std::invalid_argument(
 						"compaction changed logical state or exceeded output bound");
 				added.reserve(plan->image_->segments().size());

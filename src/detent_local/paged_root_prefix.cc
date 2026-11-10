@@ -64,7 +64,7 @@ validate_paged_root_prefix(std::span<const char> bytes) {
 	matches(bytes, 0, framing);
 	zeros(bytes, 48, 56);
 	zeros(bytes, 148, 152);
-	zeros(bytes, 225, 320);
+	zeros(bytes, 228, 320);
 	constexpr std::array<char, 4> semantic{0, 0, 0, 1};
 	matches(bytes, 144, semantic);
 	zeros(bytes, 152, 159);
@@ -79,31 +79,34 @@ validate_paged_root_prefix(std::span<const char> bytes) {
 		if (!pages) {
 			require(!live && !keys);
 			zeros(bytes, 40, 48);
-			zeros(bytes, 160, 225);
+			zeros(bytes, 160, 228);
 		} else {
+			// The tree reference is a child entry: content [160,208), placement [208,228).
 			require(keys && pages < 2 * keys && pages <= live / p::minimum_page_bytes);
 			if (bytes.size() > 40)
 				require(minimum(bytes, 40, 8) <= pages);
 			if (bytes.size() >= 48)
 				require(read_integer(bytes, 40, 8) != 0);
-			nonzero(bytes, 160, 16);
-			if (bytes.size() > 176)
-				require(minimum(bytes, 176, 4) <= p::segment_bytes);
-			if (bytes.size() > 180)
-				require(minimum(bytes, 180, 4) <= p::page_bytes);
-			if (bytes.size() >= 180)
-				require(read_integer(bytes, 176, 4) % 8 == 0);
-			if (bytes.size() >= 184) {
-				const auto offset = read_integer(bytes, 176, 4), length = read_integer(bytes, 180, 4);
-				require(length >= p::minimum_page_bytes && length <= p::segment_bytes - offset &&
-						length <= live);
-				require(pages - 1 <= (live - length) / p::minimum_page_bytes);
+			nonzero(bytes, 160, 32);
+			if (bytes.size() >= 200)
+				require(read_integer(bytes, 192, 8) == keys);
+			if (bytes.size() > 200)
+				require(minimum(bytes, 200, 4) <= p::page_bytes);
+			if (bytes.size() >= 204) {
+				const auto length = read_integer(bytes, 200, 4);
+				require(length >= p::minimum_page_bytes && length <= live &&
+						pages - 1 <= (live - length) / p::minimum_page_bytes);
 			}
-			if (bytes.size() >= 192)
-				require(read_integer(bytes, 184, 8) == keys);
-			if (bytes.size() >= 193)
-				require(bytes[192] != 0);
-			nonzero(bytes, 193, 32);
+			if (bytes.size() >= 205)
+				require(bytes[204] != 0);
+			zeros(bytes, 205, 208);
+			nonzero(bytes, 208, 16);
+			if (bytes.size() > 224)
+				require(minimum(bytes, 224, 4) <= p::segment_bytes);
+			if (bytes.size() >= 228) {
+				const auto offset = read_integer(bytes, 224, 4), length = read_integer(bytes, 200, 4);
+				require(offset % 8 == 0 && length <= p::segment_bytes - offset);
+			}
 		}
 	}
 	if (bytes.size() >= 160) {

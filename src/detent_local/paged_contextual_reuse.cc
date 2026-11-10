@@ -74,7 +74,7 @@ struct ReuseNavigator::Impl {
 		: base(std::move(value)), wanted(SIZE_MAX), exact(expected) {
 		if (!base || entering.size() > key.size())
 			throw std::invalid_argument("invalid reuse context");
-		p::encode_reference(expected);
+		p::validate(expected);
 		std::copy(entering.begin(), entering.end(), key.begin());
 		key_size = entering.size();
 		reference = base->root().tree;

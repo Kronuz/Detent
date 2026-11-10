@@ -205,7 +205,7 @@ void DeltaLeaves::step(ValidationBudget &budget) {
 					} else
 						definition.default_int = std::get<IntDef>(*mutation.value).default_value;
 					s.body.emplace(account(s.source), definition, s.source.get(), entry.ordinal,
-								   delta_override, p::page_bytes - 80 - s.length);
+								   delta_override, p::maximum_leaf_body_bytes - s.length);
 					s.phase = Impl::Phase::Body;
 				}
 				break;

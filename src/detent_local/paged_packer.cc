@@ -245,7 +245,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 			case Impl::Phase::Reference:
 				if (!s.grant(sizeof(Cluster) + s.injected_path.size(), budget))
 					return;
-				p::encode_reference(s.injected_reference);
+				p::validate(s.injected_reference);
 				require(s.injected_reference.length > p::page_capacity &&
 						s.injected_path.size() <= 202 &&
 						s.injected_reference.keys <=
@@ -418,10 +418,10 @@ void PagedPacker::step(ValidationBudget &budget) {
 					const auto first = s.frontier.size() - s.event.children.size();
 					for (std::size_t i = first; i < s.frontier.size(); ++i) {
 						auto &candidate = *s.frontier[i];
-						if (candidate.sealed() || candidate.size() <= p::child_bytes)
+						if (candidate.sealed() || !p::seal_eligible(candidate.size()))
 							continue;
-						if (!best || candidate.height < best->height ||
-							(candidate.height == best->height && candidate.size() > best->size()))
+						if (!best || p::seals_before(candidate.height, candidate.size(),
+													 best->height, best->size()))
 							best = &candidate;
 					}
 				}
@@ -592,7 +592,7 @@ bool PagedPacker::commit(const p::Reference &reference, ValidationBudget &budget
 			throw std::logic_error("dense page unavailable");
 		if (!s.grant(sizeof(Cluster), budget))
 			return false;
-		p::encode_reference(reference);
+		p::validate(reference);
 		require(reference != p::Reference{} && reference.length == s.summary.length &&
 				reference.keys == s.summary.keys && reference.height == s.summary.height &&
 				reference.digest == s.summary.digest);

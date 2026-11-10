@@ -4,7 +4,7 @@ index c63fbf6..5231c65 100644
 +++ b/src/detent_local/paged_page_validator.cc
 @@ -48,7 +48,7 @@ struct PageValidator::Impl {
  		require(owner && reference != p::Reference{} && bytes.size() == reference.length);
- 		p::encode_reference(reference);
+ 		p::validate(reference);
  		header = p::decode_page_header(bytes, limits);
 -		require(header.length == reference.length && header.keys == reference.keys &&
 +		require(header.length == reference.length &&

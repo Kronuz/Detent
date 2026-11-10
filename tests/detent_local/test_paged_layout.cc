@@ -6,8 +6,7 @@ int main() {
 	const auto empty_digest =
 		digest("316b4053cea6792530f8c441e83ecb3dfb497cf8afba9ac30759a5bc885e9acc");
 	require(p::empty_commitment() == empty_digest);
-	require(p::encode_reference({}) == std::array<char, 65>{});
-	require(p::decode_reference(std::array<char, 65>{}) == p::Reference{});
+	p::validate(p::Reference{});
 	p::Reference r;
 	r.segment.fill('s');
 	r.offset = 0x1020;
@@ -16,25 +15,30 @@ int main() {
 	r.height = 5;
 	for (unsigned i = 0; i < 32; ++i)
 		r.digest[i] = i;
-	const auto exact_ref =
-		unhex("73737373737373737373737373737373 00001020 00001234 0102030405060708 05 "
-			  "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
-	require(std::ranges::equal(p::encode_reference(r), exact_ref));
-	require(p::decode_reference(exact_ref) == r);
-	for (std::size_t i = 0; i < p::reference_bytes; ++i) {
-		std::array<char, 65> partial{};
-		partial[i] = 1;
-		rejects([&] { p::decode_reference(partial); });
-	}
+	const auto exact_content =
+		unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f "
+			  "0102030405060708 00001234 05 000000");
+	const auto exact_placement = unhex("73737373737373737373737373737373 00001020");
+	require(std::ranges::equal(p::encode_content(r), exact_content));
+	require(std::ranges::equal(p::encode_placement(r), exact_placement));
+	p::validate(r);
+	rejects([&] { p::encode_placement(p::Reference{}); });
 	for (auto offset : {1u, p::segment_bytes, UINT32_MAX}) {
 		auto bad = r;
 		bad.offset = offset;
-		rejects([&] { p::encode_reference(bad); });
+		rejects([&] { p::validate(bad); });
+		rejects([&] { p::encode_placement(bad); });
 	}
 	for (auto length : {0u, 78u, p::page_bytes + 1, UINT32_MAX}) {
 		auto bad = r;
 		bad.length = length;
-		rejects([&] { p::encode_reference(bad); });
+		rejects([&] { p::validate(bad); });
+		rejects([&] { p::encode_content(bad); });
+	}
+	{
+		auto bad = r;
+		bad.segment = {};
+		rejects([&] { p::validate(bad); });
 	}
 	auto root = empty_root();
 	auto exact_root = unhex("4454524f4f543033 00000003 00000140 "
@@ -68,12 +72,20 @@ int main() {
 	l::write_integer(nonempty, 28, 1, 4);
 	l::write_integer(nonempty, 32, 1, 8);
 	l::write_integer(nonempty, 40, 1, 8);
+	// The tree reference is one child entry: content [160,208), then placement [208,228).
 	const auto ref_bytes =
-		unhex("73737373737373737373737373737373 00000000 0000004f 0000000000000001 01 "
-			  "fb64e273fec41c4270b4fdbb7323570be428ae4660eaeb88d819fdf2fa411599");
+		unhex("fb64e273fec41c4270b4fdbb7323570be428ae4660eaeb88d819fdf2fa411599 "
+			  "0000000000000001 0000004f 01 000000 73737373737373737373737373737373 00000000");
+	require(ref_bytes.size() == p::child_bytes);
 	std::copy(ref_bytes.begin(), ref_bytes.end(), nonempty.begin() + 160);
 	require(std::ranges::equal(p::encode_root(root, p::Limits{}), nonempty));
 	require(p::decode_root(nonempty, p::Limits{}).tree == ref && p::state_commitment(root) == ref.digest);
+	{
+		const auto content = p::encode_content(ref);
+		const auto placement = p::encode_placement(ref);
+		require(std::equal(content.begin(), content.end(), nonempty.begin() + 160) &&
+				std::equal(placement.begin(), placement.end(), nonempty.begin() + 208));
+	}
 	for (auto state : {empty_root(), root, empty_root(), root}) {
 		const auto decoded = p::decode_root(p::encode_root(state, p::Limits{}), p::Limits{});
 		require(decoded.tree == state.tree && decoded.cursor == state.cursor &&
@@ -81,13 +93,18 @@ int main() {
 				p::state_commitment(decoded) == p::state_commitment(state));
 	}
 	for (std::size_t i = 0; i < 320; ++i) {
-		if ((i >= 48 && i < 56) || (i >= 148 && i < 152) || i >= 225) {
+		if ((i >= 48 && i < 56) || (i >= 148 && i < 152) || (i >= 205 && i < 208) || i >= 228) {
 			for (const auto &seed : {exact_root, nonempty}) {
 				auto bad = seed;
 				bad[i] = 1;
 				rejects([&] { p::decode_root(bad, p::Limits{}); });
 			}
 		}
+	}
+	for (std::size_t i = 160; i < 160 + p::child_bytes; ++i) {
+		auto bad = exact_root;
+		bad[i] = 1;
+		rejects([&] { p::decode_root(bad, p::Limits{}); });
 	}
 	for (std::size_t i = 25; i < 32; ++i) {
 		auto bad = page;

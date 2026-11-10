@@ -16,7 +16,7 @@ int main() {
 			require(scope->first == root.cursor && scope->second == root.profile);
 	}
 	for (const auto offset :
-		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 144u, 147u, 148u, 151u, 152u, 158u, 225u, 319u}) {
+		 {0u, 7u, 8u, 11u, 12u, 15u, 48u, 55u, 144u, 147u, 148u, 151u, 152u, 158u, 205u, 207u, 228u, 319u}) {
 		auto changed = encoded;
 		changed[offset] ^= 1;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(offset + 1)); });
@@ -26,9 +26,9 @@ int main() {
 		changed[159] = 2;
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(160)); });
 	}
-	for (const auto identity : {64u, 80u, 96u, 112u, 160u, 193u}) {
+	for (const auto identity : {64u, 80u, 96u, 112u, 160u, 208u}) {
 		auto changed = encoded;
-		const auto size = identity == 112 || identity == 193 ? 32u : 16u;
+		const auto size = identity == 112 || identity == 160 ? 32u : 16u;
 		std::fill_n(changed.begin() + identity, size, 0);
 		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(identity + size)); });
 	}
@@ -39,17 +39,23 @@ int main() {
 	}
 	{
 		auto changed = encoded;
-		changed[179] |= 1;
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(180)); });
+		changed[227] |= 1;
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(228)); });
 		changed = encoded;
-		l::write_integer(changed, 180, p::page_bytes + 1, 4);
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(184)); });
+		l::write_integer(changed, 224, 0x01000000, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(225)); });
 		changed = encoded;
-		l::write_integer(changed, 184, 2, 8);
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(192)); });
+		l::write_integer(changed, 200, 0x01000000, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(201)); });
 		changed = encoded;
-		changed[192] = 0;
-		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(193)); });
+		l::write_integer(changed, 200, p::minimum_page_bytes - 1, 4);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(204)); });
+		changed = encoded;
+		l::write_integer(changed, 192, 2, 8);
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(200)); });
+		changed = encoded;
+		changed[204] = 0;
+		rejects([&] { l::detail::validate_paged_root_prefix(std::span(changed).first(205)); });
 		changed = encoded;
 		changed[7] = '2';
 		changed[11] = 2;
@@ -58,7 +64,7 @@ int main() {
 	const auto blank = p::encode_root(empty_root(), p::Limits{});
 	for (std::size_t n = 0; n <= blank.size(); ++n)
 		l::detail::validate_paged_root_prefix(std::span(blank).first(n));
-	for (const auto offset : {16u, 24u, 28u, 40u, 160u, 224u, 225u, 248u, 319u}) {
+	for (const auto offset : {16u, 24u, 28u, 40u, 160u, 204u, 208u, 227u, 228u, 248u, 319u}) {
 		auto changed = blank;
 		changed[offset] ^= 1;
 		rejects([&] {

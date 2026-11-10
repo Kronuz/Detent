@@ -46,7 +46,7 @@ struct PageValidator::Impl {
 	    : owner(std::move(lifetime)), bytes(source), reference(expected), limits(bounds),
 	      metrics(distribution::StorageAllocator<Metric>(account)), compare(compare_digests) {
 		require(owner && reference != p::Reference{} && bytes.size() == reference.length);
-		p::encode_reference(reference);
+		p::validate(reference);
 		header = p::decode_page_header(bytes, limits);
 		require(header.length == reference.length && header.keys == reference.keys &&
 		        header.height == reference.height && header.digest == reference.digest);
@@ -98,11 +98,10 @@ struct PageValidator::Impl {
 							return false;
 						const auto i = frame.first + frame.scan++;
 						const auto &child = metrics[i];
-						if (!child.sealed && child.size > p::child_bytes &&
+						if (!child.sealed && p::seal_eligible(child.size) &&
 						    (frame.chosen == SIZE_MAX ||
-						     child.height < metrics[frame.chosen].height ||
-						     (child.height == metrics[frame.chosen].height &&
-						      child.size > metrics[frame.chosen].size)))
+						     p::seals_before(child.height, child.size, metrics[frame.chosen].height,
+						                     metrics[frame.chosen].size)))
 							frame.chosen = i;
 					}
 					frame.scan = 0;

@@ -28,12 +28,6 @@ void probe(std::span<const char> bytes, std::span<const std::uint8_t> input) {
 	} catch (const std::invalid_argument &) {
 	}
 	try {
-		const auto ref = p::decode_reference(bytes);
-		if (!std::ranges::equal(p::encode_reference(ref), bytes))
-			std::abort();
-	} catch (const std::invalid_argument &) {
-	}
-	try {
 		const auto ref = reference(bytes);
 		p::verify_page(bytes, ref, p::Limits{});
 		walk(bytes, input);

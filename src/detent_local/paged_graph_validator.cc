@@ -264,7 +264,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 			}
 			if (!state.started) {
 				if (state.expected.pages) {
-					if (!state.admit(p::reference_bytes, budget))
+					if (!state.admit(p::child_bytes, budget))
 						return;
 					state.push(state.expected.tree);
 				}

@@ -85,10 +85,10 @@ struct Session {
 		x::RecoveryContext context{domain.factory(), heap, mappings, limits, {}, {}};
 		context.metrics = metrics;
 		context.trusted_start = trusted_start;
-		digests_before = l::paged::page_digests();
+		digests_before = l::paged::hash_counts().page_calls;
 		generation.emplace(x::RecoveryEngine::recover(directory, context));
 	}
-	std::uint64_t digests() const { return l::paged::page_digests() - digests_before; }
+	std::uint64_t digests() const { return l::paged::hash_counts().page_calls - digests_before; }
 	const x::SegmentRegistry &registry() const { return *x::RecoveredTesting::root(*generation).registry(); }
 	~Session() {
 		generation.reset();
@@ -185,14 +185,14 @@ void oracle(const fs::path &store, const fs::path &scratch, int revision) {
 		  ca.counts().maximum_overrides == cb.counts().maximum_overrides);
 	CHECK(trusted.generation->view().size() == full.generation->view().size());
 	// Every page is checked once on first touch, and not again.
-	const auto before = l::paged::page_digests();
+	const auto before = l::paged::hash_counts().page_calls;
 	auto first = read_all(trusted, revision);
 	CHECK(first.ok == knobs + 10 && !first.wrong && !first.other && first.failed.empty());
-	const auto touched = l::paged::page_digests() - before;
+	const auto touched = l::paged::hash_counts().page_calls - before;
 	CHECK(touched > 0);
-	const auto again = l::paged::page_digests();
+	const auto again = l::paged::hash_counts().page_calls;
 	auto second = read_all(trusted, revision);
-	CHECK(second.ok == knobs + 10 && l::paged::page_digests() == again);
+	CHECK(second.ok == knobs + 10 && l::paged::hash_counts().page_calls == again);
 	std::cout << "revision " << revision << ": " << a.inputs().size() << " packs, " << touched
 			  << " page digests at first touch, 0 at startup\n";
 	fs::remove_all(scratch);

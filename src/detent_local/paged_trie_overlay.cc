@@ -238,7 +238,7 @@ struct TrieOverlay::Impl {
 		while (relocation->depth) {
 			auto &frame = relocation->frames[relocation->depth - 1];
 			if (!frame.inspected) {
-				if (!grant(p::page_header_bytes + p::reference_bytes, budget))
+				if (!grant(p::page_header_bytes + p::child_bytes, budget))
 					return;
 				frame.view = inspect(frame.original);
 				frame.inspected = true;
@@ -324,7 +324,7 @@ void TrieOverlay::change(std::string_view key, std::optional<std::span<const cha
 		(impl_->phase != Impl::Phase::Idle && impl_->phase != Impl::Phase::Done))
 		throw std::logic_error("overlay operation unavailable");
 	const auto parsed = p::decode_key(key);
-	if (body && (body->size() > p::page_bytes - 80 - key.size() ||
+	if (body && (body->size() > p::maximum_leaf_body_bytes - key.size() ||
 				 (parsed.kind == p::PageKind::Namespace ? body->size() != 8 : body->size() < 24)))
 		throw std::invalid_argument("overlay leaf framing");
 	auto &s = *impl_;

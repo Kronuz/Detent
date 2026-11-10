@@ -19,7 +19,7 @@ inline std::size_t find_segment(std::span<const SegmentInput> segments, const St
 }
 inline std::span<const char> checked_page_bytes(const SegmentInput &segment,
 												const paged::Reference &reference) {
-	paged::encode_reference(reference);
+	paged::validate(reference);
 	if (segment.ownership.segment != reference.segment || reference.offset > segment.bytes.size() ||
 		reference.length > segment.bytes.size() - reference.offset)
 		throw std::invalid_argument("invalid paged segment reference");

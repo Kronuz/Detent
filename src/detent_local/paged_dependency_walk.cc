@@ -54,7 +54,7 @@ struct PagedDependencyWalk::Impl {
 		return true;
 	}
 	void push(p::Reference reference, std::size_t context) {
-		p::encode_reference(reference);
+		p::validate(reference);
 		require(depth < frames.size() && pages < root.pages && reference.length <= root.bytes - extents);
 		frames[depth++] = {reference, {}, {}, context};
 		++pages;
@@ -85,7 +85,7 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 			auto &frame = s.frames[s.depth - 1];
 			if (!frame.checked) {
 				if (!s.page) {
-					if (!s.waiting && !s.admit(p::reference_bytes, budget))
+					if (!s.waiting && !s.admit(p::child_bytes, budget))
 						return;
 					if (!s.waiting && s.frontier && s.frontier(s.source.get(), frame.reference)) {
 						frame.checked = true;

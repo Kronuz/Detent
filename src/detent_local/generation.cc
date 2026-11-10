@@ -352,7 +352,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				lease->fd = std::exchange(mapping->lease, -1);
 				throw ObsoleteGeneration(selection, *generation_ownership, std::move(lease));
 			};
-			if (generation_ownership && generation_ownership->layout_version == 2) {
+			if (generation_ownership && paged::obsolete_paged_layout(generation_ownership->layout_version)) {
 				try {
 					paged::decode_root(bytes, detail::paged_limits(limits, descriptor.length));
 				} catch (const paged::UnsupportedFormat &) {

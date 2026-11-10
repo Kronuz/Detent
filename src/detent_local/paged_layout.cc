@@ -28,13 +28,6 @@ void put(std::span<char> bytes, std::size_t offset, const std::array<char, N> &v
 void validate_summary(const Reference &r) {
 	require(r.length >= minimum_page_bytes && r.length <= page_bytes && r.keys && r.height);
 }
-void validate(const Reference &r) {
-	if (r == Reference{})
-		return;
-	validate_summary(r);
-	require(!zero(r.segment) && r.offset % 8 == 0 && r.offset <= segment_bytes &&
-			r.length <= segment_bytes - r.offset);
-}
 void validate(const PageHeader &h, Limits limits) {
 	require(h.length >= minimum_page_bytes && h.length <= page_bytes && h.length <= limits.bytes &&
 			h.nodes && h.keys && h.keys <= std::uint64_t(limits.records) + limits.namespaces &&
@@ -67,7 +60,27 @@ Digest finish(SHA256 &hash) {
 	return result;
 }
 std::array<std::atomic<std::uint64_t>, 6> hash_counters{};
+Reference decode_child(std::span<const char> content, std::span<const char> placement) {
+	require(content.size() == content_bytes && placement.size() == placement_bytes &&
+			zero(content.subspan(45)));
+	Reference r;
+	copy(content, 0, r.digest);
+	r.keys = read_integer(content, 32, 8);
+	r.length = read_integer(content, 40, 4);
+	r.height = static_cast<unsigned char>(content[44]);
+	copy(placement, 0, r.segment);
+	r.offset = read_integer(placement, 16, 4);
+	validate(r);
+	return r;
+}
 } // namespace
+void validate(const Reference &r) {
+	if (r == Reference{})
+		return;
+	validate_summary(r);
+	require(!zero(r.segment) && r.offset % 8 == 0 && r.offset <= segment_bytes &&
+			r.length <= segment_bytes - r.offset);
+}
 std::size_t encode_namespace_key(std::span<char> out, std::string_view name) {
 	require(!name.empty() && name.size() <= 198 &&
 			std::all_of(name.begin(), name.end(), detent::detail::is_name_char));
@@ -120,7 +133,6 @@ void count_hash(HashKind kind, std::uint64_t calls, std::uint64_t bytes) noexcep
 	hash_counters[index].fetch_add(calls, std::memory_order_relaxed);
 	hash_counters[index + 1].fetch_add(bytes, std::memory_order_relaxed);
 }
-std::uint64_t page_digests() noexcept { return hash_counts().page_calls; }
 namespace {
 Digest hash_buffer(std::span<const char> bytes, HashKind kind) {
 	SHA256 hash;
@@ -153,29 +165,6 @@ Digest empty_commitment() {
 Digest state_commitment(const Root &root) {
 	return root.tree == Reference{} ? empty_commitment() : root.tree.digest;
 }
-std::array<char, reference_bytes> encode_reference(const Reference &r) {
-	validate(r);
-	std::array<char, reference_bytes> bytes{};
-	put(bytes, 0, r.segment);
-	write_integer(bytes, 16, r.offset, 4);
-	write_integer(bytes, 20, r.length, 4);
-	write_integer(bytes, 24, r.keys, 8);
-	bytes[32] = static_cast<char>(r.height);
-	put(bytes, 33, r.digest);
-	return bytes;
-}
-Reference decode_reference(std::span<const char> bytes) {
-	require(bytes.size() == reference_bytes);
-	Reference r;
-	copy(bytes, 0, r.segment);
-	r.offset = read_integer(bytes, 16, 4);
-	r.length = read_integer(bytes, 20, 4);
-	r.keys = read_integer(bytes, 24, 8);
-	r.height = static_cast<unsigned char>(bytes[32]);
-	copy(bytes, 33, r.digest);
-	validate(r);
-	return r;
-}
 std::array<char, content_bytes> encode_content(const Reference &r) {
 	validate_summary(r);
 	std::array<char, content_bytes> bytes{};
@@ -198,15 +187,8 @@ Reference decode_external(std::span<const char> bytes, std::uint16_t index, Limi
 	require(index < h.externals);
 	const auto content = bytes.size() - child_bytes * h.externals + content_bytes * index;
 	const auto placement = bytes.size() - placement_bytes * h.externals + placement_bytes * index;
-	Reference r;
-	copy(bytes, content, r.digest);
-	r.keys = read_integer(bytes, content + 32, 8);
-	r.length = read_integer(bytes, content + 40, 4);
-	r.height = static_cast<unsigned char>(bytes[content + 44]);
-	require(zero(bytes.subspan(content + 45, 3)));
-	copy(bytes, placement, r.segment);
-	r.offset = read_integer(bytes, placement + 16, 4);
-	validate(r);
+	const auto r = decode_child(bytes.subspan(content, content_bytes),
+								bytes.subspan(placement, placement_bytes));
 	require(r != Reference{});
 	return r;
 }
@@ -225,7 +207,7 @@ std::array<char, page_header_bytes> encode_page_header(const PageHeader &h, Limi
 }
 PageHeader decode_page_header(std::span<const char> bytes, Limits limits) {
 	if (bytes.size() >= 80 && std::string_view(bytes.data(), 8) == "DTPAGE02" &&
-		read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 16, 4) == bytes.size() &&
+		obsolete_paged_layout(read_integer(bytes, 8, 4)) && read_integer(bytes, 16, 4) == bytes.size() &&
 		!read_integer(bytes, 72, 8))
 		throw UnsupportedFormat();
 	require(bytes.size() >= page_header_bytes && std::string_view(bytes.data(), 8) == "DTPAGE03" &&
@@ -356,16 +338,19 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	put(bytes, 112, root.cursor.scope);
 	write_integer(bytes, 144, root.profile.semantic_id, 4);
 	write_integer(bytes, 152, root.profile.required_capabilities, 8);
-	put(bytes, 160, encode_reference(root.tree));
+	if (root.tree != Reference{}) {
+		put(bytes, 160, encode_content(root.tree));
+		put(bytes, 160 + content_bytes, encode_placement(root.tree));
+	}
 	return bytes;
 }
 Root decode_root(std::span<const char> bytes, Limits limits) {
     if (bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT02" &&
-        read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 12, 4) == root_bytes)
+        obsolete_paged_layout(read_integer(bytes, 8, 4)) && read_integer(bytes, 12, 4) == root_bytes)
         throw UnsupportedFormat();
 	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
 			read_integer(bytes, 8, 4) == format_version && read_integer(bytes, 12, 4) == root_bytes &&
-			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(225)));
+			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(160 + child_bytes)));
 	Root root;
 	root.bytes = read_integer(bytes, 16, 8);
 	root.records = read_integer(bytes, 24, 4);
@@ -379,7 +364,8 @@ Root decode_root(std::span<const char> bytes, Limits limits) {
 	copy(bytes, 112, root.cursor.scope);
 	root.profile.semantic_id = read_integer(bytes, 144, 4);
 	root.profile.required_capabilities = read_integer(bytes, 152, 8);
-	root.tree = decode_reference(bytes.subspan(160, reference_bytes));
+	root.tree = decode_child(bytes.subspan(160, content_bytes),
+							 bytes.subspan(160 + content_bytes, placement_bytes));
 	validate(root, limits);
 	return root;
 }

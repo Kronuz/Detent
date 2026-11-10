@@ -426,7 +426,7 @@ int main(int argc, char **argv) {
 	require(p::state_commitment(p::decode_root(p::encode_root(root, p::Limits{}), p::Limits{})) == p::empty_commitment());
 	rows->push_back({std::string("Wa\0", 3), {watermark.begin(), watermark.end()}});
 	require(run(rows).pages[0].bytes == alone.pages[0].bytes);
-	auto large = wide(p::page_bytes - 80);
+	auto large = wide(p::maximum_leaf_body_bytes);
 	require(large.pages.size() == 257 && large.pages[0].bytes.size() == p::page_bytes - 12);
 	for (unsigned i = 0; i < 256; ++i) {
 		require(large.pages[i].reference.digest == large.pages[0].reference.digest);
