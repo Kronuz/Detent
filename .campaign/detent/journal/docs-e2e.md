@@ -9,11 +9,13 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Runner, docs check, link check, workflow, docs/dev/docs-e2e.md and 26 assertion blocks written; first gate jobs run to find failing assertions.
 
 ## Next
 
-1. <step>
+1. Fix assertions the e2e job shows wrong (docs wrong -> list in e2e_exceptions.txt, no page rewrites).
+2. Mutant job (tests/docs/mutants.py) and overlap job (tests/docs/overlap.py).
+3. Fill Evidence.
 
 ## Blocked on
 

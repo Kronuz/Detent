@@ -1,0 +1,42 @@
+# Runnable blocks with no assertion block, one per line: page#N -- reason. N counts the page's ```sh
+# and ```rest blocks from 1. run_e2e.py fails on a block that is neither asserted nor listed, and on
+# a listed block that has an assertion block or does not exist, so area quests delete a line when
+# they make the example runnable and assert it.
+welcome#1 -- the authority does not exist until the Quick-start; reference/http-api/health#1 runs the same request
+quickstart#1 -- clones from GitHub and builds; the runner builds this checkout instead
+next#1 -- stops the daemons the later reference pages query; the runner stops its own at the end of the run
+installation#1 -- brew install of the released package
+installation#2 -- clones from GitHub
+installation#3 -- configures a build with a sibling reactor checkout that the sandbox lacks
+installation#4 -- a second full configure of the build the runner already made
+installation#5 -- runs the test suite, which the runner's build leaves out
+installation#6 -- installs under /usr/local
+benchmarks#1 -- needs the benchmark build, which the runner leaves out
+guides/shell-and-agent#1 -- example values (max_results 25, user-42 true) differ from the state the Quick-start pages leave
+guides/shell-and-agent#2 -- a shell fragment that calls run_new_path, which is undefined
+guides/shell-and-agent#3 -- reads ./defaults.json, which the guide never creates
+guides/shell-and-agent#4 -- output shows pid and revision placeholders; reference/cli/detent-agent#1 asserts the same command
+guides/shell-and-agent#5 -- stops the agent the later pages use
+guides/shell-and-agent#6 -- needs a service-managed system agent
+guides/testing#1 -- my_app is a placeholder program
+guides/python-and-rust#1 -- builds the Python and Rust bindings, which need their toolchains
+guides/durable-authority#1 -- builds the authority
+guides/durable-authority#2 -- runs detentd in the foreground on a placeholder authority.json
+guides/durable-authority#3 -- placeholder token and identity
+guides/durable-authority#4 -- placeholder token and identity
+guides/managed-delivery#1 -- starts a second agent over a placeholder managed.json
+guides/managed-delivery#2 -- starts a second agent over a placeholder managed.json
+guides/managed-delivery#3 -- reads a generation directory the guide never creates
+reference/http-api/authority#1 -- placeholder token and identity
+reference/http-api/authority#2 -- placeholder token and identity
+operations/services#1 -- writes under /etc/detent with sudo
+operations/services#2 -- creates a system user with sudo
+operations/services#3 -- reads the systemd journal
+operations/services#4 -- launchctl on a system plist
+operations/services#5 -- creates a system user on FreeBSD
+operations/services#6 -- needs a service-managed system agent
+operations/logging#1 -- starts detentd with no authority configuration
+operations/logging#2 -- starts detentd in the foreground with no authority configuration
+operations/authority#1 -- probes an absolute /etc/detent/authority.json that is not there
+contributing#1 -- configures a Release build of the checkout
+contributing#2 -- changes into website/ for the site build the site check runs

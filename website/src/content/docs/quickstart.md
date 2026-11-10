@@ -41,6 +41,11 @@ OPENSSL_CONF=../../tests/detent_authority/tls_ambient.cnf \
   -P ../../tests/detent_authority/tls_certificates.cmake
 ```
 
+<!-- e2e:begin
+stdout:
+run: test -f certs/ca.pem && test -f certs/one.pem && test -f certs/one.key && test "$(basename "$PWD")" = quickstart
+e2e:end -->
+
 Then pick an authority identity and two tokens: one for the publisher, one for
 the agent. Identities are 32 hexadecimal characters; tokens are at least 32
 characters:
@@ -50,6 +55,11 @@ IDENTITY="\"cluster\":\"$(openssl rand -hex 16)\",\"group\":\"$(openssl rand -he
 WRITER_TOKEN=$(openssl rand -hex 24)
 READER_TOKEN=$(openssl rand -hex 24)
 ```
+
+<!-- e2e:begin
+stdout:
+run: test ${#IDENTITY} -gt 90 && test ${#WRITER_TOKEN} -eq 48 && test ${#READER_TOKEN} -eq 48
+e2e:end -->
 
 :::hint[Development only]{.caution}
 These certificates and tokens are for a local tutorial. A real deployment
@@ -80,6 +90,11 @@ chmod 600 authority.json
 detentd --authority authority.json --runtime-dir run --daemonize
 ```
 
+<!-- e2e:begin
+stdout:
+run: test -s run/detentd-8317.pid
+e2e:end -->
+
 With no `voters`, the authority is a single voter. It listens on 127.0.0.1
 port 8317 and keeps its durable store in `authority-data`. The `writer`
 credential may publish to the three namespaces; the `agent` credential may only
@@ -100,6 +115,10 @@ api() {
 }
 until api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'; do sleep 1; done
 ```
+
+<!-- e2e:begin
+stdout-matches: ^\{"authority":\{.*\},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0\}$
+e2e:end -->
 
 `--daemonize` returns once the authority listens, and the single voter elects
 itself leader shortly after. Until then the open returns `outcome_unknown`, and
@@ -126,6 +145,11 @@ publish() {
 }
 ```
 
+<!-- e2e:begin
+stdout:
+run: test "$sequence" = 0 && type publish >/dev/null
+e2e:end -->
+
 ---
 
 ## Starting the Agent
@@ -146,6 +170,11 @@ detent-agent --managed managed.json --generation-dir agent-state --runtime-dir r
 export DETENT_GENERATION_DIR="$PWD/agent-state"
 ```
 
+<!-- e2e:begin
+rewrite: "ca": "certs/ca.pem" => "ca": "certs/ca.pem", "port": 8317
+run: detent-agent --status --managed managed.json | grep -q '^running'
+e2e:end -->
+
 The agent connects to `localhost:8317` over TLS, checks the certificate against
 `certs/ca.pem`, and publishes immutable generations in `agent-state`.
 `--initialize-managed` creates that store on the first start; later starts
@@ -165,6 +194,11 @@ detent get search:max_results
 # 25
 ```
 
+<!-- e2e:begin
+stdout-matches: "status":"applied","revision":1,"namespace_revision":1,"generation":1,"sequence":1\}$
+stdout-matches: ^25$
+e2e:end -->
+
 Each transaction replies with its outcome and the authority's new revision:
 
 ```text
@@ -179,6 +213,11 @@ sleep 1
 detent get search:max_results
 # 100
 ```
+
+<!-- e2e:begin
+stdout-matches: "status":"applied","revision":2,"namespace_revision":2,"generation":1,"sequence":2\}$
+stdout-matches: ^100$
+e2e:end -->
 
 `sleep 1` gives the agent time to deliver the update. Your applications see it
 the same way: the next read after the update lands returns the new value, with

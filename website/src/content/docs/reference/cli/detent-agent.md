@@ -50,6 +50,11 @@ detent-agent --status --managed managed.json
 # durable revision=3 knob_count=2
 ```
 
+<!-- e2e:begin
+stdout-matches: ^running \(pid [0-9]+\)$
+stdout-matches: ^durable revision=[0-9]+ knob_count=[0-9]+$
+e2e:end -->
+
 With a generation directory (`--generation-dir PATH`, or implied by
 `--managed`), `--status` also reports the durable revision and count
 independently of whether the process is running. The exit status is 0 when the

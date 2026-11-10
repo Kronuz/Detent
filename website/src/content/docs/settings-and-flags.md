@@ -24,6 +24,11 @@ detent get search:timeout_ms
 # 250
 ```
 
+<!-- e2e:begin
+stdout-matches: ^500$
+stdout-matches: ^250$
+e2e:end -->
+
 Each transaction replaces the whole definition of the key it names and leaves
 every other knob alone, so a publish only lists the knob it changes.
 
@@ -50,6 +55,10 @@ detent get checkout:new_path
 # true
 ```
 
+<!-- e2e:begin
+stdout-matches: ^true$
+e2e:end -->
+
 And off again, if anything goes wrong:
 
 ```sh
@@ -58,6 +67,10 @@ sleep 1
 detent get checkout:new_path
 # false
 ```
+
+<!-- e2e:begin
+stdout-matches: ^false$
+e2e:end -->
 
 In C++, the same read is `eval`:
 
@@ -90,6 +103,11 @@ detent get search:timeout_ms
 # ERR MissingKnob: search:timeout_ms (scoped lookup failed)
 ```
 
+<!-- e2e:begin
+exit: 1
+stdout-matches: ^ERR MissingKnob: search:timeout_ms \(scoped lookup failed\)$
+e2e:end -->
+
 A client whose baked defaults contain `search:timeout_ms` falls back to that
 baked value. A client without one now gets a `MissingKnob` error for it, so
 remove knob reads from code before removing their definitions.
@@ -105,6 +123,10 @@ be read at all:
 detent get checkout:unpublished_feature --default false
 # false
 ```
+
+<!-- e2e:begin
+stdout: false
+e2e:end -->
 
 This doesn't publish or create anything. It's a per-call fallback for scripts
 that must keep going. The C++ library deliberately has no equivalent; see
