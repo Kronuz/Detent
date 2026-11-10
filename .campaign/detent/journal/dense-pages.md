@@ -1,32 +1,35 @@
 # dense-pages: journal
 
-State: waiting on jobs (design fix round at Detent:5a134f9; ids in "Design fix round 2026-11-09")
+State: waiting on jobs (D43 round at Detent:ddd1d24; ids in "D43 round 2026-11-09")
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Design review CHANGES (reviews/dense-pages-design.md at 81a3232; lead rulings PLAN.md D42) fixed
-at Detent:e879b9e (code), df7dabc (docs), 5a134f9 (mutants). DES-2 changes on-disk bytes, so the
-head batch reruns at 5a134f9. Details and job ids: "Design fix round 2026-11-09".
+Design fixes (D42) at Detent:e879b9e, df7dabc, 5a134f9; main merged (D43, A12 rewritten) at
+c765cdf; D43 single-format refusal at 77aebb4, mutants at ddd1d24. The 5a134f9 batch was cancelled
+for the D43 change (its finished jobs are superseded). Head batch at ddd1d24: "D43 round".
 
 ## Next
 
-1. Read the 5a134f9 batch; record each in Evidence; fix any failure.
-2. Lead widens the file set (Blocked on 1), then apply
-   `.scratch/des1-des9-out-of-set.patch` in this worktree and rerun stale_docs.sh and native.
+1. Read the ddd1d24 batch into Evidence; fix any failure.
+2. Lead widens the file set (Blocked on 1): apply `.scratch/des1-des9-out-of-set.patch`, commit,
+   rerun stale_docs.sh and native.
 3. Then State "ready for review"; A15's final rerun at the fixed head is the lead's.
 
 ## Blocked on
 
 1. DES-1 and DES-9 need files outside the quest's set: `docs/FAST_CLIENT_ARCHITECTURE.md`,
    `docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md`, `website/src/content/docs/architecture/how-it-works.md`
-   (DES-1: 15 of the probe's lines, job 261109-173528-ea4cb1), and `src/detent_delivery/coordinator.cc`
-   (DES-9: 4 call sites of `StateCursor::logical_commitment`, renamed to `state_commitment`).
-   The edits are ready as `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages/.scratch/des1-des9-out-of-set.patch`
-   (applies at 5a134f9; with it, stale_docs.sh exits 0 locally). Recommendation: widen the set
-   by those four files; I apply, commit and rerun the probe and native.
-2. A15 prepare 261109-163514-6fcc50 failed (exit 2: `gmake ... detent-agent ... Error 2` in its
-   baseline build); its halves 605b54 and 0e4b31 were skipped. The runner is the lead's (ruling 14).
+   (DES-1: 15 probe lines, job 261109-174911-f589c4 at ddd1d24), and `src/detent_delivery/coordinator.cc`
+   (DES-9: 4 call sites of `StateCursor::logical_commitment` -> `state_commitment`). Edits ready:
+   `/Users/kronuz/code/Kronuz/Detent-wt/dense-pages/.scratch/des1-des9-out-of-set.patch` (applies
+   at ddd1d24; stale_docs.sh exits 0 with it). Recommendation: widen the set by those four files.
+2. A15 prepare 261109-163514-6fcc50 failed (exit 2, `detent-agent` build error in its baseline);
+   halves 605b54 and 0e4b31 skipped. The runner is the lead's (ruling 14).
+3. D43 baggage outside this quest's mechanism, not removed (lead's call): the flat v1 image and
+   its migration and `legacy_anchor` paths (legacy H's), the "old paged head without prepared
+   metadata" equal-cursor replacement, and the user-facing `image_format: "paged-v2"` config
+   string (README, docs/ACTORS.md, LOCAL_IMAGE_FORMAT.md, PRODUCTION_CONTRACT.md, CAPACITY_*).
 
 ## For the lead's accepts (all at Detent:435a525, code = head)
 
@@ -698,4 +701,72 @@ Rulings (design round):
    a6-canonicity, a10-*, a11-noop-rewrite, a11-relocation-rehash, cor1) are not rerun: their
    patches apply unchanged and their code is unchanged. Rerun: every patch I edited, the new
    root mutant and a3-height-digest (paged_layout.cc).
+
+## D43 round 2026-11-09 (lead msg: owner ruling D43)
+
+Merged main (a303a7e, cf090a0) at c765cdf. At 77aebb4:
+
+- One rule: a generation is current iff its authenticated ownership names a layout
+  `current_layout` accepts (1, the flat image, or `paged::format_version`). Any other value is
+  refused unread (`generation.cc`: `refuse()` -> `ObsoleteGeneration` -> remove `selected`,
+  barrier, full copy). `decode_generation_ownership` accepts every layout value; encoding writes
+  only current ones. The collector removes a non-current generation unread (no image or `.read`
+  parse); `PagedNamedRoot` refuses one. The reader reports `GenerationUnavailable` for every
+  non-paged layout (settles DES-11).
+- Removed: DTPAGE02/DTROOT02 recognizers, `UnsupportedFormat`, `obsolete_paged_layout` (DES-8's
+  predicate is moot), `validate_obsolete_root_prefix`, the frozen v2 fixture, its generator and
+  check script. `verify_local_format.py` expects DTROOT03.
+- `test_local_dense_refetch`: `foreign_install` builds a current store, then sets layout 9 in its
+  ownership and version-9 framing in its root and every pack's first page, with every checksum
+  matching. Restart cuts 0-3 (crash before removal, between removal and barrier, after absence,
+  short replacement-root write) refuse and refetch; lease-held, foreign-file and damage cases
+  (root vs checksum, storage, lease identity, current ownership over a non-current root,
+  ownership vs `selected` checksum, unowned image, held owner.lock) fence or reclaim as before.
+  test_paged_layout: roots and pages with version 2, 4, 9 are invalid. test_ownership: versions
+  0, 2, 4, 0xffffffff decode, are not current and do not encode.
+- Mutants a12-no-refusal and a12-no-barrier carried as patches (replace the inline cc9df2
+  form, whose refusal target was the removed `catch (UnsupportedFormat)`).
+
+Jobs at Detent:ddd1d24 (light unless named; `.scratch/batch-ddd1d240fc8a.txt`):
+
+| Finding / criterion | Job |
+|---|---|
+| DES-2 probe reference_shape.sh (none) | 261109-174907-7b85ec exit 0 |
+| DES-3 probe delta_note.sh (none) | 261109-174909-0c4ce6 exit 0 |
+| DES-1 probe stale_docs.sh (none) | 261109-174911-f589c4 exit 1: the 15 out-of-set lines only |
+| A12/D43 grep (none) | 261109-174912-e8fa4d exit 0 |
+| native (A2, A12, A13) | 261109-174652-7c1977 |
+| A3/A5 synthetic+100K, 5M (A7) | 261109-174653-689151, 261109-174802-890ff1 |
+| A2 full builder | 261109-174656-246235, 261109-174806-3b102b |
+| A10 1,000 rounds, relocation 0 page hashes | 261109-174658-180c13 |
+| A10 100K / 5M real deltas | 261109-174700-0521e3, 261109-174810-102843 |
+| A10/A11 fixtures | 261109-174704-4702b7 |
+| COR-1/A9 ASan UBSan, Debug | 261109-174705-1a49ef, 261109-174719-dddba9 |
+| A4 corpus replay ASan UBSan | 261109-174813-04dd4d |
+| A13 ASan UBSan (incl. dense_refetch) | 261109-174710-04a16e |
+| SEC-1 reader/page/graph/warm fuzz smoke ASan | 261109-174712-d41ca2, 261109-174714-eb92c5 |
+| SEC-2 codec libFuzzer 300 s ASan UBSan | 261109-174848-e28eba |
+| A13 TSan (incl. dense_refetch) | 261109-174716-80dd4c |
+| A8 reader fixtures | 261109-174721-6b20e3 |
+| A12 refetch with the planner | 261109-174723-b5d26c |
+| Mutants | a3-largest-first 261109-174851-230a08, a3-seal-64 261109-174853-bb1a9e, a3-height-digest 261109-174855-8717f4, des2-root-reserved 261109-174856-e7f728, a6-height 261109-174858-cec2e9, a6-keys 261109-174900-79b1f8, a11-offpath-skip 261109-174902-e78e8a, a12-no-refusal 261109-174904-bddf66, a12-no-barrier 261109-174906-9d8c1a |
+
+Superseded (cancelled or at 5a134f9): every job in "Design fix round" except its probes;
+cancelled ids 261109-174654-732d9b, 174657-1b4841, 174702-8f31ee, 174707-dea400 had wrong
+`--after` links and were resubmitted.
+
+Rulings (D43 round):
+
+20. 2026-11-09: format identity is the authenticated ownership's layout value only. A page or root
+   cannot name its format, so under current ownership bytes in another framing are damage: fenced,
+   never refetched (`embedded` case). Deletion authority comes only from an authenticated claim.
+   The "non-current root and page refused and refetched" case is `foreign_install` (layout-9
+   ownership over version-9 root and pages); the lead may overrule if a page alone must refetch.
+21. 2026-11-09: v1 (flat image) stays a current layout: it is written today and its removal is
+   legacy H's. Not removed (Blocked on 3): flat migration, the no-metadata equal-cursor
+   replacement, the `paged-v2` config string.
+22. 2026-11-09: the model's `extract` reads DTROOT02 stores: it is the pinned corpora's
+   provenance, not runtime compatibility, so it stays.
+23. 2026-11-09: `maximum_leaf_body_bytes` keeps page_bytes - 80 (design D2: a lone leaf fits a
+   page); its comment no longer cites DTPAGE02.
 
