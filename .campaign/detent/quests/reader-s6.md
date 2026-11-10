@@ -32,6 +32,7 @@ Numbering cites `reader/s6:docs/status/reader-s5-s6.md` ("S6 box n", "Next n") a
 - A13 Fork during lazy-page preparation with two live handles: the child's mappings, descriptors and accounting return to their baseline (security review pending 2): a job
 - A14 Size and accounting stress of the `change` mapping and the handle ledgers runs bounded, with no change to accepted capacity (security review pending 3): a job
 - A15 The wide reader set passes on the merged tree: `^test_(local|delivery|testing|managed|system_managed|prepared|agent|reconnect)` plus the reader tests (Next 5): the `native` gate
+- A16 First-read bound (D49): 200/200 fresh resident first reads below 1 ms for 1 and 1,000 namespaces, publisher stopped and running, on the named platform with the job's path depth, in exclusive interleaved runs against main (`docs/perf/first-read-gate.sh`, phases from `tests/detent_system/first_read_phases.cc`): a job
 
 CI (S6 box 9, "CI green on `reader/s6`"; security review pending 4) is the landing's CI gate, not a
 row: it needs `campaign config ci=github` (REPORT open question O2). The reviews the ledger names
