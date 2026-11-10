@@ -130,6 +130,13 @@ All job ids below ran Detent:435a525 unless named; the head's code equals it (gi
    (main's barrier replaced Dense's DirectorySync); same kill check (ctest 8, "dense refetch
    invariant"). The refusal mutant is unchanged; 9b17ea already killed it.
 
+17-19. Design round (D42): child_bytes admissions, StateCursor rename waits for coordinator.cc,
+   which mutants rerun. Text under "Design fix round 2026-11-09".
+20-23. D43 round: format identity is the ownership's layout value (a page in another framing
+   under current ownership is fenced damage); v1 stays current (legacy H's); the model's
+   `extract` stays as corpus provenance; the 80-byte body bound keeps its design reason.
+   Text under "D43 round 2026-11-09".
+
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
 ## Full-builder resumption (2026-11-05)
