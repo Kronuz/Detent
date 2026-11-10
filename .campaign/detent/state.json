@@ -1034,8 +1034,8 @@
       "consumes": [],
       "files": [
         "tests/detent_delivery/test_coordinator.cc",
-        "tests/detent_delivery/mutants/snapshot-eager.patch",
-        "tests/detent_delivery/mutants/held-poll-inline.patch"
+        "tests/detent_delivery/mutants/**",
+        "tests/detent_delivery/repeat_500k.sh"
       ],
       "landed": [],
       "lenses": [],
@@ -1046,7 +1046,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Coordinator fixture builds the 500K snapshot only for replies that carry it",
-      "updated": "2026-11-09T16:19:17"
+      "updated": "2026-11-09T16:19:45"
     },
     "fleet-runner": {
       "accepted": {},
