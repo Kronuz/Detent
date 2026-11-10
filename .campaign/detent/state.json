@@ -2123,11 +2123,12 @@
         "namespace-s3b"
       ],
       "provides": [],
+      "reason": "split into docs-e2e, docs-site-audit and five area quests (D52)",
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "dropped",
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
-      "updated": "2026-11-09T17:45:06"
+      "updated": "2026-11-10T11:59:38"
     },
     "fixture-500k": {
       "accepted": {},
