@@ -16,7 +16,7 @@ cannot show it.
 
 - A1 [artifact] An audit table in the journal: every page, what it claims, the source or job that confirms it, and what changed
 - A2 `tests/docs/check_docs.py` checks both directions for CLI flags (`detent`, `detentd`, `detent-agent`), configuration keys, HTTP endpoints, error/status names and knob types: every one a reference page names exists in the source, and every one in the source is documented: the `docs` gate
-- A3 Every shell command and code sample in the quick start and guides runs as written against a build of `main` (extracted by the docs check, run in a scratch directory): the `docs` gate
+- A3 The site is the end-to-end suite (D46): every `detent`/`detentd`/`detent-agent` command, HTTP request and code sample on the quick start, guides and reference pages runs as written against a fresh build of `main`, each followed on the page by a hidden `<!-- e2e:begin --> ... e2e:end -->` assertion block that checks its output (values, not exit codes alone); the docs check walks pages in sidebar order and runs them; the journal reports pages with tests over all pages, driving to every page with a runnable example: the `docs` gate
 - A4 A mutant check: renaming one CLI flag in the source and one config key on a reference page each makes the docs check fail: a job
 - A5 The site builds with no broken internal links: the `site` gate
 - A6 [artifact] CI runs the docs check on every push: `.github/workflows/ci.yml`
