@@ -9,15 +9,18 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Rules committed (A1). Next: harnesses (T9 C++ driver, Linux flush counter, model `wire` mode), smoke, then the exclusive jobs.
 
 ## Next
 
-1. <step>
+1. T9 harness `docs/perf/namespace-measure-t9.cc`: corpus-5m.bin -> snapshot frames -> agent store (full copy) and delta frames f = 0.05/0.25/0.5/1 (5% tombstones) -> published; smoke at 100K.
+2. T4(7): completion_sync_probe at completion:ab0f551, 64-4,096 files of 1 KiB, APFS exclusive and VM (strata's VM, port 18772) under QUIET_VM; flush counter `docs/perf/namespace-measure-flush.cc`.
+3. A4: model `wire` mode at periods 16 and 64.
+4. Verdicts by the Rules.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -27,7 +30,11 @@ you examined, failures included, and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <job id at the current code> |
+| A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
+| A2 | pending |
+| A3 | pending |
+| A4 | pending |
+| A5 | pending |
 
 ## Result
 
@@ -37,4 +44,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. Harness sources live in `docs/perf/namespace-measure-*.cc` (the quest's file set; `benchmarks/` is outside it), built in the job against the Detent build.
+2. T4(7) adds 64 and 128 files to the design's 256/1,024/4,096: the compared sync groups hold 67-176 files.
+3. The Linux VM is strata's local QEMU VM (127.0.0.1:18772, ext4 on virtio); no other Linux host.
