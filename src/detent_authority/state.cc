@@ -742,7 +742,7 @@ State::State(Context c, Limits l) : context_(c), limits_(l) {
 				l.image_bytes <= std::uint64_t(INT64_MAX),
 			"authority resource ceiling");
 	auto metadata =
-		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 224 +
+		std::uint64_t{256} + static_cast<std::uint64_t>(l.namespaces) * 240 +
 		static_cast<std::uint64_t>(l.producers) * (177 + static_cast<std::uint64_t>(l.results) * 80);
 	require(metadata <= l.image_bytes && l.state_bytes <= l.image_bytes - metadata,
 			"application image cannot hold configured state and receipts");
@@ -1894,11 +1894,12 @@ void ImageEncoder::row() {
 			++stage_;
 		} else if (stage_ == 3) {
 			if (auto item = namespaces_.next()) {
-				// Incarnations derive from the seed and live sizes from the records.
+				// Live sizes are recomputed from the records.
 				w.text(*item->first);
 				w.number(item->second->position);
 				w.number(item->second->directory);
 				w.flag(item->second->live);
+				w.identity(item->second->incarnation);
 			} else {
 				++stage_;
 				continue;
@@ -2043,6 +2044,7 @@ struct ImageDecoder::Impl {
 			entry.position = r.number();
 			entry.directory = r.number();
 			entry.live = r.flag();
+			entry.incarnation = r.identity();
 			require(is_valid_knob_name(name + ":x") && (!position || previous < name) && entry.position &&
 						entry.position <= s.revision_,
 					"invalid namespace record");
@@ -2050,10 +2052,15 @@ struct ImageDecoder::Impl {
 				require(entry.directory && entry.directory <= s.directory_head_ &&
 							!s.directory_.find(entry.directory),
 						"invalid namespace directory");
-				entry.incarnation = derive_incarnation(s.context_, s.seed_, entry.directory, name);
+				// A live namespace's incarnation is its creation's; a tombstone keeps the dropped one.
+				require(entry.live ? entry.incarnation ==
+										 derive_incarnation(s.context_, s.seed_, entry.directory, name)
+								   : entry.incarnation != Identity{},
+						"invalid namespace incarnation");
 				s.directory_ = s.directory_.set(entry.directory, name);
 			} else
-				require(!entry.directory && entry.live, "invalid namespace directory");
+				require(!entry.directory && entry.live && entry.incarnation == Identity{},
+						"invalid namespace directory");
 			s.namespaces_ = s.namespaces_.set(name, entry);
 			previous = std::move(name);
 			--remaining;

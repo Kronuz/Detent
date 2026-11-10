@@ -26,7 +26,7 @@ S5.1 of [namespace delivery](../design/namespace-delivery.md) (D3, D5, W1, W3, W
 
 **The directory** maps each directory position to a name, one entry per name: a creation, re-creation or drop moves the name's entry to the head. A consumer at directory position D reads the entries above D and gets exactly the names created, re-created or dropped since, at their latest state.
 
-**Durability** needs no new mechanism: the entries are in the journal, and the image (`DTAIMG02`) carries the seed, the directory head and per namespace its position, directory position and tombstone flag. Decode derives each incarnation, rebuilds the directory map, and recomputes live sizes from the records, whose namespaces are contiguous in key order; it refuses a tombstone with records, a record above its namespace's position, a duplicate or out-of-range directory position, and sizes that do not sum to the state's total.
+**Durability** needs no new mechanism: the entries are in the journal, and the image (`DTAIMG02`) carries the seed, the directory head and per namespace its position, directory position, tombstone flag and incarnation. Decode checks each live incarnation against its derivation (a tombstone keeps the dropped one), rebuilds the directory map, and recomputes live sizes from the records, whose namespaces are contiguous in key order; it refuses a tombstone with records, a record above its namespace's position, a duplicate or out-of-range directory position, and sizes that do not sum to the state's total.
 
 ## Delivery until S6
 

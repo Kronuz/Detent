@@ -148,7 +148,8 @@ void positions_start_at_stored_revision() {
 	auto restored = State::restore(s.checkpoint(), context());
 	same(s, restored);
 	auto next = transaction(10, "a", {put("a:w", 5)});
-	assert(s.apply(++index, next) == restored.apply(index, next));
+	++index;
+	assert(s.apply(index, next) == restored.apply(index, next));
 	same(s, restored);
 	assert(s.namespace_entry("a")->position == 5);
 }
@@ -304,7 +305,7 @@ void erase_range_matches_map() {
 		oracle.erase(oracle.lower_bound(lo), oracle.lower_bound(hi));
 		std::vector<std::pair<std::string, int>> rows;
 		map.for_each([&](const std::string &k, int v) { rows.emplace_back(k, v); });
-		assert(rows == std::vector<std::pair<std::string, int>>(oracle.begin(), oracle.end()));
+		assert((rows == std::vector<std::pair<std::string, int>>(oracle.begin(), oracle.end())));
 		assert(map.size() == oracle.size());
 		auto n = double(oracle.size() + 2);
 		assert(map.height() <= int(1.45 * std::log2(n)) + 1);

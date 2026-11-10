@@ -50,8 +50,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    not a new `Command` kind: they have no producer session, and the enabling entry is stepped
    (one namespace per budget update) like every other apply.
 3. R3 Incarnations derive from the enabling entry's random nonce, the context, the directory
-   position and the name (SHA-256, 16 bytes): every voter computes the same value, nothing extra
-   is stored, and two restores of one backup with their own nonces never share an incarnation.
+   position and the name (SHA-256, 16 bytes): every voter computes the same value, decode checks
+   each live one against it, and two restores of one backup with their own nonces never share an incarnation.
 4. R4 A drop is in S5.1 (A2 needs delete then re-create). It is one change at the next position;
    the tombstone keeps that position and a re-creation continues from it, so positions under a
    name never repeat and old-incarnation preconditions conflict before W4 adds the incarnation to
@@ -63,7 +63,8 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    group revision; otherwise it records a gap and that namespace goes by snapshot until S6. Before
    enabling the two are always equal, so nothing changes today.
 7. R7 Tombstones count toward `Limits::namespaces` and are kept (they hold a dropped name's last
-   position). The image row grew to 224 bytes in the metadata bound.
+   position). The image row grew to 240 bytes in the metadata bound; it carries the incarnation, since a
+   tombstone keeps the dropped one, not its derivation at its new directory position.
 8. R8 Image format `DTAIMG02`; `DTAIMG01` images are refused (D43).
 9. R9 The cluster harness moved from `test_cluster.cc` into `cluster_harness.hh` so the A4 test
    reuses it instead of copying it.

@@ -77,6 +77,7 @@ std::vector<Step> workload() {
 			write(++s, "a", "z", 6),
 			AdministrativeCommand{context(), AdministrativeKind::DropNamespace, {}, "b",
 								  derive_incarnation(context(), enable.nonce, 2, "b")},
+			Checkpoint{}, // An image holding a tombstone.
 			write(++s, "b", "x", 7), // Re-created under a new incarnation.
 			write(++s, "c", "x", 8),
 			Checkpoint{},

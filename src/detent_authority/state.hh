@@ -258,7 +258,7 @@ class State {
 	friend class AdministrativeApplication;
 	// The namespace entry a change at `name` produces, before its live size.
 	Namespace changed_namespace(std::string_view name) const;
-	void store_namespace(const std::string &name, const Namespace &previous, const Namespace &next);
+	void store_namespace(const std::string &name, std::uint64_t previous_directory, const Namespace &next);
 	Context context_;
 	Limits limits_;
 	Revision revision_ = 0;

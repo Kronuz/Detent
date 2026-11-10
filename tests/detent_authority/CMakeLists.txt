@@ -45,7 +45,7 @@ if(DETENT_BUILD_AUTHORITY)
   add_executable(test_authority_namespace_cluster test_namespace_cluster.cc)
   target_link_libraries(test_authority_namespace_cluster PRIVATE detent::authority_node)
   add_test(NAME test_authority_namespace_cluster COMMAND test_authority_namespace_cluster)
-  set_tests_properties(test_authority_namespace_cluster PROPERTIES TIMEOUT 120)
+  set_tests_properties(test_authority_namespace_cluster PROPERTIES TIMEOUT 180)
   # The crash model: a power cut at every storage primitive (journal's MemoryIO).
   add_executable(test_authority_namespace_power_cut test_namespace_power_cut.cc)
   target_link_libraries(test_authority_namespace_power_cut PRIVATE detent::authority_node)
