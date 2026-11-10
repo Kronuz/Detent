@@ -35,3 +35,4 @@ None until the lead splits it.
 ## Inputs to weigh at split/start
 
 - Xapiand triage (msg-13): #11 packaging: deb, rpm and a container image per release, each with a service unit; #28 sandboxed hosts: run the service under gVisor/seccomp and check reactor, io and http socket options (Xapiand saw SO_LINGER rejected); a shared-library fix is made with Xapiand.
+- D47: #25 the security page states no at-rest encryption (use disk or volume encryption; replication is mutual TLS with pinned certificates); #26 voter addresses accept DNS names, the voter set stays static and pinned.
