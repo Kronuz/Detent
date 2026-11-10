@@ -32,8 +32,8 @@ you examined, failures included, and answer each message by its id (msg-N).
 |---|---|
 | A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
 | A2 | pending |
-| A3 | pending |
-| A4 | pending |
+| A3 | build 261110-132140-883986; smokes 261110-132141-33bbc2 (APFS), 261110-132141-b4d4a3 (VM); confirm pending |
+| A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30) |
 | A5 | pending |
 
 ## Result
