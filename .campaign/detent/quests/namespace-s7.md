@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+S7 (`docs/design/namespace-delivery.md` D8, W9-W11): the agent store is one directory with `selected`, `change`, `owner.lock`, the table, derived generation and segment ids published with `linkat` and verified reuse, and tombstones for absent keys as no-ops.
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 <criterion>: <evidence>
+- A1 W9: one directory per store with `selected`, `change`, `owner.lock` and the table: tests
+- A2 W11: derived ids (layout version, profile, build ordinal), `linkat` publication, and verified reuse of an identical file: tests
+- A3 T7: an interruption at every primitive of publication and adoption leaves a store the reader opens correctly: the crash-model job
+- A4 Applying S6's three answers yields the same store bytes as a full copy at the same position: a test
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes `namespace-session`. Provides `agent-store` (D8's layout), which S8's relay mirror and S9's image share.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D53 split namespace-s4-s10; the design is `docs/design/namespace-delivery.md` (reviewed and landed). Each step lands alone with CI green. May start once dense-pages lands, against S6's contract; lands after S6.
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+Derived ids and the table with tests, before adoption.

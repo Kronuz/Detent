@@ -5,7 +5,7 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+D12.2 (`docs/design/namespace-delivery.md`): no tier re-validates its own build and the relay does not re-hash on recovery; frame SHA-256 stays; hash counters per tier.
 
 ## Acceptance criteria
 
@@ -14,18 +14,18 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 <criterion>: <evidence>
+- A1 S4.1: no tier re-hashes its own build; the relay does not re-hash on recovery; frame SHA-256 is unchanged: tests, native, ASan and TSan checks
+- A2 S4.2: per-tier hash counters; at 10K and 100K, bytes hashed per tier are at most 1.2 times bytes built: a strict job at the landed code, with the counters it read
+- A3 S4.3: a corrupted pack is still caught downstream (S3's first touch or the scrub): a test that fails with the check removed (a revert job)
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Changes no format or wire byte.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D53 split namespace-s4-s10; the design is `docs/design/namespace-delivery.md` (reviewed and landed). Each step lands alone with CI green.
 
 ## May land early
 
-<Prefixes of the branch that are safe alone: refactors, tests, unused internal APIs, code behind
-a disabled switch. "None" when everything waits for the review; `land --upto` refuses then.>
+Hash counters alone, before S4.1.
