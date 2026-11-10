@@ -1792,6 +1792,25 @@
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
       "updated": "2026-11-10T11:59:20"
     },
+    "docs-site-audit": {
+      "accepted": {},
+      "after": [],
+      "checks": [],
+      "consumes": [],
+      "files": [
+        "docs/dev/docs-site-audit.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Docs site audit: every page's claims against main",
+      "updated": "2026-11-10T11:59:23"
+    },
     "docs-wave-1": {
       "accepted": {},
       "after": [],
