@@ -2918,6 +2918,34 @@
       "title": "Namespace delivery design",
       "updated": "2026-11-08T15:38:06"
     },
+    "namespace-measure": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/namespace-delivery-*.py",
+        "docs/perf/namespace-*",
+        "docs/status/namespace-measure.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
+      "updated": "2026-11-10T13:11:01"
+    },
     "namespace-s1-s2": {
       "accepted": {
         "durability": {
