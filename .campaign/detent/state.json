@@ -2036,7 +2036,8 @@
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/group-overrides.md",
         "README.md",
-        "QUICKSTART.md"
+        "QUICKSTART.md",
+        "website/src/content/docs/welcome.md"
       ],
       "landed": [],
       "lenses": [],
@@ -2054,7 +2055,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: features and quick start",
-      "updated": "2026-11-10T12:02:18"
+      "updated": "2026-11-10T12:19:36"
     },
     "docs-site-usage": {
       "accepted": {},
