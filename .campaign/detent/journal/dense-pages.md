@@ -1,25 +1,22 @@
 # dense-pages: journal
 
-State: waiting on jobs 261109-231632-1c7d69 (A15 attribution at Detent:7648173; running 261109-231631-60335f finishing)
+State: ready for review (correctness PERF-1 = A15 under D49); waiting on jobs 261110-021303-349e3e (A15 prepare), 261110-021310-6e8276 (stopped), 261110-021311-1f8a5d (running), and the A1-A14 reruns listed in the Evidence table
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Final head Detent:531c370: D42 design fixes, D43 single-format refusal, the widened file set's
-DES-1/DES-9 edits (Detent:421ca64), the A15 runner with its sysroot fix (Detent:3442d64), and the
-paged-recovery refusal expectation (Detent:941a17e), the repeat_500k round loop (Detent:531c370). Every evidence job reruns there:
-"Final head round 2026-11-09".
+Head Detent:221d87f (main merged at Detent:9c71e00; main's code is unchanged since 4d56489, only
+campaign files moved). D49 rewrote A15: Dense no worse than main at the same path for 1 and 1,000
+namespaces, publisher stopped and running, interleaved with each code's A/A spread; the 1 ms bound
+moved to reader-s6. The gate runner now alternates baseline, Dense, baseline, Dense per shape and
+writes a per-shape verdict (Detent:221d87f, `tests/detent_system/first_read_gate.py`).
 
 ## Next
 
-1. Read stopped c4244f, running 60335f, profile 1c7d69 (results under each job's a1/out/results).
-2. From the profile, split the first read into what Dense owns (lookup: mappings, page verify,
-   walk) and what it does not (retirement runtime and refresh threads, directory trust per path
-   component, record opens); then either an in-scope fix with an exclusive A/B at named commits,
-   or "Blocked on" with the numbers and options for the lead.
-3. Prior attribution, not this build: the 2026-10-29 reader-metadata diagnostic (Detent:52246e2,
-   docs/measurements/reader-metadata-20261029) put directory trust at 212-222 us and the five
-   metadata opens at about 70 us of a ~430 us attach, both main's mechanisms, unchanged by Dense.
+1. When 349e3e, 6e8276 and 1f8a5d finish, read each result.json "verdicts" and the printed
+   "A15 verdict" lines into the A15 row (Dense vs main median, below-1 ms counts, A/A spread).
+2. Record the 100K/5M projections beside the actual numbers (model: A1/A5 jobs).
+3. The lead repeats the accepted result on main.
 
 ## Blocked on
 
@@ -44,27 +41,28 @@ paged-recovery refusal expectation (Detent:941a17e), the repeat_500k round loop 
 
 ## Evidence
 
-Ids below are the measured runs at Detent:435a525 unless named; each reruns with the same command
-at the final head Detent:531c370 (`campaign` takes the twin there), map in "Final head round
-2026-11-09". Pending until that batch passes.
+Ids below are the reruns at Detent:9c71e00 (main merged; submitted 2026-11-10, running or done;
+`campaign status dense-pages` shows each state), except 261109-163621-709877, the paired main run
+at Detent:d5301a2 (a main commit, kept as is). A15 jobs run at Detent:221d87f. Earlier ids: the
+2026-11-09 final-head round.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Model reproduced by native at the head: 261109-145754-fb0366 (synthetic, 100K), 261109-145754-933d09 (5M), with `docs/design/dense-pages-model.py`. Design `docs/design/dense-pages.md` resolves DP-1..DP-6; contracts approved at Detent:7d339fe (`.campaign/detent/reviews/dense-pages-contracts.md`). The lead may tag A1 [artifact]. |
-| A2 | Native gate 261109-145341-9f0788 (180/180 tests); full builder 261109-145755-ef7fac, 261109-145755-02bdc4 (segment, snapshot builder, packer, dense_fullbuild incl. empty admission). |
-| A3 | 261109-145754-fb0366: synthetic 913 pages / 1,266,995 B, root 30a019eb...; 100K 3,245 pages / 6,209,298 B / 6 packs / 6,217,662 B, root 7c0f7d1b...; "exact model pages and placements". Mutants killed (exit 0 = killed): largest-first 261109-145809-3dfd88, seal-64 261109-145810-370f1a, boundary 261109-145812-adf192, height-digest 261109-145813-95cb9d. |
-| A4 | Decoder fuzz, 0 findings: codec 261109-145755-649826 (726.9 CPU s), reader/page/graph/warm 261109-145755-976098 (2,820.25 CPU s), top-up 261109-163723-12ac7c (535.41 CPU s); total 4,082.6 CPU s, 0 crashes. Warm smoke 261109-145755-2539d5, 261109-145755-c3f5af. Corpus replay test_local_paged_codec_replay under ASan/UBSan 261109-145755-79fbd0. Hosted CI replay: open (A13). |
-| A5 | 100K 261109-145754-fb0366 and 5M 261109-145754-933d09: native full build equals the model (5M 162,367 pages / 315,432,480 B / 302 packs / 315,759,038 B, root 67c70ad3...). |
-| A6 | Validator mutants killed: height 261109-145814-90dc99, keys 261109-145815-33fefb, order 261109-145817-2916b3 (test_local_paged_page_validator), canonicity 261109-145816-953b99 (test_local_paged_graph_validator); suites pass in 261109-145341-9f0788. |
-| A7 | 5M counters 261109-145754-933d09: page 162,367 / 306,989,416 B, pack 302 / 315,759,038 B, metadata 303 / 22,064 B; exact accounting and empty admission 261109-145755-02bdc4. |
-| A8 | Reader fixtures and pressure 261109-145755-f3bd3f; native 261109-145341-9f0788. "Landed S6 interfaces are preserved": open while S6 is not on main (the lead's S6/Dense order). |
-| A9 | Overlay bounds (COR-1) Debug 261109-145755-71a2c4, ASan/UBSan 261109-145754-cecb4a and 261109-145755-79fbd0, unguarded-parent patch killed 261109-145755-bd9ad1. S3b's bounds on main: open (S3b/Dense order). |
-| A10 | 1,000 seeded trials of 1..500 changes equal full rebuilds 261109-145755-89ebfd. 100K real deltas 261109-145754-a00ef8: one update 5 pages / 14,276 B / 1 pack 14,287 B / 0 off-path; mixed churn 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B / 2 off-path 3,203 B; roots and occurrences equal the model. Repeated-content fixtures 261109-145755-37b414. Reverts killed: key grammar 261109-145819-036ceb, signed order 261109-145820-9d2b50, overlay limits 261109-145821-f28cd1, cursor limits 261109-145822-623329. 5M 261109-145754-28d1cf: one update 5 pages / 15,691 B / 1 pack 15,706 B / 0 off-path; mixed churn 16,616 pages / 42,821,363 B / 41 packs / 42,872,248 B / 99 off-path 220,903 B; all 5,000,004 bodies and occurrences equal the full rebuild and the model. |
-| A11 | Compaction, delta plan, relocation fixtures 261109-145755-37b414; relocation zero page hashes in 261109-145755-89ebfd. Mutants killed: noop-rewrite 261109-145824-7e3011, relocation-rehash 261109-145825-1a6698, offpath-skip 261109-145826-86a096; harness self-test 261109-145827-29b141. |
-| A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261109-181406-f2bfa6 (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261109-181407-08cc29, barrier mutant killed 261109-181407-924846; no per-version recognition left: grep 261109-181408-e19361. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
-| A13 | ASan/UBSan 261109-145755-dc2bcc (10/10), 261109-145754-cecb4a, 261109-145755-79fbd0; TSan 261109-145754-fe08c1 (4/4); native incl. trusted restart and power cut 261109-145341-9f0788; revert/mutant batch in A3, A6, A9-A11. S1/S2 T7 positive at the head 261109-163620-dd9c24 passed (power_cut 5,766 cases in 121 s; paired main run 261109-163621-709877 passed in 45 s at the same time); startup-before-barrier killed at the head 261109-163623-0dd05f (power_cut invariant line 475 at 122 s, as on main; startup :97). CI at the final merged head: open. |
-| A14 | Security accepted at Detent:8878c39 (home 76701a7); design accepted at Detent:8878c39 (home 36a9bcb). Correctness CHANGES: COR-1 fixed, confirmed by Debug bounds 261109-181408-98bea7, ASan/UBSan 261109-181407-e55347, unguarded parent killed 261109-181409-45986b; PERF-1 is A15 (open). Architect ruling: none yet. |
-| A15 | Open, gate missed. At Detent:8878c39 (code 531c370): prepare 261109-222551-30d32f; stopped 261109-222553-4f2dbd, below 1 ms of 200: B1 61, D1 126, D1000 186, B1000 44, A/A D1 172, B1 112 (Dense ahead of the baseline on every arm, neither 200/200); running 261109-222555-ec2293 failed (stores lacked owner.lock and `.live`; fixed Detent:7648173). Rerun at Detent:7648173: prepare 261109-231620-614f13 passed, stopped 261109-231630-c4244f, running 261109-231631-60335f, attribution 261109-231632-1c7d69, pending. Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. Times the pre-S6 `detent::Client`, not T2's `detent_open` (S6 not on main). |
+| A1 | Model reproduced by native at the head: 261110-021146-e99fb9 (synthetic, 100K), 261110-021146-080388 (5M), with `docs/design/dense-pages-model.py`. Design `docs/design/dense-pages.md` resolves DP-1..DP-6; contracts approved at Detent:7d339fe (`.campaign/detent/reviews/dense-pages-contracts.md`). The lead may tag A1 [artifact]. |
+| A2 | Native gate 261110-021133-928b3b (180/180 tests); full builder 261110-021147-dfe518, 261110-021146-bc0b0f (segment, snapshot builder, packer, dense_fullbuild incl. empty admission). |
+| A3 | 261110-021146-e99fb9: synthetic 913 pages / 1,266,995 B, root 30a019eb...; 100K 3,245 pages / 6,209,298 B / 6 packs / 6,217,662 B, root 7c0f7d1b...; "exact model pages and placements". Mutants killed (exit 0 = killed): largest-first 261110-021147-6c1d5a, seal-64 261110-021147-b34ff5, boundary 261110-021147-0a9bb7, height-digest 261110-021147-ebb519. |
+| A4 | Decoder fuzz, 0 findings: codec 261110-021146-530833 (726.9 CPU s), reader/page/graph/warm 261110-021146-9addb9 (2,820.25 CPU s), top-up 261110-021147-86415a (535.41 CPU s); total 4,082.6 CPU s, 0 crashes. Warm smoke 261110-021146-72abb1, 261110-021146-f9870d. Corpus replay test_local_paged_codec_replay under ASan/UBSan 261110-021146-f63a38. Hosted CI replay: open (A13). |
+| A5 | 100K 261110-021146-e99fb9 and 5M 261110-021146-080388: native full build equals the model (5M 162,367 pages / 315,432,480 B / 302 packs / 315,759,038 B, root 67c70ad3...). |
+| A6 | Validator mutants killed: height 261110-021147-8689c1, keys 261110-021147-4177a8, order 261110-021147-c59665 (test_local_paged_page_validator), canonicity 261110-021147-8eb7a7 (test_local_paged_graph_validator); suites pass in 261110-021133-928b3b. |
+| A7 | 5M counters 261110-021146-080388: page 162,367 / 306,989,416 B, pack 302 / 315,759,038 B, metadata 303 / 22,064 B; exact accounting and empty admission 261110-021146-bc0b0f. |
+| A8 | Reader fixtures and pressure 261110-021147-561c11; native 261110-021133-928b3b. "Landed S6 interfaces are preserved": open while S6 is not on main (the lead's S6/Dense order). |
+| A9 | Overlay bounds (COR-1) Debug 261110-021146-2647b2, ASan/UBSan 261110-021146-08f455 and 261110-021146-f63a38, unguarded-parent patch killed 261110-021146-dc55a7. S3b's bounds on main: open (S3b/Dense order). |
+| A10 | 1,000 seeded trials of 1..500 changes equal full rebuilds 261110-021146-da1e2a. 100K real deltas 261110-021146-f889f5: one update 5 pages / 14,276 B / 1 pack 14,287 B / 0 off-path; mixed churn 3,090 pages / 5,946,377 B / 6 packs / 5,954,604 B / 2 off-path 3,203 B; roots and occurrences equal the model. Repeated-content fixtures 261110-021146-03df64. Reverts killed: key grammar 261110-021147-c29a75, signed order 261110-021147-dd7abf, overlay limits 261110-021147-f5ed3e, cursor limits 261110-021147-1b2012. 5M 261110-021146-eab191: one update 5 pages / 15,691 B / 1 pack 15,706 B / 0 off-path; mixed churn 16,616 pages / 42,821,363 B / 41 packs / 42,872,248 B / 99 off-path 220,903 B; all 5,000,004 bodies and occurrences equal the full rebuild and the model. |
+| A11 | Compaction, delta plan, relocation fixtures 261110-021146-03df64; relocation zero page hashes in 261110-021146-da1e2a. Mutants killed: noop-rewrite 261110-021147-eb413d, relocation-rehash 261110-021147-2adb2b, offpath-skip 261110-021147-fd9cd8; harness self-test 261110-021147-220a78. |
+| A12 | D43: one refusal path for every non-current layout. Refetch with the planner 261110-021148-e93553 (test_dense_refetch `foreign_install`: layout-9 ownership over version-9 root and pages, refused and refetched, interrupted copy and restart included); refusal mutant killed 261110-021148-badb00, barrier mutant killed 261110-021148-6f819c; no per-version recognition left: grep 261110-021148-b478da. The frozen v2 fixture and its job (5a7ad1) are removed (D43). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`, `docs/mechanisms/verified-page-bitmap.md`, `docs/mechanisms/recovery-digest-once.md`. |
+| A13 | ASan/UBSan 261110-021147-e11776 (10/10), 261110-021146-08f455, 261110-021146-f63a38; TSan 261110-021146-ad9d8e (4/4); native incl. trusted restart and power cut 261110-021133-928b3b; revert/mutant batch in A3, A6, A9-A11. S1/S2 T7 positive at the head 261110-021147-1726d4 passed (power_cut 5,766 cases in 121 s; paired main run 261109-163621-709877 passed in 45 s at the same time); startup-before-barrier killed at the head 261110-021147-4f1905 (power_cut invariant line 475 at 122 s, as on main; startup :97). CI at the final merged head: open. |
+| A14 | Security accepted at Detent:8878c39 (home 76701a7); design accepted at Detent:8878c39 (home 36a9bcb). Correctness CHANGES: COR-1 fixed, confirmed by Debug bounds 261110-021148-1853c0, ASan/UBSan 261110-021148-409e34, unguarded parent killed 261110-021148-3b94a4; PERF-1 is A15 (open). Architect ruling: none yet. |
+| A15 | D49 gate at Detent:221d87f (runner commit; Dense code = 531c370 plus the 7648173 exporter fix; baseline main 970a7d4, code equal to 4d56489): prepare 261110-021303-349e3e; interleaved exclusive measures: stopped 261110-021310-6e8276, running 261110-021311-1f8a5d (B, D, B', D' per shape; verdict per shape in result.json and the job log). Verdicts and 100K/5M projections: pending the jobs. Earlier, under the superseded 200/200 gate at Detent:7648173: stopped c4244f, running 60335f, attribution 1c7d69. Runner `docs/perf/first-read-gate.sh`, doc `docs/perf/first-read-gate.md`. Times the pre-S6 `detent::Client`, not T2's `detent_open`. |
 
 ## Rulings I made
 
