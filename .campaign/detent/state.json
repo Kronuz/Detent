@@ -1689,7 +1689,8 @@
         "docs/ACTORS.md",
         "docs/LOCAL_IMAGE_FORMAT.md",
         "website/src/content/docs/reference/configuration.md",
-        "website/src/content/docs/reference/snapshot-format.md"
+        "website/src/content/docs/reference/snapshot-format.md",
+        "include/detent_delivery/coordinator.hh"
       ],
       "landed": [],
       "lenses": [
@@ -1707,7 +1708,7 @@
       "risk": "normal",
       "status": "planned",
       "title": "Legacy I: one local image format; flat-v1, image_format and legacy_anchor removed",
-      "updated": "2026-11-09T18:01:49"
+      "updated": "2026-11-09T18:15:35"
     },
     "legacy-wave2": {
       "accepted": {},
