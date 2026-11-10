@@ -281,7 +281,18 @@
       "files": [
         "docs/design/async-drivers*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-10T12:50:13",
+          "commit": "0bb2a52ae1e38637b989ee9cad97d01b0482cd99",
+          "evidence": [],
+          "final": false,
+          "reason": "recorded after the fact: A7's 5 cost jobs passed at b336a49 (261110-052002-d333c7, ad7aff, 96f49b, 8daf71, c6d296); aa664d0 adds only docs/design/observability* and docs/dev/docs-site-audit.md, which the async-drivers bench never reads (the P1 input rule both leads agreed); reruns at aa664d0 queued (261110-123944-*)",
+          "recorded": "2026-11-10T12:50:14",
+          "tested": "0bb2a52ae1e38637b989ee9cad97d01b0482cd99",
+          "unverified": []
+        }
+      ],
       "lenses": [
         "design"
       ],
@@ -294,7 +305,7 @@
       "risk": "low",
       "status": "review",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-10T12:39:28",
+      "updated": "2026-11-10T12:50:14",
       "worktree": "../Detent-wt/detent/async-drivers-design"
     },
     "client-local-source": {
