@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-120919-26a86b 261111-121548-d1f618 261111-121549-8cd0f8 261111-121551-0e58b1 261111-121553-d6c80e
+State: waiting on jobs 261111-130750-f599af 261111-130752-8a3696 261111-130753-1687cf 261111-130755-91093a 261111-130756-004da8
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Rows queued at 22a10ab7 (candidates a-e), stash pinned at stash:d249352: tests
-261111-120919-26a86b (light, A1), smoke 261111-121548-d1f618 (strict), then single
-261111-121549-8cd0f8, cross 261111-121551-0e58b1, mem 261111-121553-d6c80e (exclusive, A2).
-Superseded: tests 261111-120050-51af98 and smoke 261111-120056-0484f0 at 67f3f4c3 (a-d).
+Rerun at df21a772 (candidates a-f, cross workload 1M in 1 s), stash:d249352: tests
+261111-130750-f599af (A1), smoke 261111-130752-8a3696, single R=10 261111-130753-1687cf, cross
+261111-130755-91093a, mem 261111-130756-004da8 (A2).
+First rows at 22a10ab7 (superseded, kept as the record of what changed): single
+261111-121549-8cd0f8 (a/d/e within ~5% at 1k and 1M; b 26x/3.6x, c 21x/1.7x), cross
+261111-121551-0e58b1 (no owner kept up; d/e 1.3-1.4 us per arm at 14 producers vs stash
+289 ns, c 209 ns), mem 261111-121553-d6c80e.
 
 ## Next
 
@@ -50,3 +53,7 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - Single-loop passes visit entries in one random order (D4 went in index order), so a 1M row
   pays the cache misses a real loop does; the numbers are not comparable with D4's table.
 - Cross-thread producers read steady_clock every 64 arms, the same for every candidate.
+- After the first rows (wheel-evidence.md, "Changes after the first rows"): candidate (f), a
+  striped inbox; the cross workload 2M due in 1-50 ms -> 1M due in 1-1,000 ms, since no owner
+  (stash's included) kept up; rule 3's R=10 rerun decides by its median ratio. Thresholds
+  unchanged; every row reruns.
