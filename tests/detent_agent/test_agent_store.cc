@@ -1,0 +1,271 @@
+// The agent store (namespace-delivery D8, W9, W11): one directory, the table, derived ids, `linkat`
+// publication and verified reuse.
+#include "agent_store_fixture.hh"
+#include <cstdio>
+#include <sys/stat.h>
+#include <unistd.h>
+
+using namespace fixture;
+namespace c = kronuz::io::completion;
+namespace {
+const d::Profile profile{};
+std::filesystem::path g_root;
+
+std::filesystem::path fresh(const std::string &name) {
+	const auto path = g_root / name;
+	std::filesystem::remove_all(path);
+	std::filesystem::create_directories(path);
+	check(::chmod(path.c_str(), 0700) == 0);
+	return path;
+}
+std::unique_ptr<l::AgentStore> open(const std::filesystem::path &root) {
+	return std::make_unique<l::AgentStore>(std::make_shared<c::PosixIO>(root, 0644), l::AgentStore::Options{profile});
+}
+std::array<l::PreparedGeneration, 1> one(const Generation &g) { return {g.prepared}; }
+ino_t inode(const std::filesystem::path &path) {
+	struct stat status{};
+	check(::lstat(path.c_str(), &status) == 0);
+	return status.st_ino;
+}
+nlink_t links(const std::filesystem::path &path) {
+	struct stat status{};
+	check(::lstat(path.c_str(), &status) == 0);
+	return status.st_nlink;
+}
+void overwrite(const std::filesystem::path &path, std::string_view bytes) {
+	std::filesystem::remove(path);
+	std::ofstream out(path, std::ios::binary);
+	out.write(bytes.data(), std::streamsize(bytes.size()));
+	out.close();
+	check(::chmod(path.c_str(), 0644) == 0);
+}
+std::vector<std::string> expected_names(std::initializer_list<const Generation *> generations) {
+	std::vector<std::string> names{"change", "owner.lock", "selected"};
+	for (const auto *g : generations) {
+		for (auto suffix : {".image", ".live", ".read"})
+			names.push_back(generation_file(g->id, suffix));
+		for (const auto &segment : g->prepared.segments) {
+			const l::detail::SegmentNames segment_names(segment.id);
+			names.emplace_back(segment_names.owner_name());
+			names.emplace_back(segment_names.payload_name());
+		}
+	}
+	std::sort(names.begin(), names.end());
+	return names;
+}
+
+// W11, D8.1: ids derive from what was built, with no storage identity.
+void derived_ids() {
+	const l::GenerationId zero{}, base = l::derive_generation(profile, identity('i'), 7, zero, 0);
+	const auto id = l::derive_generation(profile, identity('i'), 9, base, 0);
+	check(id == l::derive_generation(profile, identity('i'), 9, base, 0));
+	d::Profile other = profile;
+	other.required_capabilities = 0;
+	d::Profile semantic = profile;
+	semantic.semantic_id = 2;
+	for (const auto &variant :
+		 {l::derive_generation(other, identity('i'), 9, base, 0), l::derive_generation(semantic, identity('i'), 9, base, 0),
+		  l::derive_generation(profile, identity('j'), 9, base, 0), l::derive_generation(profile, identity('i'), 10, base, 0),
+		  l::derive_generation(profile, identity('i'), 9, zero, 0), l::derive_generation(profile, identity('i'), 9, base, 1)})
+		check(variant != id);
+	// Pinned: two builds on any host name the same files, and the derivation never drifts silently.
+	const auto pinned = l::generation_name(l::derive_generation(profile, identity('i'), 9, zero, 0));
+	if (pinned != "generation-769d4f78b559a65597a3188c10bb87ad")
+		throw std::runtime_error("derivation drifted: " + pinned);
+	check(l::derive_segment(id, 0) == l::derive_segment(id, 0) && l::derive_segment(id, 0) != l::derive_segment(id, 1) &&
+		  l::derive_segment(id, 0) != l::derive_segment(base, 0));
+}
+
+void table_codec() {
+	l::StoreTable table;
+	table.sequence = 5;
+	table.directory = {identity('c'), 11};
+	for (auto name : {"alpha", "beta", "gamma/delta"}) {
+		l::TableEntry entry;
+		entry.name = name;
+		entry.cursor = cursor(name[0], 3);
+		entry.slot = std::uint32_t(table.entries.size()) ^ 1;
+		entry.generation = l::derive_generation(profile, entry.cursor.incarnation, 3, {}, 0);
+		entry.ordinal = 2;
+		entry.root_length = 320;
+		entry.root = sha(name);
+		entry.read = sha(std::string(name) + ".read");
+		table.entries.push_back(entry);
+	}
+	const auto bytes = l::encode_table(table);
+	check(l::decode_table(bytes) == table && table.find("beta") == &table.entries[1] && !table.find("b"));
+	// One refusal for anything but a whole, current table.
+	for (std::size_t at : {std::size_t(0), std::size_t(9), std::size_t(70), bytes.size() - 1}) {
+		auto torn = bytes;
+		torn[at] ^= 1;
+		refuses<l::TableRefused>([&] { l::decode_table(torn); });
+	}
+	refuses<l::TableRefused>([&] { l::decode_table(std::string_view(bytes).substr(0, bytes.size() - 1)); });
+	refuses<l::TableRefused>([&] { l::decode_table(std::string_view(bytes).substr(0, 64)); });
+	auto resign = [](std::string bytes) {
+		const auto sum = sha(std::string_view(bytes).substr(0, bytes.size() - 32));
+		std::copy(sum.begin(), sum.end(), bytes.end() - 32);
+		return bytes;
+	};
+	auto duplicate = table;
+	duplicate.entries[1].slot = duplicate.entries[0].slot;
+	refuses<l::TableRefused>([&] { l::decode_table(l::encode_table(duplicate)); });
+	auto layout = bytes;
+	layout[8] = 2;
+	refuses<l::TableRefused>([&] { l::decode_table(resign(layout)); });
+	auto unordered = bytes; // "alpha" and "beta" differ in their first byte; swap it to put beta first
+	unordered[64 + 1] = 'c';
+	refuses<l::TableRefused>([&] { l::decode_table(resign(unordered)); });
+	check(l::decode_table(resign(bytes)) == table);
+	refuses<std::invalid_argument>([&] {
+		auto swapped = table;
+		std::swap(swapped.entries[0], swapped.entries[1]);
+		l::encode_table(swapped);
+	});
+}
+
+// W9: the store is one directory holding `selected`, `change`, `owner.lock` and the derived files.
+void one_directory() {
+	const auto root = fresh("layout");
+	auto store = open(root);
+	check(listing(root) == std::vector<std::string>{"change", "owner.lock"});
+	check(store->table().entries.empty() && store->table().sequence == 0 && store->failed().empty());
+	refuses<std::exception>([&] { open(root); }); // owner.lock is held exclusively
+
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 2, 'a');
+	const auto b = generation(profile, "beta", cursor('b', 9), {}, 0, {}, 1, 'b');
+	const auto words = store->change_word(0);
+	check(store->publish({identity('c'), 2}, std::array{b.prepared, a.prepared}) == 1);
+	check(listing(root) == expected_names({&a, &b}));
+	const auto table = l::decode_table(slurp(root / "selected"));
+	check(table == store->table() && table.sequence == 1 && table.directory.position == 2);
+	check(table.entries.size() == 2 && table.entries[0].name == "alpha" && table.entries[1].name == "beta");
+	check(table.entries[0].generation == a.id && table.entries[0].cursor == a.prepared.cursor &&
+		  table.entries[0].root == sha(a.prepared.image) && table.entries[0].read == sha(a.prepared.read) &&
+		  table.entries[0].root_length == 320);
+	// Slots in first-appearance order within the cycle; the store word and each changed slot move once.
+	check(table.entries[1].slot == 0 && table.entries[0].slot == 1);
+	check(store->change_word(0) == words + 1 && store->change_word(1) == 1 && store->change_word(2) == 1);
+	check(table_verifies(root, table));
+	for (const auto &name : listing(root))
+		check(links(root / name) == 1);
+
+	// A later namespace takes the next slot; an unchanged entry keeps its sequence.
+	const auto c = generation(profile, "carrot", cursor('c', 1), {}, 0, {}, 1, 'c');
+	check(store->publish({identity('c'), 3}, one(c)) == 2);
+	check(store->table().find("carrot")->slot == 2 && store->change_word(1) == 1 && store->change_word(3) == 1);
+
+	// Restart: the table reads back, every word moves once (reader.md D4 rule 2), `.tmp-` names go.
+	std::vector<std::uint64_t> before;
+	for (std::size_t i = 0; i < 4; ++i)
+		before.push_back(store->change_word(i));
+	store.reset();
+	overwrite(root / ".tmp-leftover", "partial");
+	store = open(root);
+	check(store->table() == l::decode_table(slurp(root / "selected")) && store->failed().empty());
+	for (std::size_t i = 0; i < 4; ++i)
+		check(store->change_word(i) == before[i] + 1);
+	check(!std::filesystem::exists(root / ".tmp-leftover"));
+
+	// A table that does not decode refuses the store.
+	store.reset();
+	auto torn = slurp(root / "selected");
+	torn[20] ^= 1;
+	overwrite(root / "selected", torn);
+	refuses<l::TableRefused>([&] { open(root); });
+}
+
+// W11, D8.3-4: files are linked from `.tmp-` names; a reused name is verified, an orphan relinked, and a
+// mismatching name the table reaches is a repair at the next ordinal.
+void publication() {
+	const auto root = fresh("publication");
+	auto store = open(root);
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 2, 'a');
+
+	// An orphan a crash left at a derived name (unsynced bytes, here garbage) is unlinked and relinked.
+	const auto orphan = root / generation_file(a.id, ".read");
+	overwrite(orphan, std::string(192, 'x'));
+	const auto pack = root / std::string(l::detail::SegmentNames(a.prepared.segments[0].id).payload_name());
+	overwrite(pack, a.prepared.segments[0].pack.substr(0, 100));
+	// A name holding the right bytes is reused in place.
+	const auto image = root / generation_file(a.id, ".image");
+	overwrite(image, a.prepared.image);
+	const auto kept = inode(image);
+	store->publish({}, one(a));
+	check(slurp(orphan) == a.prepared.read && slurp(pack) == a.prepared.segments[0].pack && inode(image) == kept);
+	check(table_verifies(root, store->table()) && listing(root) == expected_names({&a}));
+
+	// Republishing the same generation reuses every name: nothing is replaced.
+	std::vector<ino_t> inodes;
+	for (const auto &name : expected_names({&a}))
+		if (name.starts_with("generation-") || name.starts_with("segment-"))
+			inodes.push_back(inode(root / name));
+	store->publish({}, one(a));
+	std::size_t at = 0;
+	for (const auto &name : expected_names({&a}))
+		if (name.starts_with("generation-") || name.starts_with("segment-"))
+			check(inode(root / name) == inodes[at++]);
+
+	// A catch-up generation keeps one base segment and writes one; a base segment the table does not
+	// reach is refused before anything is written.
+	const auto next = generation(profile, "alpha", cursor('a', 6), a.id, 0, std::span(a.segments).first(1), 1, 'n');
+	auto stray = a.segments[0];
+	stray.id[0] ^= 1;
+	const auto rebound = generation(profile, "alpha", cursor('a', 6), a.id, 0, std::span(&stray, 1), 1, 'n');
+	const auto names = listing(root);
+	refuses<std::invalid_argument>([&] { store->publish({}, one(rebound)); });
+	check(listing(root) == names);
+	store->publish({}, one(next));
+	check(store->table().find("alpha")->generation == next.id && table_verifies(root, store->table()));
+
+	// A `.live` that does not bind its generation is refused; nothing is written.
+	const auto published = listing(root);
+	auto unbound = generation(profile, "beta", cursor('b', 1), {}, 0, {}, 1, 'b');
+	unbound.prepared.read[0] ^= 1;
+	refuses<std::invalid_argument>([&] { store->publish({}, one(unbound)); });
+	check(listing(root) == published);
+
+	// Corruption on a name the table reaches fails that namespace at startup (D10); publishing the same
+	// names refuses and leaves the table, and a repair at the next ordinal publishes new names.
+	store.reset();
+	const auto read = root / generation_file(next.id, ".read");
+	overwrite(read, std::string(192, 'z'));
+	store = open(root);
+	check(store->failed().size() == 1 && store->failed()[0] == "alpha");
+	const auto table = store->table();
+	try {
+		store->publish({}, one(next));
+		check(false);
+	} catch (const l::ReachedNameMismatch &mismatch) {
+		check(mismatch.name == generation_file(next.id, ".read") && mismatch.space == "alpha");
+	}
+	check(store->table() == table && l::decode_table(slurp(root / "selected")) == table);
+	for (const auto &name : listing(root))
+		check(!name.starts_with(".tmp-"));
+	const auto repair = generation(profile, "alpha", cursor('a', 6), {}, table.find("alpha")->ordinal + 1, {}, 2, 'r');
+	check(repair.id != next.id);
+	store->publish({}, one(repair));
+	check(store->failed().empty() && store->table().find("alpha")->ordinal == 1 && table_verifies(root, store->table()));
+	store.reset();
+	store = open(root);
+	check(store->failed().empty());
+}
+} // namespace
+
+int main(int argc, char **argv) {
+	check(argc == 2);
+	g_root = argv[1];
+	std::filesystem::remove_all(g_root);
+	std::filesystem::create_directories(g_root);
+	try {
+		derived_ids();
+		table_codec();
+		one_directory();
+		publication();
+	} catch (const std::exception &error) {
+		std::fprintf(stderr, "test_agent_store: %s\n", error.what());
+		return 1;
+	}
+	std::filesystem::remove_all(g_root);
+	return 0;
+}
