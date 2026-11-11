@@ -5,27 +5,31 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The non-blocking findings of `.campaign/detent/reviews/namespace-s3b-durability.md` are resolved:
+resource exhaustion is not mistaken for damage, a missing pack in a leased root does not fail the
+whole collection, and the docs say what the scrub withdraws.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 N1: EMFILE, ENFILE and ENOMEM on a pack open or read are transient (retried later, no damage
+  report, no repair): a test that fails without it (`--fails-without` on a revert).
+- A2 N3: a pack missing from a leased root is skipped and retried with backoff; the rest of the
+  collection proceeds: a test that fails without it.
+- A3 N4, N5: the scrub resumes rather than restarts on a new root when its packs are unchanged, and
+  an obsolete report waits for the tick; or the journal shows, with a job, that neither costs
+  anything measurable and they are dropped.
+- A4 [artifact] N2: `docs/mechanisms/trusted-restart.md` "Limits" says a reader process keeps its
+  own verified bits.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- Lead, 2026-11-11: follow-ups from the namespace-s3b durability review (N1-N5), landed after
+  namespace-s4, which shares `coordinator.cc`.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Each of A1-A4 alone.
