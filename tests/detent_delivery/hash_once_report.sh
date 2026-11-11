@@ -11,7 +11,24 @@ for knobs in 10000 100000; do
         timeout 200 "$dir/test_delivery_hash_once" "$dir/tls-fixture" "$mode" "$knobs" | grep -v '^ok$'
     done
 done
-# The relay's delta checks pass but its shutdown does not drain: read its line, then stop it.
+# relay-delta's shutdown does not drain (pre-existing, quest relay-delta-shutdown-hang), so its exit 124 is that
+# hang; its line is checked here: page and pack bytes hashed equal those built. Any other exit fails.
 for knobs in 10000 100000; do
-    timeout 30 "$dir/test_delivery_hash_once" "$dir/tls-fixture" relay-delta "$knobs" | grep '^hash-once' || true
+    set +e
+    out=$(timeout 30 "$dir/test_delivery_hash_once" "$dir/tls-fixture" relay-delta "$knobs" 2>&1)
+    status=$?
+    set -e
+    line=$(grep '^hash-once relay-delta' <<<"$out" || true)
+    echo "$line"
+    case $status in
+    0) ;;
+    124) echo "relay-delta knobs=$knobs: exit 124, the known shutdown hang (relay-delta-shutdown-hang)" ;;
+    *) echo "$out"; echo "relay-delta knobs=$knobs: FAILED, exit $status"; exit 1 ;;
+    esac
+    field() { sed -n "s/.* $1=\([0-9]*\).*/\1/p" <<<"$line"; }
+    if test -z "$line" || test "$(field hashed_page_bytes)" != "$(field built_page_bytes)" ||
+        test "$(field hashed_pack_bytes)" != "$(field built_pack_bytes)"; then
+        echo "relay-delta knobs=$knobs: FAILED, hashed page or pack bytes differ from built"
+        exit 1
+    fi
 done
