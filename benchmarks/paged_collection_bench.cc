@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 			write(directory / (l::generation_name(generation) + ".image"), image.bytes()->view());
 			write(
 				directory / (l::generation_name(generation) + ".lease"),
-				l::encode_generation_ownership({storage, generation, selected.length, selected.checksum, 2}));
+				l::encode_generation_ownership({storage, generation, selected.length, selected.checksum, l::paged::format_version}));
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames names(segment.ownership.segment);
 				write(directory / names.owner_name(), l::encode_segment_ownership(segment.ownership));
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 			write(directory / (l::generation_name(id) + ".image"), root);
 			write(directory / (l::generation_name(id) + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, id, root.size(), l::paged::physical_commitment(root), 2}));
+					  {storage, id, root.size(), l::paged::metadata_commitment(root), l::paged::format_version}));
 		}
 		auto account = std::make_shared<d::StorageLedger>(512ull * l::paged::segment_bytes);
 		auto maps = std::make_shared<d::StorageLedger>(256ull * l::paged::segment_bytes);
