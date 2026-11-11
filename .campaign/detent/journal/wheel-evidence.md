@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: working
+State: waiting on jobs 261111-120056-0484f0 261111-120247-0a3582 261111-120249-898d56 261111-120250-120664
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Writing the candidates (`docs/design/async-drivers-bench/wheel_vs_stash*`). The decision rule
-(A3) is in `docs/design/wheel-evidence.md`, committed before any measured job.
+Rows queued at 67f3f4c3, stash pinned at stash:d249352: smoke 261111-120056-0484f0 (strict),
+then single 261111-120247-0a3582, cross 261111-120249-898d56, mem 261111-120250-120664 (all
+exclusive, --after the smoke). Tests passed: 261111-120050-51af98 (A1; ASan+UBSan and TSan).
 
 ## Next
 
-1. Candidates (a)-(d) and the harness; smoke as a strict job.
-2. Single-loop row (exclusive), cross-thread row (exclusive), memory.
-3. Results and the pick by the rule into the note.
+1. Read the rows' summaries; rerun once with R=10 any row the rule calls inconclusive.
+2. Results, numbers and the pick by the rule into `docs/design/wheel-evidence.md`.
+3. Optional experiment 5 if (d) loses cross-thread only on inbox contention: a striped inbox.
 
 ## Blocked on
 
