@@ -30,6 +30,14 @@ wheel is acceptable only for a measured gap the owner accepts.
 - A4 [artifact] `docs/design/wheel-evidence.md`: the candidates, the numbers, the rule and the
   pick, and what it means for Kronuz/scheduler and Kronuz/stash (improve, keep, or retire: the
   owner's call, with the evidence).
+- A5 Tighter rows on this host (D69): each single-loop sample repeats the n = 1,000 lifecycle
+  until it runs at least 100 ms, so the A/A band at n = 1,000 is at most 5%; (a)-(f) rerun at
+  n = 1,000 and 1,000,000, exclusive, R = 10, and the rule of A3 is applied to these rows. The
+  band reached is reported whatever it is.
+- A6 Linux rows (D69): the same single-loop, cross-thread and memory rows for (a), (b), (c) and
+  (f) on the local QEMU Linux VM (strata's `tools/vm/aws-linux.sh run`, never AWS), the host
+  held `exclusive` while the VM measures; cross-thread at P = 1, 4 and the VM's vCPUs minus 1.
+  Reported as VM numbers next to the macOS rows, with the rule applied to each host.
 
 ## Contracts
 
