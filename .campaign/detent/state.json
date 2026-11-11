@@ -4769,7 +4769,17 @@
         "tests/detent_agent/test_agent_cli.cmake",
         "tests/detent_delivery/test_coordinator.cc",
         "tests/detent_authority/test_daemon.sh",
-        "tests/detent_system/mixed_oracle.cc"
+        "tests/detent_system/mixed_oracle.cc",
+        "tests/detent_system/local_oracle.cc",
+        "tests/detent_system/prepared_client_probe.cc",
+        "tests/detent_system/reader_benchmark.hh",
+        "website/src/content/docs/reference/errors.md",
+        "website/src/content/docs/reference/evaluation.md",
+        "website/src/content/docs/reference/observability.md",
+        "website/src/content/docs/reference/bindings/python.md",
+        "website/src/content/docs/reference/bindings/rust.md",
+        "website/src/content/docs/architecture/read-path.md",
+        "diagrams/04_read_path.*"
       ],
       "landed": [],
       "lenses": [
@@ -4782,7 +4792,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T14:24:47",
+      "updated": "2026-11-11T14:27:46",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
