@@ -14,7 +14,7 @@ Committed 1658291f. Jobs queued: A1 pass (261111-105343-9301ba), A1 mutant (2611
 ## Next
 
 1. `campaign wait --quest drop-justknobs`, paste `campaign brief` Evidence table below, fill Result, State "ready for review".
-2. Push the branch for CI (not yet pushed).
+2. Branch pushed (origin/quest/detent/drop-justknobs) for CI; check its result.
 
 ## Blocked on
 
