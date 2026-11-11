@@ -52,7 +52,7 @@ void test_source_parse_and_merge() {
 		"published_at": "2026-09-29T15:00:00Z",
 		"knobs": {
 			"checkout:killswitch_new_path": {
-				"default": 0, "overrides": { "employees": 1 }, "rollout_pct": 10, "rollout_value": 1, "rollout_value": 1
+				"default": 0, "overrides": { "employees": 1 }, "rollout_pct": 10, "rollout_value": 1
 			}
 		}
 	})";
@@ -158,16 +158,16 @@ void test_definition_shape() {
 	expect_schema_rejection(R"({"default":25,"rollout_value":50})");
 	expect_schema_rejection(R"({"default":25,"overrides":{"beta":7},"rollout_value":50})");
 	// A percentage (knob-wide or group) without rollout_value.
-	expect_schema_rejection(R"({"default":25,"rollout_pct":10, "rollout_value": 1})");
+	expect_schema_rejection(R"({"default":25,"rollout_pct":10})");
 	expect_schema_rejection(R"({"default":25,"overrides":{"canary":{"rollout_pct":50}}})");
 	// Percentages over 100.
-	expect_schema_rejection(R"({"default":25,"rollout_pct":101, "rollout_value": 1,"rollout_value":50})");
+	expect_schema_rejection(R"({"default":25,"rollout_pct":101,"rollout_value":50})");
 	expect_schema_rejection(R"({"default":25,"overrides":{"canary":{"rollout_pct":101}},"rollout_value":50})");
 	// No type tag, no boolean literals.
-	expect_schema_rejection(R"({"default":25})");
-	expect_schema_rejection(R"({"default":1})");
+	expect_schema_rejection(R"({"type":"int","default":25})");
+	expect_schema_rejection(R"({"default":true})");
 	expect_schema_rejection(R"({"default":0,"overrides":{"g":true}})");
-	expect_schema_rejection(R"({"default":0,"rollout_pct":10, "rollout_value": 1,"rollout_value":true})");
+	expect_schema_rejection(R"({"default":0,"rollout_pct":10,"rollout_value":true})");
 	// A string or fractional value is not an integer.
 	expect_schema_rejection(R"({"default":"25"})");
 	expect_schema_rejection(R"({"default":2.5})");
@@ -195,7 +195,7 @@ void test_definition_shape() {
 void test_integer_knob_round_trip() {
 	constexpr std::string_view canonical =
 		R"({"schema_version":1,"version":3,"knobs":{"search:batch_size":{"default":25,)"
-		R"("overrides":{"beta":7,"canary":{"rollout_pct":50}},"rollout_pct":10, "rollout_value": 1,"rollout_value":50}}})";
+		R"("overrides":{"beta":7,"canary":{"rollout_pct":50}},"rollout_pct":10,"rollout_value":50}}})";
 	auto parsed = parse_source_snapshot(canonical, "s");
 	assert(parsed.has_value());
 	const auto& def = parsed.value().knobs.find("search:batch_size")->second;
@@ -208,7 +208,7 @@ void test_integer_knob_round_trip() {
 	// Field order in the input does not matter; the output is canonical.
 	constexpr std::string_view shuffled =
 		R"({"schema_version":1,"version":3,"knobs":{"search:batch_size":{"rollout_value":50,)"
-		R"("rollout_pct":10, "rollout_value": 1,"overrides":{"canary":{"rollout_pct":50},"beta":7},"default":25}}})";
+		R"("rollout_pct":10,"overrides":{"canary":{"rollout_pct":50},"beta":7},"default":25}}})";
 	auto reordered = parse_source_snapshot(shuffled, "s");
 	assert(reordered.has_value() && serialize_snapshot(reordered.value()) == canonical);
 	assert(reordered.value().knobs.find("search:batch_size")->second == def);
