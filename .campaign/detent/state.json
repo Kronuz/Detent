@@ -2434,7 +2434,8 @@
       "accepted": {},
       "after": [
         "dns-voters",
-        "consensus-dual-stack"
+        "consensus-dual-stack",
+        "namespace-s4"
       ],
       "checks": [
         {
@@ -2458,7 +2459,8 @@
         "tests/detent_authority/**",
         "tests/detent_agent/**",
         "tests/detent_delivery/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "cmake/dependencies.json"
       ],
       "landed": [],
       "lenses": [],
@@ -2469,7 +2471,7 @@
       "risk": "low",
       "status": "planned",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T09:36:20"
+      "updated": "2026-11-11T11:36:47"
     },
     "legacy-h": {
       "accepted": {},
