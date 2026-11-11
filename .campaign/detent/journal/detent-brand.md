@@ -1,6 +1,6 @@
 # detent-brand: journal
 
-State: waiting on the owner's pick (A1)
+State: working
 Quest: .campaign/detent/quests/detent-brand.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,48 +9,49 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Stage one done: three candidates and the comparison sheet are in `brand/candidates/`.
+Stage two: `brand/` (master, README, build-icons.mjs, family sheet) written; building variants
+needs `npm ci` in website/ (queued under quiet), then the A3 site-build job.
 
 ## Next
 
-1. Owner picks A, B or C from `brand/candidates/sheet.png` (lead relays); record the pick here.
-2. Stage two: the pick becomes `brand/logo.svg`; derive `variants/{light,dark}/` (favicon.svg/.ico,
-   apple-touch-icon 180/167/152, icon-192/512, logo.svg) with a committed build command, like
-   Xapiand's `docs/scripts/build-icons.mjs`; wire the site assets (A3); meaning line in README and
-   welcome page (A4).
+1. `node brand/build-icons.mjs` (needs website/node_modules); check the real 16/32 px favicons.
+2. A3 job: site build plus a local-asset link check of dist/.
+3. Lead: extend the file set to `website/astro.config.mjs` (+ `website/public/site.webmanifest`)
+   for the touch-icon head links (see Blocked on).
 
 ## Blocked on
 
-The owner's pick (A1).
+Lead (file set): the site can only use the touch icons through `<link rel="apple-touch-icon">`
+(and a manifest for icon-192/512) in Starlight's `head`, which lives in `website/astro.config.mjs`,
+outside this quest's files. The site is under `/Detent/`, so iOS's root-path convention
+(`/apple-touch-icon.png`) does not reach them. Options: (1) add `website/astro.config.mjs` and
+`website/public/site.webmanifest` to the file set and I add the links (recommended); (2) land
+without, the PNGs served but unlinked.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Candidates `brand/candidates/{a,b,c}.svg`, sheet `brand/candidates/sheet.png` (rebuild: `brand/candidates/sheet.sh`); pick: pending |
-| A2 | <stage two> |
-| A3 | <stage two> |
-| A4 | <stage two> |
+| A1 | [manual] Owner chose B plus a bottom stop, eight stops 45° apart (D67, Detent:0adf85db); candidates at Detent:1988b239 `brand/candidates/` |
+| A2 | `brand/logo.svg`, `brand/README.md`, `brand/variants/{light,dark}/` (pending build) |
+| A3 | <job pending> |
+| A4 | `README.md` opening sentence and `website/src/content/docs/welcome.md` "So what is Detent" carry the line |
 
 ## Result
 
-`brand/candidates/`: `a.svg`, `b.svg`, `c.svg` (written by `candidates.py`, which records each
-one's geometry) and `sheet.png` (by `sheet.sh`): Kronuz, Xapiand, A, B, C, each 512 px tall on
-light `#fdfdfc` and dark `#1a1a1a`, and at 16 and 32 px scaled by whole factors (18x, 9x).
-
-- A, traces: Kronuz's language. Six gray traces wind around the hexagon (each runs 70% of an
-  edge, then turns to run parallel to the next) and end in inner pads, the six stops; the stop at
-  one o'clock is green and the green knob's cut-out pointer aims at it. Trace and pad sizes are
-  Kronuz's (trace 11.4% of the circumradius, pad ring 12%/4%).
-- B, solid hexagon: Xapiand's rim and hexagon paths verbatim, with a white knob (cut-out green
-  pointer) and seven white stops over 270 degrees, the pointer at the 1:30 stop.
-- C, notch ring: six gray chevrons make the hexagon, the gaps between them are the notches; a
-  green ball sits in the one o'clock notch and the green knob's cut-out pointer aims at it.
+- `brand/logo.svg`: candidate B with eight stops every 45° from the top, the pointer at the
+  upper-right stop. The bottom stop clears the hexagon's edge by 14.7 (the top's mirror); the
+  diagonal stops are nearest, at 9.05. `brand/family.png` (by `brand/family.sh`): the logo beside
+  Kronuz and Xapiand at 512 px light/dark and 16/32 px scaled; the pointer reads at both.
+- `brand/build-icons.mjs` (Xapiand's `build-icons.mjs` ported; sharp from website/) renders
+  `variants/{light,dark}/` and installs the site's copies.
+- `brand/candidates/` dropped from the tree (history at Detent:1988b239).
 
 ## Rulings I made
 
-- Every candidate uses `#93c34d` and `#a7a7a7` only (B also white, as Xapiand's master does); no
-  gradients, strokes and fills only, no rasters.
-- C's ring is 14% of the circumradius, 1.23x Kronuz's trace, so it survives 16 px.
-- The sheet takes Xapiand's vector master from its unlanded `xapiand-brand` worktree when
-  `Xapiand/brand/` is absent (`XAPIAND_LOGO` overrides), rather than upscaling the 180x230 PNG.
+- Every candidate used `#93c34d` and `#a7a7a7` only (B also white, as Xapiand's master does).
+- The site serves the rimless `dark` logo and favicon on both themes (on a light page the white
+  rim is invisible anyway; on a dark one it would halo), and the light touch tiles.
+- `website/public/footer-logo.png` is GitHub's "hosted by" mark, not Detent's: left as is.
+- The build script lives in `brand/` (website/package.json is outside the file set), loading
+  the site's sharp through `createRequire`; command `node brand/build-icons.mjs`.

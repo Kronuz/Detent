@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Render the comparison sheet: each candidate beside the Kronuz and Xapiand logos,
-# 512 px tall on light and dark, and at 16 and 32 px scaled up so the pixels show.
-# Needs rsvg-convert and ImageMagick. Usage: brand/candidates/sheet.sh [out.png]
+# Render family.png: the Detent logo beside the Kronuz and Xapiand logos, 512 px tall on
+# light and dark, and at 16 and 32 px scaled up so the pixels show.
+# Needs rsvg-convert and ImageMagick. Usage: brand/family.sh [out.png]
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
-out=${1:-$here/sheet.png}
+out=${1:-$here/family.png}
 kronuz=${KRONUZ_LOGO:-$HOME/code/KronuzBlog/Kronuz.github.io/src/assets/logo.svg}
 xapiand=${XAPIAND_LOGO:-}
 if [ -z "$xapiand" ]; then  # Xapiand's vector master: landed, or still on its brand branch
@@ -16,9 +16,9 @@ light='#fdfdfc' dark='#1a1a1a' ink='#333333'
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/detent-sheet.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 
-names=(kronuz xapiand a b c)
-labels=("Kronuz" "Xapiand" "A: traces" "B: solid hexagon" "C: notch ring")
-srcs=("$kronuz" "$xapiand" "$here/a.svg" "$here/b.svg" "$here/c.svg")
+names=(kronuz xapiand detent)
+labels=("Kronuz" "Xapiand" "Detent")
+srcs=("$kronuz" "$xapiand" "$here/logo.svg")
 
 cell=576 pad=32 gap=40 head=72 small=288
 for i in "${!names[@]}"; do
