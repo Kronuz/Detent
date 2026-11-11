@@ -1,13 +1,13 @@
 diff --git a/src/detent_local/paged_cursor.cc b/src/detent_local/paged_cursor.cc
-index 769c498..3ead014 100644
+index 657e61f6..ba0f11d4 100644
 --- a/src/detent_local/paged_cursor.cc
 +++ b/src/detent_local/paged_cursor.cc
-@@ -88,7 +88,7 @@ void PagedCursor::step(ValidationBudget &budget) {
+@@ -89,7 +89,7 @@ void PagedCursor::step(ValidationBudget &budget) {
  					if (index == segments.size())
  						throw std::logic_error("missing checked cursor segment");
  					frame.bytes = checked_page_bytes(segments[index], frame.reference);
 -					frame.header = p::decode_page_header(frame.bytes, paged_format_limits());
 +					frame.header = p::decode_page_header(frame.bytes, p::Limits{});
  				}
- 				frame.node = p::decode_node(frame.bytes, frame.offset, paged_format_limits());
- 				if (!s.grant(frame.node.end - frame.offset, budget))
+ 				frame.node = frame.at.decode(frame.bytes, paged_format_limits());
+ 				if (!s.grant(frame.node.end - frame.at.offset(), budget))

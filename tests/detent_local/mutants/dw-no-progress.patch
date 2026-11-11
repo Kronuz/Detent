@@ -1,8 +1,8 @@
 diff --git a/src/detent_local/paged_node_step.hh b/src/detent_local/paged_node_step.hh
-index 0efa3a3..5f1a163 100644
+index 80340197..58aaa26d 100644
 --- a/src/detent_local/paged_node_step.hh
 +++ b/src/detent_local/paged_node_step.hh
-@@ -12,7 +12,7 @@ class NodeAt {
+@@ -9,7 +9,7 @@ class NodeAt {
  	constexpr NodeAt() noexcept = default;
  	static NodeAt after(const NodeView &node) noexcept { return NodeAt(node.end); }
  	static NodeAt child(const NodeView &parent, std::uint16_t slot) {
