@@ -50,8 +50,8 @@ Ids are at Detent:9b5ebae except A15 (Detent:52cabbf; 9b5ebae changes only a tes
 | A11 | Native 261110-220136-31432b; 261110-220144-1d7bca (test_local_paged_compaction, test_local_paged_delta_plan: partial and complete relocation, zero page hashes). |
 | A12 | Native 261110-220136-31432b: test_local_dense_refetch (`foreign_install`, interrupted copy and restart). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`. |
 | A13 | CI repro of linux-read-counters and linux-benchmarks 261110-215750-a2d23c. Native 261110-220136-31432b incl. test_local_publication_power_cut (crash model, D54(4)) and trusted restart. ASan/UBSan/TSan and the matrix: GitHub CI on quest/dense-pages (D54(1)): run 42961227229 at Detent:3907ffa green except the two jobs fixed in Detent:9b5ebae; the rerun follows the push of the head. |
-| A14 | Correctness: COR-1 = 261110-220136-31432b, PERF-1 = A15 (261110-204210-6fbfde, 261110-204212-d159e2); lead's accept pending. Design and security accepted at Detent:8878c39, re-accept pending (quest file changed). Architect ruling: pending. |
-| A15 | D51 gate, one exclusive 10-min job per row (D55): stopped 261110-204210-6fbfde, running 261110-204212-d159e2: all four cells NO WORSE (median paired Dense-main: 1ns stopped -87 us vs floor 28; 1000ns stopped -65 vs 52; 1ns running -48 vs 20; 1000ns running -31 vs 68), on the prepare 261110-021303-349e3e stores (`docs/perf/first-read-gate.sh`, `docs/perf/first-read-gate.md`). Previous identical-code result at Detent:a619531: all four cells NO WORSE. |
+| A14 | Correctness: COR-1 = 261110-220136-31432b, PERF-1 = A15 (261110-220718-43be9f, 261110-220719-380ee1). Design and security reviews on file; the three reviews meet A14 [D56]. |
+| A15 | D51 gate at Detent:9b5ebae, one exclusive 10-min job per publisher state (D55): stopped 261110-220718-43be9f, running 261110-220719-380ee1; all four cells NO WORSE (median paired Dense-main: 1ns stopped -68 us vs floor 27; 1000ns stopped -49 vs 31; 1ns running -25 vs 9; 1000ns running -22 vs 10). Method: `docs/perf/first-read-gate.sh`, `docs/perf/first-read-gate.md`; the prepared stores stand under D56. |
 
 ## Rulings I made
 
