@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 		options.deadline = 1000ms;
 		for (unsigned j = 0; j != 3; ++j)
 			if (i != j)
-				options.addresses.emplace(j + 1, endpoints[j]);
+				options.addresses.emplace(j + 1, PeerAddress{endpoints[j].address().to_string(), endpoints[j].port()});
 		auto runtime = std::make_shared<AuthorityPeers>(io.get_executor(), nodes[i], peer_configuration(configurations[i]), options);
 		peer_options.push_back(options);
 		peers.push_back(runtime);
