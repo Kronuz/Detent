@@ -38,3 +38,17 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 ## Rulings I made
 
 <Decisions inside the quest's scope, so the reviewer can check them.>
+
+## Evidence
+
+| Criterion | Evidence |
+|---|---|
+| A1 | 261111-153427-7c50ee |
+| A2 | `website/public/site.webmanifest`: "/Detent/icon-192.png" |
+
+## Result
+
+The site head links favicon.ico, the three apple-touch icons and `site.webmanifest`, all under
+`/Detent/`; the manifest names icon-192 and icon-512. Lead-made (five-line change).
+
+State: ready to land.
