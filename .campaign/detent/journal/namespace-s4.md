@@ -1,6 +1,6 @@
 # namespace-s4: journal
 
-State: waiting on jobs 261111-112137-77b7ad 261111-112142-b25713 261111-112147-588788 261111-112151-b80250 261111-112200-5c3e22 261111-112206-82f33e 261111-112211-a15d6d 261111-112217-538846 261111-112224-51a2f5 261111-112229-231ca1 (pins 261111-112151-95bc87)
+State: waiting on jobs 261111-112151-b80250 261111-112200-5c3e22 261111-112206-82f33e 261111-112211-a15d6d 261111-112217-538846 261111-112224-51a2f5 261111-112229-231ca1 (pins 261111-112151-95bc87 green; F1 jobs done)
 Quest: .campaign/detent/quests/namespace-s4.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -30,8 +30,9 @@ A2 strict 5c3e22 (after native), A1 mutants 82f33e a15d6d 538846, A3 mutant 51a2
 - F1 (fixed, e8983741; test 74883768): build and checking hashes now have disjoint counters, each only growing;
   `HashStats` holds `checked` and `built`, and `hashed()` sums them, so `checked_bytes()` and snapshot
   differences cannot wrap. Test `test_delivery_hash_stats_tear` (writer on `count_build_hash`, reader asserts
-  `checked_bytes() == 0` and monotone reads): 77b7ad; revert `mutants/s4-f1-shared-counters.patch`: b25713;
-  reviewer probe rerun: 588788.
+  `checked_bytes() == 0` and monotone reads): 77b7ad passed; revert `mutants/s4-f1-shared-counters.patch`:
+  b25713 killed it (torn at read 225); reviewer probe rerun 261111-112147-588788: `reads=27837791 torn=0
+  worst_checked_bytes=0` (was 3,822,927 torn at 96854bda). For `accept --confirm F1=261111-112147-588788`.
 - F2 (follow-up): `PackScrub` and `PagedSegmentRead` collection proofs hash packs uncounted; outside A2's window.
   Follow-up: count them as checked Pack, or narrow `CoordinatorStatus::hash`'s comment.
 - F3 (fixed, dbd4b8d5): `hash_once_report.sh` fails on any relay-delta exit but 124, which it names as the known
