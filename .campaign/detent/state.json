@@ -2538,6 +2538,8 @@
         "consensus-dual-stack",
         "namespace-s4"
       ],
+      "base": "9748d89d1f2aa23d6f571719e0f85c398debd6ae",
+      "branch": "quest/detent/ipv6",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2570,9 +2572,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T13:57:10"
+      "updated": "2026-11-11T13:57:13",
+      "worktree": "../Detent-wt/detent/ipv6"
     },
     "legacy-h": {
       "accepted": {},
