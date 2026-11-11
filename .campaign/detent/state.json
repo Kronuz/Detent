@@ -1573,17 +1573,46 @@
         "README.md",
         "website/src/content/docs/welcome.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T13:25:46",
+          "commit": "a82eef4b465cbf83a827dcb0cdde4558ca98c8b0",
+          "criteria": {
+            "A1": "[manual] Owner chose B plus a bottom stop, eight stops 45\u00b0 apart (D67, Detent:0adf85db); candidates at Detent:1988b239 `brand/candidates/`",
+            "A2": "`brand/logo.svg` (4 paths, no rasters), `brand/README.md`, `brand/build-icons.mjs`, `brand/variants/light/` and `brand/variants/dark/`, each with logo.svg, favicon.svg, favicon.ico (16/32/48), apple-touch-icon 180/167/152, icon-192, icon-512; rerunning `node brand/build-icons.mjs` at Detent:ccb584b6 leaves the tree unchanged",
+            "A3": "261111-130317-c63a14",
+            "A4": "`README.md` opening sentence and `website/src/content/docs/welcome.md` \"So what is Detent\" carry the line"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "e6652bb4eb4191f4999a25b80ec74e1073e5e503",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-130814-f03c96",
+              "level": "light",
+              "seconds": 618.0,
+              "state": "done",
+              "what": "detent-brand check suite at e6652bb4eb41"
+            }
+          ],
+          "final": true,
+          "from": "abe259f0c18d6ef44127dd19576842f41fae49fe",
+          "reason": "",
+          "tested": "e6652bb4eb4191f4999a25b80ec74e1073e5e503"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Detent brand: a polished logo family and brand/",
-      "updated": "2026-11-11T12:04:43",
-      "worktree": "../Detent-wt/detent/detent-brand"
+      "updated": "2026-11-11T13:26:12",
+      "worktree": ""
     },
     "dns-voters": {
       "accepted": {},
