@@ -3,8 +3,8 @@
 #   wheel_vs_stash.sh test         every candidate against the reference model and the cross-thread
 #                                  checks, under ASan+UBSan and under TSan, assertions on
 #   wheel_vs_stash.sh smoke        every arm of every row once, small, with its configuration
-#   wheel_vs_stash.sh single [R]   R interleaved rounds (default 5) of a a2 b c d e at n = 1e3 and 1e6
-#   wheel_vs_stash.sh cross [R]    R interleaved rounds of b b2 c d e at P = 1, 4 and 14 producers
+#   wheel_vs_stash.sh single [R]   R interleaved rounds (default 5) of a a2 b c d e f at n = 1e3 and 1e6
+#   wheel_vs_stash.sh cross [R]    R interleaved rounds of b b2 c d e f at P = 1, 4 and 14 producers
 #   wheel_vs_stash.sh mem          bytes per entry and heap per arm (the counting build), twice
 # stash comes from $JOB_REF_STASH (a job's --ref stash=...) or $STASH_DIR. Each row prints its
 # runs and then the medians, min-max and A/A band (wheel_vs_stash_summary.py).
@@ -50,16 +50,16 @@ run() { "$build/$@" | tee -a "$log"; }
 echo "start=$(date -u +%FT%TZ)"
 case $mode in
 smoke)
-	for arm in a b c d e; do
+	for arm in a b c d e f; do
 		run timing single $arm 1000
 		run timing single $arm 1000000
 	done
-	for arm in b c d e; do run timing cross $arm 4 200000; done
+	for arm in b c d e f; do run timing cross $arm 4 200000; done
 	cxx count -O2 -DNDEBUG -DCOUNT_HEAP
-	for arm in a b c d e; do run count mem $arm 1000; done
+	for arm in a b c d e f; do run count mem $arm 1000; done
 	;;
 single)
-	arms=(a a2 b c d e)
+	arms=(a a2 b c d e f)
 	for ((r = 0; r < rounds; ++r)); do
 		for ((k = 0; k < ${#arms[@]}; ++k)); do
 			arm=${arms[$(((k + r) % ${#arms[@]}))]}
@@ -70,18 +70,18 @@ single)
 	done
 	;;
 cross)
-	arms=(b b2 c d e)
+	arms=(b b2 c d e f)
 	for ((r = 0; r < rounds; ++r)); do
 		for ((k = 0; k < ${#arms[@]}; ++k)); do
 			arm=${arms[$(((k + r) % ${#arms[@]}))]}
 			echo "round=$r"
-			for p in 1 4 14; do run timing cross "$arm" "$p" 2000000; done
+			for p in 1 4 14; do run timing cross "$arm" "$p" 1000000; done
 		done
 	done
 	;;
 mem)
 	for r in 0 1; do
-		for arm in a b c d e; do
+		for arm in a b c d e f; do
 			run count mem "$arm" 1000
 			run count mem "$arm" 1000000
 		done

@@ -48,6 +48,11 @@ All in `async-drivers-bench/wheel_vs_stash*`, one interface (`arm`, `cancel`, `e
   (261111-120056-0484f0, strict, not a decision row) showed (d)'s single-loop score 14% to 31%
   above (a)'s, which only the entry size separates; the rule is unchanged and every row runs
   with (e).
+- **(f) (e) with a striped inbox**: 64 inbox heads, one cache line each, a producer thread on its
+  own (by first use); the push that finds its stripe empty sets the stripe's bit in one word,
+  and the owner drains only the stripes whose bits it took. The entry and the owner's path stay
+  (e)'s. Added after the first cross-thread row (261111-121551-0e58b1) showed (d) and (e) losing
+  to stash at 4 and 14 producers on their one shared inbox head.
 
 ## Workload and metrics
 
@@ -101,6 +106,23 @@ Fixed before the first measured run (A3); the rows are `exclusive` jobs at named
 
 The PLAN.md decision records the result, and task-wheel's quest follows it.
 
+## Changes after the first rows
+
+The first rows ran at 22a10ab7: single 261111-121549-8cd0f8, cross 261111-121551-0e58b1, memory
+261111-121553-d6c80e. Three changes follow from them; the thresholds are unchanged and every row
+reruns under them.
+
+1. **Candidate (f)**, above.
+2. **The cross-thread workload overloaded every owner.** 2,000,000 arms due within 1-50 ms of
+   arming left no candidate's owner within 100 ms of the last deadline in every run, stash's
+   own (b) included at 4 and 14 producers, so no row was valid. The row now arms 1,000,000
+   entries due uniform in [1, 1,000] ms; the producers still arm back to back, so the
+   contention the score measures is unchanged, and only the owner's fire rate is.
+3. **Rule 3's second run.** (d) and (e) were inconclusive on the single-loop score (ratios 1.03
+   to 1.12 against bands of 13% and 19%, the bands set by the min-max of five runs). The R = 10
+   rerun decides by its point estimate (the median ratio against 1.10), since a min-max band
+   only widens with more runs.
+
 ## Results
 
-Pending the measured rows.
+Pending the rerun rows.

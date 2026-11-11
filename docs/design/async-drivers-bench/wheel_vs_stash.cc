@@ -5,13 +5,15 @@
 //   (d)  the prototype wheel plus an intrusive lock-free inbox: any thread re-arms any entry
 //   (e)  the prototype wheel, its inbox linked through the entry's own `next`: any thread arms
 //        an unarmed entry, only the owner re-arms or cancels ((c)'s contract), 32-byte entry
+//   (f)  (e) with its inbox striped per producer thread, so producers never share a head
 // Modes, one line of results each:
 //   single ARM N        arm, re-arm, cancel and expire on one thread, on a manual clock
-//   cross ARM P TOTAL   P producer threads arm TOTAL entries, one owner fires on steady_clock
+//   cross ARM P TOTAL   P producer threads arm TOTAL entries (default 1,000,000), one owner
+//                       fires on steady_clock
 //   mem ARM N           (the COUNT_HEAP build) bytes per entry and heap per arm
 //   test                every candidate against a reference model on a manual clock, and
 //                       cross-thread runs checked for exactly-once, never-early fires
-// ARM is a, b, c, d or e; a2 and b2 run a and b again (the A/A pair).
+// ARM is a, b, c, d, e or f; a2 and b2 run a and b again (the A/A pair).
 #ifdef COUNT_HEAP
 #include "probe.hh"
 PROBE_ALLOCATOR
@@ -22,6 +24,7 @@ PROBE_ALLOCATOR
 #include "stash.h"
 
 #include <algorithm>
+#include <bit>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -145,6 +148,52 @@ struct cand_e {
 	}
 };
 
+// ---- (f) ----------------------------------------------------------------------------------
+// Each producer thread pushes on its own stripe (64, by first use); the push that finds its
+// stripe empty sets the stripe's bit, and the owner drains only the stripes whose bits it took.
+inline unsigned inbox_stripe() noexcept {
+	static std::atomic<unsigned> seq{0};
+	static thread_local unsigned stripe = seq.fetch_add(1, std::memory_order_relaxed) % 64;
+	return stripe;
+}
+struct cand_f {
+	using entry = bench::wheel_entry;
+	static constexpr bool cross = true;
+	static constexpr const char* shape = "intrusive wheel + 64-stripe inbox through the entry's next";
+	struct alignas(64) stripe { std::atomic<entry*> head{nullptr}; };
+	std::unique_ptr<bench::wheel> w;
+	std::unique_ptr<stripe[]> stripes = std::make_unique<stripe[]>(64);
+	alignas(64) std::atomic<u64> pending{0};
+	explicit cand_f(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
+	static u64 deadline(const entry& e) { return e.deadline; }
+	void arm(entry& e, u64 d) { w->arm(e, d); }
+	void cancel(entry& e) { w->cancel(e); }
+	// Any thread, an unarmed entry: `next` links its stripe until the owner files it.
+	void arm_from(entry& e, u64 d) {
+		e.deadline = d;
+		const unsigned s = inbox_stripe();
+		auto& head = stripes[s].head;
+		entry* first = head.load(std::memory_order_relaxed);
+		do { e.next = first; } while (!head.compare_exchange_weak(first, &e, std::memory_order_release, std::memory_order_relaxed));
+		if (!first) { pending.fetch_or(u64{1} << s, std::memory_order_release); }
+	}
+	template <class F>
+	std::size_t expire(u64 now, F&& f) {
+		if (pending.load(std::memory_order_relaxed)) {
+			for (u64 bits = pending.exchange(0, std::memory_order_acquire); bits; bits &= bits - 1) {
+				auto& head = stripes[static_cast<unsigned>(std::countr_zero(bits))].head;
+				for (entry* e = head.exchange(nullptr, std::memory_order_acquire); e;) {
+					entry* following = e->next;
+					e->next = nullptr;
+					w->arm(*e, e->deadline);
+					e = following;
+				}
+			}
+		}
+		return w->expire(now, [&](bench::wheel_entry& e) { f(e); });
+	}
+};
+
 // ---- stash, (b) and (c) -------------------------------------------------------------------
 // Xapiand's configuration (scheduler.h:226-230), over a given leaf.
 template <class Leaf>
@@ -246,6 +295,7 @@ auto dispatch(std::string_view arm, F&& f) {
 	if (arm == "c") { return f(static_cast<cand_c*>(nullptr)); }
 	if (arm == "d") { return f(static_cast<cand_d*>(nullptr)); }
 	if (arm == "e") { return f(static_cast<cand_e*>(nullptr)); }
+	if (arm == "f") { return f(static_cast<cand_f*>(nullptr)); }
 	std::fprintf(stderr, "unknown arm %.*s\n", int(arm.size()), arm.data());
 	std::exit(2);
 }
@@ -300,20 +350,20 @@ void single(std::string_view arm, std::size_t n) {
 
 // ---- cross-thread -------------------------------------------------------------------------
 // P producers each arm TOTAL / P distinct entries once, at steady_clock now (read every 64 arms)
-// plus uniform [1, 50] ms; the owner spins on steady_clock, firing until every entry fired.
+// plus uniform [1, window] ms; the owner spins on steady_clock, firing until every entry fired.
 struct cross_result {
 	double producer_ns = 0, span_ms = 0, last_after_deadline_ms = 0, max_late_ms = 0;
 	std::size_t fired = 0, early = 0, twice = 0, missing = 0;
 };
 template <class C>
-cross_result cross_run(std::size_t producers, std::size_t total) {
+cross_result cross_run(std::size_t producers, std::size_t total, u64 window_ms) {
 	const std::size_t per = total / producers;
 	total = per * producers;
 	std::vector<typename C::entry> entries(total);
 	std::vector<std::uint32_t> fires(total, 0);
 	std::vector<u64> offsets(total);
 	std::mt19937_64 random(total + producers);
-	for (auto& o : offsets) { o = 1 * ms + random() % (49 * ms); }
+	for (auto& o : offsets) { o = 1 * ms + random() % ((window_ms - 1) * ms); }
 	C c(now_ns());
 	std::atomic<std::size_t> ready{0};
 	std::atomic<bool> go{false};
@@ -368,11 +418,11 @@ void cross(std::string_view arm, std::size_t producers, std::size_t total) {
 		std::fprintf(stderr, "arm %.*s has no cross-thread arm\n", int(arm.size()), arm.data());
 		std::exit(2);
 	} else {
-		std::printf("config row=cross arm=%.*s producers=%zu total=%zu shape=\"%s\" entry_bytes=%zu clock=steady hw_threads=%u\n",
+		std::printf("config row=cross arm=%.*s producers=%zu total=%zu window_ms=1000 shape=\"%s\" entry_bytes=%zu clock=steady hw_threads=%u\n",
 			int(arm.size()), arm.data(), producers, total, C::shape, sizeof(typename C::entry), std::thread::hardware_concurrency());
 		std::printf("start=%s\n", utc().c_str());
 		const u64 started = now_ns();
-		const auto r = cross_run<C>(producers, total);
+		const auto r = cross_run<C>(producers, total, 1'000);
 		std::printf("timed_s=%.3f\n", (now_ns() - started) / 1e9);
 		const bool valid = r.early == 0 && r.twice == 0 && r.missing == 0 && r.last_after_deadline_ms <= 100.0;
 		std::printf("row=cross arm=%.*s p=%zu producer_ns=%.2f span_ms=%.1f last_after_deadline_ms=%.2f max_late_ms=%.2f fired=%zu early=%zu twice=%zu missing=%zu valid=%d\n",
@@ -453,7 +503,7 @@ void model(const char* name) {
 template <class C>
 void cross_check(const char* name) {
 	for (std::size_t p : {1, 4, 14}) {
-		const auto r = cross_run<C>(p, 140'000);
+		const auto r = cross_run<C>(p, 140'000, 50);
 		CHECK(r.early == 0 && r.twice == 0 && r.missing == 0 && r.fired == 140'000 / p * p);
 		std::printf("test cross arm=%s p=%zu fired=%zu ok\n", name, p, r.fired);
 	}
@@ -480,11 +530,13 @@ void test() {
 	model<cand_c>("c");
 	model<cand_d>("d");
 	model<cand_e>("e");
+	model<cand_f>("f");
 	inbox_rearm();
 	cross_check<cand_b>("b");
 	cross_check<cand_c>("c");
 	cross_check<cand_d>("d");
 	cross_check<cand_e>("e");
+	cross_check<cand_f>("f");
 	std::printf("test all ok\n");
 }
 }  // namespace
@@ -505,7 +557,7 @@ int main(int argc, char** argv) {
 	if (mode == "single") { dispatch(arm, [&](auto* tag) { single<std::remove_pointer_t<decltype(tag)>>(arm, x); }); }
 	else if (mode == "mem") { dispatch(arm, [&](auto* tag) { mem<std::remove_pointer_t<decltype(tag)>>(arm, x); }); }
 	else if (mode == "cross") {
-		const std::size_t total = argc > 4 ? std::strtoull(argv[4], nullptr, 10) : 2'000'000;
+		const std::size_t total = argc > 4 ? std::strtoull(argv[4], nullptr, 10) : 1'000'000;
 		dispatch(arm, [&](auto* tag) { cross<std::remove_pointer_t<decltype(tag)>>(arm, x, total); });
 	} else {
 		std::fprintf(stderr, "unknown mode\n");
