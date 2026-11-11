@@ -6,6 +6,11 @@
 #   namespace-measure-sync.sh apfs SIZE:ROUNDS ...     run on this host's APFS (exclusive)
 #   namespace-measure-sync.sh vm SIZE:ROUNDS ...       build and run in the VM, with flush counts
 #
+# $SYNC_BUDGET_S (optional) time-boxes a run: a SIZE:ROUNDS is skipped, and says so, when the seconds
+# elapsed (the build included) plus 1.15 x its files x rounds x the per-file-round cost would pass
+# the budget. The cost starts at $SYNC_COST_MS (ms) and rises to the worst seen. Order the specs
+# by importance.
+#
 # Needs $JOB_REF_COMPLETION (a checkout of completion:ab0f551). The VM is reached by $VM_SSH_KEY,
 # $VM_PORT and $VM_USER (defaults: strata's VM, port 18772).
 set -euo pipefail
@@ -15,6 +20,20 @@ here=$(cd "$(dirname "$0")" && pwd)
 src=${JOB_REF_COMPLETION:?JOB_REF_COMPLETION names completion:ab0f551}
 build=${SYNC_BUILD:-$PWD/.scratch/namespace-measure-sync/build}
 echo "completion $(git -C "$src" rev-parse HEAD)"
+cost=${SYNC_COST_MS:-0}
+# fits N R: prints a skip note and fails when the spec would pass the budget.
+fits() {
+	[[ -n ${SYNC_BUDGET_S:-} ]] || return 0
+	local est
+	est=$(awk -v n="$1" -v r="$2" -v c="$cost" 'BEGIN { printf "%d", n * r * c * 1.15 / 1000 }')
+	((SECONDS + est <= SYNC_BUDGET_S)) && return 0
+	echo "skip $1:$2: $SECONDS s elapsed + $est s estimated > budget $SYNC_BUDGET_S s"
+	return 1
+}
+# learn N R SECONDS: raises the per-file-round cost to the observed one.
+learn() {
+	cost=$(awk -v n="$1" -v r="$2" -v s="$3" -v c="$cost" 'BEGIN { x = s * 1000 / (n * r); print (x > c ? x : c) }')
+}
 
 case $mode in
 build)
@@ -38,10 +57,12 @@ apfs)
 	mount | grep " on $(df "$dir" | tail -1 | awk '{print $NF}') " || true
 	ulimit -n 10240
 	for spec in "$@"; do
+		fits "${spec%%:*}" "${spec##*:}" || continue
 		echo "== ${spec%%:*} files of 1 KB, ${spec##*:} rounds"
-		start=$(date +%s)
+		start=$SECONDS
 		"$probe" "$dir" "${spec%%:*}" "${spec##*:}" 1
-		echo "elapsed $(($(date +%s) - start)) s"
+		echo "elapsed $((SECONDS - start)) s"
+		learn "${spec%%:*}" "${spec##*:}" $((SECONDS - start))
 	done
 	;;
 vm)
@@ -64,9 +85,12 @@ vm)
 		file sync_probe flush && findmnt -no FSTYPE,OPTIONS -T . && mkdir -p data"
 	for spec in "$@"; do
 		n=${spec%%:*} r=${spec##*:}
+		fits "$n" "$r" || continue
 		echo "== $n files of 1 KB, $r rounds"
+		start=$SECONDS
 		"${ssh_[@]}" "cd $remote && ulimit -n 10240 && start=\$(date +%s) &&
 			./sync_probe data $n $r 1 && ./flush data $n $r 1 && echo elapsed \$((\$(date +%s) - start)) s"
+		learn "$n" "$r" $((SECONDS - start))
 	done
 	"${ssh_[@]}" "rm -rf $remote"
 	;;

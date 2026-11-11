@@ -6,6 +6,9 @@
 #   namespace-measure-t9.sh round N ARM ...       one run of each ARM in order (exclusive); an ARM
 #                                                 is `full` or a fraction (0.05, 0.25, 0.5, 1)
 #
+# $T9_BUDGET_S (optional) time-boxes a round: an ARM is skipped, and says so, when the seconds
+# elapsed plus its estimate (1.15 x the slowest per-shape cost seen so far, shaped by the arm's
+# cost weight) would pass the budget. Skipped arms are not run later.
 # $CORPUS names the DTCORP01 corpus and $CORPUS_SHA256 its digest. Stores live under
 # $T9_ROOT (default .scratch/namespace-measure-t9/<corpus name> in this checkout); every delta run clones
 # the prepared store first (cp -c on APFS, cp -a elsewhere), outside the timed span.
@@ -32,6 +35,10 @@ memory() {
 		free -m | sed -n 2p
 	fi
 }
+# Relative cost of an arm (the full copy ~0.8, a delta 0.4 + 0.6 f), after the 100K smoke.
+weight() {
+	if [[ $1 == full ]]; then echo 0.8; else awk -v f="$1" 'BEGIN { print 0.4 + 0.6 * f }'; fi
+}
 echo "detent $(git rev-parse HEAD) $(uname -sm)"
 case $mode in
 build)
@@ -55,7 +62,16 @@ round)
 	n=$1
 	shift
 	[[ -d $root/prepared ]] || { echo "no prepared store: run prepare" >&2; exit 1; }
+	base=0
 	for arm in "$@"; do
+		if [[ -n ${T9_BUDGET_S:-} ]]; then
+			est=$(awk -v b="$base" -v w="$(weight "$arm")" 'BEGIN { printf "%d", b * w * 1.15 }')
+			if ((SECONDS + est > T9_BUDGET_S)); then
+				echo "skip arm $arm: $SECONDS s elapsed + $est s estimated > budget $T9_BUDGET_S s"
+				continue
+			fi
+		fi
+		began=$SECONDS
 		rm -rf "$root/run"
 		memory
 		if [[ $arm == full ]]; then
@@ -65,6 +81,8 @@ round)
 			"$exe" delta "$corpus" "$root/run" "$arm" 1009
 		fi
 		rm -rf "$root/run"
+		base=$(awk -v b="$base" -v d=$((SECONDS - began)) -v w="$(weight "$arm")" 'BEGIN { x = d / w; print (x > b ? x : b) }')
+		echo "arm $arm took $((SECONDS - began)) s; $SECONDS s elapsed"
 	done
 	;;
 *)
