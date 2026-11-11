@@ -37,7 +37,9 @@ def zigzag(value: int) -> bytes:
     return leb((value << 1) ^ (value >> 63))
 
 
-def parse_main(body: bytes) -> tuple[int, int, int | None, list[tuple[bytes, bool, int]]]:
+def parse_main(
+    body: bytes,
+) -> tuple[int, int, int | None, list[tuple[bytes, bool, int]]]:
     """main's body: (revision, default, percentage or None, [(key, is_percentage, value)])."""
     revision = int.from_bytes(body[0:8], "big")
     if body[8] == 2:
@@ -54,9 +56,13 @@ def parse_main(body: bytes) -> tuple[int, int, int | None, list[tuple[bytes, boo
     return revision, body[9], None if body[10] == 255 else body[10], rows
 
 
-def fixed(revision: int, default: int, pct: int | None, value: int | None, rows: list) -> bytes:
+def fixed(
+    revision: int, default: int, pct: int | None, value: int | None, rows: list
+) -> bytes:
     out = bytearray(struct.pack(">Qq", revision, default))
-    out += bytes([255 if pct is None else pct, value is not None]) + struct.pack(">H", len(rows))
+    out += bytes([255 if pct is None else pct, value is not None]) + struct.pack(
+        ">H", len(rows)
+    )
     if value is not None:
         out += struct.pack(">q", value)
     for key, percentage, v in rows:
@@ -64,13 +70,19 @@ def fixed(revision: int, default: int, pct: int | None, value: int | None, rows:
     return bytes(out)
 
 
-def varint(revision: int, default: int, pct: int | None, value: int | None, rows: list) -> bytes:
+def varint(
+    revision: int, default: int, pct: int | None, value: int | None, rows: list
+) -> bytes:
     out = bytearray(struct.pack(">Q", revision)) + zigzag(default)
     out += bytes([255 if pct is None else pct, value is not None]) + leb(len(rows))
     if value is not None:
         out += zigzag(value)
     for key, percentage, v in rows:
-        out += bytes([len(key), percentage]) + (bytes([v]) if percentage else zigzag(v)) + key
+        out += (
+            bytes([len(key), percentage])
+            + (bytes([v]) if percentage else zigzag(v))
+            + key
+        )
     return bytes(out)
 
 
@@ -89,8 +101,20 @@ def convert(old: Path, new: Path, encode) -> dict[str, int]:
     bodies = data[at : at + body_bytes]
     kinds = data[at + body_bytes : at + body_bytes + count]
     census = dict.fromkeys(
-        ("definitions", "ints", "bools", "bools_ramped", "overrides", "forced", "percentages",
-         "main_body_bytes", "new_body_bytes", "other_body_bytes"), 0)
+        (
+            "definitions",
+            "ints",
+            "bools",
+            "bools_ramped",
+            "overrides",
+            "forced",
+            "percentages",
+            "main_body_bytes",
+            "new_body_bytes",
+            "other_body_bytes",
+        ),
+        0,
+    )
     out_bodies, out_offsets = bytearray(), array("I", [0])
     for i in range(count):
         body = bodies[offsets[i] : offsets[i + 1]]
@@ -123,7 +147,11 @@ def convert(old: Path, new: Path, encode) -> dict[str, int]:
 
 def main() -> None:
     args = sys.argv[1:]
-    if len(args) not in (3, 4) or args[0] != "convert" or args[3:] not in ([], ["--varint"]):
+    if (
+        len(args) not in (3, 4)
+        or args[0] != "convert"
+        or args[3:] not in ([], ["--varint"])
+    ):
         raise SystemExit(__doc__)
     census = convert(Path(args[1]), Path(args[2]), varint if args[3:] else fixed)
     print(json.dumps({"format": "varint" if args[3:] else "fixed", **census}))
