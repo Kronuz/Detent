@@ -1,6 +1,6 @@
 # namespace-s7: journal
 
-State: waiting on jobs 261111-013953-ee8bac 261111-014002-b517ac 261111-014006-0f1d84 261111-014010-7d7284
+State: waiting on jobs 261111-013953-ee8bac 261111-014002-b517ac
 Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
 ## Doing
@@ -10,7 +10,8 @@ D58 folded in (Detent:c171898): `detent_agent_store` (alias `detent::agent_store
 namespace-s7-wire wires it. Evidence jobs at c171898 (supersede those at 627697e): native suite
 261111-013953-ee8bac (A1, A2, A4), pins 261111-013953-bc7285, crash model 261111-014002-b517ac (A3),
 mutants 261111-014006-0f1d84 (n6-rename-before-fsync) and 261111-014010-7d7284
-(ndr4-unsynced-reuse), both --fails-without A3.
+(ndr4-unsynced-reuse), both --fails-without A3. Done: pins passed; both mutants killed (exit 0).
+Pending (queued under load): native and crash model.
 
 Local runs at 627697e (same code): test_agent_store, test_agent_catch_up pass; test_agent_store_crash
 38,318 cases (630 distinct cuts), 102 republications, 60 repairs, 0 violations, 86 s. Each of the
