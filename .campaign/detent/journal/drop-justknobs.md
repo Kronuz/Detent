@@ -1,6 +1,6 @@
 # drop-justknobs: journal
 
-State: waiting on jobs 261111-110201-6cff0a 261111-110158-7874fa 261111-110203-fe9688 261111-110205-18ba8b
+State: waiting on jobs 261111-110505-cac549 261111-110502-60f894 261111-110509-574969 261111-110507-004d6c
 Quest: .campaign/detent/quests/drop-justknobs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Second pass (lead's widened scope) committed and pushed at c28efef9: `--just-knob` -> `--knob`, `just_knobs.json` -> `defaults.json` (code, tests, tools/w5 and its recorded evidence labels, docs, website, no alias), every "Section N"/spec citation in include/src/tests/bindings/tools removed or replaced, check widened to `just[ _-]?knobs?` (CHANGELOG.md excluded by the lead's ruling). Jobs: A1 pass 261111-110201-6cff0a; A1 mutant 261111-110158-7874fa (commit 046fa0d1 = old flag name restored in src/detent/overrides.cc, ref refs/mutants/drop-justknobs-a1, delete after); A3 site 261111-110203-fe9688; A3 suite 261111-110205-18ba8b.
+Third pass at 4f6502db: observability.md's exporter hint now names the `Metrics` counters (no `jk_` names, no spec), `\bjk_` added to the check (text files only), audit rows reworded. Jobs: A1 pass 261111-110505-cac549; A1 mutant 261111-110502-60f894 (commit ccca4804 = a `jk_` name restored in observability.md, ref refs/mutants/drop-justknobs-a1, delete after); A3 site 261111-110509-574969; A3 suite 261111-110507-004d6c. Earlier jobs are cancelled (superseded).
 
 ## Next
 
@@ -18,7 +18,7 @@ Second pass (lead's widened scope) committed and pushed at c28efef9: `--just-kno
 
 ## Blocked on
 
-Nothing. For the lead: website/src/content/docs/reference/observability.md:58-59 still cites "the specification's `jk_*`-style metric names" (outside the file set, not matched by the check); docs/design/*.md and docs/*.md elsewhere may still say "the spec" in other spellings.
+Nothing.
 
 ## Evidence
 
