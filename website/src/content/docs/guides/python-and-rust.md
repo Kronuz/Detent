@@ -28,7 +28,7 @@ pybind11). The Rust crate needs `cargo` and `rustc` (it's built with `cxx`).
 import detent
 
 client = detent.Client(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     source_path="/var/lib/myapp/live.json",
     cli_overrides=["search:max_results=999"],
     poll_interval_ms=200,
@@ -60,7 +60,7 @@ See the [Python API reference](/Detent/reference/bindings/python/).
 
 ```rust
 let client = detent::Client::new(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     Some("/var/lib/myapp/live.json"),
     vec![],
     200,

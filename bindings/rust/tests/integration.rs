@@ -1,7 +1,7 @@
 // Real end-to-end proof, not a mock: constructs a real detent::Client
 // through the cxx bridge, against a real defaults file, and checks the
 // exact same scenarios the Python binding and the C++ test suite cover --
-// bool/int reads, missing/wrong-type errors, and Section 8's hash_val/
+// bool/int reads, missing/wrong-type errors, and hash_val/
 // switch_val precedence.
 use std::io::Write;
 
@@ -84,7 +84,7 @@ fn hash_val_and_switch_val_precedence() {
         true
     );
 
-    // get() ignores switch_val (int model has no group overrides, Section 8).
+    // get() ignores switch_val (int model has no group overrides).
     assert_eq!(client.get("search:max_results", Some("anything")).unwrap(), 25);
 }
 

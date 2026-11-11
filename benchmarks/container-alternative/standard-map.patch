@@ -55,4 +55,4 @@
 +	std::map<std::string, OverrideValue, std::less<>> values;
  };
  
- // Parses repeatable "name=value" pairs (the part after "--just-knob "; CLI
+ // Parses repeatable "name=value" pairs (the part after "--knob "; CLI

@@ -1,4 +1,4 @@
-// Section 5 test-only client: thread-local override for the global adapter,
+// Test-only client: thread-local override for the global adapter,
 // with guard-based nesting that prevents cross-test leakage.
 #include <cassert>
 #include <cstdio>

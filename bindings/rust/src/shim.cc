@@ -31,7 +31,7 @@ std::unique_ptr<ClientHandle> new_client(
 	opts.poll_interval = std::chrono::milliseconds{poll_interval_ms};
 	for (const auto& o : cli_overrides) opts.cli_overrides.emplace_back(view(o));
 	// detent::Client's constructor throws std::runtime_error on invalid/
-	// missing defaults or CLI overrides (Section 9's fail-fast contract);
+	// missing defaults or CLI overrides (the fail-fast contract);
 	// cxx translates that into Rust's Result::Err automatically because
 	// this function's bridge declaration returns Result<UniquePtr<...>>.
 	return std::make_unique<ClientHandle>(std::move(opts));

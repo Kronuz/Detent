@@ -47,7 +47,7 @@ const char* category_name(ErrorCategory c) noexcept {
 	return "Unknown";
 }
 
-// Section 9 logging rules: panic messages include the knob name and error
+// Logging rule: panic messages include the knob name and error
 // category, never hash_val/switch_val or snapshot contents.
 [[noreturn]] void panic(const KnobError& err) {
 	std::cerr << "detent: fatal: " << category_name(err.category)
@@ -104,15 +104,15 @@ Client::Client(InitOptions options)
 		override_table_ = std::make_shared<const OverrideTable>(std::move(overrides).value());
 	}
 
-	// Section 11's "combining X with Y is a startup error" pattern,
-	// generalized: exactly one KnobSource stream per client instance.
+	// Combining two source kinds is a startup error:
+	// exactly one KnobSource stream per client instance.
 	if (options.source_path && options.source_poll) {
 		throw std::runtime_error("detent: source_path and source_poll are mutually exclusive");
 	}
 	if (options.read_source && (options.source_path || options.source_poll || options.on_update))
 		throw std::invalid_argument("detent: local read source conflicts with a legacy source or on_update");
 
-	// 3. Publish v0 before starting any source watcher (Section 4 startup contract).
+	// 3. Publish v0 before starting any source watcher (startup contract).
 	current_.store(options.read_source ? std::make_shared<const Snapshot>(std::move(defaults_))
 									   : std::make_shared<const Snapshot>(defaults_));
 	accepted_version_.store(0);
@@ -120,8 +120,8 @@ Client::Client(InitOptions options)
 
 	// 4. Single background updater, only if a source is configured. Source
 	// health starts false; the loop flips it once the target is actually
-	// reachable (Section 9: "Source unavailable at startup -> serve version-0
-	// defaults; log and increment refresh failure").
+	// reachable (an unavailable source at startup serves the version-0
+	// defaults, logs and increments the refresh failure count).
 	if (options.read_source) {
 		read_source_ = (*options.read_source)(current_.load(), override_table_);
 		if (!read_source_)
@@ -284,12 +284,12 @@ HealthSnapshot Client::health() const noexcept {
 	return h;
 }
 
-// Section 10 "default: file watcher", simplified to portable polling (see
+// The default file watcher, simplified to portable polling (see
 // README/AGENTS notes: no cross-platform inotify/FSEvents wrapper exists yet
 // in this ecosystem). Publishers still atomically rename a fully-written
 // sibling file over the target, so a full read after a change never
 // observes a torn write; the poll cadence is the coalescing window in place
-// of Section 10's literal 100ms event debounce.
+// of a 100ms event debounce.
 void Client::run_file_source(std::stop_token stop, std::filesystem::path path, std::chrono::milliseconds poll_interval) {
 	std::filesystem::file_time_type last_mtime{};
 	std::uintmax_t last_size = 0;
@@ -304,13 +304,13 @@ void Client::run_file_source(std::stop_token stop, std::filesystem::path path, s
 			metrics_.source_connected.store(false, std::memory_order_relaxed);
 		} else {
 			metrics_.source_connected.store(true, std::memory_order_relaxed);
-			// Section 7: "Parse/schema errors are not retried until a new
-			// source event or file change arrives" -- gate the read on
+			// Parse/schema errors are not retried until a new
+			// source event or file change arrives -- gate the read on
 			// mtime *or size* changing since the last poll (not since the
 			// last *successful* swap, which was the bug: a rejected update
 			// never advanced this baseline, so a persistently-malformed
 			// file got re-read and re-parsed every single poll forever,
-			// contrary to the spec). mtime-only was also insufficient on
+			// contrary to the retry rule). mtime-only was also insufficient on
 			// its own: a publisher that reuses an exact timestamp across
 			// an atomic rename (confirmed: same last_write_time for v1 and
 			// v2) left the client stuck on the old version indefinitely.
@@ -341,12 +341,12 @@ void Client::sleep_with_stop_check(std::stop_token stop, std::chrono::millisecon
 	}
 }
 
-// Section 10's KnobSource contract, generalized to a plain polling function
+// The KnobSource contract, generalized to a plain polling function
 // instead of a full trait object: "the source emits complete snapshots...
 // The client, not the adapter, owns parsing, version checks, merging,
 // metrics, backoff, and publication." source_poll() only has to make one
 // attempt and report bytes / no-change / failure; this loop owns everything
-// else, including the Section 7 "full-jitter exponential backoff: random
+// else, including the "full-jitter exponential backoff: random
 // delay in [0, min(30s, 250ms x 2^attempt)]" reconnect rule on failures.
 void Client::run_generic_source(std::stop_token stop, InitOptions::SourcePoll source_poll,
                                  std::chrono::milliseconds poll_interval) {
@@ -357,8 +357,8 @@ void Client::run_generic_source(std::stop_token stop, InitOptions::SourcePoll so
 			auto payload = source_poll(accepted_version_.load(std::memory_order_relaxed));
 			metrics_.source_connected.store(true, std::memory_order_relaxed);
 			if (payload) {
-				// Section 7: "Reset attempt count after the next valid
-				// swap" -- only on an actual accepted swap, not merely
+				// The attempt count resets after the next valid
+				// swap -- only on an actual accepted swap, not merely
 				// because source_poll() didn't throw. A payload that fails
 				// to parse/validate, or that fails the version gate, is
 				// not a "valid swap"; resetting attempt=0 for those too
@@ -374,7 +374,7 @@ void Client::run_generic_source(std::stop_token stop, InitOptions::SourcePoll so
 				// No new data (e.g. a 304): a successful, connected poll
 				// with nothing to apply. Per the SourcePoll contract this
 				// is "not an error, no backoff", but it is also not "a
-				// valid swap" per Section 7's literal reset condition, so
+				// valid swap" per the reset condition, so
 				// attempt is left as-is -- consistent with the malformed-
 				// payload case above rather than a special exception for it.
 			}
