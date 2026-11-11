@@ -581,11 +581,48 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-dns-peers",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-11T09:22:14",
+          "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "criteria": {
+            "A1": "261111-073019-6a3cbb",
+            "A2": "261111-073019-6a3cbb; fails without: 261111-064840-a5fa7d, 261111-064843-5b508f, 261111-073033-9ae876",
+            "A3": "261111-073019-6a3cbb; fails without: 261111-073038-4daf76",
+            "A4": "261111-073019-6a3cbb; fails without: 261111-073030-46f6a8",
+            "A5": "`docs/mechanisms/peer-dns.md`",
+            "A6": "261111-073019-6a3cbb"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-073019-6a3cbb",
+              "level": "light",
+              "seconds": 104.5,
+              "state": "done",
+              "what": "consensus-dns-peers check suite at 905823da7ca4"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "eb34fb8598656f57e4e26cefa3f464654eb74224",
+          "reason": "",
+          "tested": "905823da7ca45f4e1dc9632a707740007ec20452"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [
@@ -593,10 +630,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T07:34:56",
-      "worktree": "../consensus-wt/detent/consensus-dns-peers"
+      "updated": "2026-11-11T09:22:24",
+      "worktree": ""
     },
     "container-selection": {
       "accepted": {},
