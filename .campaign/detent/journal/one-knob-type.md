@@ -1,26 +1,32 @@
 # one-knob-type: journal
 
-State: waiting on jobs 261111-144355-7093c6 (suite at varint commit), A3 261111-144411-793fb6
-(corpora), 261111-144413-8bee2e / 261111-144415-4590eb (page bytes 100k/5m),
-261111-144417-f31bc6 / 261111-144420-40ce8a (prepare varint / fixed stores)
+State: waiting on jobs 261111-153615-1a7748 (keep-going build: every compile error at once),
+261111-154349-807bef (A3 dense-model page bytes, main/fixed/varint, 100k and 5m)
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Whole tree converted (model, client, JSON, wire, authority, pages, flat image, local, agent,
-CLI, bindings, tests, benchmarks, tools, examples, docs). Paged body is varint since
-Detent:46e232b7 (fixed width at Detent:7d2c82fc, kept as the A3 comparison arm). First suite
-build not yet run (machine queue); compile fixes follow it.
+Session 2. Fixed the one known compile error (protocol.cc DefinitionDecoder member order,
+Detent:6eb6e566's parent), merged main (docs-e2e), moved the four docs-e2e pages and
+tests/docs/check_docs.py to the single type (check_docs.py's knob-type space removed). Waiting for
+the keep-going build's error list.
 
 ## Next
 
-1. Suite result: fix compile/test failures; then A1/A2 tagged runs (`campaign verify --for A1,A2`).
-2. A3: after prepare, `one-knob-type.sh measure PREPARED OUT SIZE` as exclusive jobs, 100k and 5m,
-   for prepared-varint (this head) and prepared-fixed (`--commit 7d2c82fc`), CORPORA=
-   /Users/kronuz/code/Kronuz/Detent/.scratch/okt/corpora. Fill docs/perf/one-knob-type.md and
-   the design note's tables.
-3. A4: grep job (BoolDef|IntDef|is_bool|is_int|bool_count|int_count, type byte) and binding suites.
-4. A2 mutant: `--fails-without` on `definition_error` (drop the value/percentage pairing check).
+1. Fix every error from 261111-153615-1a7748's log; then `campaign verify one-knob-type --for
+   A1,A2` (suite) and a docs e2e job (`tests/docs/run_e2e.py`).
+2. A3: the fixed arm at Detent:7d2c82fc has the same protocol.cc error, so its C++ numbers need a
+   compiling fixed-width tree: a side commit off the green head with the fixed body restored
+   (only for page bytes from the C++ full build; the model job covers both bodies). Then pages and
+   prepare jobs, then `measure` as exclusive jobs (100k, 5m) for the varint head against main.
+   Reconcile the design note's table (lead finding): define the columns (page bytes = 64 B page
+   headers + node bytes (leaf 4 + key suffix + body; branch) + 68 B per external, pages are
+   variable length up to 4 KiB, never padded) and take numbers only from jobs; the old main row
+   was the C++ full build and the fixed/varint rows hand model runs.
+3. A4: grep job over src include bindings tests tools examples benchmarks (excluding
+   benchmarks/container-alternative/*.patch, history prototypes) plus a build with
+   DETENT_BUILD_PYTHON/RUST and targets detent_python_test, detent_rust_test.
+4. A2 mutant: `--fails-without` on `definition_error`.
 
 ## Blocked on
 
@@ -30,8 +36,9 @@ build not yet run (machine queue); compile fixes follow it.
   test_coordinator.cc added later). B2 ruled option 1 by the owner (D68); the out-of-bucket choice
   lives only in `detent::detail::ramp()` (include/detent/detail/evaluation.hh), which both
   evaluators call.
-- Follow-up, not mine: website pages group-overrides.md, quickstart.md, rollouts.md,
-  settings-and-flags.md belong to docs-e2e and move to the one-knob model after it lands.
+- Done: the docs-e2e pages and tests/docs/** moved to the single type (now in the set).
+- For the lead, outside my set: docs/dev/docs-e2e.md:30 and docs/design/observability_bench.cc
+  (not built) still publish `"type":"int"`/`"type":"bool"` definitions.
 - Left alone as history: docs/reviews, docs/status, docs/handoffs, AUDIT.md, benchmarks/*.json,
   mutant *.patch files of landed quests (tests/detent_delivery/mutants/s3b-k2-*.patch names
   `try_eval` in context only and is not wired into a test).
