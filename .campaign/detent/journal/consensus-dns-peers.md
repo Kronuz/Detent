@@ -1,6 +1,6 @@
 # consensus-dns-peers: journal
 
-State: fixing N1, N3, N4, N5, N6
+State: ready for review
 Quest: .campaign/detent/quests/consensus-dns-peers.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,14 +9,24 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Correctness review (consensus:931c42c) CHANGES: fixing N1 (blocking), N3 (lead's ruling per D60),
-N4, N5, N6. Code, tests, revert mutants and doc written; building.
+Correctness review findings fixed at consensus:905823d (N1, N3, N4, N5, N6). Suite
+261111-073019-6a3cbb green (24/24, peers test 14.4 s). CI run 43049093799 (linux-tsan,
+linux-asan-ubsan) in progress; the Linux jobs got past the packages step this time.
+
+Findings, for `campaign accept consensus-dns-peers correctness --confirm ...`:
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| N1 | `skip_past`: a dial whose connection fails authentication starts the next dial after that endpoint; a changed answer resets the order | suite 261111-073019-6a3cbb (`refused-first`); fails without: 261111-073030-46f6a8 (no-skip, `peers_test.cc:654`); review probe W at the fix 261111-073017-b40c82: "reached voter two: yes" (was NO, 53 refusals, at 931c42c) |
+| N2 | CI rerun at the fix | CI run 43049093799 |
+| N3 | a cached name dials the cache at once, the lookup refreshes behind it; only an uncached name waits | `slow-resolver`: redial 205 ms with a 1500 ms resolver and 1000 ms deadline; fails without: 261111-073033-9ae876 (wait-cached, redial 1130 ms) |
+| N4 | no lookup of a name starts before the last one's deadline | `lookup-spacing`: 16 redials, 5 lookups in 1.2 s; fails without: 261111-073038-4daf76 (lookup-per-dial, 16 lookups) |
+| N5 | doc: one parked thread per name per `Peers` | `docs/mechanisms/peer-dns.md` |
+| N6 | none needed (R11): already rejected | `membership` scenario in suite 261111-073019-6a3cbb |
 
 ## Next
 
-1. Build and run the peers test locally; commit the fix.
-2. Jobs: revert mutants no-skip (N1, --for A4), wait-cached (N3), lookup-per-dial (N4); probe W
-   at the fix; suite `campaign verify --for A1,A2,A3,A4,A6`; push for CI (linux-tsan).
+1. If CI 43049093799 linux-tsan is red, fix and rerun; otherwise the lead accepts the review.
 
 ## Blocked on
 
@@ -33,11 +43,11 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-064715-c0f32c |
-| A2 | 261111-064715-c0f32c; fails without: 261111-064840-a5fa7d, 261111-064843-5b508f |
-| A3 | 261111-064715-c0f32c |
-| A6 | 261111-064715-c0f32c |
-| A4 | 261111-064715-c0f32c |
+| A1 | 261111-073019-6a3cbb |
+| A2 | 261111-073019-6a3cbb; fails without: 261111-064840-a5fa7d, 261111-064843-5b508f, 261111-073033-9ae876 |
+| A3 | 261111-073019-6a3cbb; fails without: 261111-073038-4daf76 |
+| A6 | 261111-073019-6a3cbb |
+| A4 | 261111-073019-6a3cbb; fails without: 261111-073030-46f6a8 |
 | A5 | `docs/mechanisms/peer-dns.md` |
 
 ## Result
@@ -59,6 +69,9 @@ consensus `include/consensus/transport/`:
   (A3), wrong-node (A4), several-addresses (A6). Local run (Debug, macOS): all pass in ~8 s;
   hung cached name redialed in 341 ms (deadline 200 ms), stop() drained in 2 ms with two hung
   lookups, unroutable first address connected in 106 ms (stagger 100, deadline 5000).
+- Review fixes (905823d): `Route::first` and `skip_past` (N1), cache-first `resolve()` and lookup
+  spacing by `answer_by` (N3, N4); scenarios refused-first, slow-resolver, lookup-spacing,
+  membership; mutants no-skip, wait-cached, lookup-per-dial.
 - `test/transport/dns_mutants.sh`: both mutants caught locally (no-deadline: redials of the hung
   peer stop; shared-thread: voter one never reaches three, no quorum).
 - Docs: `docs/mechanisms/peer-dns.md`; CHANGELOG, README link.
@@ -83,3 +96,20 @@ Consumers: Detent's `service.cc` and Xapiand must build `PeerAddress{address.to_
   their own certificates in-process, since that test has no TLS-fixture dependency.
 - R8 A restarted `Peers` starts with an empty cache; during an outage it cannot dial a name it
   never resolved (documented, and asserted in the outage scenario).
+- R9 (N1) A dialed connection that never authenticates as the dialed peer (pin refusal, foreign
+  service, handshake failure) moves the route's start past that endpoint (`skip_past`, keyed by
+  the endpoint, so two lanes refused at once agree). An answer equal to the cache keeps the
+  start; only a changed set resets it, so a periodic refresh does not send the next dial back to
+  the known-wrong address.
+- R10 (N3, N4) One field serves both: a lookup's `answer_by` is its deadline and the earliest
+  start of the next lookup of that name (minimum interval = `resolve_deadline`). A cached name
+  never waits; `lookup_timeouts` now counts uncached dials whose lookup was late (the A2 test
+  checks it in the hung phase, and the cached redial checks a second hung lookup started
+  instead). A moved name is followed one dial after the refresh answers.
+- R11 (N6) Not reproducible: `validate_peer_identity` makes voters unique and containing local,
+  and the constructor requires `addresses.size() + 1 == voters.size()` with every other voter
+  present, so the key set already equals the other voters. The `membership` scenario pins this
+  (non-voter instead of a voter, beside them, local in place of a voter); it passes at 931c42c
+  too, so it has no fails-without. No code change.
+- R12 The A6 scenario's restart phase waits for the refresh lookup to answer (idle past the
+  spacing first), since a cached redial no longer waits for it.
