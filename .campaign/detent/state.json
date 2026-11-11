@@ -4967,6 +4967,40 @@
       "updated": "2026-11-09T10:10:20",
       "worktree": ""
     },
+    "s3b-followups": {
+      "accepted": {},
+      "after": [
+        "namespace-s4"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/pack_scrub.*",
+        "src/detent_local/paged_segment_collection.*",
+        "src/detent_delivery/coordinator.cc",
+        "docs/mechanisms/trusted-restart.md",
+        "tests/detent_local/test_paged_segment_collection.cc",
+        "tests/detent_delivery/test_repair.cc",
+        "tests/detent_testing/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Pack repair follow-ups N1-N5",
+      "updated": "2026-11-11T06:15:36"
+    },
     "salvage": {
       "accepted": {},
       "after": [],
