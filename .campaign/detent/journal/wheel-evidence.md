@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-120919-26a86b 261111-120906-d4e803 261111-120908-1dc617 261111-120910-dac9aa 261111-120912-a58c1f
+State: waiting on jobs 261111-120919-26a86b 261111-121548-d1f618 261111-121549-8cd0f8 261111-121551-0e58b1 261111-121553-d6c80e
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,8 +10,8 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Rows queued at 22a10ab7 (candidates a-e), stash pinned at stash:d249352: tests
-261111-120919-26a86b (light, A1), smoke 261111-120906-d4e803 (strict), then single
-261111-120908-1dc617, cross 261111-120910-dac9aa, mem 261111-120912-a58c1f (exclusive, A2).
+261111-120919-26a86b (light, A1), smoke 261111-121548-d1f618 (strict), then single
+261111-121549-8cd0f8, cross 261111-121551-0e58b1, mem 261111-121553-d6c80e (exclusive, A2).
 Superseded: tests 261111-120050-51af98 and smoke 261111-120056-0484f0 at 67f3f4c3 (a-d).
 
 ## Next
