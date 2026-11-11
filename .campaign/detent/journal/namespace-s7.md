@@ -5,33 +5,46 @@ Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
 ## Doing
 
-D58 folded in (Detent:c171898): `detent_agent_store` (alias `detent::agent_store`) builds in
-`src/detent_local/CMakeLists.txt`; the status doc says the store lands as a module and
-namespace-s7-wire wires it. Evidence jobs at c171898 (supersede those at 627697e): native suite
-261111-013953-ee8bac (A1, A2, A4), pins 261111-013953-bc7285, crash model 261111-014002-b517ac (A3),
-mutants 261111-014006-0f1d84 (n6-rename-before-fsync) and 261111-014010-7d7284
-(ndr4-unsynced-reuse), both --fails-without A3. Done: pins passed; both mutants killed (exit 0).
-Pending (queued under load): native and crash model.
+D59 fix round on the durability review (CHANGES, `.campaign/detent/reviews/namespace-s7-durability.md`).
+Code at Detent:096fea29 (fixes) and the mutant regeneration after it.
 
-Local runs at 627697e (same code): test_agent_store, test_agent_catch_up pass; test_agent_store_crash
-38,318 cases (630 distinct cuts), 102 republications, 60 repairs, 0 violations, 86 s. Each of the
-three mutants is killed locally.
+- F1: `ChangeWriter` (`src/detent_local/change_file.cc`) extends its own `change` when it is shorter
+  than a word (owner, one link, no group/other write and a mode-only ACL checked first); readers keep
+  refusing it, and a ragged `change` past a word still refuses. DiskStore shares the writer. T7 now
+  models `change` (`test_agent_store_crash.cc`): never synced, so a cut keeps it empty or at its size,
+  plus an explicit kill between its creation and its sizing. `test_agent_store` `short_change`: an
+  empty and a 3-byte `change` open, without and with `selected`.
+- F2: reuse reaches only names the durable table reaches (`agent_store.cc` link step); any other
+  existing name is unlinked and relinked, so reused names leave sync group 1. `test_agent_store`
+  `failed_sync`: the sync seam fails the pack's fsync with EIO, the store restarts, and the pack is
+  relinked (a new inode), never the one whose fsync failed.
+- Mutants: `ndr4-unsynced-reuse` removed (no reused name is synced any more), `ndr4-trust-reused-name`
+  regenerated, `f1-short-change-refused` and `f2-reuse-unreached` added.
+- F3 is namespace-s7-wire's; F4-F6 dropped (D59).
+
+Local at 096fea29: test_agent_store passes; T7 42,024 cases (903 distinct cuts), 113 republished,
+65 repairs, 0 violations, 51 s; test_change_file passes.
 
 ## Next
 
-1. When the jobs finish: paste `campaign brief`'s Evidence table, check CI, set State to ready for
-   review (or fix a failure). A durability review is the lead's to launch.
+1. The lead accepts the durability review with the finding-to-job map below.
 
 ## Blocked on
 
-Nothing. msg-21 ruled by the lead (D58): the target moved to src/detent_local; wiring is
-namespace-s7-wire.
+Nothing.
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
 | A1 | pending |
+
+### Finding-to-job map (D59)
+
+| Finding | Job | What it shows |
+|---|---|---|
+| F1 | pending | |
+| F2 | pending | |
 
 ## Result
 
@@ -63,5 +76,9 @@ collector of unreached names (S9 and later).
 - S6's answers are modelled as deltas: the ring as its transactions, the block as each key's last
   change grouped by revision. The paged overlay already makes an absent-key delete a no-op; no code
   change was needed, only the test.
+- F1 takes the writer-extends fix (D59's smaller option): a few lines in `ChangeWriter`, no new
+  name or link step; the `.tmp-` link would add a second creation path beside DiskStore's.
+- F2: dropping reused names from sync group 1 follows from reached-only reuse (each was synced before
+  the table that reaches it was renamed); T7 still checks every reached file after every cut.
 - Startup order: lock, `change` opened, barrier, `.tmp-` removal, table read and verified, `change`
   bump. A profile other than the store's refuses the store (D43).
