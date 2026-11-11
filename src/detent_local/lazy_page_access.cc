@@ -3,6 +3,7 @@
 #include "detent_local/paged_definition.hh"
 #include "generation_file_access.hh"
 #include "paged_limits.hh"
+#include "paged_node_step.hh"
 #include "segment_mapping.hh"
 #include "segment_names.hh"
 #include "verified_pages.hh"
@@ -207,14 +208,14 @@ struct LazyPageAccess::State {
 			p::verify_page(bytes, reference, bounds);
 			DETENT_COUNT(pages_verified, 1);
 			const auto nodes_end = bytes.size() - p::child_bytes * header.externals;
-			for (std::size_t at = p::page_header_bytes; at < nodes_end;) {
-				const auto node = p::decode_node(bytes, at, bounds);
+			for (p::NodeAt at; at.offset() < nodes_end;) {
+				const auto node = at.decode(bytes, bounds);
 				if (node.kind == p::PageKind::Definition)
 					p::validate_definition(node.body, root.cursor.revision, limits.overrides);
 				else if (node.kind == p::PageKind::Namespace &&
 						 read_integer(node.body, 0, 8) > root.cursor.revision)
 					throw ReadSourceFailure("local namespace exceeds selected revision");
-				at = node.end;
+				at = p::NodeAt::after(node);
 			}
 			verifications.fetch_add(1, std::memory_order_relaxed);
 			window(LazyPageWindow::Mark);

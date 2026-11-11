@@ -3,10 +3,7 @@
 #include <stdexcept>
 
 namespace detent::local::paged {
-// Where a walk stands in a page's node region, and the only way to read a node (DES-6). A walk
-// starts at the page's first node and only moves forward: to the node after one it read, or to an
-// inline child, which starts at or past its parent's end. decode_node keeps every node inside the
-// region, so each path ends within the page.
+// The one bounded forward step of every in-page walk (docs/mechanisms/dense-pages.md, "In-page walks").
 class NodeAt {
   public:
 	constexpr NodeAt() noexcept = default;
