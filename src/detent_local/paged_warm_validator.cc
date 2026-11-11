@@ -202,15 +202,13 @@ struct WarmGraphValidator::Impl {
 		} else {
 			if (!old)
 				definitions = true;
-			const auto definition = old ? p::decode_definition_header(body, ns.original)
-										: p::validate_definition(body, ns.revision);
+			const auto definition = p::validate_definition(body, old ? ns.original : ns.revision);
 			old ? ++old_headers : ++definition_checks;
 			if (!old)
 				require(definition.overrides <= semantics.overrides);
 			++target.records;
 			target.overrides += definition.overrides;
-			target.strings += key_size - 2 + body.size() - p::header_size(definition) -
-							  std::uint64_t(definition.overrides) * p::override_header_bytes;
+			target.strings += key_size - 2 + definition.key_bytes;
 			histogram[definition.overrides] += old ? -1 : 1;
 		}
 		frame.keys = 1;

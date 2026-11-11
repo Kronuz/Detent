@@ -6,7 +6,7 @@ LeafBody::LeafBody(std::shared_ptr<distribution::StorageLedger> account, p::Defi
 				   const void *context, std::uint64_t ordinal, OverrideAt callback, std::size_t maximum)
 	: account_(std::move(account)), definition_(definition), context_(context), override_(callback),
 	  ordinal_(ordinal), maximum_(maximum), size_(p::header_size(definition)) {
-	std::array<char, p::definition_header_bytes + p::rollout_value_bytes> header{};
+	std::array<char, p::maximum_header_bytes> header{};
 	p::encode_definition_header(std::span(header).first(size_), definition_);
 	if (!account_ || maximum_ < size_ || (definition_.overrides && (!context_ || !override_)))
 		throw std::invalid_argument("invalid paged leaf body source");
@@ -39,12 +39,12 @@ void LeafBody::step(ValidationBudget &budget) {
 			case Phase::Count:
 				if (index_ < definition_.overrides) {
 					const auto row = override_(context_, ordinal_, index_);
-					if (row.key.empty() || row.key.size() > 128 || size_ > maximum_ ||
-						row.key.size() + p::override_header_bytes > maximum_ - size_)
+					const auto size = p::override_size(row);
+					if (row.key.empty() || row.key.size() > 128 || size_ > maximum_ || size > maximum_ - size_)
 						throw std::length_error("paged leaf body limit");
-					if (!grant(row.key.size() + p::override_header_bytes, budget))
+					if (!grant(size, budget))
 						return;
-					size_ += row.key.size() + p::override_header_bytes;
+					size_ += size;
 					++index_;
 					break;
 				}
@@ -74,10 +74,9 @@ void LeafBody::step(ValidationBudget &budget) {
 			case Phase::Overrides:
 				if (index_ < definition_.overrides) {
 					const auto row = override_(context_, ordinal_, index_);
-					if (row.key.empty() || row.key.size() > 128 || offset_ > size_ ||
-						row.key.size() + p::override_header_bytes > size_ - offset_)
+					const auto size = p::override_size(row);
+					if (row.key.empty() || row.key.size() > 128 || offset_ > size_ || size > size_ - offset_)
 						throw std::length_error("paged leaf body source changed");
-					const auto size = p::override_header_bytes + row.key.size();
 					if (!grant(size, budget))
 						return;
 					if (!previous_.empty() &&
@@ -86,7 +85,7 @@ void LeafBody::step(ValidationBudget &budget) {
 													  [](unsigned char a, unsigned char b) { return a < b; }))
 						throw std::invalid_argument("unordered paged leaf overrides");
 					p::encode_override(output_->mutable_bytes().subspan(offset_, size), row);
-					previous_ = {output_->data() + offset_ + p::override_header_bytes, row.key.size()};
+					previous_ = {output_->data() + offset_ + size - row.key.size(), row.key.size()};
 					offset_ += size;
 					++index_;
 					break;

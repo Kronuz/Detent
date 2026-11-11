@@ -58,15 +58,15 @@ int main() {
 								   detent::KnobDef{0, {}, 0, 1}, detent::KnobDef{1, {}, 100, 1}, ramp, group_only}) {
 		const auto body = encode(definition);
 		CHECK(decode(body) == definition);
-		CHECK(body.size() == p::definition_header_bytes + (definition.rollout_value ? 8 : 0) +
-								 [&] {
-									 std::size_t rows = 0;
-									 for (const auto &[key, value] : definition.overrides)
-										 rows += p::override_header_bytes + key.size();
-									 return rows;
-								 }());
+		CHECK(body.size() == p::definition_size(definition));
 	}
-	CHECK(encode(detent::KnobDef{17}).size() == 20 && encode(detent::KnobDef{0, {}, 50, 1}).size() == 28);
+	// Smallest encodings: a one-byte default and count, a one-byte rollout value, a one-byte forced row value.
+	CHECK(encode(detent::KnobDef{17}).size() == 12 && encode(detent::KnobDef{0, {}, 50, 1}).size() == 13);
+	CHECK(encode(detent::KnobDef{INT64_MIN}).size() == 21 && encode(detent::KnobDef{-64}).size() == 12 &&
+		  encode(detent::KnobDef{64}).size() == 13);
+	detent::KnobDef forced{0};
+	forced.overrides.emplace("g", std::int64_t(-1));
+	CHECK(encode(forced).size() == 12 + 2 + 1 + 1);
 
 	// The encoder refuses invalid shapes.
 	CHECK(refused_shape(detent::KnobDef{0, {}, 50, std::nullopt}));    // percentage without a value
@@ -83,42 +83,55 @@ int main() {
 	l::write_integer(bad, 0, 0, 8);
 	CHECK(refused(bad));                                              // revision zero
 	bad = good;
-	bad[17] = 0;
+	bad[9] = 0;
 	CHECK(refused(bad));                                              // rollout without a value
 	bad = good;
-	bad[17] = 2;
+	bad[9] = 2;
 	CHECK(refused(bad));                                              // unknown flag
 	bad = good;
-	bad[16] = char(101);
+	bad[8] = char(101);
 	CHECK(refused(bad));                                              // percentage over 100
 	auto lone = encode(detent::KnobDef{0, {}, 50, 1});
-	lone[16] = char(255);
+	lone[8] = char(255);
 	CHECK(refused(lone));                                             // value with no percentage left
+	auto overlong = encode(detent::KnobDef{0});
+	overlong.insert(overlong.begin() + 10, char(0x80));
+	CHECK(overlong.size() == 13 && refused(overlong));                // non-canonical varint
+	overlong = encode(detent::KnobDef{0});
+	overlong.insert(overlong.begin() + 10, 9, char(0xff));
+	overlong[10 + 9] = char(0x7f);
+	CHECK(refused(overlong));                                         // varint past 64 bits
 	bad = good;
 	bad.push_back(0);
 	CHECK(refused(bad));                                              // trailing bytes
 	bad = good;
 	bad.pop_back();
 	CHECK(refused(bad));                                              // truncated
-	const std::size_t first = 28, second = first + p::override_header_bytes + 4;   // "beta", "canary"
+	// ramp: header 13 bytes (default 25, count 3, value 50 one byte each), then "beta" forced 7
+	// (2 + 1 + 4 bytes), then "canary" at 50% (2 + 1 + 6 bytes).
+	const std::size_t first = 13, second = first + 7;
+	CHECK(p::header_size(p::validate_definition(good, 7)) == first);
 	bad = good;
 	bad[second + 1] = 2;
 	CHECK(refused(bad));                                              // unknown override kind
 	bad = good;
-	l::write_integer(bad, second + 2, 101, 8);
+	bad[second + 2] = char(101);
 	CHECK(refused(bad));                                              // group percentage over 100
 	bad = good;
 	bad[first] = 0;
 	CHECK(refused(bad));                                              // empty key
 	bad = good;
-	l::write_integer(bad, 18, 4, 2);
+	bad[11] = 4;
 	CHECK(refused(bad));                                              // count beyond the rows
 	detent::KnobDef pair{0};
 	pair.overrides.emplace("a", std::int64_t(1));
 	pair.overrides.emplace("b", std::int64_t(2));
 	bad = encode(pair);
-	std::swap(bad[20 + p::override_header_bytes], bad[20 + 2 * p::override_header_bytes + 1]);
+	std::swap(bad[12 + 3], bad[12 + 4 + 3]);
 	CHECK(refused(bad));                                              // keys out of order
+	bad = encode(pair);
+	bad[12 + 4 + 3] = char(0xff);
+	CHECK(refused(bad));                                              // key not UTF-8
 	std::cout << "paged definitions round-trip and refuse invalid shapes\n";
 	return 0;
 }

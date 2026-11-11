@@ -664,9 +664,13 @@ void mapped_mutations(const fs::path &store) {
 			// "flags" breaks the header every read decodes; "evaluate" claims an override that only a
 			// group lookup reads.
 			if (mutation == "flags")
-				body[17] = 2;
-			else
-				body[19] = 1;
+				body[9] = 2;
+			else {
+				std::size_t count = 10;   // the count follows the default's varint
+				while (body[count] & 0x80)
+					++count;
+				body[count + 1] = 1;
+			}
 		}
 		std::size_t get_failures = 0, eval_failures = 0;
 		for (int i = 0; i < knobs + 10; ++i) {

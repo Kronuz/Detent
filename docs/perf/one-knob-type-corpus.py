@@ -1,14 +1,12 @@
-"""Converts a DTCORP01 corpus's definition bodies to the one-knob body (docs/perf/one-knob-type.md).
+"""Converts a DTCORP01 corpus's definition bodies to one-knob bodies (docs/perf/one-knob-type.md).
 
   convert OLD NEW [--varint]   Rewrite every definition body from main's bool/int body to the
-                               fixed-width one-knob body (src/detent_local/paged_definition.cc),
-                               or with --varint to the varint candidate; print the body census.
+                               varint one-knob body (src/detent_local/paged_definition.cc) with
+                               --varint, or to the fixed-width candidate without; print the census.
 
-Keys, kinds and order are unchanged, so both corpora build the same trie; only body sizes differ.
-The varint body exists only here, for sizing: revision u64, default zigzag LEB128, percentage u8
-(255 none), flags u8, override count LEB128, rollout value zigzag LEB128 when flagged; each
-override is key length u8, kind u8, value (forced: zigzag LEB128, percentage: u8), key.
-"""
+Keys, kinds and order are unchanged, so every corpus builds the same trie; only bodies differ.
+The fixed-width candidate: revision u64, default i64, percentage u8 (255 none), flags u8, count
+u16, rollout value i64 when flagged; each override is key length u8, kind u8, value i64, key."""
 
 from __future__ import annotations
 
@@ -73,8 +71,12 @@ def fixed(
 def varint(
     revision: int, default: int, pct: int | None, value: int | None, rows: list
 ) -> bytes:
-    out = bytearray(struct.pack(">Q", revision)) + zigzag(default)
-    out += bytes([255 if pct is None else pct, value is not None]) + leb(len(rows))
+    out = bytearray(struct.pack(">Q", revision))
+    out += (
+        bytes([255 if pct is None else pct, value is not None])
+        + zigzag(default)
+        + leb(len(rows))
+    )
     if value is not None:
         out += zigzag(value)
     for key, percentage, v in rows:

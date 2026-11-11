@@ -1,7 +1,7 @@
 #!/bin/bash
 # A3 of one-knob-type: page bytes, read bench and first read, main against the one-knob tree, on the
 # 100K and 5M corpora (docs/perf/one-knob-type.md).
-#   one-knob-type.sh corpora OUT                 light: fixed and varint corpora from each pinned corpus
+#   one-knob-type.sh corpora OUT                 light: varint and fixed-width corpora from each pinned corpus
 #   one-knob-type.sh pages OUT SIZE              light, --ref BASELINE=<main>: page bytes from each tree's
 #       full build and from the dense model, for main's, the fixed and the varint bodies
 #   one-knob-type.sh prepare OUT                 light, --ref BASELINE=<main>: Release builds of both trees
@@ -13,6 +13,7 @@ sdk=$(sed -n 's/^-isysroot //p' "$("$llvm/clang++" --version | sed -n 's/^Config
 dense=/Users/kronuz/code/Kronuz/Detent/.scratch/dense
 python=/usr/local/bin/python3
 here=$PWD
+candidate=varint   # this tree's paged body; the fixed-width arm is this script at Detent:7d2c82fc
 
 corpus() { # SIZE ARM: main's pinned corpus, or its converted copy under OUT/corpora
 	if [ "$2" = main ]; then echo "$dense/corpus-$1.bin"; else echo "${CORPORA:?CORPORA}/corpus-$1-$2.bin"; fi
@@ -46,7 +47,7 @@ build() { # SRC BUILD TARGET... with the first-read gate's toolchain checks
 pages() {
 	local out=$1 size=$2
 	mkdir -p "$out"
-	for arm in main fixed; do
+	for arm in main $candidate; do
 		local src=$here
 		[ "$arm" = main ] && src=${JOB_REF_BASELINE:?--ref BASELINE}
 		git -C "$src" rev-parse HEAD > "$out/$arm-commit.txt"
@@ -65,7 +66,7 @@ prepare() {
 	local out=$1
 	mkdir -p "$out"
 	"$llvm/clang++" --version | tee "$out/toolchain.txt"
-	for arm in main fixed; do
+	for arm in main $candidate; do
 		local src=$here define=
 		if [ "$arm" = main ]; then src=${JOB_REF_BASELINE:?--ref BASELINE}; define=ONE_KNOB_MAIN; fi
 		mkdir -p "$out/$arm"
@@ -95,6 +96,7 @@ corpora) corpora "${2:?OUT}" ;;
 pages) pages "${2:?OUT}" "${3:?100k or 5m}" ;;
 prepare) prepare "${2:?OUT}" ;;
 measure) "$python" -I docs/perf/one-knob-type.py --prepared "${2:?PREPARED}" --output "${3:?OUT}" --size "${4:?SIZE}" \
-	--corpus-main "$(corpus "$4" main)" --corpus-fixed "$(corpus "$4" fixed)" ;;
+	--arm $candidate \
+	--corpus-main "$(corpus "$4" main)" --corpus-arm "$(corpus "$4" $candidate)" ;;
 *) echo "usage: $0 corpora OUT | pages OUT SIZE | prepare OUT | measure PREPARED OUT SIZE" >&2; exit 2 ;;
 esac

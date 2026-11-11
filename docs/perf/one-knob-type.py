@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 PAIRS, FIRST, STEADY_QUERIES, STEADY_ROUNDS = 6, 60, 200_000, 7
-ARMS = ("main", "fixed")
 
 
 def run_json(command: list[str]) -> dict[str, Any]:
@@ -68,9 +67,11 @@ def one_run(
     }
 
 
-def verdict(runs: list[dict[str, Any]], metric: str) -> dict[str, Any]:
-    values = {arm: [r[metric] for r in runs if r["arm"] == arm] for arm in ARMS}
-    diffs = [b - a for a, b in zip(values["main"], values["fixed"])]
+def verdict(runs: list[dict[str, Any]], metric: str, arm: str) -> dict[str, Any]:
+    values = {
+        name: [r[metric] for r in runs if r["arm"] == name] for name in ("main", arm)
+    }
+    diffs = [b - a for a, b in zip(values["main"], values[arm])]
     spread = {
         arm: statistics.median(abs(b - a) for a, b in itertools.pairwise(v))
         for arm, v in values.items()
@@ -93,15 +94,17 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--size", choices=("100k", "5m"), required=True)
     parser.add_argument("--corpus-main", type=Path, required=True)
-    parser.add_argument("--corpus-fixed", type=Path, required=True)
+    parser.add_argument("--arm", required=True)
+    parser.add_argument("--corpus-arm", type=Path, required=True)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     scratch = args.output / "clones"
     scratch.mkdir(exist_ok=True)
-    corpora = {"main": args.corpus_main, "fixed": args.corpus_fixed}
+    corpora = {"main": args.corpus_main, args.arm: args.corpus_arm}
+    arms = ("main", args.arm)
     runs: list[dict[str, Any]] = []
     for pair in range(PAIRS):
-        for arm in ARMS if pair % 2 == 0 else reversed(ARMS):
+        for arm in arms if pair % 2 == 0 else reversed(arms):
             result = one_run(args.prepared, scratch, arm, args.size, corpora[arm])
             runs.append({"pair": pair, "arm": arm, **result})
             print(
@@ -115,11 +118,14 @@ def main() -> None:
                 flush=True,
             )
     shutil.rmtree(scratch)
-    verdicts = [verdict(runs, "first_median_ns"), verdict(runs, "steady_median_ns")]
+    verdicts = [
+        verdict(runs, "first_median_ns", args.arm),
+        verdict(runs, "steady_median_ns", args.arm),
+    ]
     for v in verdicts:
         print(
             f"A3 verdict {args.size} {v['metric']}: main {v['run_values']['main']}, one-knob "
-            f"{v['run_values']['fixed']}; paired {v['paired_differences']}, median "
+            f"{v['run_values'][args.arm]}; paired {v['paired_differences']}, median "
             f"{v['median_difference']:+.1f}; noise floor {v['noise_floor']:.1f}; "
             f"{'NO WORSE' if v['no_worse'] else 'WORSE'}"
         )

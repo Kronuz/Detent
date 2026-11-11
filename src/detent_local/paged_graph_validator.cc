@@ -165,9 +165,7 @@ struct GraphValidator::Impl {
 			require(found != namespaces.end() && found->text() == parsed.name_space);
 			const auto definition = p::validate_definition(body, found->revision);
 			require(definition.overrides <= semantic_limits.overrides);
-			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + body.size() -
-							  p::header_size(definition) -
-							  std::uint64_t(definition.overrides) * p::override_header_bytes;
+			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + definition.key_bytes;
 			require(text <= semantic_limits.strings - strings);
 			strings += text;
 			overrides += definition.overrides;

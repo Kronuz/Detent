@@ -10,25 +10,24 @@ void require(bool ok) {
 }
 } // namespace
 BorrowedDefinition BorrowedDefinition::from_paged(std::span<const char> body) {
-	require(body.size() >= paged::definition_header_bytes);
-	return {body, {}, nullptr};
+	return {body, {}, nullptr, paged::decode_definition_header(body, UINT64_MAX)};
 }
 std::int64_t BorrowedDefinition::default_value() const {
-	return std::bit_cast<std::int64_t>(read_integer(record, flat_layout ? 24 : 8, 8));
+	if (!flat_layout)
+		return paged_header.default_value;
+	return std::bit_cast<std::int64_t>(read_integer(record, 24, 8));
 }
 std::optional<std::uint8_t> BorrowedDefinition::rollout() const {
-	if (flat_layout) {
-		if (!(read_integer(record, 44, 1) & 1))
-			return {};
-		return static_cast<std::uint8_t>(read_integer(record, 45, 1));
-	}
-	const auto value = read_integer(record, 16, 1);
-	return value == 255 ? std::nullopt : std::optional(static_cast<std::uint8_t>(value));
+	if (!flat_layout)
+		return paged_header.rollout;
+	if (!(read_integer(record, 44, 1) & 1))
+		return {};
+	return static_cast<std::uint8_t>(read_integer(record, 45, 1));
 }
 std::int64_t BorrowedDefinition::rollout_value() const {
-	if (flat_layout)
-		return std::bit_cast<std::int64_t>(read_integer(record, (read_integer(record, 44, 1) & 2) ? 48 : 24, 8));
-	return std::bit_cast<std::int64_t>(read_integer(record, read_integer(record, 17, 1) ? 20 : 8, 8));
+	if (!flat_layout)
+		return paged_header.rollout_value.value_or(paged_header.default_value);
+	return std::bit_cast<std::int64_t>(read_integer(record, (read_integer(record, 44, 1) & 2) ? 48 : 24, 8));
 }
 std::string_view BorrowedDefinition::qualified_key() const {
 	if (!flat_layout)
@@ -40,26 +39,13 @@ std::string_view BorrowedDefinition::qualified_key() const {
 }
 std::optional<GroupOverride> BorrowedDefinition::override_for(std::string_view key) const {
 	if (!flat_layout) {
-		const auto header = paged::definition_header_bytes + (read_integer(record, 17, 1) ? paged::rollout_value_bytes : 0);
-		require(record.size() >= header);
-		const auto overrides = record.subspan(header);
-		const auto count = read_integer(record, 18, 2);
-		std::size_t offset = 0;
-		for (std::uint32_t i = 0; i < count; ++i) {
-			require(offset <= overrides.size() && overrides.size() - offset >= paged::override_header_bytes);
-			const auto length = static_cast<unsigned char>(overrides[offset]);
-			require(length <= overrides.size() - offset - paged::override_header_bytes);
-			const std::string_view name{overrides.data() + offset + paged::override_header_bytes, length};
-			if (name == key) {
-				const auto kind = static_cast<unsigned char>(overrides[offset + 1]);
-				const auto value = read_integer(overrides, offset + 2, 8);
-				require(kind <= 1 && (!kind || value <= 100));
-				return kind ? GroupOverride(GroupRollout{static_cast<std::uint8_t>(value)})
-							: GroupOverride(std::bit_cast<std::int64_t>(value));
-			}
-			if (name > key)
+		std::size_t offset = paged::header_size(paged_header);
+		for (std::uint32_t i = 0; i < paged_header.overrides; ++i) {
+			const auto row = paged::read_override(record, offset);
+			if (row.key == key)
+				return row.value;
+			if (row.key > key)
 				return {};
-			offset += paged::override_header_bytes + length;
 		}
 		return {};
 	}
