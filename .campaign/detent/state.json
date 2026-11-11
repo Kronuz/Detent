@@ -4412,7 +4412,57 @@
       "updated": "2026-11-10T13:19:11"
     },
     "namespace-s7": {
-      "accepted": {},
+      "accepted": {
+        "durability": {
+          "at": "2026-11-11T03:22:18",
+          "base": "8e42741bd07e72cc6e443d16e4ba87ebd93e61c2",
+          "blobs": {
+            "docs/status/namespace-s7.md": "100644:5d4b58f93de7f260a2cac9e5f7de8d4c72bac01f",
+            "include/detent_local/agent_store.hh": "100644:f27de3ea39df0a58958e05f5cef0084b4de821f2",
+            "src/detent_local/CMakeLists.txt": "100644:8da342f0eba3844b5ae726af6a9d40a94fbcbf46",
+            "src/detent_local/agent_store.cc": "100644:f9929fea8cad6ed29c50bfa99903332b7c44c215",
+            "src/detent_local/change_file.cc": "100644:ce2539856e7282a14039f02904fdc9ea4af65526",
+            "src/detent_local/change_file.hh": "100644:5e371d7626c39d42c35480cce7a52f0f65e56ade",
+            "tests/detent_agent/CMakeLists.txt": "100644:32c45aee913563bd2ef226ea7b90263fa268632e",
+            "tests/detent_agent/agent_store_fixture.hh": "100644:78d6400a0c033eb9fc0febe38772dfcff011918f",
+            "tests/detent_agent/agent_store_mutant.sh": "100755:e9111cfea00c37a73d3b34aaf3e594774d1dabbd",
+            "tests/detent_agent/mutants/f1-short-change-refused.patch": "100644:ec68d66d93a3b17bd525ec8b25eb7dcc9eaccf3c",
+            "tests/detent_agent/mutants/f2-reuse-unreached.patch": "100644:8cc13e9e1683c88cd286a90c2a51b36a5fc04169",
+            "tests/detent_agent/mutants/n6-rename-before-fsync.patch": "100644:c950a341f4fe9039b37cd2f697018acb47338f61",
+            "tests/detent_agent/mutants/ndr4-trust-reused-name.patch": "100644:b4ce56f2e2020ac9fd127f6afce4a56bee96f58b",
+            "tests/detent_agent/test_agent_catch_up.cc": "100644:043131cf23b3ac871bbe619fa961c4d66c1f809a",
+            "tests/detent_agent/test_agent_store.cc": "100644:2818a16f126403af8fd12c7caef3195d1ab95f97",
+            "tests/detent_agent/test_agent_store_crash.cc": "100644:dd30fece838f84687f4f72874ea8869a5e048228"
+          },
+          "by": "review",
+          "commit": "f2cc2f5aa0932248fff5bbc69552abd3d0af4154",
+          "criteria": "05cca5821c533949",
+          "diffs": {
+            "": "e19c8b96f01f19c6",
+            "docs/status/namespace-s7.md": "4f44d77c0de788ff",
+            "include/detent_local/agent_store.hh": "1788d774fbdb455c",
+            "src/detent_local/CMakeLists.txt": "5549a0d036e43c18",
+            "src/detent_local/agent_store.cc": "6f538607f97cb47b",
+            "src/detent_local/change_file.cc": "a86e481043a04ab3",
+            "src/detent_local/change_file.hh": "7dc8961f4e12d013",
+            "tests/detent_agent/CMakeLists.txt": "976a912d9685343c",
+            "tests/detent_agent/agent_store_fixture.hh": "827f93b725cd5730",
+            "tests/detent_agent/agent_store_mutant.sh": "3983dbe78df26b0a",
+            "tests/detent_agent/mutants/f1-short-change-refused.patch": "a375a1413869205a",
+            "tests/detent_agent/mutants/f2-reuse-unreached.patch": "11ffa9a35b6f375f",
+            "tests/detent_agent/mutants/n6-rename-before-fsync.patch": "272ce24dc9fc75e1",
+            "tests/detent_agent/mutants/ndr4-trust-reused-name.patch": "39a4566a188078c9",
+            "tests/detent_agent/test_agent_catch_up.cc": "3d54ac7809640d40",
+            "tests/detent_agent/test_agent_store.cc": "38865fcb32b207e0",
+            "tests/detent_agent/test_agent_store_crash.cc": "b3f0d13735f08f22"
+          },
+          "findings": {},
+          "note": "",
+          "review": "125b9aa1e433c6b5b0f17c8f3966a07a3e016cf7",
+          "reviewed": "06770a7edea6997e9879ec36a8de4c34c01f1a53",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [
         "namespace-s6"
       ],
@@ -4513,7 +4563,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T02:06:26",
+      "updated": "2026-11-11T03:22:18",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s7-wire": {
