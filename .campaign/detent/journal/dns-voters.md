@@ -1,6 +1,6 @@
 # dns-voters: journal
 
-State: working
+State: waiting on jobs 261111-093342-409257
 Quest: .campaign/detent/quests/dns-voters.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
