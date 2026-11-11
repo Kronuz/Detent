@@ -4367,6 +4367,8 @@
       "after": [
         "namespace-s6"
       ],
+      "base": "8e42741bd07e72cc6e443d16e4ba87ebd93e61c2",
+      "branch": "quest/detent/namespace-s7",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4457,9 +4459,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-10T13:19:12"
+      "updated": "2026-11-11T00:55:58",
+      "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s8": {
       "accepted": {},
