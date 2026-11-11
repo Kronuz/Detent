@@ -15,7 +15,7 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 cannot show it.
 
 - A1 S4.1: no tier re-hashes its own build; the relay does not re-hash on recovery; frame SHA-256 is unchanged: tests, native, ASan and TSan checks
-- A2 S4.2: per-tier hash counters; at 10K and 100K, bytes hashed per tier are at most 1.2 times bytes built: a strict job at the landed code, with the counters it read
+- A2 S4.2: per-tier hash counters; at 10K and 100K, the page and pack bytes each tier hashes are at most 1.2 times those its build hashes (D64: frame SHA-256, which D12.2 keeps, is counted and reported separately, not in the ratio): a strict job at the landed code, with the counters it read
 - A3 S4.3: a corrupted pack is still caught downstream (S3's first touch or the scrub): a test that fails with the check removed (a revert job)
 
 ## Contracts

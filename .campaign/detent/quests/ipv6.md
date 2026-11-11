@@ -20,6 +20,8 @@ URLs, loopback choice, dual-stack binds).
   OS allows dual-stack, and the test says which it ran: a test in the suite.
 - A3 Each IPv6 bug found has a test that fails without its fix (`--fails-without` on a revert), or
   the journal states none were found.
+- A5 With consensus-dual-stack pinned, a named local voter binds `::` dual-stack on every OS
+  (dns-voters falls back to `0.0.0.0` where the default is v6-only): a test in the suite.
 - A4 [artifact] `CHANGELOG.md` names IPv6 support; the configuration page is `docs-site-config`'s
   (it documents IPv6 literals and bracketed URLs after this lands).
 

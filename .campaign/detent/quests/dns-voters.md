@@ -8,7 +8,8 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 The authority's `voters[].host` accepts a host name or an IP literal. Parsing the configuration
 never resolves a name, so a DNS outage cannot stop the daemon from starting; names reach
 consensus's transport, which resolves them per D60. Duplicate voters are refused by host and port
-as written, and the voter set stays static and pinned.
+as written, and the voter set stays static and pinned. Detent's consensus pin
+(`cmake/dependencies.json`) moves to consensus:905823d, which has `PeerAddress`.
 
 ## Acceptance criteria
 

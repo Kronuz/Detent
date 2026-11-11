@@ -141,6 +141,20 @@
       "closed": "D58: src/detent_local/CMakeLists.txt added to namespace-s7; wiring is namespace-s7-wire",
       "id": "msg-21",
       "text": "namespace-s7 file set: the agent store is a new module (src/detent_local/agent_store.cc) and no CMakeLists that builds src/ is in the set, so its library target can only live in tests/detent_agent/CMakeLists.txt (as test_reader_capacity compiles agent sources). Recommend adding src/detent_local/CMakeLists.txt to the set (one target line, agent_store.cc into detent_local_publication beside disk_store.cc) so S8/S9 consume it from src. Wiring DiskStore/coordinator/readers to the table and derived ids (disk_store.cc, generation.cc, prepared_reader.cc, coordinator.cc, paged_segment_builder.cc) is also outside the set; I build D8 as the agent-store module with its own crash model and leave that wiring to a follow-up unless you widen the set."
+    },
+    {
+      "at": "2026-11-11T06:25:58",
+      "by": "xapiand-lead",
+      "closed": "Xapiand's strata-races repro (6fa85e) caused the load; it ends by 06:49 and future load repros go in as strict",
+      "id": "msg-23",
+      "text": "Xapiand lead: the load of 240 on 16 CPUs since 06:19 is ours: strata-races A2, a TSan race repro of 20 waves x 16 processes submitted as a light job (261111-061320-6fa85e, nice 19, ends by 06:49). Letting it finish; from now on such load repros go in as strict so they run alone. Sorry for the hit to the namespace-s4 build."
+    },
+    {
+      "at": "2026-11-11T08:04:01",
+      "by": "xapiand-lead",
+      "closed": "Noted: drain waits 20 min for a lull (agent-campaign:0ba23a9), CI carries across docs-only commits, light jobs <=4 processes",
+      "id": "msg-24",
+      "text": "Xapiand lead: two scheduler changes landed (agent-campaign:0ba23a9, dotfiles:d2b2e1a; worker restarted, running jobs untouched). 1) A drain now waits 20 minutes for a lull, not an hour: with the 10-minute cap the hour left 24 of 51 strict/exclusive jobs queued after the rework, median wait 85-141 min, while drains held the host 18 min/h and light work filled 40% of light slots. Override with CAMPAIGN_DRAIN_WAIT if it starves your light work. 2) CI carries across docs-only commits, which CI workflows skip, so no manual dispatch. Also in the skill text: a light job runs at most 4 processes, load and race repros are strict."
     }
   ],
   "quests": {
@@ -460,7 +474,56 @@
       "updated": "2026-11-08T15:38:36"
     },
     "consensus-dns-peers": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-11T07:34:56",
+          "base": "eb34fb8598656f57e4e26cefa3f464654eb74224",
+          "blobs": {
+            "CHANGELOG.md": "100644:daa03971a3b59efdfc2f882c97be0c6ef39c1933",
+            "README.md": "100644:f4a5b35b0ff5dde38946e7d5d93ef125fa048726",
+            "docs/mechanisms/peer-dns.md": "100644:c19ce0aa0e200cabdbdf5990b1cec0059c426976",
+            "include/consensus/transport/peers.h": "100644:b59153173280cd67ec3dc98a85df6315a1d23fd7",
+            "include/consensus/transport/resolve.h": "100644:72b3a278c3aee2303ffadf52f9c07b9de2c00b29",
+            "test/transport/dns_mutants.sh": "100755:d6171920f39de23739b03f57a5f0db4343ae7f63",
+            "test/transport/peers_test.cc": "100644:f8f38c3065a0da706033625ecd7e21b82378ad95"
+          },
+          "by": "review",
+          "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "criteria": "27fc204239b05300",
+          "diffs": {
+            "CHANGELOG.md": "96dc629caa78f7e5",
+            "README.md": "9e9a1f22497593a7",
+            "docs/mechanisms/peer-dns.md": "ba3747cd8180102d",
+            "include/consensus/transport/peers.h": "ca806c4e1fa6c425",
+            "include/consensus/transport/resolve.h": "6ed559db3e16acc3",
+            "test/transport/dns_mutants.sh": "a02c3a3c517def8e",
+            "test/transport/peers_test.cc": "1cf5286e699e3f2d"
+          },
+          "findings": {
+            "N1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c '/Users/kronuz/code/Kronuz/Detent/.scratch/review-consensus-dns-peers-correctness/lifetime_probe.sh $JOB_OUT/lifetime'",
+                  "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261111-073017-b40c82",
+                  "level": "light",
+                  "seconds": 115.7,
+                  "state": "done",
+                  "what": "N1 confirm: review probe W (wrong-first) + lifetime probes under ASan at the fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "1774bb5fa0159e3bdd041fd0fdbeb97b1ebf82af",
+          "reviewed": "931c42c0df37a64cd8fe378a6fbe15f2d1f97510",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "eb34fb8598656f57e4e26cefa3f464654eb74224",
       "branch": "quest/detent/consensus-dns-peers",
@@ -518,11 +581,48 @@
           "weakened": []
         }
       ],
-      "journal": "../Detent-wt/detent/consensus-dns-peers",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-11T09:22:14",
+          "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "criteria": {
+            "A1": "261111-073019-6a3cbb",
+            "A2": "261111-073019-6a3cbb; fails without: 261111-064840-a5fa7d, 261111-064843-5b508f, 261111-073033-9ae876",
+            "A3": "261111-073019-6a3cbb; fails without: 261111-073038-4daf76",
+            "A4": "261111-073019-6a3cbb; fails without: 261111-073030-46f6a8",
+            "A5": "`docs/mechanisms/peer-dns.md`",
+            "A6": "261111-073019-6a3cbb"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-073019-6a3cbb",
+              "level": "light",
+              "seconds": 104.5,
+              "state": "done",
+              "what": "consensus-dns-peers check suite at 905823da7ca4"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "eb34fb8598656f57e4e26cefa3f464654eb74224",
+          "reason": "",
+          "tested": "905823da7ca45f4e1dc9632a707740007ec20452"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [
@@ -530,10 +630,45 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T05:01:09",
-      "worktree": "../consensus-wt/detent/consensus-dns-peers"
+      "updated": "2026-11-11T09:22:24",
+      "worktree": ""
+    },
+    "consensus-dual-stack": {
+      "accepted": {},
+      "after": [],
+      "base": "905823da7ca45f4e1dc9632a707740007ec20452",
+      "branch": "quest/detent/consensus-dual-stack",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/peers.h",
+        "test/transport/**",
+        "CHANGELOG.md",
+        "docs/mechanisms/peer-dns.md"
+      ],
+      "journal": "../Detent-wt/detent/consensus-dual-stack",
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "active",
+      "title": "Peers listening on :: accept IPv4 too",
+      "updated": "2026-11-11T10:02:47",
+      "worktree": "../consensus-wt/detent/consensus-dual-stack"
     },
     "container-selection": {
       "accepted": {},
@@ -1338,6 +1473,8 @@
       "after": [
         "consensus-dns-peers"
       ],
+      "base": "fbeb4a9087763294530b01f2e752f97c56eb8882",
+      "branch": "quest/detent/dns-voters",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1351,19 +1488,51 @@
       ],
       "files": [
         "src/detent_authority/service.cc",
+        "src/detent_authority/service.hh",
         "tests/detent_authority/**",
-        "CHANGELOG.md"
+        "cmake/dependencies.json"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T10:02:32",
+          "commit": "9d779dbeec0fa11afec90ce75c870cf54319d96c",
+          "criteria": {
+            "A1": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094120-885cae",
+            "A2": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094140-b0368d",
+            "A3": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094123-fd5f1c"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "843376a5064e1fc84397b1663052ea56ca96d241",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-094126-27f3ad",
+              "level": "light",
+              "seconds": 685.6,
+              "state": "done",
+              "what": "dns-voters check suite at 843376a5064e"
+            }
+          ],
+          "final": true,
+          "from": "629443b0ee7aa667a5debff5811e411be5b6448a",
+          "reason": "",
+          "tested": "88c6f2273646f0c7d7589371de46a95cfe508524"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
-      "needs": [],
+      "needs": [
+        "consensus-dns-peers"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "landed",
       "title": "Authority voter addresses accept DNS names",
-      "updated": "2026-11-11T05:00:12"
+      "updated": "2026-11-11T10:02:37",
+      "worktree": ""
     },
     "docs-e2e": {
       "accepted": {},
@@ -2119,7 +2288,8 @@
     "ipv6": {
       "accepted": {},
       "after": [
-        "dns-voters"
+        "dns-voters",
+        "consensus-dual-stack"
       ],
       "checks": [
         {
@@ -2154,7 +2324,7 @@
       "risk": "low",
       "status": "planned",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T05:11:34"
+      "updated": "2026-11-11T09:36:20"
     },
     "legacy-h": {
       "accepted": {},
@@ -3148,12 +3318,14 @@
       "risk": "high",
       "status": "landed",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-11T06:14:57",
+      "updated": "2026-11-11T08:35:54",
       "worktree": ""
     },
     "namespace-s4": {
       "accepted": {},
       "after": [],
+      "base": "fcdbf54125a0388ef9e6fea0e6be08179991048e",
+      "branch": "quest/detent/namespace-s4",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -3175,7 +3347,15 @@
         "src/detent_relay/**",
         "include/detent_relay/**",
         "tests/detent_delivery/**",
-        "docs/status/namespace-s4.md"
+        "docs/status/namespace-s4.md",
+        "src/detent_local/**",
+        "src/detent_distribution/**",
+        "include/detent_distribution/frame_hash_counts.hh",
+        "src/detent_agent/managed_host.cc",
+        "tests/detent_local/test_managed_recovery_failure.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md",
+        "include/detent_local/paged_layout.hh"
       ],
       "history": [
         {
@@ -3242,9 +3422,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S4: no re-validation of a tier own build, hash counters",
-      "updated": "2026-11-10T13:19:07"
+      "updated": "2026-11-11T08:01:38",
+      "worktree": "../Detent-wt/detent/namespace-s4"
     },
     "namespace-s4-s10": {
       "accepted": {},
@@ -4091,6 +4272,54 @@
       "updated": "2026-11-10T09:18:32",
       "worktree": ""
     },
+    "one-knob-type": {
+      "accepted": {},
+      "after": [
+        "namespace-s4"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent/**",
+        "src/detent/**",
+        "include/detent_local/paged_definition.hh",
+        "src/detent_local/paged_definition.cc",
+        "src/detent_local/paged_snapshot_source.cc",
+        "src/detent_local/view.cc",
+        "src/detent_local/client_source.cc",
+        "include/detent_distribution/**",
+        "src/detent_distribution/**",
+        "src/detent_authority/state.*",
+        "src/detent_testing/**",
+        "src/detent_cli/**",
+        "bindings/**",
+        "tests/detent/**",
+        "tests/detent_local/test_paged_definition*",
+        "tests/detent_distribution/**",
+        "docs/design/one-knob-type.md",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "One knob type: targeted integers",
+      "updated": "2026-11-11T10:10:47"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
@@ -4746,6 +4975,37 @@
       "title": "Recovery and delivery fixes, qualified component",
       "updated": "2026-11-08T15:38:03"
     },
+    "relay-delta-shutdown-hang": {
+      "accepted": {},
+      "after": [
+        "namespace-s4"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_relay/service.cc",
+        "src/detent_delivery/coordinator.cc",
+        "tests/detent_delivery/relay_delta_shutdown.cc",
+        "tests/detent_delivery/CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Relay delta shutdown drains",
+      "updated": "2026-11-11T09:11:13"
+    },
     "relay-snapshot-lifecycle": {
       "accepted": {},
       "after": [],
@@ -4963,6 +5223,40 @@
       "title": "Fix the RetirementDomain::close lost-wakeup deadlock",
       "updated": "2026-11-09T10:10:20",
       "worktree": ""
+    },
+    "s3b-followups": {
+      "accepted": {},
+      "after": [
+        "namespace-s4"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/pack_scrub.*",
+        "src/detent_local/paged_segment_collection.*",
+        "src/detent_delivery/coordinator.cc",
+        "docs/mechanisms/trusted-restart.md",
+        "tests/detent_local/test_paged_segment_collection.cc",
+        "tests/detent_delivery/test_repair.cc",
+        "tests/detent_testing/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Pack repair follow-ups N1-N5",
+      "updated": "2026-11-11T06:15:36"
     },
     "salvage": {
       "accepted": {},

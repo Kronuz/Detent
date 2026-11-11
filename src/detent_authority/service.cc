@@ -10,7 +10,9 @@
 #include "detent_distribution_http/reply_pump.hh"
 #include "prepared.hh"
 #include "read_reply.hh"
+#include <algorithm>
 #include <asio.hpp>
+#include <cctype>
 #include <fcntl.h>
 #include <http_owned_stream.h>
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__linux__)
@@ -97,6 +99,42 @@ std::uint64_t number(const Object &v) {
 }
 std::optional<std::uint64_t> optional(const Object &v, const char *key) {
 	return v.HasMember(key) ? std::optional<std::uint64_t>{number(v[key])} : std::nullopt;
+}
+// A voter's host as written: an IP literal (not unspecified or multicast) or an RFC 1123 name of at
+// most 253 bytes. It is never resolved here; consensus's transport resolves names (D60).
+void voter_host(const std::string &host) {
+	check(!host.empty() && host.size() <= 253, "voter host must be 1 to 253 bytes");
+	asio::error_code error;
+	if (auto address = asio::ip::make_address(host, error); !error) {
+		check(!address.is_unspecified() && !address.is_multicast(), "voter host IP literal");
+		return;
+	}
+	std::size_t start = 0;
+	for (std::size_t i = 0; i <= host.size(); ++i) {
+		if (i != host.size() && host[i] != '.') {
+			const auto c = static_cast<unsigned char>(host[i]);
+			check(std::isalnum(c) || c == '-', "voter host name characters");
+			continue;
+		}
+		check(i > start && i - start <= 63 && host[start] != '-' && host[i - 1] != '-', "voter host name label");
+		if (i != host.size())
+			start = i + 1;
+	}
+	// A numeric final label would read as an IPv4 form (inet_aton) rather than a name.
+	check(!std::all_of(host.begin() + static_cast<std::ptrdiff_t>(start), host.end(),
+					   [](unsigned char c) { return std::isdigit(c); }),
+		  "voter host name must not end in a numeric label");
+}
+// The address a named local voter listens on without resolving its name: the IPv6 wildcard when
+// the host has IPv6 and a v6 socket also takes IPv4 (dual-stack), else the IPv4 wildcard.
+asio::ip::address local_wildcard() {
+	asio::io_context io;
+	asio::ip::tcp::socket probe(io);
+	asio::error_code error;
+	asio::ip::v6_only mode;
+	if (!probe.open(asio::ip::tcp::v6(), error) && !probe.get_option(mode, error) && !mode.value())
+		return asio::ip::address_v6::any();
+	return asio::ip::address_v4::any();
 }
 Identity identity(std::string_view hex) {
 	check(hex.size() == 32, "identity requires 32 hex characters");
@@ -373,15 +411,14 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		check(voters.IsArray() && voters.Size() >= 3 && voters.Size() <= o.node.consensus.voters &&
 				  voters.Size() % 2,
 			  "fixed voter count: an odd number of voters, at least 3, within the voter limit");
-		std::set<asio::ip::tcp::endpoint> addresses;
+		std::set<std::pair<std::string, std::uint64_t>> addresses;
 		for (const auto &voter : voters.GetArray()) {
 			fields(voter, {"id", "host", "port", "certificate_sha256"});
 			auto id = number(field(voter, "id")), port = number(field(voter, "port"));
 			check(id && port && port <= 65535, "voter ID or port");
-			auto address = asio::ip::make_address(text(field(voter, "host")));
-			asio::ip::tcp::endpoint endpoint(address, static_cast<unsigned short>(port));
-			check(!address.is_unspecified() && !address.is_multicast() && addresses.insert(endpoint).second,
-				  "voter address");
+			auto host = text(field(voter, "host"), 1024);
+			voter_host(host);
+			check(addresses.emplace(host, port).second, "duplicate voter host and port");
 			auto hex = text(field(voter, "certificate_sha256"));
 			check(hex.size() == 64, "certificate fingerprint length");
 			kronuz::consensus::transport::Fingerprint fingerprint;
@@ -399,10 +436,14 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 					static_cast<unsigned char>((nibble(hex[2 * i]) << 4) | nibble(hex[2 * i + 1]));
 			check(peers.pins.emplace(id, fingerprint).second, "duplicate voter");
 			o.node.configuration.voters.push_back(id);
-			if (id == o.node.configuration.local)
-				peers.listen = endpoint;
-			else
-				peers.addresses.emplace(id, endpoint);
+			if (id == o.node.configuration.local) {
+				// A name is not resolved to bind: the local voter listens on the wildcard.
+				asio::error_code error;
+				auto address = asio::ip::make_address(host, error);
+				peers.listen = {error ? local_wildcard() : address, static_cast<unsigned short>(port)};
+			} else
+				peers.addresses.emplace(id, kronuz::consensus::transport::PeerAddress{
+												std::move(host), static_cast<std::uint16_t>(port)});
 		}
 		check(peers.listen.port(), "local voter missing");
 		o.peers = std::move(peers);
