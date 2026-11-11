@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-130756-004da8
+State: waiting on jobs 261111-143146-cf9183 261111-143703-aee0ad 261111-143714-0db0f7 261111-143732-837999 261111-143746-2014b6
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-All rows in but the memory rerun with (f), 261111-130756-004da8 (exclusive, queued at
-df21a772): fill (f)'s row (`MEM_F` in wheel-evidence.md's memory table; expected equal to (e):
-32 B entry, 0 heap per arm, about 4 KiB more wheel heap for the stripes), then State "ready for
-review". Main merged at 14452cfb.
+D69 (A5, A6), main merged. (f)'s memory row filled from 261111-130756-004da8 (9e7a6922).
+- A5: single-loop samples run >= 100 ms (5ecbeb4c); row 261111-143146-cf9183 (exclusive, R=10).
+- A6: `wheel_vs_stash_vm.sh MODE [R]` ships bench + pinned stash to the local QEMU VM (strata
+  aws-linux.sh run, never AWS; 120 s ssh probe, 1,500 s bound), a b c f, P = 1 4 nproc-1.
+  Smoke 261111-143703-aee0ad (light); rows after it, exclusive: single R=10 261111-143714-0db0f7,
+  cross R=5 261111-143732-837999, mem 261111-143746-2014b6.
 
 ## Next
 
-1. Fill (f)'s memory row from 261111-130756-004da8; commit.
-2. The lead records the A3 decision in PLAN.md and takes the gap to the owner.
+1. Read the rows; fill wheel-evidence.md Results ("Tighter rows", "Linux VM") and The pick per host.
+2. Paste `campaign brief`'s Evidence table; State "ready for review"; push.
 
 ## Blocked on
 
