@@ -1,7 +1,11 @@
 // The agent store (namespace-delivery D8, W9, W11): one directory, the table, derived ids, `linkat`
 // publication and verified reuse.
 #include "agent_store_fixture.hh"
+#include "change_file.hh"
+#include <cerrno>
 #include <cstdio>
+#include <fcntl.h>
+#include <system_error>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -175,8 +179,8 @@ void one_directory() {
 	refuses<l::TableRefused>([&] { open(root); });
 }
 
-// W11, D8.3-4: files are linked from `.tmp-` names; a reused name is verified, an orphan relinked, and a
-// mismatching name the table reaches is a repair at the next ordinal.
+// W11, D8.3-4: files are linked from `.tmp-` names; a name the table reaches is reused when it verifies,
+// any other relinked, and a mismatching name the table reaches is a repair at the next ordinal.
 void publication() {
 	const auto root = fresh("publication");
 	auto store = open(root);
@@ -187,12 +191,12 @@ void publication() {
 	overwrite(orphan, std::string(192, 'x'));
 	const auto pack = root / std::string(l::detail::SegmentNames(a.prepared.segments[0].id).payload_name());
 	overwrite(pack, a.prepared.segments[0].pack.substr(0, 100));
-	// A name holding the right bytes is reused in place.
+	// One holding the right bytes is relinked too: no durable table reaches it, so its sync is unknown.
 	const auto image = root / generation_file(a.id, ".image");
 	overwrite(image, a.prepared.image);
-	const auto kept = inode(image);
+	const auto stale = inode(image);
 	store->publish({}, one(a));
-	check(slurp(orphan) == a.prepared.read && slurp(pack) == a.prepared.segments[0].pack && inode(image) == kept);
+	check(slurp(orphan) == a.prepared.read && slurp(pack) == a.prepared.segments[0].pack && inode(image) != stale);
 	check(table_verifies(root, store->table()) && listing(root) == expected_names({&a}));
 
 	// Republishing the same generation reuses every name: nothing is replaced.
@@ -250,6 +254,78 @@ void publication() {
 	store = open(root);
 	check(store->failed().empty());
 }
+
+// A `change` cut short at its creation (a kill between create and size, a failed fchmod, or a power cut
+// that kept its name but not its size) opens, with or without `selected` (D59, F1).
+void short_change() {
+	const auto root = fresh("short-change");
+	overwrite(root / "change", "");
+	auto store = open(root);
+	check(std::filesystem::file_size(root / "change") == 8 && store->change_word(0) == 1);
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
+	store->publish({}, one(a));
+	for (std::string_view bytes : {std::string_view(), std::string_view("abc")}) {
+		const auto table = store->table();
+		store.reset();
+		overwrite(root / "change", bytes);
+		store = open(root);
+		check(store->table() == table && store->failed().empty() && std::filesystem::file_size(root / "change") == 16);
+		store->publish({}, one(a));
+	}
+	// A ragged `change` past one word is no cut of the writer's, and still refuses the store.
+	store.reset();
+	overwrite(root / "change", std::string(12, '\0'));
+	refuses<l::detail::ChangeRefused>([&] { open(root); });
+}
+
+// After a failed fsync the store restarts in the same boot, where the page cache still holds the bytes and
+// a new fsync may report success. A name no durable table reaches is never reused: the pack whose fsync
+// failed is relinked, never named by the table (D59, F2).
+std::pair<dev_t, ino_t> g_failing{};
+int failing_fsync(int fd) {
+	struct stat status{};
+	if (::fstat(fd, &status) == 0 && std::pair{status.st_dev, status.st_ino} == g_failing) {
+		errno = EIO;
+		return -1;
+	}
+	return ::fsync(fd);
+}
+#ifdef __APPLE__
+int passing_fcntl(int fd, int command) { return ::fcntl(fd, command); }
+void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync, &passing_fcntl); }
+#elif defined(__linux__)
+int passing_writeback(int) { return 0; }
+void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync, &passing_writeback); }
+#else
+void fail_syncs(c::PosixIO &io) { io.replace_sync_calls(&failing_fsync); }
+#endif
+void failed_sync() {
+	const auto root = fresh("failed-sync");
+	const auto a = generation(profile, "alpha", cursor('a', 4), {}, 0, {}, 1, 'a');
+	const auto pack = root / std::string(l::detail::SegmentNames(a.prepared.segments[0].id).payload_name());
+	{
+		auto io = std::make_shared<c::PosixIO>(root, 0644);
+		fail_syncs(*io);
+		l::AgentStore store(io, {profile});
+		// The pack's `.tmp-` inode is the one linked at its name; fail its fsync when it comes.
+		l::AgentStoreTesting::install(
+			[](void *context, const char *what) noexcept {
+				struct stat status{};
+				if (std::string_view(what) == "link" && ::stat(static_cast<std::filesystem::path *>(context)->c_str(), &status) == 0)
+					g_failing = {status.st_dev, status.st_ino};
+			},
+			const_cast<std::filesystem::path *>(&pack));
+		refuses<std::system_error>([&] { store.publish({}, one(a)); });
+		l::AgentStoreTesting::install(nullptr, nullptr);
+		check(store.table().entries.empty() && std::filesystem::exists(pack));
+	}
+	const auto failed = g_failing;
+	g_failing = {};
+	check(failed.second != 0 && inode(pack) == failed.second);
+	auto store = open(root);
+	store->publish({}, one(a));
+	check(inode(pack) != failed.second && slurp(pack) == a.prepared.segments[0].pack && table_verifies(root, store->table()));
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -262,6 +338,8 @@ int main(int argc, char **argv) {
 		table_codec();
 		one_directory();
 		publication();
+		short_change();
+		failed_sync();
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_agent_store: %s\n", error.what());
 		return 1;

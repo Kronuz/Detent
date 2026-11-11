@@ -406,7 +406,6 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 			if (files[i].name == files[j].name)
 				throw std::invalid_argument("agent store publication: a name published twice");
 
-	std::vector<std::unique_ptr<c::File>> reused;
 	auto clean = [&] {
 		for (auto &file : files)
 			if (!file.temporary.empty())
@@ -422,7 +421,8 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 				done += file.file->write_at(done, file.bytes.substr(done));
 			primitive("write temporary");
 		}
-		// Link: linkat fails on an existing name, which is verified, or unlinked when no table reaches it.
+		// Link: linkat fails on an existing name. One the durable table reaches is reused when its bytes
+		// verify; any other may hold bytes whose sync failed or never ran, so it is unlinked and relinked.
 		for (auto &file : files) {
 			for (;;) {
 				if (::linkat(s.directory(), file.temporary.c_str(), s.directory(), file.name.c_str(), 0) == 0) {
@@ -433,14 +433,14 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 					continue;
 				if (errno != EEXIST)
 					throw std::system_error(errno, std::generic_category(), "agent store link");
-				if (const auto existing = s.slurp(file.name, file.bytes.size()); existing && digest(*existing) == file.sum) {
-					reused.push_back(s.io->open_existing_read_only(file.name));
+				if (s.reached.contains(file.name)) {
+					const auto existing = s.slurp(file.name, file.bytes.size());
+					if (!existing || digest(*existing) != file.sum)
+						throw ReachedNameMismatch(file.name, file.space);
 					file.reused = true;
 					primitive("verify reused name");
 					break;
 				}
-				if (s.reached.contains(file.name))
-					throw ReachedNameMismatch(file.name, file.space);
 				s.io->remove(file.name);
 				primitive("unlink orphan");
 			}
@@ -460,10 +460,8 @@ std::uint64_t AgentStore::publish(const DirectoryPosition &directory, std::span<
 		for (auto &file : files)
 			if (file.owner && !file.reused)
 				group.push_back(file.file.get());
-		for (auto &file : reused)
-			group.push_back(file.get());
 		s.io->sync_files_and_directory(group);
-		primitive("sync owner records and reused names");
+		primitive("sync owner records");
 		group.clear();
 		for (auto &file : files)
 			if (!file.owner && !file.reused)

@@ -32,8 +32,8 @@ The generation id is the first 16 bytes of SHA-256 over `detent.agent-store.gene
 
 1. Validation. The store derives each generation's id, checks that its `.live` binds that id, the root's and `.read`'s digests, that every new pack matches its row, and that every row it does not write is a segment the durable table reaches. Nothing is written for a cycle that fails.
 2. Staging. Every file is written under a fresh `.tmp-` name, unsynced.
-3. Linking. Each `.tmp-` name is linked to its final name with `linkat`, which fails on an existing name. An existing name whose bytes hash to what the cycle holds is reused in place. One whose bytes differ is an orphan when the durable table does not reach it: unlinked, then linked again (N1). One the table reaches is corruption: `ReachedNameMismatch` names it and its namespace, the table stays, and the caller builds a repair at the next ordinal (D10). Then the `.tmp-` name is unlinked.
-4. Groups (D11). The new owner records and every reused name sync as one group, with the directory; the new payloads (packs, roots, `.read`, `.live`) as a second. Reused names join a group because a name a killed process linked may hold bytes the page cache has and the disk does not.
+3. Linking. Each `.tmp-` name is linked to its final name with `linkat`, which fails on an existing name. An existing name the durable table reaches is reused in place when its bytes hash to what the cycle holds; when they differ it is corruption: `ReachedNameMismatch` names it and its namespace, the table stays, and the caller builds a repair at the next ordinal (D10). Any other existing name is an orphan, unlinked and linked again (N1), even with the right bytes: a killed process may have linked it unsynced, or its fsync may have failed (EIO) while the page cache keeps the bytes and a later fsync reports success. Then the `.tmp-` name is unlinked.
+4. Groups (D11). The new owner records sync as one group, with the directory; the new payloads (packs, roots, `.read`, `.live`) as a second. A reused name needs neither: the durable table reaches it, so its bytes were synced before that table was renamed.
 5. The table, written under a `.tmp-` name, fsynced, renamed over `selected`, then the directory synced. The fsync comes before the rename (N6).
 6. `change`: the changed slots, then the store word.
 
@@ -41,7 +41,7 @@ An I/O error after staging leaves the store needing a restart; `ReachedNameMisma
 
 ## Startup
 
-`AgentStore(io, options)` takes `owner.lock`, opens or creates `change`, issues one barrier (a sync of the directory and a device flush), removes every `.tmp-` name, reads `selected`, checks each entry's `.image` (length and digest), `.read` (digest) and `.live` (its digest, generation, root and `.read` bindings, and that its packs and owner records exist with the row's length), then bumps every `change` word once and is ready. No pack is read and no file is synced. A table that does not decode refuses the store; an entry that does not verify fails its namespace alone (`failed()`), and its `.live` segments stay protected from the orphan rule.
+`AgentStore(io, options)` takes `owner.lock`, opens or creates `change` (extending one shorter than a word, which a cut between its creation and its sizing leaves), issues one barrier (a sync of the directory and a device flush), removes every `.tmp-` name, reads `selected`, checks each entry's `.image` (length and digest), `.read` (digest) and `.live` (its digest, generation, root and `.read` bindings, and that its packs and owner records exist with the row's length), then bumps every `change` word once and is ready. No pack is read and no file is synced. A table that does not decode refuses the store; an entry that does not verify fails its namespace alone (`failed()`), and its `.live` segments stay protected from the orphan rule.
 
 ## Catch-up input
 
@@ -51,8 +51,8 @@ An answer may carry a tombstone for a key the store never held (created and dele
 
 | Criterion | Test | What it shows |
 | --- | --- | --- |
-| A1 (W9) | `test_agent_store` | A new store holds `owner.lock` and `change`; after a cycle the directory holds exactly `selected`, `change`, `owner.lock` and the derived files, each singly linked; the table reads back, slots follow first appearance, `change` moves per changed slot and once per word at restart; `.tmp-` names go at startup; `owner.lock` excludes a second writer; a torn table refuses the store; the codec's refusals |
-| A2 (W11) | `test_agent_store` | Ids derive from each input and from no storage identity, pinned; files are linked from `.tmp-` names; a name with the right bytes is reused in place (same inode), an orphan with wrong or short bytes is relinked; a base segment the table does not reach, or a `.live` that does not bind, is refused with nothing written; a corrupt reached `.read` fails its namespace, refuses a republication of the same names and is repaired at ordinal 1 |
+| A1 (W9) | `test_agent_store` | A new store holds `owner.lock` and `change`; after a cycle the directory holds exactly `selected`, `change`, `owner.lock` and the derived files, each singly linked; the table reads back, slots follow first appearance, `change` moves per changed slot and once per word at restart; `.tmp-` names go at startup; `owner.lock` excludes a second writer; a torn table refuses the store; an empty or 3-byte `change` opens, with or without `selected`, and a ragged one refuses; the codec's refusals |
+| A2 (W11) | `test_agent_store` | Ids derive from each input and from no storage identity, pinned; files are linked from `.tmp-` names; a reached name with the right bytes is reused in place (same inode), an unreached name is relinked whatever its bytes, and a pack whose fsync failed (EIO, through the sync seam) is relinked after the restart, never reused; a base segment the table does not reach, or a `.live` that does not bind, is refused with nothing written; a corrupt reached `.read` fails its namespace, refuses a republication of the same names and is repaired at ordinal 1 |
 | A3 (T7) | `test_agent_store_crash` | See below |
 | A4 | `test_agent_catch_up` | From a store at R, the ring entries, the block trimmed above R (with the absent-key tombstone) and the base each give the full copy's state commitment at h; a tombstone-only position moves only the namespace's position; a tombstone for a held key deletes it |
 
@@ -62,11 +62,12 @@ An answer may carry a tombstone for a key the store never held (created and dele
 
 - A power cut keeps durable names only, or every name with durable bytes only (metadata ahead of data), cut short or zero-filled. The store must open, every file its table reaches must exist and verify (packs and owner records included), its table must be one the run published with a sequence at least the one it last served, no `.tmp-` name may remain, and it must publish the same input again.
 - Restart then republish: the recovered store publishes again over the reused names, recorded, and is cut at every step of that.
-- A process kill keeps every name and byte with only the earlier syncs durable; the restart publishes again, recorded, and is cut at every step. Startup syncs no file, so a table renamed before its fsync, or a reused name never synced, surfaces here.
+- A process kill keeps every name and byte with only the earlier syncs durable; the restart publishes again, recorded, and is cut at every step. Startup syncs no file, so a table renamed before its fsync, or an unsynced name trusted as reused, surfaces here.
+- `change` is in the model. It is never synced, so a cut keeps it empty or at its size; a kill between its creation and its sizing (before the first event of a run that creates it) keeps every name with `change` empty. Its words never decide a recovery, so the model keeps its length alone.
 
 Runs: the first publication into a new store; the same, rebuilt with other bytes under the same derived names (a stale `.live` from the first build is unlinked and relinked, or, once the table reaches it, repaired at the next ordinal); a catch-up cycle that keeps a base segment and adds a namespace; and a repair of a namespace whose reached `.read` is corrupt. Identical cuts recover once (the outcome is cached by the files they leave).
 
-Mutants (`tests/detent_agent/mutants/`, run by `agent_store_mutant.sh`): `n6-rename-before-fsync` (the table renamed before its fsync, T7's revert check), `ndr4-trust-reused-name` (a reused name kept without verifying its bytes) and `ndr4-unsynced-reuse` (a verified reused name left out of the sync groups).
+Mutants (`tests/detent_agent/mutants/`, run by `agent_store_mutant.sh`): `n6-rename-before-fsync` (the table renamed before its fsync, T7's revert check), `ndr4-trust-reused-name` (a reached name reused without verifying its bytes), `f1-short-change-refused` (`ChangeWriter` refusing a `change` shorter than a word, killed by T7) and `f2-reuse-unreached` (an unreached name reused when its bytes verify, killed by `test_agent_store`).
 
 ## Open
 

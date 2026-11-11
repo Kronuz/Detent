@@ -1,8 +1,9 @@
 // T7 on the agent store (namespace-delivery D8, D11): the disk is modelled from completion's sync seam,
 // which records what each fsync and device flush made durable. A power cut after every primitive of a
 // publication, a repair and a startup keeps only that; a process kill keeps every name and byte, whose
-// restart then publishes again and is cut at every step. Each recovered store must open, reach only
-// files that exist and verify, never revert a table it served, and publish again (no wedge).
+// restart then publishes again and is cut at every step. `change` is never synced, so a cut keeps it
+// empty or at its size. Each recovered store must open, reach only files that exist and verify, never
+// revert a table it served, and publish again (no wedge).
 #include "agent_store_fixture.hh"
 #include <chrono>
 #include <cstdio>
@@ -41,7 +42,7 @@ struct Recorder {
 	std::vector<std::string> labels;
 } *g = nullptr;
 
-bool outside(const std::string &name) { return name == "owner.lock" || name == "change"; }
+bool outside(const std::string &name) { return name == "owner.lock"; }
 std::pair<dev_t, ino_t> key(const struct stat &status) { return {status.st_dev, status.st_ino}; }
 int fresh_inode() {
 	g->disk.inodes.emplace_back();
@@ -59,7 +60,9 @@ void scan() {
 		// filesystem reuses a freed inode number.
 		if (found == g->ids.end() || (name.starts_with(".tmp-") && !g->disk.live.contains(name)))
 			found = g->ids.insert_or_assign(key(status), fresh_inode()).first;
-		live[name] = {found->second, slurp(g->root / name)};
+		// `change` words never decide a recovery; the model keeps its length alone.
+		live[name] = {found->second, name == "change" ? std::string(std::filesystem::file_size(g->root / name), '\0')
+													  : slurp(g->root / name)};
 	}
 	g->disk.live = std::move(live);
 }
@@ -342,6 +345,13 @@ std::string disk_key(const Disk &disk) {
 void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &again, bool nested,
 			const std::string &name) {
 	std::set<std::string> seen;
+	// A kill between `change`'s creation and its sizing leaves every name, `change` empty (D59, F1).
+	if (const auto &start = run.events.front(); !start.live.contains("change")) {
+		std::map<std::string, std::string> files{{"change", ""}};
+		for (const auto &[file, entry] : start.live)
+			files[file] = entry.second;
+		recovered(scratch / "cut", files, start.served, &again, run.lineage, name + " kill before sizing change");
+	}
 	for (std::size_t i = 0; i < run.events.size(); ++i) {
 		for (auto entries : {Entries::Durable, Entries::All})
 			for (auto data : {Data::Truncate, Data::Zeros}) {
