@@ -14,6 +14,18 @@
   interval. A `--daemonize` stopped by SIGTERM, or whose runtime fails, during the wait exits non-zero
   with the cause instead of reporting ready or timing out after 30 s.
 
+### Hash once per tier (namespace S4)
+
+- A tier no longer hashes its own build twice more. The plan builders compared every pack checksum and
+  page digest of the image the encoder had just written, and the recovery after a publication hashed and
+  walked the generation again; both now trust the build (the walk that derives the live counts stays, the
+  digest comparisons go). The recovery opens a freshly published generation through `.read` and `.live`
+  like a restart. Cold bootstrap, 100K knobs: the agent hashes 7.0 MB (page digests and pack checksums of
+  its own build) instead of 14.0 MB. No format or wire byte changes; frame SHA-256 is unchanged.
+- Hash counters per tier: `paged::built_hash_counts()`, `distribution::frame_hash_counts()` and
+  `delivery::HashStats`, in `CoordinatorStatus::hash`, the relay's `/v1/health` bundle fields
+  `hash_*_bytes` and the agent's log line after each publication.
+
 ### Trusted restart (namespace S3)
 
 - The agent's cold start no longer hashes or walks the packs. Each paged generation now carries

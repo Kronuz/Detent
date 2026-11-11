@@ -139,7 +139,7 @@ void run(std::uint64_t available, bool close_during_worker) {
 		worker.join();
 		if (!original || context->paged.admission->failure() != original ||
 			metrics->root_mapping_installs != 1 ||
-			metrics->segment_mapping_installs != (available ? 1 : 0)) {
+			metrics->segment_mapping_installs != 0) {
 			std::cerr << "recovery pressure: available=" << available
 					  << " close=" << close_during_worker << " heap=" << heap->used()
 					  << " initial=" << initial_heap << " pressured=" << pressured_heap
@@ -150,7 +150,8 @@ void run(std::uint64_t available, bool close_during_worker) {
 		}
 		check(original && context->paged.admission->failure() == original);
 		check(metrics->root_mapping_installs == 1);
-		check(metrics->segment_mapping_installs == (available ? 1 : 0));
+		// The recovery opens through `.live` (trusted), whose admission fails before it installs a pack.
+		check(metrics->segment_mapping_installs == 0);
 		try {
 			l::detail::ManagedRecovery::recover(directory / "missing", *context);
 			throw std::runtime_error("consumed failed recovery was replayed");
@@ -205,6 +206,6 @@ void run(std::uint64_t available, bool close_during_worker) {
 }
 int main() {
 	run(0, false);
-	run(80 * 1024, false);
-	run(80 * 1024, true);
+	run(1024, false);
+	run(1024, true);
 }
