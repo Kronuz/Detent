@@ -9,14 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Stage two: `brand/` (master, README, build-icons.mjs, family sheet) written; building variants
-needs `npm ci` in website/ (queued under quiet), then the A3 site-build job.
+Stage two: `brand/` and the site assets built and committed; A3 site-build job submitted.
 
 ## Next
 
-1. `node brand/build-icons.mjs` (needs website/node_modules); check the real 16/32 px favicons.
-2. A3 job: site build plus a local-asset link check of dist/.
-3. Lead: extend the file set to `website/astro.config.mjs` (+ `website/public/site.webmanifest`)
+1. A3 job: site build plus a local-asset link check of dist/.
+2. Lead: extend the file set to `website/astro.config.mjs` (+ `website/public/site.webmanifest`)
    for the touch-icon head links (see Blocked on).
 
 ## Blocked on
@@ -33,7 +31,7 @@ without, the PNGs served but unlinked.
 | Criterion | Evidence |
 |---|---|
 | A1 | [manual] Owner chose B plus a bottom stop, eight stops 45° apart (D67, Detent:0adf85db); candidates at Detent:1988b239 `brand/candidates/` |
-| A2 | `brand/logo.svg`, `brand/README.md`, `brand/variants/{light,dark}/` (pending build) |
+| A2 | `brand/logo.svg`, `brand/README.md`, `brand/variants/{light,dark}/` each with logo.svg, favicon.svg, favicon.ico (16/32/48), apple-touch-icon 180/167/152, icon-192, icon-512, built by `node brand/build-icons.mjs` |
 | A3 | <job pending> |
 | A4 | `README.md` opening sentence and `website/src/content/docs/welcome.md` "So what is Detent" carry the line |
 
