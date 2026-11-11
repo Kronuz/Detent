@@ -22,6 +22,8 @@ foreach(test_name ${DETENT_TESTS})
   target_link_libraries(${test_name} PRIVATE detent::detent)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+target_compile_definitions(test_one_knob_differential PRIVATE
+  DETENT_ONE_KNOB_MAIN="${CMAKE_CURRENT_SOURCE_DIR}/one_knob_main.hex")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   add_executable(test_config_acl_policy test_config_acl_policy.cc)
