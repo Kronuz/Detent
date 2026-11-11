@@ -462,6 +462,8 @@
     "consensus-dns-peers": {
       "accepted": {},
       "after": [],
+      "base": "eb34fb8598656f57e4e26cefa3f464654eb74224",
+      "branch": "quest/detent/consensus-dns-peers",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -516,6 +518,7 @@
           "weakened": []
         }
       ],
+      "journal": "../Detent-wt/detent/consensus-dns-peers",
       "landed": [],
       "lenses": [
         "correctness"
@@ -527,9 +530,10 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T05:00:10"
+      "updated": "2026-11-11T05:01:09",
+      "worktree": "../consensus-wt/detent/consensus-dns-peers"
     },
     "container-selection": {
       "accepted": {},
