@@ -1,6 +1,6 @@
 # dns-voters: journal
 
-State: waiting on jobs 261111-093342-409257 261111-094140-b0368d 261111-094120-885cae 261111-094123-fd5f1c 261111-094126-27f3ad
+State: ready for review
 Quest: .campaign/detent/quests/dns-voters.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,13 +24,11 @@ Jobs at 55a4ade1 (code): targeted tests 261111-093342-409257 (A1-A3); mutants (-
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094120-885cae |
+| A2 | 261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094140-b0368d |
+| A3 | 261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094123-fd5f1c |
 
 ## Result
 
