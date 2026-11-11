@@ -1,6 +1,6 @@
 # consensus-dual-stack: journal
 
-State: waiting on jobs 261111-111524-8d12f0 261111-111521-3f02d4 and CI run 43085473756 (consensus:3d988d1)
+State: ready for review
 Quest: .campaign/detent/quests/consensus-dual-stack.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Implemented and pushed (branch quest/detent/consensus-dual-stack). Waiting on the check suite and the A1 mutant.
+Done; awaiting review.
 
 ## Next
 
-1. When both jobs pass: paste `campaign brief` table below, write Result, set State ready for review, check CI on the branch.
+1. Lead: review and land (squash the two PROBE commits).
 
 ## Blocked on
 
@@ -27,14 +27,18 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending jobs |
-| A2 | `CHANGELOG.md`, 2026-11-11 Changed: first entry names the `::` dual-stack acceptor |
+| A1 | 261111-111524-8d12f0; fails without: 261111-110219-4d2aa0, 261111-111521-3f02d4 (mutant v6-only; macOS default is dual-stack, so a plain revert passes here). FreeBSD (v6-only default) runs `dual-stack`: ok in CI run 43076028878, and all jobs green at consensus:3d988d1 in CI run 43085473756 (FreeBSD and ASan green on 3 attempts) |
+| A2 | `CHANGELOG.md`, 2026-11-11 Changed, first entry: a `Peers` whose `PeerOptions::listen` is `::` opens its acceptor with `v6_only` off |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+When `PeerOptions::listen` is `::`, `Peers` opens the acceptor with `v6_only(false)` (peers.h),
+so one socket serves IPv4 and IPv6 peers on every OS. New `dual-stack` transport scenario: voter
+three listens on `::`, voter one dials it over 127.0.0.1, voter two over ::1; all commit with 4
+connections each. Verified on FreeBSD (the v6-only default) in CI, and the `v6-only` mutant
+(`test/transport/dns_mutants.sh`) is caught on macOS. Also fixed forward: the FreeBSD `outage`
+abort that had main's FreeBSD CI red was a test race (see Rulings), now `Cluster::fully_connected`.
+Docs: CHANGELOG.md. `docs/mechanisms/peer-dns.md` untouched. Open: nothing.
 
 ## Rulings I made
 
