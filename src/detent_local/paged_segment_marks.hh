@@ -1,5 +1,6 @@
 #pragma once
 #include "paged_certificate.hh"
+#include "live_record.hh"
 #include <optional>
 #include <vector>
 
@@ -10,6 +11,7 @@ class PagedSegmentMarks final : public distribution::RetirementNode {
 	PagedSegmentMarks(std::shared_ptr<distribution::StorageLedger>, DirectoryIdentity, StorageIdentity,
 					  std::size_t capacity);
 	void begin(distribution::RetirementHandle<PagedDependencyCertificate>);
+	void begin_conservative(std::span<const LiveRow>);
 	void step(ValidationBudget &);
 	bool busy() const noexcept;
 	void seal();
@@ -27,6 +29,8 @@ class PagedSegmentMarks final : public distribution::RetirementNode {
 	};
 	std::vector<Entry, distribution::StorageAllocator<Entry>> entries_;
 	distribution::RetirementHandle<PagedDependencyCertificate> certificate_;
+	std::span<const LiveRow> conservative_;
+	bool conservative_active_ = false;
 	StorageIdentity storage_, sought_{};
 	DirectoryIdentity directory_;
 	std::size_t capacity_, size_ = 0, row_ = 0, slot_ = 0, probes_ = 0, charge_ = 0;

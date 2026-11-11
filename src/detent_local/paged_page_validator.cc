@@ -1,5 +1,6 @@
 #include "paged_page_validator.hh"
 #include "detent_local/read_counters.hh"
+#include "paged_node_step.hh"
 #include <algorithm>
 #include <sha256.h>
 #include <stdexcept>
@@ -36,8 +37,8 @@ struct PageValidator::Impl {
 	SHA256 hash;
 	std::array<Frame, 203> frames{};
 	std::vector<Metric, distribution::StorageAllocator<Metric>> metrics;
-	std::size_t depth = 0, offset = 0, position = p::page_header_bytes, nodes = 0, external = 0,
-	            key_depth = 0, charge = 0;
+	std::size_t depth = 0, offset = 0, nodes = 0, external = 0, key_depth = 0, charge = 0;
+	p::NodeAt position;
 	Phase phase = Phase::First;
 	bool failed = false, compare = true, visit = true, charging = false;
 	Impl(std::shared_ptr<distribution::StorageLedger> account, std::shared_ptr<const void> lifetime,
@@ -166,13 +167,13 @@ void PageValidator::step(ValidationBudget &budget) {
 				s.phase = Impl::Phase::Walk;
 			}
 			if (s.visit) {
-				const auto node = p::decode_node(s.bytes, s.position, s.limits);
-				if (!s.grant(node.end - s.position + sizeof(Impl::Metric), budget))
+				const auto node = s.position.decode(s.bytes, s.limits);
+				if (!s.grant(node.end - s.position.offset() + sizeof(Impl::Metric), budget))
 					return;
 				require(++s.nodes <= s.header.nodes && s.key_depth <= 202 &&
 				        node.prefix.size() <= 202 - s.key_depth);
-				const auto start = s.position;
-				s.position = node.end;
+				const auto start = s.position.offset();
+				s.position = p::NodeAt::after(node);
 				if (node.kind == p::PageKind::Branch) {
 					require(s.depth < s.frames.size() && s.key_depth + node.prefix.size() < 202);
 					s.frames[s.depth++] = {node, s.metrics.size(), 0,
@@ -204,7 +205,7 @@ void PageValidator::step(ValidationBudget &budget) {
 					++frame.child;
 					continue;
 				}
-				require(slot == s.position);
+				require(p::NodeAt::child(frame.node, slot) == s.position);
 				++frame.child;
 				s.key_depth = frame.key_depth;
 				s.visit = true;
@@ -214,7 +215,7 @@ void PageValidator::step(ValidationBudget &budget) {
 				continue;
 			require(s.metrics.size() == 1 && s.nodes == s.header.nodes &&
 			        s.external == s.header.externals &&
-			        s.position == s.bytes.size() - p::child_bytes * s.header.externals);
+			        s.position.offset() == s.bytes.size() - p::child_bytes * s.header.externals);
 			const auto result = s.metrics.front();
 			require(result.size == s.bytes.size() - p::page_header_bytes &&
 			        result.keys == s.header.keys && result.height + 1 == s.header.height);

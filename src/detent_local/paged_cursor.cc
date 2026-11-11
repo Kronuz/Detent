@@ -1,5 +1,6 @@
 #include "paged_cursor.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include "read_root.hh"
 namespace detent::local::detail {
 namespace p = paged;
@@ -9,7 +10,7 @@ struct PagedCursor::Impl {
 		p::Reference reference;
 		p::PageHeader header;
 		p::NodeView node;
-		std::size_t offset = p::page_header_bytes;
+		p::NodeAt at;
 		std::span<const char> bytes;
 		std::size_t before = 0, length = 0, next = 0;
 		bool entered = false;
@@ -90,8 +91,8 @@ void PagedCursor::step(ValidationBudget &budget) {
 					frame.bytes = checked_page_bytes(segments[index], frame.reference);
 					frame.header = p::decode_page_header(frame.bytes, paged_format_limits());
 				}
-				frame.node = p::decode_node(frame.bytes, frame.offset, paged_format_limits());
-				if (!s.grant(frame.node.end - frame.offset, budget))
+				frame.node = frame.at.decode(frame.bytes, paged_format_limits());
+				if (!s.grant(frame.node.end - frame.at.offset(), budget))
 					return;
 				if (frame.node.prefix.size() > s.key.size() - frame.before)
 					throw std::logic_error("paged cursor key overflow");
@@ -138,12 +139,10 @@ void PagedCursor::step(ValidationBudget &budget) {
 			if (slot & 0x8000)
 				next.reference = p::decode_external(frame.bytes, slot & 0x7fff, paged_format_limits());
 			else {
-				if (slot < frame.node.end || slot <= frame.offset)
-					throw ReadSourceFailure("paged cursor slot does not progress");
 				next.reference = frame.reference;
 				next.header = frame.header;
 				next.bytes = frame.bytes;
-				next.offset = slot;
+				next.at = p::NodeAt::child(frame.node, slot);
 			}
 		}
 	} catch (...) {

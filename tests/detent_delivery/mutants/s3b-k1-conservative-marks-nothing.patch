@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_segment_collection.cc b/src/detent_local/paged_segment_collection.cc
+index 7cd104a7..ce60d7d6 100644
+--- a/src/detent_local/paged_segment_collection.cc
++++ b/src/detent_local/paged_segment_collection.cc
+@@ -353,7 +353,7 @@ void PagedSegmentCollection::advance() {
+ 			s.root->read_live(s.core->account, s.core->options.recovery_limits.segments);
+ 			s.phase = Phase::Conservative;
+ 		} else if (s.phase == Phase::Conservative && s.root->ready()) {
+-			s.marks->begin_conservative(s.root->live_dependencies());
++			s.marks->begin_conservative({});
+ 			s.phase = Phase::Mark;
+ 		} else if (s.phase == Phase::Root && s.root->ready()) {
+ 			if (!s.selected || s.root->descriptor().generation != s.selected->generation)

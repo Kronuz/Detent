@@ -133,12 +133,13 @@ struct OverlayAssembler::Impl {
 		if (!base.pages)
 			return {};
 		auto r = base.tree;
-		std::size_t offset = p::page_header_bytes, at = 0;
+		p::NodeAt node;
+		std::size_t at = 0;
 		for (;;) {
 			if (at == path.size())
-				return offset == p::page_header_bytes ? std::optional(r) : std::nullopt;
+				return node.first() ? std::optional(r) : std::nullopt;
 			const auto b = bytes(r);
-			const auto n = p::decode_node(b, offset, limits);
+			const auto n = node.decode(b, limits);
 			if (n.kind != p::PageKind::Branch || path.size() - at <= n.prefix.size() ||
 				path.substr(at, n.prefix.size()) != n.prefix)
 				return {};
@@ -152,9 +153,9 @@ struct OverlayAssembler::Impl {
 			const auto slot = n.slot(found - n.labels.begin());
 			if (slot & 0x8000) {
 				r = p::decode_external(b, slot & 0x7fff, limits);
-				offset = p::page_header_bytes;
+				node = {};
 			} else
-				offset = slot;
+				node = p::NodeAt::child(n, slot);
 		}
 	}
 	void push(OverlayReference ref, std::string_view path) {
@@ -256,11 +257,11 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 					return;
 				if (f.reference.old) {
 					const auto &r = *f.reference.old;
-					if (f.reference.offset == p::page_header_bytes && r.length > p::page_capacity)
+					if (f.reference.at.first() && r.length > p::page_capacity)
 						s.packer->push_reference(r, std::string_view(s.path.data(), f.length));
 					else {
 						s.touch(r);
-						s.packer->push_cluster(s.bytes(r), f.reference.offset,
+						s.packer->push_cluster(s.bytes(r), f.reference.at,
 											   std::string_view(s.path.data(), f.length));
 					}
 					s.event = true;

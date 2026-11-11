@@ -1,5 +1,18 @@
+diff --git a/src/detent_local/paged_node_step.hh b/src/detent_local/paged_node_step.hh
+index 0efa3a3..5f1a163 100644
+--- a/src/detent_local/paged_node_step.hh
++++ b/src/detent_local/paged_node_step.hh
+@@ -12,7 +12,7 @@ class NodeAt {
+ 	constexpr NodeAt() noexcept = default;
+ 	static NodeAt after(const NodeView &node) noexcept { return NodeAt(node.end); }
+ 	static NodeAt child(const NodeView &parent, std::uint16_t slot) {
+-		if (slot & 0x8000 || slot < parent.end)
++		if (slot & 0x8000)
+ 			throw std::invalid_argument("inline slot does not progress");
+ 		return NodeAt(slot);
+ 	}
 diff --git a/src/detent_local/paged_trie_overlay.cc b/src/detent_local/paged_trie_overlay.cc
-index b300d8c..75b66ba 100644
+index 19cb7eb..d25384c 100644
 --- a/src/detent_local/paged_trie_overlay.cc
 +++ b/src/detent_local/paged_trie_overlay.cc
 @@ -1,7 +1,6 @@
@@ -10,29 +23,10 @@ index b300d8c..75b66ba 100644
  #include <set>
  #include <vector>
  namespace detent::local::detail {
-@@ -22,15 +21,12 @@ struct TrieOverlay::Impl {
- 		std::uint8_t label(std::size_t index) const {
- 			return old ? static_cast<unsigned char>(node.labels[index]) : children[index].label;
- 		}
--		OverlayReference child(std::size_t index, const p::Limits &limits) const {
-+		OverlayReference child(std::size_t index) const {
- 			if (!old)
- 				return children[index].reference;
- 			const auto slot = node.slot(index);
--			if (slot & 0x8000)
--				return {p::decode_external(bytes, slot & 0x7fff, limits)};
--			if (slot < node.end)
--				throw std::invalid_argument("overlay inline slot does not progress");
--			return {old, nullptr, slot};
-+			return slot & 0x8000 ? OverlayReference{p::decode_external(bytes, slot & 0x7fff, p::Limits{})}
-+								 : OverlayReference{old, nullptr, slot};
- 		}
- 	};
- 	struct Frame {
-@@ -108,47 +104,14 @@ struct TrieOverlay::Impl {
+@@ -106,44 +105,14 @@ struct TrieOverlay::Impl {
  		return true;
  	}
- 	std::uint64_t keys(std::span<const char> bytes, std::size_t offset) const {
+ 	std::uint64_t keys(std::span<const char> bytes, p::NodeAt start) const {
 -		struct CountFrame {
 -			p::NodeView node;
 -			std::size_t next = 0, length = 0;
@@ -40,15 +34,15 @@ index b300d8c..75b66ba 100644
 -		std::array<CountFrame, 203> stack{};
 -		std::size_t depth = 0, visited = 0;
 -		const auto header = p::decode_page_header(bytes, limits);
--		auto enter = [&](std::size_t at, std::size_t before) {
+-		auto enter = [&](p::NodeAt at, std::size_t before) {
 -			if (++visited > header.nodes || depth == stack.size())
 -				throw std::invalid_argument("overlay inline node budget exceeded");
--			const auto node = p::decode_node(bytes, at, limits);
+-			const auto node = at.decode(bytes, limits);
 -			if (before > key.size() || node.prefix.size() > key.size() - before)
 -				throw std::invalid_argument("overlay inline key depth exceeded");
 -			stack[depth++] = {node, 0, before + node.prefix.size()};
 -		};
-+		const auto n = p::decode_node(bytes, offset, limits);
++		const auto n = start.decode(bytes, limits);
 +		if (n.kind != p::PageKind::Branch)
 +			return 1;
  		std::uint64_t result = 0;
@@ -57,7 +51,7 @@ index b300d8c..75b66ba 100644
 -				throw std::invalid_argument("overlay inline key count overflow");
 -			result += count;
 -		};
--		enter(offset, 0);
+-		enter(start, 0);
 -		while (depth) {
 -			auto &frame = stack[depth - 1];
 -			if (frame.node.kind != p::PageKind::Branch) {
@@ -71,38 +65,17 @@ index b300d8c..75b66ba 100644
 -				const auto slot = frame.node.slot(frame.next++);
 -				if (slot & 0x8000)
 -					add(p::decode_external(bytes, slot & 0x7fff, limits).keys);
--				else {
--					if (slot < frame.node.end)
--						throw std::invalid_argument("overlay inline slot does not progress");
--					enter(slot, frame.length + 1);
--				}
+-				else
+-					enter(p::NodeAt::child(frame.node, slot), frame.length + 1);
 -			}
 +		for (std::size_t i = 0; i < n.labels.size(); ++i) {
 +			const auto slot = n.slot(i);
 +			result += slot & 0x8000 ? p::decode_external(bytes, slot & 0x7fff, limits).keys
-+									: keys(bytes, slot);
++									: keys(bytes, p::NodeAt::child(n, slot));
  		}
  		return result;
  	}
-@@ -271,7 +234,7 @@ struct TrieOverlay::Impl {
- 						return;
- 					std::construct_at(frame.node->children.data() + frame.copied,
- 									  OverlayChild{frame.view.label(frame.copied),
--												   frame.view.child(frame.copied, limits)});
-+												   frame.view.child(frame.copied)});
- 					++frame.copied;
- 					frame.node->children = {frame.node->children.data(), frame.copied};
- 				}
-@@ -288,7 +251,7 @@ struct TrieOverlay::Impl {
- 					return;
- 				if (relocation->depth == relocation->frames.size())
- 					throw std::length_error("compaction path depth exceeded");
--				const auto child = frame.view.child(frame.next++, limits);
-+				const auto child = frame.view.child(frame.next++);
- 				relocation->frames[relocation->depth++] = RelocationFrame{child};
- 				continue;
- 			}
-@@ -426,8 +389,6 @@ void TrieOverlay::step(ValidationBudget &budget) {
+@@ -421,8 +390,6 @@ void TrieOverlay::step(ValidationBudget &budget) {
  				if (!s.grant(p::page_header_bytes + s.view.prefix.size() + p::child_bytes + 8,
  							 budget))
  					return;
@@ -111,21 +84,3 @@ index b300d8c..75b66ba 100644
  				s.common = 0;
  				while (s.common < s.view.prefix.size() && s.offset + s.common < s.key_length &&
  					   s.view.prefix[s.common] == s.key[s.offset + s.common])
-@@ -479,7 +440,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
- 				if (s.depth == s.frames.size())
- 					throw std::length_error("overlay path depth");
- 				s.frames[s.depth++] = {s.current, low, label};
--				s.current = s.view.child(low, s.limits);
-+				s.current = s.view.child(low);
- 				break;
- 			}
- 			case Phase::Convert:
-@@ -495,7 +456,7 @@ void TrieOverlay::step(ValidationBudget &budget) {
- 						return;
- 					auto data = s.converted->children.data();
- 					std::construct_at(data + s.copy,
--									  OverlayChild{s.view.label(s.copy), s.view.child(s.copy, s.limits)});
-+									  OverlayChild{s.view.label(s.copy), s.view.child(s.copy)});
- 					++s.copy;
- 					s.converted->children = {data, s.copy};
- 					break;

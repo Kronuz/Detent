@@ -1,6 +1,7 @@
 #include "paged_graph_validator.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include "read_root.hh"
 #include "segment_registry.hh"
 #include <algorithm>
@@ -52,7 +53,8 @@ struct GraphValidator::Impl {
 		p::Reference reference;
 		p::PageHeader header;
 		p::NodeView node;
-		std::size_t node_offset = p::page_header_bytes, prefix_offset = 0;
+		p::NodeAt at;
+		std::size_t prefix_offset = 0;
 		bool page_root = true;
 		std::span<const char> bytes;
 		std::size_t segment = 0, bit = 0, end = 0, restore = 0, child = 0;
@@ -110,7 +112,7 @@ struct GraphValidator::Impl {
 		return true;
 	}
 	void push(const p::Reference &reference, std::span<const char> existing = {},
-			  std::size_t node_offset = p::page_header_bytes) {
+			  p::NodeAt at = {}) {
 		require(depth < frames.size());
 		const auto segment = find_segment(segments, reference.segment);
 		require(segment < segments.size());
@@ -124,7 +126,7 @@ struct GraphValidator::Impl {
 		frame.segment = segment;
 		frame.bytes = bytes;
 		frame.restore = key_size;
-		frame.node_offset = node_offset;
+		frame.at = at;
 		frame.page_root = page_root;
 		if (page_root) {
 			frame.bit = reference.offset / 8;
@@ -134,7 +136,7 @@ struct GraphValidator::Impl {
 			++states[frame.segment].cells;
 			states[frame.segment].extents += reference.length;
 		} else {
-			frame.node = p::decode_node(bytes, node_offset, limits);
+			frame.node = at.decode(bytes, limits);
 			require(frame.node.prefix.size() <= key.size() - key_size);
 			frame.phase = NodePhase::Prefix;
 		}
@@ -302,7 +304,7 @@ void GraphValidator::step(ValidationBudget &budget) {
 					return;
 				frame.header = state.page->header();
 				state.page.reset();
-				frame.node = p::decode_node(frame.bytes, frame.node_offset, state.limits);
+				frame.node = frame.at.decode(frame.bytes, state.limits);
 				require(frame.node.prefix.size() <= state.key.size() - state.key_size);
 				frame.phase = Impl::NodePhase::Prefix;
 				state.offset = 0;
@@ -341,10 +343,8 @@ void GraphValidator::step(ValidationBudget &budget) {
 					state.key[state.key_size++] = frame.node.labels[child];
 					if (slot & 0x8000)
 						state.push(p::decode_external(frame.bytes, slot & 0x7fff, state.limits));
-					else {
-						require(slot >= frame.node.end && slot > frame.node_offset);
-						state.push(frame.reference, frame.bytes, slot);
-					}
+					else
+						state.push(frame.reference, frame.bytes, p::NodeAt::child(frame.node, slot));
 					state.frames[state.depth - 1].restore = restore;
 				}
 				break;

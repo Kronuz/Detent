@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index d75cb2d0..02bb2ee0 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -114,8 +114,6 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
+ 			break;
+ 		if (count) {
+ 			auto got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
+-			if (got != static_cast<ssize_t>(count))
+-				got = ::pread(file_, buffer_.data(), count, static_cast<off_t>(offset_));
+ 			if (got != static_cast<ssize_t>(count)) {
+ 				damaged();
+ 				next_pack();

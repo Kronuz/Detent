@@ -91,7 +91,8 @@ struct PagedPacker::Impl {
 		std::size_t child = 0;
 	};
 	std::array<InjectFrame, 203> injected_frames{};
-	std::size_t injected_start = 0, injected_position = 0, injected_depth = 0,
+	p::NodeAt injected_start, injected_position;
+	std::size_t injected_depth = 0,
 				injected_first_external = SIZE_MAX;
 	bool injected_visit = true;
 	std::shared_ptr<d::OwnedBuffer> output;
@@ -209,15 +210,14 @@ void PagedPacker::push(TrieEvent event, std::span<const char> body) {
 	s.body = body;
 	s.phase = Impl::Phase::Input;
 }
-void PagedPacker::push_cluster(std::span<const char> page, std::size_t node_offset,
-							   std::string_view path) {
+void PagedPacker::push_cluster(std::span<const char> page, p::NodeAt start, std::string_view path) {
 	auto &s = *impl_;
 	s.active();
 	if (s.phase != Impl::Phase::Idle)
 		throw std::logic_error("dense packer event still pending");
 	s.injected_page = page;
 	s.injected_path = path;
-	s.injected_start = node_offset;
+	s.injected_start = start;
 	s.phase = Impl::Phase::InjectBegin;
 }
 void PagedPacker::push_reference(const p::Reference &reference, std::string_view path) {
@@ -263,7 +263,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 				if (!s.grant(sizeof(Cluster) + s.injected_path.size(), budget))
 					return;
 				p::decode_page_header(s.injected_page, s.limits);
-				require(s.injected_path.size() <= 202 && s.injected_start >= p::page_header_bytes);
+				require(s.injected_path.size() <= 202);
 				s.current =
 					d::make_storage_owner<Cluster>(s.account, std::malloc, std::free, s.account);
 				s.current->path_size = s.injected_path.size();
@@ -277,14 +277,13 @@ void PagedPacker::step(ValidationBudget &budget) {
 			case Impl::Phase::InjectScan: {
 				auto &cluster = *s.current;
 				if (s.injected_visit) {
-					const auto node =
-						p::decode_node(s.injected_page, s.injected_position, s.limits);
-					if (!s.grant(node.end - s.injected_position + sizeof(Impl::InjectFrame),
+					const auto node = s.injected_position.decode(s.injected_page, s.limits);
+					if (!s.grant(node.end - s.injected_position.offset() + sizeof(Impl::InjectFrame),
 								 budget))
 						return;
 					require(cluster.count < UINT16_MAX);
 					++cluster.count;
-					s.injected_position = node.end;
+					s.injected_position = p::NodeAt::after(node);
 					if (node.kind == p::PageKind::Branch) {
 						require(s.injected_depth < s.injected_frames.size());
 						s.injected_frames[s.injected_depth++] = {node, 0};
@@ -318,7 +317,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 						cluster.external.push_back(reference);
 						++frame.child;
 					} else {
-						require(slot == s.injected_position);
+						require(p::NodeAt::child(frame.node, slot) == s.injected_position);
 						++frame.child;
 						s.injected_visit = true;
 						break;
@@ -330,15 +329,15 @@ void PagedPacker::step(ValidationBudget &budget) {
 			}
 			case Impl::Phase::InjectCopy: {
 				auto &cluster = *s.current;
-				const auto size = s.injected_position - s.injected_start;
+				const auto start = s.injected_start.offset(), size = s.injected_position.offset() - start;
 				require(size + cluster.external.size() * p::child_bytes <=
 							p::page_capacity - p::page_header_bytes &&
 						cluster.keys <=
 							std::uint64_t(s.limits.records) + s.limits.namespaces - s.input_keys);
 				if (!s.grant(2 * size, budget))
 					return;
-				cluster.nodes.assign(s.injected_page.begin() + s.injected_start,
-									 s.injected_page.begin() + s.injected_position);
+				cluster.nodes.assign(s.injected_page.begin() + start,
+									 s.injected_page.begin() + s.injected_position.offset());
 				std::size_t at = 0;
 				while (at < cluster.nodes.size()) {
 					const auto prefix = static_cast<unsigned char>(cluster.nodes[at + 1]);
@@ -351,7 +350,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 							const auto rebased =
 								old & 0x8000
 									? (0x8000 | ((old & 0x7fff) - s.injected_first_external))
-									: old - s.injected_start;
+									: old - start;
 							write_integer(cluster.nodes, slots + 2 * j, rebased, 2);
 						}
 						at += 3 + prefix + 3 * count;

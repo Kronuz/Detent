@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..457f9d3e 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -694,7 +694,7 @@ struct Coordinator::Impl {
+ 						reported_passes = result->scrub.passes();
+ 					result->failure = {};
+ 					result->ready.store(false, std::memory_order_relaxed);
+-					asio::post(worker, [result, begin, now, paused = scrub_pause] {
++					[](auto work) { work(); }([result, begin, now, paused = scrub_pause] {
+ 						try {
+ 							const auto passes = result->scrub.passes();
+ 							if (begin)

@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index d75cb2d0..62168ccc 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -100,7 +100,7 @@ std::uint64_t PackScrub::step(Clock::time_point now, std::uint64_t limit) {
+ 	std::uint64_t done = 0;
+ 	while (running_) {
+ 		const auto &pack = packs_[next_];
+-		if (file_ < 0 && offset_ == 0 && !open_file() && !open_file()) {
++		if (file_ < 0 && offset_ == 0 && !open_file()) {
+ 			damaged();
+ 			next_pack();
+ 			continue;
