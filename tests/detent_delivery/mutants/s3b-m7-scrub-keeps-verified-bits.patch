@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index d75cb2d0..6788bbfa 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -74,8 +74,6 @@ bool PackScrub::open_file() {
+ void PackScrub::damaged() {
+ 	const auto &pack = packs_[next_];
+ 	found_.push_back(pack.ownership.segment);
+-	if (pack.pages)
+-		pack.pages->clear();
+ }
+ void PackScrub::next_pack() {
+ 	close_file();

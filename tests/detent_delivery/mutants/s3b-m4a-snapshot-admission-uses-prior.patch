@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index ba8a1c18..b20c6bdf 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -1709,7 +1709,7 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
+ 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
+ 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
+ 		// A snapshot shares no packs with its base, which may be damaged.
+-		recovery->populate(plan, plan.snapshot() ? decltype(core.verified_paged){} : core.verified_paged,
++		recovery->populate(plan, core.verified_paged,
+ 						   core.options.recovery_limits);
+ 		artifacts->attach_recovery(std::move(recovery));
+ 		const auto &context = core.session->allocation_context();

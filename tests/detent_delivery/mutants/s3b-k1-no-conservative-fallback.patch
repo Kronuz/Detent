@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_segment_collection.cc b/src/detent_local/paged_segment_collection.cc
+index 7cd104a7..c6f1af07 100644
+--- a/src/detent_local/paged_segment_collection.cc
++++ b/src/detent_local/paged_segment_collection.cc
+@@ -268,7 +268,7 @@ void PagedSegmentCollection::fail(std::exception_ptr error) noexcept {
+ 			proof_failed = true;
+ 		} catch (...) {
+ 		}
+-		if (proof_failed) {
++		if (false) {
+ 			try {
+ 				s.warning = error;
+ 				if (s.pack && !s.pack->done()) {

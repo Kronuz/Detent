@@ -1,0 +1,22 @@
+diff --git a/src/detent_local/view.cc b/src/detent_local/view.cc
+index c84a5538..ff79b88c 100644
+--- a/src/detent_local/view.cc
++++ b/src/detent_local/view.cc
+@@ -361,7 +361,7 @@ std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_vie
+ 		throw;
+ 	} catch (const distribution::StoragePressure &) {
+ 		throw;
+-	} catch (const std::exception &) {
++	} catch (const detail::ReadSourceFailure &) {
+ 		return error(ErrorCategory::SourceFailure, key);
+ 	}
+ }
+@@ -391,7 +391,7 @@ ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std:
+ 		throw;
+ 	} catch (const distribution::StoragePressure &) {
+ 		throw;
+-	} catch (const std::exception &) {
++	} catch (const detail::ReadSourceFailure &) {
+ 		return error(ErrorCategory::SourceFailure, key);
+ 	}
+ }

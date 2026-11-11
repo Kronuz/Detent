@@ -1,0 +1,13 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..6937917f 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -504,7 +504,7 @@ struct Coordinator::Impl {
+ 					repaired = paged_candidate->repair_in_place;
+ 					++diagnostic.repair.completed;
+ 				}
+-				if (diagnostic.repair.pending) {
++				if (paged_candidate->repair && diagnostic.repair.pending) {
+ 					diagnostic.repair.pending = false;
+ 					// Any confirmed replacement retires the generation that requested repair.
+ 					store->request_collection();
