@@ -4720,8 +4720,7 @@
         "tests/detent_local/test_paged_definition*",
         "tests/detent_distribution/**",
         "docs/design/one-knob-type.md",
-        "docs/mechanisms/**",
-        "CHANGELOG.md"
+        "docs/mechanisms/**"
       ],
       "landed": [],
       "lenses": [
@@ -4734,7 +4733,7 @@
       "risk": "high",
       "status": "planned",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T10:10:47"
+      "updated": "2026-11-11T13:57:11"
     },
     "persistent-map-adoption": {
       "accepted": {},
