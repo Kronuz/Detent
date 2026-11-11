@@ -1,19 +1,20 @@
 # namespace-s7: journal
 
-State: waiting on jobs 261111-012953-ac7bfb 261111-013009-0ce152 261111-013014-5356d9 261111-013020-6daabd
+State: waiting on jobs 261111-013953-ee8bac 261111-014002-b517ac 261111-014006-0f1d84 261111-014010-7d7284
 Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting on evidence jobs at Detent:627697e: native suite 261111-012953-ac7bfb (A1, A2, A4; the
-four agent-store tests ride in it), crash model 261111-013009-0ce152 (A3), mutants
-261111-013014-5356d9 (n6-rename-before-fsync) and 261111-013020-6daabd (ndr4-unsynced-reuse), both
---fails-without A3. Pins 261111-012954-dde429 passed. Branch pushed; CI runs on it.
+D58 folded in (Detent:c171898): `detent_agent_store` (alias `detent::agent_store`) builds in
+`src/detent_local/CMakeLists.txt`; the status doc says the store lands as a module and
+namespace-s7-wire wires it. Evidence jobs at c171898 (supersede those at 627697e): native suite
+261111-013953-ee8bac (A1, A2, A4), pins 261111-013953-bc7285, crash model 261111-014002-b517ac (A3),
+mutants 261111-014006-0f1d84 (n6-rename-before-fsync) and 261111-014010-7d7284
+(ndr4-unsynced-reuse), both --fails-without A3.
 
-Local runs at the same code: test_agent_store, test_agent_catch_up pass; test_agent_store_crash 38,318
-cases (630 distinct cuts), 102 republications, 60 repairs, 0 violations, 86 s. Each of the three
-mutants is killed locally by test_agent_store_crash (N6 at a restart's rename-table cut, the trusted
-reuse at a link cut, the unsynced reuse on the kill-restart path).
+Local runs at 627697e (same code): test_agent_store, test_agent_catch_up pass; test_agent_store_crash
+38,318 cases (630 distinct cuts), 102 republications, 60 repairs, 0 violations, 86 s. Each of the
+three mutants is killed locally.
 
 ## Next
 
@@ -22,9 +23,8 @@ reuse at a link cut, the unsynced reuse on the kill-restart path).
 
 ## Blocked on
 
-Nothing blocks the criteria. msg-21 to the lead: the file set has no src CMakeLists, so the
-`detent_agent_store` library target lives in `tests/detent_agent/CMakeLists.txt`; wiring DiskStore,
-coordinator and readers to the table is outside the set.
+Nothing. msg-21 ruled by the lead (D58): the target moved to src/detent_local; wiring is
+namespace-s7-wire.
 
 ## Evidence
 
