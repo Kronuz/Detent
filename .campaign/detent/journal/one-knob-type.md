@@ -1,29 +1,31 @@
 # one-knob-type: journal
 
-State: implementing (option 1, D68); model, client, wire committed; local, authority, agent moved
+State: waiting on jobs 261111-144355-7093c6 (suite at varint commit), A3 261111-144411-793fb6
+(corpora), 261111-144413-8bee2e / 261111-144415-4590eb (page bytes 100k/5m),
+261111-144417-f31bc6 / 261111-144420-40ce8a (prepare varint / fixed stores)
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Converting the tree to one int64 knob. Committed: model, client, JSON, wire. In the tree, to
-commit next: pages, flat image, local view/sources, authority state, agent `detent get`, local,
-authority, distribution, testing, delivery tests. Second worker on tests/detent, bindings, CLI,
-benchmarks, tools/w5, examples, user docs.
+Whole tree converted (model, client, JSON, wire, authority, pages, flat image, local, agent,
+CLI, bindings, tests, benchmarks, tools, examples, docs). Paged body is varint since
+Detent:46e232b7 (fixed width at Detent:7d2c82fc, kept as the A3 comparison arm). First suite
+build not yet run (machine queue); compile fixes follow it.
 
 ## Next
 
-1. Merge the second worker's files; leftover grep; commit; `campaign verify` until it builds green.
-2. A1/A2 jobs (A1 test enumerates the D68 cells and asserts 1); A4 grep job and binding suites.
-3. A3: docs/perf/one-knob-type script (corpora converted to the new body for the candidate arm),
-   page bytes/knob at 100K and 5M, read bench, first read as exclusive interleaved pairs; varint
-   page bytes computed from the same corpora.
-4. A5: docs/design/one-knob-type.md, knob-model.md rewrite, docs/mechanisms/evaluation.md.
+1. Suite result: fix compile/test failures; then A1/A2 tagged runs (`campaign verify --for A1,A2`).
+2. A3: after prepare, `one-knob-type.sh measure PREPARED OUT SIZE` as exclusive jobs, 100k and 5m,
+   for prepared-varint (this head) and prepared-fixed (`--commit 7d2c82fc`), CORPORA=
+   /Users/kronuz/code/Kronuz/Detent/.scratch/okt/corpora. Fill docs/perf/one-knob-type.md and
+   the design note's tables.
+3. A4: grep job (BoolDef|IntDef|is_bool|is_int|bool_count|int_count, type byte) and binding suites.
+4. A2 mutant: `--fails-without` on `definition_error` (drop the value/percentage pairing check).
 
 ## Blocked on
 
-- B3 (lead): two more files to add to the set: `tests/detent_authority/test_daemon.sh` (sends
-  `"type":"int"`) and `tests/detent_system/mixed_oracle.cc` (eval, WrongType, bool_knobs; under
-  D68 expects `bucket < pct ? 1 : default`). Asked by message.
+- Resolved: B3 (test_daemon.sh, tests/detent_system oracles/probe/reader_benchmark.hh, website
+  reference and architecture pages, diagrams/04_read_path.* added by the lead at Detent:8b17a952).
 - Resolved: B1 (set widened by the lead; src/detent_agent/main.cc, test_agent_cli.cmake,
   test_coordinator.cc added later). B2 ruled option 1 by the owner (D68); the out-of-bucket choice
   lives only in `detent::detail::ramp()` (include/detent/detail/evaluation.hh), which both
@@ -56,11 +58,16 @@ Not yet.
 - R3 CLI overrides: one `int64`; `true`/`false` stay accepted as 1/0.
 - R4 JSON refuses boolean literals and `type`; `schema_version` stays 1 (greenfield, D43).
 - R5 Bindings: Python `get`/`get_bool`, Rust `get`/`get_bool` mirror `get`/`get_as<bool>`.
-- R6 Paged definition body is fixed width: 20-byte header (revision, default, pct/255, flags,
-  count u16) plus an 8-byte rollout value when present; override rows are a 10-byte header
-  (len, kind, i64 value) plus key. Fixed width keeps strings accounting a function of sizes;
-  A3 measures it against varint.
+- R6 Paged definition body is varint (docs/design/one-knob-type.md): revision u64, pct, flags,
+  then canonical zigzag LEB128 default, count, rollout value; rows len, kind, value (varint or
+  pct byte), key. Picked by A3's page bytes: 100K model 49.4 B/record against main 62.1 and
+  fixed width 73.2. Strings accounting uses validated key bytes; the warm validator validates
+  removed bodies fully instead of decoding headers only.
 - R7 Flat image record is 56 bytes (default, override start/count, flags, pct, rollout value);
   override rows 24 bytes (kind, i64 value). Reader metadata DTREAD01 keeps one records count at
   80; 84 is reserved and must be zero.
 - R8 `detent get` prints the integer; a former bool prints 0 or 1.
+- R9 `global::get_as` delegates to the active client's `get_as`, so a failed conversion through
+  the global adapter counts `reads_conversion_failed` (test in tests/detent/test_testing_guard.cc).
+- R10 `read_override` checks bounds, kind and percentage only; key UTF-8 and order are checked by
+  `validate_definition`, so the read path does not re-check text admission already proved.

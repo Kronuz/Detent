@@ -41,30 +41,38 @@ evaluator calls.
 
 ### Paged body
 
-Fixed width, big-endian:
+Big-endian revision, then canonical LEB128 (signed values zigzagged):
 
 ```text
-header   revision u64 | default i64 | pct u8 (255 none) | flags u8 (bit 0: value) | count u16 | [value i64]
-override len u8 | kind u8 (0 forced, 1 pct) | value i64 | key
+header   revision u64 | pct u8 (255 none) | flags u8 (bit 0: value) | default | count | [value]
+override len u8 | kind u8 (0 forced, 1 pct) | value (forced: varint, pct: u8) | key
 ```
 
-The header is 20 bytes, 28 with a rollout value; an override is 10 bytes plus its key. Validation
-checks the flags, the percentages, strictly ascending keys, that `count` rows fill the body
-exactly, and `definition_error`'s rule on the decoded fields.
+A flag with a rollout and a one-byte default is 13 bytes; an integer with a small default is 12.
+Validation checks the flags, the percentages, that every varint is canonical (no trailing zero
+group, nothing past 64 bits) so `header_size()` recomputes the encoded length, strictly ascending
+UTF-8 keys, that `count` rows fill the body exactly, and `definition_error`'s rule on the decoded
+fields. Strings accounting counts the validated key bytes (`Definition::key_bytes`), since row
+sizes vary. `BorrowedDefinition::from_paged` decodes the header once per read.
 
 ## Fixed width or varint (A3)
 
-The candidate varint body keeps the same fields and order with zigzag LEB128 for the default, the
-rollout value, a forced override and the count (`docs/perf/one-knob-type-corpus.py`). Procedure and
-raw numbers: [../perf/one-knob-type.md](../perf/one-knob-type.md).
+Two candidates with the same fields: the varint body above, and a fixed-width one (revision u64,
+default i64, pct u8, flags u8, count u16, value i64; rows len u8, kind u8, value i64, key) at
+Detent:7d2c82fc. `docs/perf/one-knob-type-corpus.py` converts main's corpora to either.
+Procedure and raw numbers: [../perf/one-knob-type.md](../perf/one-knob-type.md).
 
-Body bytes per definition on the 100K corpus (52,022 integer and 47,978 flag definitions, each
-flag ramped with three forced groups and one group percentage):
+The 100K corpus has 52,022 integer and 47,978 flag definitions, each flag ramped with three forced
+groups and one group percentage. Dense model, 4 KiB pages, height rule:
 
-| Body | Bytes per definition |
-| --- | --- |
-| main (bool/int) | 47.5 |
-| one-knob, fixed width | 58.9 |
-| one-knob, varint | 35.3 |
+| Body | Body bytes per definition | Page bytes per record | Pages |
+| --- | --- | --- | --- |
+| main (bool/int) | 47.5 | 62.1 | 3,245 |
+| one-knob, fixed width | 58.9 | 73.2 | 3,077 |
+| one-knob, varint | 35.3 | 49.4 | 2,874 |
 
-Page bytes, read bench and first read: pending the A3 jobs.
+The fixed-width body costs 18% more page bytes than main: every forced override grows from one
+byte to eight, and a ramped flag carries an eight-byte rollout value. The varint body is 20%
+smaller than main and 33% smaller than fixed width. The paged body is varint.
+
+5M page bytes, the read bench and first read: pending the A3 jobs.
