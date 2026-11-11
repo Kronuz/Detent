@@ -4767,7 +4767,9 @@
         "website/src/content/docs/reference/snapshot-format.md",
         "src/detent_agent/main.cc",
         "tests/detent_agent/test_agent_cli.cmake",
-        "tests/detent_delivery/test_coordinator.cc"
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_authority/test_daemon.sh",
+        "tests/detent_system/mixed_oracle.cc"
       ],
       "landed": [],
       "lenses": [
@@ -4780,7 +4782,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T14:18:41",
+      "updated": "2026-11-11T14:24:47",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
