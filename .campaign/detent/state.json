@@ -3233,7 +3233,14 @@
         "src/detent_relay/**",
         "include/detent_relay/**",
         "tests/detent_delivery/**",
-        "docs/status/namespace-s4.md"
+        "docs/status/namespace-s4.md",
+        "src/detent_local/**",
+        "src/detent_distribution/**",
+        "include/detent_distribution/frame_hash_counts.hh",
+        "src/detent_agent/managed_host.cc",
+        "tests/detent_local/test_managed_recovery_failure.cc",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
       ],
       "history": [
         {
@@ -3302,7 +3309,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Namespace S4: no re-validation of a tier own build, hash counters",
-      "updated": "2026-11-11T06:15:17",
+      "updated": "2026-11-11T07:59:37",
       "worktree": "../Detent-wt/detent/namespace-s4"
     },
     "namespace-s4-s10": {
