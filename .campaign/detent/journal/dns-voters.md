@@ -41,6 +41,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-- Named local voter binds a wildcard without resolving (a name cannot be bound). Lead ruling (D63): `::` dual-stack, `0.0.0.0` only without IPv6; IP-literal local voter binds exactly as before. Consensus's Peers does not set v6_only, so the daemon probes the OS default at parse (a local socket probe, no DNS) and uses `::` only when v6_only defaults off; a host whose default is v6-only gets `0.0.0.0`. Setting v6_only off explicitly needs a PeerOptions knob in consensus.
+- Named local voter binds a wildcard without resolving (a name cannot be bound). Lead ruling (D63): `::` dual-stack, `0.0.0.0` only without IPv6; IP-literal local voter binds exactly as before. Consensus's Peers does not set v6_only, so the daemon probes the OS default at parse (a local socket probe, no DNS) and uses `::` only when v6_only defaults off; a host whose default is v6-only gets `0.0.0.0`. Setting v6_only off explicitly needs a PeerOptions knob in consensus. Lead accepted this limit for this quest (keep probe-and-fallback); the acceptor change is quest consensus-dual-stack, after which the ipv6 quest requires `::` dual-stack on every OS. Say so in the Result.
 - Host syntax: names refuse a trailing dot and an all-numeric final label (inet_aton forms like "1.2.3"); duplicates compare host and port as written (case-sensitive).
 - Docs (docs/AUTHORITY_TRANSPORT.md 'literal-IP host') left to docs-site-config; outside the file set.
