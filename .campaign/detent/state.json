@@ -638,6 +638,8 @@
     "consensus-dual-stack": {
       "accepted": {},
       "after": [],
+      "base": "905823da7ca45f4e1dc9632a707740007ec20452",
+      "branch": "quest/detent/consensus-dual-stack",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
@@ -653,6 +655,7 @@
         "CHANGELOG.md",
         "docs/mechanisms/peer-dns.md"
       ],
+      "journal": "../Detent-wt/detent/consensus-dual-stack",
       "landed": [],
       "lenses": [],
       "milestone": "N2",
@@ -662,9 +665,10 @@
       ],
       "repo": "../consensus",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Peers listening on :: accept IPv4 too",
-      "updated": "2026-11-11T09:36:16"
+      "updated": "2026-11-11T10:02:47",
+      "worktree": "../consensus-wt/detent/consensus-dual-stack"
     },
     "container-selection": {
       "accepted": {},
