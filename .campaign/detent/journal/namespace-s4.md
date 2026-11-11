@@ -1,6 +1,6 @@
 # namespace-s4: journal
 
-State: waiting on jobs 261111-075504-ec3c00 261111-075504-e24863 261111-075545-8516fc 261111-075547-031cc4 261111-075550-246c94 261111-075554-690969 261111-075558-73943c 261111-075601-6f02c9 261111-080104-4bc749 261111-080106-08759e
+State: waiting on jobs 261111-080405-ffc37e 261111-080407-249b55 261111-080409-5a407d 261111-080411-da416f 261111-080413-e5db78 261111-080414-3dfa13 261111-080416-dd9f2d 261111-080418-a730c2 (native 261111-075504-ec3c00 and pins 261111-075504-e24863 are green at fcf37aff)
 Quest: .campaign/detent/quests/namespace-s4.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -24,11 +24,9 @@ Nothing. Lead rulings in: file set widened (note: `include/detent_local/paged_la
 in the list; please add it); A2 is D64 (layout hashing at most 1.2 times the build's, frames reported beside it).
 
 Relay-delta shutdown hang: attributed by two probe jobs, `relay_delta_shutdown.cc` run by
-`tests/detent_delivery/relay_delta_probe.sh`: at main 261111-080104-4bc749, at the quest head 261111-080106-08759e.
+`tests/detent_delivery/relay_delta_probe.sh`: at main 261111-080405-ffc37e, at the quest probe commit 261111-080407-249b55 (the first pair, 080104-4bc749 and 080106-08759e, never ran the probe: a shell expansion error, exit 0 is not a result).
 Exit 124 means "did not drain". If main hangs, it is pre-existing: the probe stays unregistered in ctest and the
-lead opens a follow-up. If main passes, it is this quest's to fix. (Jobs 261111-075517-c6c3c1, 075520-d8c977,
-075522-766e74, 075525-3a75d9, 075528-283102 were submitted with a quoting error and failed at once; 075514-e91fbc
-was cancelled; none is evidence.)
+lead opens a follow-up. If main passes, it is this quest's to fix. (Every job submitted between 075514 and 080106 other than native/pins failed at once or never ran its command, from shell quoting; none is evidence. The A3, A2 and mutant jobs were resubmitted as the ids in State.)
 
 ## Evidence
 
