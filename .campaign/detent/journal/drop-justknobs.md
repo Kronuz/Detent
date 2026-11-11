@@ -1,6 +1,6 @@
 # drop-justknobs: journal
 
-State: waiting on jobs 261111-110505-cac549 261111-110502-60f894 261111-110509-574969 261111-110507-004d6c
+State: ready for review
 Quest: .campaign/detent/quests/drop-justknobs.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -25,7 +25,7 @@ Nothing.
 | Criterion | Evidence |
 |---|---|
 | A1 | pending jobs |
-| A2 | [artifact] `docs/design/knob-model.md` (new, from model.hh, evaluation.hh, hashing.cc, json_schema.cc/json_patch.cc, client.cc and their tests); README line 3 and `docs/USAGE.md` "Where to go next" link it; website FAQ entry, copyright note, welcome hint removed (welcome now ends its "what is Detent" section with a link to the model doc); design-documents row replaced by a knob-model.md row; `justknobs-implementation-spec.md` deleted |
+| A2 | `docs/design/knob-model.md`, `README.md`, `docs/USAGE.md`, `website/src/content/docs/faq.md`, `website/src/content/docs/welcome.md`, `website/src/content/docs/architecture/design-documents.md` (the model spec, its links, and the removed lineage pages; the old spec file is deleted) |
 | A3 | pending jobs |
 
 ## Result
