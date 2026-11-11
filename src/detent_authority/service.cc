@@ -126,13 +126,12 @@ void voter_host(const std::string &host) {
 		  "voter host name must not end in a numeric label");
 }
 // The address a named local voter listens on without resolving its name: the IPv6 wildcard when
-// the host has IPv6 and a v6 socket also takes IPv4 (dual-stack), else the IPv4 wildcard.
+// the host has IPv6 (consensus opens it dual-stack on every OS), else the IPv4 wildcard.
 asio::ip::address local_wildcard() {
 	asio::io_context io;
 	asio::ip::tcp::socket probe(io);
 	asio::error_code error;
-	asio::ip::v6_only mode;
-	if (!probe.open(asio::ip::tcp::v6(), error) && !probe.get_option(mode, error) && !mode.value())
+	if (!probe.open(asio::ip::tcp::v6(), error))
 		return asio::ip::address_v6::any();
 	return asio::ip::address_v4::any();
 }
