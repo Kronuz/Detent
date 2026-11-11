@@ -9,15 +9,18 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Writing the candidates (`docs/design/async-drivers-bench/wheel_vs_stash*`). The decision rule
+(A3) is in `docs/design/wheel-evidence.md`, committed before any measured job.
 
 ## Next
 
-1. <step>
+1. Candidates (a)-(d) and the harness; smoke as a strict job.
+2. Single-loop row (exclusive), cross-thread row (exclusive), memory.
+3. Results and the pick by the rule into the note.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
