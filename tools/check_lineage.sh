@@ -20,6 +20,9 @@ report() {  # report LABEL HITS
 # The product name in any form: JustKnobs, just knobs, just_knobs.json, --just-knob.
 report "product name" "$(files | tr '\n' '\0' | xargs -0 grep -InHiE 'just[ _-]?knobs?' 2>/dev/null)"
 
+# The old metric prefix, in text files only (a PNG's bytes can match by chance).
+report "metric prefix" "$(files | grep -v '\.png$' | tr '\n' '\0' | xargs -0 grep -InHIE '\bjk_' 2>/dev/null)"
+
 # Meta as a company: "Meta's", "Meta Platforms" (any case), or the capitalized
 # word. Words such as metadata, storage.meta and import.meta never match.
 report "Meta as a company" "$(files | tr '\n' '\0' | xargs -0 grep -InHiE \
