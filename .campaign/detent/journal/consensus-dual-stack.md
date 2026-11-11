@@ -28,7 +28,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | 261111-111524-8d12f0; fails without: 261111-110219-4d2aa0, 261111-111521-3f02d4 (mutant v6-only; macOS default is dual-stack, so a plain revert passes here). FreeBSD (v6-only default) runs `dual-stack`: ok in CI run 43076028878, and all jobs green at consensus:3d988d1 in CI run 43085473756 (FreeBSD and ASan green on 3 attempts) |
-| A2 | `CHANGELOG.md`, 2026-11-11 Changed, first entry: a `Peers` whose `PeerOptions::listen` is `::` opens its acceptor with `v6_only` off |
+| A2 | `CHANGELOG.md`, 2026-11-11 Changed, first entry: a Peers listening on :: opens its acceptor with v6_only off |
 
 ## Result
 
