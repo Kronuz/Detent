@@ -1451,19 +1451,22 @@
       ],
       "files": [
         "src/detent_authority/service.cc",
+        "src/detent_authority/service.hh",
         "tests/detent_authority/**",
-        "CHANGELOG.md"
+        "cmake/dependencies.json"
       ],
       "landed": [],
       "lenses": [],
       "milestone": "N2",
-      "needs": [],
+      "needs": [
+        "consensus-dns-peers"
+      ],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority voter addresses accept DNS names",
-      "updated": "2026-11-11T05:00:12"
+      "updated": "2026-11-11T09:23:39"
     },
     "docs-e2e": {
       "accepted": {},
