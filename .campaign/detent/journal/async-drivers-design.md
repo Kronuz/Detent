@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: waiting on jobs 261111-012904-94206c 261111-012132-33b844 261111-012138-0ccf2f 261111-012201-35b594 261111-012206-319649 261111-012211-a14b8d 261111-012216-b70b56 261111-012221-b0e662 261111-012225-d639b2 261111-012230-f5cbf3 (Y1-Y12 folded; D10's hop numbers wait on 94206c)
+State: ready for review
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -8,31 +8,29 @@ Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit i
 Xapiand's second review (at Detent:73e96d6; `/Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md`,
 CHANGES, blocking X1-X6) folded. Its findings are Y1-Y12 here and in the design (its X1-X12), so
 they do not collide with the first review's X1-X15. Bench Detent:78be8ce, design at the commit
-after it.
+after it. Every job of the fold finished as required; D10 carries `hop_cost`'s numbers (94206c);
+the design is 65,964 bytes (65,994 before the fold).
 
 ## Next
 
-0. On resume: fill D10's HOP1/HOP16/HOP64/WAKE/LAT/CPU100K/HOPRATIO placeholders from
-   94206c's log, check every job above finished as required (controls exit 1 or 134), record
-   the design's size (SIZE in the Y table), set State "ready for review".
 1. The lead relays the fold to Xapiand (A8 re-review); the Y table names each resolution.
 2. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (from round 1),
-   and Y5's switch to Track C D16 in the same file if the November 2 entry names a per-loop
-   transport.
-3. A7's jobs at older commits need `campaign job rerun` at head (the brief says so); wheel.hh
-   gained `release()` only, no measured path changed.
+   and Y5's switch to Track C D16 (PLAN D57, settled) in the same file if the November 2 entry
+   names a per-loop transport.
+3. The lead re-accepts the quest against its current criteria (the brief flags a criterion
+   changed after design was accepted).
 
 ## Review findings (Xapiand review 2, 73e96d6)
 
-Approved: 1.1, 1.4, 1.5. Each fix replaces text (design grew 0 bytes: 65,994 before, SIZE after).
+Approved: 1.1, 1.4, 1.5. Each fix replaces text (design grew 0 bytes: 65,994 before, 65,964 after).
 
 | ID (theirs) | Fix | Confirming job (failing before) |
 |---|---|---|
-| Y1 (X1) | D4 Threads: wheel bound to its loop's thread while it runs; `close()` (task phase 2) releases it, teardown's thread unlinks in place (phase 3), the wheel drops what is armed at destruction (phase 4); off-loop deadline destruction posts while open, unlinks in place once closed; quest 1 criterion. Bench: `wheel::release`, `thread_loop::stop/close`, `wheel_test teardown` | 261111-012127-6b48af (exit 0), ASan 261111-012132-33b844, TSan 261111-012138-0ccf2f; control `teardown-bound` (the 73e96d6 rule) 261111-012143-16b26a exit 134, as Xapiand's probe |
+| Y1 (X1) | D4 Threads: wheel bound to its loop's thread while it runs; `close()` (task phase 2) releases it, teardown's thread unlinks in place (phase 3), the wheel drops what is armed at destruction (phase 4); off-loop deadline destruction posts while open, unlinks in place once closed; quest 1 criterion. Bench: `wheel::release`, `thread_loop::stop/close`, `wheel_test teardown` | 261111-012127-6b48af, ASan 261111-012132-33b844, TSan 261111-012138-0ccf2f (each exit 0); control `teardown-bound` (the 73e96d6 rule) 261111-012143-16b26a exit 134, as Xapiand's probe |
 | Y2 (X2) | D2: `propose` completes at `ProposalPlaced` (entry durable here, `core.h:733`); `committed(GroupId, Placement, token)` waits for commit or throws `superseded`; D8 rows; quest 4 criterion | n/a (text) |
 | Y3 (X3) | D2: `change_membership`, `transfer_leadership` (`transfer_failed`), `repair`, `checkpoint` (reserve, capture chunks, publish), `activated`/`activation_failed`/`application_failed`; D8 rows; quest 4 criterion, so quest 7 can delete `try_submit` | n/a (text) |
-| Y4 (X4) | D10 Identity and Q7: a frame for a stored group and held incarnation, the source incarnation's node the connection's node where membership names it; never a membership filter. Bench `frame_admission` over real Cores (consensus:ab05507) | 261111-012147-65055f (joiner, lagging, removal, spoof: ok); control `voters` 261111-012153-c69789 must exit 1 (joiner and lagging follower never catch up; removal unaffected) |
-| Y5 (X5) | D10 adopts Track C D16: a Control and a Bulk connection per peer node, each on one loop; reader batches frames by destination loop, one post per batch per read; sends batched per resume; per-group credit (D16). Cost per host `29 KB + 2P x 41 KB`, `1 + 2P` fds (8.2 MB, 201 at P=100 vs 66 MB, 1,616 per loop pair at L=16). Per-loop ports, hello L agreement, `misrouted`, stale-dial fallback removed (R2, R12 moot); `shrink_dial`, `placement_test share/hello/mod` deleted; quest 5 rewritten | 261111-012904-94206c (`hop_cost`, strict): HOPSUMMARY |
+| Y4 (X4) | D10 Identity and Q7: a frame for a stored group and held incarnation, the source incarnation's node the connection's node where membership names it; never a membership filter. Bench `frame_admission` over real Cores (consensus:ab05507) | 261111-012147-65055f (exit 0: joiner, lagging, removal, spoof ok); control `voters` 261111-012153-c69789 exit 1 (joiner and lagging follower never catch up; removal unaffected) |
+| Y5 (X5) | D10 adopts Track C D16: a Control and a Bulk connection per peer node, each on one loop; reader batches frames by destination loop, one post per batch per read; sends batched per resume; per-group credit (D16). Cost per host `29 KB + 2P x 41 KB`, `1 + 2P` fds (8.2 MB, 201 at P=100 vs 66 MB, 1,616 per loop pair at L=16). Per-loop ports, hello L agreement, `misrouted`, stale-dial fallback removed (R2, R12 moot); `shrink_dial`, `placement_test share/hello/mod` deleted; quest 5 rewritten | 261111-012904-94206c (`hop_cost`, strict, exit 0; medians of three): 832 / 75 / 22 ns added CPU per frame alone / in batches of 16 / of 64; waking an idle loop 6.5-7.8 us CPU, 5.3-5.8 us p50 (p99 under 60 us); 0.75% of a core at 100,000 frames/s in 16s (4% if every batch wakes); per-frame hop 11x / 38x batching's. Settled as PLAN D57 |
 | Y6 (X6) | Q3 (b) required; quest 3: 0 fds per idle group, artifacts by opaque fixed-width id and incarnation (nested indexes never collide), per-host directory independent of L, the owner lock shared with strata cold-tier step 5; quest 4: 0 fds including the Worker's | n/a (criteria) |
 | Y7 (X7) | Q6 and D4: users are the WAL fsync Debouncer, Kronuz/logger, a stale include; `engine::Host` timers move to the wheel after quest 1; DB-TIMER claim removed (no such thread at Xapiand HEAD) | n/a (text; `grep -rn DB-TIMER src` empty at Xapiand:d96240e20) |
 | Y8 | Already: Q4 is a 7b prerequisite with a closed state (round 1 X8) | n/a |
@@ -42,9 +40,10 @@ Approved: 1.1, 1.4, 1.5. Each fix replaces text (design grew 0 bytes: 65,994 bef
 | Y12 | D7: the driver yields with `post`, never `post_demoted` | n/a |
 
 Reruns because loops.hh changed (`thread_loop` gained stop/close; the explorers use
-`manual_loop`, unchanged): waiter_test 261111-012201-35b594, ASan 261111-012206-319649, TSan
-261111-012211-a14b8d; blocking_entry 261111-012216-b70b56, TSan threads 261111-012221-b0e662;
-placement_test all 261111-012225-d639b2, control `remap-forget` 261111-012230-f5cbf3 (exit 1).
+`manual_loop`, unchanged), each exit 0 unless named: waiter_test 261111-012201-35b594, ASan
+261111-012206-319649, TSan 261111-012211-a14b8d; blocking_entry 261111-012216-b70b56, TSan
+threads 261111-012221-b0e662; placement_test all 261111-012225-d639b2, control `remap-forget`
+261111-012230-f5cbf3 exit 1, as required.
 
 ## Review findings (design re-review, 1ece2ff, D50)
 
@@ -151,7 +150,7 @@ real Kronuz/scheduler users and moves `engine::Host`'s timers (Y7). Rows in the 
 | A4 | `docs/design/async-drivers.md`: "Where a three-voter member's 683 KB goes" |
 | A5 | `docs/design/async-drivers.md`: "D5. The blocking entry runs the same task on the caller's thread, owns its groups, and ends." |
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
-| A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
+| A7 | Head reruns (bench unchanged on the measured paths since): 261110-052002-ad7aff (exclusive, Detent:b336a49): driver_cost, frames, resumes, wheel, `run_one`, idle CPU; 261110-123944-2a06b8 (strict, Detent:aa664d0): bytes, fds, threads; 261110-123944-8fddae (light): channel layout; 261110-123944-0a1e9b (strict): per-group Peers; 261110-123944-93eb50 (strict): one idle peer connection; 261111-012904-94206c (strict, Detent:78be8ce): the cross-loop hop. The design quotes the first runs (f87d0f, e9dff1, e9e87d, 400d3c, 650916; ruling 39). Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
 | R1-R4 | the R table above (design re-review at Detent:1ece2ff) |
 | A8 | Xapiand's first review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), CHANGES at Detent:f48f7cb, folded (X table); second review `/Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md`, CHANGES at Detent:73e96d6, approved 1.1, 1.4, 1.5, folded (Y table); re-review pending |
 
@@ -273,3 +272,17 @@ real Kronuz/scheduler users and moves `engine::Host`'s timers (Y7). Rows in the 
     counted as the hop.
 38. The design stays within its size by condensing D2, D4's users table, D5's and D8's test
     narratives and D10's re-partition text; no decision was removed.
+39. A7 cites the head reruns the brief names. 2a06b8, 8fddae and 93eb50 print what e9dff1,
+    e9e87d and 650916 printed; 0a1e9b's Peers bytes differ by 5 and 7 (511,952 and 982,925);
+    ad7aff's timings are within 20% of f87d0f's (resumes 10.8/138.2 ns, frame 115.2 ns, arm
+    14.0 ns, `run_one` 1,664 ns, today's idle loop 16,001 us); frames and the wheel's bytes are
+    equal, Kronuz/scheduler's queue heap within 1 byte at 1,000 entries (333). The design keeps quoting the
+    first runs, as ruling 11 keeps earlier runs for spread; no number moves a conclusion.
+40. D10's hop numbers are medians of `hop_cost`'s three busy runs; the 100,000-frame cost states
+    both bounds, busy (75 ns x 100,000) and every batch waking an idle loop (6,250 x 6.5 us).
+41. The fold's size came back under 65,994 bytes by tightening: the header's test list (now in
+    Rerunnable checks only), the abstract's wheel sentence, D4's clock bullet, D5's `stalled`
+    sentence, D10's shape and re-partition sentences, Cost notes and quest 1's duplicate owner
+    check; no finding's content was dropped.
+42. Rerunnable checks cited the cancelled exclusive hop job 261111-012156-f20dab; it now cites
+    94206c, the strict run D10 quotes.
