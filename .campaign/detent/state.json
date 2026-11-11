@@ -1505,6 +1505,7 @@
     "docs-site-config": {
       "accepted": {},
       "after": [
+        "docs-site-usage",
         "dns-voters",
         "ipv6"
       ],
@@ -1551,7 +1552,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: configuration and limits",
-      "updated": "2026-11-11T05:11:35"
+      "updated": "2026-11-11T05:11:48"
     },
     "docs-site-reference": {
       "accepted": {},
