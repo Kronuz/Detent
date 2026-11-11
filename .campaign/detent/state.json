@@ -1520,6 +1520,8 @@
       "after": [
         "drop-justknobs"
       ],
+      "base": "b8b6eb6d604ddd89a3ee5ef475dbb32b1f6e3c02",
+      "branch": "quest/detent/detent-brand",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1548,9 +1550,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Detent brand: a polished logo family and brand/",
-      "updated": "2026-11-11T12:04:32"
+      "updated": "2026-11-11T12:04:43",
+      "worktree": "../Detent-wt/detent/detent-brand"
     },
     "dns-voters": {
       "accepted": {},
