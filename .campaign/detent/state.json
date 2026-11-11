@@ -1464,7 +1464,7 @@
     "docs-site-config": {
       "accepted": {},
       "after": [
-        "docs-site-usage"
+        "dns-voters"
       ],
       "checks": [
         {
@@ -1509,7 +1509,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Docs refresh: configuration and limits",
-      "updated": "2026-11-10T12:02:22"
+      "updated": "2026-11-11T04:59:26"
     },
     "docs-site-reference": {
       "accepted": {},
