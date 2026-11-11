@@ -9,15 +9,25 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Shared step `paged::NodeAt` (src/detent_local/paged_node_step.hh) in place in every walker in
+the file set; building and running the suite locally; new test tests/detent_local/test_dense_walkers.cc.
 
 ## Next
 
-1. <step>
+1. Local build and dense/paged tests green; commit.
+2. Mutant tests/detent_local/mutants/dw-no-progress.patch (drops `slot < parent.end`); refresh
+   cor1-unguarded-parent and a10-overlay-default-limits patches to the new code.
+3. Jobs: native (A2), A1 grep, A3 mutant, fuzz smoke ASan/UBSan, 5M model oracle, A4 A/B.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Lead: `src/detent_local/lazy_page_access.cc:211` calls decode_node (first-touch semantic scan,
+`at = node.end`) and sits outside this quest's file set (reader-s6 holds `lazy_page_access.*`,
+blocked). A1 cannot pass without it. Options: (a) add `src/detent_local/lazy_page_access.cc` to
+dense-walkers' files: a 3-line change (`p::NodeAt at;` / `at.decode(...)` / `NodeAt::after`),
+reader-s6 rebases over it as it already must (DES-10); (b) narrow A1 to the file set and let
+reader-s6 convert it when it rewrites `resolve` (DES-7). Recommend (a): A1 holds at landing and
+reader-s6's rebase touches the same lines anyway.
 
 ## Evidence
 

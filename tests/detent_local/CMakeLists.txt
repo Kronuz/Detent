@@ -388,3 +388,9 @@ target_include_directories(test_local_dense_overlay_bounds PRIVATE "${PROJECT_SO
 target_link_libraries(test_local_dense_overlay_bounds PRIVATE detent::local_builder)
 add_test(NAME test_local_dense_overlay_bounds COMMAND test_local_dense_overlay_bounds)
 set_tests_properties(test_local_dense_overlay_bounds PROPERTIES TIMEOUT 15)
+
+add_executable(test_local_dense_walkers test_dense_walkers.cc)
+target_include_directories(test_local_dense_walkers PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_dense_walkers PRIVATE detent::local_builder)
+add_test(NAME test_local_dense_walkers COMMAND test_local_dense_walkers)
+set_tests_properties(test_local_dense_walkers PROPERTIES TIMEOUT 15)

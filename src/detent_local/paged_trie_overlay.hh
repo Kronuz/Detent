@@ -1,11 +1,12 @@
 #pragma once
 #include "paged_graph_validator.hh"
+#include "paged_node_step.hh"
 namespace detent::local::detail {
 struct OverlayNode;
 struct OverlayReference {
 	std::optional<paged::Reference> old;
 	OverlayNode *fresh = nullptr;
-	std::uint16_t offset = paged::page_header_bytes;
+	paged::NodeAt at;
 	explicit operator bool() const noexcept { return old.has_value() || fresh; }
 };
 struct OverlayChild {

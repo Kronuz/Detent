@@ -33,10 +33,10 @@ fingerprint(l::detail::OverlayReference root, std::span<const l::detail::Segment
 			const auto &r = *ref.old;
 			const auto bytes = l::detail::checked_page_bytes(
 				segments[l::detail::find_segment(segments, r.segment)], r);
-			if (ref.offset == p::page_header_bytes && r.length > p::page_capacity)
+			if (ref.at.first() && r.length > p::page_capacity)
 				packer.push_reference(r, path);
 			else
-				packer.push_cluster(bytes, ref.offset, path);
+				packer.push_cluster(bytes, ref.at, path);
 			drain();
 			return;
 		}
