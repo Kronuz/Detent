@@ -1995,7 +1995,8 @@
         "website/src/content/docs/guides/**",
         "website/src/content/docs/reference/bindings/rust.md",
         "website/src/content/docs/reference/cpp-api/global-and-testing.md",
-        "website/src/content/docs/roadmap.md"
+        "website/src/content/docs/roadmap.md",
+        "website/src/content/docs/reference/observability.md"
       ],
       "landed": [],
       "lenses": [],
@@ -2006,7 +2007,7 @@
       "risk": "low",
       "status": "active",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T10:59:09",
+      "updated": "2026-11-11T11:04:24",
       "worktree": "../Detent-wt/detent/drop-justknobs"
     },
     "fixture-500k": {
