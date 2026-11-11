@@ -459,6 +459,41 @@
       "title": "completion Asio driver on task::task",
       "updated": "2026-11-08T15:38:36"
     },
+    "consensus-dns-peers": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "ci:linux-tsan",
+          "level": "light",
+          "minutes": 30,
+          "name": "tsan"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/**",
+        "src/transport/**",
+        "test/**",
+        "docs/**",
+        "CHANGELOG.md",
+        "README.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "M1",
+      "needs": [],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "high",
+      "status": "planned",
+      "title": "Peers dial DNS names without ever blocking consensus",
+      "updated": "2026-11-11T04:59:21"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
