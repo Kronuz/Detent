@@ -476,7 +476,74 @@
       "updated": "2026-11-08T15:38:03"
     },
     "daemon-ready-leader": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-11T00:01:01",
+          "base": "0cff345b1747abb047806744d8e9306cb79bb408",
+          "blobs": {
+            "CHANGELOG.md": "100644:8a1025a54dd168a47adcc33afb323bf178024fdc",
+            "QUICKSTART.md": "100644:8787674837af7da54acd3dc1526b3928ee6a448c",
+            "docs/status/quickstart-managed.md": "100644:8e3dc01e4c46c08762310344bd7d7274d390af7b",
+            "src/detent_authority/service.cc": "100644:71b816e48af4a5f2d845abc7846723db44b33f35",
+            "src/detent_authority/service.hh": "100644:c703efdf5b9bde4754a07d1b07b97046748b68ee",
+            "src/detentd/main.cc": "100644:681a2b2a27fe7919a7fb3cabde7732a22473a67c",
+            "tests/detent_authority/CMakeLists.txt": "100644:46e921dce46943f431cf6cc4c78fbc5eb2bd3f2e",
+            "tests/detent_authority/revert_followup_check.sh": "100755:af7c0ae018644651921d56581e98872cab034c52",
+            "tests/detent_authority/revert_ready_check.sh": "100755:dc96f6b4e23b4fc665db494d20f61960dcbf0b66",
+            "tests/detent_authority/test_daemon_alone.py": "100644:413ca22662692dd4dcac8712002429016c6db24d",
+            "tests/detent_authority/test_daemon_ready.sh": "100755:8e04dc89200fb4c32c089527f0757272076fb6d1",
+            "tests/detent_authority/test_daemon_stop.sh": "100755:2df74d334cedcae113a5f9d2bb102e84fedc2cba",
+            "tests/detent_authority/test_lost_quorum.py": "100644:1a83032781d30399626854752886016c5936bbfb",
+            "website/src/content/docs/quickstart.md": "100644:431780ccd8be9a5b34b0e6a075c6c288324add2f"
+          },
+          "by": "review",
+          "commit": "3799e7a6b22a620f5f39db91dcb71a14ae6c16e9",
+          "criteria": "c1e51cd3f9babbb9",
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+                  "commit": "8c2f1c9b368735ba2774715a4159bd28961ec3f1",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-233158-fb6902",
+                  "level": "light",
+                  "seconds": 1178.9,
+                  "state": "done",
+                  "what": "daemon-ready-leader check native at 8c2f1c9b3687"
+                },
+                {
+                  "cmd": "bash tests/detent_authority/revert_followup_check.sh lost-quorum 75297ad",
+                  "commit": "8c2f1c9b368735ba2774715a4159bd28961ec3f1",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261110-233212-05140d",
+                  "level": "light",
+                  "seconds": 511.3,
+                  "state": "done",
+                  "what": "bash tests/detent_authority/revert_followup_check.sh lost-qu at 8c2f1c9b3687"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": true
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "docs/status/quickstart-managed.md",
+              "tests/detent_authority/revert_followup_check.sh",
+              "tests/detent_authority/test_daemon_stop.sh",
+              "tests/detent_authority/test_lost_quorum.py"
+            ],
+            "reason": "Regression tests and a revert harness for F1/F2/F3, plus a status-doc nit (N2); no mechanism added"
+          },
+          "note": "",
+          "review": "c02e33c6a43f5c22460f8816a93ad71eedabc049",
+          "reviewed": "75297add3e51eaac190a3fdb872db2c6b53bb32e",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [
         "dense-pages"
       ],
@@ -515,7 +582,7 @@
       "risk": "normal",
       "status": "active",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-09T18:12:29",
+      "updated": "2026-11-11T00:01:01",
       "worktree": "../Detent-wt/detent/daemon-ready-leader"
     },
     "dense-distribution": {
