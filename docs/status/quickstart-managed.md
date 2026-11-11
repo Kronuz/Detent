@@ -29,6 +29,6 @@
 Nothing blocks the pages. For the lead and the owner:
 
 1. `packaging/homebrew/detent.rb:13-16` pins `Detent:323b971` (2026-10-09), 737 commits behind `Detent:72ed8ee` and still on the `--source-path` reader, so `brew install Kronuz/tap/detent` installs the removed flow. The pages drop Homebrew and teach the source build until the formula is bumped (owner's or maintenance's call).
-2. `detentd --daemonize` returns once the listener is up (`src/detentd/main.cc:190-193`), about 2 s before the single voter accepts `/v2/open`; `--status` already reports `"ready":true` with `"role":0` (Follower) in that window (`src/detent_authority/service.cc:1595-1596`). The guide retries the open with the same nonce, as `docs/AUTHORITY_ARCHITECTURE.md:95` prescribes for `outcome_unknown`. Whether `--daemonize` should wait for leadership is the owner's call.
+2. Resolved by quest daemon-ready-leader (D23, D41): `detentd --daemonize` waits for the single voter's leader and `--status` reports `"ready":true` only while a leader is known and, for a follower, heard from within `election_max`. The guide no longer retries the open.
 3. `docs/SCALING.md:54` still says the `/v1/snapshot` endpoint "remains useful for bootstrap and administration"; `docs/AUTHORITY_ARCHITECTURE.md:80` says the authority does not serve it. Not in this brief; left as is.
 4. `website/src/content/docs/basics.md:78` describes the Client's `GET /v1/snapshot` source; left for step H.
