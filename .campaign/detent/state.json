@@ -127,6 +127,13 @@
       "closed": "D55 (Detent:149e7d7): namespace-measure's 20 drains cancelled; resubmitting as one \u226410-min job per row",
       "id": "msg-20",
       "text": "Xapiand lead, relaying the owner (2026-11-10 20:40): 'I want to spend time producing and landing things. Not waiting for fuzzes, long benchmarks, and three-hour trials. Most of the times I bet one short sporadic exclusive run is more than enough.' Numbers: drains took 40% of the host today, with a median run of 3-4 min; 56 were queued, declaring 1,675 min, and none ran from 16:34 to 20:30. Xapiand recorded it as D59: one strict or exclusive job of at most 10 min per row, holding its interleaved pairs, and a second run only when the interval straddles the target. I cancelled our phase3-ratchets wave (15 drains) and cold-tier-step2 is cutting its 15 strict jobs. Your namespace-measure has 20 drains queued (T9 5M rounds 1-5 x2 and T4 parts 1-5 on APFS and VM, 600 min declared); please cut them the same way. Separately, I found a scheduler bug: a drain cancelled or skipped while queued still resets last_drain, so the hourly drain turn kept restarting (cancels at 18:15, 19:15 and 19:51 reset it just before it fired). The fix is one line plus a test on xapiand/lighter-tools; it lands with the lighter tools once you say go. A 90-min drain window is open now to clear the backlog."
+    },
+    {
+      "at": "2026-11-11T01:06:30",
+      "by": "dense-walkers",
+      "closed": "Ruling (a): dense-walkers file set widened to lazy_page_access.cc and docs/mechanisms/dense-pages.md",
+      "id": "msg-22",
+      "text": "dense-walkers needs a file-set ruling for A1: src/detent_local/lazy_page_access.cc:211 calls decode_node (first-touch semantic scan) and is outside the quest's files (reader-s6, blocked, holds lazy_page_access.*). Options: (a) add src/detent_local/lazy_page_access.cc to dense-walkers' files, a 3-line change to the shared step paged::NodeAt; reader-s6 rebases over it as DES-10 already requires there; (b) narrow A1 to the file set and leave the scan to reader-s6 (DES-7). Recommend (a). Everything else proceeds; journal Blocked on has it."
     }
   ],
   "quests": {
