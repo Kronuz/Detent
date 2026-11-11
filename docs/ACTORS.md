@@ -126,7 +126,7 @@ Without `--managed` (or `managed_path`), `detent-agent` exits with `no source co
 
 **What.** The client is the application process. It reads knobs in memory: no network, disk or lock on a read.
 
-**How.** A C++ application sets `InitOptions::read_source` to `detent::local::make_managed_read_source(generation_dir, publisher_uid)` from `detent::local_client`. The client checks that the generation comes from `publisher_uid` in a directory whose ancestry only trusted accounts can change, takes a shared lock on the selected generation's `.lease`, maps the image read-only and reads from the mapping. A background thread looks at `selected` every 200 ms and swaps to a newer generation; a read view in use keeps its generation until it is released. Baked defaults (`just_knobs.json`) cover keys the generation lacks.
+**How.** A C++ application sets `InitOptions::read_source` to `detent::local::make_managed_read_source(generation_dir, publisher_uid)` from `detent::local_client`. The client checks that the generation comes from `publisher_uid` in a directory whose ancestry only trusted accounts can change, takes a shared lock on the selected generation's `.lease`, maps the image read-only and reads from the mapping. A background thread looks at `selected` every 200 ms and swaps to a newer generation; a read view in use keeps its generation until it is released. Baked defaults (`defaults.json`) cover keys the generation lacks.
 
 `detent get NAME` is the command-line client. With `--generation-dir` or a configured `generation_dir`, it reads the selected generation directly, even while the agent is stopped. A user-mode read starts a missing agent when a managed configuration is present; `--system` never starts one.
 

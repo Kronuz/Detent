@@ -371,6 +371,36 @@
       "updated": "2026-11-11T11:21:58",
       "worktree": ""
     },
+    "brand-head-links": {
+      "accepted": {},
+      "after": [
+        "docs-e2e",
+        "detent-brand"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && grep -q apple-touch-icon dist/index.html && grep -q site.webmanifest dist/index.html",
+          "level": "light",
+          "minutes": 15,
+          "name": "site"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "website/astro.config.mjs",
+        "website/public/site.webmanifest"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Site head links for the touch icons and web manifest",
+      "updated": "2026-11-11T13:07:54"
+    },
     "client-local-source": {
       "accepted": {},
       "after": [],
@@ -675,9 +705,36 @@
         "CHANGELOG.md",
         "docs/mechanisms/peer-dns.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-dual-stack",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-11T11:35:53",
+          "commit": "3d988d17d89fea17bc66825835397e0bbe324b80",
+          "criteria": {
+            "A1": "261111-111524-8d12f0; fails without: 261111-110219-4d2aa0, 261111-111521-3f02d4",
+            "A2": "`CHANGELOG.md`, 2026-11-11 Changed, first entry: a Peers listening on :: opens its acceptor with v6_only off"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "3d988d17d89fea17bc66825835397e0bbe324b80",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-111524-8d12f0",
+              "level": "light",
+              "seconds": 160.7,
+              "state": "done",
+              "what": "consensus-dual-stack check suite at 3d988d17d89f"
+            }
+          ],
+          "final": true,
+          "from": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "reason": "",
+          "tested": "3d988d17d89fea17bc66825835397e0bbe324b80"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [
@@ -685,10 +742,10 @@
       ],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Peers listening on :: accept IPv4 too",
-      "updated": "2026-11-11T10:02:47",
-      "worktree": "../consensus-wt/detent/consensus-dual-stack"
+      "updated": "2026-11-11T11:36:29",
+      "worktree": ""
     },
     "container-selection": {
       "accepted": {},
@@ -1493,6 +1550,8 @@
       "after": [
         "drop-justknobs"
       ],
+      "base": "b8b6eb6d604ddd89a3ee5ef475dbb32b1f6e3c02",
+      "branch": "quest/detent/detent-brand",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1511,20 +1570,49 @@
         "website/public/img/**",
         "website/public/apple-touch-icon*",
         "website/public/icon-*",
-        "website/astro.config.mjs",
         "README.md",
         "website/src/content/docs/welcome.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T13:25:46",
+          "commit": "a82eef4b465cbf83a827dcb0cdde4558ca98c8b0",
+          "criteria": {
+            "A1": "[manual] Owner chose B plus a bottom stop, eight stops 45\u00b0 apart (D67, Detent:0adf85db); candidates at Detent:1988b239 `brand/candidates/`",
+            "A2": "`brand/logo.svg` (4 paths, no rasters), `brand/README.md`, `brand/build-icons.mjs`, `brand/variants/light/` and `brand/variants/dark/`, each with logo.svg, favicon.svg, favicon.ico (16/32/48), apple-touch-icon 180/167/152, icon-192, icon-512; rerunning `node brand/build-icons.mjs` at Detent:ccb584b6 leaves the tree unchanged",
+            "A3": "261111-130317-c63a14",
+            "A4": "`README.md` opening sentence and `website/src/content/docs/welcome.md` \"So what is Detent\" carry the line"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "e6652bb4eb4191f4999a25b80ec74e1073e5e503",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-130814-f03c96",
+              "level": "light",
+              "seconds": 618.0,
+              "state": "done",
+              "what": "detent-brand check suite at e6652bb4eb41"
+            }
+          ],
+          "final": true,
+          "from": "abe259f0c18d6ef44127dd19576842f41fae49fe",
+          "reason": "",
+          "tested": "e6652bb4eb4191f4999a25b80ec74e1073e5e503"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "landed",
       "title": "Detent brand: a polished logo family and brand/",
-      "updated": "2026-11-11T11:08:26"
+      "updated": "2026-11-11T13:26:12",
+      "worktree": ""
     },
     "dns-voters": {
       "accepted": {},
@@ -2056,17 +2144,57 @@
         "website/src/content/docs/roadmap.md",
         "website/src/content/docs/reference/observability.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T12:04:05",
+          "commit": "9c5655ed2adaf2ff56cd04a7ad21a5850ca4b752",
+          "criteria": {
+            "A1": "261111-110505-cac549 (passed at a897d778001a; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md); fails without: 261111-113422-d4ebe9",
+            "A2": "`docs/design/knob-model.md`, `README.md`, `docs/USAGE.md`, `website/src/content/docs/faq.md`, `website/src/content/docs/welcome.md`, `website/src/content/docs/architecture/design-documents.md` (the model spec, its links, and the removed lineage pages; the old spec file is deleted)",
+            "A3": "261111-110507-004d6c (passed at a897d778001a; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md), 261111-113426-0ee463"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "4f6502db6a9c0a832545b6c79aa993ab4ed091f5",
+              "docs": [
+                "docs/design/async-drivers-bench/CMakeLists.txt",
+                "docs/design/async-drivers-bench/frame_admission.cc",
+                "docs/design/async-drivers-bench/hop_cost.cc",
+                "docs/design/async-drivers-bench/loops.hh",
+                "docs/design/async-drivers-bench/placement_test.cc",
+                "docs/design/async-drivers-bench/run.sh",
+                "docs/design/async-drivers-bench/shrink_dial.cc",
+                "docs/design/async-drivers-bench/wheel.hh",
+                "docs/design/async-drivers-bench/wheel_test.cc",
+                "docs/design/async-drivers.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-110507-004d6c",
+              "level": "light",
+              "seconds": 1596.4,
+              "state": "done",
+              "what": "drop-justknobs check suite at 4f6502db6a9c"
+            }
+          ],
+          "final": true,
+          "from": "203078c376c905ca9792de2f8a4692ba3d417bd6",
+          "reason": "",
+          "tested": "e097cfcc6d1c96e025824f9e4d6dd2116ec60c41"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T11:04:24",
-      "worktree": "../Detent-wt/detent/drop-justknobs"
+      "updated": "2026-11-11T12:04:09",
+      "worktree": ""
     },
     "fixture-500k": {
       "accepted": {},
@@ -2407,7 +2535,8 @@
       "accepted": {},
       "after": [
         "dns-voters",
-        "consensus-dual-stack"
+        "consensus-dual-stack",
+        "namespace-s4"
       ],
       "checks": [
         {
@@ -2431,7 +2560,8 @@
         "tests/detent_authority/**",
         "tests/detent_agent/**",
         "tests/detent_delivery/**",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "cmake/dependencies.json"
       ],
       "landed": [],
       "lenses": [],
@@ -2442,7 +2572,7 @@
       "risk": "low",
       "status": "planned",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T09:36:20"
+      "updated": "2026-11-11T11:36:47"
     },
     "legacy-h": {
       "accepted": {},
@@ -3440,7 +3570,135 @@
       "worktree": ""
     },
     "namespace-s4": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-11T12:02:21",
+          "base": "ecc5dba395080c10efac8390c1f18f46f73a5cd5",
+          "blobs": {
+            "CHANGELOG.md": "100644:49dbb2e71ef137acb221ebfbef6fcbc8f45e1bbd",
+            "docs/mechanisms/trusted-restart.md": "100644:8546881fa68c37155c426ccb6313a7fc6112843d",
+            "docs/status/namespace-s4.md": "100644:9a36556278ecba251cdeea2303986b39f4bd57b5",
+            "include/detent_delivery/coordinator.hh": "100644:2b800640ca14d2c9af0353859aa1e98733c38e69",
+            "include/detent_delivery/hash_stats.hh": "100644:d4fb79b4265e56a36d103733e51b1fbe1d59954b",
+            "include/detent_distribution/frame_hash_counts.hh": "100644:96926244a524fd9c6821285cd2d75179def77333",
+            "include/detent_local/paged_layout.hh": "100644:77f81953bea585ae2e3fb4103f62f3d2fd62e2f4",
+            "src/detent_agent/managed_host.cc": "100644:153e63f1bf015bb36815342118bb5fbd14cdcf37",
+            "src/detent_delivery/coordinator.cc": "100644:a8c7f41e1a69a12ba0919961749e631599359fc2",
+            "src/detent_distribution/frame_encoder.cc": "100644:b608a87438f6a04f044b76a783cf7043de7da200",
+            "src/detent_distribution/framing.cc": "100644:80df4593e0edce8c7b1ea0fb439ef6981f8797b9",
+            "src/detent_local/candidate_paged_validator.cc": "100644:5f372637c90d3aadce6e688d0c9bd577e321fc29",
+            "src/detent_local/generation.cc": "100644:d2409576b9426d08da0f0ab431ca5716d80d8809",
+            "src/detent_local/paged_graph_validator.cc": "100644:3ca7116b4d3ad6342e3c59f1ac7585a6c6030185",
+            "src/detent_local/paged_graph_validator.hh": "100644:c33b3c026cbd2c25e63ebadd12fe374211d33cf9",
+            "src/detent_local/paged_layout.cc": "100644:e5691a89130cb8437cee372b6a99b96777ee07f0",
+            "src/detent_local/paged_packer.cc": "100644:7e3aa8a941c84a680b97653048614863a674d9bd",
+            "src/detent_local/paged_segment_builder.cc": "100644:650d3897ae027d3ddaa335ec8b0f1c367228555d",
+            "src/detent_local/paged_warm_validator.cc": "100644:f8ee736946a2562c631332854332e5273db38b3b",
+            "src/detent_local/paged_warm_validator.hh": "100644:7168ba4546b0ac2fb7651bb6a6f9b67ae3ab1208",
+            "src/detent_local/sparse_plan_finalizer.cc": "100644:759dace640bbed812eda0ca3e0a30bfcc931f19d",
+            "src/detent_local/trusted_restart.cc": "100644:6ce9677e943122a8d2b885493b770968bc730918",
+            "src/detent_local/trusted_restart.hh": "100644:8cc3684fbf16dde4a113df6374eaf4d6b8f5887b",
+            "src/detent_relay/host.cc": "100644:e0e3c3a58d9a2fb910833f640f5174bb139727c1",
+            "tests/detent_delivery/CMakeLists.txt": "100644:9c513187259106f0118d4050f755a0efe7bc9917",
+            "tests/detent_delivery/hash_build.sh": "100755:063073dfefe81b78233163f05ae41e1d9d2abfe2",
+            "tests/detent_delivery/hash_mutant.sh": "100755:9c55fd408f2d0da15e63878c15bc76ce91b8a6b9",
+            "tests/detent_delivery/hash_once_report.sh": "100755:9907ddb0c691c1d33d571d0aa7218ddf77a7648a",
+            "tests/detent_delivery/hash_once_stress.sh": "100755:f315d0505c89d67ca7dafe41fce46001d463bbde",
+            "tests/detent_delivery/mutants/s4-a1-candidate-rehashes.patch": "100644:a3742d9e556c92130a4b204e70a5740a81da1fa3",
+            "tests/detent_delivery/mutants/s4-a1-delta-candidate-rehashes.patch": "100644:b0f4850bbaa63a23b28bf30d9465f5f8e4b9b131",
+            "tests/detent_delivery/mutants/s4-a1-revalidate-own-build.patch": "100644:5c2f2c90e76a7fbdd20b9ca64396fe6f4bf0b4ab",
+            "tests/detent_delivery/mutants/s4-a3-scrub-no-compare.patch": "100644:c12a36c7de1008765b4cbb26767836409a0e0c3a",
+            "tests/detent_delivery/mutants/s4-f1-shared-counters.patch": "100644:c307f8490248e38d1c4f7b47a2187e72471f5273",
+            "tests/detent_delivery/relay_delta_probe.sh": "100755:9bd5ce79cead6fc1eb3c9abf7b3a403c6c7a58bd",
+            "tests/detent_delivery/relay_delta_shutdown.cc": "100644:c8b706092b2bd6642033b61487468bfd5568ea0a",
+            "tests/detent_delivery/scripted_upstream.hh": "100644:d180a49770da258158f2b706f8b763682f0c4313",
+            "tests/detent_delivery/test_hash_once.cc": "100644:70d89b8319fbda0a8860d5188f3ebdaf186ca0d4",
+            "tests/detent_delivery/test_hash_stats_tear.cc": "100644:18c0eda223839cdbe8e3ec250ae600db7f507107",
+            "tests/detent_delivery/test_repair.cc": "100644:91cbdcdd1d5c0e4122f38b1f78a871e1e7fd49bd",
+            "tests/detent_local/test_managed_recovery_failure.cc": "100644:107bdc51098f021911b8a15963b1949b789cc383",
+            "tests/detent_local/test_state_equivalence.cc": "100644:fe2e82850f78f8055f6e4d0b133a1106ee6e4bfa"
+          },
+          "by": "review",
+          "commit": "c0d8f0817f7c0f917e85aeed9fa87757cb33f51d",
+          "criteria": "5c3c6abea8ebca38",
+          "diffs": {
+            "": "e147780e90b7e78e",
+            "CHANGELOG.md": "227b21cc963aa33f",
+            "docs/mechanisms/trusted-restart.md": "be34ecfd84feea01",
+            "docs/status/namespace-s4.md": "b6b5b52b082d39c6",
+            "include/detent_delivery/coordinator.hh": "7a068bcd4bb0a904",
+            "include/detent_delivery/hash_stats.hh": "34ecc3fddfe3920a",
+            "include/detent_distribution/frame_hash_counts.hh": "508d40fc294e6db0",
+            "include/detent_local/paged_layout.hh": "fec50ea8fa7c0a62",
+            "src/detent_agent/managed_host.cc": "673cbdfd66513ed5",
+            "src/detent_delivery/coordinator.cc": "6a9f0607cf8c7bc0",
+            "src/detent_distribution/frame_encoder.cc": "57d84c822b58ce31",
+            "src/detent_distribution/framing.cc": "445d82b0a96a0062",
+            "src/detent_local/candidate_paged_validator.cc": "07d1c387f7cdfb14",
+            "src/detent_local/generation.cc": "3de2829587cac504",
+            "src/detent_local/paged_graph_validator.cc": "79a353132e8706aa",
+            "src/detent_local/paged_graph_validator.hh": "3f4f2019b07d3264",
+            "src/detent_local/paged_layout.cc": "0e2c878cec6b83e7",
+            "src/detent_local/paged_packer.cc": "01a49b4cf74b81cc",
+            "src/detent_local/paged_segment_builder.cc": "5f38fc7390197ada",
+            "src/detent_local/paged_warm_validator.cc": "45e0bf48e9e824ba",
+            "src/detent_local/paged_warm_validator.hh": "f49030fdf6225a75",
+            "src/detent_local/sparse_plan_finalizer.cc": "dfeca5272fd11910",
+            "src/detent_local/trusted_restart.cc": "f3f12c53c2ee1012",
+            "src/detent_local/trusted_restart.hh": "65325f1a36945457",
+            "src/detent_relay/host.cc": "88b245adac9c7cf7",
+            "tests/detent_delivery/CMakeLists.txt": "07919b185c6ed6fd",
+            "tests/detent_delivery/hash_build.sh": "e010748d74748d28",
+            "tests/detent_delivery/hash_mutant.sh": "87eacd7cdf05d3a4",
+            "tests/detent_delivery/hash_once_report.sh": "4dde7a626c034722",
+            "tests/detent_delivery/hash_once_stress.sh": "43618fa1a3ddca16",
+            "tests/detent_delivery/mutants/s4-a1-candidate-rehashes.patch": "722b772a905a59ad",
+            "tests/detent_delivery/mutants/s4-a1-delta-candidate-rehashes.patch": "cd950ce0b7af2f16",
+            "tests/detent_delivery/mutants/s4-a1-revalidate-own-build.patch": "b2ca99ff6080b2a1",
+            "tests/detent_delivery/mutants/s4-a3-scrub-no-compare.patch": "522dcc45e0f7df6d",
+            "tests/detent_delivery/mutants/s4-f1-shared-counters.patch": "b824edb11f779313",
+            "tests/detent_delivery/relay_delta_probe.sh": "c1577190d78e7434",
+            "tests/detent_delivery/relay_delta_shutdown.cc": "3183ab267b81bc1f",
+            "tests/detent_delivery/scripted_upstream.hh": "6bf1b59b03101b93",
+            "tests/detent_delivery/test_hash_once.cc": "c60c863631c3b329",
+            "tests/detent_delivery/test_hash_stats_tear.cc": "19474d190fc22bea",
+            "tests/detent_delivery/test_repair.cc": "32b3afb0c734868d",
+            "tests/detent_local/test_managed_recovery_failure.cc": "a317900968c0bd08",
+            "tests/detent_local/test_state_equivalence.cc": "ea2cb7f68e387517"
+          },
+          "findings": {
+            "F1": {
+              "jobs": [
+                {
+                  "cmd": "/Users/kronuz/code/Kronuz/Detent/.scratch/review-namespace-s4-correctness/counter_tear.sh",
+                  "commit": "c0d8f0817f7c0f917e85aeed9fa87757cb33f51d",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261111-112147-588788",
+                  "level": "light",
+                  "seconds": 265.8,
+                  "state": "done",
+                  "what": "F1: reviewer probe counter_tear at the fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": true
+            }
+          },
+          "fix_scope": {
+            "paths": [
+              "tests/detent_delivery/mutants/s4-f1-shared-counters.patch",
+              "tests/detent_delivery/test_hash_stats_tear.cc",
+              "tests/detent_local/test_state_equivalence.cc"
+            ],
+            "reason": "the unseen files are F1's regression test and revert patch and F5's test change; the fix is in hash_stats.hh and paged_layout.cc, which the review saw"
+          },
+          "note": "",
+          "review": "8ca052b40bf253118c6f4727bc3e33d337ae46c4",
+          "reviewed": "96854bda3b9132306570fa8f0bb1d674281c736a",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "fcdbf54125a0388ef9e6fea0e6be08179991048e",
       "branch": "quest/detent/namespace-s4",
@@ -3543,7 +3801,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Namespace S4: no re-validation of a tier own build, hash counters",
-      "updated": "2026-11-11T11:27:07",
+      "updated": "2026-11-11T12:02:21",
       "worktree": "../Detent-wt/detent/namespace-s4"
     },
     "namespace-s4-s10": {
@@ -5843,6 +6101,36 @@
       "status": "landed",
       "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
       "updated": "2026-11-08T15:38:27"
+    },
+    "wheel-evidence": {
+      "accepted": {},
+      "after": [],
+      "base": "049e2c629227add9909c9774d49f5f5b9a67bab4",
+      "branch": "quest/detent/wheel-evidence",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/wheel-evidence.md",
+        "docs/design/async-drivers-bench/wheel_vs_stash*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "M1b",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "One timer wheel for Kronuz: stash or a new wheel, by measurement",
+      "updated": "2026-11-11T11:48:02",
+      "worktree": "../Detent-wt/detent/wheel-evidence"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",

@@ -183,7 +183,7 @@ kill -TERM "$(./build/src/detent-agent --status --managed managed.json | awk '/^
 ## Where to go next
 
 - [`README.md`](../README.md): architecture, dependencies, bindings, benchmarks, test coverage, and production-readiness notes.
-- [`justknobs-implementation-spec.md`](../justknobs-implementation-spec.md): the source specification.
+- [`design/knob-model.md`](design/knob-model.md): the knob model: names, groups, overrides, rollout, evaluation and the JSON formats.
 
 System-wide deployment: see [System services](SERVICES.md) for service accounts, directory ownership, supervision, and logging on Linux, FreeBSD, and macOS.
 

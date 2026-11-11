@@ -32,7 +32,7 @@ impl Client {
 ```
 
 ```rust
-let client = detent::Client::new("/etc/myapp/just_knobs.json", None, vec![], 200)?;
+let client = detent::Client::new("/etc/myapp/defaults.json", None, vec![], 200)?;
 if client.eval("checkout:killswitch_new_path", None, None)? {
     new_checkout();
 }

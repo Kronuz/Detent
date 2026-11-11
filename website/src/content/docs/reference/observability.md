@@ -55,9 +55,10 @@ identifiers never leak into monitoring.
 :::hint[Metrics exporter]{.unimplemented}
 Detent keeps these counters but doesn't export them. There's no Prometheus or
 OpenMetrics endpoint on the daemons, and no exporter for application clients;
-the specification's `jk_*`-style metric names, such as
-`jk_snapshot_staleness_seconds`, are a natural mapping for one. For now, read
-`health()` and `metrics()` and publish them through your own metrics library.
+the `Metrics` counters (`reads_ok`, `reads_missing`, `snapshot_swaps`,
+`refresh_failures` and the rest) and `staleness_seconds` map directly onto
+counters and gauges. For now, read `health()` and `metrics()` and publish them
+through your own metrics library.
 :::
 
 ---

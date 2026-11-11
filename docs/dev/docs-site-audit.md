@@ -327,16 +327,16 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
 - `welcome.md` | **wrong** | names an HTTP source that does not exist on main; "every identifier is `detent`" is false; the copy-as-curl note points at plain HTTP while the tutorial authority serves HTTPS [OWNED legacy-h, reader-s6]
   - L14 "keeps that snapshot fresh from a file, an HTTP endpoint, or a durable authority" -> `InitOptions` offers `source_path` (file), `source_poll` (a function) and `read_source` (local generations) only: include/detent/client.hh:62,99,118. No HTTP source, no `/v1/snapshot` route: docs/AUTHORITY_ARCHITECTURE.md:80, website guides/durable-authority.md:15. The durable authority reaches readers through `detent-agent`, not the Client's updater thread.
   - L23 "`detent::Client`, the library your application links. It owns the read path, the evaluation rules and the background updater" -> true on main (include/detent/client.hh, src/detent/client.cc). OWNED legacy-h: Client is deleted there; rewrite around `Reader`/`libdetent_reader`.
-  - L38 "Every identifier in the code is `detent`" -> src/detent/overrides.cc:18,25,52 print `--just-knob`; include/detent/json_schema.hh:22 and README name `just_knobs.json`.
+  - L38 "Every identifier in the code is `detent`" -> history narration about another product; removed with D66.
   - L58-60 "equivalent curl command, aimed at a local detentd on its default port 8317" -> astro.config.mjs:76 emits `http://localhost:8317`; the quick-start authority sets `publisher_tls` (quickstart.md:68), so it serves HTTPS (src/detentd/main.cc:166-170, 192-193) and the generated curl fails. `GET /v1/health` itself exists: src/detent_authority/service.cc:716.
   - L21-31 "three moving parts" -> omits the optional relay (`detent-relay`), which README.md:24 counts as an actor.
-  - L33-41 "Detent began as a faithful, independent clone..." -> history narration (D43 prefers present tense); keep only the link to the spec if wanted.
+  - L33-41 "Detent began as a faithful, independent clone..." -> history narration (D43 prefers present tense); keep only a link to `docs/design/knob-model.md` if wanted.
 
 - `basics.md` | **wrong** | the Source section names a nonexistent HTTP source; "new knob names are introduced" in baked defaults contradicts the merge and the quick-start [OWNED legacy-h, reader-s7-s9, dense-pages]
   - L77-78 "an HTTP endpoint that serves `GET /v1/snapshot`" -> no such endpoint or source on main (include/detent/client.hh:62,99,118; docs/AUTHORITY_ARCHITECTURE.md:80). Sources are: none, `source_path`, `source_poll`, `read_source` (local generation).
   - L63-64 "They are also where new knob names are introduced" -> a live-only knob is accepted and served: `merge_over_defaults` keeps entries from both tables (src/detent/json_schema.cc:380-382); the managed path tries the live image first (src/detent_local/client_source.cc:44-49). The quick-start publishes `search:max_results` with no defaults file.
   - L54-57 "Every published snapshot carries a positive integer `version`... counted as stale" -> true of the file/poll source (src/detent/json_schema.cc:285-290, src/detent/client.cc:412-415). The managed path orders by a cursor `revision` (src/detent_agent/main.cc:139) that `detent get` and the quick-start replies show (`revision`, `namespace_revision`); the page never defines it.
-  - L59-65 "Baked defaults ... `just_knobs.json` or `defaults.json`" -> true: src/detent_agent/config.cc:70-83 (`defaults.json` beside agent.json). OWNED legacy-h / reader-s7-s9: `detent get` loses `--defaults` until S7 (D21).
+  - L59-65 "Baked defaults ... `defaults.json`" -> true: src/detent_agent/config.cc:70-83 (`defaults.json` beside agent.json). OWNED legacy-h / reader-s7-s9: `detent get` loses `--defaults` until S7 (D21).
   - L17-27 name rules -> true: include/detent/validation.hh:3,22-33 (one colon, 200 bytes, `A-Za-z0-9._/-`).
   - L35-39 definition shape -> true: src/detent/json_schema.cc:62-130 (`type`, `default`, `rollout_pct`, `overrides`; unknown field rejected).
   - MISSING: error categories a reader sees beyond MissingKnob: Uninitialized, InvalidName, WrongType, ConversionFailed, SourceFailure: include/detent/errors.hh:9-16.
@@ -509,7 +509,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
 - `guides/testing.md` | **stale** | claims hold on main, but the page documents `TestKnobs`/`detent::global`/`InitOptions` (removed by legacy-h) and carries history narration [OWNED legacy-h]
   - L96-100 hint "The specification Detent grew from describes ... Detent doesn't implement it yet" -> D43 history/"not yet" text; delete.
   - L13-45 `detent::testing::TestKnobs(snap).set_thread_local()`, `detent::global::eval_or_panic` -> exist on main (include/detent/testing.hh:14-26; global.hh:17-45); `Client(Snapshot)` exists (client.hh:130); all removed by legacy-h.
-  - L53-69 CLI override rules -> verified: src/detent/overrides.cc:35-47 (lowercase `true`/`false`, else signed base-10 int64), duplicate error overrides.cc:58-60, WrongType client.cc:180,219. Error text names `--just-knob`, not the application's flag.
+  - L53-69 CLI override rules -> verified: src/detent/overrides.cc:35-47 (lowercase `true`/`false`, else signed base-10 int64), duplicate error overrides.cc:58-60, WrongType client.cc:180,219. Error text names `--knob`, not the application's flag.
   - L78-90 defaults-only client -> verified (client.cc:86-96).
   - MISSING: testing against the real store (a `detent get` against a generation directory) and the shell reader's `--default`; the page has no non-C++ testing story.
 
@@ -671,7 +671,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
 - `reference/observability.md` | **missing content** | the Client health and metrics match the code; what the daemons export today (relay health, agent logs, authority histograms) is missing; the planned design is not there [OWNED legacy-h, observability]
   - L12-19 `client.health()` fields -> include/detent/client.hh:49-57 (true); `staleness_seconds` semantics -> src/detent/client.cc:266, 280. L30-39 counters -> include/detent/client.hh:36-45 (all eight true). L47 `refresh_alert_after` 5 minutes -> :102 (true). `Client`, `health()`, `Metrics` are deleted by legacy-h A16; the whole Client half is rewritten then. [OWNED legacy-h]
   - L55-61 "doesn't export them. There's no Prometheus or OpenMetrics endpoint" -> true today: `git grep -i prometheus|openmetrics|textfile` finds nothing in src, include or bindings. The design in docs/design/observability.md (Q3, D47) adds `detent-agent --status --usage` JSON and a Prometheus text file with no listener, `detent_usage`, and a usage page; OB* quests do not exist yet. [OWNED observability: the hint's "no exporter" and the "your own metrics library" advice change when OB4 lands]
-  - L58-59 "the specification's `jk_*`-style metric names, such as `jk_snapshot_staleness_seconds`" -> cites the root-level `justknobs-implementation-spec.md:698-702` (internal working spec under the retired product name); a public page should not name it or the `jk_` prefix. [OWNED observability]
+  - L58-59 metric names borrowed from an internal working spec -> a public page should not name it or its prefix; the page now names the `Metrics` counters. [OWNED observability]
   - L67 "`GET /v1/health` on the authority" -> src/detent_authority/service.cc:716, 1066 (true).
   - L68 "`detentd --status` and `detent-agent --status`" -> src/detentd/main.cc:143-153, src/detent_agent/main.cc:125-146 (true).
   - MISSING: `detent-relay --status` and the relay's `GET /v1/health` (same path, HTTPS; src/detent_relay/main.cc:46-59, src/detent_relay/service.cc:359, 405): fields `ready`, `heap_used`/`heap_peak`/`heap_limit`, `sessions`, `opens`/`polls`/`closes`, `bootstrap`, `catchup`, `disk_*`, per-bundle `revision`, `ready`, `authenticated`, `fenced`, `gaps`, `refusals`, `source_endpoint_index`, `source_rotations`, `quorum_refresh_failures`, `scrub_*`, `sync_*`: src/detent_relay/host.cc:59-127; rebuilt every 100 ms (host.cc:332, 345).
@@ -694,7 +694,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
   - MISSING: `read_source` constructor errors: `std::invalid_argument("null local read source")` and the conflict `invalid_argument`; `source_path`+`source_poll` conflict is `std::runtime_error` (page says only "mutually exclusive"): src/detent/client.cc:110,113,128.
 
 - `reference/cpp-api/global-and-testing.md` | **stale** | signatures and behavior match; the hint narrates the "specification it grew from" (D43 history text): OWNED legacy-h (`detent::global`, `TestKnobs`, `TestGuard`, `OverrideTable` deleted; this page is replaced by the reader reference per legacy-h A14)
-  - L99-103 "The specification it grew from describes a repeatable `--just-knob name=value` flag..." -> history narration; also no code ships a `--just-knob` flag (only the error strings in `parse_cli_overrides` mention it): src/detent/overrides.cc:18,25,52.
+  - L99-103 "The specification it grew from describes a repeatable `--knob name=value` flag..." -> history narration; also no code ships a `--knob` flag (only the error strings in `parse_cli_overrides` mention it): src/detent/overrides.cc:18,25,52.
   - L28-30 `init` twice throws `std::logic_error`, read before `init` is `Uninitialized`: true, src/detent/global.cc:24-26,38-41.
   - L47-57 `TestKnobs`/`TestGuard` signatures true: include/detent/testing.hh:15-45.
 
@@ -787,7 +787,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
   - L14-23 "Client library ... **Done**" and "Host-local agent and `detent get` **Done**" are true on main (tests/detent/test_hash_golden.cc, test_duplicate_precedence.cc, test_concurrency_stress.cc) but change under legacy-h, reader-s6 and reader-s7-s9 (`detent get` on the core; Python and Rust over the C ABI).
   - L87-88 "A metrics endpoint (Prometheus/OpenMetrics) for the daemons" -> D47 Q3 settles a Prometheus textfile plus `detent-agent --status --usage`, no listener (docs/design/observability.md); rewrite when observability lands.
   - L72-74 Python/Rust gaps are true (bindings/python/detent_python.cc:45-50 file source only; bindings/rust/src/lib.rs:58-127 `eval`/`get`/`health` only). MISSING from the roadmap: the managed generation source for both bindings and Rust `get_as::<T>` / panicking helpers, which reference/bindings/python.md:73 and rust.md:69-70 list as unimplemented.
-  - Items true on main (no row): L50 M1 pins done (CHANGELOG.md:125); L53 tap builds from source (packaging/homebrew/detent.rb:1, :11-14); L55 no `--version` in any CLI usage text (src/detent_agent/main.cc:312-358, src/detentd/main.cc:37-47); L59-64 only bool/int knobs, int has no overrides (include/detent/model.hh:25-30); L68-71, L76 absent (src/detent/overrides.cc:18 parses `--just-knob` pairs only; no inotify/FSEvents, src/detent/client.cc:288).
+  - Items true on main (no row): L50 M1 pins done (CHANGELOG.md:125); L53 tap builds from source (packaging/homebrew/detent.rb:1, :11-14); L55 no `--version` in any CLI usage text (src/detent_agent/main.cc:312-358, src/detentd/main.cc:37-47); L59-64 only bool/int knobs, int has no overrides (include/detent/model.hh:25-30); L68-71, L76 absent (src/detent/overrides.cc:18 parses `--knob` pairs only; no inotify/FSEvents, src/detent/client.cc:288).
   - MISSING: RC-1 to RC-5 exits and M1b/N1/Dense ordering (PLAN.md Goals); the owner-approved reader (`libdetent_reader`), namespace delivery S4-S10, observability, and coroutine drivers appear nowhere on the page.
 
 - `contributing.md` | **missing content** | every claim is true; the page omits the real build profile, the CI gates and the docs checks [OWNED docs-e2e]
@@ -797,7 +797,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
   - L63-64 "Pushing to `main` deploys the site" -> only pushes touching `website/**` or pages.yml deploy (.github/workflows/pages.yml:8-10). Verified true: L55-60 `npm ci`, `npm run dev`, `npm run build` (website/package.json:10-11), Astro + Starlight + Pagefind + D2 fences + Edit link (website/astro.config.mjs:23, :36-38, :69-71), L36-37 ASan/UBSan and TSan (ci.yml:20, :26), L58 base `/Detent` (astro.config.mjs).
 
 - `copyright.md` | **missing content** | the licence statement is true; third-party notices and licences are absent
-  - L5 "Copyright (c) 2026 Germán Méndez Bravo ... MIT" matches LICENSE:1-3; link target `blob/main/LICENSE` exists in the tree. L7-10 JustKnobs disclaimer matches justknobs-implementation-spec.md:5-8.
+  - L5 "Copyright (c) 2026 Germán Méndez Bravo ... MIT" matches LICENSE:1-3; link target `blob/main/LICENSE` exists in the tree. L7-10 an affiliation disclaimer about another product; removed with D66.
   - MISSING: the build fetches 35 pinned repositories, five of them third-party (asio, cppcodec, rapidjson, lz4, zstd) plus OpenSSL as a system dependency (cmake/dependencies.json:3-6, :33, :93, :183, :189; docs/DEPENDENCIES.md:7), yet the tree has only one licence file (`git ls-files` shows LICENSE only) and no notices page. bindings/rust/Cargo.toml has no `license` field.
   - MISSING: the site loads Lato and Montserrat from Google Fonts (website/astro.config.mjs:65) and ships the Kronuz theme; neither is credited beyond L12-14 naming the theme.
 Part 2: top-level guides `docs/ACTORS.md` to `docs/DISTRIBUTION_ARCHITECTURE.md` (30 files). Only ACTORS carries a `> Status:` banner (docs/ACTORS.md:1); the other 29 carry their own date/status lines and no HISTORY banner. "Record" below means the file is dated or status-labelled as a record of a past decision or run.
@@ -1217,7 +1217,7 @@ src/detent_cli/config.cc, config.hh, logging.cc, daemon.cc; src/detent_agent/mai
 6. `detent-relay` has a CLI, `relay.json` and `/v1/health` and no reference page; cli.md says "three programs".
 7. errors.md lacks `SourceFailure` and 14 HTTP error names present in code and on no page (`admission_full`, `scope_forbidden`, `unauthorized`, `invalid_request`, `distribution_unavailable`, `body_bound`, `unknown_endpoint`, `source_not_leader`, `source_behind`, `publish_forbidden`, `producer_busy`, `not_found`, `internal_error`, `authorization_timeout`; `stopping` only on quickstart.md).
 8. detent-agent.md `--upgrade-managed` is a legacy-adoption mode that D43 forbids and no quest removes (owner call).
-9. observability.md names the internal spec and `jk_` prefix; the Client half goes with legacy-h; the OWNED observability design (usage JSON, textfile) is not on the page and must be tagged when written.
+9. observability.md named an internal spec and its metric prefix (now the `Metrics` counters); the Client half goes with legacy-h; the OWNED observability design (usage JSON, textfile) is not on the page and must be tagged when written.
 
 ### 5. Reference and the rest
 
@@ -1267,7 +1267,7 @@ Write from:
 - faq/next: include/detent/client.hh, src/detent_delivery/configuration.cc, src/detent_agent/main.cc, src/detent/hashing.cc:7-18, include/detent/detail/evaluation.hh:16-20, src/detent_authority/service.cc:207-423.
 - roadmap: .campaign/detent/PLAN.md (Goals, D43, D45, D47), state.json quest states, CHANGELOG.md, .github/workflows/ci.yml, docs/SCALE_TARGETS.md, docs/RELEASE_PLAN.md, docs/STAGE6_ARCHITECTURE.md.
 - contributing: CMakeLists.txt:41-50, .github/workflows/*.yml, website/package.json, website/README.md.
-- copyright: LICENSE, cmake/dependencies.json, justknobs-implementation-spec.md:5-8.
+- copyright: LICENSE, cmake/dependencies.json.
 - docs/*.md: CHANGELOG.md (legacy waves, M1), cmake/dependencies.json, src/detent_authority/, src/detent_local/, docs/LOCAL_IMAGE_FORMAT.md.
 
 Highest-weight defects:
