@@ -1,6 +1,6 @@
 # dense-walkers: journal
 
-State: working
+State: waiting on jobs 261111-012056-86bd1f 261111-012107-84ea8e 261111-012113-342ad4 261111-012130-6b72b5 261111-012139-b3859f
 Quest: .campaign/detent/quests/dense-walkers.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,10 +9,12 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs at Detent:34c6318 running: native 261111-012056-86bd1f (A2), mutant dw-no-progress
-261111-012058-48b6e9 (A3), fuzz smoke 261111-012103-71570c (A2), 5M model check
+Jobs at Detent:34c6318. Done: A3 mutant dw-no-progress 261111-012058-48b6e9 KILLED by
+test_local_dense_walkers; fuzz smoke 261111-012103-71570c passed (ASan/UBSan, 1,273,973 runs in
+301 s, 0 findings). Pending: native 261111-012056-86bd1f (A2), 5M model check
 261111-012107-84ea8e (A2), 5M delta oracle 261111-012113-342ad4 (A2), A/B prepare
-261111-012130-6b72b5 then exclusive measure 261111-012139-b3859f (A4).
+261111-012130-6b72b5 then exclusive measure 261111-012139-b3859f (A4). Local: 58 dense/paged/
+lazy/reader tests passed on a Debug dev build; both refreshed overlay mutants killed locally.
 
 ## Next
 
