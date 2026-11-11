@@ -675,9 +675,36 @@
         "CHANGELOG.md",
         "docs/mechanisms/peer-dns.md"
       ],
-      "journal": "../Detent-wt/detent/consensus-dual-stack",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-11T11:35:53",
+          "commit": "3d988d17d89fea17bc66825835397e0bbe324b80",
+          "criteria": {
+            "A1": "261111-111524-8d12f0; fails without: 261111-110219-4d2aa0, 261111-111521-3f02d4",
+            "A2": "`CHANGELOG.md`, 2026-11-11 Changed, first entry: a Peers listening on :: opens its acceptor with v6_only off"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "3d988d17d89fea17bc66825835397e0bbe324b80",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-111524-8d12f0",
+              "level": "light",
+              "seconds": 160.7,
+              "state": "done",
+              "what": "consensus-dual-stack check suite at 3d988d17d89f"
+            }
+          ],
+          "final": true,
+          "from": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "reason": "",
+          "tested": "3d988d17d89fea17bc66825835397e0bbe324b80"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [
@@ -685,10 +712,10 @@
       ],
       "repo": "../consensus",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Peers listening on :: accept IPv4 too",
-      "updated": "2026-11-11T10:02:47",
-      "worktree": "../consensus-wt/detent/consensus-dual-stack"
+      "updated": "2026-11-11T11:36:29",
+      "worktree": ""
     },
     "container-selection": {
       "accepted": {},
