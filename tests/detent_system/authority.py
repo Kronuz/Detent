@@ -45,6 +45,7 @@ class Authority:
         shared_namespace: str | None = None,
         http_workers: int | None = None,
         capacity: CapacityProfile | None = None,
+        address: str = "127.0.0.1",
     ) -> None:
         if not 1 <= producers <= 256:
             raise ValueError("authority fixture needs 1–256 producers")
@@ -57,6 +58,7 @@ class Authority:
             )
         ):
             raise ValueError("invalid shared authority namespace")
+        self.address = address
         self.binary = binary
         self.directory = directory
         self.actors = actors
@@ -78,9 +80,11 @@ class Authority:
         self.reservations: list[socket.socket] = []
         try:
             for _ in range(6):
-                reservation = socket.socket()
+                reservation = socket.socket(
+                    socket.AF_INET6 if ":" in address else socket.AF_INET
+                )
                 self.reservations.append(reservation)
-                reservation.bind(("127.0.0.1", 0))
+                reservation.bind((address, 0))
                 self.ports.append(reservation.getsockname()[1])
             names = ("one", "two", "three")
             voters = []
@@ -91,7 +95,7 @@ class Authority:
                 voters.append(
                     {
                         "id": index + 1,
-                        "host": "127.0.0.1",
+                        "host": address,
                         "port": self.ports[index],
                         "certificate_sha256": hashlib.sha256(der).hexdigest(),
                     }
@@ -108,7 +112,7 @@ class Authority:
                     "directory": str(directory / f"state-{index}"),
                     "peer_tls": tls,
                     "publisher_tls": tls,
-                    "publisher_bind": "127.0.0.1",
+                    "publisher_bind": address,
                     "publisher_name": "localhost",
                     "credentials": [
                         credential(producer, shared_namespace)
