@@ -31,7 +31,7 @@ on at the same percentage. Integers gain group targeting and gradual rollout.
   `bool_count`, `int_count` or a type byte in the page format, and the Python and Rust bindings
   build and pass their suites on the new API.
 - A5 [artifact] `docs/design/one-knob-type.md`: the definition, its encoding (with A3's numbers),
-  evaluation, JSON shape, and why strings stay out (D65).
+  evaluation, JSON shape, and why strings stay out (D65); `docs/design/knob-model.md` (from drop-justknobs) is rewritten for the single type.
 
 ## Contracts
 
