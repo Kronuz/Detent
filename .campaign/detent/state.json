@@ -1352,14 +1352,14 @@
       ],
       "landed": [],
       "lenses": [],
-      "milestone": "M1",
+      "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
       "status": "planned",
       "title": "Authority voter addresses accept DNS names",
-      "updated": "2026-11-11T04:59:23"
+      "updated": "2026-11-11T05:00:12"
     },
     "docs-e2e": {
       "accepted": {},
