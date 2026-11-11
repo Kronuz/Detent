@@ -1,6 +1,6 @@
 # namespace-s3b: journal
 
-State: waiting on jobs 261111-050227-374646 261111-050334-9be29c 261111-050342-d42170 261111-050344-178b45 261111-050346-194d0d 261111-040648-91a17b
+State: waiting on jobs 261111-051250-4bc9ac 261111-051251-0f7bb2 261111-051253-5543fa 261111-040648-91a17b
 Quest: .campaign/detent/quests/namespace-s3b.md (the lead's; never edit it)
 
 ## Doing
@@ -17,10 +17,13 @@ Durability review D1 (blocking) fixed at `e7bcd9e`, tests at `68c8370`:
   changed `bind_base` line.
 N1-N5: left for the lead's follow-ups.
 
-Jobs: probe at the fix commit `e7bcd9e` 261111-050227-374646 (reviewer's run-probe.sh, unchanged
-patch); native 261111-050334-9be29c; d1 mutants 261111-050342-d42170, 261111-050344-178b45;
-k5 at the fix 261111-050346-194d0d; q2pub 261111-040648-91a17b (queued, exclusive). CI run
-43025760640 at `68c8370`.
+Jobs: probe at the fix commit `e7bcd9e` 261111-050227-374646 (exit 0: requested 1, completed 1,
+pending 0, forced 1, deltas 1). k5 at `68c8370` 261111-050346-194d0d (killed). At `68c8370` the
+suite 261111-050334-9be29c failed only `forced-again` line 984: it read `sink->fenced` after
+close, which fences every sink; the d1 mutants there were killed at the completion waits (lines
+923, 974), before that line. `2aff687` reads the fence inside the phase; suite 261111-051250-4bc9ac
+and d1 mutants 261111-051251-0f7bb2, 261111-051253-5543fa rerun there. q2pub 261111-040648-91a17b
+is still queued (exclusive).
 
 ## Next
 
