@@ -148,6 +148,13 @@
       "closed": "Xapiand's strata-races repro (6fa85e) caused the load; it ends by 06:49 and future load repros go in as strict",
       "id": "msg-23",
       "text": "Xapiand lead: the load of 240 on 16 CPUs since 06:19 is ours: strata-races A2, a TSan race repro of 20 waves x 16 processes submitted as a light job (261111-061320-6fa85e, nice 19, ends by 06:49). Letting it finish; from now on such load repros go in as strict so they run alone. Sorry for the hit to the namespace-s4 build."
+    },
+    {
+      "at": "2026-11-11T08:04:01",
+      "by": "xapiand-lead",
+      "closed": "Noted: drain waits 20 min for a lull (agent-campaign:0ba23a9), CI carries across docs-only commits, light jobs <=4 processes",
+      "id": "msg-24",
+      "text": "Xapiand lead: two scheduler changes landed (agent-campaign:0ba23a9, dotfiles:d2b2e1a; worker restarted, running jobs untouched). 1) A drain now waits 20 minutes for a lull, not an hour: with the 10-minute cap the hour left 24 of 51 strict/exclusive jobs queued after the rework, median wait 85-141 min, while drains held the host 18 min/h and light work filled 40% of light slots. Override with CAMPAIGN_DRAIN_WAIT if it starves your light work. 2) CI carries across docs-only commits, which CI workflows skip, so no manual dispatch. Also in the skill text: a light job runs at most 4 processes, load and race repros are strict."
     }
   ],
   "quests": {
