@@ -537,9 +537,9 @@
       ],
       "repo": "../consensus",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T05:01:09",
+      "updated": "2026-11-11T06:51:51",
       "worktree": "../consensus-wt/detent/consensus-dns-peers"
     },
     "container-selection": {
