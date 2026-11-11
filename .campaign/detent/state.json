@@ -2560,8 +2560,8 @@
         "tests/detent_authority/**",
         "tests/detent_agent/**",
         "tests/detent_delivery/**",
-        "cmake/dependencies.json",
-        "docs/**"
+        "CHANGELOG.md",
+        "cmake/dependencies.json"
       ],
       "landed": [],
       "lenses": [],
@@ -2572,7 +2572,7 @@
       "risk": "low",
       "status": "planned",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T13:56:59"
+      "updated": "2026-11-11T13:57:10"
     },
     "legacy-h": {
       "accepted": {},
