@@ -1,6 +1,6 @@
 # docs-e2e: journal
 
-State: waiting on jobs 261110-122036-67414b 261110-122038-6852bf
+State: waiting on jobs 261111-141317-c1859c 261111-141325-7f7514 261111-141328-1bcf8a (base rebuilt at main merge; earlier A2/A3 failed on the stale base build)
 Quest: .campaign/detent/quests/docs-e2e.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
