@@ -2504,10 +2504,39 @@
         "src/detent_local/lazy_page_access.cc",
         "docs/mechanisms/dense-pages.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T03:47:43",
+          "commit": "cc4e755ea4aaff9069cbd8563a0ba805da30b1d5",
+          "criteria": {
+            "A1": "261111-013720-736885 (passed at 1cdf3cc8cbfa; only merges from main since)",
+            "A2": "261111-030906-86cd2d (passed at 1cdf3cc8cbfa; only merges from main since), 261111-014803-79782f (passed at 1cdf3cc8cbfa; only merges from main since), 261111-014809-74c269 (passed at 1cdf3cc8cbfa; only merges from main since)",
+            "A3": "261111-030906-86cd2d (passed at 1cdf3cc8cbfa; only merges from main since); fails without: 261111-012058-48b6e9, 261111-013747-1068a8",
+            "A4": "261111-013803-aa091e (passed at 1cdf3cc8cbfa; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "1cdf3cc8cbfa97c9bdbdd6b275b72dbe192ff614",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-030906-86cd2d",
+              "level": "light",
+              "seconds": 592.6,
+              "state": "done",
+              "what": "dense-walkers check native at 1cdf3cc8cbfa"
+            }
+          ],
+          "final": true,
+          "from": "a151622a8d98554e208fb712e2688a69fd69fc74",
+          "reason": "",
+          "tested": "d525423a6538601ea398b3e5f9ed1fc9636e8614"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [
         "dense-pages"
@@ -2515,10 +2544,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "One bounded inline-slot walker for Dense pages",
-      "updated": "2026-11-11T03:47:24",
-      "worktree": "../Detent-wt/detent/dense-walkers"
+      "updated": "2026-11-11T03:47:47",
+      "worktree": ""
     },
     "docs-e2e": {
       "accepted": {},
