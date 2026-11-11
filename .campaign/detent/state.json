@@ -371,6 +371,36 @@
       "updated": "2026-11-11T11:21:58",
       "worktree": ""
     },
+    "brand-head-links": {
+      "accepted": {},
+      "after": [
+        "docs-e2e",
+        "detent-brand"
+      ],
+      "checks": [
+        {
+          "cmd": "cd website && npm ci && npm run build && grep -q apple-touch-icon dist/index.html && grep -q site.webmanifest dist/index.html",
+          "level": "light",
+          "minutes": 15,
+          "name": "site"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "website/astro.config.mjs",
+        "website/public/site.webmanifest"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Site head links for the touch icons and web manifest",
+      "updated": "2026-11-11T13:07:54"
+    },
     "client-local-source": {
       "accepted": {},
       "after": [],
