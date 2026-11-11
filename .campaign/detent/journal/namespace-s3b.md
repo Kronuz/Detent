@@ -1,12 +1,14 @@
 # namespace-s3b: journal
 
-State: waiting on jobs 261111-043027-eeba12 261111-043027-41364c 261111-043027-8547c1 261111-040648-91a17b and the 26 mutant jobs below
+State: waiting on jobs 261111-043027-eeba12 261111-043027-41364c 261111-043027-8547c1 261111-040648-91a17b 261111-043117-07d3c7 261111-043130-cdf29b
 Quest: .campaign/detent/quests/namespace-s3b.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting on the gates at `1e2ea54`, the 26 mutant jobs, the q2pub A/B and CI run on the pushed
-branch.
+Waiting on the gates at `1e2ea54` (native running, asan and tsan queued), two mutants
+(k4-scrub-on-owner, k5-reset-keeps-pending, running), the exclusive q2pub A/B (queued for the
+host) and CI run 43020922333 (all green but macos-x86_64, still running). 24 of 26 mutants at
+`1e2ea54` are killed (exit 0), m9 included.
 
 ## Next
 
