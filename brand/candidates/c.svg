@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-94.6 -109.08 189.21 218.17">
+  <path id="ring" fill="none" stroke="#a7a7a7" stroke-width="14" stroke-linecap="round" d="M-27.71 -84L0 -100L27.71 -84M58.89 -66L86.6 -50L86.6 -18M86.6 18L86.6 50L58.89 66M27.71 84L0 100L-27.71 84M-58.89 66L-86.6 50L-86.6 18M-86.6 -18L-86.6 -50L-58.89 -66"/>
+  <path id="knob" fill="#93c34d" fill-rule="evenodd" d="M-52 0A52 52 0 1 0 52 0A52 52 0 1 0 -52 0ZM6.06 3.5L24.06 -27.68A7 7 0 0 0 11.94 -34.68L-6.06 -3.5A7 7 0 0 0 6.06 3.5Z"/>
+  <circle id="stop" fill="#93c34d" cx="43.3" cy="-75" r="9"/>
+</svg>
