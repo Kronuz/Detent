@@ -4764,7 +4764,10 @@
         "website/src/content/docs/reference/cpp-api/**",
         "website/src/content/docs/reference/http-api/authority.md",
         "website/src/content/docs/reference/knobs.md",
-        "website/src/content/docs/reference/snapshot-format.md"
+        "website/src/content/docs/reference/snapshot-format.md",
+        "src/detent_agent/main.cc",
+        "tests/detent_agent/test_agent_cli.cmake",
+        "tests/detent_delivery/test_coordinator.cc"
       ],
       "landed": [],
       "lenses": [
@@ -4777,7 +4780,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T14:02:08",
+      "updated": "2026-11-11T14:18:41",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
