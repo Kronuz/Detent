@@ -303,10 +303,12 @@ auto dispatch(std::string_view arm, F&& f) {
 // ---- single loop --------------------------------------------------------------------------
 // Each repetition: arm every entry, re-arm every entry, cancel every entry (each pass in one
 // random order), arm every entry again, then expire in 1 ms steps until all fired. The manual
-// clock moves 2,002 ms per repetition; 1,000,000 / n repetitions.
+// clock moves 2,002 ms per repetition; at least 1,000,000 / n repetitions, and more until the
+// timed passes add up to 100 ms of wall time (A5: one sample's A/A band at n = 1,000).
 template <class C>
 void single(std::string_view arm, std::size_t n) {
-	const std::size_t reps = std::max<std::size_t>(1, 1'000'000 / n);
+	const std::size_t min_reps = std::max<std::size_t>(1, 1'000'000 / n);
+	constexpr u64 min_timed_ns = 100 * ms;
 	std::mt19937_64 random(n);
 	std::vector<std::uint32_t> order(n);
 	std::iota(order.begin(), order.end(), 0);
@@ -314,16 +316,17 @@ void single(std::string_view arm, std::size_t n) {
 	auto spread = [&] { return 1 * ms + random() % (1'999 * ms); };
 	std::vector<u64> d1(n), d2(n), d3(n);
 	for (std::size_t i = 0; i < n; ++i) { d1[i] = spread(); d2[i] = spread(); d3[i] = spread(); }
-	std::printf("config row=single arm=%.*s n=%zu reps=%zu shape=\"%s\" entry_bytes=%zu clock=manual base_ns=%llu\n",
-		int(arm.size()), arm.data(), n, reps, C::shape, sizeof(typename C::entry), static_cast<unsigned long long>(manual_base));
+	std::printf("config row=single arm=%.*s n=%zu min_reps=%zu min_timed_ms=%llu shape=\"%s\" entry_bytes=%zu clock=manual base_ns=%llu\n",
+		int(arm.size()), arm.data(), n, min_reps, static_cast<unsigned long long>(min_timed_ns / ms), C::shape, sizeof(typename C::entry), static_cast<unsigned long long>(manual_base));
 	std::printf("start=%s\n", utc().c_str());
 	C c(manual_base);
 	std::vector<typename C::entry> entries(n);
 	u64 t_arm = 0, t_rearm = 0, t_cancel = 0, t_expire = 0;
 	std::size_t fired = 0;
 	const u64 started = now_ns();
-	for (std::size_t r = 0; r < reps; ++r) {
-		const u64 base = manual_base + r * 2'002 * ms;
+	std::size_t reps = 0;
+	for (; reps < min_reps || t_arm + t_rearm + t_cancel + t_expire < min_timed_ns; ++reps) {
+		const u64 base = manual_base + reps * 2'002 * ms;
 		u64 t0 = now_ns();
 		for (auto i : order) { c.arm(entries[i], base + d1[i]); }
 		u64 t1 = now_ns();
@@ -343,8 +346,8 @@ void single(std::string_view arm, std::size_t n) {
 	const double ops = static_cast<double>(n * reps);
 	const double arm_ns = t_arm / ops, rearm_ns = t_rearm / ops, cancel_ns = t_cancel / ops, expire_ns = t_expire / ops;
 	std::printf("timed_s=%.3f\n", (now_ns() - started) / 1e9);
-	std::printf("row=single arm=%.*s n=%zu arm_ns=%.2f rearm_ns=%.2f cancel_ns=%.2f expire_ns=%.2f score=%.2f fired=%zu\n",
-		int(arm.size()), arm.data(), n, arm_ns, rearm_ns, cancel_ns, expire_ns, arm_ns + rearm_ns + cancel_ns + expire_ns, fired);
+	std::printf("row=single arm=%.*s n=%zu reps=%zu arm_ns=%.2f rearm_ns=%.2f cancel_ns=%.2f expire_ns=%.2f score=%.2f fired=%zu\n",
+		int(arm.size()), arm.data(), n, reps, arm_ns, rearm_ns, cancel_ns, expire_ns, arm_ns + rearm_ns + cancel_ns + expire_ns, fired);
 	std::printf("end=%s\n", utc().c_str());
 }
 
