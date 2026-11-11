@@ -1538,7 +1538,6 @@
         "website/public/img/**",
         "website/public/apple-touch-icon*",
         "website/public/icon-*",
-        "website/astro.config.mjs",
         "README.md",
         "website/src/content/docs/welcome.md"
       ],
@@ -1551,7 +1550,7 @@
       "risk": "low",
       "status": "planned",
       "title": "Detent brand: a polished logo family and brand/",
-      "updated": "2026-11-11T11:08:26"
+      "updated": "2026-11-11T12:04:32"
     },
     "dns-voters": {
       "accepted": {},
