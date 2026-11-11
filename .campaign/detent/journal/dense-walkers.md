@@ -1,6 +1,6 @@
 # dense-walkers: journal
 
-State: waiting on jobs 261111-012056-86bd1f 261111-012107-84ea8e 261111-012113-342ad4 261111-012130-6b72b5 261111-012139-b3859f
+State: waiting on jobs 261111-013718-1582cb 261111-013732-376f7f 261111-013739-bb67c4 261111-013747-1068a8 261111-013754-2cd5dd 261111-013803-aa091e
 Quest: .campaign/detent/quests/dense-walkers.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,34 +9,25 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Jobs at Detent:34c6318. Done: A3 mutant dw-no-progress 261111-012058-48b6e9 KILLED by
-test_local_dense_walkers; fuzz smoke 261111-012103-71570c passed (ASan/UBSan, 1,273,973 runs in
-301 s, 0 findings). Pending: native 261111-012056-86bd1f (A2), 5M model check
-261111-012107-84ea8e (A2), 5M delta oracle 261111-012113-342ad4 (A2), A/B prepare
-261111-012130-6b72b5 then exclusive measure 261111-012139-b3859f (A4). Local: 58 dense/paged/
-lazy/reader tests passed on a Debug dev build; both refreshed overlay mutants killed locally.
+Lead ruled msg-22 (a): lazy_page_access.cc and docs/mechanisms/dense-pages.md joined the file set.
+Detent:bbf7b8c routes first-touch verification through NodeAt and moves the how-it-works note to
+dense-pages.md "In-page walks" (one-line pointer in paged_node_step.hh). Detent:51535b0 refreshes
+a6-order and a10-cursor-default-limits, which no longer applied over the NodeAt walkers.
+Jobs at Detent:51535b0: A1 grep 261111-013720-736885 passed (only NodeAt::decode and the
+definition). Pending: native 261111-013718-1582cb (A2), 5M model 261111-013732-376f7f (A2), 5M
+delta oracle 261111-013739-bb67c4 (A2), A3 mutant 261111-013747-1068a8 (--fails-without), A4
+prepare 261111-013754-2cd5dd then exclusive measure 261111-013803-aa091e. Fuzz smoke
+261111-012103-71570c at 34c6318 stands (its inputs did not change). Superseded jobs at 34c6318
+cancelled.
 
 ## Next
 
-1. Read the jobs; fix what they show.
-2. On the lead's msg-22 ruling: (a) convert lazy_page_access.cc (patch ready, see Blocked on),
-   `campaign job rerun`, submit A1; (b) submit A1 with the narrowed grep.
-3. Push the branch for CI; State "ready for review".
+1. Read the jobs; fix what they show; put the A/B numbers in Result.
+2. Paste `campaign brief`'s Evidence table; State "ready for review".
 
 ## Blocked on
 
-Lead: `src/detent_local/lazy_page_access.cc:211` calls decode_node (first-touch semantic scan,
-`at = node.end`) and sits outside this quest's file set (reader-s6 holds `lazy_page_access.*`,
-blocked). A1 cannot pass without it. Options: (a) add `src/detent_local/lazy_page_access.cc` to
-dense-walkers' files: a 3-line change (`p::NodeAt at;` / `at.decode(...)` / `NodeAt::after`),
-reader-s6 rebases over it as it already must (DES-10); (b) narrow A1 to the file set and let
-reader-s6 convert it when it rewrites `resolve` (DES-7). Recommend (a): A1 holds at landing and
-reader-s6's rebase touches the same lines anyway. Asked as msg-22. The (a) change:
-`for (p::NodeAt at; at.offset() < nodes_end; at = p::NodeAt::after(node))` with
-`node = at.decode(bytes, bounds)` and `#include "paged_node_step.hh"`.
-Also for the lead: docs/ is outside the file set, so the how-it-works note for the step lives in
-`paged_node_step.hh`; one "In-page walks" paragraph in docs/mechanisms/dense-pages.md would need
-that file added too.
+Nothing. msg-22 answered by the lead: option (a), done in Detent:bbf7b8c.
 
 ## Evidence
 
@@ -76,3 +67,6 @@ and what it leaves open. Results and how it works go in the docs of the reposito
    decode_node and follows no slot; left as is.
 7. Mutants cor1-unguarded-parent and a10-overlay-default-limits no longer applied; restated
    against NodeAt (same intent). Both still killed locally by dense_overlay_bounds/dense_walkers.
+8. a6-order, restated: drops `require(p::NodeAt::child(frame.node, slot) == s.position)` whole,
+   as the original dropped `require(slot == s.position)`; a10-cursor-default-limits only gets new
+   context. Both apply at Detent:51535b0 (they are dense-pages evidence, not this quest's).
