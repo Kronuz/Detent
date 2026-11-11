@@ -64,6 +64,7 @@ struct StartupData {
 	std::uint64_t segment_owners_seen = 0, segment_packs_seen = 0;
 	c::EntryInspection observed;
 	std::optional<Descriptor> selected;
+	std::optional<detail::ObsoleteGeneration> obsolete;
 	std::optional<StorageIdentity> stored_identity;
 	DiskLedger::Permit metadata_permit;
 	std::uint64_t anchors = 0;
@@ -167,12 +168,20 @@ class StartupOperation final : public c::Operation {
 					data_->reader.start(data_->observed_name(), record_length_, data_->core->owner,
 										data_->core->session->directory_identity());
 					prepare_reader();
+				} else if (phase == Phase::RemoveSelected) {
+					data_->selected.reset();
+					prepare(Phase::SyncOpen, c::Kind::OpenInto);
 				} else if (phase == Phase::SyncOpen) {
 					sync_file_[0] = std::shared_ptr<c::File>(data_, &data_->core->controls->scratch_file());
 					prepare(Phase::Barrier, c::Kind::SyncFiles);
-				} else if (phase == Phase::Barrier)
+				} else if (phase == Phase::Barrier) {
+					if (data_->obsolete) {
+						data_->core->ledger.reclaimed({descriptor_bytes, 1, 0});
+						data_->obsolete.reset();
+						data_->core->collect = true;
+					}
 					prepare(Phase::SyncClose, c::Kind::CloseFile);
-				else if (phase == Phase::SyncClose)
+				} else if (phase == Phase::SyncClose)
 					ready();
 			}
 		} catch (...) {
@@ -208,7 +217,18 @@ class StartupOperation final : public c::Operation {
 	}
 
   private:
-	enum class Phase { Inventory, Open, Read, Close, CreateMetadata, SyncOpen, Barrier, SyncClose, Done };
+	enum class Phase {
+		Inventory,
+		Open,
+		Read,
+		Close,
+		CreateMetadata,
+		RemoveSelected,
+		SyncOpen,
+		Barrier,
+		SyncClose,
+		Done
+	};
 	void remember(std::exception_ptr failure) noexcept {
 		if (!data_->failure)
 			data_->failure = failure;
@@ -237,6 +257,8 @@ class StartupOperation final : public c::Operation {
 			request_.source = phase == Phase::SyncOpen ? std::string_view("storage.meta") : data_->observed_name();
 			request_.read_only = true;
 		}
+		if (phase == Phase::RemoveSelected)
+			request_.source = "selected";
 		if (kind == c::Kind::SyncFiles)
 			request_.files = sync_file_;
 	}
@@ -249,6 +271,7 @@ class StartupOperation final : public c::Operation {
 	void observe_entry(const c::EntryInspection &entry) {
 		auto &data = *data_;
 		auto &core = *data.core;
+		const auto verified = data.obsolete ? std::optional(data.obsolete->selection.descriptor) : core.verified;
 		const auto name = data.observed_name();
 		data.expected_segment.reset();
 		if (name == "owner.lock") {
@@ -275,9 +298,9 @@ class StartupOperation final : public c::Operation {
 			record_length_ = descriptor_bytes;
 			read = true;
 		} else if (const auto parsed = detail::parse_generation_name(name);
-				   parsed && parsed->kind == detail::GenerationFile::Image && core.verified &&
-				   parsed->generation == core.verified->generation) {
-			if (!safe(entry, core) || entry.footprint.logical_bytes != core.verified->length)
+				   parsed && parsed->kind == detail::GenerationFile::Image && verified &&
+				   parsed->generation == verified->generation) {
+			if (!safe(entry, core) || entry.footprint.logical_bytes != verified->length)
 				throw std::runtime_error("selected image differs from verified recovery");
 			data.selected_image_seen = true;
 			return;
@@ -286,7 +309,7 @@ class StartupOperation final : public c::Operation {
 			++data.anchors;
 			if (!safe(entry, core) || entry.footprint.logical_bytes != 0)
 				data.upgrade_blocked = true;
-			if (core.verified && parsed->generation == core.verified->generation) {
+			if (verified && parsed->generation == verified->generation) {
 				data.selected_lease_seen = true;
 				if (entry.footprint.logical_bytes != 0) {
 					record_length_ = generation_ownership_bytes;
@@ -361,7 +384,8 @@ class StartupOperation final : public c::Operation {
 			throw std::runtime_error("stable owner lock disappeared");
 		const auto usage = inventory_->report().usage;
 		core.ledger.initialize(usage);
-		if (data.selected != core.verified ||
+		const auto verified = data.obsolete ? std::optional(data.obsolete->selection.descriptor) : core.verified;
+		if (data.selected != verified ||
 			(data.selected && (!data.selected_lease_seen || !data.selected_image_seen)))
 			throw std::runtime_error("selected recovery differs from retained census evidence");
 		if (core.verified_paged &&
@@ -371,11 +395,19 @@ class StartupOperation final : public c::Operation {
 		if (data.stored_identity) {
 			core.identity = *data.stored_identity;
 			if (data.selected && data.selected_owned &&
-				data.selected_ownership != GenerationOwnership{core.identity, data.selected->generation,
+				data.selected_ownership != (data.obsolete ? data.obsolete->ownership : GenerationOwnership{core.identity, data.selected->generation,
 															   data.selected->length, data.selected->checksum,
-															   core.verified_paged ? 2u : 1u})
+															   core.verified_paged ? paged::format_version : 1u}))
 				throw std::runtime_error("selected generation ownership differs from storage identity");
+			if (data.obsolete && (!data.selected_owned || data.obsolete->ownership.storage != core.identity ||
+				data.obsolete->selection.directory_identity != core.directory_identity))
+				throw std::runtime_error("obsolete selection differs from retained ownership");
 			core.bootstrap->usage = {};
+			// An obsolete `selected` is removed first; the barrier below makes the removal durable.
+			if (data.obsolete) {
+				prepare(Phase::RemoveSelected, c::Kind::Remove);
+				return;
+			}
 			// The one startup barrier: storage.meta (which the census trusted) and the directory.
 			prepare(Phase::SyncOpen, c::Kind::OpenInto);
 			return;
@@ -976,7 +1008,7 @@ class ReclaimOperation final : public c::Operation {
 				if (part == 1) {
 					if (result.inspection && result.inspection->footprint.logical_bytes) {
 						data_->prefix_length = std::min<std::uint64_t>(
-							slot().proof.layout_version == 2 ? paged::root_bytes : header_bytes,
+							slot().proof.layout_version >= 2 ? paged::root_bytes : header_bytes,
 							result.inspection->footprint.logical_bytes);
 						data_->prefix_offset = 0;
 						slot().valid = true;
@@ -1241,10 +1273,13 @@ class ReclaimOperation final : public c::Operation {
 	}
 	void validate_image_prefix() {
 		const auto bytes = std::span<const char>(data_->image_prefix).first(data_->prefix_length);
-		if (slot().proof.layout_version == 2) {
+		// An owned generation in a layout that is not current is removed unread.
+		if (!current_layout(slot().proof.layout_version))
+			return;
+		if (slot().proof.layout_version == paged::format_version) {
 			slot().image_scope = detail::validate_paged_root_prefix(bytes);
 			if (bytes.size() == paged::root_bytes) {
-				if (paged::physical_commitment(bytes) != slot().proof.image_checksum)
+				if (paged::metadata_commitment(bytes) != slot().proof.image_checksum)
 					throw std::runtime_error("paged root checksum differs from ownership");
 				const auto root = paged::decode_root(bytes, detail::paged_format_limits());
 				slot().image_scope = std::pair(root.cursor, root.profile);
@@ -1318,8 +1353,10 @@ class ReclaimOperation final : public c::Operation {
 			throw std::runtime_error("partial descriptor has unconfigured identity");
 	}
 	void validate_metadata_prefix(std::span<const char> bytes) {
-        if (slot().proof.layout_version != 2)
+        if (slot().proof.layout_version == 1)
             throw std::runtime_error("reader metadata requires a paged generation");
+        if (!current_layout(slot().proof.layout_version))
+            return;
         detail::validate_reader_metadata_prefix(bytes, {data_->core->identity, slot().generation,
                                                        slot().proof.image_checksum, {}, paged::root_bytes});
     }
@@ -1491,6 +1528,9 @@ struct DiskStore::Impl {
 	std::shared_ptr<ReclaimOperation> reclaim;
 	std::shared_ptr<detail::PagedSegmentCollection> segments;
 	bool segment_collection_pending = false;
+	bool segment_collection_settled = true;
+	std::chrono::steady_clock::time_point collection_retry = std::chrono::steady_clock::time_point::max();
+	std::chrono::seconds collection_backoff{1};
 	std::exception_ptr terminal_collection_error;
 };
 DiskStore::DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core)
@@ -1531,8 +1571,21 @@ std::shared_ptr<c::Operation> DiskStore::operation() const {
 }
 bool DiskStore::needs_work() const noexcept { return impl_->segments && impl_->segments->needs_work(); }
 void DiskStore::advance() {
-	if (impl_->segments && impl_->segments->done() && impl_->segments->error())
+	if (impl_->segments && impl_->segments->done() && !impl_->segment_collection_settled) {
+		impl_->segment_collection_settled = true;
 		impl_->terminal_collection_error = impl_->segments->error();
+		if (impl_->segments->deferred()) {
+			impl_->collection_retry = std::chrono::steady_clock::now() + impl_->collection_backoff;
+			impl_->collection_backoff = std::min(impl_->collection_backoff * 2, std::chrono::seconds(30));
+		} else {
+			impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+			impl_->collection_backoff = std::chrono::seconds(1);
+		}
+	}
+	if (!impl_->core->closing && std::chrono::steady_clock::now() >= impl_->collection_retry) {
+		impl_->core->collect = true;
+		impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+	}
 	if (impl_->publication && impl_->publication->done() && !impl_->publication->in_flight()) {
 		impl_->terminal_publication_status = impl_->publication->status();
 		impl_->terminal_publication_error = impl_->publication->error();
@@ -1558,6 +1611,7 @@ void DiskStore::advance() {
 						impl_->core);
 				}
 				impl_->segments->start();
+				impl_->segment_collection_settled = false;
 				impl_->terminal_collection_error = {};
 			} catch (const distribution::StoragePressure &) {
 				impl_->terminal_collection_error = std::current_exception();
@@ -1593,6 +1647,9 @@ void DiskStore::advance() {
 	}
 }
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
+std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
+	return impl_->core->closing ? std::chrono::steady_clock::time_point::max() : impl_->collection_retry;
+}
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
 		   !impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done()) &&
@@ -1629,7 +1686,9 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 				   (base &&
 					(!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
 					 (plan.maintenance() ? descriptor.cursor != base->cursor
-										 : descriptor.cursor.revision <= base->cursor.revision))))
+					  : intent == detail::PagedPlanIntent::Repair
+						  ? descriptor.cursor.revision < base->cursor.revision
+						  : descriptor.cursor.revision <= base->cursor.revision))))
 			throw std::invalid_argument("managed paged publication requires authorized intent");
 		if (plan.directory_identity() != core.directory_identity ||
 			plan.storage_identity() != core.identity || plan.bytes()->account() != core.account ||
@@ -1649,11 +1708,13 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
-		recovery->populate(plan, core.verified_paged, core.options.recovery_limits);
+		// A snapshot shares no packs with its base, which may be damaged.
+		recovery->populate(plan, plan.snapshot() ? decltype(core.verified_paged){} : core.verified_paged,
+						   core.options.recovery_limits);
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
-			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), 2, artifacts);
+			c::OwnedAllocator<PublicationData>(context), impl_->core, descriptor, plan.bytes(), paged::format_version, artifacts);
 		auto operation = std::allocate_shared<PublicationOperation>(
 			c::OwnedAllocator<PublicationOperation>(context), data);
 		operation->admit();
@@ -1839,6 +1900,8 @@ std::shared_ptr<DiskStore> make_disk_store(distribution::RetirementDomain &domai
 				throw std::runtime_error("recovered directory differs from stable session");
 			core->retain_recovered(recovered);
 		}
+	} catch (const detail::ObsoleteGeneration &obsolete) {
+		data->obsolete = obsolete;
 	} catch (...) {
 		data->failure = std::current_exception();
 		core->fence(data->failure);
@@ -1857,11 +1920,12 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
+	const bool snapshot = core.pending_paged_recovery && core.pending_paged_recovery->plan().snapshot();
 	RecoveryContext paged{*core.factory,
 						  core.account,
 						  core.options.recovery_limits.mapping_account,
 						  core.options.recovery_limits,
-						  core.verified_paged,
+						  snapshot ? decltype(core.verified_paged){} : core.verified_paged,
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};

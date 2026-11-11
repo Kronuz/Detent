@@ -7,7 +7,7 @@ struct PreparedGeneration {
 	ReadView view;
 	Descriptor descriptor;
 	DirectoryIdentity directory_identity;
-	paged::Digest logical;
+	paged::Digest state_commitment;
 };
 class PreparedReader {
   public:

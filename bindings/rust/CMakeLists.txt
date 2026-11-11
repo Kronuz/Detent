@@ -1,4 +1,4 @@
-# Section 5's Rust binding, via the `cxx` crate (see Cargo.toml/build.rs).
+# The Rust binding, via the `cxx` crate (see Cargo.toml/build.rs).
 # Not a CMake-native target: cargo owns this crate's own build graph and
 # compiles its small C++ shim itself (via cxx-build); CMake's role here is
 # just to make sure libdetent.a (and its own sha256/random static libs)

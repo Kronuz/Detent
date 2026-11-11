@@ -1,9 +1,9 @@
-// Section 13 concurrency torture test (Milestone 3 acceptance criteria):
+// Concurrency torture test (Milestone 3 acceptance criteria):
 // many reader threads race one updater swapping SnapshotRef; every read must
 // observe a complete, single-generation snapshot -- never partial, never
 // mixed, never a crash. This exercises SnapshotRef (atomic_shared_ptr)
 // directly rather than through Client, since that is the exact mechanism the
-// spec's Section 3/6/7 pseudocode describes.
+// read path uses.
 //
 // Note: ThreadSanitizer itself was found to segfault unconditionally in this
 // environment (even for a trivial std::thread hello-world with no atomics

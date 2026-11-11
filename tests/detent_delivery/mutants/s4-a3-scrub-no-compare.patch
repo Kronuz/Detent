@@ -1,0 +1,12 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -134,7 +134,7 @@
+ 			continue;
+ 		unsigned char digest[32];
+ 		hash_.getHash(digest);
+-		if (std::memcmp(digest, pack.ownership.checksum.data(), 32) != 0)
++		if (std::memcmp(digest, pack.ownership.checksum.data(), 32) != 0 && false)
+ 			damaged();
+ 		next_pack();
+ 	}

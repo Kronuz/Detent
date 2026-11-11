@@ -261,7 +261,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				borrowed.step(budget);
 			}
 			auto image = borrowed.take();
-			state_check(image.root().logical == paged_image.root().logical);
+			state_check(l::paged::state_commitment(image.root()) == l::paged::state_commitment(paged_image.root()));
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
 			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
 														 limits);
@@ -299,11 +299,12 @@ void run(bool nul_key, unsigned namespace_count) {
 				builder.step(budget);
 			}
 			auto image = builder.take();
+			// A wrong root checksum, then a broken page: the first page of a pack starts at its offset 0, and its
+			// magic is decoded on every walk (an own build's digests are trusted, so a digest flip is the scrub's).
 			if (!corruption)
 				const_cast<l::Descriptor &>(image.descriptor()).checksum[0] ^= 1;
 			else
-				const_cast<char *>(
-					image.segments()[0].bytes->data())[image.segments()[0].bytes->size() - 1] ^= 1;
+				const_cast<char *>(image.segments()[0].bytes->data())[0] ^= 1;
 			const auto before = mappings->used();
 			bool refused = false;
 			try {

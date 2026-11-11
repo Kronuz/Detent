@@ -1,0 +1,12 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 92b94618..d36a89ba 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -957,7 +957,6 @@ task::task<void> Coordinator::Impl::candidate_loop() {
+ 					throw asio::system_error(asio::error::operation_aborted);
+ 				if (diagnostic.repair.pending) {
+ 					// A repair needs a Replace: a session that was not opened for one is closed and reopened.
+-					force_snapshot = true;
+ 					if (session.valid() && !session_forced) {
+ 						co_await release_session(session_source(), session, sources.pooled());
+ 						session = {};

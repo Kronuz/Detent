@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_trie_overlay.cc b/src/detent_local/paged_trie_overlay.cc
+index 19cb7eb..0f2c093 100644
+--- a/src/detent_local/paged_trie_overlay.cc
++++ b/src/detent_local/paged_trie_overlay.cc
+@@ -27,7 +27,7 @@ struct TrieOverlay::Impl {
+ 				return children[index].reference;
+ 			const auto slot = node.slot(index);
+ 			if (slot & 0x8000)
+-				return {p::decode_external(bytes, slot & 0x7fff, limits)};
++				return {p::decode_external(bytes, slot & 0x7fff, p::Limits{})};
+ 			return {old, nullptr, p::NodeAt::child(node, slot)};
+ 		}
+ 	};

@@ -25,12 +25,13 @@ struct SegmentReachability {
 };
 // The owner retains the immutable, identity-sorted registry and segment bytes. A registry whose
 // discovery certified its digests for this root (SegmentRegistry::certify_digests) may be passed as
-// `compared`: segment checksums and page digests are then not recomputed.
+// `compared`: segment checksums and page digests are then not recomputed. `own_build` says the graph is the
+// image this process just built, whose digests the build computed: they are not compared either.
 class GraphValidator {
   public:
 	GraphValidator(std::shared_ptr<distribution::StorageLedger>, std::shared_ptr<const void> owner,
 				   std::span<const SegmentInput>, paged::Root, StorageIdentity, paged::Limits = {},
-				   PagedSemanticLimits = {}, const SegmentRegistry *compared = nullptr);
+				   PagedSemanticLimits = {}, const SegmentRegistry *compared = nullptr, bool own_build = false);
 	~GraphValidator();
 	GraphValidator(GraphValidator &&) noexcept;
 	GraphValidator(const GraphValidator &) = delete;

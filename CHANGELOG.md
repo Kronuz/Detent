@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### detentd readiness
+
+- `detentd --status` and `/v1/health` report `"ready":true` only once the node has a leader: it leads,
+  or it follows a known leader. `detentd --daemonize` waits for that when the node alone is a quorum
+  (the single-voter configuration, the quick-start case), so the first `/v2/open` after it succeeds
+  without a retry and the quick-start no longer loops on it. With a fixed voter set, `--daemonize`
+  returns once the listener is up, as before, and `--status` reports `"ready":false` until a leader
+  exists. A follower stays ready only while it hears from its leader within `election_max` (2 s); a
+  node that loses its leader and its quorum reports `"ready":false` within that window plus a health
+  interval. A `--daemonize` stopped by SIGTERM, or whose runtime fails, during the wait exits non-zero
+  with the cause instead of reporting ready or timing out after 30 s.
+
+### Hash once per tier (namespace S4)
+
+- A tier no longer hashes its own build twice more. The plan builders compared every pack checksum and
+  page digest of the image the encoder had just written, and the recovery after a publication hashed and
+  walked the generation again; both now trust the build (the walk that derives the live counts stays, the
+  digest comparisons go). The recovery opens a freshly published generation through `.read` and `.live`
+  like a restart. Cold bootstrap, 10K knobs: the agent hashes 698,201 bytes of pages and packs, its own
+  build's, instead of 2,094,603; it re-hashes 0 bytes instead of 1,396,402. No format or wire byte changes;
+  frame SHA-256 is unchanged.
+- Hash counters per tier: `paged::built_hash_counts()` and `paged::checked_hash_counts()` (disjoint, each
+  only growing), `distribution::frame_hash_counts()` and
+  `delivery::HashStats`, in `CoordinatorStatus::hash`, the relay's `/v1/health` bundle fields
+  `hash_*_bytes` and the agent's log line after each publication.
+
 ### Trusted restart (namespace S3)
 
 - The agent's cold start no longer hashes or walks the packs. Each paged generation now carries
@@ -16,9 +42,29 @@
 - A paced scrub task hashes the selected generation's packs against their owner records at
   `scrub_bytes_per_second` (managed configuration; default 524,288; 0 disables). A damaged pack
   is reported in the coordinator status, the agent's log and the relay's `/v1/health` bundles
-  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`). Repair is not built.
+  (`scrub_passes`, `scrub_damaged_packs`, `scrub_source_failure`).
 - Removed the coordinator's "republish a missing `.read`" path and `PagedPlanBuilder::Republish`;
   `migrate_flat_head` now acts only on a flat (layout 1) base.
+
+### Repair of a damaged generation (namespace S3b)
+
+- A scrub report of a damaged pack, or a first-touch failure in the update path, makes the
+  coordinator ask upstream for a Replace and publish it as a repair: a fresh generation at the
+  selected cursor or later, built without the equality check (so unchanged content still
+  publishes), recovered without reading the damaged generation, and sharing no pack with it.
+  Reads of the damaged pages fail with `SourceFailure` until it is selected; nothing is fenced.
+  The agent no longer needs a bootstrap to recover from a damaged pack, and a delta that crosses a
+  damaged page no longer fails every round. `CoordinatorStatus::repair` reports `requested`,
+  `completed` and `pending`.
+- The collector removes a pack whose checksum differs from its owner record once no generation
+  reaches it (the owner record, the file's ownership and its identity are still proved); the
+  coordinator asks for a collection when a repair completes.
+- The scrub hashes the pack files (pread, uncached: `F_NOCACHE` on macOS, `posix_fadvise` on
+  Linux) instead of the agent's private mapping, so damage that lands after the packs were mapped
+  is found; a pack that is missing, resized or unreadable is reported too. A mismatch withdraws
+  the pack's verified-page bits, so later reads verify their pages again.
+- The relay's `Bundle` takes a repair at its own cursor (`PublicationSink::selected_repaired`)
+  without rebuilding its cache.
 
 ### Legacy removal (wave 2)
 

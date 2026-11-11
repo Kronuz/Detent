@@ -1,4 +1,4 @@
-// Section 4 schema tests: both example files parse to the expected map,
+// Schema tests: both example files parse to the expected map,
 // every violation in the schema table rejects the whole input, and the merge
 // contract does whole-definition replacement, never field-wise.
 #include <cassert>

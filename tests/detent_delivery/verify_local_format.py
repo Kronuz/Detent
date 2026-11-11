@@ -17,7 +17,7 @@ def main() -> None:
     image = directory / f"generation-{selected[16:32].hex()}.image"
     with image.open("rb") as stream:
         magic = stream.read(8)
-    wanted = b"DTROOT02" if expected == "paged-v2" else b"DTIMAGE1"
+    wanted = b"DTROOT03" if expected == "paged-v2" else b"DTIMAGE1"
     if magic != wanted:
         raise SystemExit(f"selected image format {magic!r}, expected {wanted!r}")
 

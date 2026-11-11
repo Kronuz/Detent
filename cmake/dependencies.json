@@ -176,7 +176,7 @@
   {
     "name": "consensus",
     "repository": "https://github.com/Kronuz/consensus.git",
-    "revision": "ab05507d8c88bb28d650c15dfe11c95e5db0eaf6",
+    "revision": "905823da7ca45f4e1dc9632a707740007ec20452",
     "source_subdir": "."
   },
   {

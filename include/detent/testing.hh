@@ -1,6 +1,6 @@
 #pragma once
 
-// Section 5 "Test-only client": a thread-local in-memory client for tests,
+// Test-only client: a thread-local in-memory client for tests,
 // so test code never depends on a real defaults file, CLI flags, or a live
 // source. Guard-based nesting prevents cross-test leakage (dropping a
 // TestGuard restores whatever thread-local client, if any, was active

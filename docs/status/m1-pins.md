@@ -91,7 +91,7 @@ pin; new is the branch tip (`Detent:9a5a8c3` plus `tools/w5` and docs). Both bui
 **Done**
 
 1. Identity drivers (`tools/w5/`, `Detent:39aa307`, `Detent:781bc01`, `Detent:db68fba`): compressors, http-parser,
-   strict-stox, enum-reflection, random, Detent snapshot JSON and `--just-knob`, distribution frames and local
+   strict-stox, enum-reflection, random, Detent snapshot JSON and `--knob`, distribution frames and local
    images, the logger transcript, a raw HTTP replay of the classic daemon. Results per class in the note; every
    difference has a library commit as its cause.
 2. Hot-path A/B with an A/A control under `quiet exclusive` (read bench, authority update, durable ack, reply

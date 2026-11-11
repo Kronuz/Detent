@@ -105,7 +105,7 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 					} else {
 						return UpdateError{UpdateRejectReason::Schema, "override must be boolean or {rollout_pct: 0..100}: " + name};
 					}
-					// Strict rejection (Section 4): a duplicate override key
+					// Strict rejection: a duplicate override key
 					// within one knob's `overrides` object must reject the
 					// whole input, not silently keep whichever the JSON
 					// parser or this insertion order happened to see last.
@@ -128,7 +128,7 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 				return UpdateError{UpdateRejectReason::Schema, "unknown field '" + key + "' on knob " + name};
 			}
 		}
-		// Strict rejection (Section 4/9): a knob definition missing its
+		// Strict rejection: a knob definition missing its
 		// required "default" must fail the whole update, not silently
 		// substitute the type's zero value (false/0) -- confirmed missing
 		// previously: {"type":"bool"} parsed successfully as default=false.
@@ -209,8 +209,7 @@ SnapResult fail(UpdateRejectReason reason, std::string detail) {
 }
 
 // Minimal RFC 3339 UTC shape check: YYYY-MM-DDTHH:MM:SS(.fff)?Z. Not a full
-// calendar validator; good enough to reject obviously malformed input per
-// Section 4 ("reject if present and invalid").
+// calendar validator; good enough to reject obviously malformed timestamps.
 bool is_iso8601_utc(std::string_view s) {
 	auto digit = [](char c) { return c >= '0' && c <= '9'; };
 	if (s.size() < 20 || s.back() != 'Z') return false;
@@ -267,7 +266,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 
 	for (auto it = doc.MemberBegin(); it != doc.MemberEnd(); ++it) {
 		std::string key(it->name.GetString(), it->name.GetStringLength());
-		// Strict rejection (Section 4): rapidjson's DOM keeps every member
+		// Strict rejection: rapidjson's DOM keeps every member
 		// on a duplicate key, not just the last one; a naive "if/else if"
 		// walk (as this loop already does per-field below) would silently
 		// let the last duplicate win instead of rejecting the whole input.
@@ -321,7 +320,7 @@ SnapResult parse_common(std::string_view json_text, std::string source_id, std::
 	snap.published_at = std::move(published_at);
 	snap.source_id = std::move(source_id);
 
-	// Strict rejection (Section 4): a duplicate knob name must reject the
+	// Strict rejection: a duplicate knob name must reject the
 	// whole input, not silently keep whichever definition this insertion
 	// order happened to see last -- confirmed previously: two "a:b" entries
 	// parsed successfully with the later one winning. Knobs are appended in

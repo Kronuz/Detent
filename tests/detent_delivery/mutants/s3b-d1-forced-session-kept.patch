@@ -1,0 +1,12 @@
+diff --git a/src/detent_delivery/coordinator.cc b/src/detent_delivery/coordinator.cc
+index 6433a42c..103f55c4 100644
+--- a/src/detent_delivery/coordinator.cc
++++ b/src/detent_delivery/coordinator.cc
+@@ -1226,7 +1226,6 @@ task::task<void> Coordinator::Impl::candidate_loop() {
+ 					feedback = offered;
+ 					reconnect.reset();
+ 					// The offer used the session's forced Replace, if any: a later repair reopens the session.
+-					session_forced = false;
+ 					if (offered_snapshot)
+ 						force_snapshot = false;
+ 				} else {

@@ -16,13 +16,13 @@ inline void write(const std::filesystem::path &path, std::span<const char> bytes
 	require(::chmod(path.c_str(), 0600) == 0);
 }
 inline void install(const std::filesystem::path &directory, const l::detail::PagedImage &image,
-					const l::StorageIdentity &storage) {
+					const l::StorageIdentity &storage, l::ViewLimits limits = {}) {
 	std::filesystem::create_directories(directory);
 	require(::chmod(directory.c_str(), 0700) == 0);
 	write(directory / "storage.meta", l::encode_storage_identity(storage));
 	auto name = l::generation_name(image.descriptor().generation);
 	l::GenerationOwnership ownership{storage, image.descriptor().generation, image.descriptor().length,
-									 image.descriptor().checksum, 2};
+									 image.descriptor().checksum, l::paged::format_version};
 	write(directory / (name + ".lease"), l::encode_generation_ownership(ownership));
 	write(directory / (name + ".image"), {image.bytes()->data(), image.bytes()->size()});
 	for (const auto &s : image.segments()) {
@@ -34,7 +34,7 @@ inline void install(const std::filesystem::path &directory, const l::detail::Pag
 	// The agent's cold start requires the records a publication writes; a store that cannot produce them
 	// fails here, naming itself, instead of as an unrelated refusal later.
 	try {
-		trusted_records::derive(directory);
+		trusted_records::derive(directory, limits);
 	} catch (const std::exception &error) {
 		throw std::runtime_error("install: cannot derive the trusted records of " + directory.string() + ": " +
 								 error.what());

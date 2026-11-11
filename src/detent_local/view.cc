@@ -350,17 +350,20 @@ std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_vie
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	std::optional<detail::BorrowedDefinition> definition;
 	try {
-		definition = root_->definition(ns, key);
-	} catch (const detail::ReadSourceFailure &) {
+		const auto definition = root_->definition(ns, key);
+		if (!definition)
+			return {};
+		if (definition->boolean())
+			return error(ErrorCategory::WrongType, key);
+		return definition->default_int();
+	} catch (const std::bad_alloc &) {
+		throw;
+	} catch (const distribution::StoragePressure &) {
+		throw;
+	} catch (const std::exception &) {
 		return error(ErrorCategory::SourceFailure, key);
 	}
-	if (!definition)
-		return {};
-	if (definition->boolean())
-		return error(ErrorCategory::WrongType, key);
-	return definition->default_int();
 }
 Result<bool, KnobError> ReadView::eval(std::string_view ns, std::string_view key,
 									   std::optional<std::string_view> hash,
@@ -377,16 +380,19 @@ ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std:
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
 		return {};
-	std::optional<detail::BorrowedDefinition> definition;
 	try {
-		definition = root_->definition(ns, key);
-	} catch (const detail::ReadSourceFailure &) {
+		const auto definition = root_->definition(ns, key);
+		if (!definition)
+			return {};
+		if (!definition->boolean())
+			return error(ErrorCategory::WrongType, key);
+		return evaluate(*definition, ns, key, hash, switch_value);
+	} catch (const std::bad_alloc &) {
+		throw;
+	} catch (const distribution::StoragePressure &) {
+		throw;
+	} catch (const std::exception &) {
 		return error(ErrorCategory::SourceFailure, key);
 	}
-	if (!definition)
-		return {};
-	if (!definition->boolean())
-		return error(ErrorCategory::WrongType, key);
-	return evaluate(*definition, ns, key, hash, switch_value);
 }
 } // namespace detent::local

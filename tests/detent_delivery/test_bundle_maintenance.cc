@@ -117,7 +117,18 @@ int main() {
 			refused = true;
 		}
 		check(refused);
+		// A repair at the head's own cursor swaps the head and leaves the cache as it was.
+		const auto kept = bundle.offer(cursor()).marker;
+		bundle.selected_repaired(flat);
+		check(bundle.offer(cursor()).marker == kept && bundle.status().gaps == 1 && bundle.status().ready);
 		bundle.fence();
+		refused = false;
+		try {
+			bundle.selected_repaired(paged);
+		} catch (const std::invalid_argument &) {
+			refused = true;
+		}
+		check(refused);
 	}
 	domain.close().wait();
 	check(mappings->used() == 0);

@@ -25,11 +25,19 @@ int main() {
 		builder.step(budget);
 	}
 	auto image = builder.take();
-	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
+	auto parent = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);
-	d::RetirementRuntime runtime(baseline, 1);
-	auto domain = runtime.domain(account, 256);
-	for (unsigned variant = 0; variant < 14; ++variant) {
+	auto runtime = std::make_unique<d::RetirementRuntime>(baseline, 1);
+	std::vector<std::shared_ptr<d::StorageLedger>> accounts;
+	struct Drain {
+		d::RetirementDomain &domain;
+		~Drain() { domain.close().wait(); }
+	};
+	for (unsigned variant = 0; variant < 17; ++variant) {
+		auto account = std::make_shared<d::StorageLedger>(parent, parent->limit());
+		accounts.push_back(account);
+		auto domain = runtime->domain(account, 256);
+		Drain drain{domain};
 		std::filesystem::remove_all(directory);
 		install(directory, image, storage);
 		l::StorageIdentity orphan{};
@@ -37,7 +45,7 @@ int main() {
 		const l::detail::SegmentNames names(orphan);
 		const std::string bytes(257, 'x');
 		const l::SegmentOwnership ownership{storage, orphan, bytes.size(),
-											l::paged::physical_commitment(bytes)};
+											l::paged::pack_commitment(bytes)};
 		write(directory / names.owner_name(), l::encode_segment_ownership(ownership));
 		write(directory / names.payload_name(), bytes);
 		if (variant == 9)
@@ -56,24 +64,23 @@ int main() {
 		if (variant == 11) {
 			l::StorageIdentity bad{};
 			bad.fill('y');
-			const l::detail::SegmentNames broken(bad);
-			write(directory / broken.owner_name(),
+			write(directory / l::detail::SegmentNames(bad).owner_name(),
 				  l::encode_segment_ownership(
-					  {storage, bad, bytes.size(), l::paged::physical_commitment(bytes)}));
+					  {storage, bad, bytes.size(), l::paged::pack_commitment(bytes)}));
 			auto corrupt = bytes;
 			corrupt.back() ^= 1;
-			write(directory / broken.payload_name(), corrupt);
+			write(directory / l::detail::SegmentNames(bad).payload_name(), corrupt);
 		}
 		if (variant == 13) {
 			auto root = image.root();
 			++root.cursor.revision;
-			const auto encoded = l::paged::encode_root(root);
+			const auto encoded = l::paged::encode_root(root, l::paged::Limits{});
 			l::GenerationId historical{};
 			historical.fill('h');
 			write(directory / (l::generation_name(historical) + ".image"), encoded);
 			write(directory / (l::generation_name(historical) + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, historical, encoded.size(), l::paged::physical_commitment(encoded), 2}));
+					  {storage, historical, encoded.size(), l::paged::metadata_commitment(encoded), l::paged::format_version}));
 		}
 		if (variant == 8) {
 			l::GenerationId abandoned{};
@@ -118,6 +125,21 @@ int main() {
 			corrupt[56] ^= 1;
 			write(directory / (l::generation_name(generation) + ".image"), corrupt);
 		}
+		if (variant >= 14) {
+			const auto &segment = image.segments().front();
+			auto corrupt = std::string(segment.bytes->view());
+			corrupt.back() ^= 1;
+			write(directory / l::detail::SegmentNames(segment.ownership.segment).payload_name(), corrupt);
+			const auto live = directory / (l::generation_name(generation) + ".live");
+			if (variant == 15)
+				require(std::filesystem::remove(live));
+			if (variant == 16) {
+				std::ifstream input(live, std::ios::binary);
+				std::vector<char> record{std::istreambuf_iterator<char>(input), {}};
+				record.back() ^= 1;
+				write(live, record);
+			}
+		}
 		l::detail::PagedSegmentCollection collector(domain.factory(), core);
 		std::optional<d::StorageLedger::Ticket> pressure;
 		bool observed_pack = false, pressured = false;
@@ -135,8 +157,8 @@ int main() {
 				}
 				if (collector.needs_work()) {
 					if (variant == 13 && attempt == 0 && observed_pack && !pressured) {
-						// Spare room for the retry's own retirement lag; attempt 0 needs ~48 KiB more.
-						constexpr std::size_t spare = 16 * 1024;
+						// Dense retry needs one page of headroom after certificate retirement.
+						constexpr std::size_t spare = l::paged::page_bytes;
 						pressure.emplace(account->admit(account->limit() - account->used() - spare));
 						pressured = true;
 					}
@@ -187,6 +209,10 @@ int main() {
 			if (variant == 13 && attempt == 0) {
 				require(pressured && collector.error() && !core->ledger.stats().fenced &&
 						core->ledger.stats().used == usage);
+				try {
+					std::rethrow_exception(collector.error());
+				} catch (const d::StoragePressure &) {
+				}
 				require(std::all_of(core->certificates.begin(), core->certificates.end(),
 									[](const auto &entry) { return !entry; }));
 				const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -205,16 +231,31 @@ int main() {
 			} else if (variant >= 4 && variant < 8) {
 				require(injected && collector.error() == failure && core->ledger.stats().used == usage);
 				require(core->ledger.stats().fenced == (variant != 7));
-			} else if (variant == 2) {
+			} else if (variant == 2 || variant >= 15) {
 				require(bool(collector.error()) &&
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);
 			} else {
-				require(!collector.error() && !std::filesystem::exists(directory / names.payload_name()) &&
+				if (collector.error() && variant != 14) {
+					try { std::rethrow_exception(collector.error()); }
+					catch (const std::exception &error) {
+						throw std::runtime_error("collector variant " + std::to_string(variant) + ": " + error.what());
+					}
+				}
+				require(bool(collector.error()) == (variant == 14) && !std::filesystem::exists(directory / names.payload_name()) &&
 						!std::filesystem::exists(directory / names.owner_name()));
+				// A pack whose checksum differs from its owner record is ours and unreachable: it goes too.
+				const std::size_t packs = variant == 11 ? 2 : 1;
+				if (variant == 11) {
+					l::StorageIdentity bad{};
+					bad.fill('y');
+					require(!std::filesystem::exists(directory / l::detail::SegmentNames(bad).payload_name()) &&
+							!std::filesystem::exists(directory / l::detail::SegmentNames(bad).owner_name()));
+				}
 				require(core->ledger.stats().used.bytes ==
-							usage.bytes - (variant == 9 ? 0 : bytes.size()) - l::segment_ownership_bytes &&
-						core->ledger.stats().used.entries == usage.entries - (variant == 9 ? 1 : 2));
+							usage.bytes - (variant == 9 ? 0 : bytes.size()) * packs -
+								l::segment_ownership_bytes * packs &&
+						core->ledger.stats().used.entries == usage.entries - (variant == 9 ? 1 : 2 * packs));
 			}
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames protected_names(segment.ownership.segment);
@@ -223,5 +264,8 @@ int main() {
 			require(!core->controls->active());
 		}
 	}
-	domain.close().wait();
+	runtime.reset();
+	require(parent->used() == 0 && baseline->used() == 0);
+	for (const auto &account : accounts)
+		require(account->used() == 0);
 }

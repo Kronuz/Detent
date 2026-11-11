@@ -29,7 +29,7 @@ Ship a defaults file alongside your binary. It's the configuration your process
 starts with before any live data arrives, and the fallback for any knob the
 live snapshot omits:
 
-```json title="just_knobs.json"
+```json title="defaults.json"
 {
   "schema_version": 1,
   "knobs": {
@@ -52,7 +52,7 @@ default in the same change is what makes a missing knob impossible.
 #include "detent/client.hh"
 
 detent::InitOptions opts;
-opts.defaults_path = "/etc/myapp/just_knobs.json";
+opts.defaults_path = "/etc/myapp/defaults.json";
 
 detent::Client client(std::move(opts));
 ```
@@ -182,7 +182,7 @@ the last successful update, measured on a monotonic clock. See
 
 int main() {
     detent::InitOptions opts;
-    opts.defaults_path = "just_knobs.json";
+    opts.defaults_path = "defaults.json";
     detent::Client client(std::move(opts));
 
     std::printf("search:max_results = %lld\n",

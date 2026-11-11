@@ -2,18 +2,19 @@
 #include "paged_contextual_reuse.hh"
 #include "paged_cursor.hh"
 namespace detent::local::detail {
-// Graph validity reuses actual-base proofs; durable dependency checks remain separate.
+// Graph validity reuses actual-base proofs; durable dependency checks remain separate. `own_build` says the
+// new segments are the ones this process just built, whose digests the build computed: they are not compared.
 class WarmGraphValidator {
   public:
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>, const RecoveredGeneration &,
 					   std::shared_ptr<const void> new_segments_owner,
 					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {});
+					   PagedSemanticLimits = {}, bool own_build = false);
 	WarmGraphValidator(std::shared_ptr<distribution::StorageLedger>,
 					   distribution::RetirementHandle<LeasedPagedRoot>,
 					   std::shared_ptr<const void> new_segments_owner,
 					   std::span<const SegmentInput> new_segments, paged::Root, paged::Limits = {},
-					   PagedSemanticLimits = {});
+					   PagedSemanticLimits = {}, bool own_build = false);
 	~WarmGraphValidator();
 	WarmGraphValidator(WarmGraphValidator &&) noexcept;
 	WarmGraphValidator(const WarmGraphValidator &) = delete;

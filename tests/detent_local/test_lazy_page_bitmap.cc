@@ -103,10 +103,9 @@ struct Rendezvous {
 
 void stress() {
 	constexpr unsigned namespaces = 26;
-	Harness harness(std::make_shared<Fixture>(namespaces));
+	Harness harness(std::make_shared<Fixture>(namespaces, 128, true));
 	const auto &access = *harness.access;
-	auto references = harness.fixture->definitions;
-	references.push_back(harness.fixture->root.tree);
+	auto references = harness.fixture->page_references;
 	std::vector<std::atomic<const char *>> seen(references.size());
 	auto round = [&](unsigned t, unsigned repetitions) {
 		std::mt19937 random(t * 7919 + repetitions);
@@ -144,20 +143,20 @@ void stress() {
 		}
 	}
 	const auto pages = serial.access->page_verifications();
-	check(pages > namespaces + 2 && serial.access->mapped_segments() == namespaces + 1);
-	check(access.mapped_segments() == namespaces + 1);
+	check(pages == serial.fixture->root.pages && serial.access->mapped_segments() == serial.fixture->segments.size());
+	check(access.mapped_segments() == harness.fixture->segments.size());
 	const auto first = access.page_verifications();
 	check(first >= pages && first <= pages * threads);
 	std::printf("stress: %llu verifications for %llu pages (%llu concurrent duplicates)\n",
 	            (unsigned long long)first, (unsigned long long)pages, (unsigned long long)(first - pages));
 	parallel(threads, [&](unsigned t) { round(t + threads, 64); });
 	check(access.page_verifications() == first);
-	check(access.mapped_segments() == namespaces + 1);
+	check(access.mapped_segments() == harness.fixture->segments.size());
 	check(access.available());
 }
 
 void publish_window() {
-	Harness harness(std::make_shared<Fixture>());
+	Harness harness(std::make_shared<Fixture>(2, 128, true));
 	Rendezvous meet{x::LazyPageWindow::Publish};
 	x::LazyPageTesting::install(&Rendezvous::hook, &meet);
 	const auto reference = harness.fixture->definitions[0];
@@ -171,8 +170,8 @@ void publish_window() {
 }
 
 void mark_window() {
-	Harness harness(std::make_shared<Fixture>());
-	const auto reference = harness.fixture->definitions[0];
+	Harness harness(std::make_shared<Fixture>(2, 256));
+	const auto reference = p::decode_external(harness.expected(harness.fixture->root.tree), 0, p::Limits{});
 	auto neighbour = harness.fixture->root.tree;
 	harness.access->resolve(neighbour);
 	check(harness.access->page_verifications() == 1);
@@ -204,23 +203,20 @@ struct Parked {
 // A segment published between a thread's miss and its admission check is not a new segment, even
 // when the counts it reads have reached the pack count (variant 0) or the mapped-bytes cap (1).
 void raced_admission(unsigned variant) {
-	auto fixture = std::make_shared<Fixture>(3);
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	auto limits = Harness::big();
-	// The late thread misses the index segment; the main thread publishes it with two others.
-	const auto target = fixture->root.tree;
-	std::vector<p::Reference> published{target, fixture->definitions[0], fixture->definitions[1]};
+	// The late thread misses a namespace pack; the main thread publishes it with two others.
+	const auto target = fixture->definitions[1];
+	std::vector<p::Reference> published{target, fixture->root.tree, fixture->definitions[0]};
 	if (variant) {
-		// A cap one byte short of every segment: the late thread's recount of the index exceeds it.
+		// A cap one byte short of every segment: the late thread's recount of the namespace pack exceeds it.
 		limits.bytes = fixture->physical_bytes - 1;
 		const auto size = [&](const p::Reference &reference) {
 			return std::ranges::find_if(fixture->segments, [&](const auto &segment) {
 				return segment.ownership.segment == reference.segment;
 			})->bytes.size();
 		};
-		if (size(target) < size(fixture->definitions[2])) {
-			std::puts("raced admission at the cap: not reached (the index is the smaller segment)");
-			return;
-		}
+		check(size(target) >= size(fixture->definitions[2]));
 	} else {
 		published.push_back(fixture->definitions[2]);
 	}
@@ -250,7 +246,7 @@ void raced_admission(unsigned variant) {
 
 // A page whose only damage is its header's logical digest: framing and body decode, the hash does not.
 void corrupt_first_touch() {
-	auto fixture = std::make_shared<Fixture>(3);
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	const auto target = fixture->definitions[1];
 	const x::SegmentNames names(target.segment);
 	const auto path = fixture->path / names.payload.data();
@@ -280,7 +276,7 @@ void corrupt_first_touch() {
 		check(state.definition("a", "k")->default_int() == 42);
 		bool caught = false;
 		try {
-			state.definition("b", "k");
+			state.definition("b", "k100001");
 		} catch (const x::ReadSourceFailure &) {
 			caught = true;
 		}
@@ -297,13 +293,9 @@ std::vector<p::Reference> all_pages(const Fixture &fixture) {
 			if (segment.ownership.segment != reference.segment)
 				continue;
 			const auto bytes = segment.bytes.subspan(reference.offset, reference.length);
-			const auto header = p::decode_page_header(bytes);
-			if (header.kind == p::PageKind::Branch)
-				for (unsigned i = 0; i != header.children; ++i)
-					self(p::decode_child(bytes.subspan(p::page_header_bytes + header.prefix + i * p::child_bytes,
-					                                   p::child_bytes))
-					         .reference,
-					     self);
+			const auto header = p::decode_page_header(bytes, p::Limits{});
+			for (unsigned i = 0; i != header.externals; ++i)
+				self(p::decode_external(bytes, i, p::Limits{}), self);
 		}
 	};
 	walk(fixture.root.tree, walk);
@@ -322,7 +314,7 @@ void flip(const Fixture &fixture, const p::Reference &reference, std::size_t at)
 // A damaged page whose segment neighbours are already verified is still refused on first touch,
 // damaged at its first byte, its logical digest, its last header byte and its last body byte.
 void neighbour_corruption() {
-	auto fixture = std::make_shared<Fixture>(5);
+	auto fixture = std::make_shared<Fixture>(5, 128, true);
 	const auto pages = all_pages(*fixture);
 	unsigned cases = 0;
 	for (const auto &target : pages)
@@ -348,18 +340,18 @@ void neighbour_corruption() {
 }
 // A forged physical digest on a never-verified page is refused and fails the generation.
 void forged_unverified() {
-	auto fixture = std::make_shared<Fixture>(3);
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	Harness harness(fixture);
 	check(!harness.access->resolve(fixture->definitions[0]).empty());
 	auto forged = fixture->definitions[2];
-	forged.physical[0] ^= 1;
+	forged.digest[0] ^= 1;
 	check(refused(*harness.access, forged));
 	check(!harness.access->available());
 }
 
 // A miss at the mapped-bytes cap throws and fails the generation, as before D3.
 void cap_miss() {
-	auto fixture = std::make_shared<Fixture>(3);
+	auto fixture = std::make_shared<Fixture>(3, 128, true);
 	auto limits = Harness::big();
 	limits.bytes = fixture->physical_bytes - 1;
 	Harness harness(fixture, limits);

@@ -113,23 +113,17 @@ api() {
     -H "Authorization: Bearer $WRITER_TOKEN" -H 'Content-Type: application/json' \
     --data "{$IDENTITY,$2}" "https://localhost:8317/v2/$1"
 }
-until api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'; do sleep 1; done
+api open '"expected_generation":0,"nonce":"00000000000000000000000000000001"'
 ```
 
 <!-- e2e:begin
 stdout-matches: ^\{"authority":\{.*\},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0\}$
 e2e:end -->
 
-`--daemonize` returns once the authority listens, and the single voter elects
-itself leader shortly after. Until then the open returns `outcome_unknown`, and
-the loop retries the same request; the nonce marks each retry as the same open.
-A start looks like this, with the identity elided:
+`--daemonize` returns once the authority has a leader, so the open succeeds on
+its first attempt. The reply looks like this, with the identity elided:
 
 ```text
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
-curl: (22) The requested URL returned error: 503
-{"authority":{...},"error":"outcome_unknown"}
 {"authority":{...},"status":"applied","revision":0,"namespace_revision":0,"generation":1,"sequence":0}
 ```
 

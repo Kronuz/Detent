@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/disk_store.cc b/src/detent_local/disk_store.cc
+index ba8a1c18..d53ef8c7 100644
+--- a/src/detent_local/disk_store.cc
++++ b/src/detent_local/disk_store.cc
+@@ -1575,7 +1575,7 @@ void DiskStore::advance() {
+ 		impl_->segment_collection_settled = true;
+ 		impl_->terminal_collection_error = impl_->segments->error();
+ 		if (impl_->segments->deferred()) {
+-			impl_->collection_retry = std::chrono::steady_clock::now() + impl_->collection_backoff;
++			impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+ 			impl_->collection_backoff = std::min(impl_->collection_backoff * 2, std::chrono::seconds(30));
+ 		} else {
+ 			impl_->collection_retry = std::chrono::steady_clock::time_point::max();

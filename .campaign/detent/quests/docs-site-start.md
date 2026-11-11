@@ -32,3 +32,4 @@ D43, D44, D46, D52. The owner reads each area before it lands (D52).
 ## May land early
 
 None: the owner reads the whole area first.
+- From docs-e2e: the splash home renders no `#_top` (`website/src/components/PageTitle.astro`), which is listed in `tests/docs/link_exceptions.txt`; fix it and drop the exception.

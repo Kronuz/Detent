@@ -1,0 +1,12 @@
+diff --git a/src/detent_local/generation.cc b/src/detent_local/generation.cc
+--- a/src/detent_local/generation.cc
++++ b/src/detent_local/generation.cc
+@@ -381,7 +381,7 @@
+ 				// A generation with a live record is trusted: a cold start trusts what its build verified, and
+ 				// the recovery after this process's own publication trusts the build it just ran.
+ 				std::optional<detail::TrustedGeneration> trusted;
+-				if (context.trusted_start && !progress)
++				if (context.trusted_start && !context.admission && !prior)
+ 					trusted = detail::TrustedRestart::open(
+ 						dir->fd, directory_info.st_uid, descriptor, root, storage, bounds, limits, factory, account,
+ 						mapping_account, context.metrics.get(),

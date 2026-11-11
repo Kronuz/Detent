@@ -47,16 +47,26 @@ void PagedSegmentMarks::begin(distribution::RetirementHandle<PagedDependencyCert
 	row_ = probes_ = 0;
 	positioned_ = false;
 }
-bool PagedSegmentMarks::busy() const noexcept { return bool(certificate_); }
+void PagedSegmentMarks::begin_conservative(std::span<const LiveRow> rows) {
+	if (sealed_ || failed_ || busy())
+		throw std::logic_error("paged marking unavailable");
+	conservative_ = rows;
+	conservative_active_ = true;
+	row_ = probes_ = 0;
+	positioned_ = false;
+}
+bool PagedSegmentMarks::busy() const noexcept { return bool(certificate_) || conservative_active_; }
 void PagedSegmentMarks::step(ValidationBudget &budget) {
 	if (sealed_ || failed_)
 		throw std::logic_error("paged marking unavailable");
-	if (!certificate_)
+	if (!busy())
 		return;
 	try {
-		const auto rows = certificate_->dependencies();
-		while (row_ < rows.size()) {
-			const auto &row = rows[row_];
+		const auto rows = certificate_ ? certificate_->dependencies() : std::span<const SegmentOwnership>{};
+		const auto count = conservative_active_ ? conservative_.size() : rows.size();
+		while (row_ < count) {
+			const auto row = conservative_active_ ? SegmentOwnership{storage_, conservative_[row_].segment,
+				conservative_[row_].length, conservative_[row_].checksum} : rows[row_];
 			if (!positioned_) {
 				if (!admit(budget))
 					return;
@@ -85,6 +95,8 @@ void PagedSegmentMarks::step(ValidationBudget &budget) {
 			positioned_ = false;
 		}
 		certificate_.reset();
+		conservative_ = {};
+		conservative_active_ = false;
 	} catch (...) {
 		failed_ = true;
 		throw;
