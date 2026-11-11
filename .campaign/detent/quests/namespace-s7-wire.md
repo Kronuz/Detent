@@ -17,6 +17,7 @@ job can show it.
 - A1 A real agent run (authority, relay, agent) publishes and serves generations from the store; the readers' answers equal the authority's: the suite
 - A2 A power cut at every storage primitive of the agent's publish path leaves a store that recovers to the last acknowledged generation or the one before, never a mix: the crash model job
 - A3 The agent's old layout code is deleted; nothing outside agent_store writes the agent directory: the suite plus a grep job
+- A5 Catch-up (ring entries, a trimmed block, a base) runs on an opened AgentStore recovered from a mid-publish cut and reaches the full copy's commitment (namespace-s7 durability F3): the suite
 - A4 [artifact] How the agent's publish path uses the store: `docs/status/namespace-s7.md`: "## Wiring"
 
 ## Contracts
