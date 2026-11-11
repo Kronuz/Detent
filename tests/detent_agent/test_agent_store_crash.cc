@@ -4,6 +4,7 @@
 // restart then publishes again and is cut at every step. Each recovered store must open, reach only
 // files that exist and verify, never revert a table it served, and publish again (no wedge).
 #include "agent_store_fixture.hh"
+#include <chrono>
 #include <cstdio>
 #include <fcntl.h>
 #include <map>
@@ -193,34 +194,6 @@ void publish(l::AgentStore &store, const Cycle &cycle, Lineage &lineage) {
 	lineage.tables.push_back(store.table());
 }
 // Opens a recovered directory and checks T7's invariant, then (optionally) publishes `cycle` again.
-// `corrupt` names the namespaces a run starts with failed (D10), until it republishes them.
-std::set<std::string> g_corrupt;
-void recovered(const std::filesystem::path &root, const Disk &disk, const Cycle *cycle, Lineage lineage,
-			   const std::string &where) {
-	++counts.cases;
-	try {
-		l::AgentStore store(unrecorded(root), {profile});
-		const auto table = store.table();
-		auto trusted = table;
-		std::erase_if(trusted.entries, [&](const l::TableEntry &entry) {
-			return std::find(store.failed().begin(), store.failed().end(), entry.name) != store.failed().end();
-		});
-		for (const auto &name : store.failed())
-			check(g_corrupt.contains(name));
-		check(table_verifies(root, trusted));
-		check(table.sequence >= disk.served && lineage.known(table));
-		for (const auto &name : listing(root))
-			check(!name.starts_with(".tmp-"));
-		if (cycle) {
-			publish(store, *cycle, lineage);
-			++counts.republished;
-			check(store.failed().empty() && table_verifies(root, store.table()) &&
-				  store.table().sequence == table.sequence + 1);
-		}
-	} catch (const std::exception &error) {
-		throw std::runtime_error(where + ": " + error.what());
-	}
-}
 std::string fingerprint(const std::map<std::string, std::string> &files) {
 	std::string out;
 	for (const auto &[name, bytes] : files) {
@@ -230,6 +203,47 @@ std::string fingerprint(const std::map<std::string, std::string> &files) {
 		out.append(name).append(sum.data(), sum.size());
 	}
 	return out;
+}
+
+// `corrupt` names the namespaces a run starts with failed (D10), until it republishes them.
+std::set<std::string> g_corrupt;
+// What a recovery of the same files (and the same republication) yields: the table it opened. Cuts
+// of different runs that leave the same files recover the same way, so each is opened once.
+std::map<std::string, l::StoreTable> g_outcomes;
+// A power cut left `files`: the store opens, reaches only files that exist and verify, has not reverted
+// the table it served (`served`), and, given `cycle`, publishes it again.
+void recovered(const std::filesystem::path &root, const std::map<std::string, std::string> &files,
+			   std::uint64_t served, const Cycle *cycle, Lineage lineage, const std::string &where) {
+	++counts.cases;
+	try {
+		const auto key = fingerprint(files) + (cycle ? "|" + cycle->label : "");
+		auto found = g_outcomes.find(key);
+		if (found == g_outcomes.end()) {
+			++counts.distinct;
+			materialize(root, files);
+			l::AgentStore store(unrecorded(root), {profile});
+			const auto opened = store.table();
+			auto trusted = opened;
+			std::erase_if(trusted.entries, [&](const l::TableEntry &entry) {
+				return std::find(store.failed().begin(), store.failed().end(), entry.name) != store.failed().end();
+			});
+			for (const auto &name : store.failed())
+				check(g_corrupt.contains(name));
+			check(table_verifies(root, trusted));
+			for (const auto &name : listing(root))
+				check(!name.starts_with(".tmp-"));
+			if (cycle) {
+				publish(store, *cycle, lineage);
+				++counts.republished;
+				check(store.failed().empty() && table_verifies(root, store.table()) &&
+					  store.table().sequence == opened.sequence + 1);
+			}
+			found = g_outcomes.emplace(key, opened).first;
+		}
+		check(found->second.sequence >= served && lineage.known(found->second));
+	} catch (const std::exception &error) {
+		throw std::runtime_error(where + ": " + error.what());
+	}
 }
 
 struct Run {
@@ -308,6 +322,21 @@ void materialize_live(const std::filesystem::path &root, Disk &disk) {
 	}
 }
 
+// A disk's state up to `.tmp-` names, which startup removes unread.
+std::string disk_key(const Disk &disk) {
+	std::map<std::string, std::string> live, staged, durable;
+	for (const auto &[name, entry] : disk.live)
+		live[name] = entry.second;
+	for (const auto &[name, id] : disk.staged)
+		staged[name] = disk.inodes[id].staged;
+	for (const auto &[name, id] : disk.durable)
+		durable[name] = disk.inodes[id].durable;
+	std::map<std::string, std::string> inodes; // bytes staged or durable per live name
+	for (const auto &[name, entry] : disk.live)
+		inodes[name] = disk.inodes[entry.first].staged + "|" + disk.inodes[entry.first].durable;
+	return "kill#" + fingerprint(live) + "#" + fingerprint(staged) + "#" + fingerprint(durable) + "#" +
+		   fingerprint(inodes) + (disk.directory_staged ? "#s" : "#");
+}
 // Power cuts after every event of `run`; for each distinct cut, optionally a recovery that publishes
 // `again`, recorded and cut in turn.
 void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &again, bool nested,
@@ -317,14 +346,11 @@ void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &a
 		for (auto entries : {Entries::Durable, Entries::All})
 			for (auto data : {Data::Truncate, Data::Zeros}) {
 				const auto files = after_power_cut(run.events[i], entries, data);
-				if (!seen.insert(fingerprint(files)).second)
-					continue;
-				++counts.distinct;
+				const bool first = seen.insert(fingerprint(files)).second;
 				const auto where = name + " power cut after event " + std::to_string(i) + " (" + run.labels[i] + ")";
 				const auto root = scratch / "cut";
-				materialize(root, files);
-				recovered(root, run.events[i], &again, run.lineage, where);
-				if (!nested)
+				recovered(root, files, run.events[i].served, &again, run.lineage, where);
+				if (!nested || !first)
 					continue;
 				// Restart then republish over the reused names, cut at every step.
 				materialize(root, files);
@@ -341,13 +367,12 @@ void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &a
 				for (std::size_t j = 0; j < inner.events.size(); ++j)
 					for (auto inner_entries : {Entries::Durable, Entries::All}) {
 						const auto cut = after_power_cut(inner.events[j], inner_entries, Data::Zeros);
-						materialize(scratch / "inner", cut);
-						recovered(scratch / "inner", inner.events[j], nullptr, inner.lineage,
+						recovered(scratch / "inner", cut, inner.events[j].served, nullptr, inner.lineage,
 								  where + ", restart, power cut after event " + std::to_string(j) + " (" +
 									  inner.labels[j] + ")");
 					}
 			}
-		if (!nested)
+		if (!nested || !seen.insert(disk_key(run.events[i])).second)
 			continue;
 		// A process kill here, then a restart that publishes `again`, cut at every step (D11's startup
 		// barrier syncs no file: an unsynced table renamed before the kill would surface here, N6).
@@ -358,8 +383,7 @@ void matrix(const std::filesystem::path &scratch, const Run &run, const Cycle &a
 		for (std::size_t j = 0; j < inner.events.size(); ++j)
 			for (auto entries : {Entries::Durable, Entries::All}) {
 				const auto cut = after_power_cut(inner.events[j], entries, Data::Zeros);
-				materialize(scratch / "inner", cut);
-				recovered(scratch / "inner", inner.events[j], nullptr, inner.lineage,
+				recovered(scratch / "inner", cut, inner.events[j].served, nullptr, inner.lineage,
 						  name + " kill after event " + std::to_string(i) + " (" + run.labels[i] +
 							  "), restart, power cut after event " + std::to_string(j) + " (" + inner.labels[j] + ")");
 			}
@@ -405,9 +429,16 @@ int main(int argc, char **argv) {
 		// 1. The first publication into a new store, then republishing the same and a rebuilt input.
 		prepare(root);
 		const auto run1 = record_run(root, {}, std::span(&first, 1), {});
+		const auto started = std::chrono::steady_clock::now();
+		auto progress = [&](const char *what, std::size_t events) {
+			std::fprintf(stderr, "%s: %zu events, %zu cases, %zu distinct, %.1f s\n", what, events, counts.cases,
+						 counts.distinct,
+						 std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count());
+		};
 		matrix(scratch, run1, first, true, "first");
+		progress("first", run1.events.size());
 		matrix(scratch, run1, other, true, "first, rebuilt");
-		std::fprintf(stderr, "first: %zu events\n", run1.events.size());
+		progress("first, rebuilt", run1.events.size());
 
 		// 2. A catch-up cycle on a published store.
 		prepare(root);
@@ -425,7 +456,7 @@ int main(int argc, char **argv) {
 			write_file(root / name, entry.second);
 		const auto run2 = record_run(root, start, std::span(&next, 1), base.lineage);
 		matrix(scratch, run2, next, true, "catch-up");
-		std::fprintf(stderr, "catch-up: %zu events\n", run2.events.size());
+		progress("catch-up", run2.events.size());
 
 		// 3. A repair: alpha's reached `.read` is corrupt, so the store fails alpha and the cycle
 		// republishes it at the next ordinal.
@@ -452,7 +483,7 @@ int main(int argc, char **argv) {
 		g_corrupt = {"alpha"};
 		matrix(scratch, run3, repair, true, "repair");
 		g_corrupt.clear();
-		std::fprintf(stderr, "repair: %zu events\n", run3.events.size());
+		progress("repair", run3.events.size());
 	} catch (const std::exception &error) {
 		std::fprintf(stderr, "test_agent_store_crash: %s\n", error.what());
 		return 1;
