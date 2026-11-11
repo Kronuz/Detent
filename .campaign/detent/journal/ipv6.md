@@ -1,6 +1,6 @@
 # ipv6: journal
 
-State: waiting on jobs 261111-135949-b282c6
+State: waiting on jobs 261111-141907-7e3db2
 Quest: .campaign/detent/quests/ipv6.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Suite job 261111-135949-b282c6 (A1,A2,A5) at the tests commit; check test_system_managed_relay_ipv6 and test_system_dual_stack ran (not skipped).
+Full suite 261111-135949-b282c6: all passed except test_system_dual_stack (daemon exited at startup; log now printed on failure). test_system_managed_relay_ipv6 RAN and passed (A1). Rerun of dual_stack+dns_voters: 261111-141907-7e3db2.
 
 ## Next
 
