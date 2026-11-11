@@ -1953,6 +1953,8 @@
     "drop-justknobs": {
       "accepted": {},
       "after": [],
+      "base": "f7145e0be810d0ca4ba4a1308ff1bf156da81515",
+      "branch": "quest/detent/drop-justknobs",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1988,9 +1990,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T10:47:47"
+      "updated": "2026-11-11T10:47:51",
+      "worktree": "../Detent-wt/detent/drop-justknobs"
     },
     "fixture-500k": {
       "accepted": {},
