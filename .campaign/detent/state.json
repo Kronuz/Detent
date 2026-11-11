@@ -2256,7 +2256,8 @@
     "ipv6": {
       "accepted": {},
       "after": [
-        "dns-voters"
+        "dns-voters",
+        "consensus-dual-stack"
       ],
       "checks": [
         {
@@ -2291,7 +2292,7 @@
       "risk": "low",
       "status": "planned",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T05:11:34"
+      "updated": "2026-11-11T09:36:20"
     },
     "legacy-h": {
       "accepted": {},
