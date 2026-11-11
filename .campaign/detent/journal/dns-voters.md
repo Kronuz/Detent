@@ -1,6 +1,6 @@
 # dns-voters: journal
 
-State: waiting on jobs 261111-093342-409257
+State: waiting on jobs 261111-093342-409257 261111-094140-b0368d 261111-094120-885cae 261111-094123-fd5f1c 261111-094126-27f3ad
 Quest: .campaign/detent/quests/dns-voters.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -15,9 +15,8 @@ unresolvable (A2). (Job 261111-092711-ae41c4 cancelled: lead ruling D63 changed 
 
 ## Next
 
-1. Read the job; fix failures.
-2. Mutant jobs (--fails-without) for A2 (resolve at parse) and A3 (drop validation), then the full suite via `campaign verify`.
-3. Paste brief's Evidence table; Result; State ready for review.
+Jobs at 55a4ade1 (code): targeted tests 261111-093342-409257 (A1-A3); mutants (--fails-without, restore service.cc by trap): A2 resolve-at-parse 261111-094140-b0368d, A1 IP-only host 261111-094120-885cae, A3 no validation 261111-094123-fd5f1c; suite 261111-094126-27f3ad (`campaign verify`). Branch pushed for CI.
+1. When they finish: paste `campaign brief` Evidence table, write Result (name the v6_only probe-and-fallback limit and consensus-dual-stack), State ready for review.
 
 ## Blocked on
 
