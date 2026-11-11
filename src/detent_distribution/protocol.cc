@@ -97,9 +97,9 @@ struct DefinitionDecoder {
 	std::uint64_t &declared_strings;
 	std::uint64_t &seen_strings;
 	WireDefinition definition;
-	bool percentage = false;
 	PagedStorage &arena;
 	StableRows<OverrideRow> &overrides;
+	bool percentage = false;
 	std::uint64_t override_begin = 0;
 	std::string_view switch_key;
 	std::uint64_t remaining_overrides = 0, override_tag = 0, definition_bytes = 0;
