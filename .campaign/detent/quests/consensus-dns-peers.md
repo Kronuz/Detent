@@ -25,6 +25,10 @@ literals never touch the resolver.
 - A3 DNS outage: lookups failing (NXDOMAIN, SERVFAIL, timeout) after the cluster formed keep every
   connection and redial at cached addresses; at startup with no cached address the peer retries
   with backoff while the remaining voters form quorum: a test.
+- A6 A name with several addresses (A and AAAA) dials them in turn, IPv6 and IPv4 interleaved, each
+  attempt bounded and the next started after a short stagger (RFC 8305 style), so an address with
+  no route costs one stagger, not a full connect deadline; the cache keeps the whole set: a test
+  with an unroutable first address.
 - A4 A name resolving to another node's address is refused by the certificate pin, and the attempt
   retries without crashing or wedging: a test.
 - A5 [artifact] `docs/mechanisms/peer-dns.md`: how resolution, the deadline, the cache and the
