@@ -4545,10 +4545,50 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T03:22:37",
+          "commit": "8ee6107e855bd0b109aed4313c99e35060a2fed0",
+          "criteria": {
+            "A1": "261111-021846-f70216, 261111-021846-db2959",
+            "A2": "261111-021846-f70216, 261111-021846-db2959; fails without: 261111-021853-b98c22",
+            "A3": "261111-021847-4e419d; fails without: 261111-014006-0f1d84, 261111-014010-7d7284, 261111-021849-6ce213, 261111-021851-2e1cef",
+            "A4": "261111-021846-f70216, 261111-021846-db2959"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "abe2b1ab91aba591622b332ab387927920af8258",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-021846-f70216",
+              "level": "light",
+              "seconds": 574.9,
+              "state": "done",
+              "what": "namespace-s7 check native at abe2b1ab91ab"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "abe2b1ab91aba591622b332ab387927920af8258",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-021846-db2959",
+              "level": "none",
+              "seconds": 4.6,
+              "state": "done",
+              "what": "namespace-s7 check pins at abe2b1ab91ab"
+            }
+          ],
+          "final": true,
+          "from": "fce8261e70236f206843b6946044381cd41a3b81",
+          "reason": "",
+          "tested": "f2cc2f5aa0932248fff5bbc69552abd3d0af4154"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "dense-pages"
@@ -4559,9 +4599,9 @@
       "reason": "D58: S7 lands the agent store as a module behind its tests, using nothing from S6; the order on S6 moves to namespace-s7-wire, which wires the agent's publish path",
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T03:22:31",
+      "updated": "2026-11-11T03:22:43",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s7-wire": {
