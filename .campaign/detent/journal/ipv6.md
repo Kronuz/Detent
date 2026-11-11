@@ -1,6 +1,6 @@
 # ipv6: journal
 
-State: working
+State: waiting on jobs 261111-135949-b282c6
 Quest: .campaign/detent/quests/ipv6.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Suite job 261111-135949-b282c6 (A1,A2,A5) at the tests commit; check test_system_managed_relay_ipv6 and test_system_dual_stack ran (not skipped).
 
 ## Next
 
-1. <step>
+1. Read results; fix bugs the tests find (A3); paste Evidence.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
+
+## Rulings I made
+
+- Config has no host:port or URL fields (address and port are separate JSON fields, address via asio make_address), so IPv6 literals are bare `::1` in JSON; no bracket parsing exists to add.
+- local_wildcard no longer probes the OS v6-only default: with consensus-dual-stack `::` is dual-stack everywhere, so `::` whenever a v6 socket opens.
 
 ## Evidence
 
