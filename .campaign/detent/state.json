@@ -1468,6 +1468,44 @@
       "updated": "2026-11-11T03:47:47",
       "worktree": ""
     },
+    "detent-brand": {
+      "accepted": {},
+      "after": [
+        "drop-justknobs"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "brand/**",
+        "website/src/assets/logo.svg",
+        "website/public/favicon.svg",
+        "website/public/favicon.ico",
+        "website/public/footer-logo.png",
+        "website/public/img/**",
+        "website/public/apple-touch-icon*",
+        "website/public/icon-*",
+        "website/astro.config.mjs",
+        "README.md",
+        "website/src/content/docs/welcome.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Detent brand: a polished logo family and brand/",
+      "updated": "2026-11-11T11:08:26"
+    },
     "dns-voters": {
       "accepted": {},
       "after": [
