@@ -334,11 +334,31 @@
           "recorded": "2026-11-10T12:50:14",
           "tested": "0bb2a52ae1e38637b989ee9cad97d01b0482cd99",
           "unverified": []
+        },
+        {
+          "at": "2026-11-11T11:21:53",
+          "commit": "483ef0e4299f077e7d74547f11d3d2f10e1e2607",
+          "criteria": {
+            "A1": "`docs/design/async-drivers.md`: \"What exists today\" (file:line per loop and Worker call), D1, D5 (journal), D2/D4/D9/D10 (consensus), \"How Detent's owner loop moves\"",
+            "A2": "`docs/design/async-drivers.md`: \"D2. Public API: `task::task<T>` over `scheduler_ref`, no Asio in journal or consensus headers.\"",
+            "A3": "`docs/design/async-drivers.md`: \"D3. Injection through three seams.\"",
+            "A4": "`docs/design/async-drivers.md`: \"Where a three-voter member's 683 KB goes\"",
+            "A5": "`docs/design/async-drivers.md`: \"D5. The blocking entry runs the same task on the caller's thread, owns its groups, and ends.\"",
+            "A6": "`docs/design/async-drivers.md`: \"Build plan\", quests 1-7, Worker pump deletion last",
+            "A7": "Head reruns (bench unchanged on the measured paths since): 261111-034446-720b28 (exclusive, Detent:b336a49): driver_cost, frames, resumes, wheel, `run_one`, idle CPU; 261111-034447-1a4ce2 (strict, Detent:aa664d0): bytes, fds, threads; 261111-034447-a96ca6 (light): channel layout; 261111-034446-ce2a61 (strict): per-group Peers; 261111-034447-402476 (strict): one idle peer connection; 261111-034447-b91887 (strict, Detent:78be8ce): the cross-loop hop. The design quotes the first runs (f87d0f, e9dff1, e9e87d, 400d3c, 650916; ruling 39). Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f",
+            "A8": "Xapiand's first review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), CHANGES at Detent:f48f7cb, folded (X table); second review `/Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md`, CHANGES at Detent:73e96d6, approved 1.1, 1.4, 1.5, folded (Y table); re-review pending"
+          },
+          "evidence": [],
+          "final": true,
+          "from": "2f8431d50ebcd576c42c96e201773c479243c32d",
+          "reason": "",
+          "tested": "2c32a24350fe9112389f8d7508287c877b95ffe6"
         }
       ],
       "lenses": [
         "design"
       ],
+      "messages": [],
       "milestone": "M1b",
       "needs": [],
       "provides": [
@@ -346,10 +366,10 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "review",
+      "status": "landed",
       "title": "Design the journal and consensus coroutine drivers",
-      "updated": "2026-11-11T03:44:32",
-      "worktree": "../Detent-wt/detent/async-drivers-design"
+      "updated": "2026-11-11T11:21:58",
+      "worktree": ""
     },
     "client-local-source": {
       "accepted": {},
@@ -1468,6 +1488,44 @@
       "updated": "2026-11-11T03:47:47",
       "worktree": ""
     },
+    "detent-brand": {
+      "accepted": {},
+      "after": [
+        "drop-justknobs"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "brand/**",
+        "website/src/assets/logo.svg",
+        "website/public/favicon.svg",
+        "website/public/favicon.ico",
+        "website/public/footer-logo.png",
+        "website/public/img/**",
+        "website/public/apple-touch-icon*",
+        "website/public/icon-*",
+        "website/astro.config.mjs",
+        "README.md",
+        "website/src/content/docs/welcome.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Detent brand: a polished logo family and brand/",
+      "updated": "2026-11-11T11:08:26"
+    },
     "dns-voters": {
       "accepted": {},
       "after": [
@@ -1953,6 +2011,8 @@
     "drop-justknobs": {
       "accepted": {},
       "after": [],
+      "base": "f7145e0be810d0ca4ba4a1308ff1bf156da81515",
+      "branch": "quest/detent/drop-justknobs",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -1979,7 +2039,22 @@
         "website/src/content/docs/copyright.md",
         "website/src/content/docs/faq.md",
         "website/src/content/docs/welcome.md",
-        "tools/check_lineage.sh"
+        "tools/check_lineage.sh",
+        "docs/ACTORS.md",
+        "docs/perf/m1-w5-evidence.md",
+        "docs/perf/m1-w5-evidence/**",
+        "docs/status/m1-pins.md",
+        "include/detent/**",
+        "src/detent/**",
+        "tests/detent/**",
+        "bindings/**",
+        "tools/w5/**",
+        "website/src/content/docs/basics.md",
+        "website/src/content/docs/guides/**",
+        "website/src/content/docs/reference/bindings/rust.md",
+        "website/src/content/docs/reference/cpp-api/global-and-testing.md",
+        "website/src/content/docs/roadmap.md",
+        "website/src/content/docs/reference/observability.md"
       ],
       "landed": [],
       "lenses": [],
@@ -1988,9 +2063,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T10:47:47"
+      "updated": "2026-11-11T11:04:24",
+      "worktree": "../Detent-wt/detent/drop-justknobs"
     },
     "fixture-500k": {
       "accepted": {},
@@ -3397,7 +3473,8 @@
         "tests/detent_local/test_managed_recovery_failure.cc",
         "docs/mechanisms/**",
         "CHANGELOG.md",
-        "include/detent_local/paged_layout.hh"
+        "include/detent_local/paged_layout.hh",
+        "tests/detent_local/test_state_equivalence.cc"
       ],
       "history": [
         {
@@ -3466,7 +3543,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Namespace S4: no re-validation of a tier own build, hash counters",
-      "updated": "2026-11-11T08:01:38",
+      "updated": "2026-11-11T11:27:07",
       "worktree": "../Detent-wt/detent/namespace-s4"
     },
     "namespace-s4-s10": {

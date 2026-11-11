@@ -23,8 +23,8 @@ and tests rather than edited from the old spec. one-knob-type later rewrites it 
 - A2 [artifact] `docs/design/knob-model.md` specifies the model; README's opening paragraph and
   `docs/USAGE.md` point at it; the website's FAQ entry, copyright note and design-documents row
   about JustKnobs are gone, and `welcome.md` says what Detent is without comparison.
-- A3 The site builds and its link check passes, and the suite passes (nothing links to the deleted
-  spec): jobs.
+- A3 The site builds, nothing in the tree or the built site links to the deleted spec, and the suite
+  passes: jobs. (The site's link checker arrives with docs-e2e; until then the grep is the check.)
 
 ## Contracts
 
