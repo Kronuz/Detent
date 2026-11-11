@@ -1,4 +1,4 @@
-// Section 13 semantic matrix: bool default/group/rollout precedence, CLI
+// Semantic matrix: bool default/group/rollout precedence, CLI
 // overrides, missing/wrong-type errors, and checked int conversion. Uses the
 // in-memory Client constructor (detent::testing's own plumbing) to avoid
 // depending on a real defaults file for pure-evaluation semantics.
@@ -47,8 +47,7 @@ void test_group_match_and_precedence() {
 	assert(matched.has_value() && matched.value() == true);
 
 	// Group match ALSO wins over rollout, even when a hash is supplied
-	// (Section 8: "Group precedence | Group match plus rollout | Group value
-	// wins").
+	// (a group match wins over the rollout).
 	auto precedence = c.eval("checkout:killswitch_new_path", "user-42", "employees");
 	assert(precedence.has_value() && precedence.value() == true);
 
@@ -130,7 +129,7 @@ void test_get_and_checked_conversion() {
 	std::puts("get + checked get_as<T> conversion (incl. unsigned targets) OK");
 }
 
-// Section 8's "Integer semantics": get(name, switch_val) accepts switch_val
+// Integer semantics: get(name, switch_val) accepts switch_val
 // for API-shape compatibility with eval() but always ignores it, because
 // the integer model has no per-group overrides in v1 -- unlike
 // test_get_and_checked_conversion above (which never passes a switch_val
@@ -146,7 +145,7 @@ void test_get_ignores_switch_val() {
 	std::puts("get() ignores switch_val (int model has no group overrides) OK");
 }
 
-// Section 8's stickiness guarantee ("across hosts, processes, languages, and
+// The stickiness guarantee ("across hosts, processes, languages, and
 // restarts") exercised at the eval() level, not just stable_bucket()
 // directly (test_hash_golden.cc already covers the raw hash function): two
 // *independently constructed* Client instances, each with its own snapshot

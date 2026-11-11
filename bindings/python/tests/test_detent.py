@@ -1,7 +1,7 @@
 """Real end-to-end proof, not a mock: constructs a real detent::Client
 through the pybind11 binding, against a real defaults file, and checks the
 exact same scenarios the Rust binding and the C++ test suite cover --
-bool/int reads, missing/wrong-type errors, and Section 8's hash_val/
+bool/int reads, missing/wrong-type errors, and hash_val/
 switch_val precedence. Run with `python3 -m pytest bindings/python/tests`
 (or plain `python3 test_detent.py`, since every check is a bare assert)
 after building the `detent_python` CMake target and putting the resulting
@@ -82,7 +82,7 @@ def test_hash_val_and_switch_val_precedence():
             is True
         )
 
-        # get() ignores switch_val (int model has no group overrides, Section 8).
+        # get() ignores switch_val (int model has no group overrides).
         assert client.get("search:max_results", switch_val="anything") == 25
     finally:
         os.remove(path)

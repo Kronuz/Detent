@@ -51,14 +51,6 @@ The durable authority authenticates publishers with bearer tokens, serves them
 over TLS when it isn't bound to loopback, and authenticates voters with mutual
 TLS. See [Security](/Detent/operations/security/).
 
-### Is Detent JustKnobs?
-
-No. Detent started as an independent implementation of the publicly observable
-behavior of Meta's JustKnobs, and keeps its client semantics: namespaced bool
-and int knobs, per-group overrides, fail-fast missing knobs, and asynchronous
-whole-snapshot replacement. It's not a Meta product, and the agent, authority
-and delivery system are Detent's own design.
-
 ### How does Detent relate to Xapiand?
 
 They share libraries. Detent's HTTP server, reactor, Raft clustering, logger

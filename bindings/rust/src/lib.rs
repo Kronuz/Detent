@@ -1,7 +1,6 @@
-// Section 5's "API surface (bindings and injection)" made concrete for
-// Rust, via the `cxx` crate: a thin bridge over detent::Client (see
+// The Rust binding, via the `cxx` crate: a thin bridge over detent::Client (see
 // src/shim.hh/.cc for the C++ side) -- eval()/get() carry the exact same
-// Section 8 precedence chain and Section 4 strict parsing the C++ API,
+// precedence chain and strict parsing the C++ API,
 // Python binding, and detent-agent's CLI all use, reused unchanged.
 //
 // Scope: file-source only, same as the Python binding -- see
@@ -59,9 +58,9 @@ pub struct Client {
     inner: UniquePtr<ffi::ClientHandle>,
 }
 
-/// Everything a `KnobError` can report: which of Section 8's failure
-/// categories, the offending knob name, and a human-readable detail.
-/// Never carries `hash_val`/`switch_val` (Section 12: they may be user/
+/// Everything a `KnobError` can report: which failure
+/// category, the offending knob name, and a human-readable detail.
+/// Never carries `hash_val`/`switch_val` (they may be user/
 /// tenant identifiers and must never be logged or surfaced as a label).
 #[derive(Debug, Clone)]
 pub struct DetentError(pub String);
@@ -95,7 +94,7 @@ impl Client {
         Ok(Client { inner })
     }
 
-    /// Evaluates a bool knob. Section 8 precedence: CLI override ->
+    /// Evaluates a bool knob. Precedence: CLI override ->
     /// `switch_val` group match -> `rollout_pct` hash gate (if
     /// `rollout_pct` is set and `hash_val` is given) -> default.
     pub fn eval(
@@ -116,14 +115,14 @@ impl Client {
     }
 
     /// Reads an int knob's value. `switch_val` is accepted for signature
-    /// symmetry with `eval()` but ignored (Section 8: the int model has no
+    /// symmetry with `eval()` but ignored (the int model has no
     /// per-group overrides in v1).
     pub fn get(&self, name: &str, switch_val: Option<&str>) -> Result<i64, DetentError> {
         ffi::get_int(&self.inner, name, switch_val.is_some(), switch_val.unwrap_or(""))
             .map_err(|e| DetentError(e.to_string()))
     }
 
-    /// Section 12 diagnostic snapshot.
+    /// Diagnostic snapshot.
     pub fn health(&self) -> ffi::HealthInfo {
         ffi::health(&self.inner)
     }

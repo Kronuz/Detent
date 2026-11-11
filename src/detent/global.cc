@@ -13,7 +13,7 @@ std::unique_ptr<Client> g_client;
 
 // nullptr means "no process client and no thread-local test override" --
 // callers turn that into KnobError::Uninitialized rather than a throw, since
-// Section 5's error model treats it as an ordinary read-path error.
+// the error model treats it as an ordinary read-path error.
 Client* active_client() noexcept {
 	if (auto* test = detail::test_client_slot()) return test;
 	return g_client.get();

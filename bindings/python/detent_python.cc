@@ -1,6 +1,5 @@
-// Section 5's "API surface (bindings and injection)" made concrete for
-// Python: a thin pybind11 wrapper around detent::Client -- eval()/get()
-// carry the exact same Section 8 precedence chain and Section 4 strict
+// The Python binding: a thin pybind11 wrapper around detent::Client -- eval()/get()
+// carry the exact same precedence chain and strict
 // parsing the C++ API and detent-agent's CLI both use, all reused
 // unchanged, nothing reimplemented here. Errors (missing knob, wrong type,
 // invalid name) raise detent.DetentError rather than returning a Result
@@ -54,7 +53,7 @@ PYBIND11_MODULE(detent, m) {
 				     return std::make_unique<detent::Client>(std::move(opts));
 			     } catch (const std::exception& e) {
 				     // detent::Client's constructor throws plain
-				     // std::runtime_error (Section 9's fail-fast contract),
+				     // std::runtime_error (the fail-fast contract),
 				     // not a detent::KnobError -- pybind11 would otherwise
 				     // translate that into a generic Python RuntimeError
 				     // instead of detent.DetentError, forcing callers to
@@ -67,7 +66,7 @@ PYBIND11_MODULE(detent, m) {
 		     py::arg("defaults_path"), py::arg("source_path") = py::none(),
 		     py::arg("cli_overrides") = std::vector<std::string>{}, py::arg("poll_interval_ms") = 200,
 		     "Throws DetentError on invalid/missing defaults or CLI overrides "
-		     "(Section 9: fail-fast at startup).")
+		     "(fail-fast at startup).")
 		.def(
 			"eval",
 			[](const detent::Client& c, std::string_view name, std::optional<std::string> hash_val,
@@ -75,7 +74,7 @@ PYBIND11_MODULE(detent, m) {
 				return unwrap(c.eval(name, hash_val, switch_val));
 			},
 			py::arg("name"), py::arg("hash_val") = py::none(), py::arg("switch_val") = py::none(),
-			"Evaluates a bool knob. Section 8 precedence: CLI override -> switch_val "
+			"Evaluates a bool knob. Precedence: CLI override -> switch_val "
 			"group match -> rollout_pct hash gate (if rollout_pct is set and hash_val "
 			"given) -> default. Raises DetentError if missing/wrong-type/invalid-name.")
 		.def(
@@ -85,7 +84,7 @@ PYBIND11_MODULE(detent, m) {
 			},
 			py::arg("name"), py::arg("switch_val") = py::none(),
 			"Reads an int knob's value. switch_val is accepted for signature "
-			"symmetry with eval() but ignored (Section 8: the int model has no "
+			"symmetry with eval() but ignored (the int model has no "
 			"per-group overrides in v1). Raises DetentError if missing/wrong-type.")
 		.def(
 			"health",
@@ -101,5 +100,5 @@ PYBIND11_MODULE(detent, m) {
 				d["cli_overrides"] = h.cli_overrides;
 				return d;
 			},
-			"Section 12 diagnostic snapshot, as a dict.");
+			"Diagnostic snapshot, as a dict.");
 }

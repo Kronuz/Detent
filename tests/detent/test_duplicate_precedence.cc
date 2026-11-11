@@ -188,13 +188,13 @@ std::string cli_error(const std::vector<std::string>& pairs) {
 }
 
 void cli_overrides() {
-	const std::string dup_a = "duplicate --just-knob override for: a:a";
+	const std::string dup_a = "duplicate --knob override for: a:a";
 	CHECK(cli_error({"a:a=1", "b:b=1", "a:a=1", "nocolon=1"}) == dup_a);
 	CHECK(cli_error({"a:a=1", "nocolon=1", "a:a=1"}) == "invalid knob name in override: nocolon");
 	CHECK(cli_error({"a:a=1", "b:b=1", "a:a=1", "c:c"}) == dup_a);
 	CHECK(cli_error({"a:a=1", "a:a=oops"}) == dup_a);
 	CHECK(cli_error({"a:a=oops", "a:a=1"}) == "invalid override value for a:a: oops");
-	CHECK(cli_error({"b:b=1", "a:a=1", "b:b=2"}) == "duplicate --just-knob override for: b:b");
+	CHECK(cli_error({"b:b=1", "a:a=1", "b:b=2"}) == "duplicate --knob override for: b:b");
 	auto ok = parse_cli_overrides({"c:c=true", "a:a=-5", "b:b=false"});
 	CHECK(ok.has_value());
 	const auto& values = ok.value().values;

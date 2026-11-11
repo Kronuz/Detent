@@ -98,7 +98,7 @@ one null-pointer check.
 
 :::hint[A standard command-line flag]{.unimplemented}
 Detent parses `name=value` pairs, but doesn't ship a command-line flag parser
-of its own. The specification it grew from describes a repeatable
-`--just-knob name=value` flag and a `--just-knobs-config-path PATH` flag that
-selects the file source; applications currently wire their own.
+of its own. A repeatable `--knob name=value` flag and a
+`--knobs-config-path PATH` flag that selects the file source are planned;
+applications currently wire their own.
 :::

@@ -1,5 +1,5 @@
 // Detent's own surfaces over the old and the new pins: snapshot JSON (parse, merge, serialize, diff, patch),
-// knob evaluation (rollout buckets from sha256 and endian) and the `--just-knob` integer parser (strict-stox),
+// knob evaluation (rollout buckets from sha256 and endian) and the `--knob` integer parser (strict-stox),
 // so snapshot JSON bytes and evaluated values can be compared between builds.
 #include "common.hh"
 
@@ -122,7 +122,7 @@ int main() {
 		}
 		w5::line("eval", "total=" + std::to_string(total) + " trues=" + std::to_string(trues) + " ints=" + std::to_string(ints) + " digest=" + w5::hex(acc));
 	}
-	// 4. --just-knob values: strict_stoll through the real parser.
+	// 4. --knob values: strict_stoll through the real parser.
 	std::vector<std::string> values = {"0", "-1", "+1", "42", "9223372036854775807", "9223372036854775808", "-9223372036854775808", "-9223372036854775809", "", " 5", "5 ", "5x", "0x10", "1.0", "true", "false", "True", "TRUE", "-", "+"};
 	for (std::size_t n : {62u, 63u, 64u, 65u, 100u, 300u}) {
 		values.push_back(std::string(n, '0') + "7");
@@ -142,9 +142,9 @@ int main() {
 		} else {
 			result = "error: " + w5::show(table.error(), 120);
 		}
-		w5::line("just-knob len=" + std::to_string(v.size()) + " " + w5::show(v, 24) + " h=" + w5::hex(w5::fnv(v)), result);
+		w5::line("knob-flag len=" + std::to_string(v.size()) + " " + w5::show(v, 24) + " h=" + w5::hex(w5::fnv(v)), result);
 	}
-	w5::line("just-knob duplicate", [] {
+	w5::line("knob-flag duplicate", [] {
 		auto t = parse_cli_overrides({"a:b=1", "a:b=2"});
 		return t ? std::string("ok") : "error: " + t.error();
 	}());

@@ -30,15 +30,9 @@ Detent has three moving parts:
    generations, so `detent get NAME` reads local files rather than the network,
    from any script or language.
 
-:::hint[Where the name comes from]{.info}
-Detent began as a faithful, independent clone of the publicly observable
-behavior of Meta's JustKnobs, and the original specification is kept in the
-repository as
-[`justknobs-implementation-spec.md`](https://github.com/Kronuz/Detent/blob/main/justknobs-implementation-spec.md).
-Detent is not a Meta product. Every identifier in the code is `detent`, and
-everything beyond the spec, from the agent to the durable authority, is
-Detent's own design.
-:::
+The knob model, with its names, groups, overrides, rollout and evaluation
+rules, is specified in
+[`docs/design/knob-model.md`](https://github.com/Kronuz/Detent/blob/main/docs/design/knob-model.md).
 
 ---
 

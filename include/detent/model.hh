@@ -1,9 +1,8 @@
 #pragma once
 
-// Section 4: in-memory data model. KnobDef is a closed tagged union (bool or
-// int); Snapshot is the immutable, fully validated map readers see at one
-// instant. Both are FILLED BLANK per the spec -- the shape is a clone choice,
-// not a claim about Meta's private representation.
+// In-memory data model (docs/design/knob-model.md). KnobDef is a closed tagged
+// union (bool or int); Snapshot is the immutable, fully validated map readers
+// see at one instant.
 
 #include "detent/flat_map.hh"
 
@@ -71,12 +70,11 @@ struct Snapshot {
 // this knob from the live overlay" (it falls back to its baked default, if
 // any -- the same state as never having been overlaid), matching JSON Merge
 // Patch's null-means-delete convention (RFC 7396) at the per-knob
-// granularity the model already treats knobs as atomic units at (Section 4:
-// "a key present in live replaces the ENTIRE definition... no field-wise
-// merge"). Used both as the wire format for a PATCH publish (a caller
-// sending only the few knobs it changed) and as the wire format for a
-// poll's diff-since-last-version response (see json_patch.hh) -- the same
-// shape either direction.
+// granularity the model already treats knobs as atomic units at (a live key
+// replaces the entire definition; no field-wise merge). Used both as the
+// wire format for a PATCH publish (a caller sending only the few knobs it
+// changed) and as the wire format for a poll's diff-since-last-version
+// response (see json_patch.hh) -- the same shape either direction.
 struct SnapshotPatch {
 	std::uint64_t version = 0;
 	flat_map<KnobName, std::optional<KnobDef>, std::less<>> knobs;

@@ -1,7 +1,7 @@
 #pragma once
 
-// Section 5 "Global vs injected access": the package exposes global
-// functions for source (pyjk-style) compatibility, but all logic lives on
+// Global vs injected access: the package exposes global
+// functions for convenience, but all logic lives on
 // Client. Only this adapter owns process-level initialization; application
 // code that can inject a Client (or a narrower Knobs interface) SHOULD do so
 // instead of depending on this namespace.
