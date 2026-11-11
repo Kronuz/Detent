@@ -1719,8 +1719,62 @@
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/settings-and-flags.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T15:23:42",
+          "commit": "3b36d98d198120be4827d6edf6ea42c4eadb675f",
+          "criteria": {
+            "A1": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A2": "261111-141325-7f7514",
+            "A3": "261111-141328-1bcf8a",
+            "A4": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A5": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A6": "`.github/workflows/docs.yml`",
+            "A7": "`docs/dev/docs-e2e.md`"
+          },
+          "evidence": [
+            {
+              "cmd": "python3 -I tests/docs/check_docs.py",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-a6fe33",
+              "level": "light",
+              "seconds": 1.9,
+              "state": "done",
+              "what": "docs-e2e check docs at 5b712332ab30"
+            },
+            {
+              "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-08b4fa",
+              "level": "light",
+              "seconds": 499.8,
+              "state": "done",
+              "what": "docs-e2e check e2e at 5b712332ab30"
+            },
+            {
+              "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-4328c6",
+              "level": "light",
+              "seconds": 36.0,
+              "state": "done",
+              "what": "docs-e2e check site at 5b712332ab30"
+            }
+          ],
+          "final": true,
+          "from": "8b17a95272795ce9590564d816647240ab56bba9",
+          "reason": "",
+          "tested": "2772fbeacfa228c044bcbda6e6ed49351baf1bfa"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [
@@ -1728,10 +1782,10 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
-      "updated": "2026-11-10T12:23:46",
-      "worktree": "../Detent-wt/detent/docs-e2e"
+      "updated": "2026-11-11T15:23:53",
+      "worktree": ""
     },
     "docs-site-architecture": {
       "accepted": {},
@@ -2538,6 +2592,8 @@
         "consensus-dual-stack",
         "namespace-s4"
       ],
+      "base": "9748d89d1f2aa23d6f571719e0f85c398debd6ae",
+      "branch": "quest/detent/ipv6",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2556,10 +2612,17 @@
         "src/detent_agent/config.cc",
         "src/detentd/main.cc",
         "src/detent_authority/service.cc",
-        "tests/detent_system/**",
-        "tests/detent_authority/**",
-        "tests/detent_agent/**",
-        "tests/detent_delivery/**",
+        "tests/detent_authority/test_dns_voters.py",
+        "tests/detent_authority/test_ipv6*",
+        "tests/detent_system/CMakeLists.txt",
+        "tests/detent_system/authority.py",
+        "tests/detent_system/managed.py",
+        "tests/detent_system/run_writers.py",
+        "tests/detent_system/test_dual_stack.py",
+        "tests/detent_system/test_managed_case.sh",
+        "tests/detent_system/test_ipv6*",
+        "tests/detent_agent/test_ipv6*",
+        "tests/detent_delivery/test_ipv6*",
         "CHANGELOG.md",
         "cmake/dependencies.json"
       ],
@@ -2570,9 +2633,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T13:57:10"
+      "updated": "2026-11-11T14:18:39",
+      "worktree": "../Detent-wt/detent/ipv6"
     },
     "legacy-h": {
       "accepted": {},
@@ -4693,6 +4757,8 @@
       "after": [
         "namespace-s4"
       ],
+      "base": "d41c6cfdd91e78cae0155773b91271a420db3577",
+      "branch": "quest/detent/one-knob-type",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4705,22 +4771,69 @@
       "files": [
         "include/detent/**",
         "src/detent/**",
-        "include/detent_local/paged_definition.hh",
-        "src/detent_local/paged_definition.cc",
-        "src/detent_local/paged_snapshot_source.cc",
-        "src/detent_local/view.cc",
-        "src/detent_local/client_source.cc",
+        "include/detent_local/**",
+        "src/detent_local/**",
         "include/detent_distribution/**",
         "src/detent_distribution/**",
         "src/detent_authority/state.*",
+        "src/detent_authority/change_history.*",
+        "src/detent_authority/export_encoder.*",
+        "src/detent_authority/read_reply.*",
+        "src/detent_authority/wire_fields.hh",
         "src/detent_testing/**",
         "src/detent_cli/**",
         "bindings/**",
         "tests/detent/**",
-        "tests/detent_local/test_paged_definition*",
+        "tests/detent_local/**",
+        "tests/detent_testing/**",
         "tests/detent_distribution/**",
+        "tests/cmake_consumer/**",
+        "tests/detent_authority/*.cc",
+        "tests/detent_authority/*.hh",
+        "tests/detent_authority/readiness_load.py",
+        "tests/detent_authority/test_multivoter.py",
+        "tests/detent_delivery/test_managed_process.sh",
+        "tests/detent_system/first_read_export.cc",
+        "tests/detent_system/mixed.py",
+        "tests/detent_system/test_mixed.py",
+        "tests/detent_system/test_writers.py",
+        "tests/detent_system/writers.py",
+        "benchmarks/**",
+        "tools/w5/**",
+        "examples/**",
         "docs/design/one-knob-type.md",
-        "docs/mechanisms/**"
+        "docs/design/knob-model.md",
+        "docs/design/reader.md",
+        "docs/AUTHORITY_ARCHITECTURE.md",
+        "docs/LOCAL_IMAGE_FORMAT.md",
+        "docs/perf/one-knob-type*",
+        "docs/mechanisms/**",
+        "README.md",
+        "QUICKSTART.md",
+        "docs/USAGE.md",
+        "website/src/content/docs/basics.md",
+        "website/src/content/docs/index.mdx",
+        "website/src/content/docs/guides/**",
+        "website/src/content/docs/reference/cpp-api.md",
+        "website/src/content/docs/reference/cpp-api/**",
+        "website/src/content/docs/reference/http-api/authority.md",
+        "website/src/content/docs/reference/knobs.md",
+        "website/src/content/docs/reference/snapshot-format.md",
+        "src/detent_agent/main.cc",
+        "tests/detent_agent/test_agent_cli.cmake",
+        "tests/detent_delivery/test_coordinator.cc",
+        "tests/detent_authority/test_daemon.sh",
+        "tests/detent_system/mixed_oracle.cc",
+        "tests/detent_system/local_oracle.cc",
+        "tests/detent_system/prepared_client_probe.cc",
+        "tests/detent_system/reader_benchmark.hh",
+        "website/src/content/docs/reference/errors.md",
+        "website/src/content/docs/reference/evaluation.md",
+        "website/src/content/docs/reference/observability.md",
+        "website/src/content/docs/reference/bindings/python.md",
+        "website/src/content/docs/reference/bindings/rust.md",
+        "website/src/content/docs/architecture/read-path.md",
+        "diagrams/04_read_path.*"
       ],
       "landed": [],
       "lenses": [
@@ -4731,9 +4844,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T13:57:11"
+      "updated": "2026-11-11T14:27:46",
+      "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
       "accepted": {},
