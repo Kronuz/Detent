@@ -954,7 +954,7 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 	Server server(certificates);
 	auto sink = std::make_shared<HookSink>();
 	t::CoordinatorStatus first, final_status;
-	bool fired = false;
+	bool fired = false, fenced = true;
 	run_phase(certificates, store, server, {.scrub_rate = 0, .sink = sink},
 		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
@@ -974,6 +974,8 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 2; }),
 					  coordinator, server));
 		final_status = coordinator->status();
+		// Close fences the sink, so it is read before the phase ends.
+		fenced = sink->fenced;
 	});
 	std::cout << "forced-again: first repair with " << first.repair.requested << " request(s); hook fired " << fired
 			  << "; final: requested " << final_status.repair.requested << " completed "
@@ -981,7 +983,7 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 			  << server.opens << " forced " << server.forced_opens << " snapshots " << server.snapshots
 			  << " deltas " << server.deltas << "\n";
 	check(fired && server.deltas == 1 && server.forced_opens == 2);
-	check(final_status.repair.requested == 2 && !final_status.repair.pending && !sink->fenced);
+	check(final_status.repair.requested == 2 && !final_status.repair.pending && !fenced);
 	check(final_status.selected.descriptor && final_status.selected.descriptor->cursor.revision == 2);
 	Reader reader(store);
 	const auto reads = reader.read(2);
