@@ -5,27 +5,33 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Every address Detent takes or listens on works over IPv6 as it does over IPv4, and tests prove it:
+authority voters and the publisher, the relay's listen and upstream addresses, the agent's and the
+delivery client's upstreams, and `detentd`'s readiness probe. The code already uses asio address
+types; this quest adds the missing IPv6 tests and fixes whatever they find (bracketed literals in
+URLs, loopback choice, dual-stack binds).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A three-voter authority on `::1` elects a leader and publishes, and a relay and an agent
+  connected over `::1` (URLs with `[::1]:port`) deliver a generation end to end: a system test in
+  the suite.
+- A2 A relay or authority bound to `[::]` serves both an IPv4 and an IPv6 client on hosts where the
+  OS allows dual-stack, and the test says which it ran: a test in the suite.
+- A3 Each IPv6 bug found has a test that fails without its fix (`--fails-without` on a revert), or
+  the journal states none were found.
+- A4 [artifact] `CHANGELOG.md` names IPv6 support; the configuration page is `docs-site-config`'s
+  (it documents IPv6 literals and bracketed URLs after this lands).
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed: configuration fields keep their shapes; IPv6 literals are valid where IPv4 ones are.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- Owner, 2026-11-11: support IPv6 (D63). Names with A and AAAA records are dialed per
+  consensus-dns-peers A6.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Tests.
