@@ -2387,7 +2387,9 @@
       "consumes": [],
       "files": [
         "src/detent_local/paged_*",
-        "tests/detent_local/**"
+        "tests/detent_local/**",
+        "src/detent_local/lazy_page_access.cc",
+        "docs/mechanisms/dense-pages.md"
       ],
       "landed": [],
       "lenses": [
@@ -2398,11 +2400,12 @@
         "dense-pages"
       ],
       "provides": [],
+      "reason": "msg-22 ruling (a): the last unchecked decode_node is lazy_page_access.cc:211 (3 lines; reader-s6 is blocked and rebases over it anyway), and the how-it-works note goes in docs/mechanisms/dense-pages.md",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "One bounded inline-slot walker for Dense pages",
-      "updated": "2026-11-11T00:56:01",
+      "updated": "2026-11-11T01:32:55",
       "worktree": "../Detent-wt/detent/dense-walkers"
     },
     "docs-e2e": {
