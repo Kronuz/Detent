@@ -8,8 +8,8 @@ SparsePlanFinalizer::SparsePlanFinalizer(d::RetirementHandle<PagedPlanState> sta
 										 std::uint64_t maximum, std::optional<p::Digest> expected)
 	: plan(std::move(state)), account(std::move(heap)),
 	  old_live(d::StorageAllocator<SegmentReachability>(account)),
-	  added(d::StorageAllocator<SegmentInput>(account)), limits(bounds), maximum_output_bytes(maximum),
-	  expected_logical(expected) {
+	  added(d::StorageAllocator<SegmentInput>(account)), limits(bounds),
+	  maximum_output_bytes(maximum), expected_commitment(expected) {
 	old_live.reserve(plan->registry_->inputs().size());
 }
 void SparsePlanFinalizer::start(TrieOverlay &&source) {
@@ -18,7 +18,9 @@ void SparsePlanFinalizer::start(TrieOverlay &&source) {
 	(void)source.root();
 	overlay.emplace(std::move(source));
 }
-bool SparsePlanFinalizer::done() const noexcept { return overlay && !failed && phase == Phase::Done; }
+bool SparsePlanFinalizer::done() const noexcept {
+	return overlay && !failed && phase == Phase::Done;
+}
 bool SparsePlanFinalizer::grant(std::size_t bytes, ValidationBudget &budget) {
 	if (!budget.rows)
 		return false;
@@ -45,9 +47,10 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					old_live.push_back(plan->registry_->reachability(position++));
 					break;
 				}
-				assembly.emplace(account, *overlay, plan->registry_->inputs(), old_live, plan->base_->root(),
-								 plan->base_->storage_identity(), plan->descriptor_.generation,
-								 plan->descriptor_.cursor, limits, maximum_output_bytes);
+				assembly.emplace(account, *overlay, plan->registry_->inputs(), old_live,
+								 plan->base_->root(), plan->base_->storage_identity(),
+								 plan->descriptor_.generation, plan->descriptor_.cursor, limits,
+								 maximum_output_bytes);
 				position = 0;
 				phase = Phase::Assemble;
 				break;
@@ -56,8 +59,10 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 				if (!assembly->done())
 					return;
 				plan->image_.emplace(assembly->take());
-				if (expected_logical && plan->image_->root().logical != *expected_logical)
-					throw std::invalid_argument("compaction changed logical state or exceeded output bound");
+				if (expected_commitment &&
+					p::state_commitment(plan->image_->root()) != *expected_commitment)
+					throw std::invalid_argument(
+						"compaction changed logical state or exceeded output bound");
 				added.reserve(plan->image_->segments().size());
 				phase = Phase::Validate;
 				break;
@@ -66,7 +71,8 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					if (!grant(sizeof(SegmentInput), budget))
 						return;
 					const auto &segment = plan->image_->segments()[position++];
-					added.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
+					added.push_back(
+						{segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
 					break;
 				}
 				if (!validator) {
@@ -104,9 +110,10 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 				}
 				{
 					using State = d::RetirementHandle<PagedPlanState>;
-					artifact_owner = std::allocate_shared<State>(d::StorageAllocator<State>(account), plan);
-					validator.emplace(account, plan->base_, artifact_owner, added, plan->image_->root(),
-									  limits);
+					artifact_owner =
+						std::allocate_shared<State>(d::StorageAllocator<State>(account), plan);
+					validator.emplace(account, plan->base_, artifact_owner, added,
+									  plan->image_->root(), limits);
 				}
 				phase = Phase::Validate;
 				break;
@@ -115,11 +122,11 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					if (!grant(sizeof(SegmentReachability), budget))
 						return;
 					const auto removed = validator->removed(position);
-					const auto expected = overlay->removed()[position];
+					const auto expected = assembly->removed()[position];
 					if (removed.pages != expected.pages || removed.bytes != expected.bytes)
 						throw std::logic_error("sparse construction removal proof mismatch");
-					plan->base_live_.push_back(
-						{old_live[position].pages - removed.pages, old_live[position].bytes - removed.bytes});
+					plan->base_live_.push_back({old_live[position].pages - removed.pages,
+												old_live[position].bytes - removed.bytes});
 					++position;
 					break;
 				}
@@ -127,7 +134,8 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					if (!grant(sizeof(SegmentReachability), budget))
 						return;
 					const auto i = position++ - old_live.size();
-					const auto sorted = find_segment(added, plan->image_->segments()[i].ownership.segment);
+					const auto sorted =
+						find_segment(added, plan->image_->segments()[i].ownership.segment);
 					plan->new_live_.push_back(validator->added(sorted));
 					break;
 				}

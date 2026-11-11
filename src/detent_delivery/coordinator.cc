@@ -208,7 +208,7 @@ struct Coordinator::Impl {
 						probe_pause->reached.store(true, std::memory_order_release);
 						probe_pause->resume.wait();
 					}
-					if (l::detail::StateCursor::logical_commitment(*result->generation))
+					if (l::detail::StateCursor::state_commitment(*result->generation))
 						result->prepared = l::detail::PreparedReader::metadata_ready(
 							result->directory, *result->generation, ::geteuid());
 				}
@@ -388,7 +388,7 @@ struct Coordinator::Impl {
 						result->descriptor = result->plan->descriptor();
 					}
 				} else {
-					if (!actual || !l::detail::StateCursor::logical_commitment(*actual))
+					if (!actual || !l::detail::StateCursor::state_commitment(*actual))
 						throw std::invalid_argument("paged delta requires a migrated actual base");
 					if (source->kind == d::UpdateKind::Progress) {
 						l::detail::PagedPlanBuilder candidate(*actual, source->delta, generation, factory,
@@ -520,7 +520,7 @@ struct Coordinator::Impl {
 	task::task<void> migrate_flat_head() {
 		// Only a flat (layout 1) base migrates; a paged base is already in the writer's format.
 		if (!paged_writer || !base->generation ||
-			l::detail::StateCursor::logical_commitment(*base->generation) ||
+			l::detail::StateCursor::state_commitment(*base->generation) ||
 			!base->generation->descriptor().cursor.same_identity(options.source.configured))
 			co_return;
 		diagnostic.phase = CoordinatorPhase::Building;
@@ -542,7 +542,7 @@ struct Coordinator::Impl {
 		if (!paged_writer ||
 			(!compaction_requested && (options.compaction_interval == std::chrono::milliseconds::zero() ||
 									   now < next_compaction_check)) ||
-			!base->generation || !l::detail::StateCursor::logical_commitment(*base->generation))
+			!base->generation || !l::detail::StateCursor::state_commitment(*base->generation))
 			co_return;
 		const bool force = std::exchange(compaction_requested, false);
 		next_compaction_check = now + options.compaction_interval;

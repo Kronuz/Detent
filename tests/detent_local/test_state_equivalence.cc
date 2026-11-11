@@ -261,7 +261,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				borrowed.step(budget);
 			}
 			auto image = borrowed.take();
-			state_check(image.root().logical == paged_image.root().logical);
+			state_check(l::paged::state_commitment(image.root()) == l::paged::state_commitment(paged_image.root()));
 			const auto output = directory / (base == &flat ? "migration" : "replacement");
 			l::detail::CandidatePagedValidator validator(std::move(image), domain.factory(), heap, storage,
 														 limits);

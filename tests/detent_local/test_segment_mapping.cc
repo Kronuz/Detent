@@ -36,7 +36,7 @@ int main() {
 	ownership.storage.fill('s');
 	ownership.segment.fill('g');
 	ownership.length = bytes.size();
-	ownership.checksum = local::paged::physical_commitment(bytes);
+	ownership.checksum = local::paged::pack_commitment(bytes);
 	auto account = std::make_shared<distribution::StorageLedger>(1024 * 1024);
 	auto controls = std::make_shared<distribution::StorageLedger>(1024 * 1024);
 	distribution::RetirementRuntime runtime{controls, 1};

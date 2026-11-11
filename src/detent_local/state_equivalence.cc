@@ -9,8 +9,8 @@ StateEquivalence::StateEquivalence(RecoveredGeneration left, RecoveredGeneration
 	if (left.descriptor().cursor != right.descriptor().cursor ||
 		left.descriptor().profile != right.descriptor().profile) {
 		mismatch();
-	} else if (const auto a = StateCursor::logical_commitment(left),
-			   b = StateCursor::logical_commitment(right);
+	} else if (const auto a = StateCursor::state_commitment(left),
+			   b = StateCursor::state_commitment(right);
 			   a && b) {
 		done_ = true;
 		equal_ = *a == *b;
@@ -24,7 +24,7 @@ StateEquivalence::StateEquivalence(StateCursor left, StateCursor right)
 	  target_directory_(right.directory_identity()) {
 	if (source_.cursor != target_.cursor || source_.profile != target_.profile)
 		mismatch();
-	else if (const auto a = left.logical_commitment(), b = right.logical_commitment(); a && b) {
+	else if (const auto a = left.state_commitment(), b = right.state_commitment(); a && b) {
 		done_ = true;
 		equal_ = *a == *b;
 	} else {

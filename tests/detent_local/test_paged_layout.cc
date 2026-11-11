@@ -1,185 +1,223 @@
+#include "dense_fixture.hh"
 #include "detent_local/paged_definition.hh"
-#include "detent_local/paged_layout.hh"
 #include <iostream>
-#include <stdexcept>
-#include <vector>
-namespace p = detent::local::paged;
-namespace l = detent::local;
-static void require(bool ok) {
-	if (!ok)
-		throw std::runtime_error("paged framing invariant");
-}
-template <class F> static void rejects(F operation) {
-	try {
-		operation();
-	} catch (const std::invalid_argument &) {
-		return;
-	}
-	throw std::runtime_error("accepted corrupt paged framing");
-}
+using namespace dense_test;
 int main() {
-	detent::BoolDef boolean;
-	boolean.default_value = true;
-	boolean.rollout_pct = 17;
-	boolean.overrides.emplace(std::string("a\0b", 3), false);
-	boolean.overrides.emplace("z", detent::GroupRollout{100});
-	detent::KnobDef definition = boolean;
-	std::vector<char> payload(p::definition_size(definition));
-	p::encode_definition(payload, definition, 42);
-	auto decoded = p::validate_definition(payload, 42);
-	require(decoded.boolean && decoded.default_bool && decoded.rollout == 17 && decoded.overrides == 2);
-	std::vector<char> streamed(payload.size());
-	p::encode_definition_header(std::span<char>(streamed).first(p::definition_header_bytes), decoded);
-	p::encode_override(std::span<char>(streamed).subspan(24, 7), {std::string_view("a\0b", 3), false, 0});
-	p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", true, 100});
-	require(streamed == payload);
-	rejects([&] { p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", false, 2}); });
-	rejects([&] { p::encode_override(std::span<char>(streamed).subspan(31, 5), {"z", true, 101}); });
-	std::size_t at = p::definition_header_bytes;
-	require(p::read_override(payload, at).key == std::string_view("a\0b", 3));
-	const auto override = p::read_override(payload, at);
-	require(override.percentage && override.value == 100 && at == payload.size());
-	rejects([&] { p::validate_definition(payload, 41); });
-	for (auto position : {8u, 9u, 10u, 11u, 12u, 16u, 24u, 26u, 27u}) {
-		auto corrupt = payload;
-		corrupt[position] = static_cast<char>(254);
-		rejects([&] { p::validate_definition(corrupt, 42); });
-	}
-	payload.push_back(0);
-	rejects([&] { p::validate_definition(payload, 42); });
-	definition = detent::IntDef{INT64_MIN};
-	payload.resize(p::definition_size(definition));
-	p::encode_definition(payload, definition, 1);
-	require(p::validate_definition(payload, 1).default_int == INT64_MIN);
-	boolean.overrides.clear();
-	for (unsigned i = 0; i < 256; ++i) {
-		std::string name(128, 'a');
-		name[0] = 'A' + i / 26;
-		name[1] = 'a' + i % 26;
-		boolean.overrides.emplace(std::move(name), detent::GroupRollout{100});
-	}
-	definition = boolean;
-	payload.resize(p::definition_size(definition));
-	p::encode_definition(payload, definition, 1);
-	require(payload.size() < p::page_bytes - p::page_header_bytes - 512 &&
-			p::validate_definition(payload, 1).overrides == 256);
-	rejects([&] { p::validate_definition(payload, 1, 255); });
-	std::array<char, 202> key{};
-	auto length = p::encode_definition_key(key, "ns:knob");
-	require(std::string_view(key.data(), length) == std::string_view("Kns\0knob\0", 9));
-	auto parsed_key = p::decode_key({key.data(), length});
-	require(parsed_key.kind == p::PageKind::Definition && parsed_key.name_space == "ns" &&
-			parsed_key.local_name == "knob");
-	length = p::encode_namespace_key(key, "ns");
-	require(std::string_view(key.data(), length) == std::string_view("Wns\0", 4));
-	require(p::decode_key({key.data(), length}).kind == p::PageKind::Namespace);
-	for (auto malformed : {std::string_view("Kns\0\0", 5), std::string_view("Kns\0knob", 8),
-						   std::string_view("Kns\0k\0x\0", 9), std::string_view("Wns\0x\0", 6),
-						   std::string_view("Qns\0", 4), std::string_view("Kns\0k:x\0", 8)})
-		rejects([&] { p::decode_key(malformed); });
-	rejects([&] { p::encode_definition_key(std::span<char>(key).first(2), "ns:knob"); });
-	rejects([&] { p::encode_definition_key(key, "ns:knob:extra"); });
-	rejects([&] { p::encode_namespace_key(key, std::string_view("ns\0extra", 8)); });
-	p::Reference reference;
-	reference.segment.fill('s');
-	reference.physical.fill('p');
-	reference.logical.fill('l');
-	reference.offset = p::segment_bytes - p::page_bytes;
-	reference.length = p::page_bytes;
-	require(p::decode_reference(p::encode_reference(reference)) == reference);
+	const auto empty_digest =
+		digest("316b4053cea6792530f8c441e83ecb3dfb497cf8afba9ac30759a5bc885e9acc");
+	require(p::empty_commitment() == empty_digest);
+	p::validate(p::Reference{});
+	p::Reference r;
+	r.segment.fill('s');
+	r.offset = 0x1020;
+	r.length = 0x1234;
+	r.keys = 0x102030405060708ull;
+	r.height = 5;
+	for (unsigned i = 0; i < 32; ++i)
+		r.digest[i] = i;
+	const auto exact_content =
+		unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f "
+			  "0102030405060708 00001234 05 000000");
+	const auto exact_placement = unhex("73737373737373737373737373737373 00001020");
+	require(std::ranges::equal(p::encode_content(r), exact_content));
+	require(std::ranges::equal(p::encode_placement(r), exact_placement));
+	p::validate(r);
+	rejects([&] { p::encode_placement(p::Reference{}); });
 	for (auto offset : {1u, p::segment_bytes, UINT32_MAX}) {
-		auto bad = reference;
+		auto bad = r;
 		bad.offset = offset;
-		rejects([&] { p::encode_reference(bad); });
+		rejects([&] { p::validate(bad); });
+		rejects([&] { p::encode_placement(bad); });
 	}
-	for (auto length : {0u, 79u, p::page_bytes + 1, UINT32_MAX}) {
-		auto bad = reference;
+	for (auto length : {0u, 78u, p::page_bytes + 1, UINT32_MAX}) {
+		auto bad = r;
 		bad.length = length;
-		rejects([&] { p::encode_reference(bad); });
+		rejects([&] { p::validate(bad); });
+		rejects([&] { p::encode_content(bad); });
 	}
-	auto child = p::encode_child({255, reference});
-	require(p::decode_child(child).label == 255);
-	child[7] = 1;
-	rejects([&] { p::decode_child(child); });
-	p::PageHeader header;
-	header.kind = p::PageKind::Branch;
-	header.children = 256;
-	header.prefix = 512;
-	header.keys = 500000;
-	header.logical.fill('l');
-	header.length = p::page_header_bytes + header.prefix + p::child_bytes * header.children;
-	const auto encoded = p::encode_page_header(header);
-	std::vector<char> page(header.length);
-	std::copy(encoded.begin(), encoded.end(), page.begin());
-	require(p::decode_page_header(page).children == 256);
-	for (auto field : {8u, 12u, 16u, 20u, 24u, 28u, 72u}) {
+	{
+		auto bad = r;
+		bad.segment = {};
+		rejects([&] { p::validate(bad); });
+	}
+	auto root = empty_root();
+	auto exact_root = unhex("4454524f4f543033 00000003 00000140 "
+							"0000000000000000 00000000 00000000 0000000000000000 "
+							"0000000000000000 0000000000000000 "
+							"0000000000000011 63636363636363636363636363636363 "
+							"67676767676767676767676767676767 "
+							"65656565656565656565656565656565 "
+							"7373737373737373737373737373737373737373737373737373737373737373 "
+							"00000001 00000000 0000000000000001");
+	exact_root.resize(320);
+	require(std::ranges::equal(p::encode_root(root, p::Limits{}), exact_root));
+	require(p::state_commitment(p::decode_root(exact_root, p::Limits{})) == empty_digest);
+	auto page = watermark();
+	auto ref = reference(page);
+	p::verify_page(page, ref, p::Limits{});
+	const auto exact_page =
+		unhex("4454504147453033 0000004f 0000 0001 0000000000000001 01 00000000000000 "
+			  "0000000000000000000000000000000000000000000000000000000000000000 "
+			  "03 03 0008 576100 0000000000000011");
+	auto expected_page = exact_page;
+	const auto expected_digest =
+		digest("fb64e273fec41c4270b4fdbb7323570be428ae4660eaeb88d819fdf2fa411599");
+	std::copy(expected_digest.begin(), expected_digest.end(), expected_page.begin() + 32);
+	require(page == expected_page && ref.digest == expected_digest);
+	root.namespaces = root.pages = root.segments = 1;
+	root.bytes = page.size();
+	root.tree = ref;
+	auto nonempty = exact_root;
+	l::write_integer(nonempty, 16, 79, 8);
+	l::write_integer(nonempty, 28, 1, 4);
+	l::write_integer(nonempty, 32, 1, 8);
+	l::write_integer(nonempty, 40, 1, 8);
+	// The tree reference is one child entry: content [160,208), then placement [208,228).
+	const auto ref_bytes =
+		unhex("fb64e273fec41c4270b4fdbb7323570be428ae4660eaeb88d819fdf2fa411599 "
+			  "0000000000000001 0000004f 01 000000 73737373737373737373737373737373 00000000");
+	require(ref_bytes.size() == p::child_bytes);
+	std::copy(ref_bytes.begin(), ref_bytes.end(), nonempty.begin() + 160);
+	require(std::ranges::equal(p::encode_root(root, p::Limits{}), nonempty));
+	require(p::decode_root(nonempty, p::Limits{}).tree == ref && p::state_commitment(root) == ref.digest);
+	{
+		const auto content = p::encode_content(ref);
+		const auto placement = p::encode_placement(ref);
+		require(std::equal(content.begin(), content.end(), nonempty.begin() + 160) &&
+				std::equal(placement.begin(), placement.end(), nonempty.begin() + 208));
+	}
+	for (auto state : {empty_root(), root, empty_root(), root}) {
+		const auto decoded = p::decode_root(p::encode_root(state, p::Limits{}), p::Limits{});
+		require(decoded.tree == state.tree && decoded.cursor == state.cursor &&
+				decoded.profile == state.profile &&
+				p::state_commitment(decoded) == p::state_commitment(state));
+	}
+	for (std::size_t i = 0; i < 320; ++i) {
+		if ((i >= 48 && i < 56) || (i >= 148 && i < 152) || (i >= 205 && i < 208) || i >= 228) {
+			for (const auto &seed : {exact_root, nonempty}) {
+				auto bad = seed;
+				bad[i] = 1;
+				rejects([&] { p::decode_root(bad, p::Limits{}); });
+			}
+		}
+	}
+	for (std::size_t i = 160; i < 160 + p::child_bytes; ++i) {
+		auto bad = exact_root;
+		bad[i] = 1;
+		rejects([&] { p::decode_root(bad, p::Limits{}); });
+	}
+	for (std::size_t i = 25; i < 32; ++i) {
+		auto bad = page;
+		bad[i] = 1;
+		rejects([&] { p::decode_page_header(bad, p::Limits{}); });
+	}
+	for (auto field : {8u, 12u, 14u, 16u, 24u, 64u, 65u, 66u}) {
 		auto bad = page;
 		bad[field] = static_cast<char>(255);
-		rejects([&] { p::decode_page_header(bad); });
+		rejects([&] {
+			reseal(bad);
+			p::verify_page(bad, reference(bad), p::Limits{});
+		});
 	}
-	page.push_back(0);
-	rejects([&] { p::decode_page_header(page); });
-	page.resize(p::page_header_bytes - 1);
-	rejects([&] { p::decode_page_header(page); });
-	header.kind = p::PageKind::Namespace;
-	header.children = header.prefix = 0;
-	header.body = 8;
-	header.keys = 1;
-	header.length = p::page_header_bytes + 8;
-	const auto terminal = p::encode_page_header(header);
-	page.assign(header.length, 0);
-	std::copy(terminal.begin(), terminal.end(), page.begin());
-	require(p::decode_page_header(page).prefix == 0);
-	p::Root root;
-	root.cursor.cluster.fill('c');
-	root.cursor.group.fill('g');
-	root.cursor.restore_epoch.fill('e');
-	root.cursor.scope.fill('s');
-	root.logical = p::empty_commitment();
-	require(p::decode_root(p::encode_root(root)).pages == 0);
-	root.bytes = p::page_bytes + 2 * p::page_header_bytes;
-	root.pages = 3;
-	root.segments = root.records = root.namespaces = 1;
-	root.tree = reference;
-	root.logical = reference.logical;
-	auto manifest = p::encode_root(root);
-	require(p::decode_root(manifest).tree == reference);
-	for (auto field : {8u, 12u, 16u, 24u, 28u, 32u, 40u, 48u, 144u, 148u, 152u, 280u, 319u}) {
-		auto bad = manifest;
+	for (auto &summary : {ref}) {
+		auto bad = summary;
+		++bad.keys;
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
+		bad = summary;
+		++bad.height;
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
+		bad = summary;
+		++bad.length;
+		rejects([&] { p::verify_page(page, bad, p::Limits{}); });
+	}
+	for (std::size_t i = 0; i < page.size(); ++i) {
+		auto bad = page;
+		bad[i] ^= 1;
+		rejects([&] { p::verify_page(bad, ref, p::Limits{}); });
+	}
+	// A root or page in any other format is invalid input, whatever its version says.
+	for (const char version : {'2', '4', '9'}) {
+		auto other = nonempty;
+		other[7] = version;
+		rejects([&] { p::decode_root(other, p::Limits{}); });
+		l::write_integer(other, 8, version - '0', 4);
+		rejects([&] { p::decode_root(other, p::Limits{}); });
+		other = page;
+		other[7] = version;
+		rejects([&] { p::decode_page_header(other, p::Limits{}); });
+		rejects([&] { p::verify_page(other, ref, p::Limits{}); });
+	}
+	auto parent = external_branch();
+	const auto parent_ref = reference(parent);
+	for (auto index : {0u, 1u}) {
+		const auto content = parent.size() - 2 * p::child_bytes + index * p::content_bytes;
+		for (auto value : {0u, 78u, 65537u, UINT32_MAX}) {
+			auto bad = parent;
+			l::write_integer(bad, content + 40, value, 4);
+			reseal(bad);
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
+		}
+		for (auto height : {0u, 255u}) {
+			auto bad = parent;
+			bad[content + 44] = static_cast<char>(height);
+			reseal(bad);
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
+		}
+		auto bad = parent;
+		l::write_integer(bad, content + 32, 2, 8);
+		reseal(bad);
+		rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
+		l::write_integer(bad, 16, 4, 8);
+		reseal(bad);
+		p::verify_page(bad, reference(bad), p::Limits{});
+		const auto false_keys = p::decode_external(bad, index, p::Limits{});
+		rejects([&] { p::verify_page(page, false_keys, p::Limits{}); });
+		bad = parent;
+		bad[content + 44] = 2;
+		bad[24] = 3;
+		reseal(bad);
+		p::verify_page(bad, reference(bad), p::Limits{});
+		const auto false_height = p::decode_external(bad, index, p::Limits{});
+		rejects([&] { p::verify_page(page, false_height, p::Limits{}); });
+		for (std::size_t reserved = 45; reserved < 48; ++reserved) {
+			bad = parent;
+			bad[content + reserved] = 1;
+			reseal(bad);
+			rejects([&] { p::verify_page(bad, reference(bad), p::Limits{}); });
+		}
+	}
+	for (auto field : {12u, 13u, 70u, 72u, 74u}) {
+		auto bad = parent;
 		bad[field] = static_cast<char>(255);
-		rejects([&] { p::decode_root(bad); });
+		rejects([&] {
+			reseal(bad);
+			p::verify_page(bad, reference(bad), p::Limits{});
+		});
 	}
-	p::Limits short_limit;
-	short_limit.bytes = p::page_bytes - 1;
-	rejects([&] { p::decode_root(manifest, short_limit); });
-	manifest[248] ^= 1;
-	rejects([&] { p::decode_root(manifest); });
-	std::array<char, 8> watermark{};
-	l::write_integer(watermark, 0, 17, 8);
-	header.logical = p::logical_commitment(p::PageKind::Namespace, {}, {}, watermark);
-	const auto leaf_header = p::encode_page_header(header);
-	page.assign(leaf_header.begin(), leaf_header.end());
-	page.insert(page.end(), watermark.begin(), watermark.end());
-	reference.offset = 0;
-	reference.length = page.size();
-	reference.logical = header.logical;
-	reference.physical = p::physical_commitment(page);
-	p::verify_page(page, reference);
-	page.back() ^= 1;
-	rejects([&] { p::verify_page(page, reference); });
-	reference.physical = p::physical_commitment(page);
-	rejects([&] { p::verify_page(page, reference); });
-	std::array<p::Child, 2> children{{{0, reference}, {255, reference}}};
-	const auto logical = p::logical_commitment(p::PageKind::Branch, "prefix", children, {});
-	children[0].reference.segment.fill('x');
-	children[0].reference.offset = 8;
-	children[0].reference.physical.fill('x');
-	require(logical == p::logical_commitment(p::PageKind::Branch, "prefix", children, {}));
-	children[0].reference.logical[0] ^= 1;
-	require(logical != p::logical_commitment(p::PageKind::Branch, "prefix", children, {}));
-	children[1].label = 0;
-	rejects([&] { p::logical_commitment(p::PageKind::Branch, "prefix", children, {}); });
-	children[0].label = 255;
-	rejects([&] { p::logical_commitment(p::PageKind::Branch, "prefix", children, {}); });
-	std::cout << "paged root/page/extent framing and corruption boundaries passed\n";
+	auto moved = parent;
+	l::write_integer(moved, moved.size() - 4, 88, 4);
+	require(p::page_commitment(moved, p::Limits{}) == parent_ref.digest);
+	p::verify_page(moved, parent_ref, p::Limits{});
+	p::reset_hash_counts();
+	p::verify_page_structure(parent, parent_ref, p::Limits{});
+	require(p::hash_counts() == p::HashCounts{});
+	p::verify_page(parent, parent_ref, p::Limits{});
+	require(p::hash_counts() == p::HashCounts{1, parent.size() - 32 - 40, 0, 0, 0, 0});
+	p::pack_commitment(parent);
+	p::metadata_commitment(parent);
+	require(p::hash_counts() ==
+			p::HashCounts{1, parent.size() - 32 - 40, 1, parent.size(), 1, parent.size()});
+	std::array<char, 202> key{};
+	auto n = p::encode_definition_key(key, "ns:knob");
+	require(p::decode_key({key.data(), n}).local_name == "knob");
+	n = p::encode_namespace_key(key, "ns");
+	require(p::decode_key({key.data(), n}).name_space == "ns");
+	rejects([&] { p::decode_key(std::string_view("Kns\0\0", 5)); });
+	detent::KnobDef def = detent::IntDef{INT64_MIN};
+	std::vector<char> body(p::definition_size(def));
+	p::encode_definition(body, def, 17);
+	require(p::validate_definition(body, 17).default_int == INT64_MIN);
+	rejects([&] { p::validate_definition(body, 16); });
+	std::cout << "exact version-3 reference/root/page fixtures and malformed "
+				 "framing passed\n";
 }

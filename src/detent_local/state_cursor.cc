@@ -162,13 +162,13 @@ SourceOverride StateCursor::override_value() const {
 		throw std::logic_error("state override not ready");
 	return override_row_;
 }
-std::optional<paged::Digest> StateCursor::logical_commitment(const RecoveredGeneration &generation) {
-	return generation.paged_ ? std::optional(generation.paged_->root().logical) : std::nullopt;
+std::optional<paged::Digest> StateCursor::state_commitment(const RecoveredGeneration &generation) {
+	return generation.paged_ ? std::optional(paged::state_commitment(generation.paged_->root())) : std::nullopt;
 }
-std::optional<paged::Digest> StateCursor::logical_commitment() const {
+std::optional<paged::Digest> StateCursor::state_commitment() const {
 	if (candidate_root_)
-		return candidate_root_->logical;
-	return generation_ ? logical_commitment(*generation_) : std::nullopt;
+		return paged::state_commitment(*candidate_root_);
+	return generation_ ? state_commitment(*generation_) : std::nullopt;
 }
 void StateCursor::reset() {
 	if (namespaces_) {

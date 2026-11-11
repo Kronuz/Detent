@@ -72,7 +72,7 @@ void PagedPublicationArtifacts::populate(const PagedPlan &plan) {
 		const auto descriptor = plan.descriptor();
 		append(GenerationName(descriptor.generation, GenerationFile::Lease).view(),
 			   encode_generation_ownership({plan.storage_identity(), descriptor.generation, descriptor.length,
-											descriptor.checksum, 2}),
+											descriptor.checksum, paged::format_version}),
 			   {}, true);
 		// Owners and the lease form the first sync group; everything below waits for its barrier.
 		first_group_ = artifacts_.size();
