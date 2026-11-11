@@ -42,7 +42,7 @@ rename, N6) and startup (one barrier, `.tmp-` removal, per-entry verification, `
 Tests: `tests/detent_agent/test_agent_store.cc` (A1, A2), `test_agent_store_crash.cc` (A3, T7),
 `test_agent_catch_up.cc` (A4 and the absent-key tombstone on the real paged builders). How it works
 and the evidence map: `docs/status/namespace-s7.md`. Open: wiring DiskStore, the coordinator and the
-readers to the store, and the src CMake target (outside the file set; msg-21); `.lease` and the
+readers to the store (namespace-s7-wire, D58); `.lease` and the
 collector of unreached names (S9 and later).
 
 ## Rulings I made
