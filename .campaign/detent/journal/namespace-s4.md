@@ -43,7 +43,8 @@ A2 strict 5c3e22 (after native), A1 mutants 82f33e a15d6d 538846, A3 mutant 51a2
   after `take_segment`; fence, replay refusal, ledger refunds and restart are checked as before (two runs).
 - F5 (fixed, dbd4b8d5): the pack corruption flips the first page's magic (a pack's first page is at offset 0);
   refused as "invalid paged local image" by the walk, where the old last-byte flip relied on the digest.
-- F6 (dropped into the next CHANGELOG touch): "re-hashes 0 bytes instead of 1,396,402" wording.
+- F6 (fixed): CHANGELOG gives both totals (698,201 instead of 2,094,603) and "re-hashes 0 bytes instead of
+  1,396,402"; it also names `checked_hash_counts()`.
 
 ## Earlier findings
 

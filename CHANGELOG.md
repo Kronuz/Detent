@@ -20,9 +20,11 @@
   page digest of the image the encoder had just written, and the recovery after a publication hashed and
   walked the generation again; both now trust the build (the walk that derives the live counts stays, the
   digest comparisons go). The recovery opens a freshly published generation through `.read` and `.live`
-  like a restart. Cold bootstrap, 10K knobs: the agent hashes 698,201 bytes of pages and packs (its own
-  build's) instead of 1,396,402. No format or wire byte changes; frame SHA-256 is unchanged.
-- Hash counters per tier: `paged::built_hash_counts()`, `distribution::frame_hash_counts()` and
+  like a restart. Cold bootstrap, 10K knobs: the agent hashes 698,201 bytes of pages and packs, its own
+  build's, instead of 2,094,603; it re-hashes 0 bytes instead of 1,396,402. No format or wire byte changes;
+  frame SHA-256 is unchanged.
+- Hash counters per tier: `paged::built_hash_counts()` and `paged::checked_hash_counts()` (disjoint, each
+  only growing), `distribution::frame_hash_counts()` and
   `delivery::HashStats`, in `CoordinatorStatus::hash`, the relay's `/v1/health` bundle fields
   `hash_*_bytes` and the agent's log line after each publication.
 
