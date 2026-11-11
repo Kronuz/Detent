@@ -1,0 +1,46 @@
+# namespace-s3b review: durability
+
+Commit: 1e2ea54101858aee66808f2ae5290f0fdc443deb
+Verdict: CHANGES
+Date: 2026-11-11
+
+APPROVE: lands as is, at this commit's code, with no blocking finding. CHANGES: lands once each
+blocking finding's fix and its test pass the suite at the fixed commit; with only nits, an APPROVE.
+REJECT: the approach is wrong; the quest is re-planned.
+
+## Evidence I relied on
+
+- Native suite 261111-043027-eeba12 at 1e2ea54 (exit 0, 250/250): `test_delivery_repair_{heal,lease-close,delta,unchanged,relay,scrub-worker,reset}`, `test_testing_pack_scrub{,_faults}`, `test_testing_trusted_restart_{t5,scrub-disk,heal,mapped,oracle,refusals}`, `test_local_paged_segment_collection`, `test_local_publication_power_cut`. I did not rerun any of these.
+- Mutant jobs listed in the journal; I spot-checked two finished at this commit (k4-scrub-on-owner 261111-043117-07d3c7, k5-reset-keeps-pending 261111-043130-cdf29b, both exit 0, so both mutants are killed).
+- The ASan/UBSan and TSan local gates at this commit were cancelled (D54: CI runs sanitizers). I did not use them.
+
+## What I checked myself
+
+Probe job 261111-045517-d982b2 (exit 1, so the defect reproduces). Scripts are in `.scratch/review-namespace-s3b-durability/`: `probe-delta-clears.patch` adds a `delta-clears` mode to `tests/detent_delivery/test_repair.cc`, and `run-probe.sh PATCH MODE` applies the patch in the job checkout, builds `test_delivery_repair` in `.scratch/build-mutant`, runs the mode and reverts the patch. The probe exits 0 once D1 is fixed.
+
+Code read against the five named risks:
+
+1. Pack repair. A repair writes only new packs, because the pack identity is H(storage, generation, ordinal) (`paged_segment_builder.cc:38-48`). It goes through the same `begin_paged` publication as every snapshot, so a crash leaves either the old selection or the new one. A restart during a pending repair re-detects the damage at the next scrub pass. One path does keep serving the damaged pack: see D1.
+2. Scrub. Verified bits are withdrawn on the worker before the owner sees the report. `VerifiedPages::set` is a CAS, so a racing first touch can restore only its own freshly verified page. The scrub never reads its mapping (it uses `pread` on the file), and the owner discards reports whose root is not the store's selection. Transient errors: see N1. The scrub cannot withdraw a reader process's bits: see N2.
+3. Collector. Marks are keyed by segment. Conservative marks come from a `.live` record whose generation, root checksum, row count and tree segment are all checked. A conflict in Mark, an unreadable `.live` or a non-proof error fails the pass before any delete. A publication invalidates the pass, and `start()` refuses while a generation is active or a recovery is pending. I found no path that deletes a pack still referenced by a leased root or a pending snapshot. A related gap is N3.
+4. Cold recovery and mapped rewrites. A snapshot gets no prior in either `populate` (`disk_store.cc` `begin_paged`) or `capture`. A verified page rewritten under the mapping is re-checked against its header on every resolve and is bounds-checked by `NodeAt`/`decode_node`, so a read cannot crash. It can return wrong values until the page is withdrawn; the doc says so (see N2 for readers).
+5. v2 header bounds come from Dense. `decode_page_header` checks `validate(h)`, which bounds externals and nodes against the length, and requires `bytes.size() == h.length` (`paged_layout.cc:32-38`, 200-213). `decode_node` bounds prefix, count and body against `end` (`paged_layout.cc:227-259`). `NodeAt::child` requires each step to move forward. `resolve` and `checked_page_bytes` bound each reference against the mapped extent. `lookup` maps any exception to `ReadSourceFailure` (`paged_read_state.cc:106-110`), and `try_get`/`try_eval` map `std::exception` to `SourceFailure` (`view.cc`). Dropping the mutant is justified.
+
+## Findings
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| D1 | yes | defect | A delta publication clears a pending repair even though the delta reuses the damaged generation's packs. `bind_base` clears `repair.pending` on any confirmed replacement (`coordinator.cc:507-511`, comment: "Any confirmed replacement retires the generation that requested repair"), but a delta keeps every pack it does not rewrite. `request_repair` ends the network wait only in `Receiving` (`coordinator.cc:140`). A scrub report or first-touch request that arrives while a delta is being staged, built or published therefore gets no Replace: the delta lands, `pending` goes false with `completed` still 0, and the selected generation still references the damaged pack. Nothing is counted as a failure. Recovery then needs another full scrub pass on an unchanged root (see N4). A second half: `session_forced` is set only when a session opens (`coordinator.cc:986-987`) and is never reset after the forced snapshot is used (`:1226` resets only `force_snapshot`). Once a session has been forced, a later request outside `Receiving` keeps that session (`:961`) and never asks upstream for a Replace. With only the first half fixed, the repair would stay pending indefinitely. | Probe 261111-045517-d982b2: request made at phase Building (3) during a delta build gives "requested 1 completed 0 pending 0", upstream "forced 0 snapshots 0 deltas 1", and all 4 prior packs still on disk 15 s later. It fails at the probe's last check. | Clear `pending` only when the confirmed plan is a snapshot plan (`PagedPlan::snapshot()`: Repair, TrustedReset or a forward snapshot, none of which share a pack), and record that on `PagedCandidateResult`. Reset `session_forced` once the forced snapshot has been offered, or close the session whenever a repair becomes pending outside `Receiving`. Test: the probe's `delta-clears` mode in `test_repair.cc` (expects `pending` or `completed >= 1`), plus a second request on a session that was already forced. |
+| N1 | no | gap | A transient descriptor or resource failure on a pack is reported as damage. Two failed `openat` calls (for example EMFILE) or two failed `pread` calls report the pack, withdraw its bits and trigger a forced Replace and a full repair. The same errno on the directory open refuses the pass instead. `test_pack_scrub_faults` `exhausted` asserts this behavior. No data is lost; the cost is a spurious Replace and republish. | `pack_scrub.cc:170-187, 219-238`; `test_pack_scrub_faults.cc` `exhausted()` | Owner's call. Options: keep it (A11 as written); or treat EMFILE, ENFILE, ENOMEM and EINTR on a pack as a refused pass, the same as the directory open, and report only ENOENT, a length mismatch, EIO or a hash mismatch. |
+| N2 | no | gap | The scrub withdraws only the agent's `VerifiedPages`. Reader processes (`PreparedReader` → `LazyPageAccess`) keep their own bits (`lazy_page_access.cc:209-221`) and serve a page changed after verification until they reopen on the repaired generation. The "Limits" bullet in `trusted-restart.md` says "until the scrub withdraws its verified bit", which is accurate only for the agent. | `lazy_page_access.cc:189-229`; `pack_scrub.cc:75-78` | Correct the doc: for readers, the window lasts until the repaired generation is selected and the reader reopens. |
+| N3 | no | gap | When a leased root's walk fails on a missing or unreadable pack (`std::system_error` rather than `SegmentProofError`), there is no conservative fallback. The whole pass fails, `deferred()` is false, and nothing is retried. This is safe, since nothing is deleted, but other unreachable packs wait for the next publication. The scrub counts a missing pack as damage, so the two definitions differ. | `paged_segment_collection.cc` `fail()` 258-292, `deferred()` 161-163 | Optional: treat ENOENT/EIO on a protected root's pack like a proof failure (conservative `.live` marks). |
+| N4 | no | gap | The scrub restarts at the first pack whenever the selected root changes (`coordinator.cc:685-693`). This predates the quest (S3). At the default 512 KiB/s, a store whose deltas arrive faster than one pass completes never reports, and healing then depends on a delta build touching the damaged page. | `coordinator.cc:685-693`; `coordinator.hh:33` | Out of scope here. Consider carrying pass progress across generations for packs they share. |
+| N5 | nit | nit | An obsolete report `continue`s past the 20 ms tick (`coordinator.cc:722-723`). While the store's selection is ahead of `base->generation`, the loop posts a scrub slice about every 1 ms. | `coordinator.cc:722-723` | Wait for the tick before continuing. |
+
+## Not run
+
+- No crash model of a repair publication. It uses the same `begin_paged` path as every snapshot, and `test_local_publication_power_cut` passed at this commit. I relied on that.
+- No sanitizer runs of the scrub worker hand-off; CI runs those.
+- I did not check `RLIMIT_NOFILE` behavior on Linux, or SIGBUS when a pack is truncated under a reader's mapping. Truncation is outside the quest's "rewritten" claim.
+- I did not reproduce the second half of D1 (a stale `session_forced`) with a probe; it comes from reading the code. The scripted server offers no delta on a forced session, so a test needs a server change.
+- I did not run the architect's original `q1`, `lease` or `leaseclean` probes.
