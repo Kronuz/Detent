@@ -1,6 +1,6 @@
 # async-drivers-design: journal
 
-State: waiting on jobs (Xapiand review 2, Y1-Y12 folded; see the Y table)
+State: waiting on jobs 261111-012904-94206c 261111-012132-33b844 261111-012138-0ccf2f 261111-012201-35b594 261111-012206-319649 261111-012211-a14b8d 261111-012216-b70b56 261111-012221-b0e662 261111-012225-d639b2 261111-012230-f5cbf3 (Y1-Y12 folded; D10's hop numbers wait on 94206c)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
@@ -12,6 +12,9 @@ after it.
 
 ## Next
 
+0. On resume: fill D10's HOP1/HOP16/HOP64/WAKE/LAT/CPU100K/HOPRATIO placeholders from
+   94206c's log, check every job above finished as required (controls exit 1 or 134), record
+   the design's size (SIZE in the Y table), set State "ready for review".
 1. The lead relays the fold to Xapiand (A8 re-review); the Y table names each resolution.
 2. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (from round 1),
    and Y5's switch to Track C D16 in the same file if the November 2 entry names a per-loop
@@ -29,7 +32,7 @@ Approved: 1.1, 1.4, 1.5. Each fix replaces text (design grew 0 bytes: 65,994 bef
 | Y2 (X2) | D2: `propose` completes at `ProposalPlaced` (entry durable here, `core.h:733`); `committed(GroupId, Placement, token)` waits for commit or throws `superseded`; D8 rows; quest 4 criterion | n/a (text) |
 | Y3 (X3) | D2: `change_membership`, `transfer_leadership` (`transfer_failed`), `repair`, `checkpoint` (reserve, capture chunks, publish), `activated`/`activation_failed`/`application_failed`; D8 rows; quest 4 criterion, so quest 7 can delete `try_submit` | n/a (text) |
 | Y4 (X4) | D10 Identity and Q7: a frame for a stored group and held incarnation, the source incarnation's node the connection's node where membership names it; never a membership filter. Bench `frame_admission` over real Cores (consensus:ab05507) | 261111-012147-65055f (joiner, lagging, removal, spoof: ok); control `voters` 261111-012153-c69789 must exit 1 (joiner and lagging follower never catch up; removal unaffected) |
-| Y5 (X5) | D10 adopts Track C D16: a Control and a Bulk connection per peer node, each on one loop; reader batches frames by destination loop, one post per batch per read; sends batched per resume; per-group credit (D16). Cost per host `29 KB + 2P x 41 KB`, `1 + 2P` fds (8.2 MB, 201 at P=100 vs 66 MB, 1,616 per loop pair at L=16). Per-loop ports, hello L agreement, `misrouted`, stale-dial fallback removed (R2, R12 moot); `shrink_dial`, `placement_test share/hello/mod` deleted; quest 5 rewritten | 261111-012156-f20dab (`hop_cost`, exclusive): HOPSUMMARY |
+| Y5 (X5) | D10 adopts Track C D16: a Control and a Bulk connection per peer node, each on one loop; reader batches frames by destination loop, one post per batch per read; sends batched per resume; per-group credit (D16). Cost per host `29 KB + 2P x 41 KB`, `1 + 2P` fds (8.2 MB, 201 at P=100 vs 66 MB, 1,616 per loop pair at L=16). Per-loop ports, hello L agreement, `misrouted`, stale-dial fallback removed (R2, R12 moot); `shrink_dial`, `placement_test share/hello/mod` deleted; quest 5 rewritten | 261111-012904-94206c (`hop_cost`, strict): HOPSUMMARY |
 | Y6 (X6) | Q3 (b) required; quest 3: 0 fds per idle group, artifacts by opaque fixed-width id and incarnation (nested indexes never collide), per-host directory independent of L, the owner lock shared with strata cold-tier step 5; quest 4: 0 fds including the Worker's | n/a (criteria) |
 | Y7 (X7) | Q6 and D4: users are the WAL fsync Debouncer, Kronuz/logger, a stale include; `engine::Host` timers move to the wheel after quest 1; DB-TIMER claim removed (no such thread at Xapiand HEAD) | n/a (text; `grep -rn DB-TIMER src` empty at Xapiand:d96240e20) |
 | Y8 | Already: Q4 is a 7b prerequisite with a closed state (round 1 X8) | n/a |

@@ -15,7 +15,7 @@ touches). Every number is a campaign job pinned to those commits, run by
 261110-000912-e9dff1 (strict); frames, resumes, wheels, steps and idle CPU in 261110-000911-f87d0f
 (exclusive); the snapshot channel's layout in 261110-000913-e9e87d (light); today's per-group
 transport in 261110-000909-400d3c (strict); one idle peer connection in 261110-005436-650916
-(strict); the cross-loop hop of a received batch in 261111-012156-f20dab (exclusive). The
+(strict); the cross-loop hop of a received batch in 261111-012904-94206c (strict). The
 threading rules are tested by the bench's `wheel_test`, `waiter_test`, `blocking_entry`,
 `reader_test`, `placement_test`, `repartition_lost` and `frame_admission`, and `lone_voter`
 measures a lone voter's first election (Rerunnable checks). Xapiand reviewed this design twice
@@ -450,7 +450,7 @@ today's reader holding a follower's heartbeats for 3,000 ms behind a group whose
 full for 3 s, past the follower's 1,000 ms minimum election timeout, against a 100 ms longest gap
 when the busy group's frames cannot hold the reader.
 
-*The hop's cost* (job 261111-012156-f20dab, `hop_cost`, two `asio::io_context` loops): moving a
+*The hop's cost* (job 261111-012904-94206c, strict, `hop_cost`, two `asio::io_context` loops): moving a
 64-byte frame to another loop adds HOP1 ns of CPU per frame posted alone, HOP16 ns in batches of
 16 and HOP64 ns in batches of 64, against delivery on the reader's own loop; a batch that wakes
 an idle loop adds WAKE us of CPU on both threads and arrives in LAT us (p50). At 100,000 frames a
