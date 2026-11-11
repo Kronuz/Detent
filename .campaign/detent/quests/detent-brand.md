@@ -5,27 +5,39 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Detent has a logo of the same family and finish as the Kronuz logo
+(`~/code/KronuzBlog/Kronuz.github.io/brand/`, `src/assets/logo.svg` there) and Xapiand's
+(`~/code/Kronuz/Xapiand/docs/src/assets/logo.png`): flat geometric shapes, no shading or gradients,
+the Kronuz green `#93c34d` and gray `#a7a7a7`, a hexagonal silhouette the family shares, clean at
+16 px. Its subject is a detent: a knob held at a setting by a click-stop (notches around a dial, the
+pointer seated in one). It replaces today's `website/src/assets/logo.svg` (a shaded dark-green dial,
+off the family's style). `brand/` in this repository holds the master vector and every derived
+asset, the way Kronuz's does, and the README and the site's welcome page say what the name means:
+"A detent is the click-stop that holds a knob at its setting." (wording may be polished).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 [manual] The owner picks the logo from three candidates rendered side by side
+  (`brand/candidates/`, each at 512 px and 16 px, light and dark backgrounds, next to the Kronuz and
+  Xapiand logos); the journal records the pick and who made it.
+- A2 [artifact] `brand/` holds `logo.svg` (the master, hand-written or cleaned SVG, no embedded
+  rasters), `README.md` (what each file is and how the rest derive from the master, with the
+  command), and `variants/<name>/` with favicon.svg, favicon.ico, apple-touch-icon(s), icon-192 and
+  icon-512 PNGs and logo.svg in that variant's colors (at least a light and a dark variant).
+- A3 The site uses the new assets (logo, favicon, footer logo, touch icons) and builds with its link
+  check: a job.
+- A4 [artifact] README's opening and the welcome page carry the meaning line.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- Owner, 2026-11-11: make the name's meaning visible; Detent's logo matches the Kronuz and Xapiand
+  family; each of the three projects keeps a `brand/` directory (Xapiand's is its campaign's to do;
+  Kronuz's exists).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
