@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <mutex>
@@ -226,6 +227,8 @@ struct Server {
 	enum class Resume { Idle, Delta, Snapshot };
 	std::atomic<unsigned> head{1};
 	std::atomic<Resume> resume{Resume::Idle};
+	// A session opened for a Replace also offers the delta after its snapshot, while no delta has been offered.
+	std::atomic<bool> forced_delta{false};
 	std::atomic<unsigned> opens{0}, forced_opens{0}, snapshots{0}, deltas{0};
 	std::atomic<bool> stop{false};
 	std::atomic<bool> failed{false};
@@ -309,7 +312,7 @@ struct Server {
 				session_snapshot = false;
 				++snapshots;
 				reply = snapshot_reply(head, window);
-			} else if (resume == Resume::Delta && !session_forced && !resume_offered) {
+			} else if (resume == Resume::Delta && (!session_forced || (forced_delta && deltas == 0)) && !resume_offered) {
 				// Every session that was not opened for a Replace is offered the delta once; one that cannot
 				// use it asks for the Replace of the head it had, which is then revision 2.
 				resume_offered = true;
@@ -500,6 +503,7 @@ struct Options {
 	bool fresh = false;
 	unsigned workers = 1;
 	std::optional<d::Cursor> reset_from;
+	std::shared_ptr<t::PublicationSink> sink;
 };
 task::task<bool> until(task::asio_scheduler &scheduler, std::chrono::seconds limit, const auto &predicate) {
 	asio::steady_timer timer(scheduler.executor());
@@ -569,6 +573,8 @@ void run_phase(const fs::path &certificates, const fs::path &directory, Server &
 		counting = std::make_shared<CountingSink>(bundle);
 		config.publication_sink = counting;
 	}
+	if (options.sink)
+		config.publication_sink = options.sink;
 	auto coordinator = t::make_coordinator(config, store, driver, domain, worker);
 	auto observing = [&]() -> task::task<void> {
 		co_await task::when_all(coordinator->run(), [&]() -> task::task<void> {
@@ -867,6 +873,120 @@ void scrub_worker(const fs::path &certificates, const fs::path &root) {
 		}
 	});
 }
+// A sink that runs a hook when the coordinator binds a built candidate: on the owner executor at phase Building,
+// where a scrub report can interleave with a delta's build.
+class HookSink final : public t::PublicationSink {
+  public:
+	void authenticated() noexcept override {}
+	void begin_stage(const t::ReceivedUpdate &) override {}
+	bool stage_step(d::WorkBudget &) override { return true; }
+	void bind_candidate(const l::Descriptor &descriptor, l::DirectoryIdentity) noexcept override {
+		if (on_bind)
+			on_bind(descriptor);
+	}
+	bool release_stage(d::WorkBudget &) noexcept override { return true; }
+	void selected(const l::RecoveredGeneration &) override { ++selects; }
+	void selected_repaired(const l::RecoveredGeneration &) override { ++repairs; }
+	void fence() noexcept override { fenced = true; }
+	std::function<void(const l::Descriptor &)> on_bind;
+	unsigned selects = 0, repairs = 0;
+	bool fenced = false;
+};
+// A repair requested while a delta (which keeps every unchanged pack of the generation that asked for repair) is
+// being built must survive that delta's publication: a Replace is asked for and a Repair completes.
+void delta_clears(const fs::path &certificates, const fs::path &root) {
+	const auto store = root / "store";
+	seed(certificates, store);
+	const auto old_packs = packs_in(store);
+	Server server(certificates);
+	auto sink = std::make_shared<HookSink>();
+	t::CoordinatorStatus at_delta, final_status;
+	bool fired = false;
+	t::CoordinatorPhase phase_at_request{};
+	run_phase(certificates, store, server, {.scrub_rate = 0, .sink = sink},
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
+		auto *raw = coordinator.get();
+		sink->on_bind = [&, raw](const l::Descriptor &candidate) {
+			if (!fired && candidate.cursor.revision == 2) {
+				fired = true;
+				phase_at_request = raw->status().phase;
+				t::detail::CoordinatorAccess::request_repair(*raw);
+			}
+		};
+		server.resume = Server::Resume::Delta;
+		check(explain(co_await until(scheduler, 60s, [&] {
+			const auto status = coordinator->status();
+			return status.recoverable && status.recoverable->revision == 2;
+		}), coordinator, server));
+		at_delta = coordinator->status();
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed >= 1; }),
+					  coordinator, server));
+		final_status = coordinator->status();
+		// The collector then removes every pack the damaged generation and the delta shared.
+		co_await until(scheduler, 60s, [&] {
+			const auto now = packs_in(store);
+			return std::none_of(old_packs.begin(), old_packs.end(), [&](const auto &pack) { return now.count(pack); });
+		});
+	});
+	const auto now = packs_in(store);
+	std::size_t kept = 0;
+	for (const auto &pack : old_packs)
+		kept += now.count(pack);
+	std::cout << "delta-clears: hook fired " << fired << " at phase " << static_cast<unsigned>(phase_at_request)
+			  << "; after the delta: requested " << at_delta.repair.requested << " completed "
+			  << at_delta.repair.completed << " pending " << at_delta.repair.pending << "; after the repair: requested "
+			  << final_status.repair.requested << " completed " << final_status.repair.completed << " pending "
+			  << final_status.repair.pending << "; upstream opens " << server.opens << " forced "
+			  << server.forced_opens << " snapshots " << server.snapshots << " deltas " << server.deltas
+			  << "; prior packs left after collection " << kept << " of " << old_packs.size() << "\n";
+	check(fired && server.deltas == 1);
+	check(final_status.repair.requested == 1);
+	// The pack-sharing delta does not retire the request: a forced Replace follows and the repair completes.
+	check(final_status.repair.completed >= 1 && !final_status.repair.pending && server.forced_opens >= 1);
+	check(kept == 0);
+}
+// A session opened for a Replace stays open after its snapshot; a repair requested while a later delta on it is
+// built still gets a Replace, so the session counts as forced only until its first offer is published.
+void forced_again(const fs::path &certificates, const fs::path &root) {
+	const auto store = root / "store";
+	seed(certificates, store);
+	Server server(certificates);
+	auto sink = std::make_shared<HookSink>();
+	t::CoordinatorStatus first, final_status;
+	bool fired = false;
+	run_phase(certificates, store, server, {.scrub_rate = 0, .sink = sink},
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
+		auto *raw = coordinator.get();
+		t::detail::CoordinatorAccess::request_repair(*raw);
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 1; }),
+					  coordinator, server));
+		first = coordinator->status();
+		sink->on_bind = [&, raw](const l::Descriptor &candidate) {
+			if (!fired && candidate.cursor.revision == 2) {
+				fired = true;
+				t::detail::CoordinatorAccess::request_repair(*raw);
+			}
+		};
+		server.forced_delta = true;
+		server.resume = Server::Resume::Delta;
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().repair.completed == 2; }),
+					  coordinator, server));
+		final_status = coordinator->status();
+	});
+	std::cout << "forced-again: first repair with " << first.repair.requested << " request(s); hook fired " << fired
+			  << "; final: requested " << final_status.repair.requested << " completed "
+			  << final_status.repair.completed << " pending " << final_status.repair.pending << "; upstream opens "
+			  << server.opens << " forced " << server.forced_opens << " snapshots " << server.snapshots
+			  << " deltas " << server.deltas << "\n";
+	check(fired && server.deltas == 1 && server.forced_opens == 2);
+	check(final_status.repair.requested == 2 && !final_status.repair.pending && !sink->fenced);
+	check(final_status.selected.descriptor && final_status.selected.descriptor->cursor.revision == 2);
+	Reader reader(store);
+	const auto reads = reader.read(2);
+	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -893,6 +1013,10 @@ int main(int argc, char **argv) {
 			scrub_worker(certificates, root);
 		else if (mode == "reset")
 			repair_reset(certificates, root);
+		else if (mode == "delta-clears")
+			delta_clears(certificates, root);
+		else if (mode == "forced-again")
+			forced_again(certificates, root);
 		else
 			throw std::invalid_argument("unknown mode");
 		std::cout << "ok\n";

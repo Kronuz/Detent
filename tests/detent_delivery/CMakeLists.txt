@@ -96,7 +96,7 @@ add_executable(test_delivery_repair test_repair.cc)
 target_include_directories(test_delivery_repair PRIVATE
   "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery")
 target_link_libraries(test_delivery_repair PRIVATE detent::delivery_coordinator detent::relay)
-foreach(mode IN ITEMS heal lease-close delta unchanged relay scrub-worker reset)
+foreach(mode IN ITEMS heal lease-close delta unchanged relay scrub-worker reset delta-clears forced-again)
   add_test(NAME test_delivery_repair_${mode} COMMAND test_delivery_repair ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture ${mode})
   set_tests_properties(test_delivery_repair_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 240)
 endforeach()
