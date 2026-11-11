@@ -177,9 +177,10 @@ scale), which stash's producers do themselves: (f)'s latest fire came 3.7 ms (P 
 | (c) stash, intrusive leaf | 16 | 227.9 / 27.5 | 69.8 / 11.2 |
 | (d) prototype + inbox, 56 B | 56 | 121.7 / 56.1 | 0 / 0 |
 | (e) prototype + inbox via `next` | 32 | 97.7 / 32.1 | 0 / 0 |
-| (f) (e), striped inbox | 32 | MEM_F |
+| (f) (e), striped inbox | 32 | 101.8 / 32.1 | 0 / 0 |
 
-The prototype's 64 KiB of slot heads is the 65 bytes per entry at n = 1,000; stash allocates per
+The prototype's 64 KiB of slot heads is the 65 bytes per entry at n = 1,000 ((f)'s 64 stripes
+add 4 KiB); stash allocates per
 arm (a box, slots, leaves and level nodes) and frees only when `clean` passes the slot, so a
 re-arm costs heap until the old deadline passes.
 
