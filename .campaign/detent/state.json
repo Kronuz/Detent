@@ -464,6 +464,12 @@
       "after": [],
       "checks": [
         {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        },
+        {
           "cmd": "ci:linux-tsan",
           "level": "light",
           "minutes": 30,
@@ -473,11 +479,42 @@
       "consumes": [],
       "files": [
         "include/consensus/transport/**",
-        "src/transport/**",
         "test/**",
         "docs/**",
         "CHANGELOG.md",
         "README.md"
+      ],
+      "history": [
+        {
+          "at": "2026-11-11T04:59:39",
+          "checks": [
+            [
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 30,
+                "name": "tsan"
+              }
+            ],
+            [
+              {
+                "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                "level": "light",
+                "minutes": 30,
+                "name": "suite"
+              },
+              {
+                "cmd": "ci:linux-tsan",
+                "level": "light",
+                "minutes": 30,
+                "name": "tsan"
+              }
+            ]
+          ],
+          "reason": "",
+          "voided": [],
+          "weakened": []
+        }
       ],
       "landed": [],
       "lenses": [
@@ -492,7 +529,7 @@
       "risk": "high",
       "status": "planned",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T04:59:21"
+      "updated": "2026-11-11T04:59:39"
     },
     "container-selection": {
       "accepted": {},
