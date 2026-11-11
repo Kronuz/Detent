@@ -4463,9 +4463,7 @@
           "verdict": "APPROVE"
         }
       },
-      "after": [
-        "namespace-s6"
-      ],
+      "after": [],
       "base": "8e42741bd07e72cc6e443d16e4ba87ebd93e61c2",
       "branch": "quest/detent/namespace-s7",
       "checks": [
@@ -4558,12 +4556,12 @@
       "provides": [
         "agent-store"
       ],
-      "reason": "Narrow: the F1 test goes in tests/detent_agent, not tests/detent_local, which dense-walkers holds",
+      "reason": "D58: S7 lands the agent store as a module behind its tests, using nothing from S6; the order on S6 moves to namespace-s7-wire, which wires the agent's publish path",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T03:22:18",
+      "updated": "2026-11-11T03:22:31",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s7-wire": {
