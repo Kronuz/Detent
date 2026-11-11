@@ -2374,6 +2374,8 @@
     "dense-walkers": {
       "accepted": {},
       "after": [],
+      "base": "ce37aadf4a757f0dc37421499735a771761c36ef",
+      "branch": "quest/detent/dense-walkers",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -2398,9 +2400,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "One bounded inline-slot walker for Dense pages",
-      "updated": "2026-11-09T17:15:43"
+      "updated": "2026-11-11T00:56:01",
+      "worktree": "../Detent-wt/detent/dense-walkers"
     },
     "docs-e2e": {
       "accepted": {},
