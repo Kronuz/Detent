@@ -188,6 +188,10 @@ def main() -> int:
             families.append("IPv4")
             print(f"{name} bound to [::]: served {' and '.join(families)} clients", flush=True)
         print(f"host v6_only default: {'off' if v4_too else 'on'}", flush=True)
+    except BaseException:
+        for log in sorted(directory.glob("*.log")):
+            print(f"--- {log.name}\n{log.read_text(errors='replace')[-2000:]}", flush=True)
+        raise
     finally:
         for child in children.values():
             child.terminate()
