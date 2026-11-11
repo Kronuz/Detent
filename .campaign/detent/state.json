@@ -4103,10 +4103,52 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T00:54:59",
+          "commit": "7edbd3a83bd3c5914dc81b1c486785b47c4acb8a",
+          "criteria": {
+            "A1": "261111-000234-e693e9, 261111-000234-624a05",
+            "A2": "261111-000234-e693e9, 261111-000234-624a05",
+            "A3": "261111-000234-e693e9, 261111-000234-624a05",
+            "A4": "261111-000234-e693e9, 261111-000234-624a05",
+            "A5": "261111-000234-e693e9, 261111-000234-624a05",
+            "A6": "261111-000234-e693e9, 261111-000234-624a05"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "6438b98fa1c460bf97d50742c10dd58a3e6ee927",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-000234-e693e9",
+              "level": "light",
+              "seconds": 826.0,
+              "state": "done",
+              "what": "namespace-s5-1 check native at 6438b98fa1c4"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "6438b98fa1c460bf97d50742c10dd58a3e6ee927",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-000234-624a05",
+              "level": "none",
+              "seconds": 4.9,
+              "state": "done",
+              "what": "namespace-s5-1 check pins at 6438b98fa1c4"
+            }
+          ],
+          "final": true,
+          "from": "1b81a72b0d8ace5042f2be05cc78b30d03a24606",
+          "reason": "",
+          "tested": "6438b98fa1c460bf97d50742c10dd58a3e6ee927"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [
@@ -4114,10 +4156,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S5.1: per-namespace positions, incarnations, directory stream, enabling entry",
-      "updated": "2026-11-11T00:54:56",
-      "worktree": "../Detent-wt/detent/namespace-s5-1"
+      "updated": "2026-11-11T00:55:05",
+      "worktree": ""
     },
     "namespace-s5-2": {
       "accepted": {},
