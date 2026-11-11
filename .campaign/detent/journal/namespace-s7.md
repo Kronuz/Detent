@@ -1,6 +1,6 @@
 # namespace-s7: journal
 
-State: waiting on jobs 261111-013953-ee8bac 261111-014002-b517ac
+State: waiting on jobs 261111-021846-f70216 261111-021846-db2959 261111-021847-4e419d 261111-021849-6ce213 261111-021851-2e1cef 261111-021853-b98c22 261111-021855-1b868d
 Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
 ## Doing
@@ -37,14 +37,27 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
+| A1 | 261111-021846-f70216 (native), 261111-021846-db2959 (pins) |
+| A2 | 261111-021846-f70216; 261111-021853-b98c22 (ndr4-trust-reused-name, --fails-without) |
+| A3 | 261111-021847-4e419d (T7); 261111-021849-6ce213 (f2), 261111-021851-2e1cef (f1, T7), both --fails-without |
+| A4 | 261111-021846-f70216 |
+
+Jobs at the fixes' head (journal commits only after Detent:39578e49). Superseded: everything at c171898.
 
 ### Finding-to-job map (D59)
 
 | Finding | Job | What it shows |
 |---|---|---|
-| F1 | pending | |
-| F2 | pending | |
+| F1 | 261111-021846-f70216 | suite: `test_agent_store` short_change, `test_change_file` |
+| F1 | 261111-021847-4e419d | T7 with `change` modelled, cut empty and between creation and sizing |
+| F1 | 261111-021851-2e1cef | f1 mutant (writer refuses a short `change`): T7 fails |
+| F1 | 261111-021855-1b868d | reviewer's probe rebuilt at the fix: `change-zero` lines should read opened |
+| F2 | 261111-021846-f70216 | suite: `test_agent_store` failed_sync |
+| F2 | 261111-021849-6ce213 | f2 mutant (reuse an unreached name): `test_agent_store` fails |
+
+The probe job builds the worktree's `.scratch/build` and points the stale
+`tests/detent_agent/libdetent_agent_store.a` (pre-c171898 location) at the rebuilt library, so
+`run_probe.sh` links the fixed store unchanged.
 
 ## Result
 
