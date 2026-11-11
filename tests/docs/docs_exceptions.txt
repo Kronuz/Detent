@@ -1,0 +1,48 @@
+# Gaps between the pages and the source, one per line: docs-only|source-only KIND NAME -- reason.
+# check_docs.py fails on a gap not listed here and on a listed gap that no longer exists, so area
+# quests delete a line when they document the name (or remove it from the page).
+
+source-only config application_limits -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config baseline_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config bootstrap_transfers -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config cache_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config catchup_transfers -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config decoded_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config definition_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config image_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config image_limits -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config private_key -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config publisher_user -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config reader_validation -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config request_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config retained_edges -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config state_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only config string_bytes -- authority/managed/agent configuration key not on a page; the configuration area quest documents it
+source-only error admission_full -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error authorization_timeout -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error body_bound -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error distribution_unavailable -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error internal_error -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error invalid_request -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error not_found -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error producer_busy -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error publish_forbidden -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error scope_forbidden -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error source_behind -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error source_not_leader -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error unauthorized -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only error unknown_endpoint -- HTTP error name returned by the authority; the reference area quest adds it to the Authority API
+source-only flag --publisher-user -- agent/daemon flag not on the CLI pages; the reference area quest documents it
+source-only flag --quiet -- agent/daemon flag not on the CLI pages; the reference area quest documents it
+source-only flag --reader-heap-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-image-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-mapping-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-namespaces -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-overrides -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-owners -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-pages -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-records -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-segments -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-string-bytes -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --reader-validation -- reader capacity flags are undocumented; the configuration area quest adds them
+source-only flag --workers -- agent/daemon flag not on the CLI pages; the reference area quest documents it

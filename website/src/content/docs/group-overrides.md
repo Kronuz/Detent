@@ -23,6 +23,10 @@ publish payments:new_processor '{
 }'
 ```
 
+<!-- e2e:begin
+stdout-matches: "status":"applied"
+e2e:end -->
+
 Your application supplies the caller's group as the *switch value*:
 
 ```sh
@@ -36,6 +40,14 @@ detent get payments:new_processor --hash user-1 --switch employees
 detent get payments:new_processor --hash user-1 --switch excluded
 # false
 ```
+
+<!-- e2e:begin
+stdout:
+  true
+  false
+  true
+  false
+e2e:end -->
 
 ```cpp
 bool enabled = client.eval_or_panic("payments:new_processor", user_id, user_group);
@@ -61,6 +73,10 @@ A group that isn't listed falls through to the knob-wide rollout:
 detent get payments:new_processor --hash user-1 --switch unknown
 # false   (user-1 is outside the knob-wide 10%)
 ```
+
+<!-- e2e:begin
+stdout: false
+e2e:end -->
 
 A group rollout uses the **same bucket** as the knob-wide rollout. `user-1`'s
 bucket for `payments:new_processor` is the same number whatever group it's
@@ -95,6 +111,11 @@ sleep 1
 detent get payments:new_processor --hash user-2 --switch beta
 # true
 ```
+
+<!-- e2e:begin
+stdout-matches: ^false\n
+stdout-matches: ^true$
+e2e:end -->
 
 `user-2` falls outside the old 50% for this knob, so it reads `false` in `beta`
 before the publish and `true` after. Leaving `production` out of that

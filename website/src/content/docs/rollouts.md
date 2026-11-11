@@ -18,6 +18,10 @@ shell and directory, with the `publish` helper defined:
 publish payments:new_processor '{"type":"bool","default":false,"rollout_pct":10}'
 ```
 
+<!-- e2e:begin
+stdout-matches: "status":"applied"
+e2e:end -->
+
 Each read passes the entity's stable identifier as the *hash value*:
 
 ```sh
@@ -27,6 +31,12 @@ detent get payments:new_processor --hash user-1
 detent get payments:new_processor --hash user-42
 # true
 ```
+
+<!-- e2e:begin
+stdout:
+  false
+  true
+e2e:end -->
 
 ```cpp
 bool enabled = client.eval_or_panic("payments:new_processor", user_id);
@@ -81,6 +91,10 @@ detent get payments:new_processor
 # false
 ```
 
+<!-- e2e:begin
+stdout-matches: ^true\nfalse$
+e2e:end -->
+
 :::hint[No hash, no rollout]{.caution}
 A read *without* a hash value skips the rollout entirely and returns the knob's
 `default`. At 100% with `"default": false`, a hash-less read still returns
@@ -100,6 +114,10 @@ sleep 1
 detent get payments:new_processor
 # true
 ```
+
+<!-- e2e:begin
+stdout-matches: ^true$
+e2e:end -->
 
 To roll back everyone, publish `"default": false` without `rollout_pct`
 instead. Because a publish replaces the whole definition, leaving out
