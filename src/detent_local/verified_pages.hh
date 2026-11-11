@@ -37,6 +37,12 @@ class VerifiedPages {
 				return;
 		}
 	}
+	// Withdraws every verified page, so the next read of each re-verifies it. A first touch racing the
+	// clear can leave its own page set; the scrub's next pass over the pack reports the damage again.
+	void clear() const noexcept {
+		for (auto &word : words_)
+			word.store(0, std::memory_order_release);
+	}
 
   private:
 	static unsigned shift(std::size_t offset) noexcept { return (offset / granule_bytes % 16) * 4; }

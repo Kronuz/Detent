@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_segment_collection.cc b/src/detent_local/paged_segment_collection.cc
+index 7cd104a7..ea743eaf 100644
+--- a/src/detent_local/paged_segment_collection.cc
++++ b/src/detent_local/paged_segment_collection.cc
+@@ -533,7 +533,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
+ 						request_.file = std::shared_ptr<c::File>(pin_, &s.controls->scratch_file());
+ 					} else {
+ 						s.pack.emplace(s.factory, s.session, s.core->account, s.core->identity, s.sought,
+-									   s.core->owner, true);
++									   s.core->owner, false);
+ 						s.phase = Phase::Candidate;
+ 					}
+ 				}

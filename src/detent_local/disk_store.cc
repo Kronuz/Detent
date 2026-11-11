@@ -1528,6 +1528,9 @@ struct DiskStore::Impl {
 	std::shared_ptr<ReclaimOperation> reclaim;
 	std::shared_ptr<detail::PagedSegmentCollection> segments;
 	bool segment_collection_pending = false;
+	bool segment_collection_settled = true;
+	std::chrono::steady_clock::time_point collection_retry = std::chrono::steady_clock::time_point::max();
+	std::chrono::seconds collection_backoff{1};
 	std::exception_ptr terminal_collection_error;
 };
 DiskStore::DiskStore(FactoryTag, std::shared_ptr<detail::StoreCore> core)
@@ -1568,8 +1571,21 @@ std::shared_ptr<c::Operation> DiskStore::operation() const {
 }
 bool DiskStore::needs_work() const noexcept { return impl_->segments && impl_->segments->needs_work(); }
 void DiskStore::advance() {
-	if (impl_->segments && impl_->segments->done() && impl_->segments->error())
+	if (impl_->segments && impl_->segments->done() && !impl_->segment_collection_settled) {
+		impl_->segment_collection_settled = true;
 		impl_->terminal_collection_error = impl_->segments->error();
+		if (impl_->segments->deferred()) {
+			impl_->collection_retry = std::chrono::steady_clock::now() + impl_->collection_backoff;
+			impl_->collection_backoff = std::min(impl_->collection_backoff * 2, std::chrono::seconds(30));
+		} else {
+			impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+			impl_->collection_backoff = std::chrono::seconds(1);
+		}
+	}
+	if (!impl_->core->closing && std::chrono::steady_clock::now() >= impl_->collection_retry) {
+		impl_->core->collect = true;
+		impl_->collection_retry = std::chrono::steady_clock::time_point::max();
+	}
 	if (impl_->publication && impl_->publication->done() && !impl_->publication->in_flight()) {
 		impl_->terminal_publication_status = impl_->publication->status();
 		impl_->terminal_publication_error = impl_->publication->error();
@@ -1595,6 +1611,7 @@ void DiskStore::advance() {
 						impl_->core);
 				}
 				impl_->segments->start();
+				impl_->segment_collection_settled = false;
 				impl_->terminal_collection_error = {};
 			} catch (const distribution::StoragePressure &) {
 				impl_->terminal_collection_error = std::current_exception();
@@ -1630,6 +1647,9 @@ void DiskStore::advance() {
 	}
 }
 void DiskStore::request_collection() noexcept { impl_->core->collect = true; }
+std::chrono::steady_clock::time_point DiskStore::collection_retry_at() const noexcept {
+	return impl_->core->closing ? std::chrono::steady_clock::time_point::max() : impl_->collection_retry;
+}
 bool DiskStore::publication_ready() const noexcept {
 	return impl_->core->status == StoreStatus::Ready && !impl_->core->closing &&
 		   !impl_->core->pending_paged_recovery && (!impl_->publication || impl_->publication->done()) &&
@@ -1666,7 +1686,9 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 				   (base &&
 					(!descriptor.cursor.same_identity(base->cursor) || descriptor.profile != base->profile ||
 					 (plan.maintenance() ? descriptor.cursor != base->cursor
-										 : descriptor.cursor.revision <= base->cursor.revision))))
+					  : intent == detail::PagedPlanIntent::Repair
+						  ? descriptor.cursor.revision < base->cursor.revision
+						  : descriptor.cursor.revision <= base->cursor.revision))))
 			throw std::invalid_argument("managed paged publication requires authorized intent");
 		if (plan.directory_identity() != core.directory_identity ||
 			plan.storage_identity() != core.identity || plan.bytes()->account() != core.account ||
@@ -1686,7 +1708,9 @@ void DiskStore::begin_paged(detail::PagedPlan &&plan, const TrustedIdentityReset
 			throw std::invalid_argument("paged target packs exceed recovery byte limit");
 		auto recovery = core.factory->make<detail::MappedRecoveryAdmission>(
 			core.account, core.options.recovery_limits.mapping_account, *core.factory);
-		recovery->populate(plan, core.verified_paged, core.options.recovery_limits);
+		// A snapshot shares no packs with its base, which may be damaged.
+		recovery->populate(plan, plan.snapshot() ? decltype(core.verified_paged){} : core.verified_paged,
+						   core.options.recovery_limits);
 		artifacts->attach_recovery(std::move(recovery));
 		const auto &context = core.session->allocation_context();
 		auto data = std::allocate_shared<PublicationData>(
@@ -1896,11 +1920,12 @@ detail::ManagedRecoveryContext detail::ManagedRecovery::capture(const DiskStore 
 	const auto &core = *store.impl_->core;
 	if (!core.factory || !core.legacy_recovery || core.closing)
 		throw std::logic_error("managed recovery context unavailable");
+	const bool snapshot = core.pending_paged_recovery && core.pending_paged_recovery->plan().snapshot();
 	RecoveryContext paged{*core.factory,
 						  core.account,
 						  core.options.recovery_limits.mapping_account,
 						  core.options.recovery_limits,
-						  core.verified_paged,
+						  snapshot ? decltype(core.verified_paged){} : core.verified_paged,
 						  core.pending_paged_recovery
 							  ? core.pending_paged_recovery->recovery_admission()
 							  : distribution::RetirementHandle<MappedRecoveryAdmission>{}};

@@ -8,18 +8,22 @@
 #include "live_record.hh"
 #include "names.hh"
 #include "pack_scrub.hh"
+#include "paged_node_step.hh"
 #include "recovery_context.hh"
 #include "segment_names.hh"
 #include "trusted_records.hh"
+#include "verified_pages.hh"
 #include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <cstdlib>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <random>
 #include <set>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 namespace d = detent::distribution;
@@ -205,34 +209,56 @@ std::vector<fs::path> live_packs(const fs::path &store) {
 		packs.push_back(store / x::SegmentNames(row.segment).payload_name());
 	return packs;
 }
-void t5(const fs::path &store, const fs::path &root, int revision) {
-	const auto packs = live_packs(store);
-	CHECK(packs.size() >= 3);
+// T5's damage: 100 single-byte flips at random offsets of random packs of the selected generation.
+struct Damage {
+	std::vector<fs::path> packs;
 	std::map<fs::path, std::vector<char>> original;
-	for (const auto &pack : packs) {
-		std::ifstream in(pack, std::ios::binary);
-		original[pack] = {std::istreambuf_iterator<char>(in), {}};
-	}
-	std::mt19937 random(2026);
 	std::vector<std::pair<fs::path, std::size_t>> flips;
 	std::set<fs::path> damaged;
-	for (int n = 0; n < 100; ++n) {
-		const auto &pack = packs[random() % packs.size()];
-		const auto at = random() % original[pack].size();
-		flips.emplace_back(pack, at);
-		damaged.insert(pack);
+	explicit Damage(const fs::path &store) : packs(live_packs(store)) {
+		CHECK(packs.size() >= 3);
+		for (const auto &pack : packs) {
+			std::ifstream in(pack, std::ios::binary);
+			original[pack] = {std::istreambuf_iterator<char>(in), {}};
+		}
+		std::mt19937 random(2026);
+		for (int n = 0; n < 100; ++n) {
+			const auto &pack = packs[random() % packs.size()];
+			const auto at = random() % original[pack].size();
+			flips.emplace_back(pack, at);
+			damaged.insert(pack);
+		}
 	}
-	auto damage = [&] {
+	void apply() const {
 		for (const auto &[pack, at] : flips)
 			flip(pack, at, static_cast<char>(1 << (at % 8)));
-	};
-	auto repair = [&] {
+	}
+	void restore() const {
 		for (const auto &[pack, bytes] : original) {
 			const int fd = ::open(pack.c_str(), O_RDWR | O_CLOEXEC);
 			CHECK(fd >= 0 && ::pwrite(fd, bytes.data(), bytes.size(), 0) == ssize_t(bytes.size()));
 			::close(fd);
 		}
-	};
+	}
+};
+// The packs a pass over the session's registry reports, read from the files in `store`.
+std::set<fs::path> scrub_reports(const Session &session, const fs::path &store) {
+	x::PackScrub scrub(1'000'000'000);
+	const auto t0 = x::PackScrub::Clock::now();
+	scrub.begin(session.registry().inputs(), t0, store);
+	scrub.step(t0 + std::chrono::seconds(1));
+	CHECK(scrub.passes() == 1);
+	std::set<fs::path> reported;
+	for (const auto &segment : scrub.failures())
+		reported.insert(store / x::SegmentNames(segment).payload_name());
+	return reported;
+}
+void t5(const fs::path &store, const fs::path &root, int revision) {
+	const Damage damage_set(store);
+	const auto &packs = damage_set.packs;
+	const auto &damaged = damage_set.damaged;
+	auto damage = [&] { damage_set.apply(); };
+	auto repair = [&] { damage_set.restore(); };
 	damage();
 	{
 		// Restart is ready: nothing was read or hashed.
@@ -246,41 +272,24 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		// A failed read fails again; it was never cached as verified.
 		CHECK(read_all(session, revision).failed == reads.failed);
 		// The scrub reports every damaged pack, touched or not, within one pass.
-		x::PackScrub scrub(1'000'000'000);
-		const auto t0 = x::PackScrub::Clock::now();
-		scrub.begin(session.registry().inputs(), t0);
-		scrub.step(t0 + std::chrono::seconds(1));
-		CHECK(scrub.passes() == 1);
-		std::set<fs::path> reported;
-		for (const auto &segment : scrub.failures())
-			reported.insert(store / x::SegmentNames(segment).payload_name());
-		CHECK(reported == damaged);
+		CHECK(scrub_reports(session, store) == damaged);
 	}
 	{
-		// The update path refuses to build on a damaged base, with the same source failure.
+		// A snapshot recovers cold even when its unreported prior is damaged.
 		detent::testing::GenerationWriter writer(store);
-		bool refused = false;
-		try {
-			writer.publish_json(json(revision + 1));
-		} catch (const std::exception &error) {
-			refused = true;
-			std::cout << "update over a damaged base: " << error.what() << "\n";
-		}
-		CHECK(refused);
+		writer.publish_json(json(revision + 1));
 	}
-	// The refused update may have reached a durable generation that shares pages it never read, so the
-	// selected revision is the old one or the new; either way no damaged page is served.
 	const int after = int(selected(store).cursor.revision);
-	CHECK(after == revision || after == revision + 1);
+	CHECK(after == revision + 1);
 	{
 		Session session;
 		session.recover(store);
 		const auto reads = read_all(session, after);
-		std::cout << "after the refused update (revision " << after << "): " << reads.ok << " ok, "
+		std::cout << "after the snapshot (revision " << after << "): " << reads.ok << " ok, "
 				  << reads.source_failures << " source failures, " << reads.wrong << " wrong, " << reads.other
 				  << " other\n";
 		// A republication builds from the incoming snapshot, so the new revision carries no damaged page.
-		CHECK(!reads.wrong && !reads.other && (after != revision || reads.source_failures > 0));
+		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && !reads.source_failures);
 	}
 	repair();
 	{
@@ -288,11 +297,7 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		session.recover(store);
 		const auto reads = read_all(session, after);
 		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
-		x::PackScrub scrub(1'000'000'000);
-		const auto t0 = x::PackScrub::Clock::now();
-		scrub.begin(session.registry().inputs(), t0);
-		scrub.step(t0 + std::chrono::seconds(1));
-		CHECK(scrub.passes() == 1 && scrub.failures().empty());
+		CHECK(scrub_reports(session, store).empty());
 	}
 	{
 		// The agent's own restart over the repaired store is ready and serves the same revision.
@@ -300,6 +305,154 @@ void t5(const fs::path &store, const fs::path &root, int revision) {
 		CHECK(writer.revision() == std::uint64_t(after));
 	}
 	(void)root;
+}
+void delta_changes(std::map<std::string, std::int64_t> &upserts, std::vector<std::string> &removals);
+// SR3 and SR4: the scrub hashes the files, so 40 bytes rewritten after the packs were mapped are reported, and
+// the report withdraws the verified pages of those packs: later reads verify again and never return a wrong
+// value, while the packs nobody damaged keep their verified pages.
+void scrub_disk(const fs::path &store, int revision) {
+	const auto packs = live_packs(store);
+	Session session;
+	session.recover(store);
+	const auto clean = read_all(session, revision);
+	CHECK(clean.ok == knobs + 10 && !clean.wrong && !clean.other && clean.failed.empty());
+	std::mt19937 random(2027);
+	std::set<fs::path> rewritten;
+	std::map<fs::path, std::vector<char>> original;
+	for (int n = 0; n < 40; ++n) {
+		// The last pack stays untouched, so the report must keep its verified pages.
+		const auto &pack = packs[random() % (packs.size() - 1)];
+		if (!original.count(pack)) {
+			std::ifstream in(pack, std::ios::binary);
+			original[pack] = {std::istreambuf_iterator<char>(in), {}};
+		}
+		const int fd = ::open(pack.c_str(), O_RDWR | O_CLOEXEC);
+		CHECK(fd >= 0);
+		const auto at = random() % original[pack].size();
+		const char byte = static_cast<char>(random() | 1);
+		CHECK(::pwrite(fd, &byte, 1, at) == 1);
+		::close(fd);
+		rewritten.insert(pack);
+	}
+	// Until the scrub reports, every verified page stays verified. (Where a private mapping shows a later write,
+	// as on Linux, reading now could return the rewritten bytes: the limit the withdrawal below closes.)
+	auto verified = [&](bool damaged) {
+		std::size_t bits = 0;
+		for (const auto &input : session.registry().inputs()) {
+			const auto path = store / x::SegmentNames(input.ownership.segment).payload_name();
+			for (std::size_t at = 0; input.pages && at < input.bytes.size(); at += 8)
+				bits += (rewritten.count(path) != 0) == damaged && input.pages->test(at);
+		}
+		return bits;
+	};
+	const auto damaged_before = verified(true), untouched_before = verified(false);
+	CHECK(damaged_before > 0 && untouched_before > 0);
+	CHECK(scrub_reports(session, store) == rewritten);
+	CHECK(verified(true) == 0 && verified(false) == untouched_before);
+	const auto withdrawn = l::paged::hash_counts().page_calls;
+	const auto after = read_all(session, revision);
+	CHECK(!after.wrong && !after.other);
+	CHECK(l::paged::hash_counts().page_calls > withdrawn);
+	std::cout << "SR3/SR4: " << rewritten.size() << " packs rewritten, reported from the files; after the report "
+			  << after.ok << " ok, " << after.source_failures << " source failures, " << after.wrong
+			  << " wrong; " << (l::paged::hash_counts().page_calls - withdrawn) << " page digests to verify again\n";
+	for (const auto &[pack, bytes] : original) {
+		const int fd = ::open(pack.c_str(), O_RDWR | O_CLOEXEC);
+		CHECK(fd >= 0 && ::pwrite(fd, bytes.data(), bytes.size(), 0) == ssize_t(bytes.size()));
+		::close(fd);
+	}
+}
+// Namespace design D10.3: T5's damage heals with no operator action beyond the repair the agent requests. The
+// scrub reports, a repair publishes at the head's own revision, every read is right afterwards, the damaged
+// packs are collected and the scrub runs clean; a delta that crossed a damaged page no longer fails.
+void heal(const fs::path &store, int revision) {
+	const Damage damage(store);
+	const auto old_generation = selected(store);
+	const std::set<fs::path> old_packs(damage.packs.begin(), damage.packs.end());
+	damage.apply();
+	std::vector<std::string> scope;
+	for (int ns = 0; ns < 10; ++ns)
+		scope.push_back("n" + std::to_string(ns));
+	std::map<std::string, std::int64_t> upserts;
+	std::vector<std::string> removals;
+	delta_changes(upserts, removals);
+	auto pinned_session = std::make_unique<Session>();
+	auto &pinned = *pinned_session;
+	pinned.recover(store);
+	const auto before = read_all(pinned, revision);
+	CHECK(before.ok > 0 && before.source_failures > 0 && !before.wrong && !before.other);
+	CHECK(scrub_reports(pinned, store) == damage.damaged);
+	{
+		detent::testing::GenerationWriter writer(store);
+		// The delta crosses a damaged page and fails first touch, every time.
+		for (int attempt = 0; attempt < 2; ++attempt)
+			CHECK(throws([&] { writer.publish_delta(scope, "n3", upserts, removals); }));
+		CHECK(selected(store) == old_generation);
+		CHECK(writer.repair_json(json(revision)) == std::uint64_t(revision));
+	}
+	// A repair publishes a fresh generation at the same cursor; a snapshot shares no pack with its base.
+	const auto repaired = selected(store);
+	CHECK(repaired.generation != old_generation.generation && repaired.cursor == old_generation.cursor);
+	const auto new_packs = live_packs(store);
+	CHECK(new_packs.size() >= 3);
+	for (const auto &pack : new_packs)
+		CHECK(!old_packs.count(pack));
+	{
+		// Every read is right, and the scrub is clean.
+		Session session;
+		session.recover(store);
+		const auto reads = read_all(session, revision);
+		CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other && reads.failed.empty());
+		CHECK(scrub_reports(session, store).empty());
+		// The reader that mapped the damaged generation keeps what it could read and never turns wrong.
+		const auto during = read_all(pinned, revision);
+		CHECK(!during.wrong && !during.other && during.failed == before.failed && during.ok == before.ok);
+	}
+	// The collector removes the damaged packs once nothing reaches them: a reader still holding the damaged
+	// generation keeps it; when it lets go, the next start finishes the collection.
+	{
+		detent::testing::GenerationWriter writer(store);
+		writer.collect();
+		for (const auto &pack : old_packs)
+			CHECK(fs::exists(pack));
+	}
+	pinned_session.reset();
+	{
+		detent::testing::GenerationWriter writer(store);
+		writer.collect();
+		for (const auto &pack : old_packs)
+			CHECK(!fs::exists(pack));
+		for (const auto &pack : new_packs)
+			CHECK(fs::exists(pack));
+		// The delta that failed now publishes, and the next revision is right.
+		CHECK(writer.publish_delta(scope, "n3", upserts, removals) == std::uint64_t(revision + 1));
+	}
+	Session session;
+	session.recover(store);
+	const auto reads = read_all(session, 100);
+	CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other);
+	std::cout << "heal: " << damage.damaged.size() << " damaged packs of " << old_packs.size() << ", "
+			  << before.source_failures << " source failures before; after the repair "
+			  << "0, " << new_packs.size() << " new packs, the damaged ones collected, the delta published\n";
+}
+// A repair of an undamaged head publishes too: the content is unchanged and a fresh generation is written.
+void repair_unchanged(const fs::path &store, int revision) {
+	const auto before = selected(store);
+	const auto old_packs = live_packs(store);
+	{
+		detent::testing::GenerationWriter writer(store);
+		CHECK(writer.repair_json(json(revision)) == std::uint64_t(revision));
+	}
+	const auto after = selected(store);
+	CHECK(after.generation != before.generation && after.cursor == before.cursor);
+	for (const auto &pack : live_packs(store))
+		CHECK(!std::count(old_packs.begin(), old_packs.end(), pack));
+	Session session;
+	session.recover(store);
+	const auto reads = read_all(session, revision);
+	CHECK(reads.ok == knobs + 10 && !reads.wrong && !reads.other);
+	CHECK(scrub_reports(session, store).empty());
+	std::cout << "repair of an undamaged head: new generation, same cursor, " << reads.ok << " reads ok\n";
 }
 // A damaged table or record, or a missing one, refuses the store.
 void refusals(const fs::path &store, const fs::path &scratch) {
@@ -462,6 +615,70 @@ void delta_changes(std::map<std::string, std::int64_t> &upserts, std::vector<std
 			upserts["n3:k" + std::to_string(i)] = *value + 1000;
 	}
 }
+void mapped_mutations(const fs::path &store) {
+	for (const std::string mutation : {"children", "body", "kind", "evaluate"}) {
+		Session session;
+		session.recover(store);
+		CHECK(read_all(session, 3).ok == knobs + 10);
+		// The first node of the wanted kind inside a page that first touch already verified.
+		const auto kind = mutation == "children" ? l::paged::PageKind::Branch : l::paged::PageKind::Definition;
+		std::span<const char> page;
+		std::optional<l::paged::NodeView> node;
+		for (const auto &input : session.registry().inputs()) {
+			for (std::size_t offset = 0; input.pages && offset + l::paged::page_header_bytes <= input.bytes.size(); offset += 8) {
+				const auto bytes = input.bytes.subspan(offset);
+				if (std::memcmp(bytes.data(), "DTPAGE03", 8) || !input.pages->test(offset))
+					continue;
+				page = bytes.first(l::read_integer(bytes, 8, 4));
+				l::paged::NodeAt at;
+				for (std::size_t visits = 0; visits < l::paged::page_capacity && !node; ++visits) {
+					try {
+						const auto found = at.decode(page, l::paged::Limits{});
+						if (found.kind == kind)
+							node = found;
+						at = l::paged::NodeAt::after(found);
+					} catch (const std::invalid_argument &) {
+						break;
+					}
+				}
+				if (node)
+					break;
+			}
+			if (node)
+				break;
+		}
+		CHECK(node.has_value());
+		const auto size = std::size_t(::getpagesize());
+		auto *base = reinterpret_cast<char *>(reinterpret_cast<std::uintptr_t>(page.data()) & ~(size - 1));
+		CHECK(::mprotect(base, (page.data() + page.size() - base + size - 1) / size * size,
+						 PROT_READ | PROT_WRITE) == 0);
+		// A node starts with its kind and prefix length; byte 2 is a branch's child count less one and
+		// bytes 2-3 a leaf's body length.
+		auto *bytes = const_cast<char *>(node->prefix.data()) - (kind == l::paged::PageKind::Branch ? 3 : 4);
+		if (mutation == "children")
+			bytes[2] = '\xff';
+		else if (mutation == "body")
+			std::fill_n(bytes + 2, 2, '\xff');
+		else {
+			auto *body = const_cast<char *>(node->body.data());
+			body[8] = mutation == "kind" ? 0 : 1;
+			if (mutation == "evaluate")
+				body[15] = 1;
+		}
+		std::size_t get_failures = 0, eval_failures = 0;
+		for (int i = 0; i < knobs + 10; ++i) {
+			if (!expected(3, i))
+				continue;
+			const auto got = session.generation->view().try_get(name_space(i), key(i));
+			const auto evaluated = session.generation->view().try_eval(name_space(i), key(i), {}, "x");
+			CHECK(got && evaluated);
+			get_failures += !got->has_value() && got->error().category == detent::ErrorCategory::SourceFailure;
+			eval_failures += !evaluated->has_value() && evaluated->error().category == detent::ErrorCategory::SourceFailure;
+		}
+		CHECK(eval_failures > 0 && (mutation == "evaluate" || get_failures > 0));
+		std::cout << "mapped " << mutation << ": " << get_failures << " get, " << eval_failures << " eval source failures\n";
+	}
+}
 void run_mode(const std::string &mode, const fs::path &root) {
 	const auto store = root / "store";
 	{
@@ -493,6 +710,14 @@ void run_mode(const std::string &mode, const fs::path &root) {
 	}
 	if (mode == "t5")
 		t5(store, root, 3);
+	if (mode == "scrub-disk")
+		scrub_disk(store, 3);
+	if (mode == "mapped")
+		mapped_mutations(store);
+	if (mode == "heal") {
+		repair_unchanged(store, 3);
+		heal(store, 3);
+	}
 }
 } // namespace
 int main(int argc, char **argv) {
@@ -503,8 +728,9 @@ int main(int argc, char **argv) {
 		~Cleanup() { fs::remove_all(path); }
 	} cleanup{root};
 	const std::string mode = argc > 1 ? argv[1] : "all";
-	CHECK(mode == "all" || mode == "oracle" || mode == "refusals" || mode == "t5");
-	for (const auto *each : {"oracle", "refusals", "t5"})
+	CHECK(mode == "all" || mode == "oracle" || mode == "refusals" || mode == "t5" || mode == "scrub-disk" ||
+		  mode == "heal" || mode == "mapped");
+	for (const auto *each : {"oracle", "refusals", "t5", "scrub-disk", "heal", "mapped"})
 		if (mode == "all" || mode == each)
 			run_mode(each, root / each);
 	std::cout << "ok\n";

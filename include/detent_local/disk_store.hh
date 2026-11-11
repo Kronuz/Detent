@@ -4,6 +4,7 @@
 #include "identity_reset.hh"
 #include "storage_session.hh"
 #include "sync_counters.hh"
+#include <chrono>
 
 namespace detent::local {
 enum class StoreOpenMode { FreshEmpty, ExistingManaged, UpgradeLegacy };
@@ -52,6 +53,8 @@ class DiskStore {
 	void advance();
 	bool needs_work() const noexcept;
 	void request_collection() noexcept;
+	// The owner wakes at this deadline to retry conservatively retained roots.
+	std::chrono::steady_clock::time_point collection_retry_at() const noexcept;
 	// True at a settled scheduling boundary, including paused collection.
 	bool publication_ready() const noexcept;
 	void begin(const ImageBuilder &builder, std::optional<distribution::Cursor> expected_base = {});

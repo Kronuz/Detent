@@ -40,6 +40,8 @@ struct PagedSegmentCollection::State final : d::RetirementNode {
 		Scan,
 		Next,
 		Root,
+		Conservative,
+		CloseDamagedPack,
 		Walk,
 		Pack,
 		Insert,
@@ -88,11 +90,11 @@ struct PagedSegmentCollection::State final : d::RetirementNode {
 	std::array<char, 256> name{};
 	c::Token token;
 	Phase phase = Phase::Done;
-	std::exception_ptr failure;
+	std::exception_ptr failure, warning;
 	std::size_t inspected = 0;
 	std::uint64_t deleting_length = 0;
 	bool submitted = false, cursor_open = false, stopping = false, selected_seen = false, destructive = false,
-		 barriers_done = false;
+		 barriers_done = false, retained_root = false;
 	std::optional<c::EntryInspection> owner_identity;
 	RecordReader owner_reader;
 	bool owner_open = false, owner_only = false;
@@ -130,10 +132,10 @@ struct PagedSegmentCollection::State final : d::RetirementNode {
 		return true;
 	}
 	c::Operation *child() {
-		if (phase == Phase::Root || phase == Phase::CloseRoot)
+		if (phase == Phase::Root || phase == Phase::CloseRoot || phase == Phase::Conservative)
 			return root ? &*root : nullptr;
 		if (phase == Phase::Pack || phase == Phase::Insert || phase == Phase::Candidate ||
-			phase == Phase::CloseCandidate || phase == Phase::Rejected)
+			phase == Phase::CloseCandidate || phase == Phase::Rejected || phase == Phase::CloseDamagedPack)
 			return pack ? &*pack : nullptr;
 		return nullptr;
 	}
@@ -153,7 +155,12 @@ c::IO &PagedSegmentCollection::io() const noexcept { return *state_->session->ba
 bool PagedSegmentCollection::done() const noexcept { return state_->phase == State::Phase::Done; }
 bool PagedSegmentCollection::in_flight() const noexcept { return state_->submitted; }
 bool PagedSegmentCollection::paused() const noexcept { return state_->phase == State::Phase::Paused; }
-std::exception_ptr PagedSegmentCollection::error() const noexcept { return state_->failure; }
+std::exception_ptr PagedSegmentCollection::error() const noexcept {
+	return state_->failure ? state_->failure : state_->warning;
+}
+bool PagedSegmentCollection::deferred() const noexcept {
+	return done() && (state_->retained_root || state_->warning) && !state_->failure;
+}
 void PagedSegmentCollection::prepare(c::Kind kind) {
 	auto &s = *state_;
 	request_ = {};
@@ -188,6 +195,8 @@ void PagedSegmentCollection::start() {
 	s.inspected = 0;
 	s.stopping = false;
 	s.failure = {};
+	s.warning = {};
+	s.retained_root = false;
 	s.phase = Phase::Scan;
 	prepare(c::Kind::ScanInto);
 }
@@ -247,6 +256,38 @@ void PagedSegmentCollection::cleanup() {
 }
 void PagedSegmentCollection::fail(std::exception_ptr error) noexcept {
 	auto &s = *state_;
+	using Phase = State::Phase;
+	if (!s.stopping && (s.phase == Phase::Pack || s.phase == Phase::Walk ||
+						 s.phase == Phase::Insert || s.phase == Phase::Graph)) {
+		bool proof_failed = false;
+		try {
+			std::rethrow_exception(error);
+		} catch (const SegmentProofError &) {
+			proof_failed = true;
+		} catch (const std::invalid_argument &) {
+			proof_failed = true;
+		} catch (...) {
+		}
+		if (proof_failed) {
+			try {
+				s.warning = error;
+				if (s.pack && !s.pack->done()) {
+					s.pack->close();
+					if (!s.pack->done()) {
+						s.phase = Phase::CloseDamagedPack;
+						return;
+					}
+				}
+				s.pack.reset();
+				s.proof.reset();
+				s.root->read_live(s.core->account, s.core->options.recovery_limits.segments);
+				s.phase = Phase::Conservative;
+				return;
+			} catch (...) {
+				error = std::current_exception();
+			}
+		}
+	}
 	if (!s.failure)
 		s.failure = error;
 	if (s.destructive)
@@ -304,7 +345,19 @@ void PagedSegmentCollection::advance() {
 		}
 		if (paused() || needs_work())
 			return;
-		if (s.phase == Phase::Root && s.root->ready()) {
+		if (s.phase == Phase::CloseDamagedPack && s.pack->done()) {
+			if (s.pack->closure_error())
+				std::rethrow_exception(s.pack->closure_error());
+			s.pack.reset();
+			s.proof.reset();
+			s.root->read_live(s.core->account, s.core->options.recovery_limits.segments);
+			s.phase = Phase::Conservative;
+		} else if (s.phase == Phase::Conservative && s.root->ready()) {
+			s.marks->begin_conservative(s.root->live_dependencies());
+			s.phase = Phase::Mark;
+		} else if (s.phase == Phase::Root && s.root->ready()) {
+			if (!s.selected || s.root->descriptor().generation != s.selected->generation)
+				s.retained_root = true;
 			if (s.selected && s.root->descriptor().generation == s.selected->generation) {
 				if (s.root->legacy_anchor() ? (!s.core->verified || *s.core->verified != *s.selected ||
 											   s.root->descriptor().length != s.selected->length ||
@@ -480,7 +533,7 @@ void PagedSegmentCollection::step(ValidationBudget &budget) {
 						request_.file = std::shared_ptr<c::File>(pin_, &s.controls->scratch_file());
 					} else {
 						s.pack.emplace(s.factory, s.session, s.core->account, s.core->identity, s.sought,
-									   s.core->owner);
+									   s.core->owner, true);
 						s.phase = Phase::Candidate;
 					}
 				}
@@ -509,11 +562,12 @@ bool PagedSegmentCollection::complete(c::Result result) noexcept {
 	try {
 		if (auto *child = s.child()) {
 			child->complete(std::move(result));
-			if (s.root && (s.phase == Phase::Root || s.phase == Phase::CloseRoot) && s.root->error())
+			if (s.root && (s.phase == Phase::Root || s.phase == Phase::CloseRoot ||
+						   s.phase == Phase::Conservative) && s.root->error())
 				std::rethrow_exception(s.root->error());
 			if (s.pack && s.pack->closure_error())
 				std::rethrow_exception(s.pack->closure_error());
-			if (s.pack && s.pack->error() && s.phase != Phase::Rejected) {
+			if (s.pack && s.pack->error() && s.phase != Phase::Rejected && s.phase != Phase::CloseDamagedPack) {
 				bool unproved = false;
 				if (s.phase == Phase::Candidate) {
 					try {

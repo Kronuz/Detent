@@ -47,6 +47,7 @@ class Bundle final : public delivery::PublicationSink {
 	void bind_candidate(const local::Descriptor &, local::DirectoryIdentity) noexcept override;
 	bool release_stage(distribution::WorkBudget &) noexcept override;
 	void selected(const local::RecoveredGeneration &) override;
+	void selected_repaired(const local::RecoveredGeneration &) override;
 	void selected_equivalent(const local::RecoveredGeneration &,
 							 const local::detail::StateEquivalenceProof &) override;
 	void fence() noexcept override;
