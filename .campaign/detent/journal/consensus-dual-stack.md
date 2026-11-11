@@ -1,6 +1,6 @@
 # consensus-dual-stack: journal
 
-State: waiting on jobs 261111-100403-c63f54 261111-100400-7132ce
+State: waiting on jobs 261111-101525-c1d877 261111-101523-d0e0f6
 Quest: .campaign/detent/quests/consensus-dual-stack.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -17,7 +17,7 @@ Implemented and pushed (branch quest/detent/consensus-dual-stack). Waiting on th
 
 ## Blocked on
 
-Nothing.
+Nothing blocking. Pre-existing, the lead's: the FreeBSD CI job aborts in the `outage` scenario of peers_test (CHECK `connections == 4 && admitted unchanged`, line 579 on main) at main 905823da7ca4 (CI run 43067577357, failed); same failure on this branch (run 43074178623, line 605 after my insertion). Everything else, macOS and Linux incl. tsan/asan, was green. I run `dual-stack` first in the scenario list so FreeBSD reaches it before that abort.
 
 ## Evidence
 
@@ -46,3 +46,4 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 - Test: voter three listens on `::`; voter one dials it at 127.0.0.1, voter two at ::1 (lower id
   dials), all three commit and hold 4 connections each. Skips if the host has no ::1.
 - Only exact `::` triggers the option; other addresses, including v4-mapped, bind as before.
+- Superseded jobs: 261111-100403-c63f54, 261111-100400-7132ce (replaced by the two above after reordering the scenario).
