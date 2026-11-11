@@ -2,26 +2,28 @@
 title: "Knobs and Names"
 ---
 
-The knob model is deliberately small: two types, one naming rule, and
+The knob model is deliberately small: one value type, one naming rule, and
 definitions that are always replaced whole.
 
 ---
 
-## Knob Types
+## Knob Values
 
-| Type | Value | Refinements | Read with |
-| --- | --- | --- | --- |
-| `bool` | `true` or `false` | `rollout_pct`, `overrides` | `eval` |
-| `int` | Signed 64-bit integer | none | `get`, `get_as<T>` |
+Every knob holds one signed 64-bit integer. A feature flag or kill switch is a
+knob whose values are 0 and 1; a limit, a size or a timeout uses the whole
+range. Every knob supports a rollout percentage and group overrides.
 
-There are no string, float, list or JSON knobs. A knob's type is fixed by its
-definition; reading a bool with `get` or an int with `eval` is a `WrongType`
-error.
+| Read with | Returns |
+| --- | --- |
+| `get` | The `int64` value |
+| `get_as<T>` | The value converted to `T`; a value that does not fit is `ConversionFailed` |
+| `get_as<bool>` | `false` for 0, `true` for 1; any other value is `ConversionFailed` |
+
+There are no string, float, list or JSON knobs.
 
 :::hint[String and structured knobs]{.unimplemented}
-Many configuration systems also offer string, number and JSON values, and
-per-group values for non-boolean knobs. Detent currently supports only bool and
-int knobs, and only bool knobs have group overrides. See the
+Many configuration systems also offer string, number and JSON values. Detent
+supports only 64-bit integers. See the
 [Roadmap](/Detent/roadmap/#knob-model).
 :::
 
@@ -69,24 +71,32 @@ The knobset is also the unit of authorization and atomicity in the
 
 ## Definitions
 
-A **bool** definition:
+A definition:
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `type` | yes | `"bool"` |
-| `default` | yes | The value when nothing else applies |
-| `rollout_pct` | no | Integer `0`–`100`, or `null` for none. Enables that percentage of hash buckets |
-| `overrides` | no | Object mapping group names to `true`, `false`, or `{"rollout_pct": N}` |
+| `default` | yes | A signed 64-bit integer: the value when nothing else applies |
+| `overrides` | no | Object mapping group names to an integer, which forces that value, or `{"rollout_pct": N}` |
+| `rollout_pct` | no | Integer `0`–`100`, or `null` for none. Callers in that percentage of hash buckets get `rollout_value` |
+| `rollout_value` | with a percentage | A signed 64-bit integer, or `null` for none: the value callers inside a percentage get |
 
-An **int** definition:
+`rollout_value` is present exactly when a definition has a percentage, either
+`rollout_pct` or a group's `{"rollout_pct": N}`. A caller outside the
+percentage gets `default`. Values are JSON integers; `true`, `false` and
+`1.0` are rejected. Unknown fields are rejected, so a typo like
+`"rollout_percent"` fails loudly instead of being ignored.
 
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `type` | yes | `"int"` |
-| `default` | yes | The value, a signed 64-bit integer |
+A flag ramping to 10% of users, forced on for employees:
 
-Unknown fields are rejected, so a typo like `"rollout_percent"` fails loudly
-instead of being ignored.
+```json
+{ "default": 0, "overrides": { "employees": 1 }, "rollout_pct": 10, "rollout_value": 1 }
+```
+
+A batch size of 25 that 10% of users see as 50, and the `beta` group as 7:
+
+```json
+{ "default": 25, "overrides": { "beta": 7 }, "rollout_pct": 10, "rollout_value": 50 }
+```
 
 ### Group Names
 
@@ -104,14 +114,14 @@ previous one **entirely**. There is no field-level merge:
 
 ```json
 // Current
-{ "type": "bool", "default": false, "rollout_pct": 10,
-  "overrides": { "employees": true } }
+{ "default": 0, "overrides": { "employees": 1 },
+  "rollout_pct": 10, "rollout_value": 1 }
 
 // New definition for this knob
-{ "type": "bool", "default": false, "rollout_pct": 20 }
+{ "default": 0, "rollout_pct": 20, "rollout_value": 1 }
 
 // Result: the employees override is gone
-{ "type": "bool", "default": false, "rollout_pct": 20 }
+{ "default": 0, "rollout_pct": 20, "rollout_value": 1 }
 ```
 
 The same rule applies when a live snapshot is merged over baked defaults: a

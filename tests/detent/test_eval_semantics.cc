@@ -196,7 +196,7 @@ void test_stickiness_across_independent_clients() {
 int main() {
 	// A group percentage answers the default without a hash, and a group that
 	// matches nothing falls through to the knob-wide rollout. A hashed caller
-	// outside a percentage gets the default (B2 option 1), so this default-1
+	// outside a percentage gets the default (D68), so this default-1
 	// knob's 0% group answers 1 for a hash.
 	Snapshot fallback_snapshot;
 	KnobDef fallback;

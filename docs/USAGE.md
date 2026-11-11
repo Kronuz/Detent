@@ -46,7 +46,7 @@ int main() {
     std::printf("search:max_results = %lld\n",
                 (long long)client.get_or_panic("search:max_results"));
     std::printf("checkout:killswitch_new_path = %s\n",
-                client.get_as<bool>("checkout:killswitch_new_path").value()
+                client.get_or_panic("checkout:killswitch_new_path") == 1
                     ? "true"
                     : "false");
 }

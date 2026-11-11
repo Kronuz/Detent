@@ -78,10 +78,10 @@ Authorization: Bearer TOKEN
   "expected_namespace": 4,
   "operations": [
     { "key": "payments:new_processor",
-      "value": { "type": "bool", "default": false, "rollout_pct": 10 },
+      "value": { "default": 0, "rollout_pct": 10, "rollout_value": 1 },
       "expected_revision": 3 },
     { "key": "payments:max_retries",
-      "value": { "type": "int", "default": 3 },
+      "value": { "default": 3 },
       "expected_revision": 0, "absent_namespace_revision": 4 },
     { "key": "payments:legacy_flag", "value": null }
   ]

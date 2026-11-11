@@ -1,6 +1,6 @@
 // A1: every former bool knob, lifted to one int64 definition (default 0/1, rollout value 1),
 // answers through Client::get exactly what main's bool evaluator answered, over the scenarios
-// the evaluation tests cover. The one deliberate change (ruling B2, option 1) is enumerated
+// the evaluation tests cover. The one deliberate change (ruling D68) is enumerated
 // separately: a default-true knob's hashed caller outside a percentage now gets the default.
 #include <cstdio>
 #include <cstdlib>
@@ -82,7 +82,7 @@ std::optional<std::uint8_t> applied_percentage(const OldBool &old, std::optional
 	return old.rollout_pct;
 }
 
-// The changed set (B2 option 1): a default-true knob, a hash, and a bucket outside the
+// The changed set (D68): a default-true knob, a hash, and a bucket outside the
 // percentage that applies. The old evaluator answered false there; the new one the default.
 bool in_changed_set(const OldBool &old, std::string_view name, std::optional<std::string_view> group,
 					std::optional<std::string_view> hash) {

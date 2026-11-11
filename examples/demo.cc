@@ -26,7 +26,7 @@ int main() {
 
 	detent::Client client(std::move(opts));
 
-	bool killswitch = client.get_or_panic("checkout:killswitch_new_path") != 0;
+	bool killswitch = client.get_or_panic("checkout:killswitch_new_path") == 1;
 	std::int64_t max_results = client.get_or_panic("search:max_results");
 	std::printf("killswitch_new_path = %s\n", killswitch ? "true" : "false");
 	std::printf("max_results = %lld\n", static_cast<long long>(max_results));

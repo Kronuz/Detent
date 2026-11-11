@@ -17,6 +17,7 @@ Snapshot make_snapshot(bool flag_value) {
 	KnobDef def;
 	def.default_value = flag_value ? 1 : 0;
 	snap.knobs["team:flag"] = def;
+	snap.knobs["team:count"] = KnobDef{2};
 	return snap;
 }
 
@@ -32,6 +33,12 @@ int main() {
 		auto outer = testing::TestKnobs(make_snapshot(true)).set_thread_local();
 		auto r1 = global::get_as<bool>("team:flag");
 		assert(r1.has_value() && r1.value() == true);
+		// A failed conversion through the global adapter is counted on the active client.
+		const auto& metrics = global::detail::active_client()->metrics();
+		const auto failed = metrics.reads_conversion_failed.load();
+		auto wide = global::get_as<bool>("team:count");
+		assert(!wide.has_value() && wide.error().category == ErrorCategory::ConversionFailed);
+		assert(metrics.reads_conversion_failed.load() == failed + 1);
 
 		{
 			auto inner = testing::TestKnobs(make_snapshot(false)).set_thread_local();

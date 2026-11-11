@@ -55,31 +55,26 @@ throw; it isn't called for the initial defaults snapshot.
 ## Reads
 
 ```cpp
-Result<bool, KnobError> eval(std::string_view name,
-                             std::optional<std::string_view> hash_val = std::nullopt,
-                             std::optional<std::string_view> switch_val = std::nullopt) const;
-
 Result<std::int64_t, KnobError> get(std::string_view name,
+                                    std::optional<std::string_view> hash_val = std::nullopt,
                                     std::optional<std::string_view> switch_val = std::nullopt) const;
 
 template <typename T>
 Result<T, KnobError> get_as(std::string_view name,
+                            std::optional<std::string_view> hash_val = std::nullopt,
                             std::optional<std::string_view> switch_val = std::nullopt) const;
 
-bool eval_or_panic(std::string_view name,
-                   std::optional<std::string_view> hash_val = std::nullopt,
-                   std::optional<std::string_view> switch_val = std::nullopt) const;
-
 std::int64_t get_or_panic(std::string_view name,
+                          std::optional<std::string_view> hash_val = std::nullopt,
                           std::optional<std::string_view> switch_val = std::nullopt) const;
 ```
 
-1. `eval` evaluates a bool knob with the
-   [precedence rules](/Detent/reference/evaluation/).
-2. `get` returns an int knob; `switch_val` is accepted and ignored.
-3. `get_as<T>` converts with `std::in_range<T>`, returning `ConversionFailed`
+1. `get` evaluates the knob with the
+   [precedence rules](/Detent/reference/evaluation/) and returns its `int64`.
+2. `get_as<T>` converts with `std::in_range<T>`, returning `ConversionFailed`
    instead of truncating. It works for any integer `T`, signed or unsigned.
-4. The `_or_panic` forms abort on any `KnobError`.
+   `get_as<bool>` takes only 0 and 1.
+3. `get_or_panic` aborts on any `KnobError`.
 
 All of them are safe to call concurrently from any number of threads.
 
@@ -96,7 +91,7 @@ evaluates against it:
 
 ```cpp
 auto view = client.read_view();
-auto a = view.eval("checkout:new_path", user_id, group);
+auto a = view.get_as<bool>("checkout:new_path", user_id, group);
 auto b = view.get("search:max_results");
 auto c = view.get_as<std::uint16_t>("search:page_size");
 ```
@@ -132,11 +127,11 @@ const Metrics& metrics() const noexcept;
 | `source_connected` | The last source interaction succeeded |
 | `accepted_version` | Version of the current live snapshot (`0` for defaults only) |
 | `staleness_seconds` | Monotonic time since the last successful update |
-| `bool_knobs`, `int_knobs` | Counts in the current snapshot |
+| `knobs` | Knob count in the current snapshot |
 | `cli_overrides` | Number of CLI overrides |
 
 `Metrics` holds process-wide atomic counters: `reads_ok`, `reads_missing`,
-`reads_wrong_type`, `reads_conversion_failed`, `snapshot_swaps`,
+`reads_conversion_failed`, `snapshot_swaps`,
 `refresh_failures`, `stale_updates`, and the `source_connected` flag. See
 [Observability](/Detent/reference/observability/).
 
@@ -146,17 +141,14 @@ const Metrics& metrics() const noexcept;
 
 ```cpp
 struct GroupRollout { std::uint8_t rollout_pct = 0; };
-using GroupOverride = std::variant<bool, GroupRollout>;
+using GroupOverride = std::variant<std::int64_t, GroupRollout>;   // forced value or percentage
 
-struct BoolDef {
-    bool default_value = false;
+struct KnobDef {
+    std::int64_t default_value = 0;
     flat_map<std::string, GroupOverride, std::less<>> overrides;
     std::optional<std::uint8_t> rollout_pct;
+    std::optional<std::int64_t> rollout_value;   // present exactly when a percentage is
 };
-
-struct IntDef { std::int64_t default_value = 0; };
-
-using KnobDef = std::variant<BoolDef, IntDef>;
 
 struct Snapshot {
     std::uint64_t version = 0;

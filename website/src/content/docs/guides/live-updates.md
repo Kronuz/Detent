@@ -15,7 +15,7 @@ direction: right
 source: "Source\n(file or function)"
 updater: "Background updater\n(validate, version-gate,\nmerge over defaults)"
 snapshot: "Current snapshot\n(atomic pointer)" {shape: cylinder}
-readers: "Your threads\n(eval / get)"
+readers: "Your threads\n(get)"
 source -> updater: "candidate"
 updater -> snapshot: "one atomic swap"
 readers -> snapshot: "one atomic load"
@@ -56,7 +56,7 @@ plus a `version`:
   "schema_version": 1,
   "version": 7,
   "knobs": {
-    "search:max_results": { "type": "int", "default": 50 }
+    "search:max_results": { "default": 50 }
   }
 }
 ```

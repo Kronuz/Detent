@@ -19,6 +19,11 @@ void init(InitOptions options);
 // Primarily for test teardown; production processes normally never call it.
 void shutdown();
 
+namespace detail {
+// The test override when one is installed, else the process client, else nullptr.
+[[nodiscard]] Client* active_client() noexcept;
+} // namespace detail
+
 [[nodiscard]] Result<std::int64_t, KnobError> get(
 	std::string_view name,
 	std::optional<std::string_view> hash_val = std::nullopt,
@@ -29,10 +34,10 @@ template <typename T>
 	std::string_view name,
 	std::optional<std::string_view> hash_val = std::nullopt,
 	std::optional<std::string_view> switch_val = std::nullopt) {
-	auto r = get(name, hash_val, switch_val);
-	if (!r) return r.error();
-	if (auto value = detail::convert<T>(r.value())) return *value;
-	return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
+	auto* client = detail::active_client();
+	if (client == nullptr)
+		return KnobError{ErrorCategory::Uninitialized, std::string(name), "detent::global::init() not called"};
+	return client->get_as<T>(name, hash_val, switch_val);
 }
 
 [[nodiscard]] std::int64_t get_or_panic(
