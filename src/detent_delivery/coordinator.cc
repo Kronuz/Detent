@@ -61,6 +61,8 @@ struct PagedCandidateResult : d::RetirementNode {
 	std::shared_ptr<const l::detail::StateEquivalenceProof> maintenance;
 	// A repair plan replaces the selected generation; in place when it keeps the selected cursor.
 	bool repair = false, repair_in_place = false;
+	// A snapshot plan shares no pack with the generation it replaces; a delta keeps every pack it does not rewrite.
+	bool snapshot = false;
 	std::optional<l::Descriptor> descriptor;
 	std::optional<l::Descriptor> selected_base;
 	std::exception_ptr failure;
@@ -444,6 +446,7 @@ struct Coordinator::Impl {
 					}
 					result->descriptor = result->plan->descriptor();
 				}
+				result->snapshot = result->plan && result->plan->snapshot();
 			} catch (...) {
 				result->failure = std::current_exception();
 			}
@@ -504,9 +507,9 @@ struct Coordinator::Impl {
 					repaired = paged_candidate->repair_in_place;
 					++diagnostic.repair.completed;
 				}
-				if (diagnostic.repair.pending) {
+				if (paged_candidate->snapshot && diagnostic.repair.pending) {
 					diagnostic.repair.pending = false;
-					// Any confirmed replacement retires the generation that requested repair.
+					// A confirmed snapshot retires the generation that requested repair; a delta keeps its packs.
 					store->request_collection();
 				}
 			} else if (actual.descriptor != paged_candidate->selected_base)
@@ -1222,6 +1225,8 @@ task::task<void> Coordinator::Impl::candidate_loop() {
 					base->generation->descriptor() == actual.descriptor && !failure && !cancelled()) {
 					feedback = offered;
 					reconnect.reset();
+					// The offer used the session's forced Replace, if any: a later repair reopens the session.
+					session_forced = false;
 					if (offered_snapshot)
 						force_snapshot = false;
 				} else {
