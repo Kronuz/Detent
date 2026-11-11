@@ -1488,8 +1488,36 @@
         "tests/detent_authority/**",
         "cmake/dependencies.json"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T10:02:32",
+          "commit": "9d779dbeec0fa11afec90ce75c870cf54319d96c",
+          "criteria": {
+            "A1": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094120-885cae",
+            "A2": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094140-b0368d",
+            "A3": "261111-093342-409257, 261111-094126-27f3ad; fails without: 261111-094123-fd5f1c"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "843376a5064e1fc84397b1663052ea56ca96d241",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-094126-27f3ad",
+              "level": "light",
+              "seconds": 685.6,
+              "state": "done",
+              "what": "dns-voters check suite at 843376a5064e"
+            }
+          ],
+          "final": true,
+          "from": "629443b0ee7aa667a5debff5811e411be5b6448a",
+          "reason": "",
+          "tested": "88c6f2273646f0c7d7589371de46a95cfe508524"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [
         "consensus-dns-peers"
@@ -1497,10 +1525,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Authority voter addresses accept DNS names",
-      "updated": "2026-11-11T09:24:01",
-      "worktree": "../Detent-wt/detent/dns-voters"
+      "updated": "2026-11-11T10:02:37",
+      "worktree": ""
     },
     "docs-e2e": {
       "accepted": {},
