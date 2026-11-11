@@ -5,7 +5,7 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+detent-agent publishes every generation through the namespace-s7 agent store (`include/detent_local/agent_store.hh`, D8): one directory, the table, derived generation and segment ids, verified reuse, tombstones. DiskStore, the coordinator, the segment builder and the readers read and write through it, and the agent's former private layout is gone (D43, no migration).
 
 ## Acceptance criteria
 
@@ -14,18 +14,19 @@ needs a job tagged `--for A1` passing at the landed code, often the suite; tag o
 (a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
 job can show it.
 
-- A1 <criterion>: <evidence>
+- A1 A real agent run (authority, relay, agent) publishes and serves generations from the store; the readers' answers equal the authority's: the suite
+- A2 A power cut at every storage primitive of the agent's publish path leaves a store that recovers to the last acknowledged generation or the one before, never a mix: the crash model job
+- A3 The agent's old layout code is deleted; nothing outside agent_store writes the agent directory: the suite plus a grep job
+- A4 [artifact] How the agent's publish path uses the store: `docs/status/namespace-s7.md`: "## Wiring"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes namespace-s7's `agent_store.hh` API. Provides the agent's on-disk layout for namespace-s8 (the relay mirror) and namespace-s9-s10.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D8, D43, D54, D55, D58.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None: it changes the agent's on-disk layout.
