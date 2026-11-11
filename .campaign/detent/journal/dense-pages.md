@@ -1,19 +1,21 @@
 # dense-pages: journal
 
-State: waiting on jobs 261110-204142-59c48a (native), 261110-204209-816aa1 (A10/A11 fixtures), 261110-204210-6fbfde (A15 stopped), 261110-204212-d159e2 (A15 running), all at Detent:52cabbf
+State: waiting on jobs 261110-220136-31432b (native), 261110-220144-1d7bca (A10/A11 fixtures), 261110-215750-a2d23c (CI repro) at Detent:9b5ebae; A15 done at Detent:52cabbf
 Quest: /Users/kronuz/code/Kronuz/Detent/.campaign/detent/quests/dense-pages.md
 
 ## Doing
 
-Final round under D54/D55. Head Detent:52cabbf merges main (Detent:1137c99) into Detent:ab91ac6;
+CI run 42961227229 at Detent:3907ffa caught two branch defects, fixed in Detent:9b5ebae:
+linux-benchmarks (paged_collection_bench called the removed physical_commitment; both paged
+benches wrote lease layout 2) and linux-read-counters (pre-Dense expected counts). Repro of both
+CI configs: 261110-215750-a2d23c. Detent:52cabbf merges main (Detent:1137c99) into Detent:ab91ac6;
 main changed only docs/design, docs/dev, ci.yml (quest/** now runs CI) and campaign files, so
-src, include, tests and benchmarks are byte-identical to Detent:95d8ece.
+src and include are byte-identical to Detent:95d8ece.
 
 ## Next
 
-1. When the four jobs finish, confirm each passed; read the A15 `A15 verdict` lines into A15.
-2. The lead: push quest/dense-pages for CI (A13: sanitizers and the matrix are CI's under D54),
-   accept correctness with COR-1=261110-204142-59c48a and PERF-1=261110-204210-6fbfde,261110-204212-d159e2, re-accept design and security against
+1. When the three jobs finish, confirm each passed.
+2. The lead: read the CI run on the pushed head (A13), accept correctness with COR-1=261110-220136-31432b and PERF-1=261110-204210-6fbfde,261110-204212-d159e2, re-accept design and security against
    the current quest file, and get the architect's ruling (A14).
 
 ## Blocked on
@@ -24,32 +26,32 @@ src, include, tests and benchmarks are byte-identical to Detent:95d8ece.
 
 ## For the lead's accepts (at Detent:52cabbf)
 
-- Correctness COR-1: native suite 261110-204142-59c48a (test_local_dense_overlay_bounds, the COR-1 regression,
+- Correctness COR-1: native suite 261110-220136-31432b (test_local_dense_overlay_bounds, the COR-1 regression,
   is in the suite; D54(3)). PERF-1 = A15: 261110-204210-6fbfde (stopped), 261110-204212-d159e2 (running).
 - Design and security: accepted at Detent:8878c39; the quest file changed since, so they need
   re-accepting against the current criteria (no code change in their scope since).
 
 ## Evidence
 
-Every id is at Detent:52cabbf. Tests named are in the native suite (`campaign verify`).
+Ids are at Detent:9b5ebae except A15 (Detent:52cabbf; 9b5ebae changes only a test and two benchmark sources, not the measured code). Tests named are in the native suite (`campaign verify`).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | Native 261110-204142-59c48a (test_local_paged_packer, test_local_dense_fullbuild against the model); design `docs/design/dense-pages.md` resolves DP-1..DP-6, model `docs/design/dense-pages-model.py`, contracts approved at Detent:7d339fe (`.campaign/detent/reviews/dense-pages-contracts.md`). |
-| A2 | Native 261110-204142-59c48a: codec, segment, snapshot builder, packer and dense_fullbuild fixtures (exact bytes, reserved-byte refusal, empty commitment, empty/restart/delete-last/add-first, maximum bodies, 256-way branches). |
-| A3 | Native 261110-204142-59c48a: test_local_paged_packer synthetic and 100K page identities, counts and bytes equal the model. |
-| A4 | Native 261110-204142-59c48a: malformed-summary and arithmetic refusals in the codec and validator tests; corpus replay test_local_paged_codec_replay. The CPU-hour fuzz is a milestone check (D54(4)). |
-| A5 | Native 261110-204142-59c48a: test_local_dense_fullbuild, one format and one digest for every full-build consumer; placement-free identity and seal-order offsets. |
-| A6 | Native 261110-204142-59c48a: test_local_paged_page_validator, test_local_paged_graph_validator (length/keys/height, warm summaries, canonical replay). |
-| A7 | Native 261110-204142-59c48a: separate page/pack/metadata hash counters with exact boundaries, admission, cancellation, yields. |
-| A8 | Native 261110-204142-59c48a: test_local_reader, test_local_managed_reader, test_local_trusted_paths, test_testing_trusted_restart_*. |
-| A9 | Native 261110-204142-59c48a: test_local_dense_overlay_bounds (COR-1 regression) and the walk-bounds fixtures. |
-| A10 | Native 261110-204142-59c48a; five-fixture proof 261110-204209-816aa1 (paged_delta_leaves, paged_delta_plan, paged_overlay_assembler, dense_delta_assembly, paged_compaction: repeated-content single ownership, off-path sealing). |
-| A11 | Native 261110-204142-59c48a; 261110-204209-816aa1 (test_local_paged_compaction, test_local_paged_delta_plan: partial and complete relocation, zero page hashes). |
-| A12 | Native 261110-204142-59c48a: test_local_dense_refetch (`foreign_install`, interrupted copy and restart). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`. |
-| A13 | Native 261110-204142-59c48a incl. test_local_publication_power_cut (crash model, D54(4)) and trusted restart. ASan/UBSan/TSan and the matrix: GitHub CI on quest/dense-pages at Detent:52cabbf (D54(1)), open until the lead pushes. |
-| A14 | Correctness: COR-1 = 261110-204142-59c48a, PERF-1 = A15 (261110-204210-6fbfde, 261110-204212-d159e2); lead's accept pending. Design and security accepted at Detent:8878c39, re-accept pending (quest file changed). Architect ruling: pending. |
-| A15 | D51 gate, one exclusive 10-min job per row (D55): stopped 261110-204210-6fbfde, running 261110-204212-d159e2, on the prepare 261110-021303-349e3e stores (`docs/perf/first-read-gate.sh`, `docs/perf/first-read-gate.md`). Previous identical-code result at Detent:a619531: all four cells NO WORSE. |
+| A1 | Native 261110-220136-31432b (test_local_paged_packer, test_local_dense_fullbuild against the model); design `docs/design/dense-pages.md` resolves DP-1..DP-6, model `docs/design/dense-pages-model.py`, contracts approved at Detent:7d339fe (`.campaign/detent/reviews/dense-pages-contracts.md`). |
+| A2 | Native 261110-220136-31432b: codec, segment, snapshot builder, packer and dense_fullbuild fixtures (exact bytes, reserved-byte refusal, empty commitment, empty/restart/delete-last/add-first, maximum bodies, 256-way branches). |
+| A3 | Native 261110-220136-31432b: test_local_paged_packer synthetic and 100K page identities, counts and bytes equal the model. |
+| A4 | Native 261110-220136-31432b: malformed-summary and arithmetic refusals in the codec and validator tests; corpus replay test_local_paged_codec_replay. The CPU-hour fuzz is a milestone check (D54(4)). |
+| A5 | Native 261110-220136-31432b: test_local_dense_fullbuild, one format and one digest for every full-build consumer; placement-free identity and seal-order offsets. |
+| A6 | Native 261110-220136-31432b: test_local_paged_page_validator, test_local_paged_graph_validator (length/keys/height, warm summaries, canonical replay). |
+| A7 | Native 261110-220136-31432b: separate page/pack/metadata hash counters with exact boundaries, admission, cancellation, yields. |
+| A8 | Native 261110-220136-31432b: test_local_reader, test_local_managed_reader, test_local_trusted_paths, test_testing_trusted_restart_*. |
+| A9 | Native 261110-220136-31432b: test_local_dense_overlay_bounds (COR-1 regression) and the walk-bounds fixtures. |
+| A10 | Native 261110-220136-31432b; five-fixture proof 261110-220144-1d7bca (paged_delta_leaves, paged_delta_plan, paged_overlay_assembler, dense_delta_assembly, paged_compaction: repeated-content single ownership, off-path sealing). |
+| A11 | Native 261110-220136-31432b; 261110-220144-1d7bca (test_local_paged_compaction, test_local_paged_delta_plan: partial and complete relocation, zero page hashes). |
+| A12 | Native 261110-220136-31432b: test_local_dense_refetch (`foreign_install`, interrupted copy and restart). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`. |
+| A13 | CI repro of linux-read-counters and linux-benchmarks 261110-215750-a2d23c. Native 261110-220136-31432b incl. test_local_publication_power_cut (crash model, D54(4)) and trusted restart. ASan/UBSan/TSan and the matrix: GitHub CI on quest/dense-pages (D54(1)): run 42961227229 at Detent:3907ffa green except the two jobs fixed in Detent:9b5ebae; the rerun follows the push of the head. |
+| A14 | Correctness: COR-1 = 261110-220136-31432b, PERF-1 = A15 (261110-204210-6fbfde, 261110-204212-d159e2); lead's accept pending. Design and security accepted at Detent:8878c39, re-accept pending (quest file changed). Architect ruling: pending. |
+| A15 | D51 gate, one exclusive 10-min job per row (D55): stopped 261110-204210-6fbfde, running 261110-204212-d159e2: all four cells NO WORSE (median paired Dense-main: 1ns stopped -87 us vs floor 28; 1000ns stopped -65 vs 52; 1ns running -48 vs 20; 1000ns running -31 vs 68), on the prepare 261110-021303-349e3e stores (`docs/perf/first-read-gate.sh`, `docs/perf/first-read-gate.md`). Previous identical-code result at Detent:a619531: all four cells NO WORSE. |
 
 ## Rulings I made
 
@@ -128,6 +130,11 @@ Every id is at Detent:52cabbf. Tests named are in the native suite (`campaign ve
    dense-deltas-trial/build is not a directory": the command ran `cmake --build build` in a
    borrowed slot it never configured, so no test ran. Harness defect, not code. The rerun
    261110-204209-816aa1 configures `.scratch/build` itself with the native flags and runs after 261110-204142-59c48a.
+
+29. 2026-11-10: test_local_read_counters' first-lookup counts are re-derived for Dense, not a lost
+   increment: the fixture's four rows pack into one root page (no externals) in one pack, so the
+   lookup opens 1 pack, verifies 1 page and hashes length - 32 bytes (page_commitment skips the
+   digest field); b:k in the same page costs nothing. The test derives these from the fixture.
 
 Campaign 2.0 adoption keeps one whole-feature landing. All builds/tests/measurements now use commit-pinned `campaign job submit --quest dense-pages --commit HEAD`; task agents must explicitly pass HEAD because the default quest ref is the assembly branch.
 
