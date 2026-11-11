@@ -377,6 +377,8 @@
         "docs-e2e",
         "detent-brand"
       ],
+      "base": "b58d7b5ae58b00c7d3a7e44167a2f92f93a271f7",
+      "branch": "quest/detent/brand-head-links",
       "checks": [
         {
           "cmd": "cd website && npm ci && npm run build && grep -q apple-touch-icon dist/index.html && grep -q site.webmanifest dist/index.html",
@@ -397,9 +399,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Site head links for the touch icons and web manifest",
-      "updated": "2026-11-11T13:07:54"
+      "updated": "2026-11-11T15:24:25",
+      "worktree": "../Detent-wt/detent/brand-head-links"
     },
     "client-local-source": {
       "accepted": {},
