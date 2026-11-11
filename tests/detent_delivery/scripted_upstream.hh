@@ -37,6 +37,9 @@ using namespace std::chrono_literals;
 
 inline int knobs = std::getenv("DETENT_REPAIR_KNOBS") ? std::atoi(std::getenv("DETENT_REPAIR_KNOBS")) : 100000;
 inline constexpr int namespaces = 10;
+// Frames are zstd-coded on the wire, as a production upstream sends them; raw by default.
+inline bool compression = false;
+inline const char *coding() { return compression ? "zstd" : "raw"; }
 inline std::atomic<char> fixture_epoch{'e'};
 
 inline d::Cursor cursor(std::uint64_t revision = 1) {
@@ -142,11 +145,11 @@ inline std::string snapshot_reply(unsigned revision, std::uint64_t window) {
 		const auto length = std::min<std::size_t>(65536, wire.size() - offset);
 		frame += d::encode_fragment({d::UpdateKind::Snapshot, update, offset, wire.size(),
 									 offset + length == wire.size(), wire.substr(offset, length)},
-									false);
+									compression);
 		offset += length;
 	}
 	return http("Content-Type: application/vnd.detent.distribution\r\nX-Detent-Profile: 1\r\nX-Detent-Revision: " +
-					std::to_string(revision) + "\r\nX-Detent-Kind: 1\r\nX-Detent-Coding: raw\r\n" +
+					std::to_string(revision) + "\r\nX-Detent-Kind: 1\r\nX-Detent-Coding: " + std::string(coding()) + "\r\n" +
 					window_headers(window),
 				frame);
 }
@@ -204,9 +207,9 @@ inline std::string delta_reply(std::uint64_t window) {
 	}
 	d::Identity identity{};
 	identity.fill('d');
-	const auto frame = d::encode_fragment({d::UpdateKind::Delta, identity, 0, wire.size(), true, wire}, false);
+	const auto frame = d::encode_fragment({d::UpdateKind::Delta, identity, 0, wire.size(), true, wire}, compression);
 	return http("Content-Type: application/vnd.detent.distribution\r\nX-Detent-Profile: 1\r\nX-Detent-Revision: 2\r\n"
-				"X-Detent-Kind: 2\r\nX-Detent-Coding: raw\r\n" + window_headers(window),
+				"X-Detent-Kind: 2\r\nX-Detent-Coding: " + std::string(coding()) + "\r\n" + window_headers(window),
 				frame);
 }
 
@@ -410,7 +413,7 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	config.source.tls_context = server.client_tls;
 	config.source.configured = cursor();
 	config.reset_from = options.reset_from;
-	config.source.compression = false;
+	config.source.compression = compression;
 	config.source.timeout = 60s;
 	for (int ns = 0; ns < namespaces; ++ns)
 		config.source.namespaces.push_back("n" + std::to_string(ns));

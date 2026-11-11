@@ -42,13 +42,15 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
 		<< (packs_bytes ? double(h.total_bytes()) / double(packs_bytes) : 0.0);
 	return out.str();
 }
-// What a tier hashed beyond its own build's pages and packs is bounded: metadata and the frame hashes.
-void expect_built_once(const t::HashStats &h, bool frames) {
+// Nothing a tier built is hashed again: its page and pack hashing is its build's, and metadata is a rounding
+// error. The agent hashes each frame once on receipt, which keeps its whole total within 1.2 times its build's;
+// the relay also encodes the frames it serves (raw and zstd), so its frame bytes are reported, not bounded.
+void expect_built_once(const t::HashStats &h, bool relay) {
 	check(h.built.page_bytes > 0 && h.built.pack_bytes > 0);
 	check(h.hashed.page_bytes == h.built.page_bytes && h.hashed.pack_bytes == h.built.pack_bytes);
 	check(h.hashed.metadata_bytes * 50 <= h.built_bytes());
-	check(h.total_bytes() * 5 <= h.built_bytes() * 6);
-	check(!frames || h.frame.bytes > 0);
+	check(h.frame.bytes > 0);
+	check(relay || h.total_bytes() * 5 <= h.built_bytes() * 6);
 }
 
 void bootstrap(const fs::path &certificates, const fs::path &root, bool relay) {
@@ -69,7 +71,7 @@ void bootstrap(const fs::path &certificates, const fs::path &root, bool relay) {
 	std::size_t packs = 0;
 	const auto bytes = pack_file_bytes(store, packs);
 	std::cout << line(relay ? "relay" : "agent", delta, bytes, packs) << '\n';
-	expect_built_once(delta, true);
+	expect_built_once(delta, relay);
 	check(delta.built.pack_bytes == bytes);
 	Reader reader(store);
 	const auto reads = reader.read(1);
@@ -96,15 +98,16 @@ void delta(const fs::path &certificates, const fs::path &root, bool relay) {
 					  return status.recoverable && status.recoverable->revision == 2;
 				  }), coordinator, server));
 				  update = coordinator->status().hash - base;
+				  check(server.deltas == 1);
+				  std::size_t packs = 0;
+				  const auto bytes = pack_file_bytes(store, packs);
+				  std::cout << line(relay ? "relay-delta" : "agent-delta", update, bytes, packs) << std::endl;
+				  // The delta writes pages and packs and hashes nothing else of the base it reads.
+				  check(update.built.page_bytes > 0 && update.built.pack_bytes > 0);
+				  check(update.hashed.page_bytes == update.built.page_bytes &&
+						update.hashed.pack_bytes == update.built.pack_bytes);
+				  check(update.hashed.metadata_bytes * 50 <= update.built_bytes());
 			  });
-	check(server.deltas == 1);
-	std::size_t packs = 0;
-	const auto bytes = pack_file_bytes(store, packs);
-	std::cout << line(relay ? "relay-delta" : "agent-delta", update, bytes, packs) << '\n';
-	// The delta writes pages and packs and hashes nothing else of the base it reads.
-	check(update.built.page_bytes > 0 && update.built.pack_bytes > 0);
-	check(update.hashed.page_bytes == update.built.page_bytes && update.hashed.pack_bytes == update.built.pack_bytes);
-	check(update.hashed.metadata_bytes * 50 <= update.built_bytes());
 	Reader reader(store);
 	const auto reads = reader.read(2);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
@@ -193,6 +196,7 @@ int main(int argc, char **argv) {
 		check(argc == 3 || argc == 4);
 		const fs::path certificates(argv[1]);
 		const std::string mode = argv[2];
+		compression = true;
 		if (argc == 4)
 			knobs = std::atoi(argv[3]);
 		const auto root = scratch(mode.c_str());
