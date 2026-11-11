@@ -5,27 +5,26 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+When `PeerOptions::listen` is the IPv6 wildcard `::`, `Peers` opens its acceptor with `v6_only`
+off, so one socket serves IPv4 and IPv6 peers on every OS, including those whose default is
+v6-only (FreeBSD). Any other listen address binds as today.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A `Peers` listening on `::` accepts a peer over 127.0.0.1 and over ::1: a transport test in
+  the suite, `--fails-without` on a revert where the OS default is v6-only, or the journal states
+  the host's default and that CI's FreeBSD job is the check.
+- A2 [artifact] `CHANGELOG.md` names the change.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+`consensus:transport`: no API change.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- D63 (owner: IPv6 supported). Found by dns-voters: a named local voter binds `::` only when the
+  OS defaults to dual-stack, else `0.0.0.0`.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
