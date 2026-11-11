@@ -2629,17 +2629,47 @@
         "CHANGELOG.md",
         "cmake/dependencies.json"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T15:55:13",
+          "commit": "7c67fb7cc65ee1442df13943f4363c0a068a41c0",
+          "criteria": {
+            "A1": "261111-151929-492987 (passed at 9dcae0000aa6; only merges from main since)",
+            "A2": "261111-151929-492987 (passed at 9dcae0000aa6; only merges from main since), 261111-154131-ef96e9",
+            "A3": "261111-151929-492987 (suite green at the fix); none found: the tests passed on the existing code; the only change that was not a test is local_wildcard (A5). The one dual-stack failure (daemon exited at startup, code 1, in the full suite under -j4) was a test bug (lead's diagnosis, not reproduced here): free_port reserved on ::1 only, so a parallel IPv4 listener on the same port made the daemon's dual-stack `::` bind fail; free_port now reserves on :: with V6ONLY=0. Passed on rerun alone and 10/10 in repeat job 261111-151449-64a3c0.",
+            "A4": "`CHANGELOG.md`, Unreleased, \"IPv6\"",
+            "A5": "261111-151929-492987 (passed at 9dcae0000aa6; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "f19695314d9f62e3550b9cc016ff540dfdf5e434",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-151929-492987",
+              "level": "light",
+              "seconds": 720.8,
+              "state": "done",
+              "what": "ipv6 check suite at f19695314d9f"
+            }
+          ],
+          "final": true,
+          "from": "2d2fdf6787e8a6ea081330567e582f435628209a",
+          "reason": "",
+          "tested": "214ac90c129e2e1b402fd95c0ccee6aac66de164"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T14:18:39",
-      "worktree": "../Detent-wt/detent/ipv6"
+      "updated": "2026-11-11T15:55:18",
+      "worktree": ""
     },
     "legacy-h": {
       "accepted": {},
