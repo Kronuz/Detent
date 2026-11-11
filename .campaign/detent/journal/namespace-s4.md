@@ -1,6 +1,6 @@
 # namespace-s4: journal
 
-State: waiting on jobs 261111-112151-b80250 261111-112200-5c3e22 261111-112206-82f33e 261111-112211-a15d6d 261111-112217-538846 261111-112224-51a2f5 261111-112229-231ca1 (pins 261111-112151-95bc87 green; F1 jobs done)
+State: ready for review
 Quest: .campaign/detent/quests/namespace-s4.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -64,13 +64,11 @@ A2 strict 5c3e22 (after native), A1 mutants 82f33e a15d6d 538846, A3 mutant 51a2
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261111-112151-b80250 (passed at 33f7f45dece8; ignores docs-only CHANGELOG.md, docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md), 261111-112151-95bc87 (passed at 33f7f45dece8; ignores docs-only CHANGELOG.md, docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md); fails without: 261111-092435-0ed21e, 261111-093510-b0bb5b, 261111-093514-e582da, 261111-112206-82f33e, 261111-112211-a15d6d, 261111-112217-538846 |
+| A2 | 261111-112200-5c3e22 (passed at 33f7f45dece8; ignores docs-only CHANGELOG.md, docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md), 261111-112137-77b7ad (passed at 33f7f45dece8; ignores docs-only CHANGELOG.md, docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md); fails without: 261111-112142-b25713 |
+| A3 | 261111-112229-231ca1 (passed at 33f7f45dece8; ignores docs-only CHANGELOG.md, docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md); fails without: 261111-093518-e23830, 261111-112224-51a2f5 |
 
 ## Result
 
