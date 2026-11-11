@@ -1981,7 +1981,21 @@
         "website/src/content/docs/copyright.md",
         "website/src/content/docs/faq.md",
         "website/src/content/docs/welcome.md",
-        "tools/check_lineage.sh"
+        "tools/check_lineage.sh",
+        "docs/ACTORS.md",
+        "docs/perf/m1-w5-evidence.md",
+        "docs/perf/m1-w5-evidence/**",
+        "docs/status/m1-pins.md",
+        "include/detent/**",
+        "src/detent/**",
+        "tests/detent/**",
+        "bindings/**",
+        "tools/w5/**",
+        "website/src/content/docs/basics.md",
+        "website/src/content/docs/guides/**",
+        "website/src/content/docs/reference/bindings/rust.md",
+        "website/src/content/docs/reference/cpp-api/global-and-testing.md",
+        "website/src/content/docs/roadmap.md"
       ],
       "landed": [],
       "lenses": [],
@@ -1992,7 +2006,7 @@
       "risk": "low",
       "status": "active",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T10:47:51",
+      "updated": "2026-11-11T10:59:09",
       "worktree": "../Detent-wt/detent/drop-justknobs"
     },
     "fixture-500k": {
