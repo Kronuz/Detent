@@ -1183,10 +1183,11 @@
           "verdict": "CHANGES"
         },
         "design": {
-          "at": "2026-11-09T22:23:28",
-          "base": "03e478182e2df76aa264e76477e70266ab2da507",
+          "at": "2026-11-10T23:28:23",
+          "base": "1137c99f77ea48662ba9142017e3089092dfa48d",
           "blobs": {
-            "benchmarks/paged_collection_bench.cc": "100644:e626bb382b51003ab7ace958c3a2b850f197f967",
+            "benchmarks/paged_collection_bench.cc": "100644:5bccf9e8a8c77cc4df73913aeffd80d9ad3f93c9",
+            "benchmarks/paged_recovery_bench.cc": "100644:e6ae0dea9abaecd066891f9933ec76123a927fd1",
             "docs/FAST_CLIENT_ARCHITECTURE.md": "100644:4121e24f9808d24c9c7109862a69a7f2d129675d",
             "docs/HOW_IT_WORKS.md": "100644:75d2a8fb59dc443e5dc242bc9c232b15c52f2a0b",
             "docs/INCREMENTAL_PUBLICATION_ARCHITECTURE.md": "100644:eb278d9e30b2a9a5c2a8fdba5062edb0e79af38d",
@@ -1200,8 +1201,8 @@
             "docs/mechanisms/verified-page-bitmap.md": "100644:be9b63a456f9c53703f434eeecada92a2a102707",
             "docs/perf/dense-delta-real-corpus.sh": "100644:21d4156e98c22b58413df36c46e87bf151070b82",
             "docs/perf/dense-model-check.sh": "100755:b7bb5c573f3eabba4b3fc70e53f80bfb617eef9d",
-            "docs/perf/first-read-gate.md": "100644:92ff8c84df96685e97a4ecc97754d5bccf2c3b0b",
-            "docs/perf/first-read-gate.sh": "100755:de7b6a7a17ba00c4103882358e27298abca360de",
+            "docs/perf/first-read-gate.md": "100644:bc6c079f4d7a88c485fb3845a27b4f064199b449",
+            "docs/perf/first-read-gate.sh": "100755:37114fa53935be73a5b855c8d1cd5e35c4c38607",
             "docs/status/dense-deltas.md": "100644:7c628780b4ad351701424de832f77f51ee220d01",
             "docs/status/dense-pages.md": "100644:ed01c7deadbc055f4d606d596d0e6e60e2cdcdeb",
             "docs/status/dense-reads.md": "100644:a50efb85b63197b5fa39ef067dacc484375d6811",
@@ -1502,33 +1503,35 @@
             "tests/detent_local/test_paged_trie_cursor.cc": "100644:53eb4278de48daab72d9b0678679693d43ca8bc8",
             "tests/detent_local/test_paged_trie_overlay.cc": "100644:31d7025c5354ca4619897f442b5be45335cbe001",
             "tests/detent_local/test_prepared_collection.cc": "100644:73a01412e82ab74f519b7833a1a0079e8bfc92ed",
+            "tests/detent_local/test_read_counters.cc": "100644:ab29d7eb0a4312c29ee2090dcea7f071855eb6a1",
             "tests/detent_local/test_segment_mapping.cc": "100644:69d5344e285d3f3ccf4a4150e7d4b02b5f0a98a1",
             "tests/detent_local/test_state_equivalence.cc": "100644:1f32b2979dc186e8318e7d0077a669a420de65a6",
             "tests/detent_local/trusted_records.hh": "100644:af010809739d0eb4c61bf68dbd48756bc7e4cec4",
             "tests/detent_system/dense_reader_measure.py": "100644:0ee686d3ee2992e433ed9df92514c16e86c904d3",
-            "tests/detent_system/first_read_export.cc": "100644:2f97120d5005292a4aa7ea415e9f173c84539e51",
-            "tests/detent_system/first_read_gate.py": "100644:574e5190928e44945a8d8c5e337230f773c98e96",
+            "tests/detent_system/first_read_export.cc": "100644:0ad693491abcbfc16e61bfcbc44c3b33cffd99ea",
+            "tests/detent_system/first_read_gate.py": "100644:9f97d3ac0a3a8cfc66b8dde6cd352c3f7625cedb",
+            "tests/detent_system/first_read_phases.cc": "100644:679163074073b9d54571264194c16c81f2cba7e9",
             "tests/detent_system/prepared_client_probe.cc": "100644:dc3caf9e73e659d8f62dc1307bc13b937d37e7f4",
             "tests/detent_testing/test_pack_scrub.cc": "100644:3642411b3143b379bf48683d42546e7b3a9ffcd4",
             "tests/detent_testing/test_trusted_restart.cc": "100644:b693166fe5ec5515a7f5ec7fe6748665cf7261f5",
             "website/src/content/docs/architecture/how-it-works.md": "100644:c1f66f026649c3dee90c98037564652f85b6dc0e"
           },
-          "brief": "668417c2abd5d027",
           "by": "review",
-          "commit": "8878c39bb7b424bee95bbbbac9a2eed3a8f17d10",
+          "commit": "cd677617ba98818120b07f87f5052c346e1d0724",
+          "criteria": "74776ebef2e84c20",
           "findings": {
             "DES-1": {
               "jobs": [
                 {
                   "cmd": "sh /Users/kronuz/code/Kronuz/Detent/.scratch/review-dense-pages-design/stale_docs.sh",
-                  "commit": "531c3706164a454aab54f6208e78d442215a5536",
+                  "commit": "cd677617ba98818120b07f87f5052c346e1d0724",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-181408-51c59f",
+                  "job": "261110-230353-2a4725",
                   "level": "none",
-                  "seconds": 1.6,
+                  "seconds": 10.8,
                   "state": "done",
-                  "what": "design probe stale_docs at 531c3706164a"
+                  "what": "design probe stale_docs at cd677617ba98"
                 }
               ],
               "kind": "defect",
@@ -1538,25 +1541,25 @@
               "jobs": [
                 {
                   "cmd": "sh /Users/kronuz/code/Kronuz/Detent/.scratch/review-dense-pages-design/reference_shape.sh",
-                  "commit": "531c3706164a454aab54f6208e78d442215a5536",
+                  "commit": "cd677617ba98818120b07f87f5052c346e1d0724",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-181408-7cb320",
+                  "job": "261110-230357-eb4a9d",
                   "level": "none",
-                  "seconds": 1.6,
+                  "seconds": 11.0,
                   "state": "done",
-                  "what": "design probe reference_shape at 531c3706164a"
+                  "what": "design probe reference_shape at cd677617ba98"
                 },
                 {
-                  "cmd": "bash -c 'bash tests/detent_local/dense_mutant.sh tests/detent_local/mutants/des2-root-reserved.patch'",
-                  "commit": "531c3706164a454aab54f6208e78d442215a5536",
+                  "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+                  "commit": "9b5ebae75abac668d14323367f940e96a85f683f",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-181406-c207a8",
+                  "job": "261110-220136-31432b",
                   "level": "light",
-                  "seconds": 392.6,
+                  "seconds": 561.9,
                   "state": "done",
-                  "what": "mutant des2-root-reserved (passes when killed) at 531c3706164a"
+                  "what": "dense-pages check native at 9b5ebae75aba"
                 }
               ],
               "kind": "defect",
@@ -1566,14 +1569,14 @@
               "jobs": [
                 {
                   "cmd": "sh /Users/kronuz/code/Kronuz/Detent/.scratch/review-dense-pages-design/delta_note.sh",
-                  "commit": "531c3706164a454aab54f6208e78d442215a5536",
+                  "commit": "cd677617ba98818120b07f87f5052c346e1d0724",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261109-181408-55425a",
+                  "job": "261110-230355-a84a6a",
                   "level": "none",
-                  "seconds": 1.6,
+                  "seconds": 11.0,
                   "state": "done",
-                  "what": "design probe delta_note at 531c3706164a"
+                  "what": "design probe delta_note at cd677617ba98"
                 }
               ],
               "kind": "gap",
@@ -2218,7 +2221,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-10T23:02:52",
+      "updated": "2026-11-10T23:28:23",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
