@@ -181,11 +181,14 @@ void damage(const fs::path &certificates, const fs::path &root) {
 				  check(explain(co_await until(scheduler, 120s, [&] { return coordinator->status().repair.completed >= 1; }),
 							    coordinator, server));
 				  final_status = coordinator->status();
+				  // The scrub's damaged-pack count is per pass and resets on the repaired root, so detection is
+				  // read from the counters that only grow: the scrub is the one requester while no page is read.
 				  check(settled(final_status));
-				  check(final_status.scrub.damaged_packs >= 1);
+				  check(final_status.repair.requested >= 1 && final_status.failures >= 1);
 				  check(!final_status.repair.pending);
 				  std::cout << "hash-once damage knobs=" << knobs << " damaged_packs=" << damaged.size()
-							<< " scrub_passes=" << final_status.scrub.passes << " repairs=" << final_status.repair.completed << '\n';
+							<< " scrub_passes=" << final_status.scrub.passes << " repair_requests="
+							<< final_status.repair.requested << " repairs=" << final_status.repair.completed << '\n';
 			  });
 	Reader reader(store);
 	const auto reads = reader.read(1);
