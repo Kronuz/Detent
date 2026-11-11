@@ -467,7 +467,56 @@
       "updated": "2026-11-08T15:38:36"
     },
     "consensus-dns-peers": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-11T07:34:56",
+          "base": "eb34fb8598656f57e4e26cefa3f464654eb74224",
+          "blobs": {
+            "CHANGELOG.md": "100644:daa03971a3b59efdfc2f882c97be0c6ef39c1933",
+            "README.md": "100644:f4a5b35b0ff5dde38946e7d5d93ef125fa048726",
+            "docs/mechanisms/peer-dns.md": "100644:c19ce0aa0e200cabdbdf5990b1cec0059c426976",
+            "include/consensus/transport/peers.h": "100644:b59153173280cd67ec3dc98a85df6315a1d23fd7",
+            "include/consensus/transport/resolve.h": "100644:72b3a278c3aee2303ffadf52f9c07b9de2c00b29",
+            "test/transport/dns_mutants.sh": "100755:d6171920f39de23739b03f57a5f0db4343ae7f63",
+            "test/transport/peers_test.cc": "100644:f8f38c3065a0da706033625ecd7e21b82378ad95"
+          },
+          "by": "review",
+          "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+          "criteria": "27fc204239b05300",
+          "diffs": {
+            "CHANGELOG.md": "96dc629caa78f7e5",
+            "README.md": "9e9a1f22497593a7",
+            "docs/mechanisms/peer-dns.md": "ba3747cd8180102d",
+            "include/consensus/transport/peers.h": "ca806c4e1fa6c425",
+            "include/consensus/transport/resolve.h": "6ed559db3e16acc3",
+            "test/transport/dns_mutants.sh": "a02c3a3c517def8e",
+            "test/transport/peers_test.cc": "1cf5286e699e3f2d"
+          },
+          "findings": {
+            "N1": {
+              "jobs": [
+                {
+                  "cmd": "bash -c '/Users/kronuz/code/Kronuz/Detent/.scratch/review-consensus-dns-peers-correctness/lifetime_probe.sh $JOB_OUT/lifetime'",
+                  "commit": "905823da7ca45f4e1dc9632a707740007ec20452",
+                  "exit": 0,
+                  "host": "kronuz",
+                  "job": "261111-073017-b40c82",
+                  "level": "light",
+                  "seconds": 115.7,
+                  "state": "done",
+                  "what": "N1 confirm: review probe W (wrong-first) + lifetime probes under ASan at the fix"
+                }
+              ],
+              "kind": "defect",
+              "reproduced": false
+            }
+          },
+          "note": "",
+          "review": "1774bb5fa0159e3bdd041fd0fdbeb97b1ebf82af",
+          "reviewed": "931c42c0df37a64cd8fe378a6fbe15f2d1f97510",
+          "verdict": "CHANGES"
+        }
+      },
       "after": [],
       "base": "eb34fb8598656f57e4e26cefa3f464654eb74224",
       "branch": "quest/detent/consensus-dns-peers",
@@ -539,7 +588,7 @@
       "risk": "high",
       "status": "review",
       "title": "Peers dial DNS names without ever blocking consensus",
-      "updated": "2026-11-11T06:51:51",
+      "updated": "2026-11-11T07:34:56",
       "worktree": "../consensus-wt/detent/consensus-dns-peers"
     },
     "container-selection": {
