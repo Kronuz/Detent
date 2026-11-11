@@ -1,6 +1,6 @@
 # consensus-dns-peers: journal
 
-State: ready for review
+State: fixing N1, N3, N4, N5, N6
 Quest: .campaign/detent/quests/consensus-dns-peers.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Every criterion has evidence at consensus:931c42c (suite 261111-064715-c0f32c green, peers test
-8.2 s; both A2 mutants caught). Branch pushed; CI run 43042148956 (includes linux-tsan) in
-progress. Correctness review not yet launched (the lead's).
+Correctness review (consensus:931c42c) CHANGES: fixing N1 (blocking), N3 (lead's ruling per D60),
+N4, N5, N6. Code, tests, revert mutants and doc written; building.
 
 ## Next
 
-1. If CI (linux-tsan) is red, fix and rerun; otherwise ready for review.
+1. Build and run the peers test locally; commit the fix.
+2. Jobs: revert mutants no-skip (N1, --for A4), wait-cached (N3), lookup-per-dial (N4); probe W
+   at the fix; suite `campaign verify --for A1,A2,A3,A4,A6`; push for CI (linux-tsan).
 
 ## Blocked on
 
