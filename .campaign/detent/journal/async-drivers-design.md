@@ -1,30 +1,47 @@
 # async-drivers-design: journal
 
-State: ready for review (design re-review R1-R13 folded per D50; every job at Detent:25f361e finished as required: passes exit 0, controls exit 1)
+State: waiting on jobs (Xapiand review 2, Y1-Y12 folded; see the Y table)
 Quest: .campaign/detent/quests/async-drivers-design.md (the lead's; never edit it)
 
 ## Doing
 
-Nothing. Design re-review R1-R13 folded per the lead's D50: bench Detent:940514e, design
-Detent:25f361e. Earlier: Xapiand's X1-X15 in Detent:c351fc1 / Detent:786009f; F11-F14 in
-Detent:672e7b7 / Detent:29fabf1; F1-F10 in Detent:35ed97d / Detent:3f16916.
+Xapiand's second review (at Detent:73e96d6; `/Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md`,
+CHANGES, blocking X1-X6) folded. Its findings are Y1-Y12 here and in the design (its X1-X12), so
+they do not collide with the first review's X1-X15. Bench Detent:78be8ce, design at the commit
+after it.
 
 ## Next
 
-1. Done: the jobs finished as required (passes 42b328, 039776, d3763b, cc2e96, 0f19d8, df6596,
-   f62e3b, 164e3c exit 0; controls 84305c, 98da34, fcb3cf, 7c0cea, 9ec69b, 6b0f0a exit 1);
-   the design's Rerunnable checks cite them (Detent:ec9eaf6, text only). D8's and D10's counts
-   match the jobs' logs.
-2. The design re-review of R1-R4 at head (the lead's).
-3. Xapiand's re-review (A8) at head; the lead relays it.
-4. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (Xapiand's apply
-   leaves the group's loop; the turn orders applies, the log orders appends).
-5. For the lead, unverified: journal may forget a lost verdict inside one generation too, once
-   retention reclaims the segment that holds the damage (`lost_` is rebuilt from each recovery,
-   `turn_log.h:176`). D10's group-table mark covers that case as well; no probe was run.
+1. The lead relays the fold to Xapiand (A8 re-review); the Y table names each resolution.
+2. The lead, outside this file set: X10 in `docs/SHARED_LIBRARY_DECISIONS.md` (from round 1),
+   and Y5's switch to Track C D16 in the same file if the November 2 entry names a per-loop
+   transport.
+3. A7's jobs at older commits need `campaign job rerun` at head (the brief says so); wheel.hh
+   gained `release()` only, no measured path changed.
 
-"Task-wheel diff not found" (Xapiand's review, item 5): the diff is quest 1's output
-(`task-wheel`, task repository), which starts after this design lands; nothing to review yet.
+## Review findings (Xapiand review 2, 73e96d6)
+
+Approved: 1.1, 1.4, 1.5. Each fix replaces text (design grew 0 bytes: 65,994 before, SIZE after).
+
+| ID (theirs) | Fix | Confirming job (failing before) |
+|---|---|---|
+| Y1 (X1) | D4 Threads: wheel bound to its loop's thread while it runs; `close()` (task phase 2) releases it, teardown's thread unlinks in place (phase 3), the wheel drops what is armed at destruction (phase 4); off-loop deadline destruction posts while open, unlinks in place once closed; quest 1 criterion. Bench: `wheel::release`, `thread_loop::stop/close`, `wheel_test teardown` | 261111-012127-6b48af (exit 0), ASan 261111-012132-33b844, TSan 261111-012138-0ccf2f; control `teardown-bound` (the 73e96d6 rule) 261111-012143-16b26a exit 134, as Xapiand's probe |
+| Y2 (X2) | D2: `propose` completes at `ProposalPlaced` (entry durable here, `core.h:733`); `committed(GroupId, Placement, token)` waits for commit or throws `superseded`; D8 rows; quest 4 criterion | n/a (text) |
+| Y3 (X3) | D2: `change_membership`, `transfer_leadership` (`transfer_failed`), `repair`, `checkpoint` (reserve, capture chunks, publish), `activated`/`activation_failed`/`application_failed`; D8 rows; quest 4 criterion, so quest 7 can delete `try_submit` | n/a (text) |
+| Y4 (X4) | D10 Identity and Q7: a frame for a stored group and held incarnation, the source incarnation's node the connection's node where membership names it; never a membership filter. Bench `frame_admission` over real Cores (consensus:ab05507) | 261111-012147-65055f (joiner, lagging, removal, spoof: ok); control `voters` 261111-012153-c69789 must exit 1 (joiner and lagging follower never catch up; removal unaffected) |
+| Y5 (X5) | D10 adopts Track C D16: a Control and a Bulk connection per peer node, each on one loop; reader batches frames by destination loop, one post per batch per read; sends batched per resume; per-group credit (D16). Cost per host `29 KB + 2P x 41 KB`, `1 + 2P` fds (8.2 MB, 201 at P=100 vs 66 MB, 1,616 per loop pair at L=16). Per-loop ports, hello L agreement, `misrouted`, stale-dial fallback removed (R2, R12 moot); `shrink_dial`, `placement_test share/hello/mod` deleted; quest 5 rewritten | 261111-012156-f20dab (`hop_cost`, exclusive): HOPSUMMARY |
+| Y6 (X6) | Q3 (b) required; quest 3: 0 fds per idle group, artifacts by opaque fixed-width id and incarnation (nested indexes never collide), per-host directory independent of L, the owner lock shared with strata cold-tier step 5; quest 4: 0 fds including the Worker's | n/a (criteria) |
+| Y7 (X7) | Q6 and D4: users are the WAL fsync Debouncer, Kronuz/logger, a stale include; `engine::Host` timers move to the wheel after quest 1; DB-TIMER claim removed (no such thread at Xapiand HEAD) | n/a (text; `grep -rn DB-TIMER src` empty at Xapiand:d96240e20) |
+| Y8 | Already: Q4 is a 7b prerequisite with a closed state (round 1 X8) | n/a |
+| Y9 | Limits and quest 4: 8 KiB checked on the Linux gate host | n/a |
+| Y10 | Abstract: live chores call the `Driver` from their own scheduler | n/a |
+| Y11 | Already: `Seams` takes the wheel from the scheduler (round 1 X14) | n/a |
+| Y12 | D7: the driver yields with `post`, never `post_demoted` | n/a |
+
+Reruns because loops.hh changed (`thread_loop` gained stop/close; the explorers use
+`manual_loop`, unchanged): waiter_test 261111-012201-35b594, ASan 261111-012206-319649, TSan
+261111-012211-a14b8d; blocking_entry 261111-012216-b70b56, TSan threads 261111-012221-b0e662;
+placement_test all 261111-012225-d639b2, control `remap-forget` 261111-012230-f5cbf3 (exit 1).
 
 ## Review findings (design re-review, 1ece2ff, D50)
 
@@ -108,58 +125,18 @@ call); Q7 (a) once X1 is fixed; X8: Q4 needs closable quiescent groups.
 
 ## Blocked on
 
-Nothing of mine. A8 needs Xapiand's re-review of the fold at head (the lead relays it); X10's
-SHARED_LIBRARY_DECISIONS entry is the lead's (Next 3).
+Nothing of mine. A8 needs Xapiand's re-review of the Y fold (the lead relays it); X10's
+SHARED_LIBRARY_DECISIONS entry is the lead's (Next 2).
 
-## Note for the Xapiand re-review (A8, fold of X1-X15)
+## Note for the Xapiand lead (A8, Y fold)
 
-Design at Detent:786009f, bench at Detent:c351fc1. Blockers: X1 in D10 "Identity" and Q7; X2 in
-D8 "Close, teardown and shutdown", D2 (calls by group id) and the D8 table; X3 and X5 in D5; X4 in
-D10 "Placement and routing" and "L may change at restart", Q3 (per host). Non-blocking: X6 Q6,
-X7 D4, X8 Q4 and D10, X9 quest 3, X10 D2 Sink (SHARED_LIBRARY_DECISIONS is the lead's), X11 D8,
-X12 D10 Cost, X13 D6, X14 D2, X15 D8. Probes and their before-jobs: the X table above.
-
-## Note for the Xapiand lead (A8)
-
-Detent's design for the journal and consensus drivers is `docs/design/async-drivers.md`. What
-changes for Xapiand:
-
-1. API: `task::task<T>` over `scheduler_ref`; no `asio::awaitable` in journal or consensus
-   headers. One consensus `Driver` per reactor loop; a group is state on one loop (no thread,
-   `io_context`, armed timer, frame or connection). Calls from another loop hop to the group's
-   loop and resume the caller on its own (D2).
-2. Deadlines (#18, D8): one `task::deadline` per fan-out on the loop's timer wheel, on that
-   loop's clock (manual in the simulator); a child on another loop makes its own, linked to the
-   parent's token, and may only shorten it. A deadline keeps task's contract (created and
-   destroyed on any thread) on the wheel; `asio_scheduler` moves onto it; Xapiand's
-   `engine::Host` deadlines are unaffected (D4). Every driver call takes a `cancel_token`.
-   Cancellation releases the caller exactly once (one claim; the group's loop unlinks before
-   the resume); it never withdraws a proposal `Core` accepted (it may still commit, seen
-   through `Committed`) and never cancels IO the machine owns (log appends, staged turn
-   records), which runs under the loop's shutdown token.
-3. Blocking entry (D5): `journal::run` / `consensus::run` over `inline_scheduler` and
-   `InlineCompletion`, no `io_context`: it commits turns inline and returns only after staged
-   records are written; it advances the clock only to an operation deadline or a single voter's
-   first election (a manual clock jumps), throws `stalled` otherwise, and fails a multi-voter
-   `propose`/`read` with `needs_peer`. It owns its groups and turn log, so a WorkPool chore runs
-   only on cores no reactor loop serves. Not `task::sync_wait`, which hangs over a
-   shared-backend Store.
-4. 7b fit: a three-voter member costs 683 KB and 8 descriptors idle today: 171 KB of consensus
-   state (164 KB of it `SnapshotChannel` frame arrays) and 512 KB, 5 descriptors in its own
-   `consensus::Peers`. D9 (lazy frame buffers) and D10 bring the member to 7.9 KB and 3
-   descriptors. D10: one transport per reactor loop; every host places a group on loop
-   `slot(group) mod L` (power-of-two L) and each loop has its own port, so a connection joins
-   the two loops that share groups and no frame hops threads; about `29 KB + H x 41 KB` and
-   `1 + H` descriptors per loop for H peer hosts with as many loops (an idle TLS end is 40.7 KB
-   with OpenSSL's release mode, 111 KB as today's `asio::ssl::stream`); the reader drops a
-   frame for a group whose input slot is full rather than wait. The placement rule constrains
-   how Xapiand assigns shards to cores. A million heartbeating groups cost at least 26 cores idle, so 7b's million
-   groups need quiescence (Q4).
-5. Asks: review items 1-5, 7b fit, D8's cancellation table and D10; Q3 (one directory and owner
-   lock per core, a journal layout change before 7b writes bytes); Q6 (Xapiand's
-   Kronuz/scheduler users onto the task wheel); Q7 (a shared connection authenticates the peer
-   host's node; each frame is checked against the group's membership in force); D10's
-   placement rule; review of the task-wheel diff (quest 1).
+What changed for Xapiand since its second review: the wheel's thread rule follows task's
+teardown (Y1); `propose` completes at `ProposalPlaced` and `committed` waits for the commit (Y2);
+every Worker `Event` has a `Driver` call (Y3); frames are admitted per stored group and
+incarnation, never by membership, settled over real Cores (Y4); the transport is Track C D16's,
+one Control and one Bulk connection per node pair, each on one loop, frames hopped in batches
+(Y5, measured); Q3 (b) carries Xapiand's four conditions as quest 3 criteria (Y6); Q6 names the
+real Kronuz/scheduler users and moves `engine::Host`'s timers (Y7). Rows in the Y table.
 
 ## Evidence
 
@@ -173,7 +150,7 @@ changes for Xapiand:
 | A6 | `docs/design/async-drivers.md`: "Build plan", quests 1-7, Worker pump deletion last |
 | A7 | 261110-000911-f87d0f (exclusive, Detent:35ed97d): frames 80/96/512 B, resumes 9.0/131.0 ns, wheel arm 13.8 ns vs 227/373 ns, `run_one` 1,548 ns, idle CPU; 261110-000912-e9dff1 (strict, Detent:35ed97d): bytes, fds, threads; 261110-000913-e9e87d (light): channel layout; 261110-000909-400d3c (strict): per-group Peers; 261110-005436-650916 (strict, Detent:672e7b7): one idle peer connection. Refs consensus@ab05507, journal@e5f6ff1, completion@560c288, task@bdafa5f |
 | R1-R4 | the R table above (design re-review at Detent:1ece2ff) |
-| A8 | Xapiand's review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), verdict CHANGES at Detent:f48f7cb, blocking X1-X5; folded at Detent:c351fc1 (bench) and Detent:786009f (design), jobs in the X table; re-review pending |
+| A8 | Xapiand's first review `/Users/kronuz/code/Kronuz/Xapiand/.campaign/xapiand/reviews/detent-async-drivers-design.md` (Xapiand:de3c1b572), CHANGES at Detent:f48f7cb, folded (X table); second review `/Users/kronuz/code/Kronuz/Xapiand/.scratch/review-async-drivers/review.md`, CHANGES at Detent:73e96d6, approved 1.1, 1.4, 1.5, folded (Y table); re-review pending |
 
 ## Result
 
@@ -270,3 +247,26 @@ changes for Xapiand:
 30. The X2/X3/X4 jobs at Detent:c351fc1 and Detent:9e7237c stand only for their numbers quoted
     in the text (60.2/51.2 ms, D8's close and teardown counts); the files changed, so the R
     table's jobs at Detent:25f361e are the evidence for D5, D8 and D10.
+31. Xapiand's second review is Y1-Y12 (its X1-X12) in the journal and the design, so its ids do
+    not collide with the first review's X1-X15.
+32. Y5: Track C D16 adopted over the per-loop transport: one transport shape for strata,
+    Xapiand and consensus, L times fewer connections and TLS state, and no cross-host placement,
+    per-loop ports, hello L agreement or stale-dial fallback; the cost is one cross-loop post per
+    destination loop per read, measured by `hop_cost`. Within the design's scope: it changes no
+    quest criterion the lead set, only the design's own D10 and its quest 5 row.
+33. Y1: the wheel is released at `close()` (task phase 2) rather than made any-thread, so the
+    owner check still catches a wrong-thread use while the loop runs; teardown is one thread, as
+    task's phases already require.
+34. Y2: `propose` completes at `ProposalPlaced`, which Core already emits after the entry's
+    Persist; the commit wait is a separate call on the same waiter protocol, so no host rebuilds
+    D8. A `committed` waiter at close completes `closed` rather than waiting for a quorum.
+35. Y4's model drives real Cores with the harness of consensus's `test/membership_test.cc`
+    (ab05507); the lagging scenario applies the rule under test only to node 3, so the joiner's
+    failure under `voters` does not mask it. Removal passes under both rules; the design says so
+    by naming only the joiner and the lagging follower.
+36. `shrink_dial.cc` and `placement_test` `share`, `hello`, `mod` are deleted: they tested
+    per-loop routing D10 no longer has. Their old jobs stay cited only in the R table.
+37. `hop_cost idle` subtracts a run with no post, so loop A's own 200 us sleep and wake are not
+    counted as the hop.
+38. The design stays within its size by condensing D2, D4's users table, D5's and D8's test
+    narratives and D10's re-partition text; no decision was removed.
