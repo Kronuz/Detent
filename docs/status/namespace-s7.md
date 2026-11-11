@@ -70,5 +70,5 @@ Mutants (`tests/detent_agent/mutants/`, run by `agent_store_mutant.sh`): `n6-ren
 
 ## Open
 
-- The store is a module beside DiskStore. Making the agent publish through it (DiskStore's publication and census, the coordinator's random ids at `src/detent_delivery/coordinator.cc:211`, the segment builder's storage identity at `src/detent_local/paged_segment_builder.cc:38-47`, readers reading the table instead of the 176-byte descriptor) touches files outside S7's set; the library target lives in `tests/detent_agent/CMakeLists.txt` until a src CMakeLists builds it.
+- The store lands as a module (`detent::agent_store`, built in `src/detent_local/CMakeLists.txt`); namespace-s7-wire wires the agent's publication and readers through it.
 - `.lease` files (created at adoption, S9) and the collector of unreached names are not part of S7.
