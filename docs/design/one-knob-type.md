@@ -62,17 +62,39 @@ default i64, pct u8, flags u8, count u16, value i64; rows len u8, kind u8, value
 Detent:7d2c82fc. `docs/perf/one-knob-type-corpus.py` converts main's corpora to either.
 Procedure and raw numbers: [../perf/one-knob-type.md](../perf/one-knob-type.md).
 
-The 100K corpus has 52,022 integer and 47,978 flag definitions, each flag ramped with three forced
-groups and one group percentage. Dense model, 4 KiB pages, height rule:
+The 100K corpus has 100,000 definitions (52,022 integers, 47,978 flags, each flag ramped with
+three forced groups and one group percentage) and 4 namespace records; the 5M corpus has 2.5M of
+each kind with the same shape. Page bytes come from the dense model (`dense-pages-model.py pack
+CORPUS 4096 --rule=height`), job 261111-154349-807bef; for main's corpus the model's 3,245 pages
+and 6,209,298 bytes equal main's C++ full build exactly (`test_local_dense_fullbuild`, in the
+pages jobs below, which also build the varint tree).
 
-| Body | Body bytes per definition | Page bytes per record | Pages |
-| --- | --- | --- | --- |
-| main (bool/int) | 47.5 | 62.1 | 3,245 |
-| one-knob, fixed width | 58.9 | 73.2 | 3,077 |
-| one-knob, varint | 35.3 | 49.4 | 2,874 |
+The columns:
 
-The fixed-width body costs 18% more page bytes than main: every forced override grows from one
-byte to eight, and a ramped flag carries an eight-byte rollout value. The varint body is 20%
-smaller than main and 33% smaller than fixed width. The paged body is varint.
+1. Body: the definition body only, as the page stores it after the node's 4-byte header and the
+   key suffix, averaged over definitions (the converter's census).
+2. Page bytes: the sum of every page's length over records (definitions plus namespace records).
+   A page's length is its 64-byte header, its nodes (a leaf is 4 bytes, the key suffix and the
+   body; a branch is its label prefix and child slots) and 68 bytes per external child. Pages
+   are never padded: 4 KiB is the most a page may hold, not its size.
+3. Pages, and the mean page length (page bytes over pages).
 
-5M page bytes, the read bench and first read: pending the A3 jobs.
+| Corpus | Body | Body B/def | Page B/record | Pages | Mean page B |
+| --- | --- | --- | --- | --- | --- |
+| 100K | main (bool/int) | 47.5 | 62.1 | 3,245 | 1,913 |
+| 100K | one-knob, fixed width | 58.9 | 73.2 | 3,077 | 2,380 |
+| 100K | one-knob, varint | 35.3 | 49.4 | 2,874 | 1,720 |
+| 5M | main (bool/int) | 48.5 | 63.1 | 162,367 | 1,943 |
+| 5M | one-knob, fixed width | 60.5 | 74.9 | 154,334 | 2,426 |
+| 5M | one-knob, varint | 36.5 | 50.6 | 144,544 | 1,751 |
+
+Page count does not follow page bytes: the height rule seals a subtree as its own page where a
+branch's children overflow 4 KiB, so the count is set by where subtrees cross that budget. The
+fixed-width body has fewer, fuller pages than main (mean 2,380 B against 1,913 B) and still 18%
+more bytes; the bytes are what a reader maps, hashes and pages in.
+
+The fixed-width body costs 18% (100K) and 19% (5M) more page bytes than main: every forced
+override grows from one byte to eight, and a ramped flag carries an eight-byte rollout value. The
+varint body is 20% smaller than main at both sizes and 32% to 33% smaller than fixed width. The paged body is varint.
+
+The read bench and first read: pending the A3 jobs.
