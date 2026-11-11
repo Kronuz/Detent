@@ -123,6 +123,17 @@ reruns under them.
    rerun decides by its point estimate (the median ratio against 1.10), since a min-max band
    only widens with more runs.
 
+After the rows below, the owner asked for more measurement before a pick (PLAN.md D69). Two more
+rows run under the same rule and thresholds, each a change made after data:
+
+4. **Longer single-loop samples (A5).** A sample repeated the lifecycle 1,000,000 / n times, 40 ms
+   at n = 1,000 for (a), and the A/A band there was 48%. A sample now also repeats it until its
+   timed passes add up to 100 ms (at n = 1,000,000 one repetition already takes 350 ms or
+   more). The target was a band of at most 5% at n = 1,000; the band reached is reported.
+5. **Linux (A6).** The single-loop, cross-thread and memory rows for (a), (b), (c) and (f) run on
+   the local QEMU Linux VM (`wheel_vs_stash_vm.sh`), the host held `exclusive`, cross-thread at
+   P = 1, 4 and the VM's CPUs minus 1. The rule applies to each host on its own rows.
+
 ## Results
 
 Rows at df21a772, stash pinned at stash:d249352, on one Intel Core i9-9980HK (8 cores, 16
