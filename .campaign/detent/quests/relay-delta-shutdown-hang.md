@@ -5,27 +5,26 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A relay stopped while it serves or applies a delta drains and exits promptly. Today it hangs on
+main too: probe `tests/detent_delivery/relay_delta_shutdown.cc` (namespace-s4's branch, run by
+`relay_delta_probe.sh`) timed out at main 6cc26585 (261111-080405-ffc37e) and at namespace-s4's head
+(261111-080407-249b55).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause is named in the journal with the stack or trace that shows it: a job.
+- A2 The probe is a ctest test that drains within a few seconds, and fails (times out) without the
+  fix: the suite plus a `--fails-without` job on a revert.
+- A3 Shutdown during each delta phase (receiving, building, publishing) drains: tests in the suite.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- Lead, 2026-11-11: found by namespace-s4; pre-existing, so its own quest after namespace-s4.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
