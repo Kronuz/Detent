@@ -1,6 +1,7 @@
 #include "detent_local/reader.hh"
 #include "paged_disk_fixture.hh"
 #include "paged_snapshot_builder.hh"
+#include "recovery_context.hh"
 #include "segment_names.hh"
 #include "snapshot_fixture.hh"
 #include <filesystem>
@@ -47,15 +48,14 @@ int main() {
 		auto empty = image.root();
 		empty.bytes = empty.pages = empty.segments = empty.records = empty.namespaces = 0;
 		empty.tree = {};
-		empty.logical = p::empty_commitment();
-		auto bytes = p::encode_root(empty);
+		auto bytes = p::encode_root(empty, p::Limits{});
 		auto descriptor = image.descriptor();
 		descriptor.generation.fill('e');
-		descriptor.checksum = p::physical_commitment(bytes);
+		descriptor.checksum = p::metadata_commitment(bytes);
 		auto name = l::generation_name(descriptor.generation);
 		write(directory / (name + ".image"), bytes);
 		l::GenerationOwnership ownership{storage, descriptor.generation, descriptor.length,
-										 descriptor.checksum, 2};
+										 descriptor.checksum, p::format_version};
 		write(directory / (name + ".lease"), l::encode_generation_ownership(ownership));
 		write(directory / "selected", l::encode_descriptor(descriptor));
 		auto empty_view = l::open_generation(directory);
@@ -107,19 +107,19 @@ int main() {
 	require(::chmod(path.c_str(), 0620) == 0);
 	rejects<std::invalid_argument>([&] { l::open_generation(directory); });
 	require(::chmod(path.c_str(), 0600) == 0);
-	// Reject an unsupported selected root without replacing the installed view.
+	// A non-current layout takes the one refusal path and keeps the installed view.
 	auto descriptor = image.descriptor();
 	descriptor.generation.fill('h');
 	auto root_name = l::generation_name(descriptor.generation);
 	write(directory / (root_name + ".image"), {image.bytes()->data(), image.bytes()->size()});
-	l::GenerationOwnership bad{storage, descriptor.generation, descriptor.length, descriptor.checksum, 2};
+	l::GenerationOwnership bad{storage, descriptor.generation, descriptor.length, descriptor.checksum, p::format_version};
 	auto lease = l::encode_generation_ownership(bad);
-	l::write_integer(lease, 56, 3, 4);
-	auto hash = p::physical_commitment(std::span<const char>(lease).first(96));
+	l::write_integer(lease, 56, 4, 4);
+	auto hash = p::metadata_commitment(std::span<const char>(lease).first(96));
 	std::copy(hash.begin(), hash.end(), lease.begin() + 96);
 	write(directory / (root_name + ".lease"), lease);
 	write(directory / "selected", l::encode_descriptor(descriptor));
-	rejects<std::invalid_argument>([&] { reader->refresh(); });
+	rejects<l::detail::ObsoleteGeneration>([&] { reader->refresh(); });
 	require(reader->read_view().get("app", "count").value() == INT64_MIN);
 	reader.reset();
 	std::filesystem::remove_all(directory);

@@ -54,7 +54,7 @@ struct PagedDependencyWalk::Impl {
 		return true;
 	}
 	void push(p::Reference reference, std::size_t context) {
-		p::encode_reference(reference);
+		p::validate(reference);
 		require(depth < frames.size() && pages < root.pages && reference.length <= root.bytes - extents);
 		frames[depth++] = {reference, {}, {}, context};
 		++pages;
@@ -85,7 +85,7 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 			auto &frame = s.frames[s.depth - 1];
 			if (!frame.checked) {
 				if (!s.page) {
-					if (!s.waiting && !s.admit(p::reference_bytes, budget))
+					if (!s.waiting && !s.admit(p::child_bytes, budget))
 						return;
 					if (!s.waiting && s.frontier && s.frontier(s.source.get(), frame.reference)) {
 						frame.checked = true;
@@ -113,19 +113,14 @@ void PagedDependencyWalk::step(ValidationBudget &budget) {
 				if (!s.page->discard(budget))
 					return;
 				s.page.reset();
-				require(frame.header.prefix <= 202 - frame.context);
-				frame.context += frame.header.prefix;
-				frame.children = frame.header.children;
+				frame.children = frame.header.externals;
 				frame.checked = true;
 			}
 			if (frame.children) {
 				if (!s.admit(p::child_bytes + 1, budget))
 					return;
-				require(frame.context < 202);
-				auto child = p::decode_child(frame.bytes.subspan(p::page_header_bytes + frame.header.prefix +
-																	 (--frame.children) * p::child_bytes,
-																 p::child_bytes));
-				s.push(child.reference, frame.context + 1);
+				const auto child = p::decode_external(frame.bytes, --frame.children, s.limits);
+				s.push(child, 0);
 			} else {
 				if (!budget.rows)
 					return;

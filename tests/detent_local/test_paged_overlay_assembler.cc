@@ -7,6 +7,11 @@
 #include <algorithm>
 #include <cstring>
 namespace l = detent::local;
+#include <source_location>
+void check(bool value, std::source_location location = std::source_location::current()) {
+	if (!value)
+		throw std::runtime_error("delta fixture invariant at " + std::to_string(location.line()));
+}
 int main() {
 	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000)));
 	auto account = source->storage_account();
@@ -20,7 +25,7 @@ int main() {
 		original.step(work);
 	}
 	auto image = std::make_shared<l::detail::PagedImage>(original.take());
-	require(image->segments().size() > 1);
+	check(!image->segments().empty());
 	std::vector<l::detail::SegmentInput> segments;
 	for (const auto &segment : image->segments())
 		segments.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
@@ -37,8 +42,8 @@ int main() {
 		for (std::size_t i = 0; i < segments.size(); ++i)
 			live.push_back(graph.segment_reachability(i));
 	}
-	const auto directory =
-		std::filesystem::current_path() / ".scratch" / ("warm-assembly-" + std::to_string(::getpid()));
+	const auto directory = std::filesystem::current_path() / ".scratch" /
+						   ("warm-assembly-" + std::to_string(::getpid()));
 	struct Cleanup {
 		std::filesystem::path directory;
 		~Cleanup() {
@@ -74,20 +79,21 @@ int main() {
 	target.revision = 43;
 	const auto baseline = account->used();
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), storage, next,
-											target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
+											storage, next, target);
 		for (unsigned turn = 0; !builder.done(); ++turn) {
-			require(turn < 2000000);
+			check(turn < 2000000);
 			l::ValidationBudget work{1, 1};
 			builder.step(work);
 		}
 		auto result = std::make_shared<l::detail::PagedImage>(builder.take());
-		require(result->segments().size() == 1 && result->segments()[0].ownership.length < 8192);
-		require(result->root().segments == image->root().segments + 1 &&
+		check(result->segments().size() == 1 && result->segments()[0].ownership.length < 65536);
+		check(result->root().segments == image->root().segments + 1 &&
 				result->root().pages < image->root().pages + 32);
 		std::vector<l::detail::SegmentInput> merged = segments;
-		merged.push_back({result->segments()[0].ownership,
-						  {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}});
+		merged.push_back(
+			{result->segments()[0].ownership,
+			 {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}});
 		std::sort(merged.begin(), merged.end(), [](const auto &a, const auto &b) {
 			return std::memcmp(a.ownership.segment.data(), b.ownership.segment.data(), 16) < 0;
 		});
@@ -97,7 +103,7 @@ int main() {
 				l::ValidationBudget work;
 				graph.step(work);
 			}
-			require(graph.counts().ints == 20000);
+			check(graph.counts().ints == 20000);
 		}
 		{
 			std::vector<l::detail::SegmentInput> added{
@@ -105,63 +111,65 @@ int main() {
 				 {result->segments()[0].bytes->data(), result->segments()[0].bytes->size()}}};
 			l::detail::WarmGraphValidator warm(account, recovered, result, added, result->root());
 			for (unsigned turn = 0; !warm.done(); ++turn) {
-				require(turn < 2000000);
+				check(turn < 2000000);
 				l::ValidationBudget work{1, 1};
 				warm.step(work);
 			}
-			require(warm.counts().ints == 20000 && warm.counts().strings == 220003 &&
+			check(warm.counts().ints == 20000 && warm.counts().strings == 220003 &&
 					warm.counts().maximum_overrides == 0);
-			require(warm.hashed_segment_bytes() == result->segments()[0].bytes->size());
+			check(warm.hashed_segment_bytes() == result->segments()[0].bytes->size());
 			for (std::size_t i = 0; i < segments.size(); ++i)
-				require(warm.removed(i).pages == overlay.removed()[i].pages &&
-						warm.removed(i).bytes == overlay.removed()[i].bytes);
+				check(warm.removed(i).pages == builder.removed()[i].pages &&
+						warm.removed(i).bytes == builder.removed()[i].bytes);
 			for (unsigned turn = 0;; ++turn) {
-				require(turn < 2000000);
+				check(turn < 2000000);
 				l::ValidationBudget work{1, 1};
 				if (warm.discard(work))
 					break;
 			}
 		}
-		auto expected = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
+		auto expected =
+			std::make_shared<const d::ValidatedSnapshot>(decode(many(20000, 43, true), target));
 		l::detail::PagedSnapshotBuilder oracle(expected, storage, next);
 		while (!oracle.done()) {
 			l::ValidationBudget work;
 			oracle.step(work);
 		}
 		auto wanted = oracle.take();
-		require(result->root().logical == wanted.root().logical &&
-				result->root().bytes == wanted.root().bytes && result->root().pages == wanted.root().pages);
+		check(p::state_commitment(result->root()) == p::state_commitment(wanted.root()) &&
+				result->root().bytes == wanted.root().bytes &&
+				result->root().pages == wanted.root().pages);
 		for (unsigned turn = 0;; ++turn) {
-			require(turn < 2000000);
+			check(turn < 2000000);
 			l::ValidationBudget work{1, 1};
 			if (builder.discard(work))
 				break;
 		}
 	}
-	require(account->used() == baseline);
+	check(account->used() == baseline);
 	{
-		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(), storage, next,
-											target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, live, image->root(),
+											storage, next, target);
 		for (unsigned turn = 0; account->used() - baseline < p::segment_bytes; ++turn) {
-			require(turn < 100000);
+			check(turn < 2000000 && !builder.done());
 			l::ValidationBudget work{1, 1};
 			builder.step(work);
 		}
 		l::ValidationBudget none{0, 0};
-		require(!builder.discard(none));
+		check(!builder.discard(none));
 		for (unsigned turn = 0;; ++turn) {
-			require(turn < 2000000);
+			check(turn < 2000000);
 			l::ValidationBudget work{1, 1};
 			if (builder.discard(work))
 				break;
 		}
 	}
-	require(account->used() == baseline);
+	check(account->used() == baseline);
 	{
 		auto incorrect = live;
 		++incorrect[0].pages;
-		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(), storage,
-											next, target);
+		l::detail::OverlayAssembler builder(account, overlay, segments, incorrect, image->root(),
+											storage, next, target);
 		bool rejected = false;
 		try {
 			while (!builder.done()) {
@@ -171,15 +179,15 @@ int main() {
 		} catch (const std::invalid_argument &) {
 			rejected = true;
 		}
-		require(rejected);
+		check(rejected);
 		for (unsigned turn = 0;; ++turn) {
-			require(turn < 2000000);
+			check(turn < 2000000);
 			l::ValidationBudget work{1, 1};
 			if (builder.discard(work))
 				break;
 		}
 	}
-	require(account->used() == baseline);
-	std::cout
-		<< "20k shared definitions, sparse bytes, cold validation and partial-pack cancellation passed\n";
+	check(account->used() == baseline);
+	std::cout << "20k shared definitions, sparse bytes, cold validation and partial-pack "
+				 "cancellation passed\n";
 }

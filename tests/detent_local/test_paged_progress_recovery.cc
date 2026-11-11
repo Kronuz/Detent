@@ -65,7 +65,7 @@ int main() {
 			const auto name = l::generation_name(next);
 			write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 			write(directory / (name + ".lease"),
-				  l::encode_generation_ownership({storage, next, descriptor.length, descriptor.checksum, 2}));
+				  l::encode_generation_ownership({storage, next, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 			write(directory / "selected", l::encode_descriptor(descriptor));
 		}
 		std::optional<l::RecoveredGeneration> current;
@@ -120,7 +120,7 @@ int main() {
 				write(directory / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 				write(directory / (name + ".lease"),
 					  l::encode_generation_ownership(
-						  {storage, later, descriptor.length, descriptor.checksum, 2}));
+						  {storage, later, descriptor.length, descriptor.checksum, detent::local::paged::format_version}));
 				write(directory / "selected", l::encode_descriptor(descriptor));
 			}
 			const auto installed_bytes = mappings->used();

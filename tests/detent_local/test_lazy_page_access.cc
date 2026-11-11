@@ -1,6 +1,7 @@
 #include "detent/client.hh"
 #include "detent_local/client_source.hh"
 #include "detent_local/reader.hh"
+#include "generation_file_access.hh"
 #include "lazy_page_access.hh"
 #include "names.hh"
 #include "paged_read_state.hh"
@@ -8,7 +9,6 @@
 #include "prepared_reader.hh"
 #include "prepared_reader_fixture.hh"
 #include "resources.hh"
-#include "generation_file_access.hh"
 #include "segment_names.hh"
 #include <cstring>
 #include <fcntl.h>
@@ -50,8 +50,11 @@ int main() {
 		const auto alias = fixture->path / "alias";
 		std::filesystem::create_directory_symlink(::getuid() ? fixture->path : alias, alias);
 		bool refused = false;
-		try { x::RecoveryFile directory(x::open_publisher_directory(alias, ::getuid())); }
-		catch (const std::runtime_error &) { refused = true; }
+		try {
+			x::RecoveryFile directory(x::open_publisher_directory(alias, ::getuid()));
+		} catch (const std::runtime_error &) {
+			refused = true;
+		}
 		check(refused);
 		std::filesystem::remove(alias);
 	}
@@ -107,7 +110,8 @@ int main() {
 		    fixture->path / x::GenerationName(fixture->generation, x::GenerationFile::Lease).view();
 		const int collector = ::open(lease_path.c_str(), O_RDONLY | O_CLOEXEC);
 		check(collector >= 0);
-		check(::flock(collector, LOCK_EX | LOCK_NB) < 0 && (errno == EAGAIN || errno == EWOULDBLOCK));
+		check(::flock(collector, LOCK_EX | LOCK_NB) < 0 &&
+		      (errno == EAGAIN || errno == EWOULDBLOCK));
 		check(::close(collector) == 0);
 		auto wrong_identity = fixture->root.cursor;
 		wrong_identity.scope[0] ^= 1;
@@ -121,17 +125,33 @@ int main() {
 	l::ViewLimits limits;
 	limits.bytes = 8 * p::segment_bytes;
 	auto mappings = std::make_shared<d::StorageLedger>(8 * p::segment_bytes);
-	auto access =
-	    domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->storage,
-		                               fixture->root, limits, domain.factory(), fixture->heap, mappings);
+	auto access = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
+	                                             fixture->storage, fixture->root, limits,
+	                                             domain.factory(), fixture->heap, mappings);
 	auto leaf_reader = [&](std::string_view prefix, std::uint64_t ordinal) {
 		std::array<char, 8> watermark{};
 		l::write_integer(watermark, 0, 9, 8);
-		x::PageBuilder page(fixture->heap, p::PageKind::Namespace, 1, prefix, {}, watermark);
-		while (!page.done()) {
-			l::ValidationBudget budget;
-			page.step(budget);
-		}
+		p::PageHeader header;
+		header.length = p::page_header_bytes + 4 + prefix.size() + watermark.size();
+		auto bytes = d::make_owned_buffer(fixture->heap, header.length);
+		bytes->resize(header.length);
+		auto encoded = p::encode_page_header(header, p::Limits{});
+		std::copy(encoded.begin(), encoded.end(), bytes->mutable_bytes().begin());
+		bytes->mutable_bytes()[64] = static_cast<char>(p::PageKind::Namespace);
+		bytes->mutable_bytes()[65] = static_cast<char>(prefix.size());
+		l::write_integer(bytes->mutable_bytes(), 66, 8, 2);
+		std::copy(prefix.begin(), prefix.end(), bytes->mutable_bytes().begin() + 68);
+		std::copy(watermark.begin(), watermark.end(),
+		          bytes->mutable_bytes().begin() + 68 + prefix.size());
+		header.digest = p::page_commitment(bytes->mutable_bytes(), p::Limits{});
+		encoded = p::encode_page_header(header, p::Limits{});
+		std::copy(encoded.begin(), encoded.end(), bytes->mutable_bytes().begin());
+		bytes->seal();
+		p::Reference summary;
+		summary.length = header.length;
+		summary.keys = summary.height = 1;
+		summary.digest = header.digest;
+		x::SealedPage page{bytes, summary, {}};
 		x::SegmentBuilder segment(fixture->heap, fixture->storage, fixture->generation, ordinal);
 		segment.append(page);
 		while (!segment.page_ready()) {
@@ -147,20 +167,21 @@ int main() {
 		const auto ownership = segment.ownership();
 		const x::SegmentNames names(ownership.segment);
 		write_file(fixture->path / names.ownership.data(), l::encode_segment_ownership(ownership));
-		const auto bytes = segment.bytes();
-		write_file(fixture->path / names.payload.data(), {bytes->data(), bytes->size()});
+		const auto packed_bytes = segment.bytes();
+		write_file(fixture->path / names.payload.data(),
+		           {packed_bytes->data(), packed_bytes->size()});
 		auto root = fixture->root;
 		root.tree = reference;
-		root.logical = reference.logical;
 		root.bytes = reference.length;
 		root.pages = root.segments = root.namespaces = 1;
 		root.records = 0;
-		auto reader =
-		    domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(), fixture->storage, root,
-			                               limits, domain.factory(), fixture->heap, mappings);
+		auto reader = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
+		                                             fixture->storage, root, limits,
+		                                             domain.factory(), fixture->heap, mappings);
 		using Owner = d::RetirementHandle<x::LazyPageAccess>;
 		auto owner = std::make_shared<Owner>(std::move(reader));
-		return x::PagedReadState{root, {}, std::shared_ptr<const x::PagedPageAccess>(owner, owner->get())};
+		return x::PagedReadState{
+		    root, {}, std::shared_ptr<const x::PagedPageAccess>(owner, owner->get())};
 	};
 	{
 		auto namespace_only = leaf_reader(std::string_view("Wa\0", 3), 3);
@@ -174,19 +195,25 @@ int main() {
 	std::shared_ptr<const x::PagedPageAccess> pages(owner, access.get());
 	x::PagedReadState state{fixture->root, {}, pages};
 	check(state.definition("a", "k")->default_int() == 42);
-	check(access->mapped_segments() == 2);
+	check(access->mapped_segments() == 1);
 	check(!state.definition("a", "missing"));
-	check(access->mapped_segments() == 2);
+	check(access->mapped_segments() == 1);
 	check(state.definition("a", "k")->default_int() == 42);
 	check(state.definition("b", "k")->default_bool() == true);
-	check(access->mapped_segments() == 3);
-	// A verified page is not hashed again, so a second digest for its offset is not compared.
-	auto forged = fixture->definitions[0];
-	forged.physical[0] ^= 1;
-	check(access->resolve(forged).data() == access->resolve(fixture->definitions[0]).data());
+	check(access->mapped_segments() == 1);
+	{
+		auto alternate = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
+		                                                fixture->storage, fixture->root, limits,
+		                                                domain.factory(), fixture->heap, mappings);
+		alternate->resolve(fixture->definitions[0]);
+		auto forged = fixture->definitions[0];
+		forged.digest[0] ^= 1;
+		rejected([&] { alternate->resolve(forged); });
+		check(!alternate->available());
+	}
 	auto wrong = fixture->definitions[0];
-	wrong.offset += p::page_header_bytes;
-	wrong.length -= p::page_header_bytes;
+	wrong.offset += 8;
+	wrong.length -= 8;
 	rejected([&] { access->resolve(wrong); });
 	check(!access->available());
 	rejected([&] { state.definition("a", "k"); });
@@ -201,7 +228,8 @@ int main() {
 		const auto path = fixture->path / names.ownership.data();
 		const auto saved = fixture->path / "owner.saved";
 		std::filesystem::rename(path, saved);
-		auto prepared = x::PreparedReader::open(fixture->path, ::getuid(), l::ViewLimits::prepared());
+		auto prepared =
+		    x::PreparedReader::open(fixture->path, ::getuid(), l::ViewLimits::prepared());
 		check(prepared.view.get("a", "k").value() == 42);
 		check(prepared.view.eval("b", "k").value() == true);
 		bool refused = false;
@@ -239,7 +267,8 @@ int main() {
 			std::filesystem::rename(path, saved);
 			std::filesystem::create_symlink(saved, path);
 		}
-		const auto prepared = x::PreparedReader::open(damaged->path, ::getuid(), l::ViewLimits::prepared());
+		const auto prepared =
+		    x::PreparedReader::open(damaged->path, ::getuid(), l::ViewLimits::prepared());
 		const auto result = prepared.view.get("a", "k");
 		check(!result && result.error().category == detent::ErrorCategory::SourceFailure);
 	}
@@ -248,13 +277,13 @@ int main() {
 		bounds.records = 2;
 		const auto page = ::sysconf(_SC_PAGESIZE);
 		check(page > 0);
-		bounds.mapping_account = std::make_shared<d::StorageLedger>(std::size_t(page) * 2);
+		bounds.mapping_account = std::make_shared<d::StorageLedger>(std::size_t(page));
 		l::GenerationReader reader(fixture->path, bounds, {}, ::getuid());
 		check(reader.refresh());
 		const auto old_view = reader.read_view();
 		check(old_view.get("a", "k").value() == 42);
-        l::GenerationReader flexible(fixture->path, l::ViewLimits::prepared(), {}, ::getuid());
-        check(flexible.refresh());
+		l::GenerationReader flexible(fixture->path, l::ViewLimits::prepared(), {}, ::getuid());
+		check(flexible.refresh());
 		auto larger = std::make_shared<Fixture>(3);
 		for (const auto &entry : std::filesystem::directory_iterator(larger->path)) {
 			if (entry.path().filename() != "selected" && entry.path().filename() != "storage.meta")
@@ -263,10 +292,13 @@ int main() {
 		std::filesystem::copy_file(larger->path / "selected", fixture->path / "selected.next");
 		std::filesystem::rename(fixture->path / "selected.next", fixture->path / "selected");
 		rejected([&] { reader.refresh(); });
-        bool conflict = false;
-        try { flexible.refresh(); }
-        catch (const std::invalid_argument &) { conflict = true; }
-        check(conflict && flexible.read_view().get("a", "k").value() == 42);
+		bool conflict = false;
+		try {
+			flexible.refresh();
+		} catch (const std::invalid_argument &) {
+			conflict = true;
+		}
+		check(conflict && flexible.read_view().get("a", "k").value() == 42);
 		check(reader.read_view().get("a", "k").value() == 42);
 		bounds.records = 3;
 		auto replacement = x::PreparedReader::open(fixture->path, ::getuid(), bounds);

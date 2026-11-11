@@ -52,6 +52,9 @@ struct WarmGraphValidator::Impl {
 	struct Frame {
 		p::Reference reference;
 		p::PageHeader header;
+		p::NodeView node;
+		std::size_t node_offset = p::page_header_bytes;
+		bool page_root = true;
 		std::span<const char> bytes;
 		std::size_t segment = 0, restore = 0, child = 0, bit = 0, end = 0;
 		std::uint64_t keys = 0;
@@ -127,19 +130,30 @@ struct WarmGraphValidator::Impl {
 		require(found != namespaces.end() && found->name() == name);
 		return *found;
 	}
-	void push(p::Reference reference, bool old) {
+	void push(p::Reference reference, bool old, std::span<const char> existing = {},
+			  std::size_t node_offset = p::page_header_bytes) {
 		require(depth < frames.size());
 		auto &frame = frames[depth++];
 		frame = {};
 		frame.reference = reference;
 		frame.restore = key_size;
+		frame.node_offset = node_offset;
+		frame.page_root = existing.empty();
+		if (!existing.empty()) {
+			frame.bytes = existing;
+			frame.node = p::decode_node(existing, node_offset, limits);
+			frame.phase = NodePhase::Prefix;
+			return;
+		}
 		const auto prior = find_segment(base_segments, reference.segment);
 		if (old || prior != base_segments.size()) {
 			require(prior < base_segments.size());
 			frame.segment = prior;
 			frame.bytes = checked_page_bytes(base_segments[prior], reference);
-			if (old)
+			if (old) {
 				frame.header = p::decode_page_header(frame.bytes, limits);
+				frame.node = p::decode_node(frame.bytes, node_offset, limits);
+			}
 			frame.phase = NodePhase::Reuse;
 		} else {
 			const auto added = find_segment(added_segments, reference.segment);
@@ -169,8 +183,8 @@ struct WarmGraphValidator::Impl {
 	}
 	void leaf(Frame &frame, bool old) {
 		const auto parsed = p::decode_key({key.data(), key_size});
-		require(parsed.kind == frame.header.kind);
-		const auto body = frame.bytes.last(frame.header.body);
+		require(parsed.kind == frame.node.kind);
+		const auto body = frame.node.body;
 		auto &ns = name_space(parsed.name_space);
 		auto &target = old ? removed_counts : new_counts;
 		if (parsed.kind == p::PageKind::Namespace) {
@@ -318,6 +332,7 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					if (s.offset != input.bytes.size() || !budget.rows)
 						return;
 					--budget.rows;
+					p::count_hash(p::HashKind::Pack, 1, input.bytes.size());
 					require(finish(s.hash) == input.ownership.checksum);
 					s.hash = SHA256{};
 					s.offset = 0;
@@ -346,6 +361,10 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 						require(proof && proof->matches(frame.reference, {s.key.data(), s.key_size},
 														s.base->descriptor(), s.base->directory_identity(),
 														s.base->storage_identity()));
+						const auto certified = proof->header();
+						require(certified.length == frame.reference.length &&
+							certified.keys == frame.reference.keys && certified.height == frame.reference.height &&
+							certified.digest == frame.reference.digest);
 						Impl::Frontier frontier;
 						frontier.reference = frame.reference;
 						frontier.length = s.key_size;
@@ -375,44 +394,47 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					if (!s.page->done())
 						return;
 					frame.header = s.page->header();
-					require(frame.header.kind != p::PageKind::Overflow);
+					frame.node = p::decode_node(frame.bytes, frame.node_offset, s.limits);
 					frame.phase = Impl::NodePhase::Prefix;
 					break;
 				case Impl::NodePhase::Prefix:
 					if (s.page && !s.page->discard(budget))
 						return;
 					s.page.reset();
-					if (!s.grant(frame.header.prefix, budget))
+					if (!s.grant(frame.node.prefix.size(), budget))
 						return;
-					require(frame.header.prefix <= s.key.size() - s.key_size);
-					std::copy_n(frame.bytes.data() + p::page_header_bytes, frame.header.prefix,
+					require(frame.node.prefix.size() <= s.key.size() - s.key_size);
+					std::copy_n(frame.node.prefix.data(), frame.node.prefix.size(),
 								s.key.data() + s.key_size);
-					s.key_size += frame.header.prefix;
-					frame.phase = frame.header.kind == p::PageKind::Branch ? Impl::NodePhase::Children
+					s.key_size += frame.node.prefix.size();
+					frame.phase = frame.node.kind == p::PageKind::Branch ? Impl::NodePhase::Children
 																		   : Impl::NodePhase::Leaf;
 					break;
 				case Impl::NodePhase::Leaf:
-					if (!s.grant(frame.header.body + s.key_size, budget))
+					if (!s.grant(frame.node.body.size() + s.key_size, budget))
 						return;
 					s.leaf(frame, false);
 					break;
 				case Impl::NodePhase::Children:
-					if (frame.child == frame.header.children) {
-						require(frame.keys == frame.header.keys);
+					if (frame.child == frame.node.labels.size()) {
+						require(!frame.page_root || frame.keys == frame.reference.keys);
 						frame.phase = Impl::NodePhase::Finish;
 						break;
 					}
 					if (!s.grant(p::child_bytes, budget))
 						return;
 					{
-						s.key_size = frame.restore + frame.header.prefix;
+						s.key_size = frame.restore + frame.node.prefix.size();
 						require(s.key_size < s.key.size());
-						const auto child = p::decode_child(frame.bytes.subspan(
-							p::page_header_bytes + frame.header.prefix +
-								(frame.header.children - 1 - frame.child++) * p::child_bytes,
-							p::child_bytes));
-						s.key[s.key_size++] = static_cast<char>(child.label);
-						s.push(child.reference, false);
+						const auto child = frame.node.labels.size() - 1 - frame.child++;
+						const auto slot = frame.node.slot(child);
+						s.key[s.key_size++] = frame.node.labels[child];
+						if (slot & 0x8000)
+							s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), false);
+						else {
+							require(slot >= frame.node.end && slot > frame.node_offset);
+							s.push(frame.reference, false, frame.bytes, slot);
+						}
 					}
 					break;
 				case Impl::NodePhase::Finish:
@@ -434,10 +456,10 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					break;
 				}
 				auto &frame = s.frames[s.depth - 1];
-				if (frame.phase == Impl::NodePhase::Reuse) {
-					if (!s.grant(p::page_header_bytes + frame.header.prefix, budget))
+				if (frame.phase == Impl::NodePhase::Reuse || frame.phase == Impl::NodePhase::Prefix) {
+					if (!s.grant(p::page_header_bytes + frame.node.prefix.size(), budget))
 						return;
-					if (s.frontier < s.frontiers.size()) {
+					if (frame.page_root && s.frontier < s.frontiers.size()) {
 						const auto &frontier = s.frontiers[s.frontier];
 						if (std::string_view(frontier.prefix.data(), frontier.length) ==
 							std::string_view(s.key.data(), s.key_size)) {
@@ -448,6 +470,7 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 							break;
 						}
 					}
+					if (frame.page_root) {
 					const auto live = s.base->registry()->reachability(frame.segment);
 					require(s.removed[frame.segment].pages < live.pages &&
 							frame.reference.length <= live.bytes - s.removed[frame.segment].bytes);
@@ -455,31 +478,35 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					s.removed[frame.segment].bytes += frame.reference.length;
 					++s.removed_pages;
 					s.removed_bytes += frame.reference.length;
-					require(frame.header.prefix <= s.key.size() - s.key_size);
-					std::copy_n(frame.bytes.data() + p::page_header_bytes, frame.header.prefix,
+					}
+					require(frame.node.prefix.size() <= s.key.size() - s.key_size);
+					std::copy_n(frame.node.prefix.data(), frame.node.prefix.size(),
 								s.key.data() + s.key_size);
-					s.key_size += frame.header.prefix;
-					frame.phase = frame.header.kind == p::PageKind::Branch ? Impl::NodePhase::Children
+					s.key_size += frame.node.prefix.size();
+					frame.phase = frame.node.kind == p::PageKind::Branch ? Impl::NodePhase::Children
 																		   : Impl::NodePhase::Leaf;
 				} else if (frame.phase == Impl::NodePhase::Leaf) {
 					if (!s.grant(p::definition_header_bytes + s.key_size, budget))
 						return;
 					s.leaf(frame, true);
 				} else if (frame.phase == Impl::NodePhase::Children) {
-					if (frame.child == frame.header.children) {
+					if (frame.child == frame.node.labels.size()) {
 						frame.phase = Impl::NodePhase::Finish;
 						break;
 					}
 					if (!s.grant(p::child_bytes, budget))
 						return;
-					s.key_size = frame.restore + frame.header.prefix;
+					s.key_size = frame.restore + frame.node.prefix.size();
 					require(s.key_size < s.key.size());
-					const auto child = p::decode_child(
-						frame.bytes.subspan(p::page_header_bytes + frame.header.prefix +
-												(frame.header.children - 1 - frame.child++) * p::child_bytes,
-											p::child_bytes));
-					s.key[s.key_size++] = static_cast<char>(child.label);
-					s.push(child.reference, true);
+					const auto child = frame.node.labels.size() - 1 - frame.child++;
+					const auto slot = frame.node.slot(child);
+					s.key[s.key_size++] = frame.node.labels[child];
+					if (slot & 0x8000)
+						s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), true);
+					else {
+						require(slot >= frame.node.end && slot > frame.node_offset);
+						s.push(frame.reference, true, frame.bytes, slot);
+					}
 				} else {
 					if (!s.grant(1, budget))
 						return;

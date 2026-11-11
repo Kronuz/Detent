@@ -126,7 +126,7 @@ class PagedFlatSource {
 class AppliedBaseSource {
   public:
 	AppliedBaseSource(RecoveredGeneration generation, std::shared_ptr<distribution::StorageLedger> heap) {
-		if (StateCursor::logical_commitment(generation))
+		if (StateCursor::state_commitment(generation))
 			paged_ = distribution::make_storage_owner<PagedFlatSource>(heap, std::malloc, std::free,
 																	   std::move(generation), heap);
 		else

@@ -30,3 +30,6 @@ To be fixed when the lead splits this quest.
 ## May land early
 
 None until the lead splits it.
+- From async-drivers-design (Xapiand X10): add a `docs/SHARED_LIBRARY_DECISIONS.md` entry that the apply leaves the group's loop.
+- From async-drivers-design (Xapiand re-review caveat): the X2 close/teardown, X3 blocking-entry and X5 lone-voter jobs test the bench models; this quest's criteria need the same tests on the production types (plain, ASan+UBSan, TSan).
+- From async-drivers-design (journal Next 5, unproven): journal may forget a lost verdict once retention reclaims the damaged segment; quest 3's TurnLog needs a test that a lost id stays lost across retention.

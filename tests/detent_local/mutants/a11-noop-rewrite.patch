@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_overlay_assembler.cc b/src/detent_local/paged_overlay_assembler.cc
+index 7d1018f..866d78e 100644
+--- a/src/detent_local/paged_overlay_assembler.cc
++++ b/src/detent_local/paged_overlay_assembler.cc
+@@ -297,7 +297,7 @@ void OverlayAssembler::step(ValidationBudget &budget) {
+ 				if (s.packer->ready()) {
+ 					s.page = s.packer->page();
+ 					const auto old = s.corresponding(s.page.path);
+-					if (old && old->digest == s.page.summary.digest &&
++					if (false && old && old->digest == s.page.summary.digest &&
+ 						old->length == s.page.summary.length && old->keys == s.page.summary.keys &&
+ 						old->height == s.page.summary.height) {
+ 						s.touch(*old, true);

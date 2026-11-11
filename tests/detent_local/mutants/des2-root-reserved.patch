@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_layout.cc b/src/detent_local/paged_layout.cc
+index 787ee85..b70ad99 100644
+--- a/src/detent_local/paged_layout.cc
++++ b/src/detent_local/paged_layout.cc
+@@ -343,7 +343,7 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
+ Root decode_root(std::span<const char> bytes, Limits limits) {
+ 	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
+ 			read_integer(bytes, 8, 4) == format_version && read_integer(bytes, 12, 4) == root_bytes &&
+-			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(160 + child_bytes)));
++			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(160 + child_bytes + 4)));
+ 	Root root;
+ 	root.bytes = read_integer(bytes, 16, 8);
+ 	root.records = read_integer(bytes, 24, 4);

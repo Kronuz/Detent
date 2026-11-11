@@ -57,7 +57,7 @@ int main() {
 	navigator.step(none);
 	require(!navigator.done());
 	auto proof = finish(navigator);
-	require(proof && proof->header().kind == p::PageKind::Definition && proof->header().keys == 1);
+	require(proof && proof->reference() == image.root().tree && proof->header().keys == image.root().tree.keys);
 	require(proof->ownership().storage == storage && proof->file_identity().inode != 0);
 	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, storage));
 	{
@@ -67,16 +67,16 @@ int main() {
 		require(checked && checked->matches(proof->reference(), proof->entering_prefix(), descriptor,
 											identity, storage));
 		auto wrong = proof->reference();
-		wrong.physical[0] ^= 1;
+		wrong.digest[0] ^= 1;
 		auto rejected =
 			l::detail::PagedPlanBuilder::reuse_at(*recovered, account, wrong, proof->entering_prefix());
 		require(!finish(rejected));
-		auto misplaced = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(), "");
+		auto misplaced = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(), "wrong-context");
 		require(!finish(misplaced));
-		auto truncated = l::detail::PagedPlanBuilder::reuse_at(
-			*recovered, account, proof->reference(),
-			proof->entering_prefix().substr(0, proof->entering_prefix().size() - 1));
-		require(!finish(truncated));
+		require(proof->entering_prefix().empty());
+		auto misplaced_inline = l::detail::PagedPlanBuilder::reuse_at(
+			*recovered, account, proof->reference(), target.substr(0, 1));
+		require(!finish(misplaced_inline));
 		auto extended =
 			l::detail::PagedPlanBuilder::reuse_at(*recovered, account, proof->reference(), target);
 		require(!finish(extended));
@@ -107,9 +107,9 @@ int main() {
 	{
 		auto branch = l::detail::PagedPlanBuilder::reuse(*recovered, account, target, 1);
 		auto frontier = finish(branch);
-		require(frontier && frontier->header().kind == p::PageKind::Branch &&
-				frontier->entering_prefix() == "K");
-		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, frontier->reference(), "K");
+		require(frontier && frontier->reference() == image.root().tree &&
+				frontier->entering_prefix().empty());
+		auto exact = l::detail::PagedPlanBuilder::reuse_at(*recovered, account, frontier->reference(), "");
 		auto checked = finish(exact);
 		require(checked && checked->reference() == frontier->reference());
 	}
@@ -117,7 +117,7 @@ int main() {
 		auto length = p::encode_namespace_key(key, "app");
 		auto ns = l::detail::PagedPlanBuilder::reuse(*recovered, account, {key.data(), length});
 		auto frontier = finish(ns);
-		require(frontier && frontier->header().kind == p::PageKind::Namespace);
+		require(frontier && frontier->reference() == image.root().tree && frontier->entering_prefix().empty());
 	}
 	{
 		auto length = p::encode_definition_key(key, "app:missing");
@@ -151,7 +151,7 @@ int main() {
 		rejects<std::invalid_argument>([&] { l::detail::PagedPlanBuilder::reuse(legacy, account, target); });
 	}
 	{
-		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(20000)));
+		auto large = std::make_shared<const d::ValidatedSnapshot>(decode(many(50000)));
 		l::GenerationId id{};
 		id.fill('m');
 		l::detail::PagedSnapshotBuilder build(large, storage, id);
@@ -168,7 +168,7 @@ int main() {
 		auto navigation =
 			l::detail::PagedPlanBuilder::reuse(base, large->storage_account(), {key.data(), length});
 		auto frontier = finish(navigation);
-		require(frontier && frontier->header().kind == p::PageKind::Definition &&
+		require(frontier && frontier->header().keys > 0 &&
 				frontier->matches(frontier->reference(), frontier->entering_prefix(), base.descriptor(),
 								  base.directory_identity(), storage));
 		require(base.view().get("app", "k019999").value() == 19999);
@@ -183,5 +183,5 @@ int main() {
 	require(proof->matches(proof->reference(), proof->entering_prefix(), descriptor, identity, storage));
 	auto moved = std::move(*proof);
 	rejects<std::logic_error>([&] { proof->reference(); });
-	require(moved.header().keys == 1);
+	require(moved.header().keys == image.root().tree.keys);
 }
