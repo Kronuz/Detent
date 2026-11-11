@@ -1,6 +1,6 @@
 # detent-brand: journal
 
-State: working
+State: blocked on lead: file set for the touch-icon head links (astro.config.mjs)
 Quest: .campaign/detent/quests/detent-brand.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,12 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Stage two: `brand/` and the site assets built and committed; A3 site-build job submitted.
+Stage two done but for the touch-icon `<link>`s, which need `website/astro.config.mjs`.
 
 ## Next
 
-1. A3 job: site build plus a local-asset link check of dist/.
-2. Lead: extend the file set to `website/astro.config.mjs` (+ `website/public/site.webmanifest`)
+1. Lead: extend the file set to `website/astro.config.mjs` (+ `website/public/site.webmanifest`)
    for the touch-icon head links (see Blocked on).
 
 ## Blocked on
@@ -31,8 +30,8 @@ without, the PNGs served but unlinked.
 | Criterion | Evidence |
 |---|---|
 | A1 | [manual] Owner chose B plus a bottom stop, eight stops 45° apart (D67, Detent:0adf85db); candidates at Detent:1988b239 `brand/candidates/` |
-| A2 | `brand/logo.svg`, `brand/README.md`, `brand/variants/{light,dark}/` each with logo.svg, favicon.svg, favicon.ico (16/32/48), apple-touch-icon 180/167/152, icon-192, icon-512, built by `node brand/build-icons.mjs` |
-| A3 | <job pending> |
+| A2 | `brand/logo.svg` (4 paths, no rasters), `brand/README.md`, `brand/build-icons.mjs`, `brand/variants/light/` and `brand/variants/dark/`, each with logo.svg, favicon.svg, favicon.ico (16/32/48), apple-touch-icon 180/167/152, icon-192, icon-512; rerunning `node brand/build-icons.mjs` at Detent:ccb584b6 leaves the tree unchanged |
+| A3 | 261111-130317-c63a14: site builds (63 pages), dist favicon.svg/.ico and touch PNGs match `brand/variants/`, header logo is the new master, 11 local asset links resolve. Touch-icon `<link>`s pending (Blocked on) |
 | A4 | `README.md` opening sentence and `website/src/content/docs/welcome.md` "So what is Detent" carry the line |
 
 ## Result
