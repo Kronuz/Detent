@@ -976,7 +976,7 @@
           "final": true,
           "from": "3fe7693756e07431b4e7f852bd350a74885f0f7e",
           "later": [
-            "261110-232854-ae526d"
+            "261111-044700-0d8923"
           ],
           "reason": "",
           "tested": "cd677617ba98818120b07f87f5052c346e1d0724"
@@ -1064,7 +1064,7 @@
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-11T04:46:57",
+      "updated": "2026-11-11T04:47:00",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
