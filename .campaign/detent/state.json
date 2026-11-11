@@ -3848,17 +3848,19 @@
         "durability"
       ],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
-      "needs": [],
+      "needs": [
+        "dense-walkers"
+      ],
       "provides": [
         "paged-repair-intent",
         "repair-status"
       ],
-      "reason": "Unparked: namespace-s1-s2 landed; resume to land after merging main",
+      "reason": "Shares paged_* files with dense-walkers; s3b branched before Dense (2026-11-05) and is redone on Dense after dense-walkers lands",
       "repo": ".",
       "risk": "high",
       "status": "planned",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-11T00:56:45"
+      "updated": "2026-11-11T00:56:55"
     },
     "namespace-s4": {
       "accepted": {},
