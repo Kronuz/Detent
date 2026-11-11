@@ -1,6 +1,6 @@
 # consensus-dns-peers: journal
 
-State: waiting on jobs 261111-064715-c0f32c 261111-064840-a5fa7d 261111-064843-5b508f
+State: ready for review
 Quest: .campaign/detent/quests/consensus-dns-peers.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,13 +9,13 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Waiting on jobs at consensus:931c42c: suite 261111-064715-c0f32c (A1-A4, A6), mutants
-261111-064840-a5fa7d (no-deadline) and 261111-064843-5b508f (shared-thread), both `--for A2
---fails-without`; CI (linux-tsan) on the pushed quest branch.
+Every criterion has evidence at consensus:931c42c (suite 261111-064715-c0f32c green, peers test
+8.2 s; both A2 mutants caught). Branch pushed; CI run 43042148956 (includes linux-tsan) in
+progress. Correctness review not yet launched (the lead's).
 
 ## Next
 
-1. Paste `campaign brief`'s Evidence table once the jobs land; State "ready for review".
+1. If CI (linux-tsan) is red, fix and rerun; otherwise ready for review.
 
 ## Blocked on
 
@@ -32,6 +32,11 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
+| A1 | 261111-064715-c0f32c |
+| A2 | 261111-064715-c0f32c; fails without: 261111-064840-a5fa7d, 261111-064843-5b508f |
+| A3 | 261111-064715-c0f32c |
+| A6 | 261111-064715-c0f32c |
+| A4 | 261111-064715-c0f32c |
 | A5 | `docs/mechanisms/peer-dns.md` |
 
 ## Result
