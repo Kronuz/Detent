@@ -125,6 +125,17 @@ void voter_host(const std::string &host) {
 					   [](unsigned char c) { return std::isdigit(c); }),
 		  "voter host name must not end in a numeric label");
 }
+// The address a named local voter listens on without resolving its name: the IPv6 wildcard when
+// the host has IPv6 and a v6 socket also takes IPv4 (dual-stack), else the IPv4 wildcard.
+asio::ip::address local_wildcard() {
+	asio::io_context io;
+	asio::ip::tcp::socket probe(io);
+	asio::error_code error;
+	asio::ip::v6_only mode;
+	if (!probe.open(asio::ip::tcp::v6(), error) && !probe.get_option(mode, error) && !mode.value())
+		return asio::ip::address_v6::any();
+	return asio::ip::address_v4::any();
+}
 Identity identity(std::string_view hex) {
 	check(hex.size() == 32, "identity requires 32 hex characters");
 	Identity id{};
@@ -426,11 +437,10 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 			check(peers.pins.emplace(id, fingerprint).second, "duplicate voter");
 			o.node.configuration.voters.push_back(id);
 			if (id == o.node.configuration.local) {
-				// A name is not resolved to bind: the local voter listens on every IPv4 address.
+				// A name is not resolved to bind: the local voter listens on the wildcard.
 				asio::error_code error;
 				auto address = asio::ip::make_address(host, error);
-				peers.listen = {error ? asio::ip::address(asio::ip::address_v4::any()) : address,
-								static_cast<unsigned short>(port)};
+				peers.listen = {error ? local_wildcard() : address, static_cast<unsigned short>(port)};
 			} else
 				peers.addresses.emplace(id, kronuz::consensus::transport::PeerAddress{
 												std::move(host), static_cast<std::uint16_t>(port)});

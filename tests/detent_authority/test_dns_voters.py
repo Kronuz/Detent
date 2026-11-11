@@ -2,7 +2,8 @@
 
 usage: test_dns_voters.py DETENTD TLS_FIXTURE (names | unresolvable)
   names:        all three voters are "localhost" on distinct ports; the cluster elects a leader and
-                serves a write over the names consensus resolves.
+                serves a write over the names consensus resolves. Each named voter also
+                accepts a connection over 127.0.0.1 and, on a dual-stack host, ::1.
   unresolvable: voter 3's host is a .invalid name (RFC 6761) that never resolves; all three daemons
                 start, voters 1 and 2 form quorum, elect a leader, report ready and serve a write.
 """
@@ -74,7 +75,45 @@ def configure(
     return ports, configurations
 
 
-def run(binary: Path, certificates: Path, directory: Path, hosts: list[str]) -> None:
+def dual_stack() -> bool:
+    """True where an IPv6 socket takes IPv4 too and ::1 exists."""
+    try:
+        with socket.socket(socket.AF_INET6) as probe:
+            if probe.getsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY):
+                return False
+            probe.bind(("::1", 0))
+    except OSError:
+        return False
+    return True
+
+
+def connects(address: str, port: int) -> bool:
+    family = socket.AF_INET6 if ":" in address else socket.AF_INET
+    try:
+        with socket.socket(family) as peer:
+            peer.settimeout(2)
+            peer.connect((address, port))
+    except OSError:
+        return False
+    return True
+
+
+def check_dual_stack(port: int) -> None:
+    """A named local voter accepts a peer over 127.0.0.1 and, where the OS is dual-stack, ::1."""
+    assert connects("127.0.0.1", port), "named voter refused 127.0.0.1"
+    if dual_stack():
+        assert connects("::1", port), "named voter refused ::1 on a dual-stack host"
+        print("named voter accepted 127.0.0.1 and ::1 (dual-stack ran)", flush=True)
+    else:
+        print(
+            "named voter accepted 127.0.0.1 (no dual-stack here: ::1 skipped)",
+            flush=True,
+        )
+
+
+def run(
+    binary: Path, certificates: Path, directory: Path, hosts: list[str], scenario: str
+) -> None:
     directory.mkdir(parents=True)
     ports, configurations = configure(certificates, directory, hosts)
     context = ssl.create_default_context(cafile=str(certificates / "ca.pem"))
@@ -127,7 +166,9 @@ def run(binary: Path, certificates: Path, directory: Path, hosts: list[str]) -> 
                 break
             assert time.monotonic() < deadline, f"no leader and quorum: {bodies}"
             time.sleep(0.05)
-        print(f"hosts {hosts}: ready after {time.monotonic() - began:.2f} s", flush=True)
+        print(
+            f"hosts {hosts}: ready after {time.monotonic() - began:.2f} s", flush=True
+        )
         leader = leaders[0]
         status, receipt = request(
             ports[leader + 3],
@@ -136,6 +177,8 @@ def run(binary: Path, certificates: Path, directory: Path, hosts: list[str]) -> 
             {"expected_generation": 0, "nonce": "6e" + "00" * 15},
         )
         assert status == 200, (status, receipt)
+        if scenario == "names":
+            check_dual_stack(ports[0])
     except BaseException:
         for log in directory.glob("*.log"):
             print(log.name, log.read_text(), file=sys.stderr)
@@ -163,7 +206,13 @@ def main() -> None:
         "names": ["localhost"] * 3,
         "unresolvable": ["localhost", "localhost", "voter-3.invalid"],
     }[scenario]
-    run(binary, certificates, Path.cwd() / ".scratch" / f"dns-voters-{scenario}", hosts)
+    run(
+        binary,
+        certificates,
+        Path.cwd() / ".scratch" / f"dns-voters-{scenario}",
+        hosts,
+        scenario,
+    )
     print(f"dns voters {scenario}: passed")
 
 

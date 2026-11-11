@@ -54,7 +54,7 @@ int main() {
 	assert(loaded.peers->addresses.at(3).host == "::1");
 	assert(loaded.peers->listen.address().to_string() == "127.0.0.1" && loaded.peers->listen.port() == 7001);
 	assert(refusal("Node-1.Example.INVALID", "a", "a1-b.c", &loaded).empty());
-	// A named local voter binds the IPv4 wildcard; the name is not resolved to bind.
+	// A named local voter binds a wildcard (IPv6 dual-stack where the host has it); the name is not resolved.
 	assert(loaded.peers->listen.address().is_unspecified() && loaded.peers->listen.port() == 7001);
 	assert(refusal("localhost", "localhost", "localhost", &loaded, 7002).empty());
 	assert(refusal(std::string(63, 'a') + "." + std::string(63, 'b') + "." + std::string(63, 'c') + "." +
