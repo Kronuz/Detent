@@ -378,12 +378,14 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 				std::optional<detail::WarmGraphValidator> warm_validator;
 				std::optional<detail::DependencyDiscovery> discovery;
 				distribution::RetirementHandle<detail::SegmentRegistry> registry;
-				// A cold start over a generation with a live record trusts what its build verified.
+				// A generation with a live record is trusted: a cold start trusts what its build verified, and
+				// the recovery after this process's own publication trusts the build it just ran.
 				std::optional<detail::TrustedGeneration> trusted;
-				if (context.trusted_start && !context.admission && !prior)
-					trusted = detail::TrustedRestart::open(dir->fd, directory_info.st_uid, descriptor, root, storage,
-														   bounds, limits, factory, account, mapping_account,
-														   context.metrics.get());
+				if (context.trusted_start && !progress)
+					trusted = detail::TrustedRestart::open(
+						dir->fd, directory_info.st_uid, descriptor, root, storage, bounds, limits, factory, account,
+						mapping_account, context.metrics.get(),
+						{context.admission.get(), warm ? prior->registry().get() : nullptr});
 				if (trusted) {
 					registry = trusted->registry;
 				} else if (progress) {
@@ -430,7 +432,7 @@ RecoveredGeneration detail::RecoveryEngine::recover(const std::filesystem::path 
 					registry = discovery->take();
 				}
 
-				if (warm && !progress) {
+				if (warm && !progress && !trusted) {
 					using Registry = distribution::RetirementHandle<detail::SegmentRegistry>;
 					auto fresh = registry;
 					std::shared_ptr<const void> owner =

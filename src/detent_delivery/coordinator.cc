@@ -1396,6 +1396,7 @@ bool Coordinator::drained() const noexcept {
 }
 CoordinatorStatus Coordinator::status() const noexcept {
 	auto status = impl_->diagnostic;
+	status.hash = hash_stats();
 	if (impl_->store) {
 		status.selected = impl_->store->selection();
 		status.sync = impl_->store->sync_stats();

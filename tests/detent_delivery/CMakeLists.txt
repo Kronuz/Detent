@@ -100,6 +100,15 @@ foreach(mode IN ITEMS heal lease-close delta unchanged relay scrub-worker reset 
   add_test(NAME test_delivery_repair_${mode} COMMAND test_delivery_repair ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture ${mode})
   set_tests_properties(test_delivery_repair_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 240)
 endforeach()
+add_executable(test_delivery_hash_once test_hash_once.cc)
+target_include_directories(test_delivery_hash_once PRIVATE
+  "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery")
+target_link_libraries(test_delivery_hash_once PRIVATE detent::delivery_coordinator detent::relay)
+foreach(mode IN ITEMS agent relay agent-delta relay-delta restart damage)
+  add_test(NAME test_delivery_hash_once_${mode}
+    COMMAND test_delivery_hash_once ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture ${mode} 10000)
+  set_tests_properties(test_delivery_hash_once_${mode} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 240)
+endforeach()
 add_executable(test_managed_config test_managed_config.cc)
 target_link_libraries(test_managed_config PRIVATE detent::delivery_config)
 add_test(NAME test_managed_config COMMAND test_managed_config ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)

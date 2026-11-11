@@ -65,14 +65,31 @@ Key decode_key(std::string_view);
 // ranges.
 Digest page_commitment(std::span<const char>, Limits);
 enum class HashKind { Page, Pack, Metadata };
+// Every SHA-256 the paged layer runs.
 struct HashCounts {
-	std::uint64_t page_calls = 0, page_bytes = 0, pack_calls = 0, pack_bytes = 0,
-				  metadata_calls = 0, metadata_bytes = 0;
+	std::uint64_t page_calls = 0, page_bytes = 0, pack_calls = 0, pack_bytes = 0, metadata_calls = 0,
+				  metadata_bytes = 0;
 	bool operator==(const HashCounts &) const = default;
+	friend HashCounts operator-(const HashCounts &a, const HashCounts &b) noexcept {
+		return {a.page_calls - b.page_calls, a.page_bytes - b.page_bytes, a.pack_calls - b.pack_calls,
+				a.pack_bytes - b.pack_bytes, a.metadata_calls - b.metadata_calls,
+				a.metadata_bytes - b.metadata_bytes};
+	}
+};
+// Of those, the page and pack bytes a build hashed to write its own generation; the rest is checking.
+struct BuiltHashCounts {
+	std::uint64_t page_bytes = 0, pack_bytes = 0;
+	bool operator==(const BuiltHashCounts &) const = default;
+	friend BuiltHashCounts operator-(const BuiltHashCounts &a, const BuiltHashCounts &b) noexcept {
+		return {a.page_bytes - b.page_bytes, a.pack_bytes - b.pack_bytes};
+	}
 };
 HashCounts hash_counts() noexcept;
+BuiltHashCounts built_hash_counts() noexcept;
 void reset_hash_counts() noexcept;
 void count_hash(HashKind, std::uint64_t calls, std::uint64_t bytes) noexcept;
+// Counts a hash the build runs to write its own page or pack, in the totals and in the built counts.
+void count_build_hash(HashKind, std::uint64_t calls, std::uint64_t bytes) noexcept;
 Digest pack_commitment(std::span<const char>);
 Digest metadata_commitment(std::span<const char>);
 std::array<char, content_bytes> encode_content(const Reference &);

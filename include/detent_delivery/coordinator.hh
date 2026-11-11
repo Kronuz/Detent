@@ -2,6 +2,7 @@
 #include "client.hh"
 #include "completion_scheduler.hh"
 #include "detent_local/disk_store.hh"
+#include "hash_stats.hh"
 #include "publication_sink.hh"
 #include <asio/thread_pool.hpp>
 #include <completion/asio_completion.h>
@@ -81,6 +82,8 @@ struct CoordinatorStatus {
 	ScrubStatus scrub;
 	RepairStatus repair;
 	local::SyncStats sync;
+	// Everything this process (the tier) has hashed.
+	HashStats hash;
 };
 // One owner executor serializes status, cancellation and close. The host keeps
 // the configuration worker, completion driver and retirement domain alive
