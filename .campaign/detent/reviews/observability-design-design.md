@@ -1,106 +1,147 @@
-# observability-design review: design
+# observability-design review: design (re-review)
 
-Commit: 6139e4c4b07959669baa0d8d3d11208b3714f40b
-Verdict: CHANGES
-Date: 2026-11-09
+Commit: 5282545286b326adb3154d06448a79e664691c39
+Verdict: APPROVE
+Date: 2026-11-10 (round 1 at `c30abc4`: CHANGES; round 2 at `5282545`: APPROVE, see "Fix check")
 
 APPROVE: lands as is, at this commit's code. CHANGES: lands after each blocking finding is fixed
 and confirmed by a job at the fixed commit. REJECT: the approach is wrong; the quest is re-planned.
 An APPROVE lists no blocking finding; a CHANGES lists at least one.
 
-The shape is right. Sampled per-knob counting into a per-handle table, with arms rather than
-values and a hook for exactness, answers D37. It targets the Reader API only, and the 8-thread data
-back choosing sampled over exact counting. Two things block, and both are text fixes in the
-document:
+Scope: `Detent:486b57b..c30abc4`, files `docs/design/observability*`. That covers A8 (D10), the
+owner rulings D47 and D48, and the `ever_bit`/`knob_sampled` pair. The code `c30abc4` reviews
+is the same as `71e7c76`, where the reruns ran: `71e7c76..c30abc4` touches only the journal.
 
-1. **Q7 understates what sampling loses for "which knobs are unused" (OD-1).** Knobs read once or
-   a few times per process, such as at startup, are invisible on a host. The fleet path that would
-   reveal them is deferred. The claim that the hook "already offers" exactness contradicts the
-   document's own rejection of counting in the application only.
-2. **OB1's cost gate is undefined at one thread (OD-2).** "Within D2's `knob_sampled` cost" has
-   no number and no method that can resolve a single thread. The bench's single-thread spread is
-   220 to 290 ns.
+The shape stands. An exact ever-read bit beside sampled counts is the right answer to D38. A8's
+search is real: five exact mechanisms, interleaved, exclusive, at 1, 8 and 64 threads. The
+reruns at the head reproduce its verdict: only `ever_bit` passes every row, and every exact count
+fails scattered names at 64 threads. D10's tables match the jobs they cite to the decimal.
+
+Four things block, and all four are text fixes:
+
+1. The document's headline cost comes from one D2 run that three later runs do not reproduce
+   (OR1).
+2. "The pair passes at 64 threads", a premise of D48, fails in one of the three exclusive runs
+   of the same binary (OR2).
+3. The max(int, bool) tables hide the bench's real resolution (OR3).
+4. The host document's row cap breaks the per-host exactness that Q7 promises (OR5).
 
 ## Evidence I relied on
 
-- **Confirm `261109-120858-28cd50`** (exclusive, `Detent:d1ce742`, ref `s6=b1d281c`, exit 0) and
-  its `a1/out/confirm.{md,jsonl}`. The bench source and driver are unchanged from `d1ce742` to
-  `6139e4c`. Only the document and journal changed, and `6f718fa..6139e4c` touches only the
-  journal. So this record stands for the reviewed commit.
-- **Screen `261109-120857-3fb43d`** at `d1ce742`, as the document cites it.
-- **Reruns at `6f718fa`:** build `d3567b` and smoke `7b2e64` passed. Screen `bd1c57` and confirm
-  `bc28dd` are still queued behind six exclusive namespace-s1-s2 jobs. I did not wait for them.
-  A7 stays pending until they finish.
+- **Reruns at `71e7c76`, all exit 0, one binary.** All ran on slot `obs-bench`, ref
+  `s6=b1d281c`, bench source digest `15b89164…`, the same digest as `fa1352`'s binary.
+  - Build `261110-021130-cf5075` and smoke `f4abe5`.
+  - Strict screen `e7b6b4`.
+  - Exclusive confirms `d5103d` and `1bad17` (the D2 method).
+  - Exclusive exact-confirm `06137b` (A8).
+  - Strict pair-screen `368d1b`.
+  - Exclusive pair-confirm `445051` (`es_one`).
+- **The original jobs the document cites.**
+  - Exclusive `261109-120858-28cd50`, the source of D2's table.
+  - Exclusive `261109-202834-bfb3cf` (D10 table 1, digest `904da3e…`).
+  - Strict `261109-222819-1a0f6c` and exclusive `261109-224833-fa1352` (D10 item 4, digest
+    `15b89164…`).
+  - Exclusive `261109-131328-0ce3a4` (the first paired confirm, at `51923f8`).
 
 ## What I checked myself
 
-- **Paired analysis of the confirm output:**
-  `.scratch/review-observability-design-design/paired.py <confirm.jsonl>` (offline; rerun it on
-  `bc28dd` when that finishes). It computes per-repetition deltas against `none` from the same
-  repetition. At 8 threads the `knob_sampled` paired medians are +2.8, +6.4, +6.7 and -4.4 ns. For
-  `knob_rows64` they are +23 to +59 ns, and every repetition is above +15 ns. Sampled and exact
-  are cleanly separated, which supports the pick.
-  - The document's A/A band is the largest gap between `none` and `none2`, which always run
-    back-to-back. That understates the noise for an unpaired median delta: `none` itself spans
-    95 to 122 ns across repetitions at 8 threads and 221 to 287 ns at 1. "Inside every A/A band"
-    reads stronger than it is. The supportable claim is "a paired median of 7 ns or less at
-    8 threads".
-- **Mechanism versus measurement.** The per-lookup work is one load, a decrement and a store on a
-  stripe word. One lookup in 64 adds a hash of about 49 bytes, a probe and a relaxed add.
-  Analytically that is 1 to 2 ns, which agrees with the 8-thread medians.
-  - The bench never shares a countdown word: every 8-thread case has `stripes` 8 (jsonl).
-  - The scattered set with a fixed reload samples only 16 of 1,024 names, so the probe stays in
-    cache. The document says this, and leaves the random reload for OB1 to measure.
-- **Citations at S6 `b1d281c`.** I checked `core.cc:649-699` (the `detent_eval` and `detent_get`
-  bodies and their fallback writes) and `evaluation.hh:14-39` (the switch, rollout and default
-  order). The arm set matches the branches, including a group rollout with no hash, which answers
-  the default (`no_hash`).
-- **Reader API only (question 3).** The design itself has no dependency on `Client`, defaults
-  files or overrides. The switch rules are published definition data, which R2 does not remove
-  (reader.md D6). Only the bench's setup touches `parse_defaults`. At S6 the test
-  `GenerationWriter::publish_json` also calls it (`src/detent_testing/generation_writer.cc:326`),
-  so OB1 should use `publish(Snapshot)` (note OD-9).
-- **The arithmetic.**
-  - (63/64)^64 = 0.36 and (63/64)^292 = 0.010.
-  - 1,000 × 10 / 64 = 156.
-  - The relative standard error is √(63/n).
-  - The collision odds are 4,096² / 2^65 ≈ 4.5 × 10⁻¹³.
+Scripts are under `.scratch/review-observability-design-design/` in the home checkout.
 
-  All four are correct. paired.py also prints two numbers the document lacks:
-  - The miss odds for knobs read once per process: 0.98 for one process, 0.85 for 10, 0.21 for
-    100.
-  - The standard error of a 50/50 arm split: 15.8, 4.0 and 1.3 percentage points at 640, 10,000
-    and 100,000 reads.
+- **`d10table.py <*-paired.md>`** rebuilds D10's max(int, bool) hot/scattered table from a
+  job's paired output. It also lists every per-op cell that the max hides below -5 ns.
+  - On `bfb3cf` and `fa1352` it reproduces D10 table 1 and item 4's table exactly.
+  - On the head's `06137b`, `445051` and `368d1b` it gives the numbers quoted in OR2 and OR3.
+- **D2 against its reruns.** `observability-paired.py` run offline on `28cd50`'s jsonl gives
+  `28cd50-paired.md`, which reproduces D2's table exactly. I then compared it with the
+  `confirm-paired.md` files of `0ce3a4`, `d5103d` and `1bad17` (OR1).
+- **The after binary's code.** I disassembled `block<ever_sampled>` (Arm 21) and
+  `block<knob_sampled>` (Arm 13) of the slot binary built by `cf5075` with `otool -tV`. Each
+  has one indirect lookup call and one loop. In `ever_sampled`:
+  - The hot path is load word, `bt`, frame-byte store, countdown load and test, decrement and
+    store.
+  - The countdown pointer stays in `%r13`.
+  - The bit-clear path (`lock or`) duplicates the frame store and the countdown test, then
+    rejoins at the decrement.
+  - The cell is computed only before `sample`.
+- **Probe job `261110-053432-d2ad94`** (`disasm.sh`). It builds the bench from `09f038e`'s
+  source and from the head's source, exactly as `observability-bench.sh` does, and counts the
+  indirect lookup calls, `lock` operations, `sample` calls and frame stores in `block<0|13|20|21>`
+  of each. It was still queued behind the exclusive queue when I wrote this; see OR4.
+- **Consistency of `ever_sampled` with A1-A6.** I read the D1 table, D7 items 1-6, D8's caps,
+  Limits 2, 8 and 11, the OB1, OB4 and OB6 rows, and Q4 and Q7 against D10's shape (OR5 to OR7).
+- **D48 against PLAN.md** (`Detent:71e7c76`), row D48 (OR9).
 
 ## Findings
 
 | ID | Blocking | Kind | Finding | Evidence | Fix |
 |---|---|---|---|---|---|
-| OD-1 | yes | gap | Q7 and Limit 2 understate what sampling loses for the owner's "which knobs are used". (1) A knob read once per process, at startup or on a reload, is missed with probability 0.98 per process and 0.85 across 10 processes on a host. A zero in the host document is not evidence of non-use, and the document never says so. (2) D7 item 6 says fleet aggregation is what reveals such knobs, but it is Q4/OB6, deferred until after namespace S4-S10. Until then dead-knob detection is unreliable for exactly the knobs most likely to be dead. (3) Q7 rejects exact counting as "exactness the hook already offers". The hook gives exactness only to applications that wire it, which is the adoption cost the document uses to reject counting in the application only. (4) Ramp verification gets the error of a count, not of an arm split: a 50/50 split is ±4 points at 10,000 reads and ±16 at 640, so a 1% ramp shows about 1.5 samples per 10,000 reads. | paired.py output; `observability.md` Q7, Limit 2, D3 item 6, D7 item 6, "Count in the application only" | State all four in Q7 and Limits. Then give the owner the real choices, without making any of them blocking: (a) sampled, with dead-knob answers waiting for OB6; (b) bring OB6, or a cheap host-level "seen" export, ahead for the dead-knob use; (c) evaluate an exact "ever read" bit keyed by definition position with test-before-set, which costs a load after the first read. Whether to measure (c) is the owner's call. |
-| OD-2 | yes | gap | OB1's cost criterion, "T1's rows within D2's `knob_sampled` cost", has no threshold and no method that resolves one thread. The confirm's single-thread `none` moves 221 to 287 ns between repetitions and looks bimodal, from about 650 to about 1,180 ns. One thread per process is the common shape for Python under the GIL. OB1 is high risk and would have to invent its own gate. | confirm jsonl, 1-thread rows; paired.py "spread of none"; `observability.md` Build plan OB1, D2 item 4 | Write OB1's gate: counting on and off in one binary, alternated per batch or per small block on the same thread, paired deltas at 1 and 8 threads, and a numeric ceiling (for example a paired median of at most 10 ns at 8 threads and at most 5 ns at 1). It runs as an exclusive job. Reword D2 item 1 to the paired claim. |
-| OD-3 | no | defect | The usage page cannot be read by the agent on Linux as specified. The app creates `usage/<pid>-<handle>` with mode 0640 in a 1733 directory. Without a setgid bit, Linux gives the file the creator's group, so the agent (`publisher_uid`, not that group) cannot `pread` it. macOS inherits the directory's group, so the macOS-only soak cannot catch this. | `observability.md` D7 items 1-2 | Make the directory 3733 (setgid plus sticky), group the agent's, and keep files 0640. Add to OB4's hostile cases a pre-created `usage/<pid>-<handle>` (the `O_EXCL` failure falls back to a private table) and a Linux readability test. |
-| OD-4 | no | gap | Only `missing` and `wrong_type` have per-knob cells. Lookups with a valid name that return the caller's fallback for `DETENT_NOT_OPENED`, `DETENT_UNAVAILABLE`, `DETENT_NO_MEMORY` or `DETENT_SOURCE_FAILURE` have no stated cell. Yet A1 asks whether each knob fell back, and `samples[8]` is ABI. | `observability.md` D1 row 2, D3 cells, D4; `core.cc:655-656` (NOT_OPENED returns before `lookup`) | Map each fallback status to a cell, or add a `fallback_other` cell, before Q1 freezes the struct. |
-| OD-5 | no | gap | The counts are not keyed by revision, but the exporter derives each arm's value "at the process's revision". A `published` delta that straddles a publish which changed an integer's value or a bool's default is attributed entirely to the new value. The host document mixes processes at different revisions. | D3 item 3, D4, D7 item 5 | State the limit: attribution goes to the revision at snapshot time, and the error is bounded to the scan window that straddles a publish. Report per-revision rows when processes differ. |
-| OD-6 | no | gap | OB1 is missing details it needs. (1) Where the per-stripe countdown and xorshift state live: on D5's per-slot pin lines, which rotate with the ring, or in a separate handle array. (2) How they are seeded at open and in a fork child. A zeroed countdown samples every stripe's first lookup, which biases toward startup knobs. (3) No cost case where threads share a stripe. | D2, D5 of reader.md; jsonl `stripes` 8 in every 8-thread case | Name the location and seeding in D2, and add a case with 64 or more threads to OB1's cost criterion. |
-| OD-7 | no | gap | OB4 has no criterion for what it exports: the shape of the JSON usage document, the 65,536-knob cap with `truncated`, and the Prometheus textfile. D9 says no exporter for `kronuz::metrics` is proposed, yet Q3 (a) needs something that renders the agent's `Counter` values as Prometheus text. | D7 item 5, D9, Q3, OB4 row | Say where the textfile writer lives: in the agent, or reusable in Kronuz/metrics, since the authority and relay could share it. Add criteria for the document and the textfile to OB4. |
-| OD-8 | no | nit | D2 item 7 says the deltas "do not depend on" the 3.3× slower S6 baseline. At about 900 ns per lookup, out-of-order overlap can hide added work that a 268 ns lookup would expose. | D2 item 7 | Say the deltas are measured at the S6 baseline and that OB1 re-establishes them in-core. |
-| OD-9 | no | nit | "`parse_defaults` goes with `Client`" is doubtful: at S6 the test generation writer's `publish_json` calls it for the authority's JSON format. | `generation_writer.hh` (S6) `publish_json`; `generation_writer.cc:326` | Have OB1 build test generations with `publish(Snapshot)`, and drop the claim. |
+| OR1 | no | gap | (fixed at 5282545) The headline cost claims come from one run of D2's sequential method, and three later runs do not reproduce them. The claims are the lead sentence ("a paired median of 7 ns or less … under 8 threads"), the Abstract ("−4.4 to +6.7 ns"), D2 item 1, D2 item 2 ("every repetition of `knob_rows64` is above +15 ns") and D6 item 2 (`hook_off` "−5.3 to +7.0 ns", A4's unused cost). D2's table quotes `28cd50` faithfully. In the later runs, `knob_sampled` at 8 threads ranges from −16.2 to +17.9 ns. `none2` (A/A) reaches +63.9 (`0ce3a4`, int scattered) and +14.1 (`d5103d`). `knob_rows64` repetitions fall to −548 ns, and one median is +490.1 (`d5103d`, bool scattered). `none`'s 8-thread spread is up to 757.5 ns (`1bad17`). `hook_off` runs from −16.9 to +22.2. The shape has also changed: the pick is `ever_sampled` (Q7), not `knob_sampled` alone. | `d5103d`, `1bad17`, `0ce3a4` `confirm-paired.md`; `28cd50-paired.md`; `observability.md` lines 5, 15, D2 items 1-2, D6 item 2 | Quote the interleaved numbers (D10) in the lead and the Abstract. Across `fa1352`, `06137b` and `445051` at 8 threads, `ever_sampled` is +2.3 to +6.4 and `knob_sampled` +0.4 to +5.0. Label D2's table a one-run sequential screen whose A/A moves by tens of ns, cite the three reruns, and keep it only for the large separations (+20 to +60 ns). For A4, either put `hook_off` in a pair run now or say that OB3's interleaved gate is the first resolving measure of it. |
+| OR2 | no | gap | (fixed at 5282545) The claims "The pair now passes at 8 and 64 threads (worst +9.3 against 10)" in D10 item 4, and D48's premise "it passes at 8 and 64 threads", do not hold in every run at the head. Same binary (`15b89164`), `ever_sampled` bool scattered at 64 threads: +8.3 (`fa1352`), **+10.4 FAIL** (`06137b`, exclusive), +8.6 (`445051`), and in the strict `368d1b` +10.3 (bool scattered) and **+11.8** (int scattered; the first version of this review attributed +11.8 to bool). The 64-thread row sits at the ceiling, just as the 1-thread row sits over it: +7.0 to +7.7 in all three runs. The owner accepted one miss; the evidence at the head shows that row plus a coin flip at 64. | `06137b`, `445051`, `fa1352`, `368d1b` paired outputs; `d10table.py` | State the 64-thread result as measured: +8.3 to +10.4 across three exclusive runs, one over the ceiling. The lead tells the owner that D48's "passes at 64" holds in 2 of 3 runs, so the owner can confirm D48 or amend it. Keeping `ever_sampled` is still a reasonable call; this is a correction of the premise, not a reversal. |
+| OR3 | no | gap | (fixed at 5282545) The tables overstate how finely the bench resolves. On and off are two compiled loops (`block<A>` and `block<none>`), and the A/A compares two identical loops, so it bounds placement but not code shape. The max(int, bool) cell hides both kinds of excursion. **A/A:** `none2` bool hot at 1 thread is −3.9 in all three exclusive runs of the after binary (−3.2 to −3.7 at 8 threads), yet D10 item 4's table prints −0.9 and item 4 says "within ±1.7 ns in every row but one". **Code shape:** `knob_sampled` int scattered at 64 threads, an arm that adds work, measures −25.2, −29.3 and −25.5 ns in the three exclusive runs (−28.8 and −27.3 strict). The journal names this effect ("the same kind of effect in the other direction"); the document does not. Against a 5 ns ceiling at 1 thread and a 10 ns ceiling at 64, both D48 rows are inside the bench's demonstrated error, in either direction. | `d10table.py` "hidden negatives" on `fa1352`, `06137b`, `445051`, `1a0f6c`, `368d1b`; D10 item 4 and its table; D10 table 1's note | Report per-op worst cells, or footnote the hidden ones. State the bench's resolution: about ±4 ns of placement at 1 thread, and up to ~29 ns of code shape at 64. Say that this is why OB1's re-measure decides: OB1's method (two handles, one compiled path, a runtime switch) removes the code-shape confound. It does so only if the off handle also skips the ever-bit (OR6). |
+| OR4 | no | gap | (settled by probe `261110-064037-1b01c2`, see Fix check) D10 item 4.3 asserts a cause: "At `09f038e` clang split the loop … recompiled … the same source is one path … and the 64-thread excess goes". The evidence is a before/after across two builds with different arm sets. Three things weaken it. (1) The journal itself says "The bench cannot split codegen from placement". (2) `es_one`, a one-path shape by construction, is worse at 64 threads (+12.2, +12.7). (3) The same rebuild made `ever_sampled` int scattered at 1 thread worse, from −0.4 to +4.4. The journal also describes the *after* binary (`15b89164`) as keeping "two duplicated tails … a countdown pointer reloaded from the stack on one path". My `otool` read of that binary shows one loop with the pointer in `%r13`, and only the cold bit-clear path duplicates a tail. No disassembly is a job artifact. Probe `d2ad94` captures both binaries. If it shows the before binary as one loop as well, or with no duplicated status split, this becomes blocking. PLAN D48's "single-loop fix" names a code change that does not exist: the source is the same. | Probe `261110-053432-d2ad94` (`disasm.sh`); `otool -tV` of the `cf5075` binary; journal lines 46-57; D10 item 4.3 | Reword item 4.3 as an observation: the same source, rebuilt beside new arms, moved the 64-thread rows by 4 to 6 ns and a 1-thread row by +5 ns. The bench cannot attribute this. Cite `d2ad94`'s `summary.txt` for the shapes, and stop calling it a fix. |
+| OR5 | no | defect | (fixed at 5282545) The host document caps at 65,536 knob rows "ordered by reads" (D8, OB4). The knobs the ever-read bit exists for, those read once or a few times, have zero or few sampled reads, so they sort last and are the first to be truncated. A host that reads more than 65,536 knob-revision rows then reports exactly those knobs as unread. That contradicts Q7 ("'was this knob read' is exact per handle, per host") and D7 item 6. | D8 last paragraph; OB4 criteria; Q7; D1 "Knob ever read" row | Export the ever-read set uncapped and apart from the count rows: per revision, either a bitmap (625 KB at 5M) or a list of positions. Alternatively, cap it and add a Silent Limit saying that past the cap a zero is not evidence. Add the case to OB4's criteria. |
+| OR6 | no | gap | Two ever-bit lifecycle points that OB1 needs are unspecified. (1) Page growth: each attached generation gets a bitmap in the page (D10 item 2; 625 KB per generation at 5M), and views hold at least two generations until the D5 freer retires one. Nothing says the retired bitmap's range is reused, so the page could grow by one bitmap per publish. (2) What `usage_slots = 0` turns off. Limit 8 says the table, but not the bitmaps. If the bitmaps stay on, OB1's off handle carries the bit and its gate measures only the countdown, and `detent get` allocates bitmaps for nothing. | D10 shape items 1-3; Limit 8; OB1 gate in D2 | State the page's bitmap bound and reuse, which is D1's per-process bound. Say that `usage_slots = 0` disables bits and countdown alike, and that OB1's off handle is that handle. |
+| OR7 | no | gap | A fork child inherits its parent's bits. D7 item 4 copies names into the child's page and reseeds, but says nothing about bits. A prefork server's children would then report knobs only the parent read. The host union is still right; per-process attribution is not. | D7 item 4; D10 item 2 | Say whether the child clears its bitmaps at its first refresh, or that per-process ever-read includes inherited reads. |
+| OR8 | no | nit | D10 table 1's note says the A/A cell is "the larger of its two deltas by size", but the cells show the larger by value (−1.7 where bool hot at 64 is −5.0). | `bfb3cf` `exact-confirm-paired.md`; D10 note under table 1 | Make the note match the cells, or show by-size cells. |
+| OR9 | no | nit | D48's terms mostly match. D10 item 4's Decision and Q7 agree with PLAN D48 on +7.7 against 5.0, `knob_sampled` +6.9, "about 3 ns between builds", 8 and 64 passing, and OB1 re-measuring. There are three differences. (1) PLAN says "misses OB1 by +7.7 ns"; the row measures +7.7, which is 2.7 over the ceiling. (2) PLAN's "single-loop fix" (OR4). (3) The document adds terms D48 does not state: "if the row still misses there, cutting the countdown's cost is OB1's work, and the bit stays". | PLAN.md D48 (`71e7c76`); D10 item 4 Decision | The lead corrects PLAN's wording, and either records the added term in D48 or marks it in the document as the design's proposal. |
+| OR10 | no | nit | D7 item 5 (Formats) lists the host document's fields without the ever-read set, although OB4's criteria and D7 item 6 rely on it. | D7 item 5; OB4 row | Add the ever-read field, which OR5 shapes, to D7 item 5. |
 
-On question 2: the design answers D37. It covers knobs used (D3), resolved values and ramp arms
-(D4), defaults taken (D1), freshness (D5), the hook (D6) and export (D7). Kronuz/metrics was
-considered first: both of its counters were measured on the hot path and rejected there, at +46 to
-+66 ns, and it is used in the agent (D9). OD-1 and OD-7 qualify this.
+Answers to the risk questions:
 
-On question 5: OB2, OB3 and OB5 are buildable as written. OB1 needs OD-2, OD-4 and OD-6, OB4 needs
-OD-3 and OD-7, and OB6 is correctly deferred.
+1. **Do the D10 numbers follow from their jobs?** Yes, exactly, and A8's verdict reproduces at
+   the head. The comparisons are interleaved, exclusive and run at 1, 8 and 64 threads, in
+   both orders. Two things are not honest yet:
+   - The tables hide per-op excursions, and the A/A understates the error (OR3).
+   - D2's table does not survive its reruns (OR1).
+2. **Is `ever_sampled` consistent with A1-A6?** Mostly. The D1 table, D7 item 6, Limits 2 and
+   11, OB4 and OB6 carry the bit. OB1's row carries the gate with the pair together, which is
+   D48's re-measurement in the core quest. The exceptions:
+   - D8's cap contradicts per-host exactness (OR5).
+   - The page bound and the off switch are unspecified (OR6).
+   - Fork attribution is unspecified (OR7).
+3. **Is the codegen explanation shown?** Not yet. It is asserted from a before/after across
+   builds, and es_one contradicts it (OR4). The probe is pending.
+4. **Do D48's terms match PLAN.md?** Yes, apart from wording and one added term (OR9). Its
+   64-thread premise, though, fails in one of three exclusive runs at the head (OR2).
+
+## Fix check (round 2, `Detent:c30abc4..5282545`)
+
+The fix round (`56dd0ab` design, `b875057` and `5282545` journal) is text only: the bench source,
+driver and paired script are unchanged, so the jobs above still stand for the code. I checked
+each new number against the paired outputs with `d10table.py` and the per-op rows.
+
+| ID | Status | Check |
+|---|---|---|
+| OR1 | fixed | The lead and Abstract now quote D10's interleaved runs: `ever_sampled` +2.3 to +6.4 at 8 threads, +6.1 to +10.4 at 64, +1.5 to +7.7 at 1 (`fa1352` int hot 1 is +1.5). These match `fa1352`, `06137b` and `445051`. D2's table is labelled a one-run sequential screen, with the three reruns cited (`none2` −10.2 to +63.9). D2 items 1-2, D6 item 2 and D9 carry the rerun ranges. A4's `hook_off` is marked unresolved, and OB3's gate is interleaved. |
+| OR2 | fixed | D10 item 4 gives the 64-thread row as +8.3 / +10.4 / +8.6 (bool scattered) and +9.2 to +9.5 (int), with one exclusive run of three over, and the strict `368d1b` +11.8 int scattered, which is correct. The status line, Q7 and the Decision say the lead has put this to the owner. |
+| OR3 | fixed | "The bench's error." paragraph: ±4 ns placement at 1 thread, up to 29 ns of code shape at 64, both D48 rows inside it; the off handle with `usage_slots = 0` makes OB1 one compiled path. The after table's footnote names the hidden −3.9 and −25.2/−29.3/−25.5 cells. |
+| OR4 | fixed; settled | Item 4.3 is now an observation with no cause claimed. The 64-thread cells moved down by 1.2 to 6.1 ns per op from `bfb3cf` to `fa1352`, and int scattered at 1 thread moved up from −0.4 to +2.4 to +4.4. Both claims check out. Probe `d2ad94` failed (exit 141, a SIGPIPE in my script, not the bench). The fixed probe, `261110-064037-1b01c2` (exit 0, at `5282545`), rebuilt both binaries from source digests `904da3e` (= `bfb3cf`) and `15b89164` (= `fa1352` and the reruns). Before, `block<ever_sampled>` has 126 instructions. After the one indirect lookup call it branches on the status (`testl %eax; je`) into two tails, each with its own bit test, `lock or`, frame store, countdown test and loop back-edge. After, it has 99 instructions and one tail, and the cell is computed only before `sample`. `block<knob_sampled>` is the same in both builds (86 instructions). So the shapes D10 first described are real. That the shape change caused the timing change is still not shown, which the observation wording now respects. |
+| OR5 | fixed | D8, D7 item 5, Q7, the D1 row, Limit 12 and OB4: the ever-read set travels as per-namespace, per-revision bitsets outside the capped rows. That is 625 KB per revision at 5M knobs (834 KB in base64, arithmetic checked), against 20 MB for a list of 32-bit positions. OB4 adds a past-the-cap case. |
+| OR6 | fixed | D10 item 2: a retired generation's bitmap range returns to the page, so the bound is one bitmap per generation a live view holds. Item 3 and Limit 8: `usage_slots = 0` allocates no bitmaps and runs neither the bit nor the countdown, and it is OB1's off handle. |
+| OR7 | fixed | D7 item 4: a child's bitmaps start clear. |
+| OR8 | fixed | Table 1's note says "by value" and names the −5.0 hidden behind −1.7. |
+| OR9 | fixed in the document; PLAN open | D10 marks "if the row still misses … the bit stays" as the design's proposal beyond D48. PLAN.md D48 still reads "misses OB1 by +7.7 ns" and "single-loop fix". That is the lead's text, outside this quest's files. |
+| OR10 | fixed | D7 item 5 lists the ever-read bitsets. |
+
+New, non-blocking:
+
+| ID | Blocking | Kind | Finding | Evidence | Fix |
+|---|---|---|---|---|---|
+| OR11 | no | nit | D10 item 4.2 and 4.3 cite probe `261110-053432-d2ad94`, which failed (exit 141, my script). The run that records both binaries is `261110-064037-1b01c2`. It confirms 4.2: in both binaries the bit is a load and a test, with `lock or` only on the clear-bit path. | `261110-064037-1b01c2` `summary.txt`, `before-block21.s`, `after-block21.s` | Change the citation to `261110-064037-1b01c2`. |
+| OR12 | no | nit | PLAN.md D48's wording (OR9) is the lead's to correct. | PLAN.md D48 | The lead edits D48. |
+
+Verdict: APPROVE. Every blocking finding (OR1, OR2, OR3, OR5) is fixed in the text and checked
+against the existing jobs. No new measurement was needed, because the fixes quote the reruns
+already on record.
 
 ## Not run
 
-- No new bench job: the queue holds six exclusive jobs ahead of any probe. The paired single-thread
-  resolution OD-2 asks for is OB1's to build.
-- The reruns at `6f718fa` (`bd1c57`, `bc28dd`) had not run when I wrote this. Rerun `paired.py` on
-  `bc28dd` once it finishes.
-- No Linux check of OD-3 or of Limit 5's writeback faults; both are reasoned from the
-  documentation, not run.
-- I did not verify the agent, relay and authority citations in "What a lookup can tell today"
-  beyond the core and evaluator.
+- The disassembly probe ran as `261110-064037-1b01c2` (exit 0) after `d2ad94` failed on a
+  script bug. Rerun: `campaign job submit --quest observability-design --ref s6=b1d281c -- bash
+  .scratch/review-observability-design-design/disasm.sh` from the home checkout, then read
+  `summary.txt` in its output.
+- No new timing job. The four exclusive runs of the after binary already show the spread that
+  OR2 and OR3 report. Another exclusive run would add one more draw, not a resolution.
+- No Linux check of the page or bitmap layout (Limit 7). OR6 and OR7 are reasoned from the
+  text.
+- I did not recheck round-1 findings OD-3 to OD-9 beyond what the diff since `486b57b` touches.

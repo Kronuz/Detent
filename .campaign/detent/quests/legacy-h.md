@@ -61,3 +61,4 @@ type listed under Outcome.
 ## May land early
 
 None. It deletes public API.
+- From docs-site-audit: remove `detent-agent --upgrade-managed` (`src/detent_agent/main.cc:116`), an upgrade path D43 rules out.
