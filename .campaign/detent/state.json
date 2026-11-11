@@ -569,10 +569,41 @@
         "website/src/content/docs/quickstart.md",
         "docs/status/quickstart-managed.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T00:01:47",
+          "commit": "85d74cb3ee65781c27bb7476132f254e00e0a649",
+          "criteria": {
+            "A1": "261110-233158-fb6902",
+            "A2": "261110-233158-fb6902; fails without: 261110-233216-1af7ce",
+            "A3": "261110-233158-fb6902; fails without: 261110-233210-4eb6b1",
+            "A4": "D23 (.campaign/detent/PLAN.md): readiness waits for a leader; implemented as above",
+            "A5": "261110-233158-fb6902; fails without: 261110-233212-05140d",
+            "A6": "261110-233158-fb6902; fails without: 261110-233214-7d9360"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "8c2f1c9b368735ba2774715a4159bd28961ec3f1",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261110-233158-fb6902",
+              "level": "light",
+              "seconds": 1178.9,
+              "state": "done",
+              "what": "daemon-ready-leader check native at 8c2f1c9b3687"
+            }
+          ],
+          "final": true,
+          "from": "a548a961f815c2d7bbfb651290f1c09369604da3",
+          "reason": "",
+          "tested": "3799e7a6b22a620f5f39db91dcb71a14ae6c16e9"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N2 Handoff follow-ups",
       "needs": [],
       "provides": [
@@ -580,10 +611,10 @@
       ],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "detentd reports ready only once a leader exists",
-      "updated": "2026-11-11T00:01:01",
-      "worktree": "../Detent-wt/detent/daemon-ready-leader"
+      "updated": "2026-11-11T00:01:57",
+      "worktree": ""
     },
     "dense-distribution": {
       "accepted": {
