@@ -1,31 +1,18 @@
-# brand-head-links: Site head links for the touch icons and web manifest
-
-Risk: low. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status brand-head-links`.
+# brand-head-links: site head links for the touch icons and web manifest
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The docs site, served under `/Detent/`, links the brand icons from its head so iOS,
+Android and browsers find them: `apple-touch-icon` (180, 152, 167), `icon-192`/`icon-512`
+through `site.webmanifest`, `favicon.svg` with `favicon.ico` as fallback, all under the
+site base path. Follows detent-brand (icons in `website/public/`) and docs-e2e (owns
+`astro.config.mjs` while active).
 
-## Acceptance criteria
+## Criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
-
-## Contracts
-
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
-
-## Decisions
-
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- A1 The site builds and its pages carry the touch-icon and manifest links with the base path (check `site`).
+- A2 [artifact] `website/public/site.webmanifest` names `icon-192.png` and `icon-512.png` under `/Detent/`.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing; it is one small change.
