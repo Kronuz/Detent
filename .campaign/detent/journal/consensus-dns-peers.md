@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Implementation written (consensus worktree): `include/consensus/transport/resolve.h` (PeerAddress,
+PeerResolver, system_resolver, interleave, Lookup thread handoff), `peers.h` (routes, lookup wait,
+staggered dial race, dial pins only the dialed peer), `test/transport/peers_test.cc` (3 Workers over
+TLS, scenarios per criterion), `test/transport/dns_mutants.sh`, `docs/mechanisms/peer-dns.md`.
+Building and running the test locally.
 
 ## Next
 
-1. <step>
+1. Green locally; commit; run `campaign verify` (A1-A6 suite) and the two mutant jobs (A2).
+2. CHANGELOG, README line.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. msg (lead, A6 added): folded into the design (staggered dial race, whole-set cache).
 
 ## Evidence
 
