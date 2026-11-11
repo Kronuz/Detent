@@ -2090,12 +2090,55 @@
         "src/detent_delivery/coordinator.cc",
         "website/src/content/docs/architecture/how-it-works.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-10T23:28:53",
+          "commit": "d04794d7c886d188fe364022291b9b2be3162d06",
+          "criteria": {
+            "A1": "Native 261110-220136-31432b (test_local_paged_packer, test_local_dense_fullbuild against the model); design `docs/design/dense-pages.md` resolves DP-1..DP-6, model `docs/design/dense-pages-model.py`, contracts approved at Detent:7d339fe (`.campaign/detent/reviews/dense-pages-contracts.md`).",
+            "A10": "Native 261110-220136-31432b; five-fixture proof 261110-220144-1d7bca (paged_delta_leaves, paged_delta_plan, paged_overlay_assembler, dense_delta_assembly, paged_compaction: repeated-content single ownership, off-path sealing).",
+            "A11": "Native 261110-220136-31432b; 261110-220144-1d7bca (test_local_paged_compaction, test_local_paged_delta_plan: partial and complete relocation, zero page hashes).",
+            "A12": "Native 261110-220136-31432b: test_local_dense_refetch (`foreign_install`, interrupted copy and restart). Docs: `docs/mechanisms/dense-pages.md`, `docs/HOW_IT_WORKS.md`.",
+            "A13": "CI repro of linux-read-counters and linux-benchmarks 261110-215750-a2d23c. Native 261110-220136-31432b incl. test_local_publication_power_cut (crash model, D54(4)) and trusted restart. ASan/UBSan/TSan and the matrix: GitHub CI on quest/dense-pages (D54(1)): run 42961227229 at Detent:3907ffa green except the two jobs fixed in Detent:9b5ebae; the rerun follows the push of the head.",
+            "A14": "Correctness: COR-1 = 261110-220136-31432b, PERF-1 = A15 (261110-220718-43be9f, 261110-220719-380ee1). Design and security reviews on file; the three reviews meet A14 [D56].",
+            "A15": "D51 gate at Detent:9b5ebae, one exclusive 10-min job per publisher state (D55): stopped 261110-220718-43be9f, running 261110-220719-380ee1; all four cells NO WORSE (median paired Dense-main: 1ns stopped -68 us vs floor 27; 1000ns stopped -49 vs 31; 1ns running -25 vs 9; 1000ns running -22 vs 10). Method: `docs/perf/first-read-gate.sh`, `docs/perf/first-read-gate.md`; the prepared stores stand under D56.",
+            "A2": "Native 261110-220136-31432b: codec, segment, snapshot builder, packer and dense_fullbuild fixtures (exact bytes, reserved-byte refusal, empty commitment, empty/restart/delete-last/add-first, maximum bodies, 256-way branches).",
+            "A3": "Native 261110-220136-31432b: test_local_paged_packer synthetic and 100K page identities, counts and bytes equal the model.",
+            "A4": "Native 261110-220136-31432b: malformed-summary and arithmetic refusals in the codec and validator tests; corpus replay test_local_paged_codec_replay. The CPU-hour fuzz is a milestone check (D54(4)).",
+            "A5": "Native 261110-220136-31432b: test_local_dense_fullbuild, one format and one digest for every full-build consumer; placement-free identity and seal-order offsets.",
+            "A6": "Native 261110-220136-31432b: test_local_paged_page_validator, test_local_paged_graph_validator (length/keys/height, warm summaries, canonical replay).",
+            "A7": "Native 261110-220136-31432b: separate page/pack/metadata hash counters with exact boundaries, admission, cancellation, yields.",
+            "A8": "Native 261110-220136-31432b: test_local_reader, test_local_managed_reader, test_local_trusted_paths, test_testing_trusted_restart_*.",
+            "A9": "Native 261110-220136-31432b: test_local_dense_overlay_bounds (COR-1 regression) and the walk-bounds fixtures."
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+              "commit": "9b5ebae75abac668d14323367f940e96a85f683f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261110-220136-31432b",
+              "level": "light",
+              "seconds": 561.9,
+              "state": "done",
+              "what": "dense-pages check native at 9b5ebae75aba"
+            }
+          ],
+          "final": true,
+          "from": "3fe7693756e07431b4e7f852bd350a74885f0f7e",
+          "later": [
+            "261110-232854-ae526d"
+          ],
+          "reason": "",
+          "tested": "cd677617ba98818120b07f87f5052c346e1d0724"
+        }
+      ],
       "lenses": [
         "correctness",
         "security",
         "design"
       ],
+      "messages": [],
       "milestone": "Dense pages",
       "needs": [],
       "provides": [
@@ -2105,7 +2148,7 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "tasks": {
         "deltas": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
@@ -2120,7 +2163,7 @@
             "tests/detent_local/test_paged_delta*",
             "tests/detent_local/test_paged_compaction*"
           ],
-          "worktree": "../Detent-wt/dense-pages--deltas"
+          "worktree": ""
         },
         "integration": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
@@ -2138,7 +2181,7 @@
             "tests/detent_local/test_dense_overlay_bounds.cc",
             "tests/detent_local/CMakeLists.txt"
           ],
-          "worktree": "../Detent-wt/dense-pages--overlay-bounds"
+          "worktree": ""
         },
         "performance": {
           "base": "88dc7fcd2db77e91277d7963f19cad31e7a82e4d",
@@ -2151,7 +2194,7 @@
             "src/detent_local/paged_page_validator.*",
             "src/detent_local/prepared_reader.*"
           ],
-          "worktree": "../Detent-wt/dense-pages--performance"
+          "worktree": ""
         },
         "reads": {
           "base": "8b041fabaaba0dcb175950fbd0f0e86d2a8fc718",
@@ -2159,7 +2202,7 @@
           "files": [
             "docs/status/dense-reads.md"
           ],
-          "worktree": "../Detent-wt/dense-pages--reads"
+          "worktree": ""
         },
         "real-deltas": {
           "base": "a729b77a42dce29d789c3bf47e28409dd2397654",
@@ -2168,11 +2211,11 @@
             "tests/detent_local/test_dense_delta_assembly.cc",
             "docs/perf/dense-delta*"
           ],
-          "worktree": "../Detent-wt/dense-pages--real-deltas"
+          "worktree": ""
         }
       },
       "title": "Complete and optimize Dense pages",
-      "updated": "2026-11-10T23:28:26",
+      "updated": "2026-11-10T23:29:46",
       "worktree": "../Detent-wt/dense-pages"
     },
     "dense-sync-stack": {
