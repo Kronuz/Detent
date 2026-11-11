@@ -1,6 +1,6 @@
 # namespace-s7: journal
 
-State: waiting on jobs 261111-021846-f70216 261111-021846-db2959 261111-021847-4e419d 261111-021849-6ce213 261111-021851-2e1cef 261111-021853-b98c22 261111-021855-1b868d
+State: waiting on job 261111-030057-345fa3 (local ASan+UBSan repro, 30 repeats); CI run 43002602154 green on attempt 2 at the same commit
 Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
 ## Doing
@@ -24,6 +24,19 @@ Code at Detent:096fea29 (fixes) and the mutant regeneration after it.
 
 Local at 096fea29: test_agent_store passes; T7 42,024 cases (903 distinct cuts), 113 republished,
 65 repairs, 0 violations, 51 s; test_change_file passes.
+
+## CI flake (run 43002602154, linux-asan-ubsan)
+
+Attempt 1 at Detent:06770a7e failed `test_delivery_coordinator` (default, retained-idle mode) at
+`tests/detent_delivery/test_coordinator.cc:1117`: the fixture server's `read_some` on the idle
+keep-alive connection, after the coordinator's close, returned without an error. The coordinator's
+own run passed (no "fixture coordinator" error; publication, `recoverable` and drain checks held),
+so the store and `ChangeWriter` worked. Attempt 2 of the same run at the same commit passed every
+job, `test_delivery_coordinator` included (238/238). Same code, two outcomes: nondeterministic,
+not this branch's change. The D59 `ChangeWriter` change only differs for an existing `change` under
+one word, which the coordinator test never creates. Root-causing the race needs the fixture
+(`tests/detent_delivery/`) or the delivery client, both outside this quest's file set: the lead's.
+Local repro job 261111-030057-345fa3 (ASan+UBSan -O1, macOS clang, 30 repeats) queued.
 
 ## Next
 
