@@ -4479,12 +4479,11 @@
       "provides": [
         "agent-store"
       ],
-      "reason": "msg-21: the detent_agent_store library target belongs in src/detent_local/CMakeLists.txt, not the tests' CMakeLists",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T01:37:42",
+      "updated": "2026-11-11T01:50:57",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s7-wire": {
