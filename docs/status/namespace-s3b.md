@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-05) Architect fix round for namespace S3b. Earlier criteria and evidence are retained; K1 to K6 below govern this round.
+> Status: CURRENT (2026-11-11) Merged onto Dense pages (DTPAGE03, `paged::NodeAt`); "Merge onto Dense pages" below is the current evidence. The v2-era criteria, proof and log are retained as history; their pack counts and timings are of the v2 format.
 
 # namespace-s3b
 
@@ -33,6 +33,16 @@
   - A7.4 names "an intent that skips the maintenance equality"; the code adds `PagedPlanIntent::Repair`, which also lets a repair go forward (a Replace at a later revision than the selected one), so a Replace that arrives while a repair is pending needs no second path.
   - The collector's proof of a candidate pack no longer includes the payload checksum for the packs it removes (see findings).
 - Last verified: macOS x86-64 RelWithDebInfo with relay, all 20 restored cases pass in 123.59 s, including the stricter backoff assertion, trusted/full-recovery oracle, snapshot, delta, progress and compaction. All 17 mutants/reverts are killed; production sources are restored. Original reviewer probes, the deterministic I/O probe and real `RLIMIT_NOFILE` exhaustion pass. Original Q2 publication timing completes under an exclusive hold. CI status above is sampled at the checkpoint, not a final green result.
+
+## Merge onto Dense pages (2026-11-11)
+
+`Detent:42af0c2` merges `main` (Dense pages, `paged::NodeAt`, namespace S1/S2 and S5.1, the agent store).
+
+- Carried over unchanged in behavior: the scrub that reads files off the coordinator thread with one retry per open and read, `VerifiedPages::clear` (on main's start-code encoding), the `Repair` plan intent and `request_repair`, the relay's `selected_repaired`, cold recovery of every snapshot plan (`populate`, `capture`), the collector's `tolerate_mismatch`, conservative `.live` marking of a failed leased root and the bounded deferred retry, and the broad exception mapping in `ReadView::try_get` and `try_eval`.
+- Dropped as Dense-provided: the v2 header bounds in `PagedReadState::lookup` (`prefix`, `children`, `body` at offsets 16-28). Main's `lookup` walks with `NodeAt`, which bounds each field it decodes, and maps any exception of the walk to `ReadSourceFailure`. Its mutant goes with it.
+- Tests moved to Dense: `mapped` rewrites a verified DTPAGE03 page's branch child count, leaf body length, or definition bytes, found with `NodeAt`; pack-count floors follow a Dense 100K store (4 packs, not 23); `scrub-disk` leaves one pack untouched so the report has kept bits to compare; collection variants 14-16 run on main's per-variant accounts.
+- Rebuilt evidence: the fix round's uncommitted syscall-fault probe is `test_testing_pack_scrub_faults` (production `pack_scrub.cc` compiled against failing `open`, `openat` and `pread`: eight cases, each two calls, plus real `RLIMIT_NOFILE` exhaustion before and after `begin`); `Q2` publication timing is `detent_restart_timing q2pub`; each mutant is a patch in `tests/detent_delivery/mutants/s3b-*.patch` run by `tests/detent_delivery/repair_mutant.sh` as a `--fails-without` job. Job ids are in the campaign journal's Evidence table.
+- Local run at the merge (macOS x86-64 Release, relay on): the 20 touched tests pass. `heal`: 4 damaged packs, repairs requested 1 and completed 1, 9 coordinator failures, the mapped reader served 4 full rounds with no regression, 100,000 reads correct after the repair, all 4 damaged packs collected. `scrub-disk`: 3 of 4 packs rewritten, reported from the files, 849 verified starts withdrawn on them and 102 kept on the untouched pack.
 
 ## Architect fix round criteria
 

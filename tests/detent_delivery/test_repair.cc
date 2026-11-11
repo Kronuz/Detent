@@ -677,8 +677,12 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 		check(explain(co_await until(scheduler, 90s, [&] { return coordinator->status().repair.completed >= 1; }), coordinator, server));
 		auto status = coordinator->status();
 		check(settled(status) && status.repair.requested >= 1 && !status.repair.pending);
-		// The reader that mapped the damaged generation served throughout.
-		check(watcher.rounds > 0 && !watcher.regressed && !watcher.wrong);
+		// Later scrub reports leave the forced Replace alone: one forced session carries the repair.
+		check(server.forced_opens == 1);
+		// The reader that mapped the damaged generation served throughout; a Dense repair can land before its
+		// first full round, so wait for one.
+		check(co_await until(scheduler, 60s, [&] { return watcher.rounds > 0; }));
+		check(!watcher.regressed && !watcher.wrong);
 		// The damaged root's lease keeps its packs, while an unrelated orphan is reclaimed.
 		check(co_await until(scheduler, 60s, [&] { return !fs::exists(store / orphan.payload_name()); }));
 		check(std::all_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); }));
@@ -731,7 +735,8 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 			  << ", completed " << final_status.repair.completed << "; coordinator failures " << final_status.failures
 			  << "; the reader served " << watcher.rounds.load() << " full rounds without a regression; after the repair "
 			  << knobs << " reads ok, " << old_packs.size() << " damaged packs collected, scrub clean ("
-			  << final_status.scrub.passes << " passes)\n";
+			  << final_status.scrub.passes << " passes); upstream opens " << server.opens << ", forced "
+			  << server.forced_opens << "\n";
 }
 
 // A delta that crosses a damaged page asks for a Replace and heals, with the scrub disabled so the first-touch
