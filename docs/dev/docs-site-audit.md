@@ -330,7 +330,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
   - L38 "Every identifier in the code is `detent`" -> src/detent/overrides.cc:18,25,52 print `--just-knob`; include/detent/json_schema.hh:22 and README name `just_knobs.json`.
   - L58-60 "equivalent curl command, aimed at a local detentd on its default port 8317" -> astro.config.mjs:76 emits `http://localhost:8317`; the quick-start authority sets `publisher_tls` (quickstart.md:68), so it serves HTTPS (src/detentd/main.cc:166-170, 192-193) and the generated curl fails. `GET /v1/health` itself exists: src/detent_authority/service.cc:716.
   - L21-31 "three moving parts" -> omits the optional relay (`detent-relay`), which README.md:24 counts as an actor.
-  - L33-41 "Detent began as a faithful, independent clone..." -> history narration (D43 prefers present tense); keep only the link to the spec if wanted.
+  - L33-41 "Detent began as a faithful, independent clone..." -> history narration (D43 prefers present tense); keep only a link to `docs/design/knob-model.md` if wanted.
 
 - `basics.md` | **wrong** | the Source section names a nonexistent HTTP source; "new knob names are introduced" in baked defaults contradicts the merge and the quick-start [OWNED legacy-h, reader-s7-s9, dense-pages]
   - L77-78 "an HTTP endpoint that serves `GET /v1/snapshot`" -> no such endpoint or source on main (include/detent/client.hh:62,99,118; docs/AUTHORITY_ARCHITECTURE.md:80). Sources are: none, `source_path`, `source_poll`, `read_source` (local generation).
@@ -671,7 +671,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
 - `reference/observability.md` | **missing content** | the Client health and metrics match the code; what the daemons export today (relay health, agent logs, authority histograms) is missing; the planned design is not there [OWNED legacy-h, observability]
   - L12-19 `client.health()` fields -> include/detent/client.hh:49-57 (true); `staleness_seconds` semantics -> src/detent/client.cc:266, 280. L30-39 counters -> include/detent/client.hh:36-45 (all eight true). L47 `refresh_alert_after` 5 minutes -> :102 (true). `Client`, `health()`, `Metrics` are deleted by legacy-h A16; the whole Client half is rewritten then. [OWNED legacy-h]
   - L55-61 "doesn't export them. There's no Prometheus or OpenMetrics endpoint" -> true today: `git grep -i prometheus|openmetrics|textfile` finds nothing in src, include or bindings. The design in docs/design/observability.md (Q3, D47) adds `detent-agent --status --usage` JSON and a Prometheus text file with no listener, `detent_usage`, and a usage page; OB* quests do not exist yet. [OWNED observability: the hint's "no exporter" and the "your own metrics library" advice change when OB4 lands]
-  - L58-59 "the specification's `jk_*`-style metric names, such as `jk_snapshot_staleness_seconds`" -> cites the root-level `justknobs-implementation-spec.md:698-702` (internal working spec under the retired product name); a public page should not name it or the `jk_` prefix. [OWNED observability]
+  - L58-59 "the specification's `jk_*`-style metric names, such as `jk_snapshot_staleness_seconds`" -> cites an internal working spec and a `jk_` prefix; a public page should not name either. [OWNED observability]
   - L67 "`GET /v1/health` on the authority" -> src/detent_authority/service.cc:716, 1066 (true).
   - L68 "`detentd --status` and `detent-agent --status`" -> src/detentd/main.cc:143-153, src/detent_agent/main.cc:125-146 (true).
   - MISSING: `detent-relay --status` and the relay's `GET /v1/health` (same path, HTTPS; src/detent_relay/main.cc:46-59, src/detent_relay/service.cc:359, 405): fields `ready`, `heap_used`/`heap_peak`/`heap_limit`, `sessions`, `opens`/`polls`/`closes`, `bootstrap`, `catchup`, `disk_*`, per-bundle `revision`, `ready`, `authenticated`, `fenced`, `gaps`, `refusals`, `source_endpoint_index`, `source_rotations`, `quorum_refresh_failures`, `scrub_*`, `sync_*`: src/detent_relay/host.cc:59-127; rebuilt every 100 ms (host.cc:332, 345).
@@ -797,7 +797,7 @@ One row per page. "Owned" names the not-yet-landed quests that change the page (
   - L63-64 "Pushing to `main` deploys the site" -> only pushes touching `website/**` or pages.yml deploy (.github/workflows/pages.yml:8-10). Verified true: L55-60 `npm ci`, `npm run dev`, `npm run build` (website/package.json:10-11), Astro + Starlight + Pagefind + D2 fences + Edit link (website/astro.config.mjs:23, :36-38, :69-71), L36-37 ASan/UBSan and TSan (ci.yml:20, :26), L58 base `/Detent` (astro.config.mjs).
 
 - `copyright.md` | **missing content** | the licence statement is true; third-party notices and licences are absent
-  - L5 "Copyright (c) 2026 Germán Méndez Bravo ... MIT" matches LICENSE:1-3; link target `blob/main/LICENSE` exists in the tree. L7-10 JustKnobs disclaimer matches justknobs-implementation-spec.md:5-8.
+  - L5 "Copyright (c) 2026 Germán Méndez Bravo ... MIT" matches LICENSE:1-3; link target `blob/main/LICENSE` exists in the tree. L7-10 an affiliation disclaimer about another product; removed with D66.
   - MISSING: the build fetches 35 pinned repositories, five of them third-party (asio, cppcodec, rapidjson, lz4, zstd) plus OpenSSL as a system dependency (cmake/dependencies.json:3-6, :33, :93, :183, :189; docs/DEPENDENCIES.md:7), yet the tree has only one licence file (`git ls-files` shows LICENSE only) and no notices page. bindings/rust/Cargo.toml has no `license` field.
   - MISSING: the site loads Lato and Montserrat from Google Fonts (website/astro.config.mjs:65) and ships the Kronuz theme; neither is credited beyond L12-14 naming the theme.
 Part 2: top-level guides `docs/ACTORS.md` to `docs/DISTRIBUTION_ARCHITECTURE.md` (30 files). Only ACTORS carries a `> Status:` banner (docs/ACTORS.md:1); the other 29 carry their own date/status lines and no HISTORY banner. "Record" below means the file is dated or status-labelled as a record of a past decision or run.
@@ -1267,7 +1267,7 @@ Write from:
 - faq/next: include/detent/client.hh, src/detent_delivery/configuration.cc, src/detent_agent/main.cc, src/detent/hashing.cc:7-18, include/detent/detail/evaluation.hh:16-20, src/detent_authority/service.cc:207-423.
 - roadmap: .campaign/detent/PLAN.md (Goals, D43, D45, D47), state.json quest states, CHANGELOG.md, .github/workflows/ci.yml, docs/SCALE_TARGETS.md, docs/RELEASE_PLAN.md, docs/STAGE6_ARCHITECTURE.md.
 - contributing: CMakeLists.txt:41-50, .github/workflows/*.yml, website/package.json, website/README.md.
-- copyright: LICENSE, cmake/dependencies.json, justknobs-implementation-spec.md:5-8.
+- copyright: LICENSE, cmake/dependencies.json.
 - docs/*.md: CHANGELOG.md (legacy waves, M1), cmake/dependencies.json, src/detent_authority/, src/detent_local/, docs/LOCAL_IMAGE_FORMAT.md.
 
 Highest-weight defects:
