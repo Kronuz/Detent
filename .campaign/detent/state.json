@@ -2083,17 +2083,57 @@
         "website/src/content/docs/roadmap.md",
         "website/src/content/docs/reference/observability.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T12:04:05",
+          "commit": "9c5655ed2adaf2ff56cd04a7ad21a5850ca4b752",
+          "criteria": {
+            "A1": "261111-110505-cac549 (passed at a897d778001a; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md); fails without: 261111-113422-d4ebe9",
+            "A2": "`docs/design/knob-model.md`, `README.md`, `docs/USAGE.md`, `website/src/content/docs/faq.md`, `website/src/content/docs/welcome.md`, `website/src/content/docs/architecture/design-documents.md` (the model spec, its links, and the removed lineage pages; the old spec file is deleted)",
+            "A3": "261111-110507-004d6c (passed at a897d778001a; ignores docs-only docs/design/async-drivers-bench/CMakeLists.txt, docs/design/async-drivers-bench/frame_admission.cc, docs/design/async-drivers-bench/hop_cost.cc, docs/design/async-drivers-bench/loops.hh, docs/design/async-drivers-bench/placement_test.cc, docs/design/async-drivers-bench/run.sh, docs/design/async-drivers-bench/shrink_dial.cc, docs/design/async-drivers-bench/wheel.hh, docs/design/async-drivers-bench/wheel_test.cc, docs/design/async-drivers.md), 261111-113426-0ee463"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "4f6502db6a9c0a832545b6c79aa993ab4ed091f5",
+              "docs": [
+                "docs/design/async-drivers-bench/CMakeLists.txt",
+                "docs/design/async-drivers-bench/frame_admission.cc",
+                "docs/design/async-drivers-bench/hop_cost.cc",
+                "docs/design/async-drivers-bench/loops.hh",
+                "docs/design/async-drivers-bench/placement_test.cc",
+                "docs/design/async-drivers-bench/run.sh",
+                "docs/design/async-drivers-bench/shrink_dial.cc",
+                "docs/design/async-drivers-bench/wheel.hh",
+                "docs/design/async-drivers-bench/wheel_test.cc",
+                "docs/design/async-drivers.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-110507-004d6c",
+              "level": "light",
+              "seconds": 1596.4,
+              "state": "done",
+              "what": "drop-justknobs check suite at 4f6502db6a9c"
+            }
+          ],
+          "final": true,
+          "from": "203078c376c905ca9792de2f8a4692ba3d417bd6",
+          "reason": "",
+          "tested": "e097cfcc6d1c96e025824f9e4d6dd2116ec60c41"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Detent on its own terms: remove the JustKnobs lineage",
-      "updated": "2026-11-11T11:04:24",
-      "worktree": "../Detent-wt/detent/drop-justknobs"
+      "updated": "2026-11-11T12:04:09",
+      "worktree": ""
     },
     "fixture-500k": {
       "accepted": {},
