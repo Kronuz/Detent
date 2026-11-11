@@ -1,19 +1,31 @@
 # namespace-s3b: journal
 
-State: waiting on jobs 261111-043027-eeba12 261111-043027-41364c 261111-043027-8547c1 261111-040648-91a17b 261111-043117-07d3c7 261111-043130-cdf29b
+State: waiting on jobs 261111-050227-374646 261111-050334-9be29c 261111-050342-d42170 261111-050344-178b45 261111-050346-194d0d 261111-040648-91a17b
 Quest: .campaign/detent/quests/namespace-s3b.md (the lead's; never edit it)
 
 ## Doing
 
-Waiting on the gates at `1e2ea54` (native running, asan and tsan queued), two mutants
-(k4-scrub-on-owner, k5-reset-keeps-pending, running), the exclusive q2pub A/B (queued for the
-host) and CI run 43020922333 (all green but macos-x86_64, still running). 24 of 26 mutants at
-`1e2ea54` are killed (exit 0), m9 included.
+Durability review D1 (blocking) fixed at `e7bcd9e`, tests at `68c8370`:
+- `bind_base` clears `repair.pending` only when the confirmed plan is a snapshot
+  (`PagedCandidateResult::snapshot`, from `PagedPlan::snapshot()`); a delta keeps its packs.
+- `session_forced` resets once an offer on the session is published, so a later repair reopens
+  a forced session.
+- Tests: `test_delivery_repair_delta-clears` (the reviewer's probe, now also requiring completion
+  and collection of the shared packs) and `forced-again` (second repair on a forced session; the
+  scripted server can offer the delta on a forced session, `Server::forced_delta`).
+- Mutants: `s3b-d1-delta-clears-pending`, `s3b-d1-forced-session-kept`; k5's patch follows the
+  changed `bind_base` line.
+N1-N5: left for the lead's follow-ups.
+
+Jobs: probe at the fix commit `e7bcd9e` 261111-050227-374646 (reviewer's run-probe.sh, unchanged
+patch); native 261111-050334-9be29c; d1 mutants 261111-050342-d42170, 261111-050344-178b45;
+k5 at the fix 261111-050346-194d0d; q2pub 261111-040648-91a17b (queued, exclusive). CI run
+43025760640 at `68c8370`.
 
 ## Next
 
-1. Read the gate, mutant and q2pub results; paste `campaign brief`'s table; fill the ledger's
-   q2pub numbers; set State to "ready for review".
+1. Read the jobs; paste `campaign brief`'s table; add q2pub numbers if done; State "ready for
+   review".
 
 ## Blocked on
 
