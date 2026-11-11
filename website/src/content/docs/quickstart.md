@@ -182,7 +182,7 @@ leave it out. `detent get` reads the newest generation from
 Publish an integer knob and read it:
 
 ```sh
-publish search:max_results '{"type":"int","default":25}'
+publish search:max_results '{"default":25}'
 sleep 1
 detent get search:max_results
 # 25
@@ -202,7 +202,7 @@ Each transaction replies with its outcome and the authority's new revision:
 Now change the value without restarting anything:
 
 ```sh
-publish search:max_results '{"type":"int","default":100}'
+publish search:max_results '{"default":100}'
 sleep 1
 detent get search:max_results
 # 100
