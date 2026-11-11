@@ -81,14 +81,14 @@ def main(paths: list[str]) -> None:
         print(
             f"  A/A band on {key}: {band:.1%} ({first} {medians[first]:.2f}, {second} {medians[second]:.2f})"
         )
-        candidates = [a for a in ("a", "b", "c", "d") if a in medians]
+        candidates = [a for a in ("a", "b", "c", "d", "e") if a in medians]
         if row == "single":
             best = min(candidates, key=lambda a: medians[a])
             reference, label = medians[best], f"best ({best})"
-            unified = [a for a in ("b", "c", "d") if a in medians]
+            unified = [a for a in ("b", "c", "d", "e") if a in medians]
         else:
             reference, label = medians["b"], "stash (b)"
-            unified = [a for a in ("c", "d") if a in medians]
+            unified = [a for a in ("c", "d", "e") if a in medians]
         for arm in unified:
             ratio = medians[arm] / reference
             if abs(ratio - THRESHOLD) < band:

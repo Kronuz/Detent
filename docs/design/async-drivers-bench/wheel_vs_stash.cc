@@ -2,14 +2,16 @@
 //   (a)  the prototype wheel (wheel.hh), owner thread only
 //   (b)  stash as it is (stash.h), Xapiand's four levels, entry* values; cancel clears a flag
 //   (c)  stash with an intrusive leaf (wheel_vs_stash_leaf.hh): no box, O(1) cancel
-//   (d)  the prototype wheel plus an intrusive lock-free inbox for other threads
+//   (d)  the prototype wheel plus an intrusive lock-free inbox: any thread re-arms any entry
+//   (e)  the prototype wheel, its inbox linked through the entry's own `next`: any thread arms
+//        an unarmed entry, only the owner re-arms or cancels ((c)'s contract), 32-byte entry
 // Modes, one line of results each:
 //   single ARM N        arm, re-arm, cancel and expire on one thread, on a manual clock
 //   cross ARM P TOTAL   P producer threads arm TOTAL entries, one owner fires on steady_clock
 //   mem ARM N           (the COUNT_HEAP build) bytes per entry and heap per arm
 //   test                every candidate against a reference model on a manual clock, and
 //                       cross-thread runs checked for exactly-once, never-early fires
-// ARM is a, b, c or d; a2 and b2 run a and b again (the A/A pair).
+// ARM is a, b, c, d or e; a2 and b2 run a and b again (the A/A pair).
 #ifdef COUNT_HEAP
 #include "probe.hh"
 PROBE_ALLOCATOR
@@ -109,6 +111,37 @@ struct cand_d {
 	std::size_t expire(u64 now, F&& f) {
 		drain();
 		return w->expire(now, [&](bench::wheel_entry& e) { f(*reinterpret_cast<dentry*>(&e)); });
+	}
+};
+
+// ---- (e) ----------------------------------------------------------------------------------
+struct cand_e {
+	using entry = bench::wheel_entry;
+	static constexpr bool cross = true;
+	static constexpr const char* shape = "intrusive wheel + inbox through the entry's next";
+	std::unique_ptr<bench::wheel> w;
+	alignas(64) std::atomic<entry*> inbox{nullptr};
+	explicit cand_e(u64 base) : w(std::make_unique<bench::wheel>(base)) {}
+	static u64 deadline(const entry& e) { return e.deadline; }
+	void arm(entry& e, u64 d) { w->arm(e, d); }
+	void cancel(entry& e) { w->cancel(e); }
+	// Any thread, an unarmed entry: `next` links the inbox until the owner files it.
+	void arm_from(entry& e, u64 d) {
+		e.deadline = d;
+		entry* head = inbox.load(std::memory_order_relaxed);
+		do { e.next = head; } while (!inbox.compare_exchange_weak(head, &e, std::memory_order_release, std::memory_order_relaxed));
+	}
+	template <class F>
+	std::size_t expire(u64 now, F&& f) {
+		if (inbox.load(std::memory_order_relaxed)) {
+			for (entry* e = inbox.exchange(nullptr, std::memory_order_acquire); e;) {
+				entry* following = e->next;
+				e->next = nullptr;
+				w->arm(*e, e->deadline);
+				e = following;
+			}
+		}
+		return w->expire(now, [&](bench::wheel_entry& e) { f(e); });
 	}
 };
 
@@ -212,6 +245,7 @@ auto dispatch(std::string_view arm, F&& f) {
 	if (arm == "b" || arm == "b2") { return f(static_cast<cand_b*>(nullptr)); }
 	if (arm == "c") { return f(static_cast<cand_c*>(nullptr)); }
 	if (arm == "d") { return f(static_cast<cand_d*>(nullptr)); }
+	if (arm == "e") { return f(static_cast<cand_e*>(nullptr)); }
 	std::fprintf(stderr, "unknown arm %.*s\n", int(arm.size()), arm.data());
 	std::exit(2);
 }
@@ -445,10 +479,12 @@ void test() {
 	model<cand_b>("b");
 	model<cand_c>("c");
 	model<cand_d>("d");
+	model<cand_e>("e");
 	inbox_rearm();
 	cross_check<cand_b>("b");
 	cross_check<cand_c>("c");
 	cross_check<cand_d>("d");
+	cross_check<cand_e>("e");
 	std::printf("test all ok\n");
 }
 }  // namespace

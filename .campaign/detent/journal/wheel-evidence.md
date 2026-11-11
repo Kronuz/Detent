@@ -41,4 +41,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- Candidate (e) added after the smoke 261111-120056-0484f0 (strict, noisy, not a decision row):
+  (d)'s 56-byte entry put its single-loop score 14-31% over (a)'s. (e) keeps (a)'s 32-byte entry
+  and links the inbox through `next`, with (c)'s contract (other threads arm unarmed entries).
+  The rule's thresholds are unchanged; its unified list grows to (b)-(e); the rows queued at
+  67f3f4c3 were cancelled before running and every row runs with (e).
+- Single-loop passes visit entries in one random order (D4 went in index order), so a 1M row
+  pays the cache misses a real loop does; the numbers are not comparable with D4's table.
+- Cross-thread producers read steady_clock every 64 arms, the same for every candidate.

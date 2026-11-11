@@ -39,7 +39,15 @@ All in `async-drivers-bench/wheel_vs_stash*`, one interface (`arm`, `cancel`, `e
 - **(d) the prototype with an inbox**: (a) for the owner, plus an intrusive lock-free inbox for
   other threads: `arm_from` stores the requested deadline in the entry and pushes it on a
   Treiber stack (one CAS, no allocation) unless it is already queued; the owner drains the
-  inbox into the wheel before each `expire`. One wheel serves both uses.
+  inbox into the wheel before each `expire`. One wheel serves both uses; any thread may re-arm
+  any entry (the debouncer's case), at 56 bytes an entry.
+- **(e) the prototype with the inbox through the entry's own link**: (d) without its extra
+  fields. Another thread arms only an unarmed entry, linking it into the inbox through the
+  entry's `next` (unused while unarmed); only the owner re-arms or cancels, which is (c)'s
+  contract. The entry stays 32 bytes, so the owner's path is (a)'s. Added after the smoke
+  (261111-120056-0484f0, strict, not a decision row) showed (d)'s single-loop score 14% to 31%
+  above (a)'s, which only the entry size separates; the rule is unchanged and every row runs
+  with (e).
 
 ## Workload and metrics
 
@@ -77,10 +85,10 @@ band.
 
 Fixed before the first measured run (A3); the rows are `exclusive` jobs at named commits.
 
-1. A **unified candidate** is one that serves both uses: (b), (c) or (d). (a) has no
+1. A **unified candidate** is one that serves both uses: (b), (c), (d) or (e). (a) has no
    cross-thread arm and is the single-loop reference.
 2. It **passes** when, at both n = 1,000 and n = 1,000,000, its single-loop score is at most
-   1.10 times the lowest single-loop score of all candidates (a)-(d) at that n, and, at each
+   1.10 times the lowest single-loop score of all candidates (a)-(e) at that n, and, at each
    P in {1, 4, 14}, its cross-thread score is at most 1.10 times stash's (b) at that P, and it
    passes the manual-clock test.
 3. When a candidate's ratio is within the A/A band of 1.10, that row is inconclusive and runs
