@@ -4833,7 +4833,12 @@
         "website/src/content/docs/reference/bindings/python.md",
         "website/src/content/docs/reference/bindings/rust.md",
         "website/src/content/docs/architecture/read-path.md",
-        "diagrams/04_read_path.*"
+        "diagrams/04_read_path.*",
+        "website/src/content/docs/group-overrides.md",
+        "website/src/content/docs/quickstart.md",
+        "website/src/content/docs/rollouts.md",
+        "website/src/content/docs/settings-and-flags.md",
+        "tests/docs/**"
       ],
       "landed": [],
       "lenses": [
@@ -4846,7 +4851,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T14:27:46",
+      "updated": "2026-11-11T15:24:20",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
