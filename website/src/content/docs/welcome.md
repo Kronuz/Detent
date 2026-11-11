@@ -14,9 +14,9 @@ knobs**. Applications read knobs synchronously from an in-memory snapshot; a
 background thread keeps that snapshot fresh from a file, an HTTP endpoint, or
 a durable authority, and swaps each validated update in atomically.
 
-A *detent* is the mechanism that makes a rotary knob click into discrete,
-stable positions. That's the idea: your process always sees a complete,
-validated configuration, never something half-turned.
+A *detent* is the click-stop that holds a knob at its setting. That's the
+idea: your process always sees a complete, validated configuration, never
+something half-turned.
 
 Detent has three moving parts:
 
