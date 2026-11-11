@@ -1,12 +1,12 @@
 diff --git a/src/detent_local/paged_page_validator.cc b/src/detent_local/paged_page_validator.cc
-index c63fbf6..7088e4c 100644
+index e5bd0e08..6968850d 100644
 --- a/src/detent_local/paged_page_validator.cc
 +++ b/src/detent_local/paged_page_validator.cc
 @@ -205,7 +205,6 @@ void PageValidator::step(ValidationBudget &budget) {
  					++frame.child;
  					continue;
  				}
--				require(slot == s.position);
+-				require(p::NodeAt::child(frame.node, slot) == s.position);
  				++frame.child;
  				s.key_depth = frame.key_depth;
  				s.visit = true;

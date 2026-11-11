@@ -2,6 +2,7 @@
 #include "detent_distribution/rows.hh"
 #include "detent_local/paged_definition.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include <sha256.h>
 namespace detent::local::detail {
 namespace p = paged;
@@ -53,7 +54,7 @@ struct WarmGraphValidator::Impl {
 		p::Reference reference;
 		p::PageHeader header;
 		p::NodeView node;
-		std::size_t node_offset = p::page_header_bytes;
+		p::NodeAt at;
 		bool page_root = true;
 		std::span<const char> bytes;
 		std::size_t segment = 0, restore = 0, child = 0, bit = 0, end = 0;
@@ -131,17 +132,17 @@ struct WarmGraphValidator::Impl {
 		return *found;
 	}
 	void push(p::Reference reference, bool old, std::span<const char> existing = {},
-			  std::size_t node_offset = p::page_header_bytes) {
+			  p::NodeAt at = {}) {
 		require(depth < frames.size());
 		auto &frame = frames[depth++];
 		frame = {};
 		frame.reference = reference;
 		frame.restore = key_size;
-		frame.node_offset = node_offset;
+		frame.at = at;
 		frame.page_root = existing.empty();
 		if (!existing.empty()) {
 			frame.bytes = existing;
-			frame.node = p::decode_node(existing, node_offset, limits);
+			frame.node = at.decode(existing, limits);
 			frame.phase = NodePhase::Prefix;
 			return;
 		}
@@ -152,7 +153,7 @@ struct WarmGraphValidator::Impl {
 			frame.bytes = checked_page_bytes(base_segments[prior], reference);
 			if (old) {
 				frame.header = p::decode_page_header(frame.bytes, limits);
-				frame.node = p::decode_node(frame.bytes, node_offset, limits);
+				frame.node = at.decode(frame.bytes, limits);
 			}
 			frame.phase = NodePhase::Reuse;
 		} else {
@@ -394,7 +395,7 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					if (!s.page->done())
 						return;
 					frame.header = s.page->header();
-					frame.node = p::decode_node(frame.bytes, frame.node_offset, s.limits);
+					frame.node = frame.at.decode(frame.bytes, s.limits);
 					frame.phase = Impl::NodePhase::Prefix;
 					break;
 				case Impl::NodePhase::Prefix:
@@ -431,10 +432,8 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 						s.key[s.key_size++] = frame.node.labels[child];
 						if (slot & 0x8000)
 							s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), false);
-						else {
-							require(slot >= frame.node.end && slot > frame.node_offset);
-							s.push(frame.reference, false, frame.bytes, slot);
-						}
+						else
+							s.push(frame.reference, false, frame.bytes, p::NodeAt::child(frame.node, slot));
 					}
 					break;
 				case Impl::NodePhase::Finish:
@@ -503,10 +502,8 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					s.key[s.key_size++] = frame.node.labels[child];
 					if (slot & 0x8000)
 						s.push(p::decode_external(frame.bytes, slot & 0x7fff, s.limits), true);
-					else {
-						require(slot >= frame.node.end && slot > frame.node_offset);
-						s.push(frame.reference, true, frame.bytes, slot);
-					}
+					else
+						s.push(frame.reference, true, frame.bytes, p::NodeAt::child(frame.node, slot));
 				} else {
 					if (!s.grant(1, budget))
 						return;

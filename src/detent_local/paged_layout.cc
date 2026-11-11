@@ -1,4 +1,5 @@
 #include "detent_local/paged_layout.hh"
+#include "paged_node_step.hh"
 #include "detent/validation.hh"
 #include "detent_local/read_counters.hh"
 #include <algorithm>
@@ -266,16 +267,17 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 		std::size_t child = 0, depth = 0;
 	};
 	std::array<Frame, 203> stack{};
-	std::size_t depth = 0, position = page_header_bytes, nodes = 0, external = 0, key_depth = 0;
+	std::size_t depth = 0, nodes = 0, external = 0, key_depth = 0;
+	NodeAt position;
 	std::uint64_t keys = 0;
 	unsigned height = 1;
 	bool visit = true;
 	for (;;) {
 		if (visit) {
-			const auto node = decode_node(bytes, position, limits);
+			const auto node = position.decode(bytes, limits);
 			require(++nodes <= h.nodes && key_depth <= 202 &&
 					node.prefix.size() <= 202 - key_depth);
-			position = node.end;
+			position = NodeAt::after(node);
 			if (node.kind == PageKind::Branch) {
 				require(depth < stack.size() && key_depth + node.prefix.size() < 202);
 				stack[depth++] = {node, 0, key_depth + node.prefix.size() + 1};
@@ -300,7 +302,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 				height = std::max(height, unsigned(r.height) + 1);
 				continue;
 			}
-			require(slot == position);
+			require(NodeAt::child(frame.node, slot) == position);
 			key_depth = frame.depth;
 			visit = true;
 			break;
@@ -308,7 +310,7 @@ void verify_page_structure(std::span<const char> bytes, const Reference &referen
 		if (!visit)
 			break;
 	}
-	require(position == bytes.size() - child_bytes * h.externals && nodes == h.nodes &&
+	require(position.offset() == bytes.size() - child_bytes * h.externals && nodes == h.nodes &&
 			external == h.externals && keys == h.keys && height == h.height);
 }
 void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {

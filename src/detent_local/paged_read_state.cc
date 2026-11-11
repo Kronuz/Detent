@@ -1,5 +1,6 @@
 #include "paged_read_state.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include <algorithm>
 #include <cstring>
 
@@ -42,7 +43,8 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 	try {
 		auto reference = root.tree;
 		std::span<const char> bytes;
-		std::size_t cursor = 0, node_offset = paged::page_header_bytes;
+		std::size_t cursor = 0;
+		paged::NodeAt at;
 		bool resolve = true;
 		for (std::size_t visits = 0; visits <= key.size(); ++visits) {
 			if (resolve) {
@@ -57,9 +59,9 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 					bytes = checked_page_bytes(segments[found], reference);
 				}
 				resolve = false;
-				node_offset = paged::page_header_bytes;
+				at = {};
 			}
-			const auto node = paged::decode_node(bytes, node_offset, paged_format_limits());
+			const auto node = at.decode(bytes, paged_format_limits());
 			if (node.kind != paged::PageKind::Branch) {
 				std::array<char, 202> actual{};
 				if (cursor > actual.size() || node.prefix.size() > actual.size() - cursor)
@@ -97,11 +99,8 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
 			if (slot & 0x8000) {
 				reference = paged::decode_external(bytes, slot & 0x7fff, paged_format_limits());
 				resolve = true;
-			} else {
-				if (slot < node.end || slot <= node_offset)
-					throw ReadSourceFailure("local page slot does not progress");
-				node_offset = slot;
-			}
+			} else
+				at = paged::NodeAt::child(node, slot);
 		}
 		throw ReadSourceFailure("local page walk exceeds key depth");
 	} catch (const ReadSourceFailure &) {

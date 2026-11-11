@@ -28,9 +28,7 @@ struct TrieOverlay::Impl {
 			const auto slot = node.slot(index);
 			if (slot & 0x8000)
 				return {p::decode_external(bytes, slot & 0x7fff, limits)};
-			if (slot < node.end)
-				throw std::invalid_argument("overlay inline slot does not progress");
-			return {old, nullptr, slot};
+			return {old, nullptr, p::NodeAt::child(node, slot)};
 		}
 	};
 	struct Frame {
@@ -107,7 +105,7 @@ struct TrieOverlay::Impl {
 		--b.rows;
 		return true;
 	}
-	std::uint64_t keys(std::span<const char> bytes, std::size_t offset) const {
+	std::uint64_t keys(std::span<const char> bytes, p::NodeAt start) const {
 		struct CountFrame {
 			p::NodeView node;
 			std::size_t next = 0, length = 0;
@@ -115,10 +113,10 @@ struct TrieOverlay::Impl {
 		std::array<CountFrame, 203> stack{};
 		std::size_t depth = 0, visited = 0;
 		const auto header = p::decode_page_header(bytes, limits);
-		auto enter = [&](std::size_t at, std::size_t before) {
+		auto enter = [&](p::NodeAt at, std::size_t before) {
 			if (++visited > header.nodes || depth == stack.size())
 				throw std::invalid_argument("overlay inline node budget exceeded");
-			const auto node = p::decode_node(bytes, at, limits);
+			const auto node = at.decode(bytes, limits);
 			if (before > key.size() || node.prefix.size() > key.size() - before)
 				throw std::invalid_argument("overlay inline key depth exceeded");
 			stack[depth++] = {node, 0, before + node.prefix.size()};
@@ -129,7 +127,7 @@ struct TrieOverlay::Impl {
 				throw std::invalid_argument("overlay inline key count overflow");
 			result += count;
 		};
-		enter(offset, 0);
+		enter(start, 0);
 		while (depth) {
 			auto &frame = stack[depth - 1];
 			if (frame.node.kind != p::PageKind::Branch) {
@@ -143,11 +141,8 @@ struct TrieOverlay::Impl {
 				const auto slot = frame.node.slot(frame.next++);
 				if (slot & 0x8000)
 					add(p::decode_external(bytes, slot & 0x7fff, limits).keys);
-				else {
-					if (slot < frame.node.end)
-						throw std::invalid_argument("overlay inline slot does not progress");
-					enter(slot, frame.length + 1);
-				}
+				else
+					enter(p::NodeAt::child(frame.node, slot), frame.length + 1);
 			}
 		}
 		return result;
@@ -162,9 +157,9 @@ struct TrieOverlay::Impl {
 		if (index == segments.size())
 			throw std::invalid_argument("overlay reference outside checked registry");
 		const auto bytes = checked_page_bytes(segments[index], reference);
-		const auto n = p::decode_node(bytes, ref.offset, limits);
+		const auto n = ref.at.decode(bytes, limits);
 		return {
-			n.kind,	  ref.offset == p::page_header_bytes ? reference.keys : keys(bytes, ref.offset),
+			n.kind,	  ref.at.first() ? reference.keys : keys(bytes, ref.at),
 			n.prefix, n.body,
 			bytes,	  {},
 			n,		  reference};

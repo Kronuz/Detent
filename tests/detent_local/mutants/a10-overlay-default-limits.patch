@@ -1,5 +1,5 @@
 diff --git a/src/detent_local/paged_trie_overlay.cc b/src/detent_local/paged_trie_overlay.cc
-index b300d8c..3179f95 100644
+index 19cb7eb..0f2c093 100644
 --- a/src/detent_local/paged_trie_overlay.cc
 +++ b/src/detent_local/paged_trie_overlay.cc
 @@ -27,7 +27,7 @@ struct TrieOverlay::Impl {
@@ -8,6 +8,6 @@ index b300d8c..3179f95 100644
  			if (slot & 0x8000)
 -				return {p::decode_external(bytes, slot & 0x7fff, limits)};
 +				return {p::decode_external(bytes, slot & 0x7fff, p::Limits{})};
- 			if (slot < node.end)
- 				throw std::invalid_argument("overlay inline slot does not progress");
- 			return {old, nullptr, slot};
+ 			return {old, nullptr, p::NodeAt::child(node, slot)};
+ 		}
+ 	};

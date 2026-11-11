@@ -301,7 +301,7 @@ static void injection_checks() {
 	for (auto page : {watermark(), external_branch()}) {
 		x::PagedPacker packer(account);
 		Sink sink;
-		packer.push_cluster(page, 64, {});
+		packer.push_cluster(page, {}, {});
 		advance(packer, sink, 1);
 		packer.finish();
 		advance(packer, sink, 1);
@@ -311,7 +311,8 @@ static void injection_checks() {
 		auto page = external_branch();
 		x::PagedPacker packer(account);
 		Sink sink;
-		packer.push_cluster(page, 76, "a");
+		const auto branch = p::NodeAt{}.decode(page, p::Limits{});
+		packer.push_cluster(page, p::NodeAt::child(branch, branch.slot(1)), "a");
 		advance(packer, sink, 1);
 		std::vector<char> body(24, 'v');
 		manual(packer, sink, p::PageKind::Definition, "b", {}, {}, 1, body);

@@ -1,5 +1,6 @@
 #include "paged_contextual_reuse.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
@@ -51,7 +52,7 @@ struct ReuseNavigator::Impl {
 	std::span<const char> bytes;
 	std::array<char, 202> key{};
 	std::size_t key_size = 0, cursor = 0, level = 0, wanted = 0, charge = 0, segment = SIZE_MAX;
-	std::uint16_t node_offset = p::page_header_bytes;
+	p::NodeAt at;
 	std::size_t page_entering = 0;
 	p::NodeView node{};
 	std::optional<ContextualReuse> result;
@@ -123,12 +124,12 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 					s.bytes = checked_page_bytes(inputs[s.segment], s.reference);
 					s.header = p::decode_page_header(s.bytes, paged_format_limits());
 				}
-				s.node = p::decode_node(s.bytes, s.node_offset, paged_format_limits());
+				s.node = s.at.decode(s.bytes, paged_format_limits());
 				const auto prefix = s.node.prefix.size();
 				if (!s.admit(p::page_header_bytes + prefix, budget))
 					return;
 				s.header = p::decode_page_header(s.bytes, paged_format_limits());
-				if (s.exact && s.cursor == s.key_size && s.node_offset == p::page_header_bytes) {
+				if (s.exact && s.cursor == s.key_size && s.at.first()) {
 					if (s.reference == *s.exact)
 						s.result.emplace(ContextualReuse(s.base, s.reference, s.header,
 														 {s.key.data(), s.key_size},
@@ -180,10 +181,10 @@ void ReuseNavigator::step(ValidationBudget &budget) {
 				if (slot & 0x8000) {
 					s.reference = p::decode_external(s.bytes, slot & 0x7fff, paged_format_limits());
 					s.segment = SIZE_MAX;
-					s.node_offset = p::page_header_bytes;
+					s.at = {};
 					s.page_entering = s.cursor;
 				} else
-					s.node_offset = slot;
+					s.at = p::NodeAt::child(s.node, slot);
 				s.phase = Impl::Phase::Node;
 			}
 		}
