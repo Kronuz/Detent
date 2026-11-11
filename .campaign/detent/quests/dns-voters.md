@@ -5,27 +5,29 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The authority's `voters[].host` accepts a host name or an IP literal. Parsing the configuration
+never resolves a name, so a DNS outage cannot stop the daemon from starting; names reach
+consensus's transport, which resolves them per D60. Duplicate voters are refused by host and port
+as written, and the voter set stays static and pinned.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A three-voter cluster configured by host names (`localhost` aliases) elects a leader and
+  serves: an authority test in the suite.
+- A2 Config parse does no lookups: with a voter host that never resolves, `detentd` starts, the
+  other two voters form quorum and the daemon reports ready: a test.
+- A3 Invalid hosts (empty, over 253 bytes, bad labels, unspecified or multicast IP literals) and
+  duplicate host-and-port pairs are refused with a clear error: a test.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes `consensus:transport` (host-and-port peer addresses, from `consensus-dns-peers`).
+`docs-site-config` documents DNS voter addresses after this lands.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- D60 (owner).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
