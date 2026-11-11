@@ -3853,12 +3853,12 @@
         "paged-repair-intent",
         "repair-status"
       ],
-      "reason": "Parked 2026-11-05 at K6: CI run 42026513094 unfinished and the narrow review not run; shares disk_store.cc and coordinator.cc with namespace-s1-s2",
+      "reason": "Unparked: namespace-s1-s2 landed; resume to land after merging main",
       "repo": ".",
       "risk": "high",
-      "status": "blocked",
+      "status": "planned",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-08T21:26:35"
+      "updated": "2026-11-11T00:56:45"
     },
     "namespace-s4": {
       "accepted": {},
