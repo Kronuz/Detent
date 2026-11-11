@@ -19,6 +19,7 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <set>
 #include <source_location>
 #include <string>
 #include <thread>
@@ -463,6 +464,13 @@ inline fs::path scratch(const char *what) {
 	fs::remove_all(path);
 	fs::create_directories(path);
 	return path;
+}
+inline std::set<fs::path> packs_in(const fs::path &store) {
+	std::set<fs::path> packs;
+	for (const auto &entry : fs::directory_iterator(store))
+		if (entry.path().filename().string().starts_with("segment-") && entry.path().extension() == ".pack")
+			packs.insert(entry.path());
+	return packs;
 }
 inline void copy_store(const fs::path &from, const fs::path &to) {
 	fs::remove_all(to);

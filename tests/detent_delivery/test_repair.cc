@@ -79,13 +79,6 @@ struct Damage {
 		}
 	}
 };
-std::set<fs::path> packs_in(const fs::path &store) {
-	std::set<fs::path> packs;
-	for (const auto &entry : fs::directory_iterator(store))
-		if (entry.path().filename().string().starts_with("segment-") && entry.path().extension() == ".pack")
-			packs.insert(entry.path());
-	return packs;
-}
 
 // A reader of the store that reads it over and over until stopped; a read that worked keeps working and none
 // returns a wrong value.
