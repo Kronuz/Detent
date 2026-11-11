@@ -93,15 +93,14 @@ int main() {
 					if (progress) {
 						require(result.record(0).revision == 41 && result.record(1).revision == 42);
 						require(
-							std::get<l::detail::SourceBoolean>(result.record(1).definition).override_count ==
+							result.record(1).definition.override_count ==
 							1);
 					} else {
 						auto flag = result.record(result.record_count() - 1);
 						require(flag.key == "app:flag" && flag.revision == 42 + tx);
-						require(std::get<l::detail::SourceBoolean>(flag.definition).default_value ==
-								bool((tx - 1) % 2));
+						require(flag.definition.default_value == (tx - 1) % 2);
 						if (tx > 1)
-							require(std::get<detent::IntDef>(result.record(0).definition).default_value ==
+							require(result.record(0).definition.default_value ==
 									tx - 1);
 					}
 				}

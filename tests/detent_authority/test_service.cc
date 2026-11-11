@@ -267,7 +267,7 @@ int main() {
 	std::filesystem::remove_all(directory.string() + "-read-only");
 	const std::string transaction =
 		"\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key\",\"value\":{"
-		"\"type\":\"int\",\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
+		"\"default\":10},\"expected_revision\":0,\"absent_namespace_revision\":0}]";
 	{
 		Service service(options(directory));
 		Writer opened;
@@ -403,11 +403,11 @@ int main() {
 			if (!groups.empty()) {
 				groups += ',';
 			}
-			groups += "\"region:group" + std::to_string(index) + "\":true";
+			groups += "\"region:group" + std::to_string(index) + "\":1";
 		}
 		auto wide = call(service, "/v2/transactions",
 						 "\"generation\":1,\"sequence\":2,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:"
-						 "wide\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" +
+						 "wide\",\"value\":{\"default\":1,\"overrides\":{" +
 							 groups + "}}}]");
 		assert(wide.code == 200);
 	}
@@ -514,7 +514,7 @@ int main() {
 		for (unsigned attempt = 0; attempt < 100; ++attempt) {
 			committed = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:pressure\",\"value\":{\"type\":\"bool\",\"default\":true}}]");
+							 "\"ns:pressure\",\"value\":{\"default\":1}}]");
 			if (committed.code != 503) {
 				break;
 			}
@@ -543,14 +543,14 @@ int main() {
 		for (unsigned i = 0; i < 31; ++i) {
 			if (!groups.empty())
 				groups += ',';
-			groups += "\"group" + std::to_string(i) + std::string(46, 'k') + "\":true";
+			groups += "\"group" + std::to_string(i) + std::string(31, 'k') + "\":{\"rollout_pct\":50}";
 		}
 		std::string operations;
 		for (unsigned i = 0; i < 128; ++i) {
 			if (!operations.empty())
 				operations += ',';
 			operations += "{\"key\":\"ns:heavy" + std::to_string(i) +
-						  "\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" + groups + "}}}";
+						  "\",\"value\":{\"default\":1,\"rollout_value\":1,\"overrides\":{" + groups + "}}}";
 		}
 		auto large = [&](unsigned sequence) {
 			return "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
@@ -611,7 +611,7 @@ int main() {
 		}
 		auto progress = call(service, "/v2/transactions",
 							 "\"generation\":1,\"sequence\":3,\"namespace\":\"ns\",\"operations\":[{\"key\":"
-							 "\"ns:heavy0\",\"value\":{\"type\":\"int\",\"default\":42}}]");
+							 "\"ns:heavy0\",\"value\":{\"default\":42}}]");
 		assert(progress.code == 200 && progress.body.find("\"revision\":2") != std::string::npos);
 		unsigned frozen = 0;
 		// Readers are served in the order the owner gives them credit, not the order they were started.

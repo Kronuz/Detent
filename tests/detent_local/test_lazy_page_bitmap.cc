@@ -126,7 +126,7 @@ void stress() {
 			}
 			const std::string name(1, char('a' + (r * threads + t) % namespaces));
 			const auto found = state.definition(name, "k");
-			check(found && (name == "a" ? found->default_int() == 42 : found->default_bool() == true));
+			check(found && found->default_value() == (name == "a" ? 42 : 1));
 			check(!state.definition(name, "missing"));
 		}
 	};
@@ -273,7 +273,7 @@ void corrupt_first_touch() {
 		// Serially, through the trie walk: the damaged definition is refused on first touch.
 		Harness harness(fixture);
 		const auto state = harness.state();
-		check(state.definition("a", "k")->default_int() == 42);
+		check(state.definition("a", "k")->default_value() == 42);
 		bool caught = false;
 		try {
 			state.definition("b", "k100001");

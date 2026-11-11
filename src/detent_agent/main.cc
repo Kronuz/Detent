@@ -176,20 +176,14 @@ void validate_get_args(const std::vector<std::string> &args) {
 	}
 }
 
-// Detects the knob's type through bool evaluation before trying an int read.
+// Prints the knob's integer value; a bool knob prints 0 or 1.
 template <class Reader>
 std::optional<std::string>
 try_read(const Reader &reader, const std::string &name, const std::optional<std::string> &hash_val,
 		 const std::optional<std::string> &switch_val, detent::KnobError *out_error) {
-	auto b = reader.eval(name, hash_val, switch_val);
-	if (b) return b.value() ? "true" : "false";
-	if (b.error().category != detent::ErrorCategory::WrongType) {
-		if (out_error) *out_error = b.error();
-		return std::nullopt;
-	}
-	auto i = reader.get(name, switch_val);
-	if (i) return std::to_string(i.value());
-	if (out_error) *out_error = i.error();
+	auto value = reader.get(name, hash_val, switch_val);
+	if (value) return std::to_string(value.value());
+	if (out_error) *out_error = value.error();
 	return std::nullopt;
 }
 

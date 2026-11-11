@@ -39,8 +39,8 @@ struct ReadReplyEncoder::Impl {
 	std::unique_ptr<rapidjson::Writer<Buffer>> writer;
 	Phase phase = Phase::Header;
 	std::size_t key = 0, size = 0;
-	const BoolDef *boolean = nullptr;
-	decltype(BoolDef::overrides)::const_iterator override;
+	const KnobDef *definition = nullptr;
+	decltype(KnobDef::overrides)::const_iterator override;
 	bool count_done = false, taken = false;
 	Impl(const State &s, std::string_view ns, const std::vector<std::string> &k, Context c, std::size_t limit)
 		: state(s), name_space(ns), keys(k), context(c), buffer{limit},
@@ -61,7 +61,7 @@ struct ReadReplyEncoder::Impl {
 			else if (phase == Phase::Revisions || phase == Phase::Definition) {
 				if (key < keys.size())
 					charge += keys[key].size() * 6;
-			} else if (phase == Phase::Overrides && override != boolean->overrides.end())
+			} else if (phase == Phase::Overrides && override != definition->overrides.end())
 				charge += override->first.size() * 6;
 			if (!budget.records || budget.bytes < charge)
 				return;
@@ -115,32 +115,26 @@ struct ReadReplyEncoder::Impl {
 				if (auto record = state.find(keys[key++])) {
 					field(keys[key - 1]);
 					writer->StartObject();
-					field("type");
-					boolean = std::get_if<BoolDef>(record->value.get());
-					if (boolean) {
-						string("bool");
-						field("default");
-						writer->Bool(boolean->default_value);
+					definition = record->value.get();
+					field("default");
+					writer->Int64(definition->default_value);
+					override = definition->overrides.begin();
+					if (!definition->overrides.empty()) {
 						field("overrides");
 						writer->StartObject();
-						override = boolean->overrides.begin();
 						phase = Phase::Overrides;
-					} else {
-						string("int");
-						field("default");
-						writer->Int64(std::get<IntDef>(*record->value).default_value);
-						writer->EndObject();
-					}
+					} else
+						phase = Phase::DefinitionEnd;
 				}
 				break;
 			case Phase::Overrides:
-				if (override == boolean->overrides.end()) {
+				if (override == definition->overrides.end()) {
 					writer->EndObject();
 					phase = Phase::DefinitionEnd;
 				} else {
 					field(override->first);
-					if (auto forced = std::get_if<bool>(&override->second))
-						writer->Bool(*forced);
+					if (auto forced = std::get_if<std::int64_t>(&override->second))
+						writer->Int64(*forced);
 					else {
 						writer->StartObject();
 						field("rollout_pct");
@@ -151,13 +145,16 @@ struct ReadReplyEncoder::Impl {
 				}
 				break;
 			case Phase::DefinitionEnd:
-				field("rollout_pct");
-				if (boolean->rollout_pct)
-					writer->Uint(*boolean->rollout_pct);
-				else
-					writer->Null();
+				if (definition->rollout_pct) {
+					field("rollout_pct");
+					writer->Uint(*definition->rollout_pct);
+				}
+				if (definition->rollout_value) {
+					field("rollout_value");
+					writer->Int64(*definition->rollout_value);
+				}
 				writer->EndObject();
-				boolean = nullptr;
+				definition = nullptr;
 				phase = Phase::Definition;
 				break;
 			case Phase::End:

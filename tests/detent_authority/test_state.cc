@@ -80,8 +80,9 @@ void bounded_applications() {
 		return turns;
 	};
 	apply(open());
-	BoolDef large;
+	KnobDef large;
 	large.rollout_pct = 45;
+	large.rollout_value = 1;
 	for (unsigned i = 0; i < 256; ++i)
 		large.overrides.emplace("group" + std::to_string(i), GroupRollout{33});
 	auto first = transaction(1, {{"ns:a", large, {}, {}}});
@@ -91,19 +92,19 @@ void bounded_applications() {
 	auto mismatch = first;
 	mismatch.mutations[0].expected = 1;
 	apply(mismatch);
-	apply(transaction(4, {{"ns:a", IntDef{9}, {}, {}}})); // Sequence gap.
-	apply(transaction(3, {{"ns:a", IntDef{9}, 99, {}}})); // Conflict consumes sequence.
+	apply(transaction(4, {{"ns:a", KnobDef{9}, {}, {}}})); // Sequence gap.
+	apply(transaction(3, {{"ns:a", KnobDef{9}, 99, {}}})); // Conflict consumes sequence.
 	for (unsigned i = 4; i <= 265; ++i)
-		apply(transaction(i, {{"ns:n", IntDef{i}, {}, {}}}));
+		apply(transaction(i, {{"ns:n", KnobDef{i}, {}, {}}}));
 	apply(first); // Original receipt has been evicted.
 	auto close = open();
 	close.kind = Kind::Close;
 	close.generation = 1;
 	close.nonce = {};
 	assert(apply(close) > 8);								// Full receipt window must yield while copying.
-	apply(transaction(266, {{"ns:n", IntDef{1}, {}, {}}})); // Inactive session.
+	apply(transaction(266, {{"ns:n", KnobDef{1}, {}, {}}})); // Inactive session.
 	apply(open(1, 'b'));
-	apply(transaction(1, {{"ns:a", {}, {}, {}}, {"ns:n", IntDef{2}, {}, {}}}, 2));
+	apply(transaction(1, {{"ns:a", {}, {}, {}}, {"ns:n", KnobDef{2}, {}, {}}}, 2));
 	auto unknown = transaction(1, {{"ns:z", large, {}, {}}});
 	unknown.producer = "unknown";
 	assert(apply(unknown) > 8); // Rejected definitions are disposed incrementally too.
@@ -235,7 +236,7 @@ void prepared_proposals() {
 		return accepted;
 	};
 	std::vector<Command> commands{open(),
-								  transaction(1, {{"ns:z", BoolDef{}, {}, {}}, {"ns:a", IntDef{-99}, 0, 0}})};
+								  transaction(1, {{"ns:z", KnobDef{}, {}, {}}, {"ns:a", KnobDef{-99}, 0, 0}})};
 	auto expected = encode_batch(commands);
 	ProposalBuilder builder(context(), {}, expected.size());
 	for (const auto &c : commands) {
@@ -312,14 +313,15 @@ void command_encoding() {
 	close.nonce = {};
 	assert(encode_in_turns(open()) == encode(open()));
 	assert(encode_in_turns(close) == encode(close));
-	BoolDef definition;
+	KnobDef definition;
 	definition.rollout_pct = 51;
-	definition.overrides.emplace(std::string("\0group", 6), true);
+	definition.rollout_value = 1;
+	definition.overrides.emplace(std::string("\0group", 6), std::int64_t{1});
 	definition.overrides.emplace("unicode-\xc3\xa9", GroupRollout{42});
 	for (unsigned i = 0; i < 254; ++i)
 		definition.overrides.emplace("group" + std::to_string(i), GroupRollout{35});
 	auto command =
-		transaction(1, {{"ns:z", definition, {}, {}}, {"ns:b", IntDef{-99}, {}, {}}, {"ns:a", {}, 0, 0}});
+		transaction(1, {{"ns:z", definition, {}, {}}, {"ns:b", KnobDef{-99}, {}, {}}, {"ns:a", {}, 0, 0}});
 	auto canonical = encode(command);
 	assert(encode_in_turns(command) == canonical);
 	std::reverse(command.mutations.begin(), command.mutations.end());
@@ -338,16 +340,28 @@ void command_encoding() {
 	add([](auto &c) { c.name_space = "other"; });
 	add([](auto &c) { c.mutations.push_back(c.mutations.front()); });
 	add([](auto &c) { c.mutations.front().absence_revision = {}; });
-	add([](auto &c) { std::get<BoolDef>(*c.mutations.back().value).rollout_pct = 101; });
-	add([](auto &c) { std::get<BoolDef>(*c.mutations.back().value).overrides.emplace("extra", true); });
+	add([](auto &c) { c.mutations.back().value->rollout_pct = 101; });
+	add([](auto &c) { c.mutations.back().value->overrides.emplace("extra", std::int64_t{1}); });
 	add([](auto &c) {
-		auto &d = std::get<BoolDef>(*c.mutations.back().value);
+		auto &d = *c.mutations.back().value;
 		d.overrides.erase(d.overrides.begin());
-		d.overrides.emplace(std::string(129, 'x'), true);
+		d.overrides.emplace(std::string(129, 'x'), std::int64_t{1});
 	});
 	add([](auto &c) {
-		auto &d = std::get<BoolDef>(*c.mutations.back().value);
+		auto &d = *c.mutations.back().value;
 		d.overrides.begin()->second = GroupRollout{101};
+	});
+	// Invalid shapes: a rollout value without any percentage, a percentage without a rollout value.
+	add([](auto &c) {
+		auto &d = *c.mutations.back().value;
+		d.rollout_pct.reset();
+		d.overrides.clear();
+	});
+	add([](auto &c) { c.mutations.back().value->rollout_value.reset(); });
+	add([](auto &c) {
+		KnobDef group_only;
+		group_only.overrides.emplace("g", GroupRollout{5});
+		c.mutations.back().value = group_only;
 	});
 	for (const auto &bad : invalid) {
 		assert(throws([&] { encode(bad); }));
@@ -373,7 +387,7 @@ void command_encoding() {
 	}
 	std::vector<Mutation> operations;
 	for (unsigned i = 0; i < 128; ++i)
-		operations.push_back({"ns:key" + std::to_string(i), IntDef{1}, {}, {}});
+		operations.push_back({"ns:key" + std::to_string(i), KnobDef{1}, {}, {}});
 	auto many = transaction(1, std::move(operations));
 	CommandEncoder abandoned(many);
 	CommandWorkBudget budget;
@@ -390,6 +404,61 @@ void command_encoding() {
 	assert(encode_in_turns(many) == encode(many));
 }
 
+// Integers ramp and target groups: the definition round-trips exactly through the authority
+// encoding, and a value without a percentage is refused by the decoder, not only the encoder.
+void integer_targeting() {
+	KnobDef integer;
+	integer.default_value = 25;
+	integer.rollout_pct = 10;
+	integer.rollout_value = 50;
+	integer.overrides.emplace("beta", std::int64_t{7});
+	integer.overrides.emplace("canary", GroupRollout{50});
+	auto command = transaction(1, {{"ns:limit", integer, {}, {}}});
+	auto bytes = encode(command);
+	auto decoded = decode(bytes);
+	assert(decoded.mutations.size() == 1 && decoded.mutations[0].value == integer);
+	assert(encode(decoded) == bytes);
+	State state(context(), {});
+	assert(state.apply(1, open()).generation == 1);
+	assert(state.apply(2, command).status == Status::Applied);
+	assert(*state.find("ns:limit")->value == integer);
+	// Default 25, then presence (percentage, value, overrides) and the 10% percentage byte.
+	std::string head(8, '\0');
+	head[0] = 25;
+	head += std::string("\x07\x0a", 2);
+	auto at = bytes.rfind(head);
+	assert(at != std::string::npos);
+	auto corrupt = bytes;
+	corrupt[at + 8] = 0x06; // value and overrides, no percentage: the group percentage still ramps
+	corrupt.erase(at + 9, 1);
+	assert(!throws([&] { decode(corrupt); }));
+	KnobDef forced_only = integer;
+	forced_only.rollout_pct.reset();
+	forced_only.overrides.erase("canary");
+	assert(throws([&] { encode(transaction(1, {{"ns:limit", forced_only, {}, {}}})); }));
+	auto unramped = encode(transaction(1, {{"ns:limit", KnobDef{25}, {}, {}}}));
+	std::string plain(8, '\0');
+	plain[0] = 25;
+	plain += '\0';
+	at = unramped.rfind(plain);
+	assert(at != std::string::npos);
+	auto value_only = unramped;
+	value_only[at + 8] = 0x02;
+	value_only.insert(at + 9, std::string("\x32\0\0\0\0\0\0\0", 8));
+	assert(throws([&] { decode(value_only); }));
+	auto percentage_only = unramped;
+	percentage_only[at + 8] = 0x01;
+	percentage_only.insert(at + 9, std::string("\x0a", 1));
+	assert(throws([&] { decode(percentage_only); }));
+	auto over = percentage_only;
+	over[at + 8] = 0x03;
+	over[at + 9] = 101;
+	over.insert(at + 10, std::string("\x32\0\0\0\0\0\0\0", 8));
+	assert(throws([&] { decode(over); }));
+	auto fixed = over;
+	fixed[at + 9] = 10;
+	assert(decode(fixed).mutations[0].value == (KnobDef{25, {}, 10, 50}));
+}
 void command_continuations() {
 	auto drive = [](CommandDecoder &decoder) {
 		std::size_t turns = 0;
@@ -402,15 +471,16 @@ void command_continuations() {
 		}
 		return turns;
 	};
-	BoolDef definition;
+	KnobDef definition;
 	definition.rollout_pct = 17;
-	definition.overrides[std::string("\0group", 6)] = true;
+	definition.rollout_value = 1;
+	definition.overrides[std::string("\0group", 6)] = std::int64_t{1};
 	definition.overrides["unicode-\xc3\xa9"] = GroupRollout{42};
 	for (unsigned i = 0; i < 254; ++i)
 		definition.overrides["g" + std::to_string(i)] = GroupRollout{25};
 	Limits limits;
 	auto command =
-		transaction(1, {{"ns:a", definition, 0, 0}, {"ns:b", IntDef{3}, {}, {}}, {"ns:c", {}, {}, {}}});
+		transaction(1, {{"ns:a", definition, 0, 0}, {"ns:b", KnobDef{3}, {}, {}}, {"ns:c", {}, {}, {}}});
 	auto bytes = encode(command, limits);
 	CommandDecoder decoder(bytes, limits);
 	CommandWorkBudget insufficient{2047, 1, 8, 32};
@@ -422,16 +492,16 @@ void command_continuations() {
 	assert(encode(validated.command(), limits) == bytes);
 	assert(validated.canonical_digest() == digest(command, limits));
 	assert(validated.limits() == limits);
-	std::size_t expected_bytes = 19;
+	std::size_t expected_bytes = 26; // default, presence, percentage, rollout value, override count
 	for (const auto &[key, value] : definition.overrides)
-		expected_bytes += 8 + key.size() + 1 + (std::holds_alternative<bool>(value) ? 1 : 8);
+		expected_bytes += 8 + key.size() + 1 + (std::holds_alternative<std::int64_t>(value) ? 8 : 1);
 	assert(validated.definition_bytes(0) == expected_bytes);
 	assert(validated.definition_bytes(1) == 9 && validated.definition_bytes(2) == 0);
 	auto close = open();
 	close.kind = Kind::Close;
 	close.nonce = {};
 	close.generation = 1;
-	for (auto small : {open(), close, transaction(1, {{"ns:a", BoolDef{}, {}, {}}})}) {
+	for (auto small : {open(), close, transaction(1, {{"ns:a", KnobDef{}, {}, {}}})}) {
 		auto canonical = encode(small);
 		// Independent old decoder is the oracle. Every accepted corruption
 		// must round-trip exactly, including scalar flags and framing.
@@ -476,8 +546,9 @@ void command_continuations() {
 	assert(!pending.done() && pending.discard(first));
 	assert(drive(moved) > 16);
 	assert(moved.take().canonical_digest() == digest(command, limits));
-	for (auto [mutations, overrides, padding] : {std::tuple{128u, 31u, 40u}, std::tuple{1u, 256u, 39u}}) {
-		BoolDef large;
+	for (auto [mutations, overrides, padding] : {std::tuple{128u, 31u, 47u}, std::tuple{1u, 256u, 46u}}) {
+		KnobDef large;
+		large.rollout_value = 1;
 		for (unsigned i = 0; i < overrides; ++i)
 			large.overrides["group" + std::to_string(i) + std::string(padding, 'x')] = GroupRollout{25};
 		std::vector<Mutation> operations;
@@ -560,7 +631,7 @@ void semantics() {
 	};
 	assert(apply(open()).generation == 1);
 	assert(apply(open()).generation == 1);
-	auto first = transaction(1, {{"ns:a", IntDef{1}, 0, 0}, {"ns:b", BoolDef{}, 0, 0}});
+	auto first = transaction(1, {{"ns:a", KnobDef{1}, 0, 0}, {"ns:b", KnobDef{}, 0, 0}});
 	auto result = apply(first);
 	assert(result.status == Status::Applied && result.revision == 1 && state.size() == 2);
 	auto capture = state;
@@ -569,22 +640,22 @@ void semantics() {
 	assert(digest(reordered, limits) == digest(first, limits));
 	assert(apply(reordered) == result && state.revision() == 1);
 	auto conflict_identity = first;
-	conflict_identity.mutations[0].value = IntDef{9};
+	conflict_identity.mutations[0].value = KnobDef{9};
 	assert(apply(conflict_identity).status == Status::IdentityConflict);
-	auto conflict = transaction(2, {{"ns:a", IntDef{3}, 99, {}}, {"ns:b", std::nullopt, 1, {}}});
+	auto conflict = transaction(2, {{"ns:a", KnobDef{3}, 99, {}}, {"ns:b", std::nullopt, 1, {}}});
 	assert(apply(conflict).status == Status::Conflict && state.size() == 2 && state.revision() == 1);
-	assert(apply(transaction(3, {{"ns:c", IntDef{3}, {}, {}}})).status == Status::Capacity &&
+	assert(apply(transaction(3, {{"ns:c", KnobDef{3}, {}, {}}})).status == Status::Capacity &&
 		   !state.find("ns:c"));
-	assert(apply(transaction(4, {{"ns:a", IntDef{1}, {}, {}}})).status == Status::NoChange &&
+	assert(apply(transaction(4, {{"ns:a", KnobDef{1}, {}, {}}})).status == Status::NoChange &&
 		   state.revision() == 1);
 	assert(apply(first).status == Status::ResultUnavailable && state.revision() == 1);
-	assert(apply(transaction(6, {{"ns:a", IntDef{6}, {}, {}}})).status == Status::SequenceGap);
-	auto replacement = transaction(5, {{"ns:a", std::nullopt, 1, {}}, {"ns:c", IntDef{8}, 0, 1}});
+	assert(apply(transaction(6, {{"ns:a", KnobDef{6}, {}, {}}})).status == Status::SequenceGap);
+	auto replacement = transaction(5, {{"ns:a", std::nullopt, 1, {}}, {"ns:c", KnobDef{8}, 0, 1}});
 	assert(apply(replacement).status == Status::Applied && state.size() == 2 && !state.find("ns:a"));
 	assert(capture.find("ns:a") && capture.size() == 2 && capture.revision() == 1);
-	auto absent_old = transaction(6, {{"ns:a", IntDef{1}, 0, 1}});
+	auto absent_old = transaction(6, {{"ns:a", KnobDef{1}, 0, 1}});
 	assert(apply(absent_old).status == Status::Conflict);
-	auto recreate = transaction(7, {{"ns:c", std::nullopt, 2, {}}, {"ns:a", IntDef{1}, 0, 2}});
+	auto recreate = transaction(7, {{"ns:c", std::nullopt, 2, {}}, {"ns:a", KnobDef{1}, 0, 2}});
 	assert(apply(recreate).status == Status::Applied && state.find("ns:a")->revision == 3);
 	assert(apply(transaction(8, {{"ns:a", std::nullopt, 1, {}}})).status == Status::Conflict);
 	auto bytes = state.checkpoint();
@@ -604,7 +675,7 @@ void semantics() {
 	assert(apply(open(1, 'b')).generation == 2);
 	assert(apply(open()).status == Status::FencedSession);
 	assert(apply(first).status == Status::FencedSession);
-	auto reset = transaction(1, {{"ns:a", IntDef{99}, {}, {}}}, 2);
+	auto reset = transaction(1, {{"ns:a", KnobDef{99}, {}, {}}}, 2);
 	assert(apply(reset).status == Status::Applied);
 	auto foreign = context();
 	foreign.epoch[0] = 'x';
@@ -612,8 +683,8 @@ void semantics() {
 	auto wrong_limits = limits;
 	++wrong_limits.results;
 	assert(throws([&] { State::restore(bytes, context(), wrong_limits); }));
-	auto grouped = std::vector<Command>{transaction(2, {{"ns:a", IntDef{100}, {}, {}}}, 2),
-										transaction(3, {{"ns:a", IntDef{101}, {}, {}}}, 2)};
+	auto grouped = std::vector<Command>{transaction(2, {{"ns:a", KnobDef{100}, {}, {}}}, 2),
+										transaction(3, {{"ns:a", KnobDef{101}, {}, {}}}, 2)};
 	auto batch = encode_batch(grouped, limits);
 	auto mismatched = limits;
 	++mismatched.results;
@@ -633,13 +704,14 @@ void semantics() {
 	malformed = first;
 	malformed.mutations[0].key = "other:key";
 	assert(throws([&] { encode(malformed, limits); }));
-	BoolDef opaque;
+	KnobDef opaque;
+	opaque.rollout_value = 1;
 	opaque.overrides[std::string("a\0b", 3)] = GroupRollout{17};
 	auto opaque_command = transaction(4, {{"ns:a", opaque, {}, {}}}, 2);
 	auto decoded = decode(encode(opaque_command, limits), limits);
 	assert(decoded.mutations[0].value == opaque_command.mutations[0].value);
 	assert(state.apply(++index, opaque_command).status == Status::Applied);
-	assert(*State::restore(state.checkpoint(), context(), limits).find("ns:a")->value == KnobDef{opaque});
+	assert(*State::restore(state.checkpoint(), context(), limits).find("ns:a")->value == opaque);
 	assert(sizeof(Receipt) <= 128);
 }
 void incremental_batches() {
@@ -648,11 +720,11 @@ void incremental_batches() {
 	State original(context(), limits);
 	const auto before = original.checkpoint();
 	std::vector<Command> commands{open(),
-								  transaction(1, {{"ns:a", IntDef{1}, 0, 0}}),
-								  transaction(1, {{"ns:a", IntDef{1}, 0, 0}}),
-								  transaction(2, {{"ns:a", IntDef{2}, 99, {}}}),
-								  transaction(3, {{"ns:b", IntDef{3}, 0, 1}}),
-								  transaction(4, {{"ns:c", IntDef{4}, 0, 2}})};
+								  transaction(1, {{"ns:a", KnobDef{1}, 0, 0}}),
+								  transaction(1, {{"ns:a", KnobDef{1}, 0, 0}}),
+								  transaction(2, {{"ns:a", KnobDef{2}, 99, {}}}),
+								  transaction(3, {{"ns:b", KnobDef{3}, 0, 1}}),
+								  transaction(4, {{"ns:c", KnobDef{4}, 0, 2}})};
 	auto expected = original;
 	auto results = expected.apply_batch(1, commands, 2);
 	assert(results[3].status == Status::Conflict && results[5].status == Status::Capacity);
@@ -725,7 +797,7 @@ void streaming_images() {
 	for (int batch = 0; batch < 40; ++batch) {
 		std::vector<Mutation> mutations;
 		for (int key = 0; key < 128; ++key)
-			mutations.push_back({"ns:key" + std::to_string(batch * 128 + key), IntDef{key}, {}, {}});
+			mutations.push_back({"ns:key" + std::to_string(batch * 128 + key), KnobDef{key}, {}, {}});
 		assert(state.apply(++index, transaction(++sequence, std::move(mutations))).status == Status::Applied);
 	}
 	auto bytes = state.checkpoint();
@@ -780,7 +852,7 @@ void streaming_images() {
 	for (std::size_t i = 152; i < 160; ++i)
 		exhausted[i] = static_cast<char>(255);
 	auto recovered = State::restore(exhausted, context());
-	auto outcome = recovered.apply(++index, transaction(++sequence, {{"ns:key0", IntDef{-1}, {}, {}}}));
+	auto outcome = recovered.apply(++index, transaction(++sequence, {{"ns:key0", KnobDef{-1}, {}, {}}}));
 	assert(outcome.status == Status::Exhausted);
 	assert(recovered.find("ns:key0")->revision == state.find("ns:key0")->revision);
 	assert(recovered.lookup("writer", 1, sequence) == outcome);
@@ -796,8 +868,8 @@ void registry_and_generation_limits() {
 	auto other = open();
 	other.producer = "other";
 	assert(state.apply(2, other).status == Status::Capacity);
-	assert(state.apply(3, transaction(1, {{"ns:key", IntDef{1}, {}, {}}})).status == Status::Applied);
-	auto next = transaction(2, {{"other:key", IntDef{2}, {}, {}}});
+	assert(state.apply(3, transaction(1, {{"ns:key", KnobDef{1}, {}, {}}})).status == Status::Applied);
+	auto next = transaction(2, {{"other:key", KnobDef{2}, {}, {}}});
 	next.name_space = "other";
 	assert(state.apply(4, next).status == Status::Capacity);
 	assert(state.apply(5, transaction(3, {{"ns:key", std::nullopt, {}, {}}})).status == Status::Applied);
@@ -832,13 +904,13 @@ void concurrent_cas() {
 	second.producer = "second";
 	state.apply(1, first);
 	state.apply(2, second);
-	auto a = transaction(1, {{"ns:a", IntDef{1}, {}, {}}, {"ns:b", IntDef{2}, {}, {}}});
+	auto a = transaction(1, {{"ns:a", KnobDef{1}, {}, {}}, {"ns:b", KnobDef{2}, {}, {}}});
 	assert(state.apply(3, a).revision == 1);
-	auto b = transaction(1, {{"ns:a", IntDef{1}, 1, {}}, {"ns:b", IntDef{3}, 1, {}}});
+	auto b = transaction(1, {{"ns:a", KnobDef{1}, 1, {}}, {"ns:b", KnobDef{3}, 1, {}}});
 	b.producer = "second";
 	assert(state.apply(4, b).revision == 2);
 	assert(state.find("ns:a")->revision == 1 && state.find("ns:b")->revision == 2);
-	auto stale = transaction(2, {{"ns:a", IntDef{4}, 1, {}}, {"ns:b", IntDef{5}, 1, {}}});
+	auto stale = transaction(2, {{"ns:a", KnobDef{4}, 1, {}}, {"ns:b", KnobDef{5}, 1, {}}});
 	assert(state.apply(5, stale).status == Status::Conflict);
 	assert(state.find("ns:a")->revision == 1 && state.revision() == 2);
 	auto before = state.checkpoint();
@@ -850,6 +922,7 @@ void concurrent_cas() {
 int main() {
 	trees();
 	deferred_values();
+	integer_targeting();
 	command_continuations();
 	command_encoding();
 	prepared_proposals();

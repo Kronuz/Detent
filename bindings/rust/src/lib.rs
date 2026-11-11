@@ -1,5 +1,5 @@
 // The Rust binding, via the `cxx` crate: a thin bridge over detent::Client (see
-// src/shim.hh/.cc for the C++ side) -- eval()/get() carry the exact same
+// src/shim.hh/.cc for the C++ side) -- get()/get_bool() carry the exact same
 // precedence chain and strict parsing the C++ API,
 // Python binding, and detent-agent's CLI all use, reused unchanged.
 //
@@ -14,8 +14,7 @@ mod ffi {
         source_connected: bool,
         accepted_version: u64,
         staleness_seconds: f64,
-        bool_knobs: usize,
-        int_knobs: usize,
+        knobs: usize,
         cli_overrides: usize,
     }
 
@@ -32,7 +31,16 @@ mod ffi {
             poll_interval_ms: i32,
         ) -> Result<UniquePtr<ClientHandle>>;
 
-        fn eval(
+        fn get(
+            client: &ClientHandle,
+            name: &str,
+            has_hash: bool,
+            hash_val: &str,
+            has_switch: bool,
+            switch_val: &str,
+        ) -> Result<i64>;
+
+        fn get_bool(
             client: &ClientHandle,
             name: &str,
             has_hash: bool,
@@ -40,8 +48,6 @@ mod ffi {
             has_switch: bool,
             switch_val: &str,
         ) -> Result<bool>;
-
-        fn get_int(client: &ClientHandle, name: &str, has_switch: bool, switch_val: &str) -> Result<i64>;
 
         fn health(client: &ClientHandle) -> HealthInfo;
     }
@@ -94,16 +100,17 @@ impl Client {
         Ok(Client { inner })
     }
 
-    /// Evaluates a bool knob. Precedence: CLI override ->
-    /// `switch_val` group match -> `rollout_pct` hash gate (if
-    /// `rollout_pct` is set and `hash_val` is given) -> default.
-    pub fn eval(
+    /// Reads a knob's int64 value. Precedence: CLI override -> `switch_val`
+    /// group match (a forced value, or `rollout_value` for a hash inside the
+    /// group's percentage) -> `rollout_pct` (`rollout_value` for a hash
+    /// inside it) -> default.
+    pub fn get(
         &self,
         name: &str,
         hash_val: Option<&str>,
         switch_val: Option<&str>,
-    ) -> Result<bool, DetentError> {
-        ffi::eval(
+    ) -> Result<i64, DetentError> {
+        ffi::get(
             &self.inner,
             name,
             hash_val.is_some(),
@@ -114,12 +121,23 @@ impl Client {
         .map_err(|e| DetentError(e.to_string()))
     }
 
-    /// Reads an int knob's value. `switch_val` is accepted for signature
-    /// symmetry with `eval()` but ignored (the int model has no
-    /// per-group overrides in v1).
-    pub fn get(&self, name: &str, switch_val: Option<&str>) -> Result<i64, DetentError> {
-        ffi::get_int(&self.inner, name, switch_val.is_some(), switch_val.unwrap_or(""))
-            .map_err(|e| DetentError(e.to_string()))
+    /// `get()`, then 0 is `false` and 1 is `true`; any other value is a
+    /// `ConversionFailed` error.
+    pub fn get_bool(
+        &self,
+        name: &str,
+        hash_val: Option<&str>,
+        switch_val: Option<&str>,
+    ) -> Result<bool, DetentError> {
+        ffi::get_bool(
+            &self.inner,
+            name,
+            hash_val.is_some(),
+            hash_val.unwrap_or(""),
+            switch_val.is_some(),
+            switch_val.unwrap_or(""),
+        )
+        .map_err(|e| DetentError(e.to_string()))
     }
 
     /// Diagnostic snapshot.

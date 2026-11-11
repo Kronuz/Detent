@@ -78,7 +78,7 @@ struct GraphValidator::Impl {
 	SHA256 segment_hash;
 	std::size_t index = 0, offset = 0, bitmap_size = 0, depth = 0, key_size = 0, charge = 0;
 	std::uint64_t physical_bytes = 0, extent_bytes = 0, pages = 0, records = 0, hashed_bytes = 0;
-	std::uint32_t bools = 0, ints = 0, maximum_overrides = 0;
+	std::uint32_t maximum_overrides = 0;
 	std::uint64_t overrides = 0;
 	std::array<std::uint32_t, 257> override_histogram{};
 	SegmentRegistry *recorded_registry = nullptr;
@@ -166,11 +166,10 @@ struct GraphValidator::Impl {
 			const auto definition = p::validate_definition(body, found->revision);
 			require(definition.overrides <= semantic_limits.overrides);
 			const auto text = parsed.name_space.size() + parsed.local_name.size() + 1 + body.size() -
-							  p::definition_header_bytes -
+							  p::header_size(definition) -
 							  std::uint64_t(definition.overrides) * p::override_header_bytes;
 			require(text <= semantic_limits.strings - strings);
 			strings += text;
-			definition.boolean ? ++bools : ++ints;
 			overrides += definition.overrides;
 			maximum_overrides = std::max(maximum_overrides, definition.overrides);
 			++override_histogram[definition.overrides];
@@ -382,7 +381,7 @@ std::uint64_t GraphValidator::hashed_segment_bytes() const noexcept {
 PagedStateCounts GraphValidator::counts() const {
 	if (!done())
 		throw std::logic_error("graph validation incomplete");
-	return {impl_->bools, impl_->ints, impl_->overrides, impl_->strings, impl_->maximum_overrides};
+	return {static_cast<std::uint32_t>(impl_->records), impl_->overrides, impl_->strings, impl_->maximum_overrides};
 }
 std::pair<std::shared_ptr<const void>, std::span<const SegmentInput>>
 GraphValidator::validated_inputs() const {
@@ -446,7 +445,7 @@ ReadView GraphValidator::take(distribution::RetirementFactory factory,
 		throw std::logic_error("graph validation incomplete");
 	auto &state = *impl_;
 	auto root = factory.make<ReadView::Root>(state.owner, PagedReadState{state.expected, state.segments},
-											 state.bools, state.ints, state.overrides, state.strings);
+											 state.overrides, state.strings);
 	impl_.reset();
 	return ReadView(std::move(root));
 }

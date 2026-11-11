@@ -43,9 +43,8 @@ std::string encode(const Snapshot &knobs, const d::Cursor &cursor, std::vector<s
 		for (const auto &[name, def] : rows) {
 			++records;
 			strings += name.size();
-			if (const auto *flag = std::get_if<BoolDef>(def))
-				for (const auto &[group, value] : flag->overrides)
-					++overrides, strings += group.size();
+			for (const auto &[group, value] : def->overrides)
+				++overrides, strings += group.size();
 		}
 	}
 	std::string out;
@@ -79,22 +78,12 @@ std::string encode(const Snapshot &knobs, const d::Cursor &cursor, std::vector<s
 			m::unsigned_integer(out, index);
 			m::string(out, name);
 			m::unsigned_integer(out, cursor.revision);
-			if (const auto *flag = std::get_if<BoolDef>(def)) {
-				m::array(out, 4);
-				m::unsigned_integer(out, 0);
-				out.push_back(flag->default_value ? '\xc3' : '\xc2');
-				if (flag->rollout_pct)
-					m::unsigned_integer(out, *flag->rollout_pct);
-				else
-					out.push_back('\xc0');
-				m::array(out, flag->overrides.size());
-				for (const auto &[group, value] : flag->overrides)
-					d::detail::wire::override_row(out, group, value);
-			} else {
-				m::array(out, 2);
-				m::unsigned_integer(out, 1);
-				m::signed_integer(out, std::get<IntDef>(*def).default_value);
-			}
+			d::detail::wire::definition(out, d::WireDefinition{def->default_value,
+															   {0, def->overrides.size()},
+															   def->rollout_pct,
+															   def->rollout_value});
+			for (const auto &[group, value] : def->overrides)
+				d::detail::wire::override_row(out, group, value);
 		}
 		++index;
 	}

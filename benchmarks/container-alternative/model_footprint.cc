@@ -97,12 +97,12 @@ int main(int argc, char** argv) {
         {
             detent::Snapshot snapshot;
             for (unsigned i : order) {
-                detent::BoolDef value;
+                detent::KnobDef value;
                 for (unsigned group = 0; group < 3; ++group) {
                     auto suffix = std::to_string(group);
                     auto key = std::string(long_keys ? 128 : 5 + suffix.size(), 'g');
                     key.replace(key.size() - suffix.size(), suffix.size(), suffix);
-                    value.overrides.emplace(std::move(key), group % 2 == 0);
+                    value.overrides.emplace(std::move(key), std::int64_t(group % 2 == 0));
                 }
                 snapshot.knobs.emplace(knob_name(i, long_keys), std::move(value));
             }

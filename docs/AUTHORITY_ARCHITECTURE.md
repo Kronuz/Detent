@@ -90,7 +90,7 @@ Each request uses `Authorization: Bearer TOKEN` and carries the exact `cluster`,
 | `POST /v2/result` | `generation`, `sequence` |
 | `GET /v1/health` | None; loopback status is unauthenticated |
 
-An operation supplies `key` and `value`, using the existing bool/int definition schema (`{"type":"int","default":42}`) or `null` for deletion. Omit `expected_revision` for unconditional replacement, use a positive modification revision to compare an existing key, or use zero together with `absent_namespace_revision` to compare absence.
+An operation supplies `key` and `value`, using the knob definition schema (`{"default":42}`, or `{"default":0,"rollout_pct":10,"rollout_value":1}`) or `null` for deletion. Omit `expected_revision` for unconditional replacement, use a positive modification revision to compare an existing key, or use zero together with `absent_namespace_revision` to compare absence.
 
 Responses carry authority identity and compact outcomes. `applied` and `no_change` are terminal successes; a retained retry returns the original outcome and revision. Conflict, logical capacity rejection and revision exhaustion also consume the next sequence. `outcome_unknown` after a timeout requires retrying the same generation, sequence and contents. Strong reads and cached result lookup use a quorum barrier. Never advance sequence solely because the connection disappeared.
 

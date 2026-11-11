@@ -32,16 +32,16 @@ int main() {
 	value.storage.fill(0x11);
 	value.generation.fill(0x22);
 	value.root_checksum.fill(0x33);
-	value.counts = {2, 3, 3, 41, 2};
+	value.counts = {5, 3, 41, 2};
 	value.physical_bytes = 8192;
 	const auto bytes = d::encode_reader_metadata(value);
 	// Independent struct.pack/hashlib vector.
 	constexpr std::string_view hex = "445452454144303100000001000000c011111111111111111111111111111111"
 	                                 "2222222222222222222222222222222233333333333333333333333333333333"
-	                                 "3333333333333333333333333333333300000002000000030000000000000003"
+	                                 "3333333333333333333333333333333300000005000000000000000000000003"
 	                                 "0000000000000029000000000000200000000002000000010000000000000000"
 	                                 "0000000000000000000000000000000000000000000000000000000000000000"
-	                                 "541249b056035be20e3454d8ca026b13f3a927e6383f257a75cc3e09ab221910";
+	                                 "8f6da26dcfdd70d2bccae97aabb00f275f3cc19a2922ff2f61fb2f33758f4336";
 	check(hex.size() == bytes.size() * 2);
 	auto digit = [](char byte) { return byte <= '9' ? byte - '0' : byte - 'a' + 10; };
 	for (std::size_t i = 0; i != bytes.size(); ++i)
@@ -56,7 +56,7 @@ int main() {
 	}
 	{
 		auto corrupt = bytes;
-		l::write_integer(corrupt, 80, UINT32_MAX, 4);
+		l::write_integer(corrupt, 84, 1, 4);
 		rejected([&] { d::validate_reader_metadata_prefix(std::span(corrupt).first(88), value); });
 		corrupt = bytes;
 		l::write_integer(corrupt, 112, 0, 4);
@@ -71,7 +71,7 @@ int main() {
 	std::array<char, d::reader_metadata_bytes + 1> long_record{};
 	std::copy(bytes.begin(), bytes.end(), long_record.begin());
 	rejected([&] { d::decode_reader_metadata(long_record); });
-	for (auto offset : {8u, 12u, 116u, 120u, 159u}) {
+	for (auto offset : {8u, 12u, 84u, 116u, 120u, 159u}) {
 		auto corrupt = bytes;
 		corrupt[offset] ^= 1;
 		reseal(corrupt);
@@ -90,13 +90,13 @@ int main() {
 			invalid.root_checksum.fill(0);
 			break;
 		case 3:
-			invalid.counts.bools = UINT32_MAX;
+			invalid.counts.records = 0;
 			break;
 		case 4:
 			invalid.counts.maximum_overrides = 257;
 			break;
 		case 5:
-			invalid.counts.overrides = 5;
+			invalid.counts.overrides = 11;
 			break;
 		case 6:
 			invalid.physical_bytes = l::paged::root_bytes - 1;

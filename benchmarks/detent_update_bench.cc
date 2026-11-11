@@ -23,8 +23,8 @@ using Clock = std::chrono::steady_clock;
 namespace {
 
 // Builds a `num_knobs`-entry source snapshot and matching baked-defaults
-// payload -- a synthetic but realistically-shaped deployment (mixed bool/int
-// knobs, some with rollout percentages, namespaced names).
+// payload -- a synthetic but realistically-shaped deployment (0/1 flags and
+// plain values, some with rollout percentages, namespaced names).
 std::pair<std::string, std::string> build_payloads(std::size_t num_knobs) {
 	std::ostringstream defaults, live;
 	defaults << R"({"schema_version":1,"knobs":{)";
@@ -33,11 +33,11 @@ std::pair<std::string, std::string> build_payloads(std::size_t num_knobs) {
 		if (i) { defaults << ','; live << ','; }
 		auto name = "ns" + std::to_string(i % 20) + ":knob_" + std::to_string(i);
 		if (i % 2 == 0) {
-			defaults << '"' << name << R"(":{"type":"bool","default":false})";
-			live << '"' << name << R"(":{"type":"bool","default":false,"rollout_pct":)" << (i % 101) << "}";
+			defaults << '"' << name << R"(":{"default":0})";
+			live << '"' << name << R"(":{"default":0,"rollout_pct":)" << (i % 101) << R"(,"rollout_value":1})";
 		} else {
-			defaults << '"' << name << R"(":{"type":"int","default":)" << i << "}";
-			live << '"' << name << R"(":{"type":"int","default":)" << (i * 2) << "}";
+			defaults << '"' << name << R"(":{"default":)" << i << "}";
+			live << '"' << name << R"(":{"default":)" << (i * 2) << "}";
 		}
 	}
 	defaults << "}}";

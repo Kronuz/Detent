@@ -72,7 +72,7 @@ struct StoreCore {
 			paged::encode_root(generation.paged_->root(), paged_format_limits()) != paged::encode_root(plan.root(), paged_format_limits()))
 			throw std::invalid_argument("paged recovered graph differs from publication plan");
 		const auto counts = generation.paged_->counts(), expected = plan.counts();
-		if (counts.bools != expected.bools || counts.ints != expected.ints ||
+		if (counts.records != expected.records ||
 			counts.overrides != expected.overrides || counts.strings != expected.strings ||
 			counts.maximum_overrides != expected.maximum_overrides)
 			throw std::invalid_argument("paged recovered counts differ from publication plan");

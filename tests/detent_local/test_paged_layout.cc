@@ -213,10 +213,10 @@ int main() {
 	n = p::encode_namespace_key(key, "ns");
 	require(p::decode_key({key.data(), n}).name_space == "ns");
 	rejects([&] { p::decode_key(std::string_view("Kns\0\0", 5)); });
-	detent::KnobDef def = detent::IntDef{INT64_MIN};
+	detent::KnobDef def{INT64_MIN};
 	std::vector<char> body(p::definition_size(def));
 	p::encode_definition(body, def, 17);
-	require(p::validate_definition(body, 17).default_int == INT64_MIN);
+	require(p::validate_definition(body, 17).default_value == INT64_MIN);
 	rejects([&] { p::validate_definition(body, 16); });
 	std::cout << "exact version-3 reference/root/page fixtures and malformed "
 				 "framing passed\n";

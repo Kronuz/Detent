@@ -74,10 +74,11 @@ int main() {
 	open.producer = "writer";
 	open.nonce[0] = 'n';
 	assert(state.apply(1, open).status == Status::Applied);
-	BoolDef boolean;
-	boolean.overrides[std::string("a\0\"\\\n", 5)] = true;
+	KnobDef boolean;
+	boolean.rollout_value = 1;
+	boolean.overrides[std::string("a\0\"\\\n", 5)] = std::int64_t{1};
 	boolean.overrides["é雪"] = GroupRollout{37};
-	boolean.overrides["false"] = false;
+	boolean.overrides["false"] = std::int64_t{0};
 	Command write;
 	write.context = context;
 	write.producer = "writer";
@@ -85,8 +86,8 @@ int main() {
 	write.sequence = 1;
 	write.name_space = "ns";
 	write.mutations.push_back({"ns:bool", KnobDef{boolean}, {}, {}});
-	write.mutations.push_back({"ns:min", IntDef{std::numeric_limits<std::int64_t>::min()}, {}, {}});
-	write.mutations.push_back({"ns:max", IntDef{std::numeric_limits<std::int64_t>::max()}, {}, {}});
+	write.mutations.push_back({"ns:min", KnobDef{std::numeric_limits<std::int64_t>::min()}, {}, {}});
+	write.mutations.push_back({"ns:max", KnobDef{std::numeric_limits<std::int64_t>::max()}, {}, {}});
 	assert(state.apply(2, write).status == Status::Applied);
 	for (auto keys : {std::vector<std::string>{},
 					  std::vector<std::string>{"ns:max", "ns:missing", "ns:bool", "ns:min"}}) {
@@ -136,9 +137,10 @@ int main() {
 	// A maximum legal read keeps exactly one old arena across replacement.
 	State large(context);
 	assert(large.apply(1, open).status == Status::Applied);
-	BoolDef dense;
+	KnobDef dense;
+	dense.rollout_value = 1;
 	for (unsigned i = 0; i < 256; ++i)
-		dense.overrides["group" + std::to_string(i) + std::string(46, 'k')] = true;
+		dense.overrides["group" + std::to_string(i) + std::string(39, 'k')] = std::int64_t{1};
 	dense.overrides.begin()->second = GroupRollout{100};
 	std::vector<std::string> many_keys;
 	for (unsigned i = 0; i < 128; ++i) {

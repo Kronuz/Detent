@@ -25,7 +25,7 @@ template <class Action> void rejects_corruption(Action action) {
 }
 bool same_counts(const l::detail::PagedStateCounts &a,
                  const l::detail::PagedStateCounts &b) {
-  return a.bools == b.bools && a.ints == b.ints && a.overrides == b.overrides &&
+  return a.records == b.records && a.overrides == b.overrides &&
          a.strings == b.strings && a.maximum_overrides == b.maximum_overrides;
 }
 template <class Validator> void bounded(Validator &validator) {
@@ -92,8 +92,8 @@ void warm_skips() {
     x::PagedReadState state{root, merged};
     for (unsigned j = 0; j != 500; ++j) {
       const auto key = "k" + std::to_string(100000 + j);
-      check(state.definition("a", key)->default_int() == 42 + j);
-      check(state.definition("b", key)->default_bool());
+      check(state.definition("a", key)->default_value() == 42 + j);
+      check(state.definition("b", key)->default_value() == 1);
     }
   }
   for (unsigned field : {32u, 40u, 44u}) {

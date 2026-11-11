@@ -77,12 +77,10 @@ struct Fixture {
       packed->rows.push_back(
           {std::string(key.data(), length), std::move(watermark)});
       for (unsigned j = 0; j != per_namespace; ++j) {
-        detent::BoolDef boolean;
-        boolean.default_value = true;
-        boolean.overrides.emplace("force", false);
-        const detent::KnobDef source =
-            i ? detent::KnobDef(boolean)
-              : detent::KnobDef(detent::IntDef{42 + j});
+        detent::KnobDef source;
+        source.default_value = i ? 1 : 42 + j;
+        if (i)
+          source.overrides.emplace("force", std::int64_t{0});
         std::vector<char> body(p::definition_size(source));
         p::encode_definition(body, source, 8);
         const auto name =

@@ -60,20 +60,16 @@ ViewLimits ViewLimits::prepared() {
 }
 ReadView::Root::Root(std::shared_ptr<const void> owner, std::span<const char> region, Header metadata)
 	: lease(std::move(owner)), bytes(region), header(metadata) {}
-ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state,
-					 std::uint32_t boolean_count, std::uint32_t integer_count, std::uint64_t overrides,
+ReadView::Root::Root(std::shared_ptr<const void> owner, detail::PagedReadState state, std::uint64_t overrides,
 					 std::uint64_t strings)
 	: Root() {
-	install_paged(std::move(owner), state, boolean_count, integer_count, overrides, strings);
+	install_paged(std::move(owner), state, overrides, strings);
 }
 void ReadView::Root::install_paged(std::shared_ptr<const void> owner, detail::PagedReadState state,
-								   std::uint32_t boolean_count, std::uint32_t integer_count,
 								   std::uint64_t overrides, std::uint64_t strings) {
 	if (lease || paged || !owner)
 		throw std::logic_error("paged read root installation unavailable");
 	lease = std::move(owner);
-	bools = boolean_count;
-	ints = integer_count;
 	paged = state;
 	header.cursor = state.root.cursor;
 	header.profile = state.root.profile;
@@ -163,17 +159,15 @@ detail::SourceRecord detail::FlatStateRows::record(std::uint32_t ordinal) const 
 	const auto row = root.header.layout.record_offset + std::uint64_t(ordinal) * record_bytes;
 	SourceRecord result{
 		static_cast<std::uint32_t>(root.number(row + 12, 4)), root.text(row), root.number(row + 16, 8), {}};
-	if (root.number(row + 44, 1))
-		result.definition = IntDef{std::bit_cast<std::int64_t>(root.number(row + 24, 8))};
-	else {
-		SourceBoolean boolean;
-		boolean.default_value = root.number(row + 24, 8) != 0;
-		if (root.number(row + 45, 1))
-			boolean.rollout_pct = static_cast<std::uint8_t>(root.number(row + 46, 1));
-		boolean.override_start = root.number(row + 32, 8);
-		boolean.override_count = root.number(row + 40, 4);
-		result.definition = boolean;
-	}
+	auto &definition = result.definition;
+	const auto flags = root.number(row + 44, 1);
+	definition.default_value = std::bit_cast<std::int64_t>(root.number(row + 24, 8));
+	if (flags & 1)
+		definition.rollout_pct = static_cast<std::uint8_t>(root.number(row + 45, 1));
+	if (flags & 2)
+		definition.rollout_value = std::bit_cast<std::int64_t>(root.number(row + 48, 8));
+	definition.override_start = root.number(row + 32, 8);
+	definition.override_count = root.number(row + 40, 4);
 	return result;
 }
 detail::SourceOverride detail::FlatStateRows::override_value(std::uint64_t ordinal) const {
@@ -181,9 +175,10 @@ detail::SourceOverride detail::FlatStateRows::override_value(std::uint64_t ordin
 		throw std::out_of_range("pinned override ordinal");
 	const auto &root = *view_.root_;
 	const auto row = root.header.layout.override_offset + ordinal * override_bytes;
-	const auto value = static_cast<std::uint8_t>(root.number(row + 13, 1));
-	return {root.text(row),
-			root.number(row + 12, 1) ? GroupOverride(GroupRollout{value}) : GroupOverride(bool(value))};
+	const auto value = root.number(row + 16, 8);
+	return {root.text(row), root.number(row + 12, 1)
+								? GroupOverride(GroupRollout{static_cast<std::uint8_t>(value)})
+								: GroupOverride(std::bit_cast<std::int64_t>(value))};
 }
 struct ImageValidator::Impl {
 	distribution::RetirementHandle<ReadView::Root> root;
@@ -192,6 +187,7 @@ struct ImageValidator::Impl {
 	std::uint64_t active_override = 0, active_count = 0;
 	std::string_view previous_ns, previous_key, previous_group;
 	std::uint64_t previous_index = 0;
+	bool percentage = false, valued = false;   // the active record's: some percentage, a rollout value
 	bool failed = false, complete = false;
 	void string_row(std::uint64_t row, std::string_view value) {
 		require(root->number(row, 8) == strings);
@@ -231,14 +227,15 @@ struct ImageValidator::Impl {
 			auto name = root->text(r);
 			require(is_valid_group_key(name) && valid_utf8(name, false) &&
 					(active_override == 0 || previous_group < name));
-			auto tag = root->number(r + 12, 1), value = root->number(r + 13, 1);
-			require(tag <= 1 && value <= (tag ? 100 : 1) && root->number(r + 14, 2) == 0 &&
-					root->number(r + 16, 8) == 0);
+			auto tag = root->number(r + 12, 1), value = root->number(r + 16, 8);
+			require(tag <= 1 && (!tag || value <= 100) && root->number(r + 13, 3) == 0);
+			percentage = percentage || tag;
 			string_row(r, name);
 			previous_group = name;
 			++override_index;
 			++active_override;
-			--active_count;
+			if (!--active_count)
+				require(percentage == valued);
 			return;
 		}
 		if (record < l.records) {
@@ -252,23 +249,21 @@ struct ImageValidator::Impl {
 					(index == previous_index && previous_key < name));
 			auto rev = root->number(r + 16, 8);
 			require(rev > 0 && rev <= root->number(l.namespace_offset + index * namespace_bytes + 16, 8));
-			auto type = root->number(r + 44, 1), has_pct = root->number(r + 45, 1),
-				 pct = root->number(r + 46, 1), count = root->number(r + 40, 4);
-			require(type <= 1 && has_pct <= 1 && pct <= 100 && (has_pct || pct == 0) &&
-					root->number(r + 47, 1) == 0);
+			auto flags = root->number(r + 44, 1), pct = root->number(r + 45, 1), count = root->number(r + 40, 4);
+			require(flags <= 3 && pct <= 100 && ((flags & 1) || pct == 0) && root->number(r + 46, 2) == 0 &&
+					((flags & 2) || root->number(r + 48, 8) == 0));
 			require(root->number(r + 32, 8) == override_index && count <= limits.overrides &&
 					count <= l.overrides - override_index);
-			require(type == 0 ? root->number(r + 24, 8) <= 1 : count == 0 && has_pct == 0);
+			percentage = flags & 1;
+			valued = flags & 2;
+			if (!count)
+				require(percentage == valued);
 			string_row(r, name);
 			previous_index = index;
 			previous_key = name;
 			active_count = count;
 			active_override = 0;
 			previous_group = {};
-			if (type == 0)
-				++root->bools;
-			else
-				++root->ints;
 			++record;
 			return;
 		}
@@ -332,20 +327,21 @@ const distribution::Cursor &ReadView::cursor() const {
 	return root_->header.cursor;
 }
 std::uint32_t ReadView::size() const noexcept { return root_ ? root_->header.layout.records : 0; }
-std::uint32_t ReadView::bool_count() const noexcept { return root_ ? root_->bools : 0; }
-std::uint32_t ReadView::int_count() const noexcept { return root_ ? root_->ints : 0; }
 bool ReadView::contains(std::string_view ns, std::string_view key) const {
 	return root_ && valid_lookup(ns, key) && root_->definition(ns, key).has_value();
 }
-Result<std::int64_t, KnobError> ReadView::get(std::string_view ns, std::string_view key) const {
+Result<std::int64_t, KnobError> ReadView::get(std::string_view ns, std::string_view key,
+											  std::optional<std::string_view> hash,
+											  std::optional<std::string_view> switch_value) const {
 	if (!root_)
 		return error(ErrorCategory::Uninitialized, key);
-	auto result = try_get(ns, key);
+	auto result = try_get(ns, key, hash, switch_value);
 	return result ? std::move(*result)
 				  : Result<std::int64_t, KnobError>(error(ErrorCategory::MissingKnob, key));
 }
-std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_view ns,
-																 std::string_view key) const {
+std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_view ns, std::string_view key,
+																 std::optional<std::string_view> hash,
+																 std::optional<std::string_view> switch_value) const {
 	if (!valid_lookup(ns, key))
 		return error(ErrorCategory::InvalidName, key);
 	if (!root_)
@@ -354,38 +350,6 @@ std::optional<Result<std::int64_t, KnobError>> ReadView::try_get(std::string_vie
 		const auto definition = root_->definition(ns, key);
 		if (!definition)
 			return {};
-		if (definition->boolean())
-			return error(ErrorCategory::WrongType, key);
-		return definition->default_int();
-	} catch (const std::bad_alloc &) {
-		throw;
-	} catch (const distribution::StoragePressure &) {
-		throw;
-	} catch (const std::exception &) {
-		return error(ErrorCategory::SourceFailure, key);
-	}
-}
-Result<bool, KnobError> ReadView::eval(std::string_view ns, std::string_view key,
-									   std::optional<std::string_view> hash,
-									   std::optional<std::string_view> switch_value) const {
-	if (!root_)
-		return error(ErrorCategory::Uninitialized, key);
-	auto result = try_eval(ns, key, hash, switch_value);
-	return result ? std::move(*result) : Result<bool, KnobError>(error(ErrorCategory::MissingKnob, key));
-}
-std::optional<Result<bool, KnobError>>
-ReadView::try_eval(std::string_view ns, std::string_view key, std::optional<std::string_view> hash,
-				   std::optional<std::string_view> switch_value) const {
-	if (!valid_lookup(ns, key))
-		return error(ErrorCategory::InvalidName, key);
-	if (!root_)
-		return {};
-	try {
-		const auto definition = root_->definition(ns, key);
-		if (!definition)
-			return {};
-		if (!definition->boolean())
-			return error(ErrorCategory::WrongType, key);
 		return evaluate(*definition, ns, key, hash, switch_value);
 	} catch (const std::bad_alloc &) {
 		throw;

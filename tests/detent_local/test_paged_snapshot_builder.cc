@@ -154,7 +154,7 @@ void recover_dependencies(const l::detail::PagedImage &image, std::shared_ptr<d:
 			}
 			require(certified.hashed_segment_bytes() == 0);
 			const auto first = validator.counts(), second = certified.counts();
-			require(first.bools == second.bools && first.ints == second.ints &&
+			require(first.records == second.records &&
 					first.overrides == second.overrides && first.strings == second.strings &&
 					first.maximum_overrides == second.maximum_overrides);
 			for (std::size_t i = 0; i < registry->inputs().size(); ++i)
@@ -300,8 +300,8 @@ int main() {
 		auto domain = runtime.domain(controls, 16);
 		auto view = validator.take(domain);
 		lease.reset();
-		require(view.get("app", "count").value() == INT64_MIN && view.eval("app", "flag").value());
-		require(view.eval("app", "flag", "host", "beta").value() ==
+		require(view.get("app", "count").value() == INT64_MIN && view.get("app", "flag").value() == 0);
+		require(view.get("app", "flag", "host", "beta").value() ==
 				(detent::stable_bucket("app:flag", "host") < 17));
 		view = {};
 		domain.close().wait();

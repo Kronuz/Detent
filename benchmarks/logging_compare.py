@@ -230,7 +230,7 @@ def main() -> None:
             "schema_version": 1,
             "version": 1,
             "knobs": {
-                f"bench:key_{index}": {"type": "bool", "default": False}
+                f"bench:key_{index}": {"default": 0}
                 for index in range(knobs)
             },
         },

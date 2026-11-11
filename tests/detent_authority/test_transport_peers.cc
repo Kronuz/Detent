@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
 			command.generation = 1;
 			command.sequence = sequence;
 			command.name_space = "ns";
-			command.mutations.push_back({"ns:key", detent::IntDef{sequence}, {}, {}});
+			command.mutations.push_back({"ns:key", detent::KnobDef{sequence}, {}, {}});
 			bool proposed = false;
 			for (unsigned turn = 0; turn != 5000 && nodes[*leader]->state().revision() < sequence; ++turn) {
 				pump();

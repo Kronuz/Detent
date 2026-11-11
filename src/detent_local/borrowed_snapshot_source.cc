@@ -62,16 +62,13 @@ bool BorrowedSnapshotSource::prepare(std::uint64_t ordinal, ValidationBudget &bu
 						  qualified.begin() + value.name_space.size() + 1);
 				row.length = paged::encode_definition_key(row.key, {qualified.data(), length});
 				row.definition.revision = value.revision;
-				if (const auto *flag = std::get_if<SourceBoolean>(&value.definition)) {
-					if (flag->override_count > row.overrides.size())
-						throw std::logic_error("borrowed snapshot override bound");
-					row.definition.boolean = true;
-					row.definition.default_bool = flag->default_value;
-					row.definition.rollout = flag->rollout_pct;
-					row.definition.overrides = flag->override_count;
-				} else {
-					row.definition.default_int = std::get<IntDef>(value.definition).default_value;
-				}
+				const auto &definition = value.definition;
+				if (definition.override_count > row.overrides.size())
+					throw std::logic_error("borrowed snapshot override bound");
+				row.definition.default_value = definition.default_value;
+				row.definition.rollout = definition.rollout_pct;
+				row.definition.rollout_value = definition.rollout_value;
+				row.definition.overrides = definition.override_count;
 			} else {
 				const auto value = namespaces_.name_space();
 				row.length = paged::encode_namespace_key(row.key, value.name);
@@ -116,9 +113,7 @@ paged::Override BorrowedSnapshotSource::override_value(std::uint64_t ordinal, st
 	if (ordinal >= records() || index >= row.override_count)
 		throw std::out_of_range("borrowed snapshot override ordinal");
 	const auto &value = row.overrides[index];
-	const auto *rollout = std::get_if<GroupRollout>(&value.value);
-	return {value.name, rollout != nullptr,
-			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(value.value))};
+	return {value.name, value.value};
 }
 std::uint64_t BorrowedSnapshotSource::watermark(std::uint64_t ordinal) const {
 	if (ordinal < records())

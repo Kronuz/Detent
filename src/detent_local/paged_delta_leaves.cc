@@ -5,11 +5,8 @@ namespace p = paged;
 namespace {
 p::Override delta_override(const void *context, std::uint64_t ordinal, std::uint32_t index) {
 	const auto &source = *static_cast<const d::ValidatedDelta *>(context);
-	const auto &definition = std::get<d::WireBoolDef>(*source.mutation(ordinal).value);
-	const auto &row = source.overrides(definition)[index];
-	const auto *rollout = std::get_if<GroupRollout>(&row.second);
-	return {row.first, rollout != nullptr,
-			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+	const auto &row = source.overrides(*source.mutation(ordinal).value)[index];
+	return {row.first, row.second};
 }
 std::shared_ptr<d::StorageLedger> account(const std::shared_ptr<const d::ValidatedDelta> &source) {
 	if (!source)
@@ -195,15 +192,9 @@ void DeltaLeaves::step(ValidationBudget &budget) {
 						s.phase = Impl::Phase::Ready;
 						break;
 					}
-					p::Definition definition;
-					definition.revision = entry.revision;
-					if (const auto *boolean = std::get_if<d::WireBoolDef>(&*mutation.value)) {
-						definition.boolean = true;
-						definition.default_bool = boolean->default_value;
-						definition.rollout = boolean->rollout_pct;
-						definition.overrides = boolean->overrides.count;
-					} else
-						definition.default_int = std::get<IntDef>(*mutation.value).default_value;
+					const auto definition = p::Definition{entry.revision, mutation.value->default_value,
+														  mutation.value->rollout_pct, mutation.value->rollout_value,
+														  static_cast<std::uint32_t>(mutation.value->overrides.count)};
 					s.body.emplace(account(s.source), definition, s.source.get(), entry.ordinal,
 								   delta_override, p::maximum_leaf_body_bytes - s.length);
 					s.phase = Impl::Phase::Body;

@@ -5,9 +5,9 @@ namespace p = paged;
 LeafBody::LeafBody(std::shared_ptr<distribution::StorageLedger> account, p::Definition definition,
 				   const void *context, std::uint64_t ordinal, OverrideAt callback, std::size_t maximum)
 	: account_(std::move(account)), definition_(definition), context_(context), override_(callback),
-	  ordinal_(ordinal), maximum_(maximum), size_(p::definition_header_bytes) {
-	std::array<char, p::definition_header_bytes> header{};
-	p::encode_definition_header(header, definition_);
+	  ordinal_(ordinal), maximum_(maximum), size_(p::header_size(definition)) {
+	std::array<char, p::definition_header_bytes + p::rollout_value_bytes> header{};
+	p::encode_definition_header(std::span(header).first(size_), definition_);
 	if (!account_ || maximum_ < size_ || (definition_.overrides && (!context_ || !override_)))
 		throw std::invalid_argument("invalid paged leaf body source");
 }
@@ -61,14 +61,13 @@ void LeafBody::step(ValidationBudget &budget) {
 				break;
 			}
 			case Phase::Header:
-				if (!grant(namespace_ ? 8 : p::definition_header_bytes, budget))
+				offset_ = namespace_ ? 8 : p::header_size(definition_);
+				if (!grant(offset_, budget))
 					return;
 				if (namespace_)
 					write_integer(output_->mutable_bytes(), 0, definition_.revision, 8);
 				else
-					p::encode_definition_header(output_->mutable_bytes().first(p::definition_header_bytes),
-												definition_);
-				offset_ = namespace_ ? 8 : p::definition_header_bytes;
+					p::encode_definition_header(output_->mutable_bytes().first(offset_), definition_);
 				index_ = 0;
 				phase_ = Phase::Overrides;
 				break;

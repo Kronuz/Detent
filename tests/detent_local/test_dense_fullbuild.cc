@@ -45,12 +45,10 @@ class CorpusSource final : public d::SnapshotSource {
 		const auto index = indices_.at(key.name_space);
 		const auto def = p::validate_definition(row.body, namespaces_[index].revision);
 		current_body_ = row.body;
-		override_at_ = p::definition_header_bytes;
+		override_at_ = p::header_size(def);
 		remaining_ = def.overrides;
 		current_name_ = std::string(key.name_space) + ":" + std::string(key.local_name);
-		d::WireDefinition definition = detent::IntDef{def.default_int};
-		if (def.boolean)
-			definition = d::WireBoolDef{def.default_bool, {0, def.overrides}, def.rollout};
+		const d::WireDefinition definition{def.default_value, {0, def.overrides}, def.rollout, def.rollout_value};
 		return {
 			d::Record{static_cast<std::uint32_t>(index), current_name_, def.revision, definition},
 			false};
@@ -60,10 +58,7 @@ class CorpusSource final : public d::SnapshotSource {
 			return {};
 		--remaining_;
 		const auto value = p::read_override(current_body_, override_at_);
-		detent::GroupOverride result = value.value != 0;
-		if (value.percentage)
-			result = detent::GroupRollout{value.value};
-		return d::OverrideRow{value.key, result};
+		return d::OverrideRow{value.key, value.value};
 	}
 
   private:
@@ -118,7 +113,7 @@ static void reshape(const std::shared_ptr<Rows> &rows, unsigned namespaces) {
 		if (i)
 			for (unsigned j = 0; j < 100; ++j) {
 				std::vector<char> body(p::definition_header_bytes);
-				p::encode_definition(body, detent::IntDef{17}, revision);
+				p::encode_definition(body, detent::KnobDef{17}, revision);
 				rows->push_back({"K" + name + '\0' + "key" + std::to_string(j) + '\0',
 								 std::move(body)});
 			}
@@ -327,10 +322,10 @@ static void run(const std::shared_ptr<Rows> &rows, const std::string &model = {}
 			if (row.key.front() == 'W')
 				break;
 			const auto definition = p::validate_definition(row.body, source->cursor().revision);
-			if (!definition.boolean) {
+			if (!definition.rollout_value && !definition.overrides) {
 				const auto key = p::decode_key(row.key);
 				std::cout << "intprobe: key " << key.name_space << ':' << key.local_name
-						  << ", expected " << definition.default_int << '\n';
+						  << ", expected " << definition.default_value << '\n';
 				break;
 			}
 		}

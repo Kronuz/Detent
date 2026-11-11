@@ -227,7 +227,7 @@ def main() -> None:
             "operations": [
                 {
                     "key": "ns:key",
-                    "value": {"type": "int", "default": 10},
+                    "value": {"default": 10},
                     "expected_revision": 0,
                     "absent_namespace_revision": 0,
                 }
@@ -243,7 +243,7 @@ def main() -> None:
             "operations": [
                 {
                     "key": "ns:key",
-                    "value": {"type": "int", "default": 20},
+                    "value": {"default": 20},
                     "expected_revision": 1,
                 }
             ],
@@ -310,7 +310,7 @@ def main() -> None:
                         "operations": [
                             {
                                 "key": "ns:key",
-                                "value": {"type": "int", "default": sequence},
+                                "value": {"default": sequence},
                                 "expected_revision": sequence - 1,
                             }
                         ],
@@ -362,7 +362,7 @@ def main() -> None:
                     "operations": [
                         {
                             "key": "ns:key",
-                            "value": {"type": "int", "default": 101},
+                            "value": {"default": 101},
                             "expected_revision": 100,
                         }
                     ],

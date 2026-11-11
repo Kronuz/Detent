@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 			const auto key = "group" + std::to_string(i) + std::string(46, escaped ? '\x01' : 'k');
 			writer.String(key.data(), key.size());
 			groups.append(buffer.GetString(), buffer.GetSize());
-			groups += ":true";
+			groups += ":1";
 		}
 		for (unsigned i = 0; i < 128; ++i) {
 			const auto key = "ns:large" + std::to_string(i);
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 			auto reply = call(service, "/v2/transactions",
 							  "\"generation\":1,\"sequence\":" + std::to_string(i + 1) +
 								  ",\"namespace\":\"ns\",\"operations\":[{\"key\":\"" + key +
-								  "\",\"value\":{\"type\":\"bool\",\"default\":true,\"overrides\":{" +
+								  "\",\"value\":{\"default\":1,\"overrides\":{" +
 								  groups + "}}}]");
 			if (reply.code != 200)
 				std::cerr << reply.code << ' ' << reply.body << '\n';

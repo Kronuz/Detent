@@ -26,24 +26,21 @@ def definition(ordinal: int, generation: int) -> dict[str, Any] | None:
         return None
     if (ordinal + generation) % 2:
         value = (generation * 104729 + ordinal * 17) % (1 << 60)
-        return {
-            "type": "int",
-            "default": -value if (ordinal + generation) & 2 else value,
-        }
-    default = bool((ordinal // 2 + generation) & 1)
-    return {
-        "type": "bool",
+        return {"default": -value if (ordinal + generation) & 2 else value}
+    default = (ordinal // 2 + generation) & 1
+    result: dict[str, Any] = {
         "default": default,
-        "rollout_pct": None
-        if (ordinal + generation) % 3 == 0
-        else (ordinal * 13 + generation * 7) % 101,
         "overrides": {
-            "force-off": False,
-            "force-on": True,
-            "opaque\0group": not default,
+            "force-off": 0,
+            "force-on": 1,
+            "opaque\0group": 1 - default,
             "ramp": {"rollout_pct": (ordinal * 17 + generation * 11) % 101},
         },
     }
+    if (ordinal + generation) % 3:
+        result["rollout_pct"] = (ordinal * 13 + generation * 7) % 101
+    result["rollout_value"] = 1
+    return result
 
 
 class MixedWriters(Writers):

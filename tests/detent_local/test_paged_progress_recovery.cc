@@ -95,7 +95,7 @@ int main() {
 		write(directory / names.owner_name(), l::encode_segment_ownership(mismatched));
 		rejects([&] { l::recover_generation(directory, limits, {}, &*current); });
 		write(directory / names.owner_name(), owner);
-		require(current->view().eval("app", "flag", {}, "beta").has_value());
+		require(current->view().get("app", "flag", {}, "beta").has_value());
 		base.reset();
 		const int lease = ::open((directory / (l::generation_name(generation) + ".lease")).c_str(), O_RDWR);
 		require(lease >= 0);

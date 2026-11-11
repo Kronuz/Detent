@@ -26,11 +26,10 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 	std::uint64_t strings = 3, overrides = 0;
 	for (const auto &[key, row] : rows) {
 		strings += key.size();
-		if (auto b = std::get_if<detent::BoolDef>(&row.first))
-			for (const auto &[name, v] : b->overrides) {
-				++overrides;
-				strings += name.size();
-			}
+		for (const auto &[name, v] : row.first.overrides) {
+			++overrides;
+			strings += name.size();
+		}
 	}
 	a(4);
 	n(1);
@@ -47,30 +46,28 @@ std::shared_ptr<const d::ValidatedSnapshot> oracle(const Rows &rows) {
 		n(0);
 		text(key);
 		n(row.second);
-		if (auto b = std::get_if<detent::BoolDef>(&row.first)) {
-			a(4);
-			n(0);
-			wire.push_back(b->default_value ? '\xc3' : '\xc2');
-			if (b->rollout_pct)
-				n(*b->rollout_pct);
-			else
-				wire.push_back('\xc0');
-			a(b->overrides.size());
-			for (const auto &[name, v] : b->overrides) {
-				a(3);
-				text(name);
-				if (auto pct = std::get_if<detent::GroupRollout>(&v)) {
-					n(1);
-					n(pct->rollout_pct);
-				} else {
-					n(0);
-					wire.push_back(std::get<bool>(v) ? '\xc3' : '\xc2');
-				}
+		const auto &b = row.first;
+		a(4);
+		m::signed_integer(wire, b.default_value);
+		if (b.rollout_pct)
+			n(*b.rollout_pct);
+		else
+			wire.push_back('\xc0');
+		if (b.rollout_value)
+			m::signed_integer(wire, *b.rollout_value);
+		else
+			wire.push_back('\xc0');
+		a(b.overrides.size());
+		for (const auto &[name, v] : b.overrides) {
+			a(3);
+			text(name);
+			if (auto pct = std::get_if<detent::GroupRollout>(&v)) {
+				n(1);
+				n(pct->rollout_pct);
+			} else {
+				n(0);
+				m::signed_integer(wire, std::get<std::int64_t>(v));
 			}
-		} else {
-			a(2);
-			n(1);
-			m::signed_integer(wire, std::get<detent::IntDef>(row.first).default_value);
 		}
 	}
 	return std::make_shared<const d::ValidatedSnapshot>(decode(wire));
@@ -98,13 +95,13 @@ void finish(l::detail::TrieOverlay &overlay) {
 	}
 }
 int main() {
-	detent::BoolDef boolean;
-	boolean.default_value = true;
+	detent::KnobDef boolean;
 	boolean.rollout_pct = 25;
+	boolean.rollout_value = 1;
 	boolean.overrides.emplace("beta", detent::GroupRollout{17});
-	Rows original{{"app:count", {detent::IntDef{INT64_MIN}, 41}}, {"app:flag", {boolean, 42}}};
+	Rows original{{"app:count", {detent::KnobDef{INT64_MIN}, 41}}, {"app:flag", {boolean, 42}}};
 	for (unsigned i = 0; i < 500; ++i)
-		original["app:filler" + std::to_string(i)] = {detent::IntDef{i}, 42};
+		original["app:filler" + std::to_string(i)] = {detent::KnobDef{std::int64_t(i)}, 42};
 	auto source = oracle(original);
 	l::StorageIdentity storage{}, generation{};
 	storage.fill('s');
@@ -237,8 +234,8 @@ int main() {
 										   input->image.root());
 			std::array<char, 202> key{};
 			const auto length = p::encode_definition_key(key, "app:count");
-			std::array<char, 24> body{};
-			p::encode_definition(body, detent::IntDef{0}, 42);
+			std::array<char, p::definition_header_bytes> body{};
+			p::encode_definition(body, detent::KnobDef{}, 42);
 			overlay.change({key.data(), length}, body);
 			l::ValidationBudget partial{sizeof(l::detail::OverlayNode) + body.size() + 1, 3};
 			overlay.step(partial);
@@ -280,7 +277,7 @@ int main() {
 				const auto length = p::encode_definition_key(key, change.key);
 				std::vector<char> body;
 				if (change.value) {
-					detent::KnobDef value = detent::IntDef{*change.value};
+					detent::KnobDef value{*change.value};
 					body.resize(p::definition_size(value));
 					p::encode_definition(body, value, 42);
 					expected[change.key] = {value, 42};

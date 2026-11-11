@@ -117,33 +117,33 @@ int main() {
 			return result.results.front();
 		};
 		command.sequence = 1;
-		command.mutations = {{"ns:a", detent::IntDef{1}, {}, {}}};
+		command.mutations = {{"ns:a", detent::KnobDef{1}, {}, {}}};
 		check(apply(command).status == a::Status::Applied && recorder->captures == 1 &&
 			  recorder->staged[0]->keys == std::vector<std::string>{"ns:a"});
 		check(apply(command).status == a::Status::Applied && recorder->captures == 1 &&
 			  recorder->staged.empty());
 		command.sequence = 2;
-		command.mutations = {{"ns:a", detent::IntDef{1}, {}, {}}, {"ns:b", detent::IntDef{2}, {}, {}}};
+		command.mutations = {{"ns:a", detent::KnobDef{1}, {}, {}}, {"ns:b", detent::KnobDef{2}, {}, {}}};
 		check(apply(command).status == a::Status::Applied && recorder->captures == 2 &&
 			  recorder->staged[0]->keys == std::vector<std::string>{"ns:b"});
 		command.sequence = 3;
-		command.mutations = {{"ns:a", {}, {}, {}}, {"ns:b", detent::IntDef{2}, {}, {}}};
+		command.mutations = {{"ns:a", {}, {}, {}}, {"ns:b", detent::KnobDef{2}, {}, {}}};
 		check(apply(command).status == a::Status::Applied && recorder->captures == 3 &&
 			  recorder->staged[0]->keys == std::vector<std::string>{"ns:a"} && !state.find("ns:a"));
 		recorder->fail_capture = true;
 		command.sequence = 4;
-		command.mutations = {{"ns:b", detent::IntDef{4}, {}, {}}};
+		command.mutations = {{"ns:b", detent::KnobDef{4}, {}, {}}};
 		check(apply(command).status == a::Status::Applied && state.revision() == 4 &&
 			  recorder->last_gap == 4 && recorder->staged.empty());
 		recorder->fail_capture = false;
 		recorder->fail_step = true;
 		command.sequence = 5;
-		command.mutations = {{"ns:b", detent::IntDef{5}, {}, {}}};
+		command.mutations = {{"ns:b", detent::KnobDef{5}, {}, {}}};
 		check(apply(command).status == a::Status::Applied && state.revision() == 5 &&
 			  recorder->last_gap == 5 && recorder->staged.empty());
 		recorder->fail_step = false;
 		command.sequence = 6;
-		command.mutations = {{"ns:b", detent::IntDef{6}, {}, {}}};
+		command.mutations = {{"ns:b", detent::KnobDef{6}, {}, {}}};
 		recorder->begin_batch(context, index + 1, state.revision());
 		a::BatchApplication partial(state, ++index, 1, 1, recorder);
 		partial.start(validated(command));

@@ -302,19 +302,19 @@ class MixedConfigurationTests(unittest.TestCase):
         self.assertEqual(
             definition(0, 0),
             {
-                "type": "bool",
-                "default": False,
-                "rollout_pct": None,
+                "default": 0,
                 "overrides": {
-                    "force-off": False,
-                    "force-on": True,
-                    "opaque\0group": True,
+                    "force-off": 0,
+                    "force-on": 1,
+                    "opaque\0group": 1,
                     "ramp": {"rollout_pct": 0},
                 },
+                "rollout_value": 1,
             },
         )
-        self.assertEqual(definition(1, 0), {"type": "int", "default": 17})
-        self.assertEqual(definition(0, 3), {"type": "int", "default": -314187})
+        self.assertEqual(definition(1, 1)["rollout_pct"], 20)
+        self.assertEqual(definition(1, 0), {"default": 17})
+        self.assertEqual(definition(0, 3), {"default": -314187})
         self.assertIsNone(definition(2, -1))
         self.assertIsNone(definition(2, -MAXIMUM_GENERATION - 1))
         for invalid in (UNSEEDED, MAXIMUM_GENERATION + 1):

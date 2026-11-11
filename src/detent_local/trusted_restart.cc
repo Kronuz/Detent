@@ -52,7 +52,7 @@ TrustedRestart::open(int directory, uid_t owner, const Descriptor &descriptor, c
 	const auto metadata = decode_reader_metadata(read_bytes);
 	require(metadata.storage == storage && metadata.generation == descriptor.generation &&
 			metadata.root_checksum == descriptor.checksum &&
-			std::uint64_t(metadata.counts.bools) + metadata.counts.ints == root.records &&
+			metadata.counts.records == root.records &&
 			metadata.physical_bytes >= paged::root_bytes && root.bytes <= metadata.physical_bytes - paged::root_bytes &&
 			metadata.physical_bytes <= limits.bytes && metadata.counts.strings <= limits.strings &&
 			metadata.counts.maximum_overrides <= limits.overrides && root.records <= limits.records &&

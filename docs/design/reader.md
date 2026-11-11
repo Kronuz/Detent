@@ -26,7 +26,7 @@ Applications read knobs the way the `detent` CLI does: map the agent's selected 
 
 ## Abstract
 
-A warm lookup today crosses `detent::Client`, a virtual read source, a locking `std::shared_ptr` atomic load and a trie walk that takes one `std::mutex` per page, shared by every thread. Two background threads keep it fresh and retire old generations. The design replaces that stack with `libdetent_reader`: nine C functions over an opaque handle, a lock-free segment table with a verified-page bitmap per segment, a generation switch detected by **one load of the namespace's mapped sequence per lookup**, namespaces attached on their first lookup, and old generations retired through per-handle striped reader counts with one freer. The core starts no thread and survives `fork`. Evaluation lives in one function. The CLI and both bindings move onto the core before legacy step H, so H becomes pure deletion.
+A warm lookup today crosses `detent::Client`, a virtual read source, a locking `std::shared_ptr` atomic load and a trie walk that takes one `std::mutex` per page, shared by every thread. Two background threads keep it fresh and retire old generations. The design replaces that stack with `libdetent_reader`: seven C functions over an opaque handle, a lock-free segment table with a verified-page bitmap per segment, a generation switch detected by **one load of the namespace's mapped sequence per lookup**, namespaces attached on their first lookup, and old generations retired through per-handle striped reader counts with one freer. The core starts no thread and survives `fork`. Evaluation lives in one function. The CLI and both bindings move onto the core before legacy step H, so H becomes pure deletion.
 
 Nothing here is measured by this design. The gate rows hold the core to today's warm baseline at 5M knobs (p50 **268.5 ns** for an integer, **475 ns** for a bool, **762 ns** for a hashed bool through a pinned view), ratcheted to S3's numbers once they exist, and to **200/200** fresh-process first reads below 1 ms with 1 and with 1,000 namespaces; today's path misses 1 ms in three of the four capsule-trial arms.
 
@@ -34,15 +34,15 @@ Nothing here is measured by this design. The gate rows hold the core to today's 
 
 | Step | Code | What it does |
 | --- | --- | --- |
-| Entry | `src/detent/client.cc:165-166` | Virtual `read_view()`, then a second virtual `eval` |
+| Entry | `src/detent/client.cc:165-166` | Virtual `read_view()`, then a second virtual `get` |
 | Pin | `src/detent_local/client_source.cc:137`; `src/detent/client.cc:185,223,256,273` | `atomic_shared_ptr::load` on `LocalReadSource::installed` (`client_source.cc:82`) and `Client::current_` (`include/detent/client.hh:228`). On libc++ `__cpp_lib_atomic_shared_ptr` is undefined, so `atomic_shared_ptr.h:82-83` (`atomic-shared-ptr:9af0aa7`) call `std::atomic_load_explicit`, which takes a lock from a global mutex pool. On libstdc++ the header is an alias for `std::atomic<std::shared_ptr>`, which spins on a lock bit in the control-block pointer per object. Both are not lock-free and bump a reference count every thread writes: 27.2, 30.7 and 18.5 ns per `load()` at 1 thread, 685, 793 and 1,895 ns at 8 (Apple clang 17, LLVM 23 libc++, GCC 16 libstdc++; the review's `asp_probe`). |
 | Metrics | `client.cc:28-34` | A shared `fetch_add` per lookup |
 | Layers | `client_source.cc:42-50` | Override table, mapped view, baked-defaults fallback |
-| Evaluate | `src/detent_local/view.cc:373-412` | `ReadView::try_eval` walks the page trie |
+| Evaluate | `src/detent_local/view.cc:373-412` | `ReadView::try_get` walks the page trie |
 | Each page | `src/detent_local/lazy_page_access.cc:132-158` | `std::lock_guard` on one mutex per generation (`:133`), a hash-map find (`:137`), an LRU find (`:154`) |
 | First touch | `lazy_page_access.cc:89-113,159-167` | `openat`, `fstat`, ACL check, `mmap`, `fstatat` per segment; SHA-256 verification per page, again after an LRU eviction |
 | Threads | `client_source.cc:113-128`; `src/detent_distribution/retirement.cc:156-166` | A refresh thread polls `selected` every 200 ms; the default retirement runtime (`view.cc:37-44`) starts a cleanup pthread |
-| CLI | `src/detent_agent/main.cc:316-327` | Bool lookup first, then a second lookup for an integer |
+| CLI | `src/detent_agent/main.cc:316-327` | One `get`, printed as a decimal integer |
 
 The read path is specified without a mutex (`README.md`, "What this is"). Today's path takes two locks per lookup.
 
@@ -69,29 +69,24 @@ First reads: 200/200 below 1 ms with the publisher running, 198/200 stopped, med
 typedef struct detent_reader detent_reader;
 typedef struct { const char *data; size_t size; } detent_str;   /* data == NULL: absent */
 typedef enum detent_status {
-  DETENT_OK = 0, DETENT_MISSING = 1, DETENT_WRONG_TYPE = 2, DETENT_INVALID_NAME = 3,
-  DETENT_NOT_OPENED = 4,       /* namespace outside the handle's list */
-  DETENT_SOURCE_FAILURE = 5,   /* the generation failed verification */
-  DETENT_UNAVAILABLE = 6,      /* no prepared generation for this namespace yet */
-  DETENT_UNTRUSTED = 7,        /* ownership, mode, ACL or ancestry refused */
-  DETENT_INVALID_ARGUMENT = 8, DETENT_NO_MEMORY = 9, DETENT_IO = 10
+  DETENT_OK = 0, DETENT_MISSING = 1, DETENT_INVALID_NAME = 2,
+  DETENT_NOT_OPENED = 3,       /* namespace outside the handle's list */
+  DETENT_SOURCE_FAILURE = 4,   /* the generation failed verification */
+  DETENT_UNAVAILABLE = 5,      /* no prepared generation for this namespace yet */
+  DETENT_UNTRUSTED = 6,        /* ownership, mode, ACL or ancestry refused */
+  DETENT_INVALID_ARGUMENT = 7, DETENT_NO_MEMORY = 8, DETENT_IO = 9
 } detent_status;               /* any value other than DETENT_OK, known or not, is an error */
-typedef enum detent_kind { DETENT_KIND_BOOL = 1, DETENT_KIND_INT = 2 } detent_kind;
 typedef struct {
   size_t size;                                          /* sizeof, for extension */
   detent_str store;                                     /* store directory */
   const detent_str *namespaces; size_t namespace_count; /* 0: all, including later ones */
   uint32_t publisher_uid;
 } detent_open_options;
-typedef struct { detent_kind kind; bool boolean; int64_t integer; } detent_value;
 
 uint32_t detent_abi_version(void);
 detent_status detent_open(const detent_open_options *, detent_reader **out);
-detent_status detent_eval(detent_reader *, detent_str name, detent_str hash,
-                          detent_str switch_value, bool fallback, bool *out);
-detent_status detent_get(detent_reader *, detent_str name, int64_t fallback, int64_t *out);
-detent_status detent_read(detent_reader *, detent_str name, detent_str hash,
-                          detent_str switch_value, detent_value *out);
+detent_status detent_get(detent_reader *, detent_str name, detent_str hash,
+                         detent_str switch_value, int64_t fallback, int64_t *out);
 detent_status detent_refresh(detent_reader *);
 detent_status detent_revision(detent_reader *, detent_str name_space, uint64_t *out);
 const char *detent_status_name(detent_status);
@@ -100,8 +95,8 @@ void detent_close(detent_reader *);
 
 1. Every lookup writes `fallback` to `*out` for any status but `DETENT_OK` (R1). Lookups never throw across the boundary and never allocate once warm.
 2. Names are `ns:key` as `docs/design/knob-model.md` defines them, validated as today (`view.cc:18-23`).
-3. `detent_get` has no switch: the knob model ignores it for integers (`docs/design/knob-model.md`, "Int"), and the mapped path already has none (`view.cc:346`).
-4. `detent_read` returns kind and value in one descent, for the CLI.
+3. `detent_get` takes the hash and switch for every knob: each knob holds one `int64` and evaluates them alike (`docs/design/knob-model.md`).
+4. A flag is `detent_get` with fallback 0 or 1; wrappers convert to their bool type, and a value other than 0 or 1 is a conversion error there.
 5. `publisher_uid` is required. Trust is never inferred from the directory owner, as today (`src/detent_local/prepared_reader.cc:89-160`).
 6. `detent_open` copies `store` and every namespace string; the caller's buffers may die on return. `detent_abi_version` returns the `DETENT_ABI_VERSION` the library was built with; a wrapper refuses a library whose major value differs from its header's.
 7. Lookups are thread-safe on one handle; `detent_close` must not race any other call on the handle. No function works without a handle (R4).
@@ -190,11 +185,11 @@ Either the reader's recheck sees the new sequence and it backs off without touch
 
 ### D6. Evaluation in one place
 
-`detent::local::evaluate(const BorrowedDefinition &, std::string_view qualified, hash, switch)` is lifted unchanged from `view.cc:389-411`: a matching switch override (forced bool or group rollout), then the global rollout, then the default; no hash returns the default; the bucket is `stable_bucket` (`include/detent/hashing.hh:15`). The core and `ReadView::try_eval` call it.
+`detent::local::evaluate(const BorrowedDefinition &, std::string_view qualified, hash, switch)` is lifted from `view.cc:389-411`: a matching switch override (forced value or group rollout), then the global rollout, then the default; a caller inside a percentage gets `rollout_value` and one outside it the default; no hash returns the default; the bucket is `stable_bucket` (`include/detent/hashing.hh:15`). The core and `ReadView::try_get` call it.
 
 | Copy deleted | Where | Deleted by |
 | --- | --- | --- |
-| `detail::evaluate` over `BoolDef` | `include/detent/detail/evaluation.hh:9-22`; callers `client.cc:199`, `src/detent/read_view.cc:30` | Legacy H |
+| `detail::evaluate` over `KnobDef` | `include/detent/detail/evaluation.hh:9-22`; callers `client.cc:199`, `src/detent/read_view.cc:30` | Legacy H |
 | `ShmReader::eval` | `src/detent_agent/shm_reader.cc:191-232` | Legacy G |
 | Override precedence (R2) | `evaluation.hh:23-34`; `client_source.cc:44,52` | Legacy H |
 | Baked-defaults fallback (R1) | `client_source.cc:49,57` | Legacy H |
@@ -203,15 +198,15 @@ Either the reader's recheck sees the new sequence and it backs off without touch
 
 | Language | Shape | Dependency change |
 | --- | --- | --- |
-| C++ | Header-only `include/detent/reader.hh`: move-only `detent::Reader`, `eval(name, fallback, hash, switch)`, `get(name, fallback)`, `lookup(...)` returning value and status | None |
+| C++ | Header-only `include/detent/reader.hh`: move-only `detent::Reader`, `get(name, fallback, hash, switch)`, `get_as<T>(...)` with a checked conversion, `lookup(...)` returning value and status | None |
 | Rust | Hand-written `extern "C"` declarations and a safe `Reader` (`Send + Sync`, closes on drop) | Drops `cxx` and `cxx-build` (`bindings/rust/Cargo.toml`) |
-| Python | A C extension over the C ABI, `METH_FASTCALL`: `Reader(store, namespaces=(), publisher_uid=...)`, `eval`, `get`, `lookup` | Drops pybind11 (`bindings/python/CMakeLists.txt:7-11`) |
+| Python | A C extension over the C ABI, `METH_FASTCALL`: `Reader(store, namespaces=(), publisher_uid=...)`, `get`, `get_bool`, `lookup` | Drops pybind11 (`bindings/python/CMakeLists.txt:7-11`) |
 
 Each returns the value, or the caller's default on any error, and exposes the status through `lookup` (Q2 (a)). Each checks `detent_abi_version` once at load. Python holds the GIL across a lookup.
 
 ### D8. `detent get` on the core
 
-`cmd_managed_get` (`main.cc:364-435`) becomes open, one `detent_read`, print, close. It keeps starting a user-mode agent when the store is unavailable (`main.cc:401-415`), printing `--default` unless the source failed (`main.cc:428-431`), and exit status 0 or 1. It drops `--defaults` (R1), `Client`, `LocalReadSource` and the double lookup.
+`cmd_managed_get` (`main.cc:364-435`) becomes open, one `detent_get`, print, close. It keeps starting a user-mode agent when the store is unavailable (`main.cc:401-415`), printing `--default` unless the source failed (`main.cc:428-431`), and exit status 0 or 1. It drops `--defaults` (R1), `Client` and `LocalReadSource`.
 
 ### D9. The test helper (R2)
 
@@ -231,7 +226,7 @@ The child's lease descriptors share the parent's open file descriptions, so the 
 | T2 First read | 200/200 below 1 ms at 5M, publisher running and stopped, from `detent_open` entry to the first checked value, for a store of 1 namespace and one of 1,000 namespaces (the 5M namespace plus 999 of 100 knobs) | The prepared qualification runner (`docs/measurements/prepared-managed-5m-20261026-runner.py.txt`) with a C probe over the core; 40 keys in the 5M namespace, five rounds, a warmup process per key, `quiet exclusive`. S1's counters recorded per sample: directory-trust calls (1 per open), table bytes read, namespaces attached (1), pages verified. |
 | T3 Switch | 16 threads read for 60 s while the helper publishes 1,000 generations, each setting `t:rev` to its revision. Every thread sees non-decreasing values and only `DETENT_OK`; live views never exceed four; descriptors and mappings return to their pre-open counts after close. Injected: a reader parked between its `current` load and its increment across four publishes, and one parked mid-lookup; each resumes with no freed view read, and refused publishes are counted. TSan, and ASan with UBSan, clean. | `ctest -R reader_switch --repeat until-fail:20` under each sanitizer preset, with the core's test-only park hooks (`DETENT_READER_TEST_HOOKS`, never in a release build). |
 | T4 Memory | Core heap at most 1.5 MiB plus the verified bitmaps after open and 1M scattered lookups at 5M; bitmaps at most mapped bytes / 640, reported. Private dirty memory delta at most 4 MiB plus the bitmaps. Mapped virtual size reported, not gated. | The T1 probe prints live heap and bitmap bytes from the allocation probe, then `Private_Dirty` from `/proc/self/smaps_rollup` (Linux) or `phys_footprint` (macOS). |
-| T5 Identity | Same stdout and exit status as today's `detent get` | A 2,000-knob store written by the helper with fixed inputs (default bools, global rollouts, forced and rollout switch overrides, integers including `INT64_MIN` and `INT64_MAX`), every key across hash, switch and `--default` combinations, plus missing, wrong-type and invalid names. Expected output recorded once from the binary at the commit before S7 (`tests/detent_reader/get_identity.tsv`). At scale: core against `ReadView::try_eval` on 1M sampled 5M keys. |
+| T5 Identity | Same stdout and exit status as today's `detent get` | A 2,000-knob store written by the helper with fixed inputs (0/1 and integer defaults, global rollouts to a rollout value, forced and rollout switch overrides, integers including `INT64_MIN` and `INT64_MAX`), every key across hash, switch and `--default` combinations, plus missing and invalid names. Expected output recorded once from the binary at the commit before S7 (`tests/detent_reader/get_identity.tsv`). At scale: core against `ReadView::try_get` on 1M sampled 5M keys. |
 | T6 No threads, fork | Thread count unchanged across open, lookups, refresh and close. A child forked while a parent thread is parked mid-lookup, while another holds `refreshing` idle, and while a third is parked inside a publish after `free_view` (the fork-midfree case), sees every one of 10 publishes and passes T3's checks; the parent finishes its parked publish. | `/proc/self/task` (Linux), `task_threads` (macOS), in the T3 test; the fork cases use T3's park hooks, including one after `free_view`. |
 
 ## Alternatives considered
@@ -240,7 +235,7 @@ The child's lease descriptors share the parent's open file descriptions, so the 
 
 **Wrap `detent::Client`, as the bindings do today.** It brings the shared-pointer pin, two virtual hops, the refresh thread and the defaults and override layers that R1 and R2 remove. Not selected.
 
-**pybind11 or cxx over a C++ class.** A generator dependency per language and an ABI tied to one compiler and standard library. A C ABI costs nine functions. Not selected.
+**pybind11 or cxx over a C++ class.** A generator dependency per language and an ABI tied to one compiler and standard library. A C ABI costs seven functions. Not selected.
 
 **A refresh thread or an interval stat of `selected`.** The thread is today's design and the brief rules it out. An interval stat needs no new store file, but adds a clock read to every lookup and a few syscalls per interval on whichever caller trips it (Q4).
 
@@ -276,7 +271,7 @@ The review's positions are recorded with each; none changes R1-R4. The lead took
 
 **Q1. Who pays the attach after a publish?** (a) The first lookup that sees the change, with `detent_refresh` to pay it earlier from a chosen thread. (b) Only `detent_refresh`; lookups never do I/O, but an application that never calls it never moves. *Recommendation: (a)*, the only option that keeps a library-only consumer fresh with no thread; with D2's lazy attach the paying lookup attaches one namespace. Review: (a).
 
-**Q2. What do wrappers do on a wrong type, an invalid name or a namespace outside the handle?** (a) Return the default; `lookup` gives the status; the CLI prints the error. (b) Raise or panic, as Python raises today (`bindings/python/tests/test_detent.py:47-59`). *Recommendation: (a)*, one shape in every language and no exceptions on a hot path. Review: (a). Python's raising is removed behavior, so it is the owner's call.
+**Q2. What do wrappers do on a failed conversion, an invalid name or a namespace outside the handle?** (a) Return the default; `lookup` gives the status; the CLI prints the error. (b) Raise or panic, as Python raises today (`bindings/python/tests/test_detent.py:47-59`). *Recommendation: (a)*, one shape in every language and no exceptions on a hot path. Review: (a). Python's raising is removed behavior, so it is the owner's call.
 
 **Q3. Keep SHA-256 verification of each page at first touch?** (a) Keep it, once per page per mapping (D3). (b) Trust the agent's preparation proof and check bounds only: a faster first lookup, no defense against on-disk corruption after preparation. *Recommendation: (a)*; S1 measures its share of the first read. Review: (a), verifying once per page, not once per eviction. Namespace delivery D10 also needs (a).
 
@@ -300,7 +295,7 @@ The review's positions are recorded with each; none changes R1-R4. The lead took
 | RD-5 | D4's per-namespace sequences; alternatives; Q4; agreement with namespace delivery before S5 |
 | RD-6, L4 | D2: lazy attach, directory trust once per store; T2 for 1 and 1,000 namespaces |
 | RD-7, C1 | D3's per-segment bitmap; Q3; T1 and S1 record pages verified; T4; Limit 6 |
-| RD-8 | D1 items 6-9, explicit status values, `detent_kind`, `detent_abi_version`; D5's stack-derived stripe; Q6 |
+| RD-8 | D1 items 6-9, explicit status values, `detent_abi_version`; D5's stack-derived stripe; Q6 |
 | RD-9, C2 | T1: seccomp filter mode on Linux, `task_info` on macOS |
 | RD-10 | T1 ratchets to S3; today's 8-thread baseline |
 | RD-11 | "What a lookup costs today", Pin and Metrics rows |
@@ -314,7 +309,7 @@ Each step lands alone with CI green. S1 through S9 all land before legacy step H
 | Step | Change | Needs |
 | --- | --- | --- |
 | S1 | First-read and lookup counters behind a build flag: directory trust, record opens, table bytes read, segment opens, pages verified (per lookup in the scattered bench), bytes hashed. The core adds namespaces attached and refused publishes in S6. The lead measures. | Nothing |
-| S2 | D6: lift `evaluate` out of `ReadView::try_eval`; existing tests unchanged | Nothing |
+| S2 | D6: lift `evaluate` out of `ReadView::try_get`; existing tests unchanged | Nothing |
 | S3 | D3 inside `LazyPageAccess`, with a 16-thread TSan test; today's readers lose the per-page mutex and the LRU | Nothing |
 | S4 | D9 test helper, C++ and C | Nothing |
 | S5 | D4's `change` file in the agent: per-namespace sequences, startup bump, a test of the exclusive `owner.lock` | Q4; RD-5 agreed with namespace delivery |

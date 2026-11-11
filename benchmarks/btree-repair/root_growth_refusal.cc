@@ -27,11 +27,11 @@ __attribute__((noinline)) bool attempt(unsigned shape, long budget) {
     const auto first = name('c', long_keys), second = name('z', long_keys);
     const auto incoming = name(shape == 0 ? 'z' : shape == 1 ? 'a' : 'm', long_keys);
     std::array<std::string, 3> groups;
-    detent::BoolDef definition;
+    detent::KnobDef definition;
     for (unsigned group = 0; group < 3; ++group) {
         groups[group] = std::string(long_keys ? 128 : 6, 'g');
         groups[group].back() = static_cast<char>('0' + group);
-        definition.overrides.emplace(groups[group], group % 2 == 0);
+        definition.overrides.emplace(groups[group], std::int64_t(group % 2 == 0));
     }
     detent::SnapshotPatch patch;
     patch.knobs.try_emplace(first, definition);
@@ -45,10 +45,10 @@ __attribute__((noinline)) bool attempt(unsigned shape, long budget) {
     for (const auto* key : {&first, count == 2 ? &second : &first}) {
         const auto found = patch.knobs.find(*key);
         check(found != patch.knobs.end() && found->second.has_value());
-        const auto& value = std::get<detent::BoolDef>(*found->second);
+        const auto& value = *found->second;
         check(value.overrides.size() == 3);
         for (unsigned group = 0; group < 3; ++group)
-            check(std::get<bool>(value.overrides.at(groups[group])) == (group % 2 == 0));
+            check(std::get<std::int64_t>(value.overrides.at(groups[group])) == (group % 2 == 0));
     }
     return refused;
 }

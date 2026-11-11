@@ -90,16 +90,11 @@ d::SnapshotRecordStep PagedSnapshotSource::next_record() {
 	std::copy(key.name_space.begin(), key.name_space.end(), record_key_.begin());
 	record_key_[key.name_space.size()] = ':';
 	std::copy(key.local_name.begin(), key.local_name.end(), record_key_.begin() + key.name_space.size() + 1);
-	d::WireDefinition value;
-	if (definition.boolean) {
-		value = d::WireBoolDef{definition.default_bool, {0, definition.overrides}, definition.rollout};
-		overrides_ = leaf.body;
-		override_offset_ = p::definition_header_bytes;
-		overrides_remaining_ = definition.overrides;
-	} else {
-		value = IntDef{definition.default_int};
-		overrides_ = {};
-	}
+	const d::WireDefinition value{
+		definition.default_value, {0, definition.overrides}, definition.rollout, definition.rollout_value};
+	overrides_ = leaf.body;
+	override_offset_ = p::header_size(definition);
+	overrides_remaining_ = definition.overrides;
 	records_cursor_.consume();
 	return {d::Record{static_cast<std::uint32_t>(ns - namespaces_.begin()),
 					  {record_key_.data(), length},
@@ -112,8 +107,6 @@ std::optional<d::OverrideRow> PagedSnapshotSource::next_override() {
 		return {};
 	const auto row = p::read_override(overrides_, override_offset_);
 	--overrides_remaining_;
-	GroupOverride value =
-		row.percentage ? GroupOverride{GroupRollout{row.value}} : GroupOverride{bool(row.value)};
-	return d::OverrideRow{row.key, value};
+	return d::OverrideRow{row.key, row.value};
 }
 } // namespace detent::local::detail

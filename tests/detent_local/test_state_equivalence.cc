@@ -87,28 +87,27 @@ void run(bool nul_key, unsigned namespace_count) {
 				n(i);
 				text(scope[i] + ":count");
 				n(41);
-				a(2);
-				n(1);
+				a(4);
 				m::signed_integer(wire, INT64_MIN);
+				wire.push_back('\xc0');
+				wire.push_back('\xc0');
+				a(0);
 				a(4);
 				n(i);
 				text(scope[i] + ":flag");
 				n(change == 2 ? 40 : 41);
 				a(4);
-				n(0);
-				wire.push_back('\xc3');
+				n(1);
 				if (change == 3)
 					wire.push_back('\xc0');
 				else
 					n(percentage);
+				n(1);
 				a(1);
 				a(3);
 				text(group);
 				n(change == 4 ? 0 : 1);
-				if (change == 4)
-					wire.push_back('\xc3');
-				else
-					n(17);
+				n(change == 4 ? 1 : 17);
 			}
 			d::Limits decoder_limits;
 			decoder_limits.storage_account = heap;
@@ -269,8 +268,7 @@ void run(bool nul_key, unsigned namespace_count) {
 				l::ValidationBudget budget{1, 1};
 				validator.step(budget);
 			}
-			state_check(validator.counts().bools == namespace_count &&
-						validator.counts().ints == namespace_count);
+			state_check(validator.counts().records == 2 * namespace_count);
 			auto owner = validator.image();
 			l::detail::StateEquivalence equality(l::detail::StateCursor(*base, heap),
 												 l::detail::StateCursor(validator.take(), heap));

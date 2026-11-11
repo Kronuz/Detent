@@ -9,7 +9,8 @@ set(DETENT_TESTS
   test_json_patch
   test_json_strings
   test_flat_map
-  test_duplicate_precedence)
+  test_duplicate_precedence
+  test_one_knob_differential)
 
 list(APPEND DETENT_TESTS test_read_view)
 if(NOT DETENT_TSAN)

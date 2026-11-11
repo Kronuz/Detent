@@ -75,10 +75,7 @@ class PagedFlatSource {
 		record_ = {static_cast<std::uint32_t>(first),
 				   {key_.data(), qualified},
 				   definition.revision,
-				   IntDef{definition.default_int}};
-		if (definition.boolean)
-			record_.definition =
-				SourceBoolean{definition.default_bool, definition.rollout, 0, definition.overrides};
+				   {definition.default_value, definition.rollout, definition.rollout_value, 0, definition.overrides}};
 		current_ = ordinal;
 		return true;
 	}
@@ -91,9 +88,7 @@ class PagedFlatSource {
 		if (current_ != ordinal)
 			throw std::logic_error("paged flat override not prepared");
 		const auto value = records_.override_value(ordinal, relative);
-		if (value.percentage)
-			return {value.key, GroupRollout{value.value}};
-		return {value.key, bool(value.value)};
+		return {value.key, value.value};
 	}
 	bool discard(ValidationBudget &budget) {
 		while (arena_.front_capacity() && budget.rows) {
@@ -157,10 +152,10 @@ class AppliedBaseSource {
 	SourceOverride override_value(std::uint64_t ordinal, std::uint64_t relative) const {
 		if (paged_)
 			return paged_->override_value(ordinal, relative);
-		const auto flag = std::get<SourceBoolean>(flat_->record(ordinal).definition);
-		if (relative >= flag.override_count)
+		const auto definition = flat_->record(ordinal).definition;
+		if (relative >= definition.override_count)
 			throw std::out_of_range("flat source override ordinal");
-		return flat_->override_value(flag.override_start + relative);
+		return flat_->override_value(definition.override_start + relative);
 	}
 	bool discard(ValidationBudget &budget) { return flat_ || paged_->discard(budget); }
 

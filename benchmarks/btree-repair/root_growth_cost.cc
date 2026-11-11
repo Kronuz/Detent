@@ -55,11 +55,11 @@ int main() {
     constexpr unsigned repeats = 5000;
     for (const bool long_keys : {false, true}) {
         for (unsigned count : {1u, 2u, 4u}) {
-            detent::BoolDef definition;
+            detent::KnobDef definition;
             for (unsigned group = 0; group < 3; ++group) {
                 auto key = std::string(long_keys ? 128 : 6, 'g');
                 key.back() = static_cast<char>('0' + group);
-                definition.overrides.emplace(std::move(key), group % 2 == 0);
+                definition.overrides.emplace(std::move(key), std::int64_t(group % 2 == 0));
             }
             std::string keys[5];
             for (unsigned i = 0; i < 5; ++i) {

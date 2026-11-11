@@ -91,61 +91,93 @@ struct Reader {
 };
 using detent::valid_utf8;
 
+// Presence bits of a definition header: rollout_pct, rollout_value, nonempty overrides.
+constexpr unsigned has_rollout = 1, has_value = 2, has_overrides = 4;
+unsigned presence(const KnobDef &def) {
+	return (def.rollout_pct ? has_rollout : 0) | (def.rollout_value ? has_value : 0) |
+		   (def.overrides.empty() ? 0 : has_overrides);
+}
+void octet(Writer &w, unsigned value) {
+	char c = static_cast<char>(value);
+	w.raw({&c, 1});
+}
+unsigned octet(Reader &r) { return static_cast<unsigned char>(r.raw(1)[0]); }
+// Writes the header: default, presence byte, then the fields it names.
+void definition_header(Writer &w, const KnobDef &def, const Limits &limits) {
+	require(!definition_error(def), "invalid definition shape");
+	require(def.overrides.size() <= limits.overrides, "override count bound");
+	const auto bits = presence(def);
+	w.number(std::bit_cast<std::uint64_t>(def.default_value));
+	octet(w, bits);
+	if (bits & has_rollout)
+		octet(w, *def.rollout_pct);
+	if (bits & has_value)
+		w.number(std::bit_cast<std::uint64_t>(*def.rollout_value));
+	if (bits & has_overrides)
+		w.number(def.overrides.size());
+}
+void override_row(Writer &w, std::string_view key, const GroupOverride &value) {
+	require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
+	w.text(key);
+	if (auto forced = std::get_if<std::int64_t>(&value)) {
+		octet(w, 0);
+		w.number(std::bit_cast<std::uint64_t>(*forced));
+	} else {
+		auto pct = std::get<GroupRollout>(value).rollout_pct;
+		require(pct <= 100, "invalid group rollout");
+		octet(w, 1);
+		octet(w, pct);
+	}
+}
+// Reads the header into `def` and returns the override count that follows.
+std::uint64_t definition_header(Reader &r, KnobDef &def, const Limits &limits) {
+	def.default_value = std::bit_cast<std::int64_t>(r.number());
+	const auto bits = octet(r);
+	require(bits <= (has_rollout | has_value | has_overrides), "invalid definition presence");
+	if (bits & has_rollout) {
+		auto pct = octet(r);
+		require(pct <= 100, "invalid rollout");
+		def.rollout_pct = static_cast<std::uint8_t>(pct);
+	}
+	if (bits & has_value)
+		def.rollout_value = std::bit_cast<std::int64_t>(r.number());
+	std::uint64_t count = 0;
+	if (bits & has_overrides) {
+		count = r.number();
+		require(count && count <= limits.overrides, "override count bound");
+	}
+	return count;
+}
+GroupOverride override_value(Reader &r) {
+	const auto kind = octet(r);
+	require(kind <= 1, "invalid override kind");
+	if (!kind)
+		return std::bit_cast<std::int64_t>(r.number());
+	auto pct = octet(r);
+	require(pct <= 100, "invalid group rollout");
+	return GroupRollout{static_cast<std::uint8_t>(pct)};
+}
 void definition(Writer &w, const KnobDef &def, const Limits &limits) {
 	auto start = w.bytes.size();
-	w.flag(is_bool(def));
-	if (auto integer = std::get_if<IntDef>(&def)) {
-		w.number(std::bit_cast<std::uint64_t>(integer->default_value));
-	} else {
-		auto &flag = std::get<BoolDef>(def);
-		w.flag(flag.default_value);
-		w.optional(flag.rollout_pct);
-		require(!flag.rollout_pct || *flag.rollout_pct <= 100, "invalid rollout");
-		require(flag.overrides.size() <= limits.overrides, "override count bound");
-		w.number(flag.overrides.size());
-		for (const auto &[key, value] : flag.overrides) {
-			require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
-			w.text(key);
-			w.flag(std::holds_alternative<bool>(value));
-			if (auto forced = std::get_if<bool>(&value)) {
-				w.flag(*forced);
-			} else {
-				auto pct = std::get<GroupRollout>(value).rollout_pct;
-				require(pct <= 100, "invalid group rollout");
-				w.number(pct);
-			}
-		}
-	}
+	definition_header(w, def, limits);
+	for (const auto &[key, value] : def.overrides)
+		override_row(w, key, value);
 	require(w.bytes.size() - start <= limits.definition_bytes, "definition byte bound");
 }
 KnobDef definition(Reader &r, const Limits &limits) {
 	auto start = r.bytes.size();
-	if (!r.flag()) {
-		return IntDef{std::bit_cast<std::int64_t>(r.number())};
-	}
-	BoolDef result;
-	result.default_value = r.flag();
-	auto pct = r.optional();
-	require(!pct || *pct <= 100, "invalid rollout");
-	if (pct) {
-		result.rollout_pct = static_cast<std::uint8_t>(*pct);
-	}
-	auto count = r.number();
-	require(count <= limits.overrides, "override count bound");
+	KnobDef result;
+	auto count = definition_header(r, result, limits);
 	std::string previous;
 	for (std::uint64_t i = 0; i < count; ++i) {
 		auto key = r.text(128);
 		require(is_valid_group_key(key) && valid_utf8(key, false) && (i == 0 || previous < key),
 				"invalid or unordered group key");
 		previous = key;
-		if (r.flag()) {
-			result.overrides.emplace(std::move(key), r.flag());
-		} else {
-			auto p = r.number();
-			require(p <= 100, "invalid group rollout");
-			result.overrides.emplace(std::move(key), GroupRollout{static_cast<std::uint8_t>(p)});
-		}
+		auto value = override_value(r);
+		result.overrides.emplace(std::move(key), value);
 	}
+	require(!definition_error(result), "invalid definition shape");
 	require(start - r.bytes.size() <= limits.definition_bytes, "definition byte bound");
 	return result;
 }
@@ -303,8 +335,8 @@ struct CommandEncoder::Impl {
 	Writer writer;
 	std::map<std::string_view, const Mutation *> ordered;
 	decltype(ordered)::const_iterator mutation{};
-	decltype(BoolDef::overrides)::const_iterator group{};
-	const BoolDef *flag = nullptr;
+	decltype(KnobDef::overrides)::const_iterator group{};
+	const KnobDef *flag = nullptr;
 	std::size_t row = 0, definition_start = 0;
 	Phase phase = Phase::Validate;
 	bool failed = false, consumed = false;
@@ -428,18 +460,8 @@ void CommandEncoder::step(CommandWorkBudget &budget) {
 						break;
 					}
 					d.definition_start = w.bytes.size();
-					w.flag(is_bool(*op.value));
-					if (auto integer = std::get_if<IntDef>(&*op.value)) {
-						w.number(std::bit_cast<std::uint64_t>(integer->default_value));
-						d.end_definition();
-						break;
-					}
-					d.flag = &std::get<BoolDef>(*op.value);
-					require(!d.flag->rollout_pct || *d.flag->rollout_pct <= 100, "invalid rollout");
-					require(d.flag->overrides.size() <= d.limits.overrides, "override count bound");
-					w.flag(d.flag->default_value);
-					w.optional(d.flag->rollout_pct);
-					w.number(d.flag->overrides.size());
+					d.flag = &*op.value;
+					definition_header(w, *d.flag, d.limits);
 					require(w.bytes.size() - d.definition_start <= d.limits.definition_bytes,
 							"definition byte bound");
 					d.group = d.flag->overrides.begin();
@@ -455,16 +477,7 @@ void CommandEncoder::step(CommandWorkBudget &budget) {
 					return;
 				{
 					const auto &[key, value] = *d.group;
-					require(is_valid_group_key(key) && valid_utf8(key, false), "invalid group key");
-					w.text(key);
-					w.flag(std::holds_alternative<bool>(value));
-					if (auto forced = std::get_if<bool>(&value))
-						w.flag(*forced);
-					else {
-						auto pct = std::get<GroupRollout>(value).rollout_pct;
-						require(pct <= 100, "invalid group rollout");
-						w.number(pct);
-					}
+					override_row(w, key, value);
 					require(w.bytes.size() - d.definition_start <= d.limits.definition_bytes,
 							"definition byte bound");
 					++d.group;
@@ -544,15 +557,13 @@ struct CommandDecoder::Impl {
 		completed.expected = pending.expected;
 		completed.absence_revision = pending.absence_revision;
 		if (pending.value) {
-			if (auto value = std::get_if<BoolDef>(&*pending.value)) {
-				completed.value = BoolDef{};
-				auto &destination = std::get<BoolDef>(*completed.value);
-				destination.default_value = value->default_value;
-				destination.rollout_pct = value->rollout_pct;
-				destination.overrides.swap(value->overrides);
-			} else {
-				completed.value = std::get<IntDef>(*pending.value);
-			}
+			require(!definition_error(*pending.value), "invalid definition shape");
+			completed.value = KnobDef{};
+			auto &destination = *completed.value;
+			destination.default_value = pending.value->default_value;
+			destination.rollout_pct = pending.value->rollout_pct;
+			destination.rollout_value = pending.value->rollout_value;
+			destination.overrides.swap(pending.value->overrides);
 		}
 		pending = {};
 		previous_group.clear();
@@ -612,22 +623,8 @@ struct CommandDecoder::Impl {
 					break;
 				}
 				definition_start = reader.bytes.size();
-				if (!reader.flag()) {
-					pending.value = IntDef{std::bit_cast<std::int64_t>(reader.number())};
-					finish_mutation();
-					break;
-				}
-				pending.value = BoolDef{};
-				{
-					auto &value = std::get<BoolDef>(*pending.value);
-					value.default_value = reader.flag();
-					auto pct = reader.optional();
-					require(!pct || *pct <= 100, "invalid rollout");
-					if (pct)
-						value.rollout_pct = static_cast<std::uint8_t>(*pct);
-				}
-				overrides = reader.number();
-				require(overrides <= limits.overrides, "override count bound");
+				pending.value = KnobDef{};
+				overrides = definition_header(reader, *pending.value, limits);
 				require(definition_start - reader.bytes.size() <= limits.definition_bytes,
 						"definition byte bound");
 				phase = Phase::Overrides;
@@ -642,18 +639,11 @@ struct CommandDecoder::Impl {
 					require(is_valid_group_key(key) && valid_utf8(key, false) &&
 								(previous_group.empty() || previous_group < key),
 							"invalid or unordered group key");
-					GroupOverride value;
-					if (reader.flag()) {
-						value = reader.flag();
-					} else {
-						auto pct = reader.number();
-						require(pct <= 100, "invalid group rollout");
-						value = GroupRollout{static_cast<std::uint8_t>(pct)};
-					}
+					auto value = override_value(reader);
 					require(definition_start - reader.bytes.size() <= limits.definition_bytes,
 							"definition byte bound");
 					previous_group = key;
-					std::get<BoolDef>(*pending.value).overrides.emplace(std::move(key), value);
+					pending.value->overrides.emplace(std::move(key), value);
 				}
 				if (!--overrides)
 					finish_mutation();
@@ -703,12 +693,11 @@ bool CommandDecoder::discard(CommandWorkBudget &budget) {
 	impl_->consumed = true;
 	auto drain = [&](Mutation &mutation) {
 		if (mutation.value) {
-			if (auto value = std::get_if<BoolDef>(&*mutation.value)) {
-				while (!value->overrides.empty()) {
-					if (!Impl::claim(budget, 512))
-						return false;
-					value->overrides.erase(std::prev(value->overrides.end())); // last element: no shift
-				}
+			auto &overrides = mutation.value->overrides;
+			while (!overrides.empty()) {
+				if (!Impl::claim(budget, 512))
+					return false;
+				overrides.erase(std::prev(overrides.end())); // last element: no shift
 			}
 		}
 		if (!Impl::claim(budget, 1024))
@@ -759,14 +748,10 @@ std::shared_ptr<const KnobDef> copy_definition(detail::DeferredValues<KnobDef> &
 std::shared_ptr<const KnobDef> move_definition(detail::DeferredValues<KnobDef> &arena, KnobDef &source,
 											   std::size_t bytes) {
 	auto value = arena.create(bytes);
-	if (auto flag = std::get_if<BoolDef>(&source)) {
-		auto &destination = std::get<BoolDef>(*value);
-		destination.default_value = flag->default_value;
-		destination.rollout_pct = flag->rollout_pct;
-		destination.overrides.swap(flag->overrides);
-	} else {
-		*value = std::get<IntDef>(source);
-	}
+	value->default_value = source.default_value;
+	value->rollout_pct = source.rollout_pct;
+	value->rollout_value = source.rollout_value;
+	value->overrides.swap(source.overrides);
 	return value;
 }
 std::size_t stored_footprint(std::string_view key, const Record &record) {
@@ -782,10 +767,10 @@ std::size_t detail::collect_definition(DeferredValues<KnobDef> &arena, CommandWo
 	if (!budget.receipts || budget.bytes < 128)
 		return 0;
 	return arena.collect_one([&](KnobDef &value) {
-		if (auto flag = std::get_if<BoolDef>(&value); flag && !flag->overrides.empty()) {
+		if (!value.overrides.empty()) {
 			if (budget.bytes < 512)
 				return false;
-			flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
+			value.overrides.erase(std::prev(value.overrides.end())); // last element: no shift
 			budget.bytes -= 512;
 			--budget.receipts;
 			return false;
@@ -1134,15 +1119,14 @@ std::string batch_header(std::size_t count, Limits limits) {
 bool dispose_command(Command &command, CommandWorkBudget &budget) noexcept {
 	while (!command.mutations.empty()) {
 		auto &op = command.mutations.back();
-		if (op.value)
-			if (auto flag = std::get_if<BoolDef>(&*op.value); flag && !flag->overrides.empty()) {
-				if (!budget.receipts || budget.bytes < 512)
-					return false;
-				--budget.receipts;
-				budget.bytes -= 512;
-				flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
-				continue;
-			}
+		if (op.value && !op.value->overrides.empty()) {
+			if (!budget.receipts || budget.bytes < 512)
+				return false;
+			--budget.receipts;
+			budget.bytes -= 512;
+			op.value->overrides.erase(std::prev(op.value->overrides.end())); // last element: no shift
+			continue;
+		}
 		if (!budget.receipts || budget.bytes < 1024)
 			return false;
 		--budget.receipts;
@@ -1233,7 +1217,7 @@ struct CommandApplication::Impl {
 	std::vector<unsigned char> changes;
 	const Producer *current = nullptr;
 	std::shared_ptr<Producer> producer;
-	using Iterator = decltype(BoolDef::overrides)::const_iterator;
+	using Iterator = decltype(KnobDef::overrides)::const_iterator;
 	Iterator left{}, right{};
 	bool changed = false, failed = false, consumed = false, retired = false;
 	Impl(const State &s, std::uint64_t i, std::uint64_t t, ValidatedCommand v)
@@ -1305,13 +1289,12 @@ struct CommandApplication::Impl {
 		auto &mutations = validated.command_.mutations;
 		while (!mutations.empty()) {
 			auto &op = mutations.back();
-			if (op.value)
-				if (auto flag = std::get_if<BoolDef>(&*op.value); flag && !flag->overrides.empty()) {
-					if (!retirement(b))
-						return false;
-					flag->overrides.erase(std::prev(flag->overrides.end())); // last element: no shift
-					continue;
-				}
+			if (op.value && !op.value->overrides.empty()) {
+				if (!retirement(b))
+					return false;
+				op.value->overrides.erase(std::prev(op.value->overrides.end())); // last element: no shift
+				continue;
+			}
 			if (!retirement(b, 1024))
 				return false;
 			mutations.pop_back();
@@ -1429,21 +1412,22 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 					bool difference = false;
 					if (!op.value)
 						difference = old != nullptr;
-					else if (!old || old->value->index() != op.value->index())
+					else if (!old)
 						difference = true;
-					else if (auto flag = std::get_if<BoolDef>(&*op.value)) {
-						const auto &prior = std::get<BoolDef>(*old->value);
-						difference = flag->default_value != prior.default_value ||
-									 flag->rollout_pct != prior.rollout_pct ||
-									 flag->overrides.size() != prior.overrides.size();
-						if (!difference && !flag->overrides.empty()) {
+					else {
+						const auto &flag = *op.value;
+						const auto &prior = *old->value;
+						difference = flag.default_value != prior.default_value ||
+									 flag.rollout_pct != prior.rollout_pct ||
+									 flag.rollout_value != prior.rollout_value ||
+									 flag.overrides.size() != prior.overrides.size();
+						if (!difference && !flag.overrides.empty()) {
 							d.left = prior.overrides.begin();
-							d.right = flag->overrides.begin();
+							d.right = flag.overrides.begin();
 							d.phase = Phase::Compare;
 							break;
 						}
-					} else
-						difference = std::get<IntDef>(*old->value) != std::get<IntDef>(*op.value);
+					}
 					d.changes[d.row++] = difference;
 					d.changed |= difference;
 				}
@@ -1452,7 +1436,7 @@ void CommandApplication::step(CommandWorkBudget &budget) {
 				if (!Impl::record(budget))
 					return;
 				{
-					auto &flag = std::get<BoolDef>(*c.mutations[d.row].value);
+					auto &flag = *c.mutations[d.row].value;
 					bool difference = d.left->first != d.right->first || d.left->second != d.right->second;
 					++d.left;
 					++d.right;

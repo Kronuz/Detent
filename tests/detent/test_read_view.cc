@@ -5,16 +5,21 @@ int main() {
 	detent::ClientReadView pinned;
 	{
 		detent::Snapshot snapshot;
-		snapshot.knobs.emplace("app:count", detent::IntDef{25});
-		detent::BoolDef flag;
+		detent::KnobDef count;
+		count.default_value = 25;
+		snapshot.knobs.emplace("app:count", count);
+		detent::KnobDef flag;
 		flag.overrides.emplace("beta", detent::GroupRollout{100});
+		flag.rollout_value = 1;
 		snapshot.knobs.emplace("app:flag", std::move(flag));
 		detent::Client client(std::move(snapshot));
 		pinned = client.read_view();
 		assert(pinned.get_as<std::uint8_t>("app:count").value() == 25);
-		assert(!pinned.eval("app:flag").value());
-		assert(pinned.eval("app:flag", "host", "beta").value());
-		assert(pinned.get("app:flag").error().category == detent::ErrorCategory::WrongType);
+		assert(pinned.get("app:flag").value() == 0);
+		assert(pinned.get("app:flag", "host", "beta").value() == 1);
+		assert(pinned.get_as<bool>("app:flag", "host", "beta").value());
+		assert(pinned.get_as<std::int8_t>("app:count").value() == 25);
+		assert(pinned.get_as<bool>("app:count").error().category == detent::ErrorCategory::ConversionFailed);
 		assert(pinned.get("invalid").error().category == detent::ErrorCategory::InvalidName);
 	}
 	assert(pinned.get("app:count").value() == 25);

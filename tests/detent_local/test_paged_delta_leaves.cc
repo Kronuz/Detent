@@ -124,7 +124,7 @@ int main() {
 						graph.step(work);
 					}
 					require(p::state_commitment(graph.root()) == p::state_commitment(wanted.root()) &&
-							graph.counts().ints == (transactions == 1 && !progress ? 0 : 1));
+							graph.counts().records == (transactions == 1 && !progress ? 1 : 2));
 				}
 				{
 					std::vector<l::detail::SegmentInput> added;
@@ -142,8 +142,7 @@ int main() {
 					}
 					require(p::state_commitment(warm.root()) == p::state_commitment(wanted.root()) &&
 							warm.hashed_segment_bytes() == bytes);
-					require(warm.counts().ints == (transactions == 1 && !progress ? 0 : 1) &&
-							warm.counts().bools == 1);
+					require(warm.counts().records == (transactions == 1 && !progress ? 1 : 2));
 					for (std::size_t i = 0; i < segments.size(); ++i)
 						require(warm.removed(i).pages == overlay.removed()[i].pages &&
 								warm.removed(i).bytes == overlay.removed()[i].bytes);

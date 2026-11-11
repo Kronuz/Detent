@@ -1,7 +1,7 @@
 set(root "${CMAKE_CURRENT_BINARY_DIR}/agent-cli")
 file(REMOVE_RECURSE "${root}")
 file(MAKE_DIRECTORY "${root}/config/detent")
-file(WRITE "${root}/defaults.json" "{\"schema_version\":1,\"knobs\":{\"search:max_results\":{\"type\":\"int\",\"default\":25}}}")
+file(WRITE "${root}/defaults.json" "{\"schema_version\":1,\"knobs\":{\"search:max_results\":{\"default\":25}}}")
 set(env "${CMAKE_COMMAND}" -E env --unset=DETENT_DEFAULTS_PATH --unset=DETENT_MANAGED_CONFIG --unset=DETENT_GENERATION_DIR --unset=DETENT_SOURCE_PATH "DETENT_RUNTIME_DIR=${root}/run" "XDG_CONFIG_HOME=${root}/config")
 function(check expected_code expected_output)
   set(binary "${AGENT}")

@@ -29,15 +29,15 @@ def snapshot(version: int, count: int) -> bytes:
     for i in range(count):
         if i % 3 == 0:
             knobs[f"ns{i % 5}:flag_{i}"] = {
-                "type": "bool",
-                "default": i % 2 == 0,
+                "default": int(i % 2 == 0),
+                "overrides": {"internal": 1},
                 "rollout_pct": (i * 7) % 101,
-                "overrides": {"internal": True},
+                "rollout_value": 1,
             }
         elif i % 3 == 1:
-            knobs[f"ns{i % 5}:int_{i}"] = {"type": "int", "default": i * 1000 - 5}
+            knobs[f"ns{i % 5}:int_{i}"] = {"default": i * 1000 - 5}
         else:
-            knobs[f"ns{i % 5}:plain_{i}"] = {"type": "bool", "default": False}
+            knobs[f"ns{i % 5}:plain_{i}"] = {"default": 0}
     return json.dumps(
         {"schema_version": 1, "version": version, "knobs": knobs}, separators=(",", ":")
     ).encode()
@@ -132,7 +132,7 @@ def cases(first: bytes, second: bytes) -> list[tuple[str, list[bytes]]]:
                 request(
                     "PATCH",
                     "/v1/snapshot",
-                    b'{"schema_version":1,"version":3,"knobs":{"ns0:new_flag":{"type":"bool","default":true}}}',
+                    b'{"schema_version":1,"version":3,"knobs":{"ns0:new_flag":{"default":1}}}',
                 )
             ],
         ),

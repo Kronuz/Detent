@@ -47,8 +47,8 @@ bool wait_until(std::function<bool()> pred, std::chrono::milliseconds timeout) {
 constexpr std::string_view kDefaults = R"({
 	"schema_version": 1,
 	"knobs": {
-		"checkout:killswitch_new_path": { "type": "bool", "default": false },
-		"search:max_results": { "type": "int", "default": 25 }
+		"checkout:killswitch_new_path": { "default": 0 },
+		"search:max_results": { "default": 25 }
 	}
 })";
 
@@ -90,19 +90,19 @@ int main() {
 	// A valid versioned snapshot swaps in.
 	write_file(source_path, R"({
 		"schema_version": 1, "version": 1,
-		"knobs": { "search:max_results": { "type": "int", "default": 500 } }
+		"knobs": { "search:max_results": { "default": 500 } }
 	})");
 	bool swapped = wait_until([&] { return c.get("search:max_results").value() == 500; }, 2000ms);
 	assert(swapped);
 	assert(c.health().accepted_version == 1);
 	assert(c.health().source_connected);
-	// Source omitted the bool knob -> baked default retained.
-	assert(c.eval("checkout:killswitch_new_path").value() == false);
+	// Source omitted the killswitch -> baked default retained.
+	assert(c.get("checkout:killswitch_new_path").value() == 0);
 
 	// A stale/duplicate version is ignored; last-known-good is untouched.
 	write_file(source_path, R"({
 		"schema_version": 1, "version": 1,
-		"knobs": { "search:max_results": { "type": "int", "default": 1 } }
+		"knobs": { "search:max_results": { "default": 1 } }
 	})");
 	std::this_thread::sleep_for(200ms);
 	assert(c.get("search:max_results").value() == 500);
@@ -117,7 +117,7 @@ int main() {
 	// A later, higher, valid version still applies after prior rejections.
 	write_file(source_path, R"({
 		"schema_version": 1, "version": 2,
-		"knobs": { "search:max_results": { "type": "int", "default": 7 } }
+		"knobs": { "search:max_results": { "default": 7 } }
 	})");
 	bool swapped_again = wait_until([&] { return c.get("search:max_results").value() == 7; }, 2000ms);
 	assert(swapped_again);
@@ -131,7 +131,7 @@ int main() {
 	auto reused_mtime = std::filesystem::last_write_time(source_path);
 	write_file(source_path, R"({
 		"schema_version": 1, "version": 3,
-		"knobs": { "search:max_results": { "type": "int", "default": 999 } }
+		"knobs": { "search:max_results": { "default": 999 } }
 	})");
 	std::filesystem::last_write_time(source_path, reused_mtime); // force the same mtime as v2
 	bool swapped_same_mtime = wait_until([&] { return c.get("search:max_results").value() == 999; }, 2000ms);
@@ -144,7 +144,7 @@ int main() {
 	Client without_defaults(std::move(source_only));
 	assert(wait_until([&] { return without_defaults.health().accepted_version == 3; }, 2000ms));
 	assert(without_defaults.get("search:max_results").value() == 999);
-	assert(!without_defaults.eval("checkout:killswitch_new_path"));
+	assert(!without_defaults.get("checkout:killswitch_new_path"));
 	write_file(source_path, R"({"schema_version":1,"version":4,"knobs":{}})");
 	assert(wait_until([&] { return without_defaults.health().accepted_version == 4; }, 2000ms));
 	assert(!without_defaults.get("search:max_results"));

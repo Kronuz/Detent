@@ -122,7 +122,7 @@ inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 	for (std::size_t i = 0; i < definitions; ++i) {
 		const auto name = "ns:k" + std::to_string(100000 + i);
 		const auto length = p::encode_definition_key(key, name);
-		detent::IntDef value{static_cast<std::int64_t>(i)};
+		detent::KnobDef value{static_cast<std::int64_t>(i)};
 		std::vector<char> body(p::definition_size(value));
 		p::encode_definition(body, value, 8);
 		result->rows.push_back({std::string(key.data(), length), std::move(body)});

@@ -35,7 +35,7 @@ int main() {
 			const auto after = p::hash_counts();
 			check(after.page_calls == before.page_calls + source->pages.size());
 			check(after.pack_calls == before.pack_calls + 1);
-			check(validator.counts().ints == count && !validator.counts().bools);
+			check(validator.counts().records == count);
 			check(validator.segment_reachability(0).pages == source->pages.size());
 			check(validator.segment_reachability(0).bytes == source->root.bytes);
 			check(p::state_commitment(validator.root()) == p::state_commitment(source->root));

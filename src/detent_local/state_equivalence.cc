@@ -124,17 +124,10 @@ void StateEquivalence::step(ValidationBudget &budget) {
 			pairs[0] = {a.name_space, b.name_space};
 			pairs[1] = {a.key, b.key};
 			pair_count = 2;
-			same = a.revision == b.revision && a.definition.index() == b.definition.index();
-			if (same) {
-				if (const auto *flag = std::get_if<SourceBoolean>(&a.definition)) {
-					const auto &other = std::get<SourceBoolean>(b.definition);
-					same = flag->default_value == other.default_value &&
-						   flag->rollout_pct == other.rollout_pct &&
-						   flag->override_count == other.override_count;
-				} else {
-					same = std::get<IntDef>(a.definition) == std::get<IntDef>(b.definition);
-				}
-			}
+			same = a.revision == b.revision && a.definition.default_value == b.definition.default_value &&
+				   a.definition.rollout_pct == b.definition.rollout_pct &&
+				   a.definition.rollout_value == b.definition.rollout_value &&
+				   a.definition.override_count == b.definition.override_count;
 		}
 		if (!same) {
 			mismatch();

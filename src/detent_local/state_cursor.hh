@@ -7,7 +7,7 @@ namespace detent::local::detail {
 struct StateRecord {
 	std::string_view name_space, key;
 	std::uint64_t revision = 0;
-	std::variant<SourceBoolean, IntDef> definition;
+	SourceDefinition definition;
 };
 // Borrowed rows remain valid until the next advance of the same stream.
 class StateCursor {

@@ -31,9 +31,9 @@ int main(int argc, char **argv) {
 	auto initial = group.transaction(1, 1);
 	std::vector<std::string> read_keys{"ns:key"};
 	for (unsigned key = 0; key < 127; ++key) {
-		detent::BoolDef definition{false, {}};
+		detent::KnobDef definition;
 		for (unsigned group = 0; group < 31; ++group)
-			definition.overrides.emplace("group" + std::to_string(group), true);
+			definition.overrides.emplace("group" + std::to_string(group), std::int64_t{1});
 		auto name = "ns:held" + std::to_string(key);
 		read_keys.push_back(name);
 		initial.mutations.push_back({std::move(name), std::move(definition), {}, {}});
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 	group.link(0, 2, true);
 	group.until([&] { return group.nodes[0]->state().revision() == revision + 1; });
 	for (auto &node : group.nodes) {
-		assert(std::get<detent::IntDef>(*node->state().find("ns:key")->value).default_value == 99 &&
+		assert((*node->state().find("ns:key")->value).default_value == 99 &&
 			   node->state().lookup("writer", 1, 10) == lost.results[0]);
 	}
 	group.until([&] {

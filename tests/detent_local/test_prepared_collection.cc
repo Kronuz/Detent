@@ -92,7 +92,7 @@ int main() {
         check(std::filesystem::exists(fixture->path / old_names.payload_name()));
 		check(std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".lease")));
 		// The prepared root opens its retired pack only after collection runs.
-		check(old_view.eval("b", "k").value());
+		check(old_view.get("b", "k").value() == 1);
 		old_view = {};
 		wait_unpinned(fixture->path / (l::generation_name(fixture->generation) + ".lease"));
 		store->request_collection();
@@ -101,7 +101,7 @@ int main() {
 		check(!std::filesystem::exists(fixture->path / old_names.owner_name()));
 		check(!std::filesystem::exists(fixture->path / (l::generation_name(fixture->generation) + ".read")));
         check(reader.read_view().get("a", "k").value() == 42);
-        check(reader.read_view().eval("b", "k").value());
+        check(reader.read_view().get("b", "k").value() == 1);
 		store->close();
 		drive(store);
 		check(store->drained());

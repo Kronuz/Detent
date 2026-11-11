@@ -207,9 +207,9 @@ struct WarmGraphValidator::Impl {
 			old ? ++old_headers : ++definition_checks;
 			if (!old)
 				require(definition.overrides <= semantics.overrides);
-			definition.boolean ? ++target.bools : ++target.ints;
+			++target.records;
 			target.overrides += definition.overrides;
-			target.strings += key_size - 2 + body.size() - p::definition_header_bytes -
+			target.strings += key_size - 2 + body.size() - p::header_size(definition) -
 							  std::uint64_t(definition.overrides) * p::override_header_bytes;
 			histogram[definition.overrides] += old ? -1 : 1;
 		}
@@ -543,17 +543,13 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 					require(prior.namespaces + s.new_namespaces >= s.removed_namespaces &&
 							prior.namespaces + s.new_namespaces - s.removed_namespaces ==
 								s.expected.namespaces);
-					require(std::uint64_t(s.counts.bools) + s.new_counts.bools >= s.removed_counts.bools &&
-							std::uint64_t(s.counts.ints) + s.new_counts.ints >= s.removed_counts.ints &&
+					require(std::uint64_t(s.counts.records) + s.new_counts.records >= s.removed_counts.records &&
 							s.counts.overrides + s.new_counts.overrides >= s.removed_counts.overrides &&
 							s.counts.strings + s.new_counts.strings >= s.removed_counts.strings);
-					const auto bools =
-						std::uint64_t(s.counts.bools) + s.new_counts.bools - s.removed_counts.bools;
-					const auto ints =
-						std::uint64_t(s.counts.ints) + s.new_counts.ints - s.removed_counts.ints;
-					require(bools + ints == s.expected.records);
-					s.counts.bools = bools;
-					s.counts.ints = ints;
+					const auto records =
+						std::uint64_t(s.counts.records) + s.new_counts.records - s.removed_counts.records;
+					require(records == s.expected.records);
+					s.counts.records = static_cast<std::uint32_t>(records);
 					s.counts.overrides += s.new_counts.overrides;
 					s.counts.overrides -= s.removed_counts.overrides;
 					s.counts.strings += s.new_counts.strings;
