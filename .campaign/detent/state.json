@@ -4272,6 +4272,54 @@
       "updated": "2026-11-10T09:18:32",
       "worktree": ""
     },
+    "one-knob-type": {
+      "accepted": {},
+      "after": [
+        "namespace-s4"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/detent/**",
+        "src/detent/**",
+        "include/detent_local/paged_definition.hh",
+        "src/detent_local/paged_definition.cc",
+        "src/detent_local/paged_snapshot_source.cc",
+        "src/detent_local/view.cc",
+        "src/detent_local/client_source.cc",
+        "include/detent_distribution/**",
+        "src/detent_distribution/**",
+        "src/detent_authority/state.*",
+        "src/detent_testing/**",
+        "src/detent_cli/**",
+        "bindings/**",
+        "tests/detent/**",
+        "tests/detent_local/test_paged_definition*",
+        "tests/detent_distribution/**",
+        "docs/design/one-knob-type.md",
+        "docs/mechanisms/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "One knob type: targeted integers",
+      "updated": "2026-11-11T10:10:47"
+    },
     "persistent-map-adoption": {
       "accepted": {},
       "after": [],
