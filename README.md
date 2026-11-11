@@ -1,6 +1,6 @@
 # Detent (C++)
 
-Detent is a C++ runtime-configuration client for namespaced boolean and integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). It implements the model in [`justknobs-implementation-spec.md`](justknobs-implementation-spec.md) and adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
+A detent is the click-stop that holds a knob at its setting. Detent is a C++ runtime-configuration client for namespaced boolean and integer knobs, plus a durable authority daemon (`detentd`) and a host-local managed agent (`detent-agent`). Its model (knobs, namespaces, groups, overrides, rollout and evaluation) is specified in [`docs/design/knob-model.md`](docs/design/knob-model.md); around it Detent adds authenticated transactional publishing, durable Raft consensus, and incremental delivery to hosts.
 
 **New here?** [`QUICKSTART.md`](QUICKSTART.md) covers numeric settings, feature flags, gradual rollouts, group overrides, and per-read fallbacks. The [usage guide](docs/USAGE.md) covers network distribution, configuration, and library examples.
 
@@ -43,7 +43,7 @@ target_link_libraries(my_app PRIVATE detent::detent)
 
 For reproducible builds, replace `main` with the commit you have qualified. A local checkout can also be included with `add_subdirectory()`.
 
-### 2. Write your baked defaults (`just_knobs.json`)
+### 2. Write your baked defaults (`defaults.json`)
 
 Ship this alongside your binary. Baked defaults are the local fallback before any live snapshot arrives, and they are the place where new knob names are introduced.
 
@@ -63,7 +63,7 @@ Ship this alongside your binary. Baked defaults are the local fallback before an
 #include "detent/client.hh"
 
 detent::InitOptions opts;
-opts.defaults_path = "/etc/myapp/just_knobs.json";
+opts.defaults_path = "/etc/myapp/defaults.json";
 // Leave source_path/source_poll unset for baked-defaults-only reads.
 
 detent::Client client(std::move(opts));
@@ -127,9 +127,9 @@ snap.knobs["checkout:killswitch_new_path"] =
 auto guard = detent::testing::TestKnobs(snap).set_thread_local();
 ```
 
-## Scope vs. the spec
+## What the repository contains
 
-This repository implements the spec's client model and adds a concrete distribution layer:
+The client implements the [knob model](docs/design/knob-model.md), and a distribution layer carries it to hosts:
 
 - `detent`: core client, schema validation, rollout hashing, overrides, publication, health.
 - `detentd`: the durable authority daemon.
@@ -310,7 +310,7 @@ Python example:
 import detent
 
 client = detent.Client(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     source_path="/var/lib/myapp/live.json",
 )
 client.eval("payments:new_processor", hash_val="user-42")
@@ -323,7 +323,7 @@ Rust example:
 
 ```rust
 let client = detent::Client::new(
-    "/etc/myapp/just_knobs.json",
+    "/etc/myapp/defaults.json",
     Some("/var/lib/myapp/live.json"),
     vec![],
     200,

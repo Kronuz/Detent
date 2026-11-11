@@ -1,7 +1,7 @@
 #pragma once
 
-// Sections 5-9: the instance read/update API. Section 6's read-path pseudocode
-// is followed almost line for line: validate name -> check CLI override ->
+// The instance read/update API. The read path runs these steps in order:
+// validate name -> check CLI override ->
 // acquire snapshot -> lookup -> type-check -> evaluate -> count -> return. No
 // lock, allocation, or I/O sits on that path; the only heap traffic is the
 // shared_ptr refcount bump/drop already implied by SnapshotRef::load().
@@ -30,7 +30,7 @@
 
 namespace detent {
 
-// Section 12: bounded-cardinality counters/gauges. No knob name, hash_val,
+// Bounded-cardinality counters/gauges. No knob name, hash_val,
 // switch_val, path, client ID, or version ever becomes a label -- these are
 // plain process-wide counters, not a metrics-library integration.
 struct Metrics {
@@ -44,7 +44,7 @@ struct Metrics {
 	std::atomic<bool> source_connected{false};
 };
 
-// Section 12: "Health snapshot" diagnostic payload. Never exposes the live
+// Health snapshot diagnostic payload. Never exposes the live
 // map itself -- only copied metadata and counts.
 struct HealthSnapshot {
 	bool initialized = false;
@@ -78,10 +78,10 @@ struct InitOptions {
 		bool is_patch = false;
 	};
 
-	// A generic pluggable source, the extension seam Section 10 describes for
-	// "any publisher that emits valid snapshots". Mutually exclusive with source_path (Section
-	// 11's "combining X with Y is a startup error", generalized): the client
-	// consumes exactly one KnobSource stream per instance (Section 3).
+	// A generic pluggable source, the extension seam for
+	// "any publisher that emits valid snapshots". Mutually exclusive with source_path
+	// (combining them is a startup error): the client
+	// consumes exactly one KnobSource stream per instance.
 	//
 	// Called repeatedly on the single background updater thread with the
 	// currently accepted version (so a source that can serve a diff-since-
@@ -94,7 +94,7 @@ struct InitOptions {
 	//   - throws                   -> a transport/connection failure; Client
 	//                                 counts it as a refresh failure and
 	//                                 applies full-jitter backoff before the
-	//                                 next call (Section 7's backoff rule)
+	//                                 next call
 	using SourcePoll = std::function<std::optional<SourcePayload>(std::uint64_t after_version)>;
 	std::optional<SourcePoll> source_poll;
 	std::string source_id = "file";
@@ -121,10 +121,10 @@ struct InitOptions {
 class Client {
 public:
 	// Throws std::runtime_error on invalid/missing defaults or CLI overrides
-	// (Section 9: "Fail init(); process integration SHOULD abort startup").
+	// (init fails; process integration should abort startup).
 	explicit Client(InitOptions options);
 
-	// Test-only in-memory construction (Section 5 "Test-only client"): no
+	// Test-only in-memory construction (test-only client): no
 	// file, no CLI overrides, no background updater. Used by
 	// detent::testing::TestKnobs.
 	explicit Client(Snapshot in_memory_snapshot);
@@ -134,7 +134,7 @@ public:
 	Client(const Client&) = delete;
 	Client& operator=(const Client&) = delete;
 
-	// --- Section 6/8: read path -------------------------------------------------
+	// --- read path -------------------------------------------------
 	[[nodiscard]] Result<bool, KnobError> eval(
 		std::string_view name,
 		std::optional<std::string_view> hash_val = std::nullopt,
@@ -166,7 +166,7 @@ public:
 		return static_cast<T>(v);
 	}
 
-	// Section 5: "*_or_panic ... crash on any KnobError". No call-site
+	// The *_or_panic helpers crash on any KnobError. No call-site
 	// fallback API exists anywhere in this class.
 	[[nodiscard]] bool eval_or_panic(
 		std::string_view name,
@@ -205,7 +205,7 @@ private:
 	// client's own last-accepted LIVE (pre-merge-over-defaults) snapshot,
 	// never the source's claimed base -- then re-merges over defaults_ and
 	// publishes, exactly like try_apply_source_bytes's full-replace path.
-	// Returns false (no swap, Section 7's backoff-eligible "not a valid
+	// Returns false (no swap; backoff-eligible, "not a valid
 	// swap") on a stale version or a patch that fails to parse/apply.
 	bool try_apply_source_patch(std::string_view patch_bytes);
 	void sleep_with_stop_check(std::stop_token stop, std::chrono::milliseconds duration);

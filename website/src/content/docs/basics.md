@@ -59,7 +59,7 @@ and ignored.
 ## Baked Defaults
 
 Baked defaults are a snapshot file shipped *with* your binary, conventionally
-named `just_knobs.json` or `defaults.json`. They are loaded at startup as
+named `defaults.json`. They are loaded at startup as
 version `0`, before any live data arrives, and they remain the fallback for any
 knob that the live snapshot doesn't mention. They are also where new knob names
 are introduced.

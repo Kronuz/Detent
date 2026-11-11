@@ -90,11 +90,11 @@ struct WarmGraphValidator::Impl {
 				  old_headers = 0;
 	SegmentRegistry *recorded = nullptr;
 	Phase phase = Phase::Seed;
-	bool failed = false, discarding = false, definitions = false;
+	bool failed = false, discarding = false, definitions = false, own_build = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, d::RetirementHandle<LeasedPagedRoot> actual_base,
 		 std::shared_ptr<const void> lifetime, std::span<const SegmentInput> added, p::Root root,
-		 p::Limits bounds, PagedSemanticLimits semantic)
-		: account(std::move(ledger)), base(std::move(actual_base)), owner(std::move(lifetime)),
+		 p::Limits bounds, PagedSemanticLimits semantic, bool built_here)
+		: account(std::move(ledger)), base(std::move(actual_base)), owner(std::move(lifetime)), own_build(built_here),
 		  added_segments(added), expected(root), limits(bounds), semantics(semantic),
 		  namespaces(d::StorageAllocator<Namespace>(account)),
 		  removed(d::StorageAllocator<SegmentReachability>(account)),
@@ -220,14 +220,15 @@ struct WarmGraphValidator::Impl {
 WarmGraphValidator::WarmGraphValidator(std::shared_ptr<d::StorageLedger> account,
 									   const RecoveredGeneration &base, std::shared_ptr<const void> owner,
 									   std::span<const SegmentInput> added, p::Root root, p::Limits limits,
-									   PagedSemanticLimits semantics)
-	: WarmGraphValidator(std::move(account), base.paged_, std::move(owner), added, root, limits, semantics) {}
+									   PagedSemanticLimits semantics, bool own_build)
+	: WarmGraphValidator(std::move(account), base.paged_, std::move(owner), added, root, limits, semantics,
+						 own_build) {}
 WarmGraphValidator::WarmGraphValidator(std::shared_ptr<d::StorageLedger> account,
 									   d::RetirementHandle<LeasedPagedRoot> base,
 									   std::shared_ptr<const void> owner, std::span<const SegmentInput> added,
-									   p::Root root, p::Limits limits, PagedSemanticLimits semantics)
+									   p::Root root, p::Limits limits, PagedSemanticLimits semantics, bool own_build)
 	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(base),
-										std::move(owner), added, root, limits, semantics)) {}
+										std::move(owner), added, root, limits, semantics, own_build)) {}
 WarmGraphValidator::~WarmGraphValidator() = default;
 WarmGraphValidator::WarmGraphValidator(WarmGraphValidator &&) noexcept = default;
 void WarmGraphValidator::step(ValidationBudget &budget) {
@@ -316,6 +317,8 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 				s.phase = Impl::Phase::Hashes;
 				break;
 			case Impl::Phase::Hashes:
+				if (s.own_build)
+					s.index = s.added_segments.size();
 				if (s.index == s.added_segments.size()) {
 					if (s.expected.pages)
 						s.push(s.expected.tree, false);
@@ -387,7 +390,7 @@ void WarmGraphValidator::step(ValidationBudget &budget) {
 						byte = static_cast<char>(static_cast<unsigned char>(byte) | mask);
 						++frame.bit;
 					}
-					s.page.emplace(s.account, s.owner, frame.bytes, frame.reference, s.limits);
+					s.page.emplace(s.account, s.owner, frame.bytes, frame.reference, s.limits, !s.own_build);
 					frame.phase = Impl::NodePhase::Check;
 					break;
 				case Impl::NodePhase::Check:

@@ -557,7 +557,7 @@ void PagedPacker::step(ValidationBudget &budget) {
 				if (!s.grant(32, budget))
 					return;
 				s.hash.getHash(reinterpret_cast<unsigned char *>(s.summary.digest.data()));
-				p::count_hash(p::HashKind::Page, 1, end - 32);
+				p::count_build_hash(p::HashKind::Page, 1, end - 32);
 				std::copy(s.summary.digest.begin(), s.summary.digest.end(),
 						  s.output->mutable_bytes().begin() + 32);
 				s.output->seal();

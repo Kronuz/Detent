@@ -183,10 +183,10 @@ struct GraphValidator::Impl {
 GraphValidator::GraphValidator(std::shared_ptr<distribution::StorageLedger> account,
 							   std::shared_ptr<const void> owner, std::span<const SegmentInput> segments,
 							   p::Root root, StorageIdentity storage, p::Limits limits,
-							   PagedSemanticLimits semantics, const SegmentRegistry *compared)
+							   PagedSemanticLimits semantics, const SegmentRegistry *compared, bool own_build)
 	: impl_(distribution::make_storage_owner<Impl>(account, std::malloc, std::free, account, std::move(owner),
 												   segments, root, storage, limits, semantics,
-												   digests_compared(compared, segments, root, limits))) {}
+												   digests_compared(compared, segments, root, limits) || own_build)) {}
 GraphValidator::~GraphValidator() = default;
 GraphValidator::GraphValidator(GraphValidator &&) noexcept = default;
 void GraphValidator::step(ValidationBudget &budget) {

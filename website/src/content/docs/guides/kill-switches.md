@@ -20,7 +20,7 @@ if (client.eval_or_panic("checkout:killswitch_new_path")) {
 return old_checkout(cart);
 ```
 
-```json title="just_knobs.json"
+```json title="defaults.json"
 {
   "schema_version": 1,
   "knobs": {

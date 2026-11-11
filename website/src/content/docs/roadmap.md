@@ -66,7 +66,7 @@ The [release execution plan](https://github.com/Kronuz/Detent/blob/main/docs/REL
 ## Client and Bindings
 
 1. A shipped command-line flag parser for CLI overrides
-   (`--just-knob name=value`) and a config-path flag.
+   (`--knob name=value`) and a config-path flag.
 2. An opt-in environment switch that freezes baked defaults for tests.
 3. Filesystem notifications for the file source instead of metadata polling.
 4. Python: `read_view()`, `check()`, category-specific exceptions,

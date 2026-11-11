@@ -113,7 +113,7 @@ void SparsePlanFinalizer::step(ValidationBudget &budget) {
 					artifact_owner =
 						std::allocate_shared<State>(d::StorageAllocator<State>(account), plan);
 					validator.emplace(account, plan->base_, artifact_owner, added,
-									  plan->image_->root(), limits);
+									  plan->image_->root(), limits, PagedSemanticLimits{}, true);
 				}
 				phase = Phase::Validate;
 				break;

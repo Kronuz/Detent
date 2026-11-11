@@ -44,7 +44,7 @@ Nothing here is measured by this design. The gate rows hold the core to today's 
 | Threads | `client_source.cc:113-128`; `src/detent_distribution/retirement.cc:156-166` | A refresh thread polls `selected` every 200 ms; the default retirement runtime (`view.cc:37-44`) starts a cleanup pthread |
 | CLI | `src/detent_agent/main.cc:316-327` | Bool lookup first, then a second lookup for an integer |
 
-The spec forbids a mutex on the read path (`justknobs-implementation-spec.md:99`). Today's path takes two locks per lookup.
+The read path is specified without a mutex (`README.md`, "What this is"). Today's path takes two locks per lookup.
 
 Baselines, single thread, Intel i9-9980HK, macOS 15.8.1, 5M records, `benchmarks/client-read-5m-20261025.json` (medians of four repetitions; the review rescored all twelve rows from the raw cases):
 
@@ -99,8 +99,8 @@ void detent_close(detent_reader *);
 ```
 
 1. Every lookup writes `fallback` to `*out` for any status but `DETENT_OK` (R1). Lookups never throw across the boundary and never allocate once warm.
-2. Names are `ns:key` as the spec defines them, validated as today (`view.cc:18-23`).
-3. `detent_get` has no switch: the spec reserves and ignores it for integers (`justknobs-implementation-spec.md:541`), and the mapped path already has none (`view.cc:346`).
+2. Names are `ns:key` as `docs/design/knob-model.md` defines them, validated as today (`view.cc:18-23`).
+3. `detent_get` has no switch: the knob model ignores it for integers (`docs/design/knob-model.md`, "Int"), and the mapped path already has none (`view.cc:346`).
 4. `detent_read` returns kind and value in one descent, for the CLI.
 5. `publisher_uid` is required. Trust is never inferred from the directory owner, as today (`src/detent_local/prepared_reader.cc:89-160`).
 6. `detent_open` copies `store` and every namespace string; the caller's buffers may die on return. `detent_abi_version` returns the `DETENT_ABI_VERSION` the library was built with; a wrapper refuses a library whose major value differs from its header's.
@@ -262,13 +262,13 @@ D5 is SRCU's shape with a bounded ring: a stalled reader freezes freshness (Limi
 1. The first lookup in a namespace, and the first after it publishes, pays its attach on the caller's thread (about 0.43 ms instrumented today, less directory trust after open), and the first touch of a segment or page pays syscalls and SHA-256 (Q1, Q3).
 2. **Silent:** if `change` is replaced, a reader keeps its old mapping and keeps answering from the old generation. D4's agent invariant prevents it; `detent_refresh` also re-stats the file and remaps it.
 3. **Silent:** one reader descheduled inside a lookup blocks publication as soon as the ring wraps to its slot, not when all four are pinned: after at most three more publishes the handle stays on the view before it until that reader resumes (`d5_model stall`: 3 of 10 publishes, then 10 of 10 after resuming). Refused publishes are counted (S1, S6).
-4. **Silent:** with R1, a misspelled name returns the caller's default unless the caller reads the status. This reverses the spec's fail-fast rule (`justknobs-implementation-spec.md:339`), which needs rewriting with the R1 ruling.
+4. **Silent:** with R1, a misspelled name returns the caller's default unless the caller reads the status. This reverses the knob model's rule that a missing knob is an error (`docs/design/knob-model.md`, "Errors"), which needs rewriting with the R1 ruling.
 5. The publisher's account can rewrite a mapped page after verification, or truncate a mapped file and raise `SIGBUS` in every reader; the reader cannot see either. This is slightly weaker than today: a rewritten reference in a verified parent to a page already verified is no longer observed, since D3 drops the digest compare on a hit (`lazy_page_access.cc:155-156`). Today's compare caught only that case, and a consistent forgery of the child passed it anyway.
 6. **Silent:** a page verified once and corrupted on disk later is served unchecked by a long-lived handle until namespace delivery's scrub finds it (namespace-delivery ND-R8). Verify-once-per-page makes this the stated behavior rather than a cache accident.
 7. Lookups are not async-signal-safe (D1 item 8).
 8. Rust and Python consumers link the C++ runtime through `libdetent_reader`.
 
-Documents this design changes once built: `docs/ACTORS.md:131-145` (refresh thread, baked defaults, `Client`), spec sections 5, 8 and 11, `docs/FAST_CLIENT_ARCHITECTURE.md` (first read measured from `Client` construction), and `docs/PREPARED_ACTIVATION_ARCHITECTURE.md` (`reader_validation: "full"` goes with R3).
+Documents this design changes once built: `docs/ACTORS.md:131-145` (refresh thread, baked defaults, `Client`), `docs/design/knob-model.md`, `docs/FAST_CLIENT_ARCHITECTURE.md` (first read measured from `Client` construction), and `docs/PREPARED_ACTIVATION_ARCHITECTURE.md` (`reader_validation: "full"` goes with R3).
 
 ## Open questions for the owner
 

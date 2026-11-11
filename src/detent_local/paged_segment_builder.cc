@@ -110,7 +110,7 @@ void SegmentBuilder::step(ValidationBudget &budget) {
 		--budget.rows;
 		state.ownership.length = state.output->size();
 		state.ownership.checksum = finish(state.hash);
-		p::count_hash(p::HashKind::Pack, 1, state.ownership.length);
+		p::count_build_hash(p::HashKind::Pack, 1, state.ownership.length);
 		state.output->seal_prefix();
 		state.phase = Impl::Phase::Done;
 	}

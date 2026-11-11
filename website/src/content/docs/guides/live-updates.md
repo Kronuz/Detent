@@ -41,7 +41,7 @@ replaces:
 
 ```cpp
 detent::InitOptions opts;
-opts.defaults_path = "just_knobs.json";
+opts.defaults_path = "defaults.json";
 opts.source_path = "/var/lib/myapp/live_knobs.json";
 opts.poll_interval = std::chrono::milliseconds{200};
 detent::Client client(std::move(opts));

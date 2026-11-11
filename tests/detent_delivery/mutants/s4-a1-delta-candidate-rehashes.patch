@@ -1,0 +1,12 @@
+diff --git a/src/detent_local/sparse_plan_finalizer.cc b/src/detent_local/sparse_plan_finalizer.cc
+--- a/src/detent_local/sparse_plan_finalizer.cc
++++ b/src/detent_local/sparse_plan_finalizer.cc
+@@ -113,7 +113,7 @@
+ 					artifact_owner =
+ 						std::allocate_shared<State>(d::StorageAllocator<State>(account), plan);
+ 					validator.emplace(account, plan->base_, artifact_owner, added,
+-									  plan->image_->root(), limits, PagedSemanticLimits{}, true);
++									  plan->image_->root(), limits, PagedSemanticLimits{}, false);
+ 				}
+ 				phase = Phase::Validate;
+ 				break;

@@ -1,4 +1,4 @@
-// Section 7/9/13: the file-source updater. Valid atomic replacement produces
+// The file-source updater. Valid atomic replacement produces
 // exactly one accepted swap; malformed, stale, and partial updates never
 // change state; reads continue through every injected failure.
 #include <cassert>
@@ -25,7 +25,7 @@ std::filesystem::path temp_path(std::string_view suffix) {
 
 void write_file(const std::filesystem::path& path, std::string_view contents) {
 	// Atomic-rename-over-target, matching the publisher contract the file
-	// source assumes (Section 10): write a sibling temp file, then rename.
+	// source assumes: write a sibling temp file, then rename.
 	auto tmp = path;
 	tmp += ".tmp";
 	{
@@ -80,8 +80,8 @@ int main() {
 	opts.source_path = source_path;
 	opts.poll_interval = 20ms;
 
-	// Section 9: "Source unavailable at startup -> Serve version-0 defaults;
-	// log and increment refresh failure" -- source_path is configured but the
+	// An unavailable source at startup serves the version-0 defaults, logs
+	// and increments the refresh failure count -- source_path is configured but the
 	// file does not exist yet.
 	Client c(std::move(opts));
 	assert(c.get("search:max_results").value() == 25);

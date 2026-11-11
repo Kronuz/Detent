@@ -88,7 +88,7 @@ path without a live source:
 
 ```cpp
 detent::InitOptions opts;
-opts.defaults_path = "testdata/just_knobs.json";
+opts.defaults_path = "testdata/defaults.json";
 detent::Client client(std::move(opts));
 ```
 

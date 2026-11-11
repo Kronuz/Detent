@@ -1,5 +1,5 @@
-// Section 11: CLI override parsing and precedence over both baked defaults
-// and (Section 13) a later live snapshot.
+// CLI override parsing and precedence over both baked defaults
+// and a later live snapshot.
 #include <cassert>
 #include <cstdio>
 #include <fstream>
