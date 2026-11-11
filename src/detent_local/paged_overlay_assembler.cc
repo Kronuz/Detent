@@ -1,7 +1,10 @@
 #include "paged_overlay_assembler.hh"
 #include "paged_image_state.hh"
-#include "paged_page_builder.hh"
+#include "paged_navigation.hh"
+#include "paged_packer.hh"
 #include "paged_segment_builder.hh"
+#include <map>
+#include <vector>
 namespace detent::local::detail {
 namespace d = distribution;
 namespace p = paged;
@@ -10,81 +13,99 @@ void require(bool condition) {
 	if (!condition)
 		throw std::invalid_argument("invalid sparse paged assembly");
 }
+template <class T> using Vector = std::vector<T, d::StorageAllocator<T>>;
 } // namespace
 struct OverlayAssembler::Impl {
 	struct Frame {
-		const OverlayNode *node = nullptr;
-		std::span<p::Child> children;
-		std::size_t next = 0;
+		OverlayReference reference;
+		std::size_t length = 0, next = 0;
 		bool entered = false;
 	};
+	struct Extent {
+		p::Reference reference;
+		bool retained = false;
+	};
 	enum class Phase {
-		Account,
-		Count,
 		Allocate,
 		Visit,
+		Packer,
 		Page,
 		Pack,
-		ReleasePage,
 		Commit,
 		SealPack,
 		RegisterPack,
 		ReleasePack,
-		Finish,
+		Account,
 		Root,
 		Done
 	};
 	std::shared_ptr<d::StorageLedger> account;
 	const TrieOverlay &overlay;
 	std::span<const SegmentInput> inputs;
-	std::span<const SegmentReachability> live, removed;
-	p::Root root;
+	std::span<const SegmentReachability> live;
+	Vector<SegmentReachability> removed;
+	Vector<Extent> extents;
+	using ExtentKey = std::pair<StorageIdentity, std::uint32_t>;
+	using ExtentRow = std::pair<const ExtentKey, std::size_t>;
+	std::map<ExtentKey, std::size_t, std::less<ExtentKey>, d::StorageAllocator<ExtentRow>>
+		extent_index;
+	p::Root root, base;
 	StorageIdentity storage;
 	GenerationId generation;
 	p::Limits limits;
-	std::uint64_t maximum_output_bytes, output_bytes = 0;
-	d::PagedStorage arena;
+	std::uint64_t maximum_output_bytes, output_bytes = 0, fresh_pages = 0, fresh_bytes = 0;
+	std::uint64_t base_pages = 0, base_bytes = 0, reused_segments = 0, physical_bytes = 0;
 	std::array<Frame, 203> frames{};
-	std::size_t depth = 0, position = 0, charge = 0;
-	std::uint64_t fresh_pages = 0, fresh_bytes = 0, reused_segments = 0, physical_bytes = 0, base_pages = 0,
-				  base_bytes = 0, remaining_pages = 0, remaining_bytes = 0;
+	std::array<char, 202> path{};
+	std::array<std::uint8_t, 256> labels{};
+	std::size_t depth = 0, position = 0, charge = 0, touched = 0;
 	std::optional<PagedImage> output;
-	std::optional<PageBuilder> page;
+	std::optional<PagedPacker> packer;
 	std::optional<SegmentBuilder> segment;
+	SealedPage page;
 	p::Reference reference;
-	Phase phase = Phase::Account, after_pack = Phase::Visit;
-	bool failed = false, discarding = false;
+	std::shared_ptr<d::OwnedBuffer> relocated;
+	Phase phase = Phase::Allocate, after_pack = Phase::Visit;
+	bool failed = false, discarding = false, finishing = false, event = false, relocation = false;
 	Impl(std::shared_ptr<d::StorageLedger> ledger, const TrieOverlay &source,
 		 std::span<const SegmentInput> segments, std::span<const SegmentReachability> reachability,
-		 p::Root base, StorageIdentity identity, GenerationId publication, d::Cursor target, p::Limits bounds,
-		 std::uint64_t maximum_output)
+		 p::Root previous, StorageIdentity identity, GenerationId publication, d::Cursor target,
+		 p::Limits bounds, std::uint64_t maximum)
 		: account(std::move(ledger)), overlay(source), inputs(segments), live(reachability),
-		  removed(overlay.removed()), root(base), storage(identity), generation(publication), limits(bounds),
-		  maximum_output_bytes(maximum_output), arena(*account, 8192) {
-		require(inputs.size() == live.size() && live.size() == removed.size() &&
-				live.size() == root.segments);
+		  removed(d::StorageAllocator<SegmentReachability>(account)),
+		  extents(d::StorageAllocator<Extent>(account)),
+		  extent_index(std::less<ExtentKey>{}, d::StorageAllocator<ExtentRow>(account)),
+		  root(previous), base(previous), storage(identity), generation(publication),
+		  limits(bounds), maximum_output_bytes(maximum) {
+		require(inputs.size() == live.size() && live.size() == root.segments);
 		require(root.cursor.same_identity(target) && target.revision >= root.cursor.revision);
-		require(std::any_of(storage.begin(), storage.end(), [](char c) { return c; }) &&
-				std::any_of(generation.begin(), generation.end(), [](char c) { return c; }));
 		p::encode_root(root, limits);
 		root.cursor = target;
-		if (const auto tree = overlay.root(); tree.fresh) {
-			require(tree.fresh->keys >= root.namespaces &&
-					tree.fresh->keys - root.namespaces <= limits.records);
-			root.records = tree.fresh->keys - root.namespaces;
-			frames[0].node = tree.fresh;
+		root.namespaces = overlay.namespaces();
+		removed.resize(inputs.size());
+		const auto tree = overlay.root();
+		if (tree) {
+			frames[0].reference = tree;
 			depth = 1;
-		} else if (!tree) {
+			if (tree.fresh) {
+				relocation = !tree.fresh->relocation_bytes.empty();
+				require(tree.fresh->keys >= root.namespaces &&
+						tree.fresh->keys - root.namespaces <= limits.records);
+				root.records = tree.fresh->keys - root.namespaces;
+			}
+		} else {
 			require(!root.namespaces);
 			root.records = 0;
 		}
+		if (!relocation)
+			packer.emplace(account, limits);
 	}
-	bool grant(std::size_t bytes, ValidationBudget &budget) {
+	bool grant(std::size_t amount, ValidationBudget &budget) {
 		if (!budget.rows)
 			return false;
 		if (!charge)
-			charge = bytes;
-		auto n = std::min(charge, budget.bytes);
+			charge = amount;
+		const auto n = std::min(charge, budget.bytes);
 		charge -= n;
 		budget.bytes -= n;
 		if (charge)
@@ -92,220 +113,319 @@ struct OverlayAssembler::Impl {
 		--budget.rows;
 		return true;
 	}
-	void push(const OverlayNode *node) {
-		require(depth < frames.size());
-		frames[depth++] = Frame{node};
+	std::span<const char> bytes(const p::Reference &r) const {
+		const auto i = find_segment(inputs, r.segment);
+		require(i != inputs.size());
+		return checked_page_bytes(inputs[i], r);
+	}
+	void touch(const p::Reference &r, bool retain = false) {
+		auto [found, inserted] =
+			extent_index.emplace(ExtentKey{r.segment, r.offset}, extents.size());
+		if (inserted)
+			extents.push_back({r, retain});
+		else if (retain) {
+			auto &extent = extents[found->second];
+			require(!extent.retained);
+			extent.retained = true;
+		}
+	}
+	std::optional<p::Reference> corresponding(std::string_view path) const {
+		if (!base.pages)
+			return {};
+		auto r = base.tree;
+		std::size_t offset = p::page_header_bytes, at = 0;
+		for (;;) {
+			if (at == path.size())
+				return offset == p::page_header_bytes ? std::optional(r) : std::nullopt;
+			const auto b = bytes(r);
+			const auto n = p::decode_node(b, offset, limits);
+			if (n.kind != p::PageKind::Branch || path.size() - at <= n.prefix.size() ||
+				path.substr(at, n.prefix.size()) != n.prefix)
+				return {};
+			at += n.prefix.size();
+			const auto label = static_cast<unsigned char>(path[at++]);
+			auto found = std::lower_bound(
+				n.labels.begin(), n.labels.end(), label,
+				[](char a, unsigned char b) { return static_cast<unsigned char>(a) < b; });
+			if (found == n.labels.end() || static_cast<unsigned char>(*found) != label)
+				return {};
+			const auto slot = n.slot(found - n.labels.begin());
+			if (slot & 0x8000) {
+				r = p::decode_external(b, slot & 0x7fff, limits);
+				offset = p::page_header_bytes;
+			} else
+				offset = slot;
+		}
+	}
+	void push(OverlayReference ref, std::string_view path) {
+		require(depth < frames.size() && path.size() <= 202);
+		auto &f = frames[depth++];
+		f = {};
+		f.reference = ref;
+		f.length = path.size();
+		std::copy(path.begin(), path.end(), this->path.begin());
+	}
+	void finish_page() {
+		++fresh_pages;
+		fresh_bytes += reference.length;
+		require(fresh_pages <= limits.pages && fresh_bytes <= limits.bytes);
 	}
 };
-OverlayAssembler::OverlayAssembler(std::shared_ptr<d::StorageLedger> account, const TrieOverlay &overlay,
+OverlayAssembler::OverlayAssembler(std::shared_ptr<d::StorageLedger> account,
+								   const TrieOverlay &overlay,
 								   std::span<const SegmentInput> segments,
 								   std::span<const SegmentReachability> live, p::Root base,
-								   StorageIdentity storage, GenerationId generation, d::Cursor target,
-								   p::Limits limits, std::uint64_t maximum_output)
-	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, overlay, segments, live,
-										base, storage, generation, target, limits, maximum_output)) {}
+								   StorageIdentity storage, GenerationId generation,
+								   d::Cursor target, p::Limits limits, std::uint64_t maximum)
+	: impl_(d::make_storage_owner<Impl>(account, std::malloc, std::free, account, overlay, segments,
+										live, base, storage, generation, target, limits, maximum)) {
+}
 OverlayAssembler::~OverlayAssembler() = default;
 OverlayAssembler::OverlayAssembler(OverlayAssembler &&) noexcept = default;
 void OverlayAssembler::step(ValidationBudget &budget) {
 	if (!impl_ || impl_->failed || impl_->discarding)
 		throw std::logic_error("inactive sparse paged assembly");
 	auto &s = *impl_;
+	using Phase = Impl::Phase;
 	try {
-		while (s.phase != Impl::Phase::Done) {
+		while (s.phase != Phase::Done) {
 			switch (s.phase) {
-			case Impl::Phase::Account:
-				if (s.position == s.inputs.size()) {
-					require(s.base_pages == s.root.pages && s.base_bytes == s.root.bytes);
-					s.root.pages = s.remaining_pages;
-					s.root.bytes = s.remaining_bytes;
-					s.phase = Impl::Phase::Count;
-					break;
-				}
-				if (!s.grant(sizeof(SegmentReachability) * 2 + sizeof(SegmentOwnership), budget))
-					return;
-				{
-					const auto i = s.position++;
-					require(s.removed[i].pages <= s.live[i].pages && s.removed[i].bytes <= s.live[i].bytes);
-					require(s.live[i].pages <= s.root.pages - s.base_pages &&
-							s.live[i].bytes <= s.root.bytes - s.base_bytes);
-					s.base_pages += s.live[i].pages;
-					s.base_bytes += s.live[i].bytes;
-					s.remaining_pages += s.live[i].pages - s.removed[i].pages;
-					s.remaining_bytes += s.live[i].bytes - s.removed[i].bytes;
-					if (s.live[i].pages != s.removed[i].pages) {
-						++s.reused_segments;
-						require(s.inputs[i].ownership.length <= s.limits.bytes - s.physical_bytes);
-						s.physical_bytes += s.inputs[i].ownership.length;
-					}
-				}
-				break;
-			case Impl::Phase::Count:
-				if (!s.depth) {
-					s.phase = Impl::Phase::Allocate;
-					break;
-				}
-				{
-					auto &frame = s.frames[s.depth - 1];
-					const auto &node = *frame.node;
-					if (!frame.entered) {
-						if (!s.grant(p::page_header_bytes + node.prefix.size(), budget))
-							return;
-						require(node.children.size() <= 256 && node.prefix.size() <= 202 &&
-								node.body.size() <= p::page_bytes);
-						const auto length = p::page_header_bytes + node.prefix.size() +
-											node.children.size() * p::child_bytes + node.body.size();
-						require(length <= p::page_bytes && s.fresh_pages < s.limits.pages &&
-								length <= s.limits.bytes - s.fresh_bytes);
-						if (length > s.maximum_output_bytes - s.fresh_bytes)
-							throw std::length_error("compaction output bound exceeded");
-						++s.fresh_pages;
-						s.fresh_bytes += length;
-						frame.entered = true;
-					}
-					if (frame.next == node.children.size()) {
-						--s.depth;
-						break;
-					}
-					if (!s.grant(sizeof(OverlayChild), budget))
+			case Phase::Allocate:
+				if (s.touched < s.overlay.touched_pages().size()) {
+					if (!s.grant(sizeof(p::Reference), budget))
 						return;
-					const auto child = node.children[frame.next++].reference;
-					require(bool(child));
-					if (child.fresh)
-						s.push(child.fresh);
+					s.touch(s.overlay.touched_pages()[s.touched++]);
+					break;
 				}
-				break;
-			case Impl::Phase::Allocate: {
 				if (!s.grant(sizeof(PagedImage), budget))
 					return;
-				const auto capacity = std::min(s.fresh_pages, (s.fresh_bytes + 7 * s.fresh_pages +
-															   p::segment_bytes - p::page_bytes - 1) /
-																  (p::segment_bytes - p::page_bytes));
-				require(capacity <= s.limits.segments && s.fresh_pages <= s.limits.pages - s.root.pages &&
-						s.fresh_bytes <= s.limits.bytes - s.root.bytes);
-				s.output.emplace(PagedImage(s.account, capacity));
-				if (const auto tree = s.overlay.root(); tree.fresh) {
-					s.frames[0] = Impl::Frame{tree.fresh};
-					s.depth = 1;
-					s.phase = Impl::Phase::Visit;
-				} else {
-					s.root.tree =
-						tree.old ? p::decode_reference({tree.old, p::reference_bytes}) : p::Reference{};
-					s.phase = Impl::Phase::Finish;
-				}
+				s.output.emplace(PagedImage(s.account, 0));
+				s.phase = Phase::Visit;
 				break;
-			}
-			case Impl::Phase::Visit: {
-				auto &frame = s.frames[s.depth - 1];
-				const auto &node = *frame.node;
-				if (!frame.entered) {
-					if (!s.grant(p::page_header_bytes + node.prefix.size() +
-									 sizeof(p::Child) * node.children.size(),
-								 budget))
-						return;
-					if (!node.children.empty())
-						frame.children = {static_cast<p::Child *>(s.arena.allocate(
-											  sizeof(p::Child) * node.children.size(), alignof(p::Child))),
-										  node.children.size()};
-					frame.entered = true;
-				}
-				if (frame.next < node.children.size()) {
-					if (!s.grant(p::reference_bytes, budget))
-						return;
-					const auto child = node.children[frame.next];
-					if (child.reference.fresh)
-						s.push(child.reference.fresh);
-					else {
-						std::construct_at(&frame.children[frame.next++],
-										  p::Child{child.label, p::decode_reference({child.reference.old,
-																					 p::reference_bytes})});
+			case Phase::Visit: {
+				if (s.relocation) {
+					auto &f = s.frames[s.depth - 1];
+					const auto &n = *f.reference.fresh;
+					if (f.next < n.children.size()) {
+						if (!s.grant(sizeof(OverlayReference), budget))
+							return;
+						const auto child = n.children[f.next++].reference;
+						if (child.fresh)
+							s.push(child, {});
+						break;
 					}
+					if (!f.entered) {
+						if (!s.grant(n.relocation_bytes.size(), budget))
+							return;
+						s.relocated = d::make_owned_buffer(s.account, n.relocation_bytes.size());
+						s.relocated->append({n.relocation_bytes.data(), n.relocation_bytes.size()});
+						auto bytes = s.relocated->mutable_bytes();
+						const auto count = n.children.size();
+						for (std::size_t i = 0; i < count; ++i) {
+							const auto &child = n.children[i].reference;
+							const auto placement = p::encode_placement(
+								child.old ? *child.old : child.fresh->relocation_reference);
+							std::copy(placement.begin(), placement.end(),
+									  bytes.end() - p::placement_bytes * (count - i));
+						}
+						s.relocated->seal();
+						s.page = {s.relocated, n.relocation_reference, {}};
+						f.entered = true;
+					}
+					s.phase = Phase::Page;
 					break;
 				}
-				s.page.emplace(s.account, node.kind, node.keys, node.prefix, frame.children, node.body,
-							   s.limits);
-				s.phase = Impl::Phase::Page;
+				if (s.event) {
+					if (!s.packer->accepted()) {
+						s.phase = Phase::Packer;
+						break;
+					}
+					s.event = false;
+					--s.depth;
+				}
+				if (!s.depth) {
+					if (!s.finishing) {
+						s.packer->finish();
+						s.finishing = true;
+					}
+					s.phase = Phase::Packer;
+					break;
+				}
+				auto &f = s.frames[s.depth - 1];
+				if (!s.grant(sizeof(TrieEvent) + sizeof(OverlayReference), budget))
+					return;
+				if (f.reference.old) {
+					const auto &r = *f.reference.old;
+					if (f.reference.offset == p::page_header_bytes && r.length > p::page_capacity)
+						s.packer->push_reference(r, std::string_view(s.path.data(), f.length));
+					else {
+						s.touch(r);
+						s.packer->push_cluster(s.bytes(r), f.reference.offset,
+											   std::string_view(s.path.data(), f.length));
+					}
+					s.event = true;
+					s.phase = Phase::Packer;
+					break;
+				}
+				const auto &n = *f.reference.fresh;
+				if (f.next < n.children.size()) {
+					const auto child = n.children[f.next++];
+					auto path = s.path;
+					const auto length = f.length + n.prefix.size() + 1;
+					require(length <= path.size());
+					std::copy(n.prefix.begin(), n.prefix.end(), path.begin() + f.length);
+					path[length - 1] = static_cast<char>(child.label);
+					s.push(child.reference, {path.data(), length});
+					break;
+				}
+				std::copy(n.prefix.begin(), n.prefix.end(), s.path.begin() + f.length);
+				for (std::size_t i = 0; i < n.children.size(); ++i)
+					s.labels[i] = n.children[i].label;
+				s.packer->push({n.kind,
+								0,
+								n.keys,
+								{s.path.data(), f.length + n.prefix.size()},
+								n.prefix,
+								{s.labels.data(), n.children.size()}},
+							   n.body);
+				s.event = true;
+				s.phase = Phase::Packer;
 				break;
 			}
-			case Impl::Phase::Page:
-				s.page->step(budget);
-				if (!s.page->done())
+			case Phase::Packer:
+				s.packer->step(budget);
+				if (s.packer->ready()) {
+					s.page = s.packer->page();
+					const auto old = s.corresponding(s.page.path);
+					if (old && old->digest == s.page.summary.digest &&
+						old->length == s.page.summary.length && old->keys == s.page.summary.keys &&
+						old->height == s.page.summary.height) {
+						s.touch(*old, true);
+						s.reference = *old;
+						s.phase = Phase::Commit;
+					} else
+						s.phase = Phase::Page;
+				} else if (s.packer->done()) {
+					s.root.tree = s.packer->root();
+					if (s.segment) {
+						s.segment->seal();
+						s.after_pack = Phase::Account;
+						s.phase = Phase::SealPack;
+					} else
+						s.phase = Phase::Account;
+				} else if (s.packer->accepted())
+					s.phase = Phase::Visit;
+				else
 					return;
+				break;
+			case Phase::Page:
+				if (s.page.summary.length > s.maximum_output_bytes - s.fresh_bytes)
+					throw std::length_error("overlay output page limit exceeded");
 				if (!s.segment)
-					s.segment.emplace(s.account, s.storage, s.generation, s.output->impl_->segments.size());
-				if (!s.segment->fits(*s.page)) {
-					s.after_pack = Impl::Phase::Page;
+					s.segment.emplace(s.account, s.storage, s.generation,
+									  s.output->impl_->segments.size());
+				if (!s.segment->fits(s.page)) {
 					s.segment->seal();
-					s.phase = Impl::Phase::SealPack;
+					s.after_pack = Phase::Page;
+					s.phase = Phase::SealPack;
 				} else {
-					s.segment->append(*s.page);
-					s.phase = Impl::Phase::Pack;
+					s.segment->append(s.page);
+					s.phase = Phase::Pack;
 				}
 				break;
-			case Impl::Phase::Pack:
+			case Phase::Pack:
 				s.segment->step(budget);
 				if (!s.segment->page_ready())
 					return;
 				s.reference = s.segment->reference();
-				++s.root.pages;
-				s.root.bytes += s.reference.length;
-				s.phase = Impl::Phase::ReleasePage;
+				s.finish_page();
+				s.phase = Phase::Commit;
 				break;
-			case Impl::Phase::ReleasePage:
-				if (!s.page->discard(budget))
-					return;
-				s.page.reset();
-				s.phase = Impl::Phase::Commit;
-				break;
-			case Impl::Phase::Commit:
-				if (!s.grant(p::reference_bytes, budget))
-					return;
-				--s.depth;
-				if (s.depth) {
-					auto &parent = s.frames[s.depth - 1];
-					std::construct_at(&parent.children[parent.next],
-									  p::Child{parent.node->children[parent.next].label, s.reference});
-					++parent.next;
-					s.phase = Impl::Phase::Visit;
+			case Phase::Commit:
+				if (s.relocation) {
+					if (!s.grant(sizeof(p::Reference), budget))
+						return;
+					s.frames[s.depth - 1].reference.fresh->relocation_reference = s.reference;
+					s.relocated.reset();
+					s.page = {};
+					if (!--s.depth) {
+						s.root.tree = s.reference;
+						s.segment->seal();
+						s.after_pack = Phase::Account;
+						s.phase = Phase::SealPack;
+					} else
+						s.phase = Phase::Visit;
 				} else {
-					s.root.tree = s.reference;
-					s.segment->seal();
-					s.after_pack = Impl::Phase::Finish;
-					s.phase = Impl::Phase::SealPack;
+					if (!s.packer->commit(s.reference, budget))
+						return;
+					s.page = {};
+					s.phase = Phase::Packer;
 				}
 				break;
-			case Impl::Phase::SealPack:
+			case Phase::SealPack:
 				s.segment->step(budget);
 				if (!s.segment->done())
 					return;
-				s.phase = Impl::Phase::RegisterPack;
+				s.phase = Phase::RegisterPack;
 				break;
-			case Impl::Phase::RegisterPack:
+			case Phase::RegisterPack:
 				if (!s.grant(sizeof(BuiltSegment), budget))
 					return;
 				{
 					const auto ownership = s.segment->ownership();
-					require(s.output->impl_->segments.size() + s.reused_segments < s.limits.segments &&
-							ownership.length <= s.limits.bytes - s.physical_bytes);
 					if (ownership.length > s.maximum_output_bytes - s.output_bytes)
 						throw std::length_error("overlay output pack limit exceeded");
 					s.output_bytes += ownership.length;
-					s.physical_bytes += ownership.length;
+					require(s.output->impl_->segments.size() < s.limits.segments);
 					s.output->impl_->segments.push_back({ownership, s.segment->bytes()});
 				}
-				s.phase = Impl::Phase::ReleasePack;
+				s.phase = Phase::ReleasePack;
 				break;
-			case Impl::Phase::ReleasePack:
+			case Phase::ReleasePack:
 				if (!s.segment->discard(budget))
 					return;
 				s.segment.reset();
 				s.phase = s.after_pack;
 				break;
-			case Impl::Phase::Finish:
+			case Phase::Account:
+				if (s.position < s.extents.size()) {
+					if (!s.grant(sizeof(Impl::Extent), budget))
+						return;
+					const auto &e = s.extents[s.position++];
+					if (!e.retained) {
+						const auto i = find_segment(s.inputs, e.reference.segment);
+						++s.removed[i].pages;
+						s.removed[i].bytes += e.reference.length;
+					}
+					break;
+				}
+				if (s.position < s.extents.size() + s.inputs.size()) {
+					if (!s.grant(2 * sizeof(SegmentReachability), budget))
+						return;
+					const auto i = s.position++ - s.extents.size();
+					require(s.live[i].pages <= s.base.pages - s.base_pages &&
+							s.live[i].bytes <= s.base.bytes - s.base_bytes);
+					s.base_pages += s.live[i].pages;
+					s.base_bytes += s.live[i].bytes;
+					require(s.removed[i].pages <= s.live[i].pages &&
+							s.removed[i].bytes <= s.live[i].bytes);
+					if (s.live[i].pages != s.removed[i].pages) {
+						++s.reused_segments;
+						s.physical_bytes += s.inputs[i].ownership.length;
+					}
+					s.fresh_pages += s.live[i].pages - s.removed[i].pages;
+					s.fresh_bytes += s.live[i].bytes - s.removed[i].bytes;
+					break;
+				}
+				require(s.base_pages == s.base.pages && s.base_bytes == s.base.bytes);
+				s.root.pages = s.fresh_pages;
+				s.root.bytes = s.fresh_bytes;
 				s.root.segments = s.reused_segments + s.output->impl_->segments.size();
-				s.root.logical = s.root.pages ? s.root.tree.logical : p::empty_commitment();
-				s.phase = Impl::Phase::Root;
+				require(s.output_bytes <= s.limits.bytes &&
+						s.physical_bytes <= s.limits.bytes - s.output_bytes);
+				s.phase = Phase::Root;
 				break;
-			case Impl::Phase::Root:
+			case Phase::Root:
 				if (!s.grant(3 * p::root_bytes, budget))
 					return;
 				{
@@ -313,16 +433,16 @@ void OverlayAssembler::step(ValidationBudget &budget) {
 					auto bytes = d::make_owned_buffer(s.account, encoded.size());
 					bytes->append({encoded.data(), encoded.size()});
 					bytes->seal();
-					auto &output = *s.output->impl_;
-					output.root = s.root;
-					output.bytes = std::move(bytes);
-					output.descriptor = {s.generation, p::root_bytes, p::physical_commitment(encoded),
-										 s.root.cursor, s.root.profile};
-					output.sealed = true;
+					auto &out = *s.output->impl_;
+					out.root = s.root;
+					out.bytes = std::move(bytes);
+					out.descriptor = {s.generation, p::root_bytes, p::metadata_commitment(encoded),
+									  s.root.cursor, s.root.profile};
+					out.sealed = true;
 				}
-				s.phase = Impl::Phase::Done;
+				s.phase = Phase::Done;
 				break;
-			case Impl::Phase::Done:
+			case Phase::Done:
 				break;
 			}
 		}
@@ -339,8 +459,12 @@ PagedImage OverlayAssembler::take() {
 		throw std::logic_error("sparse paged assembly incomplete");
 	auto output = std::move(*impl_->output);
 	impl_->output.reset();
-	impl_->discarding = true;
 	return output;
+}
+std::span<const SegmentReachability> OverlayAssembler::removed() const {
+	if (!done())
+		throw std::logic_error("sparse paged assembly incomplete");
+	return impl_->removed;
 }
 bool OverlayAssembler::discard(ValidationBudget &budget) {
 	if (!impl_)
@@ -350,19 +474,23 @@ bool OverlayAssembler::discard(ValidationBudget &budget) {
 		s.discarding = true;
 		s.charge = 0;
 	}
-	if (s.page && !s.page->discard(budget))
+	if (s.packer && !s.packer->discard(budget))
 		return false;
-	s.page.reset();
+	s.packer.reset();
+	s.page = {};
+	s.relocated.reset();
 	if (s.segment && !s.segment->discard(budget))
 		return false;
 	s.segment.reset();
 	if (s.output && !s.output->discard(budget))
 		return false;
 	s.output.reset();
-	while (s.arena.front_capacity()) {
-		if (!s.grant(s.arena.front_capacity(), budget))
+	while (!s.extents.empty()) {
+		if (!s.grant(sizeof(Impl::Extent), budget))
 			return false;
-		s.arena.release_one();
+		s.extents.pop_back();
+		if (!s.extent_index.empty())
+			s.extent_index.erase(s.extent_index.begin());
 	}
 	if (!budget.rows)
 		return false;

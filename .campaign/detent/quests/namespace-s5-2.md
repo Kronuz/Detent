@@ -33,3 +33,8 @@ D53 split namespace-s4-s10; the design is `docs/design/namespace-delivery.md` (r
 ## May land early
 
 None: the format and its crash matrix are reviewed together.
+
+## Inputs from S5.1's review (non-blocking)
+- S1: fold the probe's acknowledged-step check (.scratch/review-namespace-s5-1-durability) into the suite's power-cut test.
+- S2: a suite test that a drop resets the change history floor (an old cursor gets no deltas).
+- S3: image decode checks that the directory head equals the highest position.

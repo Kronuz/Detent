@@ -68,7 +68,7 @@ int main() {
 		const auto name = l::generation_name(id);
 		write(root / (name + ".lease"),
 			  l::encode_generation_ownership(
-				  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
+				  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
 		write(root / (name + ".image"), bytes.first(length));
         const auto metadata = l::detail::encode_reader_metadata(
             {storage, id, image.descriptor().checksum, {}, l::paged::root_bytes});
@@ -82,7 +82,7 @@ int main() {
 		const auto name = l::generation_name(id);
 		write(root / (name + ".lease"),
 			  l::encode_generation_ownership(
-				  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
+				  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
 		std::array<char, l::paged::root_bytes> invalid{};
 		std::copy(bytes.begin(), bytes.end(), invalid.begin());
 		invalid[variant ? 0 : 56] ^= 1;
@@ -92,7 +92,7 @@ int main() {
         const auto id = identity(500 + variant);
         const auto name = l::generation_name(id);
         write(root / (name + ".lease"), l::encode_generation_ownership(
-                  {storage, id, image.descriptor().length, image.descriptor().checksum, 2}));
+                  {storage, id, image.descriptor().length, image.descriptor().checksum, detent::local::paged::format_version}));
         write(root / (name + ".image"), bytes);
         auto metadata = l::detail::encode_reader_metadata(
             {storage, id, image.descriptor().checksum, {}, l::paged::root_bytes});

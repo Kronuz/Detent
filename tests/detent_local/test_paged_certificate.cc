@@ -54,7 +54,7 @@ int main() {
 			const auto name = l::generation_name(next);
 			write(root / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, next, plan.descriptor().length, plan.descriptor().checksum, 2}));
+					  {storage, next, plan.descriptor().length, plan.descriptor().checksum, detent::local::paged::format_version}));
 			write(root / (name + ".image"), {plan.bytes()->data(), plan.bytes()->size()});
 			write(root / "selected", l::encode_descriptor(plan.descriptor()));
 		}

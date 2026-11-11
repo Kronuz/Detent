@@ -1,0 +1,13 @@
+diff --git a/include/detent_local/paged_layout.hh b/include/detent_local/paged_layout.hh
+index dd1e8f0..3c48678 100644
+--- a/include/detent_local/paged_layout.hh
++++ b/include/detent_local/paged_layout.hh
+@@ -23,7 +23,7 @@ inline constexpr std::size_t content_bytes = 48, placement_bytes = 20,
+ constexpr bool seal_eligible(std::size_t size) noexcept { return size > child_bytes; }
+ constexpr bool seals_before(unsigned height, std::size_t size, unsigned other_height,
+ 							std::size_t other_size) noexcept {
+-	return height < other_height || (height == other_height && size > other_size);
++	return size > other_size || (height == other_height && size > other_size);
+ }
+ enum class PageKind : std::uint8_t { Branch = 1, Definition = 2, Namespace = 3 };
+ struct Limits {

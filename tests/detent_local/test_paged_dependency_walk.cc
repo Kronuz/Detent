@@ -39,7 +39,7 @@ int main() {
 		source->replacement.reset();
 		if (variant == 1) {
 			++root.pages;
-			root.bytes += l::paged::page_header_bytes;
+			root.bytes += l::paged::minimum_page_bytes;
 		}
 		if (variant == 2) {
 			const auto &original = source->image.segments().front();
@@ -54,7 +54,6 @@ int main() {
 		if (variant == 3) {
 			root.bytes = root.pages = root.segments = root.records = root.namespaces = 0;
 			root.tree = {};
-			root.logical = l::paged::empty_commitment();
 		}
 		l::detail::PagedDependencyWalk walk(account, source, Source::lookup, root, storage);
 		l::ValidationBudget zero{0, 0};

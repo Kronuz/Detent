@@ -372,7 +372,7 @@ ServiceOptions load_service_options(const std::filesystem::path &path) {
 		auto &voters = field(d, "voters");
 		check(voters.IsArray() && voters.Size() >= 3 && voters.Size() <= o.node.consensus.voters &&
 				  voters.Size() % 2,
-			  "fixed voter count");
+			  "fixed voter count: an odd number of voters, at least 3, within the voter limit");
 		std::set<asio::ip::tcp::endpoint> addresses;
 		for (const auto &voter : voters.GetArray()) {
 			fields(voter, {"id", "host", "port", "certificate_sha256"});
@@ -592,6 +592,11 @@ Service::~Service() {
 	owner_.close();
 	owner_.destroy_roots();
 }
+std::optional<std::string> Service::failure() const {
+	std::lock_guard lock(mutex_);
+	return failure_;
+}
+
 void Service::begin_shutdown() noexcept {
 	{
 		std::lock_guard lock(mutex_);
@@ -1480,6 +1485,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 									  options_.subscription_requests.opens +
 										  options_.subscription_requests.polls);
 		auto last_health = Clock::time_point{};
+		// A leader is known: this node leads, or follows one. Health reports it before has_leader() does.
+		bool leader_known = false;
+		// Last proof a follower's leader is alive: a RoleChanged naming it, or our reply to its append.
+		auto leader_contact = Clock::now();
+		// A follower is ready only while that proof is within election_max, CheckQuorum's window on the
+		// leader side (D41); pre-vote keeps the leader known after it falls silent.
+		auto leader_alive = [&] {
+			return leader_known &&
+				   (node.worker().role() == kronuz::consensus::Role::Leader ||
+					Clock::now() - leader_contact <= std::chrono::milliseconds(options_.node.timing.election_max));
+		};
 		auto publish_health = [&] {
 			const auto export_progress = delivering && delivering->exporter
 				? delivering->exporter->snapshot_progress().value_or(distribution::SnapshotEncodingProgress{})
@@ -1592,7 +1608,7 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 					}
 					return bounds + "]";
 				}() +
-				",\"ready\":" + std::string(node.worker().ready() ? "true" : "false") +
+				",\"ready\":" + std::string(node.worker().ready() && leader_alive() ? "true" : "false") +
 				",\"role\":" + std::to_string(static_cast<unsigned>(node.worker().role())) +
 				",\"committed\":" + std::to_string(node.worker().committed()) +
 				",\"term\":" + std::to_string(node.worker().term()) +
@@ -1748,9 +1764,17 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 			}
 			for (auto &action : node.take_network_actions()) {
 				if (std::holds_alternative<kronuz::consensus::Send>(action)) {
+					if (std::holds_alternative<kronuz::consensus::AppendResponse>(
+							std::get<kronuz::consensus::Send>(action).message))
+						leader_contact = Clock::now();
 					if (!peers)
 						throw std::logic_error("single-voter authority cannot send");
 					peers->send(std::move(std::get<kronuz::consensus::Send>(action)));
+				} else if (auto role = std::get_if<kronuz::consensus::RoleChanged>(&action)) {
+					leader_known = role->leader != 0;
+					leader_contact = Clock::now();
+					publish_health();
+					service.leader_known_.store(leader_known, std::memory_order_release);
 				}
 			}
 			if (peers)
@@ -2611,6 +2635,13 @@ task::task<void> Service::Runtime::run(Service &service, std::promise<void> &rea
 		} else {
 			std::lock_guard lock(mutex_);
 			stopping_ = true;
+			try {
+				throw;
+			} catch (const std::exception &error) {
+				service.failure_ = error.what();
+			} catch (...) {
+				service.failure_ = "unknown error";
+			}
 			service.health_stamp_ = Clock::now();
 			health_ = std::string("{\"mode\":\"") +
 					  (options_.peers ? "durable_fixed_voters" : "durable_single_voter") +

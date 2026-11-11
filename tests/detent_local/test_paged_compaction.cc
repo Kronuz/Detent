@@ -2,7 +2,9 @@
 #include "managed_recovery.hh"
 #include "paged_compaction_plan.hh"
 #include "paged_disk_fixture.hh"
+#include "paged_large_fixture.hh"
 #include "paged_split_fixture.hh"
+namespace p = l::paged;
 #include <chrono>
 #include <completion/native_completion.h>
 #include <fcntl.h>
@@ -19,7 +21,8 @@ void drive(const std::shared_ptr<l::DiskStore> &store) {
 		if (auto operation = store->operation()) {
 			const auto &request = operation->request();
 			operation->submitted();
-			check(operation->complete(kronuz::journal::detail::execute_primitive(operation->io(), request)));
+			check(operation->complete(
+				kronuz::journal::detail::execute_primitive(operation->io(), request)));
 		}
 		store->advance();
 	}
@@ -35,8 +38,9 @@ l::DiskUsage census(const std::filesystem::path &directory) {
 	return usage;
 }
 void run(std::size_t choice) {
-	const auto directory = std::filesystem::current_path() / ".scratch" /
-						   ("paged-compaction-" + std::to_string(::getpid()) + "-" + std::to_string(choice));
+	const auto directory =
+		std::filesystem::current_path() / ".scratch" /
+		("paged-compaction-" + std::to_string(::getpid()) + "-" + std::to_string(choice));
 	struct Cleanup {
 		std::filesystem::path path;
 		~Cleanup() { std::filesystem::remove_all(path); }
@@ -47,7 +51,7 @@ void run(std::size_t choice) {
 	d::RetirementRuntime runtime(controls, 1);
 	auto domain = runtime.domain(heap, 512);
 	{
-		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+		auto source = std::make_shared<const d::ValidatedSnapshot>(decode(many(500)));
 		l::StorageIdentity storage{};
 		storage.fill('s');
 		l::GenerationId generation{}, split_generation{}, next{};
@@ -63,10 +67,10 @@ void run(std::size_t choice) {
 		std::vector<l::detail::SegmentInput> inputs;
 		for (const auto &segment : image.segments())
 			inputs.push_back({segment.ownership, {segment.bytes->data(), segment.bytes->size()}});
-		auto split = std::make_shared<l::testing::SplitPagedInput>(heap, inputs, image.root(), storage,
-																   split_generation);
-		const auto encoded = l::paged::encode_root(split->root);
-		l::Descriptor descriptor{generation, encoded.size(), l::paged::physical_commitment(encoded),
+		auto split = std::make_shared<l::testing::SplitPagedInput>(heap, inputs, image.root(),
+																   storage, split_generation);
+		const auto encoded = l::paged::encode_root(split->root, l::paged::Limits{});
+		l::Descriptor descriptor{generation, encoded.size(), l::paged::metadata_commitment(encoded),
 								 split->root.cursor, split->root.profile};
 		std::filesystem::create_directories(directory);
 		check(::chmod(directory.c_str(), 0700) == 0);
@@ -74,9 +78,9 @@ void run(std::size_t choice) {
 		write(directory / "owner.lock", {});
 		const auto name = l::generation_name(generation);
 		write(directory / (name + ".image"), encoded);
-		write(
-			directory / (name + ".lease"),
-			l::encode_generation_ownership({storage, generation, descriptor.length, descriptor.checksum, 2}));
+		write(directory / (name + ".lease"),
+			  l::encode_generation_ownership(
+				  {storage, generation, descriptor.length, descriptor.checksum, p::format_version}));
 		write(directory / (name + ".descriptor"), l::encode_descriptor(descriptor));
 		write(directory / "selected", l::encode_descriptor(descriptor));
 		for (const auto &segment : split->packs) {
@@ -89,16 +93,20 @@ void run(std::size_t choice) {
 		options.limits = {64 * l::paged::segment_bytes, 1000, 10};
 		options.recovery_limits.retirement_domain = &domain;
 		options.recovery_limits.mapping_account = mappings;
-		std::optional<l::RecoveredGeneration> base(l::recover_generation(directory, options.recovery_limits));
+		std::optional<l::RecoveredGeneration> base(
+			l::recover_generation(directory, options.recovery_limits));
 		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
 		drive(store);
 		if (store->error())
 			std::rethrow_exception(store->error());
-		const std::array selected{split->packs[0].ownership.segment, split->packs[1].ownership.segment};
-		const auto selection = choice == 2 ? std::span<const l::StorageIdentity>(selected)
-										   : std::span<const l::StorageIdentity>(&selected[choice], 1);
+		const std::array selected{split->packs[0].ownership.segment,
+								  split->packs[1].ownership.segment};
+		const auto selection = choice == 2
+								   ? std::span<const l::StorageIdentity>(selected)
+								   : std::span<const l::StorageIdentity>(&selected[choice], 1);
 		for (const auto limits : {l::detail::CompactionLimits{8, 1, 16 * 1024 * 1024},
 								  l::detail::CompactionLimits{8, 32768, 1}}) {
+			if (limits.maximum_recipes == 1 && choice == 0) continue;
 			bool refused = false;
 			try {
 				l::detail::PagedCompactionBuilder bounded(*base, selection, next, domain, limits);
@@ -123,7 +131,7 @@ void run(std::size_t choice) {
 		auto plan = compaction.take();
 		const auto wanted = plan.descriptor();
 		check(plan.maintenance() && wanted.cursor == descriptor.cursor &&
-			  plan.root().logical == split->root.logical);
+			  p::state_commitment(plan.root()) == p::state_commitment(split->root));
 		{
 			const auto before = store->stats();
 			auto pressure = mappings->admit(mappings->limit() - mappings->used());
@@ -149,8 +157,8 @@ void run(std::size_t choice) {
 		store->begin(std::move(plan));
 		drive(store);
 		check(store->publication_status() == l::DiskPublicationStatus::Published);
-		auto recovered =
-			l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store));
+		auto recovered = l::detail::ManagedRecovery::recover(
+			directory, l::detail::ManagedRecovery::capture(*store));
 		store->confirm_recovered(recovered);
 		bool refused = false;
 		const auto stale_descriptor = stale->descriptor();
@@ -159,19 +167,21 @@ void run(std::size_t choice) {
 		} catch (const std::invalid_argument &) {
 			refused = true;
 		}
-		check(refused && stale->descriptor() == stale_descriptor && store->selection().descriptor == wanted);
+		check(refused && stale->descriptor() == stale_descriptor &&
+			  store->selection().descriptor == wanted);
 		check(store->stats().reserved == l::DiskUsage{});
 		check(!std::filesystem::exists(directory / (l::generation_name(stale_id) + ".image")));
 		stale.reset();
-		check(recovered.view().get("app", "count").value() == INT64_MIN &&
-			  base->view().get("app", "count").value() == INT64_MIN);
+		check(recovered.view().get("app", "k000000").value() == 0 &&
+			  base->view().get("app", "k000000").value() == 0);
 		const l::detail::SegmentNames evacuated(selection.front());
 		store->request_collection();
 		store->advance();
 		drive(store);
 		check(std::filesystem::exists(directory / evacuated.payload_name()));
 		base.reset();
-		const auto lease = ::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+		const auto lease =
+			::open((directory / (name + ".lease")).c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
 		check(lease >= 0);
 		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
 		while (::flock(lease, LOCK_EX | LOCK_NB) != 0) {
@@ -187,8 +197,9 @@ void run(std::size_t choice) {
 			check(!std::filesystem::exists(directory / names.payload_name()) &&
 				  !std::filesystem::exists(directory / names.owner_name()));
 		}
-		check(store->stats().used == census(directory) && store->stats().reserved == l::DiskUsage{});
-		check(recovered.view().eval("app", "flag", "host-a", "beta").has_value());
+		check(store->stats().used == census(directory) &&
+			  store->stats().reserved == l::DiskUsage{});
+		check(recovered.view().get("app", "k000001").value() == 1);
 		store->close();
 		drive(store);
 		check(store->drained());

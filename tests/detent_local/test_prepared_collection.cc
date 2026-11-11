@@ -73,7 +73,7 @@ int main() {
 				compaction.step(budget);
 			}
 			auto plan = compaction.take();
-			check(plan.maintenance() && plan.root().logical == fixture->root.logical);
+			check(plan.maintenance() && l::paged::state_commitment(plan.root()) == l::paged::state_commitment(fixture->root));
 			bool old_pack_removed = false;
 			for (std::size_t i = 0; i != plan.registry()->inputs().size(); ++i)
 				if (plan.registry()->inputs()[i].ownership.segment == old_pack)
