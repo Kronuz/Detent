@@ -39,22 +39,24 @@ int main() {
 	const std::uint64_t hashed = (l::generation_ownership_bytes - 32) + (l::storage_identity_bytes - 32) +
 	                             l::paged::root_bytes + 160;
 	EXPECT(opened, ({1, 5, table, 0, 0, hashed}));
-	// First lookup of a:k opens the index segment and a's segment and verifies five pages: the root,
-	// the definitions branch, the definition, the namespaces branch and a's namespace page. Hashed by
-	// hand: physical 272+272+272+107+89 = 1012, logical 110+110+110+71+53 = 454.
+	// Dense packs this four-row tree into one root page in one pack: the first lookup opens that
+	// pack and verifies that page, hashing all of it but its 32-byte digest field.
+	const auto tree = fixture->root.tree;
+	const auto &pack = *fixture->buffers[0];
+	const auto header = l::paged::decode_page_header(
+		std::span<const char>(pack.data(), pack.size()).subspan(tree.offset, tree.length), l::paged::Limits{});
+	check(fixture->segments.size() == 1 && header.externals == 0);
 	check(prepared.view.get("a", "k").value() == 42);
 	const auto first = c::snapshot() - opened;
-	EXPECT(first, ({0, 0, 0, 2, 5, 1466}));
+	EXPECT(first, ({0, 0, 0, 1, 1, tree.length - 32}));
 	// Warm repeat: nothing opens, verifies or hashes.
 	const auto warm = c::snapshot();
 	for (int i = 0; i != 5; ++i)
 		check(prepared.view.get("a", "k").value() == 42);
 	EXPECT(c::snapshot() - warm, ({}));
-	// A second knob in the other namespace opens one more segment and verifies the pages it needs.
+	// The other namespace's knob lives in the same verified page: nothing more opens or hashes.
 	check(prepared.view.eval("b", "k").value() == true);
-	const auto second = c::snapshot() - warm;
-	// Hashed by hand: b's definition 116 + 80 and its namespace page 89 + 53.
-	EXPECT(second, ({0, 0, 0, 1, 2, 338}));
+	EXPECT(c::snapshot() - warm, ({}));
 	// Another open walks the directory and reads the records again.
 	const auto before = c::snapshot();
 	auto again = x::PreparedReader::open(fixture->path, ::getuid(), {});

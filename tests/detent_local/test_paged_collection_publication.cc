@@ -45,7 +45,7 @@ void run(bool shared) {
 			std::filesystem::remove_all(path, error);
 		}
 	} cleanup{directory};
-	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture()));
+	auto source = std::make_shared<const d::ValidatedSnapshot>(decode(fixture(1, 24 + 32 * 128, 25, 42, 32)));
 	l::StorageIdentity storage{}, generation{}, next{};
 	storage.fill('s');
 	generation.fill('g');
@@ -63,7 +63,7 @@ void run(bool shared) {
 	const l::detail::SegmentNames names(orphan);
 	const std::string bytes(257, 'x');
 	write(directory / names.owner_name(),
-		  l::encode_segment_ownership({storage, orphan, bytes.size(), l::paged::physical_commitment(bytes)}));
+		  l::encode_segment_ownership({storage, orphan, bytes.size(), l::paged::pack_commitment(bytes)}));
 	write(directory / names.payload_name(), bytes);
 	auto account = std::make_shared<d::StorageLedger>(64 * l::paged::segment_bytes);
 	auto baseline = std::make_shared<d::StorageLedger>(l::paged::segment_bytes);

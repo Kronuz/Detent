@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-03) Ledger for reader steps S5 and S6. Workstream: reader-s5-s6. Design: [reader.md](../design/reader.md) "First steps"; [namespace-delivery.md](../design/namespace-delivery.md) D8/D9 for the `change` shape.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-03) Ledger for reader steps S5 and S6. Workstream: reader-s5-s6. Design: [reader.md](../design/reader.md) "First steps"; [namespace-delivery.md](../design/namespace-delivery.md) D8/D9 for the `change` shape.
 
 # reader-s5-s6
 

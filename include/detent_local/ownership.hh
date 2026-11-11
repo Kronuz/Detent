@@ -25,7 +25,10 @@ std::array<char, storage_identity_bytes> encode_storage_identity(const StorageId
 StorageIdentity decode_storage_identity(std::span<const char> bytes);
 std::array<char, generation_ownership_bytes>
 encode_generation_ownership(const GenerationOwnership &ownership);
+// Decodes any layout version; a generation whose layout is not current is refused and refetched.
 GenerationOwnership decode_generation_ownership(std::span<const char> bytes);
+// The layouts this build writes: the flat image (1) and the paged format.
+bool current_layout(std::uint32_t layout_version) noexcept;
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &);
 SegmentOwnership decode_segment_ownership(std::span<const char>);
 } // namespace detent::local

@@ -1,5 +1,6 @@
 #include "detent_local/layout.hh"
 #include "detent_local/ownership.hh"
+#include "detent_local/paged_layout.hh"
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -63,22 +64,23 @@ int main() {
 		check(l::decode_generation_ownership(lease) == ownership &&
 			  l::encode_generation_ownership(ownership) == lease);
 		auto paged = ownership;
-		paged.layout_version = 2;
+		paged.layout_version = 3;
 		paged.image_length = 320;
 		const auto paged_vector = unhex<128>(
 			"44544c454153453100000001000000800102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
-			"00000000000001400000000200000001000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-			"a95a4ee14558e1008536d5c8a68ced2e11d7762e9b2ba45acdb1476f505c2225");
+			"00000000000001400000000300000001000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+			"13619420ba4f77c962d7c213bd3d620d0a871f78c6eac3e665db3d6f22763cbb");
 		check(l::encode_generation_ownership(paged) == paged_vector &&
 			  l::decode_generation_ownership(paged_vector) == paged);
-		for (auto version : {0u, 3u, 0xffffffffu}) {
-			auto broken = paged_vector;
-			l::write_integer(broken, 56, version, 4);
-			reseal(broken);
-			rejected([&] { l::decode_generation_ownership(broken); });
-			auto invalid = paged;
-			invalid.layout_version = version;
-			rejected([&] { l::encode_generation_ownership(invalid); });
+		check(l::current_layout(1) && l::current_layout(l::paged::format_version));
+		// Any other layout decodes, so its generation is refused and refetched; none is written.
+		for (auto version : {0u, 2u, 4u, 0xffffffffu}) {
+			auto other = paged_vector;
+			l::write_integer(other, 56, version, 4);
+			reseal(other);
+			const auto decoded = l::decode_generation_ownership(other);
+			check(decoded.layout_version == version && !l::current_layout(version));
+			rejected([&] { l::encode_generation_ownership(decoded); });
 		}
 		for (auto length : {192u, 319u, 321u}) {
 			auto invalid = paged;
@@ -108,7 +110,7 @@ int main() {
 			reseal(broken);
 			rejected([&] { l::decode_segment_ownership(broken); });
 		}
-		for (auto length : {0u, 79u, 1048577u}) {
+		for (auto length : {0u, 63u, 1048577u}) {
 			auto broken = segment_bytes;
 			l::write_integer(broken, 48, length, 8);
 			reseal(broken);
@@ -116,6 +118,8 @@ int main() {
 			segment.length = length;
 			rejected([&] { l::encode_segment_ownership(segment); });
 		}
+		segment.length = 64;
+		check(l::decode_segment_ownership(l::encode_segment_ownership(segment)) == segment);
 		segment.length = 1048576;
 		check(l::decode_segment_ownership(l::encode_segment_ownership(segment)) == segment);
 		for (std::size_t at = 0; at < storage.size(); ++at) {
@@ -143,7 +147,8 @@ int main() {
 			reseal(broken);
 			rejected([&] { l::decode_storage_identity(broken); });
 		}
-		for (auto offset : {0u, 8u, 12u, 56u, 60u}) {
+		// The layout field [56,60) is free: any other value decodes as a non-current layout (above).
+		for (auto offset : {0u, 8u, 12u, 60u}) {
 			auto broken = lease;
 			broken[offset] ^= 1;
 			reseal(broken);

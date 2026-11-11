@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/paged_page_validator.cc b/src/detent_local/paged_page_validator.cc
+index c63fbf6..5d92d19 100644
+--- a/src/detent_local/paged_page_validator.cc
++++ b/src/detent_local/paged_page_validator.cc
+@@ -49,7 +49,7 @@ struct PageValidator::Impl {
+ 		p::validate(reference);
+ 		header = p::decode_page_header(bytes, limits);
+ 		require(header.length == reference.length && header.keys == reference.keys &&
+-		        header.height == reference.height && header.digest == reference.digest);
++		        header.digest == reference.digest);
+ 	}
+ 	bool grant(std::size_t amount, ValidationBudget &budget) {
+ 		if (!charging) {

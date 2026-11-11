@@ -278,6 +278,10 @@ std::shared_ptr<AppliedChangeDraft> ChangeHistory::capture(const State &state, c
 	if (!p.batch || p.staged_count == p.staged.size() || !p.options.transactions ||
 		!p.options.payload_capacity || state.context() != p.context)
 		return {};
+	// The delta wire gives each record the group revision; a namespace whose
+	// position differs from it is delivered by snapshot until cursors are per namespace.
+	if (state.namespace_revision(command.name_space) != state.revision())
+		return {};
 	return std::allocate_shared<HistoryDraft>(d::StorageAllocator<HistoryDraft>(p.account), state, command,
 											  changed, p.account, p.options.transaction_bytes, &p);
 }

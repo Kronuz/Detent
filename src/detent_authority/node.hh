@@ -47,6 +47,9 @@ class Node {
 	bool drained() const noexcept;
 	kronuz::consensus::SubmitResult propose(std::uint64_t request, const std::vector<Command> &commands);
 	kronuz::consensus::SubmitResult propose_prepared(std::uint64_t request, PreparedProposal &proposal);
+	// Proposes one administrative entry: the enabling entry or a namespace drop.
+	kronuz::consensus::SubmitResult propose_administrative(std::uint64_t request,
+														   const AdministrativeCommand &command);
 	kronuz::consensus::SubmitResult read(std::uint64_t request);
 	void forget(std::uint64_t request);
 	void service(kronuz::consensus::Tick tick);
@@ -84,6 +87,7 @@ class Node {
 		std::optional<BatchDecoder> decoder;
 		std::optional<BatchApplication> candidate;
 		std::optional<CommandDecoder> command;
+		std::optional<AdministrativeApplication> administrative;
 		SHA256 hash;
 		std::size_t hashed = 0;
 		std::optional<Digest> identity;

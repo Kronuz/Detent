@@ -7,7 +7,7 @@ namespace detent::authority {
 // checkpoint state. Keep capture and cursor ownership on that executor.
 class ExportCapture {
 	using Records = detail::PersistentMap<std::string, Record>;
-	using Namespaces = detail::PersistentMap<std::string, Revision>;
+	using Namespaces = detail::PersistentMap<std::string, Namespace>;
 	struct FactoryTag {
 		explicit FactoryTag() = default;
 	};

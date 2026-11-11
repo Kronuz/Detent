@@ -4,11 +4,12 @@
 #include "detent_local/builder.hh"
 #pragma once
 #include <iostream>
+#include <source_location>
 namespace d = detent::distribution;
 namespace m = d::messagepack;
-void require(bool value) {
+void require(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("snapshot invariant failed");
+		throw std::runtime_error("snapshot invariant at " + std::string(at.file_name()) + ":" + std::to_string(at.line()));
 }
 d::Cursor cursor() {
 	d::Cursor value;
@@ -20,7 +21,7 @@ d::Cursor cursor() {
 	return value;
 }
 std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, std::uint64_t percentage = 25,
-					std::uint64_t revision = 42) {
+					std::uint64_t revision = 42, unsigned padding = 0) {
 	std::string out;
 	auto n = [&](std::uint64_t value) { m::unsigned_integer(out, value); };
 	auto a = [&](std::uint32_t value) { m::array(out, value); };
@@ -40,7 +41,7 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	a(4);
 	n(1);
 	n(2);
-	n(1);
+	n(1 + padding);
 	n(strings);
 	a(1);
 	a(2);
@@ -62,11 +63,19 @@ std::string fixture(std::uint64_t capabilities = 1, std::uint64_t strings = 24, 
 	n(0);
 	out.push_back('\xc3');
 	n(percentage);
-	a(1);
+	a(1 + padding);
 	a(3);
 	s("beta");
 	n(1);
 	n(17);
+	for (unsigned i = 0; i < padding; ++i) {
+		a(3);
+		const auto digits = std::to_string(i);
+		const auto prefix = "pad" + std::string(4 - digits.size(), '0') + digits;
+		s(prefix + std::string(128 - prefix.size(), 'p'));
+		n(1);
+		n(17);
+	}
 	return out;
 }
 d::ValidatedSnapshot decode(std::string_view bytes, d::Cursor expected = cursor()) {

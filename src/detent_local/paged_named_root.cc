@@ -132,7 +132,7 @@ bool PagedNamedRoot::legacy_anchor() const {
 bool PagedNamedRoot::paged() const {
 	if (!ready())
 		throw std::logic_error("named generation unavailable");
-	return state_->ownership.layout_version == 2;
+	return state_->ownership.layout_version == paged::format_version;
 }
 DirectoryIdentity PagedNamedRoot::directory_identity() const {
 	descriptor();
@@ -262,10 +262,11 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 			state_->ownership = ownership;
 			if (state_->ownership.storage != state_->storage ||
 				state_->ownership.generation != state_->generation ||
-				(state_->ownership.layout_version == 2 &&
+				!current_layout(state_->ownership.layout_version) ||
+				(state_->ownership.layout_version == paged::format_version &&
 				 state_->ownership.image_length != paged::root_bytes))
 				throw std::invalid_argument("unsupported named paged root ownership");
-			state_->extent = state_->ownership.layout_version == 2 ? paged::root_bytes : header_bytes;
+			state_->extent = state_->ownership.layout_version == 1 ? header_bytes : paged::root_bytes;
 			state_->phase = Phase::OpenRoot;
 			prepare(c::Kind::OpenInto);
 			return true;
@@ -405,7 +406,7 @@ bool PagedNamedRoot::complete(c::Result result) noexcept {
 										  state_->ownership.image_checksum, header.cursor, header.profile};
 					state_->cached.reset();
 				} else {
-					if (paged::physical_commitment(state_->bytes) != state_->ownership.image_checksum)
+					if (paged::metadata_commitment(state_->bytes) != state_->ownership.image_checksum)
 						throw std::runtime_error("named paged root checksum mismatch");
 					state_->root = paged::decode_root(state_->bytes, paged_format_limits());
 					state_->descriptor = {state_->generation, paged::root_bytes,

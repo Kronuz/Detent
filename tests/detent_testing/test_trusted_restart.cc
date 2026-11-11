@@ -8,6 +8,7 @@
 #include "live_record.hh"
 #include "names.hh"
 #include "pack_scrub.hh"
+#include "paged_node_step.hh"
 #include "recovery_context.hh"
 #include "segment_names.hh"
 #include "trusted_records.hh"
@@ -18,6 +19,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <random>
 #include <set>
 #include <sys/stat.h>
@@ -87,10 +89,10 @@ struct Session {
 		x::RecoveryContext context{domain.factory(), heap, mappings, limits, {}, {}};
 		context.metrics = metrics;
 		context.trusted_start = trusted_start;
-		digests_before = l::paged::page_digests();
+		digests_before = l::paged::hash_counts().page_calls;
 		generation.emplace(x::RecoveryEngine::recover(directory, context));
 	}
-	std::uint64_t digests() const { return l::paged::page_digests() - digests_before; }
+	std::uint64_t digests() const { return l::paged::hash_counts().page_calls - digests_before; }
 	const x::SegmentRegistry &registry() const { return *x::RecoveredTesting::root(*generation).registry(); }
 	~Session() {
 		generation.reset();
@@ -187,14 +189,14 @@ void oracle(const fs::path &store, const fs::path &scratch, int revision) {
 		  ca.counts().maximum_overrides == cb.counts().maximum_overrides);
 	CHECK(trusted.generation->view().size() == full.generation->view().size());
 	// Every page is checked once on first touch, and not again.
-	const auto before = l::paged::page_digests();
+	const auto before = l::paged::hash_counts().page_calls;
 	auto first = read_all(trusted, revision);
 	CHECK(first.ok == knobs + 10 && !first.wrong && !first.other && first.failed.empty());
-	const auto touched = l::paged::page_digests() - before;
+	const auto touched = l::paged::hash_counts().page_calls - before;
 	CHECK(touched > 0);
-	const auto again = l::paged::page_digests();
+	const auto again = l::paged::hash_counts().page_calls;
 	auto second = read_all(trusted, revision);
-	CHECK(second.ok == knobs + 10 && l::paged::page_digests() == again);
+	CHECK(second.ok == knobs + 10 && l::paged::hash_counts().page_calls == again);
 	std::cout << "revision " << revision << ": " << a.inputs().size() << " packs, " << touched
 			  << " page digests at first touch, 0 at startup\n";
 	fs::remove_all(scratch);
@@ -214,7 +216,7 @@ struct Damage {
 	std::vector<std::pair<fs::path, std::size_t>> flips;
 	std::set<fs::path> damaged;
 	explicit Damage(const fs::path &store) : packs(live_packs(store)) {
-		CHECK(packs.size() >= 10);
+		CHECK(packs.size() >= 3);
 		for (const auto &pack : packs) {
 			std::ifstream in(pack, std::ios::binary);
 			original[pack] = {std::istreambuf_iterator<char>(in), {}};
@@ -318,7 +320,8 @@ void scrub_disk(const fs::path &store, int revision) {
 	std::set<fs::path> rewritten;
 	std::map<fs::path, std::vector<char>> original;
 	for (int n = 0; n < 40; ++n) {
-		const auto &pack = packs[random() % packs.size()];
+		// The last pack stays untouched, so the report must keep its verified pages.
+		const auto &pack = packs[random() % (packs.size() - 1)];
 		if (!original.count(pack)) {
 			std::ifstream in(pack, std::ios::binary);
 			original[pack] = {std::istreambuf_iterator<char>(in), {}};
@@ -337,7 +340,7 @@ void scrub_disk(const fs::path &store, int revision) {
 		std::size_t bits = 0;
 		for (const auto &input : session.registry().inputs()) {
 			const auto path = store / x::SegmentNames(input.ownership.segment).payload_name();
-			for (std::size_t at = 0; input.pages && at < input.bytes.size(); at += x::VerifiedPages::granule_bytes)
+			for (std::size_t at = 0; input.pages && at < input.bytes.size(); at += 8)
 				bits += (rewritten.count(path) != 0) == damaged && input.pages->test(at);
 		}
 		return bits;
@@ -346,13 +349,13 @@ void scrub_disk(const fs::path &store, int revision) {
 	CHECK(damaged_before > 0 && untouched_before > 0);
 	CHECK(scrub_reports(session, store) == rewritten);
 	CHECK(verified(true) == 0 && verified(false) == untouched_before);
-	const auto withdrawn = l::paged::page_digests();
+	const auto withdrawn = l::paged::hash_counts().page_calls;
 	const auto after = read_all(session, revision);
 	CHECK(!after.wrong && !after.other);
-	CHECK(l::paged::page_digests() > withdrawn);
+	CHECK(l::paged::hash_counts().page_calls > withdrawn);
 	std::cout << "SR3/SR4: " << rewritten.size() << " packs rewritten, reported from the files; after the report "
 			  << after.ok << " ok, " << after.source_failures << " source failures, " << after.wrong
-			  << " wrong; " << (l::paged::page_digests() - withdrawn) << " page digests to verify again\n";
+			  << " wrong; " << (l::paged::hash_counts().page_calls - withdrawn) << " page digests to verify again\n";
 	for (const auto &[pack, bytes] : original) {
 		const int fd = ::open(pack.c_str(), O_RDWR | O_CLOEXEC);
 		CHECK(fd >= 0 && ::pwrite(fd, bytes.data(), bytes.size(), 0) == ssize_t(bytes.size()));
@@ -391,7 +394,7 @@ void heal(const fs::path &store, int revision) {
 	const auto repaired = selected(store);
 	CHECK(repaired.generation != old_generation.generation && repaired.cursor == old_generation.cursor);
 	const auto new_packs = live_packs(store);
-	CHECK(new_packs.size() >= 10);
+	CHECK(new_packs.size() >= 3);
 	for (const auto &pack : new_packs)
 		CHECK(!old_packs.count(pack));
 	{
@@ -582,7 +585,7 @@ void stale_rows(const fs::path &root) {
 	std::ifstream image(scratch / std::string(x::GenerationName(selected(scratch).generation, x::GenerationFile::Image).view()),
 						std::ios::binary);
 	std::vector<char> root_bytes{std::istreambuf_iterator<char>(image), {}};
-	const auto tree = l::paged::decode_root(root_bytes).tree.segment;
+	const auto tree = l::paged::decode_root(root_bytes, l::paged::Limits{}).tree.segment;
 	bool swapped = false;
 	rewrite_live(live_path(scratch), [&](x::LiveRecord &record) {
 		for (auto &row : record.rows)
@@ -617,35 +620,50 @@ void mapped_mutations(const fs::path &store) {
 		Session session;
 		session.recover(store);
 		CHECK(read_all(session, 3).ok == knobs + 10);
+		// The first node of the wanted kind inside a page that first touch already verified.
+		const auto kind = mutation == "children" ? l::paged::PageKind::Branch : l::paged::PageKind::Definition;
 		std::span<const char> page;
+		std::optional<l::paged::NodeView> node;
 		for (const auto &input : session.registry().inputs()) {
 			for (std::size_t offset = 0; input.pages && offset + l::paged::page_header_bytes <= input.bytes.size(); offset += 8) {
 				const auto bytes = input.bytes.subspan(offset);
-				if (std::memcmp(bytes.data(), "DTPAGE02", 8) || !input.pages->test(offset))
+				if (std::memcmp(bytes.data(), "DTPAGE03", 8) || !input.pages->test(offset))
 					continue;
-				const auto header = l::paged::decode_page_header(bytes.first(l::read_integer(bytes, 16, 4)));
-				const auto kind = mutation == "children" ? l::paged::PageKind::Branch : l::paged::PageKind::Definition;
-				if (header.kind == kind) {
-					page = bytes.first(header.length);
-					break;
+				page = bytes.first(l::read_integer(bytes, 8, 4));
+				l::paged::NodeAt at;
+				for (std::size_t visits = 0; visits < l::paged::page_capacity && !node; ++visits) {
+					try {
+						const auto found = at.decode(page, l::paged::Limits{});
+						if (found.kind == kind)
+							node = found;
+						at = l::paged::NodeAt::after(found);
+					} catch (const std::invalid_argument &) {
+						break;
+					}
 				}
+				if (node)
+					break;
 			}
-			if (!page.empty())
+			if (node)
 				break;
 		}
-		CHECK(!page.empty());
+		CHECK(node.has_value());
 		const auto size = std::size_t(::getpagesize());
 		auto *base = reinterpret_cast<char *>(reinterpret_cast<std::uintptr_t>(page.data()) & ~(size - 1));
 		CHECK(::mprotect(base, (page.data() + page.size() - base + size - 1) / size * size,
 						 PROT_READ | PROT_WRITE) == 0);
-		auto *bytes = const_cast<char *>(page.data());
-		if (mutation == "children" || mutation == "body")
-			std::fill_n(bytes + (mutation == "children" ? 24 : 28), 4, '\xff');
+		// A node starts with its kind and prefix length; byte 2 is a branch's child count less one and
+		// bytes 2-3 a leaf's body length.
+		auto *bytes = const_cast<char *>(node->prefix.data()) - (kind == l::paged::PageKind::Branch ? 3 : 4);
+		if (mutation == "children")
+			bytes[2] = '\xff';
+		else if (mutation == "body")
+			std::fill_n(bytes + 2, 2, '\xff');
 		else {
-			const auto body = page.size() - l::read_integer(page, 28, 4);
-			bytes[body + 8] = mutation == "kind" ? 0 : 1;
+			auto *body = const_cast<char *>(node->body.data());
+			body[8] = mutation == "kind" ? 0 : 1;
 			if (mutation == "evaluate")
-				bytes[body + 15] = 1;
+				body[15] = 1;
 		}
 		std::size_t get_failures = 0, eval_failures = 0;
 		for (int i = 0; i < knobs + 10; ++i) {

@@ -1,8 +1,9 @@
-#include <atomic>
-#include "detent_local/read_counters.hh"
 #include "detent_local/paged_layout.hh"
+#include "paged_node_step.hh"
 #include "detent/validation.hh"
+#include "detent_local/read_counters.hh"
 #include <algorithm>
+#include <atomic>
 #include <sha256.h>
 #include <stdexcept>
 
@@ -12,8 +13,8 @@ void require(bool condition) {
 	if (!condition)
 		throw std::invalid_argument("invalid paged local image");
 }
-template <std::size_t N> bool nonzero(const std::array<char, N> &value) {
-	return std::any_of(value.begin(), value.end(), [](char byte) { return byte != 0; });
+bool zero(std::span<const char> bytes) {
+	return std::all_of(bytes.begin(), bytes.end(), [](char byte) { return byte == 0; });
 }
 template <std::size_t N>
 void copy(std::span<const char> bytes, std::size_t offset, std::array<char, N> &out) {
@@ -22,59 +23,65 @@ void copy(std::span<const char> bytes, std::size_t offset, std::array<char, N> &
 }
 template <std::size_t N>
 void put(std::span<char> bytes, std::size_t offset, const std::array<char, N> &value) {
+	require(offset <= bytes.size() && N <= bytes.size() - offset);
 	std::copy(value.begin(), value.end(), bytes.begin() + offset);
 }
-void validate(const Reference &reference) {
-	require(nonzero(reference.segment) && nonzero(reference.physical) && nonzero(reference.logical) &&
-			reference.offset % 8 == 0 && reference.offset <= segment_bytes &&
-			reference.length >= page_header_bytes && reference.length <= page_bytes &&
-			reference.length <= segment_bytes - reference.offset);
+void validate_summary(const Reference &r) {
+	require(r.length >= minimum_page_bytes && r.length <= page_bytes && r.keys && r.height);
 }
-void validate(const PageHeader &header, const Limits &limits) {
-	require(header.prefix <= limits.prefix_bytes && header.children <= 256 &&
-			header.length >= page_header_bytes && header.length <= page_bytes &&
-			header.length <= limits.bytes &&
-			header.keys <= std::uint64_t(limits.records) + limits.namespaces && nonzero(header.logical));
-	const auto length =
-		page_header_bytes + std::uint64_t(header.prefix) + child_bytes * header.children + header.body;
-	require(length == header.length);
-	switch (header.kind) {
-	case PageKind::Branch:
-		require(header.children >= 2 && !header.body && header.keys >= header.children);
-		break;
-	case PageKind::Definition:
-		require(!header.children && header.body && header.keys == 1);
-		break;
-	case PageKind::Namespace:
-		require(!header.children && header.body == 8 && header.keys == 1);
-		break;
-	case PageKind::Overflow:
-		require(!header.children && !header.prefix && header.body && !header.keys);
-		break;
-	default:
-		require(false);
-	}
+void validate(const PageHeader &h, Limits limits) {
+	require(h.length >= minimum_page_bytes && h.length <= page_bytes && h.length <= limits.bytes &&
+			h.nodes && h.keys && h.keys <= std::uint64_t(limits.records) + limits.namespaces &&
+			h.height && h.externals < 0x8000 &&
+			h.externals <= (h.length - page_header_bytes) / child_bytes &&
+			h.nodes <= (h.length - page_header_bytes - child_bytes * h.externals) / 4);
 }
-void validate(const Root &root, const Limits &limits) {
+void validate(const Root &root, Limits limits) {
 	Header context;
 	context.cursor = root.cursor;
 	context.profile = root.profile;
 	encode_header(context);
 	require(root.records <= limits.records && root.namespaces <= limits.namespaces &&
-			root.pages <= limits.pages && root.segments <= limits.segments && root.bytes <= limits.bytes);
+			root.pages <= limits.pages && root.segments <= limits.segments &&
+			root.bytes <= limits.bytes);
+	const auto keys = std::uint64_t(root.records) + root.namespaces;
 	if (!root.pages) {
-		require(!root.records && !root.namespaces && !root.bytes && !root.segments &&
-				root.tree == Reference{} && root.logical == empty_commitment());
+		require(!keys && !root.bytes && !root.segments && root.tree == Reference{});
 	} else {
 		validate(root.tree);
-		require(root.segments && root.segments <= root.pages &&
-				root.pages <= root.bytes / page_header_bytes && root.tree.length <= root.bytes &&
-				root.bytes - root.tree.length >= (root.pages - 1) * page_header_bytes &&
-				root.logical == root.tree.logical && std::uint64_t(root.records) + root.namespaces > 0 &&
-				root.pages >= std::uint64_t(root.records) + root.namespaces);
+		require(keys && root.tree.keys == keys && root.segments && root.segments <= root.pages &&
+				root.pages < 2 * keys && root.pages <= root.bytes / minimum_page_bytes &&
+				root.tree.length <= root.bytes &&
+				root.pages - 1 <= (root.bytes - root.tree.length) / minimum_page_bytes);
 	}
 }
+Digest finish(SHA256 &hash) {
+	Digest result;
+	hash.getHash(reinterpret_cast<unsigned char *>(result.data()));
+	return result;
+}
+std::array<std::atomic<std::uint64_t>, 6> hash_counters{};
+Reference decode_child(std::span<const char> content, std::span<const char> placement) {
+	require(content.size() == content_bytes && placement.size() == placement_bytes &&
+			zero(content.subspan(45)));
+	Reference r;
+	copy(content, 0, r.digest);
+	r.keys = read_integer(content, 32, 8);
+	r.length = read_integer(content, 40, 4);
+	r.height = static_cast<unsigned char>(content[44]);
+	copy(placement, 0, r.segment);
+	r.offset = read_integer(placement, 16, 4);
+	validate(r);
+	return r;
+}
 } // namespace
+void validate(const Reference &r) {
+	if (r == Reference{})
+		return;
+	validate_summary(r);
+	require(!zero(r.segment) && r.offset % 8 == 0 && r.offset <= segment_bytes &&
+			r.length <= segment_bytes - r.offset);
+}
 std::size_t encode_namespace_key(std::span<char> out, std::string_view name) {
 	require(!name.empty() && name.size() <= 198 &&
 			std::all_of(name.begin(), name.end(), detent::detail::is_name_char));
@@ -112,156 +119,210 @@ Key decode_key(std::string_view bytes) {
 			std::all_of(local.begin(), local.end(), detent::detail::is_name_char));
 	return {PageKind::Definition, name_space, local};
 }
+HashCounts hash_counts() noexcept {
+	constexpr auto order = std::memory_order_relaxed;
+	return {hash_counters[0].load(order), hash_counters[1].load(order),
+			hash_counters[2].load(order), hash_counters[3].load(order),
+			hash_counters[4].load(order), hash_counters[5].load(order)};
+}
+void reset_hash_counts() noexcept {
+	for (auto &counter : hash_counters)
+		counter.store(0, std::memory_order_relaxed);
+}
+void count_hash(HashKind kind, std::uint64_t calls, std::uint64_t bytes) noexcept {
+	const auto index = static_cast<unsigned>(kind) * 2;
+	hash_counters[index].fetch_add(calls, std::memory_order_relaxed);
+	hash_counters[index + 1].fetch_add(bytes, std::memory_order_relaxed);
+}
 namespace {
-std::atomic<std::uint64_t> digest_count{0};
-} // namespace
-std::uint64_t page_digests() noexcept { return digest_count.load(std::memory_order_relaxed); }
-void count_page_digest() noexcept { digest_count.fetch_add(1, std::memory_order_relaxed); }
-Digest physical_commitment(std::span<const char> bytes) {
-	count_page_digest();
+Digest hash_buffer(std::span<const char> bytes, HashKind kind) {
 	SHA256 hash;
 	hash.add(bytes.data(), bytes.size());
-	std::array<unsigned char, 32> value{};
-	hash.getHash(value.data());
-	Digest result;
-	std::copy(value.begin(), value.end(), result.begin());
-	return result;
+	count_hash(kind, 1, bytes.size());
+	return finish(hash);
 }
-Digest logical_commitment(PageKind kind, std::string_view prefix, std::span<const Child> children,
-						  std::span<const char> body) {
-	require(prefix.size() <= 512 && children.size() <= 256 && body.size() <= page_bytes);
-	count_page_digest();
-	PageHeader framing{kind,
-					   static_cast<std::uint32_t>(page_header_bytes + prefix.size() +
-												  child_bytes * children.size() + body.size()),
-					   static_cast<std::uint32_t>(prefix.size()),
-					   static_cast<std::uint32_t>(children.size()),
-					   static_cast<std::uint32_t>(body.size()),
-					   kind == PageKind::Branch		? children.size()
-					   : kind == PageKind::Overflow ? 0u
-													: 1u,
-					   {}};
-	framing.logical.fill(1);
-	validate(framing, {});
+} // namespace
+Digest pack_commitment(std::span<const char> bytes) { return hash_buffer(bytes, HashKind::Pack); }
+Digest metadata_commitment(std::span<const char> bytes) {
+	return hash_buffer(bytes, HashKind::Metadata);
+}
+Digest page_commitment(std::span<const char> bytes, Limits limits) {
+	const auto h = decode_page_header(bytes, limits);
+	const auto end = bytes.size() - placement_bytes * h.externals;
+	count_hash(HashKind::Page, 1, end - 32);
+	DETENT_COUNT(bytes_hashed, end - 32);
 	SHA256 hash;
-	constexpr std::string_view domain = "detent.local.logical.v2.node";
-	hash.add(domain.data(), domain.size());
-	std::array<char, 16> lengths{};
-	write_integer(lengths, 0, static_cast<std::uint32_t>(kind), 4);
-	write_integer(lengths, 4, prefix.size(), 4);
-	write_integer(lengths, 8, children.size(), 4);
-	write_integer(lengths, 12, body.size(), 4);
-	hash.add(lengths.data(), lengths.size());
-	hash.add(prefix.data(), prefix.size());
-	int previous = -1;
-	for (const auto &child : children) {
-		require(child.label > previous && nonzero(child.reference.logical));
-		previous = child.label;
-		hash.add(&child.label, 1);
-		hash.add(child.reference.logical.data(), child.reference.logical.size());
-	}
-	hash.add(body.data(), body.size());
-	std::array<unsigned char, 32> value{};
-	hash.getHash(value.data());
-	Digest result;
-	std::copy(value.begin(), value.end(), result.begin());
-	return result;
-}
-void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {
-	validate(reference);
-	DETENT_COUNT(bytes_hashed, bytes.size());
-	require(bytes.size() == reference.length && physical_commitment(bytes) == reference.physical);
-	const auto header = decode_page_header(bytes, limits);
-	require(header.logical == reference.logical);
-	DETENT_COUNT(bytes_hashed, 44 + header.prefix + 33 * header.children + header.body);
-	const auto prefix = bytes.subspan(page_header_bytes, header.prefix);
-	std::array<Child, 256> children{};
-	for (std::uint32_t i = 0; i < header.children; ++i)
-		children[i] =
-			decode_child(bytes.subspan(page_header_bytes + header.prefix + i * child_bytes, child_bytes));
-	const auto body = bytes.last(header.body);
-	require(logical_commitment(header.kind, {prefix.data(), prefix.size()},
-							   std::span<const Child>(children).first(header.children),
-							   body) == header.logical);
+	hash.add(bytes.data(), 32);
+	hash.add(bytes.data() + 64, end - 64);
+	return finish(hash);
 }
 Digest empty_commitment() {
 	SHA256 hash;
-	constexpr std::string_view domain = "detent.local.logical.v2.empty";
+	constexpr std::string_view domain = "detent.local.empty.v3";
 	hash.add(domain.data(), domain.size());
-	std::array<unsigned char, 32> bytes{};
-	hash.getHash(bytes.data());
-	Digest result;
-	std::copy(bytes.begin(), bytes.end(), result.begin());
-	return result;
+	count_hash(HashKind::Metadata, 1, domain.size());
+	return finish(hash);
 }
-std::array<char, reference_bytes> encode_reference(const Reference &reference) {
-	validate(reference);
-	std::array<char, reference_bytes> bytes{};
-	put(bytes, 0, reference.segment);
-	write_integer(bytes, 16, reference.offset, 4);
-	write_integer(bytes, 20, reference.length, 4);
-	put(bytes, 24, reference.physical);
-	put(bytes, 56, reference.logical);
+Digest state_commitment(const Root &root) {
+	return root.tree == Reference{} ? empty_commitment() : root.tree.digest;
+}
+std::array<char, content_bytes> encode_content(const Reference &r) {
+	validate_summary(r);
+	std::array<char, content_bytes> bytes{};
+	put(bytes, 0, r.digest);
+	write_integer(bytes, 32, r.keys, 8);
+	write_integer(bytes, 40, r.length, 4);
+	bytes[44] = static_cast<char>(r.height);
 	return bytes;
 }
-Reference decode_reference(std::span<const char> bytes) {
-	require(bytes.size() == reference_bytes);
-	Reference reference;
-	copy(bytes, 0, reference.segment);
-	reference.offset = read_integer(bytes, 16, 4);
-	reference.length = read_integer(bytes, 20, 4);
-	copy(bytes, 24, reference.physical);
-	copy(bytes, 56, reference.logical);
-	validate(reference);
-	return reference;
-}
-std::array<char, child_bytes> encode_child(const Child &child) {
-	std::array<char, child_bytes> bytes{};
-	bytes[0] = static_cast<char>(child.label);
-	const auto reference = encode_reference(child.reference);
-	put(bytes, 8, reference);
+std::array<char, placement_bytes> encode_placement(const Reference &r) {
+	validate(r);
+	require(r != Reference{});
+	std::array<char, placement_bytes> bytes{};
+	put(bytes, 0, r.segment);
+	write_integer(bytes, 16, r.offset, 4);
 	return bytes;
 }
-Child decode_child(std::span<const char> bytes) {
-	require(bytes.size() == child_bytes && !read_integer(bytes, 1, 7));
-	return {static_cast<std::uint8_t>(bytes[0]), decode_reference(bytes.subspan(8))};
+Reference decode_external(std::span<const char> bytes, std::uint16_t index, Limits limits) {
+	const auto h = decode_page_header(bytes, limits);
+	require(index < h.externals);
+	const auto content = bytes.size() - child_bytes * h.externals + content_bytes * index;
+	const auto placement = bytes.size() - placement_bytes * h.externals + placement_bytes * index;
+	const auto r = decode_child(bytes.subspan(content, content_bytes),
+								bytes.subspan(placement, placement_bytes));
+	require(r != Reference{});
+	return r;
 }
-std::array<char, page_header_bytes> encode_page_header(const PageHeader &header, Limits limits) {
-	validate(header, limits);
+std::array<char, page_header_bytes> encode_page_header(const PageHeader &h, Limits limits) {
+	validate(h, limits);
 	std::array<char, page_header_bytes> bytes{};
-	constexpr std::string_view magic = "DTPAGE02";
+	constexpr std::string_view magic = "DTPAGE03";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 2, 4);
-	write_integer(bytes, 12, static_cast<std::uint32_t>(header.kind), 4);
-	write_integer(bytes, 16, header.length, 4);
-	write_integer(bytes, 20, header.prefix, 4);
-	write_integer(bytes, 24, header.children, 4);
-	write_integer(bytes, 28, header.body, 4);
-	write_integer(bytes, 32, header.keys, 8);
-	put(bytes, 40, header.logical);
+	write_integer(bytes, 8, h.length, 4);
+	write_integer(bytes, 12, h.externals, 2);
+	write_integer(bytes, 14, h.nodes, 2);
+	write_integer(bytes, 16, h.keys, 8);
+	bytes[24] = static_cast<char>(h.height);
+	put(bytes, 32, h.digest);
 	return bytes;
 }
 PageHeader decode_page_header(std::span<const char> bytes, Limits limits) {
-	require(bytes.size() >= page_header_bytes && std::string_view(bytes.data(), 8) == "DTPAGE02" &&
-			read_integer(bytes, 8, 4) == 2 && !read_integer(bytes, 72, 8));
-	PageHeader header;
-	header.kind = static_cast<PageKind>(read_integer(bytes, 12, 4));
-	header.length = read_integer(bytes, 16, 4);
-	header.prefix = read_integer(bytes, 20, 4);
-	header.children = read_integer(bytes, 24, 4);
-	header.body = read_integer(bytes, 28, 4);
-	header.keys = read_integer(bytes, 32, 8);
-	copy(bytes, 40, header.logical);
-	validate(header, limits);
-	require(bytes.size() == header.length);
-	return header;
+	require(bytes.size() >= page_header_bytes && std::string_view(bytes.data(), 8) == "DTPAGE03" &&
+			zero(bytes.subspan(25, 7)));
+	PageHeader h;
+	h.length = read_integer(bytes, 8, 4);
+	h.externals = read_integer(bytes, 12, 2);
+	h.nodes = read_integer(bytes, 14, 2);
+	h.keys = read_integer(bytes, 16, 8);
+	h.height = static_cast<unsigned char>(bytes[24]);
+	copy(bytes, 32, h.digest);
+	validate(h, limits);
+	require(bytes.size() == h.length);
+	return h;
+}
+std::uint16_t NodeView::slot(std::size_t index) const {
+	require(index < labels.size());
+	return read_integer(slots, 2 * index, 2);
+}
+NodeView decode_node(std::span<const char> bytes, std::size_t offset, Limits limits) {
+	const auto h = decode_page_header(bytes, limits);
+	const auto end = bytes.size() - child_bytes * h.externals;
+	require(offset >= page_header_bytes && offset <= end && end - offset >= 3);
+	const auto kind = static_cast<PageKind>(bytes[offset]);
+	const auto prefix = static_cast<unsigned char>(bytes[offset + 1]);
+	require(prefix <= 202 && prefix <= limits.prefix_bytes);
+	if (kind == PageKind::Branch) {
+		const std::size_t count = static_cast<unsigned char>(bytes[offset + 2]) + 1;
+		require(count >= 2 && prefix <= end - offset - 3 &&
+				count <= (end - offset - 3 - prefix) / 3);
+		const auto labels = bytes.subspan(offset + 3 + prefix, count);
+		int previous = -1;
+		for (auto label : labels) {
+			require(static_cast<unsigned char>(label) > previous);
+			previous = static_cast<unsigned char>(label);
+		}
+		return {kind,
+				{bytes.data() + offset + 3, prefix},
+				{},
+				labels,
+				bytes.subspan(offset + 3 + prefix + count, 2 * count),
+				offset + 3 + prefix + 3 * count};
+	}
+	require((kind == PageKind::Definition || kind == PageKind::Namespace) && end - offset >= 4);
+	const auto body = read_integer(bytes, offset + 2, 2);
+	require(body && (kind != PageKind::Namespace || body == 8) &&
+			body <= maximum_leaf_body_bytes - prefix && prefix <= end - offset - 4 &&
+			body <= end - offset - 4 - prefix);
+	return {kind, {bytes.data() + offset + 4, prefix}, bytes.subspan(offset + 4 + prefix, body), {},
+			{},	  offset + 4 + prefix + body};
+}
+void verify_page_structure(std::span<const char> bytes, const Reference &reference, Limits limits) {
+	validate(reference);
+	require(reference != Reference{});
+	const auto h = decode_page_header(bytes, limits);
+	require(h.length == reference.length && h.keys == reference.keys &&
+			h.height == reference.height && h.digest == reference.digest);
+	struct Frame {
+		NodeView node;
+		std::size_t child = 0, depth = 0;
+	};
+	std::array<Frame, 203> stack{};
+	std::size_t depth = 0, nodes = 0, external = 0, key_depth = 0;
+	NodeAt position;
+	std::uint64_t keys = 0;
+	unsigned height = 1;
+	bool visit = true;
+	for (;;) {
+		if (visit) {
+			const auto node = position.decode(bytes, limits);
+			require(++nodes <= h.nodes && key_depth <= 202 &&
+					node.prefix.size() <= 202 - key_depth);
+			position = NodeAt::after(node);
+			if (node.kind == PageKind::Branch) {
+				require(depth < stack.size() && key_depth + node.prefix.size() < 202);
+				stack[depth++] = {node, 0, key_depth + node.prefix.size() + 1};
+			} else {
+				require(keys < h.keys);
+				++keys;
+			}
+		}
+		visit = false;
+		while (depth) {
+			auto &frame = stack[depth - 1];
+			if (frame.child == frame.node.labels.size()) {
+				--depth;
+				continue;
+			}
+			const auto slot = frame.node.slot(frame.child++);
+			if (slot & 0x8000) {
+				require((slot & 0x7fff) == external && external < h.externals);
+				const auto r = decode_external(bytes, external++, limits);
+				require(r.keys <= h.keys - keys && r.height < 255);
+				keys += r.keys;
+				height = std::max(height, unsigned(r.height) + 1);
+				continue;
+			}
+			require(NodeAt::child(frame.node, slot) == position);
+			key_depth = frame.depth;
+			visit = true;
+			break;
+		}
+		if (!visit)
+			break;
+	}
+	require(position.offset() == bytes.size() - child_bytes * h.externals && nodes == h.nodes &&
+			external == h.externals && keys == h.keys && height == h.height);
+}
+void verify_page(std::span<const char> bytes, const Reference &reference, Limits limits) {
+	verify_page_structure(bytes, reference, limits);
+	require(page_commitment(bytes, limits) == reference.digest);
 }
 std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	validate(root, limits);
 	std::array<char, root_bytes> bytes{};
-	constexpr std::string_view magic = "DTROOT02";
+	constexpr std::string_view magic = "DTROOT03";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
-	write_integer(bytes, 8, 2, 4);
+	write_integer(bytes, 8, format_version, 4);
 	write_integer(bytes, 12, root_bytes, 4);
 	write_integer(bytes, 16, root.bytes, 8);
 	write_integer(bytes, 24, root.records, 4);
@@ -275,16 +336,16 @@ std::array<char, root_bytes> encode_root(const Root &root, Limits limits) {
 	put(bytes, 112, root.cursor.scope);
 	write_integer(bytes, 144, root.profile.semantic_id, 4);
 	write_integer(bytes, 152, root.profile.required_capabilities, 8);
-	if (root.pages)
-		put(bytes, 160, encode_reference(root.tree));
-	put(bytes, 248, root.logical);
+	if (root.tree != Reference{}) {
+		put(bytes, 160, encode_content(root.tree));
+		put(bytes, 160 + content_bytes, encode_placement(root.tree));
+	}
 	return bytes;
 }
 Root decode_root(std::span<const char> bytes, Limits limits) {
-	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT02" &&
-			read_integer(bytes, 8, 4) == 2 && read_integer(bytes, 12, 4) == root_bytes &&
-			!read_integer(bytes, 48, 8) && !read_integer(bytes, 148, 4) &&
-			std::all_of(bytes.begin() + 280, bytes.end(), [](char value) { return value == 0; }));
+	require(bytes.size() == root_bytes && std::string_view(bytes.data(), 8) == "DTROOT03" &&
+			read_integer(bytes, 8, 4) == format_version && read_integer(bytes, 12, 4) == root_bytes &&
+			zero(bytes.subspan(48, 8)) && zero(bytes.subspan(148, 4)) && zero(bytes.subspan(160 + child_bytes)));
 	Root root;
 	root.bytes = read_integer(bytes, 16, 8);
 	root.records = read_integer(bytes, 24, 4);
@@ -298,11 +359,8 @@ Root decode_root(std::span<const char> bytes, Limits limits) {
 	copy(bytes, 112, root.cursor.scope);
 	root.profile.semantic_id = read_integer(bytes, 144, 4);
 	root.profile.required_capabilities = read_integer(bytes, 152, 8);
-	if (root.pages)
-		root.tree = decode_reference(bytes.subspan(160, reference_bytes));
-	else
-		require(std::all_of(bytes.begin() + 160, bytes.begin() + 248, [](char value) { return value == 0; }));
-	copy(bytes, 248, root.logical);
+	root.tree = decode_child(bytes.subspan(160, content_bytes),
+							 bytes.subspan(160 + content_bytes, placement_bytes));
 	validate(root, limits);
 	return root;
 }

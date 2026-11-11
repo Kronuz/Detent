@@ -69,6 +69,35 @@ struct Record {
 	Revision revision;
 	std::shared_ptr<const KnobDef> value;
 };
+// A namespace's directory entry. Before the enabling entry `position` is the
+// group revision of its last change; after it, the namespace's own counter.
+struct Namespace {
+	Revision position = 0;
+	Identity incarnation{};		   // Zero until positions are enabled.
+	std::uint64_t directory = 0;   // Directory position of its latest creation or drop.
+	std::uint64_t bytes = 0;	   // Live size: the canonical footprint of its records.
+	bool live = true;			   // False for a dropped namespace's tombstone.
+	bool operator==(const Namespace &) const = default;
+};
+// A consumer's place in one namespace (design W1).
+struct NamespaceCursor {
+	Identity cluster{}, incarnation{};
+	std::uint64_t position = 0;
+	bool operator==(const NamespaceCursor &) const = default;
+};
+// What a cursor needs: nothing, the changes after it, a wait for this replica
+// to catch up, a full copy (another cluster or incarnation), or nothing to follow.
+enum class CursorAnswer : std::uint8_t { Current = 1, Behind, Ahead, FullCopy, Absent };
+// Replicated entries that are not producer transactions; each applies at one log index.
+enum class AdministrativeKind : std::uint8_t { EnablePositions = 1, DropNamespace = 2 };
+struct AdministrativeCommand {
+	Context context;
+	AdministrativeKind kind = AdministrativeKind::EnablePositions;
+	Identity nonce{};		// EnablePositions: the seed of every incarnation.
+	std::string name_space; // DropNamespace: the name, and the incarnation it drops,
+	Identity incarnation{}; // so a retried drop never removes a re-creation.
+	bool operator==(const AdministrativeCommand &) const = default;
+};
 using Digest = std::array<unsigned char, 32>;
 // One budget is shared across all phases of an owning executor turn.
 struct CommandWorkBudget {
@@ -159,6 +188,7 @@ class ImageEncoder;
 class ImageDecoder;
 class AuthorizedScope;
 class ExportCapture;
+class AdministrativeApplication;
 class State {
   public:
 	explicit State(Context context, Limits limits = {});
@@ -171,15 +201,29 @@ class State {
 	std::size_t logical_bytes() const noexcept { return bytes_; }
 	const Record *find(std::string_view key) const { return records_.find(key); }
 	Revision namespace_revision(std::string_view name) const;
+	const Namespace *namespace_entry(std::string_view name) const { return namespaces_.find(name); }
+	bool positions_enabled() const noexcept { return seed_ != Identity{}; }
+	// The directory's own position: one per creation, re-creation or drop.
+	std::uint64_t directory_position() const noexcept { return directory_head_; }
+	// Visits, in directory order, each namespace whose latest directory change is after `after`.
+	template <class F> void for_each_directory_entry(std::uint64_t after, F &&f) const {
+		auto cursor = directory_.cursor_from(after + 1);
+		while (auto row = cursor.next())
+			f(*row->first, *row->second, *namespaces_.find(*row->second));
+	}
+	NamespaceCursor namespace_cursor(std::string_view name) const;
+	CursorAnswer answer(std::string_view name, const NamespaceCursor &cursor) const;
 	const Producer *producer(std::string_view name) const;
 	Result apply(std::uint64_t index, const Command &command, std::uint64_t term = 1);
 	void advance(std::uint64_t index, std::uint64_t term = 1);
 	std::vector<Result> apply_batch(std::uint64_t index, const std::vector<Command> &commands,
 									std::uint64_t term = 1);
+	Result administer(std::uint64_t index, const AdministrativeCommand &command, std::uint64_t term = 1);
 	Result lookup(std::string_view producer, std::uint64_t generation, std::uint64_t sequence) const;
 	void retire() noexcept {
 		records_.retire_root();
 		namespaces_.retire_root();
+		directory_.retire_root();
 		producers_.retire_root();
 	}
 	std::size_t collect(std::size_t budget = 128) noexcept;
@@ -191,10 +235,12 @@ class State {
 	std::uint64_t retired_values() const noexcept;
 	std::uint64_t retired_value_bytes() const noexcept;
 	std::size_t retained_nodes() const noexcept {
-		return records_.retained_nodes() + namespaces_.retained_nodes() + producers_.retained_nodes();
+		return records_.retained_nodes() + namespaces_.retained_nodes() + directory_.retained_nodes() +
+			   producers_.retained_nodes();
 	}
 	std::size_t allocations() const noexcept {
-		return records_.allocations() + namespaces_.allocations() + producers_.allocations();
+		return records_.allocations() + namespaces_.allocations() + directory_.allocations() +
+			   producers_.allocations();
 	}
 	// Owner-executor capture of the authorized public projection.
 	std::shared_ptr<ExportCapture> capture(std::shared_ptr<const AuthorizedScope> scope) const;
@@ -209,16 +255,23 @@ class State {
 	friend class CommandApplication;
 	friend class ImageEncoder;
 	friend class ImageDecoder;
+	friend class AdministrativeApplication;
+	// The namespace entry a change at `name` produces, before its live size.
+	Namespace changed_namespace(std::string_view name) const;
+	void store_namespace(const std::string &name, std::uint64_t previous_directory, const Namespace &next);
 	Context context_;
 	Limits limits_;
 	Revision revision_ = 0;
 	std::uint64_t applied_ = 0, applied_term_ = 0;
 	std::size_t bytes_ = 0;
+	Identity seed_{}; // Nonzero once the enabling entry applied.
+	std::uint64_t directory_head_ = 0;
 	std::shared_ptr<detail::DeferredValues<KnobDef>> definitions_;
 	std::shared_ptr<detail::DeferredValues<Producer>> producer_values_;
 	unsigned collection_cursor_ = 0;
 	detail::PersistentMap<std::string, Record> records_;
-	detail::PersistentMap<std::string, Revision> namespaces_;
+	detail::PersistentMap<std::string, Namespace> namespaces_;
+	detail::PersistentMap<std::uint64_t, std::string> directory_; // Directory position to name.
 	detail::PersistentMap<std::string, std::shared_ptr<const Producer>> producers_;
 };
 // Borrows immutable batch bytes until the last command is decoded. A decoding
@@ -244,6 +297,27 @@ class BatchDecoder {
 struct BatchResult {
 	State state;
 	std::vector<Result> results;
+};
+// Applies one administrative entry in bounded steps. Enabling assigns each
+// namespace present an incarnation and a directory position, in name order.
+class AdministrativeApplication {
+  public:
+	AdministrativeApplication(const State &source, std::uint64_t index, std::uint64_t term,
+							  AdministrativeCommand command);
+	void step(CommandWorkBudget &budget);
+	bool done() const noexcept { return phase_ == Phase::Complete && !consumed_; }
+	BatchResult finish();
+	bool discard(CommandWorkBudget &budget);
+
+  private:
+	enum class Phase { Inspect, Assign, Complete };
+	State source_, candidate_;
+	std::uint64_t index_, term_;
+	AdministrativeCommand command_;
+	Result result_;
+	std::optional<decltype(State::namespaces_)::Cursor> cursor_;
+	Phase phase_ = Phase::Inspect;
+	bool consumed_ = false, retired_ = false;
 };
 // Owns one validated command and an unpublished candidate. Source roots and
 // command storage remain alive across every equality and receipt-copy yield.
@@ -329,6 +403,13 @@ class ImageEncoder {
 // selection. Encoding sorts mutations and override keys; semantic digest
 // ignores JSON layout.
 std::string encode(const Command &command, Limits limits = {});
+// An administrative entry's payload, distinct from a transaction group's.
+std::string encode(const AdministrativeCommand &command, Limits limits = {});
+AdministrativeCommand decode_administrative(std::string_view bytes, Limits limits = {});
+bool is_administrative(std::string_view payload) noexcept;
+// The incarnation a namespace takes at directory position `directory`.
+Identity derive_incarnation(const Context &context, const Identity &seed, std::uint64_t directory,
+							std::string_view name);
 Command decode(std::string_view bytes, Limits limits = {});
 Digest digest(const Command &command, Limits limits = {});
 void validate(const Command &command, Limits limits = {});

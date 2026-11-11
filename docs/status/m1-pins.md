@@ -1,3 +1,5 @@
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning.
+
 # M1: pins to head (docs/PLAN.md "M1: on the tip", done criterion 1)
 
 Branch `m1/pins-to-head`, cut from `m1/pin-check` (`Detent:1098592`). Follows

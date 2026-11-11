@@ -44,7 +44,7 @@ int main() {
 		const auto root = directory / std::to_string(boundary);
 		install(root, image, storage);
 		write(root / names.owner_name(), l::encode_segment_ownership({storage, orphan, bytes.size(),
-																	  l::paged::physical_commitment(bytes)}));
+																	  l::paged::pack_commitment(bytes)}));
 		write(root / names.payload_name(), bytes);
 		const auto child = ::fork();
 		require(child >= 0);

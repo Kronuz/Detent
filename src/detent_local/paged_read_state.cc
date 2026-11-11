@@ -1,5 +1,6 @@
 #include "paged_read_state.hh"
 #include "paged_navigation.hh"
+#include "paged_node_step.hh"
 #include <algorithm>
 #include <cstring>
 
@@ -39,76 +40,73 @@ std::optional<std::span<const char>> PagedReadState::lookup(std::string_view key
                                                             paged::PageKind expected) const {
 	if (!root.pages)
 		return {};
-	std::span<const char> encoded;
-	std::size_t cursor = 0;
-	for (;;) {
+	try {
+		auto reference = root.tree;
 		std::span<const char> bytes;
-		const auto reference = encoded.empty() ? root.tree : paged::decode_reference(encoded);
-		if (access) {
-			if (!access->available())
-				throw ReadSourceFailure("local generation is unavailable");
-			bytes = access->resolve(reference);
-		} else {
-			// The first-touch accessor checks a page's digests the first time any read reaches it.
-			const auto found = find_segment(segments, reference.segment);
-			if (found == segments.size())
-				throw ReadSourceFailure("local page names a segment outside its generation");
-			try {
-				bytes = checked_page_bytes(segments[found], reference);
-			} catch (const std::invalid_argument &) {
-				throw ReadSourceFailure("local page exceeds its segment");
+		std::size_t cursor = 0;
+		paged::NodeAt at;
+		bool resolve = true;
+		for (std::size_t visits = 0; visits <= key.size(); ++visits) {
+			if (resolve) {
+				if (access) {
+					if (!access->available())
+						throw ReadSourceFailure("local generation is unavailable");
+					bytes = access->resolve(reference);
+				} else {
+					const auto found = find_segment(segments, reference.segment);
+					if (found == segments.size())
+						throw ReadSourceFailure("local page names a missing segment");
+					bytes = checked_page_bytes(segments[found], reference);
+				}
+				resolve = false;
+				at = {};
 			}
-		}
-		if (bytes.size() < paged::page_header_bytes)
-			throw ReadSourceFailure("local page header is truncated");
-		const auto prefix = read_integer(bytes, 20, 4);
-		const auto children = read_integer(bytes, 24, 4);
-		const auto body = read_integer(bytes, 28, 4);
-		const auto payload = bytes.size() - paged::page_header_bytes;
-		if (read_integer(bytes, 16, 4) != bytes.size() || prefix > payload ||
-			children > (payload - prefix) / paged::child_bytes ||
-			body != payload - prefix - children * paged::child_bytes)
-			throw ReadSourceFailure("local page fields exceed its bounds");
-		const auto kind = static_cast<paged::PageKind>(read_integer(bytes, 12, 4));
-		if (access && kind != paged::PageKind::Branch) {
-			std::array<char, 202> actual{};
-			if (cursor > actual.size() || prefix > actual.size() - cursor)
-				throw ReadSourceFailure("local leaf key exceeds format bounds");
-			std::copy_n(key.data(), cursor, actual.data());
-			std::copy_n(bytes.data() + paged::page_header_bytes, prefix, actual.data() + cursor);
-			try {
-				if (paged::decode_key({actual.data(), cursor + prefix}).kind != kind)
-					throw ReadSourceFailure("local leaf has an unexpected key type");
-			} catch (const std::invalid_argument &) {
-				throw ReadSourceFailure("local leaf key is invalid");
+			const auto node = at.decode(bytes, paged_format_limits());
+			if (node.kind != paged::PageKind::Branch) {
+				std::array<char, 202> actual{};
+				if (cursor > actual.size() || node.prefix.size() > actual.size() - cursor)
+					throw ReadSourceFailure("local leaf key exceeds format bounds");
+				std::copy_n(key.data(), cursor, actual.data());
+				std::copy(node.prefix.begin(), node.prefix.end(), actual.begin() + cursor);
+				if (paged::decode_key({actual.data(), cursor + node.prefix.size()}).kind != node.kind)
+					throw ReadSourceFailure("local leaf key type mismatch");
 			}
-		}
-		if (prefix > key.size() - cursor ||
-		    std::memcmp(bytes.data() + paged::page_header_bytes, key.data() + cursor, prefix))
-			return {};
-		cursor += prefix;
-		if (kind != paged::PageKind::Branch) {
-			if (cursor != key.size())
+			if (node.prefix.size() > key.size() - cursor ||
+				std::memcmp(node.prefix.data(), key.data() + cursor, node.prefix.size()))
 				return {};
-			if (kind != expected)
-				throw ReadSourceFailure("local page has an unexpected key type");
-			return bytes.last(body);
+			cursor += node.prefix.size();
+			if (node.kind != paged::PageKind::Branch) {
+				if (cursor != key.size())
+					return {};
+				if (node.kind != expected)
+					throw ReadSourceFailure("local leaf key type mismatch");
+				return node.body;
+			}
+			if (cursor == key.size())
+				return {};
+			const auto label = static_cast<unsigned char>(key[cursor++]);
+			std::size_t low = 0, high = node.labels.size();
+			while (low < high) {
+				const auto middle = low + (high - low) / 2;
+				if (static_cast<unsigned char>(node.labels[middle]) < label)
+					low = middle + 1;
+				else
+					high = middle;
+			}
+			if (low == node.labels.size() || static_cast<unsigned char>(node.labels[low]) != label)
+				return {};
+			const auto slot = node.slot(low);
+			if (slot & 0x8000) {
+				reference = paged::decode_external(bytes, slot & 0x7fff, paged_format_limits());
+				resolve = true;
+			} else
+				at = paged::NodeAt::child(node, slot);
 		}
-		if (cursor == key.size())
-			return {};
-		const auto label = static_cast<unsigned char>(key[cursor++]);
-		const auto begin = paged::page_header_bytes + prefix;
-		std::size_t low = 0, high = children;
-		while (low < high) {
-			const auto middle = low + (high - low) / 2;
-			if (static_cast<unsigned char>(bytes[begin + middle * paged::child_bytes]) < label)
-				low = middle + 1;
-			else
-				high = middle;
-		}
-		if (low == children || static_cast<unsigned char>(bytes[begin + low * paged::child_bytes]) != label)
-			return {};
-		encoded = bytes.subspan(begin + low * paged::child_bytes + 8, paged::reference_bytes);
+		throw ReadSourceFailure("local page walk exceeds key depth");
+	} catch (const ReadSourceFailure &) {
+		throw;
+	} catch (...) {
+		throw ReadSourceFailure("local page walk failed");
 	}
 }
 } // namespace detent::local::detail

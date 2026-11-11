@@ -58,7 +58,8 @@ encode_generation_ownership(const GenerationOwnership &ownership) {
 	// Admission quotas are absent; older owned generations can exceed them.
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
 			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
+			 (ownership.layout_version == paged::format_version &&
+			  ownership.image_length == paged::root_bytes)));
 	std::array<char, generation_ownership_bytes> bytes{};
 	constexpr std::string_view magic = "DTLEASE1";
 	std::copy(magic.begin(), magic.end(), bytes.begin());
@@ -83,9 +84,14 @@ GenerationOwnership decode_generation_ownership(std::span<const char> bytes) {
 	ownership.layout_version = read_integer(bytes, 56, 4);
 	std::copy_n(bytes.begin() + 64, 32, ownership.image_checksum.begin());
 	require(nonzero(ownership.storage) && nonzero(ownership.generation) &&
-			((ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
-			 (ownership.layout_version == 2 && ownership.image_length == paged::root_bytes)));
+			(!current_layout(ownership.layout_version) ||
+			 (ownership.layout_version == 1 && ownership.image_length >= header_bytes) ||
+			 (ownership.layout_version == paged::format_version &&
+			  ownership.image_length == paged::root_bytes)));
 	return ownership;
+}
+bool current_layout(std::uint32_t layout_version) noexcept {
+	return layout_version == 1 || layout_version == paged::format_version;
 }
 std::array<char, segment_ownership_bytes> encode_segment_ownership(const SegmentOwnership &ownership) {
 	require(nonzero(ownership.storage) && nonzero(ownership.segment) &&

@@ -1,4 +1,4 @@
-> Status: CURRENT (2026-11-04) Brief for the agent that oversees the unattended run script and the shared run queue until both drain. Self-contained.
+> Status: HISTORY (2026-11-08): superseded by `.campaign/detent/` (`campaign map`); kept for its results and reasoning. Was: (2026-11-04) Brief for the agent that oversees the unattended run script and the shared run queue until both drain. Self-contained.
 
 # Overseeing the run queue
 

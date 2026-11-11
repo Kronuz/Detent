@@ -557,6 +557,8 @@ bool PagedSegmentCollection::complete(c::Result result) noexcept {
 	if (!s.submitted || result.token != request().token)
 		return false;
 	s.submitted = false;
+	if (!result.error)
+		s.session->sync_performed(request());
 	try {
 		if (auto *child = s.child()) {
 			child->complete(std::move(result));

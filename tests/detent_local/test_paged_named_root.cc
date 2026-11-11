@@ -58,17 +58,17 @@ int main() {
 		require(std::filesystem::remove(directory / "selected"));
 		auto other_root = image.root();
 		++other_root.cursor.revision;
-		const auto other_bytes = l::paged::encode_root(other_root);
+		const auto other_bytes = l::paged::encode_root(other_root, l::paged::Limits{});
 		l::GenerationId other_generation;
 		other_generation.fill('n');
 		const l::Descriptor other_descriptor{other_generation, l::paged::root_bytes,
-											 l::paged::physical_commitment(other_bytes), other_root.cursor,
+											 l::paged::metadata_commitment(other_bytes), other_root.cursor,
 											 other_root.profile};
 		const auto other_name = l::generation_name(other_generation);
 		write(directory / (other_name + ".image"), other_bytes);
 		write(directory / (other_name + ".lease"),
 			  l::encode_generation_ownership(
-				  {storage, other_generation, other_descriptor.length, other_descriptor.checksum, 2}));
+				  {storage, other_generation, other_descriptor.length, other_descriptor.checksum, detent::local::paged::format_version}));
 		write(directory / "selected", l::encode_descriptor(other_descriptor));
 		auto other = domain.make<l::detail::PagedDependencyCertificate>(account, domain.factory());
 		{
@@ -87,7 +87,7 @@ int main() {
 		const auto lease_path = directory / (name + ".lease");
 		const auto original = std::span<const char>(image.bytes()->data(), image.bytes()->size());
 		const l::GenerationOwnership ownership{storage, generation, image.descriptor().length,
-											   image.descriptor().checksum, 2};
+											   image.descriptor().checksum, detent::local::paged::format_version};
 		for (unsigned variant = 0; variant < 8; ++variant) {
 			write(image_path, original);
 			write(lease_path, l::encode_generation_ownership(ownership));
@@ -260,7 +260,7 @@ int main() {
 			write(directory / (name + ".image"), enlarged);
 			write(directory / (name + ".lease"),
 				  l::encode_generation_ownership(
-					  {storage, legacy, enlarged.size(), l::paged::physical_commitment(enlarged), 1}));
+					  {storage, legacy, enlarged.size(), l::paged::metadata_commitment(enlarged), 1}));
 			l::detail::PagedNamedRoot inconsistent(domain.factory(), session, storage, legacy, ::getuid());
 			drive(inconsistent);
 			require(!inconsistent.ready() && inconsistent.error());

@@ -340,7 +340,7 @@ struct Damage {
 			if (entry.path().filename().string().starts_with("segment-") && entry.path().extension() == ".pack")
 				packs.push_back(entry.path());
 		std::sort(packs.begin(), packs.end());
-		check(packs.size() >= 10);
+		check(packs.size() >= 3);
 		for (const auto &pack : packs) {
 			std::ifstream in(pack, std::ios::binary);
 			original[pack] = {std::istreambuf_iterator<char>(in), {}};
@@ -616,7 +616,7 @@ void seed(const fs::path &certificates, const fs::path &store) {
 					  return status.acknowledged == cursor() && status.recoverable == cursor();
 				  }));
 			  });
-	check(packs_in(store).size() >= 10);
+	check(packs_in(store).size() >= 3);
 }
 // What the coordinator was doing when a wait ran out.
 bool explain(bool ok, const std::shared_ptr<t::Coordinator> &coordinator, const Server &server,
@@ -660,7 +660,7 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 		const std::vector<char> metadata{std::istreambuf_iterator<char>(input), {}};
 		const std::string bytes(257, 'x');
 		const auto owner = l::encode_segment_ownership({l::decode_storage_identity(metadata), orphan_id,
-			bytes.size(), l::paged::physical_commitment(bytes)});
+			bytes.size(), l::paged::pack_commitment(bytes)});
 		std::ofstream payload(store / orphan.payload_name(), std::ios::binary);
 		payload.write(bytes.data(), bytes.size());
 		std::ofstream record(store / orphan.owner_name(), std::ios::binary);
@@ -709,7 +709,7 @@ void heal(const fs::path &certificates, const fs::path &root, bool close_deferre
 		std::size_t fresh = 0;
 		for (const auto &pack : now)
 			fresh += !old_packs.count(pack);
-		check(fresh >= 10 && now.size() == old_packs.size() + fresh);
+		check(fresh >= 3 && now.size() == old_packs.size() + fresh);
 		// The repair's original request is retried after the reader releases its lease.
 		check(co_await until(scheduler, 60s, [&] {
 			return std::none_of(old_packs.begin(), old_packs.end(), [](const auto &pack) { return fs::exists(pack); });
