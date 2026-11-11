@@ -1,6 +1,6 @@
 # dns-voters: journal
 
-State: working
+State: waiting on jobs 261111-092711-ae41c4
 Quest: .campaign/detent/quests/dns-voters.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Implemented at 142f57cf: pin bump (check_pins: 30 libraries, 0 mismatches), voter_host() validation and
+PeerAddress pass-through in service.cc, tests test_voter_hosts.cc (A3), test_dns_voters.py names (A1) and
+unresolvable (A2). Job 261111-092711-ae41c4 builds and runs them.
 
 ## Next
 
-1. <step>
+1. Read the job; fix failures.
+2. Mutant jobs (--fails-without) for A2 (resolve at parse) and A3 (drop validation), then the full suite via `campaign verify`.
+3. Paste brief's Evidence table; Result; State ready for review.
 
 ## Blocked on
 
