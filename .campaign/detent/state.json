@@ -3081,10 +3081,61 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T06:14:56",
+          "commit": "dba1253d306251ff83e4b1daa262af94e188623a",
+          "criteria": {
+            "A1": "261111-051250-4bc9ac; fails without: 261111-040321-691e64, 261111-040334-2d05d2, 261111-040350-2b8dbd, 261111-043035-1c50d1, 261111-043046-19869a, 261111-043055-08888c, 261111-043059-1948b6",
+            "A10": "261111-051250-4bc9ac; fails without: 261111-040329-08b129, 261111-040331-d34469, 261111-043042-8c5ad6, 261111-043044-5beecf",
+            "A11": "261111-051250-4bc9ac; fails without: 261111-040410-f17c76, 261111-040412-407465, 261111-040415-37efb5, 261111-040418-648763, 261111-040420-34cf6e, 261111-040423-9439e3, 261111-040427-49bd0f, 261111-043114-d0448d, 261111-043117-07d3c7, 261111-043119-c6b02e, 261111-043121-afe029, 261111-043123-8eede4, 261111-043125-8e6e56, 261111-043128-40b677",
+            "A12": "261111-051250-4bc9ac; fails without: 261111-040430-e8f565, 261111-043130-cdf29b, 261111-050346-194d0d",
+            "A13": "261111-051250-4bc9ac; fails without: 261111-040329-08b129, 261111-040331-d34469, 261111-040353-e75ec9, 261111-040356-c5d8c6, 261111-040359-4a2353, 261111-040402-53fe1b, 261111-040404-294409, 261111-040407-8381b2, 261111-040410-f17c76, 261111-040412-407465, 261111-040415-37efb5, 261111-040418-648763, 261111-040420-34cf6e, 261111-040423-9439e3, 261111-040427-49bd0f, 261111-040430-e8f565, 261111-043042-8c5ad6, 261111-043044-5beecf, 261111-043101-6ae7eb, 261111-043104-860cb6, 261111-043106-1b7fa1, 261111-043108-fc0915, 261111-043110-03f599, 261111-043112-5f9ecf, 261111-043114-d0448d, 261111-043117-07d3c7, 261111-043119-c6b02e, 261111-043121-afe029, 261111-043123-8eede4, 261111-043125-8e6e56, 261111-043128-40b677, 261111-043130-cdf29b, 261111-050342-d42170, 261111-050344-178b45, 261111-051251-0f7bb2, 261111-051253-5543fa",
+            "A14": "261111-051250-4bc9ac",
+            "A2": "261111-051250-4bc9ac; fails without: 261111-040323-ea4bb5, 261111-043037-1283fc",
+            "A3": "261111-051250-4bc9ac; fails without: 261111-040326-143d93, 261111-040342-1d49fe, 261111-040347-1c7ab1, 261111-043040-67ea55, 261111-043053-edb02c, 261111-043057-f6eafc",
+            "A4": "261111-051250-4bc9ac",
+            "A5": "261111-051250-4bc9ac; fails without: 261111-040321-691e64, 261111-040323-ea4bb5, 261111-040326-143d93, 261111-040329-08b129, 261111-040331-d34469, 261111-040334-2d05d2, 261111-040337-0c1e48, 261111-040339-25460b, 261111-040342-1d49fe, 261111-040347-1c7ab1, 261111-040350-2b8dbd, 261111-043035-1c50d1, 261111-043037-1283fc, 261111-043040-67ea55, 261111-043042-8c5ad6, 261111-043044-5beecf, 261111-043046-19869a, 261111-043048-3e4cbb, 261111-043051-353ca6, 261111-043053-edb02c, 261111-043055-08888c, 261111-043057-f6eafc, 261111-043059-1948b6",
+            "A6": "`docs/status/namespace-s3b.md` (\"Merge onto Dense pages\")",
+            "A7": "`docs/mechanisms/trusted-restart.md` (\"Repair of a damaged pack\", \"The scrub\")",
+            "A8": "261111-051250-4bc9ac; fails without: 261111-040353-e75ec9, 261111-040356-c5d8c6, 261111-040359-4a2353, 261111-040402-53fe1b, 261111-040404-294409, 261111-043101-6ae7eb, 261111-043104-860cb6, 261111-043106-1b7fa1, 261111-043108-fc0915, 261111-043110-03f599",
+            "A9": "261111-051250-4bc9ac; fails without: 261111-040407-8381b2, 261111-043112-5f9ecf"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "2aff6872530a3ae8675cc89bcf320b9f1f3867af",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-051250-4bc9ac",
+              "level": "light",
+              "seconds": 474.0,
+              "state": "done",
+              "what": "namespace-s3b check native at 2aff6872530a"
+            },
+            {
+              "check": "asan",
+              "ci": "ci:linux-asan-ubsan",
+              "commit": "b8a744e47f9821281b050607ec63d77d11a66958",
+              "state": "done"
+            },
+            {
+              "check": "tsan",
+              "ci": "ci:linux-tsan",
+              "commit": "b8a744e47f9821281b050607ec63d77d11a66958",
+              "state": "done"
+            }
+          ],
+          "final": true,
+          "from": "f2d8ee1516ab0ac76f077e2fefeb97e37838462b",
+          "reason": "",
+          "tested": "b8a744e47f9821281b050607ec63d77d11a66958"
+        }
+      ],
       "lenses": [
         "durability"
       ],
+      "messages": [],
       "milestone": "N1 Reader core, namespace delivery, legacy removal and guides (handoff order 1-4)",
       "needs": [
         "dense-walkers"
@@ -3095,10 +3146,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S3b: repair of a damaged pack",
-      "updated": "2026-11-11T06:12:40",
-      "worktree": "../Detent-wt/detent/namespace-s3b"
+      "updated": "2026-11-11T06:14:57",
+      "worktree": ""
     },
     "namespace-s4": {
       "accepted": {},
