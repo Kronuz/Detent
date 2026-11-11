@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### IPv6
+
+- Every address Detent takes or listens on works over IPv6 as over IPv4: voter hosts, `publisher_bind`,
+  the relay's `address`, and the `address` of the agent's and delivery client's upstreams take an IPv6
+  literal (`"::1"` in JSON). A listener on `::` serves IPv4 and IPv6
+  clients on every OS, and a named local voter listens on `::` whenever the host has IPv6 (else
+  `0.0.0.0`). The consensus pin moves to 3d988d1 (dual-stack `::` listeners, staggered dial). Tests:
+  a three-voter authority, relay and agent over `::1` deliver a generation; a relay and an authority
+  on `::` answer IPv4 and IPv6 clients.
+
 ### detentd readiness
 
 - `detentd --status` and `/v1/health` report `"ready":true` only once the node has a leader: it leads,

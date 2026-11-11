@@ -92,7 +92,7 @@ class ManagedCohort:
         first = (leader + 1) % 3
         endpoints = [
             {
-                "address": "127.0.0.1",
+                "address": self.authority.address,
                 "port": self.authority.ports[3 + (first + offset) % 3],
             }
             for offset in range(3)
@@ -127,12 +127,16 @@ class ManagedCohort:
                 upstream_path = directory / "upstream.json"
                 upstream_path.write_text(json.dumps(upstream))
                 upstream_path.chmod(0o600)
-                with socket.socket() as reservation:
-                    reservation.bind(("127.0.0.1", 0))
+                with socket.socket(
+                    socket.AF_INET6
+                    if ":" in self.authority.address
+                    else socket.AF_INET
+                ) as reservation:
+                    reservation.bind((self.authority.address, 0))
                     port = reservation.getsockname()[1]
                 relay_ports.append(port)
                 configuration = {
-                    "address": "127.0.0.1",
+                    "address": self.authority.address,
                     "port": port,
                     "hostname": "localhost",
                     "certificate": str(self.certificates / "one.pem"),
@@ -225,7 +229,7 @@ class ManagedCohort:
                 source.pop("authority_endpoints")
                 source.pop("quorum_refresh_ms")
                 source.update(
-                    address="127.0.0.1",
+                    address=self.authority.address,
                     port=relay_ports[index % len(relay_ports)],
                     token="cd" * 16,
                 )
