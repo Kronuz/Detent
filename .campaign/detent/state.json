@@ -4414,8 +4414,7 @@
         "include/detent_local/agent_store*",
         "docs/status/namespace-s7.md",
         "src/detent_local/CMakeLists.txt",
-        "src/detent_local/change_file.*",
-        "tests/detent_local/**"
+        "src/detent_local/change_file.*"
       ],
       "history": [
         {
@@ -4481,12 +4480,12 @@
       "provides": [
         "agent-store"
       ],
-      "reason": "Durability F1: the fix is in the shared ChangeWriter (change_file.cc), with a test in tests/detent_local",
+      "reason": "Narrow: the F1 test goes in tests/detent_agent, not tests/detent_local, which dense-walkers holds",
       "repo": ".",
       "risk": "high",
       "status": "review",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T02:06:17",
+      "updated": "2026-11-11T02:06:26",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s7-wire": {
