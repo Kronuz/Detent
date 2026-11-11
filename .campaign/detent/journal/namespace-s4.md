@@ -1,6 +1,6 @@
 # namespace-s4: journal
 
-State: waiting on jobs 261111-075504-ec3c00 261111-075504-e24863 261111-075545-8516fc 261111-075547-031cc4 261111-075550-246c94 261111-075554-690969 261111-075558-73943c 261111-075601-6f02c9
+State: waiting on jobs 261111-075504-ec3c00 261111-075504-e24863 261111-075545-8516fc 261111-075547-031cc4 261111-075550-246c94 261111-075554-690969 261111-075558-73943c 261111-075601-6f02c9 261111-080104-4bc749 261111-080106-08759e
 Quest: .campaign/detent/quests/namespace-s4.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -20,14 +20,15 @@ Code and tests are at `quest/detent/namespace-s4` (head fcf37aff plus journal co
 
 ## Blocked on
 
-Nothing blocking, one file-set mismatch for the lead: the quest's file set is `src/detent_delivery/**`,
-`src/detent_relay/**`, their includes, `tests/detent_delivery/**`, `docs/status/namespace-s4.md`, but the outcome
-(no tier re-validates its own build; hash counters) lives in `src/detent_local/` (`generation.cc`,
-`trusted_restart.*`, `paged_layout.*`, `paged_packer.cc`, `paged_segment_builder.cc`), with frame counters in
-`src/detent_distribution/` (`frame_encoder.cc`, `framing.cc`, a new header), the agent's log in
-`src/detent_agent/managed_host.cc`, and docs in `docs/mechanisms/`. No change inside the set can remove the
-recovery's hashing. I edited those files; `land` refuses edits outside the set, so extend the file set
-(`campaign set namespace-s4 files=...`) before landing.
+Nothing. Lead rulings in: file set widened (note: `include/detent_local/paged_layout.hh` is also edited and is not
+in the list; please add it); A2 is D64 (layout hashing at most 1.2 times the build's, frames reported beside it).
+
+Relay-delta shutdown hang: attributed by two probe jobs, `relay_delta_shutdown.cc` run by
+`tests/detent_delivery/relay_delta_probe.sh`: at main 261111-080104-4bc749, at the quest head 261111-080106-08759e.
+Exit 124 means "did not drain". If main hangs, it is pre-existing: the probe stays unregistered in ctest and the
+lead opens a follow-up. If main passes, it is this quest's to fix. (Jobs 261111-075517-c6c3c1, 075520-d8c977,
+075522-766e74, 075525-3a75d9, 075528-283102 were submitted with a quoting error and failed at once; 075514-e91fbc
+was cancelled; none is evidence.)
 
 ## Evidence
 
