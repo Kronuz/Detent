@@ -37,8 +37,10 @@ def has_ipv6() -> bool:
 
 
 def free_port() -> int:
+    # Reserved on :: for both families, so no IPv4 listener holds the port the daemon binds.
     with socket.socket(socket.AF_INET6) as reservation:
-        reservation.bind(("::1", 0))
+        reservation.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        reservation.bind(("::", 0))
         return int(reservation.getsockname()[1])
 
 
