@@ -1,25 +1,23 @@
 # daemon-ready-leader: journal
 
-State: waiting on jobs 261109-170314-b99d1f (fix tests), 261109-170316-7c18b2 (A5 revert), 261109-170317-153a91 (A6 revert), 261109-170319-f07393 (native), all at f3215b1
+State: waiting on jobs 261110-233158-fb6902 (native), 261110-233210-4eb6b1 (A3 revert), 261110-233212-05140d (A5 mutant), 261110-233214-7d9360 (A6 revert), 261110-233216-1af7ce (F3 mutant), all at 8c2f1c9; branch pushed, lead to accept
 Quest: .campaign/detent/quests/daemon-ready-leader.md (the lead's; never edit it)
 
 ## Doing
 
-Fix round for review daemon-ready-leader-correctness (CHANGES) at 82024eb. F1 (D41): health `ready` for a
-follower needs `leader_known` and a proof of life within `election_max`; the proof is a RoleChanged
-naming the leader or our own `AppendResponse` send (the reply to its append), stamped in the owner loop
-(service.cc `leader_alive`). F2/N5: `Service::failure()` returns the runtime's exception text; the
-`--daemonize` wait ends on it or on SIGTERM without `ready()` and the parent gets the cause. N2: the
-managed quick-start status item 2 is marked resolved. N3: the refusal text names the rule. N4 kept (D40
-shape, documented in test_daemon_alone.py). N1: job at main below.
+Landing round under D54/D55. Merged main (Detent:0cff345, dense-pages landed) at 76be485 with no conflicts.
+Native failure at f3215b1 (261109-170319-f07393): only the eight 500K/100K coordinator and relay cases
+failed (timeouts and "stream truncated" on main's v2 paged path, 69-242 s against the fixtures' limits);
+every authority test passed, including lost_quorum and daemon_stop. Cause: D45, the v2 paged path that
+dense-pages replaced; the merge brings the replacement, no change in this quest's file set. F3: added the
+`no-leader` mode to revert_followup_check.sh (8c2f1c9). F1/F2/N5/N2/N3 were fixed at 82024eb/f3215b1
+(see Result and rulings); N1 passed at main (261109-164915-21368f), host load.
 
 ## Next
 
-1. On 261109-170314-b99d1f green: Evidence rows A5, A6 and the fix confirmations F1/F2/N5 take its id; the revert rows take 261109-170316-7c18b2 (A5, F3) and 261109-170317-153a91 (A6).
-2. On native 261109-170319-f07393: fill A1/A2 with it. `*-500000` cases are fixture-500k's.
+1. On the jobs above: fill the Evidence rows from them; if native shows only authority failures, take the lead's call.
 
-History: jobs at 82024eb: 261109-164903-36a5eb failed only test_authority_daemon_stop (script bug: log not yet created under `set -e`, then zombie parent polled with kill -0; plus main.cc idled after a failed wait); lost_quorum, daemon, daemon_ready, daemon_alone passed there; A5 revert 261109-164904-d4954d passed (mutant killed). Fixed at f3215b1.
-N1: 261109-164915-21368f ran test_authority_snapshot_catchup at main (ef001a0) and passed, so the 2 s timeout in 261109-162029-7d42a7 was host load (about 37), not a main defect; I did not change that test.
+History: jobs at 82024eb: 261109-164903-36a5eb failed only test_authority_daemon_stop (script bug, fixed at f3215b1). Green at f3215b1: fix tests 261109-170314-b99d1f (lost_quorum, daemon_stop, daemon_ready, daemon_alone, daemon), A5 mutant 261109-170316-7c18b2, A6 revert 261109-170317-153a91.
 
 ## Blocked on
 
@@ -29,12 +27,14 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | native 261109-150943-0c7951 (test_authority_daemon_ready: one open right after --daemonize, no retry) |
-| A2 | native 261109-150943-0c7951 (same test: --status "ready":true with "role":2; /v1/health sampled every 10 ms from first answer, never ready without role 2; test_authority_daemon_alone: a lone node of a three-voter set returns from --daemonize in under 10 s and reports "ready":false) |
-| A3 | 261109-150944-4403ae (earlier pass c05fdc at dd3aad7; restores main.cc, service.cc, service.hh from 63ed532, builds detentd, runs the test; passes iff the test fails on READINESS; 125 on build failure) |
-| A5 | pending: 261109-170314-b99d1f (test_authority_lost_quorum, scenarios A/B/C); revert 261109-170316-7c18b2 |
-| A6 | pending: 261109-170314-b99d1f (test_authority_daemon_stop); revert 261109-170317-153a91 |
+| A1 | native 261110-233158-fb6902 (test_authority_daemon_ready: one open right after --daemonize, no retry); earlier green on the fix tests 261109-170314-b99d1f |
+| A2 | native 261110-233158-fb6902 (test_authority_daemon_ready samples /v1/health from the first answer, never ready without role 2; test_authority_daemon_alone); mutant 261110-233216-1af7ce (leader_known conjunct dropped, F3) must fail it |
+| A3 | revert 261110-233210-4eb6b1 (restores main.cc, service.cc, service.hh from 63ed532, builds detentd, passes iff the test fails on READINESS) |
+| A5 | native 261110-233158-fb6902 (test_authority_lost_quorum, scenarios A/B/C); mutant 261110-233212-05140d (bare leader_known) must fail it |
+| A6 | native 261110-233158-fb6902 (test_authority_daemon_stop); revert 261110-233214-7d9360 (old main.cc) must fail it |
 | A4 | D23 (.campaign/detent/PLAN.md): readiness waits for a leader; implemented as above |
+
+Finding to job map: F1 = test_authority_lost_quorum in 261110-233158-fb6902, killed by 261110-233212-05140d. F2 and N5 = test_authority_daemon_stop in 261110-233158-fb6902, killed by 261110-233214-7d9360. F3 = 261110-233216-1af7ce. N2 and N3 are text edits (nits). N4 kept (D40 shape). N1 = 261109-164915-21368f at main. Pending until the jobs finish; the native gate's 500K/100K cases are D45's.
 
 ## Result
 
