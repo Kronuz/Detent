@@ -104,7 +104,6 @@ add_executable(test_delivery_hash_once test_hash_once.cc)
 target_include_directories(test_delivery_hash_once PRIVATE
   "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery")
 target_link_libraries(test_delivery_hash_once PRIVATE detent::delivery_coordinator detent::relay)
-# relay-delta passes its checks but its shutdown does not drain; run it by hand with a timeout.
 foreach(mode IN ITEMS agent relay agent-delta restart damage)
   add_test(NAME test_delivery_hash_once_${mode}
     COMMAND test_delivery_hash_once ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture ${mode} 10000)
@@ -220,3 +219,8 @@ if(TARGET detent::relay_http)
   add_test(NAME test_relay_bootstrap_retention_tls COMMAND test_relay_bootstrap_retention ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_relay_bootstrap_retention_tls PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 45)
 endif()
+# A relay that took a delta does not drain at shutdown (see the journal of namespace-s4): built, not registered.
+add_executable(test_delivery_relay_delta_shutdown relay_delta_shutdown.cc)
+target_include_directories(test_delivery_relay_delta_shutdown PRIVATE
+  "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery")
+target_link_libraries(test_delivery_relay_delta_shutdown PRIVATE detent::delivery_coordinator detent::relay)
