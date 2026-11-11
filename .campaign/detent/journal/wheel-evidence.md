@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-143146-cf9183 261111-143703-aee0ad 261111-143714-0db0f7 261111-143732-837999 261111-143746-2014b6
+State: waiting on jobs 261111-143146-cf9183 261111-144147-d7d25f 261111-144149-2a64b9 261111-144151-4c40f1 261111-144152-d8a935
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -13,8 +13,8 @@ D69 (A5, A6), main merged. (f)'s memory row filled from 261111-130756-004da8 (9e
 - A5: single-loop samples run >= 100 ms (5ecbeb4c); row 261111-143146-cf9183 (exclusive, R=10).
 - A6: `wheel_vs_stash_vm.sh MODE [R]` ships bench + pinned stash to the local QEMU VM (strata
   aws-linux.sh run, never AWS; 120 s ssh probe, 1,500 s bound), a b c f, P = 1 4 nproc-1.
-  Smoke 261111-143703-aee0ad (light); rows after it, exclusive: single R=10 261111-143714-0db0f7,
-  cross R=5 261111-143732-837999, mem 261111-143746-2014b6.
+  Smoke 261111-144147-d7d25f (light); rows after it, exclusive: single R=10 261111-144149-2a64b9,
+  cross R=5 261111-144151-4c40f1, mem 261111-144152-d8a935.
 
 ## Next
 
