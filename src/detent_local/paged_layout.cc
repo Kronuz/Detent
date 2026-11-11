@@ -60,7 +60,7 @@ Digest finish(SHA256 &hash) {
 	hash.getHash(reinterpret_cast<unsigned char *>(result.data()));
 	return result;
 }
-std::array<std::atomic<std::uint64_t>, 8> hash_counters{};
+std::array<std::atomic<std::uint64_t>, 10> hash_counters{};
 Reference decode_child(std::span<const char> content, std::span<const char> placement) {
 	require(content.size() == content_bytes && placement.size() == placement_bytes &&
 			zero(content.subspan(45)));
@@ -119,15 +119,17 @@ Key decode_key(std::string_view bytes) {
 			std::all_of(local.begin(), local.end(), detent::detail::is_name_char));
 	return {PageKind::Definition, name_space, local};
 }
-HashCounts hash_counts() noexcept {
+HashCounts checked_hash_counts() noexcept {
 	constexpr auto order = std::memory_order_relaxed;
 	return {hash_counters[0].load(order), hash_counters[1].load(order), hash_counters[2].load(order),
 			hash_counters[3].load(order), hash_counters[4].load(order), hash_counters[5].load(order)};
 }
 BuiltHashCounts built_hash_counts() noexcept {
 	constexpr auto order = std::memory_order_relaxed;
-	return {hash_counters[6].load(order), hash_counters[7].load(order)};
+	return {hash_counters[6].load(order), hash_counters[7].load(order), hash_counters[8].load(order),
+			hash_counters[9].load(order)};
 }
+HashCounts hash_counts() noexcept { return checked_hash_counts() + built_hash_counts(); }
 void reset_hash_counts() noexcept {
 	for (auto &counter : hash_counters)
 		counter.store(0, std::memory_order_relaxed);
@@ -138,11 +140,11 @@ void count_hash(HashKind kind, std::uint64_t calls, std::uint64_t bytes) noexcep
 	hash_counters[index + 1].fetch_add(bytes, std::memory_order_relaxed);
 }
 void count_build_hash(HashKind kind, std::uint64_t calls, std::uint64_t bytes) noexcept {
-	count_hash(kind, calls, bytes);
-	if (kind == HashKind::Page)
-		hash_counters[6].fetch_add(bytes, std::memory_order_relaxed);
-	else if (kind == HashKind::Pack)
-		hash_counters[7].fetch_add(bytes, std::memory_order_relaxed);
+	if (kind == HashKind::Metadata)
+		return count_hash(kind, calls, bytes);
+	const auto index = 6 + static_cast<unsigned>(kind) * 2;
+	hash_counters[index].fetch_add(calls, std::memory_order_relaxed);
+	hash_counters[index + 1].fetch_add(bytes, std::memory_order_relaxed);
 }
 namespace {
 Digest hash_buffer(std::span<const char> bytes, HashKind kind) {

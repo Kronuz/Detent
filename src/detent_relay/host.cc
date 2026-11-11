@@ -120,9 +120,9 @@ health_snapshot(std::shared_ptr<d::StorageLedger> account, const d::StorageLedge
 		field(",\"publication_groups\":", delivery.sync.publication.groups);
 		field(",\"publication_directory_syncs\":", delivery.sync.publication.directory_syncs);
 		field(",\"publication_device_flushes\":", delivery.sync.publication.device_flushes);
-		field(",\"hash_page_bytes\":", delivery.hash.hashed.page_bytes);
-		field(",\"hash_pack_bytes\":", delivery.hash.hashed.pack_bytes);
-		field(",\"hash_metadata_bytes\":", delivery.hash.hashed.metadata_bytes);
+		field(",\"hash_page_bytes\":", delivery.hash.hashed().page_bytes);
+		field(",\"hash_pack_bytes\":", delivery.hash.hashed().pack_bytes);
+		field(",\"hash_metadata_bytes\":", delivery.hash.hashed().metadata_bytes);
 		field(",\"hash_frame_bytes\":", delivery.hash.frame.bytes);
 		field(",\"hash_built_bytes\":", delivery.hash.built_bytes());
 		field(",\"hash_checked_bytes\":", delivery.hash.checked_bytes());

@@ -65,7 +65,7 @@ Key decode_key(std::string_view);
 // ranges.
 Digest page_commitment(std::span<const char>, Limits);
 enum class HashKind { Page, Pack, Metadata };
-// Every SHA-256 the paged layer runs.
+// SHA-256 runs of the paged layer, calls and bytes by kind.
 struct HashCounts {
 	std::uint64_t page_calls = 0, page_bytes = 0, pack_calls = 0, pack_bytes = 0, metadata_calls = 0,
 				  metadata_bytes = 0;
@@ -76,19 +76,30 @@ struct HashCounts {
 				a.metadata_bytes - b.metadata_bytes};
 	}
 };
-// Of those, the page and pack bytes a build hashed to write its own generation; the rest is checking.
+// The page and pack hashes a build ran to write its own generation.
 struct BuiltHashCounts {
-	std::uint64_t page_bytes = 0, pack_bytes = 0;
+	std::uint64_t page_calls = 0, page_bytes = 0, pack_calls = 0, pack_bytes = 0;
 	bool operator==(const BuiltHashCounts &) const = default;
 	friend BuiltHashCounts operator-(const BuiltHashCounts &a, const BuiltHashCounts &b) noexcept {
-		return {a.page_bytes - b.page_bytes, a.pack_bytes - b.pack_bytes};
+		return {a.page_calls - b.page_calls, a.page_bytes - b.page_bytes, a.pack_calls - b.pack_calls,
+				a.pack_bytes - b.pack_bytes};
+	}
+	friend HashCounts operator+(HashCounts checked, const BuiltHashCounts &built) noexcept {
+		checked.page_calls += built.page_calls;
+		checked.page_bytes += built.page_bytes;
+		checked.pack_calls += built.pack_calls;
+		checked.pack_bytes += built.pack_bytes;
+		return checked;
 	}
 };
-HashCounts hash_counts() noexcept;
+// Build and checking hashes have disjoint counters, each only growing, so no read sees one below the other.
+HashCounts checked_hash_counts() noexcept;
 BuiltHashCounts built_hash_counts() noexcept;
+// Every SHA-256 the paged layer runs: checked_hash_counts() + built_hash_counts().
+HashCounts hash_counts() noexcept;
 void reset_hash_counts() noexcept;
 void count_hash(HashKind, std::uint64_t calls, std::uint64_t bytes) noexcept;
-// Counts a hash the build runs to write its own page or pack, in the totals and in the built counts.
+// Counts a hash the build runs to write its own page or pack (a metadata hash counts as checking).
 void count_build_hash(HashKind, std::uint64_t calls, std::uint64_t bytes) noexcept;
 Digest pack_commitment(std::span<const char>);
 Digest metadata_commitment(std::span<const char>);

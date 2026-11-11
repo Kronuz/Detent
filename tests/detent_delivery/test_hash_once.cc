@@ -35,8 +35,8 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
 	std::ostringstream out;
 	out << "hash-once " << tier << " knobs=" << knobs << " packs=" << packs << " pack_file_bytes=" << packs_bytes
 		<< " built_page_bytes=" << h.built.page_bytes << " built_pack_bytes=" << h.built.pack_bytes
-		<< " hashed_page_bytes=" << h.hashed.page_bytes << " hashed_pack_bytes=" << h.hashed.pack_bytes
-		<< " metadata_bytes=" << h.hashed.metadata_bytes << " frame_bytes=" << h.frame.bytes
+		<< " hashed_page_bytes=" << h.hashed().page_bytes << " hashed_pack_bytes=" << h.hashed().pack_bytes
+		<< " metadata_bytes=" << h.hashed().metadata_bytes << " frame_bytes=" << h.frame.bytes
 		<< " checked_bytes=" << h.checked_bytes() << " total_bytes=" << h.total_bytes() << " total_over_built="
 		<< (built ? double(h.total_bytes()) / double(built) : 0.0) << " total_over_pack_bytes="
 		<< (packs_bytes ? double(h.total_bytes()) / double(packs_bytes) : 0.0);
@@ -47,8 +47,8 @@ std::string line(std::string_view tier, const t::HashStats &h, std::uint64_t pac
 // the relay also encodes the frames it serves (raw and zstd), so its frame bytes are reported, not bounded.
 void expect_built_once(const t::HashStats &h, bool relay) {
 	check(h.built.page_bytes > 0 && h.built.pack_bytes > 0);
-	check(h.hashed.page_bytes == h.built.page_bytes && h.hashed.pack_bytes == h.built.pack_bytes);
-	check(h.hashed.metadata_bytes * 50 <= h.built_bytes());
+	check(h.hashed().page_bytes == h.built.page_bytes && h.hashed().pack_bytes == h.built.pack_bytes);
+	check(h.hashed().metadata_bytes * 50 <= h.built_bytes());
 	check(h.frame.bytes > 0);
 	check(relay || h.total_bytes() * 5 <= h.built_bytes() * 6);
 }
@@ -104,9 +104,9 @@ void delta(const fs::path &certificates, const fs::path &root, bool relay) {
 				  std::cout << line(relay ? "relay-delta" : "agent-delta", update, bytes, packs) << std::endl;
 				  // The delta writes pages and packs and hashes nothing else of the base it reads.
 				  check(update.built.page_bytes > 0 && update.built.pack_bytes > 0);
-				  check(update.hashed.page_bytes == update.built.page_bytes &&
-						update.hashed.pack_bytes == update.built.pack_bytes);
-				  check(update.hashed.metadata_bytes * 50 <= update.built_bytes());
+				  check(update.hashed().page_bytes == update.built.page_bytes &&
+						update.hashed().pack_bytes == update.built.pack_bytes);
+				  check(update.hashed().metadata_bytes * 50 <= update.built_bytes());
 			  });
 	Reader reader(store);
 	const auto reads = reader.read(2);
@@ -139,9 +139,9 @@ void restart(const fs::path &certificates, const fs::path &root) {
 				  }), coordinator, server));
 				  started = coordinator->status().hash - before;
 			  });
-	std::cout << "hash-once restart knobs=" << knobs << " page_bytes=" << started.hashed.page_bytes
-			  << " pack_bytes=" << started.hashed.pack_bytes << " metadata_bytes=" << started.hashed.metadata_bytes << '\n';
-	check(started.hashed.page_bytes == 0 && started.hashed.pack_bytes == 0);
+	std::cout << "hash-once restart knobs=" << knobs << " page_bytes=" << started.hashed().page_bytes
+			  << " pack_bytes=" << started.hashed().pack_bytes << " metadata_bytes=" << started.hashed().metadata_bytes << '\n';
+	check(started.hashed().page_bytes == 0 && started.hashed().pack_bytes == 0);
 }
 
 // A pack damaged on disk after this tier's own publication, with the process running: no first touch has
