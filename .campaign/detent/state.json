@@ -1950,6 +1950,56 @@
       "title": "Docs wave 1: the public site and guides refreshed in full, plus a docs check in CI",
       "updated": "2026-11-10T11:59:38"
     },
+    "drop-justknobs": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "README.md",
+        "benchmarks/container-alternative/standard-map.patch",
+        "benchmarks/container-alternative/unordered-map.patch",
+        "diagrams/08_detent_deps.d2",
+        "diagrams/08_detent_deps.svg",
+        "docs/DOCUMENTATION_FINDINGS.md",
+        "docs/USAGE.md",
+        "docs/design/observability.md",
+        "docs/design/reader.md",
+        "docs/dev/docs-site-audit.md",
+        "include/detent/hashing.hh",
+        "include/detent/model.hh",
+        "justknobs-implementation-spec.md",
+        "website/src/content/docs/architecture/design-documents.md",
+        "website/src/content/docs/copyright.md",
+        "website/src/content/docs/faq.md",
+        "website/src/content/docs/welcome.md",
+        "README.md",
+        "docs/**",
+        "website/**",
+        "diagrams/**",
+        "include/detent/model.hh",
+        "include/detent/hashing.hh",
+        "tools/check_lineage.sh",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "Detent on its own terms: remove the JustKnobs lineage",
+      "updated": "2026-11-11T10:47:20"
+    },
     "fixture-500k": {
       "accepted": {},
       "after": [],
