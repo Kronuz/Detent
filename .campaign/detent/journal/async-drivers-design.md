@@ -286,3 +286,5 @@ real Kronuz/scheduler users and moves `engine::Host`'s timers (Y7). Rows in the 
     check; no finding's content was dropped.
 42. Rerunnable checks cited the cancelled exclusive hop job 261111-012156-f20dab; it now cites
     94206c, the strict run D10 quotes.
+
+Not evidence: 261111-034230-b49825 (R2 shrink_dial) failed because the bench row was deleted (ruling 36, D57); R2 is confirmed by placement_test 868eda.
