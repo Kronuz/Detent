@@ -2114,6 +2114,46 @@
       "title": "http handlers on task: design, S1-S2 and the T6/T7 gate (W2a)",
       "updated": "2026-11-08T15:38:30"
     },
+    "ipv6": {
+      "accepted": {},
+      "after": [
+        "dns-voters"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_relay/configuration.cc",
+        "src/detent_relay/service.cc",
+        "src/detent_relay/main.cc",
+        "src/detent_delivery/configuration.cc",
+        "src/detent_delivery/client.cc",
+        "src/detent_agent/config.cc",
+        "src/detentd/main.cc",
+        "src/detent_authority/service.cc",
+        "tests/detent_system/**",
+        "tests/detent_authority/**",
+        "tests/detent_agent/**",
+        "tests/detent_delivery/**",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "IPv6 end to end: voters, relays, agents",
+      "updated": "2026-11-11T05:11:34"
+    },
     "legacy-h": {
       "accepted": {},
       "after": [],
