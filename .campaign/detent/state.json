@@ -4481,6 +4481,43 @@
       "updated": "2026-11-11T01:37:42",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
+    "namespace-s7-wire": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_agent/**",
+        "src/detent_local/disk_store*",
+        "include/detent_local/disk_store.hh",
+        "src/detent_delivery/coordinator*",
+        "include/detent_delivery/coordinator.hh",
+        "src/detent_local/paged_segment_*",
+        "tests/detent_agent/**",
+        "tests/detent_delivery/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s7"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "Namespace S7 wiring: the agent publishes and reads through the agent store",
+      "updated": "2026-11-11T01:37:46"
+    },
     "namespace-s8": {
       "accepted": {},
       "after": [
