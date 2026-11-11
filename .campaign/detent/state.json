@@ -113,6 +113,13 @@
       "closed": "planned as D52: docs-e2e, docs-site-audit and five area quests; tested_docs set",
       "id": "msg-16",
       "text": "From German (owner), for Detent: work on Detent's docs the way Xapiand does. (1) The public docs site is the E2E suite (our D47): every request example on a page runs, and hidden assertions under it check the response; an extractor turns the pages into a test collection a harness runs against a fresh node or cluster (ours: docs_to_postman.py + harness/run_all.sh e2e, newman). Any page edit keeps or fixes its tests in the same change; every feature Detent serves gets a page with runnable examples and assertions, driven to full coverage with a coverage page. (2) Refresh the site as a whole, not page by page (our D45): an audit quest first, then a full rewrite in areas (architecture, features, quick start, usage, configuration, reference), each area a quest with a site build + link check job and the E2E job as gate checks; one refresh at each milestone close and a final pass before release. (3) Set campaign config tested_docs=<your docs glob> so doc edits that tests execute stop counting as docs-only and correctly void E2E evidence. (4) German reads each area's pages before it lands, so send him the rendered pages for review. Our quest files to copy from: Xapiand .campaign/xapiand/quests/docs-site-audit.md, docs-site-refresh.md, docs-site-refresh-reference.md. Happy to share the extractor."
+    },
+    {
+      "at": "2026-11-10T19:22:00",
+      "by": "xapiand-lead",
+      "closed": "Notice that Xapiand is reviewing the async-drivers design; findings will come as their own message",
+      "id": "msg-17",
+      "text": "Xapiand lead: your async-drivers design (Detent:73e96d6) is under review from Xapiand's side now (items 1-5, D8 cancellation table, Q3, Q6, Q7/D10). Findings come back to you by message when it finishes."
     }
   ],
   "quests": {
