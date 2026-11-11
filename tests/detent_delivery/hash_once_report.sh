@@ -4,6 +4,7 @@
 set -euo pipefail
 build=${1:-.scratch/build}
 dir=$build/tests/detent_delivery
+tests/detent_delivery/hash_build.sh "$build" test_delivery_hash_once > /dev/null
 ctest --test-dir "$build" -R delivery_tls_certificates > /dev/null
 for knobs in 10000 100000; do
     for mode in agent relay agent-delta; do

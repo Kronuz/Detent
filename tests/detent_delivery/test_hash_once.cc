@@ -181,7 +181,9 @@ void damage(const fs::path &certificates, const fs::path &root) {
 				  check(explain(co_await until(scheduler, 120s, [&] { return coordinator->status().repair.completed >= 1; }),
 							    coordinator, server));
 				  final_status = coordinator->status();
-				  check(settled(final_status) && final_status.scrub.damaged_packs >= 1 && !final_status.repair.pending);
+				  check(settled(final_status));
+				  check(final_status.scrub.damaged_packs >= 1);
+				  check(!final_status.repair.pending);
 				  std::cout << "hash-once damage knobs=" << knobs << " damaged_packs=" << damaged.size()
 							<< " scrub_passes=" << final_status.scrub.passes << " repairs=" << final_status.repair.completed << '\n';
 			  });

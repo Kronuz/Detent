@@ -17,7 +17,9 @@ no_verdict() {
 git apply --check "$patch" && git apply "$patch" || no_verdict "patch does not apply"
 trap 'git apply -R "$patch"' EXIT
 git diff --stat
-cmake --build "$build" -j4 --target "$@" > "$build/mutant-build.log" 2>&1 || no_verdict "mutant does not build"
+mkdir -p "$build"
+log=$build/mutant-build.log
+tests/detent_delivery/hash_build.sh "$build" "$@" > "$log" 2>&1 || { tail -30 "$log"; no_verdict "mutant does not build"; }
 tests=$(ctest --test-dir "$build" -N -R "$regex" | sed -n 's/^Total Tests: //p')
 test "${tests:-0}" -gt 0 || no_verdict "no test matches $regex"
 ctest --test-dir "$build" --output-on-failure --timeout 300 -R "$regex"
