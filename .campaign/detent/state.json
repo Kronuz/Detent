@@ -1719,8 +1719,62 @@
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/settings-and-flags.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T15:23:42",
+          "commit": "3b36d98d198120be4827d6edf6ea42c4eadb675f",
+          "criteria": {
+            "A1": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A2": "261111-141325-7f7514",
+            "A3": "261111-141328-1bcf8a",
+            "A4": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A5": "261111-140343-a6fe33, 261111-140343-08b4fa, 261111-140343-4328c6",
+            "A6": "`.github/workflows/docs.yml`",
+            "A7": "`docs/dev/docs-e2e.md`"
+          },
+          "evidence": [
+            {
+              "cmd": "python3 -I tests/docs/check_docs.py",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-a6fe33",
+              "level": "light",
+              "seconds": 1.9,
+              "state": "done",
+              "what": "docs-e2e check docs at 5b712332ab30"
+            },
+            {
+              "cmd": "python3 -I tests/docs/run_e2e.py --fresh-build",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-08b4fa",
+              "level": "light",
+              "seconds": 499.8,
+              "state": "done",
+              "what": "docs-e2e check e2e at 5b712332ab30"
+            },
+            {
+              "cmd": "cd website && npm ci && npm run build && python3 -I ../tests/docs/check_links.py dist",
+              "commit": "5b712332ab30e0da123a390538abc861d8ae3091",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-140343-4328c6",
+              "level": "light",
+              "seconds": 36.0,
+              "state": "done",
+              "what": "docs-e2e check site at 5b712332ab30"
+            }
+          ],
+          "final": true,
+          "from": "8b17a95272795ce9590564d816647240ab56bba9",
+          "reason": "",
+          "tested": "2772fbeacfa228c044bcbda6e6ed49351baf1bfa"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N1",
       "needs": [],
       "provides": [
@@ -1728,10 +1782,10 @@
       ],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Docs E2E harness: pages run as tests, docs check, link check, CI",
-      "updated": "2026-11-10T12:23:46",
-      "worktree": "../Detent-wt/detent/docs-e2e"
+      "updated": "2026-11-11T15:23:53",
+      "worktree": ""
     },
     "docs-site-architecture": {
       "accepted": {},
