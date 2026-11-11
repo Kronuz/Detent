@@ -19,7 +19,9 @@ on at the same percentage. Integers gain group targeting and gradual rollout.
 - A1 Behavior is preserved for every former bool: for each scenario the existing evaluation tests
   cover (default, rollout at 0/1/50/99/100, group forced, group percentage, missing hash, missing
   group), `get` returns 0/1 exactly where `eval` returned false/true at main, over the same hashes:
-  a differential test against values recorded at main, in the suite.
+  a differential test against values recorded at main, in the suite. The one exception (D68): a
+  default-true knob with a percentage, where a hashed caller outside the bucket now gets the
+  default (1) instead of false; the test enumerates those cells and asserts exactly that.
 - A2 Integers ramp: an int knob with a rollout and group overrides serves its rollout value to the
   expected hashes and groups; invalid shapes (rollout value without a rollout, percentage over 100)
   are refused at publish: tests in the suite.
