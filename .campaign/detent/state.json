@@ -635,6 +635,37 @@
       "updated": "2026-11-11T09:22:24",
       "worktree": ""
     },
+    "consensus-dual-stack": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCONSENSUS_TRANSPORT=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 600",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "include/consensus/transport/peers.h",
+        "test/transport/**",
+        "CHANGELOG.md",
+        "docs/mechanisms/peer-dns.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "N2",
+      "needs": [],
+      "provides": [
+        "consensus:transport"
+      ],
+      "repo": "../consensus",
+      "risk": "low",
+      "status": "planned",
+      "title": "Peers listening on :: accept IPv4 too",
+      "updated": "2026-11-11T09:36:16"
+    },
     "container-selection": {
       "accepted": {},
       "after": [],
