@@ -3977,8 +3977,8 @@
     "namespace-s5-1": {
       "accepted": {
         "durability": {
-          "at": "2026-11-10T14:49:34",
-          "base": "80a51c429f232abeed363b55348ae2b46233f2b8",
+          "at": "2026-11-11T00:27:56",
+          "base": "93ced6efc6bf93168ed4971a4d36d58eb42d474f",
           "blobs": {
             "docs/status/namespace-s5.md": "100644:5dd3e119711c98cfb03ecdde3872735360a9c3dc",
             "src/detent_authority/change_history.cc": "100644:6bfe58c339330812bd53e650c3c51b03b6707be3",
@@ -3997,9 +3997,9 @@
             "tests/detent_authority/test_namespace_positions.cc": "100644:2ac360b6ef70ca3431bfbed6893346acb79ad5a9",
             "tests/detent_authority/test_namespace_power_cut.cc": "100644:d93c8c644a8732f79b4447a4bd84fb8104be16c3"
           },
-          "brief": "a19ae93521745935",
           "by": "review",
-          "commit": "7e988289ed7719dc2182133550535772c2fceb77",
+          "commit": "ae6441cebb78dacb349aefa4f0495f25ae5863c8",
+          "criteria": "2cd71aa7012a8e95",
           "findings": {},
           "note": "",
           "review": "566bd8f20d42d977b4ae99d29fee4bf7a9053d03",
@@ -4098,7 +4098,7 @@
       "risk": "high",
       "status": "active",
       "title": "Namespace S5.1: per-namespace positions, incarnations, directory stream, enabling entry",
-      "updated": "2026-11-10T14:49:34",
+      "updated": "2026-11-11T00:27:56",
       "worktree": "../Detent-wt/detent/namespace-s5-1"
     },
     "namespace-s5-2": {
