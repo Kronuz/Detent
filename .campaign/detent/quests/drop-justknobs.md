@@ -5,27 +5,35 @@ Risk: low. The lead writes this quest; contributors read it and never edit it. I
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The current tree describes Detent on its own terms. No file names or describes Meta's JustKnobs, or
+calls Detent a clone of it, an implementation of it, or inspired by it; no disclaimer about it
+remains. "Knob" stays as the generic noun. The specification moves from
+`justknobs-implementation-spec.md` to Detent's own `docs/design/knob-model.md`: knobs, namespaces,
+groups, overrides, rollout and evaluation as Detent defines them today, written fresh from the code
+and tests rather than edited from the old spec. one-knob-type later rewrites it for the single type
+(D65). Git history is not rewritten.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A check finds no lineage: `tools/check_lineage.sh` greps the tree (excluding `.campaign/`) for
+  `justknobs`, `just knobs`, and `Meta` as a company name (case-insensitive, `metadata`, `meta`
+  file names and similar words excluded by word boundaries), and text in rendered diagrams (the
+  PNG and SVG sources are re-rendered from their D2 or other sources); the job passes, and fails on a
+  revert of any one removal (`--fails-without`).
+- A2 [artifact] `docs/design/knob-model.md` specifies the model; README's opening paragraph and
+  `docs/USAGE.md` point at it; the website's FAQ entry, copyright note and design-documents row
+  about JustKnobs are gone, and `welcome.md` says what Detent is without comparison.
+- A3 The site builds and its link check passes, and the suite passes (nothing links to the deleted
+  spec): jobs.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- D66 (owner, 2026-11-11): remove the JustKnobs lineage and keep the name Detent.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+None.
