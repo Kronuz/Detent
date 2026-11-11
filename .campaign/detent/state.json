@@ -4406,7 +4406,8 @@
         "tests/detent_agent/**",
         "src/detent_local/agent_store*",
         "include/detent_local/agent_store*",
-        "docs/status/namespace-s7.md"
+        "docs/status/namespace-s7.md",
+        "src/detent_local/CMakeLists.txt"
       ],
       "history": [
         {
@@ -4472,11 +4473,12 @@
       "provides": [
         "agent-store"
       ],
+      "reason": "msg-21: the detent_agent_store library target belongs in src/detent_local/CMakeLists.txt, not the tests' CMakeLists",
       "repo": ".",
       "risk": "high",
       "status": "active",
       "title": "Namespace S7: the agent store, one directory, the table, derived ids, tombstones",
-      "updated": "2026-11-11T00:55:58",
+      "updated": "2026-11-11T01:37:42",
       "worktree": "../Detent-wt/detent/namespace-s7"
     },
     "namespace-s8": {
