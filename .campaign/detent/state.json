@@ -4696,6 +4696,8 @@
       "after": [
         "namespace-s4"
       ],
+      "base": "d41c6cfdd91e78cae0155773b91271a420db3577",
+      "branch": "quest/detent/one-knob-type",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4734,9 +4736,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T13:57:11"
+      "updated": "2026-11-11T13:57:15",
+      "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
       "accepted": {},
