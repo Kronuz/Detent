@@ -2567,7 +2567,7 @@
         "tests/detent_system/test_dual_stack.py",
         "tests/detent_system/test_managed_case.sh",
         "tests/detent_system/test_ipv6*",
-        "tests/detent_agent/**",
+        "tests/detent_agent/test_ipv6*",
         "tests/detent_delivery/test_ipv6*",
         "CHANGELOG.md",
         "cmake/dependencies.json"
@@ -2581,7 +2581,7 @@
       "risk": "low",
       "status": "active",
       "title": "IPv6 end to end: voters, relays, agents",
-      "updated": "2026-11-11T14:02:06",
+      "updated": "2026-11-11T14:18:39",
       "worktree": "../Detent-wt/detent/ipv6"
     },
     "legacy-h": {
