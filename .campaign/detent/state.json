@@ -3787,10 +3787,49 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T13:56:20",
+          "commit": "b05e4d383c1dedd80ef6e417ee3289e9e6831b68",
+          "criteria": {
+            "A1": "261111-112151-b80250 (passed at 33f7f45dece8; only merges from main since), 261111-112151-95bc87 (passed at 33f7f45dece8; only merges from main since); fails without: 261111-092435-0ed21e, 261111-093510-b0bb5b, 261111-093514-e582da, 261111-112206-82f33e, 261111-112211-a15d6d, 261111-112217-538846",
+            "A2": "261111-112200-5c3e22 (passed at 33f7f45dece8; only merges from main since), 261111-112137-77b7ad (passed at 33f7f45dece8; only merges from main since); fails without: 261111-112142-b25713",
+            "A3": "261111-112229-231ca1 (passed at 33f7f45dece8; only merges from main since); fails without: 261111-093518-e23830, 261111-112224-51a2f5"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "c0d8f0817f7c0f917e85aeed9fa87757cb33f51d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-112151-b80250",
+              "level": "light",
+              "seconds": 910.7,
+              "state": "done",
+              "what": "namespace-s4 check native at c0d8f0817f7c"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "c0d8f0817f7c0f917e85aeed9fa87757cb33f51d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-112151-95bc87",
+              "level": "none",
+              "seconds": 5.3,
+              "state": "done",
+              "what": "namespace-s4 check pins at c0d8f0817f7c"
+            }
+          ],
+          "final": true,
+          "from": "426ebb7450a990a87c9e2a65f8603825c0c7bc5e",
+          "reason": "",
+          "tested": "b05e4d383c1dedd80ef6e417ee3289e9e6831b68"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "dense-pages",
@@ -3799,10 +3838,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Namespace S4: no re-validation of a tier own build, hash counters",
-      "updated": "2026-11-11T12:02:21",
-      "worktree": "../Detent-wt/detent/namespace-s4"
+      "updated": "2026-11-11T13:56:26",
+      "worktree": ""
     },
     "namespace-s4-s10": {
       "accepted": {},
