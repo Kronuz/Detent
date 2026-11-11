@@ -31,15 +31,15 @@ Result<OverrideTable, std::string> parse_cli_overrides(const std::vector<std::st
 			return fail("invalid knob name in override: " + name);
 		}
 
-		OverrideValue parsed_value{false};
+		OverrideValue parsed_value = 0;
 		bool valid = true;
 		if (value == "true") {
-			parsed_value = OverrideValue{true};
+			parsed_value = 1;
 		} else if (value != "false") {
 			int errno_save = 0;
 			auto parsed = strict_stoll(&errno_save, value, nullptr, 10);
 			valid = errno_save == 0;
-			parsed_value = OverrideValue{static_cast<std::int64_t>(parsed)};
+			parsed_value = static_cast<std::int64_t>(parsed);
 		}
 		// Pushed before the value check: a duplicate name wins over its own bad value.
 		builder.push(name, parsed_value);

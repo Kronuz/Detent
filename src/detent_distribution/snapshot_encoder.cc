@@ -76,8 +76,8 @@ struct SnapshotEncoder::Impl {
 			if (entry) {
 				if (!overrides_remaining--)
 					throw std::logic_error("snapshot source extra override");
-				definition_bytes +=
-					9 + entry->first.size() + (std::holds_alternative<bool>(entry->second) ? 1 : 8);
+				definition_bytes += d::override_charge(entry->first.size(),
+													   std::holds_alternative<std::int64_t>(entry->second));
 				if (definition_bytes > limits.definition_bytes)
 					throw std::length_error("export definition limit");
 				count_text(entry->first);
@@ -112,19 +112,15 @@ struct SnapshotEncoder::Impl {
 		count_text(current->key);
 		record_row(encoded, *current);
 		count_wire(encoded);
-		if (const auto *flag = std::get_if<WireBoolDef>(&current->definition)) {
-			if (flag->overrides.count > limits.overrides_per_definition)
-				throw std::length_error("export override limit");
-			definition_bytes = flag->rollout_pct ? 19 : 11;
-			if (definition_bytes > limits.definition_bytes)
-				throw std::length_error("export definition limit");
-			group = true;
-			overrides_remaining = flag->overrides.count;
-		} else {
-			if (limits.definition_bytes < 9)
-				throw std::length_error("export definition limit");
-			current.reset();
-		}
+		const auto &definition = current->definition;
+		if (definition.overrides.count > limits.overrides_per_definition)
+			throw std::length_error("export override limit");
+		definition_bytes = d::definition_header_charge(definition.rollout_pct.has_value(),
+													   definition.rollout_value.has_value(), definition.overrides.count);
+		if (definition_bytes > limits.definition_bytes)
+			throw std::length_error("export definition limit");
+		group = true;
+		overrides_remaining = definition.overrides.count;
 	}
 	void header(m::InlineBytes<512> &out) const {
 		m::array(out, 7);
@@ -187,11 +183,8 @@ struct SnapshotEncoder::Impl {
 			return;
 		}
 		record_row(pending, *current);
-		if (auto flag = std::get_if<WireBoolDef>(&current->definition)) {
-			group = true;
-			overrides_remaining = flag->overrides.count;
-		} else
-			current.reset();
+		group = true;
+		overrides_remaining = current->definition.overrides.count;
 	}
 };
 SnapshotEncoder::SnapshotEncoder(std::shared_ptr<SnapshotSource> source, d::Limits limits)

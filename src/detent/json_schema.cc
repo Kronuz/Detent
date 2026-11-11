@@ -61,122 +61,100 @@ Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std
 	if (!v.IsObject()) {
 		return UpdateError{UpdateRejectReason::Schema, "knob '" + name + "' is not an object"};
 	}
-	if (!v.HasMember("type") || !v["type"].IsString()) {
-		return UpdateError{UpdateRejectReason::Schema, "knob '" + name + "' missing/invalid 'type'"};
-	}
-	std::string type(v["type"].GetString(), v["type"].GetStringLength());
-
-	if (type == "bool") {
-		BoolDef def;
-		bool have_default = false;
-		// Override keys are appended in input order and sorted once. A
-		// duplicate key must still win over every error that comes after its
-		// second occurrence (the one-by-one insertion this replaces rejected
-		// at that point), so the duplicate check runs on every exit below.
-		flat_map_builder<std::string, GroupOverride, std::less<>> override_builder(def.overrides);
-		const auto member_error = [&]() -> std::optional<UpdateError> {
-		for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
-			std::string key(it->name.GetString(), it->name.GetStringLength());
-			if (key == "type") {
-				continue;
-			} else if (key == "default") {
-				if (!it->value.IsBool()) {
-					return UpdateError{UpdateRejectReason::Schema, "bool default not boolean: " + name};
+	KnobDef def;
+	bool have_default = false;
+	// Override keys are appended in input order and sorted once. A
+	// duplicate key must still win over every error that comes after its
+	// second occurrence (the one-by-one insertion this replaces rejected
+	// at that point), so the duplicate check runs on every exit below.
+	flat_map_builder<std::string, GroupOverride, std::less<>> override_builder(def.overrides);
+	const auto member_error = [&]() -> std::optional<UpdateError> {
+	for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
+		std::string key(it->name.GetString(), it->name.GetStringLength());
+		if (key == "default") {
+			if (!it->value.IsInt64()) {
+				return UpdateError{UpdateRejectReason::Schema, "default not integer: " + name};
+			}
+			def.default_value = it->value.GetInt64();
+			have_default = true;
+		} else if (key == "overrides") {
+			if (!it->value.IsObject()) {
+				return UpdateError{UpdateRejectReason::Schema, "overrides not object: " + name};
+			}
+			override_builder.reserve(override_builder.size() + it->value.MemberCount());
+			for (auto oit = it->value.MemberBegin(); oit != it->value.MemberEnd(); ++oit) {
+				std::string gkey(oit->name.GetString(), oit->name.GetStringLength());
+				if (!is_valid_group_key(gkey)) {
+					return UpdateError{UpdateRejectReason::Schema, "bad group key on knob " + name};
 				}
-				def.default_value = it->value.GetBool();
-				have_default = true;
-			} else if (key == "overrides") {
-				if (!it->value.IsObject()) {
-					return UpdateError{UpdateRejectReason::Schema, "overrides not object: " + name};
-				}
-				override_builder.reserve(override_builder.size() + it->value.MemberCount());
-				for (auto oit = it->value.MemberBegin(); oit != it->value.MemberEnd(); ++oit) {
-					std::string gkey(oit->name.GetString(), oit->name.GetStringLength());
-					if (!is_valid_group_key(gkey)) {
-						return UpdateError{UpdateRejectReason::Schema, "bad group key on knob " + name};
-					}
-					GroupOverride value;
-					if (oit->value.IsBool()) {
-						value = oit->value.GetBool();
-					} else if (oit->value.IsObject() && oit->value.MemberCount() == 1 &&
-					           oit->value.HasMember("rollout_pct") && oit->value["rollout_pct"].IsUint() &&
-					           oit->value["rollout_pct"].GetUint() <= 100) {
-						value = GroupRollout{static_cast<std::uint8_t>(oit->value["rollout_pct"].GetUint())};
-					} else {
-						return UpdateError{UpdateRejectReason::Schema, "override must be boolean or {rollout_pct: 0..100}: " + name};
-					}
-					// Strict rejection: a duplicate override key
-					// within one knob's `overrides` object must reject the
-					// whole input, not silently keep whichever the JSON
-					// parser or this insertion order happened to see last.
-					// The duplicate is reported by override_builder.finish().
-					override_builder.push(std::move(gkey), value);
-				}
-			} else if (key == "rollout_pct") {
-				if (it->value.IsNull()) {
-					def.rollout_pct.reset();
-				} else if (it->value.IsInt()) {
-					int pct = it->value.GetInt();
-					if (pct < 0 || pct > 100) {
-						return UpdateError{UpdateRejectReason::Schema, "rollout_pct out of range: " + name};
-					}
-					def.rollout_pct = static_cast<std::uint8_t>(pct);
+				GroupOverride value;
+				if (oit->value.IsInt64()) {
+					value = oit->value.GetInt64();
+				} else if (oit->value.IsObject() && oit->value.MemberCount() == 1 &&
+				           oit->value.HasMember("rollout_pct") && oit->value["rollout_pct"].IsUint() &&
+				           oit->value["rollout_pct"].GetUint() <= 100) {
+					value = GroupRollout{static_cast<std::uint8_t>(oit->value["rollout_pct"].GetUint())};
 				} else {
-					return UpdateError{UpdateRejectReason::Schema, "rollout_pct wrong type: " + name};
+					return UpdateError{UpdateRejectReason::Schema, "override must be integer or {rollout_pct: 0..100}: " + name};
 				}
-			} else {
-				return UpdateError{UpdateRejectReason::Schema, "unknown field '" + key + "' on knob " + name};
+				// Strict rejection: a duplicate override key
+				// within one knob's `overrides` object must reject the
+				// whole input, not silently keep whichever the JSON
+				// parser or this insertion order happened to see last.
+				// The duplicate is reported by override_builder.finish().
+				override_builder.push(std::move(gkey), value);
 			}
-		}
-		// Strict rejection: a knob definition missing its
-		// required "default" must fail the whole update, not silently
-		// substitute the type's zero value (false/0) -- confirmed missing
-		// previously: {"type":"bool"} parsed successfully as default=false.
-		if (!have_default) {
-			return UpdateError{UpdateRejectReason::Schema, "bool knob missing required 'default': " + name};
-		}
-		return std::nullopt;
-		}();
-		if (const auto duplicate = override_builder.finish()) {
-			return UpdateError{UpdateRejectReason::Schema,
-			                   "duplicate override key '" + override_builder.entry(*duplicate).first + "' on knob " + name};
-		}
-		if (member_error) return *member_error;
-		return KnobDef{std::move(def)};
-	} else if (type == "int") {
-		IntDef def;
-		bool have_default = false;
-		for (auto it = v.MemberBegin(); it != v.MemberEnd(); ++it) {
-			std::string key(it->name.GetString(), it->name.GetStringLength());
-			if (key == "type") {
-				continue;
-			} else if (key == "default") {
-				if (!it->value.IsInt64()) {
-					return UpdateError{UpdateRejectReason::Schema, "int default not integer: " + name};
+		} else if (key == "rollout_pct") {
+			if (it->value.IsNull()) {
+				def.rollout_pct.reset();
+			} else if (it->value.IsInt()) {
+				int pct = it->value.GetInt();
+				if (pct < 0 || pct > 100) {
+					return UpdateError{UpdateRejectReason::Schema, "rollout_pct out of range: " + name};
 				}
-				def.default_value = it->value.GetInt64();
-				have_default = true;
+				def.rollout_pct = static_cast<std::uint8_t>(pct);
 			} else {
-				return UpdateError{UpdateRejectReason::Schema, "unknown field '" + key + "' on knob " + name};
+				return UpdateError{UpdateRejectReason::Schema, "rollout_pct wrong type: " + name};
 			}
+		} else if (key == "rollout_value") {
+			if (it->value.IsNull()) {
+				def.rollout_value.reset();
+			} else if (it->value.IsInt64()) {
+				def.rollout_value = it->value.GetInt64();
+			} else {
+				return UpdateError{UpdateRejectReason::Schema, "rollout_value not integer: " + name};
+			}
+		} else {
+			return UpdateError{UpdateRejectReason::Schema, "unknown field '" + key + "' on knob " + name};
 		}
-		if (!have_default) {
-			return UpdateError{UpdateRejectReason::Schema, "int knob missing required 'default': " + name};
-		}
-		return KnobDef{def};
 	}
-	return UpdateError{UpdateRejectReason::Schema, "unknown type on knob " + name};
+	// A definition missing its required "default" fails the whole update;
+	// no zero value is substituted.
+	if (!have_default) {
+		return UpdateError{UpdateRejectReason::Schema, "knob missing required 'default': " + name};
+	}
+	return std::nullopt;
+	}();
+	if (const auto duplicate = override_builder.finish()) {
+		return UpdateError{UpdateRejectReason::Schema,
+		                   "duplicate override key '" + override_builder.entry(*duplicate).first + "' on knob " + name};
+	}
+	if (member_error) return *member_error;
+	if (const char* shape = definition_error(def)) {
+		return UpdateError{UpdateRejectReason::Schema, std::string(shape) + ": " + name};
+	}
+	return def;
 }
 
+// Writes the canonical form: `default`, then only the fields the definition has.
 rapidjson::Value write_knob_def(const KnobDef& def, rapidjson::Document::AllocatorType& alloc) {
 	rapidjson::Value entry(rapidjson::kObjectType);
-	if (const auto* b = std::get_if<BoolDef>(&def)) {
-		entry.AddMember("type", "bool", alloc);
-		entry.AddMember("default", b->default_value, alloc);
+	entry.AddMember("default", def.default_value, alloc);
+	if (!def.overrides.empty()) {
 		rapidjson::Value overrides(rapidjson::kObjectType);
-		for (const auto& [gkey, gval] : b->overrides) {
+		for (const auto& [gkey, gval] : def.overrides) {
 			rapidjson::Value key(gkey.data(), static_cast<rapidjson::SizeType>(gkey.size()), alloc);
-			if (const auto* forced = std::get_if<bool>(&gval)) {
+			if (const auto* forced = std::get_if<std::int64_t>(&gval)) {
 				overrides.AddMember(key, *forced, alloc);
 			} else {
 				rapidjson::Value group(rapidjson::kObjectType);
@@ -185,15 +163,12 @@ rapidjson::Value write_knob_def(const KnobDef& def, rapidjson::Document::Allocat
 			}
 		}
 		entry.AddMember("overrides", overrides, alloc);
-		if (b->rollout_pct) {
-			entry.AddMember("rollout_pct", static_cast<int>(*b->rollout_pct), alloc);
-		} else {
-			entry.AddMember("rollout_pct", rapidjson::Value(rapidjson::kNullType), alloc);
-		}
-	} else {
-		const auto& i = std::get<IntDef>(def);
-		entry.AddMember("type", "int", alloc);
-		entry.AddMember("default", i.default_value, alloc);
+	}
+	if (def.rollout_pct) {
+		entry.AddMember("rollout_pct", static_cast<int>(*def.rollout_pct), alloc);
+	}
+	if (def.rollout_value) {
+		entry.AddMember("rollout_value", *def.rollout_value, alloc);
 	}
 	return entry;
 }

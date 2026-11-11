@@ -31,7 +31,7 @@ void shutdown() {
 	g_client.reset();
 }
 
-Result<bool, KnobError> eval(
+Result<std::int64_t, KnobError> get(
 	std::string_view name,
 	std::optional<std::string_view> hash_val,
 	std::optional<std::string_view> switch_val) {
@@ -39,31 +39,14 @@ Result<bool, KnobError> eval(
 	if (c == nullptr) {
 		return KnobError{ErrorCategory::Uninitialized, std::string(name), "detent::global::init() not called"};
 	}
-	return c->eval(name, hash_val, switch_val);
+	return c->get(name, hash_val, switch_val);
 }
 
-Result<std::int64_t, KnobError> get(std::string_view name, std::optional<std::string_view> switch_val) {
-	auto* c = active_client();
-	if (c == nullptr) {
-		return KnobError{ErrorCategory::Uninitialized, std::string(name), "detent::global::init() not called"};
-	}
-	return c->get(name, switch_val);
-}
-
-bool eval_or_panic(
+std::int64_t get_or_panic(
 	std::string_view name,
 	std::optional<std::string_view> hash_val,
 	std::optional<std::string_view> switch_val) {
-	auto r = eval(name, hash_val, switch_val);
-	if (!r) {
-		std::cerr << "detent: fatal: " << r.error().what() << std::endl;
-		std::abort();
-	}
-	return r.value();
-}
-
-std::int64_t get_or_panic(std::string_view name, std::optional<std::string_view> switch_val) {
-	auto r = get(name, switch_val);
+	auto r = get(name, hash_val, switch_val);
 	if (!r) {
 		std::cerr << "detent: fatal: " << r.error().what() << std::endl;
 		std::abort();
