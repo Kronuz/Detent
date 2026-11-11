@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# T4(7) (namespace-measure): completion_sync_probe at completion:ab0f551 on APFS or in the local
-# Linux VM, 1 KiB files. Rules: docs/perf/namespace-measure.md.
+# T4(7) (namespace-measure): completion_sync_probe at completion:560c288 (the first commit whose
+# probe honors its FILE_KB argument; its batched path is ab0f551's) on APFS or in the local Linux
+# VM, 1 KiB files. Rules: docs/perf/namespace-measure.md.
 #
 #   namespace-measure-sync.sh build                    configure and build the probe (light)
+#   namespace-measure-sync.sh check                    run the probe on 64 files and print the sizes it
+#                                                      wrote, sampled from disk (fails unless all 1 KiB)
 #   namespace-measure-sync.sh apfs SIZE:ROUNDS ...     run on this host's APFS (exclusive)
 #   namespace-measure-sync.sh vm SIZE:ROUNDS ...       build and run in the VM, with flush counts
 #
@@ -11,13 +14,13 @@
 # the budget. The cost starts at $SYNC_COST_MS (ms) and rises to the worst seen. Order the specs
 # by importance.
 #
-# Needs $JOB_REF_COMPLETION (a checkout of completion:ab0f551). The VM is reached by $VM_SSH_KEY,
+# Needs $JOB_REF_COMPLETION (a checkout of completion:560c288). The VM is reached by $VM_SSH_KEY,
 # $VM_PORT and $VM_USER (defaults: strata's VM, port 18772).
 set -euo pipefail
 mode=$1
 shift
 here=$(cd "$(dirname "$0")" && pwd)
-src=${JOB_REF_COMPLETION:?JOB_REF_COMPLETION names completion:ab0f551}
+src=${JOB_REF_COMPLETION:?JOB_REF_COMPLETION names completion:560c288}
 build=${SYNC_BUILD:-$PWD/.scratch/namespace-measure-sync/build}
 echo "completion $(git -C "$src" rev-parse HEAD)"
 cost=${SYNC_COST_MS:-0}
@@ -37,6 +40,7 @@ learn() {
 
 case $mode in
 build)
+	rm -rf "$build"
 	mkdir -p "$(dirname "$build")"
 	cmake -S "$src" -B "$build" -DCMAKE_BUILD_TYPE=Release -DCOMPLETION_BUILD_BENCH=ON \
 		-DCOMPLETION_ASIO=OFF -DBUILD_TESTING=OFF >"$build.configure.log" 2>&1 || {
@@ -45,6 +49,26 @@ build)
 	}
 	cmake --build "$build" --target completion_sync_probe -j4
 	file "$build/completion_sync_probe"
+	;;
+check)
+	# Samples the files' sizes while the probe runs (they are discarded after each commit).
+	dir=$PWD/.scratch/namespace-measure-sync/check
+	rm -rf "$dir" && mkdir -p "$dir"
+	file "$build/completion_sync_probe"
+	"$build/completion_sync_probe" "$dir" 64 1 1 >"$dir.out" 2>&1 &
+	pid=$!
+	sizes=$dir.sizes
+	: >"$sizes"
+	while kill -0 "$pid" 2>/dev/null; do
+		find "$dir" -type f -exec stat -f %z {} + 2>/dev/null >>"$sizes" || true
+		sleep 0.05
+	done
+	wait "$pid"
+	cat "$dir.out"
+	echo "sizes sampled (bytes: count):"
+	sort -n "$sizes" | uniq -c | awk '{ print "  " $2 ": " $1 }'
+	[[ -s $sizes ]] && ! grep -qv '^1024$' "$sizes" || { echo "check failed: files are not all 1024 bytes" >&2; exit 1; }
+	echo "check ok: every sampled file is 1024 bytes"
 	;;
 apfs)
 	probe=$build/completion_sync_probe
