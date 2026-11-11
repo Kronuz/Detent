@@ -3,38 +3,36 @@
 State: working
 Quest: .campaign/detent/quests/namespace-s7.md (the lead's; never edit it)
 
-Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
-status` reads State and the first step under Next. State is one of: working, waiting on jobs <ids>,
-ready for review, fixing <findings>, blocked on <who>: <what>.
-
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Writing the agent-store module: `include/detent_local/agent_store.hh`, `src/detent_local/agent_store.cc`
+(D8: table codec, derived ids, linkat publication with verified reuse, startup barrier).
 
 ## Next
 
-1. <step>
+1. Module + unit tests (A1, A2) in `tests/detent_agent/test_agent_store.cc`.
+2. Crash model (A3) in `tests/detent_agent/test_agent_store_crash.cc` over completion's sync seam,
+   plus the N6 revert mutant.
+3. Catch-up test (A4 and the absent-key tombstone) with the real paged builders.
+4. docs/status/namespace-s7.md; suite job; push for CI.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing blocks the criteria. msg-21 to the lead: the file set has no src CMakeLists, so the
+`detent_agent_store` library target lives in `tests/detent_agent/CMakeLists.txt`; wiring DiskStore,
+coordinator and readers to the table is outside the set.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | pending |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+Pending.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The agent store is a module beside DiskStore (its own directory), the `agent-store` contract S8
+  and S9 consume; it carries generation files as bytes and verifies them by SHA-256.
