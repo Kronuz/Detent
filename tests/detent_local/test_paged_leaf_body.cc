@@ -89,6 +89,27 @@ int main() {
 		rejects<std::length_error>([&] { encode(body); });
 		discard(body);
 	}
+	// A rollout value needs some percentage among the rows, and a group percentage needs a value.
+	rows = {{"a", std::int64_t{1}}};
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);   // value, no percentage
+		rejects<std::invalid_argument>([&] { encode(body); });
+		discard(body);
+	}
+	rows = {{"a", detent::GroupRollout{5}}};
+	definition.rollout_value.reset();
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);   // percentage, no value
+		rejects<std::invalid_argument>([&] { encode(body); });
+		discard(body);
+	}
+	definition.rollout_value = 1;
+	{
+		l::detail::LeafBody body(account, definition, &rows, 17, row, p::page_bytes);
+		encode(body);
+		discard(body);
+	}
+	require(account->used() == 0);
 	{
 		auto pressure = account->admit(account->limit());
 		l::detail::LeafBody body(account, std::uint64_t{1});

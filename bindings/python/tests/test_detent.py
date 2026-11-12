@@ -18,6 +18,8 @@ DEFAULTS = {
     "knobs": {
         "checkout:killswitch_new_path": {"default": 0},
         "search:max_results": {"default": 25},
+        "search:two": {"default": 2},
+        "search:minus_one": {"default": -1},
         "payments:new_processor": {
             "default": 0,
             "rollout_pct": 10,
@@ -60,11 +62,12 @@ def test_missing_and_conversion_errors():
         except detent.DetentError as e:
             assert "MissingKnob" in str(e)
 
-        try:
-            client.get_bool("search:max_results")  # 25 is not 0 or 1
-            assert False, "expected DetentError"
-        except detent.DetentError as e:
-            assert "ConversionFailed" in str(e)
+        for name in ("search:max_results", "search:two", "search:minus_one"):  # none is 0 or 1
+            try:
+                client.get_bool(name)
+                assert False, "expected DetentError"
+            except detent.DetentError as e:
+                assert "ConversionFailed" in str(e)
     finally:
         os.remove(path)
 
