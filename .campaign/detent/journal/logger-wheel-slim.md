@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-062659-2d9cc1 261112-062710-0f5517
+State: waiting on jobs 261112-062659-2d9cc1 261112-062710-0f5517 261112-062939-8e3351 261112-062944-bbdd36 261112-062949-8104aa
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -12,12 +12,14 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 A1 committed (logger:123f5e2: docs/perf/wheel-ab.md "Arm D"; sizeof A 184, C 264, D 192;
 261112-062455-24c582). Arm D is bench/wheel_ab/d/ (copy of C with the entry replacing
 ScheduledTask), built by its own d/CMakeLists.txt against wheel@45f98eb. Jobs running: check-d
-261112-062659-2d9cc1, tsan-d 261112-062710-0f5517 (A2 correctness).
+261112-062659-2d9cc1, tsan-d 261112-062710-0f5517 (A2 correctness). Pattern 3 rows (D at
+123f5e2, first iteration D1, 40 rounds, exclusive) queued `--after` both: P=1 261112-062939-8e3351,
+P=4 261112-062944-bbdd36, P=14 261112-062949-8104aa. If a check fails the rows are skipped.
 
 ## Next
 
 1. Read the check and tsan jobs; fix D if it breaks an order or an exactly-once.
-2. Rows `run.sh row-d 2|3 1|4|14` (exclusive, 40 rounds), pattern 3 first (the cheaper rounds).
+2. Read pattern 3 rows (queued); submit pattern 2 rows (`run.sh row-d 2 1|4|14`) once a row's duration is known (10 min cap).
 3. Verdict D in docs/perf/wheel-ab.md; at most five measured iterations on D's layout.
 
 ## Blocked on
