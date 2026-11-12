@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: ready for review
+State: waiting on jobs 261112-082040-0cdc5a 261112-082042-93b54d 261112-082045-8dd224 261112-082223-84e56a 261112-082227-45e3b3 261112-082229-26596a 261112-082231-ac506e 261112-082234-9559fb 261112-082236-9714e6
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,29 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-All rows in; Verdict D written (logger:7f3b850, docs/perf/wheel-ab.md "Verdict D").
+A4 (D78): profile, then up to three changes to D.
+
+Profiles (strict, `run.sh profile-d PATTERN P ARM`, `sample` 6 s at 1 ms) and counters
+(`run.sh stats-d`, WAB_STATS build) at pattern 3 P=14, D: 261112-081713-5f3fc7 (A: 261112-081716-e81894),
+stats 261112-082031-adcffd. Finding: of 1061 active LOG-thread samples, 521 are the memmove of
+`std::vector<Deferred>::insert` in `file_deferred` (A: none; A's pop_heap is small). The insert is the
+bypass of lines already due when filed (115K bypassed of 717K at P=14, mean 4.9 ms past due, batch up
+to 29K, one pass expiring 117,760 lines): quadratic. Why many lines are due at filing: lines sit in
+the rings until the LOG thread wakes (it sleeps to the next filed deadline), so lines called ~200 ms
+before the wake are due when filed. P=1 pattern 3: 6588 bypassed (13%), batch up to 2047
+(261112-082033-7add00); pattern 2 P=1: 42 bypassed, max expired 27 (261112-082035-21c273): no
+bypass cost there; its profiles 261112-082040-0cdc5a (D), 261112-082045-8dd224 (A) pending.
+P=1 pattern 3 profiles: D 261112-082038-4353a0, A 261112-082042-93b54d (pending).
+
+Change 1 (logger:HEAD "the due batch is a binary heap"): jobs check-d 261112-082223-84e56a, tsan-d
+261112-082227-45e3b3, stats 261112-082229-26596a, rows p3 P=1 261112-082231-ac506e, p3 P=14
+261112-082234-9559fb, p2 P=1 261112-082236-9714e6.
 
 ## Next
 
-1. Review. If asked: more iterations on D's layout (budget: five measured; none used beyond D1).
+1. Read change 1's rows against the Rule; a change 2 only if a loss remains (up to three, one at
+   a time). Write "Arm D, fixed" (cause, each change and its numbers, final verdict per row, the
+   lead's line). The tool refuses `--for A4` (artifact: journal row), jobs go with --quest only.
 
 ## Blocked on
 
