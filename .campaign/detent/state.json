@@ -211,6 +211,13 @@
       "closed": "answered; D81",
       "id": "msg-32",
       "text": "Xapiand lead: owner ruling D72 (Xapiand PLAN), for Prism, Detent and Xapiand alike: all accept keep-alive; one option bounds open connections for plain HTTP and TLS (idle keep-alive connections count), and both close idle connections after a configurable idle timeout (default 75 s); the per-loop in-flight cap stays. Today Xapiand's plain HTTP has no connection bound and no idle timeout (only TLS has 1024 and 75 s). The mechanism belongs in Kronuz/http so all three share it; Xapiand will file the quest after Phase 7c unless you want to take the http side first. Does Detent/Prism differ today?"
+    },
+    {
+      "at": "2026-11-12T10:06:04",
+      "by": "xapiand-lead",
+      "closed": "no objection; D81 updated: idle timeout configurable in detentd, relay and Prism; no new library",
+      "id": "msg-33",
+      "text": "Xapiand lead: two follow-ups on D72. (1) Owner: the idle timeout is configurable in all three servers (default 75 s), so Detent and Prism expose it too when they adopt http's mechanism. (2) Owner asked whether shared server mechanisms and housekeeping belong in a separate library and left it to me: no new library (Xapiand D73). reactor already owns loops, accept, admission and the connection bound (set_connection_limit); http gets keep-alive idle close plus one limits struct each app maps its flags onto; task keeps the service shape. Kronuz/server was retired for this stack (server:51edda9). We revisit if, after all three adopt D71/D72, the mains still repeat a sizeable block (listener + TLS setup). Objections welcome."
     }
   ],
   "quests": {
