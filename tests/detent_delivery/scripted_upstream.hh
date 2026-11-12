@@ -455,8 +455,15 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	worker.join();
 	check(!server.failed);
 	check(coordinator->drained() && store->drained());
+	if (bundle)
+		std::cerr << "DIAG sink holders " << counting.use_count() << " (run_phase counting + config + coordinator), bundle "
+				  << bundle.use_count() << ", edges " << bundle->status().retained_edges << ", cache residents "
+				  << cache_domain->residents() << std::endl;
 	counting.reset();
 	bundle.reset();
+	if (cache_domain)
+		std::cerr << "DIAG after reset: bundle " << (counting ? 1 : 0) << " cache residents " << cache_domain->residents()
+				  << std::endl;
 	if (cache_domain)
 		cache_domain->close().wait();
 	domain.close().wait();
