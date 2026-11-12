@@ -11,12 +11,11 @@ namespace detent::global {
 void init(InitOptions options);
 void shutdown();
 
-Result<bool, KnobError> eval(std::string_view name,
-                             std::optional<std::string_view> hash_val = std::nullopt,
-                             std::optional<std::string_view> switch_val = std::nullopt);
 Result<std::int64_t, KnobError> get(std::string_view name,
+                                    std::optional<std::string_view> hash_val = std::nullopt,
                                     std::optional<std::string_view> switch_val = std::nullopt);
-bool eval_or_panic(/* same as eval */);
+template <typename T>
+Result<T, KnobError> get_as(/* same as get */);
 std::int64_t get_or_panic(/* same as get */);
 HealthSnapshot health();
 }
@@ -59,7 +58,7 @@ public:
 
 ```cpp
 detent::Snapshot snap;
-snap.knobs["checkout:new_path"] = detent::BoolDef{.default_value = true};
+snap.knobs["checkout:new_path"] = detent::KnobDef{.default_value = 1};
 
 {
     auto guard = detent::testing::TestKnobs(snap).set_thread_local();
@@ -89,7 +88,7 @@ Result<OverrideTable, std::string> parse_cli_overrides(const std::vector<std::st
 The client calls this for `InitOptions::cli_overrides`; you can call it
 yourself to validate flags early. Each entry is `name=value`:
 
-1. `true` and `false` (lowercase only) are booleans.
+1. `true` and `false` (lowercase only) are 1 and 0.
 2. Anything else must parse as a signed base-10 64-bit integer.
 3. Duplicate names fail, naming the offending entry.
 

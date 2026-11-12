@@ -33,7 +33,7 @@ Command open() {
 	c.nonce[0] = 'a';
 	return c;
 }
-Mutation put(std::string key, std::int64_t value) { return {std::move(key), IntDef{value}, {}, {}}; }
+Mutation put(std::string key, std::int64_t value) { return {std::move(key), KnobDef{value}, {}, {}}; }
 Mutation erase(std::string key) { return {std::move(key), std::nullopt, {}, {}}; }
 Command transaction(std::uint64_t sequence, std::string name, std::vector<Mutation> operations) {
 	Command c;
@@ -52,7 +52,7 @@ AdministrativeCommand drop(const State &state, std::string name) {
 	auto incarnation = entry && entry->incarnation != Identity{} ? entry->incarnation : nonce('x');
 	return {context(), AdministrativeKind::DropNamespace, {}, std::move(name), incarnation};
 }
-std::uint64_t footprint(std::string_view key) { return key.size() + 9 + 16; } // An IntDef record.
+std::uint64_t footprint(std::string_view key) { return key.size() + 9 + 16; } // A definition with a default only.
 
 // Applies through the stepped path the node runs, with a deliberately small budget.
 Result apply_stepped(State &state, std::uint64_t index, const Command &command) {
@@ -245,7 +245,7 @@ void incarnations_and_drop() {
 	auto stale = transaction(4, "a", {put("a:x", 7)});
 	stale.expected_namespace = old.position;
 	assert(s.apply(++index, stale).status == Status::Conflict);
-	auto absent = transaction(5, "a", {{"a:x", IntDef{7}, 0, old.position}});
+	auto absent = transaction(5, "a", {{"a:x", KnobDef{7}, 0, old.position}});
 	assert(s.apply(++index, absent).status == Status::Conflict);
 	// An unconditional write re-creates the name under a new incarnation.
 	auto recreated = s.apply(++index, transaction(6, "a", {put("a:x", 8)}));

@@ -85,8 +85,7 @@ int main() {
 			l::ValidationBudget budget{1, 1};
 			graph.step(budget);
 		}
-		require(l::paged::state_commitment(graph.root()) == l::paged::state_commitment(image.root()) && graph.counts().bools == 1 &&
-				graph.counts().ints == 1);
+		require(l::paged::state_commitment(graph.root()) == l::paged::state_commitment(image.root()) && graph.counts().records == 2);
 		for (;;) {
 			l::ValidationBudget budget{1, 1};
 			if (graph.discard(budget))

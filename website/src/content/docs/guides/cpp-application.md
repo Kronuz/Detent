@@ -33,9 +33,9 @@ live snapshot omits:
 {
   "schema_version": 1,
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false },
-    "search:max_results": { "type": "int", "default": 25 },
-    "payments:new_processor": { "type": "bool", "default": false }
+    "checkout:killswitch_new_path": { "default": 0 },
+    "search:max_results": { "default": 25 },
+    "payments:new_processor": { "default": 0 }
   }
 }
 ```
@@ -69,19 +69,19 @@ If you'd rather not thread a `Client&` through your code, the
 #include "detent/global.hh"
 
 detent::global::init(std::move(opts));
-bool on = detent::global::eval_or_panic("checkout:killswitch_new_path");
+bool on = detent::global::get_or_panic("checkout:killswitch_new_path") == 1;
 ```
 
 ---
 
 ## 4. Read Knobs
 
-There are two styles of read. The `_or_panic` helpers return the value
-directly and abort on any error; they're the recommended default for knob names
-written in your code:
+Every knob holds one `int64`; a flag is a knob whose values are 0 and 1. There
+are two styles of read. `get_or_panic` returns the value directly and aborts on
+any error; it's the recommended default for knob names written in your code:
 
 ```cpp
-bool killswitch = client.eval_or_panic("checkout:killswitch_new_path");
+bool killswitch = client.get_or_panic("checkout:killswitch_new_path") == 1;
 std::int64_t max_results = client.get_or_panic("search:max_results");
 ```
 
@@ -89,7 +89,7 @@ The plain forms return a `Result` for code that must handle errors itself, such
 as a library that can't abort its host process:
 
 ```cpp
-auto r = client.eval("checkout:killswitch_new_path");
+auto r = client.get_as<bool>("checkout:killswitch_new_path");
 if (r) {
     use(r.value());
 } else {
@@ -100,13 +100,13 @@ if (r) {
 Pass a hash value for rollouts and a switch value for group overrides:
 
 ```cpp
-bool enabled = client.eval_or_panic(
+bool enabled = client.get_or_panic(
     "payments:new_processor",
     /*hash_val=*/user_id,
-    /*switch_val=*/user_group);
+    /*switch_val=*/user_group) == 1;
 ```
 
-For a checked integer conversion, use `get_as<T>`:
+For a checked conversion, use `get_as<T>`. `get_as<bool>` takes only 0 and 1:
 
 ```cpp
 auto limit = client.get_as<std::uint16_t>("search:max_results");
@@ -131,7 +131,7 @@ must agree, pin one view:
 ```cpp
 auto view = client.read_view();
 auto max = view.get("search:max_results");
-auto on = view.eval("checkout:killswitch_new_path");
+auto on = view.get_as<bool>("checkout:killswitch_new_path");
 // Both reads observed the same snapshot.
 ```
 
@@ -164,7 +164,7 @@ own status page:
 ```cpp
 auto h = client.health();
 // h.initialized, h.source_connected, h.accepted_version,
-// h.staleness_seconds, h.bool_knobs, h.int_knobs, h.cli_overrides
+// h.staleness_seconds, h.knobs, h.cli_overrides
 ```
 
 `staleness_seconds` is the most useful one to alert on: it's the time since
@@ -188,7 +188,7 @@ int main() {
     std::printf("search:max_results = %lld\n",
                 static_cast<long long>(client.get_or_panic("search:max_results")));
     std::printf("checkout:killswitch_new_path = %s\n",
-                client.eval_or_panic("checkout:killswitch_new_path") ? "true" : "false");
+                client.get_or_panic("checkout:killswitch_new_path") == 1 ? "true" : "false");
 }
 ```
 

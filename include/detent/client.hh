@@ -2,7 +2,7 @@
 
 // The instance read/update API. The read path runs these steps in order:
 // validate name -> check CLI override ->
-// acquire snapshot -> lookup -> type-check -> evaluate -> count -> return. No
+// acquire snapshot -> lookup -> evaluate -> count -> return. No
 // lock, allocation, or I/O sits on that path; the only heap traffic is the
 // shared_ptr refcount bump/drop already implied by SnapshotRef::load().
 
@@ -36,7 +36,6 @@ namespace detent {
 struct Metrics {
 	std::atomic<std::uint64_t> reads_ok{0};
 	std::atomic<std::uint64_t> reads_missing{0};
-	std::atomic<std::uint64_t> reads_wrong_type{0};
 	std::atomic<std::uint64_t> reads_conversion_failed{0};
 	std::atomic<std::uint64_t> snapshot_swaps{0};
 	std::atomic<std::uint64_t> refresh_failures{0};
@@ -51,8 +50,7 @@ struct HealthSnapshot {
 	bool source_connected = false;
 	std::uint64_t accepted_version = 0;
 	double staleness_seconds = 0.0;
-	std::size_t bool_knobs = 0;
-	std::size_t int_knobs = 0;
+	std::size_t knobs = 0;
 	std::size_t cli_overrides = 0;
 };
 
@@ -135,46 +133,29 @@ public:
 	Client& operator=(const Client&) = delete;
 
 	// --- read path -------------------------------------------------
-	[[nodiscard]] Result<bool, KnobError> eval(
+	[[nodiscard]] Result<std::int64_t, KnobError> get(
 		std::string_view name,
 		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const;
 
-	[[nodiscard]] Result<std::int64_t, KnobError> get(
-		std::string_view name,
-		std::optional<std::string_view> switch_val = std::nullopt) const;
-
+	// get(), then a checked conversion: a value that does not fit T (for bool, anything but 0
+	// and 1) is ConversionFailed, never truncated.
 	template <typename T>
 	[[nodiscard]] Result<T, KnobError> get_as(
 		std::string_view name,
+		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const {
-		auto r = get(name, switch_val);
+		auto r = get(name, hash_val, switch_val);
 		if (!r) return r.error();
-		auto v = r.value();
-		// std::in_range<T>, not a hand-rolled bounds check narrowed into
-		// int64_t: the previous `v > static_cast<int64_t>(numeric_limits<T>
-		// ::max())` was flatly wrong for any T whose max() doesn't fit in
-		// int64_t (e.g. T=uint64_t: max() cast to int64_t wraps to -1,
-		// rejecting every non-negative value including in-range ones --
-		// confirmed by review: get_as<uint64_t> on value 25 returned
-		// ConversionFailed). std::in_range handles every signed/unsigned
-		// target type correctly without lossy narrowing.
-		if (!std::in_range<T>(v)) {
-			metrics_.reads_conversion_failed.fetch_add(1, std::memory_order_relaxed);
-			return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
-		}
-		return static_cast<T>(v);
+		if (auto value = detail::convert<T>(r.value())) return *value;
+		metrics_.reads_conversion_failed.fetch_add(1, std::memory_order_relaxed);
+		return KnobError{ErrorCategory::ConversionFailed, std::string(name), "value does not fit target type"};
 	}
 
-	// The *_or_panic helpers crash on any KnobError. No call-site
-	// fallback API exists anywhere in this class.
-	[[nodiscard]] bool eval_or_panic(
-		std::string_view name,
-		std::optional<std::string_view> hash_val = std::nullopt,
-		std::optional<std::string_view> switch_val = std::nullopt) const;
-
+	// Crashes on any KnobError. No call-site fallback API exists anywhere in this class.
 	[[nodiscard]] std::int64_t get_or_panic(
 		std::string_view name,
+		std::optional<std::string_view> hash_val = std::nullopt,
 		std::optional<std::string_view> switch_val = std::nullopt) const;
 
 	// The live snapshot itself, not an evaluated value -- for a consumer
@@ -182,8 +163,8 @@ public:
 	// publisher, seeding its initial publish before any source update has
 	// landed yet, since InitOptions::on_update only fires on subsequent
 	// accepted updates, not for the baked-defaults snapshot set at
-	// construction). Ordinary read-path consumers should use eval()/get(),
-	// not this.
+	// construction). Ordinary read-path consumers should use get(), not
+	// this.
 	[[nodiscard]] std::shared_ptr<const Snapshot> current_snapshot() const {
 		if (read_source_)
 			throw std::logic_error("local source has no eager snapshot; use read_view()");

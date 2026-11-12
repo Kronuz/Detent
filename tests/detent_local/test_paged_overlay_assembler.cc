@@ -65,8 +65,8 @@ int main() {
 	}
 	p::Definition definition;
 	definition.revision = 43;
-	definition.default_int = -9;
-	std::array<char, 24> body{};
+	definition.default_value = -9;
+	std::array<char, p::definition_header_bytes> body{};
 	p::encode_definition_header(body, definition);
 	length = p::encode_definition_key(key, "app:k000000");
 	overlay.change({key.data(), length}, body);
@@ -103,7 +103,7 @@ int main() {
 				l::ValidationBudget work;
 				graph.step(work);
 			}
-			check(graph.counts().ints == 20000);
+			check(graph.counts().records == 20000);
 		}
 		{
 			std::vector<l::detail::SegmentInput> added{
@@ -115,7 +115,7 @@ int main() {
 				l::ValidationBudget work{1, 1};
 				warm.step(work);
 			}
-			check(warm.counts().ints == 20000 && warm.counts().strings == 220003 &&
+			check(warm.counts().records == 20000 && warm.counts().strings == 220003 &&
 					warm.counts().maximum_overrides == 0);
 			check(warm.hashed_segment_bytes() == result->segments()[0].bytes->size());
 			for (std::size_t i = 0; i < segments.size(); ++i)

@@ -113,7 +113,7 @@ l::Descriptor full_copy(Runtime &runtime, const std::filesystem::path &directory
 		auto recovered = l::detail::ManagedRecovery::recover(directory, l::detail::ManagedRecovery::capture(*store));
 		check(recovered.descriptor() == wanted && recovered.view().size() == 2 &&
 			  recovered.view().get("app", "count").value() == INT64_MIN &&
-			  recovered.view().eval("app", "flag", "host", "beta").value() ==
+			  recovered.view().get("app", "flag", "host", "beta").value() ==
 				  (detent::stable_bucket("app:flag", "host") < 17));
 		store->confirm_recovered(recovered);
 	}

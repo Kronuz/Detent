@@ -4,6 +4,7 @@
 #include "paged_packer.hh"
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <source_location>
 #include <vector>
 
@@ -11,9 +12,10 @@ namespace dense_graph_test {
 namespace d = detent::distribution;
 namespace l = detent::local;
 namespace p = l::paged;
-inline void check(bool value) {
+inline void check(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("dense validation invariant");
+		throw std::runtime_error(std::string("dense validation invariant at ") + at.file_name() + ":" +
+								 std::to_string(at.line()));
 }
 template <class E, class F> void rejects(F call, std::source_location at = std::source_location::current()) {
 	try {
@@ -83,13 +85,20 @@ inline std::shared_ptr<Fixture> seal(std::shared_ptr<Fixture> result, std::size_
 				 std::vector<char>(page.bytes->data(), page.bytes->data() + page.bytes->size()),
                  std::string(page.path)});
 			result->root.bytes += reference.length;
-			check(packer.commit(reference, budget));
+			// A commit refused for budget resumes with a fresh one.
+			for (unsigned retries = 0; !packer.commit(reference, budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
 			continue;
 		}
 		if (!packer.accepted())
 			continue;
 		if (cursor.ready()) {
-			check(cursor.commit(budget));
+			for (unsigned retries = 0; !cursor.commit(budget); ++retries) {
+				check(retries < 16);
+				budget = {};
+			}
 		}
 		cursor.step(budget);
 		if (cursor.ready()) {
@@ -122,7 +131,7 @@ inline std::shared_ptr<Fixture> fixture(std::size_t definitions = 32) {
 	for (std::size_t i = 0; i < definitions; ++i) {
 		const auto name = "ns:k" + std::to_string(100000 + i);
 		const auto length = p::encode_definition_key(key, name);
-		detent::IntDef value{static_cast<std::int64_t>(i)};
+		detent::KnobDef value{static_cast<std::int64_t>(i)};
 		std::vector<char> body(p::definition_size(value));
 		p::encode_definition(body, value, 8);
 		result->rows.push_back({std::string(key.data(), length), std::move(body)});

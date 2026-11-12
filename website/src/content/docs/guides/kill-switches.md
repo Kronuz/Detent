@@ -2,7 +2,7 @@
 title: "Kill Switches"
 ---
 
-A kill switch is a bool knob that guards a risky code path so you can turn it
+A kill switch is a knob with values 0 and 1 that guards a risky code path so you can turn it
 off without a deploy. This guide walks a change through its whole life: introduce,
 roll out, revert if needed, stabilize, and remove.
 
@@ -14,7 +14,7 @@ Add the knob read around the new path, and its safe default to your baked
 defaults, **in the same change**:
 
 ```cpp
-if (client.eval_or_panic("checkout:killswitch_new_path")) {
+if (client.get_or_panic("checkout:killswitch_new_path") == 1) {
     return new_checkout(cart);
 }
 return old_checkout(cart);
@@ -24,7 +24,7 @@ return old_checkout(cart);
 {
   "schema_version": 1,
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false }
+    "checkout:killswitch_new_path": { "default": 0 }
   }
 }
 ```
@@ -32,7 +32,7 @@ return old_checkout(cart);
 The safe default means a host that has never heard from its source, or one
 that's partitioned from it, takes the old path. Shipping the read without the
 default is what makes a missing knob possible, and Detent treats a missing knob
-as an error, not as `false`.
+as an error, not as 0.
 
 ---
 
@@ -44,12 +44,12 @@ definition for `checkout:killswitch_new_path`, as an operation in a
 next version of a live snapshot file:
 
 ```json
-{ "type": "bool", "default": false, "rollout_pct": 1,
-  "overrides": { "employees": true } }
+{ "default": 0, "overrides": { "employees": 1 },
+  "rollout_pct": 1, "rollout_value": 1 }
 ```
 
 ```cpp
-bool on = client.eval_or_panic("checkout:killswitch_new_path", account_id, account_group);
+bool on = client.get_or_panic("checkout:killswitch_new_path", account_id, account_group) == 1;
 ```
 
 Ramp the percentage in steps while you watch error rates and latency. See
@@ -59,11 +59,11 @@ Ramp the percentage in steps while you watch error rates and latency. See
 
 ## 3. Revert
 
-If anything looks wrong, publish the safe state. Leaving out `rollout_pct` and
-`overrides` removes them:
+If anything looks wrong, publish the safe state. Leaving out `overrides`, `rollout_pct` and
+`rollout_value` removes them:
 
 ```json
-{ "type": "bool", "default": false }
+{ "default": 0 }
 ```
 
 Every process takes the old path within one poll interval, with no restart.
@@ -84,7 +84,7 @@ Once the new path is at 100% and has been healthy long enough, publish it as
 the default so hash-less callers get it too:
 
 ```json
-{ "type": "bool", "default": true }
+{ "default": 1 }
 ```
 
 ---

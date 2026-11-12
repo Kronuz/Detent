@@ -1,8 +1,8 @@
-// The Python binding: a thin pybind11 wrapper around detent::Client -- eval()/get()
+// The Python binding: a thin pybind11 wrapper around detent::Client -- get()/get_bool()
 // carry the exact same precedence chain and strict
 // parsing the C++ API and detent-agent's CLI both use, all reused
-// unchanged, nothing reimplemented here. Errors (missing knob, wrong type,
-// invalid name) raise detent.DetentError rather than returning a Result
+// unchanged, nothing reimplemented here. Errors (missing knob, invalid name,
+// a get_bool() value other than 0 or 1) raise detent.DetentError rather than returning a Result
 // object, matching normal Python exception idiom instead of *_or_panic's
 // process-abort-on-error C++ convention.
 //
@@ -68,24 +68,25 @@ PYBIND11_MODULE(detent, m) {
 		     "Throws DetentError on invalid/missing defaults or CLI overrides "
 		     "(fail-fast at startup).")
 		.def(
-			"eval",
+			"get",
 			[](const detent::Client& c, std::string_view name, std::optional<std::string> hash_val,
 			   std::optional<std::string> switch_val) {
-				return unwrap(c.eval(name, hash_val, switch_val));
+				return unwrap(c.get(name, hash_val, switch_val));
 			},
 			py::arg("name"), py::arg("hash_val") = py::none(), py::arg("switch_val") = py::none(),
-			"Evaluates a bool knob. Precedence: CLI override -> switch_val "
-			"group match -> rollout_pct hash gate (if rollout_pct is set and hash_val "
-			"given) -> default. Raises DetentError if missing/wrong-type/invalid-name.")
+			"Reads a knob's int64 value. Precedence: CLI override -> switch_val "
+			"group match (forced value, or rollout_value for a hash inside the group's "
+			"percentage) -> rollout_pct (rollout_value for a hash inside it) -> default. "
+			"Raises DetentError if missing or invalid-name.")
 		.def(
-			"get",
-			[](const detent::Client& c, std::string_view name, std::optional<std::string> switch_val) {
-				return unwrap(c.get(name, switch_val));
+			"get_bool",
+			[](const detent::Client& c, std::string_view name, std::optional<std::string> hash_val,
+			   std::optional<std::string> switch_val) {
+				return unwrap(c.get_as<bool>(name, hash_val, switch_val));
 			},
-			py::arg("name"), py::arg("switch_val") = py::none(),
-			"Reads an int knob's value. switch_val is accepted for signature "
-			"symmetry with eval() but ignored (the int model has no "
-			"per-group overrides in v1). Raises DetentError if missing/wrong-type.")
+			py::arg("name"), py::arg("hash_val") = py::none(), py::arg("switch_val") = py::none(),
+			"get(), then 0 is False and 1 is True; any other value raises DetentError "
+			"(ConversionFailed).")
 		.def(
 			"health",
 			[](const detent::Client& c) {
@@ -95,8 +96,7 @@ PYBIND11_MODULE(detent, m) {
 				d["source_connected"] = h.source_connected;
 				d["accepted_version"] = h.accepted_version;
 				d["staleness_seconds"] = h.staleness_seconds;
-				d["bool_knobs"] = h.bool_knobs;
-				d["int_knobs"] = h.int_knobs;
+				d["knobs"] = h.knobs;
 				d["cli_overrides"] = h.cli_overrides;
 				return d;
 			},

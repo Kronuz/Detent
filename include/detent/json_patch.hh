@@ -53,7 +53,7 @@ namespace detent {
 // definition differs (or is newly present in `to`) is included in full;
 // every knob present in `from` but absent from `to` is included as a
 // deletion (nullopt). A knob identical in both (KnobDef's == compares the
-// full BoolDef/IntDef value, including overrides/rollout_pct) is omitted
+// full definition, including overrides and the rollout) is omitted
 // entirely -- this is what keeps a single-knob change's diff small
 // regardless of total knob count, the whole point of this file.
 [[nodiscard]] SnapshotPatch diff_snapshots(const Snapshot& from, const Snapshot& to);

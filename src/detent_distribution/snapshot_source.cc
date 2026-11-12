@@ -29,8 +29,7 @@ class ValidatedSnapshotSource final : public SnapshotSource {
 		const auto &row = snapshot_->records()[record_++];
 		override_ = 0;
 		overrides_ = {};
-		if (const auto *flag = std::get_if<WireBoolDef>(&row.definition))
-			overrides_ = snapshot_->overrides(*flag);
+		overrides_ = snapshot_->overrides(row.definition);
 		return {row, false};
 	}
 	std::optional<OverrideRow> next_override() override {

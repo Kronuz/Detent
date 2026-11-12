@@ -29,7 +29,7 @@ std::string heavy(bool snapshot) {
 	auto boolean = [&] {
 		a(4);
 		n(0);
-		wire.push_back('\xc2');
+		wire.push_back('\xc0');
 		wire.push_back('\xc0');
 		a(overrides);
 		for (unsigned i = 0; i < overrides; ++i) {
@@ -37,7 +37,7 @@ std::string heavy(bool snapshot) {
 			a(3);
 			text("g" + std::string(6 - digits.size(), '0') + digits + std::string(25, 'x'));
 			n(0);
-			wire.push_back('\xc3');
+			n(1);
 		}
 	};
 	a(7);
@@ -71,17 +71,19 @@ std::string heavy(bool snapshot) {
 		n(0);
 		text("app:count");
 		n(41);
-		a(2);
-		n(1);
+		a(4);
 		m::signed_integer(wire, INT64_MIN);
+		wire.push_back('\xc0');
+		wire.push_back('\xc0');
+		a(0);
 		a(4);
 		n(0);
 		text("app:flag");
 		n(42);
 		a(4);
 		n(0);
-		wire.push_back('\xc3');
 		n(25);
+		n(1);
 		a(1);
 		a(3);
 		text("beta");
@@ -149,7 +151,7 @@ int main() {
 			check(plan.segments().size() == 1 && plan.base_reachability(0).pages == 0);
 			check(plan.new_reachability(0).pages == plan.root().pages &&
 					plan.override_histogram()[0] == plan.root().records);
-			check(plan.counts().ints == (transactions == 1 ? 0 : 1) && plan.counts().bools == 1);
+			check(plan.counts().records == (transactions == 1 ? 1 : 2));
 			l::detail::PagedSnapshotBuilder oracle(expected(false, transactions), storage, next);
 			while (!oracle.done()) {
 				l::ValidationBudget work;
@@ -264,7 +266,7 @@ int main() {
 			auto plan = std::make_shared<l::detail::PagedPlan>(builder.take());
 			check(image.root().pages == 1 && plan->segments().size() >= 3 &&
 					plan->base_reachability(0).pages == 0 && plan->base_reachability(0).bytes == 0);
-			check(plan->counts().ints == 1 && plan->counts().bools == 257 &&
+			check(plan->counts().records == 258 &&
 					plan->counts().overrides == 65537 && plan->counts().strings == 2099992);
 			check(plan->override_histogram()[0] == 1 && plan->override_histogram()[1] == 1 &&
 					plan->override_histogram()[256] == 256);

@@ -3,6 +3,7 @@
 // contract does whole-definition replacement, never field-wise.
 #include <cassert>
 #include <cstdio>
+#include <string>
 
 #include "detent/json_schema.hh"
 #include "detent/validation.hh"
@@ -16,10 +17,9 @@ void test_defaults_parse() {
 		"schema_version": 1,
 		"knobs": {
 			"checkout:killswitch_new_path": {
-				"type": "bool", "default": false,
-				"overrides": {}, "rollout_pct": null
+				"default": 0, "overrides": {}, "rollout_pct": null, "rollout_value": null
 			},
-			"search:max_results": { "type": "int", "default": 25 }
+			"search:max_results": { "default": 25 }
 		}
 	})";
 
@@ -28,13 +28,12 @@ void test_defaults_parse() {
 	const auto& snap = r.value();
 	assert(snap.version == 0);
 	assert(snap.knobs.size() == 2);
-	assert(snap.bool_count() == 1);
-	assert(snap.int_count() == 1);
 
-	const auto* bd = std::get_if<BoolDef>(&snap.knobs.find("checkout:killswitch_new_path")->second);
-	assert(bd != nullptr);
-	assert(bd->default_value == false);
-	assert(!bd->rollout_pct.has_value());
+	const auto& killswitch = snap.knobs.find("checkout:killswitch_new_path")->second;
+	assert(killswitch.default_value == 0);
+	assert(killswitch.overrides.empty());
+	assert(!killswitch.rollout_pct.has_value() && !killswitch.rollout_value.has_value());
+	assert(snap.knobs.find("search:max_results")->second.default_value == 25);
 
 	std::puts("defaults parse OK");
 }
@@ -43,8 +42,8 @@ void test_source_parse_and_merge() {
 	constexpr std::string_view defaults = R"({
 		"schema_version": 1,
 		"knobs": {
-			"checkout:killswitch_new_path": { "type": "bool", "default": false },
-			"search:max_results": { "type": "int", "default": 25 }
+			"checkout:killswitch_new_path": { "default": 0 },
+			"search:max_results": { "default": 25 }
 		}
 	})";
 	constexpr std::string_view source = R"({
@@ -53,8 +52,7 @@ void test_source_parse_and_merge() {
 		"published_at": "2026-09-29T15:00:00Z",
 		"knobs": {
 			"checkout:killswitch_new_path": {
-				"type": "bool", "default": false,
-				"overrides": { "employees": true }, "rollout_pct": 10
+				"default": 0, "overrides": { "employees": 1 }, "rollout_pct": 10, "rollout_value": 1
 			}
 		}
 	})";
@@ -70,15 +68,14 @@ void test_source_parse_and_merge() {
 	assert(merged.version == 42);
 	// Source omits "search:max_results" -> baked default retained verbatim.
 	assert(merged.knobs.size() == 2);
-	const auto* max_results = std::get_if<IntDef>(&merged.knobs.find("search:max_results")->second);
-	assert(max_results != nullptr && max_results->default_value == 25);
+	assert(merged.knobs.find("search:max_results")->second.default_value == 25);
 
 	// Source overrode "checkout:...": the WHOLE definition replaced, not
 	// merged field-by-field.
-	const auto* killswitch = std::get_if<BoolDef>(&merged.knobs.find("checkout:killswitch_new_path")->second);
-	assert(killswitch != nullptr);
-	assert(killswitch->rollout_pct.has_value() && *killswitch->rollout_pct == 10);
-	assert(std::get<bool>(killswitch->overrides.find("employees")->second) == true);
+	const auto& killswitch = merged.knobs.find("checkout:killswitch_new_path")->second;
+	assert(killswitch.rollout_pct.has_value() && *killswitch.rollout_pct == 10);
+	assert(killswitch.rollout_value == std::optional<std::int64_t>(1));
+	assert(std::get<std::int64_t>(killswitch.overrides.find("employees")->second) == 1);
 
 	std::puts("source parse + merge OK");
 }
@@ -97,25 +94,13 @@ void test_schema_violations_reject_whole_input() {
 	// Missing version in a source snapshot.
 	assert(!parse_source_snapshot(R"({"schema_version":1,"knobs":{}})", "s").has_value());
 	// Unknown field on a knob definition.
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":false,"bogus":1}}})")
-	            .has_value());
-	// Wrong type tag.
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"type":"string","default":false}}})")
-	            .has_value());
-	// rollout_pct out of range.
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":false,"rollout_pct":101}}})")
-	            .has_value());
+	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"default":0,"bogus":1}}})").has_value());
 	// Invalid knob name (no colon).
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"nocolon":{"type":"bool","default":false}}})")
-	            .has_value());
+	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"nocolon":{"default":0}}})").has_value());
 	// Malformed JSON entirely.
 	assert(!parse_defaults(R"({"schema_version":1,)").has_value());
-	// Bool knob missing required "default" -- previously silently defaulted
-	// to false instead of rejecting the whole input (found by two
-	// independent review agents in the same session).
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"type":"bool"}}})").has_value());
-	// Int knob missing required "default" -- same bug, other type.
-	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{"type":"int"}}})").has_value());
+	// A knob missing its required "default" rejects the whole input.
+	assert(!parse_defaults(R"({"schema_version":1,"knobs":{"a:b":{}}})").has_value());
 	{
 		// rapidjson's DOM keeps every member on a duplicate object key, so a
 		// literal duplicate "a:b" requires building the object text by hand
@@ -125,14 +110,14 @@ void test_schema_violations_reject_whole_input() {
 		// fix (previously silently last-definition-wins via map
 		// operator[]).
 		std::string dup_knob_name =
-		    R"({"schema_version":1,"knobs":{"a:b":{"type":"int","default":1},"a:b":{"type":"int","default":2}}})";
+		    R"({"schema_version":1,"knobs":{"a:b":{"default":1},"a:b":{"default":2}}})";
 		assert(!parse_defaults(dup_knob_name).has_value());
 	}
 	// Duplicate override key within one knob's "overrides" object.
 	{
 		std::string dup_override_key =
-		    R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":false,)"
-		    R"("overrides":{"g":true,"g":false}}}})";
+		    R"({"schema_version":1,"knobs":{"a:b":{"default":0,)"
+		    R"("overrides":{"g":1,"g":0}}}})";
 		assert(!parse_defaults(dup_override_key).has_value());
 	}
 	// Duplicate top-level field (e.g. two "schema_version" entries).
@@ -160,6 +145,82 @@ void test_schema_violations_reject_whole_input() {
 	std::puts("schema violations reject whole input OK");
 }
 
+// A2: the definition's shape. Each invalid shape is a Schema rejection of the whole input.
+void expect_schema_rejection(std::string_view knob) {
+	const auto text = std::string(R"({"schema_version":1,"knobs":{"a:b":)") + std::string(knob) + "}}";
+	auto r = parse_defaults(text);
+	assert(!r.has_value());
+	assert(r.error().reason == UpdateRejectReason::Schema);
+}
+
+void test_definition_shape() {
+	// rollout_value without any percentage.
+	expect_schema_rejection(R"({"default":25,"rollout_value":50})");
+	expect_schema_rejection(R"({"default":25,"overrides":{"beta":7},"rollout_value":50})");
+	// A percentage (knob-wide or group) without rollout_value.
+	expect_schema_rejection(R"({"default":25,"rollout_pct":10})");
+	expect_schema_rejection(R"({"default":25,"overrides":{"canary":{"rollout_pct":50}}})");
+	// Percentages over 100.
+	expect_schema_rejection(R"({"default":25,"rollout_pct":101,"rollout_value":50})");
+	expect_schema_rejection(R"({"default":25,"overrides":{"canary":{"rollout_pct":101}},"rollout_value":50})");
+	// No type tag, no boolean literals.
+	expect_schema_rejection(R"({"type":"int","default":25})");
+	expect_schema_rejection(R"({"default":true})");
+	expect_schema_rejection(R"({"default":0,"overrides":{"g":true}})");
+	expect_schema_rejection(R"({"default":0,"rollout_pct":10,"rollout_value":true})");
+	// A string or fractional value is not an integer.
+	expect_schema_rejection(R"({"default":"25"})");
+	expect_schema_rejection(R"({"default":2.5})");
+
+	// definition_error agrees with the parser on the in-memory model.
+	KnobDef def;
+	assert(definition_error(def) == nullptr);
+	def.rollout_value = 1;
+	assert(definition_error(def) != nullptr);
+	def.rollout_pct = 10;
+	assert(definition_error(def) == nullptr);
+	def.rollout_pct = 101;
+	assert(definition_error(def) != nullptr);
+	def.rollout_pct.reset();
+	def.overrides["g"] = GroupRollout{50};
+	assert(definition_error(def) == nullptr);
+	def.rollout_value.reset();
+	assert(definition_error(def) != nullptr);
+
+	std::puts("definition shape rejections OK");
+}
+
+// A2: an integer knob with a rollout and group overrides parses and
+// serialize_snapshot writes back exactly the canonical text.
+void test_integer_knob_round_trip() {
+	constexpr std::string_view canonical =
+		R"({"schema_version":1,"version":3,"knobs":{"search:batch_size":{"default":25,)"
+		R"("overrides":{"beta":7,"canary":{"rollout_pct":50}},"rollout_pct":10,"rollout_value":50}}})";
+	auto parsed = parse_source_snapshot(canonical, "s");
+	assert(parsed.has_value());
+	const auto& def = parsed.value().knobs.find("search:batch_size")->second;
+	assert(def.default_value == 25 && def.rollout_pct == std::optional<std::uint8_t>(10) &&
+	       def.rollout_value == std::optional<std::int64_t>(50));
+	assert(std::get<std::int64_t>(def.overrides.find("beta")->second) == 7);
+	assert(std::get<GroupRollout>(def.overrides.find("canary")->second).rollout_pct == 50);
+	assert(serialize_snapshot(parsed.value()) == canonical);
+
+	// Field order in the input does not matter; the output is canonical.
+	constexpr std::string_view shuffled =
+		R"({"schema_version":1,"version":3,"knobs":{"search:batch_size":{"rollout_value":50,)"
+		R"("rollout_pct":10,"overrides":{"canary":{"rollout_pct":50},"beta":7},"default":25}}})";
+	auto reordered = parse_source_snapshot(shuffled, "s");
+	assert(reordered.has_value() && serialize_snapshot(reordered.value()) == canonical);
+	assert(reordered.value().knobs.find("search:batch_size")->second == def);
+
+	// A plain value writes only its default.
+	constexpr std::string_view plain = R"({"schema_version":1,"version":1,"knobs":{"a:b":{"default":-9}}})";
+	auto minimal = parse_source_snapshot(plain, "s");
+	assert(minimal.has_value() && serialize_snapshot(minimal.value()) == plain);
+
+	std::puts("integer knob round trip OK");
+}
+
 void test_name_validation() {
 	assert(is_valid_knob_name("checkout:killswitch_new_path"));
 	assert(is_valid_knob_name("a.b-c/d_e:f.g-h/i_j"));
@@ -179,6 +240,8 @@ int main() {
 	test_defaults_parse();
 	test_source_parse_and_merge();
 	test_schema_violations_reject_whole_input();
+	test_definition_shape();
+	test_integer_knob_round_trip();
 	test_name_validation();
 	return 0;
 }

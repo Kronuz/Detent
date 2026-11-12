@@ -49,12 +49,13 @@ struct Fixture {
   l::GenerationId generation{};
   p::Root root;
   std::vector<p::Reference> definitions, page_references;
+  std::vector<std::string> definition_names; // local name of a definition in definitions[i]
   std::vector<std::shared_ptr<const d::OwnedBuffer>> buffers;
   std::vector<x::SegmentInput> segments;
   std::uint64_t physical_bytes = p::root_bytes;
   explicit Fixture(unsigned count = 2, unsigned per_namespace = 1,
                    bool separate_segments = false)
-      : definitions(count) {
+      : definitions(count), definition_names(count) {
     path = std::filesystem::current_path() / ".scratch" /
            ("lazy-pages-" + std::to_string(::getpid()) + "-" +
             std::to_string(count) + "-" + std::to_string(per_namespace));
@@ -77,12 +78,13 @@ struct Fixture {
       packed->rows.push_back(
           {std::string(key.data(), length), std::move(watermark)});
       for (unsigned j = 0; j != per_namespace; ++j) {
-        detent::BoolDef boolean;
-        boolean.default_value = true;
-        boolean.overrides.emplace("force", false);
-        const detent::KnobDef source =
-            i ? detent::KnobDef(boolean)
-              : detent::KnobDef(detent::IntDef{42 + j});
+        detent::KnobDef source;
+        source.default_value = i ? 1 : 42 + j;
+        if (i)
+          source.overrides.emplace("force", std::int64_t{0});
+        // Pads each namespace past one page, so some of its definitions seal into their own segment.
+        if (separate_segments)
+          source.overrides.emplace(std::string(32, 'p'), std::int64_t{0});
         std::vector<char> body(p::definition_size(source));
         p::encode_definition(body, source, 8);
         const auto name =
@@ -142,9 +144,14 @@ struct Fixture {
         const auto node = p::decode_node(bytes, offset, p::Limits{});
         path += node.prefix;
         if (node.kind == p::PageKind::Definition) {
+          // Each namespace's first definition sealed in its own segment; the packer keeps
+          // whatever fits in the root page, so which name that is depends on body sizes.
           const auto key = p::decode_key(path);
-          if (key.local_name == "k100001")
-            definitions[key.name_space[0] - 'a'] = owner;
+          const unsigned group = key.name_space[0] - 'a';
+          if (definitions[group] == p::Reference{} && owner.segment == identities[group]) {
+            definitions[group] = owner;
+            definition_names[group] = key.local_name;
+          }
         }
         for (unsigned i = 0; i < node.labels.size(); ++i) {
           const auto slot = node.slot(i);

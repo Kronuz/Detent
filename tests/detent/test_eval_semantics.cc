@@ -1,11 +1,14 @@
-// Semantic matrix: bool default/group/rollout precedence, CLI
-// overrides, missing/wrong-type errors, and checked int conversion. Uses the
-// in-memory Client constructor (detent::testing's own plumbing) to avoid
-// depending on a real defaults file for pure-evaluation semantics.
+// Semantic matrix: default/group/rollout precedence, CLI overrides,
+// missing-knob errors, checked get_as<T> conversion (bool included), and an
+// integer knob with a rollout and group overrides. Uses the in-memory Client
+// constructor (detent::testing's own plumbing) to avoid depending on a real
+// defaults file for pure-evaluation semantics.
 #include <cassert>
 #include <cstdio>
+#include <string>
 
 #include "detent/client.hh"
+#include "detent/hashing.hh"
 
 using namespace detent;
 
@@ -16,44 +19,55 @@ Snapshot make_snapshot() {
 	snap.version = 0;
 	snap.source_id = "test";
 
-	BoolDef killswitch;
-	killswitch.default_value = false;
-	killswitch.overrides["employees"] = true;
+	KnobDef killswitch;
+	killswitch.default_value = 0;
+	killswitch.overrides["employees"] = std::int64_t{1};
 	killswitch.rollout_pct = 10;
+	killswitch.rollout_value = 1;
 	snap.knobs["checkout:killswitch_new_path"] = killswitch;
 
-	BoolDef plain;
-	plain.default_value = true;
+	KnobDef plain;
+	plain.default_value = 1;
 	snap.knobs["checkout:plain_flag"] = plain;
 
-	IntDef max_results;
+	KnobDef max_results;
 	max_results.default_value = 25;
 	snap.knobs["search:max_results"] = max_results;
+
+	// An integer knob with a rollout and both kinds of group override (A2).
+	KnobDef batch;
+	batch.default_value = 25;
+	batch.rollout_pct = 10;
+	batch.rollout_value = 50;
+	batch.overrides["beta"] = std::int64_t{7};
+	batch.overrides["canary"] = GroupRollout{50};
+	snap.knobs["search:batch_size"] = batch;
 
 	return snap;
 }
 
 void test_bool_default_no_override_no_rollout() {
 	Client c(make_snapshot());
-	auto r = c.eval("checkout:plain_flag");
-	assert(r.has_value() && r.value() == true);
+	auto r = c.get("checkout:plain_flag");
+	assert(r.has_value() && r.value() == 1);
+	auto b = c.get_as<bool>("checkout:plain_flag");
+	assert(b.has_value() && b.value() == true);
 	std::puts("bool default (no override/rollout) OK");
 }
 
 void test_group_match_and_precedence() {
 	Client c(make_snapshot());
 	// Group match wins over default.
-	auto matched = c.eval("checkout:killswitch_new_path", std::nullopt, "employees");
-	assert(matched.has_value() && matched.value() == true);
+	auto matched = c.get("checkout:killswitch_new_path", std::nullopt, "employees");
+	assert(matched.has_value() && matched.value() == 1);
 
-	// Group match ALSO wins over rollout, even when a hash is supplied
-	// (a group match wins over the rollout).
-	auto precedence = c.eval("checkout:killswitch_new_path", "user-42", "employees");
-	assert(precedence.has_value() && precedence.value() == true);
+	// A group match also wins over the rollout, even when a hash is supplied.
+	auto precedence = c.get("checkout:killswitch_new_path", "user-42", "employees");
+	assert(precedence.has_value() && precedence.value() == 1);
 
 	// Unknown group key with no hash falls through to default.
-	auto miss = c.eval("checkout:killswitch_new_path", std::nullopt, "unknown-group");
-	assert(miss.has_value() && miss.value() == false);
+	auto miss = c.get("checkout:killswitch_new_path", std::nullopt, "unknown-group");
+	assert(miss.has_value() && miss.value() == 0);
 
 	std::puts("group match + precedence OK");
 }
@@ -62,42 +76,34 @@ void test_rollout_boundaries() {
 	Client c(make_snapshot());
 
 	// rollout_pct set but no hash_val: skip rollout, return default.
-	auto no_hash = c.eval("checkout:killswitch_new_path");
-	assert(no_hash.has_value() && no_hash.value() == false);
+	auto no_hash = c.get("checkout:killswitch_new_path");
+	assert(no_hash.has_value() && no_hash.value() == 0);
 
 	Snapshot snap0 = make_snapshot();
-	std::get<BoolDef>(snap0.knobs["checkout:killswitch_new_path"]).rollout_pct = 0;
+	snap0.knobs["checkout:killswitch_new_path"].rollout_pct = 0;
 	Client c0(snap0);
-	assert(c0.eval("checkout:killswitch_new_path", "anybody").value() == false);
+	assert(c0.get("checkout:killswitch_new_path", "anybody").value() == 0);
 
 	Snapshot snap100 = make_snapshot();
-	std::get<BoolDef>(snap100.knobs["checkout:killswitch_new_path"]).rollout_pct = 100;
+	snap100.knobs["checkout:killswitch_new_path"].rollout_pct = 100;
 	Client c100(snap100);
-	assert(c100.eval("checkout:killswitch_new_path", "anybody").value() == true);
+	assert(c100.get("checkout:killswitch_new_path", "anybody").value() == 1);
 
 	std::puts("rollout boundaries (0/100/no-hash) OK");
 }
 
-void test_missing_and_wrong_type() {
+void test_missing_and_invalid_name() {
 	Client c(make_snapshot());
 
-	auto missing = c.eval("checkout:does_not_exist");
+	auto missing = c.get("checkout:does_not_exist");
 	assert(!missing.has_value());
 	assert(missing.error().category == ErrorCategory::MissingKnob);
 
-	auto wrong_type_eval = c.eval("search:max_results"); // int knob, bool read
-	assert(!wrong_type_eval.has_value());
-	assert(wrong_type_eval.error().category == ErrorCategory::WrongType);
-
-	auto wrong_type_get = c.get("checkout:plain_flag"); // bool knob, int read
-	assert(!wrong_type_get.has_value());
-	assert(wrong_type_get.error().category == ErrorCategory::WrongType);
-
-	auto invalid_name = c.eval("nocolon");
+	auto invalid_name = c.get("nocolon");
 	assert(!invalid_name.has_value());
 	assert(invalid_name.error().category == ErrorCategory::InvalidName);
 
-	std::puts("missing/wrong-type/invalid-name errors OK");
+	std::puts("missing/invalid-name errors OK");
 }
 
 void test_get_and_checked_conversion() {
@@ -110,79 +116,106 @@ void test_get_and_checked_conversion() {
 	assert(as_i8_ok.has_value() && as_i8_ok.value() == 25);
 
 	Snapshot big = make_snapshot();
-	std::get<IntDef>(big.knobs["search:max_results"]).default_value = 1'000'000;
+	big.knobs["search:max_results"].default_value = 1'000'000;
 	Client c_big(big);
 	auto as_i8_overflow = c_big.get_as<std::int8_t>("search:max_results");
 	assert(!as_i8_overflow.has_value());
 	assert(as_i8_overflow.error().category == ErrorCategory::ConversionFailed);
-	auto failures_after_overflow = c_big.metrics().reads_conversion_failed.load();
-	assert(failures_after_overflow >= 1); // was never incremented by get_as<T> before this fix
+	assert(c_big.metrics().reads_conversion_failed.load() >= 1);
 
-	// get_as<uint64_t>: the previous bounds check narrowed
-	// numeric_limits<T>::max() into int64_t before comparing, which for an
-	// unsigned target wraps to -1 and rejects every non-negative value --
-	// confirmed broken: get_as<uint64_t> on the value 25 returned
-	// ConversionFailed. std::in_range<T> fixes this for every target type.
+	// std::in_range<T> handles unsigned targets: 25 fits uint64_t.
 	auto as_u64_ok = c.get_as<std::uint64_t>("search:max_results");
 	assert(as_u64_ok.has_value() && as_u64_ok.value() == 25);
 
 	std::puts("get + checked get_as<T> conversion (incl. unsigned targets) OK");
 }
 
-// Integer semantics: get(name, switch_val) accepts switch_val
-// for API-shape compatibility with eval() but always ignores it, because
-// the integer model has no per-group overrides in v1 -- unlike
-// test_get_and_checked_conversion above (which never passes a switch_val
-// at all), this proves the parameter is truly a no-op, not merely optional.
-void test_get_ignores_switch_val() {
+// get_as<bool> takes exactly 0 and 1; anything else is ConversionFailed and counted.
+void test_get_as_bool() {
+	Snapshot snap;
+	for (std::int64_t value : {0, 1, 2, -1}) {
+		KnobDef def;
+		def.default_value = value;
+		snap.knobs["flags:v" + std::to_string(value + 1)] = def;
+	}
+	Client c(std::move(snap));
+	auto zero = c.get_as<bool>("flags:v1");
+	assert(zero.has_value() && zero.value() == false);
+	auto one = c.get_as<bool>("flags:v2");
+	assert(one.has_value() && one.value() == true);
+	const auto before = c.metrics().reads_conversion_failed.load();
+	auto two = c.get_as<bool>("flags:v3");
+	assert(!two.has_value() && two.error().category == ErrorCategory::ConversionFailed);
+	assert(c.metrics().reads_conversion_failed.load() == before + 1);
+	auto negative = c.get_as<bool>("flags:v0");
+	assert(!negative.has_value() && negative.error().category == ErrorCategory::ConversionFailed);
+	assert(c.metrics().reads_conversion_failed.load() == before + 2);
+	std::puts("get_as<bool>: 0/1 convert, 2 and -1 are ConversionFailed OK");
+}
+
+// A2: an integer knob ramps its rollout value and honors group overrides.
+void test_integer_rollout_and_groups() {
 	Client c(make_snapshot());
-	auto no_switch = c.get("search:max_results");
-	auto with_a = c.get("search:max_results", "group-a");
-	auto with_b = c.get("search:max_results", "totally-different-group");
-	assert(no_switch.has_value() && with_a.has_value() && with_b.has_value());
-	assert(no_switch.value() == with_a.value());
-	assert(with_a.value() == with_b.value());
-	std::puts("get() ignores switch_val (int model has no group overrides) OK");
+	const std::string_view name = "search:batch_size";
+	unsigned ramped = 0, canary = 0;
+	for (unsigned i = 0; i != 400; ++i) {
+		const auto hash = "user-" + std::to_string(i);
+		const auto bucket = stable_bucket(name, hash);
+		assert(c.get(name, hash).value() == (bucket < 10 ? 50 : 25));
+		assert(c.get(name, hash, "unknown").value() == (bucket < 10 ? 50 : 25));
+		assert(c.get(name, hash, "beta").value() == 7);
+		assert(c.get(name, hash, "canary").value() == (bucket < 50 ? 50 : 25));
+		ramped += bucket < 10;
+		canary += bucket < 50;
+	}
+	assert(ramped > 0 && ramped < 400 && canary > ramped && canary < 400);
+	assert(c.get(name).value() == 25);
+	assert(c.get(name, std::nullopt, "canary").value() == 25);
+	assert(c.get(name, std::nullopt, "beta").value() == 7);
+	std::puts("integer rollout value + group forced/percentage OK");
 }
 
 // The stickiness guarantee ("across hosts, processes, languages, and
-// restarts") exercised at the eval() level, not just stable_bucket()
-// directly (test_hash_golden.cc already covers the raw hash function): two
-// *independently constructed* Client instances, each with its own snapshot
-// object and its own Metrics/override state -- the closest a single-process
-// unit test can get to "two different processes" -- must agree on the same
-// (knob_name, hash_val) pair.
+// restarts") exercised at the get() level, not just stable_bucket() directly
+// (test_hash_golden.cc covers the raw hash function): two independently
+// constructed Client instances must agree on the same (knob_name, hash_val).
 void test_stickiness_across_independent_clients() {
 	Client a(make_snapshot());
 	Client b(make_snapshot());
 	for (const char* hash_val : {"user-1", "user-2", "user-42", "tenant-abc", ""}) {
-		auto ra = a.eval("checkout:killswitch_new_path", hash_val);
-		auto rb = b.eval("checkout:killswitch_new_path", hash_val);
+		auto ra = a.get("checkout:killswitch_new_path", hash_val);
+		auto rb = b.get("checkout:killswitch_new_path", hash_val);
 		assert(ra.has_value() && rb.has_value());
 		assert(ra.value() == rb.value());
 	}
-	std::puts("eval() bucket stickiness across independent Client instances OK");
+	std::puts("get() bucket stickiness across independent Client instances OK");
 }
 
 } // namespace
 
 int main() {
+	// A group percentage answers the default without a hash, and a group that
+	// matches nothing falls through to the knob-wide rollout. A hashed caller
+	// outside a percentage gets the default (D68), so this default-1
+	// knob's 0% group answers 1 for a hash.
 	Snapshot fallback_snapshot;
-	BoolDef fallback;
-	fallback.default_value = true;
+	KnobDef fallback;
+	fallback.default_value = 1;
 	fallback.rollout_pct = 100;
+	fallback.rollout_value = 1;
 	fallback.overrides["none"] = GroupRollout{0};
 	fallback_snapshot.knobs["a:b"] = fallback;
 	Client fallback_client(std::move(fallback_snapshot));
-	assert(fallback_client.eval("a:b", std::nullopt, "none").value());
-	assert(!fallback_client.eval("a:b", "host", "none").value());
-	assert(fallback_client.eval("a:b", "host", "unknown").value());
+	assert(fallback_client.get("a:b", std::nullopt, "none").value() == 1);
+	assert(fallback_client.get("a:b", "host", "none").value() == 1);
+	assert(fallback_client.get("a:b", "host", "unknown").value() == 1);
 	test_bool_default_no_override_no_rollout();
 	test_group_match_and_precedence();
 	test_rollout_boundaries();
-	test_missing_and_wrong_type();
+	test_missing_and_invalid_name();
 	test_get_and_checked_conversion();
-	test_get_ignores_switch_val();
+	test_get_as_bool();
+	test_integer_rollout_and_groups();
 	test_stickiness_across_independent_clients();
 	return 0;
 }

@@ -76,8 +76,8 @@ int main() {
 		check(!reader.refresh());
 		auto prepared = x::PreparedReader::open(fixture->path, ::getuid(), {});
 		check(prepared.view.get("a", "k").value() == 42);
-		check(prepared.view.eval("b", "k").value() == true);
-		check(prepared.view.int_count() == 1);
+		check(prepared.view.get("b", "k").value() == 1);
+		check(prepared.view.size() == 2);
 		check(l::resources::mapping_account({})->used() > 0);
 		for (unsigned index = 0; index != 7; ++index) {
 			auto bounds = l::ViewLimits::prepared();
@@ -194,12 +194,12 @@ int main() {
 	auto owner = std::make_shared<Handle>(access);
 	std::shared_ptr<const x::PagedPageAccess> pages(owner, access.get());
 	x::PagedReadState state{fixture->root, {}, pages};
-	check(state.definition("a", "k")->default_int() == 42);
+	check(state.definition("a", "k")->default_value() == 42);
 	check(access->mapped_segments() == 1);
 	check(!state.definition("a", "missing"));
 	check(access->mapped_segments() == 1);
-	check(state.definition("a", "k")->default_int() == 42);
-	check(state.definition("b", "k")->default_bool() == true);
+	check(state.definition("a", "k")->default_value() == 42);
+	check(state.definition("b", "k")->default_value() == 1);
 	check(access->mapped_segments() == 1);
 	{
 		auto alternate = domain.make<x::LazyPageAccess>(fixture, fixture->directory, ::getuid(),
@@ -231,7 +231,7 @@ int main() {
 		auto prepared =
 		    x::PreparedReader::open(fixture->path, ::getuid(), l::ViewLimits::prepared());
 		check(prepared.view.get("a", "k").value() == 42);
-		check(prepared.view.eval("b", "k").value() == true);
+		check(prepared.view.get("b", "k").value() == 1);
 		bool refused = false;
 		try {
 			l::recover_generation(fixture->path);

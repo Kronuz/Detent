@@ -137,7 +137,7 @@ void run(bool shared) {
 	std::size_t flag = 0;
 	for (const auto hash : {"host-a", "host-b", "host-c"})
 		for (const auto scope : {"beta", "production"})
-			expected_flags[flag++] = base->view().eval("app", "flag", hash, scope).value();
+			expected_flags[flag++] = base->view().get("app", "flag", hash, scope).value();
 	base.reset();
 	const auto lease_path = directory / (l::generation_name(generation) + ".lease");
 	const int lease = ::open(lease_path.c_str(), O_RDWR | O_CLOEXEC);
@@ -161,7 +161,7 @@ void run(bool shared) {
 	if (shared)
 		for (const auto hash : {"host-a", "host-b", "host-c"})
 			for (const auto scope : {"beta", "production"})
-				require(target->view().eval("app", "flag", hash, scope).value() == expected_flags[flag++]);
+				require(target->view().get("app", "flag", hash, scope).value() == expected_flags[flag++]);
 	target.reset();
 	store->close();
 	drive(store);

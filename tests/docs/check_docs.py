@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Two-way check between the reference pages and the source.
 
-Kinds: CLI flags, configuration keys, HTTP endpoints, error/status names and knob types.
+Kinds: CLI flags, configuration keys, HTTP endpoints, error/status names.
 `docs-only` names are on a page but not in the source; `source-only` names are in the source but
 on no page. A gap is allowed only when listed in docs_exceptions.txt, one per line:
 
@@ -186,21 +186,6 @@ def errors_documented(name: str) -> bool:
     return re.search(rf"\b{re.escape(name)}\b", all_docs()) is not None
 
 
-# ---------------------------------------------------------------------------- knob types
-
-
-def knob_types() -> tuple[set[str], set[str]]:
-    source = set(
-        re.findall(r'type == "(\w+)"', (SRC / "detent" / "json_schema.cc").read_text())
-    )
-    docs = set(re.findall(r'"type"\s*:\s*"(\w+)"', all_docs())) | table_firsts(
-        page_text("reference/knobs.md")
-        .split("## Knob Types", 1)[1]
-        .split("\n---", 1)[0]
-    )
-    return docs, source
-
-
 # ---------------------------------------------------------------------------- driver
 
 
@@ -211,7 +196,6 @@ def gaps() -> set[tuple[str, str, str]]:
         "config": config_keys(),
         "endpoint": endpoints(),
         "error": errors(),
-        "type": knob_types(),
     }
     text = all_docs()
     for kind, (docs, source) in spaces.items():
@@ -219,7 +203,7 @@ def gaps() -> set[tuple[str, str, str]]:
             found.add(("docs-only", kind, name))
         for name in source - docs:
             # Any page may document a source name; the page sets above only decide what to verify.
-            if kind in ("flag", "config", "endpoint", "type") and re.search(
+            if kind in ("flag", "config", "endpoint") and re.search(
                 rf"(?<![\w-]){re.escape(name)}(?![\w-])", text
             ):
                 continue

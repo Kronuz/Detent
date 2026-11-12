@@ -251,10 +251,10 @@ int main() {
 							(progress ? std::numeric_limits<std::int64_t>::min() : 1));
 					for (const auto hash : {"host-a", "host-b", "host-c"})
 						for (const auto switch_value : {"beta", "production"})
-							require(current.view().eval("app", "flag", hash, switch_value).value() ==
+							require(current.view().get("app", "flag", hash, switch_value).value() ==
 									(progress
-										 ? recovered.view().eval("app", "flag", hash, switch_value).value()
-										 : true));
+										 ? recovered.view().get("app", "flag", hash, switch_value).value()
+										 : 1));
 					require(mappings->used() == mappings->limit());
 				}
 				write(directory / "selected", l::encode_descriptor(recovered.descriptor()));

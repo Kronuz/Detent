@@ -55,7 +55,7 @@ int main() {
 		check(prepared.view.get("a", "k").value() == 42);
 	EXPECT(c::snapshot() - warm, ({}));
 	// The other namespace's knob lives in the same verified page: nothing more opens or hashes.
-	check(prepared.view.eval("b", "k").value() == true);
+	check(prepared.view.get("b", "k").value() == 1);
 	EXPECT(c::snapshot() - warm, ({}));
 	// Another open walks the directory and reads the records again.
 	const auto before = c::snapshot();

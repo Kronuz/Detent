@@ -27,7 +27,7 @@ HTML comment:
 
 ````markdown
 ```sh
-publish search:max_results '{"type":"int","default":25}'
+publish search:max_results '{"default":25}'
 sleep 1
 detent get search:max_results
 # 25

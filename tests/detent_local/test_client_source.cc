@@ -84,9 +84,9 @@ int main() {
 		std::filesystem::permissions(directory, std::filesystem::perms::owner_all);
 		auto defaults = directory.parent_path() / (directory.filename().string() + ".json");
 		const std::string json = R"({"schema_version":1,"knobs":{
-"app:count":{"type":"bool","default":false},
-"app:flag":{"type":"bool","default":false},
-"app:long_fallback_integer_name_for_allocation_probe":{"type":"int","default":25}}})";
+"app:count":{"default":0},
+"app:flag":{"default":0},
+"app:long_fallback_integer_name_for_allocation_probe":{"default":25}}})";
 		write(defaults, json);
 		l::ClientSourceOptions source_options;
 		source_options.directory = directory;
@@ -102,16 +102,14 @@ int main() {
 			return source;
 		};
 		auto client = std::make_unique<detent::Client>(options);
-		require(client->eval("app:count").value() == false);
+		require(client->get("app:count").value() == 0);
 		publish(directory, std::make_shared<const d::ValidatedSnapshot>(decode(fixture())), 'a');
 		require(source->refresh());
 		require(!source->refresh());
 		require(client->get("app:count").value() == std::numeric_limits<std::int64_t>::min());
-		require(client->eval("app:count").error().category == detent::ErrorCategory::WrongType);
-		require(client->eval("app:count").error().name == "app:count");
-		require(client->get("app:flag").error().category == detent::ErrorCategory::WrongType);
-		require(client->eval("app:flag").value());
-		require(client->eval("app:flag", "host", "beta").value() ==
+		require(client->get("app:missing").error().name == "app:missing");
+		require(client->get("app:flag").value() == 0);
+		require(client->get("app:flag", "host", "beta").value() ==
 				(detent::stable_bucket("app:flag", "host") < 17));
 		require(client->health().accepted_version == 42 && client->health().source_connected);
 		std::shared_ptr<l::LocalReadSource> cli_source;
@@ -126,8 +124,7 @@ int main() {
 		auto cli_client = std::make_unique<detent::Client>(cli_options);
 		require(cli_source->refresh());
 		require(cli_client->get("app:count").value() == 17 &&
-				!cli_client->eval("app:flag", "host", "beta").value());
-		require(cli_client->eval("app:count").error().category == detent::ErrorCategory::WrongType);
+				cli_client->get("app:flag", "host", "beta").value() == 0);
 		auto pinned = client->read_view();
 		require(pinned.get_as<std::uint64_t>("app:count").error().category ==
 				detent::ErrorCategory::ConversionFailed);
@@ -148,7 +145,7 @@ int main() {
 		require(allocations == 0);
 		publish(directory, empty(), 'b');
 		require(source->refresh());
-		require(client->eval("app:count").value() == false);
+		require(client->get("app:count").value() == 0);
 		require(client->read_view().cursor()->revision == 43 && pinned.cursor()->revision == 42);
 		require(pinned.get("app:count").value() == std::numeric_limits<std::int64_t>::min());
 		auto automatic = source_options;
@@ -162,7 +159,7 @@ int main() {
 			auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
 			while (!automatic_client.health().source_connected &&
 				   std::chrono::steady_clock::now() < deadline) {
-				require(!automatic_client.eval("app:count").value());
+				require(automatic_client.get("app:count").value() == 0);
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
 			require(automatic_client.health().source_connected &&

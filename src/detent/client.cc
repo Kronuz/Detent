@@ -30,8 +30,6 @@ template <class T> Result<T, KnobError> count_local_read(Result<T, KnobError> re
 		metrics.reads_ok.fetch_add(1, std::memory_order_relaxed);
 	else if (result.error().category == ErrorCategory::MissingKnob)
 		metrics.reads_missing.fetch_add(1, std::memory_order_relaxed);
-	else if (result.error().category == ErrorCategory::WrongType)
-		metrics.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
 	return result;
 }
 
@@ -40,7 +38,6 @@ const char* category_name(ErrorCategory c) noexcept {
 		case ErrorCategory::Uninitialized: return "Uninitialized";
 		case ErrorCategory::InvalidName: return "InvalidName";
 		case ErrorCategory::MissingKnob: return "MissingKnob";
-		case ErrorCategory::WrongType: return "WrongType";
 		case ErrorCategory::ConversionFailed: return "ConversionFailed";
 		case ErrorCategory::SourceFailure: return "SourceFailure";
 	}
@@ -158,68 +155,26 @@ Client::Client(Snapshot in_memory_snapshot)
 	last_success_steady_ms_.store(steady_ms_now());
 }
 
-Result<bool, KnobError> Client::eval(
-	std::string_view name,
-	std::optional<std::string_view> hash_val,
-	std::optional<std::string_view> switch_val) const {
-	if (read_source_)
-		return count_local_read(read_source_->read_view().eval(name, hash_val, switch_val), metrics_);
-	if (!is_valid_knob_name(name)) {
-		return KnobError{ErrorCategory::InvalidName, std::string(name), "malformed knob name"};
-	}
-
-	// Step 2: CLI override, cheapest path -- one shared_ptr null-check.
-	if (override_table_) {
-		auto it = override_table_->values.find(name);
-		if (it != override_table_->values.end()) {
-			if (const auto* b = std::get_if<bool>(&it->second)) {
-				metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-				return *b;
-			}
-			metrics_.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
-			return KnobError{ErrorCategory::WrongType, std::string(name), "override is int; eval() requires bool"};
-		}
-	}
-
-	// Step 3: one atomic acquire, held for the whole call via `snap`.
-	auto snap = current_.load();
-	auto it = snap->knobs.find(name);
-	if (it == snap->knobs.end()) {
-		metrics_.reads_missing.fetch_add(1, std::memory_order_relaxed);
-		return KnobError{ErrorCategory::MissingKnob, std::string(name), "not present in current snapshot"};
-	}
-
-	const auto* def = std::get_if<BoolDef>(&it->second);
-	if (def == nullptr) {
-		metrics_.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
-		return KnobError{ErrorCategory::WrongType, std::string(name), "knob is int; eval() requires bool"};
-	}
-
-	metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-	return detail::evaluate(*def, name, hash_val, switch_val);
-}
-
 Result<std::int64_t, KnobError> Client::get(
 	std::string_view name,
-	std::optional<std::string_view> /*switch_val, reserved and ignored in v1*/) const {
+	std::optional<std::string_view> hash_val,
+	std::optional<std::string_view> switch_val) const {
 	if (read_source_)
-		return count_local_read(read_source_->read_view().get(name), metrics_);
+		return count_local_read(read_source_->read_view().get(name, hash_val, switch_val), metrics_);
 	if (!is_valid_knob_name(name)) {
 		return KnobError{ErrorCategory::InvalidName, std::string(name), "malformed knob name"};
 	}
 
+	// CLI override, cheapest path -- one shared_ptr null-check.
 	if (override_table_) {
 		auto it = override_table_->values.find(name);
 		if (it != override_table_->values.end()) {
-			if (const auto* v = std::get_if<std::int64_t>(&it->second)) {
-				metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-				return *v;
-			}
-			metrics_.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
-			return KnobError{ErrorCategory::WrongType, std::string(name), "override is bool; get() requires int"};
+			metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
+			return it->second;
 		}
 	}
 
+	// One atomic acquire, held for the whole call via `snap`.
 	auto snap = current_.load();
 	auto it = snap->knobs.find(name);
 	if (it == snap->knobs.end()) {
@@ -227,27 +182,15 @@ Result<std::int64_t, KnobError> Client::get(
 		return KnobError{ErrorCategory::MissingKnob, std::string(name), "not present in current snapshot"};
 	}
 
-	const auto* def = std::get_if<IntDef>(&it->second);
-	if (def == nullptr) {
-		metrics_.reads_wrong_type.fetch_add(1, std::memory_order_relaxed);
-		return KnobError{ErrorCategory::WrongType, std::string(name), "knob is bool; get() requires int"};
-	}
-
 	metrics_.reads_ok.fetch_add(1, std::memory_order_relaxed);
-	return def->default_value;
+	return detail::evaluate(it->second, name, hash_val, switch_val);
 }
 
-bool Client::eval_or_panic(
+std::int64_t Client::get_or_panic(
 	std::string_view name,
 	std::optional<std::string_view> hash_val,
 	std::optional<std::string_view> switch_val) const {
-	auto r = eval(name, hash_val, switch_val);
-	if (!r) panic(r.error());
-	return r.value();
-}
-
-std::int64_t Client::get_or_panic(std::string_view name, std::optional<std::string_view> switch_val) const {
-	auto r = get(name, switch_val);
+	auto r = get(name, hash_val, switch_val);
 	if (!r) panic(r.error());
 	return r.value();
 }
@@ -265,8 +208,7 @@ HealthSnapshot Client::health() const noexcept {
 		health.accepted_version = status.cursor ? status.cursor->revision : 0;
 		health.staleness_seconds =
 			std::chrono::duration<double>(std::chrono::steady_clock::now() - status.last_success).count();
-		health.bool_knobs = status.bool_knobs;
-		health.int_knobs = status.int_knobs;
+		health.knobs = status.knobs;
 		health.cli_overrides = override_table_ ? override_table_->values.size() : 0;
 		return health;
 	}
@@ -278,8 +220,7 @@ HealthSnapshot Client::health() const noexcept {
 	auto now_ms = steady_ms_now();
 	auto last_ms = last_success_steady_ms_.load(std::memory_order_relaxed);
 	h.staleness_seconds = static_cast<double>(now_ms - last_ms) / 1000.0;
-	h.bool_knobs = snap->bool_count();
-	h.int_knobs = snap->int_count();
+	h.knobs = snap->knobs.size();
 	h.cli_overrides = override_table_ ? override_table_->values.size() : 0;
 	return h;
 }

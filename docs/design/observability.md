@@ -6,7 +6,7 @@ Which knobs each service reads, what they resolve to, when they fall back, and h
 
 - Author: [Germán Méndez Bravo](mailto:german.mb@gmail.com). Created 2026-11-09.
 - Base: `Detent:0bd2aba` (main). The reader core is not on main yet: core citations are at reader S6, `Detent:b1d281c` (`quest/detent/reader-s6`).
-- Depends on: reader.md R1 (the caller passes each lookup's default; no defaults file) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork); the `detent_*` C ABI (D1 there). It targets the Reader API only: `detent::Client`, defaults files and `parse_defaults` are decided for deletion (PLAN.md D13, D14; quest `legacy-h`), and nothing here reads from them. Benchmark: `docs/design/observability_bench.cc`, run by `observability-bench.sh`, summarized by `observability-summary.py` and paired by `observability-paired.py`.
+- Depends on: reader.md R1 (the caller passes each lookup's default; no defaults file) and R2 (no overrides in the reader), D3 (no lock, allocation or syscall on a warm lookup), D4 (the `change` file), D5 (striped pins), D10 (fork); the `detent_*` C ABI (D1 there). It targets the Reader API only: `detent::Client`, defaults files and `parse_defaults` are decided for deletion (PLAN.md D13, D14; quest `legacy-h`), and nothing here reads from them. Benchmark: `docs/design/observability_bench.cc` with `observability-bench.sh`, `observability-summary.py` and `observability-paired.py`, removed from the tree at `Detent:7aed2593`; read them at `Detent:7aed2593^`.
 
 ## Abstract
 

@@ -135,7 +135,7 @@ std::uint64_t seed_checkpoint(const a::ServiceOptions &options, std::size_t coun
 		command.mutations.clear();
 		for (std::size_t key = first; key < std::min(count, first + 128); ++key)
 			command.mutations.push_back(
-				{"ns:key" + std::to_string(key), detent::IntDef{static_cast<std::int64_t>(key)}, {}, {}});
+				{"ns:key" + std::to_string(key), detent::KnobDef{static_cast<std::int64_t>(key)}, {}, {}});
 		check(state.apply(++index, command).status == a::Status::Applied);
 	}
 	check(state.size() == count);
@@ -359,7 +359,7 @@ int main(int argc, char **argv) {
 						invoke(*service, transaction, "/v2/transactions",
 							   "{" + identity + "\"generation\":1,\"sequence\":" + std::to_string(sequence) +
 								   ",\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:key0\",\"value\":{"
-								   "\"type\":\"int\",\"default\":0}}]}");
+								   "\"default\":0}}]}");
 						if (transaction.code != 200 ||
 							transaction.body.find("\"status\":\"no_change\"") == std::string::npos)
 							std::cerr << "publisher sequence=" << sequence << " status=" << transaction.code

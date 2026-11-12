@@ -31,7 +31,7 @@ SnapshotPtr make_generation(std::uint64_t generation) {
 	auto snap = std::make_shared<Snapshot>();
 	snap->version = generation;
 	for (int i = 0; i < kKeysPerSnapshot; ++i) {
-		IntDef def;
+		KnobDef def;
 		// Every value in this snapshot encodes the same generation, so a
 		// reader that pulls several keys from ONE acquired snapshot can
 		// detect a mixed-generation read immediately.
@@ -57,9 +57,9 @@ int main() {
 			while (!stop.load(std::memory_order_relaxed)) {
 				auto snap = ref.load(); // one acquire, held for the whole check
 				std::this_thread::yield();
-				std::int64_t first = std::get<IntDef>(snap->knobs.begin()->second).default_value;
+				std::int64_t first = snap->knobs.begin()->second.default_value;
 				for (const auto& [name, def] : snap->knobs) {
-					auto v = std::get<IntDef>(def).default_value;
+					auto v = def.default_value;
 					// Every key must agree with the first key's generation --
 					// a reader must never see a partially-built or mixed map.
 					assert(v == first);

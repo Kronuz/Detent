@@ -76,7 +76,6 @@ struct Pack {
 			big(std::bit_cast<std::uint64_t>(n), width);
 		}
 	}
-	void boolean(bool b) { byte(b ? 0xc3 : 0xc2); }
 };
 std::string pack(const Snapshot &s) {
 	Pack p;
@@ -86,27 +85,26 @@ std::string pack(const Snapshot &s) {
 	for (const auto &[name, value] : s.knobs) {
 		p.array(2);
 		p.text(name);
-		if (auto i = std::get_if<IntDef>(&value)) {
-			p.array(2);
-			p.integer(1);
-			p.integer(i->default_value);
-		} else {
-			const auto &b = std::get<BoolDef>(value);
-			p.array(4);
-			p.integer(0);
-			p.boolean(b.default_value);
-			if (b.rollout_pct)
-				p.integer(*b.rollout_pct);
-			else
-				p.byte(0xc0);
-			p.array(b.overrides.size());
-			for (const auto &[key, value] : b.overrides) {
-				p.array(2);
-				p.text(key);
-				if (auto forced = std::get_if<bool>(&value))
-					p.boolean(*forced);
-				else
-					p.integer(std::get<GroupRollout>(value).rollout_pct);
+		p.array(4);
+		p.integer(value.default_value);
+		if (value.rollout_pct)
+			p.integer(*value.rollout_pct);
+		else
+			p.byte(0xc0);
+		if (value.rollout_value)
+			p.integer(*value.rollout_value);
+		else
+			p.byte(0xc0);
+		p.array(value.overrides.size());
+		for (const auto &[key, override] : value.overrides) {
+			p.array(3);
+			p.text(key);
+			if (auto forced = std::get_if<std::int64_t>(&override)) {
+				p.integer(0);
+				p.integer(*forced);
+			} else {
+				p.integer(1);
+				p.integer(std::get<GroupRollout>(override).rollout_pct);
 			}
 		}
 	}
@@ -165,10 +163,12 @@ struct Unpack {
 			bits |= UINT64_MAX << (width * 8);
 		return std::bit_cast<std::int64_t>(bits);
 	}
-	bool boolean() {
-		auto n = byte();
-		require(n == 0xc2 || n == 0xc3);
-		return n == 0xc3;
+	bool nil() {
+		require(!data.empty());
+		if (static_cast<unsigned char>(data.front()) != 0xc0)
+			return false;
+		byte();
+		return true;
 	}
 };
 Snapshot unpack(std::string_view data, std::size_t count) {
@@ -182,43 +182,36 @@ Snapshot unpack(std::string_view data, std::size_t count) {
 		require(p.array() == 2);
 		auto name = p.text();
 		require(is_valid_knob_name(name));
-		auto fields = p.array();
-		auto type = p.integer();
-		if (type == 1) {
-			require(fields == 2);
-			require(s.knobs.emplace(std::move(name), IntDef{p.integer()}).second);
-		} else {
-			require(type == 0 && fields == 4);
-			BoolDef b;
-			b.default_value = p.boolean();
-			require(!p.data.empty());
-			if (static_cast<unsigned char>(p.data.front()) == 0xc0)
-				p.byte();
+		require(p.array() == 4);
+		KnobDef b;
+		b.default_value = p.integer();
+		if (!p.nil()) {
+			auto pct = p.integer();
+			require(pct >= 0 && pct <= 100);
+			b.rollout_pct = pct;
+		}
+		if (!p.nil())
+			b.rollout_value = p.integer();
+		auto overrides = p.array();
+		require(overrides <= 256);
+		for (std::size_t j = 0; j < overrides; ++j) {
+			require(p.array() == 3);
+			auto key = p.text();
+			require(!key.empty() && key.size() <= 128);
+			auto tag = p.integer();
+			GroupOverride value;
+			if (tag == 0)
+				value = p.integer();
 			else {
+				require(tag == 1);
 				auto pct = p.integer();
 				require(pct >= 0 && pct <= 100);
-				b.rollout_pct = pct;
+				value = GroupRollout{static_cast<std::uint8_t>(pct)};
 			}
-			auto overrides = p.array();
-			require(overrides <= 256);
-			for (std::size_t j = 0; j < overrides; ++j) {
-				require(p.array() == 2);
-				auto key = p.text();
-				require(!key.empty() && key.size() <= 128);
-				require(!p.data.empty());
-				auto tag = static_cast<unsigned char>(p.data.front());
-				GroupOverride value;
-				if (tag == 0xc2 || tag == 0xc3)
-					value = p.boolean();
-				else {
-					auto pct = p.integer();
-					require(pct >= 0 && pct <= 100);
-					value = GroupRollout{static_cast<std::uint8_t>(pct)};
-				}
-				require(b.overrides.emplace(std::move(key), value).second);
-			}
-			require(s.knobs.emplace(std::move(name), std::move(b)).second);
+			require(b.overrides.emplace(std::move(key), value).second);
 		}
+		require(definition_error(b) == nullptr);
+		require(s.knobs.emplace(std::move(name), std::move(b)).second);
 	}
 	require(p.data.empty());
 	return s;
@@ -230,22 +223,18 @@ std::string protobuf(const Snapshot &s) {
 	for (const auto &[name, value] : s.knobs) {
 		auto *k = p.add_knobs();
 		k->set_name(name);
-		if (auto integer = std::get_if<IntDef>(&value))
-			k->set_integer(integer->default_value);
-		else {
-			const auto &b = std::get<BoolDef>(value);
-			auto *v = k->mutable_boolean();
-			v->set_default_value(b.default_value);
-			if (b.rollout_pct)
-				v->set_rollout(*b.rollout_pct);
-			for (const auto &[name, value] : b.overrides) {
-				auto *o = v->add_overrides();
-				o->set_name(name);
-				if (auto forced = std::get_if<bool>(&value))
-					o->set_forced(*forced);
-				else
-					o->set_rollout(std::get<GroupRollout>(value).rollout_pct);
-			}
+		k->set_default_value(value.default_value);
+		if (value.rollout_pct)
+			k->set_rollout(*value.rollout_pct);
+		if (value.rollout_value)
+			k->set_rollout_value(*value.rollout_value);
+		for (const auto &[key, override] : value.overrides) {
+			auto *o = k->add_overrides();
+			o->set_name(key);
+			if (auto forced = std::get_if<std::int64_t>(&override))
+				o->set_forced(*forced);
+			else
+				o->set_rollout(std::get<GroupRollout>(override).rollout_pct);
 		}
 	}
 	std::string bytes;
@@ -260,31 +249,28 @@ Snapshot unprotobuf(std::string_view bytes, std::size_t count) {
 	s.version = p.revision();
 	for (const auto &k : p.knobs()) {
 		require(is_valid_knob_name(k.name()));
-		if (k.has_integer())
-			require(s.knobs.emplace(k.name(), IntDef{k.integer()}).second);
-		else {
-			require(k.has_boolean());
-			const auto &v = k.boolean();
-			BoolDef b;
-			b.default_value = v.default_value();
-			if (v.has_rollout()) {
-				require(v.rollout() <= 100);
-				b.rollout_pct = v.rollout();
-			}
-			require(v.overrides_size() <= 256);
-			for (const auto &o : v.overrides()) {
-				require(!o.name().empty() && o.name().size() <= 128);
-				GroupOverride value;
-				if (o.has_forced())
-					value = o.forced();
-				else {
-					require(o.has_rollout() && o.rollout() <= 100);
-					value = GroupRollout{static_cast<std::uint8_t>(o.rollout())};
-				}
-				require(b.overrides.emplace(o.name(), value).second);
-			}
-			require(s.knobs.emplace(k.name(), std::move(b)).second);
+		KnobDef b;
+		b.default_value = k.default_value();
+		if (k.has_rollout()) {
+			require(k.rollout() <= 100);
+			b.rollout_pct = k.rollout();
 		}
+		if (k.has_rollout_value())
+			b.rollout_value = k.rollout_value();
+		require(k.overrides_size() <= 256);
+		for (const auto &o : k.overrides()) {
+			require(!o.name().empty() && o.name().size() <= 128);
+			GroupOverride value;
+			if (o.has_forced())
+				value = std::int64_t(o.forced());
+			else {
+				require(o.has_rollout() && o.rollout() <= 100);
+				value = GroupRollout{static_cast<std::uint8_t>(o.rollout())};
+			}
+			require(b.overrides.emplace(o.name(), value).second);
+		}
+		require(definition_error(b) == nullptr);
+		require(s.knobs.emplace(k.name(), std::move(b)).second);
 	}
 	return s;
 }
@@ -303,25 +289,7 @@ void oracle(const Snapshot &a, const Snapshot &b) {
 	require(a.version == b.version && a.knobs.size() == b.knobs.size());
 	auto x = a.knobs.begin(), y = b.knobs.begin();
 	while (x != a.knobs.end()) {
-		require(x->first == y->first && x->second.index() == y->second.index());
-		if (auto i = std::get_if<IntDef>(&x->second))
-			require(i->default_value == std::get<IntDef>(y->second).default_value);
-		else {
-			const auto &l = std::get<BoolDef>(x->second), &r = std::get<BoolDef>(y->second);
-			require(l.default_value == r.default_value && l.rollout_pct == r.rollout_pct &&
-					l.overrides.size() == r.overrides.size());
-			auto u = l.overrides.begin(), v = r.overrides.begin();
-			while (u != l.overrides.end()) {
-				require(u->first == v->first && u->second.index() == v->second.index());
-				if (auto forced = std::get_if<bool>(&u->second))
-					require(*forced == std::get<bool>(v->second));
-				else
-					require(std::get<GroupRollout>(u->second).rollout_pct ==
-							std::get<GroupRollout>(v->second).rollout_pct);
-				++u;
-				++v;
-			}
-		}
+		require(x->first == y->first && x->second == y->second);
 		++x;
 		++y;
 	}
@@ -351,15 +319,16 @@ int main(int argc, char **argv) {
 	source.version = 1;
 	for (std::size_t i = 0; i < count; ++i) {
 		auto name = "namespace" + std::to_string(i % 100) + ":service/feature_" + std::to_string(i);
+		KnobDef b;
 		if (i % 2)
-			source.knobs[name] = IntDef{static_cast<std::int64_t>(i)};
+			b.default_value = static_cast<std::int64_t>(i);
 		else {
-			BoolDef b;
 			b.rollout_pct = 25;
-			b.overrides["internal_employees"] = true;
+			b.rollout_value = 1;
+			b.overrides["internal_employees"] = std::int64_t{1};
 			b.overrides["production"] = GroupRollout{5};
-			source.knobs[name] = std::move(b);
 		}
+		source.knobs[name] = std::move(b);
 	}
 	std::string bytes;
 	Snapshot decoded;

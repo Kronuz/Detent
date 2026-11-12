@@ -6,7 +6,7 @@
 // grammar, the per-knob JSON writer, and the JSON-nesting-depth DoS guard
 // (security review finding F1) must be identical in both places, not
 // reimplemented a second time and risk drifting apart. Not part of the
-// public read/eval API -- internal to the detent library's own parsing
+// public read API -- internal to the detent library's own parsing
 // code, the same role validation.hh's free functions play for name/group-
 // key checks.
 
@@ -31,8 +31,8 @@ inline constexpr int kMaxJsonNestingDepth = 64;
 
 // Parses one knob's JSON object (the value half of a "knobs" map entry) into
 // a KnobDef. Shared by a full snapshot's "knobs" object and a patch's
-// "knobs" object -- a single knob's grammar (type/default/overrides/
-// rollout_pct) is identical in both; only what surrounds it (a whole map vs.
+// "knobs" object -- a single knob's grammar (default/overrides/
+// rollout_pct/rollout_value) is identical in both; only what surrounds it (a whole map vs.
 // one map plus per-key `null`-for-delete) differs.
 [[nodiscard]] Result<KnobDef, UpdateError> parse_knob_def(const rapidjson::Value& v, const std::string& name);
 

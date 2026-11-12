@@ -1,8 +1,8 @@
 # Section 6: the read path. One flow, top to bottom -- no branching
-# except the two entry points (eval/get) which converge immediately.
+# except the two entry points (get/get_as) which converge immediately.
 direction: down
 
-app: "client.eval() / client.get()" {
+app: "client.get() / client.get_as()" {
   shape: rectangle
 }
 
@@ -30,7 +30,7 @@ lookup: flat_map lookup {
   shape: rectangle
 }
 
-precedence: type-check + precedence\n(group > rollout > default) {
+precedence: precedence\n(group > rollout > default) {
   shape: rectangle
 }
 
@@ -41,4 +41,4 @@ hashing: stable_bucket()\n(SHA-256) {
 app -> validate -> override -> load -> lookup -> precedence
 override -> overrides_store: "read"
 load -> snap_store: "read"
-precedence -> hashing: "only if\nrollout_pct set"
+precedence -> hashing: "only if a percentage\napplies and hash_val is set"

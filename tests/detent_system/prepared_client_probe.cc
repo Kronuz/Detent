@@ -127,7 +127,7 @@ void read(char **argv, std::uint64_t iterations) {
 	          << ",\"table_bytes\":" << counts.table_bytes
 	          << ",\"pages_verified\":" << counts.pages_verified
 	          << ",\"bytes_hashed\":" << counts.bytes_hashed
-	          << ",\"records\":" << client.health().bool_knobs + client.health().int_knobs;
+	          << ",\"records\":" << client.health().knobs;
 	if (lookup_profile)
 		std::cout << ",\"profile_mapping_ns\":" << lookup_profile->mapping_ns
 				  << ",\"profile_mappings\":" << lookup_profile->mappings;

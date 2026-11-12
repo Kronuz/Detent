@@ -29,9 +29,11 @@ void put_cursor(std::string &out, const d::Cursor &c) {
 	m::unsigned_integer(out, c.revision);
 }
 void put_definition(std::string &out, std::int64_t value) {
-	m::array(out, 2);
-	m::unsigned_integer(out, 1);
+	m::array(out, 4); // [default, rollout %, rollout value, overrides]
 	m::signed_integer(out, value);
+	out.push_back('\xc0');
+	out.push_back('\xc0');
+	m::array(out, 0);
 }
 // A full copy of namespace "app" at `revision`: its records are (key, revision, value).
 std::shared_ptr<const d::ValidatedSnapshot> full_copy(std::uint64_t revision, std::uint64_t namespace_revision,

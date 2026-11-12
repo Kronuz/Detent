@@ -33,14 +33,10 @@ class AuthoritySnapshotSource final : public d::SnapshotSource {
 			records_.reset();
 			return {};
 		}
-		d::WireDefinition definition;
-		if ((flag_ = std::get_if<BoolDef>(row->definition))) {
-			group_ = flag_->overrides.begin();
-			definition = d::WireBoolDef{flag_->default_value,
-				{0, static_cast<std::uint64_t>(flag_->overrides.size())}, flag_->rollout_pct};
-		} else {
-			definition = std::get<IntDef>(*row->definition);
-		}
+		flag_ = row->definition;
+		group_ = flag_->overrides.begin();
+		d::WireDefinition definition{flag_->default_value, {0, static_cast<std::uint64_t>(flag_->overrides.size())},
+									 flag_->rollout_pct, flag_->rollout_value};
 		return {d::Record{row->namespace_index, row->key, row->revision, definition}, false};
 	}
 	std::optional<d::OverrideRow> next_override() override {
@@ -54,8 +50,8 @@ class AuthoritySnapshotSource final : public d::SnapshotSource {
   private:
 	std::shared_ptr<ExportCapture> capture_;
 	std::optional<ExportCapture::RecordCursor> records_;
-	std::optional<decltype(BoolDef::overrides)::const_iterator> group_;
-	const BoolDef *flag_ = nullptr;
+	std::optional<decltype(KnobDef::overrides)::const_iterator> group_;
+	const KnobDef *flag_ = nullptr;
 	std::uint64_t namespace_ = 0;
 };
 std::shared_ptr<d::SnapshotSource> source(std::shared_ptr<ExportCapture> capture) {

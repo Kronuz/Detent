@@ -9,7 +9,6 @@ enum class ErrorCategory {
 	Uninitialized,
 	InvalidName,
 	MissingKnob,
-	WrongType,
 	ConversionFailed,
 	SourceFailure,
 };

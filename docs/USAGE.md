@@ -26,8 +26,8 @@ Use this when a process only needs baked defaults and only picks up changes on r
 {
   "schema_version": 1,
   "knobs": {
-    "checkout:killswitch_new_path": { "type": "bool", "default": false },
-    "search:max_results": { "type": "int", "default": 25 }
+    "checkout:killswitch_new_path": { "default": 0 },
+    "search:max_results": { "default": 25 }
   }
 }
 ```
@@ -46,7 +46,7 @@ int main() {
     std::printf("search:max_results = %lld\n",
                 (long long)client.get_or_panic("search:max_results"));
     std::printf("checkout:killswitch_new_path = %s\n",
-                client.eval_or_panic("checkout:killswitch_new_path")
+                client.get_or_panic("checkout:killswitch_new_path") == 1
                     ? "true"
                     : "false");
 }
@@ -78,43 +78,43 @@ options.read_source = detent::local::make_local_read_source(
 detent::Client client(std::move(options));
 auto view = client.read_view();
 auto maximum = view.get("search:max_results");
-auto enabled = view.eval("checkout:new_path", "host-42", "beta");
+auto enabled = view.get_as<bool>("checkout:new_path", "host-42", "beta");
 ```
 
-The source performs filesystem work on one configuration thread; successful scoped acquisition and lookup need no merged snapshot allocation. CLI overrides win over live definitions, and missing live keys fall back to baked defaults. Type and conversion errors do not fall back. Failed refresh preserves the prior view, and `client.health()` reports source connectivity. Local-source clients use `read_view()` instead of `current_snapshot()`, which rejects eager conversion with `logic_error`. Scoped reads do not increment their parent client's metrics. Destroy automatically refreshing sources outside an event-loop turn because destruction joins their worker.
+The source performs filesystem work on one configuration thread; successful scoped acquisition and lookup need no merged snapshot allocation. CLI overrides win over live definitions, and missing live keys fall back to baked defaults. Conversion errors do not fall back. Failed refresh preserves the prior view, and `client.health()` reports source connectivity. Local-source clients use `read_view()` instead of `current_snapshot()`, which rejects eager conversion with `logic_error`. Scoped reads do not increment their parent client's metrics. Destroy automatically refreshing sources outside an event-loop turn because destruction joins their worker.
 
 The opt-in managed agent publishes immutable generations for this SDK source. Its configuration and startup modes are described below; the complete managed-agent/SDK component has Architect acceptance and platform/sanitizer qualification. See the [delivery integration blueprint](DELIVERY_INTEGRATION_ARCHITECTURE.md) for current implementation and acceptance gates.
 
 ### Gradual rollouts and per-group overrides
 
-Bool knobs can combine a rollout percentage with named overrides. Overrides accept a boolean or `{"rollout_pct": 50}` for a group-specific rollout. The group percentage uses the same hash bucket; without a hash it uses the knob default. Unknown groups fall through to the knob-wide rollout:
+Any knob can combine a rollout percentage with named overrides. Callers inside the percentage get `rollout_value`, and callers outside it get the default. Overrides accept an integer or `{"rollout_pct": 50}` for a group-specific rollout. The group percentage uses the same hash bucket; without a hash it uses the knob default. Unknown groups fall through to the knob-wide rollout:
 
 ```json
 {
   "schema_version": 1,
   "knobs": {
     "payments:new_processor": {
-      "type": "bool",
-      "default": false,
+      "default": 0,
+      "overrides": { "internal_employees": 1 },
       "rollout_pct": 10,
-      "overrides": { "internal_employees": true }
+      "rollout_value": 1
     }
   }
 }
 ```
 
 ```cpp
-client.eval_or_panic("payments:new_processor");                               // false
-client.eval_or_panic("payments:new_processor", "user-1");                     // false
-client.eval_or_panic("payments:new_processor", "user-42");                    // true
-client.eval_or_panic("payments:new_processor", "user-2", "internal_employees"); // true
+client.get_or_panic("payments:new_processor");                               // 0
+client.get_or_panic("payments:new_processor", "user-1");                     // 0
+client.get_or_panic("payments:new_processor", "user-42");                    // 1
+client.get_or_panic("payments:new_processor", "user-2", "internal_employees"); // 1
 ```
 
 Evaluation order is:
 
 1. CLI override.
-2. Exact-match `switch_val` override.
-3. `rollout_pct` gate, when `hash_val` is present.
+2. Exact-match `switch_val` override: a forced value, or a group percentage when `hash_val` is present.
+3. `rollout_pct` gate, when `hash_val` is present: `rollout_value` inside the percentage, the default outside it.
 4. Baked or live default.
 
 The rollout bucket is stable for the same `(knob_name, hash_val)` pair across processes and restarts.
@@ -137,7 +137,7 @@ A managed `detent-agent` receives authenticated deliveries from a durable author
 ./build/src/detent-agent --status --managed managed.json
 ```
 
-`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies a fallback for that read, and `--defaults PATH` supplies baked typed defaults for knobs the generation omits.
+`get` starts the agent when no durable generation is present, and waits for the first one. A durable generation stays readable with the agent stopped. `--default VALUE` supplies a fallback for that read, and `--defaults PATH` supplies baked defaults for knobs the generation omits.
 
 With no `--managed` and no `--generation-dir` (or `managed_path` and `generation_dir` in `agent.json`), both `detent get` and `detent-agent` exit with `no source configured`.
 
@@ -164,7 +164,7 @@ Then use plain `detent get NAME` from any directory.
 
 ### Optional local defaults and runtime files
 
-A delivered generation already contains knob types and values. `defaults.json` is optional and supplies local fallback knobs when no generation is present yet or a generation omits a knob. Place it beside `agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped.
+A delivered generation already contains knob definitions. `defaults.json` is optional and supplies local fallback knobs when no generation is present yet or a generation omits a knob. Place it beside `agent.json`, or set `"defaults_path": "defaults.json"` in the config. Relative paths in config are resolved against the config directory. An explicitly configured defaults file must exist and contain valid defaults JSON; an absent conventional file is simply skipped.
 
 Runtime files (`agent.pid`, `agent.log`) go in `$XDG_RUNTIME_DIR/detent` when an absolute XDG runtime directory is set. Otherwise the agent uses a private `detent-<uid>` directory under the system temporary directory (`TMPDIR` when set, normally `/tmp` on Linux/FreeBSD and a per-user temporary directory on macOS). It creates the runtime directory with mode `0700`. `runtime_dir` in config or `--runtime-dir PATH` overrides it.
 
@@ -223,7 +223,7 @@ Later starts omit `--initialize-managed` and require an existing managed store. 
 
 A public `agent.json` can select `managed_path` and `generation_dir`. Set all four public identity fields (`generation_cluster`, `generation_group`, `generation_epoch`, `generation_scope`) to bind shell reads and status to the intended authority scope. Their flag equivalents are `--generation-cluster`, `--generation-group`, `--generation-epoch`, and `--generation-scope`; partial identities are rejected. Identity strings use lowercase hexadecimal (32 characters for cluster/group/epoch, 64 for scope). The SDK source accepts the corresponding expected cursor identity. Distribute this public identity separately from the private token.
 
-`detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults, while invalid live types remain errors. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
+`detent get NAME --generation-dir ./agent-state` reads the selected durable generation even while the agent is stopped. With a managed profile configured, user reads can auto-start a missing agent; `--system` leaves process startup to the service manager. Defaults remain optional. Missing live keys fall back to defaults. `detent-agent --status --generation-dir ./agent-state` reports durable revision and count independently of the process status.
 
 Optional bounds default to 256 MiB managed heap, 512 MiB mapped virtual space, 1 GiB named disk space, 4,096 disk entries, and 1,024 generations. Configure them with `heap_bytes`, `mapping_bytes`, `disk_bytes`, `disk_entries`, and `disk_generations`. These accounts exclude immutable configuration/startup parsing, Asio/TLS internals, thread stacks, and operating-system memory. `poll_interval_ms` defaults to 200 and `timeout_ms` to 60,000; `compression` defaults to true. Unknown or duplicate fields are rejected. `artifact_mode` accepts decimal `384`, `416`, or `420` (octal `0600`, `0640`, or `0644`); user mode defaults to `0600`, system mode to `0644`.
 

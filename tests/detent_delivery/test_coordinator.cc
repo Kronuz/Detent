@@ -151,15 +151,15 @@ std::string response(std::uint32_t count, std::uint64_t revision = 1) {
 		u(0);
 		m::string(wire, key);
 		u(1);
+		a(4);
 		if (i % 4 == 0) {
-			a(2);
-			u(1);
 			m::signed_integer(wire, -std::int64_t(i));
+			wire.append("\xc0\xc0", 2);
+			a(0);
 		} else {
-			a(4);
-			u(0);
-			wire.push_back(i % 2 ? '\xc3' : '\xc2');
+			u(i % 2);
 			u(25);
+			u(1);
 			a(1);
 			a(3);
 			m::string(wire, "beta");
@@ -222,9 +222,10 @@ std::string transition_response(bool progress) {
 		u(0);
 		m::string(wire, "app:key000004");
 		u(0);
-		a(2);
-		u(1);
+		a(4);
 		m::signed_integer(wire, -4);
+		wire.append("\xc0\xc0", 2);
+		a(0);
 	}
 	d::Identity identity{};
 	identity.fill(progress ? 'p' : 'd');
@@ -1318,7 +1319,6 @@ int main(int argc, char **argv) {
 			check(recovered.descriptor().cursor == final_cursor);
 			check(recovered.view().size() == count);
 			const auto view = recovered.view();
-			check(view.int_count() == (count + 3) / 4 && view.bool_count() == count - (count + 3) / 4);
 			for (std::uint32_t i = 0; i != count; ++i) {
 				char digits[7];
 				const auto end = std::to_chars(digits, digits + sizeof(digits), i).ptr;
@@ -1329,13 +1329,13 @@ int main(int argc, char **argv) {
 					auto integer = view.try_get("app", key);
 					check(integer && *integer && integer->value() == -std::int64_t(i));
 				} else {
-					auto boolean = view.try_eval("app", key);
-					check(boolean && *boolean && boolean->value() == bool(i % 2));
-					auto switched = view.try_eval("app", key, {}, "beta");
-					check(switched && *switched && switched->value() == bool(i % 2));
-					auto cohort = view.try_eval("app", key, "scale-host", "beta");
-					check(cohort && *cohort &&
-						  cohort->value() == (detent::stable_bucket("app:" + key, "scale-host") < 17));
+					auto plain = view.try_get("app", key);
+					check(plain && *plain && plain->value() == i % 2);
+					auto switched = view.try_get("app", key, {}, "beta");
+					check(switched && *switched && switched->value() == i % 2);
+					auto cohort = view.try_get("app", key, "scale-host", "beta");
+					const bool bucket = detent::stable_bucket("app:" + key, "scale-host") < 17;
+					check(cohort && *cohort && cohort->value() == (bucket ? 1 : i % 2));
 				}
 			}
 		}

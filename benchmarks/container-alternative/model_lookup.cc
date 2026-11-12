@@ -46,14 +46,15 @@ int main(int argc, char** argv) {
     for (unsigned id = 0; id < entries; ++id) {
         names.push_back(name(id, false, long_keys));
         misses.push_back(name(id, true, long_keys));
+        detent::KnobDef definition;
         if (id % 2) {
-            detent::BoolDef definition;
-            definition.default_value = true;
-            definition.overrides.emplace(forced, true);
-            definition.overrides.emplace(denied, false);
+            definition.default_value = 1;
+            definition.rollout_value = 1;
+            definition.overrides.emplace(forced, std::int64_t{1});
+            definition.overrides.emplace(denied, std::int64_t{0});
             definition.overrides.emplace(ramp, detent::GroupRollout{50});
-            snapshot.knobs.emplace(names.back(), std::move(definition));
-        } else snapshot.knobs.emplace(names.back(), detent::IntDef{static_cast<std::int64_t>(id)});
+        } else definition.default_value = static_cast<std::int64_t>(id);
+        snapshot.knobs.emplace(names.back(), std::move(definition));
     }
     detent::Client client(std::move(snapshot));
     auto view = client.read_view();
@@ -83,17 +84,17 @@ int main(int argc, char** argv) {
         return std::uint64_t{1};
     });
     run("view-bool-default", [&](unsigned id) {
-        auto result = view.eval(names[2 * id + 1]);
+        auto result = view.get(names[2 * id + 1]);
         if (!result || !result.value()) std::abort();
         return std::uint64_t{1};
     });
     run("view-bool-forced", [&](unsigned id) {
-        auto result = view.eval(names[2 * id + 1], {}, std::string_view(forced));
+        auto result = view.get(names[2 * id + 1], {}, std::string_view(forced));
         if (!result || !result.value()) std::abort();
         return std::uint64_t{1};
     });
     run("view-bool-rollout", [&](unsigned id) {
-        auto result = view.eval(names[2 * id + 1], std::string_view("host-123"), std::string_view(ramp));
+        auto result = view.get(names[2 * id + 1], std::string_view("host-123"), std::string_view(ramp));
         if (!result) std::abort();
         return static_cast<std::uint64_t>(result.value());
     });

@@ -115,12 +115,12 @@ ReadView MappedRecoveryAdmission::take_view() {
 		throw std::logic_error("mapped admission view already consumed");
 	const auto root = capability_->root();
 	const auto counts = capability_->counts();
-	if (counts.bools != expected_counts_.bools || counts.ints != expected_counts_.ints ||
+	if (counts.records != expected_counts_.records ||
 		counts.overrides != expected_counts_.overrides || counts.strings != expected_counts_.strings ||
 		counts.maximum_overrides != expected_counts_.maximum_overrides)
 		throw std::invalid_argument("mapped recovery counts differ from admitted plan");
-	view_->install_paged(capability_hook_, {root, capability_->registry()->inputs()}, counts.bools,
-						 counts.ints, counts.overrides, counts.strings);
+	view_->install_paged(capability_hook_, {root, capability_->registry()->inputs()}, counts.overrides,
+						 counts.strings);
 	return ReadView(std::move(view_));
 }
 void MappedRecoveryAdmission::claim_attempt() {

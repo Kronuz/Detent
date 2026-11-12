@@ -42,7 +42,7 @@ int main() {
 	write(directory / "unrelated.pack", std::string_view("unreachable garbage"));
 	auto view = l::open_generation(directory);
 	require(view.size() == 2 && view.get("app", "count").value() == INT64_MIN);
-	require(view.eval("app", "flag", "host", "beta").value() ==
+	require(view.get("app", "flag", "host", "beta").value() ==
 			(detent::stable_bucket("app:flag", "host") < 17));
 	{
 		auto empty = image.root();

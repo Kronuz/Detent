@@ -29,11 +29,11 @@ int main() {
 		}
 		auto view = validator.take();
 		require(view.get("app", "count").value() == std::numeric_limits<std::int64_t>::min());
-		require(view.eval("app", "flag").value());
-		require(view.eval("app", "flag", {}, "beta").value());
-		require(view.eval("app", "flag", "host", "beta").value() ==
+		require(view.get("app", "flag").value() == 0);
+		require(view.get("app", "flag", {}, "beta").value() == 0);
+		require(view.get("app", "flag", "host", "beta").value() ==
 				(detent::stable_bucket("app:flag", "host") < 17));
-		require(view.eval("app", "flag", "host").value() == (detent::stable_bucket("app:flag", "host") < 25));
+		require(view.get("app", "flag", "host").value() == (detent::stable_bucket("app:flag", "host") < 25));
 		detent::local::ViewLimits limits;
 		limits.bytes = 192;
 		rejected = false;

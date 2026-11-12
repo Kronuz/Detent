@@ -31,11 +31,8 @@ std::size_t key(const void *owner, std::uint64_t ordinal, std::span<char> destin
 }
 p::Override snapshot_override(const void *owner, std::uint64_t ordinal, std::uint32_t index) {
 	const auto &source = *static_cast<const d::ValidatedSnapshot *>(owner);
-	const auto &wire = std::get<d::WireBoolDef>(source.records()[ordinal].definition);
-	const auto &row = source.overrides(wire)[index];
-	const auto *rollout = std::get_if<GroupRollout>(&row.second);
-	return {row.first, rollout != nullptr,
-			rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(row.second))};
+	const auto &row = source.overrides(source.records()[ordinal].definition)[index];
+	return {row.first, row.second};
 }
 
 std::size_t borrowed_key(const void *owner, std::uint64_t ordinal, std::span<char> destination) {
@@ -152,16 +149,10 @@ struct PagedSnapshotBuilder::Impl {
 			require(event.kind == p::PageKind::Definition &&
 					event.ordinal < source->records().size());
 			const auto &record = source->records()[event.ordinal];
-			p::Definition definition;
-			definition.revision = record.revision;
-			if (const auto *boolean = std::get_if<d::WireBoolDef>(&record.definition)) {
-				require(boolean->overrides.count <= 256);
-				definition.boolean = true;
-				definition.default_bool = boolean->default_value;
-				definition.rollout = boolean->rollout_pct;
-				definition.overrides = boolean->overrides.count;
-			} else
-				definition.default_int = std::get<IntDef>(record.definition).default_value;
+			const auto &wire = record.definition;
+			require(wire.overrides.count <= 256);
+			const auto definition = p::Definition{record.revision, wire.default_value, wire.rollout_pct,
+												  wire.rollout_value, static_cast<std::uint32_t>(wire.overrides.count)};
 			leaf_body.emplace(account, definition, source.get(), event.ordinal, snapshot_override,
 							  p::maximum_leaf_body_bytes - event.prefix.size());
 		}

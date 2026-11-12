@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 			std::string out = R"({"schema_version":1,"knobs":{)";
 			for (int i = 0; i < 100000; ++i)
 				out += (i ? "," : "") + std::string("\"n") + std::to_string(i % 10) + ":k" + std::to_string(i) +
-					   R"(":{"type":"int","default":)" + std::to_string(std::int64_t(i) * 3 + revision) + "}";
+					   R"(":{"default":)" + std::to_string(std::int64_t(i) * 3 + revision) + "}";
 			return out + "}}";
 		};
 		fs::remove_all(dir);
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 		std::string json = R"({"schema_version":1,"knobs":{)";
 		for (int i = 0; i < count; ++i)
 			json += (i ? "," : "") + std::string("\"n") + std::to_string(i % 10) + ":k" + std::to_string(i) +
-					R"(":{"type":"int","default":)" + std::to_string(std::int64_t(i) * 3 + 1) + "}";
+					R"(":{"default":)" + std::to_string(std::int64_t(i) * 3 + 1) + "}";
 		json += "}}";
 		detent::testing::GenerationWriter writer(dir);
 		writer.publish_json(json);

@@ -25,7 +25,7 @@ template <class Action> void rejects_corruption(Action action) {
 }
 bool same_counts(const l::detail::PagedStateCounts &a,
                  const l::detail::PagedStateCounts &b) {
-  return a.bools == b.bools && a.ints == b.ints && a.overrides == b.overrides &&
+  return a.records == b.records && a.overrides == b.overrides &&
          a.strings == b.strings && a.maximum_overrides == b.maximum_overrides;
 }
 template <class Validator> void bounded(Validator &validator) {
@@ -92,8 +92,8 @@ void warm_skips() {
     x::PagedReadState state{root, merged};
     for (unsigned j = 0; j != 500; ++j) {
       const auto key = "k" + std::to_string(100000 + j);
-      check(state.definition("a", key)->default_int() == 42 + j);
-      check(state.definition("b", key)->default_bool());
+      check(state.definition("a", key)->default_value() == 42 + j);
+      check(state.definition("b", key)->default_value() == 1);
     }
   }
   for (unsigned field : {32u, 40u, 44u}) {
@@ -419,13 +419,14 @@ int main(int argc, char **argv) {
     auto state = read_state(source, verified);
     const auto body =
         state.lookup(source->rows.front().key, p::PageKind::Definition);
-    check(body && body->size() >= 24);
+    check(body && body->size() >= p::definition_header_bytes);
     const auto at = body->data() - source->bytes.data();
-    // Value edits retaining valid framing remain visible until scrub.
-    source->bytes[at + 23] ^= 1;
+    // Value edits retaining valid framing remain visible until scrub: byte 10 is the default's
+    // one-byte varint, so flipping its low bit changes the value only.
+    source->bytes[at + 10] ^= 1;
     const auto changed =
         state.lookup(source->rows.front().key, p::PageKind::Definition);
-    check(changed && (*changed)[23] != source->rows.front().body[23]);
+    check(changed && (*changed)[10] != source->rows.front().body[10]);
     auto bytes =
         std::span<char>(source->bytes)
             .subspan(source->root.tree.offset, source->root.tree.length);

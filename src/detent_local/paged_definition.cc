@@ -1,8 +1,8 @@
 #include "detent_local/paged_definition.hh"
 #include "detent/utf8.hh"
 #include "detent/validation.hh"
+#include <varint.hh>
 #include <algorithm>
-#include <bit>
 #include <stdexcept>
 
 namespace detent::local::paged {
@@ -15,123 +15,136 @@ bool less(std::string_view a, std::string_view b) {
 	return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(),
 										[](unsigned char x, unsigned char y) { return x < y; });
 }
+namespace leb128 = varint::leb128;
+// Writes value at offset; the caller sized the span by header_size or override_size.
+std::size_t put_varint(std::span<char> bytes, std::size_t offset, std::uint64_t value) {
+	require(offset <= bytes.size() && leb128::size(value) <= bytes.size() - offset);
+	return leb128::encode(bytes.data() + offset, value) - bytes.data();
+}
+// A canonical LEB128 value: no overlong encoding, no bits past 64.
+std::uint64_t get_varint(std::span<const char> bytes, std::size_t &offset) {
+	const char *at = bytes.data() + offset;
+	std::uint64_t value = 0;
+	require(leb128::decode(&at, bytes.data() + bytes.size(), value));
+	offset = at - bytes.data();
+	return value;
+}
+std::int64_t get_signed(std::span<const char> bytes, std::size_t &offset) {
+	return leb128::unzigzag(get_varint(bytes, offset));
+}
 } // namespace
 std::size_t definition_size(const KnobDef &definition, std::uint32_t maximum_overrides) {
-	std::size_t size = definition_header_bytes;
-	if (const auto *value = std::get_if<BoolDef>(&definition)) {
-		require(value->overrides.size() <= maximum_overrides &&
-				(!value->rollout_pct || *value->rollout_pct <= 100));
-		std::string_view previous;
-		for (const auto &[key, override] : value->overrides) {
-			require(is_valid_group_key(key) && valid_utf8(key, false) &&
-					(previous.empty() || less(previous, key)));
-			if (const auto *rollout = std::get_if<GroupRollout>(&override))
-				require(rollout->rollout_pct <= 100);
-			require(size <= page_bytes - 4 - key.size());
-			size += 4 + key.size();
-			previous = key;
-		}
+	require(definition.overrides.size() <= maximum_overrides && !definition_error(definition));
+	Definition header;
+	header.default_value = definition.default_value;
+	header.rollout_value = definition.rollout_value;
+	header.overrides = definition.overrides.size();
+	std::size_t size = header_size(header);
+	std::string_view previous;
+	for (const auto &[key, override] : definition.overrides) {
+		require(is_valid_group_key(key) && valid_utf8(key, false) && (previous.empty() || less(previous, key)));
+		const auto row = override_size({key, override});
+		require(size <= page_bytes && row <= page_bytes - size);
+		size += row;
+		previous = key;
 	}
 	return size;
 }
 void encode_definition_header(std::span<char> bytes, const Definition &definition,
 							  std::uint32_t maximum_overrides) {
-	require(bytes.size() == definition_header_bytes && definition.revision &&
-			definition.overrides <= maximum_overrides &&
+	require(bytes.size() == header_size(definition) && definition.revision &&
+			definition.overrides <= maximum_overrides && definition.overrides < (1u << 14) &&
 			(!definition.rollout || *definition.rollout <= 100) &&
-			(definition.boolean || (!definition.overrides && !definition.rollout)));
-	std::fill(bytes.begin(), bytes.end(), 0);
+			(!definition.rollout || definition.rollout_value));
 	write_integer(bytes, 0, definition.revision, 8);
-	if (!definition.boolean) {
-		bytes[8] = 2;
-		write_integer(bytes, 16, std::bit_cast<std::uint64_t>(definition.default_int), 8);
-		return;
-	}
-	bytes[8] = 1;
-	bytes[9] = definition.default_bool;
-	bytes[10] = static_cast<char>(definition.rollout ? *definition.rollout : 255);
-	write_integer(bytes, 12, definition.overrides, 4);
+	bytes[8] = static_cast<char>(definition.rollout ? *definition.rollout : 255);
+	bytes[9] = definition.rollout_value.has_value();
+	auto offset = put_varint(bytes, 10, leb128::zigzag(definition.default_value));
+	offset = put_varint(bytes, offset, definition.overrides);
+	if (definition.rollout_value)
+		put_varint(bytes, offset, leb128::zigzag(*definition.rollout_value));
 }
 void encode_override(std::span<char> bytes, const Override &value) {
-	require(is_valid_group_key(value.key) && valid_utf8(value.key, false) &&
-			bytes.size() == 4 + value.key.size() && value.value <= (value.percentage ? 100 : 1));
-	write_integer(bytes, 0, value.key.size(), 2);
-	bytes[2] = value.percentage;
-	bytes[3] = static_cast<char>(value.value);
-	std::copy(value.key.begin(), value.key.end(), bytes.begin() + 4);
+	const auto *rollout = std::get_if<GroupRollout>(&value.value);
+	require(is_valid_group_key(value.key) && valid_utf8(value.key, false) && bytes.size() == override_size(value) &&
+			(!rollout || rollout->rollout_pct <= 100));
+	bytes[0] = static_cast<char>(value.key.size());
+	bytes[1] = rollout != nullptr;
+	std::size_t offset = 2;
+	if (rollout)
+		bytes[offset++] = static_cast<char>(rollout->rollout_pct);
+	else
+		offset = put_varint(bytes, offset, leb128::zigzag(std::get<std::int64_t>(value.value)));
+	std::copy(value.key.begin(), value.key.end(), bytes.begin() + offset);
 }
 void encode_definition(std::span<char> bytes, const KnobDef &definition, std::uint64_t revision,
 					   std::uint32_t maximum_overrides) {
 	require(bytes.size() == definition_size(definition, maximum_overrides));
 	Definition header;
 	header.revision = revision;
-	if (const auto *value = std::get_if<IntDef>(&definition)) {
-		header.default_int = value->default_value;
-		encode_definition_header(bytes, header, maximum_overrides);
-		return;
-	}
-	const auto &value = std::get<BoolDef>(definition);
-	header.boolean = true;
-	header.default_bool = value.default_value;
-	header.rollout = value.rollout_pct;
-	header.overrides = value.overrides.size();
-	encode_definition_header(bytes.first(definition_header_bytes), header, maximum_overrides);
-	std::size_t offset = definition_header_bytes;
-	for (const auto &[key, override] : value.overrides) {
-		const auto *rollout = std::get_if<GroupRollout>(&override);
-		encode_override(
-			bytes.subspan(offset, 4 + key.size()),
-			{key, rollout != nullptr,
-			 rollout ? rollout->rollout_pct : static_cast<std::uint8_t>(std::get<bool>(override))});
-		offset += 4 + key.size();
+	header.default_value = definition.default_value;
+	header.rollout = definition.rollout_pct;
+	header.rollout_value = definition.rollout_value;
+	header.overrides = definition.overrides.size();
+	std::size_t offset = header_size(header);
+	encode_definition_header(bytes.first(offset), header, maximum_overrides);
+	for (const auto &[key, override] : definition.overrides) {
+		const auto size = override_size({key, override});
+		encode_override(bytes.subspan(offset, size), {key, override});
+		offset += size;
 	}
 }
 Override read_override(std::span<const char> bytes, std::size_t &offset) {
-	require(offset <= bytes.size() && bytes.size() - offset >= 4);
-	const auto length = read_integer(bytes, offset, 2);
-	const auto kind = static_cast<unsigned char>(bytes[offset + 2]);
-	const auto value = static_cast<unsigned char>(bytes[offset + 3]);
-	require(length && length <= 128 && length <= bytes.size() - offset - 4 && kind <= 1 &&
-			value <= (kind ? 100 : 1));
-	Override result{{bytes.data() + offset + 4, static_cast<std::size_t>(length)}, kind == 1, value};
-	require(valid_utf8(result.key, false));
-	offset += 4 + length;
-	return result;
+	require(offset <= bytes.size() && bytes.size() - offset >= 3);
+	const auto length = static_cast<unsigned char>(bytes[offset]);
+	const auto kind = static_cast<unsigned char>(bytes[offset + 1]);
+	require(length && length <= 128 && kind <= 1);
+	auto at = offset + 2;
+	GroupOverride value;
+	if (kind) {
+		const auto percentage = static_cast<unsigned char>(bytes[at++]);
+		require(percentage <= 100);
+		value = GroupRollout{percentage};
+	} else
+		value = get_signed(bytes, at);
+	require(length <= bytes.size() - at);
+	offset = at + length;
+	return {{bytes.data() + at, length}, value};
 }
 Definition decode_definition_header(std::span<const char> bytes, std::uint64_t namespace_revision,
 									std::uint32_t maximum_overrides) {
 	require(bytes.size() >= definition_header_bytes && bytes.size() <= page_bytes);
 	Definition result;
 	result.revision = read_integer(bytes, 0, 8);
-	require(result.revision && result.revision <= namespace_revision && !bytes[11]);
-	const auto kind = static_cast<unsigned char>(bytes[8]);
-	result.overrides = read_integer(bytes, 12, 4);
-	if (kind == 2) {
-		require(bytes.size() == definition_header_bytes && !bytes[9] && !bytes[10] && !result.overrides);
-		result.default_int = std::bit_cast<std::int64_t>(read_integer(bytes, 16, 8));
-		return result;
-	}
-	require(kind == 1 && static_cast<unsigned char>(bytes[9]) <= 1 && !read_integer(bytes, 16, 8) &&
-			result.overrides <= maximum_overrides);
-	result.boolean = true;
-	result.default_bool = bytes[9];
-	const auto rollout = static_cast<unsigned char>(bytes[10]);
-	require(rollout == 255 || rollout <= 100);
+	require(result.revision && result.revision <= namespace_revision);
+	const auto rollout = static_cast<unsigned char>(bytes[8]);
+	const auto flags = static_cast<unsigned char>(bytes[9]);
+	require((rollout == 255 || rollout <= 100) && flags <= 1 && (rollout == 255 || flags));
+	std::size_t offset = 10;
+	result.default_value = get_signed(bytes, offset);
+	const auto count = get_varint(bytes, offset);
+	require(count <= maximum_overrides && count < (1u << 14));
+	result.overrides = static_cast<std::uint32_t>(count);
 	if (rollout != 255)
 		result.rollout = rollout;
+	if (flags)
+		result.rollout_value = get_signed(bytes, offset);
 	return result;
 }
 Definition validate_definition(std::span<const char> bytes, std::uint64_t namespace_revision,
 							   std::uint32_t maximum_overrides) {
-	const auto result = decode_definition_header(bytes, namespace_revision, maximum_overrides);
-	std::size_t offset = definition_header_bytes;
+	auto result = decode_definition_header(bytes, namespace_revision, maximum_overrides);
+	std::size_t offset = header_size(result);
 	std::string_view previous;
+	bool percentage = result.rollout.has_value();
 	for (std::uint32_t i = 0; i < result.overrides; ++i) {
 		const auto item = read_override(bytes, offset);
-		require(previous.empty() || less(previous, item.key));
+		require(valid_utf8(item.key, false) && (previous.empty() || less(previous, item.key)));
+		percentage = percentage || std::holds_alternative<GroupRollout>(item.value);
+		result.key_bytes += item.key.size();
 		previous = item.key;
 	}
-	require(offset == bytes.size());
+	require(offset == bytes.size() && percentage == result.rollout_value.has_value());
 	return result;
 }
 } // namespace detent::local::paged

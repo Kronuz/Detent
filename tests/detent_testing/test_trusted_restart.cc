@@ -68,7 +68,7 @@ std::string json(int revision) {
 	for (int i = 0; i < knobs + 10; ++i)
 		if (const auto value = expected(revision, i)) {
 			out += (first ? "" : ",") + std::string("\"") + name_space(i) + ":" + key(i) +
-				   R"(":{"type":"int","default":)" + std::to_string(*value) + "}";
+				   R"(":{"default":)" + std::to_string(*value) + "}";
 			first = false;
 		}
 	return out + "}}";
@@ -184,7 +184,7 @@ void oracle(const fs::path &store, const fs::path &scratch, int revision) {
 	}
 	CHECK(std::equal(a.override_histogram().begin(), a.override_histogram().end(), b.override_histogram().begin()));
 	const auto &ca = x::RecoveredTesting::root(*trusted.generation), &cb = x::RecoveredTesting::root(*full.generation);
-	CHECK(ca.counts().bools == cb.counts().bools && ca.counts().ints == cb.counts().ints &&
+	CHECK(ca.counts().records == cb.counts().records &&
 		  ca.counts().strings == cb.counts().strings && ca.counts().overrides == cb.counts().overrides &&
 		  ca.counts().maximum_overrides == cb.counts().maximum_overrides);
 	CHECK(trusted.generation->view().size() == full.generation->view().size());
@@ -532,11 +532,13 @@ void refusals(const fs::path &store, const fs::path &scratch) {
 }
 // Security review SR2: a digest-valid `.live` whose rows are not the set the root reaches. Two shapes over a
 // store of one value changed between two revisions, so the packs of both are on disk with equal lengths.
+// Enough knobs that the packs span more than one 1 MiB segment.
+const int stale_knobs = 60000;
 std::string small_json(int bump) {
 	std::string out = R"({"schema_version":1,"knobs":{)";
-	for (int i = 0; i < 30000; ++i)
+	for (int i = 0; i < stale_knobs; ++i)
 		out += (i ? "," : "") + std::string("\"n") + std::to_string(i % 10) + ":k" + std::to_string(i) +
-			   R"(":{"type":"int","default":)" + std::to_string(i * 3 + 1 + (i == 7 ? bump : 0)) + "}";
+			   R"(":{"default":)" + std::to_string(i * 3 + 1 + (i == 7 ? bump : 0)) + "}";
 	return out + "}}";
 }
 void stale_rows(const fs::path &root) {
@@ -560,7 +562,7 @@ void stale_rows(const fs::path &root) {
 		Session session;
 		session.recover(scratch);
 		std::uint64_t ok = 0, failed = 0;
-		for (int i = 0; i < 30000; ++i) {
+		for (int i = 0; i < stale_knobs; ++i) {
 			const auto got = session.generation->view().get("n" + std::to_string(i % 10), "k" + std::to_string(i));
 			if (got.has_value())
 				++ok;
@@ -616,7 +618,7 @@ void delta_changes(std::map<std::string, std::int64_t> &upserts, std::vector<std
 	}
 }
 void mapped_mutations(const fs::path &store) {
-	for (const std::string mutation : {"children", "body", "kind", "evaluate"}) {
+	for (const std::string mutation : {"children", "body", "flags", "evaluate"}) {
 		Session session;
 		session.recover(store);
 		CHECK(read_all(session, 3).ok == knobs + 10);
@@ -661,16 +663,23 @@ void mapped_mutations(const fs::path &store) {
 			std::fill_n(bytes + 2, 2, '\xff');
 		else {
 			auto *body = const_cast<char *>(node->body.data());
-			body[8] = mutation == "kind" ? 0 : 1;
-			if (mutation == "evaluate")
-				body[15] = 1;
+			// "flags" breaks the header every read decodes; "evaluate" claims an override that only a
+			// group lookup reads.
+			if (mutation == "flags")
+				body[9] = 2;
+			else {
+				std::size_t count = 10;   // the count follows the default's varint
+				while (body[count] & 0x80)
+					++count;
+				body[count + 1] = 1;
+			}
 		}
 		std::size_t get_failures = 0, eval_failures = 0;
 		for (int i = 0; i < knobs + 10; ++i) {
 			if (!expected(3, i))
 				continue;
 			const auto got = session.generation->view().try_get(name_space(i), key(i));
-			const auto evaluated = session.generation->view().try_eval(name_space(i), key(i), {}, "x");
+			const auto evaluated = session.generation->view().try_get(name_space(i), key(i), {}, "x");
 			CHECK(got && evaluated);
 			get_failures += !got->has_value() && got->error().category == detent::ErrorCategory::SourceFailure;
 			eval_failures += !evaluated->has_value() && evaluated->error().category == detent::ErrorCategory::SourceFailure;

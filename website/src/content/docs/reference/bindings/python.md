@@ -26,21 +26,22 @@ Constructs a client with the given baked defaults and, optionally, a file
 source. Raises `detent.DetentError` for missing or invalid defaults and invalid
 CLI overrides.
 
-### `eval`
-
-```python
-Client.eval(name: str, hash_val: str | None = None, switch_val: str | None = None) -> bool
-```
-
-Evaluates a bool knob with the [standard precedence](/Detent/reference/evaluation/).
-
 ### `get`
 
 ```python
-Client.get(name: str, switch_val: str | None = None) -> int
+Client.get(name: str, hash_val: str | None = None, switch_val: str | None = None) -> int
 ```
 
-Reads an int knob. `switch_val` is accepted for symmetry and ignored.
+Reads a knob's `int64` value with the [standard precedence](/Detent/reference/evaluation/).
+
+### `get_bool`
+
+```python
+Client.get_bool(name: str, hash_val: str | None = None, switch_val: str | None = None) -> bool
+```
+
+Calls `get`, then returns `False` for 0 and `True` for 1. Any other value
+raises `detent.DetentError` with category `ConversionFailed`.
 
 ### `health`
 
@@ -50,7 +51,7 @@ Client.health() -> dict
 
 ```python
 {'initialized': True, 'source_connected': True, 'accepted_version': 7,
- 'staleness_seconds': 0.4, 'bool_knobs': 2, 'int_knobs': 1, 'cli_overrides': 0}
+ 'staleness_seconds': 0.4, 'knobs': 3, 'cli_overrides': 0}
 ```
 
 ---
@@ -71,10 +72,10 @@ Reads are in-memory and non-blocking.
 
 :::hint[Not yet in the Python binding]{.unimplemented}
 1. The managed generation source.
-2. `read_view()`, `get_as`, and the `_or_panic` helpers.
-3. A `check()` alias for `eval()`.
-4. Category-specific exceptions: `KeyError` for `MissingKnob`, `ValueError`
-   for `WrongType` and `InvalidName`, `SystemError` for `Uninitialized`, and
-   `OverflowError` for conversions.
-5. Type stubs (`.pyi`) and a published wheel.
+2. `read_view()`, `get_as` for other integer widths, and the `_or_panic`
+   helpers.
+3. Category-specific exceptions: `KeyError` for `MissingKnob`, `ValueError`
+   for `InvalidName`, `SystemError` for `Uninitialized`, and `OverflowError`
+   for conversions.
+4. Type stubs (`.pyi`) and a published wheel.
 :::

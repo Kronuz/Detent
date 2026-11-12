@@ -17,7 +17,7 @@ public:
 	explicit TestKnobs(Snapshot snapshot);
 
 	// Installs this TestKnobs' client as the thread-local override for
-	// detent::global::eval/get on the calling thread. The returned guard
+	// detent::global::get on the calling thread. The returned guard
 	// must outlive any read that should observe it; dropping it restores the
 	// previous thread-local state (nullptr, or an outer TestGuard).
 	[[nodiscard]] TestGuard set_thread_local() &&;

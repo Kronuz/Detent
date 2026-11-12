@@ -51,7 +51,7 @@ std::vector<std::uint64_t> on_disk(const std::filesystem::path &path) {
 }
 using W = std::vector<std::uint64_t>;
 std::string knobs(std::int64_t rev) {
-	return R"({"schema_version":1,"knobs":{"t:rev":{"type":"int","default":)" + std::to_string(rev) + "}}}";
+	return R"({"schema_version":1,"knobs":{"t:rev":{"default":)" + std::to_string(rev) + "}}}";
 }
 void writer_shape(const std::filesystem::path &root) {
 	const auto dir = root / "shape";

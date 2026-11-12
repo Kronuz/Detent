@@ -76,11 +76,9 @@ class ValidatedDeltaSource final : public DeltaSource {
 			m::unsigned_integer(scratch_, row.value ? 0 : 1);
 			if (row.value) {
 				detail::wire::definition(scratch_, *row.value);
-				if (const auto *flag = std::get_if<WireBoolDef>(&*row.value)) {
-					overrides_ = delta_->overrides(*flag);
-					override_ = 0;
-					phase_ = 3;
-				}
+				overrides_ = delta_->overrides(*row.value);
+				override_ = 0;
+				phase_ = 3;
 			} else
 				scratch_.push_back('\xc0');
 		} else {
@@ -134,7 +132,7 @@ class ValidatedDeltaSource final : public DeltaSource {
 				add(counts_.strings, row.first.size());
 				add(counts_.overrides, 1);
 				add(definition_bytes_,
-					9 + row.first.size() + (std::holds_alternative<bool>(row.second) ? 1 : 8));
+					override_charge(row.first.size(), std::holds_alternative<std::int64_t>(row.second)));
 			} else {
 				counts_.maximum_definition_bytes =
 					std::max(counts_.maximum_definition_bytes, definition_bytes_);
@@ -148,15 +146,13 @@ class ValidatedDeltaSource final : public DeltaSource {
 			add(counts_.mutations, 1);
 			add(counts_.strings, row.key.size());
 			if (row.value) {
-				if (const auto *flag = std::get_if<WireBoolDef>(&*row.value)) {
-					overrides_ = delta_->overrides(*flag);
-					counts_.maximum_overrides = std::max(counts_.maximum_overrides, overrides_.size());
-					definition_bytes_ = flag->rollout_pct ? 19 : 11;
-					override_ = 0;
-					phase_ = 2;
-				} else
-					counts_.maximum_definition_bytes =
-						std::max<std::uint64_t>(counts_.maximum_definition_bytes, 9);
+				const auto &definition = *row.value;
+				overrides_ = delta_->overrides(definition);
+				counts_.maximum_overrides = std::max(counts_.maximum_overrides, overrides_.size());
+				definition_bytes_ = definition_header_charge(definition.rollout_pct.has_value(),
+															 definition.rollout_value.has_value(), overrides_.size());
+				override_ = 0;
+				phase_ = 2;
 			}
 		} else {
 			++transaction_;

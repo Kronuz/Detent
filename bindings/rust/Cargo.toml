@@ -2,7 +2,7 @@
 name = "detent-rust"
 version = "0.1.0"
 edition = "2021"
-description = "Rust binding for Detent (eval/get), via cxx over detent::Client."
+description = "Rust binding for Detent (get/get_bool), via cxx over detent::Client."
 
 [lib]
 name = "detent"

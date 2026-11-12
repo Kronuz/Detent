@@ -245,9 +245,9 @@ int main(int argc, char **argv) {
 							  cold->view().get("app", knob).value() == expected);
 					} else {
 						for (const auto scope : {"beta", "production"}) {
-							const auto expected = base.view().eval("app", knob, "host-a", scope).value();
-							check(warm->view().eval("app", knob, "host-a", scope).value() == expected &&
-								  cold->view().eval("app", knob, "host-a", scope).value() == expected);
+							const auto expected = base.view().get("app", knob, "host-a", scope).value();
+							check(warm->view().get("app", knob, "host-a", scope).value() == expected &&
+								  cold->view().get("app", knob, "host-a", scope).value() == expected);
 						}
 					}
 				}

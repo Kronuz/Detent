@@ -39,10 +39,11 @@ std::unique_ptr<ClientHandle> new_client(
 	rust::Str defaults_path, bool has_source_path, rust::Str source_path,
 	rust::Vec<rust::String> cli_overrides, std::int32_t poll_interval_ms);
 
-bool eval(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
-          rust::Str switch_val);
+std::int64_t get(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
+                 rust::Str switch_val);
 
-std::int64_t get_int(const ClientHandle& client, rust::Str name, bool has_switch, rust::Str switch_val);
+bool get_bool(const ClientHandle& client, rust::Str name, bool has_hash, rust::Str hash_val, bool has_switch,
+              rust::Str switch_val);
 
 HealthInfo health(const ClientHandle& client) noexcept;
 

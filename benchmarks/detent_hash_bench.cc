@@ -1,5 +1,5 @@
 // detent_hash_bench -- throughput of stable_bucket(), the SHA-256-backed
-// rollout hash every eval() call on a percentage-rollout knob makes. Single-
+// rollout hash every hashed get() on a percentage-rollout knob makes. Single-
 // threaded: this function has no shared state, so N threads just multiply
 // the number below, they don't change it.
 //

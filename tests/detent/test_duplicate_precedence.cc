@@ -27,10 +27,10 @@ using namespace detent;
 
 namespace {
 
-constexpr const char* kA = R"("a:a":{"type":"int","default":1})";
-constexpr const char* kB = R"("b:b":{"type":"int","default":2})";
-constexpr const char* kC = R"("c:c":{"type":"int","default":3})";
-constexpr const char* kBadC = R"("c:c":{"type":"int"})"; // missing default
+constexpr const char* kA = R"("a:a":{"default":1})";
+constexpr const char* kB = R"("b:b":{"default":2})";
+constexpr const char* kC = R"("c:c":{"default":3})";
+constexpr const char* kBadC = R"("c:c":{})"; // missing default
 
 std::string snapshot(const std::vector<const char*>& entries) {
 	std::string json = R"({"schema_version":1,"version":1,"knobs":{)";
@@ -58,14 +58,14 @@ std::string error_of(const Result<SnapshotPatch, UpdateError>& r) {
 void knob_names() {
 	const std::string dup_a = "duplicate knob name: a:a";
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kA, kBadC}), "s")) == dup_a);
-	CHECK(error_of(parse_source_snapshot(snapshot({kA, kBadC, kA}), "s")) == "int knob missing required 'default': c:c");
+	CHECK(error_of(parse_source_snapshot(snapshot({kA, kBadC, kA}), "s")) == "knob missing required 'default': c:c");
 	// Invalid name in place of the invalid definition.
-	const char* bad_name = R"("nocolon":{"type":"int","default":1})";
+	const char* bad_name = R"("nocolon":{"default":1})";
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kA, bad_name}), "s")) == dup_a);
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, bad_name, kA}), "s")) == "invalid knob name: nocolon");
 	// The second occurrence itself invalid: the invalid entry is reached first.
-	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, R"("a:a":{"type":"int"})"}), "s")) ==
-	      "int knob missing required 'default': a:a");
+	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, R"("a:a":{})"}), "s")) ==
+	      "knob missing required 'default': a:a");
 	// Two duplicate groups: the one whose SECOND occurrence comes first wins.
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kB, kA}), "s")) == "duplicate knob name: b:b");
 	CHECK(error_of(parse_source_snapshot(snapshot({kB, kA, kA, kB}), "s")) == "duplicate knob name: a:a");
@@ -87,9 +87,9 @@ void patch_names() {
 	const char* null_c = R"("c:c":null)";
 	const std::string dup_a = "duplicate knob name: a:a";
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, kBadC}), "s")) == dup_a);
-	CHECK(error_of(parse_snapshot_patch(patch({kA, kBadC, kA}), "s")) == "int knob missing required 'default': c:c");
+	CHECK(error_of(parse_snapshot_patch(patch({kA, kBadC, kA}), "s")) == "knob missing required 'default': c:c");
 	CHECK(error_of(parse_snapshot_patch(patch({kA, R"("a:a":null)", null_c}), "s")) == dup_a);
-	const char* bad_name = R"("nocolon":{"type":"int","default":1})";
+	const char* bad_name = R"("nocolon":{"default":1})";
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, bad_name}), "s")) == dup_a);
 	CHECK(error_of(parse_snapshot_patch(patch({kA, bad_name, kA}), "s")) == "invalid knob name: nocolon");
 	auto ok = parse_snapshot_patch(patch({null_c, kA, kB}), "s");
@@ -98,41 +98,41 @@ void patch_names() {
 	      !ok.value().knobs.at("c:c").has_value());
 }
 
-std::string bool_knob(const std::string& overrides_body, const std::string& after = "") {
-	return R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":false,"overrides":{)" + overrides_body + "}" +
+std::string override_knob(const std::string& overrides_body, const std::string& after = "") {
+	return R"({"schema_version":1,"knobs":{"a:b":{"default":0,"rollout_value":1,"overrides":{)" + overrides_body + "}" +
 	       after + "}}}";
 }
 
 void override_keys() {
 	const std::string dup_g = "duplicate override key 'g' on knob a:b";
-	const std::string bad_value = "override must be boolean or {rollout_pct: 0..100}: a:b";
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"h":false,"g":false,"i":7)"))) == dup_g);
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"i":7,"g":false)"))) == bad_value);
+	const std::string bad_value = "override must be integer or {rollout_pct: 0..100}: a:b";
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"h":0,"g":0,"i":"x")"))) == dup_g);
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"i":"x","g":0)"))) == bad_value);
 	// Bad group key instead of bad value.
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"h":false,"g":false,"":true)"))) == dup_g);
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"":true,"g":false)"))) == "bad group key on knob a:b");
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"h":0,"g":0,"":1)"))) == dup_g);
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"":1,"g":0)"))) == "bad group key on knob a:b");
 	// An error in a LATER member of the knob object still loses to the
 	// duplicate that precedes it.
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"g":false)", R"(,"rollout_pct":"x")"))) == dup_g);
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true,"h":true)", R"(,"rollout_pct":"x")"))) ==
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"g":0)", R"(,"rollout_pct":"x")"))) == dup_g);
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1,"h":1)", R"(,"rollout_pct":"x")"))) ==
 	      "rollout_pct wrong type: a:b");
 	// Two distinct duplicate groups: the earlier second occurrence wins.
-	CHECK(error_of(parse_defaults(bool_knob(R"("h":true,"g":true,"g":false,"h":false)"))) == dup_g);
+	CHECK(error_of(parse_defaults(override_knob(R"("h":1,"g":1,"g":0,"h":0)"))) == dup_g);
 	// Duplicate across a repeated "overrides" member.
-	CHECK(error_of(parse_defaults(bool_knob(R"("g":true)", R"(,"overrides":{"g":false})"))) == dup_g);
+	CHECK(error_of(parse_defaults(override_knob(R"("g":1)", R"(,"overrides":{"g":0})"))) == dup_g);
 	// Any order, no duplicates: accepted, sorted, rollout objects kept.
-	auto ok = parse_defaults(bool_knob(R"("h":{"rollout_pct":5},"g":true,"f":false)"));
+	auto ok = parse_defaults(override_knob(R"("h":{"rollout_pct":5},"g":1,"f":0)"));
 	CHECK(ok.has_value());
-	const auto& overrides = std::get<BoolDef>(ok.value().knobs.at("a:b")).overrides;
+	const auto& overrides = ok.value().knobs.at("a:b").overrides;
 	CHECK(overrides.size() == 3 && overrides.begin()->first == "f" && std::prev(overrides.end())->first == "h");
 	CHECK(std::get<GroupRollout>(overrides.at("h")).rollout_pct == 5);
 	// A duplicate inside a later knob is reported with that knob's name, and a
 	// duplicate knob name before it wins by input order.
-	const std::string two = R"({"schema_version":1,"knobs":{"a:b":{"type":"bool","default":true},)"
-	                        R"("c:d":{"type":"bool","default":false,"overrides":{"g":true,"g":true}}}})";
+	const std::string two = R"({"schema_version":1,"knobs":{"a:b":{"default":1},)"
+	                        R"("c:d":{"default":0,"overrides":{"g":1,"g":1}}}})";
 	CHECK(error_of(parse_defaults(two)) == "duplicate override key 'g' on knob c:d");
 	// Same override rules inside a patch.
-	CHECK(error_of(parse_snapshot_patch(patch({R"("a:b":{"type":"bool","default":false,"overrides":{"g":true,"g":true}})"}), "s")) ==
+	CHECK(error_of(parse_snapshot_patch(patch({R"("a:b":{"default":0,"overrides":{"g":1,"g":1}})"}), "s")) ==
 	      dup_g);
 }
 
@@ -164,7 +164,7 @@ void random_orders() {
 		}
 		std::vector<std::string> bodies;
 		for (unsigned id : seq)
-			bodies.push_back((id < 10 ? "\"k:0" : "\"k:") + std::to_string(id) + "\":{\"type\":\"int\",\"default\":" +
+			bodies.push_back((id < 10 ? "\"k:0" : "\"k:") + std::to_string(id) + "\":{\"default\":" +
 			                 std::to_string(id) + "}");
 		std::vector<const char*> entries;
 		for (const auto& b : bodies)
@@ -199,7 +199,7 @@ void cli_overrides() {
 	CHECK(ok.has_value());
 	const auto& values = ok.value().values;
 	CHECK(values.size() == 3 && values.begin()->first == "a:a");
-	CHECK(std::get<std::int64_t>(values.at("a:a")) == -5 && std::get<bool>(values.at("c:c")));
+	CHECK(values.at("a:a") == -5 && values.at("b:b") == 0 && values.at("c:c") == 1);
 }
 
 } // namespace

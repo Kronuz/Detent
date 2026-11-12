@@ -50,7 +50,7 @@ Command write(std::uint64_t sequence, std::string name, std::string key, std::op
 	c.sequence = sequence;
 	c.name_space = name;
 	c.mutations.push_back({name + ":" + key,
-						   value ? std::optional<detent::KnobDef>(detent::IntDef{*value}) : std::nullopt,
+						   value ? std::optional<detent::KnobDef>(detent::KnobDef{*value}) : std::nullopt,
 						   {},
 						   {}});
 	return c;

@@ -110,7 +110,6 @@ int main(int argc, char **argv) {
 			const auto key = name_space + ":key" + std::to_string(ordinal);
 			if (generation < 0) {
 				++deleted;
-				error(view.eval(key), detent::ErrorCategory::MissingKnob, key);
 				error(view.get(key), detent::ErrorCategory::MissingKnob, key);
 			} else if ((ordinal + counter) % 2) {
 				++integers;
@@ -118,33 +117,34 @@ int main(int argc, char **argv) {
 				const auto value = ((ordinal + counter) & 2) ? -magnitude : magnitude;
 				equal(view.get(key), value, key);
 				benchmark.add(key, false, value);
-				equal(view.get(key, "ramp"), value, key);
-				error(view.eval(key), detent::ErrorCategory::WrongType, key);
+				equal(view.get(key, {}, "ramp"), value, key);
 			} else {
+				// A former bool: default 0 or 1, rollout value 1; outside a bucket is the default (D68).
 				++booleans;
-				const bool default_value = (ordinal / 2 + counter) & 1;
-				equal(view.eval(key), default_value, key);
-				equal(view.eval(key, {}, "force-off"), false, key);
-				equal(view.eval(key, {}, "force-on"), true, key);
-				equal(view.eval(key, {}, std::string_view("opaque\0group", 12)), !default_value, key);
-				equal(view.eval(key, {}, "ramp"), default_value, key);
-				error(view.get(key), detent::ErrorCategory::WrongType, key);
+				const std::int64_t default_value = (ordinal / 2 + counter) & 1;
+				const auto ramp = [&](bool inside) { return inside ? std::int64_t(1) : default_value; };
+				equal(view.get(key), default_value, key);
+				equal(view.get(key, {}, "force-off"), std::int64_t(0), key);
+				equal(view.get(key, {}, "force-on"), std::int64_t(1), key);
+				equal(view.get(key, {}, std::string_view("opaque\0group", 12)), 1 - default_value, key);
+				equal(view.get(key, {}, "ramp"), default_value, key);
 				for (const auto cohort : {std::string_view("cohort-A"), std::string_view("cohort-B")}) {
 					const auto sample = bucket(key, cohort);
-					const bool global = (ordinal + counter) % 3 == 0 ? default_value
-														: sample < (ordinal * 13 + counter * 7) % 101;
+					const auto global = (ordinal + counter) % 3 == 0
+											? default_value
+											: ramp(sample < (ordinal * 13 + counter * 7) % 101);
 					if (cohort == std::string_view("cohort-A"))
 						benchmark.add(key, true, default_value, global);
-					equal(view.eval(key, cohort), global, key);
-					equal(view.eval(key, cohort, "unknown"), global, key);
-					equal(view.eval(key, cohort, "ramp"), sample < (ordinal * 17 + counter * 11) % 101, key);
-					equal(view.eval(key, cohort, "force-off"), false, key);
-					equal(view.eval(key, cohort, "force-on"), true, key);
-					equal(view.eval(key, cohort, std::string_view("opaque\0group", 12)), !default_value, key);
+					equal(view.get(key, cohort), global, key);
+					equal(view.get(key, cohort, "unknown"), global, key);
+					equal(view.get(key, cohort, "ramp"), ramp(sample < (ordinal * 17 + counter * 11) % 101), key);
+					equal(view.get(key, cohort, "force-off"), std::int64_t(0), key);
+					equal(view.get(key, cohort, "force-on"), std::int64_t(1), key);
+					equal(view.get(key, cohort, std::string_view("opaque\0group", 12)), 1 - default_value, key);
 				}
 			}
 		}
-		if (source->status().bool_knobs != booleans || source->status().int_knobs != integers)
+		if (source->status().knobs != booleans + integers)
 			throw std::runtime_error("mixed SDK oracle corpus cardinality mismatch");
 		const auto verified = std::chrono::steady_clock::now();
 		benchmark.run(client, view);

@@ -18,7 +18,7 @@ Command write(Cluster &group, std::string name, std::string key, int value) {
 	c.generation = 1;
 	c.sequence = ++sequence;
 	c.name_space = name;
-	c.mutations.push_back({name + ":" + key, detent::IntDef{value}, {}, {}});
+	c.mutations.push_back({name + ":" + key, detent::KnobDef{value}, {}, {}});
 	return c;
 }
 Result commit(Cluster &group, unsigned leader, Command command) {

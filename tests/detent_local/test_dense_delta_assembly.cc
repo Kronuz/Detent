@@ -483,20 +483,20 @@ int main(int argc, char **argv) {
 		auto large = std::make_shared<d::StorageLedger>(2ull * 1024 * 1024 * 1024);
 		Rows wide{{key("ns", true), std::vector<char>(8)}};
 		for (std::uint32_t i = 0; i < p::Limits{}.records + p::Limits{}.namespaces; ++i)
-			wide[key("ns:k" + std::to_string(i))] = encoded(detent::IntDef{std::int64_t(i)});
+			wide[key("ns:k" + std::to_string(i))] = encoded(detent::KnobDef{std::int64_t(i)});
 		auto big = std::make_shared<Base>(Full(large).build(wide));
 		require(big->root.tree.keys > std::uint64_t(p::Limits{}.records) + p::Limits{}.namespaces);
 		const auto changed = key("ns:k7");
-		wide[changed] = encoded(detent::IntDef{-7});
+		wide[changed] = encoded(detent::KnobDef{-7});
 		check(large, big, wide, {{changed, wide.at(changed)}}, false, 8192, "one-update/504k");
 	}
 	Rows rows{{key("ns", true), std::vector<char>(8)}};
 	l::write_integer(rows.at(key("ns", true)), 0, 17, 8);
 	for (unsigned i = 0; i < 2000; ++i)
-		rows[key("ns:k" + std::to_string(i))] = encoded(detent::IntDef{static_cast<std::int64_t>(i)});
+		rows[key("ns:k" + std::to_string(i))] = encoded(detent::KnobDef{static_cast<std::int64_t>(i)});
 	auto base = std::make_shared<Base>(Full(account).build(rows));
 	require(check(account, base, rows, {}) == 0);
-	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=encoded(detent::IntDef{-1});check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
+	auto one_update=rows;const auto updated=key("ns:k1");one_update[updated]=encoded(detent::KnobDef{-1});check(account,base,one_update,{{updated,one_update.at(updated)}},false,8192,"one-update/2k");
 	std::mt19937 rng(1729);
 	for (unsigned trial = 0; trial < rounds; ++trial) {
 		auto target = rows;
@@ -505,14 +505,15 @@ int main(int argc, char **argv) {
 			auto k = key("ns:k" + std::to_string(rng() % 2100));
 			std::optional<std::vector<char>> body;
 			if (rng() % 3) {
-				if (rng() % 2) body = encoded(detent::IntDef{static_cast<std::int64_t>(rng())});
+				if (rng() % 2) body = encoded(detent::KnobDef{static_cast<std::int64_t>(rng())});
 				else {
-					detent::BoolDef value;
+					detent::KnobDef value;
 					value.default_value = rng() % 2;
 					const auto count = rng() % 51;
 					for (unsigned at = 0; at < count; ++at) {
 						const auto prefix = "case" + std::to_string(at);
-						value.overrides.emplace(prefix + std::string(128 - prefix.size(), 'p'), bool(rng() % 2));
+						value.overrides.emplace(prefix + std::string(128 - prefix.size(), 'p'),
+												static_cast<std::int64_t>(rng() % 2));
 					}
 					body = encoded(value);
 				}

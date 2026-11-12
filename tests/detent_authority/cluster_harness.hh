@@ -210,7 +210,7 @@ struct Cluster {
 		c.generation = 1;
 		c.sequence = sequence;
 		c.name_space = "ns";
-		c.mutations.push_back({"ns:key", detent::IntDef{value}, {}, {}});
+		c.mutations.push_back({"ns:key", detent::KnobDef{value}, {}, {}});
 		return c;
 	}
 };

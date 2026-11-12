@@ -108,7 +108,7 @@ if [[ "$isolated" == isolated ]]; then
     cp "$root/agent.json" "$root/agent-empty.json"
     "$interpreter" -c 'import json,sys; p=sys.argv[1]; data=json.load(open(p)); data.update(managed_path="managed-empty.json",generation_dir="generations-empty",runtime_dir="run-empty",generation_scope=sys.argv[2]); open(p,"w").write(json.dumps(data))' "$root/agent-empty.json" "$empty_scope"
 fi
-printf '{"schema_version":1,"knobs":{"ns:feature":{"type":"int","default":7}}}\n' > "$root/defaults.json"
+printf '{"schema_version":1,"knobs":{"ns:feature":{"default":7}}}\n' > "$root/defaults.json"
 set_port() {
     local value=$1 name
     shift
@@ -131,7 +131,7 @@ deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     sleep 0.05
 done
 grep -q '"generation":1' "$root/open.json"
-post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/first.json"
+post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":42},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/first.json"
 first_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/first.json")
 if [[ -n "$relay" ]]; then
     "$relay" --config "$root/relay.json" --runtime-dir "$root/relay-run" > "$root/relay.log" 2>&1 &
@@ -200,7 +200,7 @@ check_format "$root/generations" "$image_format"
 if [[ -n "$relay" ]]; then check_format "$root/relay-generations" "$image_format"; fi
 [[ $("$reader" get ns:feature --system --config "$root/agent.json" --generation-scope 6600000000000000000000000000000000000000000000000000000000000000) == 7 ]]
 cp "$root/generations/storage.meta" "$root/storage-before"
-post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
+post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":99},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/progress.json"
 progress_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/progress.json")
 deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$progress_revision "; then break; fi
@@ -243,7 +243,7 @@ wait_ready "$root/agent-restart.log"
 cmp "$root/storage-before" "$root/generations/storage.meta"
 check_format "$root/generations" "$image_format"
 if [[ "$transition_to_flat" == true ]]; then
-    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":100},\"expected_revision\":$progress_revision}]}" > "$root/flat-forward.json"
+    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":100},\"expected_revision\":$progress_revision}]}" > "$root/flat-forward.json"
     flat_revision=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["revision"])' "$root/flat-forward.json")
     deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
         if "$agent" --status --config "$root/agent.json" | grep -q "durable revision=$flat_revision "; then break; fi
@@ -267,7 +267,7 @@ if [[ -n "$relay" ]]; then
     agent_pid=$!
     wait_value 7
     deleted_namespace=$("$interpreter" -c 'import json,sys; print(json.load(open(sys.argv[1]))["namespace_revision"])' "$root/deleted.json")
-    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":$deleted_namespace}]}" > "$root/relay-new-value.json"
+    post /v2/transactions "{$identity,\"generation\":1,\"sequence\":4,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":$deleted_namespace}]}" > "$root/relay-new-value.json"
     wait_value 84
     denied=$(curl -sS --max-time 5 --cacert "$certificates/ca.pem" --resolve "localhost:$relay_port:127.0.0.1" \
         -o "$root/relay-denied.json" -w '%{http_code}' -H 'Authorization: Bearer invalid-relay-token-00000000000000000000' \
@@ -326,7 +326,7 @@ deadline=$((SECONDS + 30)); while (( SECONDS < deadline )); do
     sleep 0.05
 done
 grep -q '"generation":1' "$root/reset-open.json"
-post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"type\":\"int\",\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
+post /v2/transactions "{$identity,\"generation\":1,\"sequence\":1,\"namespace\":\"ns\",\"operations\":[{\"key\":\"ns:feature\",\"value\":{\"default\":84},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/reset-value.json"
 "$agent" --config "$root/agent.json" > "$root/agent-reset.log" 2>&1 &
 agent_pid=$!
 wait_ready "$root/agent-reset.log"
@@ -347,7 +347,7 @@ wait_ready "$root/agent-fatal.log"
 mv "$root/generations" "$root/displaced-generations"
 mkdir "$root/generations"
 chmod 700 "$root/generations"
-post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"type\":\"int\",\"default\":100},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/fatal-progress.json"
+post /v2/transactions "{$identity,\"generation\":1,\"sequence\":2,\"namespace\":\"other\",\"operations\":[{\"key\":\"other:hidden\",\"value\":{\"default\":100},\"expected_revision\":0,\"absent_namespace_revision\":0}]}" > "$root/fatal-progress.json"
 for ((attempt=0;attempt<300;attempt++)); do
     if ! kill -0 "$agent_pid" 2>/dev/null; then break; fi
     sleep 0.02

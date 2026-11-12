@@ -18,14 +18,19 @@ impl Client {
         poll_interval_ms: i32,
     ) -> Result<Self, DetentError>;
 
-    pub fn eval(
+    pub fn get(
+        &self,
+        name: &str,
+        hash_val: Option<&str>,
+        switch_val: Option<&str>,
+    ) -> Result<i64, DetentError>;
+
+    pub fn get_bool(
         &self,
         name: &str,
         hash_val: Option<&str>,
         switch_val: Option<&str>,
     ) -> Result<bool, DetentError>;
-
-    pub fn get(&self, name: &str, switch_val: Option<&str>) -> Result<i64, DetentError>;
 
     pub fn health(&self) -> HealthInfo;
 }
@@ -33,10 +38,16 @@ impl Client {
 
 ```rust
 let client = detent::Client::new("/etc/myapp/defaults.json", None, vec![], 200)?;
-if client.eval("checkout:killswitch_new_path", None, None)? {
+if client.get_bool("checkout:killswitch_new_path", None, None)? {
     new_checkout();
 }
+let limit = client.get("search:max_results", None, None)?;
 ```
+
+`get` reads a knob's `i64` value with the
+[standard precedence](/Detent/reference/evaluation/). `get_bool` calls `get`,
+then returns `false` for 0 and `true` for 1; any other value is a
+`ConversionFailed` error.
 
 ---
 
@@ -48,8 +59,7 @@ pub struct HealthInfo {
     pub source_connected: bool,
     pub accepted_version: u64,
     pub staleness_seconds: f64,
-    pub bool_knobs: usize,
-    pub int_knobs: usize,
+    pub knobs: usize,
     pub cli_overrides: usize,
 }
 ```
@@ -67,7 +77,8 @@ category, e.g. `MissingKnob: ...`.
 
 :::hint[Not yet in the Rust binding]{.unimplemented}
 1. The managed generation source.
-2. `read_view()`, a generic `get_as::<T>()`, and panicking helpers.
+2. `read_view()`, a generic `get_as::<T>()` for other integer widths, and
+   panicking helpers.
 3. A structured error enum mirroring `ErrorCategory` instead of a string.
 4. A process-wide adapter and a `TestKnobs`-style guard for tests.
 5. A crate published to crates.io.
