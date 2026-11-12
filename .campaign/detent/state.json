@@ -4722,10 +4722,51 @@
           ]
         }
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T14:53:29",
+          "commit": "f0e20b8cfcddd371d1f7c6061cf0b63a81ffedf6",
+          "criteria": {
+            "A1": "261112-141514-2015c9 (passed at 06a5096403f2; only merges from main since), 261112-141514-271978 (passed at 06a5096403f2; only merges from main since); fails without: 261112-122223-334801, 261112-133133-0d940a, 261112-133136-769cd1, 261112-141524-b57d4f, 261112-141524-9a4014",
+            "A2": "261112-141514-2015c9 (passed at 06a5096403f2; only merges from main since), 261112-141514-271978 (passed at 06a5096403f2; only merges from main since)",
+            "A3": "261112-141514-2015c9 (passed at 06a5096403f2; only merges from main since), 261112-141514-271978 (passed at 06a5096403f2; only merges from main since)",
+            "A4": "261112-141514-2015c9 (passed at 06a5096403f2; only merges from main since), 261112-141514-271978 (passed at 06a5096403f2; only merges from main since)",
+            "A5": "261112-141514-2015c9 (passed at 06a5096403f2; only merges from main since), 261112-141514-271978 (passed at 06a5096403f2; only merges from main since)"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "06a5096403f2e038b9ead46efb056955d69c75de",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-141514-2015c9",
+              "level": "light",
+              "seconds": 539.6,
+              "state": "done",
+              "what": "namespace-s6 check native at 06a5096403f2"
+            },
+            {
+              "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+              "commit": "06a5096403f2e038b9ead46efb056955d69c75de",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-141514-271978",
+              "level": "none",
+              "seconds": 4.5,
+              "state": "done",
+              "what": "namespace-s6 check pins at 06a5096403f2"
+            }
+          ],
+          "final": true,
+          "from": "c53441775345b9ecc2e1e8e39061e14112ab2d2c",
+          "reason": "",
+          "tested": "ddacf39ba89b8173c424c6ffb943b52a766281de"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "N1",
       "needs": [
         "namespace-s4",
@@ -4736,10 +4777,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T14:35:33",
-      "worktree": "../Detent-wt/detent/namespace-s6"
+      "updated": "2026-11-12T14:53:38",
+      "worktree": ""
     },
     "namespace-s6-cutover": {
       "accepted": {},
