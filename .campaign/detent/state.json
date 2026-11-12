@@ -2892,6 +2892,34 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-wheel-ab": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "bench/wheel_ab/**",
+        "docs/perf/wheel-ab.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "low",
+      "status": "planned",
+      "title": "Measure logger on scheduler vs on wheel",
+      "updated": "2026-11-11T21:14:07"
+    },
     "m1-pins": {
       "accepted": {},
       "after": [],
