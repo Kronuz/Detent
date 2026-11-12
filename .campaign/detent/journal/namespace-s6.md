@@ -1,6 +1,6 @@
 # namespace-s6: journal
 
-State: waiting on jobs 261112-133147-7f3f09 261112-133322-9c32d2 (fixes F1, F2 at Detent:135b4afe; mutants and pins passed)
+State: fixes ready (F1, F2 at Detent:135b4afe; suite 261112-133147-7f3f09 and pins 261112-133147-7c8926 passed)
 Quest: .campaign/detent/quests/namespace-s6.md (the lead's; never edit it)
 
 ## Doing
