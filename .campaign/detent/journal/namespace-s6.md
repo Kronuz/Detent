@@ -1,6 +1,6 @@
 # namespace-s6: journal
 
-State: waiting on jobs 261112-122211-8ba8d6 261112-122223-334801
+State: waiting on jobs 261112-133147-7f3f09 261112-133147-7c8926 261112-133133-0d940a 261112-133136-769cd1 261112-133139-e68a0f (fixes F1, F2 at Detent:135b4afe)
 Quest: .campaign/detent/quests/namespace-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -50,6 +50,22 @@ authority, relay and old-wire removal are namespace-s6-cutover's and namespace-s
   `tests/detent_distribution/test_session_frames.cc`).
 - Docs: `docs/status/namespace-s6.md` (grammar, tiers, checks, responses).
 
+## Review fixes (correctness review at Detent:38434738, Detent:135b4afe)
+
+- F1 fixed: `whole = span.first > answer.after`; the tiers test asserts every named piece's kind at
+  every R (fails on the old line: mutant 261112-133133-0d940a). docs/status/namespace-s6.md states the
+  one meaning (R5).
+- F2 fixed: the decoder refuses an entry or span once `at == to.position` (full copy pieces keep
+  their own check: a copy of an empty namespace sits at position 0); refusals holds a body with a
+  Span after a 2^64-1 target and a control that decodes (mutant 261112-133136-769cd1).
+- F3 moved to namespace-s6-cutover (A7), N1 is the cutover's (name the removal of
+  `detent::authority::NamespaceCursor` in its criteria).
+- N2 (open, cutover's before the authority's loop): `records()` skips trimmed records without
+  counting them against the step's bytes; N3 (open, kept): names may hold empty components, so `p.*`
+  grants `p.` and `p..x`.
+- Confirm jobs: F1=261112-133133-0d940a, F2=261112-133136-769cd1; suite 261112-133147-7f3f09; the
+  reviewer's probes rerun at the fixed commit: 261112-133139-e68a0f (its F3 client probe still exits 1).
+
 ## Rulings I made
 
 - R1 Names: the W1 type is `NamespaceCursor` (the old global `Cursor` still holds the name until the
@@ -63,7 +79,7 @@ authority, relay and old-wire removal are namespace-s6-cutover's and namespace-s
 - R4 Tiers: a store cursor carrying the namespace's identity at position 0 is an empty store of that
   incarnation (entries or blocks); no store at all gets a full copy (D6 tier 3).
 - R5 Frames: records end with nil instead of a count, so a trimmed block or merged level-0 streams
-  in one read; a whole named block is piece kind 2 only when it starts at R + 1; a full copy frame
+  in one read; every named span that starts above R is sent whole as piece kind 2 (Block); only the span holding R + 1 below its start is a trimmed kind 3 (Span), the merged level-0 is kind 3; a full copy frame
   has `after` 0 and piece [0, s]; frames come in name order. S6 owns the record encoding S5.2's
   block files can reuse, so a stored block and a sent one hold the same record bytes.
 - R6 W5: the cluster is sent once per request; a store of another cluster is sent as `[name]`
