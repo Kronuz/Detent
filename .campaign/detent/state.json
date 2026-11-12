@@ -7389,6 +7389,37 @@
       "updated": "2026-11-11T19:40:35",
       "worktree": ""
     },
+    "wheel-followups": {
+      "accepted": {},
+      "after": [
+        "task-wheel"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "wheel.hh",
+        "bench/**",
+        "docs/**",
+        "test/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../wheel",
+      "risk": "low",
+      "status": "planned",
+      "title": "Wheel review follow-ups: N4, R1, R2",
+      "updated": "2026-11-12T07:55:01"
+    },
     "wheel-lib": {
       "accepted": {
         "correctness": {
