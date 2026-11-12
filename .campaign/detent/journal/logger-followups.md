@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Edits for F1/F2/F4/F6 written in the logger worktree, uncommitted until the golden transcript is generated (baseline build queued behind an exclusive hold); then build, suite, mutant, 50x load job.
 
 ## Next
 
-1. <step>
+1. Generate test/transcript.golden from build-base (old == new transcript), commit; submit suite, mutant, 50x, grep jobs.
 
 ## Blocked on
 
