@@ -4797,6 +4797,8 @@
         "namespace-s6",
         "namespace-s7"
       ],
+      "base": "ce2addc842187ef7e82f465d445ada874e103eed",
+      "branch": "quest/detent/namespace-s8",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4886,9 +4888,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-10T13:19:13"
+      "updated": "2026-11-12T11:38:00",
+      "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
       "accepted": {},
