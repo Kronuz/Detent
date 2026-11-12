@@ -5604,17 +5604,45 @@
         "tests/detent_delivery/CMakeLists.txt",
         "tests/detent_delivery/scripted_upstream.hh"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T18:11:30",
+          "commit": "40a6f8933c2a9bb1c44b9567e0291c11e3873d88",
+          "criteria": {
+            "A1": "261111-170342-8c9453 (passed at 3f505beff3c4; only merges from main since)",
+            "A2": "261111-165634-dbace0 (passed at 3f505beff3c4; only merges from main since), 261111-173244-2ad9b7; fails without: 261111-165851-1889f8",
+            "A3": "261111-165634-dbace0 (passed at 3f505beff3c4; only merges from main since), 261111-173244-2ad9b7"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "72005c14c94f67b811c41fa95abb910a3c1b096f",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-173244-2ad9b7",
+              "level": "light",
+              "seconds": 742.2,
+              "state": "done",
+              "what": "relay-delta-shutdown-hang check suite at 72005c14c94f"
+            }
+          ],
+          "final": true,
+          "from": "c8551689db28d13d56af7daf5e57dce850f20db1",
+          "reason": "",
+          "tested": "72005c14c94f67b811c41fa95abb910a3c1b096f"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "N2",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "active",
+      "status": "landed",
       "title": "Relay delta shutdown drains",
-      "updated": "2026-11-11T17:12:53",
-      "worktree": "../Detent-wt/detent/relay-delta-shutdown-hang"
+      "updated": "2026-11-11T18:11:46",
+      "worktree": ""
     },
     "relay-snapshot-lifecycle": {
       "accepted": {},
