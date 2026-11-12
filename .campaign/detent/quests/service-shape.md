@@ -28,6 +28,12 @@ authority, and Xapiand all migrate to, each in its own later quest:
 - A3 [manual] One `design` review accepted, and the Xapiand lead agrees the shape before any
   migration quest starts.
 
+- A4 [artifact] The design answers task-wheel A7's notes (msg-30): Xapiand's Periodic, Debounce,
+  SleepFor and registry timers run on `AsioHost::arm` (an Asio timer per use), not the wheel, so
+  the shape says which one timer they move to; and a closed `asio_scheduler`'s wheel never fires
+  while Xapiand reruns its control loop after closing (manager.cc:1119/1131), which the drain order
+  must not depend on: `docs/design/service-shape.md`: "Timers".
+
 ## Contracts
 
 Provides `task:service-shape` (Periodic, Debounce, the service contract). Consumes
