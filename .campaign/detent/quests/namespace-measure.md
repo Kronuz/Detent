@@ -15,7 +15,7 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 cannot show it.
 
 - A1 [artifact] The pre-registered decision rule for each of T9, T4(7) and the period-64 run, committed before its first job: `docs/perf/namespace-measure.md`: "## Rules"
-- A2 T9 on the 5M corpus: block answers of 0.05, 0.25, 0.5 and 1 C (uniform keys, 5% tombstones) and a full copy, five runs each, exclusive; α at L = 1 and 10 Gb/s, with relay CPU and bytes read per answer: jobs
+- A2 T9 (D85): block answers of 0.05, 0.25, 0.5 and 1 C (uniform keys, 5% tombstones) and a full copy, five runs each on the 100K corpus and one budgeted round on the 5M corpus, exclusive; α at L = 1 and 10 Gb/s from each, with relay CPU and bytes read per answer; when the 5M α falls outside the 100K spread the 5M round decides and the verdict says it has no spread: jobs
 - A3 T4(7) `completion_sync_probe` on APFS (exclusive) and in a local Linux VM (QUIET_VM): jobs
 - A4 The period-64 wire run against period 16 (`wire2.out` shape): a job
 - A5 [artifact] The verdicts (α, roll-up period) by each rule, and the design's numbers updated or confirmed: `docs/perf/namespace-measure.md`: "## Verdicts"
