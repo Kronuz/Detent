@@ -6876,12 +6876,28 @@
           "weakened": [
             "risk high -> low"
           ]
+        },
+        {
+          "at": "2026-11-12T10:50:10",
+          "lenses": [
+            [
+              "correctness",
+              "design"
+            ],
+            [
+              "design"
+            ]
+          ],
+          "reason": "docs-only design quest: the design lens is the review it needs; no code for a correctness review",
+          "voided": [],
+          "weakened": [
+            "lens correctness removed"
+          ]
         }
       ],
       "journal": "../Detent-wt/detent/service-shape",
       "landed": [],
       "lenses": [
-        "correctness",
         "design"
       ],
       "milestone": "",
@@ -6893,7 +6909,7 @@
       "risk": "low",
       "status": "review",
       "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T10:39:26",
+      "updated": "2026-11-12T10:50:10",
       "worktree": "../task-wt/detent/service-shape"
     },
     "sha256-avx2": {
