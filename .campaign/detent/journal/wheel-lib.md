@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: ready for review
+State: waiting on jobs 261112-045053-06a547 261112-045105-3b0736 261112-045107-d98a70 261112-045109-600561 261112-045112-1213da 261112-045138-2d2840
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,43 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+Review round at wheel:45f98eb (correctness CHANGES F1, N1-N3; A7 Xapiand CHANGES F1, F3, F4, F6).
+
+- wheel:b822ac5 answers correctness F1, N1, N2, N3 and A7 F1. Option 1, owner side: an unarmed
+  e with `e.next != nullptr` is queued behind another push, so arm/cancel call
+  drain_and_unlink, which drains every non-empty stripe (`drain(true)`: a relaxed load per
+  stripe, exchange the non-empty ones). Soundness: the owner acts on e only after e's
+  arm_remote returned (contract), so it reads e.next as written and, by write-read coherence,
+  each stripe head at B's CAS or later; only the owner empties a stripe, and it files what it
+  takes, so e is found. An e at the bottom of its stripe (next == nullptr): its own pusher's
+  fetch_or is sequenced before arm_remote returns, so the owner's queued() load sees the bit,
+  or a later value that only the owner's own drain wrote after taking that stripe (e then
+  armed). The remote path is unchanged (no RMW added). Hot path: arm/cancel of an unarmed e
+  read e.next (same line as pprev) beside queued(). Test: `wheel_test shared` holds A between
+  CAS and bit with the WHEEL_TEST_PUSHED hook (empty unless defined), finds a thread on A's
+  stripe, pushes B, then the owner cancels / arms B. N1 remains, documented in
+  docs/timer-wheel.md (Threading contracts): expire/next() see B's entry once A's bit is set,
+  bounded by A's next instruction plus its caller's wake; only shared stripes. N2: one unsigned
+  compare on uintptr_t, not std::less (no <functional>; same shape as file()'s round test).
+  N3: arm's comment reworded.
+- wheel:45f98eb answers A7 F6, F3, F4. Destructor detaches every armed entry to the due list
+  (the `detach` helper expire now shares), fires each `false` once, then drains and unlinks
+  whatever those fires armed or queued, unfired: bounded. F3: header and docs say a false fire
+  means the wheel is dying, the entry is dead, never armed or cancelled on it again. F4:
+  reentry mode `destroy` (b's fire deletes b), one line in docs/timer-wheel.md and AGENTS.
+- A7 F2, F5: Xapiand's side, skipped as directed.
+
+Jobs at wheel:45f98eb: suite 261112-045015-68d268 green. Mutants killed, each by the right CHECK
+(logs): F1 cancel bits-only 261112-045016-03086f (a=1 b=1 c=1), F1 arm bits-only
+261112-045020-d35b49 (a=0 b=0 c=0 size=3, as the reviewer's probe), F1 drain bits-only
+261112-045024-2acb3a, F6 old destructor 261112-045028-3630df (second dying fire). Old mutants
+rerun and killed: 261112-045042-c739f7 (no cascade), -045044-6131c7 (owner), -045047-01cc0b
+(next()), -045050-1426c6 (model fix). Pending: fuzz 261112-045053-06a547, ASan+UBSan suite
+261112-045105-3b0736, A1 D75 single 261112-045107-d98a70, cross 261112-045109-600561,
+default-build single 261112-045112-1213da, CI 261112-045138-2d2840 (branch pushed).
+
+Earlier rounds:
 
 A1, the gap is inlining, not placement:
 - Placement ruled out: probe 261111-202423-339389 (exclusive, pads 0-61440 B, n = 1,000): w is
@@ -76,12 +113,10 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Reruns at wheel:f540679, needed only because the campaign's `tested_docs` lists README.md
-   (wheel's README runs in no test; the Cost/README commits are docs only): suite
-   261112-042845-375f03, fuzz 261112-042845-c55172, D75 row 261112-042845-b6a1c4, cross
-   261112-042845-919bf4, default-build row 261112-042845-ebe231, CI check 261112-042946-cdf883 (CI run
-   43218170404 green). The lead may instead drop README.md from `tested_docs` for this repository.
-2. The correctness review (lead), then A7 (the Xapiand lead).
+1. Read the pending jobs: fuzz, ASan suite, A1 rows (the cross row at P = 1 decides A1 per the
+   lead), CI. Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
+   --confirm F1=261112-045015-68d268` (the lead's).
+2. A7 re-review by the Xapiand lead.
 
 ## Blocked on
 
@@ -89,17 +124,19 @@ Nothing.
 
 ## Evidence
 
-At wheel:1cd7e7a (the code; f540679 and afbbc76 after it change only docs and *.md).
+At wheel:45f98eb. Review findings: F1=261112-045015-68d268 (suite with `shared`; fails without:
+261112-045016-03086f, 261112-045020-d35b49, 261112-045024-2acb3a); A7 F6 = same suite (fails
+without 261112-045028-3630df).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-234624-f5cc8e (D75 single row, wrappers inlined, R = 10): n = 1,000 1.049x (A/A 23.7%), n = 1,000,000 0.924x (A/A 21.1%), gate passed. Cross 261111-233422-3a6c0b: P = 1 1.125x (A/A 35.1%), P = 4 0.981x, P = 14 1.020x; gate failed at P = 1. Default-build single 261111-233420-9245bb (reported, not gated): 1.092x and 1.162x |
-| A2 | 261111-233424-51ff26 (suite); fails without: 261111-233426-1629a0 (no cascade), 261111-233426-739727 (no owner assertion), 261111-233427-f38b25 (next() unsaturated), 261111-233427-8621ae (model fix) |
-| A3 | 261111-233424-51ff26 (wheel_alloc in the suite) |
-| A4 | 261111-233426-fc722e (CI run 43175199669 green at wheel:1cd7e7a: ASan+UBSan, TSan, Linux/macOS/FreeBSD) |
-| A5 | 261111-233426-cba5bf (fuzz_ops, 10 min, seeded with fuzz/corpus) |
-| A6 | `docs/timer-wheel.md` (Cost (A1)), README Performance, at wheel:f540679 |
-| A7 | after ready for review: the Xapiand lead |
+| A1 | pending: 261112-045107-d98a70 (D75 single), 261112-045109-600561 (cross); reported 261112-045112-1213da (default build). At 1cd7e7a: single 261111-234624-f5cc8e passed (1.049x, 0.924x), cross 261111-233422-3a6c0b P = 1 1.125x (A/A 35.1%) |
+| A2 | 261112-045015-68d268 (suite); fails without: 261112-045042-c739f7 (no cascade), 261112-045044-6131c7 (no owner assertion), 261112-045047-01cc0b (next() unsaturated), 261112-045050-1426c6 (model fix), 261112-045016-03086f, 261112-045020-d35b49, 261112-045024-2acb3a (F1), 261112-045028-3630df (F6) |
+| A3 | 261112-045015-68d268 (wheel_alloc in the suite) |
+| A4 | pending 261112-045138-2d2840 (CI at 45f98eb); local ASan+UBSan suite 261112-045105-3b0736 |
+| A5 | pending 261112-045053-06a547 (fuzz_ops, 10 min, seeded with fuzz/corpus) |
+| A6 | `docs/timer-wheel.md` (Cost (A1), Threading contracts), README Performance, at wheel:45f98eb |
+| A7 | the Xapiand lead: CHANGES at f540679 (detent-wheel-lib-fit.md); F1, F3, F4, F6 answered at 45f98eb |
 
 ## Result
 
@@ -130,5 +167,10 @@ At wheel:1cd7e7a (the code; f540679 and afbbc76 after it change only docs and *.
 - Exp 5's comment on arm says a caller's wrapper inlines too; in the default -O2 build the
   harness's does not (cost 285 > 225). Left as is to keep evidence at 1cd7e7a; fold the wording
   ("a caller's call of arm inlines") into the review round's first code change.
+- Review round: option 1 (owner-side drain of every stripe) over always fetch_or; reasoning
+  under Doing. N2 as a uintptr_t compare, not std::less. F6 by bounding the destructor (one
+  fire per entry, later arms undone) rather than a Debug assertion, so it is defined behaviour
+  and testable in every build. The test hook is a macro, WHEEL_TEST_PUSHED, empty by default.
+- Pushed the quest branch (only it) for CI, as the earlier rounds did; A4 cites CI at the commit.
 - The default-build single row and the cross P = 1 row exited 1 on the 1.10x gate; every run was
   valid (no early, twice or missing fire): threshold data, not a failure, so nothing to fix.
