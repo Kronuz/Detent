@@ -1,6 +1,6 @@
 # okt-followups: journal
 
-State: waiting on jobs 261112-131901-4e7ea5 261112-131902-b2e1a4
+State: waiting on jobs 261112-132758-bc1392 261112-132801-03b771
 Quest: .campaign/detent/quests/okt-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,11 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Suite 261112-115015-ce950b failed in test_local_view: "invalid local image row". Cause: my `app:ramp7` record did not set the override start (r+32) to the running override index (2, after app:bool's two rows); view.cc:261 requires it. Not the A4 LeafBody check. Fixed at 233c39c7. Jobs at 233c39c7: suite 261112-131901-4e7ea5; A2 mutant rerun 261112-131902-b2e1a4 (the earlier exit 0, 261112-114424-6f60ca, was killed by the invalid row, not by the check). A1 mutant 261112-114417-f899ed and A4 mutant 261112-114429-cba3de are at code the fix does not touch (test_paged_definition, test_paged_leaf_body); A3 bindings 261112-115019-543828 and A3 mutant 261112-115028-7f7f86 passed at 532c5c27 (binding tests and read_view.hh unchanged since).
+Suite 261112-131901-4e7ea5 (233c39c7) and A2 mutant 261112-131902-b2e1a4 passed. The brief flagged A3's job 261112-115019-543828 (ran at 532c5c27) as other code, so A3 bindings and its mutant are rerun at cf30e069: 261112-132758-bc1392 and 261112-132801-03b771. The A1 and A4 mutants (261112-114417-f899ed, 261112-114429-cba3de) ran at 23559fd2; the brief does not flag them. Their test files (test_paged_definition.cc, test_paged_leaf_body.cc) are unchanged since.
 
 ## Next
 
-1. When they finish: paste `campaign brief` Evidence table, write Result, State ready for review.
+1. When the two A3 jobs pass: paste the brief's table, State ready for review.
 
 ## Blocked on
 
@@ -27,13 +27,14 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | 261112-131901-4e7ea5; fails without: 261112-114417-f899ed |
+| A2 | 261112-131901-4e7ea5; fails without: 261112-114424-6f60ca (killed by the invalid fixture row, not the check), 261112-131902-b2e1a4 (killed by "local view invariant failed") |
+| A3 | 261112-132758-bc1392 (rerun of 261112-115019-543828 at cf30e069); fails without: 261112-132801-03b771 |
+| A4 | 261112-131901-4e7ea5; fails without: 261112-114429-cba3de |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+C1-C5 closed; no behavior change except C4's refusal (nothing reached it before). Tests: test_paged_definition (overlong and past-64-bit varints in an override row), test_view (flat record `app:ramp7`, default 1, 50% to 7, in and out of the bucket for 64 hashes and no hash), Python and Rust binding tests (`get_bool` refuses 2 and -1; health counts 6 knobs), test_paged_leaf_body (value without percentage, percentage without value, and the valid pairing). Source: LeafBody `ramped_` check (paged_leaf_body.cc/.hh), export_encoder `flag_` -> `definition_`. Mutants in tests/detent/mutants/c1..c4; bindings_mutant.sh runs the bindings mutant. No docs changed. Leaves open: sanitizers and platforms (CI).
 
 ## Rulings I made
 
