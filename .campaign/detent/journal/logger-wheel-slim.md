@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: ready for review
+State: waiting on jobs 261112-125532-88d000 261112-125533-5e59c9 261112-131943-f2c342 261112-131943-43cd67
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -86,10 +86,10 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | artifact: docs/perf/wheel-ab.md "Arm D" (logger:123f5e2); sizeof A 184, C 264, D 192 (261112-062455-24c582) |
-| A2 | final D at afe86c5: check-d 261112-111533-94c654, tsan-d 261112-111535-1f3660; rows p3 P=1,4,14: 261112-111543-8bd01a, 261112-111549-a6d0a9, 261112-111546-ef2712; p2 P=1,4,14: 261112-111551-87f1d9, 261112-111554-1986e4, 261112-111556-0924db. First D (Verdict D): check-d 261112-071531-bd8c2e, tsan-d 261112-071533-689a79; rows pattern 3 P=1,4,14: 261112-071159-b0cda2, 261112-071201-563e40, 261112-071203-028190; pattern 2 P=1,4,14: 261112-071206-e00583, 261112-071208-a53db3, 261112-071210-60b58a (all passed at 8094113edbb0; later commits are docs-only) |
-| A3 | artifact: docs/perf/wheel-ab.md "Verdict D" (logger:7f3b850) |
-| A4 | artifact: docs/perf/wheel-ab.md "Arm D, fixed" (logger:dce2538); profiles 261112-081713-5f3fc7 (D), -081716-e81894 (A), -082038-4353a0 (D P=1); counters 261112-082031-adcffd, trace 261112-100143-5b66af; change rows as listed in the doc; final rows as A2 |
+| A1 | `docs/perf/wheel-ab.md`: "Design: where (C)'s 80 bytes go"; sizeof at dce2538 261112-125533-5e59c9 |
+| A2 | check-d 261112-131943-f2c342, tsan-d 261112-131943-43cd67 (at dce2538; afe86c5: 261112-111533-94c654, 261112-111535-1f3660), suite 261112-125532-88d000; rows p3 P=1,4,14 261112-111543-8bd01a, 261112-111549-a6d0a9, 261112-111546-ef2712; p2 P=1,4,14 261112-111551-87f1d9, 261112-111554-1986e4, 261112-111556-0924db |
+| A3 | `docs/perf/wheel-ab.md`: "## Verdict D" |
+| A4 | `docs/perf/wheel-ab.md`: "## Arm D, fixed" |
 
 ## Result
 
