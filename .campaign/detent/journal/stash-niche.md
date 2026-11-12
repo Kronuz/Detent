@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: waiting on jobs 261111-194539-717932
+State: waiting on jobs 261111-194539-717932 261111-195159-e2d3d5
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -11,7 +11,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 Rule committed (1986b696) before any job. Harness written (stash_niche.cc/.sh/_summary.py).
 Job 261111-194539-717932 (light): test under ASan+UBSan and TSan, queued behind another quest's
-exclusive hold. No measured row has run.
+exclusive hold; smoke job 261111-195159-e2d3d5 (strict, after it) queued. No measured row has run.
 
 ## Next
 
