@@ -27,7 +27,7 @@ Nothing blocks the work. Q3 (Xapiand lead): remove `/_quit` and `/_flush?clients
 |---|---|
 | A1 | `docs/design/service-shape.md`: "API", "Shutdown, the same in all three (D80)", "Stop and drain order", "Today's shapes, mapped" (task:ed76e4f); docs check 261112-102139-05709b; signal probe 261112-101111-197ad6 |
 | A2 | `docs/design/service-shape.md`: "manager.cc" (task:ed76e4f) |
-| A3 | pending: design review CHANGES (F1-F5) and Xapiand fit CHANGES (B1, B2) answered at task:ed76e4f; a re-review and the Xapiand lead's agreement remain |
+| A3 | pending the design re-review at task:ed76e4f; the Xapiand lead agrees at task:ed76e4f (checked B1, B2 and D71; owner ruling Xapiand D75: /_quit and /_flush?clients are removed in the migration, FLUSH?databases stays) |
 | A4 | `docs/design/service-shape.md`: "Timers" (task:ed76e4f), answering msg-30's N1 and AsioHost timers; G2 added |
 
 ## Result
