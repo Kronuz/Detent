@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### One knob type
+
+- One knob type: every knob is a signed 64-bit integer with a default, group overrides (a forced
+  value or a percentage) and an optional rollout serving `rollout_value`; a flag is default 0,
+  rollout value 1. `BoolDef`, `IntDef`, the JSON `type` field, `eval` and `eval_or_panic` are
+  gone; reads are `get`, `get_as<T>` (`get_as<bool>` takes 0 and 1) and `get_or_panic`. A hashed
+  caller outside a percentage gets `default` (D68). JSON, wire, paged body (varint, 20% fewer page
+  bytes than the two-type body), flat image and reader metadata change with no compatibility.
+
 ### IPv6
 
 - Every address Detent takes or listens on works over IPv6 as over IPv4: voter hosts, `publisher_bind`,
