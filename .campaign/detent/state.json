@@ -6335,6 +6335,8 @@
     "superseded-sweep": {
       "accepted": {},
       "after": [],
+      "base": "580f3b17206b623b044bf53a2ca77cb4ddd79912",
+      "branch": "quest/detent/superseded-sweep",
       "checks": [
         {
           "cmd": "test -s docs/dev/superseded-libraries.md",
@@ -6354,9 +6356,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "List superseded cpp-libraries, successors and users",
-      "updated": "2026-11-11T20:49:34"
+      "updated": "2026-11-11T20:50:21",
+      "worktree": "../Detent-wt/detent/superseded-sweep"
     },
     "sync-groups-perf": {
       "accepted": {},
