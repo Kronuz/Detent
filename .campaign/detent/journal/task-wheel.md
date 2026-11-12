@@ -1,6 +1,6 @@
 # task-wheel: journal
 
-State: waiting on jobs 261111-194713-13e696 261111-201226-76b3a1 261111-201326-d9faea 261111-201331-e63fee
+State: waiting on jobs 261112-080317-77f500 261112-080318-bdea92 261112-080321-77ecd0 261112-080331-647f35 261112-080334-3404ab
 Quest: .campaign/detent/quests/task-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,44 +9,54 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Direction change (coordinator, D72 coming): the wheel becomes Kronuz/wheel, header-only, no
-dependencies; task integration stops and moves to a later quest. A1 carries over unchanged.
+Quest rewritten for D72: task depends on Kronuz/wheel and keeps only the integration.
 
-Where things are on quest/detent/task-wheel (task:5a1e516, pushed):
-- The wheel: task.hh "// Timers" section, `struct timer_entry` and `class timer_wheel` (the block
-  before `namespace detail { struct timed_cancel_state; ...}`). It uses only std (<algorithm>,
-  <array>, <atomic>, <bit>, <cassert>, <cstdint>, <thread>) and no task type: it lifts out as a
-  standalone header by moving that block and renaming the namespace.
-- Wheel-only tests: test/wheel_test.cc `reentry`, `model`, `far`, `cross`, `owner` (the rest,
-  `manual`, `chain`, `ref`, are integration) and test/wheel_alloc_test.cc `wheel()` (`deadlines()`
-  is integration).
-- Harness: bench/wheel/ (proto.hh = (a), wheel_bench.cc arms a a2 f f2 t, wheel_bench.sh,
-  wheel_bench_summary.py); `t` includes task.hh only for timer_wheel.
-- Integration already written and suite-green (stopped, not to be extended here): deadline<S> on
-  S::clock with the entry in `detail::timed_cancel_state`, inline_scheduler clock/wheel/advance,
-  asio_scheduler start_timer on the wheel, scheduler_ref::wheel(); test/wheel_asio_test.cc.
-  It is for the later task-integration quest to take or redo against Kronuz/wheel.
+At task:c0cda23 (pushed, CI run 43254372787):
+- task:12c0443 CMake fetches Kronuz/wheel at wheel:bfd72bc (full hash), `task` links
+  wheel::wheel; task.hh includes wheel.hh and names wheel::timer_wheel / wheel::timer_entry; the
+  inline wheel, the wheel-only tests and bench/wheel are gone (they live in Kronuz/wheel). Tests
+  renamed: test/deadline_test.cc (manual, chain, ref), deadline_alloc_test.cc,
+  deadline_asio_test.cc (offloop, teardown, idle). Local Debug suite green (7/7, Apple clang).
+- task:c0cda23 docs/mechanisms/deadlines.md replaces docs/timer-wheel.md (A6); README, API.md,
+  ARCHITECTURE.md, cancellation.md point at it.
 
-Jobs: suite 261111-200257-79ef5c green (at task:29efffaa), 261111-201335-80a7d2 queued at head;
-mutants caught 261111-200754-54595f (no cascade), 261111-200759-d5c797 (no owner assertion);
-A1 queued exclusive: pads probe 261111-194713-13e696, single row 261111-201326-d9faea, cross row
-261111-201331-e63fee; strict probe with t (not evidence) 261111-201226-76b3a1. CI run 43152858997.
+CI red at task:5a1e516: macOS arm64 and FreeBSD failed `task_wheel` at wheel_test.cc:230
+(`cross`, f == 1). The test stopped expiring 60 s in once producers finished, but slow producers
+read a clock already far ahead, so arms 10 s past it never came due. Test bug, fixed in the
+library at wheel:4a5bef4; task's copy of the test is gone with the inline wheel.
+
+Wheel rules checked against task (docs/mechanisms/deadlines.md "The wheel's rules, kept"):
+1. false fire: on_wheel(false) only releases; only asio's wheel dies with entries filed, after
+   close(), and a closed scheduler neither files nor unfiles.
+2. a fire may free its own entry: on_wheel's release frees the state when the deadline is gone
+   (deadline_asio teardown, live_frames back to baseline; mutant 261112-080321-77ecd0).
+3. entries outlive the wheel or are cancelled: refcounted state; drop_timer cancels.
+Exact cancel holds: task never arm_remote()s; off-loop filing/unfiling go through asio::post.
 
 ## Next
 
-1. Read the A1 rows: t vs a single-loop at n=1e3/1e6 within 1.10x, t vs f cross within 1.10x;
-   if the n=1e3 gap shows, the pads probe says whether it is placement; up to five layout tries.
-2. Wait for the lead to name the Kronuz/wheel quest and worktree; move the wheel there.
+1. Read jobs: suite 261112-080317-77f500 (A3), grep 261112-080318-bdea92 (A1), mutant
+   261112-080321-77ecd0 (A3), ASan+UBSan 261112-080331-647f35 and TSan 261112-080334-3404ab
+   (A4), and CI 43254372787; then paste the brief's Evidence table, State ready for review.
 
 ## Blocked on
 
-Nothing.
+Nothing blocks the work. Question for the lead (contract): API.md on main says a deadline "keeps
+no reference to `sched`"; on the wheel its `wheel_timer` points at the scheduler, so the
+scheduler must outlive the deadline (asio_test.cc and every in-repo user already do; A3's
+operational test passes). Options: (a) accept and document it (done in API.md and deadlines.md);
+(b) keep the old promise with a per-deadline liveness handle (an allocation or a shared
+pointer per scheduler, plus a bit for "wheel released"). Recommend (a).
 
 ## Evidence
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
+| A1 | pending 261112-080318-bdea92 |
+| A3 | pending 261112-080317-77f500, mutant 261112-080321-77ecd0 |
+| A4 | pending 261112-080331-647f35, 261112-080334-3404ab, CI 43254372787 |
+| A6 | docs/mechanisms/deadlines.md at task:c0cda23 |
+| A7 | the Xapiand lead's review, when ready |
 
 ## Result
 
@@ -77,5 +87,9 @@ Pending.
   cancels the wake timer, so `io.run()` returns as it did with one steady_timer per deadline.
 - drain() files inbox entries with file(), not arm(): arm()'s unarmed path drains again, so
   producers refilling the inbox could nest drains without bound (task:5a1e516).
+- Names: task uses wheel::timer_wheel and wheel::timer_entry directly, no task:: alias (one name
+  per type). The integration tests are renamed deadline_* since they test deadlines, not the wheel.
+- AGENTS.md's repository map (outside this quest's file set) does not list the deadline_* tests;
+  left for the lead.
 - Not in this quest's criteria, so not done here: inline_scheduler `post_call`,
   `task::blocking_scheduler` (async-drivers row 1 lists them; the quest's A3 does not).
