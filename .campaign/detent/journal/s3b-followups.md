@@ -27,7 +27,7 @@ Nothing.
 | A1 | pass job 261112-152830-3d7cba (exit 0: `test_testing_pack_scrub_faults` now has 6 resource cases and real EMFILE); mutant 261112-153139-d7786b killed (transient errno treated as damage) |
 | A2 | pass job 261112-152830-3d7cba (`test_local_paged_segment_collection` variant 17: a missing pack of the selected root, the orphan is swept and the pass is deferred); mutant 261112-153143-a458f6 killed (ENOENT/EIO fail the pass) |
 | A3 | N4 fixed, N5 dropped with a measurement. Pass job 261112-152830-3d7cba (`rebase_keeps_progress`, and `scrub-carry` inside `test_delivery_repair_scrub-worker`); mutants 261112-153147-8762a3 (rebase restarts) and 261112-153151-81a394 (coordinator restarts on a new root) killed. N5 probe 261112-153155-d38d71 |
-| A4 | [artifact] `docs/mechanisms/trusted-restart.md`: first Limits bullet (second list) says the scrub withdraws only the agent's own verified bits and a reader process (PreparedReader, LazyPageAccess) keeps its own until it reopens on the repaired generation. d91078d3 |
+| A4 | `docs/mechanisms/trusted-restart.md`: "The scrub withdraws only the agent's own bits" |
 
 ## Result
 
