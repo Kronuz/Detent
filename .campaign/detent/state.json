@@ -6396,6 +6396,8 @@
     "task-wheel": {
       "accepted": {},
       "after": [],
+      "base": "d6bce5939385fb8f200d6a8890fba4741a7fd956",
+      "branch": "quest/detent/task-wheel",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
@@ -6415,6 +6417,7 @@
         "README.md",
         "ARCHITECTURE.md"
       ],
+      "journal": "../Detent-wt/detent/task-wheel",
       "landed": [],
       "lenses": [
         "correctness"
@@ -6426,9 +6429,10 @@
       "provides": [],
       "repo": "../task",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-11T18:22:52"
+      "updated": "2026-11-11T19:40:52",
+      "worktree": "../task-wt/detent/task-wheel"
     },
     "wheel-evidence": {
       "accepted": {},
