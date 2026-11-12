@@ -7324,7 +7324,62 @@
       "worktree": ""
     },
     "wheel-lib": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T05:03:17",
+          "base": "7c5ddc7401ac28d5da9557752ed2f1f61e6ab0cc",
+          "blobs": {
+            "AGENTS.md": "100644:3ec165183e4eb12526e137b0868667baebc4ad1a",
+            "ARCHITECTURE.md": "100644:5d293f1df8eb6e99680af847b6d400432c48e594",
+            "CHANGELOG.md": "100644:a8d7d5f743f66b1c4ba2ae691957ada217a350ab",
+            "CMakeLists.txt": "100644:7a416b864e130e2163b49916edf1f56bf934ab1f",
+            "README.md": "100644:a914f15d22e6e76bed87c708041d89fc8baab1a2",
+            "bench/forward_probe.sh": "100755:4a8086c13318af0cb99cfab8966ab6aed972ab25",
+            "bench/proto.hh": "100644:d9e089939f2075e7cbcc5099e37f6732247505e0",
+            "bench/wheel_bench.cc": "100644:5ff43f1905894bbf66ea88f6da21d06217d4f606",
+            "bench/wheel_bench.sh": "100755:8f1f9b73c83a9c40e64744b8157c4877ff409143",
+            "bench/wheel_bench_summary.py": "100644:c20b8147b1d3befe9a6dc05626556a12a5ff5390",
+            "docs/timer-wheel.md": "100644:a1537568977a19dac99a968c390b7d7f920f4588",
+            "examples/demo.cc": "100644:6da7c0d56a1b4010d0c891b98a0098206a91fad5",
+            "fuzz/corpus/remote-arm-due-filed-by-a-later-fire": "100644:e234150f6c239655d5f634085a301118858e6ed7",
+            "fuzz/fuzz_ops.cc": "100644:826de434b57687439f18adb48d6cc095a7e26c80",
+            "fuzz/replay.cc": "100644:6a28fb8b9c5da2b0eb4f092cfd872551245cdca6",
+            "test/model.hh": "100644:00070054ca4b9fef407d53dc103bdb2a19c5283f",
+            "test/wheel_alloc_test.cc": "100644:bbd0b1b70457263eec7972f28c520d4510579380",
+            "test/wheel_test.cc": "100644:7b47af3df6b2b12e548852fc85af468599bb1957",
+            "wheel.hh": "100644:76720c5972d2b997a03fe37b5b9d7f264defe47f"
+          },
+          "by": "review",
+          "commit": "45f98eb05e669ed39544f2b7059d2ac57df4333b",
+          "criteria": "d1e1bec218af6355",
+          "diffs": {
+            "": "cf8893827670f367",
+            "AGENTS.md": "5f74a6d3e911e3e0",
+            "ARCHITECTURE.md": "9d4eb1c1b4c5b642",
+            "CHANGELOG.md": "9da26334beeeaf82",
+            "CMakeLists.txt": "47dd3fb1cdd4b2ca",
+            "README.md": "7e9936cfd650339b",
+            "bench/forward_probe.sh": "b7112d456fbd4b66",
+            "bench/proto.hh": "4b7bd106e01bca77",
+            "bench/wheel_bench.cc": "2d021cd9bd891313",
+            "bench/wheel_bench.sh": "c2b6c61ed3ab41d8",
+            "bench/wheel_bench_summary.py": "c4323505c5cd9cf8",
+            "docs/timer-wheel.md": "508513c50d33c12a",
+            "examples/demo.cc": "b1ea5a7d7a05f169",
+            "fuzz/fuzz_ops.cc": "21ef65893f565724",
+            "fuzz/replay.cc": "98d90f4e501f702d",
+            "test/model.hh": "8c24fb1d73ca561e",
+            "test/wheel_alloc_test.cc": "df3826d0caad6394",
+            "test/wheel_test.cc": "2be870fbeb7ff69d",
+            "wheel.hh": "170b741ffd02d91d"
+          },
+          "findings": {},
+          "note": "",
+          "review": "1b8e79b655536cde7d671d0293baffc802aa218d",
+          "reviewed": "45f98eb05e669ed39544f2b7059d2ac57df4333b",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "4eff806ec5d15fb86e920567dcaaf35aa2da098b",
       "branch": "quest/detent/wheel-lib",
@@ -7362,7 +7417,7 @@
       "risk": "high",
       "status": "active",
       "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
-      "updated": "2026-11-12T04:41:58",
+      "updated": "2026-11-12T05:03:17",
       "worktree": "../wheel-wt/detent/wheel-lib"
     }
   },
