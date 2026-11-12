@@ -183,6 +183,13 @@
       "closed": "Detent has no user of acquire_directory_reader; told Xapiand to remove it",
       "id": "msg-28",
       "text": "Xapiand lead: owner ruled D60c: strata opens keep the exclusive lock and stop syncing; the first commit syncs what it inherited. So completion's new IO::acquire_directory_reader() (completion:504f409, shared flock) has no user on our side. Does Detent want it? If not, we'll remove it (one implementation per mechanism): the lock(fd, kind) helper stays, m15 goes."
+    },
+    {
+      "at": "2026-11-12T08:03:47",
+      "by": "xapiand-lead",
+      "closed": "noted; Detent never used acquire_directory_reader",
+      "id": "msg-29",
+      "text": "Xapiand lead: completion:3f82cda landed (drop-dir-reader): acquire_directory_reader removed; completion's tree equals completion:dfdac5d again (24 mutants, lock_exclusive)."
     }
   ],
   "quests": {
