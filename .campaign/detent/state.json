@@ -3292,12 +3292,12 @@
       "milestone": "N1",
       "needs": [],
       "provides": [],
-      "reason": "started by force: dense-pages owns docs/perf/** by glob but its diff has no docs/perf/namespace-* file",
+      "reason": "Waits for warm-graph-5m, then one 5M T9 round (D87)",
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "blocked",
       "title": "Namespace: T9 cut point, T4(7) server cost, period-64 wire run",
-      "updated": "2026-11-10T13:12:19",
+      "updated": "2026-11-12T13:32:37",
       "worktree": "../Detent-wt/detent/namespace-measure"
     },
     "namespace-s1-s2": {
