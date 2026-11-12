@@ -7823,6 +7823,8 @@
     "wheel-vs-stash": {
       "accepted": {},
       "after": [],
+      "base": "b93742bfff9234bce12d1d6819047d45e9cfb11b",
+      "branch": "quest/detent/wheel-vs-stash",
       "checks": [
         {
           "cmd": "test -s docs/perf/wheel-vs-stash.md",
@@ -7843,9 +7845,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "The landed wheel against stash, same harness",
-      "updated": "2026-11-12T11:05:13"
+      "updated": "2026-11-12T11:05:26",
+      "worktree": "../Detent-wt/detent/wheel-vs-stash"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
