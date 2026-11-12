@@ -4455,6 +4455,8 @@
       "after": [
         "namespace-s5-2"
       ],
+      "base": "f5b76ddd39423d6c321ececdbad5db1c8f4dd4c2",
+      "branch": "quest/detent/namespace-s6",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4551,9 +4553,10 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-10T13:19:11"
+      "updated": "2026-11-12T11:37:48",
+      "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s7": {
       "accepted": {
