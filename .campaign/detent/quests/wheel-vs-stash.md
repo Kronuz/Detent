@@ -28,9 +28,9 @@ this file afterwards (wheel-followups A4, and the lead for the article).
 - A2 [artifact] The tables, each row's job id, and one line per row saying whether the comparison
   is apples to apples (same work per operation) or only plain numbers side by side, with the reason:
   `docs/perf/wheel-vs-stash.md`.
-- A3 [artifact] The harness's evidence-era copies (`wheel.hh`, `stash_niche_wheel.hh`) are removed
-  or no longer built, so nothing in Detent measures a prototype: `docs/perf/wheel-vs-stash.md`:
-  "Harness".
+- A3 [artifact] The `wheel_vs_stash` and `stash_niche` targets build the fetched library, no copy
+  and no candidate arm; the async-drivers design-record tests and probes keep their `wheel.hh`
+  (lead, 2026-11-12): `docs/perf/wheel-vs-stash.md`: "Harness".
 
 ## Contracts
 
