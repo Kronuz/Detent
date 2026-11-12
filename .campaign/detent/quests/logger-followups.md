@@ -5,27 +5,23 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+The non-blocking findings of `reviews/logger-on-wheel-correctness.md` are closed, and logger no longer links Kronuz/scheduler (D72: scheduler retires once nothing uses it).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 F2: `test/deferred.cc` cannot abort when the producer is preempted near a line's due time (no `CHECK(h.clear())` on lines due within a few ms, or a margin that holds): the suite run 50 times under load as one job
+- A2 F6: logger's CMake links no scheduler target and no file includes scheduler headers: a grep job and the suite
+- A3 F1: the batch orders by one call-time key with the old tie-break restored: a test with equal due times
+- A4 [artifact] F4: ARCHITECTURE.md describes the batch's inserts as they are: `ARCHITECTURE.md`
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D72, D86.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
