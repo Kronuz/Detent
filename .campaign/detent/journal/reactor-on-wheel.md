@@ -24,6 +24,8 @@ reactor tests passed (not evidence; sanitizers are CI's). Waiting on the exclusi
 
 ## Blocked on
 
+Lead's note (no msg id): archived repos (cluster) do not count for A4's grep; WheelSleep stays private to reactor (it folds into task's sleep/periodic later); State at the end reads "A1-A3 ready for early landing at <sha>; A4 waits on Xapiand". Main merged into this journal branch.
+
 A4 (remove PeriodicTimer): its last user is Xapiand's src/manager.cc (try_shutdown_timer, `reactor_events.h` include), moved by the Xapiand campaign. Not started here; A1-A3 may land early.
 
 ## Evidence
