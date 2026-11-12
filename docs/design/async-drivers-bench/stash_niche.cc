@@ -4,7 +4,7 @@
 //   niche ARM P N HORIZON_MS   P producers file N entries; one consumer drains them in key order
 //   nichemem ARM P N HORIZON_MS  (the COUNT_HEAP build) the structure's heap per key after filing
 //   nichetest                  both arms against every check, small
-// ARM is b or f.
+// ARM is b (stash, cand_nb below) or f.
 #define main wheel_vs_stash_main
 #include "wheel_vs_stash.cc"
 #undef main
@@ -12,6 +12,60 @@
 #include <sys/resource.h>
 
 namespace {
+// (b) for the niche: cand_b over Xapiand's four levels with the top level one slot wider (4,801 x
+// 18 s). The configuration's span is exactly 24 h, but stash measures it from the slot holding the
+// first valid key, so a base inside a slot refuses the last seconds of a 24 h horizon (past_horizon).
+template <class Leaf>
+using niche_levels = StashSlots<StashSlots<StashSlots<StashSlots<Leaf, 10, 1 * ms, 50>, 10, 50 * ms, 10>, 12, 500 * ms, 36>,
+	4801, 18000 * ms, 4801>;
+struct niche_stash_wheel {  // stash_wheel with niche_levels, otherwise the same
+	std::unique_ptr<niche_levels<StashValues<bentry*, 10>>> q = std::make_unique<niche_levels<StashValues<bentry*, 10>>>();
+	StashContext ctx, cctx;
+	explicit niche_stash_wheel(u64 base) : ctx(base), cctx(base) {}
+	void add(u64 key, bentry* e) { CHECK(q->add(ctx, key, e) == stash_result::placed); }
+	template <class Take>
+	std::size_t walk(u64 now, Take&& take) {
+		auto first = ctx.atom_first_valid_key.load();
+		if (first < cctx.atom_first_valid_key.load()) { cctx.atom_first_valid_key = first; }
+		cctx.atom_last_valid_key = ctx.atom_last_valid_key.load();
+		ctx.op = StashContext::Operation::walk;
+		ctx.pending_floor = StashContext::IDLE;
+		ctx.begin_key = ctx.atom_first_valid_key.load();
+		ctx.end_key = now + 1 - ms;
+		bentry* e = nullptr;
+		std::size_t n = 0;
+		while (q->next(ctx, &e)) { n += take(e); }
+		cctx.op = StashContext::Operation::clean;
+		cctx.begin_key = cctx.atom_first_valid_key.load();
+		cctx.end_key = ctx.atom_first_valid_key.load();
+		bentry* ignored = nullptr;
+		q->next(cctx, &ignored);
+		return n;
+	}
+};
+struct cand_nb {  // cand_b on niche_stash_wheel
+	using entry = bentry;
+	static constexpr bool cross = true;
+	static constexpr const char* shape = "stash.h, four levels (top 4,801 x 18 s), entry* values";
+	niche_stash_wheel s;
+	explicit cand_nb(u64 base) : s(base) {}
+	static u64 deadline(const entry& e) { return e.deadline; }
+	void arm_from(entry& e, u64 d) {
+		e.deadline = d;
+		e.armed.store(true, std::memory_order_relaxed);
+		s.add(d, &e);
+	}
+	template <class F>
+	std::size_t expire(u64 now, F&& f) {
+		return s.walk(now, [&](bentry* e) -> std::size_t {
+			if (!e->armed.load(std::memory_order_relaxed) || e->deadline > now) { return 0; }
+			e->armed.store(false, std::memory_order_relaxed);
+			f(*e);
+			return 1;
+		});
+	}
+};
+
 // Peak resident set so far, in bytes (macOS reports bytes, Linux kilobytes).
 std::size_t peak_rss() {
 	rusage u{};
@@ -161,7 +215,7 @@ void nichemem(std::string_view arm, std::size_t producers, std::size_t total, u6
 
 template <class F>
 auto niche_dispatch(std::string_view arm, F&& f) {
-	if (arm == "b") { return f(static_cast<cand_b*>(nullptr)); }
+	if (arm == "b") { return f(static_cast<cand_nb*>(nullptr)); }
 	if (arm == "f") { return f(static_cast<cand_f*>(nullptr)); }
 	std::fprintf(stderr, "unknown arm %.*s (b or f)\n", int(arm.size()), arm.data());
 	std::exit(2);
@@ -185,7 +239,13 @@ int main(int argc, char** argv) {
 	std::setvbuf(stdout, nullptr, _IOLBF, 0);
 	const std::string_view mode = argc > 1 ? argv[1] : "";
 	if (mode == "nichetest") {
-		check_niche<cand_b>("b");
+		{  // the last millisecond of a 24 h horizon is filed, not refused
+			cand_nb c(manual_base);
+			bentry e;
+			c.arm_from(e, manual_base + 86'400'000 * ms - ms);
+			std::printf("test far-edge ok\n");
+		}
+		check_niche<cand_nb>("b");
 		check_niche<cand_f>("f");
 		std::printf("test all ok\n");
 		return 0;

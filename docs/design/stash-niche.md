@@ -12,9 +12,14 @@ unchanged.
 
 ## Arms
 
-- **(b) stash as it is**: Xapiand's four levels (`scheduler.h:226-230`, 1 ms resolution, 24 h
-  span), `entry*` values, exactly `cand_b` of wheel-evidence. Nothing cancels or re-arms, so
-  the armed flag it carries is only ever set. The consumer drains in key order with one walk.
+- **(b) stash as it is**: Xapiand's four levels (`scheduler.h:226-230`, 1 ms resolution), `entry*`
+  values, `cand_b` of wheel-evidence with one harness choice: the top level has 4,801 slots of
+  18 s instead of 4,800. stash measures a level's span from the slot holding the first valid
+  key (`StashSlots::horizon`), so 4,800 slots (exactly 24 h) refuse the last seconds of a 24 h
+  horizon as `past_horizon` whenever the base is inside a slot; one more slot covers 24 h from
+  any base. wheel-evidence's `cand_b` is unchanged and still has 4,800. Nothing cancels or
+  re-arms, so the armed flag it carries is only ever set. The consumer drains in key order
+  with one walk.
 - **(f)**: the single-owner wheel (4,096 slots of 1 ms, 32-byte intrusive entry) with the 64-stripe
   inbox, exactly `cand_f`. No overflow level: a deadline a round or more ahead waits in its slot
   and is skipped until due. The consumer drains the way D4's design drives the wheel: it files
