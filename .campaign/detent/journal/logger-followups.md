@@ -1,15 +1,15 @@
 # logger-followups: journal
 
-State: waiting on jobs 261112-154326-0214a8
+State: ready for review
 Quest: .campaign/detent/quests/logger-followups.md (the lead's; never edit it)
 
 ## Doing
 
-Lead's follow-up done at logger:4f26753: arms C and D, wheel-port.sh, sizeof.cc deleted; README, AGENTS, docs/perf reworded; A2 grep now whole repo. Only the A1 rerun is pending.
+Lead's follow-up done at logger:4f26753: arms C and D, wheel-port.sh, sizeof.cc deleted; README, AGENTS, docs/perf reworded; A2 grep now whole repo. All jobs passed.
 
 ## Next
 
-1. When 261112-154326-0214a8 passes: paste the brief's table, State ready for review. CI needs the branch pushed (lead).
+1. Review. CI needs the branch pushed (lead).
 
 ## Blocked on
 
@@ -22,9 +22,9 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-154326-0214a8 (rerun at 4f26753; first pass 261112-153821-14b5c8 passed at c535062) |
-| A2 | 261112-154159-639ab1 (suite), 261112-154201-da17c7 (whole-repo grep), 261112-154205-39b3fa (wheel_ab option builds, its checks pass) |
-| A3 | 261112-154159-639ab1; fails without: 261112-153648-ec9876, 261112-153825-06b388 |
+| A1 | 261112-154326-0214a8 |
+| A2 | 261112-154159-639ab1 (passed at 3bdf664566b6; ignores docs-only docs/ROADMAP.md), 261112-154201-da17c7 (same), 261112-154205-39b3fa (same) |
+| A3 | 261112-154159-639ab1 (same); fails without: 261112-153648-ec9876, 261112-153825-06b388 |
 | A4 | `ARCHITECTURE.md`: "so the batch rarely takes an insert" |
 
 A1's job runs logger_deferred, _stress and _ties 50 times each (150 passes) under one busy loop per
