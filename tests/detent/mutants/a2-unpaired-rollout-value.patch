@@ -1,0 +1,13 @@
+diff --git a/include/detent/model.hh b/include/detent/model.hh
+index 786f5295..8fc5f5aa 100644
+--- a/include/detent/model.hh
++++ b/include/detent/model.hh
+@@ -45,8 +45,6 @@ struct KnobDef {
+ 				return "group rollout_pct out of range";
+ 			ramped = true;
+ 		}
+-	if (ramped != definition.rollout_value.has_value())
+-		return ramped ? "rollout_pct without rollout_value" : "rollout_value without rollout_pct";
+ 	return nullptr;
+ }
+ 
