@@ -8500,17 +8500,45 @@
         "docs/design/async-drivers-bench/**",
         "docs/perf/wheel-vs-stash.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T15:48:40",
+          "commit": "b5c23575a700041a2614a95f5adbf5ced34a7317",
+          "criteria": {
+            "A1": "261112-131222-a47299 (passed at 43f5dbf16f78; only merges from main since), 261112-134519-339b0d (passed at 2e69b9f16b3c; only merges from main since), 261112-134522-786aad (passed at 2e69b9f16b3c; only merges from main since), 261112-134524-cd4fc1 (passed at 2e69b9f16b3c; only merges from main since), 261112-134528-c24e96 (passed at 2e69b9f16b3c; only merges from main since)",
+            "A2": "`docs/perf/wheel-vs-stash.md`: \"Apples to apples, per row\"",
+            "A3": "`docs/perf/wheel-vs-stash.md`: \"The targets build the fetched library, no copy and no candidate arm\""
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/perf/wheel-vs-stash.md",
+              "commit": "0a7dd550826af7b1ae1738e3a01592a935a6a753",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-140821-e7ce4f",
+              "level": "light",
+              "seconds": 0.9,
+              "state": "done",
+              "what": "wheel-vs-stash check docs at 0a7dd550826a"
+            }
+          ],
+          "final": true,
+          "from": "b4b7d01298034c86625fdcca79eb37732221827c",
+          "reason": "",
+          "tested": "fd5525000e66725ea2b7a0abaaabdca8fcf30abf"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "The landed wheel against stash, same harness",
-      "updated": "2026-11-12T11:05:26",
-      "worktree": "../Detent-wt/detent/wheel-vs-stash"
+      "updated": "2026-11-12T15:48:57",
+      "worktree": ""
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
