@@ -4532,7 +4532,7 @@
     "namespace-s6": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-12T13:42:22",
+          "at": "2026-11-12T14:26:05",
           "base": "4d6e39c6d800644180ec58908f47140cbe91fcb0",
           "blobs": {
             "docs/status/namespace-s6.md": "100644:acb6c56e1b1af45a9fbdb0c988e5ce3bf66fd8f2",
@@ -4554,7 +4554,7 @@
             "src/detent_distribution/grants.cc": "100644:35e53d6b8634bdfdf3f48a98dbcb71fd5511359b",
             "src/detent_distribution/session_frames.cc": "100644:58429d38908e73a71aa3b764b860486f7f11cfac",
             "src/detent_distribution_http/session_request.cc": "100644:e23daec06b3cf8ba6af2d8d262436d01ad93e8ee",
-            "tests/detent_delivery/CMakeLists.txt": "100644:a6cad6e602d1882cbc1fb55fca45102ca57f3761",
+            "tests/detent_delivery/CMakeLists.txt": "100644:8f541ee4d550e6fd6aff569c1a8d189d0cd1b9b7",
             "tests/detent_delivery/test_namespace_session.cc": "100644:582254857f3bfb25469755bcbefe14f393eda93e",
             "tests/detent_delivery/test_session_request.cc": "100644:a6b02bb73d2e8e15b117b90759b713d9c520fb6b",
             "tests/detent_distribution/CMakeLists.txt": "100644:d713be5aa2a7371ce2ca3ba816afa6d49dfaadfe",
@@ -4563,7 +4563,7 @@
             "tests/detent_distribution/test_session_frames.cc": "100644:917e7b925e3125c8a00ed822e4e156708cbb5104"
           },
           "by": "review",
-          "commit": "c41c4aa337becfc54d12a1cc59f1d7bcbd5d07b6",
+          "commit": "06a5096403f2e038b9ead46efb056955d69c75de",
           "criteria": "6115836cf6ef1fff",
           "diffs": {
             "docs/status/namespace-s6.md": "96a3af8886de59ec",
@@ -4585,7 +4585,7 @@
             "src/detent_distribution/grants.cc": "540aed9e9b9ef1c6",
             "src/detent_distribution/session_frames.cc": "7ae27c632f353a17",
             "src/detent_distribution_http/session_request.cc": "03dff95bea121f52",
-            "tests/detent_delivery/CMakeLists.txt": "d0b98c292ede2476",
+            "tests/detent_delivery/CMakeLists.txt": "9739d5b98814805d",
             "tests/detent_delivery/test_namespace_session.cc": "3a9085c91426abeb",
             "tests/detent_delivery/test_session_request.cc": "5bc564d1abcf45d3",
             "tests/detent_distribution/CMakeLists.txt": "24f03bb610bf5c1d",
@@ -4598,14 +4598,14 @@
               "jobs": [
                 {
                   "cmd": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'s/const bool whole = span.first > answer.after;.*/const bool whole = span.first == answer.after + 1;/'\"'\"' src/detent_distribution/session_frames.cc; grep -q '\"'\"'span.first == answer.after + 1'\"'\"' src/detent_distribution/session_frames.cc; cmake -S . -B .scratch/mutant -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF >/dev/null; cmake --build .scratch/mutant -j4 --target test_distribution_session_frames >/dev/null; git checkout -- src/detent_distribution/session_frames.cc; if .scratch/mutant/tests/detent_distribution/test_distribution_session_frames; then echo \"mutant survived\"; exit 1; else echo \"mutant killed\"; fi'",
-                  "commit": "135b4afeb0b48c120edbcb5d825611ff10087fe7",
+                  "commit": "06a5096403f2e038b9ead46efb056955d69c75de",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261112-133133-0d940a",
+                  "job": "261112-141524-b57d4f",
                   "level": "light",
-                  "seconds": 72.8,
+                  "seconds": 31.6,
                   "state": "done",
-                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'s/const bool whole = at 135b4afeb0b4"
+                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'s/const bool whole = at 06a5096403f2"
                 }
               ],
               "kind": "defect",
@@ -4615,14 +4615,14 @@
               "jobs": [
                 {
                   "cmd": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'/session piece after its frame.s target/d'\"'\"' src/detent_distribution/session_frames.cc; ! grep -q '\"'\"'after its frame.s target'\"'\"' src/detent_distribution/session_frames.cc; cmake -S . -B .scratch/mutant -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_TESTS=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF >/dev/null; cmake --build .scratch/mutant -j4 --target test_distribution_session_frames >/dev/null; git checkout -- src/detent_distribution/session_frames.cc; if .scratch/mutant/tests/detent_distribution/test_distribution_session_frames; then echo \"mutant survived\"; exit 1; else echo \"mutant killed\"; fi'",
-                  "commit": "135b4afeb0b48c120edbcb5d825611ff10087fe7",
+                  "commit": "06a5096403f2e038b9ead46efb056955d69c75de",
                   "exit": 0,
                   "host": "kronuz",
-                  "job": "261112-133136-769cd1",
+                  "job": "261112-141524-9a4014",
                   "level": "light",
-                  "seconds": 76.7,
+                  "seconds": 141.6,
                   "state": "done",
-                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'/session piece after at 135b4afeb0b4"
+                  "what": "bash -c 'set -e; sed -i '\"'\"''\"'\"' '\"'\"'/session piece after at 06a5096403f2"
                 }
               ],
               "kind": "defect",
@@ -4738,7 +4738,7 @@
       "risk": "high",
       "status": "review",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T13:42:22",
+      "updated": "2026-11-12T14:26:05",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s6-cutover": {
