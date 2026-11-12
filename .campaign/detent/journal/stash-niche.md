@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: working
+State: waiting on jobs 261111-194539-717932
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,11 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Rule committed (1986b696) before any job. Harness written (stash_niche.cc/.sh/_summary.py).
+Job 261111-194539-717932 (light): test under ASan+UBSan and TSan, queued behind another quest's
+exclusive hold. No measured row has run.
 
 ## Next
 
-1. <step>
+1. Smoke (strict) at small N to learn (f)'s drain time at 24 h / 1M keys; size the row jobs (<= 30 min).
+2. Rows as exclusive jobs, per horizon x keys, 6 pairs at P = 1 4 14, tagged --for A1; mem rows (count build).
+3. Fill the Results and verdict in docs/design/stash-niche.md by the rule.
 
 ## Blocked on
 

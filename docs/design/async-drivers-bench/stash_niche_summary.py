@@ -11,6 +11,7 @@ from __future__ import annotations
 import statistics
 import sys
 from collections import defaultdict
+from itertools import pairwise
 
 THRESHOLD = 1.10
 
@@ -43,11 +44,7 @@ def floor(xs: list[float]) -> float:
     if len(xs) < 2:
         return 0.0
     m = statistics.median(xs)
-    return (
-        statistics.median(abs(b - a) for a, b in zip(xs, xs[1:], strict=False)) / m
-        if m
-        else 0.0
-    )
+    return statistics.median(abs(b - a) for a, b in pairwise(xs)) / m if m else 0.0
 
 
 def cell(rs: list[dict[str, str]], metric: str) -> str:
