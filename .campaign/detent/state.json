@@ -5590,7 +5590,8 @@
         "src/detent_relay/service.cc",
         "src/detent_delivery/coordinator.cc",
         "tests/detent_delivery/relay_delta_shutdown.cc",
-        "tests/detent_delivery/CMakeLists.txt"
+        "tests/detent_delivery/CMakeLists.txt",
+        "tests/detent_delivery/scripted_upstream.hh"
       ],
       "landed": [],
       "lenses": [],
@@ -5601,7 +5602,7 @@
       "risk": "normal",
       "status": "active",
       "title": "Relay delta shutdown drains",
-      "updated": "2026-11-11T15:55:39",
+      "updated": "2026-11-11T17:12:53",
       "worktree": "../Detent-wt/detent/relay-delta-shutdown-hang"
     },
     "relay-snapshot-lifecycle": {
