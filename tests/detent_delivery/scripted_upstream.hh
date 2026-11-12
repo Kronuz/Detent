@@ -134,9 +134,11 @@ inline std::string snapshot_reply(unsigned revision, std::uint64_t window) {
 		m::unsigned_integer(wire, std::find(names.begin(), names.end(), space(i)) - names.begin());
 		m::string(wire, name(i));
 		m::unsigned_integer(wire, revision);
-		m::array(wire, 2);
-		m::unsigned_integer(wire, 1);
+		m::array(wire, 4); // [default, rollout %, rollout value, overrides]
 		m::signed_integer(wire, *expected(revision, i));
+		wire.push_back('\xc0');
+		wire.push_back('\xc0');
+		m::array(wire, 0);
 	}
 	d::Identity update;
 	update.fill('u');
@@ -199,9 +201,11 @@ inline std::string delta_reply(std::uint64_t window) {
 		m::string(wire, key);
 		m::unsigned_integer(wire, value ? 0 : 1);
 		if (value) {
-			m::array(wire, 2);
-			m::unsigned_integer(wire, 1);
+			m::array(wire, 4); // [default, rollout %, rollout value, overrides]
 			m::signed_integer(wire, *value);
+			wire.push_back('\xc0');
+			wire.push_back('\xc0');
+			m::array(wire, 0);
 		} else
 			wire.push_back('\xc0');
 	}
