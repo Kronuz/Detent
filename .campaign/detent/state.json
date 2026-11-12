@@ -2925,18 +2925,49 @@
         "docs/perf/wheel-ab.md",
         "CMakeLists.txt"
       ],
-      "journal": "../Detent-wt/detent/logger-wheel-ab",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T06:09:45",
+          "commit": "c93ace291347d67b2911a52908595dac91b74830",
+          "criteria": {
+            "A1": "logger:ce34d2d, `docs/perf/wheel-ab.md` \"Rule\", committed before any measured run",
+            "A2": "261112-040502-859c44 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040515-550c07 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040508-910d14 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040521-982cc9 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040534-165b69 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040540-dc3982 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040546-2390a9 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040552-6a1eea (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040557-766cf0 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md), 261112-040603-2ef310 (passed at ef0bb6bbdd36; ignores docs-only docs/perf/wheel-ab.md)",
+            "A3": "`docs/perf/wheel-ab.md` \"Verdict\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
+              "commit": "e7e7565115e2cac44034afbd36250c2ef84d0d1c",
+              "docs": [
+                "docs/perf/wheel-ab.md"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-053405-710f23",
+              "level": "light",
+              "seconds": 129.9,
+              "state": "done",
+              "what": "logger-wheel-ab check suite at e7e7565115e2"
+            }
+          ],
+          "final": true,
+          "from": "b13724b9c8efc02c3161ffa7922fba2d942ef856",
+          "reason": "",
+          "tested": "c93ace291347d67b2911a52908595dac91b74830"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Measure logger on scheduler vs on wheel",
-      "updated": "2026-11-11T21:14:31",
-      "worktree": "../logger-wt/detent/logger-wheel-ab"
+      "updated": "2026-11-12T06:09:47",
+      "worktree": ""
     },
     "logger-wheel-slim": {
       "accepted": {},
