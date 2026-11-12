@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: ready for review
+State: blocked on lead: `campaign brief` still lists the first jobs as ran-other-code; reruns not counted
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
