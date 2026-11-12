@@ -5,27 +5,23 @@ Risk: normal. The lead writes this quest; contributors read it and never edit it
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A process that exits without calling `finish()` never crashes in the logger. Today `logger_queue`'s exit-without-finish child dies with SIGSEGV when the 200 ms join times out: 3 of 150 runs at logger:67391e6, before logger-on-wheel's changes reached that path (logger-followups journal). The cause is found and fixed, not the timeout widened.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause, named by the code path that touches freed or torn-down state after the join times out: the journal's row and a reproduction job that fails on main (a stress loop or a forced timeout, not luck)
+- A2 The exit-without-finish child passes 500 runs under load: one job
+- A3 A test fails without the fix: a job, `--fails-without`
+- A4 The suite and TSan pass: jobs
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D86.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
