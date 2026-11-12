@@ -1,6 +1,6 @@
 # warm-graph-5m: journal
 
-State: waiting on jobs 261112-143954-efa99b 261112-144015-ab96d3 261112-144057-f1c829
+State: waiting on jobs 261112-154256-ad53cb (F1 unmutated pass); F1 mutant confirm 261112-154129-2cdfff done
 Quest: .campaign/detent/quests/warm-graph-5m.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -18,6 +18,16 @@ whose `strings` default is 128 MiB = 134217728, not the store's limit. The 5M co
 Instrumented 1M run (local, light hold): `WG5M finalize records 974665 strings 31456865 semantic strings
 134217728 ... own_build 1` -- the finalizer's validator, default semantic bound. Publication admission
 (disk_store.cc:1702) already enforces the store's `recovery_limits.strings`/`overrides`.
+
+## Review fixes
+
+- F1 (blocking gap): `test_warm_semantic_bounds` now opens a `DiskStore` (default `recovery_limits`) on the
+  installed base and hands it the 138,372,024-string-byte plan; `begin()` must throw
+  `managed paged publication exact base or admission mismatch`, and the plan stays intact. disk_store.cc
+  untouched. Confirm: F1=261112-154129-2cdfff (reviewer's mutant, narrowed to this test's target:
+  MUTANT KILLED at 6c52a2b3; the mutant lets `begin()` proceed and the test dies on StoragePressure).
+  Unmutated pass at the same commit: 261112-154256-ad53cb. N1 is delta-plan-scaling's; N2, N3 moved to
+  namespace-s7-ids (A4).
 
 ## Next
 
@@ -54,6 +64,11 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 (docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
 
 ## Rulings I made
+
+- The test moved into the `if(TARGET detent::local_publication)` block of tests/detent_local/CMakeLists.txt
+  and links that library, since a DiskStore needs it (a file-set member).
+- The F1 mutant script is the reviewer's, narrowed to build and run only `test_local_warm_semantic_bounds`
+  (faster; kills only if this test does), at `.scratch/f1/mutant.sh` in the worktree.
 
 - The fix uses the format's semantic bounds in SparsePlanFinalizer (strings unbounded, 256 overrides per
   definition, the histogram's and validate_definition's bound), not a plumbed store limit: the finalizer
