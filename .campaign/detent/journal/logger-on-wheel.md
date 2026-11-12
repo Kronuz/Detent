@@ -9,32 +9,38 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Port committed at logger:a07f3fe (arm D's logger.{h,cc} minus WAB_STATS; wheel pinned bfd72bc;
+test/deferred.cc + test/deferred_mutant.sh). Next: local build/run under a light hold, then jobs.
 
 ## Next
 
-1. <step>
+1. Build and run logger_deferred_test locally (light hold); calibrate bounds.
+2. Jobs: suite (A1), mutant --fails-without (A1), TSan suite+stress (A2), grep (A4).
+3. A3: one exclusive job per pattern (p3, p2), P=1,4,14 x 40 rounds, production as candidate,
+   arm D as reference (labels swapped into summarize.py --paired).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | <pending> |
+| A2 | <pending> |
+| A3 | <pending> |
+| A4 | <pending> |
+| A5 | `ARCHITECTURE.md`: "Deferred lines ride the LOG thread's wheel" |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+<pending>
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The queues' merge heap (`heads`, rebuilt each pass, holds nothing between passes) is not a
+  deadline structure; A4's grep allows `_heap` calls only on `heads`.
+- logger.h includes threadpool's `thread.hh` (what it uses) instead of `scheduler.h`; the scheduler
+  pin stays because it brings threadpool and test/frozen uses the scheduler.
+- The wheel_ab option no longer declares its own wheel pin (50665c8): the library's bfd72bc serves it.
