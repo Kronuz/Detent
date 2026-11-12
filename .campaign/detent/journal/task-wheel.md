@@ -91,11 +91,11 @@ pointer per scheduler, plus a bit for "wheel released"). Recommend (a).
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-084024-dcd8a5 (at task:9a1bb31; earlier 261112-080531-e445ce) |
-| A3 | 261112-083949-3c7f66 (suite at task:9a1bb31); fails without: 261112-083952-122d9e (F1 mutant), 261112-080533-082edf (false fire) |
-| A4 | 261112-084006-e40030 (TSan), 261112-084016-071404 (ASan+UBSan), at task:9a1bb31 |
+| A1 | 261112-085219-046ca6 (at task:47d50f3) |
+| A3 | 261112-085202-2d04b7 (suite at task:47d50f3, with `far`); fails without: 261112-085502-c698eb (F1 mutant), 261112-080533-082edf (false fire); F2 probe 261112-085205-88e172 (failed at 9a1bb31 as 261112-085006-0064f9) |
+| A4 | 261112-085209-9a9ddd (TSan), 261112-085214-9b385a (ASan+UBSan), at task:47d50f3; CI 43263306171 green |
 | A6 | `docs/mechanisms/deadlines.md`: "Deadlines on Kronuz/wheel"; `docs/mechanisms/deadlines.md`: "so the scheduler outlives the deadline" |
-| A7 | pending: the Xapiand lead's review |
+| A7 | the Xapiand lead: fit review APPROVE at task:c0cda23 (msg-30, Xapiand .campaign/xapiand/reviews/detent-task-wheel-fit.md); re-check at 47d50f3 requested (msg-36) |
 
 ## Review findings
 
@@ -158,3 +158,7 @@ Pending.
   left for the lead.
 - Not in this quest's criteria, so not done here: inline_scheduler `post_call`,
   `task::blocking_scheduler` (async-drivers row 1 lists them; the quest's A3 does not).
+
+## Lead, 2026-11-12
+
+F2 (a wake past the clock's range spun the loop) fixed by the lead at task:47d50f3: the wake saturates at the clock's end and the slot end no longer overflows; `deadline_asio_test far`. The F1 mutant script matched the old `arm()` text and is updated.
