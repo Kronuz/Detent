@@ -4847,6 +4847,38 @@
       "updated": "2026-11-10T09:18:32",
       "worktree": ""
     },
+    "okt-followups": {
+      "accepted": {},
+      "after": [
+        "one-knob-type"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "tests/detent_local/**",
+        "tests/detent/**",
+        "bindings/**",
+        "src/detent_authority/export_encoder.*",
+        "src/detent_local/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "One knob type: review follow-ups C1-C5",
+      "updated": "2026-11-11T23:38:57"
+    },
     "one-knob-type": {
       "accepted": {
         "correctness": {
