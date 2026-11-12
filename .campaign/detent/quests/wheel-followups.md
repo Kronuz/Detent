@@ -23,6 +23,9 @@ are closed, none silently.
   only where that file calls the row apples to apples; no prototype, candidate letter, or
   ratio to one: `README.md`: "Performance".
 
+- A5 The cross-thread fire lateness wheel-vs-stash found (worst fire 3.4 ms at P = 4 and 4.5 ms at P = 14 against stash's 1.02 ms, plain medians, `docs/perf/wheel-vs-stash.md` in Detent) is explained by its cause in a strict job, and fixed when the cause is the wheel's, with a paired before/after; or the doc names it as the tick plus the owner's wake, with numbers
+- A6 The per-wake drain cost at small N (about 2 µs per wake at N = 1e3, the niche row where the wheel costs 2.3x stash at P = 1) is explained by its cause and reduced when the cause is the wheel's, with a paired before/after; or stated with its numbers in `docs/timer-wheel.md` "Cost"
+
 ## Contracts
 
 None changed: `wheel:timer_wheel`'s API is untouched.
