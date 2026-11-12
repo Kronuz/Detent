@@ -6349,17 +6349,44 @@
       "files": [
         "docs/dev/superseded-libraries.md"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T20:59:03",
+          "commit": "beb0454721f646407df7da7aa10b880d0d4bf589",
+          "criteria": {
+            "A1": "[artifact] `docs/dev/superseded-libraries.md` at 80478d09: rows for stash, scheduler, cluster; users per repo and file; migration order; Proposed; checked-and-current list",
+            "A2": "[manual] lead (2026-11-11): `logger.h:50` includes scheduler.h; Detent `cmake/dependencies.json:105,117` pin scheduler and stash; no repo CMakeLists/cmake json or cmake file names Kronuz/cluster"
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/dev/superseded-libraries.md",
+              "commit": "d2e99a702f4e90e1a478a93f8d8dcf39253af685",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-205808-1a3c9a",
+              "level": "none",
+              "seconds": 1.0,
+              "state": "done",
+              "what": "superseded-sweep check ledger at d2e99a702f4e"
+            }
+          ],
+          "final": true,
+          "from": "7db895a76dfa7762fba808e174abb40b09e7147c",
+          "reason": "",
+          "tested": "d2e99a702f4e90e1a478a93f8d8dcf39253af685"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "List superseded cpp-libraries, successors and users",
-      "updated": "2026-11-11T20:50:21",
-      "worktree": "../Detent-wt/detent/superseded-sweep"
+      "updated": "2026-11-11T20:59:30",
+      "worktree": ""
     },
     "sync-groups-perf": {
       "accepted": {},
