@@ -31,7 +31,8 @@ struct OwnedFragmentEncoder::Impl {
 		 std::shared_ptr<StorageLedger> ledger)
 		: kind(type), update(id), total(length), compress(coding), account(std::move(ledger)),
 		  workspace(*account) {
-		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress,
+		require(kind == UpdateKind::Snapshot || kind == UpdateKind::Delta || kind == UpdateKind::Progress ||
+					kind == UpdateKind::Frames,
 				"invalid owned frame kind");
 		require(update != Identity{}, "empty owned frame identity");
 		output = make_owned_buffer(account, OwnedFragmentEncoder::maximum_wire_bytes());
