@@ -28,6 +28,16 @@ defined (lead finding).
 
 ## Blocked on
 
+- B4 (file set): five test fixtures outside the set hand-encode main's integer definition
+  `[1, value]` on the wire and fail with "distribution tuple arity mismatch" (suite
+  261111-155807-cb02cd): tests/detent_delivery/scripted_upstream.hh:137 and :202 (test_repair,
+  test_hash_once, relay_delta_*), tests/detent_delivery/probe_fixture.hh:71 (test_probe_client,
+  test_probe_response), tests/detent_delivery/test_response.cc:72,
+  tests/detent_agent/test_agent_catch_up.cc:32 (`put_definition`). The fix is mechanical: write
+  `[value, nil, nil, []]` (`detail::wire::definition(out, WireDefinition{value, {}, {}, {}})`).
+  Options: 1. add these four files to the set (recommended: the quest's contract says every
+  consumer moves here); 2. a follow-up quest, landing this one with those tests red (not
+  acceptable for A1). Waiting for the lead's ruling; every other suite failure is in the set.
 - Resolved: B3 (test_daemon.sh, tests/detent_system oracles/probe/reader_benchmark.hh, website
   reference and architecture pages, diagrams/04_read_path.* added by the lead at Detent:8b17a952).
 - Resolved: B1 (set widened by the lead; src/detent_agent/main.cc, test_agent_cli.cmake,
