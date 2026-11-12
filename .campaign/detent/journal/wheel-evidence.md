@@ -1,6 +1,6 @@
 # wheel-evidence: journal
 
-State: waiting on jobs 261111-143146-cf9183 261111-144147-d7d25f 261111-144149-2a64b9 261111-144151-4c40f1 261111-144152-d8a935
+State: waiting on jobs 261111-173910-3288f9
 Quest: .campaign/detent/quests/wheel-evidence.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,52 +9,42 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-D69 (A5, A6), main merged. (f)'s memory row filled from 261111-130756-004da8 (9e7a6922).
-- A5: single-loop samples run >= 100 ms (5ecbeb4c); row 261111-143146-cf9183 (exclusive, R=10).
-- A6: `wheel_vs_stash_vm.sh MODE [R]` ships bench + pinned stash to the local QEMU VM (strata
-  aws-linux.sh run, never AWS; 120 s ssh probe, 1,500 s bound), a b c f, P = 1 4 nproc-1.
-  Smoke 261111-144147-d7d25f (light); rows after it, exclusive: single R=10 261111-144149-2a64b9,
-  cross R=5 261111-144151-4c40f1, mem 261111-144152-d8a935.
+Nothing: A5 and A6 rows in, the doc covers both hosts (bd8a0204).
 
 ## Next
 
-1. Read the rows; fill wheel-evidence.md Results ("Tighter rows", "Linux VM") and The pick per host.
-2. Paste `campaign brief`'s Evidence table; State "ready for review"; push.
+1. Review; the lead takes the per-host result to the owner (Blocked on).
 
 ## Blocked on
 
-Lead, then owner: the rule gives no pick (see Result). PLAN.md decision for A3 is the lead's to
-write; proposed text: "Timer wheel: no candidate met wheel-evidence's rule; (f), the D4 wheel
-with a 64-stripe intrusive inbox, misses only the n = 1,000 single-loop bound (1.12x vs 1.10)
-and arms 9-17x cheaper than stash from other threads. Owner decides: adopt (f) as the one wheel
-(task-wheel builds it; scheduler moves onto it; stash retired as a timer wheel or improved with
-(c)'s leaf), or accept a second wheel." Recommendation: adopt (f).
+Lead, then owner (D69 applies the rule now; the pick row follows the owner). The rule per host:
+macOS no pick ((f) misses only n = 1,000 single loop, 1.19x in the A5 row, on a re-arm gap of
+3.8 ns with disjoint ranges); Linux VM picks (f) (1.04x / 1.00x single loop, 0.04-0.08x of stash
+cross-thread). Recommendation: adopt (f) as the one wheel; the macOS gap is 7.1 ns per entry
+lifecycle at n = 1,000.
 
 ## Evidence
 
-Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generated table here.
-Write the rows of [artifact], [decision] and [manual] criteria (a `path`, a decision id, who
-checked what), and answer each message by its id (msg-N).
-
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-130750-f599af (passed at 512798d3: model + cross-thread tests of (a)-(f), ASan+UBSan and TSan); candidates in `docs/design/async-drivers-bench/wheel_vs_stash.cc` and `wheel_vs_stash_leaf.hh` |
-| A2 | 261111-130753-1687cf (single, R=10), 261111-130755-91093a (cross, R=5), 261111-130756-004da8 (mem, queued); first rows 261111-121549-8cd0f8, 261111-121551-0e58b1, 261111-121553-d6c80e (a-e, superseded); all exclusive, stash pinned at stash:d249352 |
-| A3 | Rule pre-registered in `docs/design/wheel-evidence.md` at 7a3682c4, before the first measured job (261111-120056-0484f0 smoke, 261111-121549-8cd0f8 first row); PLAN.md decision id pending the lead (see Blocked on) |
+| A1 | 261111-130750-f599af (passed at 512798d349d2; only merges from main since) |
+| A2 | 261111-121549-8cd0f8, 261111-121551-0e58b1 (passed at 40a5988ed6d4), 261111-130753-1687cf, 261111-130755-91093a, 261111-130756-004da8 (passed at 512798d349d2), 261111-143146-cf9183 (passed at 5ecbeb4c7693) |
+| A3 | D69 (PLAN.md: the rule applied to the A5 and A6 rows); rule pre-registered at 7a3682c4 before the first measured job; the pick row follows the owner's decision |
 | A4 | `docs/design/wheel-evidence.md`: "## The pick" |
+| A5 | 261111-143146-cf9183 (passed at 5ecbeb4c7693; ignores docs-only wheel_vs_stash.sh, wheel_vs_stash_vm.sh, wheel-evidence.md) |
+| A6 | 261111-144149-2a64b9, 261111-144151-4c40f1, 261111-144152-d8a935 (passed at 7c62c5dca353; ignores docs-only wheel-evidence.md), 261111-173910-3288f9 (VM tests) |
 
 ## Result
 
-`docs/design/wheel-evidence.md` (Results, The pick, What it means). By the pre-registered rule no
-candidate passes; no pick. Single-loop score (ns per entry lifecycle, medians, R=10), n=1k / 1M:
-(a) 39.9 / 346.7; (b) stash 1,075 / 1,217 (27x / 3.5x); (c) stash + intrusive leaf 852 / 599
-(21x / 1.7x); (d) 42.4 / 388.6 (1.06x / 1.12x); (e) 47.1 / 348.9 (1.18x / 1.01x); (f) 44.5 /
-347.2 (1.12x / 1.00x). Cross-thread producer ns per arm, P=1/4/14: stash 157/196/292; (c)
-126/157/216; (d) 21/231/1,348; (e) 15/267/1,379; (f) 13.6/11.6/32.6 (0.06-0.11x of stash).
-Memory at 1M: prototype 32 B/entry, 0 heap per arm; stash 43.5 B/entry, 27 B heap per re-arm.
-(f) misses only n=1k single loop (1.12x vs 1.10), where three source-identical owner paths
-(d, e, f) scatter 1.06-1.18x. Recommendation: adopt (f). Not measured: owner wake, other
-hosts/architectures, more than 64 producer threads.
+`docs/design/wheel-evidence.md` (Results: A2 rows, "Tighter single-loop rows (A5)", "Linux VM
+(A6)"; The pick per host). A/A band at n = 1,000: macOS 31.1% (from 48.3%; one outlier sample),
+VM 10.8%; 5% not reached. At 1M: 24.9% / 29.7%.
+- macOS A5 score n=1k / 1M: (a) 37.3 / 352.7; (b) 1,106 / 1,201; (c) 857 / 594; (d) 39.4 /
+  406.9 (1.06 / 1.22); (e) 41.1 / 340.7 (1.101 / 1.02); (f) 44.4 / 333.3 (1.19 / 1.00, best at 1M).
+  No pick.
+- VM single n=1k / 1M: (a) 40.1 / 470.4; (b) 1,001 / 1,322; (c) 847 / 634; (f) 41.6 / 465.4
+  (1.04 / 1.00). Cross P=1/4/7: (b) 207/307/424; (c) 147/220/267; (f) 15.7/13.6/20.7. Mem 1M:
+  (a), (f) 32 B, 0 heap per arm; (b) 51.5 B, 35 B per re-arm. Pick (f).
 
 ## Rulings I made
 
@@ -70,3 +60,10 @@ hosts/architectures, more than 64 producer threads.
   striped inbox; the cross workload 2M due in 1-50 ms -> 1M due in 1-1,000 ms, since no owner
   (stash's included) kept up; rule 3's R=10 rerun decides by its median ratio. Thresholds
   unchanged; every row reruns.
+- A5/A6 (D69): the A3 rule and thresholds unchanged; the R = 10 single rows decide by median ratio
+  (change 3). The minimum sample is 100 ms of timed passes on top of 1,000,000 / n repetitions.
+- A6 adds a Linux run of the model, manual-clock and cross-thread tests (ASan+UBSan, TSan, g++)
+  261111-173910-3288f9, since rule 2 needs the manual-clock test on the host it picks for.
+- VM cross row: (c) at P = 7 prints "inconclusive" (0.63x against a 53% band); not rerun, since (c)
+  fails the VM single loop by 21x at n = 1,000 whatever that row says.
+
