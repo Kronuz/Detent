@@ -1,29 +1,43 @@
 # one-knob-type: journal
 
-State: blocked on B4 (fixtures outside the set) and waiting on jobs at Detent:b9bf610c: suite
-261111-162754-7422a7, docs e2e 261111-162755-40ef2b, A4 261111-162758-63e456, A2 mutants
-261111-162800-2ee71e / 261111-162803-4b354d, A3 prepare 261111-162827-7366e8, measure pairs 100k
-261111-162829-50dcc0 .. 261111-162838-020154, 5m 261111-162839-4759eb .. 261111-162848-77259b,
-pages 261111-162851-fc6aaf (100k) / 261111-162856-b47db3 (5m)
+State: session 3, code final at Detent:52afffdc; checking it with job 261111-183335-cadb42, then
+every evidence job at the head.
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Session 2. The tree builds (keep-going build 261111-153615-1a7748). Suite 261111-155807-cb02cd
-found: the overlay admitted definition bodies from the old 24-byte header only ("overlay leaf
-framing": every delta, managed agent, relay and docs e2e failure), old wire tuples in fixtures,
-sed damage in test_model_and_schema.cc, fixture sizes tied to the fixed width (separate-segment
-reader fixture, trusted-restart stale rows), and integer expectations; all in-set ones fixed at
-Detent:9db7c5fd and Detent:b9bf610c. Out-of-set fixtures: B4.
+Session 3. Merged main (ipv6, relay-delta-shutdown-hang, brand) at Detent:83bda97c; both
+scripted_upstream.hh changes kept (auto-merged). Suite 261111-163109-4e98df at eb51185d, 6 failed:
+
+- test_local_lazy_page_bitmap: `dense_graph_fixture.hh:88` `check(packer.commit(...))`; commit
+  returns false when the step before spent the validation budget (8,192 B, 16 rows), which the
+  smaller varint bodies now hit. The fixture retries packer and cursor commits with a fresh
+  budget (R14). Detent:f6c62a85.
+- test_local_dense_reads:422 assumed a 24-byte body; it now flips byte 10, the default's one-byte
+  varint. Detent:f6c62a85.
+- test_authority_snapshot_catchup: TimeoutError at test_multivoter.py:304, the 98-write loop with a
+  voter down, beside test_local_disk_store's 272 s. Pre-existing flake: the same line failed in
+  261109-085306-1a0b81 (namespace-s1-s2), 261109-162029-7d42a7 (daemon-ready-leader) and
+  261111-013718-1582cb (dense-walkers), and passed on this branch in 261111-155807-cb02cd and
+  261111-162230-a8bbcb.
+- test_authority_dns_voters_names: "bind: Address already in use"; main's ipv6 merge changes
+  test_dns_voters.py's port reservation. Rerun decides.
+- test_agent_store_crash, test_local_publication_power_cut (Timeout 900 s): the flake relay-delta
+  saw; rerun decides.
+
+Owner ruling (one varint): varint pinned at 333384ee, in the core FetchContent list, linked PUBLIC
+to detent_local_codec; `zigzag`/`varint_size` and the hand-rolled LEB128 are gone. Detent:f6c62a85.
+observability_bench.cc on one type (Detent:63418832). A4's script used python3.14 for CMake while
+pybind11 built for 3.15 (job 261111-162758-63e456: ModuleNotFoundError); one interpreter now
+(Detent:aaca44bb). A3 read speed in both notes (Detent:52afffdc); b9bf610c's pair outputs copied to
+/Users/kronuz/code/Kronuz/Detent/.scratch/okt/b9bf610c/ before the head reruns overwrite them.
 
 ## Next
 
-1. Lead rules B4; then convert those four files, merge main (CHANGELOG moved), and rerun every
-   evidence job at the final head (`campaign job rerun` the A3 ones, or resubmit).
-2. Read the suite at b9bf610c for anything left (test_local_dense_reads now names its line).
-3. A3: after the 12 pair jobs, `docs/perf/one-knob-type.sh report OUT SIZE` (level none) per size;
-   fill the design note's speed table and docs/perf/one-knob-type.md.
-4. Result and the Evidence table from `campaign brief`.
+1. 261111-183335-cadb42 green, then at the head: `campaign verify one-knob-type --for A1,A2`, docs
+   e2e, A4, both A2 mutants, A3 `campaign job rerun` prepare + 12 pairs + pages 100k/5m, then the
+   two reports.
+2. Fill Evidence from `campaign brief`, Result, State "ready for review"; push.
 
 ## CHANGELOG entry (for the lead)
 
@@ -36,7 +50,8 @@ Detent:9db7c5fd and Detent:b9bf610c. Out-of-set fixtures: B4.
 
 ## Blocked on
 
-- B4 (file set): five test fixtures outside the set hand-encode main's integer definition
+- Resolved: B4 (the lead added the four fixtures and converted them at Detent:eb51185d).
+- Was B4 (file set): five test fixtures outside the set hand-encode main's integer definition
   `[1, value]` on the wire and fail with "distribution tuple arity mismatch" (suite
   261111-155807-cb02cd): tests/detent_delivery/scripted_upstream.hh:137 and :202 (test_repair,
   test_hash_once, relay_delta_*), tests/detent_delivery/probe_fixture.hh:71 (test_probe_client,
@@ -53,8 +68,6 @@ Detent:9db7c5fd and Detent:b9bf610c. Out-of-set fixtures: B4.
   lives only in `detent::detail::ramp()` (include/detent/detail/evaluation.hh), which both
   evaluators call.
 - Done: the docs-e2e pages and tests/docs/** moved to the single type (now in the set).
-- For the lead, outside my set: docs/dev/docs-e2e.md:30 and docs/design/observability_bench.cc
-  (not built) still publish `"type":"int"`/`"type":"bool"` definitions.
 - Left alone as history: docs/reviews, docs/status, docs/handoffs, AUDIT.md, benchmarks/*.json,
   mutant *.patch files of landed quests (tests/detent_delivery/mutants/s3b-k2-*.patch names
   `try_eval` in context only and is not wired into a test).
@@ -81,6 +94,11 @@ Not yet.
   arm loses by 18-19% page bytes before speed matters.
 - R12 A1 records main's answers (one_knob_record.sh at `--ref BASELINE=main`) rather than keeping
   a frozen copy of main's evaluator: the recording is main's own code, the test reads its bits.
+- R14 The dense graph fixture retries a packer or cursor commit refused for budget with a fresh
+  `ValidationBudget`, as a real caller does; the refusal is the documented resumable path.
+- R15 observability_bench.cc still calls S6's C reader API (`detent/reader.h`, no longer in the
+  tree), so it is converted in shape and not built: one `lookup_get`, one-type definitions, no
+  `--ops`; its output keeps `"op":"get"` for the summary scripts outside the set.
 - R13 Exclusive timing jobs are capped at 10 minutes, so A3 timing runs one D51 pair per job
   (`measure ... A-B`) and `report` takes the verdicts over all six.
 
