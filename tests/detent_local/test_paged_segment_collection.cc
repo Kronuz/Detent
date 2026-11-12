@@ -33,7 +33,7 @@ int main() {
 		d::RetirementDomain &domain;
 		~Drain() { domain.close().wait(); }
 	};
-	for (unsigned variant = 0; variant < 17; ++variant) {
+	for (unsigned variant = 0; variant < 18; ++variant) {
 		auto account = std::make_shared<d::StorageLedger>(parent, parent->limit());
 		accounts.push_back(account);
 		auto domain = runtime->domain(account, 256);
@@ -50,6 +50,10 @@ int main() {
 		write(directory / names.payload_name(), bytes);
 		if (variant == 9)
 			require(std::filesystem::remove(directory / names.payload_name()));
+		// A pack the selected root names is missing: its marks come from the root's .live record.
+		const auto missing = directory / l::detail::SegmentNames(image.segments().front().ownership.segment).payload_name();
+		if (variant == 17)
+			require(std::filesystem::remove(missing));
 		if (variant == 10) {
 			l::GenerationId legacy{};
 			legacy.fill('v');
@@ -236,14 +240,16 @@ int main() {
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);
 			} else {
-				if (collector.error() && variant != 14) {
+				if (collector.error() && variant != 14 && variant != 17) {
 					try { std::rethrow_exception(collector.error()); }
 					catch (const std::exception &error) {
 						throw std::runtime_error("collector variant " + std::to_string(variant) + ": " + error.what());
 					}
 				}
-				require(bool(collector.error()) == (variant == 14) && !std::filesystem::exists(directory / names.payload_name()) &&
+				require(bool(collector.error()) == (variant == 14 || variant == 17) && !std::filesystem::exists(directory / names.payload_name()) &&
 						!std::filesystem::exists(directory / names.owner_name()));
+				// The pass settles with a warning, which the store retries with backoff.
+				require(variant != 17 || collector.deferred());
 				// A pack whose checksum differs from its owner record is ours and unreachable: it goes too.
 				const std::size_t packs = variant == 11 ? 2 : 1;
 				if (variant == 11) {
@@ -259,7 +265,8 @@ int main() {
 			}
 			for (const auto &segment : image.segments()) {
 				const l::detail::SegmentNames protected_names(segment.ownership.segment);
-				require(std::filesystem::exists(directory / protected_names.payload_name()));
+				require(std::filesystem::exists(directory / protected_names.payload_name()) ||
+						(variant == 17 && directory / protected_names.payload_name() == missing));
 			}
 			require(!core->controls->active());
 		}

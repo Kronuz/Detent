@@ -457,6 +457,44 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 	const auto reads = reader.read(2);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
 }
+// A delta published while a pass is under way keeps what the pass hashed over the packs the delta shares: the
+// pass ends having hashed the new root once plus the packs the delta replaced, not the hashed prefix again.
+void scrub_carry(const fs::path &certificates, const fs::path &root) {
+	const auto store = root / "store";
+	seed(certificates, store);
+	const auto old_packs = packs_in(store);
+	std::uint64_t old_bytes = 0;
+	for (const auto &pack : old_packs)
+		old_bytes += fs::file_size(pack);
+	Server server(certificates);
+	std::uint64_t at_swap = 0, at_end = 0, fresh_bytes = 0, lost_bytes = 0;
+	// A pass over the packs takes about eight seconds.
+	run_phase(certificates, store, server, {.scrub_rate = old_bytes / 8},
+		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
+		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.bytes_hashed >= old_bytes / 3; }),
+					  coordinator, server));
+		server.resume = Server::Resume::Delta;
+		check(explain(co_await until(scheduler, 60s, [&] {
+			const auto status = coordinator->status();
+			return status.recoverable && status.recoverable->revision == 2;
+		}), coordinator, server));
+		const auto swapped = coordinator->status();
+		at_swap = swapped.scrub.bytes_hashed;
+		check(swapped.scrub.passes == 0);
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.passes >= 1; }),
+					  coordinator, server));
+		at_end = coordinator->status().scrub.bytes_hashed;
+		for (const auto &pack : packs_in(store))
+			if (!old_packs.count(pack))
+				fresh_bytes += fs::file_size(pack);
+		for (const auto &pack : old_packs)
+			if (!fs::exists(pack))
+				lost_bytes += 1;
+	});
+	std::cout << "scrub-carry: old packs " << old_bytes << " bytes; hashed " << at_swap << " at the delta, " << at_end
+			  << " at the end of the pass; the delta's new packs " << fresh_bytes << " bytes\n";
+}
 } // namespace
 
 int main(int argc, char **argv) {
@@ -481,6 +519,8 @@ int main(int argc, char **argv) {
 			unchanged(certificates, root, true);
 		else if (mode == "scrub-worker")
 			scrub_worker(certificates, root);
+		else if (mode == "scrub-carry")
+			scrub_carry(certificates, root);
 		else if (mode == "reset")
 			repair_reset(certificates, root);
 		else if (mode == "delta-clears")

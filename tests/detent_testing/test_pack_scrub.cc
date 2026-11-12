@@ -307,6 +307,46 @@ void withdraws_verified_pages(const std::filesystem::path &dir) {
 		  scrub.failures()[1] == packs[2].ownership.segment);
 	CHECK(set_bits(0) == before && set_bits(1) == 0 && set_bits(2) == 0);
 }
+// A new root keeps the progress of the pass in progress over the packs it shares (rebase), re-hashes what it
+// does not share and what the pass found damaged, and is a plain pass when none is in progress.
+void rebase_keeps_progress(const std::filesystem::path &dir) {
+	auto packs = synthetic(5, 10'000, 7);
+	std::uint64_t total = 0;
+	for (const auto &pack : packs)
+		total += pack.bytes.size();
+	const auto first_two = packs[0].bytes.size() + packs[1].bytes.size();
+	materialize(packs, dir);
+	const auto all = inputs(packs);
+	const auto shared = std::vector<x::SegmentInput>(all.begin(), all.begin() + 3);
+	const auto t0 = Clock::now();
+	{
+		x::PackScrub scrub(1'000'000'000, 4096);
+		scrub.begin(shared, t0, dir);
+		CHECK(scrub.step(t0 + 1s, first_two) == first_two && scrub.running());
+		scrub.rebase(all, t0 + 1s, dir);
+		scrub.step(t0 + 2s);
+		CHECK(!scrub.running() && scrub.passes() == 1 && scrub.failures().empty());
+		CHECK(scrub.bytes_hashed() == total);
+		// With no pass in progress a rebase hashes every pack again.
+		scrub.rebase(all, t0 + 3s, dir);
+		scrub.step(t0 + 4s);
+		CHECK(scrub.passes() == 2 && scrub.bytes_hashed() == 2 * total);
+	}
+	{
+		// A pack whose record changed is hashed again, and a pack the pass found damaged is found again.
+		flip_in_file(dir, packs[0], 5, 1);
+		auto changed = all;
+		changed[1].ownership.checksum[0] ^= 1;
+		x::PackScrub scrub(1'000'000'000, 4096);
+		scrub.begin(shared, t0, dir);
+		scrub.step(t0 + 1s, first_two);
+		scrub.rebase(changed, t0 + 1s, dir);
+		scrub.step(t0 + 2s);
+		CHECK(scrub.passes() == 1 && scrub.failures().size() == 2 &&
+			  scrub.failures()[0] == packs[0].ownership.segment &&
+			  scrub.failures()[1] == packs[1].ownership.segment);
+	}
+}
 } // namespace
 int main() {
 	const auto root = std::filesystem::current_path() / ".scratch" / ("pack-scrub-" + std::to_string(::getpid()));
@@ -321,6 +361,7 @@ int main() {
 	real_clock(root / "clock");
 	unreadable_packs(root / "unreadable");
 	withdraws_verified_pages(root / "bits");
+	rebase_keeps_progress(root / "rebase");
 	real_store(root);
 	std::cout << "ok\n";
 	return 0;
