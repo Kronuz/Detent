@@ -1,6 +1,6 @@
 # namespace-measure: journal
 
-State: waiting on jobs 261112-113417-855a8e 261112-113831-7d9d86 261112-113842-18b765 261112-113844-8b7ba0 261112-113801-4be23d
+State: waiting on jobs 261112-113923-c7fdbf 261112-113417-855a8e 261112-113831-7d9d86 261112-113842-18b765 261112-113844-8b7ba0 261112-113801-4be23d
 Quest: .campaign/detent/quests/namespace-measure.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
