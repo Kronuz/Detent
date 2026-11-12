@@ -4,7 +4,9 @@
 //              the damaged generation keeps serving what it could read and never reads a wrong value;
 //   delta      a delta whose path crosses a damaged page asks for a Replace and heals, scrub disabled;
 //   unchanged  a repair at an unchanged cursor publishes; an ordinary same-cursor snapshot still does not;
-//   relay      the same unchanged repair under a relay bundle, which keeps its cache.
+//   relay      the same unchanged repair under a relay bundle, which keeps its cache;
+//   scrub-worker  the scrub's worker hand-off at a repair and at shutdown, and a delta that lands mid-pass
+//              (scrub-carry) leaves the progress over the packs it shares.
 #include "../../src/detent_delivery/coordinator_internal.hh"
 #include "detent_delivery/coordinator.hh"
 #include "detent_distribution/memory_resource.hh"
@@ -457,22 +459,25 @@ void forced_again(const fs::path &certificates, const fs::path &root) {
 	const auto reads = reader.read(2);
 	check(reads.ok == std::uint64_t(knobs) && !reads.failed && !reads.wrong && !reads.other);
 }
-// A delta published while a pass is under way keeps what the pass hashed over the packs the delta shares: the
-// pass ends having hashed the new root once plus the packs the delta replaced, not the hashed prefix again.
+// A delta published while a pass is under way keeps what the pass hashed clean over the packs the delta shares:
+// after the new root is selected the pass hashes less than that root's packs. (The scripted delta keeps every
+// pack of its base and adds one.)
 void scrub_carry(const fs::path &certificates, const fs::path &root) {
 	const auto store = root / "store";
 	seed(certificates, store);
 	const auto old_packs = packs_in(store);
-	std::uint64_t old_bytes = 0;
-	for (const auto &pack : old_packs)
+	std::uint64_t old_bytes = 0, largest = 0;
+	for (const auto &pack : old_packs) {
 		old_bytes += fs::file_size(pack);
+		largest = std::max<std::uint64_t>(largest, fs::file_size(pack));
+	}
 	Server server(certificates);
-	std::uint64_t at_swap = 0, at_end = 0, fresh_bytes = 0, lost_bytes = 0;
-	// A pass over the packs takes about eight seconds.
-	run_phase(certificates, store, server, {.scrub_rate = old_bytes / 8},
+	std::uint64_t at_swap = 0, at_end = 0, fresh_bytes = 0;
+	// A pass over the packs takes about twelve seconds; the delta lands once the first pack is done, whichever it is.
+	run_phase(certificates, store, server, {.scrub_rate = old_bytes / 12},
 		[&](task::asio_scheduler &scheduler, auto coordinator, auto, auto, auto) -> task::task<void> {
 		check(co_await until(scheduler, 60s, [&] { return coordinator->status().initialized; }));
-		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.bytes_hashed >= old_bytes / 3; }),
+		check(explain(co_await until(scheduler, 60s, [&] { return coordinator->status().scrub.bytes_hashed >= largest + 65536; }),
 					  coordinator, server));
 		server.resume = Server::Resume::Delta;
 		check(explain(co_await until(scheduler, 60s, [&] {
@@ -488,12 +493,12 @@ void scrub_carry(const fs::path &certificates, const fs::path &root) {
 		for (const auto &pack : packs_in(store))
 			if (!old_packs.count(pack))
 				fresh_bytes += fs::file_size(pack);
-		for (const auto &pack : old_packs)
-			if (!fs::exists(pack))
-				lost_bytes += 1;
 	});
-	std::cout << "scrub-carry: old packs " << old_bytes << " bytes; hashed " << at_swap << " at the delta, " << at_end
-			  << " at the end of the pass; the delta's new packs " << fresh_bytes << " bytes\n";
+	const auto new_root = old_bytes + fresh_bytes, after_swap = at_end - at_swap;
+	std::cout << "scrub-carry: base packs " << old_bytes << " bytes, new root " << new_root << "; hashed " << at_swap
+			  << " at the delta and " << after_swap << " after it, to the end of the pass\n";
+	// A restart would hash the whole new root after the swap; a pass that resumes skips what it had done.
+	check(after_swap + 200'000 < new_root);
 }
 } // namespace
 
@@ -517,10 +522,10 @@ int main(int argc, char **argv) {
 			unchanged(certificates, root, false);
 		else if (mode == "relay")
 			unchanged(certificates, root, true);
-		else if (mode == "scrub-worker")
+		else if (mode == "scrub-worker") {
 			scrub_worker(certificates, root);
-		else if (mode == "scrub-carry")
-			scrub_carry(certificates, root);
+			scrub_carry(certificates, root / "carry");
+		}
 		else if (mode == "reset")
 			repair_reset(certificates, root);
 		else if (mode == "delta-clears")
