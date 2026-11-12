@@ -5024,6 +5024,8 @@
       "after": [
         "namespace-s6"
       ],
+      "base": "37d4de10ccbe7eb6763d98a95bbe4cecaebb8932",
+      "branch": "quest/detent/namespace-s7-wire",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5055,9 +5057,10 @@
       "reason": "Moved from namespace-s7 (D58)",
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S7 wiring: the agent publishes and reads through the agent store",
-      "updated": "2026-11-11T03:22:32"
+      "updated": "2026-11-12T14:54:00",
+      "worktree": "../Detent-wt/detent/namespace-s7-wire"
     },
     "namespace-s8": {
       "accepted": {},
