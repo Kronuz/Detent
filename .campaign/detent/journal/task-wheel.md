@@ -95,7 +95,7 @@ pointer per scheduler, plus a bit for "wheel released"). Recommend (a).
 | A3 | 261112-085202-2d04b7 (suite at task:47d50f3, with `far`); fails without: 261112-085502-c698eb (F1 mutant), 261112-080533-082edf (false fire); F2 probe 261112-085205-88e172 (failed at 9a1bb31 as 261112-085006-0064f9) |
 | A4 | 261112-085209-9a9ddd (TSan), 261112-085214-9b385a (ASan+UBSan), at task:47d50f3; CI 43263306171 green |
 | A6 | `docs/mechanisms/deadlines.md`: "Deadlines on Kronuz/wheel"; `docs/mechanisms/deadlines.md`: "so the scheduler outlives the deadline" |
-| A7 | the Xapiand lead: fit review APPROVE at task:c0cda23 (msg-30, Xapiand .campaign/xapiand/reviews/detent-task-wheel-fit.md); re-check APPROVE at task:9a1bb31 (msg-31, probe 261112-084432-3901d3); 47d50f3 adds only the F2 clamp and its test |
+| A7 | the Xapiand lead: fit review APPROVE at task:c0cda23 (msg-30, Xapiand .campaign/xapiand/reviews/detent-task-wheel-fit.md); re-check APPROVE at task:9a1bb31 (msg-31: their fit probe, ASan+UBSan, Xapiand host_asio against task 9a1bb31); 47d50f3 adds only the F2 clamp and its test |
 
 ## Review findings
 
