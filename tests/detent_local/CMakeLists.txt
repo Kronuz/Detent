@@ -176,6 +176,11 @@ target_include_directories(test_local_paged_delta_plan PRIVATE "${PROJECT_SOURCE
 target_link_libraries(test_local_paged_delta_plan PRIVATE detent::local_builder)
 add_test(NAME test_local_paged_delta_plan COMMAND test_local_paged_delta_plan)
 
+add_executable(test_local_warm_semantic_bounds test_warm_semantic_bounds.cc)
+target_include_directories(test_local_warm_semantic_bounds PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
+target_link_libraries(test_local_warm_semantic_bounds PRIVATE detent::local_builder)
+add_test(NAME test_local_warm_semantic_bounds COMMAND test_local_warm_semantic_bounds)
+
 if(TARGET detent::local_publication)
   add_executable(test_local_paged_store_startup test_paged_store_startup.cc)
   target_include_directories(test_local_paged_store_startup PRIVATE "${PROJECT_SOURCE_DIR}/src/detent_local")
