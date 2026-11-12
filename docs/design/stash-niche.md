@@ -140,8 +140,8 @@ stash is cheaper; φ is the D51 noise floor on cost per key.
 | 24 h | 1,000,000 | 14 | 1,950 / 1,439 / 3,392 | 32.5 / 210 / 242 | 0.072 | 3.3% | loss |
 
 No row was inconclusive (rule 3 reran nothing): every ratio is either below 1.10 or clears its
-floor by a wide margin. The wheel's insert is 9 to 160 times cheaper than stash's in every row
-(stash's grows with P, 106 to 8,127 ns), and its drain is cheaper in 10 of 12 rows.
+floor by a wide margin. The wheel's insert is 9 to 77 times cheaper than stash's in every row
+(stash's grows with P, 106 to 8,127 ns), and its drain is cheaper in 9 of 12 rows (not at 24 h x 1,000 keys).
 
 **Memory** (bytes per key, entry plus structure heap; exact: repeats are identical, and a row's
 P = 1 and 14 differ by at most 1.1%). The gate fails stash in every row, as D74 reworded it.
@@ -163,7 +163,7 @@ three of its producer-count rows are stash wins, and its memory is also at most 
 wheel's; it wins no use on either count.
 
 - **1 s, 1,000 and 1,000,000 keys: lost on every row.** The wheel is 3 to 17 times cheaper per key
-  (r = 0.06 to 0.34), 3 to 12 times on drain alone, and uses 1.35x to 2.35x the bytes less.
+  (r = 0.06 to 0.34), 2.2 to 4.1 times on drain alone, and stash uses 1.35x to 2.35x the bytes.
 - **24 h x 1,000,000 keys: lost on every row**, r = 0.07 to 0.11: the wheel's 1,015,041 wakes
   (20,861 of them empty) drain in 210-222 ns per key against stash's 1,368-1,439, and its
   inserts cost 9-33 ns against 661-1,950.
