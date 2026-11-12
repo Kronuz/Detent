@@ -3039,11 +3039,46 @@
         "CHANGELOG.md",
         "docs/**"
       ],
-      "journal": "../Detent-wt/detent/logger-on-wheel",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T14:59:43",
+          "commit": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "criteria": {
+            "A1": "261112-140315-039e6c (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh); fails without: 261112-140328-3415e1",
+            "A2": "261112-140332-797330 (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh)",
+            "A3": "261112-140421-86b4c3 (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140412-ee682f (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140415-a16bfe (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md), 261112-140418-0c17c8 (passed at 11644a54c61b; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md)",
+            "A4": "261112-140334-59109a (passed at be2106cd8e43; ignores docs-only CHANGELOG.md, docs/perf/wheel-port.md, docs/perf/wheel-port.sh)",
+            "A5": "`ARCHITECTURE.md`: \"Deferred lines ride the LOG thread's wheel\""
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+              "commit": "be2106cd8e4334c2350d3696a7de0f757fc3b7f3",
+              "docs": [
+                "CHANGELOG.md",
+                "docs/perf/wheel-port.md",
+                "docs/perf/wheel-port.sh"
+              ],
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-140315-039e6c",
+              "level": "light",
+              "seconds": 72.5,
+              "state": "done",
+              "what": "logger-on-wheel check suite at be2106cd8e43"
+            }
+          ],
+          "final": true,
+          "from": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+          "reason": "",
+          "tested": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "logger-wheel-slim"
@@ -3051,10 +3086,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "The logger's deferred lines on Kronuz/wheel",
-      "updated": "2026-11-12T14:59:30",
-      "worktree": "../logger-wt/detent/logger-on-wheel"
+      "updated": "2026-11-12T14:59:48",
+      "worktree": ""
     },
     "logger-wheel-ab": {
       "accepted": {},
