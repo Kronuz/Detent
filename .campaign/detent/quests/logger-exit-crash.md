@@ -13,6 +13,7 @@ A process that exits without calling `finish()` never crashes in the logger. Tod
 - A2 The exit-without-finish child passes 500 runs under load: one job
 - A3 A test fails without the fix: a job, `--fails-without`
 - A4 The suite and TSan pass: jobs
+- A5 [artifact] `docs/ROADMAP.md` names no retired library (D72: scheduler; left by logger-followups): `docs/ROADMAP.md`
 
 ## Contracts
 
