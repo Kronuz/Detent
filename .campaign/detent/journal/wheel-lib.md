@@ -37,10 +37,9 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Suite green; mutants (no cascade, no owner assertion); ASan+UBSan and TSan jobs; fuzz job.
-2. Read A1 rows; if w misses 1.10x at n = 1,000, probe the cause (placement pads; code alignment,
-   the i9-9980HK's JCC erratum) and try layouts, at most five experiments.
-3. Docs: README, ARCHITECTURE, AGENTS, CHANGELOG, docs/timer-wheel.md with the A1 numbers.
+1. Read exp 2 (261111-210839-efd0f6) and the A1 rows; if they pass, write the numbers into
+   docs/timer-wheel.md Cost and README Performance (A6), Result here, State ready for review.
+   If w still misses, experiment 3 of 5 (remaining deltas by pass).
 
 ## Blocked on
 
@@ -50,7 +49,13 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending |
+| A1 | pending: 261111-211931-4ef521 (single), 261111-211934-f626e7 (cross), at wheel:50665c8 |
+| A2 | 261111-211937-fea447 (suite at wheel:50665c8); fails without: 261111-202912-b5aee7 (no cascade), 261111-202915-2b286a (no owner assertion), 261111-204408-d59cd1 (next() unsaturated), 261111-210559-9425eb (model fix); reruns at wheel:f729317 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f |
+| A3 | 261111-211937-fea447 (wheel_alloc_test in the suite) |
+| A4 | 261111-213050-6af05a (CI run 43160670793 green at wheel:f729317: linux-asan-ubsan, linux-tsan, Linux/macOS/FreeBSD) |
+| A5 | 261111-213036-092ef2 (fuzz/fuzz_ops.cc, 10 min, seeded with fuzz/corpus) |
+| A6 | pending the A1 numbers in `docs/timer-wheel.md` |
+| A7 | after ready for review: the Xapiand lead |
 
 ## Result
 
@@ -61,6 +66,10 @@ Pending.
 - Names: `wheel::timer_entry` and `wheel::timer_wheel`, task's names under the library's
   namespace, so task's later integration is a namespace change.
 - C++20 (`<bit>`'s countr_zero and rotr), as task and logger already require.
+- `.gitignore` is outside the file set: left as the repository started it; `.scratch/` is
+  excluded through the worktree's info/exclude. The lead may want `.scratch/` in .gitignore.
+- Local sanitizer jobs cancelled once Kronuz/wheel had a remote: CI runs ASan+UBSan and TSan;
+  A4's job checks the CI run passed at the commit (`gh run list --commit`).
 - The harness is task's bench/wheel port (Detent:5ecbeb4c workload verbatim), arm `t` renamed
   `w` (this library). `WHEEL_BENCH_GATE=w` makes the job exit 1 when w's median ratio passes
   1.10x in any row, so an A1 job passes only on the bound; `WHEEL_BENCH_CXXFLAGS` is for probes.
