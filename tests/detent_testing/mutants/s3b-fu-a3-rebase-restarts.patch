@@ -1,0 +1,13 @@
+diff --git a/src/detent_local/pack_scrub.cc b/src/detent_local/pack_scrub.cc
+index f47390a1..f2b49656 100644
+--- a/src/detent_local/pack_scrub.cc
++++ b/src/detent_local/pack_scrub.cc
+@@ -38,7 +38,7 @@ void PackScrub::begin(std::span<const SegmentInput> packs, Clock::time_point now
+ void PackScrub::rebase(std::span<const SegmentInput> packs, Clock::time_point now,
+ 					   const std::filesystem::path &directory) {
+ 	std::map<StorageIdentity, std::array<char, 32>> kept;
+-	if (running_)
++	if (false)
+ 		for (const auto &pack : packs)
+ 			if (auto found = verified_.find(pack.ownership.segment);
+ 				found != verified_.end() && found->second == pack.ownership.checksum)
