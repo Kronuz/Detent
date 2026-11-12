@@ -7397,10 +7397,40 @@
         "ARCHITECTURE.md"
       ],
       "journal": "../Detent-wt/detent/task-wheel",
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-12T09:23:37",
+          "commit": "47d50f3384ac195d2e347e10311e885ed7490040",
+          "criteria": {
+            "A1": "261112-085219-046ca6",
+            "A3": "261112-085202-2d04b7; fails without: 261112-080533-082edf, 261112-083952-122d9e, 261112-085502-c698eb",
+            "A4": "261112-085214-9b385a, 261112-085209-9a9ddd",
+            "A6": "`docs/mechanisms/deadlines.md`: \"Deadlines on Kronuz/wheel\"; `docs/mechanisms/deadlines.md`: \"so the scheduler outlives the deadline\"",
+            "A7": "the Xapiand lead: fit review APPROVE at task:c0cda23 (msg-30, Xapiand .campaign/xapiand/reviews/detent-task-wheel-fit.md); re-check APPROVE at task:9a1bb31 (msg-31: their fit probe, ASan+UBSan, Xapiand host_asio against task 9a1bb31); 47d50f3 adds only the F2 clamp and its test"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+              "commit": "47d50f3384ac195d2e347e10311e885ed7490040",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-085202-2d04b7",
+              "level": "light",
+              "seconds": 53.0,
+              "state": "done",
+              "what": "task-wheel check suite at 47d50f3384ac"
+            }
+          ],
+          "final": true,
+          "from": "d6bce5939385fb8f200d6a8890fba4741a7fd956",
+          "reason": "",
+          "tested": "47d50f3384ac195d2e347e10311e885ed7490040"
+        }
+      ],
       "lenses": [
         "correctness"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [
         "wheel-evidence"
@@ -7408,9 +7438,9 @@
       "provides": [],
       "repo": "../task",
       "risk": "high",
-      "status": "review",
+      "status": "landed",
       "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
-      "updated": "2026-11-12T08:54:26",
+      "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
     },
     "wheel-evidence": {
