@@ -1,31 +1,42 @@
-# wheel-lib: Kronuz/wheel: the one timer wheel library (D70, D72)
+# wheel-lib: Kronuz/wheel, the one timer wheel library
 
-Risk: high. The lead writes this quest; contributors read it and never edit it. Its machine state
-(status, branch, checks, reviews) is in `state.json`: `campaign status wheel-lib`.
+Risk: high (concurrency, a new public library). The lead writes this quest; contributors read it
+and never edit it. Machine state: `campaign status wheel-lib`.
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Kronuz/wheel ships `wheel.hh` (D70, D72): candidate (f) of `docs/design/wheel-evidence.md`, a
+single-owner hierarchical wheel with intrusive 32-byte entries, upper levels for far deadlines, and
+a 64-stripe intrusive inbox for arms from other threads; std only, no Kronuz dependency. It follows
+the cpp-libraries conventions (README, ARCHITECTURE, AGENTS, CI via cpp-libraries' cmake workflow,
+example, fuzz target). Its first code is task-wheel's "// Timers" block at task:5a1e516, moved out.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 Re-arm gap closed (D70): on macOS, an `exclusive` A/B on the wheel-evidence harness (A5's
+  >= 100 ms samples, R = 10) puts the library's single-loop score within 1.10x of (a) at n = 1,000
+  and n = 1,000,000, and its cross-thread score at P = 1, 4, 14 within 1.10x of (f)'s rows; the A/A
+  band is reported.
+- A2 Correctness: matches a reference model under random arm, cancel and re-arm, including from
+  inside a fire (itself included); deadlines beyond any level never fire early and cost O(1) per arm
+  and at most one move per level; cross-thread arms of unarmed entries from 1, 4 and 14 threads all
+  fire once; owner-only cancel and re-arm asserted in Debug; tests in the suite, with mutants a test
+  kills (no cascade, no owner assertion).
+- A3 No allocation per arm, re-arm, cancel or fire: a counting-allocator test.
+- A4 TSan and ASan+UBSan pass (CI, or a job).
+- A5 A libFuzzer target drives random operation sequences against the reference model.
+- A6 [artifact] `docs/timer-wheel.md`: the shape, the two threading contracts (other threads arm
+  only an unarmed entry; only the owner cancels or re-arms), far deadlines, the A1 numbers.
+- A7 [manual] The Xapiand lead reviews the diff.
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Provides `wheel`. task (task-wheel), logger (logger-on-wheel) and Xapiand consume it.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+- D70 (f) is the one wheel, re-arm gap first; D72 its own library, stash and scheduler retire.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: the first push is the library's first release.
