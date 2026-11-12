@@ -1,47 +1,43 @@
 # one-knob-type: journal
 
-State: waiting on jobs at Detent:432d75a4 (code final at 52afffdc): check 261111-183335-cadb42,
-suite 261111-183749-ea6a83, docs e2e 261111-183751-b78a79, A4 261111-183756-114e28, A2 mutants
-261111-183800-28bea7 / 261111-183804-21b82d, A3 prepare 261111-183845-6f9674, pairs 100k
-261111-183845-21dfff .. 261111-183845-8adf69, 5m 261111-183846-bdf446 .. 261111-183846-29ad06,
-pages 261111-183846-09f47c (100k) / 261111-183847-4a0ddc (5m), reports 261111-183858-1f07ad (100k)
-/ 261111-183901-4ac6d4 (5m)
+State: waiting on jobs at Detent:ea9d4147: suite 261111-200115-da0928; A3 prepare
+261111-200130-109e8f, pairs 100k 261111-200151-1397a1 .. 261111-200212-6f24d5, 5m
+261111-200219-0b349b .. 261111-200236-c6aa5c, reports 261111-200215-39f88a (100k) /
+261111-200240-4d0086 (5m); outputs under /Users/kronuz/code/Kronuz/Detent/.scratch/okt/ea9d4147/
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Session 3. Merged main (ipv6, relay-delta-shutdown-hang, brand) at Detent:83bda97c; both
-scripted_upstream.hh changes kept (auto-merged). Suite 261111-163109-4e98df at eb51185d, 6 failed:
+Session 4. Jobs at Detent:432d75a4 (code at 52afffdc): suite 261111-183749-ea6a83 276/277, the one
+failure test_local_lazy_page_bitmap ("lazy page invariant at 166", also check 261111-183335-cadb42).
+Cause (debug run of the fixture's page list): the fixture took `k100001` as each namespace's
+definition and required its page outside the root segment. The packer seals children only until
+the parent fits `page_capacity` (4,096 B); with two namespaces (`publish`) it sealed `Ka` and
+left `Kb`'s 3.7 KB remainder, with `Kb\0k10000x`, in the root page. Not a size assumption in the
+bitmap or reader code: the fixture's layout depended on body sizes. Fix: the fixture records each
+namespace's first definition whose page lies in that namespace's segment (`definition_names`), and
+`corrupt` reads that name; all eight cases pass locally (Detent:ea9d4147). R14 rechecked: without
+the retry the packer commit is refused for budget (dense_graph_fixture.hh:89); production callers
+(paged_snapshot_builder.cc:265, paged_overlay_assembler.cc:360) resume on false, so R14 stands.
 
-- test_local_lazy_page_bitmap: `dense_graph_fixture.hh:88` `check(packer.commit(...))`; commit
-  returns false when the step before spent the validation budget (8,192 B, 16 rows), which the
-  smaller varint bodies now hit. The fixture retries packer and cursor commits with a fresh
-  budget (R14). Detent:f6c62a85.
-- test_local_dense_reads:422 assumed a 24-byte body; it now flips byte 10, the default's one-byte
-  varint. Detent:f6c62a85.
-- test_authority_snapshot_catchup: TimeoutError at test_multivoter.py:304, the 98-write loop with a
-  voter down, beside test_local_disk_store's 272 s. Pre-existing flake: the same line failed in
-  261109-085306-1a0b81 (namespace-s1-s2), 261109-162029-7d42a7 (daemon-ready-leader) and
-  261111-013718-1582cb (dense-walkers), and passed on this branch in 261111-155807-cb02cd and
-  261111-162230-a8bbcb.
-- test_authority_dns_voters_names: "bind: Address already in use"; main's ipv6 merge changes
-  test_dns_voters.py's port reservation. Rerun decides.
-- test_agent_store_crash, test_local_publication_power_cut (Timeout 900 s): the flake relay-delta
-  saw; rerun decides.
+Load flakes, passed in 261111-183749-ea6a83: test_agent_store_crash and
+test_local_publication_power_cut (900 s timeouts in 261111-163109-4e98df), dns_voters_names
+("Address already in use"), snapshot_catchup (pre-existing: 261109-085306-1a0b81,
+261109-162029-7d42a7, 261111-013718-1582cb).
 
-Owner ruling (one varint): varint pinned at 333384ee, in the core FetchContent list, linked PUBLIC
-to detent_local_codec; `zigzag`/`varint_size` and the hand-rolled LEB128 are gone. Detent:f6c62a85.
-observability_bench.cc on one type (Detent:63418832). A4's script used python3.14 for CMake while
-pybind11 built for 3.15 (job 261111-162758-63e456: ModuleNotFoundError); one interpreter now
-(Detent:aaca44bb). A3 read speed in both notes (Detent:52afffdc); b9bf610c's pair outputs copied to
-/Users/kronuz/code/Kronuz/Detent/.scratch/okt/b9bf610c/ before the head reruns overwrite them.
+Varint library kept bytes: the pages jobs at 432d75a4 (261111-183846-09f47c, 261111-183847-4a0ddc)
+give the varint roots 1f457c20… (100K) and 8a2e8747… (5M), the same as the hand-rolled LEB128 at
+b9bf610c (261111-162851-fc6aaf, 261111-162856-b47db3); main's 7c0f7d1b… and 67c70ad3… unchanged.
+
+A3 prepare 261111-183845-6f9674 failed "first_read_export: output exists"; prepare now removes each
+arm's output first, and the head run writes under .scratch/okt/ea9d4147/ so no older pairs mix into
+its reports (Detent:9f677f2c). docs/design/observability_bench.cc deleted (D43; Detent:9f677f2c).
 
 ## Next
 
-1. 261111-183335-cadb42 green, then at the head: `campaign verify one-knob-type --for A1,A2`, docs
-   e2e, A4, both A2 mutants, A3 `campaign job rerun` prepare + 12 pairs + pages 100k/5m, then the
-   two reports.
-2. Fill Evidence from `campaign brief`, Result, State "ready for review"; push.
+1. Suite 261111-200115-da0928 green; A3 pairs and reports done: put the head numbers and job ids
+   in docs/perf/one-knob-type.md and docs/design/one-knob-type.md.
+2. Evidence from `campaign brief`, Result, State "ready for review"; push.
 
 ## CHANGELOG entry (for the lead)
 
@@ -54,6 +50,13 @@ pybind11 built for 3.15 (job 261111-162758-63e456: ModuleNotFoundError); one int
 
 ## Blocked on
 
+- B5 (file set, low): with docs/design/observability_bench.cc deleted, four files outside the set
+  still name it: docs/design/observability-bench.sh (copies and builds it against S6),
+  observability-summary.py and observability-paired.py (docstrings), docs/design/observability.md
+  (:9, :89). Options: 1. the lead deletes the S6 bench harness (the .sh and both .py) and the two
+  sentences in observability.md, or adds them to the set (recommended: they measure S6's C ABI,
+  which is gone); 2. restore the .cc at main's text so the harness still builds against S6. The
+  quest's acceptance criteria do not depend on it.
 - Resolved: B4 (the lead added the four fixtures and converted them at Detent:eb51185d).
 - Was B4 (file set): five test fixtures outside the set hand-encode main's integer definition
   `[1, value]` on the wire and fail with "distribution tuple arity mismatch" (suite
@@ -100,9 +103,10 @@ Not yet.
   a frozen copy of main's evaluator: the recording is main's own code, the test reads its bits.
 - R14 The dense graph fixture retries a packer or cursor commit refused for budget with a fresh
   `ValidationBudget`, as a real caller does; the refusal is the documented resumable path.
-- R15 observability_bench.cc still calls S6's C reader API (`detent/reader.h`, no longer in the
-  tree), so it is converted in shape and not built: one `lookup_get`, one-type definitions, no
-  `--ops`; its output keeps `"op":"get"` for the summary scripts outside the set.
+- R15 (superseded by the lead, session 4) observability_bench.cc called S6's C reader API, no
+  longer in the tree; deleted under D43 (B5 lists the references outside the set).
+- R16 The lazy bitmap fixture picks each namespace's definition by where its page landed, not by
+  a fixed name: which cluster stays in the root page is the packer's size rule, not the test's.
 - R13 Exclusive timing jobs are capped at 10 minutes, so A3 timing runs one D51 pair per job
   (`measure ... A-B`) and `report` takes the verdicts over all six.
 
