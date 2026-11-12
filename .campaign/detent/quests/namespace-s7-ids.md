@@ -5,27 +5,22 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+Generation, segment, `.read` and `.owner` names are derived as D8.1 says and no longer carry a storage identity; every writer and reader uses them, still under the old `selected` descriptor. A rebuild at an unchanged head takes ordinal r + 1, so derived names never collide (D88).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 No `StorageIdentity` remains in `.read`, `.owner` or segment ids; every user in src/detent_local and src/detent_testing derives them: a grep job and the suite
+- A2 A rebuild at an unchanged head publishes under ordinal r + 1 and never reuses a name: a test that fails without it
+- A3 A power cut at every storage primitive of publication still recovers to the last acknowledged generation or the one before: the crash model job
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes the agent store (`include/detent_local/agent_store.hh`, D8).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D8, D43, D88.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing: it changes names on disk.

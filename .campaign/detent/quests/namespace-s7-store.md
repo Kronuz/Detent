@@ -5,27 +5,25 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+detent-agent publishes every generation through the namespace-s7 agent store (D8): DiskStore publishes and recovers through AgentStore, the table replaces `selected`, readers read their table entry, AgentStore reclaims superseded generations, and the old layout is gone (D43, no migration). Until namespace-s6-cutover the one table entry is named after the configured scope, and the old Cursor maps to NamespaceCursor (D88).
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 A real agent run (authority, relay, agent) publishes and serves generations from the store; the readers' answers equal the authority's: the suite
+- A2 A power cut at every storage primitive of the agent's publish path leaves a store that recovers to the last acknowledged generation or the one before, never a mix: the crash model job
+- A3 The agent's old layout code is deleted; nothing outside agent_store writes the agent directory: the suite plus a grep job
+- A4 AgentStore gains a `.lease` and `collect()`: superseded generations are reclaimed as DiskStore reclaims them today, never one a reader holds: a test that fails without it
+- A5 Catch-up (ring entries, a trimmed block, a base) runs on an opened AgentStore recovered from a mid-publish cut and reaches the full copy's commitment (namespace-s7 durability F3): the suite
+- A6 [artifact] How the agent's publish path uses the store: `docs/status/namespace-s7.md`: "## Wiring"
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+Consumes the agent store (`include/detent_local/agent_store.hh`, D8).
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D8, D43, D88. The dropped namespace-s7-wire's survey: its journal at Detent:b765d598.
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
