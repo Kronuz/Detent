@@ -6679,6 +6679,38 @@
       "title": "Seeding waits attribution",
       "updated": "2026-11-08T15:38:02"
     },
+    "service-shape": {
+      "accepted": {},
+      "after": [
+        "task-wheel"
+      ],
+      "checks": [
+        {
+          "cmd": "test -s docs/design/service-shape.md",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/service-shape.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [
+        "task:service-shape"
+      ],
+      "repo": "../task",
+      "risk": "high",
+      "status": "planned",
+      "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
+      "updated": "2026-11-12T04:29:14"
+    },
     "sha256-avx2": {
       "accepted": {},
       "after": [],
