@@ -7353,9 +7353,9 @@
       "provides": [],
       "repo": "../wheel",
       "risk": "high",
-      "status": "review",
+      "status": "active",
       "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
-      "updated": "2026-11-12T04:30:35",
+      "updated": "2026-11-12T04:41:58",
       "worktree": "../wheel-wt/detent/wheel-lib"
     }
   },
