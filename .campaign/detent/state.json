@@ -7106,6 +7106,8 @@
       "after": [
         "namespace-s4"
       ],
+      "base": "48edd11b5a885023ebffc5fde465fef5d4b41781",
+      "branch": "quest/detent/s3b-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -7131,9 +7133,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Pack repair follow-ups N1-N5",
-      "updated": "2026-11-11T06:15:36"
+      "updated": "2026-11-12T14:59:19",
+      "worktree": "../Detent-wt/detent/s3b-followups"
     },
     "salvage": {
       "accepted": {},
