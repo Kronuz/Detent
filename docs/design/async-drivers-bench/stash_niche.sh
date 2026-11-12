@@ -2,7 +2,7 @@
 # The rows of docs/design/stash-niche.md (stash_niche.cc):
 #   stash_niche.sh test                  both arms against the checks, under ASan+UBSan and TSan
 #   stash_niche.sh smoke                 every arm at both horizons, small, with its configuration
-#   stash_niche.sh row HORIZON_MS N [PAIRS]   PAIRS (default 6) interleaved b/f pairs at each
+#   stash_niche.sh row HORIZON_MS N [PAIRS]   PAIRS (default 6) interleaved b/w pairs at each
 #                                        P in $PRODUCERS (default "1 4 14"), then the summary;
 #                                        $PAIR_START (default 0) numbers the first pair, so a
 #                                        row split over jobs rotates its arm order as one
@@ -52,10 +52,10 @@ echo "start=$(date -u +%FT%TZ)"
 case $mode in
 smoke)
 	for h in 1000 86400000; do
-		for arm in b f; do run timing niche "$arm" 4 100000 "$h"; done
+		for arm in b w; do run timing niche "$arm" 4 100000 "$h"; done
 	done
 	cxx count -O2 -DNDEBUG -DCOUNT_HEAP
-	for arm in b f; do run count nichemem "$arm" 4 100000 86400000; done
+	for arm in b w; do run count nichemem "$arm" 4 100000 86400000; done
 	;;
 row)
 	h=${2:?horizon ms}
@@ -66,7 +66,7 @@ row)
 		for ((k = 0; k < ${#producers[@]}; ++k)); do
 			p=${producers[$k]}
 			echo "pair=$r"
-			if (((r + ${producers[$k]}) % 2 == 0)); then order="b f"; else order="f b"; fi
+			if (((r + ${producers[$k]}) % 2 == 0)); then order="b w"; else order="w b"; fi
 			for arm in $order; do run timing niche "$arm" "$p" "$n" "$h"; done
 		done
 	done
@@ -76,7 +76,7 @@ mem)
 	n=${3:?keys}
 	for rep in 0 1; do
 		for p in 1 14; do
-			for arm in b f; do run count nichemem "$arm" "$p" "$n" "$h"; done
+			for arm in b w; do run count nichemem "$arm" "$p" "$n" "$h"; done
 		done
 	done
 	;;

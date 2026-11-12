@@ -1,13 +1,16 @@
 // The stash-niche rows of docs/design/stash-niche.md: many producers file keys over a horizon,
-// then one consumer drains them in key order, no cancel and no re-arm. The arms are wheel-evidence's
-// own: (b) stash as it is, (f) the striped-inbox wheel (wheel_vs_stash.cc, included unchanged).
+// then one consumer drains them in key order, no cancel and no re-arm. The arms: (b) stash as it is
+// (wheel_vs_stash.cc's pieces, included unchanged) and (w) Kronuz/wheel's wheel.hh at wheel:50665c8
+// (stash_niche_wheel.hh, a copy).
 //   niche ARM P N HORIZON_MS   P producers file N entries; one consumer drains them in key order
 //   nichemem ARM P N HORIZON_MS  (the COUNT_HEAP build) the structure's heap per key after filing
 //   nichetest                  both arms against every check, small
-// ARM is b (stash, cand_nb below) or f.
+// ARM is b (stash, cand_nb below) or w (cand_w below).
 #define main wheel_vs_stash_main
 #include "wheel_vs_stash.cc"
 #undef main
+
+#include "stash_niche_wheel.hh"
 
 #include <sys/resource.h>
 
@@ -66,6 +69,19 @@ struct cand_nb {  // cand_b on niche_stash_wheel
 	}
 };
 
+// (w): the library wheel; another thread's arm is `arm_remote`, the owner's loop is expire(now).
+struct cand_w {
+	using entry = wheel::timer_entry;
+	static constexpr bool cross = true;
+	static constexpr const char* shape = "Kronuz/wheel wheel.hh: 4,096 x 1 ms + six upper levels, 64-stripe inbox";
+	std::unique_ptr<wheel::timer_wheel> w;
+	explicit cand_w(u64 base) : w(std::make_unique<wheel::timer_wheel>(base)) {}
+	static u64 deadline(const entry& e) { return e.deadline; }
+	void arm_from(entry& e, u64 d) { w->arm_remote(e, d); }
+	template <class F>
+	std::size_t expire(u64 now, F&& f) { return w->expire(now, [&](entry& e) { f(e); }); }
+};
+
 // Peak resident set so far, in bytes (macOS reports bytes, Linux kilobytes).
 std::size_t peak_rss() {
 	rusage u{};
@@ -84,8 +100,8 @@ struct drain_stats {
 template <class C, class F>
 drain_stats drive(C& c, u64 end, u64 give_up_ns, F&& deliver) {
 	drain_stats s;
-	if constexpr (std::is_same_v<C, cand_f>) {
-		// File the inbox, then wake at the end of each next occupied slot until the wheel is empty.
+	if constexpr (std::is_same_v<C, cand_w>) {
+		// File the inbox, then wake at next() (an occupied slot's end, or an upper slot's start) until empty.
 		const u64 started = now_ns();
 		u64 t = manual_base;
 		for (;;) {
@@ -93,7 +109,7 @@ drain_stats drive(C& c, u64 end, u64 give_up_ns, F&& deliver) {
 			++s.calls;
 			s.empty_calls += fired == 0;
 			t = c.w->next();
-			if (t == ~u64{0}) { break; }
+			if (t == wheel::timer_wheel::never) { break; }
 			if ((s.calls & 4095) == 0 && now_ns() - started > give_up_ns) { break; }
 		}
 	} else {
@@ -216,8 +232,8 @@ void nichemem(std::string_view arm, std::size_t producers, std::size_t total, u6
 template <class F>
 auto niche_dispatch(std::string_view arm, F&& f) {
 	if (arm == "b") { return f(static_cast<cand_nb*>(nullptr)); }
-	if (arm == "f") { return f(static_cast<cand_f*>(nullptr)); }
-	std::fprintf(stderr, "unknown arm %.*s (b or f)\n", int(arm.size()), arm.data());
+	if (arm == "w") { return f(static_cast<cand_w*>(nullptr)); }
+	std::fprintf(stderr, "unknown arm %.*s (b or w)\n", int(arm.size()), arm.data());
 	std::exit(2);
 }
 
@@ -246,7 +262,7 @@ int main(int argc, char** argv) {
 			std::printf("test far-edge ok\n");
 		}
 		check_niche<cand_nb>("b");
-		check_niche<cand_f>("f");
+		check_niche<cand_w>("w");
 		std::printf("test all ok\n");
 		return 0;
 	}

@@ -2,13 +2,14 @@
 
 Quest `stash-niche` (campaign `detent`). `wheel-evidence` (docs/design/wheel-evidence.md) measured
 Kronuz/stash as a timer wheel (arm, re-arm and cancel on a loop; arms from many threads against
-a firing owner) and D70 retired it there in favour of candidate (f). This note asks the fair
+a firing owner) and D70 retired it there in favour of candidate (f), and `Kronuz/wheel` now holds that wheel as a library. This note asks the fair
 question on the workload stash's design fits, before Kronuz/stash is archived: many producers,
 one consumer draining in key order, no cancel and no re-arm, keys spread over a wide horizon
-(sparse; stash allocates its levels on first use). If stash beats (f) on a use, its README narrows
+(sparse; stash allocates its levels on first use). If stash beats the wheel on a use, its README narrows
 to that use and it stays; if not, the retirement stands. Library code is read at stash:d249352,
-the harness is `async-drivers-bench/stash_niche*`, built on `wheel_vs_stash.cc`'s candidates
-unchanged.
+the harness is `async-drivers-bench/stash_niche*`, built on `wheel_vs_stash.cc`'s pieces
+unchanged for stash, and on a copy of `Kronuz/wheel`'s `wheel.hh` at wheel:50665c8
+(`stash_niche_wheel.hh`) for the wheel.
 
 ## Arms
 
@@ -20,14 +21,16 @@ unchanged.
   any base. wheel-evidence's `cand_b` is unchanged and still has 4,800. Nothing cancels or
   re-arms, so the armed flag it carries is only ever set. The consumer drains in key order
   with one walk.
-- **(f)**: the single-owner wheel (4,096 slots of 1 ms, 32-byte intrusive entry) with the 64-stripe
-  inbox, exactly `cand_f`. No overflow level: a deadline a round or more ahead waits in its slot
-  and is skipped until due. The consumer drains the way D4's design drives the wheel: it files
-  the inbox, then moves its clock to `next()` (the end of the next occupied slot) and expires,
-  until the wheel is empty.
+- **(w) the wheel library**: `Kronuz/wheel`'s `timer_wheel` at wheel:50665c8, vendored verbatim as
+  `stash_niche_wheel.hh` (D74): 4,096 slots of 1 ms and six upper levels of 64 slots (4.1 s up to
+  142 years) that cascade down as the cursor enters their span, a 32-byte intrusive entry, a
+  64-stripe inbox for `arm_remote` from other threads. The consumer drives it as its reactor
+  would: `expire(manual_base)` files the inbox, then it moves its clock to `next()` (the end of
+  the next occupied slot, or the start of the next occupied upper slot's span) and expires,
+  until `next()` is `never`.
 
-(f) is measured as built. Where it loses because it has no level for a wide horizon, the verdict
-says so; a wheel with one is not measured here.
+The wheel-evidence prototype (f) is not an arm of the rows: it has no upper levels, so over 24 h
+its `next()` wakes on every 1 ms tick (see the changes below).
 
 ## Workload
 
@@ -43,25 +46,27 @@ One row is a horizon H, N live keys and P producers; a run is one process.
 - **Drain.** After the producers finish, one consumer thread drains every entry in key order on
   a manual clock (the base is 7,000 s, far below `steady_clock`, so a wheel that read the real
   clock would show): (b) one walk to H + 2 ms, then the `clean` pass the scheduler's loop runs;
-  (f) the loop above. **Drain ns** is the consumer's wall time per entry delivered, so (f)'s
-  includes filing the inbox into the wheel, every `next()` and every wake that fires nothing.
+  (w) the loop above. **Drain ns** is the consumer's wall time per entry delivered, so (w)'s
+  includes filing the inbox into the wheel, every `next()`, the cascades and every wake that
+  fires nothing.
 - **Cost per key** is insert ns + drain ns: the CPU one key costs, a producer's and the
   consumer's, the number a bill follows. Insert and drain are reported on their own.
-- **Peak memory**, the counting build (`probe.hh`'s allocator): the structure's live heap after
-  the producers finish, per key (the entries and key arrays are the harness's and not counted;
-  neither arm allocates while draining, and stash only frees). The timing build also reports
-  the peak resident-set growth over the run as a cross-check.
+- **Memory**, the counting build (`probe.hh`'s allocator): **bytes per key** is the entry's size
+  plus the structure's live heap after the producers finish, per key, for each arm (the key
+  arrays are the harness's; neither arm allocates while draining, and stash only frees). The
+  structure's heap alone is reported with it. The timing build also reports the peak
+  resident-set growth over the run as a cross-check.
 - **Valid** only if every entry is delivered exactly once, no entry is delivered before its
   deadline on the clock the consumer holds, and delivered ticks (key / 1 ms) never decrease.
   A run not drained within 300 s is stopped, reports the entries delivered so far, and counts
   its drain as that elapsed time over those entries (a lower bound on its ns per entry, so the
   ratio is a bound that favours stash's opponent).
-- Producers and consumer do not overlap: the filing of the inbox lands in (f)'s drain, where a
+- Producers and consumer do not overlap: the filing of the inbox lands in (w)'s drain, where a
   live consumer would overlap it with the producers. The cost per key counts it once either way.
 
 ## Noise (D51)
 
-Each row runs 6 interleaved pairs: a pair runs (b) and (f) once each, each in its own process,
+Each row runs 6 interleaved pairs: a pair runs (b) and (w) once each, each in its own process,
 the order rotated by pair and by row. The **noise floor** φ of a row is the larger of the two
 arms' A/A spreads on cost per key, each the median over consecutive same-arm runs of
 |x(i+1) - x(i)| divided by the arm's median.
@@ -71,32 +76,40 @@ arms' A/A spreads on cost per key, each the median over consecutive same-arm run
 Fixed before the first measured run. The rows are `exclusive` jobs at named commits, split by
 row where a run is long; a job lasts at most 30 minutes.
 
-1. A row's ratio **r** is the median over its pairs of (f's cost per key) / (b's cost per key);
+1. A row's ratio **r** is the median over its pairs of (w's cost per key) / (b's cost per key);
    r above 1 means stash is cheaper, and "stash is 1.10x better" means r >= 1.10.
 2. A row is a **stash win** when r >= 1.10 and r - 1 > φ (the gap clears the noise floor), every
-   run valid, and stash's peak heap per key is at most 1.10 times (f)'s. A row is a **stash
-   loss** when r < 1.10, or when stash's peak heap per key exceeds 1.10 times (f)'s.
+   run valid, and stash's bytes per key (entry plus heap) are at most 1.10 times (w)'s. A row is a **stash
+   loss** when r < 1.10, or when stash's bytes per key exceed 1.10 times (w)'s.
 3. A row with r >= 1.10 and r - 1 <= φ is inconclusive: it reruns with 12 pairs, and the rerun
    decides by its point estimate (r >= 1.10), since a floor only widens with more runs.
 4. A **use** is a horizon and a key count, with its three producer counts as its three rows.
    **Stash keeps a use** only when all three of its rows are stash wins. Four uses in all.
 5. The verdict follows: if stash keeps no use, retiring it stands (D70). If it keeps any,
    its README narrows to exactly the uses it keeps, and it stays. A kept use whose wins come
-   with stash losing insert ns is reported with that, and a use won only because (f) has no
-   overflow level is reported with that; neither changes the rule's outcome.
-6. Peak heap is exact at a given build, one run per arm and row (P = 1 and 14); two runs of
+   with stash losing insert ns is reported with that, and a use won on a row where the wheel wakes
+   mostly to cascade is reported with its wake counts; neither changes the rule's outcome.
+6. Bytes per key are exact at a given build, one run per arm and row (P = 1 and 14); two runs of
    one arm that differ by more than 1% are reported.
 
 The PLAN.md decision records the verdict; the lead brings it to the owner.
 
-**What the smoke showed about rule 2's memory gate** (261111-200152-81602e, N = 100,000, 24 h,
-P = 4, a smoke and not a decision row). The gate compares structure heap per key, and (f)'s is
-0.7 B (a fixed 70 KiB; its 32-byte entries are intrusive, the harness's) against stash's 470 B
-(levels allocated on first use, the value box, the leaves), so stash fails the gate wherever it
-allocates at all, and the gate alone decides every row against it. The rule stands as written
-and the verdict follows it. Each row also reports the same ratio with the gate ignored ("time
-only") and total bytes per key (entry plus heap), so the owner can weigh the time result
-without the gate; neither enters the verdict.
+## Changes after the smoke
+
+The smoke (261111-200152-81602e, N = 100,000, P = 4, not a decision row) ran the evidence
+prototype (f) as the wheel arm. At 24 h it took 141,619 ns per key against stash's 2,375: 82.8M
+wakes for 100,000 entries, 82.7M of them empty, because (f) has no upper levels and its
+`next()` stops at every occupied 1 ms slot. Stash's heap was 470 B per key against (f)'s 0.7
+(its 32-byte entries are held by the caller). The lead ruled two changes (PLAN.md D74) before any
+decision row; the thresholds are unchanged and every row runs under them.
+
+1. **The wheel arm is `Kronuz/wheel`'s `wheel.hh` at wheel:50665c8** (arm (w)), not (f). The
+   rows measure stash against the wheel that would replace it, and (f)'s wakes are a flaw of
+   the prototype, not a cost of the design. The smoke's 24 h run repeats on (w) before any row:
+   its wakes should be near the number of occupied slots plus the cascade wakes.
+2. **Rule 2's memory gate compares total bytes per key**, the entry each design needs plus its
+   structure heap per key, for both arms, instead of structure heap alone, which held every
+   intrusive entry against stash.
 
 ## Results
 
