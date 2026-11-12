@@ -1,6 +1,6 @@
 # superseded-sweep: journal
 
-State: working
+State: ready for review
 Quest: .campaign/detent/quests/superseded-sweep.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,15 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Done; the ledger is committed.
 
 ## Next
 
-1. <step>
+1. Lead: review, spot-check three rows' users (A2).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing. Owner decisions are listed under "Proposed" in the doc (cluster's multicast bus; fantasyname).
 
 ## Evidence
 
@@ -27,14 +27,14 @@ checked what), and answer each message by its id (msg-N).
 
 | Criterion | Evidence |
 |---|---|
-| <A1> | <from `campaign brief`> |
+| A1 | [artifact] `docs/dev/superseded-libraries.md` at 80478d09: rows for stash, scheduler, cluster; users per repo and file; migration order; Proposed; checked-and-current list |
+| A2 | [manual] the lead's spot-check; reproduce with the greps at the end of the doc |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+`docs/dev/superseded-libraries.md`. stash and scheduler: users are logger, Xapiand, Detent (pins), prism and http-log (via logger); not archivable yet. cluster: no users, so archivable, but only the Raft half has a successor (consensus). No other library is superseded.
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- cluster is a table row though only partly superseded (the owner named it; D73 says "likely"); the caveat and the Proposed item state the gap.
+- Users counted from tracked files (`git grep`) in main checkouts; pins in `cmake/dependencies.json` count as users.
