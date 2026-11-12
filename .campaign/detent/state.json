@@ -4599,9 +4599,9 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-12T11:45:37",
+      "updated": "2026-11-12T13:18:55",
       "worktree": "../Detent-wt/detent/namespace-s6"
     },
     "namespace-s6-cutover": {
