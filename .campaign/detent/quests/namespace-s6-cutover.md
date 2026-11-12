@@ -14,6 +14,7 @@ The authority serves namespace-s6's session endpoint from S5.2's ring, blocks an
 - A3 W13: the authority's grants use namespace-s6's matcher; the old scope check is gone: tests and a grep job
 - A4 Q4: the one-shot endpoint and poll mode are removed per D43, with nothing left behind: a grep job
 - A5 W1: `src/detent_authority/state.hh`'s cursor and every user of the old cursor (detent_local, detent_agent, read_view, benchmarks) use the one type: a grep job and the suites
+- A6 namespace-s6's session codecs and client admit their memory through a `StorageLedger`, not the bare heap (S6 ruling R8): a test that a ledger at its bound refuses an answer
 
 ## Contracts
 
