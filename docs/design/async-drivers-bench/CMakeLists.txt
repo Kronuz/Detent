@@ -12,6 +12,29 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 include(FetchContent)
+
+# The wheel-vs-stash rows (docs/perf/wheel-vs-stash.md) need only the landed wheel and stash:
+# -DBENCH_WHEEL_VS_STASH=ON builds wheel_vs_stash and stash_niche and nothing else. stash is the pin
+# scheduler's CMakeLists declares; wheel is the commit of the numbers.
+option(BENCH_WHEEL_VS_STASH "Build only wheel_vs_stash and stash_niche" OFF)
+if(BENCH_WHEEL_VS_STASH)
+	FetchContent_Declare(wheel GIT_REPOSITORY https://github.com/Kronuz/wheel.git GIT_TAG bfd72bc13395e4a232701e752be97ccd236530fc)
+	FetchContent_Declare(stash GIT_REPOSITORY https://github.com/Kronuz/stash.git GIT_TAG b7d887678a2149e38fd4bc9ec4491e414d76a81f)
+	FetchContent_MakeAvailable(wheel stash)
+	find_package(Threads REQUIRED)
+	option(BENCH_COUNT_HEAP "Count heap bytes (the mem rows)" OFF)
+	if(BENCH_COUNT_HEAP)
+		add_compile_definitions(COUNT_HEAP)
+	endif()
+	add_executable(wheel_vs_stash wheel_vs_stash.cc)
+	add_executable(stash_niche stash_niche.cc)
+	foreach(t wheel_vs_stash stash_niche)
+		target_link_libraries(${t} PRIVATE wheel::wheel stash::stash Threads::Threads)
+		target_compile_features(${t} PRIVATE cxx_std_20)
+	endforeach()
+	return()
+endif()
+
 set(COMPLETION_ASIO ON CACHE BOOL "" FORCE)
 # peers_cost and conn_cost need consensus::transport (reactor and OpenSSL 3); run.sh turns it on for them.
 option(BENCH_TRANSPORT "Build peers_cost over consensus::transport" OFF)
