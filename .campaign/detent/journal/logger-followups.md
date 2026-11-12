@@ -1,30 +1,20 @@
 # logger-followups: journal
 
-State: ready for review
+State: waiting on jobs 261112-154326-0214a8
 Quest: .campaign/detent/quests/logger-followups.md (the lead's; never edit it)
 
 ## Doing
 
-Done: logger:c535062 (branch quest/detent/logger-followups), all jobs green.
+Lead's follow-up done at logger:4f26753: arms C and D, wheel-port.sh, sizeof.cc deleted; README, AGENTS, docs/perf reworded; A2 grep now whole repo. Only the A1 rerun is pending.
 
 ## Next
 
-1. Review; CI needs the branch pushed (lead).
+1. When 261112-154326-0214a8 passes: paste the brief's table, State ready for review. CI needs the branch pushed (lead).
 
 ## Blocked on
 
-Not blocking review, the lead's call (A2 literal reading, "no file includes scheduler headers"):
-bench/wheel_ab/c and d (the frozen A/B experiment arms, outside this quest's file set) include
-scheduler.h, and bench/wheel_ab/d/CMakeLists.txt links scheduler::scheduler. The root project no
-longer fetches the scheduler, so `bench/wheel_ab/run.sh build-d`, arm C's target and
-`docs/perf/wheel-port.sh` (the A3 harness of logger-on-wheel) cannot be rebuilt. Done in-set: arm C's
-target and its three ctest rows are gone from CMakeLists.txt; the A and B library arms stay. Options:
-1. Delete bench/wheel_ab/c, d, sizeof.cc, the run.sh arm bits and docs/perf/wheel-port.sh (the A/B
-   is decided and recorded in docs/perf/wheel-ab.md and wheel-port.md). Recommended: nothing then
-   links or includes the scheduler anywhere.
-2. Keep them and let d/CMakeLists.txt fetch the scheduler itself (the arms remain reproducible).
-Either needs bench/** and docs/** in the file set. Also out of the set and stale: README.md:81 and
-AGENTS.md (lines 24, 45, 73, 105 name the scheduler and test/frozen) need a one-line edit each.
+Nothing. (The bench arms question was answered by the lead: delete. `logger_queue`'s exit crash is the
+lead's new quest, logger-exit-crash; see Result.)
 
 ## Evidence
 
@@ -32,9 +22,9 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-153821-14b5c8 |
-| A2 | 261112-153819-dedbc0, 261112-153829-bcbeff |
-| A3 | 261112-153819-dedbc0; fails without: 261112-153648-ec9876, 261112-153825-06b388 |
+| A1 | 261112-154326-0214a8 (rerun at 4f26753; first pass 261112-153821-14b5c8 passed at c535062) |
+| A2 | 261112-154159-639ab1 (suite), 261112-154201-da17c7 (whole-repo grep), 261112-154205-39b3fa (wheel_ab option builds, its checks pass) |
+| A3 | 261112-154159-639ab1; fails without: 261112-153648-ec9876, 261112-153825-06b388 |
 | A4 | `ARCHITECTURE.md`: "so the batch rarely takes an insert" |
 
 A1's job runs logger_deferred, _stress and _ties 50 times each (150 passes) under one busy loop per
@@ -67,6 +57,13 @@ Not fixed here (a longer or unbounded join changes what exit does when a handler
 the lead. The suite at the head passed (261112-153819-dedbc0).
 
 ## Rulings I made
+
+- Lead's follow-up: bench/wheel_ab/c, d, sizeof.cc, docs/perf/wheel-port.sh and run.sh's c/d modes are
+  deleted (ab.cc keeps backends A and B); wheel-ab.md says so in one line (sources at logger:dce2538).
+  The A2 grep is whole-repo: no include, target or fetch anywhere, and no "scheduler" word outside
+  docs/ and CHANGELOG.md. docs/perf/wheel-ab.md and docs/status/* keep the word where they record what
+  was measured then ("the retired Kronuz/scheduler"); docs/ROADMAP.md is outside the file set and
+  untouched (it names the scheduler in two historical notes).
 
 - Golden instead of the frozen copy: the frozen copy needs the scheduler. transcript.cc prints a
   very long line as head + length + FNV-1a (338 KB -> 33 KB) and replaces its call site's build-
