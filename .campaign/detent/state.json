@@ -4894,7 +4894,13 @@
         "website/src/content/docs/quickstart.md",
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/settings-and-flags.md",
-        "tests/docs/**"
+        "tests/docs/**",
+        "tests/detent_delivery/scripted_upstream.hh",
+        "tests/detent_delivery/probe_fixture.hh",
+        "tests/detent_delivery/test_response.cc",
+        "tests/detent_agent/test_agent_catch_up.cc",
+        "docs/dev/docs-e2e.md",
+        "docs/design/observability_bench.cc"
       ],
       "landed": [],
       "lenses": [
@@ -4907,7 +4913,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T15:24:20",
+      "updated": "2026-11-11T16:30:04",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
