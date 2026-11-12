@@ -16,6 +16,11 @@ Examples on these pages are written as REST snippets:
 GET /v1/health
 ```
 
+<!-- e2e:begin
+ca: build/quickstart/certs/ca.pem
+json.mode: "durable_single_voter"
+e2e:end -->
+
 Hover a snippet and use the copy button to get the equivalent `curl` command
 against `http://localhost:8317`.
 
