@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261112-060238-07d083 261112-060240-aeddbe 261112-060242-91b3b1 261112-060245-8f3097 261112-060247-134b63 261112-060249-b9d1ca
+State: waiting on jobs 261112-060238-07d083 261112-060240-aeddbe 261112-060242-91b3b1 261112-060245-8f3097 261112-060247-134b63 261112-060506-2b13c2
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -42,7 +42,7 @@ measured tightly enough to decide 1.10x).
 - Reruns at wheel:c90dd8f, each row its own job: single 060238-07d083; cross P = 1, 4 R = 40
   060240-aeddbe; cross P = 14 R = 100 060242-91b3b1 (band 18% at R = 40); beside, reported:
   JCC single 060245-8f3097, JCC cross 060247-134b63; A/B four layouts (plain, JCC, blocks
-  aligned 32, functions aligned 64) 060249-b9d1ca after flag probe 055835-f1caf9.
+  aligned 32, functions aligned 64) 060506-2b13c2 after flag probe 060504-99c4fa (the first probe, 055835-f1caf9, failed: Apple clang has no -align-all-nodefault-blocks; nofallthru is used).
 - wheel:ec5439a: AGENTS describes the paired method (docs only).
 - Jobs: Q1 A/B (w at f540679 vs head, a from both builds, plain and -mbranches-within-32B-
   boundaries) 261112-053956-3b0fae; single row R = 40 261112-054000-50cdce; cross row R = 40
