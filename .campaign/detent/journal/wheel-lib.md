@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: working
+State: waiting on jobs 261111-210839-efd0f6 261111-211931-4ef521 261111-211934-f626e7
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -29,7 +29,11 @@ Bugs found and fixed:
   input is fuzz/corpus/, replayed by ctest wheel_fuzz_corpus; mutant 261111-210559-9425eb.
 - cross test stopped before slow producers' far arms were due (CI macOS arm64, FreeBSD):
   wheel:4a5bef4.
-Fuzz rerun 261111-210604-65353d.
+Fuzz 261111-210604-65353d passed 10 min; mutant 261111-210559-9425eb caught (replay fails
+without the model fix). Exp 2 nm probe 261111-210835-78d9cf: arm, cancel, file all inline now.
+Suite green at wheel:50665c8 (261111-211937-fea447); CI green at wheel:f729317 (43160670793).
+Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f; fuzz
+261111-213036-092ef2; A4 CI check (below).
 
 ## Next
 
