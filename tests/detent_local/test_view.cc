@@ -60,6 +60,7 @@ std::shared_ptr<std::string> image() {
 	name(r, "app:ramp7");
 	set(r + 16, 9, 8);
 	set(r + 24, 1, 8);
+	set(r + 32, 2, 8);
 	set(r + 44, 3, 1);
 	set(r + 45, 50, 1);
 	set(r + 48, 7, 8);
