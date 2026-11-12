@@ -6497,6 +6497,44 @@
       "title": "One timer wheel for Kronuz: stash or a new wheel, by measurement",
       "updated": "2026-11-11T19:40:35",
       "worktree": ""
+    },
+    "wheel-lib": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "wheel.hh",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "examples/**",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../wheel",
+      "risk": "high",
+      "status": "planned",
+      "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
+      "updated": "2026-11-11T20:17:15"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
