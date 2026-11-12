@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261112-045107-d98a70 261112-045109-600561 261112-045112-1213da
+State: waiting on jobs 261112-053956-3b0fae 261112-054000-50cdce 261112-054004-86840d
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -8,6 +8,29 @@ status` reads State and the first step under Next. State is one of: working, wai
 ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
+
+A1 measurement round (lead's assignment: is 45f98eb's owner-side check a cost; can A1 be
+measured tightly enough to decide 1.10x).
+
+- Cause of the wide bands: the summary's band was the larger min-max spread of the runs, so one
+  outlier run set it and more runs only widened it. Re-summarized offline with paired ratios
+  (candidate / reference within a round, median over rounds, 95% order-statistic interval): the
+  D75 single row at 45f98eb (261112-045107-d98a70) is w/a 1.213 [1.150-1.410] at n = 1,000 with
+  an A/A band of 4.7% (min-max 19.6%): a real miss, not noise; every pass ~1.2x. At 1cd7e7a
+  (261111-234624-f5cc8e) 1.054 [1.002-1.095], band 6.2%. The cross row's P = 4 and 14 bands stay
+  wide (42%, 57%, R = 5).
+- Layout: f (unchanged code) is 0.933x a in the 1cd7e7a build and 1.133x in the 45f98eb build;
+  its re-arm 0.62x vs 1.35x, a's own re-arm 11.8 vs 6.4 ns. Builds move loops up to 2x on this
+  CPU (i9-9980HK, Skylake-derived: the JCC-erratum microcode).
+- Harness wheel:27718c2 (bench only): paired summary, R = 40 default, ghz per sample, load and
+  CPU speed limit per round, producer CPU time and spread, `ab` mode, disasm.sh.
+- Disassembly 261112-053944-8a557a: at 45f98eb the armed path (re-arm, cancel) is 5 instructions
+  shorter (unlink's one compare); the unarmed arm adds a load of e.next (pprev's line) and one
+  not-taken jne: clang splits `queued() | (e.next != nullptr)` into two branches.
+- Jobs: Q1 A/B (w at f540679 vs head, a from both builds, plain and -mbranches-within-32B-
+  boundaries) 261112-053956-3b0fae; single row R = 40 261112-054000-50cdce; cross row R = 40
+  261112-054004-86840d.
+
 
 Review round at wheel:45f98eb (correctness CHANGES F1, N1-N3; A7 Xapiand CHANGES F1, F3, F4, F6).
 
