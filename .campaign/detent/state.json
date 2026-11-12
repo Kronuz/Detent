@@ -6834,18 +6834,48 @@
       "files": [
         "docs/server-composition.md"
       ],
-      "journal": "../Detent-wt/detent/server-composition",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T11:16:21",
+          "ci_skipped": "docs-only note; the only CI the tool sees is cpp-libraries' scheduled nightly on main, red since 2026-11-10, before this quest",
+          "commit": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36",
+          "criteria": {
+            "A1": "`docs/server-composition.md`: \"Composition\"; seven steps (options, limits as http::Limits, TLS, loop and services, serve, signals, housekeeping), each with the code it calls; the check in \"Checks\" prints 7",
+            "A2": "`docs/server-composition.md`: \"Options\"; eight rows (connection bound, in-flight cap, idle timeout, shutdown bound, TLS files, port, bind, reactors), each app's spelling with file:line; the Options check prints 8",
+            "A3": "`docs/server-composition.md`: \"Mains\"; eight steps by four mains, file:line cells; the deviation table names each reason and its D62 status. No deviation has a D62 case today; the 1 ms driver loops are the one that can earn one",
+            "A4": "the Xapiand lead agrees at cpp-libraries:b1c27d9 once F1-F3 are in the text; the lead folded F1-F3, the owner's Xapiand D76 and D77 rulings and the sizing at cpp-libraries:2fd6ecb"
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/server-composition.md",
+              "commit": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-110934-ea032f",
+              "level": "light",
+              "seconds": 1.1,
+              "state": "done",
+              "what": "server-composition check docs at 2fd6ecb55f7c"
+            }
+          ],
+          "final": true,
+          "from": "273155a3b92bd14c991adaf7f598f6a8a34bfec6",
+          "reason": "",
+          "tested": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../cpp-libraries",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "One server composition note for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T11:04:17",
-      "worktree": "../cpp-libraries-wt/detent/server-composition"
+      "updated": "2026-11-12T11:16:23",
+      "worktree": ""
     },
     "service-shape": {
       "accepted": {
