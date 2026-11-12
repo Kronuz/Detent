@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: working
+State: waiting on jobs 261112-062659-2d9cc1 261112-062710-0f5517
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,20 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+A1 committed (logger:123f5e2: docs/perf/wheel-ab.md "Arm D"; sizeof A 184, C 264, D 192;
+261112-062455-24c582). Arm D is bench/wheel_ab/d/ (copy of C with the entry replacing
+ScheduledTask), built by its own d/CMakeLists.txt against wheel@45f98eb. Jobs running: check-d
+261112-062659-2d9cc1, tsan-d 261112-062710-0f5517 (A2 correctness).
 
 ## Next
 
-1. <step>
+1. Read the check and tsan jobs; fix D if it breaks an order or an exactly-once.
+2. Rows `run.sh row-d 2|3 1|4|14` (exclusive, 40 rounds), pattern 3 first (the cheaper rounds).
+3. Verdict D in docs/perf/wheel-ab.md; at most five measured iterations on D's layout.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing.
 
 ## Evidence
 
@@ -37,4 +42,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+1. The quest's file set is bench/wheel_ab/** and docs/perf/wheel-ab.md, so the library's
+   CMakeLists.txt stays untouched: arm D builds from its own bench/wheel_ab/d/CMakeLists.txt,
+   which add_subdirectory()s the repository root for (A) and builds D against wheel@45f98eb
+   (A and (B) in that build link the same wheel; only B uses it).
+2. D drops the filing-order tie-break of C's sort key: key (due, created) from the entry's
+   deadline and the record's created time. Equal keys need two lines in the same nanosecond; the
+   order check counts inversions.
+3. "No worse than A" (D72) is stated in the Rule for (D) before data: r(median) <= 1.10, r(p99) <=
+   1.10 + w, heap <= 1.10 A. The Rule's win/loss/no win stays beside it, under D77's statistic.
+4. One round = one process with one warm-up round and one measured round, so a per-round paired
+   ratio exists (the harness's 8-round process has no per-round output); 40 rounds a row.
