@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-082040-0cdc5a 261112-082042-93b54d 261112-082045-8dd224 261112-082231-ac506e 261112-082234-9559fb 261112-082236-9714e6 261112-082650-0b5be2 261112-082652-65999f 261112-082655-1d3288 261112-082706-07b590 261112-082708-f1c86e 261112-082711-f34b89 261112-082714-8d6761 261112-082724-b5f70b
+State: waiting on jobs 261112-101934-9835ac 261112-101937-cd3834 261112-101939-91ce7a 261112-101942-4b0fb6 261112-101944-86316f 261112-101946-73c9a9 261112-101949-df1512
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -35,6 +35,18 @@ stats p3 P=14 261112-082652-65999f, p3 P=1 261112-082655-1d3288, rows (c2 with c
 p3 P=1 261112-082706-07b590, p3 P=14 261112-082708-f1c86e, p2 P=1 261112-082711-f34b89. Change 1
 alone rows: 261112-082231-ac506e, -082234-9559fb, -082236-9714e6 (queued before change 2).
 If c2's bypass is near zero: drop c1's heap (revert 6c29783), re-measure c2 alone.
+
+Results so far (D/A, 40 rounds). Change 1 alone: p3 P=1 median 0.988 p99 1.438 [1.208-1.564] (still
+a loss, 261112-082231-ac506e); p3 P=14 median 0.998 p99 1.034, lag p99 1.17x (was 6.5x), log CPU 1.18x
+(was 2.6x) (-082234-9559fb); p2 P=1 median 1.003 p99 0.990 (-082236-9714e6: the earlier 1.133 was noise).
+Change 2 (with 1): p3 P=1 1.019 / p99 1.031 [0.880-1.167] (w 0.274); p3 P=14 0.998 / 1.025, lag 1.26x,
+log CPU 1.14x; p2 P=1 0.963 / 1.010. But bypass stays: P=14 28672 of 717K (c1: 54524 at c1's own
+stats 261112-082724-b5f70b, c0: 114942), P=1 5120 (c0 6588). Trace (261112-100143-5b66af, P=1):
+LOG slept 198 ms hot=0, woke 4.77 ms late; lines due in that 4.77 ms window were filed already due.
+So change 3 (logger:HEAD, kWakeSlackNs = 8 ms in wake_for) wakes on a push due near the sleep end.
+Change 3 jobs: check-d 261112-101934-9835ac, tsan-d 261112-101937-cd3834, stats p3 P=14
+261112-101939-91ce7a, p3 P=1 261112-101942-4b0fb6, rows p3 P=1 261112-101944-86316f, p3 P=14
+261112-101946-73c9a9, p2 P=1 261112-101949-df1512. If bypass ~0: revert change 1 (heap), re-measure.
 
 ## Next
 
