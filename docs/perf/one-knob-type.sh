@@ -6,7 +6,9 @@
 #       full build and from the dense model, for main's, the fixed and the varint bodies
 #   one-knob-type.sh prepare OUT                 light, --ref BASELINE=<main>: Release builds of both trees
 #       and 1-namespace stores of both corpora, each from its own tree's exporter
-#   one-knob-type.sh measure PREPARED OUT SIZE   exclusive: interleaved pairs (D51), docs/perf/one-knob-type.py
+#   one-knob-type.sh measure PREPARED OUT SIZE [A-B]   exclusive: interleaved pairs A to B (D51),
+#       docs/perf/one-knob-type.py
+#   one-knob-type.sh report OUT SIZE             the verdicts over every measured pair
 set -euo pipefail
 llvm=/usr/local/opt/llvm/bin
 sdk=$(sed -n 's/^-isysroot //p' "$("$llvm/clang++" --version | sed -n 's/^Configuration file: //p')")
@@ -96,7 +98,8 @@ corpora) corpora "${2:?OUT}" ;;
 pages) pages "${2:?OUT}" "${3:?100k or 5m}" ;;
 prepare) prepare "${2:?OUT}" ;;
 measure) "$python" -I docs/perf/one-knob-type.py --prepared "${2:?PREPARED}" --output "${3:?OUT}" --size "${4:?SIZE}" \
-	--arm $candidate \
+	--arm $candidate --pairs "${5:-0-5}" \
 	--corpus-main "$(corpus "$4" main)" --corpus-arm "$(corpus "$4" $candidate)" ;;
-*) echo "usage: $0 corpora OUT | pages OUT SIZE | prepare OUT | measure PREPARED OUT SIZE" >&2; exit 2 ;;
+report) "$python" -I docs/perf/one-knob-type.py --report --output "${2:?OUT}" --size "${3:?SIZE}" --arm $candidate ;;
+*) echo "usage: $0 corpora OUT | pages OUT SIZE | prepare OUT | measure PREPARED OUT SIZE [A-B] | report OUT SIZE" >&2; exit 2 ;;
 esac

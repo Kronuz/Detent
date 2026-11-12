@@ -1,6 +1,7 @@
 """A3 timing (docs/perf/one-knob-type.md): main against the one-knob tree on one corpus size.
 
-Six interleaved pairs (D51); the first arm alternates pair by pair. Each run takes a fresh APFS
+Six interleaved pairs (D51); the first arm alternates pair by pair. `--pairs A-B` times a range
+(one exclusive job each, within the 10-minute cap); `--report` gives the verdicts over them all. Each run takes a fresh APFS
 clone of its arm's prepared store, reads it into the page cache, then times:
   steady  one process: STEADY_ROUNDS timed passes over STEADY_QUERIES sampled reads after a warm pass
   first   FIRST fresh processes, each after a warmup process: Client construction to the first
@@ -88,25 +89,57 @@ def verdict(runs: list[dict[str, Any]], metric: str, arm: str) -> dict[str, Any]
     }
 
 
+def report(output: Path, size: str, arm: str) -> None:
+    runs: list[dict[str, Any]] = []
+    for path in sorted(output.glob("pairs-*.json")):
+        runs += json.loads(path.read_text())["runs"]
+    runs.sort(key=lambda r: (r["pair"], r["order"]))
+    assert sorted({r["pair"] for r in runs}) == list(range(PAIRS)), "missing pairs"
+    verdicts = [
+        verdict(runs, "first_median_ns", arm),
+        verdict(runs, "steady_median_ns", arm),
+    ]
+    for v in verdicts:
+        print(
+            f"A3 verdict {size} {v['metric']}: main {v['run_values']['main']}, one-knob "
+            f"{v['run_values'][arm]}; paired {v['paired_differences']}, median "
+            f"{v['median_difference']:+.1f}; noise floor {v['noise_floor']:.1f}; "
+            f"{'NO WORSE' if v['no_worse'] else 'WORSE'}"
+        )
+    (output / "result.json").write_text(
+        json.dumps({"size": size, "runs": runs, "verdicts": verdicts}, indent=1)
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--prepared", type=Path, required=True)
+    parser.add_argument("--prepared", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--size", choices=("100k", "5m"), required=True)
-    parser.add_argument("--corpus-main", type=Path, required=True)
+    parser.add_argument("--corpus-main", type=Path)
     parser.add_argument("--arm", required=True)
-    parser.add_argument("--corpus-arm", type=Path, required=True)
+    parser.add_argument("--corpus-arm", type=Path)
+    parser.add_argument(
+        "--pairs", help="FIRST-LAST: time only these pairs (an exclusive job each)"
+    )
+    parser.add_argument(
+        "--report", action="store_true", help="the verdicts over every timed pair"
+    )
     args = parser.parse_args()
+    if args.report:
+        report(args.output, args.size, args.arm)
+        return
+    first, last = map(int, (args.pairs or f"0-{PAIRS - 1}").split("-"))
     args.output.mkdir(parents=True, exist_ok=True)
-    scratch = args.output / "clones"
+    scratch = args.output / f"clones-{first}-{last}"
     scratch.mkdir(exist_ok=True)
     corpora = {"main": args.corpus_main, args.arm: args.corpus_arm}
     arms = ("main", args.arm)
     runs: list[dict[str, Any]] = []
-    for pair in range(PAIRS):
-        for arm in arms if pair % 2 == 0 else reversed(arms):
+    for pair in range(first, last + 1):
+        for order, arm in enumerate(arms if pair % 2 == 0 else reversed(arms)):
             result = one_run(args.prepared, scratch, arm, args.size, corpora[arm])
-            runs.append({"pair": pair, "arm": arm, **result})
+            runs.append({"pair": pair, "order": order, "arm": arm, **result})
             print(
                 json.dumps(
                     {
@@ -118,20 +151,11 @@ def main() -> None:
                 flush=True,
             )
     shutil.rmtree(scratch)
-    verdicts = [
-        verdict(runs, "first_median_ns", args.arm),
-        verdict(runs, "steady_median_ns", args.arm),
-    ]
-    for v in verdicts:
-        print(
-            f"A3 verdict {args.size} {v['metric']}: main {v['run_values']['main']}, one-knob "
-            f"{v['run_values'][args.arm]}; paired {v['paired_differences']}, median "
-            f"{v['median_difference']:+.1f}; noise floor {v['noise_floor']:.1f}; "
-            f"{'NO WORSE' if v['no_worse'] else 'WORSE'}"
-        )
-    (args.output / "result.json").write_text(
-        json.dumps({"size": args.size, "runs": runs, "verdicts": verdicts}, indent=1)
+    (args.output / f"pairs-{first}-{last}.json").write_text(
+        json.dumps({"size": args.size, "runs": runs}, indent=1)
     )
+    if first == 0 and last == PAIRS - 1:
+        report(args.output, args.size, args.arm)
 
 
 if __name__ == "__main__":
