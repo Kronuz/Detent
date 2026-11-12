@@ -14,9 +14,11 @@ if git grep -nE "$pattern" -- src include bindings tests tools examples benchmar
 	exit 1
 fi
 echo "A4 grep: no two-type traces"
+# One interpreter for CMake, pybind11 and the test run, so the module's ABI tag matches.
+python=$(command -v python3)
 cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang \
 	-DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_TESTS=OFF -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF \
 	-DDETENT_BUILD_AUTHORITY=OFF -DDETENT_BUILD_RELAY=OFF -DDETENT_BUILD_PYTHON=ON -DDETENT_BUILD_RUST=ON \
-	-DPython3_EXECUTABLE=/usr/local/bin/python3.14 >/dev/null
+	-DPython3_EXECUTABLE="$python" -DPython_EXECUTABLE="$python" -DPYTHON_EXECUTABLE="$python" >/dev/null
 cmake --build "$build" -j4 --target detent_python_test detent_rust_test
 echo "A4 bindings: Python and Rust suites passed"
