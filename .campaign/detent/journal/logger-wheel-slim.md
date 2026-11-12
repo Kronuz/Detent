@@ -1,6 +1,6 @@
 # logger-wheel-slim: journal
 
-State: waiting on jobs 261112-110335-6a7d98 261112-110339-801f6a 261112-110341-652760 261112-110343-cac79c 261112-110345-af41a7 261112-110347-d3409b 261112-110350-35e70e 261112-110353-94ae31 261112-110357-7089ed 261112-110400-e7b591 261112-101946-73c9a9
+State: ready for review
 Quest: .campaign/detent/quests/logger-wheel-slim.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -56,13 +56,23 @@ Bypass is 0, so change 1's heap is dropped (logger:a029757 reverts 6c29783): fin
 the sorted batch. Final jobs at a029757: check-d 261112-110335-6a7d98, tsan-d 261112-110339-801f6a,
 stats p3 P=14 261112-110341-652760, P=1 261112-110343-cac79c; rows: p3 P=1 261112-110345-af41a7,
 p3 P=14 261112-110347-d3409b, p3 P=4 261112-110400-e7b591, p2 P=1 261112-110350-35e70e, p2 P=4
-261112-110353-94ae31, p2 P=14 261112-110357-7089ed. Then "Arm D, fixed" in docs/perf/wheel-ab.md.
+261112-110353-94ae31, p2 P=14 261112-110357-7089ed. Those failed or were cancelled: a029757's revert
+inverted the batch comparator (check-d failed); afe86c5 restores earliest-first and reran them all.
+
+Final D = logger:afe86c5 (changes 2+3, sorted batch). check-d 261112-111533-94c654, tsan-d
+261112-111535-1f3660 pass; stats bypass 0 of 716,800 (P=14, max 17,408 expired a pass,
+261112-111538-27efbf) and 0 of 51,200 (P=1, -111541-4c2f8a). Rows (r median / p99; lag r; LOG CPU r):
+p3 P=1 261112-111543-8bd01a 0.960 / 0.966; 1.098; 1.007. p3 P=4 -111549-a6d0a9 0.979 / 0.995; 1.147;
+0.984. p3 P=14 -111546-ef2712 0.992 / 0.983; 1.117; 1.069. p2 P=1 -111551-87f1d9 1.084 [0.997-1.182] /
+1.099 [0.847-1.261] (both straddle 1.10); 4.30; 0.441. p2 P=4 -111554-1986e4 1.034 / 0.997; 11.9; 0.340.
+p2 P=14 -111556-0924db 1.011 / 1.016 [0.812-1.257] (straddles); 18.8; 0.340. Heap 1.031 x A on all.
+Written: docs/perf/wheel-ab.md "Arm D, fixed" (logger:dce2538).
 
 ## Next
 
-1. Read change 1's rows against the Rule; a change 2 only if a loss remains (up to three, one at
-   a time). Write "Arm D, fixed" (cause, each change and its numbers, final verdict per row, the
-   lead's line). The tool refuses `--for A4` (artifact: journal row), jobs go with --quest only.
+1. Owner's heap-or-wheel decision on "Arm D, fixed" (the lead carries it). A1's sizeof job
+   261112-062455-24c582 ran at an earlier commit; changes 2+3 touch only d/logger.cc, so sizeof is
+   unchanged, but `campaign brief` flags it: the lead's call whether to rerun it at afe86c5.
 
 ## Blocked on
 
@@ -77,10 +87,23 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | artifact: docs/perf/wheel-ab.md "Arm D" (logger:123f5e2); sizeof A 184, C 264, D 192 (261112-062455-24c582) |
-| A2 | check-d 261112-071531-bd8c2e, tsan-d 261112-071533-689a79; rows pattern 3 P=1,4,14: 261112-071159-b0cda2, 261112-071201-563e40, 261112-071203-028190; pattern 2 P=1,4,14: 261112-071206-e00583, 261112-071208-a53db3, 261112-071210-60b58a (all passed at 8094113edbb0; later commits are docs-only) |
+| A2 | final D at afe86c5: check-d 261112-111533-94c654, tsan-d 261112-111535-1f3660; rows p3 P=1,4,14: 261112-111543-8bd01a, 261112-111549-a6d0a9, 261112-111546-ef2712; p2 P=1,4,14: 261112-111551-87f1d9, 261112-111554-1986e4, 261112-111556-0924db. First D (Verdict D): check-d 261112-071531-bd8c2e, tsan-d 261112-071533-689a79; rows pattern 3 P=1,4,14: 261112-071159-b0cda2, 261112-071201-563e40, 261112-071203-028190; pattern 2 P=1,4,14: 261112-071206-e00583, 261112-071208-a53db3, 261112-071210-60b58a (all passed at 8094113edbb0; later commits are docs-only) |
 | A3 | artifact: docs/perf/wheel-ab.md "Verdict D" (logger:7f3b850) |
+| A4 | artifact: docs/perf/wheel-ab.md "Arm D, fixed" (logger:dce2538); profiles 261112-081713-5f3fc7 (D), -081716-e81894 (A), -082038-4353a0 (D P=1); counters 261112-082031-adcffd, trace 261112-100143-5b66af; change rows as listed in the doc; final rows as A2 |
 
 ## Result
+
+Arm D, fixed (docs/perf/wheel-ab.md, logger:dce2538): at afe86c5 D is no worse than A on all six
+deferred rows. Median r 0.960 to 1.084, p99 r 0.966 to 1.099, heap 1.031 x A (+8 B/call). It is
+neither a win nor a loss. p2 P=1 straddles 1.10 on median (1.084 [0.997-1.182]) and p99; p2 P=14
+straddles on p99. Cause of the old losses (profile): lines filed already due, each inserted into the
+sorted batch (521 of 1,061 LOG samples in memmove at p3 P=14). The fix is the LOG thread's sleep
+policy (changes 2 and 3); the wheel needs no change. Outside the Rule: lateness p99 at pattern 2 is
+1.31 to 1.37 ms against A's 0.07 to 0.32 ms (r 4.3 to 18.8), from the wheel's 1 ms slot `next()`.
+Pattern 3 lateness is 1.10 to 1.15 x A. LOG CPU is 1.069 x at p3 P=14 (was 2.6) and 0.34 to 0.44
+x at pattern 2. sizeof 192 vs 184.
+
+Earlier, Verdict D:
 
 Verdict D (docs/perf/wheel-ab.md): median r 0.98 to 1.02 on all six rows, heap 1.031 times A.
 D is no worse than A on 4 of 6 rows; it loses p99 at P=1: pattern 3 r 1.469 [1.149-1.582], pattern
@@ -110,3 +133,6 @@ decides: accept the two p99 losses or keep logger's heap.
    1.631 (p99), heap 1.372, the same as that row's published values. The first row jobs
    (261112-062939-8e3351, -062944-bbdd36, -062949-8104aa) were cancelled unrun and resubmitted at
    8094113 as 261112-063105-c97a20, 261112-063108-826152, 261112-063111-1279f7.
+6. Changes 2 and 3 alter only D's LOG-thread sleep, not A's, because they are part of what a port
+   ships. Their cost is inside D's measured rows (producer notifies, LOG CPU). Change 1's heap is
+   dropped once bypass is 0, so D stays a single sorted batch with no second ordering structure.
