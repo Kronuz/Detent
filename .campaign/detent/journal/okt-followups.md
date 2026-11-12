@@ -1,6 +1,6 @@
 # okt-followups: journal
 
-State: waiting on jobs 261112-114406-2e2549 261112-114409-93a80c 261112-114417-f899ed 261112-114424-6f60ca 261112-114429-cba3de 261112-114433-701a9f
+State: waiting on jobs 261112-115015-ce950b 261112-115019-543828 261112-115028-7f7f86 261112-114417-f899ed 261112-114424-6f60ca 261112-114429-cba3de
 Quest: .campaign/detent/quests/okt-followups.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Implemented at 23559fd2 (C1-C5, tests, mutant patches in tests/detent/mutants/c*.patch). Jobs submitted at that commit: suite 261112-114406-2e2549 (A1,A2,A4); A3 bindings 261112-114409-93a80c; mutants (--fails-without): A1 c1 261112-114417-f899ed, A2 c2 261112-114424-6f60ca, A4 c4 261112-114429-cba3de, A3 c3 261112-114433-701a9f.
+A3 job 261112-114409-93a80c failed: health_snapshot expected 4 knobs, my two new knobs make 6 (python test_detent.py:118, rust integration.rs:116). Fixed at 532c5c27. Jobs at 532c5c27: suite 261112-115015-ce950b (A1,A2,A4); A3 bindings 261112-115019-543828; A3 mutant c3 261112-115028-7f7f86 (rerun: the earlier run could have been killed by the count, not the test). Mutants A1 261112-114417-f899ed and A2 261112-114424-6f60ca (done, exit 0) and A4 261112-114429-cba3de (running) are at 23559fd2; the code and tests they exercise are unchanged by 532c5c27.
 
 ## Next
 
