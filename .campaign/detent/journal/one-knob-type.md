@@ -78,11 +78,11 @@ runs: varint 49.4 / 50.6 B per record against main 62.1 / 63.1 (-20%), fixed wid
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-200115-da0928; after the deletion and merge: 261111-225634-f03976 |
-| A2 | 261111-200115-da0928; fails without: 261111-183800-28bea7, 261111-183804-21b82d |
-| A3 | 261111-201652-e744f8, 261111-201652-1b9d0e, 261111-201510-0027ae, 261111-201515-c9a550, 261111-201520-86effa, 261111-201525-efcbe6, 261111-201530-3605db, 261111-201535-254d6a, 261111-201539-7b4315, 261111-201545-be6229, 261111-201550-b4eb67, 261111-201555-ac7f70, 261111-201600-cbb858, 261111-201605-e35e36, 261111-201609-b99e4c, 261111-201613-6fb580, 261111-201618-c669dd |
-| A4 | 261111-201651-a2bd67 |
-| A5 | [artifact] docs/design/one-knob-type.md (definition, encodings with A3's numbers, evaluation, JSON, D65, D68); docs/design/knob-model.md rewritten for the single type |
+| A1 | 261111-225634-f03976 (passed at d762fa5cc4b6; ignores docs-only docs/design/observability.md) |
+| A2 | 261111-225634-f03976 (passed at d762fa5cc4b6; ignores docs-only docs/design/observability.md); fails without: 261111-162800-2ee71e, 261111-162803-4b354d |
+| A3 | 261111-232414-4cdcf2, 261111-232416-4e4ccd, 261111-232416-378d8d, 261111-232415-fd98bd, 261111-232415-454e08, 261111-232415-06a8c1, 261111-232415-f13889, 261111-232415-237197, 261111-232415-f0a51f, 261111-232415-7d04e6, 261111-232415-21fb12, 261111-232415-1d2dfe, 261111-232415-2b49b9, 261111-232415-fdabcb, 261111-232415-bf4da4, 261111-232415-d3f873, 261111-232416-5eb4ad, 261111-232416-791142, 261111-232416-2feeff, 261111-232416-d3cd20, 261111-232416-722152, 261111-232416-d26065, 261111-232416-878e52, 261111-232416-a72e93, 261111-232416-409462, 261111-232416-6e6461, 261111-232417-b2e2c7, 261111-232417-876af9, 261111-232417-b22c95, 261111-232417-9f78f3, 261111-232417-4cedb6 |
+| A4 | 261111-201651-a2bd67 (passed at 252ec99d4060; ignores docs-only docs/design/async-drivers-bench/wheel_vs_stash.cc, docs/design/async-drivers-bench/wheel_vs_stash.sh, docs/design/async-drivers-bench/wheel_vs_stash_leaf.hh, docs/design/async-drivers-bench/wheel_vs_stash_summary.py, docs/design/async-drivers-bench/wheel_vs_stash_vm.sh, docs/design/observability-bench.sh, docs/design/observability-paired.py, docs/design/observability-summary.py, docs/design/observability.md, docs/design/one-knob-type.md, docs/design/wheel-evidence.md, docs/dev/superseded-libraries.md, docs/perf/one-knob-type.md) |
+| A5 | [artifact] `docs/design/one-knob-type.md` |
 
 ## Result
 
