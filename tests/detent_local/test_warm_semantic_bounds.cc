@@ -1,8 +1,10 @@
 // A delta plan whose store passes 128 MiB of string bytes builds: the finalizer's warm validation
-// checks the format's semantic bounds, and publication admission checks the store's limits.
+// checks the format's semantic bounds. A store with default recovery limits then refuses to publish it.
 #include "applied_delta_fixture.hh"
+#include "detent_local/disk_store.hh"
 #include "paged_delta_plan.hh"
 #include "paged_disk_fixture.hh"
+#include <completion/native_completion.h>
 namespace p = l::paged;
 namespace {
 constexpr unsigned definitions = 12000, overrides = 256, key_bytes = 45, name_bytes = 11;
@@ -80,6 +82,7 @@ int main() {
 		original.step(work);
 	}
 	install(directory, original.take(), storage);
+	write(directory / "owner.lock", {});
 	auto recovered = l::recover_generation(directory);
 	auto account = std::make_shared<d::StorageLedger>(4ull << 30);
 	d::RetirementRuntime runtime(account, 1);
@@ -105,7 +108,7 @@ int main() {
 			l::ValidationBudget work;
 			builder.step(work);
 		}
-		const auto plan = builder.take();
+		auto plan = builder.take();
 		// The fixture's base holds 24 string bytes, "app" among them.
 		const auto strings = std::uint64_t(definitions) * (name_bytes + overrides * key_bytes) + 24;
 		require(strings > l::ViewLimits{}.strings);
@@ -113,6 +116,33 @@ int main() {
 				plan.counts().maximum_overrides == overrides &&
 				plan.override_histogram()[overrides] == definitions);
 		std::cout << "delta plan with " << plan.counts().strings << " string bytes built\n";
+		// Publication admission is the store's only string check: default limits refuse the plan.
+		l::DiskStoreOptions options;
+		options.limits = {1ull << 30, 100, 10};
+		options.recovery_limits.retirement_domain = &domain;
+		options.recovery_limits.mapping_account = std::make_shared<d::StorageLedger>(1ull << 30);
+		auto store = l::make_disk_store(domain, directory, std::make_shared<int>(1), options);
+		while (store->operation() || store->needs_work()) {
+			auto job = store->operation();
+			if (!job) {
+				store->advance();
+				continue;
+			}
+			job->submitted();
+			require(job->complete(kronuz::journal::detail::execute_primitive(job->io(), job->request())));
+			store->advance();
+		}
+		require(store->status() == l::StoreStatus::Ready && store->publication_ready());
+		const auto wanted = plan.descriptor();
+		try {
+			store->begin(std::move(plan));
+			throw std::runtime_error("a plan over the store's string limit was admitted");
+		} catch (const std::invalid_argument &error) {
+			require(std::string_view(error.what()) ==
+					"managed paged publication exact base or admission mismatch");
+		}
+		require(plan.descriptor() == wanted && store->publication_ready());
+		std::cout << "default recovery limits refuse it\n";
 	}
 	domain.close().wait();
 }
