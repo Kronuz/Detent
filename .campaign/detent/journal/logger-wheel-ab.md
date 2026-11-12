@@ -1,6 +1,6 @@
 # logger-wheel-ab: journal
 
-State: waiting on jobs 261112-052830-0b2f0e 261112-052833-be4dfa
+State: waiting on jobs 261112-053405-710f23 261112-052830-0b2f0e 261112-052833-be4dfa
 Quest: .campaign/detent/quests/logger-wheel-ab.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -23,7 +23,8 @@ the 1.10 bound everywhere. Diagnostic queued: C's producer gap vs macOS's 256 B 
 
 1. Read 261112-052830-0b2f0e and 261112-052833-be4dfa; replace the "tested by" sentence in the
    Verdict's (C) producer bullet with the result (gap closes: the 256 B size class; stays: not it).
-2. Paste `campaign brief`'s evidence table, cite A3, set State "ready for review".
+2. Suite 261112-053405-710f23 (campaign verify at logger:e7e7565) green; paste `campaign brief`'s
+   evidence table, set State "ready for review". The verdict does not depend on the diagnostic.
 
 ## Blocked on
 
