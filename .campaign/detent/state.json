@@ -2895,6 +2895,8 @@
     "logger-wheel-ab": {
       "accepted": {},
       "after": [],
+      "base": "b13724b9c8efc02c3161ffa7922fba2d942ef856",
+      "branch": "quest/detent/logger-wheel-ab",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
@@ -2909,6 +2911,7 @@
         "docs/perf/wheel-ab.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/logger-wheel-ab",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -2916,9 +2919,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Measure logger on scheduler vs on wheel",
-      "updated": "2026-11-11T21:14:07"
+      "updated": "2026-11-11T21:14:31",
+      "worktree": "../logger-wt/detent/logger-wheel-ab"
     },
     "m1-pins": {
       "accepted": {},
