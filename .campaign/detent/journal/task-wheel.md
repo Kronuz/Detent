@@ -1,6 +1,6 @@
 # task-wheel: journal
 
-State: waiting on jobs 261112-083949-3c7f66 261112-083952-122d9e 261112-084006-e40030 261112-084016-071404 261112-084024-dcd8a5
+State: ready for review
 Quest: .campaign/detent/quests/task-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -10,7 +10,9 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 ## Doing
 
 Fixing correctness review F1 (blocking) plus N1-N3 and Xapiand fit N2/N3, at task:9a1bb31
-(pushed for CI):
+(pushed; CI run 43261250959 queued when this was written). Jobs all exit 0: suite 3c7f66 (7/7),
+F1 mutant 122d9e killed (`direct_fired == 1` fails at deadline_asio_test.cc:146), TSan e40030
+and ASan+UBSan 071404 (7/7 each), A1 grep dcd8a5.
 - F1: the wheel is private. `inline_scheduler` and `asio_scheduler` gain owner-thread
   `arm(entry, at)` / `cancel(entry) -> bool`; asio's `arm` calls `wake_by`, and a `cancel` that
   empties the wheel cancels the wake. `file`/`unfile`/`drop_timer` and inline's `start_timer`
