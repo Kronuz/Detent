@@ -22,7 +22,8 @@ Removal waits until no user remains: Xapiand's `src/manager.cc` shutdown retry i
 - A3 [artifact] `ARCHITECTURE.md` says the loop owns one wheel and one Asio timer, why the lag
   probe rides that timer, and that periodic work is a task, not a timer object: `ARCHITECTURE.md`.
 - A4 [manual] `PeriodicTimer` is gone from reactor, and a grep over the Kronuz repositories
-  finds no user of it (Xapiand's `manager.cc` moved first, by the Xapiand campaign).
+  finds no user of it (Xapiand's `manager.cc` moved first, by the Xapiand campaign); archived
+  repositories (cluster) are frozen and do not count.
 
 ## Contracts
 
