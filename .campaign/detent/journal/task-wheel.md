@@ -1,6 +1,6 @@
 # task-wheel: journal
 
-State: working
+State: waiting on jobs 261111-194713-13e696 261111-201226-76b3a1 261111-201326-d9faea 261111-201331-e63fee
 Quest: .campaign/detent/quests/task-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,19 +9,34 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Wheel, integration, tests and docs are in (task:e0b3bc2 + docs). Suite green 261111-200257-79ef5c
-(at task:29efffaa). Mutants caught: no cascade 261111-200754-54595f, no owner assertion
-261111-200759-d5c797. CI pushed (run 43152858997, ASan/TSan).
-A1 jobs queued exclusive behind light holds: pads probe 261111-194713-13e696, single row
-261111-200732-e12dee, cross row 261111-200735-8e28e4; strict probe with t (not evidence)
-261111-201226-76b3a1.
+Direction change (coordinator, D72 coming): the wheel becomes Kronuz/wheel, header-only, no
+dependencies; task integration stops and moves to a later quest. A1 carries over unchanged.
+
+Where things are on quest/detent/task-wheel (task:5a1e516, pushed):
+- The wheel: task.hh "// Timers" section, `struct timer_entry` and `class timer_wheel` (the block
+  before `namespace detail { struct timed_cancel_state; ...}`). It uses only std (<algorithm>,
+  <array>, <atomic>, <bit>, <cassert>, <cstdint>, <thread>) and no task type: it lifts out as a
+  standalone header by moving that block and renaming the namespace.
+- Wheel-only tests: test/wheel_test.cc `reentry`, `model`, `far`, `cross`, `owner` (the rest,
+  `manual`, `chain`, `ref`, are integration) and test/wheel_alloc_test.cc `wheel()` (`deadlines()`
+  is integration).
+- Harness: bench/wheel/ (proto.hh = (a), wheel_bench.cc arms a a2 f f2 t, wheel_bench.sh,
+  wheel_bench_summary.py); `t` includes task.hh only for timer_wheel.
+- Integration already written and suite-green (stopped, not to be extended here): deadline<S> on
+  S::clock with the entry in `detail::timed_cancel_state`, inline_scheduler clock/wheel/advance,
+  asio_scheduler start_timer on the wheel, scheduler_ref::wheel(); test/wheel_asio_test.cc.
+  It is for the later task-integration quest to take or redo against Kronuz/wheel.
+
+Jobs: suite 261111-200257-79ef5c green (at task:29efffaa), 261111-201335-80a7d2 queued at head;
+mutants caught 261111-200754-54595f (no cascade), 261111-200759-d5c797 (no owner assertion);
+A1 queued exclusive: pads probe 261111-194713-13e696, single row 261111-201326-d9faea, cross row
+261111-201331-e63fee; strict probe with t (not evidence) 261111-201226-76b3a1. CI run 43152858997.
 
 ## Next
 
-1. Read the strict probe and the single row: t vs a at n=1e3/1e6 within 1.10x? If not, the
-   pads probe says whether the gap is placement; fix the layout (<= 5 tries).
-2. Cross row: t vs f at P=1/4/14 within 1.10x.
-3. A1 numbers into docs/timer-wheel.md; CI green (A4); paste the brief's table; ready for review.
+1. Read the A1 rows: t vs a single-loop at n=1e3/1e6 within 1.10x, t vs f cross within 1.10x;
+   if the n=1e3 gap shows, the pads probe says whether it is placement; up to five layout tries.
+2. Wait for the lead to name the Kronuz/wheel quest and worktree; move the wheel there.
 
 ## Blocked on
 
@@ -60,5 +75,7 @@ Pending.
   reference, released if dropped); once closed neither touches the wheel, and the destroyed
   scheduler's wheel drops what is left. A destroyed on-loop deadline that empties the wheel
   cancels the wake timer, so `io.run()` returns as it did with one steady_timer per deadline.
+- drain() files inbox entries with file(), not arm(): arm()'s unarmed path drains again, so
+  producers refilling the inbox could nest drains without bound (task:5a1e516).
 - Not in this quest's criteria, so not done here: inline_scheduler `post_call`,
   `task::blocking_scheduler` (async-drivers row 1 lists them; the quest's A3 does not).
