@@ -5054,12 +5054,12 @@
         "namespace-s7"
       ],
       "provides": [],
-      "reason": "Moved from namespace-s7 (D58)",
+      "reason": "Split by D88 into namespace-s7-ids and namespace-s7-store; its survey is in its journal at Detent:b765d598",
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "dropped",
       "title": "Namespace S7 wiring: the agent publishes and reads through the agent store",
-      "updated": "2026-11-12T14:54:00",
+      "updated": "2026-11-12T14:58:36",
       "worktree": "../Detent-wt/detent/namespace-s7-wire"
     },
     "namespace-s8": {
