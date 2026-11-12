@@ -1,6 +1,6 @@
 # wheel-vs-stash: journal
 
-State: ready for review
+State: ready for review (docs check 261112-140821-e7ce4f at 0a7dd550 pending)
 Quest: .campaign/detent/quests/wheel-vs-stash.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
