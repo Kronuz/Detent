@@ -1,50 +1,37 @@
 # one-knob-type: journal
 
-State: waiting on jobs at Detent:dab00c10 (code as ea9d4147): A3 prepare 261111-201510-0027ae,
-pairs 100k 261111-201515-c9a550 261111-201520-86effa 261111-201525-efcbe6 261111-201530-3605db
-261111-201535-254d6a 261111-201539-7b4315, 5m 261111-201550-b4eb67 261111-201555-ac7f70
-261111-201600-cbb858 261111-201605-e35e36 261111-201609-b99e4c 261111-201613-6fb580, reports
-261111-201545-be6229 (100k) / 261111-201618-c669dd (5m); pages 261111-201652-e744f8 (100k) /
-261111-201652-1b9d0e (5m); A4 261111-201651-a2bd67; CI on dab00c10 (pushed). Outputs under
-/Users/kronuz/code/Kronuz/Detent/.scratch/okt/ea9d4147/. Suite 261111-200115-da0928 at ea9d4147
-green, 277/277 (A1, A2).
+State: waiting on jobs SUITE_IDS (suite after the S6 observability deletion and the main merge).
+A3 written up at Detent:dad4d5f5 from the jobs at Detent:dab00c10; A1, A2, A4 met.
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Session 4. Jobs at Detent:432d75a4 (code at 52afffdc): suite 261111-183749-ea6a83 276/277, the one
-failure test_local_lazy_page_bitmap ("lazy page invariant at 166", also check 261111-183335-cadb42).
-Cause (debug run of the fixture's page list): the fixture took `k100001` as each namespace's
-definition and required its page outside the root segment. The packer seals children only until
-the parent fits `page_capacity` (4,096 B); with two namespaces (`publish`) it sealed `Ka` and
-left `Kb`'s 3.7 KB remainder, with `Kb\0k10000x`, in the root page. Not a size assumption in the
-bitmap or reader code: the fixture's layout depended on body sizes. Fix: the fixture records each
-namespace's first definition whose page lies in that namespace's segment (`definition_names`), and
-`corrupt` reads that name; all eight cases pass locally (Detent:ea9d4147). R14 rechecked: without
-the retry the packer commit is refused for budget (dense_graph_fixture.hh:89); production callers
-(paged_snapshot_builder.cc:265, paged_overlay_assembler.cc:360) resume on false, so R14 stands.
+Session 5. Merged main (Detent:d734d036; only campaign files and
+docs/design/async-drivers-bench, wheel-evidence.md, superseded-libraries.md came in). Deleted the
+S6 observability harness and its design note at the lead's instruction (Detent:7aed2593):
+docs/design/observability-bench.sh, observability-summary.py, observability-paired.py,
+observability.md (observability_bench.cc went at Detent:9f677f2c; `git grep` finds no other user).
+Remaining mentions of docs/design/observability.md are in docs/dev/docs-site-audit.md (:192, :416,
+:673, :788, :1208, :1263, :1566, :1568), outside the set: a dated audit, left for the lead.
 
-Load flakes, passed in 261111-183749-ea6a83: test_agent_store_crash and
-test_local_publication_power_cut (900 s timeouts in 261111-163109-4e98df), dns_voters_names
-("Address already in use"), snapshot_catchup (pre-existing: 261109-085306-1a0b81,
-261109-162029-7d42a7, 261111-013718-1582cb).
+A3 at the head (Detent:dad4d5f5, docs/perf/one-knob-type.md, docs/design/one-knob-type.md):
+D51 rule (median paired difference at most the noise floor), all NO WORSE.
 
-Varint library kept bytes: the pages jobs at 432d75a4 (261111-183846-09f47c, 261111-183847-4a0ddc)
-give the varint roots 1f457c20… (100K) and 8a2e8747… (5M), the same as the hand-rolled LEB128 at
-b9bf610c (261111-162851-fc6aaf, 261111-162856-b47db3); main's 7c0f7d1b… and 67c70ad3… unchanged.
+| Corpus | Metric | Main | One-knob | Paired median | Noise floor | Faster |
+| --- | --- | --- | --- | --- | --- | --- |
+| 100K | first read | 645.0 us | 600.5 us | -44.4 us (-6.9%) | 87.0 us | 4/6 |
+| 100K | steady read | 1,212 ns | 1,099 ns | -126 ns (-10.4%) | 30 ns | 6/6 |
+| 5M | first read | 716.6 us | 575.5 us | -123.5 us (-17.2%) | 132.0 us | 5/6 |
+| 5M | steady read | 1,929 ns | 1,769 ns | -179 ns (-9.3%) | 212 ns | 5/6 |
 
-A3 prepare 261111-183845-6f9674 failed "first_read_export: output exists"; prepare now removes each
-arm's output first, and the head run writes under .scratch/okt/ea9d4147/ so no older pairs mix into
-its reports (Detent:9f677f2c). Its first resubmission 261111-200130-109e8f failed "CORPORA:
-CORPORA": submitted without `--env CORPORA=/Users/kronuz/code/Kronuz/Detent/.scratch/okt/corpora`
-(the earlier runs set it); resubmitted with it. A4 and pages rerun at the head (their files
-changed: the script, tests/detent_local). docs/design/observability_bench.cc deleted (D43; Detent:9f677f2c).
+Only 100K steady gains beyond the floor. The b9bf610c run's 5M first-read gain beyond the floor
+does not reproduce (main's pair 0 is a 1,428.5 us outlier). Page bytes unchanged from earlier
+runs: varint 49.4 / 50.6 B per record against main 62.1 / 63.1 (-20%), fixed width 73.2 / 74.9
+(+18%, +19%); the C++ builds equal the model byte for byte.
 
 ## Next
 
-1. Suite 261111-200115-da0928 green; A3 pairs and reports done: put the head numbers and job ids
-   in docs/perf/one-knob-type.md and docs/design/one-knob-type.md.
-2. Evidence from `campaign brief`, Result, State "ready for review"; push.
+1. Suite job at the head passes: Evidence, State "ready for review".
 
 ## CHANGELOG entry (for the lead)
 
@@ -57,7 +44,8 @@ changed: the script, tests/detent_local). docs/design/observability_bench.cc del
 
 ## Blocked on
 
-- B5 (file set, low): with docs/design/observability_bench.cc deleted, four files outside the set
+- Resolved: B5 (the lead added the S6 harness and observability.md to the set for deletion;
+  deleted at Detent:7aed2593). Was: with docs/design/observability_bench.cc deleted, four files outside the set
   still name it: docs/design/observability-bench.sh (copies and builds it against S6),
   observability-summary.py and observability-paired.py (docstrings), docs/design/observability.md
   (:9, :89). Options: 1. the lead deletes the S6 bench harness (the .sh and both .py) and the two
@@ -90,10 +78,10 @@ changed: the script, tests/detent_local). docs/design/observability_bench.cc del
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261111-200115-da0928 |
-| A2 | 261111-200115-da0928; fails without: 261111-162800-2ee71e, 261111-162803-4b354d |
-| A3 | pending: prepare, pairs, reports and pages listed under State |
-| A4 | pending: 261111-201651-a2bd67 |
+| A1 | 261111-200115-da0928; after the deletion and merge: SUITE_IDS |
+| A2 | 261111-200115-da0928; fails without: 261111-183800-28bea7, 261111-183804-21b82d |
+| A3 | 261111-201652-e744f8, 261111-201652-1b9d0e, 261111-201510-0027ae, 261111-201515-c9a550, 261111-201520-86effa, 261111-201525-efcbe6, 261111-201530-3605db, 261111-201535-254d6a, 261111-201539-7b4315, 261111-201545-be6229, 261111-201550-b4eb67, 261111-201555-ac7f70, 261111-201600-cbb858, 261111-201605-e35e36, 261111-201609-b99e4c, 261111-201613-6fb580, 261111-201618-c669dd |
+| A4 | 261111-201651-a2bd67 |
 | A5 | [artifact] docs/design/one-knob-type.md (definition, encodings with A3's numbers, evaluation, JSON, D65, D68); docs/design/knob-model.md rewritten for the single type |
 
 ## Result
@@ -114,6 +102,8 @@ Not yet.
   longer in the tree; deleted under D43 (B5 lists the references outside the set).
 - R16 The lazy bitmap fixture picks each namespace's definition by where its page landed, not by
   a fixed name: which cluster stays in the root page is the packer's size rule, not the test's.
+- R17 A3's write-up cites the head run (Detent:dab00c10) only; the b9bf610c run stays a note in
+  the perf doc, since its 5M first-read gain beyond the floor did not reproduce.
 - R13 Exclusive timing jobs are capped at 10 minutes, so A3 timing runs one D51 pair per job
   (`measure ... A-B`) and `report` takes the verdicts over all six.
 
