@@ -199,23 +199,85 @@ re-arm costs heap until the old deadline passes.
 `steady_clock`, and no fire is early (261111-130750-f599af). stash reads no clock; only
 `SchedulerQueue` fixes `steady_clock`.
 
+**Tighter single-loop rows (A5)**, macOS, the same host and build at 5ecbeb4c, each sample at
+least 100 ms (2,108 to 2,845 repetitions of the n = 1,000 lifecycle for (a)-(f)): 261111-143146-cf9183,
+`exclusive`, R = 10. Score medians, ns per entry, ratio to the best at that n:
+
+| Candidate | n = 1,000 | ratio | n = 1,000,000 | ratio |
+|---|---|---|---|---|
+| (a) prototype | 37.3 (A/A 38.0) | 1.00 | 352.7 (A/A 352.8) | 1.06 |
+| (b) stash as is | 1,106.2 | 29.66 | 1,201.2 | 3.60 |
+| (c) stash, intrusive leaf | 856.9 | 22.97 | 594.1 | 1.78 |
+| (d) prototype + inbox, 56 B | 39.4 | 1.06 | 406.9 | 1.22 |
+| (e) prototype + inbox via `next` | 41.1 | 1.10 (1.101) | 340.7 | 1.02 |
+| (f) (e), striped inbox | 44.4 | 1.19 | 333.3 | 1.00 |
+
+A/A band on the score: **31.1% at n = 1,000** (48.3% with 40 ms samples), 24.9% at 1,000,000; the
+5% target is not reached. One (a) sample of ten (47.4 ns) sets the n = 1,000 band; the other 19
+A/A samples span 35.2-39.8 ns (12%), and the pair's medians agree within 2%. (f)'s n = 1,000 gap
+is its re-arm, 9.7 ns [9.0-11.0] against (a)'s 5.9 [5.7-7.6]: disjoint ranges, so not noise.
+The probe 261111-135854-58269e found `single<cand_a>` and `single<cand_f>` compile to the same
+instructions, which leaves data placement (the stripes' 4 KiB beside the slot heads) as the
+untested candidate cause.
+
+**Linux VM (A6).** The local QEMU VM: Ubuntu 24.04, kernel 6.8, 8 vCPUs of the same i9-9980HK
+(HVF, `-cpu host`), g++ 13.3 and libstdc++, `-O2 -DNDEBUG`; the host held `exclusive` while it
+measured. Rows at d6594ed7: single 261111-144149-2a64b9 (R = 10, samples of at least 100 ms),
+cross 261111-144151-4c40f1 (R = 5, P = 1, 4 and 7), memory 261111-144152-d8a935, model and
+manual-clock tests under ASan+UBSan and TSan 261111-173910-3288f9. Medians, ns.
+
+| Single loop | n = 1,000 | ratio | n = 1,000,000 | ratio |
+|---|---|---|---|---|
+| (a) prototype | 40.1 (A/A 40.3) | 1.00 | 470.4 (A/A 463.5) | 1.01 |
+| (b) stash as is | 1,000.7 | 24.97 | 1,321.5 | 2.84 |
+| (c) stash, intrusive leaf | 847.4 | 21.14 | 634.0 | 1.36 |
+| (f) (e), striped inbox | 41.6 | 1.04 | 465.4 | 1.00 |
+
+A/A bands: **10.8% at n = 1,000**, 29.7% at 1,000,000.
+
+| Cross-thread, producer ns per arm | P = 1 | P = 4 | P = 7 |
+|---|---|---|---|
+| (b) stash as is | 206.6 (A/A 196.9) | 306.7 (A/A 283.2) | 424.4 (A/A 401.2) |
+| (c) stash, intrusive leaf | 147.4 (0.71x) | 220.4 (0.72x) | 266.7 (0.63x) |
+| (f) (e), striped inbox | 15.7 (0.08x) | 13.6 (0.04x) | 20.7 (0.05x) |
+
+A/A bands 23.4%, 20.9% and 53.0%; every run valid. (f)'s latest fire came 5.4 ms (P = 4) and
+4.9 ms (P = 7) after its deadline, stash's 1.4-1.5 ms: the owner files every entry, as on macOS.
+
+| Memory | entry bytes | bytes per entry, n = 1,000 / 1,000,000 | heap per re-arm, n = 1,000 / 1,000,000 |
+|---|---|---|---|
+| (a) prototype | 32 | 65.3 / 32.0 | 0 / 0 |
+| (b) stash as is | 16 | 249.7 / 51.5 | 109.3 / 35.2 |
+| (c) stash, intrusive leaf | 16 | 213.0 / 27.5 | 77.6 / 11.2 |
+| (f) (e), striped inbox | 32 | 69.6 / 32.0 | 0 / 0 |
+
+The counting build reports 33 KiB of wheel heap for the prototype on Linux against 65 KiB on
+macOS, from the same source; not investigated, and memory does not enter the rule.
+
 ## The pick
 
-By the rule, **no candidate passes**, so there is no pick:
+The rule applies to each host on its own rows, unchanged. Rule 3's R = 10 rows (A5 and the VM's
+single loop) decide by the median ratio against 1.10; the cross-thread rows are R = 5.
 
-- (b) and (c) fail the single loop by 3.5x to 27x; (c) passes the cross-thread bound (0.74x to
+**macOS: no candidate passes, so there is no pick.**
+
+- (b) and (c) fail the single loop by 1.8x to 30x; (c) passes the cross-thread bound (0.74x to
   0.80x of stash).
-- (d) fails the cross-thread bound at P = 14 (4.62x) and the single loop at n = 1,000,000 (1.12x);
-  (e) fails both (4.73x; 1.18x at n = 1,000).
-- (f) passes the cross-thread bound at every P (0.06x to 0.11x) and the single loop at
-  n = 1,000,000 (1.00x), and misses it at n = 1,000 by its median: 44.5 ns against (a)'s 39.9,
-  1.12x against 1.10. Its owner path is (a)'s source (`cand_f::arm` and `cancel` call
-  `wheel.hh` directly; `expire` adds one relaxed load); (d), (e) and (f), three such paths, land
-  at 1.06x, 1.18x and 1.12x, so the n = 1,000 row does not resolve 10% between them.
+- (d) passes n = 1,000 (1.06x) and fails n = 1,000,000 (1.22x) and the cross-thread bound at
+  P = 14 (4.62x).
+- (e) fails n = 1,000 at 1.101x, passes n = 1,000,000 (1.02x), and fails cross-thread at P = 4
+  and 14 (1.37x, 4.73x).
+- (f) passes the cross-thread bound at every P (0.06x to 0.11x) and n = 1,000,000 (1.00x, the
+  best), and fails n = 1,000 at 1.19x (1.12x in the A2 row), on a re-arm gap that is not noise.
 
-The gap the lead brings to the owner: (f) against the prototype, 4.7 ns per entry's lifecycle at
-1,000 entries (a 32-byte entry, no heap); (f) against stash, 9 to 17 times cheaper per
-cross-thread arm, 3.5x to 27x cheaper on the loop path, no heap per arm.
+**Linux VM: (f) passes and is the pick for that host.** n = 1,000 at 1.04x, n = 1,000,000 at
+1.00x (the best), cross-thread 0.04x to 0.08x of stash at P = 1, 4 and 7, and its manual-clock
+test (261111-173910-3288f9). (b) and (c) fail the single loop (21x to 25x at n = 1,000).
+
+The gap the lead brings to the owner: on one host the rule picks (f); on the other, (f) misses
+one bound, n = 1,000 single loop on macOS, by 7.1 ns per entry lifecycle (44.4 against 37.3; a
+32-byte entry, no heap). Against stash, (f) is 9 to 23 times cheaper per cross-thread arm on
+both hosts and 2.8x to 25x cheaper on the loop path, with no heap per arm.
 
 ## What it means for Kronuz/stash and Kronuz/scheduler
 
@@ -234,5 +296,6 @@ The owner's call, on these numbers:
   checked at fire); a debounce from another thread either keeps a fresh task per debounce, as
   today, or uses (d)'s requested-deadline field for an entry that re-arms in place (24 bytes more
   per entry).
-- **Not measured:** the wake of a sleeping owner (the same for every candidate), other hosts and
-  architectures, and more than 64 producer threads (stripes are then shared).
+- **Not measured:** the wake of a sleeping owner (the same for every candidate), other CPUs and
+  architectures (the VM runs on the same i9-9980HK), the cause of (f)'s macOS re-arm gap, and
+  more than 64 producer threads (stripes are then shared).
