@@ -7730,6 +7730,40 @@
       "updated": "2026-11-12T09:23:43",
       "worktree": "../task-wt/detent/task-wheel"
     },
+    "warm-graph-5m": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "src/detent_local/paged_warm_validator.*",
+        "src/detent_local/generation.cc",
+        "src/detent_local/paged_limits.*",
+        "src/detent_local/sparse_plan_finalizer.*",
+        "src/detent_local/warm_registry_merge.*",
+        "tests/detent_local/test_warm_*",
+        "docs/status/warm-graph-5m.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "A delta on a 5M store fails warm validation",
+      "updated": "2026-11-12T13:32:36"
+    },
     "wheel-evidence": {
       "accepted": {},
       "after": [],
