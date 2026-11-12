@@ -6914,11 +6914,41 @@
           ]
         }
       ],
-      "journal": "../Detent-wt/detent/service-shape",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T10:50:15",
+          "ci_skipped": "docs-only change (one design note); every CI job passed except macos-arm64, cancelled for lack of a runner (run 43280162512)",
+          "commit": "f5d758028695786af9d024ccf0341f0f6cfc343d",
+          "criteria": {
+            "A1": "`docs/design/service-shape.md`: \"API\", \"Shutdown, the same in all three (D80)\", \"Stop and drain order\", \"Today's shapes, mapped\" (task:ed76e4f); docs check 261112-102139-05709b; signal probe 261112-101111-197ad6",
+            "A2": "`docs/design/service-shape.md`: \"manager.cc\" (task:ed76e4f)",
+            "A3": "design review APPROVE at task:f5d7580 (`reviews/service-shape-design.md`); the Xapiand lead agrees at task:ed76e4f (f5d7580 adds only F14 and F15 text) (checked B1, B2 and D71; owner ruling Xapiand D75: /_quit and /_flush?clients are removed in the migration, FLUSH?databases stays)",
+            "A4": "`docs/design/service-shape.md`: \"Timers\" (task:ed76e4f), answering msg-30's N1 and AsioHost timers; G2 added"
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/design/service-shape.md",
+              "commit": "f5d758028695786af9d024ccf0341f0f6cfc343d",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-103928-2cc8b7",
+              "level": "light",
+              "seconds": 0.6,
+              "state": "done",
+              "what": "service-shape check docs at f5d758028695"
+            }
+          ],
+          "final": true,
+          "from": "47d50f3384ac195d2e347e10311e885ed7490040",
+          "reason": "",
+          "tested": "f5d758028695786af9d024ccf0341f0f6cfc343d"
+        }
+      ],
       "lenses": [
         "design"
       ],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [
@@ -6926,10 +6956,10 @@
       ],
       "repo": "../task",
       "risk": "low",
-      "status": "review",
+      "status": "landed",
       "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T10:50:11",
-      "worktree": "../task-wt/detent/service-shape"
+      "updated": "2026-11-12T10:50:18",
+      "worktree": ""
     },
     "sha256-avx2": {
       "accepted": {},
