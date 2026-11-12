@@ -1,6 +1,6 @@
 # warm-graph-5m: journal
 
-State: working
+State: waiting on jobs 261112-143906-a7a2bf 261112-143954-efa99b 261112-144015-ab96d3 261112-144057-f1c829
 Quest: .campaign/detent/quests/warm-graph-5m.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -21,15 +21,18 @@ Instrumented 1M run (local, light hold): `WG5M finalize records 974665 strings 3
 
 ## Next
 
-1. Fix: the finalizer checks the format's semantic bounds (strings unbounded, 256 overrides), leaving
-   authorization to publication admission (disk_store.cc) and recovery.
-2. Test tests/detent_local/test_warm_semantic_bounds.cc: delta past 128 MiB of strings on a small base,
-   ~12K definitions x 256 overrides; job at main (A1, fails) and --fails-without (A2).
-3. Suite (A3); A4 exclusive 5M job, arms full and 0.5.
+1. Read the jobs: mutant 261112-143906-a7a2bf (A1, A2 --fails-without), suite 261112-143954-efa99b (A2, A3),
+   A4 prep 261112-144015-ab96d3 (light: harness Detent:1e8d3285 built at the fix into .scratch/a4/build,
+   nm-t9's 5M prepared store cloned to .scratch/a4/corpus-5m) then A4 261112-144057-f1c829 (exclusive,
+   `round 1 full 0.5`, budget 540 s).
+2. Delete .scratch/a4/corpus-5m and .scratch/h (1M store, subsets, instrumented build) when A4 is in.
 
 ## Blocked on
 
-Nothing
+Lead: the test registration (4 lines) in tests/detent_local/CMakeLists.txt is outside the file set, and
+`campaign status` lists it as a landing blocker. Options: (1) widen the file set to that file
+(recommended: every test in this directory is registered there by hand, no glob); (2) fold the case into
+an existing test file, also outside the set. The work is otherwise unaffected.
 
 ## Evidence
 
@@ -49,4 +52,14 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 
 ## Rulings I made
 
-<Decisions inside the quest's scope, so the reviewer can check them.>
+- The fix uses the format's semantic bounds in SparsePlanFinalizer (strings unbounded, 256 overrides per
+  definition, the histogram's and validate_definition's bound), not a plumbed store limit: the finalizer
+  verifies physical construction ("Producers retain authorization", sparse_plan_finalizer.hh), and the
+  store's `recovery_limits.strings`/`overrides` are enforced at publication admission (disk_store.cc:1702)
+  and recovery (generation.cc). No check in the validator changed. The compaction plan shares the
+  finalizer and gains the same fix.
+- A1's "fails on main" is the mutant job: its patch restores main's sparse_plan_finalizer.cc exactly, so
+  the tree it runs is main's source plus the new test.
+- The test is scaled down in records, not bytes: 12,000 definitions x 256 overrides x 45-byte keys =
+  138,372,024 string bytes (the bound is in bytes, so nothing smaller reaches it); 4.2 s and 966 MB peak
+  RSS locally.
