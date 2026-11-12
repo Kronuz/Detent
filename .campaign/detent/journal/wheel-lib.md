@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-234624-f5cc8e 261111-233420-9245bb 261111-233422-3a6c0b 261111-233426-cba5bf
+State: ready for review
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -76,15 +76,12 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-0. Lead decision D75 (Detent:d78a72c5): A1's single row is measured with the harness's
-   candidate wrappers forced inline for every arm alike; A1 is met or missed by that row,
-   261111-234624-f5cc8e (R = 10, WHEEL_BENCH_CXXFLAGS=-DWHEEL_BENCH_FORWARD=[[gnu::always_inline]]).
-   261111-233420-9245bb stays as the default-build row. A6 reports both builds, per-op numbers,
-   the expire residue (+1.2 to +4.3 ns, cause untraced) and each feature's cost.
-1. Read the A1 rows at wheel:1cd7e7a: single 261111-233420-9245bb (R = 10), cross
-   261111-233422-3a6c0b, and the fuzz rerun 261111-233426-cba5bf (A5). The rest passed (above).
-2. Write the numbers into docs/timer-wheel.md Cost and README Performance (A6), the Evidence
-   table, Result; State ready for review, or the A1 miss stated plainly for the lead.
+1. Reruns at wheel:f540679, needed only because the campaign's `tested_docs` lists README.md
+   (wheel's README runs in no test; the Cost/README commits are docs only): suite
+   261112-042845-375f03, fuzz 261112-042845-c55172, D75 row 261112-042845-b6a1c4, cross
+   261112-042845-919bf4, default-build row 261112-042845-ebe231, CI check (after CI run
+   43218170404). The lead may instead drop README.md from `tested_docs` for this repository.
+2. The correctness review (lead), then A7 (the Xapiand lead).
 
 ## Blocked on
 
@@ -92,19 +89,31 @@ Nothing.
 
 ## Evidence
 
+At wheel:1cd7e7a (the code; f540679 and afbbc76 after it change only docs and *.md).
+
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261111-221548-54b209 (single), 261111-221548-4b10b6 (cross), at wheel:94a51c6 |
-| A2 | 261111-211937-fea447 (suite at wheel:50665c8); fails without: 261111-202912-b5aee7 (no cascade), 261111-202915-2b286a (no owner assertion), 261111-204408-d59cd1 (next() unsaturated), 261111-210559-9425eb (model fix); reruns at wheel:f729317 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f |
-| A3 | 261111-211937-fea447 (wheel_alloc_test in the suite) |
-| A4 | 261111-213050-6af05a (CI run 43160670793 green at wheel:f729317: linux-asan-ubsan, linux-tsan, Linux/macOS/FreeBSD) |
-| A5 | 261111-213036-092ef2 (fuzz/fuzz_ops.cc, 10 min, seeded with fuzz/corpus) |
-| A6 | pending the A1 numbers in `docs/timer-wheel.md` |
+| A1 | 261111-234624-f5cc8e (D75 single row, wrappers inlined, R = 10): n = 1,000 1.049x (A/A 23.7%), n = 1,000,000 0.924x (A/A 21.1%), gate passed. Cross 261111-233422-3a6c0b: P = 1 1.125x (A/A 35.1%), P = 4 0.981x, P = 14 1.020x; gate failed at P = 1. Default-build single 261111-233420-9245bb (reported, not gated): 1.092x and 1.162x |
+| A2 | 261111-233424-51ff26 (suite); fails without: 261111-233426-1629a0 (no cascade), 261111-233426-739727 (no owner assertion), 261111-233427-f38b25 (next() unsaturated), 261111-233427-8621ae (model fix) |
+| A3 | 261111-233424-51ff26 (wheel_alloc in the suite) |
+| A4 | 261111-233426-fc722e (CI run 43175199669 green at wheel:1cd7e7a: ASan+UBSan, TSan, Linux/macOS/FreeBSD) |
+| A5 | 261111-233426-cba5bf (fuzz_ops, 10 min, seeded with fuzz/corpus) |
+| A6 | `docs/timer-wheel.md` (Cost (A1)), README Performance, at wheel:f540679 |
 | A7 | after ready for review: the Xapiand lead |
 
 ## Result
 
-Pending.
+- `wheel.hh` at wheel:1cd7e7a; tests, model, fuzz target and corpus, bench, docs as listed in
+  CHANGELOG. Cost section: docs/timer-wheel.md; README Performance.
+- A1 under D75: the single row is met (1.049x at 1K, 0.924x at 1M). The cross row at 1cd7e7a
+  misses at P = 1 (12.65 vs 11.24 ns, 1.125x) inside a 35.1% A/A band. 1cd7e7a has the same
+  arm_remote, drain and expire as 94a51c6, whose cross row 261111-221548-4b10b6 passed (1.006x,
+  1.035x, 0.937x). I read it as noise; it is a threshold miss, not a failure, since every run
+  was valid. The rerun 261112-042845-919bf4 adds a sample. The lead rules on the criterion.
+- Default build: clang keeps the harness's cand_w::arm out of line (inline cost 285 vs 225;
+  cand_a::arm 205; 261111-233446-2a29ab): arm +0.67/+31 ns, re-arm +0.53/+16 ns at 1K/1M.
+- Expire residue: +1.2 to +4.3 ns per entry at n = 1,000 (+3.98 in the D75 row); none at 1M.
+  Cause untraced.
 
 ## Rulings I made
 
@@ -118,3 +127,8 @@ Pending.
 - The harness is task's bench/wheel port (Detent:5ecbeb4c workload verbatim), arm `t` renamed
   `w` (this library). `WHEEL_BENCH_GATE=w` makes the job exit 1 when w's median ratio passes
   1.10x in any row, so an A1 job passes only on the bound; `WHEEL_BENCH_CXXFLAGS` is for probes.
+- Exp 5's comment on arm says a caller's wrapper inlines too; in the default -O2 build the
+  harness's does not (cost 285 > 225). Left as is to keep evidence at 1cd7e7a; fold the wording
+  ("a caller's call of arm inlines") into the review round's first code change.
+- The default-build single row and the cross P = 1 row exited 1 on the 1.10x gate; every run was
+  valid (no early, twice or missing fire): threshold data, not a failure, so nothing to fix.
