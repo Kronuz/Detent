@@ -27,9 +27,11 @@ import rehypeExternalLinks from 'rehype-external-links';
 
 // Detent documentation, on Astro + Starlight with the Kronuz theme shared with the
 // Xapiand docs and the blog. Search is Starlight's built-in Pagefind (local, static).
+const BASE = '/Detent';
+
 export default defineConfig({
 	site: 'https://kronuz.github.io',
-	base: '/Detent',
+	base: BASE,
 	// Hint styles (tip/info/caution/warning/unimplemented/construction) render as
 	// custom `:::hint[Title]{.type}` asides; see src/plugins/remark-hints.mjs + custom.css.
 	markdown: {
@@ -57,6 +59,11 @@ export default defineConfig({
 			// The landing page uses the same typefaces as the Xapiand home (Lato body,
 			// Montserrat display).
 			head: [
+				{ tag: 'link', attrs: { rel: 'icon', href: `${BASE}/favicon.ico`, sizes: '32x32' } },
+				{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: `${BASE}/apple-touch-icon.png` } },
+				{ tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '152x152', href: `${BASE}/apple-touch-icon-152.png` } },
+				{ tag: 'link', attrs: { rel: 'apple-touch-icon', sizes: '167x167', href: `${BASE}/apple-touch-icon-167.png` } },
+				{ tag: 'link', attrs: { rel: 'manifest', href: `${BASE}/site.webmanifest` } },
 				{ tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true } },
 				{
 					tag: 'link',

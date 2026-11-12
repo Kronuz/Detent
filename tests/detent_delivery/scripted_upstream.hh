@@ -227,6 +227,8 @@ struct Server {
 	// A session opened for a Replace also offers the delta after its snapshot, while no delta has been offered.
 	std::atomic<bool> forced_delta{false};
 	std::atomic<unsigned> opens{0}, forced_opens{0}, snapshots{0}, deltas{0};
+	// How long the server holds the delta reply back, so a test can close a coordinator while it receives.
+	std::atomic<unsigned> delta_delay_ms{0};
 	std::atomic<bool> stop{false};
 	std::atomic<bool> failed{false};
 	asio::io_context io;
@@ -316,6 +318,7 @@ struct Server {
 				++deltas;
 				head = 2;
 				reply = delta_reply(window);
+				std::this_thread::sleep_for(std::chrono::milliseconds(delta_delay_ms.load()));
 			} else {
 				std::this_thread::sleep_for(20ms);
 				reply = "HTTP/1.1 204 No Content\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
@@ -442,6 +445,7 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	if (options.sink)
 		config.publication_sink = options.sink;
 	auto coordinator = t::make_coordinator(config, store, driver, domain, worker);
+	config.publication_sink.reset();
 	auto observing = [&]() -> task::task<void> {
 		co_await task::when_all(coordinator->run(), [&]() -> task::task<void> {
 			try {
@@ -459,6 +463,8 @@ inline void run_phase(const fs::path &certificates, const fs::path &directory, S
 	worker.join();
 	check(!server.failed);
 	check(coordinator->drained() && store->drained());
+	// The bundle's cached delta pins the cache domain until the coordinator and the sink release the bundle.
+	coordinator.reset();
 	counting.reset();
 	bundle.reset();
 	if (cache_domain)
