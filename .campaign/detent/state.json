@@ -4906,7 +4906,11 @@
         "tests/detent_delivery/test_response.cc",
         "tests/detent_agent/test_agent_catch_up.cc",
         "docs/dev/docs-e2e.md",
-        "docs/design/observability_bench.cc"
+        "docs/design/observability_bench.cc",
+        "CMakeLists.txt",
+        "cmake/dependencies.json",
+        "src/detent_local/CMakeLists.txt",
+        "src/CMakeLists.txt"
       ],
       "landed": [],
       "lenses": [
@@ -4919,7 +4923,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T17:12:50",
+      "updated": "2026-11-11T17:27:52",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
