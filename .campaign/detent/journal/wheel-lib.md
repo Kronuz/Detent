@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-210839-efd0f6 261111-211931-4ef521 261111-211934-f626e7
+State: waiting on jobs 261111-215314-98348e 261111-215326-330b4d 261111-215326-76eefa 261111-215329-6a6e03
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -19,6 +19,14 @@ A1, the gap is inlining, not placement:
   261111-210424-5bd3a9: cancel and file now inline, arm still out of line.
 - Exp 2 (wheel:2b1ee3a): `[[gnu::always_inline]]` arm and cancel. nm probe 261111-210835-78d9cf,
   exclusive A/B a vs w R = 3: 261111-210839-efd0f6 (superseded exp 1's 261111-210437-53c405).
+
+- Exp 2 result, probe 261111-210839-efd0f6 (R = 3): n = 1,000 w 42.60 vs a 36.83 = 1.157x (from
+  1.467x; A/A band 38.7%); cancel now 4.22 vs 4.84; left: arm +1.5 ns, re-arm +1 ns, expire
+  +3 ns. n = 1,000,000 1.006x.
+- Exp 3 (wheel:f9f3004): expire called the out-of-line drain() every call (its queued() test was
+  inside); guard inline at every caller. file(): one unsigned compare for the round (a passed t
+  wraps past it). Probe 261111-215314-98348e; A1 rows moved to head: single 261111-215326-330b4d,
+  cross 261111-215326-76eefa; suite 261111-215329-6a6e03.
 
 Correctness so far: suite green at wheel:01dfcc9 (261111-204407-aef4ec); mutants caught: no
 cascade 261111-202912-b5aee7, no owner assertion 261111-202915-2b286a, unsaturated next()
@@ -49,7 +57,7 @@ Nothing.
 
 | Criterion | Evidence |
 |---|---|
-| A1 | pending: 261111-211931-4ef521 (single), 261111-211934-f626e7 (cross), at wheel:50665c8 |
+| A1 | pending: 261111-215326-330b4d (single), 261111-215326-76eefa (cross), at wheel:f9f3004 |
 | A2 | 261111-211937-fea447 (suite at wheel:50665c8); fails without: 261111-202912-b5aee7 (no cascade), 261111-202915-2b286a (no owner assertion), 261111-204408-d59cd1 (next() unsaturated), 261111-210559-9425eb (model fix); reruns at wheel:f729317 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f |
 | A3 | 261111-211937-fea447 (wheel_alloc_test in the suite) |
 | A4 | 261111-213050-6af05a (CI run 43160670793 green at wheel:f729317: linux-asan-ubsan, linux-tsan, Linux/macOS/FreeBSD) |
