@@ -1,6 +1,6 @@
 # namespace-s6: journal
 
-State: waiting on jobs 261112-133147-7f3f09 261112-133147-7c8926 261112-133133-0d940a 261112-133136-769cd1 261112-133139-e68a0f (fixes F1, F2 at Detent:135b4afe)
+State: waiting on jobs 261112-133147-7f3f09 261112-133322-9c32d2 (fixes F1, F2 at Detent:135b4afe; mutants and pins passed)
 Quest: .campaign/detent/quests/namespace-s6.md (the lead's; never edit it)
 
 ## Doing
@@ -64,7 +64,7 @@ authority, relay and old-wire removal are namespace-s6-cutover's and namespace-s
   counting them against the step's bytes; N3 (open, kept): names may hold empty components, so `p.*`
   grants `p.` and `p..x`.
 - Confirm jobs: F1=261112-133133-0d940a, F2=261112-133136-769cd1; suite 261112-133147-7f3f09; the
-  reviewer's probes rerun at the fixed commit: 261112-133139-e68a0f (its F3 client probe still exits 1).
+  reviewer's probes rerun at the fixed commit: 261112-133322-9c32d2 (its F3 client probe still exits 1).
 
 ## Rulings I made
 
