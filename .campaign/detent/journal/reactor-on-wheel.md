@@ -9,7 +9,7 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Code and docs done on the quest branch (reactor:2e0a4bd or its head): accept retry and LagProbe are wheel
+Code and docs done on the quest branch (reactor:99aff1b): accept retry and LagProbe are wheel
 entries; ARCHITECTURE.md, API, AGENTS, stop-and-accept note, CHANGELOG updated. Suite passed
 (261112-115026-65553f, Release). A local Debug+ASan+UBSan run of lag, accept_pressure, session and
 reactor tests passed (not evidence; sanitizers are CI's). Waiting on the exclusive A/B
