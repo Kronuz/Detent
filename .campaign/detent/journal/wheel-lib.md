@@ -9,20 +9,27 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Finding (probe 261111-202423-339389, exclusive, pads 0-61440 B, a vs w at n = 1,000): w is
-1.36-1.50x a at every pad, with heads and entries at the same addresses mod 64 KiB for both
-arms. Placement is ruled out; the gap is code. Every pass is slower, not only re-arm: arm 6.5
-vs 3.9 ns, re-arm 9.5 vs 5.1, cancel 5.5 vs 4.3, expire 22.5 vs 18.0. Hypothesis: unlink/file
-outlined at -O2 (a call per unlink fits all four deltas); disassembly probe 261111-205658-e77a03
-(the earlier 261111-203618-617a41 cancelled for it).
+A1, the gap is inlining, not placement:
+- Placement ruled out: probe 261111-202423-339389 (exclusive, pads 0-61440 B, n = 1,000): w is
+  1.36-1.50x a at every pad, heads and entries at the same addresses mod 64 KiB in both arms;
+  every pass slower (arm 6.5 vs 3.9 ns, re-arm 9.5 vs 5.1, cancel 5.5 vs 4.3, expire 22.5 vs 18.0).
+- Cause: probe 261111-205658-e77a03 (nm of the -O2 bench): timer_wheel::arm, cancel and file were
+  out of line; the prototype's are inlined.
+- Exp 1 (wheel:b669137): arm = cancel + file, drain and the upper-level filing out of line. Probe
+  261111-210424-5bd3a9: cancel and file now inline, arm still out of line.
+- Exp 2 (wheel:2b1ee3a): `[[gnu::always_inline]]` arm and cancel. nm probe 261111-210835-78d9cf,
+  exclusive A/B a vs w R = 3: 261111-210839-efd0f6 (superseded exp 1's 261111-210437-53c405).
 
-CI green at wheel:01dfcc9 (run 43156701805: ASan+UBSan, TSan, Linux/macOS/FreeBSD); A4 job
-261111-204535-5b0ffc checks that run passed at the commit.
-
-CI caught a real bug (run 43155780729, wheel_test far, deadline never - 1): next() overflowed
-computing the end of the last tick before never and wrapped to a passed time. Fixed at
-wheel:01dfcc9 (saturate at never); mutant job 261111-204408-d59cd1 restores the old line.
-Suite at head 261111-204407-aef4ec.
+Correctness so far: suite green at wheel:01dfcc9 (261111-204407-aef4ec); mutants caught: no
+cascade 261111-202912-b5aee7, no owner assertion 261111-202915-2b286a, unsaturated next()
+261111-204408-d59cd1. CI green at wheel:4a5bef4 (run 43159140943).
+Bugs found and fixed:
+- next() overflow for the last tick before never (CI, wheel_test far): wheel:01dfcc9.
+- Model bug: a fire's due remote arm filed by a later fire (libFuzzer 261111-202944-9750f6): the
+  input is fuzz/corpus/, replayed by ctest wheel_fuzz_corpus; mutant 261111-210559-9425eb.
+- cross test stopped before slow producers' far arms were due (CI macOS arm64, FreeBSD):
+  wheel:4a5bef4.
+Fuzz rerun 261111-210604-65353d.
 
 ## Next
 
