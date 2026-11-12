@@ -9,15 +9,27 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Cause found (A1, diagnosis): the failing `require` is the warm validator's Finalize check
+`s.counts.strings <= s.semantics.strings` (paged_warm_validator.cc, Phase::Finalize). The delta's
+SparsePlanFinalizer builds its WarmGraphValidator with `PagedSemanticLimits{}` (sparse_plan_finalizer.cc:116),
+whose `strings` default is 128 MiB = 134217728, not the store's limit. The 5M corpus holds
+161388910 string bytes (153.9 MiB; `.scratch/h/strings.py`), so any delta at 5M fails Finalize; 100K
+(~3 MiB) and 1M (31 MiB) pass. Same class as the PagedCursor bug: a default sized for small stores.
+Instrumented 1M run (local, light hold): `WG5M finalize records 974665 strings 31456865 semantic strings
+134217728 ... own_build 1` -- the finalizer's validator, default semantic bound. Publication admission
+(disk_store.cc:1702) already enforces the store's `recovery_limits.strings`/`overrides`.
 
 ## Next
 
-1. <step>
+1. Fix: the finalizer checks the format's semantic bounds (strings unbounded, 256 overrides), leaving
+   authorization to publication admission (disk_store.cc) and recovery.
+2. Test tests/detent_local/test_warm_semantic_bounds.cc: delta past 128 MiB of strings on a small base,
+   ~12K definitions x 256 overrides; job at main (A1, fails) and --fails-without (A2).
+3. Suite (A3); A4 exclusive 5M job, arms full and 0.5.
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+Nothing
 
 ## Evidence
 
