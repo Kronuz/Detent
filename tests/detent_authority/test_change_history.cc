@@ -99,9 +99,11 @@ int main() {
 		m::array(expected, 3);
 		m::string(expected, "ns:a");
 		m::unsigned_integer(expected, 0);
-		m::array(expected, 2);
-		m::unsigned_integer(expected, 1);
+		m::array(expected, 4);
 		m::signed_integer(expected, 1);
+		expected.push_back('\xc0');
+		expected.push_back('\xc0');
+		m::array(expected, 0);
 		check(held->body->view() == expected);
 		apply(); // Idempotent retry has no new revision or cache entry.
 		check(history->size() == 1 && history->through() == 1);

@@ -4,6 +4,7 @@
 #include "paged_packer.hh"
 #include <algorithm>
 #include <stdexcept>
+#include <string>
 #include <source_location>
 #include <vector>
 
@@ -11,9 +12,10 @@ namespace dense_graph_test {
 namespace d = detent::distribution;
 namespace l = detent::local;
 namespace p = l::paged;
-inline void check(bool value) {
+inline void check(bool value, std::source_location at = std::source_location::current()) {
 	if (!value)
-		throw std::runtime_error("dense validation invariant");
+		throw std::runtime_error(std::string("dense validation invariant at ") + at.file_name() + ":" +
+								 std::to_string(at.line()));
 }
 template <class E, class F> void rejects(F call, std::source_location at = std::source_location::current()) {
 	try {

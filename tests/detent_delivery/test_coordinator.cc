@@ -222,9 +222,10 @@ std::string transition_response(bool progress) {
 		u(0);
 		m::string(wire, "app:key000004");
 		u(0);
-		a(2);
-		u(1);
+		a(4);
 		m::signed_integer(wire, -4);
+		wire.append("\xc0\xc0", 2);
+		a(0);
 	}
 	d::Identity identity{};
 	identity.fill(progress ? 'p' : 'd');

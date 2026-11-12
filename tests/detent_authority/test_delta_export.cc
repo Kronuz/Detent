@@ -48,9 +48,11 @@ std::string oracle(d::Cursor base, d::Cursor target, bool progress = false) {
 		m::string(out, "ns:a");
 		m::unsigned_integer(out, revision == 1 ? 0 : 1);
 		if (revision == 1) {
-			m::array(out, 2);
-			m::unsigned_integer(out, 1);
+			m::array(out, 4);
 			m::signed_integer(out, 7);
+			out.push_back('\xc0');
+			out.push_back('\xc0');
+			m::array(out, 0);
 		} else
 			out.push_back('\xc0');
 	}

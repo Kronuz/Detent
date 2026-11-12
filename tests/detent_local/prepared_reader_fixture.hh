@@ -81,6 +81,9 @@ struct Fixture {
         source.default_value = i ? 1 : 42 + j;
         if (i)
           source.overrides.emplace("force", std::int64_t{0});
+        // Pads each namespace past one page, so its definitions seal into their own segment.
+        if (separate_segments)
+          source.overrides.emplace(std::string(32, 'p'), std::int64_t{0});
         std::vector<char> body(p::definition_size(source));
         p::encode_definition(body, source, 8);
         const auto name =

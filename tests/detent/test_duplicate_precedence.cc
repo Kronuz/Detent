@@ -58,14 +58,14 @@ std::string error_of(const Result<SnapshotPatch, UpdateError>& r) {
 void knob_names() {
 	const std::string dup_a = "duplicate knob name: a:a";
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kA, kBadC}), "s")) == dup_a);
-	CHECK(error_of(parse_source_snapshot(snapshot({kA, kBadC, kA}), "s")) == "int knob missing required 'default': c:c");
+	CHECK(error_of(parse_source_snapshot(snapshot({kA, kBadC, kA}), "s")) == "knob missing required 'default': c:c");
 	// Invalid name in place of the invalid definition.
 	const char* bad_name = R"("nocolon":{"default":1})";
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kA, bad_name}), "s")) == dup_a);
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, bad_name, kA}), "s")) == "invalid knob name: nocolon");
 	// The second occurrence itself invalid: the invalid entry is reached first.
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, R"("a:a":{})"}), "s")) ==
-	      "int knob missing required 'default': a:a");
+	      "knob missing required 'default': a:a");
 	// Two duplicate groups: the one whose SECOND occurrence comes first wins.
 	CHECK(error_of(parse_source_snapshot(snapshot({kA, kB, kB, kA}), "s")) == "duplicate knob name: b:b");
 	CHECK(error_of(parse_source_snapshot(snapshot({kB, kA, kA, kB}), "s")) == "duplicate knob name: a:a");
@@ -87,7 +87,7 @@ void patch_names() {
 	const char* null_c = R"("c:c":null)";
 	const std::string dup_a = "duplicate knob name: a:a";
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, kBadC}), "s")) == dup_a);
-	CHECK(error_of(parse_snapshot_patch(patch({kA, kBadC, kA}), "s")) == "int knob missing required 'default': c:c");
+	CHECK(error_of(parse_snapshot_patch(patch({kA, kBadC, kA}), "s")) == "knob missing required 'default': c:c");
 	CHECK(error_of(parse_snapshot_patch(patch({kA, R"("a:a":null)", null_c}), "s")) == dup_a);
 	const char* bad_name = R"("nocolon":{"default":1})";
 	CHECK(error_of(parse_snapshot_patch(patch({kA, kB, kA, bad_name}), "s")) == dup_a);

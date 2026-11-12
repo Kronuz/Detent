@@ -254,11 +254,9 @@ struct GenerationWriter::Impl {
 			m::unsigned_integer(wire, namespace_index);
 			m::string(wire, name);
 			m::unsigned_integer(wire, value ? 0 : 1);
-			if (value) {
-				m::array(wire, 2);
-				m::unsigned_integer(wire, 1);
-				m::signed_integer(wire, *value);
-			} else
+			if (value)
+				d::detail::wire::definition(wire, d::WireDefinition{*value, {}, {}, {}});
+			else
 				wire.push_back('\xc0');
 		}
 		d::Limits limits;

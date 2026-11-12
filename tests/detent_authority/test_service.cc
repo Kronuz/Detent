@@ -638,7 +638,7 @@ int main() {
 			assert(body["namespace_revision"].GetUint64() == body["version"].GetUint64());
 			assert(body["key_revisions"]["ns:heavy0"].GetUint64() == body["version"].GetUint64());
 			if (version == 1)
-				assert(body["knobs"]["ns:heavy0"]["default"].GetBool());
+				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 1);
 			else
 				assert(body["knobs"]["ns:heavy0"]["default"].GetInt() == 42);
 			assert(readers[i].writer.release(*reply));

@@ -1,5 +1,6 @@
 #include "paged_trie_overlay.hh"
 #include "paged_navigation.hh"
+#include "detent_local/paged_definition.hh"
 #include <algorithm>
 #include <limits>
 #include <set>
@@ -320,7 +321,7 @@ void TrieOverlay::change(std::string_view key, std::optional<std::span<const cha
 		throw std::logic_error("overlay operation unavailable");
 	const auto parsed = p::decode_key(key);
 	if (body && (body->size() > p::maximum_leaf_body_bytes - key.size() ||
-				 (parsed.kind == p::PageKind::Namespace ? body->size() != 8 : body->size() < 24)))
+				 (parsed.kind == p::PageKind::Namespace ? body->size() != 8 : body->size() < p::definition_header_bytes)))
 		throw std::invalid_argument("overlay leaf framing");
 	auto &s = *impl_;
 	std::copy(key.begin(), key.end(), s.key.begin());
