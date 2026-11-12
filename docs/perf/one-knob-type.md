@@ -1,6 +1,7 @@
 # One knob type: page bytes and read speed (A3)
 
-Main's two-type tree against the one-knob tree on the dense-pages corpora (100K and 5M records,
+Main's two-type tree (Detent:555b6379) against the one-knob tree (Detent:b9bf610c) on the
+dense-pages corpora (100K and 5M records,
 `/Users/kronuz/code/Kronuz/Detent/.scratch/dense/corpus-{100k,5m}.bin`, SHA-256 in each job's
 `inputs.sha256`). The design note ([../design/one-knob-type.md](../design/one-knob-type.md))
 defines the columns and draws the conclusion.
@@ -30,8 +31,8 @@ defines the columns and draws the conclusion.
 
 ## Page bytes
 
-Dense model, job 261111-154349-807bef; C++ full builds, jobs 261111-160108-f85bd5 (100K) and
-261111-160112-7622b7 (5M).
+Dense model, job 261111-154349-807bef; C++ full builds of both trees and the model again, jobs
+261111-162851-fc6aaf (100K) and 261111-162856-b47db3 (5M).
 
 | Corpus | Body | Pages | Page bytes | Page B/record | C++ full build |
 | --- | --- | --- | --- | --- | --- |
@@ -46,8 +47,27 @@ The C++ full build matches the model byte for byte for both trees at both sizes.
 report admission memory, the decoded snapshot before the build: 15,412,448 B (main) against
 17,970,224 B (one-knob) on 100K and 783,597,840 B against 908,076,272 B on 5M: 16% more, about 25 B
 per definition, the size of the added `optional<int64>` rollout value (not isolated); peak 21.8 MB against 23.3 MB and 1.10 GB against
-1.16 GB (+7% and +6%). One run each in a light job: an observation, not a timed result.
+1.16 GB (+7% and +6%). The same runs report admission at 0.12 s against 0.26 s (100K) and 8.0 s
+against 19.5 s (5M), and full-build CPU at 0.23 s against 0.38 s and 15.2 s against 19.4 s. One run
+each in a light job beside other load: an observation, not a timed result; the build path is not
+one of A3's metrics.
 
 ## Read speed
 
-Pending the measure jobs.
+Prepared builds and stores, job 261111-162827-7366e8; pairs 0-5, jobs 261111-162829-50dcc0 ..
+261111-162838-020154 (100K) and 261111-162839-4759eb .. 261111-162848-77259b (5M); verdicts, jobs
+261111-183007-d14279 (100K) and 261111-183020-636dd8 (5M). Each arm's statistic per pair is the
+median of its 60 first reads and the median of its 7 steady passes; the table gives the median
+over the six pairs.
+
+| Corpus | Metric | Main | One-knob | Paired median | Noise floor | Pairs faster | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 100K | first read | 702.9 us | 654.6 us | -78.3 us (-11%) | 90.3 us | 5 of 6 | no worse |
+| 100K | steady read | 1,323 ns | 1,180 ns | -126 ns (-9.5%) | 30 ns | 6 of 6 | no worse |
+| 5M | first read | 703.4 us | 558.5 us | -154.1 us (-22%) | 49.6 us | 6 of 6 | no worse |
+| 5M | steady read | 1,896 ns | 1,720 ns | -133 ns (-7.0%) | 183 ns | 6 of 6 | no worse |
+
+The 100K steady read and the 5M first read improve by more than the noise floor; the other two
+are inside it, so they show no regression and no claimed gain. The first read maps, verifies and
+reads one definition from a fresh process; it gains most at 5M, where the varint store is 20%
+smaller (253 MB against 315 MB of pages).
