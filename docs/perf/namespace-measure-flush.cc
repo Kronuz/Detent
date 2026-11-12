@@ -1,7 +1,7 @@
 // Device flushes per sync group (namespace-measure T4(7)). Built on completion's probe helpers
 // (bench/probe.h at completion:ab0f551): FILES new files of FILE_KB are written, then committed
 // one way, alone, ROUNDS times; the block device's completed-flush counter is read around each
-// commit. Linux only: /sys/block/<disk>/stat field 15 (kernel 5.5 and later).
+// commit. Linux only: /sys/block/<disk>/stat field 16, flush requests completed (kernel 5.5 and later).
 //
 //   namespace-measure-flush DIRECTORY FILES ROUNDS [FILE_KB]
 #include "probe.h"
@@ -33,7 +33,7 @@ std::uint64_t flushes(const std::filesystem::path &stat) {
 		fields.push_back(v);
 	if (fields.size() < 17)
 		throw std::runtime_error(stat.string() + " has no flush fields");
-	return fields[14];
+	return fields[15]; // field 16, flush requests completed (field 15 is discard ticks)
 }
 
 struct Variant {
