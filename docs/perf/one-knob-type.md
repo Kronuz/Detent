@@ -38,9 +38,15 @@ Dense model, job 261111-154349-807bef; C++ full builds, jobs 261111-160108-f85bd
 | 100K | main | 3,245 | 6,209,298 | 62.1 | 3,245 pages, 6,209,298 B |
 | 100K | fixed width | 3,077 | 7,322,418 | 73.2 | not built |
 | 100K | varint | 2,874 | 4,942,647 | 49.4 | 2,874 pages, 4,942,647 B |
-| 5M | main | 162,367 | 315,432,480 | 63.1 | pending |
+| 5M | main | 162,367 | 315,432,480 | 63.1 | 162,367 pages, 315,432,480 B |
 | 5M | fixed width | 154,334 | 374,372,124 | 74.9 | not built |
-| 5M | varint | 144,544 | 253,048,761 | 50.6 | pending |
+| 5M | varint | 144,544 | 253,048,761 | 50.6 | 144,544 pages, 253,048,761 B |
+
+The C++ full build matches the model byte for byte for both trees at both sizes. The same jobs
+report admission memory, the decoded snapshot before the build: 15,412,448 B (main) against
+17,970,224 B (one-knob) on 100K and 783,597,840 B against 908,076,272 B on 5M: 16% more, about 25 B
+per definition, the size of the added `optional<int64>` rollout value (not isolated); peak 21.8 MB against 23.3 MB and 1.10 GB against
+1.16 GB (+7% and +6%). One run each in a light job: an observation, not a timed result.
 
 ## Read speed
 
