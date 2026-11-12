@@ -2969,6 +2969,45 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-on-wheel": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "wheel:timer_wheel"
+      ],
+      "files": [
+        "logger.cc",
+        "logger.h",
+        "test/**",
+        "CMakeLists.txt",
+        "ARCHITECTURE.md",
+        "README.md",
+        "CHANGELOG.md",
+        "docs/**"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "logger-wheel-slim"
+      ],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "high",
+      "status": "planned",
+      "title": "The logger's deferred lines on Kronuz/wheel",
+      "updated": "2026-11-12T12:59:18"
+    },
     "logger-wheel-ab": {
       "accepted": {},
       "after": [],
@@ -4452,9 +4491,9 @@
     },
     "namespace-s6": {
       "accepted": {},
-      "after": [
-        "namespace-s5-2"
-      ],
+      "after": [],
+      "base": "f5b76ddd39423d6c321ececdbad5db1c8f4dd4c2",
+      "branch": "quest/detent/namespace-s6",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4482,7 +4521,9 @@
         "include/detent_distribution_http/**",
         "tests/detent_delivery/**",
         "tests/detent_distribution/**",
-        "docs/status/namespace-s6.md"
+        "docs/status/namespace-s6.md",
+        "include/detent/cursor.hh",
+        "include/detent_local/agent_store.hh"
       ],
       "history": [
         {
@@ -4551,9 +4592,54 @@
       ],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S6: cursor, producers, session endpoint, frames, relays as readers",
-      "updated": "2026-11-10T13:19:11"
+      "updated": "2026-11-12T11:45:37",
+      "worktree": "../Detent-wt/detent/namespace-s6"
+    },
+    "namespace-s6-cutover": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "/usr/local/bin/python3 -I tools/check_pins.py",
+          "level": "none",
+          "minutes": 10,
+          "name": "pins"
+        }
+      ],
+      "consumes": [
+        "namespace-session",
+        "namespace-blocks"
+      ],
+      "files": [
+        "src/detent_authority/**",
+        "tests/detent_authority/**",
+        "include/detent/**",
+        "src/detent_local/**",
+        "include/detent_local/**",
+        "src/detent_agent/**",
+        "tests/detent_local/**",
+        "tests/detent_agent/**",
+        "benchmarks/**",
+        "docs/status/namespace-s6-cutover.md"
+      ],
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "N1",
+      "needs": [
+        "namespace-s6",
+        "namespace-s5-2",
+        "okt-followups"
+      ],
+      "provides": [],
+      "repo": ".",
+      "risk": "high",
+      "status": "planned",
+      "title": "S6 cutover: the authority serves W5/W6, incarnations, one cursor",
+      "updated": "2026-11-12T11:45:32"
     },
     "namespace-s7": {
       "accepted": {
@@ -4792,8 +4878,10 @@
       "accepted": {},
       "after": [
         "namespace-s6",
-        "namespace-s7"
+        "namespace-s5-2"
       ],
+      "base": "ce2addc842187ef7e82f465d445ada874e103eed",
+      "branch": "quest/detent/namespace-s8",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=OFF -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -4817,7 +4905,8 @@
         "src/detent_relay/**",
         "include/detent_relay/**",
         "tests/detent_relay/**",
-        "docs/status/namespace-s8.md"
+        "docs/status/namespace-s8.md",
+        "tests/CMakeLists.txt"
       ],
       "history": [
         {
@@ -4883,9 +4972,10 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "planned",
+      "status": "active",
       "title": "Namespace S8: the relay mirror of blocks, base and ring",
-      "updated": "2026-11-10T13:19:13"
+      "updated": "2026-11-12T12:13:47",
+      "worktree": "../Detent-wt/detent/namespace-s8"
     },
     "namespace-s9-s10": {
       "accepted": {},
@@ -4995,6 +5085,8 @@
       "after": [
         "one-knob-type"
       ],
+      "base": "9a68b6372e7ec94b7bc22e96d5b0aa639374288f",
+      "branch": "quest/detent/okt-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5018,9 +5110,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "One knob type: review follow-ups C1-C5",
-      "updated": "2026-11-11T23:38:57"
+      "updated": "2026-11-12T11:38:13",
+      "worktree": "../Detent-wt/detent/okt-followups"
     },
     "one-knob-type": {
       "accepted": {
@@ -6063,6 +6156,8 @@
       "after": [
         "task-wheel"
       ],
+      "base": "4de16f2754cd4f17c0dba6370dab155c71aad933",
+      "branch": "quest/detent/reactor-on-wheel",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -6087,6 +6182,7 @@
         "CHANGELOG.md",
         "CMakeLists.txt"
       ],
+      "journal": "../Detent-wt/detent/reactor-on-wheel",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -6094,9 +6190,10 @@
       "provides": [],
       "repo": "../reactor",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Reactor loop timers on the wheel",
-      "updated": "2026-11-12T03:59:27"
+      "updated": "2026-11-12T11:38:04",
+      "worktree": "../reactor-wt/detent/reactor-on-wheel"
     },
     "reactor-task-sessions": {
       "accepted": {},
@@ -6834,18 +6931,48 @@
       "files": [
         "docs/server-composition.md"
       ],
-      "journal": "../Detent-wt/detent/server-composition",
-      "landed": [],
+      "journal": "",
+      "landed": [
+        {
+          "at": "2026-11-12T11:16:21",
+          "ci_skipped": "docs-only note; the only CI the tool sees is cpp-libraries' scheduled nightly on main, red since 2026-11-10, before this quest",
+          "commit": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36",
+          "criteria": {
+            "A1": "`docs/server-composition.md`: \"Composition\"; seven steps (options, limits as http::Limits, TLS, loop and services, serve, signals, housekeeping), each with the code it calls; the check in \"Checks\" prints 7",
+            "A2": "`docs/server-composition.md`: \"Options\"; eight rows (connection bound, in-flight cap, idle timeout, shutdown bound, TLS files, port, bind, reactors), each app's spelling with file:line; the Options check prints 8",
+            "A3": "`docs/server-composition.md`: \"Mains\"; eight steps by four mains, file:line cells; the deviation table names each reason and its D62 status. No deviation has a D62 case today; the 1 ms driver loops are the one that can earn one",
+            "A4": "the Xapiand lead agrees at cpp-libraries:b1c27d9 once F1-F3 are in the text; the lead folded F1-F3, the owner's Xapiand D76 and D77 rulings and the sizing at cpp-libraries:2fd6ecb"
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/server-composition.md",
+              "commit": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261112-110934-ea032f",
+              "level": "light",
+              "seconds": 1.1,
+              "state": "done",
+              "what": "server-composition check docs at 2fd6ecb55f7c"
+            }
+          ],
+          "final": true,
+          "from": "273155a3b92bd14c991adaf7f598f6a8a34bfec6",
+          "reason": "",
+          "tested": "2fd6ecb55f7c4c9eeaa3ad824aa65ef42ebbdc36"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": "../cpp-libraries",
       "risk": "normal",
-      "status": "review",
+      "status": "landed",
       "title": "One server composition note for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T11:04:17",
-      "worktree": "../cpp-libraries-wt/detent/server-composition"
+      "updated": "2026-11-12T11:16:23",
+      "worktree": ""
     },
     "service-shape": {
       "accepted": {
@@ -7823,6 +7950,8 @@
     "wheel-vs-stash": {
       "accepted": {},
       "after": [],
+      "base": "b93742bfff9234bce12d1d6819047d45e9cfb11b",
+      "branch": "quest/detent/wheel-vs-stash",
       "checks": [
         {
           "cmd": "test -s docs/perf/wheel-vs-stash.md",
@@ -7843,9 +7972,10 @@
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "The landed wheel against stash, same harness",
-      "updated": "2026-11-12T11:05:13"
+      "updated": "2026-11-12T11:05:26",
+      "worktree": "../Detent-wt/detent/wheel-vs-stash"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",

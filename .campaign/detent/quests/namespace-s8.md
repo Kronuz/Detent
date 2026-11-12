@@ -18,6 +18,7 @@ cannot show it.
 - A2 After a relay restart, every answer for an R at or above the cut is unchanged and nothing is re-fetched that the mirror holds: a test with bytes fetched
 - A3 Crash matrix at every primitive of the mirror's write and adoption: recovery reaches the uninterrupted mirror: the crash-model job
 - A4 A relay adopting an upstream's layout follows the upstream's cut and policy changes: a test
+- A5 W8 (from S6, D84): relays read W5/W6 from the authority or an upstream relay and are never members: a test with a relay chain
 
 ## Contracts
 

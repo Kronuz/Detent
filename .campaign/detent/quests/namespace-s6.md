@@ -14,12 +14,11 @@ needs a job that passed at the landed code; tag one `[artifact]` (a committed `p
 `[decision]` (an id in PLAN.md's Decisions table) or `[manual]` (checked by hand) only when a job
 cannot show it.
 
-- A1 W5/W6: one session endpoint carries `[{name, cursor}]` or `all` with a directory cursor; frames are ring entries after R, the block holding R + 1 trimmed above R, or a base, chosen by the cut: tests that check bytes per answer
-- A2 W7: a new incarnation arrives as a full copy under the new cursor: a test
-- A3 W8: relays read W5/W6 from the authority or an upstream relay and are never members: a test with a relay chain
+- A1 W5/W6: the session request carries `[{name, cursor}]` or `all` with a directory cursor; frames are ring entries after R, the block holding R + 1 trimmed above R, or a base, chosen by the cut over a history interface S5.2 implements: tests against a test history source that check bytes per answer
+- A2 W1: one cursor type in `include/detent/cursor.hh`; `agent_store.hh`'s copy is gone and uses it: a grep job and the suites
+- A3 The agent's client side speaks W5/W6 against a test server: a test
 - A4 W4: producer sessions, contiguous sequences and `/v2/result` are unchanged on one group: the existing suites pass
-- A5 W13: grants by exact names, whole-component prefixes and `*`: tests
-- A6 Q4: the one-shot endpoint and poll mode follow the design's call: removed per D43, with nothing left behind: a grep job
+- A5 W13: grants by exact names, whole-component prefixes and `*`: the matcher's tests
 
 ## Contracts
 
@@ -27,7 +26,7 @@ Consumes `namespace-positions` and `namespace-blocks`. Provides `namespace-sessi
 
 ## Decisions
 
-D53 split namespace-s4-s10; the design is `docs/design/namespace-delivery.md` (reviewed and landed). Each step lands alone with CI green. May start once S5.1 lands, against S5.2's contract; lands after S5.2.
+D84 split S6: the authority's endpoint, W7 incarnations, Q4's removal and the old cursor's deletion are namespace-s6-cutover; W8 relays as readers is namespace-s8 A5. D53 split namespace-s4-s10; the design is `docs/design/namespace-delivery.md` (reviewed and landed). Each step lands alone with CI green. May start once S5.1 lands; lands before S5.2, which implements its history interface.
 
 ## May land early
 

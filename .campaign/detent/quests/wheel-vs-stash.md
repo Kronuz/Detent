@@ -3,6 +3,11 @@
 Risk: low (measurement). Repo: home (Detent). The lead writes this quest; contributors read it and
 never edit it. Machine state: `campaign status wheel-vs-stash`.
 
+## Hold
+
+Owner, 2026-11-12: held until the wheel stabilized. Lifted by D86: the logger needs no wheel
+change, so the wheel is stable at wheel:bfd72bc and this quest measures that commit.
+
 ## Outcome
 
 `docs/perf/wheel-vs-stash.md` gives the landed Kronuz/wheel (`wheel.hh` at wheel:bfd72bc,
@@ -22,9 +27,9 @@ this file afterwards (wheel-followups A4, and the lead for the article).
 - A2 [artifact] The tables, each row's job id, and one line per row saying whether the comparison
   is apples to apples (same work per operation) or only plain numbers side by side, with the reason:
   `docs/perf/wheel-vs-stash.md`.
-- A3 [artifact] The harness's evidence-era copies (`wheel.hh`, `stash_niche_wheel.hh`) are removed
-  or no longer built, so nothing in Detent measures a prototype: `docs/perf/wheel-vs-stash.md`:
-  "Harness".
+- A3 [artifact] The `wheel_vs_stash` and `stash_niche` targets build the fetched library, no copy
+  and no candidate arm; the async-drivers design-record tests and probes keep their `wheel.hh`
+  (lead, 2026-11-12): `docs/perf/wheel-vs-stash.md`: "Harness".
 
 ## Contracts
 
