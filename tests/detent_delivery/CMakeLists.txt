@@ -223,8 +223,13 @@ if(TARGET detent::relay_http)
   add_test(NAME test_relay_bootstrap_retention_tls COMMAND test_relay_bootstrap_retention ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture)
   set_tests_properties(test_relay_bootstrap_retention_tls PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 45)
 endif()
-# A relay that took a delta does not drain at shutdown (see the journal of namespace-s4): built, not registered.
+# A relay closed while it receives, builds, publishes or has published a delta drains.
 add_executable(test_delivery_relay_delta_shutdown relay_delta_shutdown.cc)
 target_include_directories(test_delivery_relay_delta_shutdown PRIVATE
   "${PROJECT_SOURCE_DIR}/src/detent_local" "${PROJECT_SOURCE_DIR}/src/detent_delivery")
 target_link_libraries(test_delivery_relay_delta_shutdown PRIVATE detent::delivery_coordinator detent::relay)
+foreach(phase IN ITEMS published receiving building publishing)
+  add_test(NAME test_delivery_relay_delta_shutdown_${phase}
+    COMMAND test_delivery_relay_delta_shutdown ${CMAKE_CURRENT_BINARY_DIR}/tls-fixture 10000 ${phase})
+  set_tests_properties(test_delivery_relay_delta_shutdown_${phase} PROPERTIES FIXTURES_REQUIRED delivery_tls TIMEOUT 60)
+endforeach()
