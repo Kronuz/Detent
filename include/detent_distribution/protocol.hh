@@ -8,7 +8,8 @@
 #include <vector>
 
 namespace detent::distribution {
-enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3 };
+// Frames: a W6 session-frames body (session_frames.hh).
+enum class UpdateKind : std::uint8_t { Snapshot = 1, Delta = 2, Progress = 3, Frames = 4 };
 struct Limits {
 	std::uint64_t bytes = 256ull * 1024 * 1024, string_bytes = 128ull * 1024 * 1024;
 	std::uint32_t records = 500000, namespaces = 4096, overrides_per_definition = 256;
