@@ -1,6 +1,6 @@
 # warm-graph-5m: journal
 
-State: fixes ready (F1=261112-154129-2cdfff)
+State: waiting on jobs 261112-154454-6606a0 261112-154455-151646 (lead's A1 mutant and suite reruns at 22a97d53); then paste the table and set "fixes ready"
 Quest: .campaign/detent/quests/warm-graph-5m.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -55,7 +55,7 @@ checked what), and answer each message by its id (msg-N).
 | A1 | diagnosis above (Finalize `counts.strings <= semantics.strings`, 161388910 > 134217728 at 5M); fails without: 261112-143906-a7a2bf (MUTANT KILLED, `invalid warm paged graph`, status 134) |
 | A2 | 261112-143954-efa99b (pending); fails without: 261112-143906-a7a2bf |
 | A3 | 261112-143954-efa99b (pending) |
-| A4 | 261112-144057-f1c829 (pending, after prep 261112-144015-ab96d3) |
+| A4 | lead and contributor: 5M job 261112-144057-f1c829 at 6a3d64f2 published the 0.5 C delta (apply 514.8 s); since then src/detent_local and include/detent_local are unchanged, the rest is namespace-s6 from main |
 
 ## Result
 
