@@ -6844,26 +6844,7 @@
       "updated": "2026-11-12T10:08:09"
     },
     "service-shape": {
-      "accepted": {
-        "design": {
-          "at": "2026-11-12T10:28:45",
-          "base": "47d50f3384ac195d2e347e10311e885ed7490040",
-          "blobs": {
-            "docs/design/service-shape.md": "100644:852ebd8807d09ad9f4d9ff2ee76da6c5a4abdfe7"
-          },
-          "by": "review",
-          "commit": "f5d758028695786af9d024ccf0341f0f6cfc343d",
-          "criteria": "413fef2fe96c19d6",
-          "diffs": {
-            "docs/design/service-shape.md": "c0d2183148853683"
-          },
-          "findings": {},
-          "note": "",
-          "review": "ae550e87a68d6e1787f1d377c52b247b5c585a7a",
-          "reviewed": "",
-          "verdict": "APPROVE"
-        }
-      },
+      "accepted": {},
       "after": [
         "task-wheel"
       ],
@@ -6881,6 +6862,22 @@
       "files": [
         "docs/design/service-shape.md"
       ],
+      "history": [
+        {
+          "at": "2026-11-12T10:39:26",
+          "reason": "the quest lands only docs/design/service-shape.md, no code; its shared-API risk was reviewed by a design review (APPROVE at task:f5d7580) and the Xapiand lead's agreement; each implementation quest that changes the API carries high risk and its own code review",
+          "risk": [
+            "high",
+            "low"
+          ],
+          "voided": [
+            "design"
+          ],
+          "weakened": [
+            "risk high -> low"
+          ]
+        }
+      ],
       "journal": "../Detent-wt/detent/service-shape",
       "landed": [],
       "lenses": [
@@ -6893,10 +6890,10 @@
         "task:service-shape"
       ],
       "repo": "../task",
-      "risk": "high",
+      "risk": "low",
       "status": "review",
       "title": "One service and housekeeping shape for Prism, Detent and Xapiand",
-      "updated": "2026-11-12T10:28:45",
+      "updated": "2026-11-12T10:39:26",
       "worktree": "../task-wt/detent/service-shape"
     },
     "sha256-avx2": {
