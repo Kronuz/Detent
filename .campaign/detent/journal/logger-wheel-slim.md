@@ -54,10 +54,9 @@ bypass 0 of 716,800 at p3 P=14 (261112-101939-91ce7a), 0 of 51,200 at P=1 (-1019
 p3 P=14 with heap 261112-101946-73c9a9 (running at the time); p2 P=1 with-heap row superseded.
 Bypass is 0, so change 1's heap is dropped (logger:a029757 reverts 6c29783): final D = changes 2+3 on
 the sorted batch. Final jobs at a029757: check-d 261112-110335-6a7d98, tsan-d 261112-110339-801f6a,
-stats p3 P=14 261112-110341-652760, P=1 261112-110343-cac79c; rows (all six): p3 P=1
-261112-110345-af41a7, P=14 -110347-d3409b, P=4 -110353-94ae31 (order of submit: p3 1, 14, p2 1, 4, 14,
-p3 4): p2 P=1 261112-110350-35e70e, p2 P=4 -110353-94ae31, p2 P=14 -110357-7089ed, p3 P=4 -110400-e7b591.
-(Check `campaign job show` for each what.) Then "Arm D, fixed" in docs/perf/wheel-ab.md.
+stats p3 P=14 261112-110341-652760, P=1 261112-110343-cac79c; rows: p3 P=1 261112-110345-af41a7,
+p3 P=14 261112-110347-d3409b, p3 P=4 261112-110400-e7b591, p2 P=1 261112-110350-35e70e, p2 P=4
+261112-110353-94ae31, p2 P=14 261112-110357-7089ed. Then "Arm D, fixed" in docs/perf/wheel-ab.md.
 
 ## Next
 
