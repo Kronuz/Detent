@@ -31,7 +31,7 @@ you examined, failures included, and answer each message by its id (msg-N).
 | A2 | build 261112-115033-5cb640; prepare 261112-115039-e2a0e2; 100K runs 261112-115520-7fe532 (5 runs, replaces the one-round smoke 261112-115051-073a9c, cancelled); 5M round 261112-115045-0c8be1 (replaces the failed 261110-204105-976b50 (invalid paged local image at 5M, fixed on main) and the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
 | A3 | verdict table in `docs/perf/namespace-measure.md` "T4(7)": build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); VM rerun with the flush-counter fix 261112-113801-4be23d (its flush lines replace 261110-204533-185018's zeros); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded (rerun at 75faac0c: 261112-132606-9d21a6, 261112-132606-7ccdd0, 261112-132606-5cbd7d) |
 | A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30), alpha 0.5/1/2; and at T9's alpha 0.125: 261112-132124-1b4fd7, 261112-132129-82a3aa, 261112-132134-41fc3c, all exit 0 |
-| A5 | `docs/perf/namespace-measure.md`: "## Verdicts" (`75faac0c`) |
+| A5 | `docs/perf/namespace-measure.md`: "## Verdicts" |
 
 ## Result
 
