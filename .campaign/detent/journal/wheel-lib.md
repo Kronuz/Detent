@@ -1,6 +1,6 @@
 # wheel-lib: journal
 
-State: waiting on jobs 261111-233420-9245bb 261111-233422-3a6c0b 261111-233424-51ff26 261111-233446-2a29ab
+State: waiting on jobs 261111-233420-9245bb 261111-233422-3a6c0b 261111-233426-cba5bf
 Quest: .campaign/detent/quests/wheel-lib.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -54,6 +54,11 @@ A1, the gap is inlining, not placement:
     queued() test and the far branch are what a lacks.
   - n = 1,000,000: inlined 1.004x, default 1.242x (A/A 16.7%; R = 3).
 
+- At wheel:1cd7e7a: suite green 261111-233424-51ff26; CI green 261111-233426-fc722e (run
+  43175199669); mutants killed 261111-233426-1629a0 (no cascade), -739727 (no owner assertion),
+  261111-233427-f38b25 (next() unsaturated), -8621ae (model fix); inline cost probe
+  261111-233446-2a29ab: cand_a::arm 205 (inlined, threshold 225), cand_w::arm 285 (not inlined).
+
 Correctness so far: suite green at wheel:01dfcc9 (261111-204407-aef4ec); mutants caught: no
 cascade 261111-202912-b5aee7, no owner assertion 261111-202915-2b286a, unsaturated next()
 261111-204408-d59cd1. CI green at wheel:4a5bef4 (run 43159140943).
@@ -72,9 +77,7 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 ## Next
 
 1. Read the A1 rows at wheel:1cd7e7a: single 261111-233420-9245bb (R = 10), cross
-   261111-233422-3a6c0b; suite 261111-233424-51ff26; reruns 261111-233426-fc722e (CI, A4),
-   261111-233426-cba5bf (fuzz, A5), mutants 261111-233426-1629a0, -739727, 261111-233427-f38b25,
-   -8621ae; inline-cost probe 261111-233446-2a29ab.
+   261111-233422-3a6c0b, and the fuzz rerun 261111-233426-cba5bf (A5). The rest passed (above).
 2. Write the numbers into docs/timer-wheel.md Cost and README Performance (A6), the Evidence
    table, Result; State ready for review, or the A1 miss stated plainly for the lead.
 
