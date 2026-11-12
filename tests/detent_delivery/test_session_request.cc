@@ -114,6 +114,71 @@ int main() {
 				check(!worker_result->request().namespaces.front().empty());
 			}
 
+			// W5: [{name, cursor}] under the request's cluster, or `all` with a directory cursor.
+			{
+				auto v2 = [&](h::RequestKind kind, const std::string &json) {
+					return h::parse_session_request(domain, kind, body(account, json));
+				};
+				auto refused_v2 = [&](h::RequestKind kind, const std::string &json) {
+					try {
+						v2(kind, json);
+					} catch (const std::invalid_argument &) {
+						return true;
+					}
+					return false;
+				};
+				auto opened = v2(h::RequestKind::Open,
+								 "{\"version\":2,\"profile\":1,\"coding\":\"zstd\",\"cluster\":" + identity('1') +
+									 ",\"namespaces\":[[\"app\"],[\"pay\"," + identity('2') + ",41]],\"all\":7,"
+									 "\"wait_ms\":0}");
+				const auto &request = opened->request();
+				check(request.version == 2 && request.compressed && request.wait_ms == 0);
+				check(request.positions.size() == 2 && request.positions[0].name == "app" &&
+					  !request.positions[0].cursor && request.positions[1].name == "pay");
+				d::Identity one, two;
+				one.fill('\x11');
+				two.fill('\x22');
+				check(request.positions[1].cursor == d::NamespaceCursor{one, two, 41});
+				check(request.all == d::DirectoryCursor{one, 7});
+				opened.reset();
+				// A first start: no cluster, no store, everything granted from the directory's start.
+				opened = v2(h::RequestKind::Open,
+							"{\"version\":2,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[],\"all\":0}");
+				check(opened->request().positions.empty() && opened->request().all == d::DirectoryCursor{} &&
+					  opened->request().wait_ms == 30000);
+				opened.reset();
+				opened = v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') + ",\"cluster\":" +
+													  identity('1') + ",\"namespaces\":[[\"pay\"," + identity('2') +
+													  ",42]],\"wait_ms\":250}");
+				check(opened->request().session[0] == '\xaa' && opened->request().positions.size() == 1 &&
+					  opened->request().positions[0].cursor->position == 42 && !opened->request().all &&
+					  opened->request().wait_ms == 250);
+				opened.reset();
+				opened = v2(h::RequestKind::Close, "{\"version\":2,\"session\":" + identity('a') + "}");
+				check(opened->request().version == 2);
+				opened.reset();
+				const auto open2 = std::string("{\"version\":2,\"profile\":1,\"coding\":\"raw\",");
+				for (auto bad : {
+						 open2 + "\"namespaces\":[[\"b\"],[\"a\"]]}",					   // out of order
+						 open2 + "\"namespaces\":[[\"a\"],[\"a\"]]}",					   // duplicate
+						 open2 + "\"namespaces\":[[\"a\"," + identity('2') + ",1]]}",		   // cursor, no cluster
+						 open2 + "\"namespaces\":[],\"all\":3}",								   // directory, no cluster
+						 open2 + "\"namespaces\":[]}",										   // follows nothing
+						 open2 + "\"namespaces\":[[\"a\"," + identity('2') + "]]}",			   // arity
+						 open2 + "\"namespaces\":[[\"a b\"]]}",								   // name
+						 open2 + "\"namespaces\":[\"a\"]}",									   // v1 entry
+						 open2 + "\"cluster\":" + identity('1') + ",\"namespaces\":[[\"a\"," + identity('0') +
+							 ",1]]}",															   // zero incarnation
+						 open2 + "\"namespaces\":[[\"a\"]],\"wait_ms\":30001}",			   // wait bound
+						 open2 + "\"namespaces\":[[\"a\"]],\"scope\":" + identity('4', 64) + "}", // v1 field
+						 std::string("{\"version\":3,\"profile\":1,\"coding\":\"raw\",\"namespaces\":[[\"a\"]]}"),
+					 })
+					check(refused_v2(h::RequestKind::Open, bad));
+				check(refused_v2(h::RequestKind::Next, "{\"version\":2,\"session\":" + identity('a') +
+														   ",\"namespaces\":[[\"a\"]],\"after\":1}"));
+				check(refused_v2(h::RequestKind::Close, "{\"version\":2,\"session\":" + identity('a') +
+															",\"namespaces\":[]}"));
+			}
 			check(h::classify_session_route("/v2/distribution/session/next") == h::RequestKind::Next);
 			check(!h::classify_session_route("/v2/distribution/session/next/extra"));
 			domain.close().wait();

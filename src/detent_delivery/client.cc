@@ -1,6 +1,7 @@
 #include "detent_delivery/client.hh"
 #include "client_probe_internal.hh"
 #include "connection_cache_internal.hh"
+#include "session_control_internal.hh"
 #include "detent/validation.hh"
 #include "detent_transport/await_io.hh"
 #include "detent_distribution/memory_resource.hh"
@@ -268,19 +269,8 @@ task::task<TransportResponse> receive_one(ClientOptions options, std::chrono::st
 	co_return std::move(*result);
 }
 void validate(const ClientOptions &options) {
-	require(options.tls_context &&
-				(SSL_CTX_get_verify_mode(options.tls_context->native_handle()) & SSL_VERIFY_PEER) &&
-				options.endpoint.port() && !options.hostname.empty() && options.hostname.size() <= 253 &&
-				options.hostname.find_first_of("\r\n") == std::string::npos &&
-				options.hostname.find('\0') == std::string::npos && options.token.size() >= 32 &&
-				options.token.size() <= 128 && options.scheduler &&
-				std::all_of(options.token.begin(), options.token.end(),
-							[](unsigned char c) { return c >= 32 && c != 127; }) &&
-				options.timeout > std::chrono::milliseconds::zero() &&
-				options.timeout <= std::chrono::hours(24) && options.request_bytes &&
-				options.request_bytes <= 1024 * 1024 &&
-				options.namespaces.size() <= options.limits.namespaces,
-			"invalid delivery client options");
+	detail::validate_transport(options);
+	require(options.namespaces.size() <= options.limits.namespaces, "invalid delivery client options");
 }
 task::task<TransportResponse> perform(ClientOptions options, task::cancel_token token,
 									  std::optional<RequestAction> action = {}, BodyMode mode = BodyMode::Semantic) {
@@ -393,19 +383,35 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 	JsonAllocator allocator{&resource};
 	Json json(&allocator, 1024, &allocator);
 	parse(json, control);
-	const auto error = string(member(json, "error"));
-	if (control.status == 401)
+	return detail::session_reset_reason(control.status, string(member(json, "error")),
+										json.HasMember("reason") ? string(json["reason"]) : std::string_view{});
+}
+} // namespace
+void detail::validate_transport(const ClientOptions &options) {
+	require(options.tls_context &&
+				(SSL_CTX_get_verify_mode(options.tls_context->native_handle()) & SSL_VERIFY_PEER) &&
+				options.endpoint.port() && !options.hostname.empty() && options.hostname.size() <= 253 &&
+				options.hostname.find_first_of("\r\n") == std::string::npos &&
+				options.hostname.find('\0') == std::string::npos && options.token.size() >= 32 &&
+				options.token.size() <= 128 && options.scheduler &&
+				std::all_of(options.token.begin(), options.token.end(),
+							[](unsigned char c) { return c >= 32 && c != 127; }) &&
+				options.timeout > std::chrono::milliseconds::zero() &&
+				options.timeout <= std::chrono::hours(24) && options.request_bytes &&
+				options.request_bytes <= 1024 * 1024,
+			"invalid delivery client options");
+}
+SessionResetReason detail::session_reset_reason(unsigned status, std::string_view error, std::string_view reason) {
+	if (status == 401)
 		return SessionResetReason::Unauthorized;
-	if (control.status == 403)
+	if (status == 403)
 		return SessionResetReason::Forbidden;
-	if (control.status == 410 && error == "session_expired")
+	if (status == 410 && error == "session_expired")
 		return SessionResetReason::Expired;
-	if (control.status == 409) {
-		if (error == "snapshot_required") {
-			if (json.HasMember("reason") && string(json["reason"]) == "representation_limit")
-				return SessionResetReason::RepresentationLimit;
-			return SessionResetReason::HistoryLost;
-		}
+	if (status == 409) {
+		if (error == "snapshot_required")
+			return reason == "representation_limit" ? SessionResetReason::RepresentationLimit
+													: SessionResetReason::HistoryLost;
 		if (error == "identity_changed")
 			return SessionResetReason::IdentityChanged;
 		if (error == "session_out_of_sync")
@@ -413,19 +419,20 @@ SessionResetReason reset_reason(const ReceivedControl &control, std::pmr::memory
 		if (error == "session_busy")
 			return SessionResetReason::Busy;
 	}
-	if (control.status == 503 && error == "source_not_leader")
+	if (status == 503 && error == "source_not_leader")
 		return SessionResetReason::NotLeader;
-	if (control.status == 503 && (error == "outcome_unknown" || error == "stopping" ||
-								  error == "distribution_unavailable" || error == "authorization_timeout"))
+	if (status == 503 && (error == "outcome_unknown" || error == "stopping" || error == "distribution_unavailable" ||
+						  error == "authorization_timeout"))
 		return SessionResetReason::Unavailable;
-	if (control.status == 503 && error == "source_behind")
+	if (status == 503 && error == "source_behind")
 		return SessionResetReason::SourceBehind;
-	if (control.status == 503 || control.status == 429)
+	if (status == 503 || status == 429)
 		return SessionResetReason::AdmissionFull;
-	if (control.status == 400)
+	if (status == 400)
 		return SessionResetReason::InvalidRequest;
 	throw std::invalid_argument("unknown session control response");
 }
+namespace {
 ValidatedControl validate_control(ReceivedControl control, const ClientOptions &options,
 								  std::optional<RequestAction> action, std::pmr::memory_resource &resource) {
 	ValidatedControl result{std::move(control), {}, {}};
