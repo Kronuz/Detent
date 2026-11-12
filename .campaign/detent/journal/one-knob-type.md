@@ -1,9 +1,13 @@
 # one-knob-type: journal
 
-State: waiting on jobs at Detent:ea9d4147: suite 261111-200115-da0928; A3 prepare
-261111-200130-109e8f, pairs 100k 261111-200151-1397a1 .. 261111-200212-6f24d5, 5m
-261111-200219-0b349b .. 261111-200236-c6aa5c, reports 261111-200215-39f88a (100k) /
-261111-200240-4d0086 (5m); outputs under /Users/kronuz/code/Kronuz/Detent/.scratch/okt/ea9d4147/
+State: waiting on jobs at Detent:dab00c10 (code as ea9d4147): A3 prepare 261111-201510-0027ae,
+pairs 100k 261111-201515-c9a550 261111-201520-86effa 261111-201525-efcbe6 261111-201530-3605db
+261111-201535-254d6a 261111-201539-7b4315, 5m 261111-201550-b4eb67 261111-201555-ac7f70
+261111-201600-cbb858 261111-201605-e35e36 261111-201609-b99e4c 261111-201613-6fb580, reports
+261111-201545-be6229 (100k) / 261111-201618-c669dd (5m); pages 261111-201652-e744f8 (100k) /
+261111-201652-1b9d0e (5m); A4 261111-201651-a2bd67; CI on dab00c10 (pushed). Outputs under
+/Users/kronuz/code/Kronuz/Detent/.scratch/okt/ea9d4147/. Suite 261111-200115-da0928 at ea9d4147
+green, 277/277 (A1, A2).
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
@@ -31,7 +35,10 @@ b9bf610c (261111-162851-fc6aaf, 261111-162856-b47db3); main's 7c0f7d1b… and 67
 
 A3 prepare 261111-183845-6f9674 failed "first_read_export: output exists"; prepare now removes each
 arm's output first, and the head run writes under .scratch/okt/ea9d4147/ so no older pairs mix into
-its reports (Detent:9f677f2c). docs/design/observability_bench.cc deleted (D43; Detent:9f677f2c).
+its reports (Detent:9f677f2c). Its first resubmission 261111-200130-109e8f failed "CORPORA:
+CORPORA": submitted without `--env CORPORA=/Users/kronuz/code/Kronuz/Detent/.scratch/okt/corpora`
+(the earlier runs set it); resubmitted with it. A4 and pages rerun at the head (their files
+changed: the script, tests/detent_local). docs/design/observability_bench.cc deleted (D43; Detent:9f677f2c).
 
 ## Next
 
@@ -83,11 +90,11 @@ its reports (Detent:9f677f2c). docs/design/observability_bench.cc deleted (D43; 
 
 | Criterion | Evidence |
 |---|---|
-| A1 | <no evidence yet> |
-| A2 | <no evidence yet> |
-| A3 | <no evidence yet> |
-| A4 | <no evidence yet> |
-| A5 | <no evidence yet> |
+| A1 | 261111-200115-da0928 |
+| A2 | 261111-200115-da0928; fails without: 261111-162800-2ee71e, 261111-162803-4b354d |
+| A3 | pending: prepare, pairs, reports and pages listed under State |
+| A4 | pending: 261111-201651-a2bd67 |
+| A5 | [artifact] docs/design/one-knob-type.md (definition, encodings with A3's numbers, evaluation, JSON, D65, D68); docs/design/knob-model.md rewritten for the single type |
 
 ## Result
 
