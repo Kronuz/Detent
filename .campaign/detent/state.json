@@ -6794,6 +6794,34 @@
       "title": "Seeding waits attribution",
       "updated": "2026-11-08T15:38:02"
     },
+    "server-composition": {
+      "accepted": {},
+      "after": [
+        "service-shape"
+      ],
+      "checks": [
+        {
+          "cmd": "test -s docs/server-composition.md",
+          "level": "light",
+          "minutes": 30,
+          "name": "docs"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/server-composition.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../cpp-libraries",
+      "risk": "normal",
+      "status": "planned",
+      "title": "One server composition note for Prism, Detent and Xapiand",
+      "updated": "2026-11-12T10:08:09"
+    },
     "service-shape": {
       "accepted": {},
       "after": [
