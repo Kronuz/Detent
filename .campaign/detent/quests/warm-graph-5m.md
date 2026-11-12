@@ -12,7 +12,7 @@ A block answer applied to a published 5M-definition store publishes, instead of 
 - A1 The cause, named by the failing `require` and the values that broke it, with a reproduction that fails on main: a job that fails at main and the journal's row naming it
 - A2 A test that fails without the fix and passes with it, at a size that reaches the cause (a scaled-down store that hits the same bound, when one exists; 5M only when nothing smaller does, D85): jobs, `--fails-without`
 - A3 The suite passes: a job
-- A4 The harness's 5M delta arm publishes at the fix: one budgeted exclusive job, arms full and 0.5 only
+- A4 [manual] The harness's 5M delta arm publishes at the fix: one budgeted exclusive job, arms full and 0.5 only (261112-144057-f1c829 at 6a3d64f2; since then src/detent_local and include/detent_local are unchanged and the rest is namespace-s6 merged from main, so it is not rerun at 5M, D85)
 
 ## Contracts
 

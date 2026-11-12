@@ -3015,6 +3015,36 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-exit-crash": {
+      "accepted": {},
+      "after": [
+        "logger-followups"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "logger.cc",
+        "logger.h",
+        "test/**"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "normal",
+      "status": "planned",
+      "title": "logger: exit without finish can crash",
+      "updated": "2026-11-12T15:40:37"
+    },
     "logger-followups": {
       "accepted": {},
       "after": [],
@@ -3035,7 +3065,11 @@
         "test/**",
         "CMakeLists.txt",
         "ARCHITECTURE.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "bench/wheel_ab/**",
+        "docs/perf/**",
+        "README.md",
+        "AGENTS.md"
       ],
       "journal": "../Detent-wt/detent/logger-followups",
       "landed": [],
@@ -3047,7 +3081,7 @@
       "risk": "normal",
       "status": "active",
       "title": "logger: review follow-ups and the scheduler link",
-      "updated": "2026-11-12T15:00:19",
+      "updated": "2026-11-12T15:40:36",
       "worktree": "../logger-wt/detent/logger-followups"
     },
     "logger-on-wheel": {
