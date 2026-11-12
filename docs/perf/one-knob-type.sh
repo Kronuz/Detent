@@ -71,6 +71,7 @@ prepare() {
 	for arm in main $candidate; do
 		local src=$here define=
 		if [ "$arm" = main ]; then src=${JOB_REF_BASELINE:?--ref BASELINE}; define=ONE_KNOB_MAIN; fi
+		rm -rf "$out/$arm"
 		mkdir -p "$out/$arm"
 		git -C "$src" rev-parse HEAD > "$out/$arm/commit.txt"
 		cat >> "$src/CMakeLists.txt" <<EOF
