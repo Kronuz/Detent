@@ -1,6 +1,6 @@
 # namespace-measure: journal
 
-State: waiting on jobs 261110-204105-976b50 261110-204305-dd5888 261110-204307-3ae1e8 261110-204532-499625 261110-204533-185018
+State: waiting on jobs 261112-113417-855a8e 261112-113831-7d9d86 261112-113842-18b765 261112-113844-8b7ba0 261112-113801-4be23d
 Quest: .campaign/detent/quests/namespace-measure.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,16 +9,20 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Waiting on jobs. T4(7) was re-pinned (ruling 9). Rules (A1) committed at `Detent:e4a1cc7` before any job. Harnesses: `docs/perf/namespace-measure-t9.{cc,cmake,sh}`, `-t9-fit.py`, `-sync.sh`, `-flush.cc`; model `wire` mode. A4's three wire jobs are done (exit 0). The 20 queued drains were cancelled by D55 and replaced by three jobs (below) at `Detent:67bac52`, which adds a time budget to both runners (skip a step, and say so, when elapsed + estimate would pass the budget; nothing timed changes).
+Resumed 2026-11-12. Read the logs: 261110-204532-499625 (APFS) and 261110-204533-185018 (VM) exit 0, `skip 4096:1` only on APFS (239 s + 353 s > 540 s); no skip in the VM log. T9 261110-204105-976b50 failed: arm full ran (57 s apply), then arm 0.5 died with `invalid paged local image` at 5M. Cause (lldb, delta on a clone of the prepared store): `PagedCursor::step` decoded page headers with default `paged::Limits` (records 500000), so a branch page whose key count passed 504,096 was refused; the 100K smoke never reached it. Main already has the fix (`paged_cursor.cc` uses `paged_format_limits()`), so it was merged (`Detent:4d457cb`, clean); the library is untouched. The prepared store predates the merge: rebuilt by the new chain below. Second defect found: the flush driver read stat index 14 (field 15, discard ticks), so every flush count read 0; fixed to field 16 (`Detent:82757c6`) and the VM job resubmitted.
+
+Jobs at the merged code: T9 build 261112-113417-855a8e; prepare 261112-113831-7d9d86; 5M round 261112-113842-18b765 (exclusive, budget 540 s, arms `full 0.5 1 0.25 0.05`; the full arm took 63 s in the failed run, so all five are expected to fit); smoke 100K 261112-113844-8b7ba0; VM T4(7) with the flush fix 261112-113801-4be23d.
+
+Pre-read of the rules on data already in hand (to be confirmed in "## Verdicts"):
+- Sync-bound: batched at 71-176 files is 28-32 ms on APFS and 14-32 ms on ext4 (interpolated from 64/128/256), far under 250 ms on both: rule 2 does not fire.
+- Wire (A4): veto does not fire at any alpha in {0.5, 1, 2} (worst sent/missing ratio 64:16 is at most 1.03; worst sent/copy stays under 1.00). Efficiency: hot-heavy mean read/missing is 1.336 at alpha 0.5, 1.257 at alpha 1 (both over 1.25: stay at 16) and 1.158 at alpha 2 (64 passes); moderate and keyset-0.30 pass at all three. So the period follows T9's alpha: 16 for alpha at most 1, 64 at alpha 2.
 
 ## Next
 
-1. When the three jobs finish: read each log's `skip` lines first; they list what did not run.
-2. T9 (261110-204105-976b50, exclusive, 10 min, budget 540 s): one round, arms in priority order `full 0.5 1 0.25 0.05`, one run each. Estimate: full ~190 s, 0.5 ~170 s, 0.25 ~120 s, 1 ~220 s, 0.05 ~85 s (full measured 180 s apply in prepare; deltas scaled by the 100K smoke), 785 s in all, so about 3 arms run (expected full, 0.5, 0.25); 1 and 0.05 are cut. `python3 -I docs/perf/namespace-measure-t9-fit.py <log>`; the fit has n=1 per size and no f=1 point, so report R² and the interpolated α as a coarse interval. If the interval straddles a decision threshold (a rounding step of 1/8, or the 2C clamp), D55 allows one second run, with the arms that were cut; otherwise α by the rule. If α is not in {0.5, 1, 2}, submit `model wire SHAPE α` for the three shapes (light).
-3. T4(7): build 261110-204305-dd5888 (light), then the size check 261110-204307-3ae1e8 (none): it must print `check ok` with every sampled file at 1024 bytes, and gates both measured jobs (`--after`). APFS 261110-204532-499625 (exclusive, budget 540 s): `64:15 128:9 256:7 1024:2 4096:1`, ~75 ms per file-round with the new per-file+directory variant, so 54 + 86 + 134 + 154 = ~430 s and 4096 is cut by the guard. VM 261110-204533-185018 (strict, `QUIET_VM`, budget 540 s): `64:15 128:15 256:15 1024:3 4096:1`, ~24 ms per file-round, ~60 build + 37 + 74 + 147 + 74 + 98 = ~490 s; 4096 is the likeliest cut. The cancelled first pair (261110-204113-306c02, 261110-204114-8079b0) ran the 200 KB probe and is void. Interpolate the batched variant at 67-176 files from 64/128/256 (the only points the sync-bound rule reads); flush counts from the VM's `flush` lines.
-4. Period verdict by the Rules (veto, sync-bound, efficiency); write "## Verdicts"; the design's numbers (outside the file set): report to the lead.
-5. The Rules text says completion:ab0f551; the probe is now completion:560c288 (ruling 9). Say so in the verdict; the batched variant is the same code.
-6. Optional: T9 in the VM (design asks for Linux; A2 does not).
+1. When the jobs finish: read each log's `skip` lines first. Fit T9: `python3 -I docs/perf/namespace-measure-t9-fit.py <round log>`; n=1 per size and no f=1 point if arm 1 is cut, so report R^2 and alpha as an interval; if the interval straddles a threshold, D55 allows one second run with the cut arms. If alpha is not in {0.5, 1, 2}, submit `model wire SHAPE alpha` (light) for the three shapes.
+2. VM flush counts from 261112-113801-4be23d (`flush` lines), batched vs per-file; APFS by construction.
+3. `campaign verify namespace-measure` for pins at the final commit; rerun any evidence job still flagged stale.
+4. Write "## Verdicts" in `docs/perf/namespace-measure.md` (T9 alpha, T4(7) sync-bound, period, flush counts); the Rules text says completion:ab0f551 and flush field 15: say in the verdict that the probe is completion:560c288 (ruling 9) and the counter is field 16 (ruling 10). The design's numbers (outside the file set): report to the lead.
 
 ## Blocked on
 
@@ -33,8 +37,8 @@ you examined, failures included, and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
-| A2 | build 261110-134434-d53821; prepare 261110-134435-f6bf5e; smoke 100K 261110-134435-cffae5; 5M round 261110-204105-976b50 (replaces the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
-| A3 | build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded |
+| A2 | build 261112-113417-855a8e; prepare 261112-113831-7d9d86; smoke 100K 261112-113844-8b7ba0; 5M round 261112-113842-18b765 (replaces the failed 261110-204105-976b50 (invalid paged local image at 5M, fixed on main) and the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
+| A3 | build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); VM rerun with the flush-counter fix 261112-113801-4be23d (its flush lines replace 261110-204533-185018's zeros); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded |
 | A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30), all exit 0 |
 | A5 | pending |
 
@@ -55,3 +59,5 @@ and what it leaves open. Results and how it works go in the docs of the reposito
 7. D55 (short measurements, one strict or exclusive job of at most 10 min per row) replaces the ten pre-registered rounds and the T4(7) parts. Thresholds, rules text, the fit and the probe are unchanged; only the repetition shrinks: T9 is one round of one run per arm (rule 3 asks five per size), T4(7) 15 rounds at 64-256 files, 5 at 1,024 (rule: 15) and 2 and 3 at 4,096 on APFS and the VM (rule: 9). Rule 3's "median of five, spread = range" cannot be met; a difference is read with the interleaved pair's own noise, and a result whose interval straddles a threshold gets the one second run D55 allows. The 4,096-file part cut does not touch the sync-bound rule, which reads 64-256 files.
 8. Time-box: each runner stops starting steps that would pass `T9_BUDGET_S` / `SYNC_BUDGET_S` (540 s of the 600 s bound), estimating from the slowest cost seen so far (1.15x), so a job ends clean instead of at its deadline (exit 124); tested with a stub binary. T9's arm order is full, 0.5, 1, 0.25, 0.05 because the crossing sits near 0.5-1 (100K smoke: delta 0.5 about equal to the copy).
 9. Cause: `bench/sync_probe.cc` at completion:ab0f551 has `constexpr kFileBytes = 200 * 1024` and ignores its fourth argument, so every probe run wrote 200 KB files, not the rules' 1 KiB (the log header said "files of 200 KB"). completion:560c288 (`Stage a new file for a group sync`) makes it `FILE_KB`, default 200, and adds a per-file sync + directory flush variant; its `SyncFiles` and batched path are unchanged (the commit's `include/` change is `image.h` only). I pin the probe at completion:560c288 rather than patch a copy; the extra variant makes each round about 3x dearer on APFS, so APFS rounds shrink (64:15 128:9 256:7 1024:2 4096:1) under D55. The `flush` driver always used 1 KiB. The `check` mode samples on-disk sizes while the probe runs; the build mode now starts from a clean directory because the source moved.
+10. The flush driver read `/sys/block/*/stat` index 14, which is field 15 (discard ticks), not field 16 (flush requests completed): every VM flush count in 261110-204533-185018 is 0 for that reason. The rules text says "field 15"; the intent is the completed-flush counter, so the driver reads field 16 and the VM job is rerun.
+11. T9 failed on a library defect already fixed on main (default `paged::Limits` in `PagedCursor`), not a harness fault; merged main (never rebase) and rebuilt the prepared store instead of editing the library (outside the file set).
