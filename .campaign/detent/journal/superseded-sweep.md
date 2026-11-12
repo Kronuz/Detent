@@ -28,7 +28,7 @@ checked what), and answer each message by its id (msg-N).
 | Criterion | Evidence |
 |---|---|
 | A1 | [artifact] `docs/dev/superseded-libraries.md` at 80478d09: rows for stash, scheduler, cluster; users per repo and file; migration order; Proposed; checked-and-current list |
-| A2 | [manual] the lead's spot-check; reproduce with the greps at the end of the doc |
+| A2 | [manual] lead (2026-11-11): `logger.h:50` includes scheduler.h; Detent `cmake/dependencies.json:105,117` pin scheduler and stash; no repo CMakeLists/cmake json or cmake file names Kronuz/cluster |
 
 ## Result
 
