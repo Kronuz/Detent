@@ -392,17 +392,40 @@
         "website/astro.config.mjs",
         "website/public/site.webmanifest"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T16:20:29",
+          "commit": "720554d1904f556983ae98b228187906c3656f91",
+          "evidence": [
+            {
+              "cmd": "cd website && npm ci && npm run build && grep -q apple-touch-icon dist/index.html && grep -q site.webmanifest dist/index.html",
+              "commit": "808c9f6ff2ef21547959c294048d2a07a35d0dc0",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-153427-7c50ee",
+              "level": "light",
+              "seconds": 25.5,
+              "state": "done",
+              "what": "brand-head-links check site at 808c9f6ff2ef"
+            }
+          ],
+          "final": true,
+          "from": "77fca9f8ffb8c3015e4d2f26e0a30d6524cf2ed9",
+          "reason": "",
+          "tested": "dc06eb1e1723c43b2ee088180235dc821fcb0e52"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "Site head links for the touch icons and web manifest",
-      "updated": "2026-11-11T15:24:25",
-      "worktree": "../Detent-wt/detent/brand-head-links"
+      "updated": "2026-11-11T16:20:35",
+      "worktree": ""
     },
     "client-local-source": {
       "accepted": {},
@@ -4871,7 +4894,13 @@
         "website/src/content/docs/quickstart.md",
         "website/src/content/docs/rollouts.md",
         "website/src/content/docs/settings-and-flags.md",
-        "tests/docs/**"
+        "tests/docs/**",
+        "tests/detent_delivery/scripted_upstream.hh",
+        "tests/detent_delivery/probe_fixture.hh",
+        "tests/detent_delivery/test_response.cc",
+        "tests/detent_agent/test_agent_catch_up.cc",
+        "docs/dev/docs-e2e.md",
+        "docs/design/observability_bench.cc"
       ],
       "landed": [],
       "lenses": [
@@ -4884,7 +4913,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T15:24:20",
+      "updated": "2026-11-11T16:30:04",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
@@ -5547,6 +5576,8 @@
       "after": [
         "namespace-s4"
       ],
+      "base": "605a9fd58898c0ee2abaf45f8342e7b8a1e21dbe",
+      "branch": "quest/detent/relay-delta-shutdown-hang",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
@@ -5569,9 +5600,10 @@
       "provides": [],
       "repo": ".",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "Relay delta shutdown drains",
-      "updated": "2026-11-11T09:11:13"
+      "updated": "2026-11-11T15:55:39",
+      "worktree": "../Detent-wt/detent/relay-delta-shutdown-hang"
     },
     "relay-snapshot-lifecycle": {
       "accepted": {},
