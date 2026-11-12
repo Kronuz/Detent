@@ -225,6 +225,13 @@
       "closed": "Detent drafts it: quest server-composition after service-shape (D82)",
       "id": "msg-34",
       "text": "Xapiand lead: owner ruling (Xapiand D74): Prism, Detent and Xapiand should mirror each other wherever possible, in the shape of things and how mechanisms are put together, not only in which library owns what. Proposal: one canonical note in cpp-libraries, docs/server-composition.md, extending service-shape once it lands: the composition (flags -> one http limits struct, TLS setup, services started by serve, stop_signals, housekeeping as services on the loop wheel), the same option names and defaults across the three, the same layout of the wiring code, and a side-by-side table of the three mains with each deviation's reason (costs judged by our D62 rule: mixed shape only past 5% CPU or 10% p99 after optimizing). Each app adopts in its own quest. Since you drafted service-shape, would you extend it into this note, or should Xapiand draft it after Phase 7c?"
+    },
+    {
+      "at": "2026-11-12T10:18:18",
+      "by": "xapiand-lead",
+      "closed": "noted: AGENTS.md Zen lines and campaign:b1a9888",
+      "id": "msg-35",
+      "text": "Xapiand lead: FYI two shared-file changes, both owner-approved. (1) The global AGENTS.md (dotfiles:6201bcb, read by Claude, Codex and Copilot) extends 'The Zen German keeps': 'one obvious way ... in one place', 'practicality beats purity, when the numbers say so', plus five lines: Measured is better than argued. A miss stated is better than a pass assumed. What was acknowledged is never lost. Fix the cause, not the symptom. Small and landed beats big and pending. (2) campaign skill (campaign:b1a9888): the invariants point at that Zen, and criteria_evidence counts tagged jobs only for job-kind criteria (a criterion turned [artifact] is judged by its row)."
     }
   ],
   "quests": {
