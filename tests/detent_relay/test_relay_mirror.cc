@@ -218,8 +218,10 @@ void restart(const std::filesystem::path &root) {
 	std::vector<std::string> before, before_all;
 	{
 		r::MirrorStore store(io_at(root), {});
-		for (int i = 0; i < 20; ++i)
-			store.adopt(script.up.layouts(), script.next(), fetch);
+		for (int i = 0; i < 20; ++i) {
+			const auto dropped = script.next();
+			store.adopt(script.up.layouts(), dropped, fetch);
+		}
 		before = answers_above_cut(store, fetch);
 		before_all = answers(store, fetch);
 	}
@@ -255,8 +257,10 @@ void repair(const std::filesystem::path &root) {
 	auto fetch = script.up.fetch();
 	{
 		r::MirrorStore store(io_at(root), {});
-		for (int i = 0; i < 6; ++i)
-			store.adopt(script.up.layouts(), script.next(), fetch);
+		for (int i = 0; i < 6; ++i) {
+			const auto dropped = script.next();
+			store.adopt(script.up.layouts(), dropped, fetch);
+		}
 	}
 	const auto table = r::decode_mirror_table(slurp(root / "mirror"));
 	const auto &flags = *table.find("app/flags");
@@ -288,7 +292,8 @@ void collect_missing(const std::filesystem::path &root) {
 	auto fetch = script.up.fetch();
 	{
 		r::MirrorStore store(io_at(root), {});
-		store.adopt(script.up.layouts(), script.next(), fetch);
+		const auto dropped = script.next();
+		store.adopt(script.up.layouts(), dropped, fetch);
 	}
 	const auto table = r::decode_mirror_table(slurp(root / "mirror"));
 	std::filesystem::remove(root / r::mirror_file_name(table.find("gamma")->files.back().name));
@@ -306,7 +311,8 @@ void refused(const std::filesystem::path &root) {
 	Script script;
 	auto fetch = script.up.fetch();
 	r::MirrorStore store(io_at(root), {});
-	store.adopt(script.up.layouts(), script.next(), fetch);
+	const auto dropped = script.next();
+	store.adopt(script.up.layouts(), dropped, fetch);
 	const auto table = store.table();
 	script.next();
 	const auto layouts = script.up.layouts();

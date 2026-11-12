@@ -194,9 +194,11 @@ class Upstream {
 	}
 };
 
-// Every mirror name the table reaches, with `mirror` and `owner.lock`.
+// Every mirror name the table reaches, with `owner.lock`, and `mirror` once a table was published.
 inline std::vector<std::string> expected_listing(const r::MirrorTable &table) {
-	std::vector<std::string> names{"mirror", "owner.lock"};
+	std::vector<std::string> names{"owner.lock"};
+	if (table.sequence)
+		names.push_back("mirror");
 	for (const auto &entry : table.entries)
 		for (const auto &f : entry.files)
 			names.push_back(r::mirror_file_name(f.name));
