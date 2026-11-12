@@ -5,27 +5,23 @@ Risk: high. The lead writes this quest; contributors read it and never edit it. 
 
 ## Outcome
 
-<The behavior that exists when this quest lands, in one paragraph.>
+A block answer applied to a published 5M-definition store publishes, instead of failing with `invalid warm paged graph` (`src/detent_local/paged_warm_validator.cc:13`). Found by namespace-measure's 5M round 261112-115045-0c8be1 (Detent:e0c9f450 harness `docs/perf/namespace-measure-t9.cc`): the full copy published (C 266 MB), then the 0.5 C delta arm failed; the same harness publishes deltas at 100K. The earlier 5M failure (`PagedCursor` on default 500K-record limits) was fixed on main by `paged_format_limits()`; this may be the same class (a bound sized for small stores) or a validator defect.
 
 ## Acceptance criteria
 
-Three to five, at outcome level: `- A1 <criterion>: <the test that shows it>`. An untagged one
-needs a job tagged `--for A1` passing at the landed code, often the suite; tag one `[artifact]`
-(a committed `path`), `[decision]` (a PLAN.md Decisions id) or `[manual]` (checked by hand) when no
-job can show it.
-
-- A1 <criterion>: <evidence>
+- A1 The cause, named by the failing `require` and the values that broke it, with a reproduction that fails on main: a job that fails at main and the journal's row naming it
+- A2 A test that fails without the fix and passes with it, at a size that reaches the cause (a scaled-down store that hits the same bound, when one exists; 5M only when nothing smaller does, D85): jobs, `--fails-without`
+- A3 The suite passes: a job
+- A4 The harness's 5M delta arm publishes at the fix: one budgeted exclusive job, arms full and 0.5 only
 
 ## Contracts
 
-<What this quest provides or consumes (APIs, formats, protocols), stated precisely enough that a
-quest depending on it can start before it lands.>
+None changed: the fix keeps the paged format and the validator's checks; a check may be widened only to the bound the format already allows.
 
 ## Decisions
 
-<Decisions made, and by whom; open questions, naming the owner or the lead.>
+D43, D85. Blocks namespace-measure's T9 verdict (D87).
 
 ## May land early
 
-<Internal code behind tests, unless the quest is a format, wire or public API. "None" when
-everything waits for the review; `land --upto` refuses then.>
+Nothing.
