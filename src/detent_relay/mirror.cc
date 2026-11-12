@@ -422,6 +422,8 @@ AdoptStats MirrorStore::adopt(std::span<const NamespaceLayout> layouts, std::spa
 			}
 			wanted.push_back({&file, std::move(name), {}, {}});
 		}
+	if (wanted.empty() && next.entries == s.table.entries)
+		return stats; // the durable table already holds this layout
 	auto clean = [&] {
 		for (auto &want : wanted)
 			if (!want.temporary.empty())
