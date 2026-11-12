@@ -2892,6 +2892,38 @@
       "title": "Stage 6: updated libraries A-E at immutable pins",
       "updated": "2026-11-08T15:38:25"
     },
+    "logger-wheel-ab": {
+      "accepted": {},
+      "after": [],
+      "base": "b13724b9c8efc02c3161ffa7922fba2d942ef856",
+      "branch": "quest/detent/logger-wheel-ab",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/ab -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/ab && ctest --test-dir .scratch/ab --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "bench/wheel_ab/**",
+        "docs/perf/wheel-ab.md",
+        "CMakeLists.txt"
+      ],
+      "journal": "../Detent-wt/detent/logger-wheel-ab",
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../logger",
+      "risk": "low",
+      "status": "active",
+      "title": "Measure logger on scheduler vs on wheel",
+      "updated": "2026-11-11T21:14:31",
+      "worktree": "../logger-wt/detent/logger-wheel-ab"
+    },
     "m1-pins": {
       "accepted": {},
       "after": [],
@@ -4911,7 +4943,11 @@
         "cmake/dependencies.json",
         "src/detent_local/CMakeLists.txt",
         "src/CMakeLists.txt",
-        "tests/detent_delivery/scripted_upstream.hh"
+        "tests/detent_delivery/scripted_upstream.hh",
+        "docs/design/observability-bench.sh",
+        "docs/design/observability-summary.py",
+        "docs/design/observability-paired.py",
+        "docs/design/observability.md"
       ],
       "landed": [],
       "lenses": [
@@ -4924,7 +4960,7 @@
       "risk": "high",
       "status": "active",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T18:20:21",
+      "updated": "2026-11-11T20:18:16",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
@@ -6296,6 +6332,94 @@
       "title": "Stage 6: startup runtime capacity configuration",
       "updated": "2026-11-08T15:38:26"
     },
+    "stash-niche": {
+      "accepted": {},
+      "after": [
+        "wheel-evidence"
+      ],
+      "base": "f001a607f406fc84bdf745abe73b98b1a9ace531",
+      "branch": "quest/detent/stash-niche",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/design/stash-niche.md",
+        "docs/design/async-drivers-bench/stash_niche*"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "active",
+      "title": "Stash on its own shape: fire-and-forget, wide horizon, before retirement",
+      "updated": "2026-11-11T19:40:54",
+      "worktree": "../Detent-wt/detent/stash-niche"
+    },
+    "superseded-sweep": {
+      "accepted": {},
+      "after": [],
+      "base": "580f3b17206b623b044bf53a2ca77cb4ddd79912",
+      "branch": "quest/detent/superseded-sweep",
+      "checks": [
+        {
+          "cmd": "test -s docs/dev/superseded-libraries.md",
+          "level": "none",
+          "minutes": 30,
+          "name": "ledger"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/dev/superseded-libraries.md"
+      ],
+      "landed": [
+        {
+          "at": "2026-11-11T20:59:03",
+          "commit": "beb0454721f646407df7da7aa10b880d0d4bf589",
+          "criteria": {
+            "A1": "[artifact] `docs/dev/superseded-libraries.md` at 80478d09: rows for stash, scheduler, cluster; users per repo and file; migration order; Proposed; checked-and-current list",
+            "A2": "[manual] lead (2026-11-11): `logger.h:50` includes scheduler.h; Detent `cmake/dependencies.json:105,117` pin scheduler and stash; no repo CMakeLists/cmake json or cmake file names Kronuz/cluster"
+          },
+          "evidence": [
+            {
+              "cmd": "test -s docs/dev/superseded-libraries.md",
+              "commit": "d2e99a702f4e90e1a478a93f8d8dcf39253af685",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-205808-1a3c9a",
+              "level": "none",
+              "seconds": 1.0,
+              "state": "done",
+              "what": "superseded-sweep check ledger at d2e99a702f4e"
+            }
+          ],
+          "final": true,
+          "from": "7db895a76dfa7762fba808e174abb40b09e7147c",
+          "reason": "",
+          "tested": "d2e99a702f4e90e1a478a93f8d8dcf39253af685"
+        }
+      ],
+      "lenses": [],
+      "messages": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "landed",
+      "title": "List superseded cpp-libraries, successors and users",
+      "updated": "2026-11-11T20:59:30",
+      "worktree": ""
+    },
     "sync-groups-perf": {
       "accepted": {},
       "after": [
@@ -6364,6 +6488,49 @@
       "title": "task cancellation, deadlines, inline resume and teardown (C1-C3)",
       "updated": "2026-11-08T15:38:27"
     },
+    "task-wheel": {
+      "accepted": {},
+      "after": [
+        "wheel-lib"
+      ],
+      "base": "d6bce5939385fb8f200d6a8890fba4741a7fd956",
+      "branch": "quest/detent/task-wheel",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "task.hh",
+        "task_asio.hh",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "CMakeLists.txt",
+        "README.md",
+        "ARCHITECTURE.md"
+      ],
+      "journal": "../Detent-wt/detent/task-wheel",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [
+        "wheel-evidence"
+      ],
+      "provides": [],
+      "repo": "../task",
+      "risk": "high",
+      "status": "active",
+      "title": "task::timer_wheel: the one Kronuz wheel (D70), re-arm at the prototype's cost",
+      "updated": "2026-11-11T20:17:39",
+      "worktree": "../task-wt/detent/task-wheel"
+    },
     "wheel-evidence": {
       "accepted": {},
       "after": [],
@@ -6382,17 +6549,90 @@
         "docs/design/wheel-evidence.md",
         "docs/design/async-drivers-bench/wheel_vs_stash*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T19:40:30",
+          "commit": "4c2bf165450afb4d2ec58a5bbfd8181cecc08fab",
+          "criteria": {
+            "A1": "261111-130750-f599af (passed at 512798d349d2; only merges from main since)",
+            "A2": "261111-121549-8cd0f8 (passed at 40a5988ed6d4; only merges from main since), 261111-121551-0e58b1 (passed at 40a5988ed6d4; only merges from main since), 261111-130756-004da8 (passed at 512798d349d2; only merges from main since), 261111-143146-cf9183 (passed at 5ecbeb4c7693; only merges from main since), 261111-130755-91093a (passed at 512798d349d2; only merges from main since)",
+            "A3": "D70 (PLAN.md: (f) adopted on these rows; D69 applied the rule to A5/A6); rule pre-registered at 7a3682c4 before the first measured job",
+            "A4": "`docs/design/wheel-evidence.md`: \"## The pick\"",
+            "A5": "261111-143146-cf9183 (passed at 5ecbeb4c7693; only merges from main since)",
+            "A6": "261111-144149-2a64b9 (passed at 7c62c5dca353; only merges from main since), 261111-144151-4c40f1 (passed at 7c62c5dca353; only merges from main since), 261111-144152-d8a935 (passed at 7c62c5dca353; only merges from main since), 261111-182307-a3c694"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "9b5bc959f7c7278ef4036d1fe03376f1a0344272",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-182314-ea4b17",
+              "level": "light",
+              "seconds": 975.4,
+              "state": "done",
+              "what": "wheel-evidence check suite at 9b5bc959f7c7"
+            }
+          ],
+          "final": true,
+          "from": "db0372573199d98a36415b9ebf2daa3b7166417b",
+          "reason": "",
+          "tested": "062648c35e88a3744a6dca3af36bd3a308d61681"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "M1b",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "One timer wheel for Kronuz: stash or a new wheel, by measurement",
-      "updated": "2026-11-11T11:48:02",
-      "worktree": "../Detent-wt/detent/wheel-evidence"
+      "updated": "2026-11-11T19:40:35",
+      "worktree": ""
+    },
+    "wheel-lib": {
+      "accepted": {},
+      "after": [],
+      "base": "4eff806ec5d15fb86e920567dcaaf35aa2da098b",
+      "branch": "quest/detent/wheel-lib",
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Debug && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4",
+          "level": "light",
+          "minutes": 20,
+          "name": "suite"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "wheel.hh",
+        "test/**",
+        "bench/**",
+        "docs/**",
+        "examples/**",
+        "fuzz/**",
+        "CMakeLists.txt",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md"
+      ],
+      "journal": "../Detent-wt/detent/wheel-lib",
+      "landed": [],
+      "lenses": [
+        "correctness"
+      ],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../wheel",
+      "risk": "high",
+      "status": "active",
+      "title": "Kronuz/wheel: the one timer wheel library (D70, D72)",
+      "updated": "2026-11-11T20:17:49",
+      "worktree": "../wheel-wt/detent/wheel-lib"
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
