@@ -129,7 +129,7 @@ int main() {
 			corrupt[56] ^= 1;
 			write(directory / (l::generation_name(generation) + ".image"), corrupt);
 		}
-		if (variant >= 14) {
+		if (variant >= 14 && variant < 17) {
 			const auto &segment = image.segments().front();
 			auto corrupt = std::string(segment.bytes->view());
 			corrupt.back() ^= 1;
@@ -235,7 +235,7 @@ int main() {
 			} else if (variant >= 4 && variant < 8) {
 				require(injected && collector.error() == failure && core->ledger.stats().used == usage);
 				require(core->ledger.stats().fenced == (variant != 7));
-			} else if (variant == 2 || variant >= 15) {
+			} else if (variant == 2 || variant == 15 || variant == 16) {
 				require(bool(collector.error()) &&
 						std::filesystem::exists(directory / names.payload_name()) &&
 						core->ledger.stats().used == usage);
