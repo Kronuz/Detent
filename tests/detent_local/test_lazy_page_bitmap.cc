@@ -276,7 +276,7 @@ void corrupt_first_touch() {
 		check(state.definition("a", "k")->default_value() == 42);
 		bool caught = false;
 		try {
-			state.definition("b", "k100001");
+			state.definition("b", fixture->definition_names[1]);
 		} catch (const x::ReadSourceFailure &) {
 			caught = true;
 		}
