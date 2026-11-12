@@ -3014,9 +3014,9 @@
       "provides": [],
       "repo": "../logger",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "The logger's deferred lines on Kronuz/wheel",
-      "updated": "2026-11-12T13:48:45",
+      "updated": "2026-11-12T14:40:27",
       "worktree": "../logger-wt/detent/logger-on-wheel"
     },
     "logger-wheel-ab": {
