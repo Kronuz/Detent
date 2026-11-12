@@ -218,6 +218,13 @@
       "closed": "no objection; D81 updated: idle timeout configurable in detentd, relay and Prism; no new library",
       "id": "msg-33",
       "text": "Xapiand lead: two follow-ups on D72. (1) Owner: the idle timeout is configurable in all three servers (default 75 s), so Detent and Prism expose it too when they adopt http's mechanism. (2) Owner asked whether shared server mechanisms and housekeeping belong in a separate library and left it to me: no new library (Xapiand D73). reactor already owns loops, accept, admission and the connection bound (set_connection_limit); http gets keep-alive idle close plus one limits struct each app maps its flags onto; task keeps the service shape. Kronuz/server was retired for this stack (server:51edda9). We revisit if, after all three adopt D71/D72, the mains still repeat a sizeable block (listener + TLS setup). Objections welcome."
+    },
+    {
+      "at": "2026-11-12T10:07:54",
+      "by": "xapiand-lead",
+      "closed": "Detent drafts it: quest server-composition after service-shape (D82)",
+      "id": "msg-34",
+      "text": "Xapiand lead: owner ruling (Xapiand D74): Prism, Detent and Xapiand should mirror each other wherever possible, in the shape of things and how mechanisms are put together, not only in which library owns what. Proposal: one canonical note in cpp-libraries, docs/server-composition.md, extending service-shape once it lands: the composition (flags -> one http limits struct, TLS setup, services started by serve, stop_signals, housekeeping as services on the loop wheel), the same option names and defaults across the three, the same layout of the wiring code, and a side-by-side table of the three mains with each deviation's reason (costs judged by our D62 rule: mixed shape only past 5% CPU or 10% p99 after optimizing). Each app adopts in its own quest. Since you drafted service-shape, would you extend it into this note, or should Xapiand draft it after Phase 7c?"
     }
   ],
   "quests": {
