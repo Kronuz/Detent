@@ -1,16 +1,13 @@
-// The stash-niche rows of docs/design/stash-niche.md: many producers file keys over a horizon,
-// then one consumer drains them in key order, no cancel and no re-arm. The arms: (b) stash as it is
-// (wheel_vs_stash.cc's pieces, included unchanged) and (w) Kronuz/wheel's wheel.hh at wheel:50665c8
-// (stash_niche_wheel.hh, a copy).
+// The stash-niche rows: many producers file keys over a horizon, then one consumer drains them in key
+// order, no cancel and no re-arm. The arms: (b) stash as it is (wheel_vs_stash.cc's pieces,
+// included unchanged; b2 runs it again, the A/A twin) and (w) wheel::timer_wheel (cand_w there).
 //   niche ARM P N HORIZON_MS   P producers file N entries; one consumer drains them in key order
 //   nichemem ARM P N HORIZON_MS  (the COUNT_HEAP build) the structure's heap per key after filing
 //   nichetest                  both arms against every check, small
-// ARM is b (stash, cand_nb below) or w (cand_w below).
+// ARM is b, b2 or w.
 #define main wheel_vs_stash_main
 #include "wheel_vs_stash.cc"
 #undef main
-
-#include "stash_niche_wheel.hh"
 
 #include <sys/resource.h>
 
@@ -67,19 +64,6 @@ struct cand_nb {  // cand_b on niche_stash_wheel
 			return 1;
 		});
 	}
-};
-
-// (w): the library wheel; another thread's arm is `arm_remote`, the owner's loop is expire(now).
-struct cand_w {
-	using entry = wheel::timer_entry;
-	static constexpr bool cross = true;
-	static constexpr const char* shape = "Kronuz/wheel wheel.hh: 4,096 x 1 ms + six upper levels, 64-stripe inbox";
-	std::unique_ptr<wheel::timer_wheel> w;
-	explicit cand_w(u64 base) : w(std::make_unique<wheel::timer_wheel>(base)) {}
-	static u64 deadline(const entry& e) { return e.deadline; }
-	void arm_from(entry& e, u64 d) { w->arm_remote(e, d); }
-	template <class F>
-	std::size_t expire(u64 now, F&& f) { return w->expire(now, [&](entry& e) { f(e); }); }
 };
 
 // Peak resident set so far, in bytes (macOS reports bytes, Linux kilobytes).
@@ -231,9 +215,9 @@ void nichemem(std::string_view arm, std::size_t producers, std::size_t total, u6
 
 template <class F>
 auto niche_dispatch(std::string_view arm, F&& f) {
-	if (arm == "b") { return f(static_cast<cand_nb*>(nullptr)); }
+	if (arm == "b" || arm == "b2") { return f(static_cast<cand_nb*>(nullptr)); }
 	if (arm == "w") { return f(static_cast<cand_w*>(nullptr)); }
-	std::fprintf(stderr, "unknown arm %.*s (b or w)\n", int(arm.size()), arm.data());
+	std::fprintf(stderr, "unknown arm %.*s (b, b2 or w)\n", int(arm.size()), arm.data());
 	std::exit(2);
 }
 
