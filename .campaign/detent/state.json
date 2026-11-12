@@ -3035,7 +3035,11 @@
         "test/**",
         "CMakeLists.txt",
         "ARCHITECTURE.md",
-        "CHANGELOG.md"
+        "CHANGELOG.md",
+        "bench/wheel_ab/**",
+        "docs/perf/**",
+        "README.md",
+        "AGENTS.md"
       ],
       "journal": "../Detent-wt/detent/logger-followups",
       "landed": [],
@@ -3047,7 +3051,7 @@
       "risk": "normal",
       "status": "active",
       "title": "logger: review follow-ups and the scheduler link",
-      "updated": "2026-11-12T15:00:19",
+      "updated": "2026-11-12T15:40:36",
       "worktree": "../logger-wt/detent/logger-followups"
     },
     "logger-on-wheel": {
