@@ -4882,8 +4882,8 @@
     "one-knob-type": {
       "accepted": {
         "correctness": {
-          "at": "2026-11-11T23:38:42",
-          "base": "f4984cb2c6ac538c38e860703d154ae21a6882f2",
+          "at": "2026-11-12T03:46:01",
+          "base": "348f2d67927bf008e2d6612b33029db7d879989e",
           "blobs": {
             "CMakeLists.txt": "100644:b58dc54318aa8536b21db3bf0b5f374c1b244661",
             "QUICKSTART.md": "100644:6e1d59dc4ab880b8fdc4e316aef48bf414a3d7be",
@@ -5148,7 +5148,7 @@
             "website/src/content/docs/settings-and-flags.md": "100644:79f729a65aac0956682aa4795de5b7f90b48d58b"
           },
           "by": "review",
-          "commit": "b1beff41ba601d94491b12f30f4e7d90861ccbe5",
+          "commit": "b6bf90b95c7fa050f41dfdb970ab44af0dee988d",
           "criteria": "9537ba49970000fe",
           "diffs": {
             "": "ab962f69bc58dbc9",
@@ -5532,7 +5532,7 @@
       "risk": "high",
       "status": "review",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T23:38:42",
+      "updated": "2026-11-12T03:46:01",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
