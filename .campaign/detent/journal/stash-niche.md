@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: waiting on jobs 261111-213900-917751 261111-213902-d798e3
+State: waiting on jobs 261111-225202-d8a30c 261111-225206-c080d7 261111-225211-0eb5ec 261111-225215-abef30 261111-225204-6df5aa 261111-225208-e62bf7 261111-225213-02c592 261111-225217-6c3043
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,21 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-D74 (lead): wheel arm = Kronuz/wheel wheel.hh at wheel:50665c8 (vendored as stash_niche_wheel.hh,
-arm "w"), memory gate on total bytes per key; recorded in docs/design/stash-niche.md (107fe6fb).
-Cancelled the earlier rows, memory jobs and probe (they ran the prototype (f)); main merged.
-The prototype smoke 261111-200152-81602e is kept as the reason (82.7M empty wakes of 82.8M).
-Submitted (the first pair, 261111-213553-ca2652 and 261111-213556-6fd40d, failed on quoting of --ref: never ran; resubmitted with each option its own argument, spec checked): checks 261111-213900-917751 (ASan+UBSan, TSan), then smoke 261111-213902-d798e3 on the
-library (strict, after the checks). Rows are not submitted until the smoke shows the 24 h wakes
-near the occupied slots plus cascades.
+Checks 261111-213900-917751 and smoke 261111-213902-d798e3 on wheel:50665c8 passed (valid; 24 h:
+120,808 wakes, 20,875 empty, for 100,000 keys; w/b cost 0.238; 1 s: 0.137). Rows submitted (A1,
+specs checked with `campaign job show`; a first batch with the wrong arguments was cancelled):
+- exclusive rows, 6 D51 b/w pairs at P = 1, 4, 14 each (3 rows per job):
+  1 s x 1,000: 261111-225202-d8a30c; 1 s x 1,000,000: 261111-225206-c080d7;
+  24 h x 1,000: 261111-225211-0eb5ec; 24 h x 1,000,000: 261111-225215-abef30
+- strict memory (bytes per key, count build), same cells in the same order:
+  261111-225204-6df5aa, 261111-225208-e62bf7, 261111-225213-02c592, 261111-225217-6c3043
 
 ## Next
 
-1. Read the smoke: 24 h wakes (calls) vs occupied slots + cascade wakes, its drain time at 1M keys.
-2. Submit the 12 rows (exclusive, <= 10 min each, --for A1): 1 s x 1,000; 1 s x 1M; 24 h x 1,000
-   (6 pairs, P 1/4/14 each); 24 h x 1M per P (PAIR_START split if a run is long); memory jobs
-   (strict) for the four cells.
-3. Summarize all logs with stash_niche_summary.py, write the doc's Results and verdict.
+1. When the jobs finish: `python3 docs/design/async-drivers-bench/stash_niche_summary.py` over the
+   four row logs and four memory logs (job logs under ~/.scratch/campaign/jobs/<id>/a1/log).
+2. A row that comes out inconclusive reruns with 12 pairs (rule 3).
+3. Write the doc's Results and verdict by the rule; fill the Evidence table from `campaign brief`.
 
 ## Blocked on
 
