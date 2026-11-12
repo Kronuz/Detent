@@ -5922,6 +5922,46 @@
       "title": "RC-5: the composed release candidate",
       "updated": "2026-11-08T15:38:09"
     },
+    "reactor-on-wheel": {
+      "accepted": {},
+      "after": [
+        "task-wheel"
+      ],
+      "checks": [
+        {
+          "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
+          "level": "light",
+          "minutes": 30,
+          "name": "suite"
+        }
+      ],
+      "consumes": [
+        "wheel:timer_wheel"
+      ],
+      "files": [
+        "reactor.h",
+        "reactor_events.h",
+        "reactor_lag.h",
+        "test/**",
+        "benchmarks/**",
+        "docs/**",
+        "README.md",
+        "ARCHITECTURE.md",
+        "AGENTS.md",
+        "CHANGELOG.md",
+        "CMakeLists.txt"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": "../reactor",
+      "risk": "normal",
+      "status": "planned",
+      "title": "Reactor loop timers on the wheel",
+      "updated": "2026-11-12T03:59:27"
+    },
     "reactor-task-sessions": {
       "accepted": {},
       "after": [],
