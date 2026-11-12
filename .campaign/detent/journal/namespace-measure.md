@@ -1,6 +1,6 @@
 # namespace-measure: journal
 
-State: waiting on jobs 261112-115039-e2a0e2 261112-115045-0c8be1 261112-115520-7fe532 261112-113801-4be23d
+State: ready for review
 Quest: .campaign/detent/quests/namespace-measure.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,20 +9,11 @@ waiting on jobs <ids>, ready for review, fixing <findings>, blocked on <who>: <w
 
 ## Doing
 
-Resumed 2026-11-12. Read the logs: 261110-204532-499625 (APFS) and 261110-204533-185018 (VM) exit 0, `skip 4096:1` only on APFS (239 s + 353 s > 540 s); no skip in the VM log. T9 261110-204105-976b50 failed: arm full ran (57 s apply), then arm 0.5 died with `invalid paged local image` at 5M. Cause (lldb, delta on a clone of the prepared store): `PagedCursor::step` decoded page headers with default `paged::Limits` (records 500000), so a branch page whose key count passed 504,096 was refused; the 100K smoke never reached it. Main already has the fix (`paged_cursor.cc` uses `paged_format_limits()`), so it was merged (`Detent:4d457cb`, clean); the library is untouched. The prepared store predates the merge: rebuilt by the new chain below. Second defect found: the flush driver read stat index 14 (field 15, discard ticks), so every flush count read 0; fixed to field 16 (`Detent:82757c6`) and the VM job resubmitted.
-
-Jobs at the ported harness (build 261112-113417-855a8e failed: the harness did not compile against main's one-knob types, see ruling 12; the chain below replaces it and its skipped prepare/round/smoke) (the first prepare/round/smoke submit mangled its env under zsh and was cancelled; these are the resubmits): T9 build 261112-115033-5cb640; prepare 261112-115039-e2a0e2; 5M round 261112-115045-0c8be1 (exclusive, budget 540 s, arms `full 0.5 1 0.25 0.05`; the full arm took 63 s in the failed run, so all five are expected to fit); 100K runs 261112-115520-7fe532 (5 runs, replaces the one-round smoke 261112-115051-073a9c, cancelled); VM T4(7) with the flush fix 261112-113801-4be23d.
-
-Pre-read of the rules on data already in hand (to be confirmed in "## Verdicts"):
-- Sync-bound: batched at 71-176 files is 28-32 ms on APFS and 14-32 ms on ext4 (interpolated from 64/128/256), far under 250 ms on both: rule 2 does not fire.
-- Wire (A4): veto does not fire at any alpha in {0.5, 1, 2} (worst sent/missing ratio 64:16 is at most 1.03; worst sent/copy stays under 1.00). Efficiency: hot-heavy mean read/missing is 1.336 at alpha 0.5, 1.257 at alpha 1 (both over 1.25: stay at 16) and 1.158 at alpha 2 (64 passes); moderate and keyset-0.30 pass at all three. So the period follows T9's alpha: 16 for alpha at most 1, 64 at alpha 2.
+Resumed 2026-11-12 and finished. Verdicts are in `docs/perf/namespace-measure.md` "## Verdicts" (`75faac0c`): alpha = 1/8 (1:8), roll-up period 64 by the efficiency rule. T9 on 100K (five runs, exclusive 261112-115520-7fe532): block answers cost a 0.36-0.38 s fixed floor against the copy's 0.34 s, so the crossing is 0.002-0.077 C per run (median of the per-run minima 0.036), under rule 4's 1/8 floor, which sets the policy value. The 5M round 261112-115045-0c8be1 failed (arm full ran: 14.50 s, C 266 MB; arm 0.5 died `invalid warm paged graph` in `paged_warm_validator.cc:13`), so there is no 5M alpha and by rule 6 the 100K median sets it. T4(7): batched at 176 files is 31.0 ms APFS and 32.4 ms ext4, so rule 2 (250 ms) does not fire; the VM flush counter (field 16) reads one flush per file for batched and per-file alike, macOS one per group by construction. Wire at alpha 1/8 (jobs 261112-132124-1b4fd7, 261112-132129-82a3aa, 261112-132134-41fc3c): veto no (worst sent/missing ratio at most 0.994, sent/copy at most 0.144), bands hold (sent mean at most 1.033, read mean at most 1.028): period 64. The rule's benefit premise (22-25% fewer bytes written) shows at alpha 1/8 only for the key set (-23.7%), hot-heavy -9.3%, moderate +2.4%: reported, rule not edited. Stale-evidence reruns at 75faac0c: build 261112-132606-9d21a6, smokes 261112-132606-7ccdd0 and 261112-132606-5cbd7d.
 
 ## Next
 
-1. When the jobs finish: read each log's `skip` lines first. Fit T9 per 100K run (one fit per `round N` block: split the log by round, or run the fit script on each round's JSON lines) and on the 5M log (D85, ruling 14): `python3 -I docs/perf/namespace-measure-t9-fit.py <round log>`; n=1 per size and no f=1 point if arm 1 is cut, so report R^2 and alpha as an interval; if the interval straddles a threshold, D55 allows one second run with the cut arms. If alpha is not in {0.5, 1, 2}, submit `model wire SHAPE alpha` (light) for the three shapes.
-2. VM flush counts from 261112-113801-4be23d (`flush` lines), batched vs per-file; APFS by construction.
-3. Pins passed at ae46477b (261112-113923-c7fdbf, exit 0); rerun `campaign verify namespace-measure` after the last code commit if it is flagged; rerun any evidence job still flagged stale.
-4. Write "## Verdicts" in `docs/perf/namespace-measure.md` (T9 alpha, T4(7) sync-bound, period, flush counts); the Rules text says completion:ab0f551 and flush field 15: say in the verdict that the probe is completion:560c288 (ruling 9) and the counter is field 16 (ruling 10). The design's numbers (outside the file set): report to the lead.
+1. Lead: review; apply "The design's numbers to change" (six items in the Verdicts) to `docs/design/namespace-delivery.md`, outside this quest's files; decide the 1/8 floor (the crossing is under it), the period if the written-bytes premise matters, and a quest for the 5M delta `invalid warm paged graph` defect.
 
 ## Blocked on
 
@@ -38,15 +29,18 @@ you examined, failures included, and answer each message by its id (msg-N).
 |---|---|
 | A1 | `docs/perf/namespace-measure.md`: "## Rules" (committed before any job) |
 | A2 | build 261112-115033-5cb640; prepare 261112-115039-e2a0e2; 100K runs 261112-115520-7fe532 (5 runs, replaces the one-round smoke 261112-115051-073a9c, cancelled); 5M round 261112-115045-0c8be1 (replaces the failed 261110-204105-976b50 (invalid paged local image at 5M, fixed on main) and the ten cancelled round jobs 261110-134436-aaa766 .. 261110-134447-cfa18b) |
-| A3 | build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); VM rerun with the flush-counter fix 261112-113801-4be23d (its flush lines replace 261110-204533-185018's zeros); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded |
-| A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30), all exit 0 |
-| A5 | pending |
+| A3 | verdict table in `docs/perf/namespace-measure.md` "T4(7)": build 261110-204305-dd5888; size check 261110-204307-3ae1e8; APFS 261110-204532-499625; VM 261110-204533-185018 (replace the ten cancelled part jobs 261110-134854-e31ee8 .. 261110-134912-536089 and the void pair 261110-204113-306c02, 261110-204114-8079b0); VM rerun with the flush-counter fix 261112-113801-4be23d (its flush lines replace 261110-204533-185018's zeros); the older build 261110-132140-883986 and smokes 261110-132141-33bbc2, 261110-132141-b4d4a3 ran ab0f551 and are superseded (rerun at 75faac0c: 261112-132606-9d21a6, 261112-132606-7ccdd0, 261112-132606-5cbd7d) |
+| A4 | wire jobs 261110-132004-7e9617 (moderate), 261110-132005-0cd390 (hot-heavy), 261110-132006-e840b1 (keyset-0.30), alpha 0.5/1/2; and at T9's alpha 0.125: 261112-132124-1b4fd7, 261112-132129-82a3aa, 261112-132134-41fc3c, all exit 0 |
+| A5 | `docs/perf/namespace-measure.md`: "## Verdicts" (`75faac0c`) |
 
 ## Result
 
-<When ready for review: what changed, its measured effect with numbers and the jobs behind them,
-and what it leaves open. Results and how it works go in the docs of the repository it changed
-(docs/perf/, docs/mechanisms/, a library's own); name them here. `campaign map` shows this.>
+alpha = 1/8 (alpha_num 1, alpha_den 8); roll-up period 64. Written up with tables in `docs/perf/namespace-measure.md` "## Verdicts".
+
+1. T9 (100K, five exclusive runs, 261112-115520-7fe532): full copy 0.340 s (C 4.998 MB); block answers 0.361 / 0.627 / 0.903 / 1.228 s at 0.048 / 0.236 / 0.470 / 0.939 C. Crossing 0.002-0.077 C per run, floor rule gives 1/8. At C/8 a block answer is 0.11-0.17 s (33-50%) slower than the copy. Relay encode CPU 0.003-0.036 s per answer; bytes read about 1.7-1.8 times sent. 5M: full arm only (14.50 s, 266 MB); arm 0.5 failed `invalid warm paged graph`, so the 100K median sets alpha and the 5M has no alpha and no spread.
+2. T4(7): batched 26 / 13 ms (64 files, APFS / ext4), 31 / 32 ms at 176 files; per-file 1,385 / 87 ms at 64. ext4: one device flush per file, batched or not; macOS one per group (by construction). Rule 2 does not fire.
+3. Period: wire veto no; efficiency bands hold at alpha 1/8 (sent mean at most 1.033 of period 16, read mean at most 1.028): 64. Written bytes at 1/8: moderate +2.4%, hot-heavy -9.3%, key set -23.7% against the rule's premise of 22-25% fewer.
+4. Open: the 5M delta apply defect (library, outside the file set); the 1/8 floor sits above the crossing; the design's numbers to change are six items in the Verdicts (alpha, period, model tables at alpha 1, T4(7), T9 row); the `layout` mode takes no alpha argument so its tables are not rerun.
 
 ## Rulings I made
 
