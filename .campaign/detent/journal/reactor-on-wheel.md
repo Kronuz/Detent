@@ -1,6 +1,6 @@
 # reactor-on-wheel: journal
 
-State: working
+State: waiting on jobs 261112-115020-3a3dea 261112-115026-65553f
 Quest: .campaign/detent/quests/reactor-on-wheel.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,15 +9,17 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-<The current step, precisely enough for a fresh contributor to continue it.>
+Code done at reactor:99aff1b (quest branch): accept retry and LagProbe are wheel entries; docs written.
+Waiting on the exclusive A/B (261112-115020-3a3dea) and the suite (261112-115026-65553f).
 
 ## Next
 
-1. <step>
+1. Read the A/B lines; fill A2 numbers; record Evidence and Result.
+2. A4 stays open until Xapiand's manager.cc moves (see Blocked on).
 
 ## Blocked on
 
-<What, and who decides. "Nothing" when nothing.>
+A4 (remove PeriodicTimer): its last user is Xapiand's src/manager.cc (try_shutdown_timer, `reactor_events.h` include), moved by the Xapiand campaign. Not started here; A1-A3 may land early.
 
 ## Evidence
 
