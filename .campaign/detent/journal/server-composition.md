@@ -22,8 +22,8 @@ Nothing. Questions Q1-Q5 in the note carry options and recommendations (owner or
 
 | Criterion | Evidence |
 |---|---|
-| A1 | `docs/server-composition.md`: "Composition"; seven steps (options, limits as `http::Limits`, TLS, loop and services, `serve`, signals, housekeeping), each with the code it calls; the check in "Checks" prints 7 |
-| A2 | `docs/server-composition.md`: "Options"; eight rows (connection bound, in-flight cap, idle timeout, shutdown bound, TLS files, port, bind, reactors), each app's spelling with file:line; `rg -c '^\| `--'` prints 8 |
+| A1 | `docs/server-composition.md`: "Composition"; seven steps (options, limits as http::Limits, TLS, loop and services, `serve`, signals, housekeeping), each with the code it calls; the check in "Checks" prints 7 |
+| A2 | `docs/server-composition.md`: "Options"; eight rows (connection bound, in-flight cap, idle timeout, shutdown bound, TLS files, port, bind, reactors), each app's spelling with file:line; the Options check prints 8 |
 | A3 | `docs/server-composition.md`: "Mains"; eight steps by four mains, file:line cells; the deviation table names each reason and its D62 status. No deviation has a D62 case today; the 1 ms driver loops are the one that can earn one |
 | A4 | the Xapiand lead agrees at cpp-libraries:b1c27d9 once F1-F3 are in the text; the lead folded F1-F3, the owner's Xapiand D76 and D77 rulings and the sizing at cpp-libraries:2fd6ecb |
 
