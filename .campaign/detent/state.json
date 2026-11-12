@@ -8325,6 +8325,8 @@
         "task-wheel",
         "wheel-vs-stash"
       ],
+      "base": "bfd72bc13395e4a232701e752be97ccd236530fc",
+      "branch": "quest/detent/wheel-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure",
@@ -8340,6 +8342,7 @@
         "docs/**",
         "test/**"
       ],
+      "journal": "../Detent-wt/detent/wheel-followups",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -8347,9 +8350,10 @@
       "provides": [],
       "repo": "../wheel",
       "risk": "low",
-      "status": "planned",
+      "status": "active",
       "title": "Wheel review follow-ups: N4, R1, R2",
-      "updated": "2026-11-12T11:05:15"
+      "updated": "2026-11-12T15:49:19",
+      "worktree": "../wheel-wt/detent/wheel-followups"
     },
     "wheel-lib": {
       "accepted": {
