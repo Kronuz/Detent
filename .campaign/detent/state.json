@@ -2979,6 +2979,8 @@
     "logger-followups": {
       "accepted": {},
       "after": [],
+      "base": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+      "branch": "quest/detent/logger-followups",
       "checks": [
         {
           "cmd": "cmake -S . -B .scratch/b -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build .scratch/b && ctest --test-dir .scratch/b --output-on-failure",
@@ -2996,6 +2998,7 @@
         "ARCHITECTURE.md",
         "CHANGELOG.md"
       ],
+      "journal": "../Detent-wt/detent/logger-followups",
       "landed": [],
       "lenses": [],
       "milestone": "",
@@ -3003,9 +3006,10 @@
       "provides": [],
       "repo": "../logger",
       "risk": "normal",
-      "status": "planned",
+      "status": "active",
       "title": "logger: review follow-ups and the scheduler link",
-      "updated": "2026-11-12T15:00:10"
+      "updated": "2026-11-12T15:00:19",
+      "worktree": "../logger-wt/detent/logger-followups"
     },
     "logger-on-wheel": {
       "accepted": {
