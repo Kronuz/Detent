@@ -6448,17 +6448,48 @@
         "docs/design/wheel-evidence.md",
         "docs/design/async-drivers-bench/wheel_vs_stash*"
       ],
-      "landed": [],
+      "landed": [
+        {
+          "at": "2026-11-11T19:40:30",
+          "commit": "4c2bf165450afb4d2ec58a5bbfd8181cecc08fab",
+          "criteria": {
+            "A1": "261111-130750-f599af (passed at 512798d349d2; only merges from main since)",
+            "A2": "261111-121549-8cd0f8 (passed at 40a5988ed6d4; only merges from main since), 261111-121551-0e58b1 (passed at 40a5988ed6d4; only merges from main since), 261111-130756-004da8 (passed at 512798d349d2; only merges from main since), 261111-143146-cf9183 (passed at 5ecbeb4c7693; only merges from main since), 261111-130755-91093a (passed at 512798d349d2; only merges from main since)",
+            "A3": "D70 (PLAN.md: (f) adopted on these rows; D69 applied the rule to A5/A6); rule pre-registered at 7a3682c4 before the first measured job",
+            "A4": "`docs/design/wheel-evidence.md`: \"## The pick\"",
+            "A5": "261111-143146-cf9183 (passed at 5ecbeb4c7693; only merges from main since)",
+            "A6": "261111-144149-2a64b9 (passed at 7c62c5dca353; only merges from main since), 261111-144151-4c40f1 (passed at 7c62c5dca353; only merges from main since), 261111-144152-d8a935 (passed at 7c62c5dca353; only merges from main since), 261111-182307-a3c694"
+          },
+          "evidence": [
+            {
+              "cmd": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
+              "commit": "9b5bc959f7c7278ef4036d1fe03376f1a0344272",
+              "exit": 0,
+              "host": "kronuz",
+              "job": "261111-182314-ea4b17",
+              "level": "light",
+              "seconds": 975.4,
+              "state": "done",
+              "what": "wheel-evidence check suite at 9b5bc959f7c7"
+            }
+          ],
+          "final": true,
+          "from": "db0372573199d98a36415b9ebf2daa3b7166417b",
+          "reason": "",
+          "tested": "062648c35e88a3744a6dca3af36bd3a308d61681"
+        }
+      ],
       "lenses": [],
+      "messages": [],
       "milestone": "M1b",
       "needs": [],
       "provides": [],
       "repo": ".",
       "risk": "low",
-      "status": "active",
+      "status": "landed",
       "title": "One timer wheel for Kronuz: stash or a new wheel, by measurement",
-      "updated": "2026-11-11T11:48:02",
-      "worktree": "../Detent-wt/detent/wheel-evidence"
+      "updated": "2026-11-11T19:40:35",
+      "worktree": ""
     }
   },
   "suite": "cmake -S . -B .scratch/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_OSX_SYSROOT= -DDETENT_BUILD_AUTHORITY=ON -DDETENT_BUILD_RELAY=ON -DDETENT_BUILD_MANAGED_AGENT=ON -DDETENT_BUILD_EXAMPLES=OFF -DDETENT_BUILD_BENCHMARKS=ON -DDETENT_BUILD_TESTS=ON && cmake --build .scratch/build -j4 && ctest --test-dir .scratch/build --output-on-failure -j4 --timeout 900",
