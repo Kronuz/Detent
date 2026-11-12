@@ -2977,7 +2977,44 @@
       "updated": "2026-11-08T15:38:25"
     },
     "logger-on-wheel": {
-      "accepted": {},
+      "accepted": {
+        "correctness": {
+          "at": "2026-11-12T14:59:30",
+          "base": "dce25388ec0487bff2b6e0265b22abb67442c26b",
+          "blobs": {
+            "ARCHITECTURE.md": "100644:13369b359041754cc57b6c81c380002c007dd050",
+            "CHANGELOG.md": "100644:35ad74c7731a2592463de1d1f695a61112f353a5",
+            "CMakeLists.txt": "100644:d81760fc360be725b035807d84384649ec309109",
+            "README.md": "100644:e38c540224d68fb434da2741e077faeb30e686fa",
+            "docs/perf/wheel-port.md": "100644:be67f43657458664d0143196a393fd739b2c64cd",
+            "docs/perf/wheel-port.sh": "100755:06b82c8eb40832649748b7f9b3dab9493bc6063a",
+            "logger.cc": "100644:82ee383d6fd9dc9c51b8ae284e31964c6e15c17c",
+            "logger.h": "100644:85379e31d54ed295b0fb9d01ccc7524aa3871426",
+            "test/deferred.cc": "100644:14096619c92a4cbdded629c530451905735366f0",
+            "test/deferred_mutant.sh": "100755:372d42717ce002b8e34898eb54ed9af7d1ff5f41"
+          },
+          "by": "review",
+          "commit": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "criteria": "84c1a837a27a9d24",
+          "diffs": {
+            "ARCHITECTURE.md": "3ef59d7f4c033f0d",
+            "CHANGELOG.md": "9d948d6c82b5a2bd",
+            "CMakeLists.txt": "fc6eaab8aac72278",
+            "README.md": "dd0827316979c9b5",
+            "docs/perf/wheel-port.md": "c1b9e0511940ac57",
+            "docs/perf/wheel-port.sh": "f36d18108f3f11bd",
+            "logger.cc": "8481ff960462cb7c",
+            "logger.h": "29d33c2c469ffe19",
+            "test/deferred.cc": "d1a4e8bebe22d284",
+            "test/deferred_mutant.sh": "4c4ecb0bd3baa9af"
+          },
+          "findings": {},
+          "note": "",
+          "review": "7293a2de13a49dc0d152ba12e350dd6c15bdc52e",
+          "reviewed": "67391e63f8f4bfc4edaf8a4da9f6b24285c32b84",
+          "verdict": "APPROVE"
+        }
+      },
       "after": [],
       "base": "dce25388ec0487bff2b6e0265b22abb67442c26b",
       "branch": "quest/detent/logger-on-wheel",
@@ -3016,7 +3053,7 @@
       "risk": "high",
       "status": "review",
       "title": "The logger's deferred lines on Kronuz/wheel",
-      "updated": "2026-11-12T14:40:27",
+      "updated": "2026-11-12T14:59:30",
       "worktree": "../logger-wt/detent/logger-on-wheel"
     },
     "logger-wheel-ab": {
