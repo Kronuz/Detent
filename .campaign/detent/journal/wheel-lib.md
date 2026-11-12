@@ -27,6 +27,7 @@ measured tightly enough to decide 1.10x).
 - Disassembly 261112-053944-8a557a: at 45f98eb the armed path (re-arm, cancel) is 5 instructions
   shorter (unlink's one compare); the unarmed arm adds a load of e.next (pprev's line) and one
   not-taken jne: clang splits `queued() | (e.next != nullptr)` into two branches.
+- wheel:ec5439a: AGENTS describes the paired method (docs only).
 - Jobs: Q1 A/B (w at f540679 vs head, a from both builds, plain and -mbranches-within-32B-
   boundaries) 261112-053956-3b0fae; single row R = 40 261112-054000-50cdce; cross row R = 40
   261112-054004-86840d.
@@ -137,7 +138,11 @@ Reruns at wheel:f729317: mutants 261111-213036-87dba7, -aa6c77, -c02379, -f26d0f
 
 ## Next
 
-1. Read the A1 rows (the cross row at P = 1 decides A1 per the lead). Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
+1. Read 261112-053956-3b0fae (Q1: w.new/w.old and a.new/a.old, plain and JCC-aligned),
+   261112-054000-50cdce (single R = 40) and 261112-054004-86840d (cross R = 40; is producer_cpu_ns
+   tighter than producer_ns at P = 4, 14; ghz and speed_limit per run). Queued behind another
+   quest's light ASan hold until about 06:24. Then write the A1 verdict and the Cost section.
+2. Read the A1 rows (the cross row at P = 1 decides A1 per the lead). Then the Evidence table at 45f98eb and `campaign accept wheel-lib correctness
    --confirm F1=261112-045015-68d268` (the lead's).
 2. A7 re-review by the Xapiand lead.
 
