@@ -1,0 +1,11 @@
+if(TARGET detent::relay_mirror)
+  add_executable(test_relay_mirror test_relay_mirror.cc)
+  target_link_libraries(test_relay_mirror PRIVATE detent::relay_mirror hashes::hashes)
+  add_test(NAME test_relay_mirror COMMAND test_relay_mirror ${CMAKE_CURRENT_BINARY_DIR}/relay-mirror)
+  set_tests_properties(test_relay_mirror PROPERTIES TIMEOUT 120)
+
+  add_executable(test_relay_mirror_crash test_relay_mirror_crash.cc)
+  target_link_libraries(test_relay_mirror_crash PRIVATE detent::relay_mirror hashes::hashes)
+  add_test(NAME test_relay_mirror_crash COMMAND test_relay_mirror_crash ${CMAKE_CURRENT_BINARY_DIR}/relay-mirror-crash)
+  set_tests_properties(test_relay_mirror_crash PROPERTIES TIMEOUT 900)
+endif()
