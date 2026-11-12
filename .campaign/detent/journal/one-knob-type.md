@@ -1,32 +1,30 @@
 # one-knob-type: journal
 
-State: waiting on jobs 261111-153615-1a7748 (keep-going build: every compile error at once),
-261111-154349-807bef (A3 dense-model page bytes, main/fixed/varint, 100k and 5m)
+State: waiting on jobs: suite 261111-155807-cb02cd, docs e2e 261111-155850-5c3022, A4
+261111-155953-49f092, A3 pages 261111-160108-f85bd5 / 261111-160112-7622b7, prepare
+261111-160115-cd686a, measure pairs 100k 261111-160223-33ccf1 .. 261111-160246-89a9b4 and 5m
+261111-160253-8a189d .. 261111-160320-9a6ce7, A2 mutants 261111-160430-003e1d,
+261111-160438-1b4841
 Quest: .campaign/detent/quests/one-knob-type.md (the lead's; never edit it)
 
 ## Doing
 
-Session 2. Fixed the one known compile error (protocol.cc DefinitionDecoder member order,
-Detent:6eb6e566's parent), merged main (docs-e2e), moved the four docs-e2e pages and
-tests/docs/check_docs.py to the single type (check_docs.py's knob-type space removed). Waiting for
-the keep-going build's error list.
+Session 2. The tree builds: the keep-going build 261111-153615-1a7748 (examples, benchmarks,
+authority, relay, agent, tests) found only test_paged_leaf_body.cc beyond the protocol.cc member
+order; both fixed. Repaired sed damage in test_model_and_schema.cc (duplicate rollout_value keys,
+shape rejections of valid shapes). A1's differential now compares against main's answers recorded
+by a job (tests/detent/one_knob_main.hex, 57,888 cells, main Detent:2d2fdf67, job
+261111-154846-1d1d38) instead of a frozen copy of the evaluator. Docs-e2e pages and check_docs.py
+on the single type. A3 page bytes from job 261111-154349-807bef in the design note, columns
+defined (lead finding).
 
 ## Next
 
-1. Fix every error from 261111-153615-1a7748's log; then `campaign verify one-knob-type --for
-   A1,A2` (suite) and a docs e2e job (`tests/docs/run_e2e.py`).
-2. A3: the fixed arm at Detent:7d2c82fc has the same protocol.cc error, so its C++ numbers need a
-   compiling fixed-width tree: a side commit off the green head with the fixed body restored
-   (only for page bytes from the C++ full build; the model job covers both bodies). Then pages and
-   prepare jobs, then `measure` as exclusive jobs (100k, 5m) for the varint head against main.
-   Reconcile the design note's table (lead finding): define the columns (page bytes = 64 B page
-   headers + node bytes (leaf 4 + key suffix + body; branch) + 68 B per external, pages are
-   variable length up to 4 KiB, never padded) and take numbers only from jobs; the old main row
-   was the C++ full build and the fixed/varint rows hand model runs.
-3. A4: grep job over src include bindings tests tools examples benchmarks (excluding
-   benchmarks/container-alternative/*.patch, history prototypes) plus a build with
-   DETENT_BUILD_PYTHON/RUST and targets detent_python_test, detent_rust_test.
-4. A2 mutant: `--fails-without` on `definition_error`.
+1. Suite result; fix failures. Then the final evidence at the final head (suite, docs e2e, A4,
+   mutants rerun if code moved).
+2. A3: after the 12 pair jobs, `docs/perf/one-knob-type.sh report OUT SIZE` (level none) per
+   size; fill the design note's speed table and docs/perf/one-knob-type.md.
+3. Result, CHANGELOG entry text, Evidence table from `campaign brief`.
 
 ## Blocked on
 
@@ -58,6 +56,15 @@ the keep-going build's error list.
 Not yet.
 
 ## Rulings I made
+
+- R11 The fixed-width arm is measured by the dense model only: the model equals main's C++ full
+  build exactly (3,245 pages, 6,209,298 B on 100K), and the pages jobs check the varint C++ build
+  against the model too. Speed is measured for the chosen body (varint) against main; the fixed
+  arm loses by 18-19% page bytes before speed matters.
+- R12 A1 records main's answers (one_knob_record.sh at `--ref BASELINE=main`) rather than keeping
+  a frozen copy of main's evaluator: the recording is main's own code, the test reads its bits.
+- R13 Exclusive timing jobs are capped at 10 minutes, so A3 timing runs one D51 pair per job
+  (`measure ... A-B`) and `report` takes the verdicts over all six.
 
 - R1 JSON: no `type`; `rollout_value` is required when the definition has any percentage
   (knob-wide or group) and refused otherwise (explicit; A2's "rollout value without a rollout").
