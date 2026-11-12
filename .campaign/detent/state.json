@@ -4958,9 +4958,9 @@
       "provides": [],
       "repo": ".",
       "risk": "high",
-      "status": "active",
+      "status": "review",
       "title": "One knob type: targeted integers",
-      "updated": "2026-11-11T20:18:16",
+      "updated": "2026-11-11T23:24:26",
       "worktree": "../Detent-wt/detent/one-knob-type"
     },
     "persistent-map-adoption": {
