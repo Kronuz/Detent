@@ -6332,6 +6332,32 @@
       "updated": "2026-11-11T19:40:54",
       "worktree": "../Detent-wt/detent/stash-niche"
     },
+    "superseded-sweep": {
+      "accepted": {},
+      "after": [],
+      "checks": [
+        {
+          "cmd": "test -s docs/dev/superseded-libraries.md",
+          "level": "none",
+          "minutes": 30,
+          "name": "ledger"
+        }
+      ],
+      "consumes": [],
+      "files": [
+        "docs/dev/superseded-libraries.md"
+      ],
+      "landed": [],
+      "lenses": [],
+      "milestone": "",
+      "needs": [],
+      "provides": [],
+      "repo": ".",
+      "risk": "low",
+      "status": "planned",
+      "title": "List superseded cpp-libraries, successors and users",
+      "updated": "2026-11-11T20:49:34"
+    },
     "sync-groups-perf": {
       "accepted": {},
       "after": [
