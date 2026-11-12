@@ -1,6 +1,6 @@
 # stash-niche: journal
 
-State: waiting on jobs 261111-225202-d8a30c 261111-225206-c080d7 261111-225211-0eb5ec 261111-225215-abef30 261111-225204-6df5aa 261111-225208-e62bf7 261111-225213-02c592 261111-225217-6c3043
+State: waiting on jobs 261111-231503-9f6729 261111-231504-ab1b64 261111-231504-105c4b 261111-231505-db629f 261111-231503-c6e0f3 261111-231504-d0ab1d 261111-231504-a7001e 261111-231505-46ce45
 Quest: .campaign/detent/quests/stash-niche.md (the lead's; never edit it)
 
 Keep this current and commit it with the work, so a fresh contributor can continue. `campaign
@@ -9,21 +9,22 @@ ready for review, fixing <findings>, blocked on <who>: <what>.
 
 ## Doing
 
-Checks 261111-213900-917751 and smoke 261111-213902-d798e3 on wheel:50665c8 passed (valid; 24 h:
-120,808 wakes, 20,875 empty, for 100,000 keys; w/b cost 0.238; 1 s: 0.137). Rows submitted (A1,
-specs checked with `campaign job show`; a first batch with the wrong arguments was cancelled):
-- exclusive rows, 6 D51 b/w pairs at P = 1, 4, 14 each (3 rows per job):
-  1 s x 1,000: 261111-225202-d8a30c; 1 s x 1,000,000: 261111-225206-c080d7;
-  24 h x 1,000: 261111-225211-0eb5ec; 24 h x 1,000,000: 261111-225215-abef30
-- strict memory (bytes per key, count build), same cells in the same order:
-  261111-225204-6df5aa, 261111-225208-e62bf7, 261111-225213-02c592, 261111-225217-6c3043
+The first rows (261111-225202-d8a30c, -225206-c080d7, -225211-0eb5ec, -225215-abef30; memory
+-225204-6df5aa, -225208-e62bf7, -225213-02c592, -225217-6c3043) finished, all 144 runs valid, and
+the doc's Results and verdict (899c8bd7, 90309fe6) quote them: no use is kept, retirement stands;
+stash wins time only at 24 h x 1,000 keys for P = 1 and 4; the memory gate fails stash everywhere;
+no row inconclusive. `campaign brief` flagged those jobs as "ran other code" (only the doc and
+journal changed after them), so all eight were rerun at 90309fe6:
+- rows: 261111-231503-9f6729 (1 s x 1,000), 261111-231504-ab1b64 (1 s x 1M),
+  261111-231504-105c4b (24 h x 1,000), 261111-231505-db629f (24 h x 1M)
+- memory: 261111-231503-c6e0f3, 261111-231504-d0ab1d, 261111-231504-a7001e, 261111-231505-46ce45
 
 ## Next
 
-1. When the jobs finish: `python3 docs/design/async-drivers-bench/stash_niche_summary.py` over the
-   four row logs and four memory logs (job logs under ~/.scratch/campaign/jobs/<id>/a1/log).
-2. A row that comes out inconclusive reruns with 12 pairs (rule 3).
-3. Write the doc's Results and verdict by the rule; fill the Evidence table from `campaign brief`.
+1. When the reruns finish: summarize them (stash_niche_summary.py over the eight logs); replace the
+   doc's tables and job ids with the rerun's numbers; check the verdict still follows the rule
+   (a row inconclusive reruns with 12 pairs).
+2. Fill the Evidence table from `campaign brief`; State "ready for review".
 
 ## Blocked on
 
