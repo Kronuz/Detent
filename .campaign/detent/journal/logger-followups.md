@@ -1,15 +1,15 @@
 # logger-followups: journal
 
-State: waiting on jobs 261112-153011-56511a 261112-153013-18f5d2 261112-153016-7eaa61 261112-153028-970fc1
+State: ready for review
 Quest: .campaign/detent/quests/logger-followups.md (the lead's; never edit it)
 
 ## Doing
 
-Code at logger:0379a75 (branch quest/detent/logger-followups); all four findings fixed, jobs queued.
+Done: logger:c535062 (branch quest/detent/logger-followups), all jobs green.
 
 ## Next
 
-1. `campaign wait` the four jobs; paste `campaign brief`'s table here; answer anything a job shows; ready for review.
+1. Review; CI needs the branch pushed (lead).
 
 ## Blocked on
 
@@ -32,10 +32,15 @@ Jobs prove criteria by their tags (`--for A1`); paste `campaign brief`'s generat
 
 | Criterion | Evidence |
 |---|---|
-| A1 | 261112-153013-18f5d2 (pending) |
-| A2 | 261112-153011-56511a (suite), 261112-153028-970fc1 (grep) (pending) |
-| A3 | 261112-153016-7eaa61 (mutant, fails without), 261112-153011-56511a (suite incl. logger_deferred_ties) (pending) |
+| A1 | 261112-153821-14b5c8 |
+| A2 | 261112-153819-dedbc0, 261112-153829-bcbeff |
+| A3 | 261112-153819-dedbc0; fails without: 261112-153648-ec9876, 261112-153825-06b388 |
 | A4 | `ARCHITECTURE.md`: "so the batch rarely takes an insert" |
+
+A1's job runs logger_deferred, _stress and _ties 50 times each (150 passes) under one busy loop per
+CPU, with the lateness bound off (DEFERRED_LOADED: its first run failed that bound at p99 5.3 ms against
+4.9 ms, which a loaded machine has no claim to; the suite job keeps the bound on). A3's `fails without` is
+`test/deferred_mutant.sh`: the early and late arms and the new `ties` mutant are each killed.
 
 ## Result
 
@@ -51,6 +56,15 @@ loop per CPU. F4: ARCHITECTURE.md. F6: CMake fetches threadpool (63e03a5, the sc
 and links threadpool::threadpool; test/frozen is replaced by test/transcript.golden (33 KB, the
 bytes the frozen implementation wrote; old == new checked before it was committed), compared by
 test/transcript.cmake, so the transcript now runs under TSan too. CHANGELOG has the entry.
+
+Pre-existing, the lead's: `logger_queue`'s exit-without-finish test (the child's Finisher joins the LOG
+thread for 200 ms, then statics are destroyed under it; the child dies with SIGSEGV in `Logging::emit`)
+failed 5 times in a row in the 15:30-15:33 window (suite jobs 261112-153105-e27767, 261112-153300-08fa45
+and local ctest), and 3 of 150 child runs on logger:67391e6 (main) at 15:35, so it is not this quest's
+change; CPU load alone does not reproduce it (261112-153624-32e3d0 at main: 0 of 300 under a busy loop per
+CPU; 261112-153632-87ee53 at the head: 0 of 300), so it looks like slow disk writes while other jobs build.
+Not fixed here (a longer or unbounded join changes what exit does when a handler stalls): a decision for
+the lead. The suite at the head passed (261112-153819-dedbc0).
 
 ## Rulings I made
 
